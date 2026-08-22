@@ -1798,6 +1798,8 @@ familiar-looking or failure-shaped vocabulary the builders actually used.
     content refusal, or declares a queued mutation settled.
     Expected pages: `recipes/auth-transition-writes.md`.
     Route terms: "SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED", "eager route-entry receipt", "background writes during auth transitions", "authorization-suspended foreground".
+    Required guidance: "declare `{ key, idempotent: true, successorValid: true }` only for latest-wins housekeeping", "`blockedReason: auth-barrier` means zero transport", "foreground admission is independent of suspended housekeeping", "observe `SNAPBACK_HOUSEKEEPING_SUPERSEDED` through mutation status".
+    Rejected guidance: "mark foreground gestures as housekeeping", "retry on a timer while auth changes".
 
 62. **Presence heartbeat versus bound value:** "My typing indicator is stuck
     and presence is not expiring under the five-second ceiling. I passed

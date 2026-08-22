@@ -12,8 +12,10 @@
 import { hex, sha256 } from './rqs.mjs';
 import {
   allOutboxRecords,
+  createOutboxAuthorizationDispatchGate,
   emptyOutboxState,
   outboxOps,
+  outboxAuthorizationStatus,
   pendingAcknowledgementsFor,
   pendingOutboxRecords,
   unresolvedOutboxRecords,
@@ -503,6 +505,7 @@ export async function createSqliteRqsResumeStore({
     await writeRecord('outbox', 'state', applied.state);
     return clone(applied.result);
   }));
+  const withAuthorizationDispatch = createOutboxAuthorizationDispatchGate();
 
   const wipeSections = async ({ preserveOutbox }) => {
     const meta = wipeStoreMeta(await readMeta(), { randomBytes });
@@ -525,10 +528,45 @@ export async function createSqliteRqsResumeStore({
     ));
     return true;
   });
+  const authorityTransitionWipeWithinDispatch = (
+    authorityTransitionKey = null,
+    authorityTransitionEpoch = null,
+    options = undefined,
+  ) => serialized(async () => {
+    let authorityCurrent = false;
+    const wiped = await writeTransaction('authority-wipe', async () => {
+      const advanced = outboxOps.advanceAuthorizationAuthority(
+        await readOutbox(),
+        authorityTransitionKey,
+        authorityTransitionEpoch,
+        options,
+      );
+      if (advanced.result.status === 'authority-current') {
+        authorityCurrent = true;
+        return true;
+      }
+      const sectionsWiped = await wipeSections({ preserveOutbox: true });
+      if (!sectionsWiped) return false;
+      await writeRecord('outbox', 'state', advanced.state);
+      return true;
+    });
+    if (!wiped || authorityCurrent) return wiped;
+    await exec('PRAGMA wal_checkpoint(TRUNCATE)', 'authority-wipe:checkpoint-truncate');
+    await writeTransaction('authority-wipe-cleanup-confirm', () => (
+      writeRecord('store_meta', 'cleanup', { required: false })
+    ));
+    return true;
+  });
+  const authorityTransitionWipe = (...args) => withAuthorizationDispatch(
+    () => authorityTransitionWipeWithinDispatch(...args),
+  );
 
   const store = {
     isWriter() { return !closed; },
     whenLockSettled() { return Promise.resolve(); },
+    withOutboxAuthorizationDispatch(operation, options = undefined) {
+      return withAuthorizationDispatch(operation, options);
+    },
     subscribeWriterLock(listener) {
       if (typeof listener !== 'function') throw new TypeError('listener must be a function');
       writerLockListeners.add(listener);
@@ -591,7 +629,9 @@ export async function createSqliteRqsResumeStore({
     outboxEmpty() {
       return serialized(async () => {
         if (relaunchOutboxEmpty !== null && (await relaunchOutboxEmpty()) !== true) return false;
-        return unresolvedOutboxRecords(await readOutbox()).length === 0;
+        const outbox = await readOutbox();
+        return unresolvedOutboxRecords(outbox).length === 0
+          && outboxAuthorizationStatus(outbox).suspended === false;
       });
     },
     loadReactBindingReceipt() {
@@ -699,10 +739,13 @@ export async function createSqliteRqsResumeStore({
       }));
     },
     wipe() { return durableWipe(false); },
-    wipeForAuthorityTransition() { return durableWipe(true); },
-    requestAuthorityTransitionWipe() {
+    wipeForAuthorityTransition: authorityTransitionWipe,
+    wipeForAuthorityTransitionWithinDispatch: authorityTransitionWipeWithinDispatch,
+    requestAuthorityTransitionWipe(...args) {
       requireOpen();
-      return Object.freeze({ settlement: Promise.resolve().then(() => store.wipeForAuthorityTransition()) });
+      return Object.freeze({
+        settlement: Promise.resolve().then(() => store.wipeForAuthorityTransition(...args)),
+      });
     },
     async resetCorruptStoreIdentity() {
       requireOpen();
@@ -710,23 +753,83 @@ export async function createSqliteRqsResumeStore({
       return { reset: false, reason: 'not_corrupt' };
     },
 
-    outboxEnqueue(record) {
-      return mutateOutbox('outbox-enqueue', (state) => outboxOps.enqueue(state, record, now()));
-    },
-    outboxEnqueueWithOperationIdentity(record, authorityCohortKey, range = null) {
-      return mutateOutbox('outbox-enqueue-identity', (state) => (
-        outboxOps.enqueueWithOperationIdentity(state, record, now(), authorityCohortKey, range)
+    outboxEnqueue(record, expectedAuthorizationFence = null) {
+      return mutateOutbox('outbox-enqueue', (state) => (
+        outboxOps.enqueue(state, record, now(), expectedAuthorizationFence)
       ));
     },
-    outboxAssignOperationIdentity(id, key, range = null, descriptor = undefined, principal = undefined) {
+    outboxEnqueueWithOperationIdentity(
+      record,
+      authorityCohortKey,
+      range = null,
+      expectedAuthorizationFence = null,
+    ) {
+      return mutateOutbox('outbox-enqueue-identity', (state) => (
+        outboxOps.enqueueWithOperationIdentity(
+          state,
+          record,
+          now(),
+          authorityCohortKey,
+          range,
+          expectedAuthorizationFence,
+        )
+      ));
+    },
+    outboxAssignOperationIdentity(
+      id,
+      key,
+      range = null,
+      descriptor = undefined,
+      principal = undefined,
+      expectedAuthorizationFence = null,
+    ) {
       return mutateOutbox('outbox-assign-identity', (state) => (
-        outboxOps.assignOperationIdentity(state, id, now(), key, range, descriptor, principal)
+        outboxOps.assignOperationIdentity(
+          state,
+          id,
+          now(),
+          key,
+          range,
+          descriptor,
+          principal,
+          expectedAuthorizationFence,
+        )
       ));
     },
     outboxOperationIdentityRange(key) {
       return serialized(async () => clone(outboxOps.operationIdentityRange(await readOutbox(), key).result));
     },
     outboxPending() { return serialized(async () => clone(pendingOutboxRecords(await readOutbox()))); },
+    outboxAuthorizationStatus() {
+      return serialized(async () => clone(outboxAuthorizationStatus(await readOutbox())));
+    },
+    outboxAuthorizationTransitionVisible(kind, payload, expectedAuthorityGeneration = null) {
+      return serialized(async () => outboxOps.authorizationTransitionVisible(
+        await readOutbox(), kind, payload, expectedAuthorityGeneration,
+      ).result);
+    },
+    outboxApplyAuthorizationObligation(obligation, expectedAuthorityGeneration = null) {
+      return mutateOutbox('outbox-authorization-obligation', (state) => (
+        outboxOps.applyAuthorizationObligation(state, obligation, expectedAuthorityGeneration)
+      ));
+    },
+    outboxResolveAuthorizationObligation(resolution, expectedAuthorityGeneration = null) {
+      return mutateOutbox('outbox-authorization-resolution', (state) => (
+        outboxOps.resolveAuthorizationObligation(state, resolution, expectedAuthorityGeneration)
+      ));
+    },
+    outboxAcknowledgeAuthorizationResolution(resolution, expectedAuthorityGeneration = null) {
+      return mutateOutbox('outbox-authorization-resolution-ack', (state) => (
+        outboxOps.acknowledgeAuthorizationResolution(
+          state, resolution, expectedAuthorityGeneration,
+        )
+      ));
+    },
+    outboxRetireAuthorizationScopes(scopes, expectedAuthorityGeneration = null) {
+      return mutateOutbox('outbox-authorization-retire', (state) => (
+        outboxOps.retireAuthorizationScopes(state, scopes, expectedAuthorityGeneration)
+      ));
+    },
     outboxPrepareSubmission(id, options = undefined) {
       return mutateOutbox('outbox-prepare-submission', (state) => outboxOps.prepareSubmission(
         state,
@@ -735,25 +838,63 @@ export async function createSqliteRqsResumeStore({
       ));
     },
     outboxRecords() { return serialized(async () => clone(allOutboxRecords(await readOutbox()))); },
-    outboxSettle(id) {
-      return mutateOutbox('outbox-settle', (state) => outboxOps.settle(state, id));
+    outboxSettle(id, expectedAuthorizationFence = null) {
+      return mutateOutbox('outbox-settle', (state) => (
+        outboxOps.settle(state, id, expectedAuthorizationFence)
+      ));
     },
-    outboxDurablyConsume(id, settlement, userId = null, confirmed = []) {
+    outboxDurablyConsume(
+      id,
+      settlement,
+      userId = null,
+      confirmed = [],
+      expectedAuthorizationFence = null,
+    ) {
       return mutateOutbox('outbox-durably-consume', (state) => (
-        outboxOps.durablyConsume(state, id, settlement, userId, now(), confirmed)
+        outboxOps.durablyConsume(
+          state, id, settlement, userId, now(), confirmed, expectedAuthorizationFence,
+        )
       ));
     },
-    outboxMarkFailed(id, failure) {
-      return mutateOutbox('outbox-mark-failed', (state) => outboxOps.markFailed(state, id, failure));
+    outboxMarkFailed(id, failure, expectedAuthorizationFence = null) {
+      return mutateOutbox('outbox-mark-failed', (state) => (
+        outboxOps.markFailed(state, id, failure, expectedAuthorizationFence)
+      ));
     },
-    outboxMarkStranded(id, reason, predecessorPrincipalScope = null) {
+    outboxMarkStranded(
+      id,
+      reason,
+      predecessorPrincipalScope = null,
+      expectedAuthorizationFence = null,
+      effectProvenance = null,
+    ) {
       return mutateOutbox('outbox-mark-stranded', (state) => (
-        outboxOps.markStranded(state, id, reason, now(), predecessorPrincipalScope)
+        outboxOps.markStranded(
+          state,
+          id,
+          reason,
+          now(),
+          predecessorPrincipalScope,
+          expectedAuthorizationFence,
+          effectProvenance,
+        )
       ));
     },
-    outboxReconcileCustody(principalScope, descriptor, custody) {
+    outboxReconcileCustody(
+      principalScope,
+      descriptor,
+      custody,
+      expectedAuthorityGeneration = null,
+    ) {
       return mutateOutbox('outbox-reconcile-custody', (state) => (
-        outboxOps.reconcileCustody(state, principalScope, descriptor, custody, now())
+        outboxOps.reconcileCustody(
+          state,
+          principalScope,
+          descriptor,
+          custody,
+          now(),
+          expectedAuthorityGeneration,
+        )
       ));
     },
     outboxDiscardStranded(ids, principalScope) {

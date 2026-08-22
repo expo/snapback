@@ -79,6 +79,7 @@ try {
     ['@expo/snapback-contract', 'packages/snapback-contract'],
     ['@expo/snapback-client', 'packages/snapback-client'],
     ['@expo/snapback-react', 'packages/snapback-react'],
+    ['@expo/snapback-expo', 'packages/snapback-expo'],
     ['react', 'node_modules/react'],
     ['react-is', join(rendererDependencyDirectory, 'react-is')],
     ['scheduler', join(rendererDependencyDirectory, 'scheduler')],
@@ -109,6 +110,14 @@ try {
       signedIn: 'ready',
       signingOut: 'blocked:authentication-not-settled',
       revoked: 'error:SNAPBACK_AUTH_SESSION_REVOKED',
+    },
+    modePendingReload: {
+      axislessAttempts: 3,
+      dispositionTerminalAttempts: 1,
+    },
+    housekeeping: {
+      blockedReason: 'auth-barrier',
+      transportAttempts: 0,
     },
   });
 } finally {

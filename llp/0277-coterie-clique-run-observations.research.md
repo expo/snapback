@@ -482,8 +482,8 @@ and never resubscribed while reporting ready/empty/disconnected; an
 authenticated query started while signed out could hang without issuing HTTP;
 and background receipt/outbox writes during an auth barrier serialized
 foreground sends. Straight defects:
-`issues/20260820-optional-user-live-query-auth-transition-stall.md` and
-`issues/20260820-authenticated-query-signed-out-settlement.md`. The background
+`issues/closed/20260820-optional-user-live-query-auth-transition-stall.md` and
+`issues/closed/20260820-authenticated-query-signed-out-settlement.md`. The background
 authoring recipe is already ticketed at
 `issues/closed/20260818-guide-gap-background-writes-during-auth-transitions.md`; the
 composition ruling belongs to LLP 0295 W2 and LLP 0059/0107/0218.

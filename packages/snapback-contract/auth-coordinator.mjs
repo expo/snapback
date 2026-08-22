@@ -27,6 +27,30 @@ const DEFERRED_COUNTER_TERMINAL = Symbol('snapback.auth.deferred-counter-termina
 const BARRIER_PHASE_CLOSURE_RETRY = 'SNAPBACK_AUTH_BARRIER_PHASE_CLOSURE_RETRY';
 const INVALID_STORAGE_PARTITION = /[\s\u0000-\u001f\u007f-\u009f]/u;
 
+/**
+ * The one production authority-state classifier. An active exposure barrier
+ * always outranks transport recovery; otherwise reconnect/mode-pending facts
+ * outrank the settled authority projection.
+ */
+export function classifyClientAuthorityState(input) {
+  if (!input || typeof input !== 'object') {
+    throw new TypeError('authority transition classifier input is required');
+  }
+  const predecessor = input.predecessor ?? null;
+  const successor = input.successor ?? null;
+  if (input.barrierActive === true) {
+    if (
+      input.incarnationChanged === true
+      || input.authModeChanged === true
+      || predecessor?.kind === 'session'
+    ) return 'revoking';
+    return 'authenticating';
+  }
+  if (input.reconnecting === true || input.modePending === true) return 'reconnecting';
+  const current = input.current ?? successor;
+  return current?.kind === 'session' ? 'authenticated' : 'anonymous';
+}
+
 const clone = (value) => {
   if (value === undefined) return undefined;
   if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
@@ -1143,23 +1167,22 @@ export class AuthCoordinator {
    *
    * @ref LLP 0059#dated-amendment-total-client-authority-transition-state-and-settlement-matrix-2026-08-21-llp-0295-d02 — provider readiness observes the five-state barrier classifier and phase-9 settlement boundary.
    */
-  authorityTransitionStatus() {
+  authorityTransitionStatus({ reconnecting = false, modePending = false } = {}) {
     const barrier = this.#activeBarrier;
     const previous = barrier?.context?.previousAuthority ?? null;
     const next = barrier?.context?.nextAuthority ?? null;
-    let state;
-    if (barrier !== null) {
-      const modeChanged = previous?.authMode !== next?.authMode;
-      const incarnationChanged = previous?.authorizationStreamIncarnation
-        !== next?.authorizationStreamIncarnation;
-      state = modeChanged || incarnationChanged || previous?.kind === 'session'
-        ? 'revoking'
-        : 'authenticating';
-    } else {
-      state = this.#record?.authority?.kind === 'session'
-        ? 'authenticated'
-        : 'anonymous';
-    }
+    const state = classifyClientAuthorityState({
+      current: this.#record?.authority ?? null,
+      predecessor: previous,
+      successor: next,
+      barrierActive: barrier !== null,
+      authModeChanged: previous !== null && next !== null && previous.authMode !== next.authMode,
+      incarnationChanged: previous !== null
+        && next !== null
+        && previous.authorizationStreamIncarnation !== next.authorizationStreamIncarnation,
+      reconnecting,
+      modePending,
+    });
     const settled = !this.#closed
       && this.#counterExhaustionError === null
       && barrier === null

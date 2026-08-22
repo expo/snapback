@@ -452,29 +452,31 @@ collapse a fenced predecessor or a blocked authenticated query into
   blanked hook with no successor projecting `ready`/empty/`disconnected` is
   a defect, never a settled state.
 - **Queued optimistic layers follow the item-5 strand/delete disposition of
-  the active barrier's row** (strand for anonymous → authenticated and
-  same-user/new-session; delete for A → B, A → anonymous, and incarnation
-  change) plus this Spec's existing synchronous blanking rule; the LLP 0218
+  the active barrier's row** (strand for anonymous → authenticated, dev →
+  sessions, and same-user/new-session; delete for A → B, A → anonymous,
+  sessions → dev, and incarnation change) plus this Spec's existing
+  synchronous blanking rule; the LLP 0218
   §4.2 disposition map is unchanged.
 - **Presence rooms follow the ephemeral row:** fenced during a barrier,
   rebuilt at resume, `resyncing` during reconnect, and never published under
   unsettled authority. Awaited sign-in settlement includes usable ephemeral
   authority (matrix ruling 5), so a hook armed immediately after an awaited
   sign-in cannot observe `SNAPBACK_EPHEMERAL_AUTHORITY_PENDING`.
-- The W2 conformance suite replays the shared row table through the React
-  and Familiar projections; rows and checklist live in
+- The W2 conformance suite transcribes the shared 50-cell table and exercises
+  React and Familiar production projections; checklist and evidence live in
   `issues/closed/20260821-client-authority-transition-state-matrix.md`.
 
-W2 implements that binding by exporting the shared row artifact through the
-React root (and therefore Expo), replaying all 225 React/Familiar coordinates
-in `authority-transition-conformance.test.mjs`, and retaining the existing
-five-scenario optional-user successor suite for actual sign-in, sign-out,
-A → B, reconnect-during-transition, and unmount/remount choreography. Query
-state now carries the headless ruling-6 delivery facts `lastDeliveryAtMs` and
-`authoritativeRevision`; a retained delivery does not advance either fact.
-The packed external proof imports the same 2,250-row artifact from the packed
-Expo root, closing the re-export boundary rather than trusting workspace
-source resolution.
+W2 implements that binding by exporting the shared 50-cell policy through the
+React root (and therefore Expo), checking all five React/Familiar projection
+cells in `authority-transition-conformance.test.mjs`, and retaining the
+existing five-scenario optional-user successor suite for actual sign-in,
+sign-out, A → B, reconnect-during-transition, and unmount/remount choreography.
+Query state now carries the headless ruling-6 delivery facts
+`lastDeliveryAtMs` and `authoritativeRevision`; a retained delivery does not
+advance either fact, and an auth blank resets them to `null`/`0` so the
+successor cannot inherit predecessor delivery facts. The packed external proof
+compares the complete packed Expo matrix export with the client artifact,
+closing the re-export boundary without a self-derived cartesian row claim.
 
 ## Package and acceptance
 

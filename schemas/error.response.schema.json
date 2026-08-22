@@ -96,6 +96,33 @@
       ],
       "type": "string"
     },
+    "MutationServerTiming": {
+      "additionalProperties": false,
+      "description": "Server-owned mutation phase timestamps carried by a mutation disposition.",
+      "properties": {
+        "authorizedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "committedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "executedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "authorizedAtMs",
+        "executedAtMs",
+        "committedAtMs"
+      ],
+      "type": "object"
+    },
     "Receipt": {
       "description": "A retention-ring receipt (LLP 0034 §3.2): connectionless facts about\nmutations and subscription lifecycle, served by the receipts snapshot and\nechoed in live-subscribe/unsubscribe outputs. Privacy (§3.3): receipts\ncarry opaque ids, versions, table names, and reasons — never row data or\nargument values.",
       "oneOf": [
@@ -470,6 +497,17 @@
         }
       ],
       "description": "Present only when a mutation reached the provider receipt boundary."
+    },
+    "timing": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MutationServerTiming"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Server-owned mutation phases when a mutation reached the staged\nauthorization/commit path but returned a rejected disposition."
     }
   },
   "required": [

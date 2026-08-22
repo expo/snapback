@@ -284,7 +284,15 @@ test('core optional-user live query transitions replace one fenced predecessor',
     const mounted = await mountRegistry(client);
     try {
       assertReadyFor(mounted, 'anonymous');
-      const { capture, predecessor } = await client.transitionAuthority('A', 'sign-in');
+      const { capture, predecessor } = await client.transitionAuthority(
+        'A',
+        'sign-in',
+        () => {
+          const blank = mounted.snapshot();
+          assert.equal(blank.lastDeliveryAtMs, null);
+          assert.equal(blank.authoritativeRevision, 0);
+        },
+      );
       assertSingleSettledSuccessor(client, capture);
       assertReadyFor(mounted, 'A');
 

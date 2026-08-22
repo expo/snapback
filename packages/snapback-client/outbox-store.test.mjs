@@ -522,6 +522,53 @@ async function exerciseOutboxContract(store, { label }) {
     `${label}: principal change deletes predecessor acknowledgement rows`,
   );
 
+  const reconcilePredecessorCase = async ({ id, predecessor, successor, expected }) => {
+    const descriptor = {
+      descriptorVersion: 1,
+      authorityInstanceId: `${id}-predecessor`,
+      sessionGeneration: 1,
+    };
+    await store.outboxEnqueue({
+      id,
+      function: 'predecessorIntent',
+      args: { privateValue: id },
+      authorityDescriptor: descriptor,
+      principalScope: predecessor,
+      custody: { authorityEpoch: 10, authorityKey: `${id}-key` },
+    });
+    const disposition = await reconcileQueueCustody(
+      store,
+      successor,
+      { ...descriptor, authorityInstanceId: `${id}-successor`, sessionGeneration: 2 },
+      { authorityEpoch: 11, authorityKey: `${id}-successor-key` },
+    );
+    assert.deepEqual(disposition[`${expected}Ids`], [id], `${label}: ${id} ${expected}s`);
+    if (expected === 'stranded') {
+      assert.equal((await store.outboxRecords())[0].status, 'stranded');
+      await store.outboxDiscardStranded([id], predecessor);
+    } else {
+      assert.deepEqual(await store.outboxRecords(), []);
+    }
+  };
+  await reconcilePredecessorCase({
+    id: 'cm-anonymous-to-authenticated',
+    predecessor: { ...predecessorScope, userId: null },
+    successor: predecessorScope,
+    expected: 'stranded',
+  });
+  await reconcilePredecessorCase({
+    id: 'cm-dev-to-sessions',
+    predecessor: { ...predecessorScope, authMode: 'dev', userId: null },
+    successor: predecessorScope,
+    expected: 'stranded',
+  });
+  await reconcilePredecessorCase({
+    id: 'cm-incarnation-change',
+    predecessor: predecessorScope,
+    successor: { ...predecessorScope, authorizationStreamIncarnation: 'stream-successor' },
+    expected: 'deleted',
+  });
+
   const agentScope = {
     authMode: 'sessions',
     authorizationStreamIncarnation: 'stream-agent',

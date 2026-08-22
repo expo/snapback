@@ -2898,7 +2898,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
     use snapback::manifest::QueryOutput;
     use snapback::server::{
         ConnectionGrant, ErrorResponse, ErrorResponseFormatVersion, MutationResponse,
-        OpenConnectionRequest,
+        MutationServerTiming, OpenConnectionRequest,
     };
     use snapback_kernel::storage::SequenceAllocationFact;
 
@@ -3265,6 +3265,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             diagnostic: Diagnostic::error("SNAPBACK_TEST", "realtime", "boom"),
             receipt: None,
             attribution: None,
+            timing: None,
             ephemeral_authority_instance: None,
         })
         .unwrap(),
@@ -3310,6 +3311,11 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
                 received_at_ms: 2,
             }),
             attribution: None,
+            timing: Some(MutationServerTiming {
+                authorized_at_ms: 3,
+                executed_at_ms: 4,
+                committed_at_ms: 5,
+            }),
             ephemeral_authority_instance: None,
         })
         .unwrap(),

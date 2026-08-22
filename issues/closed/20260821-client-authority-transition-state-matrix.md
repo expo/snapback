@@ -5,7 +5,7 @@
 **Systems:** Client auth coordinator, Live queries, Mutations/outbox, React,
 Familiar projections, Headless/provider adapters, Diagnostics
 **Governing:** LLP 0295 D0.2/W2; LLP 0059; LLP 0107; LLP 0218
-**Related:** `issues/closed/20260820-agent-auth-transition-residuals.md`;
+**Related:** `issues/20260820-agent-auth-transition-residuals.md`;
 `issues/closed/20260820-optional-user-live-query-auth-transition-stall.md`;
 `issues/closed/20260820-authenticated-query-signed-out-settlement.md`;
 `issues/closed/20260818-guide-gap-background-writes-during-auth-transitions.md`;
@@ -101,10 +101,10 @@ questions)":
 
 ## W2 implementation checklist
 
-- [x] Author the normative row table (surface × auth declaration × starting
-      state × transition event × operation timing → terminal semantic +
-      observable fields) as the shared conformance artifact; events and
-      timings per the LLP 0059 amendment's suite-shape section.
+- [x] Author the normative 50-cell table (ten surfaces × five states) as the
+      shared conformance artifact and independently transcribe its terminal
+      outcomes; event/timing scenarios remain behavioral witnesses, not a
+      self-derived cartesian product.
 - [x] Implement the shared core state machine in the headless client; expose
       the settled-authority signal provider adapters consume.
 - [x] Core/headless projection of the suite (reference execution).
@@ -116,19 +116,20 @@ questions)":
       `20260820-optional-user-live-query-auth-transition-stall.md`).
 - [x] Prompt signed-out settlement rows, timeout-independent (closes
       `20260820-authenticated-query-signed-out-settlement.md`).
-- [x] Watch-reload rows: no custody loss on transient
-      `SNAPBACK_AUTH_MODE_PENDING`; live-stream successor; tight-loop
-      awaited-sign-in/ephemeral-authority witness (closes
-      `20260820-agent-auth-transition-residuals.md`).
+- [x] Watch-reload finite-HTTP row: no custody loss on transient
+      `SNAPBACK_AUTH_MODE_PENDING`, production `reconnecting` projection, and
+      full terminal discriminant. The real live-stream successor and tight-
+      loop awaited-sign-in/ephemeral witnesses remain open in
+      `issues/20260820-agent-auth-transition-residuals.md`.
 - [x] `auth-barrier` blocked reason (beside shipped `custody-unsettled`) +
       level-triggered settle wakeup in the LLP 0218 drain; housekeeping lane
       split + declaration spelling + item-5-aligned strand/delete
       dispositions + typed supersession; head-of-line witness (foreground
       send latency unaffected by suspended or slow housekeeping).
-- [x] Phase-separated diagnostics row: the ruling-6 `timing` fields
-      (queue/authorization/execution/commit) plus subscription
-      `lastDeliveryAtMs` populated, ordered, and disjoint for one
-      instrumented mutation.
+- [x] Phase-separated diagnostics: client enqueue/dispatch order, server
+      authorization/execution/commit order on success and rejection, honest
+      two-clock-domain documentation, and auth-blank reset of subscription
+      `lastDeliveryAtMs`/`authoritativeRevision`.
 - [x] Same-user/new-session rows: strand (never delete) predecessor intent;
       authenticated surfaces re-admit under the same principal.
 - [x] Guide recipe for background writes during auth transitions from the
@@ -148,30 +149,32 @@ an admitted wait, or silently bound to the predecessor principal.
 
 ## Implementation evidence (2026-08-21)
 
-`packages/snapback-client/authority-transition.mjs` generates 2,250 immutable
-rows from ten surfaces, five authority states, nine transition events, and
-five operation timings. The core suite independently transcribes all 50
-surface/state terminal cells, exercises the ordered classifier and
+`packages/snapback-client/authority-transition.mjs` transcribes 50 immutable
+cells from ten surfaces and five authority states. The core suite independently
+transcribes all 50 terminal outcomes, exercises the single production classifier and
 mode-pending discriminant, and pins housekeeping admission both before and
 after a predecessor delete root, successor binding, typed supersession,
-cross-lane concurrency with exclusive authority cuts, and the strictly ordered five-phase
-mutation timing carrier. Contract's readiness suite holds real coordinator
+cross-lane concurrency with exclusive authority cuts, and the separately
+ordered client/server timing domains including rejected mutations. Contract's readiness suite holds real coordinator
 barriers (including same-user/new-session) and joins 200 phase-9 waiters.
-React/Familiar replay their matrix projection and retain the production
+React/Familiar check their matrix projection and retain the production
 optional-user choreography for sign-in, sign-out, A → B, reconnect,
 unmount/remount, and late-predecessor fencing.
 
 The packed receipt
 `node packages/snapback-react/auth-transition-liveness-packed.test.mjs`
 installs tarballs for Contract, Client, React, and Expo. It verifies the Expo
-row re-export, prompt one-shot and live terminal behavior, Familiar's
+complete-matrix re-export, prompt one-shot and live terminal behavior, Familiar's
 optional-user successor, durable-session survival through axisless
-mode-pending retries (with a disposition-bearing negative control), and
+mode-pending retries (with a fully discriminated terminal negative control), and
 declared housekeeping queueing under `auth-barrier` with zero transport.
 
 Ruling-6 plumbing is public on every mutation disposition (`timing`) and live
 projection (`lastDeliveryAtMs`, `authoritativeRevision`); server mutation
-responses stamp authorization, execution, and durable commit separately.
+success and staged-error responses stamp authorization, execution, and durable
+commit separately. Expo SQLite participates in the authorization-generation,
+enqueue/reconcile CAS, and two-lane/exclusive dispatch proof.
 `guide/recipes/auth-transition-writes.md` and retrieval case 61 teach the
 declaration, diagnostics, lane behavior, and anti-patterns. The two residual
-tickets named by the checklist are resolved under `issues/closed/`.
+Phase 1A tickets named by the checklist are resolved under `issues/closed/`;
+the two honestly unwitnessed agent-auth residuals remain open.

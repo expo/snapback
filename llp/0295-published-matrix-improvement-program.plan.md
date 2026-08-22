@@ -8,7 +8,10 @@ Ephemeral state, Memberships, Assets, Client integration, Exact/Contract
 integration, Guide, Benchmarks, Testing, Performance, Rust build
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-20
-**Revised:** 2026-08-21 (Phase 1D records the bounded debug-artifact
+**Revised:** 2026-08-21 (D0.2/W2 implementation correction: records the
+adopted prompt-refusal matrix, independently transcribed 50-cell policy plus
+behavioral witnesses, item-5/SQLite/timing composition, and reopens the two
+agent auth residuals that still lack real witnesses); 2026-08-21 (Phase 1D records the bounded debug-artifact
 attribution while keeping its drift/reduced-debug follow-up ticket open);
 2026-08-21 (Phase 1A Expo package-parity progress: closes the
 cycle-free Expo Metro initialization ticket with a packed external proof);
@@ -217,9 +220,9 @@ prove one M1->M2 additive change with the original accounts and sessions
 intact. Execution ticket:
 `issues/20260821-fixed-origin-external-client-dev-lifecycle.md`.
 
-### D0.2 — Client authority-transition state machine
+### D0.2 — Client authority-transition state machine (adopted and implemented)
 
-Decide the total state and settlement contract shared by one-shot queries,
+LLP 0059 now owns the adopted total state and settlement contract shared by one-shot queries,
 live queries, mutations/outbox, React hooks, Familiar projections, and provider
 adapters across anonymous, authenticating, authenticated, revoking, and
 reconnecting states.
@@ -233,8 +236,9 @@ The ruling must answer:
 - which state is safe for subscribe-after-settle; and
 - which diagnostics expose queue, commit, and delivery time separately.
 
-LLP 0059/0107/0218 remain mechanism owners. This Plan requires one shared
-transition matrix and conformance suite so each surface cannot improvise.
+LLP 0059/0107/0218 remain mechanism owners. W2 landed one shared 50-cell
+transition matrix plus behavioral query/mutation/live/outbox/provider suites;
+it deliberately makes no generated event/timing cartesian conformance claim.
 Decision/conformance ticket:
 `issues/closed/20260821-client-authority-transition-state-matrix.md`.
 
@@ -339,19 +343,21 @@ before choosing a repair. All may run while Phase 0 is reviewed.
 
 ### 1A. Published package and compiler/runtime parity
 
-- `issues/20260820-vite-password-auth-relay-allowlist.md`
+- `issues/closed/20260820-vite-password-auth-relay-allowlist.md`
 - `issues/closed/20260820-expo-metro-default-storage-partition-cycle.md` —
   resolved through a cycle-free defaults leaf and packed external Metro
   bundle/first-render proof
 - `issues/closed/20260820-familiar-vdoc-generation-runtime-parity.md`
-- `issues/20260820-optional-user-live-query-auth-transition-stall.md`
-- `issues/20260820-authenticated-query-signed-out-settlement.md`
+- `issues/closed/20260820-optional-user-live-query-auth-transition-stall.md`
+- `issues/closed/20260820-authenticated-query-signed-out-settlement.md`
 
 Exit: all five reproduce before the fix and pass through packed external
 packages afterward; no source-checkout-only proof closes them.
 
-The Expo and Familiar tickets satisfy that exit individually as of 2026-08-21.
-Phase 1A as a batch remains open on the other three tickets.
+All five Phase 1A tickets satisfy that exit individually as of 2026-08-21;
+the batch is closed. The separate agent-auth watch-reload/ephemeral residual
+ticket remains open because its last two exit witnesses are not Phase 1A
+package-parity claims.
 
 ### 1B. Precise diagnostics and typed hook contracts
 
@@ -417,7 +423,7 @@ was 3-6x either later milestone.
 
 ### W2. One authority-transition participant
 
-Implement D0.2 as a shared core state machine plus per-surface projections.
+Implemented D0.2 as a shared core state machine plus per-surface projections.
 Background receipt/read work needs an admitted housekeeping lane or an explicit
 wait/skip policy; it may not silently serialize a foreground send. Provider
 adapters consume the same settled-authority state rather than poll their own

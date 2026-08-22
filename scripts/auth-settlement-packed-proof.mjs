@@ -23,7 +23,9 @@ const { createMemoryRqsResumeStore } = await import(
   moduleUrl('@expo/snapback-client', 'rqs-store-memory.mjs')
 );
 const {
-  CLIENT_AUTHORITY_TRANSITION_CONFORMANCE_ROWS,
+  CLIENT_AUTHORITY_STATE_MATRIX,
+  CLIENT_AUTHORITY_STATES,
+  CLIENT_AUTHORITY_SURFACES,
 } = await import(moduleUrl('@expo/snapback-client', 'authority-transition.mjs'));
 const { prepareReactBindingForClient } = await import(
   moduleUrl('@expo/snapback-client', 'react-binding.mjs')
@@ -37,15 +39,8 @@ const {
 } = await import(moduleUrl('@expo/snapback-react', 'familiar.mjs'));
 const packedExpo = await import(moduleUrl('@expo/snapback-expo', 'index.mjs'));
 
-assert.equal(CLIENT_AUTHORITY_TRANSITION_CONFORMANCE_ROWS.length, 2_250);
-assert.equal(
-  packedExpo.CLIENT_AUTHORITY_TRANSITION_CONFORMANCE_ROWS.length,
-  CLIENT_AUTHORITY_TRANSITION_CONFORMANCE_ROWS.length,
-);
-assert.deepEqual(
-  packedExpo.CLIENT_AUTHORITY_TRANSITION_CONFORMANCE_ROWS[0],
-  CLIENT_AUTHORITY_TRANSITION_CONFORMANCE_ROWS[0],
-);
+assert.equal(CLIENT_AUTHORITY_SURFACES.length * CLIENT_AUTHORITY_STATES.length, 50);
+assert.deepEqual(packedExpo.CLIENT_AUTHORITY_STATE_MATRIX, CLIENT_AUTHORITY_STATE_MATRIX);
 
 const APP_ID = '018f0d90-7d10-7a22-8c33-445566778899';
 const INCARNATION = '018f0d90-7d11-7a22-8c33-445566778899';
@@ -332,7 +327,10 @@ async function proveModePendingReload() {
     globalThis.fetch = async (url) => {
       if (new URL(url).pathname === '/auth/session') return Response.json(handshake(false));
       attempts += 1;
-      return modePending({ authorityDisposition: 'durableDelete' });
+      return modePending({
+        reason: 'mode_transition',
+        authorityDisposition: 'durableDelete',
+      });
     };
     await assert.rejects(
       client.query('packedStagedModeTransitionProbe'),

@@ -1481,6 +1481,12 @@ export const outboxOps = {
     const stored = {
       ...existing,
       status: 'failed',
+      timing: {
+        ...existing.timing,
+        authorizedAtMs: failure?.timing?.authorizedAtMs ?? existing.timing?.authorizedAtMs ?? null,
+        executedAtMs: failure?.timing?.executedAtMs ?? existing.timing?.executedAtMs ?? null,
+        committedAtMs: failure?.timing?.committedAtMs ?? existing.timing?.committedAtMs ?? null,
+      },
       failure: {
         code: typeof failure?.code === 'string' ? failure.code : 'SNAPBACK_OUTBOX_REPLAY_FAILED',
         message: typeof failure?.message === 'string' ? failure.message : String(failure ?? ''),
@@ -1546,11 +1552,11 @@ export const outboxOps = {
     };
   },
   /// Reconcile every fenced queue record in one store transaction before the
-  /// current authority observes it. Same-principal instance changes strand;
-  /// any principal-axis change is a privacy deletion boundary.
+  /// current authority observes it. The ruled item-5 table strands
+  /// anonymous→authenticated, dev→sessions, and same-user predecessor intent;
+  /// cross-user, sessions→dev, and incarnation changes privacy-delete.
   ///
-  /// @ref LLP 0043#js-arm-sessions-custody-queue--recorded-design-2026-08-03-commissioned-at-author-sitting-2--ratified-2026-08-04-author-sitting-3-implementation-authorized-as-a-lane — strand-on-instance-change;
-  ///   delete-with-diagnostic-count at a cross-principal boundary.
+  /// @ref LLP 0059#dated-amendment-total-client-authority-transition-state-and-settlement-matrix-2026-08-21-llp-0295-d02 — apply the item-5 predecessor queue disposition table before successor observation.
   reconcileCustody(
     state,
     principalScope,
@@ -1622,7 +1628,43 @@ export const outboxOps = {
           || !currentIsAgent
           || record.custody.authorityKey !== currentCustody.authorityKey
         : false;
-      if (agentPrincipalChanged || !samePrincipalScope(record.principalScope, currentScope)) {
+      const predecessorScope = record.principalScope;
+      const incarnationChanged = predecessorScope.authorizationStreamIncarnation
+        !== currentScope.authorizationStreamIncarnation;
+      const devToSessions = predecessorScope.authMode === 'dev'
+        && currentScope.authMode === 'sessions';
+      const anonymousToAuthenticated = predecessorScope.authMode === 'sessions'
+        && currentScope.authMode === 'sessions'
+        && predecessorScope.userId === null
+        && currentScope.userId !== null;
+      const sameUser = predecessorScope.authMode === currentScope.authMode
+        && predecessorScope.userId !== null
+        && predecessorScope.userId === currentScope.userId;
+      const shouldStrandPredecessor = !agentPrincipalChanged
+        && !incarnationChanged
+        && (devToSessions || anonymousToAuthenticated || sameUser);
+      if (
+        shouldStrandPredecessor
+        && !samePrincipalScope(predecessorScope, currentScope)
+        && (
+          record.status === 'pending'
+          || record.status === 'failed'
+          || record.status === 'quarantined'
+        )
+      ) {
+        const applied = outboxOps.markStranded(
+          working,
+          record.id,
+          devToSessions ? 'auth_mode_changed' : 'predecessor_authority_changed',
+          now,
+          predecessorScope,
+          false,
+        );
+        working = applied.state;
+        if (applied.result) strandedIds.push(record.id);
+        continue;
+      }
+      if (agentPrincipalChanged || !samePrincipalScope(predecessorScope, currentScope)) {
         // Every fenced disposition belongs to the predecessor principal.
         // This includes settled records, whose args, settlement claims, and
         // result remain payload-bearing until their acknowledgement is

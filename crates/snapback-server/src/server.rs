@@ -6941,6 +6941,7 @@ fn connection_auth_error(code: &str, message: &str, connection_id: &str) -> ApiE
         None,
         None,
         None,
+        None,
     )
 }
 
@@ -27383,7 +27384,10 @@ async fn invoke_mutation(
                 // Preserve the public carrier's strict phase ordering with a
                 // one-millisecond logical floor when the clock has not moved.
                 let executed_at_ms = now_millis().max(authorized_at_ms.saturating_add(1));
-                Ok((preflight, (response_authority_descriptor, staged, executed_at_ms)))
+                Ok((
+                    preflight,
+                    (response_authority_descriptor, staged, executed_at_ms),
+                ))
             },
             move |snapback, (response_authority_descriptor, staged, executed_at_ms)| {
                 snapback
@@ -27392,8 +27396,7 @@ async fn invoke_mutation(
                         &authorized_effect,
                     )
                     .and_then(|(result, receipt, network_basis, capture)| {
-                        let committed_at_ms =
-                            now_millis().max(executed_at_ms.saturating_add(1));
+                        let committed_at_ms = now_millis().max(executed_at_ms.saturating_add(1));
                         let facts = if result.is_ok() {
                             facts_authority.validate_admission("mutation generation facts")?;
                             snapback.function_invocation_facts(facts_mode)?
@@ -27465,7 +27468,9 @@ async fn invoke_mutation(
                 )),
                 conformance,
             )),
-            Err(error) => Err(ApiError::with_receipt(error, receipt).with_attribution(attribution)),
+            Err(error) => Err(ApiError::with_receipt(error, receipt)
+                .with_attribution(attribution)
+                .with_mutation_timing(mutation_timing)),
         }
     }
     .await;

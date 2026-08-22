@@ -724,10 +724,11 @@ tighten or confirm them before they are conformance-frozen as fixtures.
   coordinator's *settled* authority state, never by polling their own client
   objects or retrying on an empirical cadence. This spec's obligation is
   self-sufficient: the provider consumes settled authority as an event, not a
-  poll. What an operation started during an authorization barrier returns is
-  the settlement contract the still-open LLP 0295 D0.2 decision will pin
-  (`issues/closed/20260821-client-authority-transition-state-matrix.md`); nothing
-  here presumes that matrix exists yet.
+  poll. LLP 0059's adopted LLP 0295 D0.2 matrix now pins the operation
+  settlement contract: newly started one-shots/foreground writes promptly
+  refuse during a barrier, declared successor-valid housekeeping may queue,
+  and provider machinery remains joined to the level-triggered settled signal
+  (`issues/closed/20260821-client-authority-transition-state-matrix.md`).
 - **Principal-class change tears down before it builds.** On authority
   replacement the provider releases every predecessor-owned subscription
   (T-UNSUB, presenting the establishing owner) and, in sessions mode, opens a

@@ -7,12 +7,14 @@ pub struct ApiError(
     pub(super) Option<u64>,
     pub(super) Option<FunctionAttribution>,
     pub(super) Option<String>,
+    pub(super) Option<MutationServerTiming>,
 );
 
 impl ApiError {
     pub(super) fn from_ephemeral(error: crate::ephemeral::EphemeralError) -> Self {
         Self(
             SnapbackError::new(diagnostic_from_ephemeral(error)),
+            None,
             None,
             None,
             None,
@@ -36,13 +38,14 @@ impl ApiError {
             None,
             None,
             None,
+            None,
         )
     }
 
     /// Attach a receipt to an error response (a REJECTED mutation still
     /// produces its receipt — LLP 0034 §3.2, ENG-22478).
     pub(super) fn with_receipt(error: SnapbackError, receipt: Receipt) -> Self {
-        Self(error, Some(receipt), None, None, None)
+        Self(error, Some(receipt), None, None, None, None)
     }
 
     pub(super) fn with_attribution(mut self, attribution: Option<FunctionAttribution>) -> Self {
@@ -52,6 +55,11 @@ impl ApiError {
 
     pub(super) fn with_ephemeral_authority_instance(mut self, instance: Option<&str>) -> Self {
         self.4 = instance.map(str::to_owned);
+        self
+    }
+
+    pub(super) fn with_mutation_timing(mut self, timing: MutationServerTiming) -> Self {
+        self.5 = Some(timing);
         self
     }
 
@@ -66,11 +74,19 @@ impl ApiError {
             Some(retry_after_seconds.max(1)),
             None,
             None,
+            None,
         )
     }
 
     pub(super) fn api_throttled(error: SnapbackError, retry_after_seconds: u64) -> Self {
-        Self(error, None, Some(retry_after_seconds.max(1)), None, None)
+        Self(
+            error,
+            None,
+            Some(retry_after_seconds.max(1)),
+            None,
+            None,
+            None,
+        )
     }
 }
 
@@ -83,13 +99,13 @@ pub(super) fn diagnostic_from_ephemeral(error: crate::ephemeral::EphemeralError)
 
 impl From<SnapbackError> for ApiError {
     fn from(value: SnapbackError) -> Self {
-        Self(value, None, None, None, None)
+        Self(value, None, None, None, None, None)
     }
 }
 
 impl From<snapback_types::diagnostic::SnapbackError> for ApiError {
     fn from(value: snapback_types::diagnostic::SnapbackError) -> Self {
-        Self(value.into(), None, None, None, None)
+        Self(value.into(), None, None, None, None, None)
     }
 }
 
@@ -1794,6 +1810,7 @@ impl IntoResponse for ApiError {
                 receipt: self.1,
                 attribution: self.3,
                 ephemeral_authority_instance: self.4,
+                timing: self.5,
             }),
         )
             .into_response();

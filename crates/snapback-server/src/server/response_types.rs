@@ -52,6 +52,10 @@ pub struct ErrorResponse {
     pub receipt: Option<Receipt>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub attribution: Option<FunctionAttribution>,
+    /// Server-owned mutation phases when a mutation reached the staged
+    /// authorization/commit path but returned a rejected disposition.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timing: Option<MutationServerTiming>,
     /// Present on a governed hosted-ephemeral refusal when the server can
     /// safely identify the current connection-bound authority. This lets a
     /// client fence the refusal itself without accepting any later stale
@@ -65,7 +69,7 @@ pub struct ErrorResponse {
     pub ephemeral_authority_instance: Option<String>,
 }
 
-/// Server-owned mutation phase timestamps carried by a successful response.
+/// Server-owned mutation phase timestamps carried by a mutation disposition.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MutationServerTiming {

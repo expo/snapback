@@ -3205,13 +3205,13 @@ id: recipes.auth-transition-writes
 order: 12
 audience: agent-first
 capabilities: [clients.outbox-drain, clients.mutation-outcomes, auth.invalidation-barrier]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0218-outbox-settlement-contract.rfc.md, packages/snapback-client/index.mjs, packages/snapback-react/implementation.mjs, packages/snapback-client/authorization-invalidation.test.mjs, packages/snapback-client/generated-optimistic-default.test.mjs, packages/snapback-client/outbox-store.test.mjs, scripts/auth-settlement-packed-proof.mjs, scripts/check-guide-auth-settlement-packed-proof.mjs]
-examples: [packages/snapback-client/authorization-invalidation.test.mjs, packages/snapback-client/generated-optimistic-default.test.mjs, packages/snapback-client/outbox-store.test.mjs, scripts/auth-settlement-packed-proof.mjs, demos/browser-local-first]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0218-outbox-settlement-contract.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/outbox-shared.mjs, packages/snapback-client/rqs-store-sqlite.mjs, packages/snapback-react/implementation.mjs, packages/snapback-client/authority-transition-conformance.test.mjs, packages/snapback-client/authorization-invalidation.test.mjs, packages/snapback-client/generated-optimistic-default.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-client/outbox-store.test.mjs, scripts/auth-settlement-packed-proof.mjs, scripts/check-guide-auth-settlement-packed-proof.mjs]
+examples: [packages/snapback-client/authority-transition-conformance.test.mjs, packages/snapback-client/authorization-invalidation.test.mjs, packages/snapback-client/generated-optimistic-default.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-client/outbox-store.test.mjs, scripts/auth-settlement-packed-proof.mjs, demos/browser-local-first]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:d99337e46d8723f811216c93f0b822dd08535ceb5aa9ee1bd52e1ce04b825ce8
+reviewed-authorities-digest: sha256:147f274f197b8fb2e15b67c559278c0858f9505d608634b3e7acaf8d24da0fdf
 ---
 
 # Recipe: writes during authentication transitions
@@ -3272,10 +3272,47 @@ the mutation settlement rather than declaring success.
 
 `queue: "auto"` is capability-sensitive: without a qualified outbox it
 degrades to `queue: false` and rejects instead of pretending the intent is
-durable. Explicit `queue: true` requires outbox support. The separate declared
-housekeeping lane and `blockedReason: "auth-barrier"` vocabulary in the LLP
-0295 D0.2 implementation program are not shipped APIs today; do not invent a
-`housekeeping: true` flag or promise foreground/housekeeping lane isolation.
+durable. Explicit `queue: true` requires outbox support.
+
+## Declare only genuine housekeeping
+
+The headless client has a separate shipped lane for background work that is
+idempotent, latest-wins for one stable key, and valid under the successor
+principal:
+
+```js fragment reason="illustrative application declaration; function references and route keys are app-specific"
+const outcome = await client.mutate(refreshRouteReceipt, {
+  args: { route: "/inbox" },
+  housekeeping: {
+    key: "route-inbox",
+    idempotent: true,
+    successorValid: true,
+  },
+});
+```
+
+During an active auth barrier, that exact declaration may resolve `queued`
+with `blockedReason: "auth-barrier"`; it performs zero transport until the
+successor settles. A later pending record with the same key supersedes the
+older one, whose `mutationStatus(clientMutationId)` becomes `failed` with
+`SNAPBACK_HOUSEKEEPING_SUPERSEDED`. Do not mark a user gesture as
+housekeeping: ordinary foreground query/mutation admission promptly refuses
+with `SNAPBACK_CLIENT_AUTHORITY_CLEARING` during the barrier.
+
+In compact terms: declare `{ key, idempotent: true, successorValid: true }`
+only for latest-wins housekeeping. `blockedReason: auth-barrier` means zero
+transport. Observe `SNAPBACK_HOUSEKEEPING_SUPERSEDED` through mutation status.
+
+Foreground and housekeeping transports are independent lanes. A suspended or
+slow housekeeping request does not head-of-line block a replayable foreground
+record; authority/root cuts remain exclusive across both. Cross-lane ordering
+is not promised: foreground admission is independent of suspended housekeeping.
+
+Predecessor work is reconciled before successor observation. Anonymous →
+authenticated, dev → sessions, and same-user/new-session intent strands for
+explicit discard or re-record. A → B, authenticated → anonymous, sessions →
+dev, and authorization-stream incarnation changes privacy-delete predecessor
+intent. No stranded record is automatically sent under the successor.
 
 Capture the logical intent once. Do not let a React effect manufacture a new
 mutation id on every auth snapshot or retry tick. After a principal change,
@@ -3330,6 +3367,8 @@ in the [signed-out settlement closure](repo:issues/closed/20260820-authenticated
 const result = Object.freeze({
   oneShot: await proveOneShots(),
   live: await proveLive(),
+  modePendingReload: await proveModePendingReload(),
+  housekeeping: await proveHousekeepingBarrier(),
 });
 process.stdout.write(`${JSON.stringify(result)}\n`);
 ```
@@ -3348,8 +3387,13 @@ not cross transport, while “offlineQueue:false persists live roots” proves
 transport. In
 [`outbox-store.test.mjs`](repo:packages/snapback-client/outbox-store.test.mjs),
 “default foreground mutation without an explicit id” independently pins the
-same no-transport foreground rejection. None of these receipts claims the
-unimplemented D0.2 housekeeping-lane surface.
+same no-transport foreground rejection and the item-5 strand/delete rows.
+[`authority-transition-conformance.test.mjs`](repo:packages/snapback-client/authority-transition-conformance.test.mjs)
+proves declared housekeeping queues under `auth-barrier` with zero transport,
+and [`outbox-drain.test.mjs`](repo:packages/snapback-client/outbox-drain.test.mjs)
+holds a real housekeeping fetch while a later replayable foreground record
+enters and settles transport. SQLite's focused store suite pins the same lane
+gate and authorization-generation CAS on the Expo carrier.
 
 ## Anti-patterns
 

@@ -28,6 +28,11 @@ test('provider readiness is level-triggered through phase-9 authority settlement
   const unsubscribe = coordinator.subscribeAuthorityTransition((status) => observed.push(status));
   const anonymousCapture = await coordinator.establishAnonymous(anonymous());
   assert.equal(coordinator.authorityTransitionStatus().settled, true);
+  assert.equal(
+    coordinator.authorityTransitionStatus({ reconnecting: true }).state,
+    'reconnecting',
+    'the coordinator production projection uses the shared classifier for transport recovery',
+  );
 
   let releaseCommit;
   let enteredCommit;

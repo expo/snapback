@@ -251,7 +251,7 @@
     },
     "MutationServerTiming": {
       "additionalProperties": false,
-      "description": "Server-owned mutation phase timestamps carried by a successful response.",
+      "description": "Server-owned mutation phase timestamps carried by a mutation disposition.",
       "properties": {
         "authorizedAtMs": {
           "format": "uint64",

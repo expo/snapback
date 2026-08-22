@@ -157,6 +157,13 @@ export interface RqsMaterializationTransactionView {
 export interface RqsResumeStore {
   isWriter(): boolean;
   whenLockSettled(): Promise<void>;
+  /** Shared authorization-dispatch gate. Lane dispatches exclude their own
+   * lane while foreground and housekeeping may proceed beside one another;
+   * an omitted lane is an exclusive authority-transition cut. */
+  withOutboxAuthorizationDispatch<T>(
+    operation: () => T | Promise<T>,
+    options?: Readonly<{ lane?: 'foreground' | 'housekeeping' | null }>,
+  ): Promise<T>;
   /** Optional role-transition notification. File carriers without a native
    * watch primitive are polled only while pending work awaits writer custody. */
   subscribeWriterLock?(listener: (writer: boolean) => void): () => void;
@@ -168,6 +175,11 @@ export interface RqsResumeStore {
     pendingScopeCount: number;
     effectiveDisposition: 'retain' | 'quarantine' | 'delete';
   }>>;
+  outboxAuthorizationTransitionVisible(
+    kind: string,
+    payload: Readonly<Record<string, unknown>>,
+    expectedAuthorityGeneration?: number | null,
+  ): Promise<boolean>;
   outboxApplyAuthorizationObligation(
     obligation: Readonly<Record<string, unknown>>,
     expectedAuthorityGeneration: number,
@@ -186,6 +198,7 @@ export interface RqsResumeStore {
   ): Promise<Readonly<Record<string, unknown>>>;
   outboxEnqueue(
     record: Readonly<Record<string, unknown>>,
+    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,
   ): Promise<Readonly<Record<string, unknown>> & { readonly insertionOwned: boolean }>;
   outboxRecords(): Promise<readonly Readonly<Record<string, unknown>>[]>;
   outboxMarkStranded(
@@ -236,11 +249,15 @@ export interface RqsResumeStore {
     record: Readonly<Record<string, unknown>>,
     authorityCohortKey: string,
     range?: Readonly<Record<string, unknown>> | null,
+    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,
   ): Promise<Readonly<Record<string, unknown>> & { readonly insertionOwned: boolean }>;
   outboxAssignOperationIdentity?(
     id: string,
     authorityCohortKey: string,
     range?: Readonly<Record<string, unknown>> | null,
+    descriptor?: Readonly<Record<string, unknown>>,
+    principal?: Readonly<Record<string, unknown>>,
+    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,
   ): Promise<Readonly<Record<string, unknown>> | false | null>;
   outboxOperationIdentityRange?(
     authorityCohortKey: string,

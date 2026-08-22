@@ -1,14 +1,14 @@
 # Agent auth-transition residuals around reload and ephemeral settlement
 
-**Status:** Closed — resolved 2026-08-21 by LLP 0295 W2
+**Status:** Open — residual 1 fixed 2026-08-21; residuals 2–3 still need real witnesses
 **Opened:** 2026-08-20 (split from the duplicate open copy of
 `20260815-agent-lifecycle-auth-seams.md`)
 **Systems:** Client auth coordinator, Live queries, Ephemeral state, Dev loop
 **Related:** LLP 0059; LLP 0227;
 `issues/closed/20260815-agent-lifecycle-auth-seams.md`;
 `issues/closed/20260815-headless-auth-churn-stalls-backend.md`;
-`issues/20260820-optional-user-live-query-auth-transition-stall.md`;
-`issues/20260820-authenticated-query-signed-out-settlement.md`
+`issues/closed/20260820-optional-user-live-query-auth-transition-stall.md`;
+`issues/closed/20260820-authenticated-query-signed-out-settlement.md`
 
 ## Why this ticket remains open
 
@@ -51,23 +51,30 @@ its live resources settle or rebuild with an explicit state; and an operation
 started immediately after awaited signin does not expose an ephemeral-authority
 race to application code.
 
-## Resolution (2026-08-21)
+## Progress (2026-08-21)
 
 The W2 client now treats an axisless finite
 `SNAPBACK_AUTH_MODE_PENDING` refusal as reconnecting: it performs a bounded
 client-owned retry, does not invoke terminal-auth custody clearing, and
 releases/re-enters the authorization-dispatch gate between attempts. A
-disposition-bearing occurrence remains terminal, so a real staged auth-mode
-transition still runs the LLP 0059 item-5 path. Live terminal frames retain
-that same disposition-bearing rule.
+disposition-bearing occurrence is terminal only with the full
+`reason: "mode_transition"` discriminant, so malformed carriers cannot
+authorize destructive custody work and a real staged auth-mode transition
+still runs the LLP 0059 item-5 path.
 
-`authority-transition-conformance.test.mjs` pins both discriminant branches.
-The coordinator readiness suite holds a real phase-9 transition while 200
-waiters join `whenAuthoritySettled()` and proves that every returned status
-has `ephemeralAuthorityUsable: true`. The packed external-package receipt
-also starts from durable session custody, absorbs two axisless reload
-refusals, observes the successor response, and proves that the session
-remains installed; its disposition-bearing negative control terminates in
-one attempt.
+`authority-transition-conformance.test.mjs` pins transient, malformed, and
+fully discriminated terminal branches and projects the in-flight retry through
+the production classifier as `reconnecting`. This closes residual 1.
 
-Evidence: `node packages/snapback-react/auth-transition-liveness-packed.test.mjs`.
+The coordinator readiness suite's 200 waiters prove the generic phase-9 signal
+but are not a real subscribe-after-sign-in ephemeral operation. The packed
+HTTP retry is not a live-stream watch-reload/re-arm witness. Therefore:
+
+- residual 2 remains open until a real live-stream watch-reload proves the
+  predecessor is fenced and exactly one successor reaches an authoritative
+  snapshot; and
+- residual 3 remains open until a real repeated awaited-sign-in → immediate
+  ephemeral subscribe/publish path absorbs the pending window without app-
+  visible `SNAPBACK_EPHEMERAL_AUTHORITY_PENDING`.
+
+Current partial evidence: `node --test packages/snapback-client/authority-transition-conformance.test.mjs packages/snapback-contract/authority-transition-signal.test.mjs`.

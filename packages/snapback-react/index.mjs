@@ -26,16 +26,12 @@ export {
   isSnapbackDiagnosticError,
 } from '@expo/snapback-client';
 export {
-  CLIENT_AUTHORITY_OPERATION_TIMINGS,
   CLIENT_AUTHORITY_STATES,
   CLIENT_AUTHORITY_STATE_MATRIX,
   CLIENT_AUTHORITY_SURFACES,
   CLIENT_AUTHORITY_TERMINALS,
-  CLIENT_AUTHORITY_TRANSITION_CONFORMANCE_ROWS,
-  CLIENT_AUTHORITY_TRANSITION_EVENTS,
   authorityTransitionCell,
   classifyClientAuthorityState,
-  generateAuthorityTransitionConformanceRows,
 } from '@expo/snapback-client/authority-transition';
 
 // Full compatibility composition. Query/mutation-only applications can select

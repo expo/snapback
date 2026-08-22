@@ -290,6 +290,64 @@ test('cold-start drain: restored pending intent drains with no fresh external ev
   assert.equal((await client.mutationStatus('cm-cold-start')).status, 'settled');
 });
 
+test('foreground replay enters real transport while an earlier housekeeping transport hangs', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  await store.outboxEnqueue({
+    id: 'cm-held-housekeeping',
+    function: 'slowHousekeeping',
+    args: { generation: 1 },
+    dispatchLane: 'housekeeping',
+    housekeepingKey: 'slow-housekeeping',
+  });
+  let releaseHousekeeping;
+  const housekeepingHeld = new Promise((resolve) => { releaseHousekeeping = resolve; });
+  let housekeepingEntered = false;
+  let foregroundEntered = false;
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/connection/open') return grant(JSON.parse(init.body).connectionId);
+    if (path === '/mutation/slowHousekeeping') {
+      housekeepingEntered = true;
+      await housekeepingHeld;
+      return settlement({ lane: 'housekeeping' });
+    }
+    if (path === '/mutation/saveForeground') {
+      foregroundEntered = true;
+      return settlement({ lane: 'foreground' });
+    }
+    throw new Error(`unexpected head-of-line request ${path}`);
+  };
+  const client = new SnapbackClient('https://drain-lane-head-of-line.test', { rqsStore: store });
+  const controller = client.startOutboxDrain();
+  t.after(() => {
+    releaseHousekeeping?.();
+    controller.stop();
+  });
+  await waitFor(() => housekeepingEntered, 'held housekeeping transport');
+
+  await store.outboxEnqueue({
+    id: 'cm-replayable-foreground',
+    function: 'saveForeground',
+    args: { value: 'user intent' },
+    dispatchLane: 'foreground',
+  });
+  const foregroundDrain = controller.drainNow();
+  await waitFor(() => foregroundEntered, 'foreground transport beside held housekeeping');
+  assert.equal(housekeepingEntered, true);
+  assert.equal(
+    (await client.mutationStatus('cm-replayable-foreground')).status,
+    'settled',
+  );
+  await foregroundDrain;
+
+  releaseHousekeeping();
+  await waitFor(
+    async () => (await client.mutationStatus('cm-held-housekeeping')).status === 'settled',
+    'housekeeping settlement after release',
+  );
+});
+
 test('default lifecycle settles restored and newly queued work when connectivity returns', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const events = new FakeEventTarget();

@@ -546,8 +546,8 @@ W2 changes are implemented through
    `SNAPBACK_HOUSEKEEPING_SUPERSEDED`, never a silent no-op. Predecessor
    housekeeping intent at a barrier follows the **item-5 disposition of its
    row exactly like foreground intent** — strand for anonymous →
-   authenticated and same-user/new-session, delete for A → B,
-   A → anonymous, and incarnation change — and a stranded housekeeping
+   authenticated, dev → sessions, and same-user/new-session; delete for A →
+   B, A → anonymous, sessions → dev, and incarnation change — and a stranded housekeeping
    record is never auto-replayed under a different principal; there is no
    separate "drop" outcome. The foreground lane keeps this RFC's ordered
    single-flight semantics within the lane; a suspended or slow
@@ -555,8 +555,8 @@ W2 changes are implemented through
    cross-lane ordering is explicitly not promised. During a barrier, only
    declared-housekeeping writes targeting the successor may durably queue
    (matrix ruling 3) — these are successor intent and drain at settle —
-   while other dispatches join the bounded barrier settlement or refuse
-   typed. The declaration spelling (dispatch option or generated
+   while other newly started dispatches promptly refuse typed with zero
+   transport. The declaration spelling (dispatch option or generated
    annotation) is recorded in the implementation section below.
 3. **Predecessor intent at the barrier** continues to follow LLP 0059's
    item-5 custody transition table (strand/delete); this RFC adds no
@@ -575,12 +575,14 @@ carries the events.
 ### W2 implementation record (2026-08-21)
 
 The prospective changes above are implemented. The disposition union now
-always carries the five-field nullable `timing` object. Durable enqueue and
-first transport admission are recorded atomically in every JS store arm;
-successful server responses contribute separate authorization, handler-
-execution, and durable-commit stamps, which durable settlement merges before
-publication. Existing records and older servers project missing phases as
-`null` rather than fabricating chronology.
+always carries the five-field nullable `timing` object in two clock domains.
+Durable enqueue and first transport admission are recorded atomically in every
+JS store arm on the client clock. Successful responses and rejected mutations
+that reached the staged server path contribute the server-clock authorization,
+handler-execution, and durable-commit triple. Ordering is guaranteed within
+each domain; cross-domain subtraction is advisory unless independently clock-
+offset-calibrated, not a five-field total order. Existing records and older
+servers project missing phases as `null` rather than fabricating chronology.
 
 The declaration spelling is
 `housekeeping: { key, idempotent: true, successorValid: true }`. Same-key
@@ -596,3 +598,10 @@ housekeeping transport does not block a foreground send. Successor-targeted
 housekeeping remains pending even when admitted after a predecessor delete
 root is installed, then binds exact successor custody at settlement; shared
 item-5 custody reconciliation remains in force for both lanes.
+
+The Expo SQLite arm participates in the same proof: it implements
+`withOutboxAuthorizationDispatch`, atomically advances authorization authority
+inside `wipeForAuthorityTransition`, exposes `outboxAuthorizationStatus`, and
+passes expected authorization/generation CAS values through enqueue and
+custody reconciliation. Its focused tests prove stale enqueue/reconcile
+refusal and exclusive authority cuts beside independently admitted lanes.

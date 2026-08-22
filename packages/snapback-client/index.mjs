@@ -18,6 +18,7 @@ import {
   retainedQueryKey,
   stableJson,
 } from '@expo/snapback-contract/client-store';
+import { classifyClientAuthorityState } from '@expo/snapback-contract/auth-coordinator';
 import { isMintedIdentifier } from '@expo/snapback-contract/ids';
 import {
   OPERATION_NAME_PATTERN,
@@ -52,16 +53,12 @@ import {
 export { DEFAULT_AUTH_STORAGE_PARTITION } from './app-client-defaults.mjs';
 export { createSnapbackAppClient } from './app-client.mjs';
 export {
-  CLIENT_AUTHORITY_OPERATION_TIMINGS,
   CLIENT_AUTHORITY_STATES,
   CLIENT_AUTHORITY_STATE_MATRIX,
   CLIENT_AUTHORITY_SURFACES,
   CLIENT_AUTHORITY_TERMINALS,
-  CLIENT_AUTHORITY_TRANSITION_CONFORMANCE_ROWS,
-  CLIENT_AUTHORITY_TRANSITION_EVENTS,
   authorityTransitionCell,
   classifyClientAuthorityState,
-  generateAuthorityTransitionConformanceRows,
 } from './authority-transition.mjs';
 import {
   SEARCH_REQUEST_ARGS_CONTRACT_GENERATION,
@@ -1736,10 +1733,13 @@ const finiteAuthorityDisposition = (diagnostic) => {
   const declaresDisposition = details !== null
     && typeof details === 'object'
     && Object.hasOwn(details, 'authorityDisposition');
-  if (
-    declaresDisposition
-    && LIVE_AUTHORITY_DISPOSITIONS.has(details.authorityDisposition)
-  ) return details.authorityDisposition;
+  if (declaresDisposition && LIVE_AUTHORITY_DISPOSITIONS.has(details.authorityDisposition)) {
+    if (
+      diagnostic.code !== 'SNAPBACK_AUTH_MODE_PENDING'
+      || details.reason === 'mode_transition'
+    ) return details.authorityDisposition;
+    return 'carrier';
+  }
   if (diagnostic?.code === 'SNAPBACK_AUTH_MODE_PENDING' && !declaresDisposition) return null;
   // Finite terminal codes historically collapsed expiry and revocation.
   // Missing or malformed causal metadata must terminate the live carrier but
@@ -1762,6 +1762,7 @@ const liveTerminalAuthError = (frame) => {
     && frame.kind === LIVE_SOCKET_KINDS.AUTH_ERROR
     && LIVE_TERMINAL_AUTH_CODES.has(frame.code)
     && LIVE_TERMINAL_AUTH_REASONS.has(frame.reason)
+    && (frame.code !== 'SNAPBACK_AUTH_MODE_PENDING' || frame.reason === 'mode_transition')
     && LIVE_AUTHORITY_DISPOSITIONS.has(frame.authorityDisposition);
   const code = valid ? frame.code : 'SNAPBACK_AUTH_LIVE_FRAME_INVALID';
   const message = valid
@@ -3036,6 +3037,7 @@ export class SnapbackClient {
     }
     this.__operationIdentityProtocol = operationIdentityProtocol;
     this.__outboxReplayTask = null;
+    this.__outboxHousekeepingReplayTask = null;
     this.__outboxReplayScheduled = false;
     this.__outboxReplayTimer = null;
     this.__outboxDrainController = null;
@@ -3045,6 +3047,7 @@ export class SnapbackClient {
     this.__clientClosed = false;
     this.__outboxBarrierProviders = new Set();
     this.__outboxLastReplayStop = null;
+    this.__outboxHousekeepingLastReplayStop = null;
     this.__outboxDiagnostics = [];
     if (typeof devDiagnosticsReporter !== 'boolean') {
       throw new TypeError('devDiagnosticsReporter must be boolean');
@@ -3240,6 +3243,8 @@ export class SnapbackClient {
     // cut; cleared only by the explicit custody-replacement barriers.
     this.__authTerminalFact = null;
     this.__authTerminalListeners = new Set();
+    this.__authorityTransitionListeners = new Set();
+    this.__authModePendingRetryDepth = 0;
     this.__authTransportParticipant = {
       name: 'snapback-kit-transport',
       quiesce: (context = {}) => {
@@ -6076,22 +6081,29 @@ export class SnapbackClient {
         // mode-pending refusal is a watch-reload window, not terminal
         // authority evidence. Release happened through onTransportFailure;
         // retry the same operation within a bounded short-jitter budget.
-        await new Promise((resolve) => setTimeout(
-          resolve,
-          this.#reservationRetryDelayMilliseconds(),
-        ));
-        return this.#request(method, path, body, headers, {
-          admin,
-          supersededRetry,
-          senderChallengeRetry,
-          expectedAuthorityCapture,
-          externalBearerTransitionPermit,
-          beforeTransportDispatch,
-          onTransportFailure,
-          authAdmissionReference,
-          authAdmissionOperation,
-          authModePendingRetry: authModePendingRetry + 1,
-        });
+        this.__authModePendingRetryDepth += 1;
+        this.__notifyAuthorityTransitionStatus();
+        try {
+          await new Promise((resolve) => setTimeout(
+            resolve,
+            this.#reservationRetryDelayMilliseconds(),
+          ));
+          return await this.#request(method, path, body, headers, {
+            admin,
+            supersededRetry,
+            senderChallengeRetry,
+            expectedAuthorityCapture,
+            externalBearerTransitionPermit,
+            beforeTransportDispatch,
+            onTransportFailure,
+            authAdmissionReference,
+            authAdmissionOperation,
+            authModePendingRetry: authModePendingRetry + 1,
+          });
+        } finally {
+          this.__authModePendingRetryDepth -= 1;
+          this.__notifyAuthorityTransitionStatus();
+        }
       }
       if (this.authorityFence && capture && error?.receipt) {
         markAuthorityCapture(error.receipt, capture);
@@ -6352,6 +6364,9 @@ export class SnapbackClient {
       if (authorityDisposition !== null) error.authorityDisposition = authorityDisposition;
       if (json?.receipt) {
         error.receipt = sanitizeProtocolErrorValue(json.receipt, requestSecrets);
+      }
+      if (json?.timing && typeof json.timing === 'object') {
+        error.timing = sanitizeProtocolErrorValue(json.timing, requestSecrets);
       }
       // @ref LLP 0055#audit — a non-2xx envelope's `attribution` sibling is
       // retained verbatim (byte-preserving pass-through): it is server-derived
@@ -6728,7 +6743,7 @@ export class SnapbackClient {
       status: 'pending',
       enqueuedAt,
       // This process-local optimistic carrier was never durably enqueued.
-      timing: mutationTiming(),
+      timing: mutationTiming({ enqueuedAt }),
     });
     this.__ephemeralOptimisticRecords.set(stored.id, stored);
     while (this.__ephemeralOptimisticRecords.size > 256) {
@@ -6776,6 +6791,7 @@ export class SnapbackClient {
         code: error?.diagnostic?.code ?? error?.code ?? 'SNAPBACK_MUTATION_REFUSED',
         message: error?.message ?? String(error),
       },
+      timing: mutationTiming({ ...record, settlement: { timing: error?.timing } }),
     }));
     this.#notifyOutboxListeners();
     return true;
@@ -8865,13 +8881,18 @@ export class SnapbackClient {
       quarantined,
       resultGone,
       replaying: controllerStatus?.drainPhase === 'replaying'
-        || this.__outboxReplayTask !== null,
+        || this.__outboxReplayTask !== null
+        || this.__outboxHousekeepingReplayTask !== null,
       drainMode: controllerStatus === null
         ? 'none'
         : controllerStatus.automatic === false ? 'manual' : 'auto',
       oldestPendingAtMs,
       drainPhase: controllerStatus?.drainPhase
-        ?? (this.__outboxReplayTask !== null ? 'replaying' : 'idle'),
+        ?? (
+          this.__outboxReplayTask !== null || this.__outboxHousekeepingReplayTask !== null
+            ? 'replaying'
+            : 'idle'
+        ),
       lastAttemptAtMs: controllerStatus?.lastAttemptAtMs ?? null,
       nextRetryAtMs: controllerStatus?.nextRetryAtMs ?? null,
       blockedReason,
@@ -9413,13 +9434,22 @@ export class SnapbackClient {
 
   /** Settled-authority signal projected from the shared coordinator. */
   authorityTransitionStatus() {
+    const reconnecting = [...(this.__liveStreamManagers?.values?.() ?? [])].some((manager) => {
+      const inspection = manager.inspection();
+      return inspection.closed !== true && inspection.socketDemand > 0 && !manager.isReady();
+    });
+    const modePending = this.__authModePendingRetryDepth > 0;
     if (typeof this.authorityFence?.authorityTransitionStatus === 'function') {
-      return this.authorityFence.authorityTransitionStatus();
+      return this.authorityFence.authorityTransitionStatus({ reconnecting, modePending });
     }
     let settled = false;
     try { settled = this.authorityFence === null || this.authorityFence.capture?.() !== null; } catch {}
+    const principal = this.auth.currentPrincipal();
+    const current = principal.status === 'authenticated'
+      ? { kind: 'session' }
+      : { kind: 'anonymous' };
     return Object.freeze({
-      state: this.auth.currentPrincipal().status === 'authenticated' ? 'authenticated' : 'anonymous',
+      state: classifyClientAuthorityState({ current, reconnecting, modePending }),
       settled,
       subscribeSafe: settled,
       ephemeralAuthorityUsable: settled,
@@ -9435,11 +9465,28 @@ export class SnapbackClient {
     if (typeof listener !== 'function') {
       throw new TypeError('subscribeAuthorityTransition requires a listener function');
     }
+    this.__authorityTransitionListeners.add(listener);
+    let unsubscribeFence = null;
     if (typeof this.authorityFence?.subscribeAuthorityTransition === 'function') {
-      return this.authorityFence.subscribeAuthorityTransition(listener);
+      unsubscribeFence = this.authorityFence.subscribeAuthorityTransition(() => {
+        if (this.__authorityTransitionListeners.has(listener)) {
+          listener(this.authorityTransitionStatus());
+        }
+      });
+    } else {
+      listener(this.authorityTransitionStatus());
     }
-    listener(this.authorityTransitionStatus());
-    return () => {};
+    return () => {
+      this.__authorityTransitionListeners.delete(listener);
+      unsubscribeFence?.();
+    };
+  }
+
+  __notifyAuthorityTransitionStatus() {
+    const status = this.authorityTransitionStatus();
+    for (const listener of [...this.__authorityTransitionListeners]) {
+      try { listener(status); } catch { /* observer isolation */ }
+    }
   }
 
   #recordAuthTerminalFact(error, authorityDisposition) {
@@ -9916,6 +9963,7 @@ export class SnapbackClient {
     let activeCycleRequestGeneration = 0;
     let pumpTask = null;
     let retryTimer = null;
+    let housekeepingRetryTimer = null;
     let writerPollTimer = null;
     let retryAttempt = 0;
     let freshBarrierAvailable = false;
@@ -9995,6 +10043,13 @@ export class SnapbackClient {
       ownedTimers.delete(retryTimer);
       retryTimer = null;
       nextRetryAtMs = null;
+    };
+
+    const clearHousekeepingRetryTimer = () => {
+      if (housekeepingRetryTimer === null) return;
+      cancel(housekeepingRetryTimer);
+      ownedTimers.delete(housekeepingRetryTimer);
+      housekeepingRetryTimer = null;
     };
 
     const clearWriterPollTimer = () => {
@@ -10277,21 +10332,41 @@ export class SnapbackClient {
       try {
         replayingCore = true;
         lastOutcome = Object.freeze(await this.#replayQueuedMutationsWithOptions({
+          replayLane: 'foreground',
           shouldContinue: () => running && !this.__clientClosed,
           shouldReplayRecord: (record) => isForegroundReplayEligible(store, record),
         }));
-        // The foreground lane always receives first admission. Only after it
-        // yields do coalesced housekeeping records enter their own ordered
-        // lane, so a suspended background head is skipped by foreground work.
+        replayingCore = false;
+        // Housekeeping owns an independent single-flight. Do not await its
+        // transport: a later foreground level wake must be able to run a new
+        // foreground replay while the background request remains in flight.
+        // @ref LLP 0218#w2-implementation-record-2026-08-21 — slow housekeeping cannot head-of-line block foreground dispatch.
         if (
           running
-          && lastOutcome.stopped !== true
+          && housekeepingRetryTimer === null
+          && this.__outboxHousekeepingReplayTask === null
           && (await scanPending()).some(isHousekeepingReplayEligible)
         ) {
-          lastOutcome = Object.freeze(await this.#replayQueuedMutationsWithOptions({
+          void this.#replayQueuedMutationsWithOptions({
+            replayLane: 'housekeeping',
             shouldContinue: () => running && !this.__clientClosed,
             shouldReplayRecord: isHousekeepingReplayEligible,
-          }));
+          }).then((outcome) => {
+            if (!running) return;
+            const stop = this.__outboxHousekeepingLastReplayStop;
+            if (stop?.kind === 'transient') {
+              housekeepingRetryTimer = timerHandle(() => {
+                housekeepingRetryTimer = null;
+                requestCycle('housekeeping-backoff-expired');
+              }, OUTBOX_DRAIN_RETRY_BASE_MS);
+              return;
+            }
+            if (outcome.remaining > 0 || outcome.replayed > 0) {
+              requestCycle('housekeeping-replay-settled');
+            }
+          }, () => {
+            if (running) requestCycle('housekeeping-replay-rejected');
+          });
         }
       } catch (error) {
         if (running) {
@@ -10331,6 +10406,7 @@ export class SnapbackClient {
       }
       retryAttempt = 0;
       clearRetryTimer();
+      clearHousekeepingRetryTimer();
       rearmLatchedReplayWake();
       publish('idle', null, null);
       return lastOutcome;
@@ -10535,12 +10611,16 @@ export class SnapbackClient {
   }
 
   async #replayQueuedMutationsWithOptions(options = undefined) {
-    if (this.__outboxReplayTask) return this.__outboxReplayTask;
+    const replayLane = options?.replayLane === 'housekeeping' ? 'housekeeping' : 'foreground';
+    const taskField = replayLane === 'housekeeping'
+      ? '__outboxHousekeepingReplayTask'
+      : '__outboxReplayTask';
+    if (this[taskField]) return this[taskField];
     const task = this.#replayOutboxOnce(options).finally(() => {
-      if (this.__outboxReplayTask === task) this.__outboxReplayTask = null;
+      if (this[taskField] === task) this[taskField] = null;
       this.#notifyOutboxListeners();
     });
-    this.__outboxReplayTask = task;
+    this[taskField] = task;
     this.#notifyOutboxListeners();
     return task;
   }
@@ -10549,8 +10629,19 @@ export class SnapbackClient {
     preserveTerminalFailures = false,
     shouldContinue = () => true,
     shouldReplayRecord = () => true,
+    replayLane = 'foreground',
   } = {}) {
-    this.__outboxLastReplayStop = null;
+    const thisClient = this;
+    const replayStop = {
+      set value(value) {
+        if (replayLane === 'housekeeping') {
+          thisClient.__outboxHousekeepingLastReplayStop = value;
+        } else {
+          thisClient.__outboxLastReplayStop = value;
+        }
+      },
+    };
+    replayStop.value = null;
     let store = null;
     try {
       store = this.#offlineQueueStore();
@@ -10572,7 +10663,7 @@ export class SnapbackClient {
       // a non-writer may inspect the shared durable domain but may not mutate
       // it. Never turn that custody refusal into a misleading empty queue.
       const remaining = (await store.outboxRecords()).filter(isUnresolvedOutboxRecord).length;
-      this.__outboxLastReplayStop = Object.freeze({ kind: 'paused', reason: 'not-writer' });
+      replayStop.value = Object.freeze({ kind: 'paused', reason: 'not-writer' });
       return {
         replayed: 0, failed: 0, stranded: 0, quarantined: 0, remaining, stopped: true,
       };
@@ -10582,7 +10673,7 @@ export class SnapbackClient {
       && (await store.outboxAuthorizationStatus()).suspended === true
     ) {
       const remaining = (await store.outboxRecords()).filter(isUnresolvedOutboxRecord).length;
-      this.__outboxLastReplayStop = Object.freeze({
+      replayStop.value = Object.freeze({
         kind: 'paused',
         reason: 'authorization-suspended',
       });
@@ -10594,7 +10685,7 @@ export class SnapbackClient {
     try {
       queuedBeforeCustody = (await store.outboxPending()).filter(shouldReplayRecord);
     } catch (error) {
-      this.__outboxLastReplayStop = Object.freeze({
+      replayStop.value = Object.freeze({
         kind: 'transient',
         reason: `store-transient:${error?.code ?? 'unavailable'}`,
       });
@@ -10626,7 +10717,7 @@ export class SnapbackClient {
     if (!headCustody.settled) {
       const remaining = (await store.outboxRecords()).filter(isUnresolvedOutboxRecord).length;
       const code = headCustody.error?.diagnostic?.code ?? headCustody.error?.code ?? 'unsettled';
-      this.__outboxLastReplayStop = Object.freeze({
+      replayStop.value = Object.freeze({
         kind: 'paused',
         reason: `custody-unavailable:${code}`,
       });
@@ -10638,7 +10729,7 @@ export class SnapbackClient {
     try {
       pending = (await store.outboxPending()).filter(shouldReplayRecord);
     } catch (error) {
-      this.__outboxLastReplayStop = Object.freeze({
+      replayStop.value = Object.freeze({
         kind: 'transient',
         reason: `store-transient:${error?.code ?? 'unavailable'}`,
       });
@@ -10667,7 +10758,7 @@ export class SnapbackClient {
         prepared?.status === 'authorization-suspended'
         || prepared?.status === 'authorization-stale'
       ) {
-        this.__outboxLastReplayStop = Object.freeze({
+        replayStop.value = Object.freeze({
           kind: 'paused',
           reason: 'authorization-suspended',
         });
@@ -10675,7 +10766,7 @@ export class SnapbackClient {
         break;
       }
       if (prepared?.status === 'blocked') {
-        this.__outboxLastReplayStop = Object.freeze({
+        replayStop.value = Object.freeze({
           kind: 'terminal',
           reason: 'terminal-disposition:sequence-blocked',
         });
@@ -10693,7 +10784,7 @@ export class SnapbackClient {
         continue;
       }
       if (prepared?.status === 'quarantined') {
-        this.__outboxLastReplayStop = Object.freeze({
+        replayStop.value = Object.freeze({
           kind: 'terminal',
           reason: 'terminal-disposition:quarantined',
         });
@@ -10713,7 +10804,7 @@ export class SnapbackClient {
         const custody = await this.#reconcileQueueCustody(store);
         if (!custody.settled || custody.authority === null) {
           const code = custody.error?.diagnostic?.code ?? custody.error?.code ?? 'unsettled';
-          this.__outboxLastReplayStop = Object.freeze({
+          replayStop.value = Object.freeze({
             kind: 'paused',
             reason: `custody-unavailable:${code}`,
           });
@@ -10923,7 +11014,7 @@ export class SnapbackClient {
         });
       } catch (error) {
         if (error?.outboxSettlementPersistenceFailure === true) {
-          this.__outboxLastReplayStop = Object.freeze({
+          replayStop.value = Object.freeze({
             kind: 'transient',
             reason: `settlement-store-transient:${error.code ?? 'unavailable'}`,
           });
@@ -10963,7 +11054,7 @@ export class SnapbackClient {
             break;
           }
           stopped = true;
-          this.__outboxLastReplayStop = Object.freeze({
+          replayStop.value = Object.freeze({
             kind: 'terminal',
             reason: 'terminal-disposition:result-expired',
           });
@@ -10978,7 +11069,7 @@ export class SnapbackClient {
         }
         if (isOperationOutcomeUnknownError(error)) {
           stopped = true;
-          this.__outboxLastReplayStop = Object.freeze({
+          replayStop.value = Object.freeze({
             kind: 'terminal',
             reason: 'terminal-disposition:identity-horizon-passed',
           });
@@ -10992,7 +11083,7 @@ export class SnapbackClient {
         }
         if (isOperationRangeRecoveryBlockedError(error)) {
           stopped = true;
-          this.__outboxLastReplayStop = Object.freeze({
+          replayStop.value = Object.freeze({
             kind: 'paused',
             reason: isOperationRangeCapacityError(error)
               ? 'authority-unavailable:uncovered-range-exhausted'
@@ -11010,7 +11101,7 @@ export class SnapbackClient {
         }
         if (isConnectivityFailureError(error)) {
           // Still offline: keep the record pending and preserve order.
-          this.__outboxLastReplayStop = Object.freeze({
+          replayStop.value = Object.freeze({
             kind: 'transient',
             reason: 'replay-transient:connectivity',
           });
@@ -11022,7 +11113,7 @@ export class SnapbackClient {
           // content failure. Leave the record pending for the next settled
           // authority reconciliation.
           const code = error?.diagnostic?.code ?? error?.code ?? 'unsettled';
-          this.__outboxLastReplayStop = Object.freeze({
+          replayStop.value = Object.freeze({
             kind: 'paused',
             reason: `authority-unavailable:${code}`,
           });
@@ -11047,7 +11138,7 @@ export class SnapbackClient {
             break;
           }
           stranded += 1;
-          this.__outboxLastReplayStop = Object.freeze({
+          replayStop.value = Object.freeze({
             kind: 'terminal',
             reason: 'terminal-disposition:stranded',
           });
@@ -11086,7 +11177,7 @@ export class SnapbackClient {
           }
           quarantined += held.count;
           stopped = true;
-          this.__outboxLastReplayStop = Object.freeze({
+          replayStop.value = Object.freeze({
             kind: 'terminal',
             reason: `terminal-disposition:${refusalCode}`,
           });
@@ -11117,7 +11208,7 @@ export class SnapbackClient {
             reason: error?.diagnostic?.code ?? error?.code ?? error?.message,
           });
           stopped = true;
-          this.__outboxLastReplayStop = Object.freeze({
+          replayStop.value = Object.freeze({
             kind: 'paused',
             reason: 'replay-paused:adoption-refused',
           });
@@ -11130,6 +11221,7 @@ export class SnapbackClient {
           markedFailed = await store.outboxMarkFailed(record.id, {
             code: error?.diagnostic?.code ?? error?.code ?? 'SNAPBACK_OUTBOX_REPLAY_FAILED',
             message: error?.message ?? String(error),
+            timing: error?.timing ?? null,
             ...effectProvenanceFromError(error),
           }, authorizationDispatchFence ?? preparationFence);
         } catch { /* handled below: never submit a dependent past an unknown terminal */ }
@@ -11140,7 +11232,7 @@ export class SnapbackClient {
         await this.#refreshOptimisticMutationViews('settlement-refused');
         failed += 1;
         const refusalCode = error?.diagnostic?.code ?? error?.code ?? 'SNAPBACK_OUTBOX_REPLAY_FAILED';
-        this.__outboxLastReplayStop = Object.freeze({
+        replayStop.value = Object.freeze({
           kind: 'terminal',
           reason: `terminal-disposition:${refusalCode}`,
         });
@@ -12309,6 +12401,7 @@ export class SnapbackClient {
               await queueStore.outboxMarkFailed(clientMutationId, {
                 code: error?.diagnostic?.code ?? error?.code ?? 'SNAPBACK_MUTATION_REFUSED',
                 message: error?.message ?? String(error),
+                timing: error?.timing ?? null,
                 ...effectProvenanceFromError(error),
               }, authorizationDispatchFence);
             } catch (markError) {
@@ -17402,6 +17495,7 @@ class LiveStreamManager {
   #emitState(state, detail = {}) {
     for (const listener of [...this.stateListeners]) deliverIsolated(listener, state, detail);
     for (const listener of [...this.readinessStateListeners]) deliverIsolated(listener, state, detail);
+    this.client.__notifyAuthorityTransitionStatus();
   }
 
   #ensureSocket() {

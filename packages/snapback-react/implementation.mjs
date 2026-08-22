@@ -1338,6 +1338,11 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       store.snapshot = pending('idle');
       store.freshness = 'unknown';
       store.retention = null;
+      // Delivery facts belong to the retired authority. The blank frame is a
+      // real confidentiality cut, not a presentation that may inherit the
+      // predecessor's delivery time or authoritative revision.
+      store.lastDeliveryAtMs = null;
+      store.authoritativeRevision = 0;
     }
     if (handle) {
       try { handle.dispose(); } catch (error) { recordDiagnostic(error); }
@@ -1466,7 +1471,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     // like authenticated queries; the distinction is admission while the
     // settled authority is anonymous. This branch completes a restart the
     // registry already elected; it does not define the shared restart policy
-    // reserved for LLP 0295 W2.
+    // now adopted by LLP 0059's LLP 0295 W2 amendment.
     let transitionSuccessorPending = settledAuthorityContext !== null
       && (
         store.reference?.authRequirement === 'authenticated'

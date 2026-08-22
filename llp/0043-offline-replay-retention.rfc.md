@@ -726,15 +726,14 @@ Contract arm's shipped format-6 transitions:
    full bytes retained, tagged with the predecessor `principalScope`, reason
    `authority_instance_changed`, `replayable: false`. This mirrors
    `strandCurrentQueue(..., { rerecordable: true })` on the Contract arm.
-2. **Principal change, logout to anonymous, auth-mode change, or
-   stream-incarnation change:** a privacy boundary, not a stranding. Queue
-   namespaces are cleared before the successor can observe them (Contract
-   parity: `clearAllQueueNamespaces` on principal change), and the cut is
-   recorded as an outbox diagnostic visible to the process that performed it.
-   Predecessor content is never retained for, attributed to, or replayed
-   under the successor. Privacy deliberately wins over cross-principal
-   observability here; the "never silent drop" guarantee is scoped to a
-   principal's own view of its own queue.
+2. **The LLP 0059 item-5 predecessor matrix governs principal/mode changes.**
+   Anonymous → authenticated and dev → sessions pending/failed/quarantined
+   records strand rerecordable, as does row 1's same-user replacement. A → B,
+   authenticated → anonymous, sessions → dev, and any stream-incarnation
+   change are privacy deletion boundaries: payload-bearing predecessor bytes
+   are removed before successor observation and the cut is recorded as an
+   outbox diagnostic. No stranded record is automatically attributed to or
+   replayed under the successor; re-record remains an explicit user action.
 3. **Terminal authority loss** (`authTerminalStatus().terminated === true`):
    records stay pending but the drain is inadmissible (below); the eventual
    successor bind resolves them through row 1 or row 2.
@@ -758,8 +757,8 @@ Contract arm's shipped format-6 transitions:
 resync-first/sequence-order/single-flight discipline: it runs only while the
 fence is settled and current, and at each record's submission slot it
 compares the stored `authorityDescriptor` and `principalScope` against the
-current settled authority **before transport**. A mismatch strands locally
-(row 1 semantics) without a round trip — a record must never be marked
+current settled authority **before transport**. Reconciliation applies the
+item-5 strand/delete row locally without a round trip — a record must never be marked
 `failed` by a refusal the client could prove in advance was an authority
 change, and must never be transmitted under an authority other than the one
 that captured it. Records that pass the gate replay with the **stored**

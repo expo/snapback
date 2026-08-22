@@ -4,7 +4,7 @@
 **Opened:** 2026-08-20
 **Closed:** 2026-08-21
 **Systems:** Live queries, Auth transitions, React/Familiar client, Diagnostics
-**Related:** LLP 0059; LLP 0107; LLP 0277 P16; LLP 0295; Diary 0101; `issues/20260820-authenticated-query-signed-out-settlement.md`
+**Related:** LLP 0059; LLP 0107; LLP 0277 P16; LLP 0295; Diary 0101; `issues/closed/20260820-authenticated-query-signed-out-settlement.md`
 **Landing SHA:** 379d1d560
 
 ## Problem

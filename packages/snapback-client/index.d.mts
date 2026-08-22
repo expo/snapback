@@ -2302,23 +2302,16 @@ export {
   type NativeRqsFilesProvider,
 } from './rqs-store-default.mjs';
 export type {
-  ClientAuthorityConformanceRow,
   ClientAuthorityMatrixCell,
-  ClientAuthorityOperationTiming,
   ClientAuthorityState,
   ClientAuthoritySurface,
   ClientAuthorityTerminal,
-  ClientAuthorityTransitionEvent,
 } from './authority-transition.mjs';
 export {
-  CLIENT_AUTHORITY_OPERATION_TIMINGS,
   CLIENT_AUTHORITY_STATES,
   CLIENT_AUTHORITY_STATE_MATRIX,
   CLIENT_AUTHORITY_SURFACES,
   CLIENT_AUTHORITY_TERMINALS,
-  CLIENT_AUTHORITY_TRANSITION_CONFORMANCE_ROWS,
-  CLIENT_AUTHORITY_TRANSITION_EVENTS,
   authorityTransitionCell,
   classifyClientAuthorityState,
-  generateAuthorityTransitionConformanceRows,
 } from './authority-transition.mjs';

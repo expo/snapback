@@ -2,12 +2,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  CLIENT_AUTHORITY_OPERATION_TIMINGS,
   CLIENT_AUTHORITY_STATES,
   CLIENT_AUTHORITY_SURFACES,
   CLIENT_AUTHORITY_TERMINALS,
-  CLIENT_AUTHORITY_TRANSITION_CONFORMANCE_ROWS,
-  CLIENT_AUTHORITY_TRANSITION_EVENTS,
   authorityTransitionCell,
   classifyClientAuthorityState,
 } from './authority-transition.mjs';
@@ -15,11 +12,11 @@ import { SnapbackClient } from './index.mjs';
 import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
 
 const EXPECTED_TERMINALS_BY_SURFACE = Object.freeze({
-  'one-shot-anonymous': ['admit', 'join', 'admit', 'join', 'admit'],
-  'one-shot-authenticated': ['refuse', 'join', 'admit', 'join', 'admit'],
+  'one-shot-anonymous': ['admit', 'refuse', 'admit', 'refuse', 'admit'],
+  'one-shot-authenticated': ['refuse', 'refuse', 'admit', 'refuse', 'admit'],
   'live-optional-user': ['admit', 'blank-successor', 'admit', 'blank-successor', 'retain-stale'],
   'live-authenticated': ['blocked', 'blank-successor', 'admit', 'blank-successor', 'retain-stale'],
-  'mutation-foreground': ['project', 'join', 'admit', 'join', 'queue'],
+  'mutation-foreground': ['project', 'refuse', 'admit', 'refuse', 'queue'],
   'mutation-housekeeping': ['admit', 'queue', 'admit', 'queue', 'queue'],
   'outbox-drain': ['drain-active', 'drain-suspended', 'drain-active', 'drain-suspended', 'drain-suspended'],
   ephemeral: ['admit', 'blank-successor', 'admit', 'blank-successor', 'retain-stale'],
@@ -27,38 +24,28 @@ const EXPECTED_TERMINALS_BY_SURFACE = Object.freeze({
   provider: ['provider-wait', 'provider-wait', 'admit', 'provider-teardown-rearm', 'provider-retain'],
 });
 
-test('the normative authority matrix generates every W2 row exactly once', () => {
-  const expectedCount = CLIENT_AUTHORITY_SURFACES.length
-    * CLIENT_AUTHORITY_STATES.length
-    * CLIENT_AUTHORITY_TRANSITION_EVENTS.length
-    * CLIENT_AUTHORITY_OPERATION_TIMINGS.length;
-  assert.equal(CLIENT_AUTHORITY_TRANSITION_CONFORMANCE_ROWS.length, expectedCount);
-  assert.equal(new Set(CLIENT_AUTHORITY_TRANSITION_CONFORMANCE_ROWS.map((row) => row.id)).size, expectedCount);
-  for (const row of CLIENT_AUTHORITY_TRANSITION_CONFORMANCE_ROWS) {
-    assert.deepEqual(row.expected, authorityTransitionCell(row.surface, row.startingState), row.id);
-    assert.equal(Object.isFrozen(row), true);
-    assert.equal(Object.isFrozen(row.expected.observable), true);
-  }
-});
-
-test('every generated cell matches the independently transcribed closed terminal matrix', () => {
+test('the 50 normative cells match an independently transcribed terminal matrix', () => {
   assert.deepEqual(Object.keys(EXPECTED_TERMINALS_BY_SURFACE), [...CLIENT_AUTHORITY_SURFACES]);
+  let cells = 0;
   for (const [surface, expectedTerminals] of Object.entries(EXPECTED_TERMINALS_BY_SURFACE)) {
     assert.equal(expectedTerminals.length, CLIENT_AUTHORITY_STATES.length);
     for (const [index, state] of CLIENT_AUTHORITY_STATES.entries()) {
       const expected = expectedTerminals[index];
       assert.equal(CLIENT_AUTHORITY_TERMINALS.includes(expected), true);
       assert.equal(authorityTransitionCell(surface, state).terminal, expected, `${surface}/${state}`);
+      assert.equal(Object.isFrozen(authorityTransitionCell(surface, state).observable), true);
+      cells += 1;
     }
   }
+  assert.equal(cells, 50);
 });
 
 test('the ordered classifier gives the barrier priority over reconnecting and mode-pending', () => {
   const anonymous = { kind: 'anonymous' };
   const session = { kind: 'session' };
-  assert.equal(classifyClientAuthorityState({ successor: anonymous }), 'anonymous');
-  assert.equal(classifyClientAuthorityState({ successor: session }), 'authenticated');
-  assert.equal(classifyClientAuthorityState({ successor: session, modePending: true }), 'reconnecting');
+  assert.equal(classifyClientAuthorityState({ current: anonymous }), 'anonymous');
+  assert.equal(classifyClientAuthorityState({ current: session }), 'authenticated');
+  assert.equal(classifyClientAuthorityState({ current: session, modePending: true }), 'reconnecting');
   assert.equal(classifyClientAuthorityState({ predecessor: anonymous, successor: session, barrierActive: true, reconnecting: true }), 'authenticating');
   assert.equal(classifyClientAuthorityState({ predecessor: session, successor: anonymous, barrierActive: true }), 'revoking');
   assert.equal(classifyClientAuthorityState({ predecessor: anonymous, successor: session, barrierActive: true, authModeChanged: true }), 'revoking');
@@ -99,6 +86,23 @@ test('axisless watch-reload mode-pending is bounded-retried while the terminal a
       client.query('stagedModeTransitionProbe'),
       (error) => (
         error.diagnostic?.code === 'SNAPBACK_AUTH_MODE_PENDING'
+        && error.authorityDisposition === 'carrier'
+      ),
+    );
+    assert.equal(attempts, 1);
+
+    attempts = 0;
+    globalThis.fetch = async () => {
+      attempts += 1;
+      return modePending({
+        reason: 'mode_transition',
+        authorityDisposition: 'durableDelete',
+      });
+    };
+    await assert.rejects(
+      client.query('classifiedModeTransitionProbe'),
+      (error) => (
+        error.diagnostic?.code === 'SNAPBACK_AUTH_MODE_PENDING'
         && error.authorityDisposition === 'durableDelete'
       ),
     );
@@ -118,6 +122,50 @@ test('axisless watch-reload mode-pending is bounded-retried while the terminal a
     );
     assert.equal(attempts, 1);
   } finally {
+    await client.closeAuth();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('production authority status projects an in-flight mode-pending retry as reconnecting', async () => {
+  const originalFetch = globalThis.fetch;
+  let releaseSuccess;
+  let secondAttemptEntered;
+  const successHeld = new Promise((resolve) => { releaseSuccess = resolve; });
+  const secondAttempt = new Promise((resolve) => { secondAttemptEntered = resolve; });
+  const client = new SnapbackClient('https://authority-transition-real-reconnect.test', {
+    rqsStore: null,
+    reservationRetryJitterMilliseconds: [0, 0],
+  });
+  try {
+    let attempts = 0;
+    globalThis.fetch = async () => {
+      attempts += 1;
+      if (attempts === 1) {
+        return Response.json({
+          diagnostic: {
+            code: 'SNAPBACK_AUTH_MODE_PENDING',
+            message: 'auth-mode activation is settling',
+            details: {},
+          },
+        }, { status: 503 });
+      }
+      secondAttemptEntered();
+      await successHeld;
+      return Response.json({ version: 1, rows: [] });
+    };
+    const states = [];
+    const unsubscribe = client.subscribeAuthorityTransition(({ state }) => states.push(state));
+    const query = client.query('realModePendingProjection');
+    await secondAttempt;
+    assert.equal(client.authorityTransitionStatus().state, 'reconnecting');
+    assert.equal(states.includes('reconnecting'), true);
+    releaseSuccess();
+    await query;
+    assert.equal(client.authorityTransitionStatus().state, 'anonymous');
+    unsubscribe();
+  } finally {
+    releaseSuccess?.();
     await client.closeAuth();
     globalThis.fetch = originalFetch;
   }
@@ -170,39 +218,62 @@ test('housekeeping coalesces latest-wins with typed supersession and preserves p
     executedAtMs: 21,
     committedAtMs: 22,
   });
-  const phases = Object.values(settled.timing);
-  assert.equal(phases.every(Number.isInteger), true);
-  assert.equal(phases.every((value, index) => index === 0 || phases[index - 1] < value), true);
+  assert.equal(settled.timing.enqueuedAtMs < settled.timing.dispatchedAtMs, true);
+  assert.equal(settled.timing.authorizedAtMs < settled.timing.executedAtMs, true);
+  assert.equal(settled.timing.executedAtMs < settled.timing.committedAtMs, true);
+  // No assertion relates dispatchedAtMs to authorizedAtMs: those timestamps
+  // come from different machines and do not define a cross-domain order.
 });
 
-test('slow housekeeping never head-of-line blocks foreground while transition cuts stay exclusive', async () => {
+test('rejected mutations retain server timing on the error and durable failed disposition', async () => {
+  const originalFetch = globalThis.fetch;
   const store = createMemoryRqsResumeStore();
-  let releaseHousekeeping;
-  let enterHousekeeping;
-  const housekeepingEntered = new Promise((resolve) => { enterHousekeeping = resolve; });
-  const housekeepingHeld = new Promise((resolve) => { releaseHousekeeping = resolve; });
-  const slowHousekeeping = store.withOutboxAuthorizationDispatch(async () => {
-    enterHousekeeping();
-    await housekeepingHeld;
-  }, { lane: 'housekeeping' });
-  await housekeepingEntered;
-
-  let foregroundEntered = false;
-  await store.withOutboxAuthorizationDispatch(async () => {
-    foregroundEntered = true;
-  }, { lane: 'foreground' });
-  assert.equal(foregroundEntered, true);
-
-  let transitionEntered = false;
-  const transitionCut = store.withOutboxAuthorizationDispatch(async () => {
-    transitionEntered = true;
+  store.durability = () => ({ implementation: 'memory-test-double', durable: true });
+  const client = new SnapbackClient('https://mutation-error-timing.test', {
+    rqsStore: store,
+    __offlineMutationReplayCapability: true,
+    __outboxDrainLifecycle: false,
   });
-  await Promise.resolve();
-  assert.equal(transitionEntered, false, 'an authority cut still waits for both dispatch lanes');
-  releaseHousekeeping();
-  await slowHousekeeping;
-  await transitionCut;
-  assert.equal(transitionEntered, true);
+  const serverTiming = Object.freeze({
+    authorizedAtMs: 30,
+    executedAtMs: 31,
+    committedAtMs: 32,
+  });
+  try {
+    globalThis.fetch = async () => Response.json({
+      formatVersion: 'snapback.error-response.v1',
+      diagnostic: {
+        code: 'SNAPBACK_TEST_MUTATION_REJECTED',
+        message: 'rejected after staged execution',
+        details: {},
+      },
+      timing: serverTiming,
+    }, { status: 400 });
+    await assert.rejects(
+      client.mutate('rejectWithTiming', {
+        args: { value: 1 },
+        clientMutationId: 'cm-rejected-with-timing',
+      }),
+      (error) => {
+        assert.deepEqual(error.timing, serverTiming);
+        return true;
+      },
+    );
+    const failed = await client.mutationStatus('cm-rejected-with-timing');
+    assert.equal(failed.status, 'failed');
+    assert.deepEqual(
+      {
+        authorizedAtMs: failed.timing.authorizedAtMs,
+        executedAtMs: failed.timing.executedAtMs,
+        committedAtMs: failed.timing.committedAtMs,
+      },
+      serverTiming,
+    );
+  } finally {
+    await client.closeAuth();
+    await store.close();
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('successor-valid housekeeping admitted before the durable barrier cut binds only after settle', async () => {

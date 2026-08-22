@@ -114,6 +114,17 @@ export interface SnapbackAuthorityTransitionStatus {
   readonly closed: boolean;
 }
 
+export function classifyClientAuthorityState(input: Readonly<{
+  current?: SnapbackClientAuthority | null;
+  predecessor?: SnapbackClientAuthority | null;
+  successor?: SnapbackClientAuthority | null;
+  barrierActive?: boolean;
+  incarnationChanged?: boolean;
+  authModeChanged?: boolean;
+  reconnecting?: boolean;
+  modePending?: boolean;
+}>): SnapbackAuthorityTransitionStatus['state'];
+
 /** Transactional owner handed to `withOwnership` operations. */
 export interface SnapbackAuthCustodyOwner {
   read(): Promise<SnapbackAuthCustodyRecord | null>;
@@ -283,7 +294,10 @@ export class AuthCoordinator {
   >;
 
   /** Level-triggered phase-9 readiness fact consumed by provider adapters. */
-  authorityTransitionStatus(): SnapbackAuthorityTransitionStatus;
+  authorityTransitionStatus(options?: Readonly<{
+    reconnecting?: boolean;
+    modePending?: boolean;
+  }>): SnapbackAuthorityTransitionStatus;
   subscribeAuthorityTransition(
     listener: (status: SnapbackAuthorityTransitionStatus) => void,
   ): () => void;

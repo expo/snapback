@@ -84,6 +84,77 @@ test('materializations, outbox settlement, ACK custody, and authority wipe share
   await store.close();
 });
 
+test('SQLite authority wipe advances the outbox generation and fences stale enqueue/reconcile', async () => {
+  const store = await open(await root());
+  const predecessor = await store.outboxAuthorizationStatus();
+  await store.outboxEnqueue({
+    id: 'sqlite-predecessor',
+    function: 'saveIntent',
+    args: { value: 1 },
+  }, predecessor);
+  assert.equal(await store.wipeForAuthorityTransition('sessions:0->1', 1), true);
+  const successor = await store.outboxAuthorizationStatus();
+  assert.equal(successor.authorityGeneration, predecessor.authorityGeneration + 1);
+  assert.equal(successor.generation, predecessor.generation + 1);
+  await assert.rejects(
+    store.outboxEnqueue({ id: 'sqlite-stale', function: 'saveIntent' }, predecessor),
+    (error) => error?.code === 'SNAPBACK_OUTBOX_AUTHORIZATION_STALE',
+  );
+  await assert.rejects(
+    store.outboxReconcileCustody(
+      {
+        authMode: 'sessions',
+        authorizationStreamIncarnation: 'sqlite-stream',
+        userId: 'sqlite-user',
+      },
+      {
+        descriptorVersion: 1,
+        authorityInstanceId: 'sqlite-authority',
+        sessionGeneration: 1,
+      },
+      { authorityEpoch: 1, authorityKey: 'sqlite-key' },
+      predecessor.authorityGeneration,
+    ),
+    (error) => error?.code === 'SNAPBACK_OUTBOX_AUTHORITY_GENERATION_STALE',
+  );
+  assert.equal(
+    await store.wipeForAuthorityTransition('sessions:0->1', 1),
+    true,
+    'the same keyed transition is idempotent',
+  );
+  assert.deepEqual(await store.outboxAuthorizationStatus(), successor);
+  await store.close();
+});
+
+test('SQLite dispatch gate admits foreground beside housekeeping and keeps authority cuts exclusive', async () => {
+  const store = await open(await root());
+  let enterHousekeeping;
+  let releaseHousekeeping;
+  const housekeepingEntered = new Promise((resolve) => { enterHousekeeping = resolve; });
+  const housekeepingHeld = new Promise((resolve) => { releaseHousekeeping = resolve; });
+  const housekeeping = store.withOutboxAuthorizationDispatch(async () => {
+    enterHousekeeping();
+    await housekeepingHeld;
+  }, { lane: 'housekeeping' });
+  await housekeepingEntered;
+  let foregroundEntered = false;
+  await store.withOutboxAuthorizationDispatch(async () => {
+    foregroundEntered = true;
+  }, { lane: 'foreground' });
+  assert.equal(foregroundEntered, true);
+  let exclusiveEntered = false;
+  const exclusive = store.withOutboxAuthorizationDispatch(async () => {
+    exclusiveEntered = true;
+  });
+  await Promise.resolve();
+  assert.equal(exclusiveEntered, false);
+  releaseHousekeeping();
+  await housekeeping;
+  await exclusive;
+  assert.equal(exclusiveEntered, true);
+  await store.close();
+});
+
 test('materialization callbacks are synchronous and non-reentrant', async () => {
   const store = await open(await root());
   await assert.rejects(
