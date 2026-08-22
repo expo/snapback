@@ -177,4 +177,8 @@ enqueue/reconcile CAS, and two-lane/exclusive dispatch proof.
 `guide/recipes/auth-transition-writes.md` and retrieval case 61 teach the
 declaration, diagnostics, lane behavior, and anti-patterns. The two residual
 Phase 1A tickets named by the checklist are resolved under `issues/closed/`;
-the two honestly unwitnessed agent-auth residuals remain open.
+the agent-auth residual closure now includes a held reload-during-reload,
+held authorization and optimistic publication queues, four held ephemeral
+retry/authority-transition cases, and a positive controlled pending occurrence
+against the real sessions server. Naturally occurring pending counts remain
+observational rather than a capability gate.

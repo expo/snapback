@@ -14,6 +14,8 @@ const SESSION = '018f0d90-7b22-7a22-8c33-445566778899';
 const USER = '018f0d90-7b23-7a22-8c33-445566778899';
 const AUTHORITY = '018f0d90-7b24-7a22-8c33-445566778899';
 const OTHER_AUTHORITY = '018f0d90-7b25-7a22-8c33-445566778899';
+const OTHER_SESSION = '018f0d90-7b26-7a22-8c33-445566778899';
+const OTHER_USER = '018f0d90-7b27-7a22-8c33-445566778899';
 const SIGNUP_BEARER = 'sbs_password_signup_secret';
 const CHANGE_BEARER = 'sbs_password_change_secret';
 const PASSWORD = 'a-password-that-must-not-leak';
@@ -57,7 +59,13 @@ const deploymentIdentity = Object.freeze({
   inputsHash: `snapback.v1:sessions:inputs:sha256:${'3'.repeat(64)}`,
 });
 
-const handshake = ({ bearer = null } = {}) => ({
+const handshake = ({
+  bearer = null,
+  userId = USER,
+  sessionId = SESSION,
+  authorityInstanceId = AUTHORITY,
+  sessionGeneration = 1,
+} = {}) => ({
   protocolVersion: 1,
   serverStartupNonce: 'password-auth-client-test',
   authorizationStreamIncarnation: INCARNATION,
@@ -78,11 +86,11 @@ const handshake = ({ bearer = null } = {}) => ({
   transports: ['bearer'],
   authority: bearer === null
     ? { kind: 'anonymous', userId: null, sessionId: null, isAuthenticated: false }
-    : { kind: 'humanSession', userId: USER, sessionId: SESSION, isAuthenticated: true },
+    : { kind: 'humanSession', userId, sessionId, isAuthenticated: true },
   authorityDescriptor: {
     descriptorVersion: 1,
-    authorityInstanceId: bearer === null ? INCARNATION : AUTHORITY,
-    sessionGeneration: bearer === null ? 0 : 1,
+    authorityInstanceId: bearer === null ? INCARNATION : authorityInstanceId,
+    sessionGeneration: bearer === null ? 0 : sessionGeneration,
   },
   deploymentIdentity,
   authorizedLease: null,
@@ -115,7 +123,11 @@ const credential = ({
   ...(extra === null ? {} : extra),
 });
 
-const makeFixture = ({ senderConstrained = false } = {}) => {
+const makeFixture = ({
+  senderConstrained = false,
+  clientOptions = {},
+  sessionHandshake = null,
+} = {}) => {
   const originalFetch = globalThis.fetch;
   const routeHandlers = new Map();
   const knownBearers = new Set([SIGNUP_BEARER, CHANGE_BEARER]);
@@ -128,7 +140,9 @@ const makeFixture = ({ senderConstrained = false } = {}) => {
     const body = init.body === undefined ? undefined : JSON.parse(init.body);
     requests.push({ path, authorization, body });
     if (path === '/auth/session') {
-      return Response.json(handshake({ bearer: knownBearers.has(bearer) ? bearer : null }));
+      const authenticatedBearer = knownBearers.has(bearer) ? bearer : null;
+      return Response.json(sessionHandshake?.(authenticatedBearer)
+        ?? handshake({ bearer: authenticatedBearer }));
     }
     const handler = routeHandlers.get(path);
     if (!handler) throw new Error(`unexpected password-auth request: ${path}`);
@@ -147,6 +161,7 @@ const makeFixture = ({ senderConstrained = false } = {}) => {
     senderConstrained,
     rqsStore: null,
     offlineQueue: false,
+    ...clientOptions,
   });
   return {
     client,
@@ -158,6 +173,12 @@ const makeFixture = ({ senderConstrained = false } = {}) => {
       await client.closeAuth();
     },
   };
+};
+
+const deferred = () => {
+  let resolve;
+  const promise = new Promise((settle) => { resolve = settle; });
+  return { promise, resolve };
 };
 
 test('password signup adopts the server principal without exposing the bearer', async () => {
@@ -441,6 +462,110 @@ test('password signin, immediate logout, and signin serialize in one process', a
     assert.equal(fixture.coordinator.authority.kind, 'session');
   } finally {
     await fixture.close();
+  }
+});
+
+test('ephemeral pending retries stay pinned to their first exact password authority', async (t) => {
+  for (const transitionKind of ['logout', 'a-to-b']) {
+    for (const operationKind of ['subscribe', 'publish']) {
+      await t.test(`${operationKind} cancels across ${transitionKind}`, async () => {
+        const fixture = makeFixture({
+          clientOptions: {
+            ephemeralAuthorityProtocol: 1,
+            reservationRetryJitterMilliseconds: [100, 100],
+          },
+          sessionHandshake: (bearer) => transitionKind === 'a-to-b'
+            && bearer === CHANGE_BEARER
+            ? handshake({
+                bearer,
+                userId: OTHER_USER,
+                sessionId: OTHER_SESSION,
+                authorityInstanceId: OTHER_AUTHORITY,
+              })
+            : handshake({ bearer }),
+        });
+        const pendingReturned = deferred();
+        let attempts = 0;
+        try {
+          await fixture.client.authSession();
+          const anonymousAuthority = fixture.coordinator.credentialFor(
+            fixture.coordinator.capture(),
+          ).authority;
+          fixture.respond('/auth/password/signup', () => (
+            Response.json(credential({ codes: recoveryCodes }))
+          ));
+          await fixture.client.authPasswordSignup({
+            email: 'person@example.com',
+            password: PASSWORD,
+          });
+
+          fixture.respond('/connection/open', () => Response.json({
+            connectionId: `password-ephemeral-${transitionKind}-${operationKind}`,
+            connectionToken: `sct_password_ephemeral_${transitionKind}_${operationKind}`,
+            wireVersion: 'snapback.v1',
+            ephemeralAuthorityProtocol: 1,
+            ephemeralAuthorityInstance: `eai1.${'a'.repeat(43)}`,
+          }));
+          fixture.respond(`/ephemeral/${operationKind}`, () => {
+            attempts += 1;
+            pendingReturned.resolve();
+            return Response.json({
+              diagnostic: {
+                code: 'SNAPBACK_EPHEMERAL_AUTHORITY_PENDING',
+                message: 'controlled room authority read is pending',
+                details: {},
+              },
+            }, { status: 503 });
+          });
+
+          const operation = operationKind === 'subscribe'
+            ? fixture.client.subscribeEphemeral('presence', {
+                connectionId: `password-ephemeral-${transitionKind}-${operationKind}`,
+                scope: { roomId: 'held-retry' },
+                transport: 'poll',
+              })
+            : fixture.client.publishEphemeral('presence', {
+                connectionId: `password-ephemeral-${transitionKind}-${operationKind}`,
+                scope: { roomId: 'held-retry' },
+                value: { online: true },
+              });
+          await pendingReturned.promise;
+
+          const predecessorCapture = fixture.coordinator.capture();
+          const successor = transitionKind === 'logout'
+            ? { authority: anonymousAuthority, bearer: null, refreshAfterMs: null }
+            : {
+                authority: {
+                  kind: 'session',
+                  authMode: 'sessions',
+                  authorizationStreamIncarnation: INCARNATION,
+                  sessionId: OTHER_SESSION,
+                  userId: OTHER_USER,
+                },
+                bearer: CHANGE_BEARER,
+                refreshAfterMs: Date.now() + 60_000,
+              };
+          await fixture.coordinator.transition(
+            predecessorCapture,
+            successor,
+            `held-ephemeral-retry-${transitionKind}`,
+          );
+
+          await assert.rejects(
+            operation,
+            (error) => error?.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE'
+              || error?.diagnostic?.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE',
+          );
+          assert.equal(
+            attempts,
+            1,
+            `${operationKind} redispatched its predecessor grant after ${transitionKind}`,
+          );
+        } finally {
+          await fixture.close();
+        }
+      });
+    }
   }
 });
 

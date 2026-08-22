@@ -143,6 +143,12 @@ const waitFor = async (check, label) => {
   throw new Error(`${label}: ${lastError?.message ?? 'timed out'}`);
 };
 
+const deferred = () => {
+  let resolve;
+  const promise = new Promise((settle) => { resolve = settle; });
+  return { promise, resolve };
+};
+
 function createLockManagerDouble() {
   const states = new Map();
   const stateFor = (name) => {
@@ -366,6 +372,168 @@ test('typed single-value liveQuery resolves atomically and recovers from a quara
     assert.deepEqual(updates.map((entry) => entry.rows), [{ id: 'recovered' }]);
     assert.equal(handle.authorizationDisposition, 'retain');
   } finally {
+    try { await handle?.dispose?.(); } catch { /* cleanup cannot mask assertions */ }
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('resync publication cut refuses a predecessor authorization task held in its queue', async () => {
+  const originalFetch = globalThis.fetch;
+  const outbox = [];
+  const updates = [];
+  const acknowledgements = [];
+  const connectionErrors = [];
+  const queueEntered = deferred();
+  const releaseQueue = deferred();
+  const successorEntered = deferred();
+  const releaseSuccessor = deferred();
+  let subscribeAttempts = 0;
+  let scopeId = null;
+  let handle = null;
+
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/auth/session') return response(handshake);
+    if (path === '/connection/open') {
+      return response({
+        connectionId: 'authorization-publication-cut',
+        connectionToken: 'sct_authorization_publication_cut',
+        ephemeralExpiryProtocol: 1,
+        wireVersion: 'snapback.v1',
+        authorizationInvalidation: {
+          protocolVersion: 1,
+          issuerId,
+          connectionGeneration: 2,
+          authorization,
+          versionStream: 'stream-atomic-authorization',
+        },
+      });
+    }
+    if (path === '/live/atomicTodos/subscribe') {
+      subscribeAttempts += 1;
+      const body = JSON.parse(init.body);
+      const predecessorScope = scopeId;
+      scopeId = {
+        kind: 'subscription',
+        issuerId,
+        namespace: body.authorizationNamespace,
+        scopeSequence: subscribeAttempts,
+        connectionGeneration: 2,
+        subscriptionId: subscribeAttempts === 1
+          ? 'sub_atomic_authorization'
+          : `sub_atomic_authorization_${subscribeAttempts}`,
+      };
+      if (subscribeAttempts === 2) {
+        successorEntered.resolve();
+        await releaseSuccessor.promise;
+      }
+      return response({
+        subscription_id: scopeId.subscriptionId,
+        snapshot: {
+          version: 9 + subscribeAttempts,
+          rows: [{ id: subscribeAttempts === 1 ? 'predecessor' : 'successor' }],
+        },
+        permission_epochs: {},
+        authorizationScope: scopeId,
+        ...(predecessorScope === null ? {} : {
+          superseded: predecessorScope.subscriptionId,
+          scopeRetirements: [{
+            issuerId,
+            namespace: predecessorScope.namespace,
+            retireThroughScopeSequence: predecessorScope.scopeSequence,
+            authorizationExpectation: authorization,
+            mac: 'A'.repeat(43),
+          }],
+        }),
+      });
+    }
+    if (path === '/outbox/authorization-publication-cut') {
+      return response(outbox.shift() ?? []);
+    }
+    if (path === '/live/authorization-invalidation/acknowledge') {
+      acknowledgements.push(JSON.parse(init.body).ackToken);
+      return response({ outcome: 'discharged' });
+    }
+    if (path === '/live/atomicTodos/unsubscribe') {
+      return response({ subscription_id: scopeId?.subscriptionId, disposed: true });
+    }
+    throw new Error(`unexpected authorization publication-cut request: ${path}`);
+  };
+
+  try {
+    const client = new SnapbackClient('http://authorization-publication-cut.test', {
+      bearerToken: 'session-atomic-authorization',
+      authInvalidationProtocol: 1,
+      clientStoreId: 'store_authorization_publication_cut',
+      rqsStore: null,
+    });
+    handle = await client.liveQuery(atomicSingleValueReference, {
+      connectionId: 'authorization-publication-cut',
+      persistResume: false,
+      authorizationQueue: {
+        async applyObligation() {
+          queueEntered.resolve();
+          await releaseQueue.promise;
+        },
+      },
+      onUpdate(rows, detail) {
+        updates.push({ kind: detail.kind, rows: structuredClone(rows) });
+      },
+      onConnectionChange(_connection, detail) {
+        if (detail?.error) connectionErrors.push(detail.error);
+      },
+    });
+    updates.length = 0;
+
+    const pending = obligation(scopeId, 1, 11);
+    outbox.push([envelope({
+      pending,
+      resolved: resolution(pending, 'ack_must_not_cross_resync'),
+      version: 11,
+      rows: [{ id: 'must-not-publish-after-resync' }],
+    })]);
+    await handle.poll();
+    await queueEntered.promise;
+
+    outbox.push([{
+      Durable: {
+        payload: JSON.stringify({
+          kind: 'resync_required',
+          function: 'atomicTodos',
+          subscription_id: 'sub_atomic_authorization',
+          reason: 'watch_reload',
+        }),
+      },
+    }]);
+    await handle.poll();
+    await successorEntered.promise;
+    assert.equal(handle.connection, 'stale');
+
+    releaseQueue.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(
+      updates.some((entry) => entry.rows?.id === 'must-not-publish-after-resync'),
+      false,
+    );
+    assert.deepEqual(acknowledgements, []);
+
+    releaseSuccessor.resolve();
+    await waitFor(
+      () => assert.equal(
+        handle.subscriptionId,
+        'sub_atomic_authorization_2',
+        JSON.stringify(connectionErrors.map((error) => ({
+          code: error?.code,
+          message: error?.message,
+        }))),
+      ),
+      'authorization successor did not install after the held predecessor task was refused',
+    );
+    assert.deepEqual(handle.rows, { id: 'successor' });
+    await client.close();
+  } finally {
+    releaseQueue.resolve();
+    releaseSuccessor.resolve();
     try { await handle?.dispose?.(); } catch { /* cleanup cannot mask assertions */ }
     globalThis.fetch = originalFetch;
   }

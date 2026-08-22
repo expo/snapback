@@ -5736,6 +5736,9 @@ export class SnapbackClient {
     authAdmissionOperation = null,
     authModePendingRetry = 0,
     ephemeralAuthorityPendingRetry = 0,
+    ephemeralRetryAuthorityCapture = null,
+    ephemeralRetryExternalBearer = undefined,
+    ephemeralRetryExternalTransportGeneration = null,
   } = {}) {
     this.#assertAuthCountersAvailable();
     if (authAdmissionReference !== null) {
@@ -5750,6 +5753,26 @@ export class SnapbackClient {
       );
       if (authAdmissionError !== null) throw authAdmissionError;
     }
+    const assertEphemeralRetryAuthorityCurrent = () => {
+      if (ephemeralRetryAuthorityCapture !== null) {
+        let currentCapture = null;
+        try { currentCapture = this.authorityFence?.capture?.() ?? null; } catch { /* stale below */ }
+        if (
+          currentCapture === null
+          || !sameAuthorityCapture(currentCapture, ephemeralRetryAuthorityCapture)
+          || !this.authorityFence?.isCurrent?.(ephemeralRetryAuthorityCapture)
+        ) throw staleAuthorityError();
+      }
+      if (
+        ephemeralRetryExternalTransportGeneration !== null
+        && (
+          this.__externalBearerTransition !== null
+          || this.bearerToken !== ephemeralRetryExternalBearer
+          || this.__authTransportGeneration !== ephemeralRetryExternalTransportGeneration
+        )
+      ) throw staleAuthorityError();
+    };
+    assertEphemeralRetryAuthorityCurrent();
     const externalBearerTransition = this.__externalBearerTransition;
     if (
       externalBearerTransition
@@ -5975,7 +5998,12 @@ export class SnapbackClient {
           // release that custody before #request enters authority recovery;
           // successful transport retains it through the caller's durable
           // settlement/disposition cut.
+          assertEphemeralRetryAuthorityCurrent();
           await beforeTransportDispatch?.();
+          // A queue hook may itself span a logout or A→B transition. The
+          // pending-authority retry remains the predecessor operation, so it
+          // must refuse before the only transport-entry cut.
+          assertEphemeralRetryAuthorityCurrent();
           let requestTask = null;
           if (this.authorityFence && capture) {
             // Start the actual fetch synchronously inside the final durable
@@ -6075,6 +6103,9 @@ export class SnapbackClient {
           authAdmissionOperation,
           authModePendingRetry,
           ephemeralAuthorityPendingRetry,
+          ephemeralRetryAuthorityCapture,
+          ephemeralRetryExternalBearer,
+          ephemeralRetryExternalTransportGeneration,
         });
       }
       if (
@@ -6105,6 +6136,9 @@ export class SnapbackClient {
             authAdmissionOperation,
             authModePendingRetry: authModePendingRetry + 1,
             ephemeralAuthorityPendingRetry,
+            ephemeralRetryAuthorityCapture,
+            ephemeralRetryExternalBearer,
+            ephemeralRetryExternalTransportGeneration,
           });
         } finally {
           this.__authModePendingRetryDepth -= 1;
@@ -6121,15 +6155,50 @@ export class SnapbackClient {
         this.__ephemeralAuthorityPendingRetryDepth += 1;
         this.__notifyAuthorityTransitionStatus();
         try {
+          const retryAuthorityCapture = ephemeralRetryAuthorityCapture
+            ?? expectedAuthorityCapture
+            ?? capture;
+          const retryExternalTransportGeneration =
+            ephemeralRetryExternalTransportGeneration
+            ?? (externalBearerAtStart !== null
+              ? externalTransportGenerationAtStart
+              : null);
+          const retryExternalBearer = retryExternalTransportGeneration === null
+            ? undefined
+            : (ephemeralRetryExternalTransportGeneration === null
+              ? externalBearerAtStart
+              : ephemeralRetryExternalBearer);
+          const assertRetryAuthorityCurrent = () => {
+            if (retryAuthorityCapture !== null) {
+              let currentCapture = null;
+              try { currentCapture = this.authorityFence?.capture?.() ?? null; } catch { /* stale below */ }
+              if (
+                currentCapture === null
+                || !this.authorityFence?.isCurrent?.(retryAuthorityCapture)
+                || !sameAuthorityCapture(currentCapture, retryAuthorityCapture)
+              ) throw staleAuthorityError();
+            }
+            if (
+              retryExternalTransportGeneration !== null
+              && (
+                this.__externalBearerTransition !== null
+                || this.bearerToken !== retryExternalBearer
+                || this.__authTransportGeneration !== retryExternalTransportGeneration
+              )
+            ) throw staleAuthorityError();
+          };
+          // @ref LLP 0059#dated-amendment-total-client-authority-transition-state-and-settlement-matrix-2026-08-21-llp-0295-d02 — a finite pending retry is one authority-bound operation, not a new admission. Pin the first exact coordinator capture or external-bearer generation and compare it on both sides of the delay.
+          assertRetryAuthorityCurrent();
           await new Promise((resolve) => setTimeout(
             resolve,
             this.#reservationRetryDelayMilliseconds(),
           ));
+          assertRetryAuthorityCurrent();
           return await this.#request(method, path, body, headers, {
             admin,
             supersededRetry,
             senderChallengeRetry,
-            expectedAuthorityCapture,
+            expectedAuthorityCapture: retryAuthorityCapture,
             externalBearerTransitionPermit,
             beforeTransportDispatch,
             onTransportFailure,
@@ -6137,6 +6206,9 @@ export class SnapbackClient {
             authAdmissionOperation,
             authModePendingRetry,
             ephemeralAuthorityPendingRetry: ephemeralAuthorityPendingRetry + 1,
+            ephemeralRetryAuthorityCapture: retryAuthorityCapture,
+            ephemeralRetryExternalBearer: retryExternalBearer,
+            ephemeralRetryExternalTransportGeneration: retryExternalTransportGeneration,
           });
         } finally {
           this.__ephemeralAuthorityPendingRetryDepth -= 1;
@@ -6184,6 +6256,9 @@ export class SnapbackClient {
             authAdmissionOperation,
             authModePendingRetry,
             ephemeralAuthorityPendingRetry,
+            ephemeralRetryAuthorityCapture,
+            ephemeralRetryExternalBearer,
+            ephemeralRetryExternalTransportGeneration,
           });
         }
         try { await this.#familyAlarmWithBearer(bearerUsed); } catch { /* named stolen-successor residual */ }
@@ -13889,6 +13964,11 @@ export class SnapbackClient {
     let authorizationFaulted = false;
     let authorizationTail = Promise.resolve();
     let authorizationTaskGeneration = 0;
+    // Every app-visible async publication for this handle captures this
+    // generation. A resync cut advances it synchronously, before any
+    // replacement subscribe can yield, so already-queued predecessor work
+    // cannot publish after the cut.
+    let subscriptionPublicationGeneration = 0;
     const authorizationTaskErrorState = Symbol('snapback.authorizationTaskErrorState');
     const authorizationResolutionTasks = new Map();
     // A resolution token proves one exact obligation/ticket/snapshot frame.
@@ -13955,6 +14035,10 @@ export class SnapbackClient {
     // time for this handle, so one attempt-scoped buffer covers the ordering
     // boundary without weakening subscription-id isolation.
     let preSubscribeDurableAttempt = null;
+    // An installing subscription can itself be retired before its POST
+    // response publishes. It remains useful only as the supersedes witness
+    // for the next serialized attempt.
+    let pendingSupersedesSubscriptionId = null;
     let handleAuthorityCapture = null;
     const freshSubscribeQueueGenerations = new WeakMap();
     let pauseReleasePromise = Promise.resolve();
@@ -14186,6 +14270,7 @@ export class SnapbackClient {
 
     const captureOptimisticPublicationFence = () => Object.freeze({
       viewGeneration: automaticOptimisticViewGeneration,
+      subscriptionPublicationGeneration,
       authorizationFence,
       authorizationCapture: authorizationFence?.capture() ?? null,
       authorityCapture: handleAuthorityCapture,
@@ -14201,6 +14286,8 @@ export class SnapbackClient {
           if (
             disposed
             || automaticOptimisticViewGeneration !== publicationFence.viewGeneration
+            || subscriptionPublicationGeneration
+              !== publicationFence.subscriptionPublicationGeneration
             || authorizationFence !== publicationFence.authorizationFence
             || (
               publicationFence.authorizationFence !== null
@@ -14958,10 +15045,19 @@ export class SnapbackClient {
       appliedAuthorizationResolutionsByScope.clear();
     };
 
+    const advanceSubscriptionPublicationGeneration = () => {
+      subscriptionPublicationGeneration = safeNextCounter(
+        subscriptionPublicationGeneration,
+        'SNAPBACK_CLIENT_SUBSCRIPTION_PUBLICATION_GENERATION_EXHAUSTED',
+        'subscription publication generation',
+      );
+    };
+
     const authorizationTaskState = (capture, { allowPaused = false } = {}) => Object.freeze({
       capture,
       lifecycleEpoch: subscribeLifecycleEpoch,
       authorizationGeneration: authorizationTaskGeneration,
+      subscriptionPublicationGeneration,
       authorizationFence,
       allowPaused,
     });
@@ -14971,6 +15067,7 @@ export class SnapbackClient {
       && (!paused || taskState.allowPaused === true)
       && taskState.lifecycleEpoch === subscribeLifecycleEpoch
       && taskState.authorizationGeneration === authorizationTaskGeneration
+      && taskState.subscriptionPublicationGeneration === subscriptionPublicationGeneration
       && taskState.authorizationFence === authorizationFence
     );
 
@@ -15779,16 +15876,49 @@ export class SnapbackClient {
       if (preparedMaterialization === null) classifyRqsRetention();
     };
 
+    const supersededSubscriptionInstallationError = () => clientCodedError(new Error(
+      'SNAPBACK_LIVE_QUERY_INSTALLATION_SUPERSEDED: the installing subscription was retired before publication',
+    ), 'SNAPBACK_LIVE_QUERY_INSTALLATION_SUPERSEDED');
+
+    const supersedeInstallingSubscription = (attempt, update) => {
+      if (attempt.superseded) return;
+      attempt.superseded = true;
+      attempt.supersedingReason = resyncReason(update.reason);
+      if (attempt.subscriptionId !== null) {
+        pendingSupersedesSubscriptionId = attempt.subscriptionId;
+      }
+      // @ref LLP 0053#client-fences — the resync sentinel is a synchronous
+      // publication cut. Advance the shared handle generation before any
+      // queued authorization or optimistic task can resume and publish.
+      advanceSubscriptionPublicationGeneration();
+      needsResubscribe = true;
+      pendingResubscribeReason = attempt.supersedingReason;
+      if (handle.freshness !== null) {
+        handle.freshness = 'retained';
+        handle.answerClass = 'labeled-retained';
+      }
+      setConnection('stale');
+      syncLiveRegistrationAnswer();
+      if (update.clear_retained === true || update.clearRetained === true) {
+        handle.rqsResume = null;
+        void removePersistedEntry();
+      }
+    };
+
     const bufferPreSubscribeDurable = (update) => {
       const attempt = preSubscribeDurableAttempt;
       if (
         attempt === null
-        || update.function !== name
+        || (
+          update.kind !== LIVE_DURABLE_KINDS.RESYNC_REQUIRED
+          && update.function !== name
+        )
         || typeof update.subscription_id !== 'string'
         || (
           update.kind !== LIVE_DURABLE_KINDS.CURRENT_AS_OF
           && update.kind !== LIVE_DURABLE_KINDS.LIVE_DELTA
           && update.kind !== LIVE_DURABLE_KINDS.LIVE_REPLACE
+          && update.kind !== LIVE_DURABLE_KINDS.RESYNC_REQUIRED
         )
       ) return false;
       const targetsInstallingSubscription = attempt.subscriptionId !== null
@@ -15796,8 +15926,20 @@ export class SnapbackClient {
       if (!targetsInstallingSubscription && update.subscription_id === handle.subscriptionId) {
         return false;
       }
+      if (
+        targetsInstallingSubscription
+        && update.kind === LIVE_DURABLE_KINDS.RESYNC_REQUIRED
+      ) {
+        supersedeInstallingSubscription(attempt, update);
+        return true;
+      }
       if (attempt.envelopes.length >= RQS_PRE_SUBSCRIBE_DURABLE_BUFFER_CAP) {
         attempt.overflowed = true;
+        if (attempt.subscriptionId !== null) {
+          supersedeInstallingSubscription(attempt, {
+            reason: 'pre_subscribe_durable_overflow',
+          });
+        }
         return true;
       }
       attempt.envelopes.push(update);
@@ -16025,6 +16167,7 @@ export class SnapbackClient {
         if (typeof update.subscription_id === 'string') {
           resyncFencedSubscriptionId = update.subscription_id;
         }
+        advanceSubscriptionPublicationGeneration();
         needsResubscribe = true;
         pendingResubscribeReason = resyncReason(update.reason);
         if (handle.freshness !== null) {
@@ -16068,17 +16211,22 @@ export class SnapbackClient {
       // This handle's OWN previous subscription (reconnect/resync/resume
       // paths) is explicitly superseded; the first establish has none.
       // Capture only after acquiring the per-handle subscribe queue.
-      const supersedes = handle.subscriptionId ?? initialSupersedes;
       let attempt = null;
       let readinessRetries = 0;
       for (;;) {
         assertSubscribeLifecycle(lifecycle);
+        const supersedes = pendingSupersedesSubscriptionId
+          ?? handle.subscriptionId
+          ?? initialSupersedes;
         const epochAtStart = socketLossEpoch;
         const demandEpochAtStart = resubscribeDemandEpoch;
         const durableAttempt = {
           envelopes: [],
           overflowed: false,
           subscriptionId: null,
+          superseded: false,
+          supersedingReason: null,
+          publicationGeneration: subscriptionPublicationGeneration,
         };
         preSubscribeDurableAttempt = durableAttempt;
         try {
@@ -16143,6 +16291,20 @@ export class SnapbackClient {
           // Keep matching new-id frames buffered through asynchronous
           // materialization/authority installation, not merely through fetch.
           durableAttempt.subscriptionId = sub.subscription_id;
+          if (durableAttempt.overflowed) {
+            supersedeInstallingSubscription(durableAttempt, {
+              reason: 'pre_subscribe_durable_overflow',
+            });
+          }
+          for (const envelope of durableAttempt.envelopes) {
+            if (
+              envelope.kind === LIVE_DURABLE_KINDS.RESYNC_REQUIRED
+              && envelope.subscription_id === sub.subscription_id
+            ) {
+              supersedeInstallingSubscription(durableAttempt, envelope);
+              break;
+            }
+          }
           try {
             assertSubscribeLifecycle(lifecycle);
           } catch (error) {
@@ -16150,6 +16312,14 @@ export class SnapbackClient {
             // owner paused/disposed meanwhile, explicitly retire the late id.
             bestEffortUnsubscribeLive(sub?.subscription_id);
             throw error;
+          }
+          if (durableAttempt.superseded) {
+            if (preSubscribeDurableAttempt === durableAttempt) {
+              preSubscribeDurableAttempt = null;
+            }
+            pendingSupersedesSubscriptionId = sub.subscription_id;
+            initialSupersedes = null;
+            continue;
           }
           attempt = {
             sub,
@@ -16200,6 +16370,10 @@ export class SnapbackClient {
       initialSupersedes = null;
       assertSubscribeLifecycle(lifecycle);
       const responseCapture = sub[AUTHORITY_CAPTURE] ?? null;
+      const installationPublicationIsCurrent = () => (
+        !durableAttempt.superseded
+        && durableAttempt.publicationGeneration === subscriptionPublicationGeneration
+      );
       let materializedSnapshot = null;
       let protectedRetentionSnapshot = null;
       try {
@@ -16219,17 +16393,25 @@ export class SnapbackClient {
           if (!admission.committed) throw staleAuthorityError();
           preparedMaterialization.context.publicationGuard = () => (
             client.__authTransportGeneration === admission.value
+            && installationPublicationIsCurrent()
           );
         }
         materializedSnapshot = await installMaterializationSnapshot(sub);
+        if (!installationPublicationIsCurrent()) {
+          throw supersededSubscriptionInstallationError();
+        }
         const installed = await client.commitAuthorityPublication(responseCapture, () => {
           assertSubscribeLifecycle(lifecycle);
+          if (!installationPublicationIsCurrent()) {
+            throw supersededSubscriptionInstallationError();
+          }
           const predecessorSubscriptionId = currentSubscriptionId;
           currentSubscriptionId = sub.subscription_id;
           if (resyncFencedSubscriptionId === predecessorSubscriptionId) {
             resyncFencedSubscriptionId = null;
           }
           knownRetiredSubscriptionId = null;
+          pendingSupersedesSubscriptionId = null;
           // Any successful fresh subscribe supersedes an earlier denial
           // fact (0137 A1-Expo f4): the presented authority is authorized.
           handle.authorizationDenial = null;
@@ -16367,6 +16549,13 @@ export class SnapbackClient {
         }
         assertSubscribeLifecycle(lifecycle);
       } catch (error) {
+        if (
+          error?.code === 'SNAPBACK_LIVE_QUERY_INSTALLATION_SUPERSEDED'
+          || !installationPublicationIsCurrent()
+        ) {
+          pendingSupersedesSubscriptionId = sub.subscription_id;
+          return subscribeFreshExclusive(lifecycle, externalBearerTransitionPermit);
+        }
         bestEffortUnsubscribeLive(sub.subscription_id);
         throw error;
       } finally {
@@ -16403,14 +16592,16 @@ export class SnapbackClient {
       // Auth-scoped delivery stays with the fence machinery.
       if (sub.snapshot && !sub.authorizationScope && !disposed) {
         seedFrameDelivered = false;
-        deliverAuthorityObservation(() => {
-          onUpdate?.(authoritativeRows, {
-            version: handle.version,
-            kind: 'snapshot',
-            freshness: 'current',
-            answerClass: 'authoritative',
+        if (installationPublicationIsCurrent()) {
+          deliverAuthorityObservation(() => {
+            onUpdate?.(authoritativeRows, {
+              version: handle.version,
+              kind: 'snapshot',
+              freshness: 'current',
+              answerClass: 'authoritative',
+            });
           });
-        });
+        }
       }
       return sub;
     };

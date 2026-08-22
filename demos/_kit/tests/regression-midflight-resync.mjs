@@ -41,7 +41,7 @@ const { SnapbackClient } = await import(join(repoRoot, 'demos/_kit/client.mjs'))
 
 const server = await startServer({ port: 4438, db: ':memory:', cwd: repoRoot });
 const db = new SnapbackClient(server.baseUrl, server.clientOptions);
-const suite = createSuite('_kit regression / mid-flight resync demand (ENG-23429)', { expectedChecks: 4 });
+const suite = createSuite('_kit regression / mid-flight resync demand (ENG-23429)', { expectedChecks: 5 });
 const ADA = 'user_ada';
 const CONN = 'midflight_conn';
 // The wire shape the server emits on outbox overflow (src/ephemeral.rs:733).
@@ -73,16 +73,20 @@ try {
     const call = { snapshotReady: false };
     subscribeCalls.push(call);
     const sub = await realSubscribe.apply(this, args);
+    call.subscriptionId = sub.subscription_id;
     call.snapshotReady = true;
     if (holdResponse) await holdResponse;
     return sub;
   };
 
   const events = [];
-  const handle = await db.liveQuery('listTodos', {
+  const publishedSubscriptionIds = [];
+  let handle = null;
+  handle = await db.liveQuery('listTodos', {
     connectionId: CONN,
     userId: ADA,
     transport: 'poll',
+    onUpdate: () => publishedSubscriptionIds.push(handle?.subscriptionId ?? null),
     onSubscriptionEvent: (e) => events.push(`${e.event}${e.reason ? `:${e.reason}` : ''}`),
   });
 
@@ -176,6 +180,77 @@ try {
         successorSubscriptionId: handle.subscriptionId,
         successorSnapshots: 1,
         latePredecessorFramesApplied: 0,
+      };
+    });
+
+    await suite.check('reload during a held reload retires the installing response and serializes one latest successor', async () => {
+      const callsBefore = subscribeCalls.length;
+      const publicationsBefore = publishedSubscriptionIds.length;
+      const receiptsBefore = events.filter((event) => event.startsWith('resubscribed')).length;
+      const predecessorSubscriptionId = handle.subscriptionId;
+      let release;
+      holdResponse = new Promise((resolve) => { release = resolve; });
+
+      try {
+        deliverDurable({
+          ...OVERFLOW_SENTINEL,
+          subscription_id: predecessorSubscriptionId,
+          reason: 'watch_reload',
+        });
+        await waitFor(
+          () => subscribeCalls.length === callsBefore + 1
+            && subscribeCalls[callsBefore].snapshotReady,
+          'first reload successor response held before installation',
+        );
+        const installingSubscriptionId = subscribeCalls[callsBefore].subscriptionId;
+
+        // The server has already retired this response's subscription. Its
+        // scoped sentinel overtakes the held POST acknowledgement, so the id
+        // is known only to the attempt-scoped durable buffer.
+        deliverDurable({
+          ...OVERFLOW_SENTINEL,
+          subscription_id: installingSubscriptionId,
+          reason: 'watch_reload',
+        });
+      } finally {
+        holdResponse = null;
+        release();
+      }
+
+      await waitFor(
+        () => subscribeCalls.length === callsBefore + 2
+          && handle.subscriptionId !== predecessorSubscriptionId
+          && handle.subscriptionId !== subscribeCalls[callsBefore].subscriptionId
+          && handle.connection === 'polling'
+          && handle.freshness === 'current',
+        'latest reload authoritative successor',
+      );
+      await sleep(150);
+      const installingSubscriptionId = subscribeCalls[callsBefore].subscriptionId;
+      const latestSubscriptionId = subscribeCalls[callsBefore + 1].subscriptionId;
+      assert(
+        handle.subscriptionId === latestSubscriptionId,
+        `expected latest successor '${latestSubscriptionId}', got '${handle.subscriptionId}'`,
+      );
+      assert(
+        !publishedSubscriptionIds.slice(publicationsBefore).includes(installingSubscriptionId),
+        `retired installing subscription '${installingSubscriptionId}' reached app publication`,
+      );
+      assert(
+        subscribeCalls.length === callsBefore + 2,
+        `reload-during-reload created ${subscribeCalls.length - callsBefore} attempts instead of retired S plus one replacement`,
+      );
+      const receiptsAfter = events.filter((event) => event.startsWith('resubscribed')).length;
+      assert(
+        receiptsAfter === receiptsBefore + 1,
+        `reload-during-reload emitted ${receiptsAfter - receiptsBefore} receipts instead of one settled successor`,
+      );
+      return {
+        predecessorSubscriptionId,
+        retiredInstallingSubscriptionId: installingSubscriptionId,
+        latestSubscriptionId,
+        retiredPublications: 0,
+        replacementAttempts: 1,
       };
     });
 

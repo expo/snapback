@@ -1778,13 +1778,14 @@ test('generated read-free insert cannot repaint after authorization quarantine o
   await exerciseAuthorityBoundary({ boundaryCallbackThrows: true });
 });
 
-test('AuthCoordinator quarantine fences an awaited optimistic rebase until proof resumes it', async (t) => {
+test('resync publication cut fences an awaited optimistic rebase before successor proof', async (t) => {
   for (const delayedOutcome of ['success', 'failure']) {
     await t.test(`stale ${delayedOutcome} publication stays behind the blank`, async () => {
       const originalFetch = globalThis.fetch;
       const outbox = [];
       const acknowledgements = [];
       const updates = [];
+      const connectionErrors = [];
       const rebaseControl = {
         armed: false,
         didStart: false,
@@ -1793,6 +1794,8 @@ test('AuthCoordinator quarantine fences an awaited optimistic rebase until proof
         release: deferred(),
       };
       let scopeId = null;
+      let subscribeAttempts = 0;
+      let successorSubscribeControl = null;
       const directory = await mkdtemp(join(
         tmpdir(),
         `snapback-generated-coordinator-${delayedOutcome}-`,
@@ -1858,20 +1861,40 @@ test('AuthCoordinator quarantine fences an awaited optimistic rebase until proof
           });
         }
         if (path === '/live/listCards/subscribe') {
+          subscribeAttempts += 1;
           const body = JSON.parse(init.body);
+          const predecessorScope = scopeId;
           scopeId = {
             kind: 'subscription',
             issuerId: authIssuer,
             namespace: body.authorizationNamespace,
-            scopeSequence: 1,
+            scopeSequence: subscribeAttempts,
             connectionGeneration: 2,
-            subscriptionId: `generated-coordinator-subscription-${delayedOutcome}`,
+            subscriptionId: `generated-coordinator-subscription-${delayedOutcome}-${subscribeAttempts}`,
           };
+          if (successorSubscribeControl !== null) {
+            successorSubscribeControl.entered.resolve();
+            await successorSubscribeControl.release.promise;
+            successorSubscribeControl = null;
+          }
           return Response.json({
             subscription_id: scopeId.subscriptionId,
             snapshot: { rows: BASE_ROWS, version: 1 },
             permission_epochs: {},
             authorizationScope: scopeId,
+            ...(predecessorScope === null ? {} : {
+              superseded: predecessorScope.subscriptionId,
+              scopeRetirements: [{
+                issuerId: authIssuer,
+                namespace: predecessorScope.namespace,
+                retireThroughScopeSequence: predecessorScope.scopeSequence,
+                authorizationExpectation: {
+                  incarnation: AUTH_INCARNATION,
+                  epoch: 4,
+                },
+                mac: 'A'.repeat(43),
+              }],
+            }),
           });
         }
         if (path === '/mutation/createCard') {
@@ -1899,6 +1922,9 @@ test('AuthCoordinator quarantine fences an awaited optimistic rebase until proof
           connectionId: `generated-coordinator-${delayedOutcome}`,
           onUpdate(rows, detail) {
             updates.push({ rows: structuredClone(rows), kind: detail.kind });
+          },
+          onConnectionChange(_connection, detail) {
+            if (detail?.error) connectionErrors.push(detail.error);
           },
         });
         const queuedMutation = await client.mutate(CREATE, {
@@ -1930,6 +1956,52 @@ test('AuthCoordinator quarantine fences an awaited optimistic rebase until proof
         await waitUntil(
           () => rebaseControl.didStart,
           `${delayedOutcome} authorization snapshot rebase start`,
+        );
+
+        const predecessorScope = scopeId;
+        const updatesAtResyncCut = updates.length;
+        successorSubscribeControl = {
+          entered: deferred(),
+          release: deferred(),
+        };
+        outbox.push([{
+          Durable: {
+            payload: JSON.stringify({
+              kind: 'resync_required',
+              function: 'listCards',
+              subscription_id: predecessorScope.subscriptionId,
+              reason: 'watch_reload',
+            }),
+          },
+        }]);
+        await handle.poll();
+        await successorSubscribeControl.entered.promise;
+        assert.equal(handle.connection, 'stale');
+
+        // The optimistic tail captured its publication fence before the
+        // server reload cut and remains held across it. Its success and
+        // fallback arms must both refuse app publication while the successor
+        // response is still unavailable.
+        rebaseControl.release.resolve();
+        await waitUntil(
+          () => rebaseControl.didFinish,
+          `${delayedOutcome} resync-fenced optimistic rebase finish`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        assert.equal(
+          updates.length,
+          updatesAtResyncCut,
+          `${delayedOutcome} predecessor optimistic tail published after resync`,
+        );
+
+        successorSubscribeControl.release.resolve();
+        await waitUntil(
+          () => handle.subscriptionId
+            === `generated-coordinator-subscription-${delayedOutcome}-2`
+            && handle.connection === 'polling',
+          `${delayedOutcome} held resync successor installation: ${JSON.stringify(
+            connectionErrors.map((error) => ({ code: error?.code, message: error?.message })),
+          )}`,
         );
 
         const quarantinePending = authObligation(scopeId, 2, 3);
@@ -1982,6 +2054,7 @@ test('AuthCoordinator quarantine fences an awaited optimistic rebase until proof
         assert.equal(handle.optimisticPresentation.status, 'predicted');
       } finally {
         rebaseControl.release.resolve();
+        successorSubscribeControl?.release.resolve();
         try { await handle?.dispose?.(); } catch { /* cleanup cannot mask assertions */ }
         try { await client.close(); } catch { /* cleanup cannot mask assertions */ }
         try { await coordinator.close(); } catch { /* cleanup cannot mask assertions */ }

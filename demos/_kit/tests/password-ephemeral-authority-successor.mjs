@@ -73,11 +73,28 @@ const client = new SnapbackClient(server.baseUrl, {
 
 const realFetch = globalThis.fetch;
 let rawAuthorityPending = 0;
+let controlledPendingPath = null;
+let controlledAuthorityPendingAbsorbed = 0;
 let completed = 0;
 const appVisiblePending = [];
 globalThis.fetch = async (input, init) => {
-  const response = await realFetch(input, init);
   const url = new URL(typeof input === 'string' || input instanceof URL ? input : input.url);
+  if (url.pathname === controlledPendingPath) {
+    controlledPendingPath = null;
+    controlledAuthorityPendingAbsorbed += 1;
+    // Deterministic effect-free carrier control: the first attempt is held at
+    // the same typed pre-registration/pre-publish boundary as the real
+    // server's room-authority refusal. The bounded retry must then complete
+    // against this actual sessions server before the app promise settles.
+    return Response.json({
+      diagnostic: {
+        code: 'SNAPBACK_EPHEMERAL_AUTHORITY_PENDING',
+        message: 'controlled real-server authority boundary is pending',
+        details: {},
+      },
+    }, { status: 503 });
+  }
+  const response = await realFetch(input, init);
   if (response.status === 503 && url.pathname.startsWith('/ephemeral/')) {
     try {
       const body = await response.clone().json();
@@ -96,6 +113,40 @@ try {
   const email = `password-ephemeral-${process.pid}@example.com`;
   const password = 'password-ephemeral-successor-123!';
   await client.authPasswordSignup({ email, password });
+
+  // Positive non-vacuity control. Both public operations consume one
+  // deterministic pending refusal and then succeed through the real server;
+  // the naturally occurring counter below remains purely observational.
+  const controlledScope = { roomId: 'room_password_ephemeral_controlled_pending' };
+  let controlledOverlay = null;
+  try {
+    controlledPendingPath = '/ephemeral/subscribe';
+    controlledOverlay = await client.subscribeEphemeral('roomPresence', {
+      connectionId: 'password-ephemeral-authority-successor',
+      scope: controlledScope,
+      transport: 'stream',
+    });
+    controlledPendingPath = '/ephemeral/publish';
+    const controlledPublish = await controlledOverlay.publish({
+      name: 'controlled-successor',
+      picking: true,
+    });
+    assert.equal(typeof controlledPublish.entry_version, 'number');
+    assert.equal(
+      controlledAuthorityPendingAbsorbed,
+      2,
+      'the real-server control must positively exercise subscribe and publish absorption',
+    );
+  } finally {
+    controlledPendingPath = null;
+    if (controlledOverlay !== null) {
+      await client.unsubscribeEphemeral('roomPresence', {
+        connectionId: 'password-ephemeral-authority-successor',
+        scope: controlledScope,
+      }).catch(() => {});
+      controlledOverlay.dispose();
+    }
+  }
 
   for (let index = 0; index < iterations; index += 1) {
     await client.authLogout();
@@ -143,6 +194,7 @@ try {
     witness: 'awaited-password-signin-immediate-ephemeral-subscribe-publish',
     iterations,
     completed,
+    controlledAuthorityPendingAbsorbed,
     rawAuthorityPendingAbsorbed: rawAuthorityPending,
     appVisibleAuthorityPending: appVisiblePending.length,
   }));

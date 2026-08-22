@@ -86,8 +86,15 @@ This landing completes residuals 2 and 3:
 
 - A scoped live `resync_required` now fences its predecessor synchronously,
   publishes `connection: "stale"` with retained rows, coalesces duplicate
-  transition evidence, and installs exactly one successor subscription. Frames
-  addressed to the fenced predecessor cannot reach the public update callback.
+  transition evidence, and installs exactly one latest successor subscription.
+  A second reload scoped to a held installing response retires that response
+  before publication and serializes one replacement using the retired id only
+  as its supersession witness. Frames addressed to either fenced predecessor
+  cannot reach the public update callback.
+- The resync cut advances a per-subscription publication generation before
+  yielding. Authorization-invalidation and optimistic-presentation tasks carry
+  it, so tasks held in either queue cannot commit callbacks after their
+  predecessor has been fenced.
 - The real sessions dev-loop witness edits the watched functions source while
   an authenticated stream is live. It observes the bounded stale state, one
   authoritative successor snapshot, no stale-authority frame, and byte-identical
@@ -96,11 +103,17 @@ This landing completes residuals 2 and 3:
   `SNAPBACK_EPHEMERAL_AUTHORITY_PENDING` successor window with a finite client
   retry budget. While waiting, authority readiness reports `reconnecting` and
   `ephemeralAuthorityUsable: false`; exhaustion preserves the typed refusal.
+  Each retry is pinned to the first exact coordinator capture or external
+  bearer/transport generation and refuses before redispatch across logout or
+  A → B.
 - The real password witness completed 200 awaited sign-in → immediate protected
   ephemeral subscribe/publish cycles with no app-visible
-  `SNAPBACK_EPHEMERAL_AUTHORITY_PENDING`. The deterministic client witness also
-  forces the pending response on both operations, proving absorption and the
-  finite exhaustion boundary.
+  `SNAPBACK_EPHEMERAL_AUTHORITY_PENDING`. Its natural server-pending count is
+  observational only. A deterministic effect-free request-boundary control
+  positively induces one pending subscribe and one pending publish, and both
+  retries complete against the real sessions server. Focused client witnesses
+  separately prove the finite exhaustion boundary and the four held
+  logout/A → B subscribe/publish cancellations.
 
 The Exit condition holds: ordinary watch reload preserves signed-in custody,
 live resources expose and recover through an explicit bounded successor state,
@@ -109,12 +122,18 @@ race to application code.
 
 Verification:
 
-- `demos/_kit/tests/regression-midflight-resync.mjs` — 4/4, including fenced
-  predecessor and exactly one authoritative successor.
+- `demos/_kit/tests/regression-midflight-resync.mjs` — 5/5, including fenced
+  predecessor, held reload-during-reload, and exactly one latest authoritative
+  successor.
 - `packages/snapback-cli/sessions-dev-loop.test.mjs` — real watch reload,
   live-stream successor, and tight-loop custody witness passed.
 - `demos/_kit/tests/password-ephemeral-authority-successor.mjs` — 200/200,
-  zero app-visible pending refusals.
+  two positive controlled absorbed occurrences, zero app-visible pending
+  refusals; natural pending count observational.
+- `authorization-invalidation.test.mjs`,
+  `generated-optimistic-default.test.mjs`, and `password-auth.test.mjs` — held
+  authorization/optimistic publication queues refuse after the cut; held
+  subscribe/publish retries cancel across logout and A → B with one dispatch.
 - `packages/snapback-client/authority-transition-conformance.test.mjs` and
   `packages/snapback-contract/authority-transition-signal.test.mjs` — 11/11.
 - Affected password-auth, hosted-ephemeral, ephemeral-room, coordinator, and

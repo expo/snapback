@@ -3542,8 +3542,15 @@ diagnostic, or a fenced predecessor into `ready`/empty.
    and projects `connection: "stale"`. The id remains available only as the
    `supersedes` witness for one serialized fresh subscribe. Duplicate scoped
    transition frames for that fenced id coalesce into the same attempt; every
-   later predecessor payload is ignored. Exactly one successfully installed
-   successor snapshot may restore `freshness: "current"` and live transport.
+   later predecessor payload is ignored. A scoped resync for an installing
+   successor is buffered with that attempt. Before any snapshot/current
+   publication, it retires the installing id, advances the handle's
+   publication generation, and serializes one replacement that names the
+   retired id only as its `supersedes` witness. Exactly one successfully
+   installed latest successor snapshot may restore `freshness: "current"`
+   and live transport. Authorization-invalidation tasks and optimistic
+   presentation tasks capture that publication generation, so work queued
+   under any predecessor cannot commit an app callback after the resync cut.
    A failed attempt stays visibly stale and follows the existing bounded-
    backoff live-resource recovery; it never reopens predecessor delivery.
 
@@ -3551,7 +3558,12 @@ diagnostic, or a fenced predecessor into `ready`/empty.
    effect-free HTTP refusals for `/ephemeral/subscribe` and
    `/ephemeral/publish`. While retrying, authority status is `reconnecting`
    and `ephemeralAuthorityUsable` is false. The short-jitter retry budget is
-   finite; exhaustion returns the typed refusal. Intermediate publish
+   finite; exhaustion returns the typed refusal. Every retry retains the
+   first attempt's exact coordinator authority capture or external bearer
+   plus transport generation and compares it before the delay, after the
+   delay, and immediately before dispatch. Logout or A → B therefore cancels
+   the predecessor operation instead of reusing its connection grant.
+   Intermediate publish
    refusals create no rejected app receipt because no publish effect crossed
    the server authority cut.
 6. **Diagnostics separate queue, authorization, execution, commit, and
@@ -3604,12 +3616,17 @@ from the same lookup function.
 - every one-shot inadmissible operation settles without transport
   (timeout-independent assertion);
 - no custody loss across an axisless watch-reload refusal, proved together
-  with the real live-stream watch-reload successor;
+  with the real live-stream watch-reload successor and a held-response
+  reload-during-reload that retires the installing response before publication;
 - awaited sign-in settlement implies usable ephemeral authority, proved by
-  the real repeated subscribe-and-publish-immediately-after-sign-in loop;
+  a positive controlled pending occurrence against the real sessions server
+  plus the repeated subscribe-and-publish-immediately-after-sign-in loop;
 - foreground send latency is unaffected by a suspended housekeeping write
   (head-of-line witness);
 - a late predecessor frame after the fence never repopulates any surface;
+- authorization and optimistic publication queues held across a resync cut
+  refuse their predecessor commits, and pending ephemeral retries held across
+  logout or A → B issue no second subscribe/publish dispatch;
 - the ruling-6 client clock pair and server clock triple are populated and
   ordered within their domains on success; rejected staged mutations retain
   the server triple; auth blank resets subscription `lastDeliveryAtMs` and
@@ -3670,12 +3687,18 @@ proves coordinator readiness for every waiter.
 The remaining real boundaries are now executable too. The sessions dev-loop
 suite keeps an authenticated stream and durable client custody live through a
 source-watcher reload, observes the retain-stale transition, rejects a late
-predecessor frame in the focused real-server resync corpus, and admits exactly
-one authoritative successor snapshot. Its concurrent 64-read loop retains
+predecessor frame in the focused real-server resync corpus, and the held
+reload-during-reload control proves that an already-retired installing response
+never publishes and produces one serialized latest successor. Held
+authorization and optimistic queues prove the synchronous publication cut.
+Its concurrent 64-read loop retains
 byte-equal custody and never records terminal auth loss. The pointing-room
 sessions+ephemeral fixture repeats awaited password sign-in followed
 immediately by protected room subscribe and publish 200 times; raw transient
-carrier observations are counted, while the public promises expose zero
-`SNAPBACK_EPHEMERAL_AUTHORITY_PENDING` refusals. A deterministic client test
-forces the pending branch on both operations and proves status projection,
-absorption, and the absence of a rejected publish receipt.
+carrier observations are counted observationally and are never required to be
+nonzero. A deterministic effect-free request-boundary control positively
+induces one subscribe and one publish pending refusal, then proves both public
+operations complete against the real server. The public promises expose zero
+`SNAPBACK_EPHEMERAL_AUTHORITY_PENDING` refusals. Focused coordinator tests hold
+the retry across logout and A → B for both operations and prove no predecessor
+redispatch; the finite-exhaustion test remains independent.
