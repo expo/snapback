@@ -1,6 +1,6 @@
 # `check-inventories` is enforced by convention only — no hook, no CI job runs it
 
-Status: Open
+Status: Resolved 2026-08-22 — `.github/workflows/inventories.yml` added; see "Resolution"
 Created: 2026-08-21
 Related: CLAUDE.md ("Landings that add test files, metadata-declared demos, or generated
 publication leaves run `node scripts/check-inventories.mjs` before pushing")
@@ -60,3 +60,27 @@ Item 1 alone would have prevented all three of today's reds.
 Fixing forward has been fine each time — the regeneration is mechanical. The cost is that main sits
 red between the landing and whoever notices, and every concurrent agent that pulls in that window
 sees a failing gate it did not cause and has to diagnose it before its own work.
+
+
+## Resolution (2026-08-22)
+
+Author-approved and implemented: `.github/workflows/inventories.yml` runs
+`node scripts/check-inventories.mjs` on pushes to main and on pull requests.
+
+It is modelled on `deployment-identity.yml`, which exists for the same class of problem and whose
+header records the same failure mode — a landing that changed generated inputs without
+regenerating, silently breaking main for whoever pushed next. That precedent settled the shape:
+same runner, same pinned action SHAs, same `.node-version` authority, same concurrency group with
+`cancel-in-progress` because agents push to main in bursts.
+
+The one addition over `ref-check.yml` is `bun install --frozen-lockfile`. `check-inventories`
+transitively runs the guide generators, which need the root lockfile's parser dependencies; the
+check exits non-zero without them, so a dependency-free lane would have produced a false red.
+Verified empirically before writing the workflow rather than assumed.
+
+It invokes the same entry point agents are asked to run before pushing, so local runs and CI
+exercise one code path.
+
+Items 2 and 3 from the proposal remain open and are not blocked by this: adding the check to
+`.githooks/pre-push` so it fails before the push rather than after, and having a doctor script
+notice a clone with `core.hooksPath` unset — that clone silently gets no pre-push gates at all.
