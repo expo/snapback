@@ -18,8 +18,9 @@ use crate::auth::handshake::{
     AuthSessionFacts, AuthSessionResponse,
 };
 use crate::auth::invocation::{
-    FunctionAttribution, InvocationGate, InvocationSource, PreparedAuthority, ResolvedAppAuthority,
-    WireAuthorityFields, descriptor_for_resolved_authority,
+    AuthorizedEffectReservation, FunctionAttribution, InvocationGate, InvocationSource,
+    PreparedAuthority, ResolvedAppAuthority, WireAuthorityFields,
+    descriptor_for_resolved_authority,
 };
 use crate::auth::lease::{
     AUTHORIZED_LEASE_PROTOCOL_VERSION, AuthorizedLease, AuthorizedLeaseRequestIdentity,
@@ -12080,6 +12081,7 @@ async fn pause_test_coordinated_mutation_after_commit(function: &str) {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum TestFiniteAuthorityPausePoint {
     BeforeHandler,
+    BeforeAuthorizedEffectReservation,
     AfterAuthorizedEffectReservation,
     BeforeResponsePublication,
     AfterRefreshPremark,
@@ -12095,6 +12097,7 @@ enum TestFiniteAuthorityPausePoint {
 struct TestFiniteAuthorityPauseEntry {
     point: TestFiniteAuthorityPausePoint,
     reached: Arc<tokio::sync::Barrier>,
+    reached_flag: Arc<AtomicBool>,
     release: Arc<tokio::sync::Barrier>,
     response_status: Arc<StdMutex<Option<StatusCode>>>,
 }
@@ -12103,6 +12106,7 @@ struct TestFiniteAuthorityPauseEntry {
 struct TestFiniteAuthorityPause {
     id: String,
     reached: Arc<tokio::sync::Barrier>,
+    reached_flag: Arc<AtomicBool>,
     release: Arc<tokio::sync::Barrier>,
     response_status: Arc<StdMutex<Option<StatusCode>>>,
 }
@@ -12202,11 +12206,13 @@ fn install_test_finite_authority_pause(
 ) -> TestFiniteAuthorityPause {
     let id = format!("finite-authority-{}", Uuid::now_v7().simple());
     let reached = Arc::new(tokio::sync::Barrier::new(2));
+    let reached_flag = Arc::new(AtomicBool::new(false));
     let release = Arc::new(tokio::sync::Barrier::new(2));
     let response_status = Arc::new(StdMutex::new(None));
     let entry = TestFiniteAuthorityPauseEntry {
         point,
         reached: reached.clone(),
+        reached_flag: reached_flag.clone(),
         release: release.clone(),
         response_status: response_status.clone(),
     };
@@ -12218,6 +12224,7 @@ fn install_test_finite_authority_pause(
     TestFiniteAuthorityPause {
         id,
         reached,
+        reached_flag,
         release,
         response_status,
     }
@@ -12231,6 +12238,10 @@ impl TestFiniteAuthorityPause {
 
     async fn wait_until_reached(&self) {
         self.reached.wait().await;
+    }
+
+    fn has_reached(&self) -> bool {
+        self.reached_flag.load(Ordering::Acquire)
     }
 
     async fn release(&self) {
@@ -12282,6 +12293,7 @@ async fn pause_test_finite_authority_request(
             .response_status
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = response_status;
+        entry.reached_flag.store(true, Ordering::Release);
         entry.reached.wait().await;
         entry.release.wait().await;
     }

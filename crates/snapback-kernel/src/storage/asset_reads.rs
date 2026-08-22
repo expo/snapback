@@ -199,10 +199,30 @@ impl LocalDatabase {
         &mut self,
         f: impl FnOnce(&rusqlite::Transaction<'_>) -> SnapbackResult<T>,
     ) -> SnapbackResult<T> {
+        self.asset_reads_transaction_guarded(f, || Ok(()))
+    }
+
+    /// Asset read-policy transactions may also publish durable lifecycle or
+    /// delivery evidence. Acquire the caller-owned guard only after all policy
+    /// and row work, retain it through COMMIT, and release it before bytes or
+    /// live notifications leave the database lane.
+    ///
+    /// @ref LLP 0058#split-phase-authorized-effect-fence — the HTTP owner
+    /// reserves authority outside Local and mode admission remains the last
+    /// lock at the durable effect cut.
+    fn asset_reads_transaction_guarded<T, G, BeforeCommit>(
+        &mut self,
+        f: impl FnOnce(&rusqlite::Transaction<'_>) -> SnapbackResult<T>,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<T>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let value = f(&tx)?;
+        let _commit_guard = before_commit()?;
         tx.commit()?;
         Ok(value)
     }
@@ -213,44 +233,60 @@ impl LocalDatabase {
         attempt_id: &str,
         now: u64,
     ) -> SnapbackResult<(assets::AssetAttemptRecordV1, Option<String>)> {
-        self.asset_reads_transaction(|tx| {
-            let mut attempt = assets::load_attempt(tx, attempt_id)?.ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
-                    "assets",
-                    format!("unknown attempt {attempt_id}"),
-                )
-            })?;
-            if caller != Some(attempt.admission.owner_principal.as_str()) {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_FORBIDDEN",
-                    "assets",
-                    "this attempt belongs to a different authority",
-                ));
-            }
-            let mut expired_staging = None;
-            if attempt.state.is_current() && now >= attempt.expires_at_ms {
-                assets::transition_attempt(
-                    tx,
-                    &mut attempt,
-                    assets::AssetAttemptState::Expired,
-                    now,
-                )?;
-                assets::write_receipt(
-                    tx,
-                    &asset_receipt(
-                        &attempt.attempt_id.clone(),
-                        assets::AssetReceiptEventV1::AttemptExpired,
-                        &attempt.asset_id,
-                        Some(&attempt.attempt_id),
+        self.asset_attempt_for_caller_guarded(caller, attempt_id, now, || Ok(()))
+    }
+
+    pub(super) fn asset_attempt_for_caller_guarded<G, BeforeCommit>(
+        &mut self,
+        caller: Option<&str>,
+        attempt_id: &str,
+        now: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<(assets::AssetAttemptRecordV1, Option<String>)>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.asset_reads_transaction_guarded(
+            |tx| {
+                let mut attempt = assets::load_attempt(tx, attempt_id)?.ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
+                        "assets",
+                        format!("unknown attempt {attempt_id}"),
+                    )
+                })?;
+                if caller != Some(attempt.admission.owner_principal.as_str()) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ASSET_FORBIDDEN",
+                        "assets",
+                        "this attempt belongs to a different authority",
+                    ));
+                }
+                let mut expired_staging = None;
+                if attempt.state.is_current() && now >= attempt.expires_at_ms {
+                    assets::transition_attempt(
+                        tx,
+                        &mut attempt,
+                        assets::AssetAttemptState::Expired,
                         now,
-                        serde_json::json!({ "expiresAtMs": attempt.expires_at_ms }),
-                    ),
-                )?;
-                expired_staging = Some(attempt.staging_key.clone());
-            }
-            Ok((attempt, expired_staging))
-        })
+                    )?;
+                    assets::write_receipt(
+                        tx,
+                        &asset_receipt(
+                            &attempt.attempt_id.clone(),
+                            assets::AssetReceiptEventV1::AttemptExpired,
+                            &attempt.asset_id,
+                            Some(&attempt.attempt_id),
+                            now,
+                            serde_json::json!({ "expiresAtMs": attempt.expires_at_ms }),
+                        ),
+                    )?;
+                    expired_staging = Some(attempt.staging_key.clone());
+                }
+                Ok((attempt, expired_staging))
+            },
+            before_commit,
+        )
     }
 
     pub(super) fn asset_load_record(
@@ -603,38 +639,71 @@ impl LocalDatabase {
         range_header: Option<&str>,
         now: u64,
     ) -> SnapbackResult<AssetDeliveryOutcome> {
-        self.asset_reads_transaction(|tx| {
-            let asset = assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
-            if asset.availability == assets::AssetAvailability::Deleted {
-                return Err(asset_unknown(asset_id)());
-            }
-            let decision = super::asset_read_authorized(schema, tx, caller, &asset)?;
-            if !decision.authorized {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_FORBIDDEN",
-                    "assets",
-                    "this asset is not readable by the caller",
-                ));
-            }
-            if asset.availability != assets::AssetAvailability::Ready {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_NOT_READY",
-                    "assets",
-                    "the asset has no deliverable bytes yet",
-                ));
-            }
-            asset_deliver_from(
-                tx,
-                store,
-                &asset,
-                variant,
-                max_width,
-                range_header,
-                "private-strict",
-                "private, no-store".to_owned(),
-                now,
-            )
-        })
+        self.asset_deliver_strict_guarded(
+            schema,
+            caller,
+            store,
+            asset_id,
+            variant,
+            max_width,
+            range_header,
+            now,
+            || Ok(()),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn asset_deliver_strict_guarded<G, BeforeCommit>(
+        &mut self,
+        schema: &SchemaManifest,
+        caller: Option<&str>,
+        store: &Arc<dyn crate::assets_store::AssetStore>,
+        asset_id: &str,
+        variant: &str,
+        max_width: Option<u64>,
+        range_header: Option<&str>,
+        now: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<AssetDeliveryOutcome>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.asset_reads_transaction_guarded(
+            |tx| {
+                let asset =
+                    assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
+                if asset.availability == assets::AssetAvailability::Deleted {
+                    return Err(asset_unknown(asset_id)());
+                }
+                let decision = super::asset_read_authorized(schema, tx, caller, &asset)?;
+                if !decision.authorized {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ASSET_FORBIDDEN",
+                        "assets",
+                        "this asset is not readable by the caller",
+                    ));
+                }
+                if asset.availability != assets::AssetAvailability::Ready {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ASSET_NOT_READY",
+                        "assets",
+                        "the asset has no deliverable bytes yet",
+                    ));
+                }
+                asset_deliver_from(
+                    tx,
+                    store,
+                    &asset,
+                    variant,
+                    max_width,
+                    range_header,
+                    "private-strict",
+                    "private, no-store".to_owned(),
+                    now,
+                )
+            },
+            before_commit,
+        )
     }
 
     pub(super) fn asset_signed_url_width_probe(
@@ -674,111 +743,144 @@ impl LocalDatabase {
         ttl: u64,
         now: u64,
     ) -> SnapbackResult<assets::AssetSignedUrlIssueResponseV1> {
-        self.asset_reads_transaction(|tx| {
-            let asset = assets::load_asset(tx, asset_id)?
-                .filter(|asset| asset.availability != assets::AssetAvailability::Deleted)
-                .ok_or_else(asset_signed_url_forbidden)?;
-            let decision = super::asset_read_authorized(schema, tx, caller, &asset)?;
-            if !decision.authorized {
-                return Err(asset_signed_url_forbidden());
-            }
-            if asset.delivery_profile == assets::AssetDeliveryProfile::PrivateStrict {
-                return Err(asset_delivery_profile_strict());
-            }
-            // @ref LLP 0210#d2--issuance-defaults-and-typed-refusals — the
-            // declared keys are metadata, so enumerate only after the read
-            // policy has authorized this caller.
-            if validate_declared_variant {
-                let intent_json =
-                    assets::load_intent_artifact(tx, &asset.intent_id, asset.policy_generation)?
-                        .ok_or_else(|| {
-                            SnapbackError::error(
-                                "SNAPBACK_ASSET_RECORD_INVALID",
-                                "assets",
-                                "the asset's admitted upload-intent artifact is unavailable",
-                            )
-                        })?;
-                let intent: crate::manifest::AssetUploadIntentDefinition =
-                    serde_json::from_str(&intent_json).map_err(|_| {
+        self.asset_signed_url_issue_guarded(
+            schema,
+            caller,
+            asset_id,
+            issued_variant,
+            validate_declared_variant,
+            ttl,
+            now,
+            || Ok(()),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn asset_signed_url_issue_guarded<G, BeforeCommit>(
+        &mut self,
+        schema: &SchemaManifest,
+        caller: Option<&str>,
+        asset_id: &str,
+        issued_variant: &str,
+        validate_declared_variant: bool,
+        ttl: u64,
+        now: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<assets::AssetSignedUrlIssueResponseV1>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.asset_reads_transaction_guarded(
+            |tx| {
+                let asset = assets::load_asset(tx, asset_id)?
+                    .filter(|asset| asset.availability != assets::AssetAvailability::Deleted)
+                    .ok_or_else(asset_signed_url_forbidden)?;
+                let decision = super::asset_read_authorized(schema, tx, caller, &asset)?;
+                if !decision.authorized {
+                    return Err(asset_signed_url_forbidden());
+                }
+                if asset.delivery_profile == assets::AssetDeliveryProfile::PrivateStrict {
+                    return Err(asset_delivery_profile_strict());
+                }
+                // @ref LLP 0210#d2--issuance-defaults-and-typed-refusals — the
+                // declared keys are metadata, so enumerate only after the read
+                // policy has authorized this caller.
+                if validate_declared_variant {
+                    let intent_json = assets::load_intent_artifact(
+                        tx,
+                        &asset.intent_id,
+                        asset.policy_generation,
+                    )?
+                    .ok_or_else(|| {
                         SnapbackError::error(
                             "SNAPBACK_ASSET_RECORD_INVALID",
                             "assets",
-                            "the asset's admitted upload-intent artifact is invalid",
+                            "the asset's admitted upload-intent artifact is unavailable",
                         )
                     })?;
-                let mut variants = vec!["primary".to_owned()];
-                if let Some(image) = intent.image {
-                    for variant in image.variants {
-                        if !variants.contains(&variant.key) {
-                            variants.push(variant.key);
+                    let intent: crate::manifest::AssetUploadIntentDefinition =
+                        serde_json::from_str(&intent_json).map_err(|_| {
+                            SnapbackError::error(
+                                "SNAPBACK_ASSET_RECORD_INVALID",
+                                "assets",
+                                "the asset's admitted upload-intent artifact is invalid",
+                            )
+                        })?;
+                    let mut variants = vec!["primary".to_owned()];
+                    if let Some(image) = intent.image {
+                        for variant in image.variants {
+                            if !variants.contains(&variant.key) {
+                                variants.push(variant.key);
+                            }
                         }
                     }
+                    if !variants.iter().any(|variant| variant == issued_variant) {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_ASSET_VARIANT_UNKNOWN",
+                            "assets",
+                            format!(
+                                "variant {issued_variant} is not declared; choose one of {}",
+                                variants.join(", ")
+                            ),
+                        )
+                        .with_details(serde_json::json!({
+                            "requestedVariant": issued_variant,
+                            "variants": variants,
+                        })));
+                    }
                 }
-                if !variants.iter().any(|variant| variant == issued_variant) {
+                if asset.availability != assets::AssetAvailability::Ready {
                     return Err(SnapbackError::error(
-                        "SNAPBACK_ASSET_VARIANT_UNKNOWN",
+                        "SNAPBACK_ASSET_NOT_READY",
                         "assets",
-                        format!(
-                            "variant {issued_variant} is not declared; choose one of {}",
-                            variants.join(", ")
-                        ),
-                    )
-                    .with_details(serde_json::json!({
-                        "requestedVariant": issued_variant,
-                        "variants": variants,
-                    })));
+                        "the asset has no deliverable bytes yet",
+                    ));
                 }
-            }
-            if asset.availability != assets::AssetAvailability::Ready {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_NOT_READY",
-                    "assets",
-                    "the asset has no deliverable bytes yet",
-                ));
-            }
-            if asset.delivery_profile == assets::AssetDeliveryProfile::PublicImmutable {
-                // Public-immutable bytes live at a stable route with no
-                // bearer; issuance resolves to it so every existing media
-                // projection (issued-URL stores, hooks) renders public
-                // assets without a special client path. The synthetic
-                // expiry keeps refresh loops dormant.
-                return Ok(assets::AssetSignedUrlIssueResponseV1 {
-                    url: format!("/assets/public/{asset_id}/{issued_variant}"),
+                if asset.delivery_profile == assets::AssetDeliveryProfile::PublicImmutable {
+                    // Public-immutable bytes live at a stable route with no
+                    // bearer; issuance resolves to it so every existing media
+                    // projection (issued-URL stores, hooks) renders public
+                    // assets without a special client path. The synthetic
+                    // expiry keeps refresh loops dormant.
+                    return Ok(assets::AssetSignedUrlIssueResponseV1 {
+                        url: format!("/assets/public/{asset_id}/{issued_variant}"),
+                        variant: issued_variant.to_owned(),
+                        expires_at_ms: now.saturating_add(PUBLIC_DELIVERY_SYNTHETIC_TTL_MS),
+                    });
+                }
+                let grantee = caller.unwrap_or("anonymous");
+                let expires_at_ms = now.saturating_add(ttl);
+                let key = assets::active_signing_key(tx, now)?;
+                let token = assets::mint_signed_url_token(
+                    &key,
+                    asset_id,
+                    issued_variant,
+                    grantee,
+                    asset.lifecycle_generation,
+                    expires_at_ms,
+                );
+                assets::write_receipt(
+                    tx,
+                    &asset_receipt(
+                        &asset.asset_id.clone(),
+                        assets::AssetReceiptEventV1::SignedUrlIssued,
+                        &asset.asset_id,
+                        None,
+                        now,
+                        serde_json::json!({
+                            "variant": issued_variant,
+                            "expiresAtMs": expires_at_ms,
+                        }),
+                    ),
+                )?;
+                Ok(assets::AssetSignedUrlIssueResponseV1 {
+                    url: format!("/assets/signed/{asset_id}/{issued_variant}?token={token}"),
                     variant: issued_variant.to_owned(),
-                    expires_at_ms: now.saturating_add(PUBLIC_DELIVERY_SYNTHETIC_TTL_MS),
-                });
-            }
-            let grantee = caller.unwrap_or("anonymous");
-            let expires_at_ms = now.saturating_add(ttl);
-            let key = assets::active_signing_key(tx, now)?;
-            let token = assets::mint_signed_url_token(
-                &key,
-                asset_id,
-                issued_variant,
-                grantee,
-                asset.lifecycle_generation,
-                expires_at_ms,
-            );
-            assets::write_receipt(
-                tx,
-                &asset_receipt(
-                    &asset.asset_id.clone(),
-                    assets::AssetReceiptEventV1::SignedUrlIssued,
-                    &asset.asset_id,
-                    None,
-                    now,
-                    serde_json::json!({
-                        "variant": issued_variant,
-                        "expiresAtMs": expires_at_ms,
-                    }),
-                ),
-            )?;
-            Ok(assets::AssetSignedUrlIssueResponseV1 {
-                url: format!("/assets/signed/{asset_id}/{issued_variant}?token={token}"),
-                variant: issued_variant.to_owned(),
-                expires_at_ms,
-            })
-        })
+                    expires_at_ms,
+                })
+            },
+            before_commit,
+        )
     }
 
     pub(super) fn asset_deliver_signed(
@@ -918,32 +1020,49 @@ impl LocalDatabase {
         now: u64,
         crash: Option<fn() -> SnapbackError>,
     ) -> SnapbackResult<Option<String>> {
-        self.asset_reads_transaction(|tx| {
-            let mut asset =
-                assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
-            if asset.availability == assets::AssetAvailability::Deleted {
-                return Ok(None);
-            }
-            if caller != Some(asset.owner_principal.as_str()) {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_FORBIDDEN",
-                    "assets",
-                    "only the owner may delete this asset",
-                ));
-            }
-            if !assets::load_edges_for_asset(tx, asset_id)?.is_empty() {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_REFERENCED",
-                    "assets",
-                    "typed references to this asset remain; clear them first",
-                ));
-            }
-            let staging = asset_delete_cascade(tx, &mut asset, "explicit-delete", now)?;
-            if let Some(crash) = crash {
-                return Err(crash());
-            }
-            Ok(staging)
-        })
+        self.asset_delete_guarded(caller, asset_id, now, crash, || Ok(()))
+    }
+
+    pub(super) fn asset_delete_guarded<G, BeforeCommit>(
+        &mut self,
+        caller: Option<&str>,
+        asset_id: &str,
+        now: u64,
+        crash: Option<fn() -> SnapbackError>,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<Option<String>>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.asset_reads_transaction_guarded(
+            |tx| {
+                let mut asset =
+                    assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
+                if asset.availability == assets::AssetAvailability::Deleted {
+                    return Ok(None);
+                }
+                if caller != Some(asset.owner_principal.as_str()) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ASSET_FORBIDDEN",
+                        "assets",
+                        "only the owner may delete this asset",
+                    ));
+                }
+                if !assets::load_edges_for_asset(tx, asset_id)?.is_empty() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ASSET_REFERENCED",
+                        "assets",
+                        "typed references to this asset remain; clear them first",
+                    ));
+                }
+                let staging = asset_delete_cascade(tx, &mut asset, "explicit-delete", now)?;
+                if let Some(crash) = crash {
+                    return Err(crash());
+                }
+                Ok(staging)
+            },
+            before_commit,
+        )
     }
 
     pub(super) fn asset_delete_result(&mut self, asset_id: &str) -> SnapbackResult<Value> {
@@ -1586,6 +1705,20 @@ impl<'a> AssetReadsKernel<'a> {
         self.db.asset_attempt_for_caller(caller, attempt_id, now)
     }
 
+    pub fn attempt_for_caller_guarded<G, BeforeCommit>(
+        &mut self,
+        caller: Option<&str>,
+        attempt_id: &str,
+        now: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<(assets::AssetAttemptRecordV1, Option<String>)>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.db
+            .asset_attempt_for_caller_guarded(caller, attempt_id, now, before_commit)
+    }
+
     pub fn load_asset(&mut self, asset_id: &str) -> SnapbackResult<Option<assets::AssetRecordV1>> {
         self.db.asset_load_record(asset_id)
     }
@@ -1702,6 +1835,35 @@ impl<'a> AssetReadsKernel<'a> {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub fn deliver_strict_guarded<G, BeforeCommit>(
+        &mut self,
+        schema: &SchemaManifest,
+        caller: Option<&str>,
+        store: &Arc<dyn crate::assets_store::AssetStore>,
+        asset_id: &str,
+        variant: &str,
+        max_width: Option<u64>,
+        range_header: Option<&str>,
+        now: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<AssetDeliveryOutcome>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.db.asset_deliver_strict_guarded(
+            schema,
+            caller,
+            store,
+            asset_id,
+            variant,
+            max_width,
+            range_header,
+            now,
+            before_commit,
+        )
+    }
+
     pub fn signed_url_width_probe(
         &mut self,
         schema: &SchemaManifest,
@@ -1731,6 +1893,33 @@ impl<'a> AssetReadsKernel<'a> {
             validate_declared_variant,
             ttl,
             now,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn signed_url_issue_guarded<G, BeforeCommit>(
+        &mut self,
+        schema: &SchemaManifest,
+        caller: Option<&str>,
+        asset_id: &str,
+        issued_variant: &str,
+        validate_declared_variant: bool,
+        ttl: u64,
+        now: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<assets::AssetSignedUrlIssueResponseV1>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.db.asset_signed_url_issue_guarded(
+            schema,
+            caller,
+            asset_id,
+            issued_variant,
+            validate_declared_variant,
+            ttl,
+            now,
+            before_commit,
         )
     }
 
@@ -1775,6 +1964,21 @@ impl<'a> AssetReadsKernel<'a> {
         crash: Option<fn() -> SnapbackError>,
     ) -> SnapbackResult<Option<String>> {
         self.db.asset_delete(caller, asset_id, now, crash)
+    }
+
+    pub fn delete_guarded<G, BeforeCommit>(
+        &mut self,
+        caller: Option<&str>,
+        asset_id: &str,
+        now: u64,
+        crash: Option<fn() -> SnapbackError>,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<Option<String>>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.db
+            .asset_delete_guarded(caller, asset_id, now, crash, before_commit)
     }
 
     pub fn delete_result(&mut self, asset_id: &str) -> SnapbackResult<Value> {

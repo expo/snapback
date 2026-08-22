@@ -16,6 +16,50 @@ pub(super) const TUS_UPLOAD_EXPIRES_MS_HEADER: &str = "upload-expires-ms";
 pub(super) const TUS_UPLOAD_CHECKSUM_HEADER: &str = "upload-checksum";
 const TUS_CONTENT_TYPE: &str = "application/offset+octet-stream";
 
+/// Reserve the exact caller publication outside managed Local. Test-only
+/// pausing happens after the lock-free permit exists, so regressions can prove
+/// the complementary effect-first ordering without moving production locks.
+///
+/// @ref LLP 0058#split-phase-authorized-effect-fence — stream/session and
+/// optional service authority precede Local; the engine acquires mode
+/// admission last at the durable commit.
+async fn reserve_asset_authorized_effect(
+    authority: &PreparedAuthority,
+    _headers: &HeaderMap,
+    effect: &'static str,
+    pause_before_reservation: bool,
+    pause_after_reservation: bool,
+) -> Result<AuthorizedEffectReservation, ApiError> {
+    #[cfg(test)]
+    if pause_before_reservation {
+        pause_test_finite_authority_request(
+            _headers
+                .get(TEST_FINITE_AUTHORITY_PAUSE_HEADER)
+                .and_then(|value| value.to_str().ok()),
+            TestFiniteAuthorityPausePoint::BeforeAuthorizedEffectReservation,
+            None,
+        )
+        .await;
+    }
+    let authorized_effect = authority
+        .reserve_authorized_effect(effect)
+        .map_err(ApiError::from)?;
+    #[cfg(test)]
+    if pause_after_reservation {
+        pause_test_finite_authority_request(
+            _headers
+                .get(TEST_FINITE_AUTHORITY_PAUSE_HEADER)
+                .and_then(|value| value.to_str().ok()),
+            TestFiniteAuthorityPausePoint::AfterAuthorizedEffectReservation,
+            None,
+        )
+        .await;
+    }
+    #[cfg(not(test))]
+    let _ = (pause_before_reservation, pause_after_reservation);
+    Ok(authorized_effect)
+}
+
 pub(super) fn require_tus_version(headers: &HeaderMap) -> Result<(), ApiError> {
     let version = headers
         .get(TUS_RESUMABLE_HEADER)
@@ -84,11 +128,20 @@ pub(super) fn tus_response_headers(
 pub(super) async fn asset_attempt_create_route(
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
+    headers: HeaderMap,
     input: Result<Json<crate::assets::AssetAttemptCreateRequestV1>, JsonRejection>,
 ) -> Result<Json<crate::assets::AssetAttemptCreateResponseV1>, ApiError> {
     let Json(request) = input.map_err(ApiError::from_json_rejection)?;
+    let authorized_effect = reserve_asset_authorized_effect(
+        &authority,
+        &headers,
+        "asset attempt creation reservation",
+        true,
+        true,
+    )
+    .await?;
     let response = with_snapback(&state, move |snapback| {
-        snapback.asset_attempt_create(&authority, request)
+        snapback.asset_attempt_create_with_authorized_effect(&authority, request, authorized_effect)
     })
     .await?;
     Ok(Json(response))
@@ -122,6 +175,7 @@ pub(super) async fn asset_attempt_cancel_route(
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
     Path(id): Path<String>,
+    headers: HeaderMap,
     input: Result<Json<crate::assets::AssetAttemptCancelRequestV1>, JsonRejection>,
 ) -> Result<Json<crate::assets::AssetTaskStateV1>, ApiError> {
     let Json(request) = input.map_err(ApiError::from_json_rejection)?;
@@ -132,8 +186,16 @@ pub(super) async fn asset_attempt_cancel_route(
             "the cancel body names a different attempt than the route",
         )));
     }
+    let authorized_effect = reserve_asset_authorized_effect(
+        &authority,
+        &headers,
+        "asset attempt cancellation reservation",
+        true,
+        true,
+    )
+    .await?;
     let task = with_snapback(&state, move |snapback| {
-        snapback.asset_attempt_cancel(&authority, request)
+        snapback.asset_attempt_cancel_with_authorized_effect(&authority, request, authorized_effect)
     })
     .await?;
     Ok(Json(task))
@@ -271,6 +333,17 @@ pub(super) async fn asset_tus_patch_route(
     let preflight_authority = authority.clone();
     let preflight_id = id.clone();
     let preflight_body = body.clone();
+    // Preflight may lazily expire an attempt. Fence that durable transition,
+    // then release its permit before the unlocked physical byte append. A
+    // second reservation below owns only the acknowledgement transaction.
+    let preflight_effect = reserve_asset_authorized_effect(
+        &authority,
+        &headers,
+        "asset TUS preflight state reservation",
+        false,
+        false,
+    )
+    .await?;
     let ticket = with_snapback(&state, move |snapback| {
         let checksum = checksum_header.as_deref().map(|value| {
             let mut parts = value.splitn(2, ' ');
@@ -279,12 +352,13 @@ pub(super) async fn asset_tus_patch_route(
                 parts.next().unwrap_or_default(),
             )
         });
-        snapback.asset_tus_patch_preflight(
+        snapback.asset_tus_patch_preflight_with_authorized_effect(
             &preflight_authority,
             &preflight_id,
             offset,
             preflight_body.as_ref(),
             checksum,
+            preflight_effect,
         )
     })
     .await?;
@@ -306,8 +380,20 @@ pub(super) async fn asset_tus_patch_route(
             format!("asset TUS staging append task failed: {error}"),
         ))
     })??;
+    let authorized_effect = reserve_asset_authorized_effect(
+        &authority,
+        &headers,
+        "asset TUS acknowledgement reservation",
+        true,
+        true,
+    )
+    .await?;
     let attempt = with_snapback(&state, move |snapback| {
-        snapback.asset_tus_patch_commit(&authority, ticket)
+        snapback.asset_tus_patch_commit_with_authorized_effect(
+            &authority,
+            ticket,
+            authorized_effect,
+        )
     })
     .await?;
     let mut response = StatusCode::NO_CONTENT.into_response();
@@ -322,8 +408,16 @@ pub(super) async fn asset_tus_delete_route(
     headers: HeaderMap,
 ) -> Result<Response, ApiError> {
     require_tus_version(&headers)?;
+    let authorized_effect = reserve_asset_authorized_effect(
+        &authority,
+        &headers,
+        "asset TUS cancellation reservation",
+        true,
+        true,
+    )
+    .await?;
     with_snapback(&state, move |snapback| {
-        snapback.asset_tus_terminate(&authority, &id)
+        snapback.asset_tus_terminate_with_authorized_effect(&authority, &id, authorized_effect)
     })
     .await?;
     let mut response = StatusCode::NO_CONTENT.into_response();
@@ -358,14 +452,36 @@ pub(super) async fn asset_deliver_route(
     let width = query
         .get("width")
         .and_then(|value| value.parse::<u64>().ok());
+    let variant = if let Some(requested_width) = width {
+        let width_authority = authority.clone();
+        let width_asset_id = id.clone();
+        with_snapback(&state, move |snapback| {
+            snapback.asset_strict_delivery_prepare_width(
+                &width_authority,
+                &width_asset_id,
+                requested_width,
+            )
+        })
+        .await?
+    } else {
+        variant
+    };
+    let authorized_effect = reserve_asset_authorized_effect(
+        &authority,
+        &headers,
+        "asset strict-delivery receipt reservation",
+        true,
+        true,
+    )
+    .await?;
     let outcome = with_snapback(&state, move |snapback| {
-        snapback.asset_deliver(
+        snapback.asset_deliver_with_authorized_effect(
             &authority,
             &id,
             &variant,
             range_header.as_deref(),
             max_width,
-            width,
+            authorized_effect,
         )
     })
     .await?;
@@ -486,11 +602,44 @@ pub(super) async fn asset_signed_url_issue_route(
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
     Path(id): Path<String>,
+    headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<crate::assets::AssetSignedUrlIssueResponseV1>, ApiError> {
     let request = parse_asset_signed_url_issue_request(body)?;
+    let resolved_width_variant = if let Some(requested_width) = request.width_px {
+        let width_authority = authority.clone();
+        let width_asset_id = id.clone();
+        let ttl_ms = request.ttl_ms;
+        Some(
+            with_snapback(&state, move |snapback| {
+                snapback.asset_signed_url_prepare_width(
+                    &width_authority,
+                    &width_asset_id,
+                    requested_width,
+                    ttl_ms,
+                )
+            })
+            .await?,
+        )
+    } else {
+        None
+    };
+    let authorized_effect = reserve_asset_authorized_effect(
+        &authority,
+        &headers,
+        "asset signed-URL issuance reservation",
+        true,
+        true,
+    )
+    .await?;
     let response = with_snapback(&state, move |snapback| {
-        snapback.asset_signed_url_issue(&authority, &id, request)
+        snapback.asset_signed_url_issue_with_authorized_effect(
+            &authority,
+            &id,
+            request,
+            resolved_width_variant,
+            authorized_effect,
+        )
     })
     .await?;
     Ok(Json(response))
@@ -599,9 +748,18 @@ pub(super) async fn asset_record_delete_route(
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
     Path(id): Path<String>,
+    headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, ApiError> {
+    let authorized_effect = reserve_asset_authorized_effect(
+        &authority,
+        &headers,
+        "asset tombstone reservation",
+        true,
+        true,
+    )
+    .await?;
     let record = with_snapback(&state, move |snapback| {
-        snapback.asset_delete(&authority, &id)
+        snapback.asset_delete_with_authorized_effect(&authority, &id, authorized_effect)
     })
     .await?;
     Ok(Json(record))

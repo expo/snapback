@@ -4783,6 +4783,49 @@ fn asset_tus_patch_commit_cas_refuses_a_moved_offset_before_acknowledging() {
 }
 
 #[test]
+fn asset_tus_authorized_ack_expiry_cleans_staging_before_terminal_refusal() {
+    let mut snapback = asset_test_snapback();
+    let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+    let transfer = asset_dev_authority(&snapback, "user_a", InvocationSource::AssetTransfer);
+    let created = snapback
+        .asset_attempt_create(&creator, asset_create_request(Some(1)))
+        .expect("attempt creates");
+    let attempt_id = created.task.attempt_id;
+    let current = snapback
+        .asset_tus_head(&transfer, &attempt_id)
+        .expect("attempt is current before preflight");
+    let store = snapback.asset_store().expect("store");
+    let staging_path = store
+        .staging_path(&current.staging_key)
+        .expect("filesystem staging path");
+
+    let ticket = snapback
+        .asset_tus_patch_preflight(&transfer, &attempt_id, 0, b"x", None)
+        .expect("chunk preflights while current");
+    ticket
+        .append(b"x")
+        .expect("physical append precedes acknowledgement");
+    assert!(staging_path.exists());
+    snapback
+        .db
+        .asset_reads()
+        .set_attempt_expiry(&attempt_id, 1)
+        .expect("attempt expires between append and acknowledgement");
+
+    let authorized_effect = transfer
+        .reserve_authorized_effect("asset TUS expiry cleanup test")
+        .expect("dev test authority reserves an effect");
+    let error = snapback
+        .asset_tus_patch_commit_with_authorized_effect(&transfer, ticket, authorized_effect)
+        .expect_err("expired acknowledgement refuses");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_ATTEMPT_EXPIRED");
+    assert!(
+        !staging_path.exists(),
+        "lifecycle-owned cleanup runs after the permit drops"
+    );
+}
+
+#[test]
 fn asset_tus_patch_commit_cas_includes_checksum_grade() {
     let mut snapback = asset_test_snapback();
     let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);

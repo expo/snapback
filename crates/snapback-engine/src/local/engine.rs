@@ -11634,6 +11634,50 @@ impl LocalSnapback {
         authority: &PreparedAuthority,
         request: crate::assets::AssetAttemptCreateRequestV1,
     ) -> SnapbackResult<crate::assets::AssetAttemptCreateResponseV1> {
+        let (response, predecessor_staging, store) =
+            self.asset_attempt_create_inner(authority, request, || Ok(()))?;
+        if let Some(staging_key) = predecessor_staging {
+            store.delete_staging_pair(&staging_key)?;
+        }
+        Ok(response)
+    }
+
+    /// Ordinary HTTP attempt creation. The async route owns the authority
+    /// reservation; this synchronous sink acquires mode admission only after
+    /// every authorizer and transaction step, immediately before COMMIT.
+    ///
+    /// @ref LLP 0058#split-phase-authorized-effect-fence — reservation stays
+    /// alive through the durable asset/attempt/receipt transaction.
+    pub fn asset_attempt_create_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        request: crate::assets::AssetAttemptCreateRequestV1,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<crate::assets::AssetAttemptCreateResponseV1> {
+        let (response, predecessor_staging, store) =
+            self.asset_attempt_create_inner(authority, request, || {
+                authorized_effect.commit_guard("asset attempt creation transaction")
+            })?;
+        drop(authorized_effect);
+        if let Some(staging_key) = predecessor_staging {
+            store.delete_staging_pair(&staging_key)?;
+        }
+        Ok(response)
+    }
+
+    fn asset_attempt_create_inner<G, BeforeCommit>(
+        &mut self,
+        authority: &PreparedAuthority,
+        request: crate::assets::AssetAttemptCreateRequestV1,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<(
+        crate::assets::AssetAttemptCreateResponseV1,
+        Option<String>,
+        Arc<dyn crate::assets_store::AssetStore>,
+    )>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
         use crate::assets;
 
         let intent = self.asset_intent(&request.intent_id)?.clone();
@@ -11775,7 +11819,7 @@ impl LocalSnapback {
                 format!("intent definition does not serialize for retention: {error}"),
             )
         })?;
-        let response = self.db.asset_attempts().attempt_create(
+        let response = self.db.asset_attempts().attempt_create_guarded(
             &intent,
             deployed_implementation_hash,
             &intent_artifact_json,
@@ -11788,29 +11832,29 @@ impl LocalSnapback {
             &run.owner,
             &auth_pair,
             &witness,
+            before_commit,
         )?;
         let (attempt, predecessor) = response;
-        if let Some(predecessor) = &predecessor {
-            // Store-side fencing: the superseded attempt's staging object is
-            // removed so late bytes have nowhere to land. Idempotent; a crash
-            // here leaves an orphan the attempt-GC sweep reclaims.
-            store.delete_staging_pair(&predecessor.staging_key)?;
-        }
+        let predecessor_staging = predecessor.map(|attempt| attempt.staging_key);
         let task = asset_task_state(&attempt, None);
-        Ok(crate::assets::AssetAttemptCreateResponseV1 {
-            transfer: crate::assets::AssetTusInstructionV1 {
-                upload_url: format!("/assets/tus/{}", attempt.attempt_id),
-                tus_resumable: crate::assets::ASSET_TUS_VERSION.to_owned(),
-                upload_length: attempt.declared_length,
-                expires_at_ms: attempt.expires_at_ms,
-                checksum_algorithms: crate::assets::ASSET_TUS_CHECKSUM_ALGORITHMS
-                    .iter()
-                    .map(|algorithm| (*algorithm).to_owned())
-                    .collect(),
-                max_chunk_bytes: crate::assets::ASSET_MAX_CHUNK_BYTES,
+        Ok((
+            crate::assets::AssetAttemptCreateResponseV1 {
+                transfer: crate::assets::AssetTusInstructionV1 {
+                    upload_url: format!("/assets/tus/{}", attempt.attempt_id),
+                    tus_resumable: crate::assets::ASSET_TUS_VERSION.to_owned(),
+                    upload_length: attempt.declared_length,
+                    expires_at_ms: attempt.expires_at_ms,
+                    checksum_algorithms: crate::assets::ASSET_TUS_CHECKSUM_ALGORITHMS
+                        .iter()
+                        .map(|algorithm| (*algorithm).to_owned())
+                        .collect(),
+                    max_chunk_bytes: crate::assets::ASSET_MAX_CHUNK_BYTES,
+                },
+                task,
             },
-            task,
-        })
+            predecessor_staging,
+            store,
+        ))
     }
 
     /// Load an attempt for a caller, enforcing the auth-session lineage rule
@@ -11821,16 +11865,43 @@ impl LocalSnapback {
         authority: &PreparedAuthority,
         attempt_id: &str,
     ) -> SnapbackResult<crate::assets::AssetAttemptRecordV1> {
-        let caller = Self::asset_caller_principal(authority);
-        let now = now_millis();
+        self.asset_attempt_for_caller_inner(authority, attempt_id, || Ok(()))
+    }
+
+    fn asset_attempt_for_caller_inner<G, BeforeCommit>(
+        &mut self,
+        authority: &PreparedAuthority,
+        attempt_id: &str,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<crate::assets::AssetAttemptRecordV1>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
         let (attempt, expired_staging) =
-            self.db
-                .asset_reads()
-                .attempt_for_caller(caller.as_deref(), attempt_id, now)?;
+            self.asset_attempt_for_caller_state_inner(authority, attempt_id, before_commit)?;
         if let Some(staging_key) = expired_staging {
             self.asset_store_obj()?.delete_staging_pair(&staging_key)?;
         }
         Ok(attempt)
+    }
+
+    fn asset_attempt_for_caller_state_inner<G, BeforeCommit>(
+        &mut self,
+        authority: &PreparedAuthority,
+        attempt_id: &str,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<(crate::assets::AssetAttemptRecordV1, Option<String>)>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        let caller = Self::asset_caller_principal(authority);
+        let now = now_millis();
+        self.db.asset_reads().attempt_for_caller_guarded(
+            caller.as_deref(),
+            attempt_id,
+            now,
+            before_commit,
+        )
     }
 
     pub fn asset_attempt_inspect(
@@ -12769,6 +12840,36 @@ impl LocalSnapback {
         Ok(asset_task_state(&attempt, asset.as_ref()))
     }
 
+    /// Ordinary HTTP cancellation. Both the lazy-expiry transaction and the
+    /// cancellation transaction acquire their commit guards independently.
+    /// The reservation is dropped immediately after the durable transition;
+    /// physical staging cleanup then derives from the terminal attempt row.
+    pub fn asset_attempt_cancel_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        request: crate::assets::AssetAttemptCancelRequestV1,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<crate::assets::AssetTaskStateV1> {
+        let (_, expired_staging) =
+            self.asset_attempt_for_caller_state_inner(authority, &request.attempt_id, || {
+                authorized_effect.commit_guard("asset attempt caller-state transaction")
+            })?;
+        let now = now_millis();
+        let (attempt, asset) =
+            self.db
+                .asset_attempts()
+                .attempt_cancel_guarded(&request, now, || {
+                    authorized_effect.commit_guard("asset attempt cancellation transaction")
+                })?;
+        drop(authorized_effect);
+        if let Some(staging_key) = expired_staging {
+            self.asset_store_obj()?.delete_staging_pair(&staging_key)?;
+        }
+        self.asset_store_obj()?
+            .delete_staging_pair(&attempt.staging_key)?;
+        Ok(asset_task_state(&attempt, asset.as_ref()))
+    }
+
     pub fn asset_tus_head(
         &mut self,
         authority: &PreparedAuthority,
@@ -12804,10 +12905,57 @@ impl LocalSnapback {
         chunk: &[u8],
         checksum: Option<(&str, &str)>,
     ) -> SnapbackResult<AssetTusPatchTicketV1> {
+        self.asset_tus_patch_preflight_inner(authority, attempt_id, offset, chunk, checksum, || {
+            Ok(())
+        })
+    }
+
+    pub fn asset_tus_patch_preflight_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        attempt_id: &str,
+        offset: u64,
+        chunk: &[u8],
+        checksum: Option<(&str, &str)>,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<AssetTusPatchTicketV1> {
+        let (attempt, expired_staging) =
+            self.asset_attempt_for_caller_state_inner(authority, attempt_id, || {
+                authorized_effect.commit_guard("asset TUS preflight state transaction")
+            })?;
+        drop(authorized_effect);
+        if let Some(staging_key) = expired_staging {
+            self.asset_store_obj()?.delete_staging_pair(&staging_key)?;
+        }
+        self.asset_tus_patch_preflight_from_attempt(attempt, offset, chunk, checksum)
+    }
+
+    fn asset_tus_patch_preflight_inner<G, BeforeCommit>(
+        &mut self,
+        authority: &PreparedAuthority,
+        attempt_id: &str,
+        offset: u64,
+        chunk: &[u8],
+        checksum: Option<(&str, &str)>,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<AssetTusPatchTicketV1>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        let attempt = self.asset_attempt_for_caller_inner(authority, attempt_id, before_commit)?;
+        self.asset_tus_patch_preflight_from_attempt(attempt, offset, chunk, checksum)
+    }
+
+    fn asset_tus_patch_preflight_from_attempt(
+        &mut self,
+        attempt: crate::assets::AssetAttemptRecordV1,
+        offset: u64,
+        chunk: &[u8],
+        checksum: Option<(&str, &str)>,
+    ) -> SnapbackResult<AssetTusPatchTicketV1> {
         use crate::assets;
         use sha2::Digest as _;
 
-        let attempt = self.asset_attempt_for_caller(authority, attempt_id)?;
         let current_proof = self
             .db
             .asset_attempts()
@@ -12875,7 +13023,72 @@ impl LocalSnapback {
         authority: &PreparedAuthority,
         ticket: AssetTusPatchTicketV1,
     ) -> SnapbackResult<crate::assets::AssetAttemptRecordV1> {
-        let attempt = self.asset_attempt_for_caller(authority, ticket.attempt_id())?;
+        self.asset_tus_patch_commit_inner(authority, ticket, || Ok(()), || Ok(()))
+    }
+
+    pub fn asset_tus_patch_commit_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        ticket: AssetTusPatchTicketV1,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<crate::assets::AssetAttemptRecordV1> {
+        let (attempt, expired_staging) =
+            self.asset_attempt_for_caller_state_inner(authority, ticket.attempt_id(), || {
+                authorized_effect.commit_guard("asset TUS acknowledgement caller transaction")
+            })?;
+        if let Err(error) = self.db.asset_attempts().attempt_require_current(&attempt) {
+            drop(authorized_effect);
+            if let Some(staging_key) = expired_staging {
+                self.asset_store_obj()?.delete_staging_pair(&staging_key)?;
+            }
+            return Err(error);
+        }
+        if attempt.acknowledged_offset != ticket.expected_offset()
+            || attempt.all_chunks_checksummed != ticket.expected_all_chunks_checksummed()
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_OFFSET_CONFLICT",
+                "assets",
+                format!(
+                    "upload state moved before acknowledgement (expected offset {}, current offset {})",
+                    ticket.expected_offset(),
+                    attempt.acknowledged_offset
+                ),
+            ));
+        }
+        let now = now_millis();
+        let attempt = self.db.asset_attempts().attempt_tus_patch_guarded(
+            ticket.attempt_id(),
+            ticket.expected_offset(),
+            ticket.expected_all_chunks_checksummed(),
+            ticket.new_offset(),
+            ticket.all_chunks_checksummed(),
+            now,
+            || authorized_effect.commit_guard("asset TUS acknowledgement transaction"),
+        )?;
+        drop(authorized_effect);
+        if let Some(staging_key) = expired_staging {
+            self.asset_store_obj()?.delete_staging_pair(&staging_key)?;
+        }
+        Ok(attempt)
+    }
+
+    fn asset_tus_patch_commit_inner<G1, G2, BeforeCallerCommit, BeforePatchCommit>(
+        &mut self,
+        authority: &PreparedAuthority,
+        ticket: AssetTusPatchTicketV1,
+        before_caller_commit: BeforeCallerCommit,
+        before_patch_commit: BeforePatchCommit,
+    ) -> SnapbackResult<crate::assets::AssetAttemptRecordV1>
+    where
+        BeforeCallerCommit: FnOnce() -> SnapbackResult<G1>,
+        BeforePatchCommit: FnOnce() -> SnapbackResult<G2>,
+    {
+        let attempt = self.asset_attempt_for_caller_inner(
+            authority,
+            ticket.attempt_id(),
+            before_caller_commit,
+        )?;
         self.db.asset_attempts().attempt_require_current(&attempt)?;
         if attempt.acknowledged_offset != ticket.expected_offset()
             || attempt.all_chunks_checksummed != ticket.expected_all_chunks_checksummed()
@@ -12891,13 +13104,14 @@ impl LocalSnapback {
             ));
         }
         let now = now_millis();
-        self.db.asset_attempts().attempt_tus_patch(
+        self.db.asset_attempts().attempt_tus_patch_guarded(
             ticket.attempt_id(),
             ticket.expected_offset(),
             ticket.expected_all_chunks_checksummed(),
             ticket.new_offset(),
             ticket.all_chunks_checksummed(),
             now,
+            before_patch_commit,
         )
     }
 
@@ -12914,6 +13128,37 @@ impl LocalSnapback {
             discard_asset: false,
         };
         self.asset_attempt_cancel(authority, request)?;
+        Ok(())
+    }
+
+    pub fn asset_tus_terminate_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        attempt_id: &str,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<()> {
+        let (current, expired_staging) =
+            self.asset_attempt_for_caller_state_inner(authority, attempt_id, || {
+                authorized_effect.commit_guard("asset TUS cancellation caller transaction")
+            })?;
+        let request = crate::assets::AssetAttemptCancelRequestV1 {
+            attempt_id: attempt_id.to_owned(),
+            lifecycle_generation: current.lifecycle_generation,
+            discard_asset: false,
+        };
+        let now = now_millis();
+        let (attempt, _) =
+            self.db
+                .asset_attempts()
+                .attempt_cancel_guarded(&request, now, || {
+                    authorized_effect.commit_guard("asset TUS cancellation transaction")
+                })?;
+        drop(authorized_effect);
+        if let Some(staging_key) = expired_staging {
+            self.asset_store_obj()?.delete_staging_pair(&staging_key)?;
+        }
+        self.asset_store_obj()?
+            .delete_staging_pair(&attempt.staging_key)?;
         Ok(())
     }
 
@@ -13856,6 +14101,47 @@ impl LocalSnapback {
         )
     }
 
+    pub fn asset_deliver_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        asset_id: &str,
+        variant: &str,
+        range_header: Option<&str>,
+        max_width: Option<u64>,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<AssetDeliveryOutcome> {
+        let caller = Self::asset_caller_principal(authority);
+        let schema = self.db.schema().clone();
+        let store = self.asset_store_obj()?;
+        let now = now_millis();
+        let range_header = range_header.map(str::to_owned);
+        self.db.asset_reads().deliver_strict_guarded(
+            &schema,
+            caller.as_deref(),
+            &store,
+            asset_id,
+            variant,
+            max_width,
+            range_header.as_deref(),
+            now,
+            || authorized_effect.commit_guard("asset strict-delivery receipt transaction"),
+        )
+    }
+
+    /// Authorize and materialize an on-demand width before the HTTP owner
+    /// reserves the later strict-delivery receipt. The materialization may
+    /// perform a physical blob PUT and therefore must not carry a live caller
+    /// reservation; its durable handoff is the separate asset design.
+    pub fn asset_strict_delivery_prepare_width(
+        &mut self,
+        authority: &PreparedAuthority,
+        asset_id: &str,
+        requested_width: u64,
+    ) -> SnapbackResult<String> {
+        self.asset_strict_read_probe(authority, asset_id)?;
+        self.asset_resolve_width_variant(asset_id, requested_width)
+    }
+
     /// `private-signed` issuance: authorization happens here, per request;
     /// the minted URL is then a bearer capability until its TTL (LLP 0044
     /// §Delivery profiles). Only signed-profile assets issue.
@@ -13865,24 +14151,10 @@ impl LocalSnapback {
         asset_id: &str,
         request: crate::assets::AssetSignedUrlIssueRequestV1,
     ) -> SnapbackResult<crate::assets::AssetSignedUrlIssueResponseV1> {
-        use crate::assets;
         let caller = Self::asset_caller_principal(authority);
         let schema = self.db.schema().clone();
         let now = now_millis();
-        let ttl = match request.ttl_ms {
-            None => assets::ASSET_SIGNED_URL_DEFAULT_TTL_MS,
-            Some(ms) if ms == 0 || ms > assets::ASSET_SIGNED_URL_MAX_TTL_MS => {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_TTL_INVALID",
-                    "assets",
-                    format!(
-                        "ttlMs must be between 1 and {}",
-                        assets::ASSET_SIGNED_URL_MAX_TTL_MS
-                    ),
-                ));
-            }
-            Some(ms) => ms,
-        };
+        let ttl = Self::asset_signed_url_ttl(request.ttl_ms)?;
         // On-demand width (LLP 0044 §Ceremony floor): authorize first via
         // the probe transaction below, resolve/materialize the ladder
         // rendition, then sign that concrete variant.
@@ -13910,6 +14182,82 @@ impl LocalSnapback {
             ttl,
             now,
         )
+    }
+
+    pub fn asset_signed_url_issue_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        asset_id: &str,
+        request: crate::assets::AssetSignedUrlIssueRequestV1,
+        resolved_width_variant: Option<String>,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<crate::assets::AssetSignedUrlIssueResponseV1> {
+        let caller = Self::asset_caller_principal(authority);
+        let schema = self.db.schema().clone();
+        let now = now_millis();
+        let ttl = Self::asset_signed_url_ttl(request.ttl_ms)?;
+        let (issued_variant, validate_declared_variant) =
+            if let Some(variant) = resolved_width_variant {
+                (variant, false)
+            } else if request.width_px.is_some() {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_RECORD_INVALID",
+                    "assets",
+                    "signed-URL width issuance reached the receipt cut without resolved prework",
+                ));
+            } else {
+                (
+                    request.variant.unwrap_or_else(|| "primary".to_owned()),
+                    true,
+                )
+            };
+        self.db.asset_reads().signed_url_issue_guarded(
+            &schema,
+            caller.as_deref(),
+            asset_id,
+            &issued_variant,
+            validate_declared_variant,
+            ttl,
+            now,
+            || authorized_effect.commit_guard("asset signed-URL issuance receipt transaction"),
+        )
+    }
+
+    /// Resolve an on-demand signed-URL width before reserving its receipt.
+    /// Rendering and blob publication are physical handoff work, so the
+    /// caller reservation begins only after this method returns.
+    pub fn asset_signed_url_prepare_width(
+        &mut self,
+        authority: &PreparedAuthority,
+        asset_id: &str,
+        requested_width: u64,
+        ttl_ms: Option<u64>,
+    ) -> SnapbackResult<String> {
+        Self::asset_signed_url_ttl(ttl_ms)?;
+        let caller = Self::asset_caller_principal(authority);
+        let schema = self.db.schema().clone();
+        self.db
+            .asset_reads()
+            .signed_url_width_probe(&schema, caller.as_deref(), asset_id)?;
+        self.asset_resolve_width_variant(asset_id, requested_width)
+    }
+
+    fn asset_signed_url_ttl(ttl_ms: Option<u64>) -> SnapbackResult<u64> {
+        use crate::assets;
+        match ttl_ms {
+            None => Ok(assets::ASSET_SIGNED_URL_DEFAULT_TTL_MS),
+            Some(ms) if ms == 0 || ms > assets::ASSET_SIGNED_URL_MAX_TTL_MS => {
+                Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_TTL_INVALID",
+                    "assets",
+                    format!(
+                        "ttlMs must be between 1 and {}",
+                        assets::ASSET_SIGNED_URL_MAX_TTL_MS
+                    ),
+                ))
+            }
+            Some(ms) => Ok(ms),
+        }
     }
 
     /// Serve a signed bearer URL: signature, expiry, and current lifecycle
@@ -13975,19 +14323,58 @@ impl LocalSnapback {
         Ok(outcome)
     }
 
+    pub fn asset_delete_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        asset_id: &str,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<Value> {
+        let caller = Self::asset_caller_principal(authority);
+        let now = now_millis();
+        let fenced_staging =
+            self.db
+                .asset_reads()
+                .delete_guarded(caller.as_deref(), asset_id, now, None, || {
+                    authorized_effect.commit_guard("asset tombstone transaction")
+                })?;
+        drop(authorized_effect);
+        if let Some(staging_key) = fenced_staging {
+            self.asset_store_obj()?.delete_staging_pair(&staging_key)?;
+        }
+        let outcome = self.db.asset_reads().delete_result(asset_id)?;
+        self.notify_asset_record_change(&[asset_id.to_owned()]);
+        Ok(outcome)
+    }
+
     pub(crate) fn asset_delete_inner(
         &mut self,
         authority: &PreparedAuthority,
         asset_id: &str,
         crash_mid_cascade: bool,
     ) -> SnapbackResult<Value> {
+        self.asset_delete_inner_guarded(authority, asset_id, crash_mid_cascade, || Ok(()))
+    }
+
+    fn asset_delete_inner_guarded<G, BeforeCommit>(
+        &mut self,
+        authority: &PreparedAuthority,
+        asset_id: &str,
+        crash_mid_cascade: bool,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<Value>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
         let caller = Self::asset_caller_principal(authority);
         let now = now_millis();
         let crash = crash_mid_cascade.then_some(asset_test_crash as fn() -> SnapbackError);
-        let fenced_staging =
-            self.db
-                .asset_reads()
-                .delete(caller.as_deref(), asset_id, now, crash)?;
+        let fenced_staging = self.db.asset_reads().delete_guarded(
+            caller.as_deref(),
+            asset_id,
+            now,
+            crash,
+            before_commit,
+        )?;
         if let Some(staging_key) = fenced_staging {
             self.asset_store_obj()?.delete_staging_pair(&staging_key)?;
         }
