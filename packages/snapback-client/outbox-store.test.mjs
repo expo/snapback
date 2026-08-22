@@ -36,6 +36,7 @@ import {
   outboxNotWriterError,
   outboxOps,
 } from './outbox-shared.mjs';
+import { exerciseOutboxAuthorizationFenceCompareAndCommit } from './outbox-authorization-fence-test-support.mjs';
 
 class SnapbackClient extends InspectingSnapbackClient {
   constructor(baseUrl, options = {}) {
@@ -604,6 +605,12 @@ test('memory arm carries the outbox contract', async () => {
   const store = createMemoryRqsResumeStore();
   await exerciseOutboxContract(store, { label: 'memory' });
   assert.deepEqual(store.durability(), { implementation: 'memory', durable: false });
+  await store.close();
+});
+
+test('memory arm carries every shared authorization-fence compare-and-commit', async () => {
+  const store = createMemoryRqsResumeStore();
+  await exerciseOutboxAuthorizationFenceCompareAndCommit(store, { label: 'memory' });
   await store.close();
 });
 

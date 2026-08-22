@@ -6,6 +6,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { after, test } from 'node:test';
 
 import { createNodeSqliteNamespace } from '../../demos/expo-local-first-carrier/node-sqlite-adapter.mjs';
+import { exerciseOutboxAuthorizationFenceCompareAndCommit } from './outbox-authorization-fence-test-support.mjs';
 import { createSqliteRqsResumeStore } from './rqs-store-sqlite.mjs';
 
 const roots = [];
@@ -123,6 +124,12 @@ test('SQLite authority wipe advances the outbox generation and fences stale enqu
     'the same keyed transition is idempotent',
   );
   assert.deepEqual(await store.outboxAuthorizationStatus(), successor);
+  await store.close();
+});
+
+test('SQLite arm carries every shared authorization-fence compare-and-commit', async () => {
+  const store = await open(await root());
+  await exerciseOutboxAuthorizationFenceCompareAndCommit(store, { label: 'sqlite' });
   await store.close();
 });
 

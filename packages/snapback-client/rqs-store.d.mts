@@ -230,6 +230,7 @@ export interface RqsResumeStore {
   outboxDiscardStranded(
     ids: readonly string[],
     principalScope: Readonly<Record<string, unknown>>,
+    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,
   ): Promise<false | Readonly<{
     discarded: number;
     clientMutationIds: readonly string[];
@@ -237,11 +238,14 @@ export interface RqsResumeStore {
   outboxMarkQuarantined?(
     id: string,
     refusal: Readonly<{ code: string }>,
+    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,
   ): Promise<false | Readonly<{
     count: number;
     tombstones: readonly Readonly<Record<string, unknown>>[];
   }>>;
-  outboxReenterQuarantined?(): Promise<false | Readonly<{
+  outboxReenterQuarantined?(
+    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,
+  ): Promise<false | Readonly<{
     count: number;
     clientMutationIds: readonly string[];
   }>>;

@@ -368,7 +368,7 @@ test('typed single-value live handles reject zero-row server snapshots', async (
   }
 });
 
-test('typed single-value live handles expose a blank as null through pause and resume', async () => {
+test('typed headless live handles reset delivery facts on auth blank and resume', async () => {
   const originalFetch = globalThis.fetch;
   const updates = [];
   let subscribeSequence = 0;
@@ -433,6 +433,8 @@ test('typed single-value live handles expose a blank as null through pause and r
       value: { _id: 'todo_1', title: 'snapshot 1' },
       kind: 'snapshot',
     });
+    assert.equal(Number.isSafeInteger(handle.lastDeliveryAtMs), true);
+    assert.equal(handle.authoritativeRevision, 1);
 
     await handle.pause();
     client.__authTransportParticipant.blank({
@@ -441,6 +443,8 @@ test('typed single-value live handles expose a blank as null through pause and r
     });
     assert.equal(handle.rows, null);
     assert.equal(handle.authoritativeRows, null);
+    assert.equal(handle.lastDeliveryAtMs, null, 'auth blank retires predecessor delivery time');
+    assert.equal(handle.authoritativeRevision, 0, 'auth blank starts a fresh revision world');
     assert.equal(await handle.poll(), null, 'a paused blank remains safely readable');
     assert.deepEqual(updates.at(-1), { value: null, kind: 'authorization_delete' });
 
@@ -452,6 +456,8 @@ test('typed single-value live handles expose a blank as null through pause and r
       value: { _id: 'todo_2', title: 'snapshot 2' },
       kind: 'snapshot',
     });
+    assert.equal(Number.isSafeInteger(handle.lastDeliveryAtMs), true);
+    assert.equal(handle.authoritativeRevision, 1, 'the successor starts from revision one');
     assert.equal(subscribeSequence, 2, 'resume obtains a fresh one-row snapshot');
   } finally {
     await handle?.dispose();

@@ -16668,6 +16668,12 @@ export class SnapbackClient {
         detachStream = null;
         authoritativeRows = createClientOwnedLifecycleBlankCarrier();
         presentedRows = authoritativeRows;
+        // Delivery facts belong to the retired authority. A custody blank is
+        // not an authoritative publication and starts the successor world at
+        // the same null/zero baseline as a newly created headless handle.
+        // @ref LLP 0059#dated-amendment-total-client-authority-transition-state-and-settlement-matrix-2026-08-21-llp-0295-d02 — auth blank retires predecessor delivery facts.
+        handle.lastDeliveryAtMs = null;
+        handle.authoritativeRevision = 0;
         handle.freshness = null;
         handle.answerClass = 'unknown';
         handle.authorizationDisposition = 'delete';

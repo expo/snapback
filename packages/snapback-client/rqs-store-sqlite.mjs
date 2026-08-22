@@ -897,24 +897,41 @@ export async function createSqliteRqsResumeStore({
         )
       ));
     },
-    outboxDiscardStranded(ids, principalScope) {
+    outboxDiscardStranded(ids, principalScope, expectedAuthorizationFence = null) {
       return mutateOutbox('outbox-discard-stranded', (state) => (
-        outboxOps.discardStranded(state, ids, principalScope)
+        outboxOps.discardStranded(
+          state,
+          ids,
+          principalScope,
+          expectedAuthorizationFence,
+        )
       ));
     },
-    outboxMarkQuarantined(id, refusal) {
+    outboxMarkQuarantined(id, refusal, expectedAuthorizationFence = null) {
       return mutateOutbox('outbox-mark-quarantined', (state) => (
-        outboxOps.markQuarantined(state, id, refusal, now())
+        outboxOps.markQuarantined(
+          state,
+          id,
+          refusal,
+          now(),
+          expectedAuthorizationFence,
+        )
       ));
     },
-    outboxReenterQuarantined() {
-      return mutateOutbox('outbox-reenter-quarantined', (state) => outboxOps.reenterQuarantined(state));
+    outboxReenterQuarantined(expectedAuthorizationFence = null) {
+      return mutateOutbox('outbox-reenter-quarantined', (state) => (
+        outboxOps.reenterQuarantined(state, expectedAuthorizationFence)
+      ));
     },
-    outboxMarkResultGone(id, resultGone) {
-      return mutateOutbox('outbox-result-gone', (state) => outboxOps.markResultGone(state, id, resultGone));
+    outboxMarkResultGone(id, resultGone, expectedAuthorizationFence = null) {
+      return mutateOutbox('outbox-result-gone', (state) => (
+        outboxOps.markResultGone(state, id, resultGone, expectedAuthorizationFence)
+      ));
     },
-    outboxDiscard(id) {
-      return mutateOutbox('outbox-discard', (state) => outboxOps.discard(state, id));
+    outboxDiscard(id, expectedAuthorizationFence = null) {
+      return mutateOutbox('outbox-discard', (state) => (
+        outboxOps.discard(state, id, expectedAuthorizationFence)
+      ));
     },
     outboxRecordAcknowledgement(id, userId = null, descriptor = null) {
       return mutateOutbox('outbox-record-ack', (state) => outboxOps.recordAck(state, id, userId, descriptor));
@@ -925,8 +942,21 @@ export async function createSqliteRqsResumeStore({
     outboxMarkAcknowledgementsReady(ids, userId = undefined, descriptor = undefined) {
       return mutateOutbox('outbox-acks-ready', (state) => outboxOps.markAcksReady(state, ids, userId, descriptor));
     },
-    outboxConfirmAcknowledgements(ids, userId = undefined, descriptor = undefined) {
-      return mutateOutbox('outbox-acks-confirmed', (state) => outboxOps.confirmAcks(state, ids, userId, descriptor));
+    outboxConfirmAcknowledgements(
+      ids,
+      userId = undefined,
+      descriptor = undefined,
+      expectedAuthorizationFence = null,
+    ) {
+      return mutateOutbox('outbox-acks-confirmed', (state) => (
+        outboxOps.confirmAcks(
+          state,
+          ids,
+          userId,
+          descriptor,
+          expectedAuthorizationFence,
+        )
+      ));
     },
 
     predecessorFences() {
