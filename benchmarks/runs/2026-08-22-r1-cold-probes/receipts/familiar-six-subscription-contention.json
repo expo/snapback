@@ -1,0 +1,2957 @@
+{
+  "schemaVersion": "snapback.familiar-six-subscription-contention.v1",
+  "ok": true,
+  "principals": [
+    "alice",
+    "bob"
+  ],
+  "classification": {
+    "category": "independent-form-green-within-observation-ceiling",
+    "owner": "LLP 0200 §2.5",
+    "basis": "all twelve independent subscriptions stayed live/current and all writes converged within 15 seconds"
+  },
+  "classificationEvidence": {
+    "sixReferenceMisses": 0,
+    "relationalReferenceMisses": 0,
+    "mutationOutcomes": [
+      {
+        "revision": 1,
+        "writer": "alice",
+        "status": "fulfilled",
+        "code": null
+      },
+      {
+        "revision": 2,
+        "writer": "bob",
+        "status": "fulfilled",
+        "code": null
+      },
+      {
+        "revision": 3,
+        "writer": "alice",
+        "status": "fulfilled",
+        "code": null
+      },
+      {
+        "revision": 4,
+        "writer": "bob",
+        "status": "fulfilled",
+        "code": null
+      },
+      {
+        "revision": 5,
+        "writer": "alice",
+        "status": "fulfilled",
+        "code": null
+      },
+      {
+        "revision": 6,
+        "writer": "bob",
+        "status": "fulfilled",
+        "code": null
+      },
+      {
+        "revision": 7,
+        "writer": "alice",
+        "status": "fulfilled",
+        "code": null
+      },
+      {
+        "revision": 8,
+        "writer": "bob",
+        "status": "fulfilled",
+        "code": null
+      },
+      {
+        "revision": 9,
+        "writer": "alice",
+        "status": "fulfilled",
+        "code": null
+      },
+      {
+        "revision": 10,
+        "writer": "bob",
+        "status": "fulfilled",
+        "code": null
+      },
+      {
+        "revision": 11,
+        "writer": "alice",
+        "status": "fulfilled",
+        "code": null
+      },
+      {
+        "revision": 12,
+        "writer": "bob",
+        "status": "fulfilled",
+        "code": null
+      }
+    ],
+    "authorizationSuspensions": 0,
+    "outbox": {
+      "supported": false,
+      "reason": "asUser installs rqsStore:null; Familiar useMutation is queue:false"
+    },
+    "overloadDegrades": {
+      "sixReferences": 0,
+      "relationalReference": 0
+    },
+    "schedulerTurns": {
+      "sixReferences": {
+        "started": 72,
+        "finished": 72,
+        "abandoned": 0
+      },
+      "relationalReference": {
+        "started": 12,
+        "finished": 12,
+        "abandoned": 0
+      }
+    }
+  },
+  "runtime": {
+    "launchRung": "prebuilt",
+    "identity": {
+      "verdict": "verified",
+      "mismatches": [],
+      "binary": {
+        "gitCommit": "fa36a048e8e08f188ca0d486f76f7bb12b3541f2",
+        "gitDirty": false,
+        "crateVersion": "0.1.0",
+        "buildProfile": "debug",
+        "startupNonce": "01a02a1d-3389-7030-a140-b5602cc11941"
+      },
+      "expected": {
+        "gitCommit": "fa36a048e8e08f188ca0d486f76f7bb12b3541f2",
+        "gitDirty": false,
+        "crateVersion": "0.1.0"
+      }
+    },
+    "serverBinary": "/Users/ccheever/projects/snapback-worktrees/sbs-0295/r1-probes/target/debug/snapback",
+    "serverBinarySha256": "4e82018109e49c94dfe6b0eea4f1af00f3610b632d9207defe8fdfdfd9207bf6"
+  },
+  "arms": [
+    {
+      "arm": "six-references",
+      "writes": 6,
+      "observationCeilingMs": 15000,
+      "expectedSubscriptionsPerPrincipal": 6,
+      "mutationOutcomes": [
+        {
+          "revision": 1,
+          "writer": "alice",
+          "status": "fulfilled",
+          "code": null
+        },
+        {
+          "revision": 2,
+          "writer": "bob",
+          "status": "fulfilled",
+          "code": null
+        },
+        {
+          "revision": 3,
+          "writer": "alice",
+          "status": "fulfilled",
+          "code": null
+        },
+        {
+          "revision": 4,
+          "writer": "bob",
+          "status": "fulfilled",
+          "code": null
+        },
+        {
+          "revision": 5,
+          "writer": "alice",
+          "status": "fulfilled",
+          "code": null
+        },
+        {
+          "revision": 6,
+          "writer": "bob",
+          "status": "fulfilled",
+          "code": null
+        }
+      ],
+      "misses": [],
+      "before": {
+        "principals": {
+          "alice": {
+            "auth": {
+              "phase": "settled",
+              "capture": {
+                "authorityEpoch": 1,
+                "custodyRevision": 3
+              },
+              "authority": {
+                "kind": "session",
+                "isAuthenticated": true,
+                "userId": "usr_496rm19dgxjv8z02d90b8bn52d",
+                "sessionId": "ses_01m0n1tdjren5r08wakn37f0bg",
+                "authorizationStreamIncarnation": "01a02a1d-3384-71c0-b188-c094f2516879"
+              },
+              "terminal": {
+                "terminated": false,
+                "code": null,
+                "authorityDisposition": null,
+                "atMs": null
+              }
+            },
+            "outbox": {
+              "supported": false,
+              "pending": 0,
+              "failed": 0,
+              "stranded": 0,
+              "quarantined": 0,
+              "resultGone": 0,
+              "replaying": false,
+              "drainMode": "none",
+              "oldestPendingAtMs": null,
+              "drainPhase": "idle",
+              "lastAttemptAtMs": null,
+              "nextRetryAtMs": null,
+              "blockedReason": null
+            },
+            "snapshot": {
+              "renders": 8,
+              "incoherentRenders": 0,
+              "last": {
+                "tables": {
+                  "profiles": {},
+                  "posts": {},
+                  "follows": {},
+                  "likes": {},
+                  "reposts": {},
+                  "replies": {}
+                },
+                "states": {
+                  "profiles": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  },
+                  "posts": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  },
+                  "follows": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  },
+                  "likes": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  },
+                  "reposts": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  },
+                  "replies": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  }
+                }
+              }
+            },
+            "subscriptions": {
+              "provider": {
+                "stores": 6,
+                "consumers": 12,
+                "serverSubscriptions": 6,
+                "leases": 12,
+                "listeners": 12,
+                "terminal": false,
+                "custodyPaused": false,
+                "hostPaused": false,
+                "diagnostics": []
+              },
+              "client": {
+                "managers": [
+                  {
+                    "connectionId": "familiar-contention-six-references-alice",
+                    "ownershipTuple": {
+                      "canonicalAppId": "snapback-familiar-six-contention-tYIQNo",
+                      "storagePartition": "familiar-contention-alice",
+                      "serverOrigin": "http://127.0.0.1:49191",
+                      "settledAuthority": {
+                        "state": "reconnecting",
+                        "settled": true,
+                        "transitionOwner": null,
+                        "barrierPhase": null
+                      }
+                    },
+                    "open": true,
+                    "closed": false,
+                    "socketDemand": 6,
+                    "durableListeners": 0,
+                    "ephemeralListeners": 0,
+                    "stateListeners": 6,
+                    "readinessListeners": 0,
+                    "pendingRequests": 0,
+                    "reconnectTimer": 0,
+                    "heartbeatTimer": 1,
+                    "grantAgeMs": 545
+                  }
+                ],
+                "managerCount": 1,
+                "grants": [
+                  "familiar-contention-six-references-alice"
+                ],
+                "ownershipTuple": {
+                  "canonicalAppId": "snapback-familiar-six-contention-tYIQNo",
+                  "storagePartition": "familiar-contention-alice",
+                  "serverOrigin": "http://127.0.0.1:49191",
+                  "settledAuthority": {
+                    "state": "reconnecting",
+                    "settled": true,
+                    "transitionOwner": null,
+                    "barrierPhase": null
+                  }
+                },
+                "outboxSuspensionReason": null,
+                "grantCount": 1,
+                "laneConsumers": [
+                  {
+                    "connectionId": "familiar-contention-six-references-alice",
+                    "durable": 7,
+                    "ephemeral": 0
+                  }
+                ],
+                "subscriptions": [
+                  {
+                    "owner": "provider:provider-1-640625f7-184d-4bf9-9ff1-607d84dbc216/query:contention.posts",
+                    "connectionId": "familiar-contention-six-references-alice",
+                    "functionName": "contention.posts",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 0,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  },
+                  {
+                    "owner": "provider:provider-1-640625f7-184d-4bf9-9ff1-607d84dbc216/query:contention.follows",
+                    "connectionId": "familiar-contention-six-references-alice",
+                    "functionName": "contention.follows",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 0,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  },
+                  {
+                    "owner": "provider:provider-1-640625f7-184d-4bf9-9ff1-607d84dbc216/query:contention.profiles",
+                    "connectionId": "familiar-contention-six-references-alice",
+                    "functionName": "contention.profiles",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 0,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  },
+                  {
+                    "owner": "provider:provider-1-640625f7-184d-4bf9-9ff1-607d84dbc216/query:contention.likes",
+                    "connectionId": "familiar-contention-six-references-alice",
+                    "functionName": "contention.likes",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 0,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  },
+                  {
+                    "owner": "provider:provider-1-640625f7-184d-4bf9-9ff1-607d84dbc216/query:contention.reposts",
+                    "connectionId": "familiar-contention-six-references-alice",
+                    "functionName": "contention.reposts",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 0,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  },
+                  {
+                    "owner": "provider:provider-1-640625f7-184d-4bf9-9ff1-607d84dbc216/query:contention.replies",
+                    "connectionId": "familiar-contention-six-references-alice",
+                    "functionName": "contention.replies",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 0,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  }
+                ],
+                "subscriptionCount": 6,
+                "socketDemand": 6,
+                "timers": 1,
+                "listeners": 6
+              }
+            },
+            "transport": {
+              "contention.posts": {
+                "frames": 1,
+                "firstVersion": 0,
+                "lastVersion": 0,
+                "distinctVersions": 1,
+                "kinds": {
+                  "optimistic_projection": 1
+                },
+                "lastTables": {
+                  "posts": {}
+                }
+              },
+              "contention.follows": {
+                "frames": 1,
+                "firstVersion": 0,
+                "lastVersion": 0,
+                "distinctVersions": 1,
+                "kinds": {
+                  "optimistic_projection": 1
+                },
+                "lastTables": {
+                  "follows": {}
+                }
+              },
+              "contention.profiles": {
+                "frames": 1,
+                "firstVersion": 0,
+                "lastVersion": 0,
+                "distinctVersions": 1,
+                "kinds": {
+                  "optimistic_projection": 1
+                },
+                "lastTables": {
+                  "profiles": {}
+                }
+              },
+              "contention.likes": {
+                "frames": 1,
+                "firstVersion": 0,
+                "lastVersion": 0,
+                "distinctVersions": 1,
+                "kinds": {
+                  "optimistic_projection": 1
+                },
+                "lastTables": {
+                  "likes": {}
+                }
+              },
+              "contention.reposts": {
+                "frames": 1,
+                "firstVersion": 0,
+                "lastVersion": 0,
+                "distinctVersions": 1,
+                "kinds": {
+                  "optimistic_projection": 1
+                },
+                "lastTables": {
+                  "reposts": {}
+                }
+              },
+              "contention.replies": {
+                "frames": 1,
+                "firstVersion": 0,
+                "lastVersion": 0,
+                "distinctVersions": 1,
+                "kinds": {
+                  "optimistic_projection": 1
+                },
+                "lastTables": {
+                  "replies": {}
+                }
+              }
+            }
+          },
+          "bob": {
+            "auth": {
+              "phase": "settled",
+              "capture": {
+                "authorityEpoch": 1,
+                "custodyRevision": 3
+              },
+              "authority": {
+                "kind": "session",
+                "isAuthenticated": true,
+                "userId": "usr_05zqq4y2xg31xk5g88f0dgnn5z",
+                "sessionId": "ses_01m0n1tdmkfrjbr419whacce73",
+                "authorizationStreamIncarnation": "01a02a1d-3384-71c0-b188-c094f2516879"
+              },
+              "terminal": {
+                "terminated": false,
+                "code": null,
+                "authorityDisposition": null,
+                "atMs": null
+              }
+            },
+            "outbox": {
+              "supported": false,
+              "pending": 0,
+              "failed": 0,
+              "stranded": 0,
+              "quarantined": 0,
+              "resultGone": 0,
+              "replaying": false,
+              "drainMode": "none",
+              "oldestPendingAtMs": null,
+              "drainPhase": "idle",
+              "lastAttemptAtMs": null,
+              "nextRetryAtMs": null,
+              "blockedReason": null
+            },
+            "snapshot": {
+              "renders": 8,
+              "incoherentRenders": 0,
+              "last": {
+                "tables": {
+                  "profiles": {},
+                  "posts": {},
+                  "follows": {},
+                  "likes": {},
+                  "reposts": {},
+                  "replies": {}
+                },
+                "states": {
+                  "profiles": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  },
+                  "posts": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  },
+                  "follows": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  },
+                  "likes": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  },
+                  "reposts": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  },
+                  "replies": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  }
+                }
+              }
+            },
+            "subscriptions": {
+              "provider": {
+                "stores": 6,
+                "consumers": 12,
+                "serverSubscriptions": 6,
+                "leases": 12,
+                "listeners": 12,
+                "terminal": false,
+                "custodyPaused": false,
+                "hostPaused": false,
+                "diagnostics": []
+              },
+              "client": {
+                "managers": [
+                  {
+                    "connectionId": "familiar-contention-six-references-bob",
+                    "ownershipTuple": {
+                      "canonicalAppId": "snapback-familiar-six-contention-tYIQNo",
+                      "storagePartition": "familiar-contention-bob",
+                      "serverOrigin": "http://127.0.0.1:49191",
+                      "settledAuthority": {
+                        "state": "reconnecting",
+                        "settled": true,
+                        "transitionOwner": null,
+                        "barrierPhase": null
+                      }
+                    },
+                    "open": true,
+                    "closed": false,
+                    "socketDemand": 6,
+                    "durableListeners": 0,
+                    "ephemeralListeners": 0,
+                    "stateListeners": 6,
+                    "readinessListeners": 0,
+                    "pendingRequests": 0,
+                    "reconnectTimer": 0,
+                    "heartbeatTimer": 1,
+                    "grantAgeMs": 241
+                  }
+                ],
+                "managerCount": 1,
+                "grants": [
+                  "familiar-contention-six-references-bob"
+                ],
+                "ownershipTuple": {
+                  "canonicalAppId": "snapback-familiar-six-contention-tYIQNo",
+                  "storagePartition": "familiar-contention-bob",
+                  "serverOrigin": "http://127.0.0.1:49191",
+                  "settledAuthority": {
+                    "state": "reconnecting",
+                    "settled": true,
+                    "transitionOwner": null,
+                    "barrierPhase": null
+                  }
+                },
+                "outboxSuspensionReason": null,
+                "grantCount": 1,
+                "laneConsumers": [
+                  {
+                    "connectionId": "familiar-contention-six-references-bob",
+                    "durable": 7,
+                    "ephemeral": 0
+                  }
+                ],
+                "subscriptions": [
+                  {
+                    "owner": "provider:provider-2-ff52d854-b29f-4a04-996a-0e7a7dc584ba/query:contention.posts",
+                    "connectionId": "familiar-contention-six-references-bob",
+                    "functionName": "contention.posts",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 0,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  },
+                  {
+                    "owner": "provider:provider-2-ff52d854-b29f-4a04-996a-0e7a7dc584ba/query:contention.likes",
+                    "connectionId": "familiar-contention-six-references-bob",
+                    "functionName": "contention.likes",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 0,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  },
+                  {
+                    "owner": "provider:provider-2-ff52d854-b29f-4a04-996a-0e7a7dc584ba/query:contention.follows",
+                    "connectionId": "familiar-contention-six-references-bob",
+                    "functionName": "contention.follows",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 0,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  },
+                  {
+                    "owner": "provider:provider-2-ff52d854-b29f-4a04-996a-0e7a7dc584ba/query:contention.profiles",
+                    "connectionId": "familiar-contention-six-references-bob",
+                    "functionName": "contention.profiles",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 0,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  },
+                  {
+                    "owner": "provider:provider-2-ff52d854-b29f-4a04-996a-0e7a7dc584ba/query:contention.replies",
+                    "connectionId": "familiar-contention-six-references-bob",
+                    "functionName": "contention.replies",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 0,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  },
+                  {
+                    "owner": "provider:provider-2-ff52d854-b29f-4a04-996a-0e7a7dc584ba/query:contention.reposts",
+                    "connectionId": "familiar-contention-six-references-bob",
+                    "functionName": "contention.reposts",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 0,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  }
+                ],
+                "subscriptionCount": 6,
+                "socketDemand": 6,
+                "timers": 1,
+                "listeners": 6
+              }
+            },
+            "transport": {
+              "contention.posts": {
+                "frames": 1,
+                "firstVersion": 0,
+                "lastVersion": 0,
+                "distinctVersions": 1,
+                "kinds": {
+                  "optimistic_projection": 1
+                },
+                "lastTables": {
+                  "posts": {}
+                }
+              },
+              "contention.likes": {
+                "frames": 1,
+                "firstVersion": 0,
+                "lastVersion": 0,
+                "distinctVersions": 1,
+                "kinds": {
+                  "optimistic_projection": 1
+                },
+                "lastTables": {
+                  "likes": {}
+                }
+              },
+              "contention.follows": {
+                "frames": 1,
+                "firstVersion": 0,
+                "lastVersion": 0,
+                "distinctVersions": 1,
+                "kinds": {
+                  "optimistic_projection": 1
+                },
+                "lastTables": {
+                  "follows": {}
+                }
+              },
+              "contention.profiles": {
+                "frames": 1,
+                "firstVersion": 0,
+                "lastVersion": 0,
+                "distinctVersions": 1,
+                "kinds": {
+                  "optimistic_projection": 1
+                },
+                "lastTables": {
+                  "profiles": {}
+                }
+              },
+              "contention.replies": {
+                "frames": 1,
+                "firstVersion": 0,
+                "lastVersion": 0,
+                "distinctVersions": 1,
+                "kinds": {
+                  "optimistic_projection": 1
+                },
+                "lastTables": {
+                  "replies": {}
+                }
+              },
+              "contention.reposts": {
+                "frames": 1,
+                "firstVersion": 0,
+                "lastVersion": 0,
+                "distinctVersions": 1,
+                "kinds": {
+                  "optimistic_projection": 1
+                },
+                "lastTables": {
+                  "reposts": {}
+                }
+              }
+            }
+          }
+        },
+        "server": {
+          "activeConnections": 2,
+          "subscriptions": 12,
+          "liveEvaluation": {
+            "evaluationsStarted": 0,
+            "evaluationsFinished": 0,
+            "evaluationsAbandoned": 0,
+            "evaluationsExecuted": 0,
+            "memoHits": 0,
+            "memoMisses": 0,
+            "memoEvictions": 0,
+            "memoOversizeRefusals": 0,
+            "cumulativeDurationMs": 0,
+            "lastTurnDurationMs": 0,
+            "deliveredFramesByWireKind": {},
+            "deliveredBytes": 0
+          },
+          "liveCoalesce": {
+            "deferredCommits": 0,
+            "coalescedFlushes": 0,
+            "backstopFlushes": 0,
+            "lastFlushMergedFrames": 0
+          },
+          "liveWatermarks": {
+            "envelopesEmitted": 0,
+            "envelopesCoalesced": 0
+          },
+          "recentDiagnostics": {
+            "SNAPBACK_IBEX_FUNCTIONS_LOADED": 1
+          }
+        }
+      },
+      "after": {
+        "principals": {
+          "alice": {
+            "auth": {
+              "phase": "settled",
+              "capture": {
+                "authorityEpoch": 1,
+                "custodyRevision": 3
+              },
+              "authority": {
+                "kind": "session",
+                "isAuthenticated": true,
+                "userId": "usr_496rm19dgxjv8z02d90b8bn52d",
+                "sessionId": "ses_01m0n1tdjren5r08wakn37f0bg",
+                "authorizationStreamIncarnation": "01a02a1d-3384-71c0-b188-c094f2516879"
+              },
+              "terminal": {
+                "terminated": false,
+                "code": null,
+                "authorityDisposition": null,
+                "atMs": null
+              }
+            },
+            "outbox": {
+              "supported": false,
+              "pending": 0,
+              "failed": 0,
+              "stranded": 0,
+              "quarantined": 0,
+              "resultGone": 0,
+              "replaying": false,
+              "drainMode": "none",
+              "oldestPendingAtMs": null,
+              "drainPhase": "idle",
+              "lastAttemptAtMs": null,
+              "nextRetryAtMs": null,
+              "blockedReason": null
+            },
+            "snapshot": {
+              "renders": 44,
+              "incoherentRenders": 30,
+              "last": {
+                "tables": {
+                  "profiles": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "posts": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "follows": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "likes": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "reposts": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "replies": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  }
+                },
+                "states": {
+                  "profiles": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  },
+                  "posts": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  },
+                  "follows": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  },
+                  "likes": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  },
+                  "reposts": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  },
+                  "replies": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  }
+                }
+              }
+            },
+            "subscriptions": {
+              "provider": {
+                "stores": 6,
+                "consumers": 12,
+                "serverSubscriptions": 6,
+                "leases": 12,
+                "listeners": 12,
+                "terminal": false,
+                "custodyPaused": false,
+                "hostPaused": false,
+                "diagnostics": []
+              },
+              "client": {
+                "managers": [
+                  {
+                    "connectionId": "familiar-contention-six-references-alice",
+                    "ownershipTuple": {
+                      "canonicalAppId": "snapback-familiar-six-contention-tYIQNo",
+                      "storagePartition": "familiar-contention-alice",
+                      "serverOrigin": "http://127.0.0.1:49191",
+                      "settledAuthority": {
+                        "state": "reconnecting",
+                        "settled": true,
+                        "transitionOwner": null,
+                        "barrierPhase": null
+                      }
+                    },
+                    "open": true,
+                    "closed": false,
+                    "socketDemand": 6,
+                    "durableListeners": 0,
+                    "ephemeralListeners": 0,
+                    "stateListeners": 6,
+                    "readinessListeners": 0,
+                    "pendingRequests": 0,
+                    "reconnectTimer": 0,
+                    "heartbeatTimer": 1,
+                    "grantAgeMs": 10509
+                  }
+                ],
+                "managerCount": 1,
+                "grants": [
+                  "familiar-contention-six-references-alice"
+                ],
+                "ownershipTuple": {
+                  "canonicalAppId": "snapback-familiar-six-contention-tYIQNo",
+                  "storagePartition": "familiar-contention-alice",
+                  "serverOrigin": "http://127.0.0.1:49191",
+                  "settledAuthority": {
+                    "state": "reconnecting",
+                    "settled": true,
+                    "transitionOwner": null,
+                    "barrierPhase": null
+                  }
+                },
+                "outboxSuspensionReason": null,
+                "grantCount": 1,
+                "laneConsumers": [
+                  {
+                    "connectionId": "familiar-contention-six-references-alice",
+                    "durable": 7,
+                    "ephemeral": 0
+                  }
+                ],
+                "subscriptions": [
+                  {
+                    "owner": "provider:provider-1-640625f7-184d-4bf9-9ff1-607d84dbc216/query:contention.posts",
+                    "connectionId": "familiar-contention-six-references-alice",
+                    "functionName": "contention.posts",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 6,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  },
+                  {
+                    "owner": "provider:provider-1-640625f7-184d-4bf9-9ff1-607d84dbc216/query:contention.follows",
+                    "connectionId": "familiar-contention-six-references-alice",
+                    "functionName": "contention.follows",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 6,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  },
+                  {
+                    "owner": "provider:provider-1-640625f7-184d-4bf9-9ff1-607d84dbc216/query:contention.profiles",
+                    "connectionId": "familiar-contention-six-references-alice",
+                    "functionName": "contention.profiles",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 6,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  },
+                  {
+                    "owner": "provider:provider-1-640625f7-184d-4bf9-9ff1-607d84dbc216/query:contention.likes",
+                    "connectionId": "familiar-contention-six-references-alice",
+                    "functionName": "contention.likes",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 6,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  },
+                  {
+                    "owner": "provider:provider-1-640625f7-184d-4bf9-9ff1-607d84dbc216/query:contention.reposts",
+                    "connectionId": "familiar-contention-six-references-alice",
+                    "functionName": "contention.reposts",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 6,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  },
+                  {
+                    "owner": "provider:provider-1-640625f7-184d-4bf9-9ff1-607d84dbc216/query:contention.replies",
+                    "connectionId": "familiar-contention-six-references-alice",
+                    "functionName": "contention.replies",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 6,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  }
+                ],
+                "subscriptionCount": 6,
+                "socketDemand": 6,
+                "timers": 1,
+                "listeners": 6
+              }
+            },
+            "transport": {
+              "contention.posts": {
+                "frames": 7,
+                "firstVersion": 0,
+                "lastVersion": 6,
+                "distinctVersions": 7,
+                "kinds": {
+                  "optimistic_projection": 1,
+                  "authorization_snapshot": 6
+                },
+                "lastTables": {
+                  "posts": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  }
+                }
+              },
+              "contention.follows": {
+                "frames": 7,
+                "firstVersion": 0,
+                "lastVersion": 6,
+                "distinctVersions": 7,
+                "kinds": {
+                  "optimistic_projection": 1,
+                  "authorization_snapshot": 6
+                },
+                "lastTables": {
+                  "follows": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  }
+                }
+              },
+              "contention.profiles": {
+                "frames": 7,
+                "firstVersion": 0,
+                "lastVersion": 6,
+                "distinctVersions": 7,
+                "kinds": {
+                  "optimistic_projection": 1,
+                  "authorization_snapshot": 6
+                },
+                "lastTables": {
+                  "profiles": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  }
+                }
+              },
+              "contention.likes": {
+                "frames": 7,
+                "firstVersion": 0,
+                "lastVersion": 6,
+                "distinctVersions": 7,
+                "kinds": {
+                  "optimistic_projection": 1,
+                  "authorization_snapshot": 6
+                },
+                "lastTables": {
+                  "likes": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  }
+                }
+              },
+              "contention.reposts": {
+                "frames": 7,
+                "firstVersion": 0,
+                "lastVersion": 6,
+                "distinctVersions": 7,
+                "kinds": {
+                  "optimistic_projection": 1,
+                  "authorization_snapshot": 6
+                },
+                "lastTables": {
+                  "reposts": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  }
+                }
+              },
+              "contention.replies": {
+                "frames": 7,
+                "firstVersion": 0,
+                "lastVersion": 6,
+                "distinctVersions": 7,
+                "kinds": {
+                  "optimistic_projection": 1,
+                  "authorization_snapshot": 6
+                },
+                "lastTables": {
+                  "replies": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "bob": {
+            "auth": {
+              "phase": "settled",
+              "capture": {
+                "authorityEpoch": 1,
+                "custodyRevision": 3
+              },
+              "authority": {
+                "kind": "session",
+                "isAuthenticated": true,
+                "userId": "usr_05zqq4y2xg31xk5g88f0dgnn5z",
+                "sessionId": "ses_01m0n1tdmkfrjbr419whacce73",
+                "authorizationStreamIncarnation": "01a02a1d-3384-71c0-b188-c094f2516879"
+              },
+              "terminal": {
+                "terminated": false,
+                "code": null,
+                "authorityDisposition": null,
+                "atMs": null
+              }
+            },
+            "outbox": {
+              "supported": false,
+              "pending": 0,
+              "failed": 0,
+              "stranded": 0,
+              "quarantined": 0,
+              "resultGone": 0,
+              "replaying": false,
+              "drainMode": "none",
+              "oldestPendingAtMs": null,
+              "drainPhase": "idle",
+              "lastAttemptAtMs": null,
+              "nextRetryAtMs": null,
+              "blockedReason": null
+            },
+            "snapshot": {
+              "renders": 44,
+              "incoherentRenders": 30,
+              "last": {
+                "tables": {
+                  "profiles": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "posts": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "follows": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "likes": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "reposts": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "replies": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  }
+                },
+                "states": {
+                  "profiles": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  },
+                  "posts": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  },
+                  "follows": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  },
+                  "likes": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  },
+                  "reposts": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  },
+                  "replies": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  }
+                }
+              }
+            },
+            "subscriptions": {
+              "provider": {
+                "stores": 6,
+                "consumers": 12,
+                "serverSubscriptions": 6,
+                "leases": 12,
+                "listeners": 12,
+                "terminal": false,
+                "custodyPaused": false,
+                "hostPaused": false,
+                "diagnostics": []
+              },
+              "client": {
+                "managers": [
+                  {
+                    "connectionId": "familiar-contention-six-references-bob",
+                    "ownershipTuple": {
+                      "canonicalAppId": "snapback-familiar-six-contention-tYIQNo",
+                      "storagePartition": "familiar-contention-bob",
+                      "serverOrigin": "http://127.0.0.1:49191",
+                      "settledAuthority": {
+                        "state": "reconnecting",
+                        "settled": true,
+                        "transitionOwner": null,
+                        "barrierPhase": null
+                      }
+                    },
+                    "open": true,
+                    "closed": false,
+                    "socketDemand": 6,
+                    "durableListeners": 0,
+                    "ephemeralListeners": 0,
+                    "stateListeners": 6,
+                    "readinessListeners": 0,
+                    "pendingRequests": 0,
+                    "reconnectTimer": 0,
+                    "heartbeatTimer": 1,
+                    "grantAgeMs": 10205
+                  }
+                ],
+                "managerCount": 1,
+                "grants": [
+                  "familiar-contention-six-references-bob"
+                ],
+                "ownershipTuple": {
+                  "canonicalAppId": "snapback-familiar-six-contention-tYIQNo",
+                  "storagePartition": "familiar-contention-bob",
+                  "serverOrigin": "http://127.0.0.1:49191",
+                  "settledAuthority": {
+                    "state": "reconnecting",
+                    "settled": true,
+                    "transitionOwner": null,
+                    "barrierPhase": null
+                  }
+                },
+                "outboxSuspensionReason": null,
+                "grantCount": 1,
+                "laneConsumers": [
+                  {
+                    "connectionId": "familiar-contention-six-references-bob",
+                    "durable": 7,
+                    "ephemeral": 0
+                  }
+                ],
+                "subscriptions": [
+                  {
+                    "owner": "provider:provider-2-ff52d854-b29f-4a04-996a-0e7a7dc584ba/query:contention.posts",
+                    "connectionId": "familiar-contention-six-references-bob",
+                    "functionName": "contention.posts",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 6,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  },
+                  {
+                    "owner": "provider:provider-2-ff52d854-b29f-4a04-996a-0e7a7dc584ba/query:contention.likes",
+                    "connectionId": "familiar-contention-six-references-bob",
+                    "functionName": "contention.likes",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 6,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  },
+                  {
+                    "owner": "provider:provider-2-ff52d854-b29f-4a04-996a-0e7a7dc584ba/query:contention.follows",
+                    "connectionId": "familiar-contention-six-references-bob",
+                    "functionName": "contention.follows",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 6,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  },
+                  {
+                    "owner": "provider:provider-2-ff52d854-b29f-4a04-996a-0e7a7dc584ba/query:contention.profiles",
+                    "connectionId": "familiar-contention-six-references-bob",
+                    "functionName": "contention.profiles",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 6,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  },
+                  {
+                    "owner": "provider:provider-2-ff52d854-b29f-4a04-996a-0e7a7dc584ba/query:contention.replies",
+                    "connectionId": "familiar-contention-six-references-bob",
+                    "functionName": "contention.replies",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 6,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  },
+                  {
+                    "owner": "provider:provider-2-ff52d854-b29f-4a04-996a-0e7a7dc584ba/query:contention.reposts",
+                    "connectionId": "familiar-contention-six-references-bob",
+                    "functionName": "contention.reposts",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 6,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  }
+                ],
+                "subscriptionCount": 6,
+                "socketDemand": 6,
+                "timers": 1,
+                "listeners": 6
+              }
+            },
+            "transport": {
+              "contention.posts": {
+                "frames": 7,
+                "firstVersion": 0,
+                "lastVersion": 6,
+                "distinctVersions": 7,
+                "kinds": {
+                  "optimistic_projection": 1,
+                  "authorization_snapshot": 6
+                },
+                "lastTables": {
+                  "posts": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  }
+                }
+              },
+              "contention.likes": {
+                "frames": 7,
+                "firstVersion": 0,
+                "lastVersion": 6,
+                "distinctVersions": 7,
+                "kinds": {
+                  "optimistic_projection": 1,
+                  "authorization_snapshot": 6
+                },
+                "lastTables": {
+                  "likes": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  }
+                }
+              },
+              "contention.follows": {
+                "frames": 7,
+                "firstVersion": 0,
+                "lastVersion": 6,
+                "distinctVersions": 7,
+                "kinds": {
+                  "optimistic_projection": 1,
+                  "authorization_snapshot": 6
+                },
+                "lastTables": {
+                  "follows": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  }
+                }
+              },
+              "contention.profiles": {
+                "frames": 7,
+                "firstVersion": 0,
+                "lastVersion": 6,
+                "distinctVersions": 7,
+                "kinds": {
+                  "optimistic_projection": 1,
+                  "authorization_snapshot": 6
+                },
+                "lastTables": {
+                  "profiles": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  }
+                }
+              },
+              "contention.replies": {
+                "frames": 7,
+                "firstVersion": 0,
+                "lastVersion": 6,
+                "distinctVersions": 7,
+                "kinds": {
+                  "optimistic_projection": 1,
+                  "authorization_snapshot": 6
+                },
+                "lastTables": {
+                  "replies": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  }
+                }
+              },
+              "contention.reposts": {
+                "frames": 7,
+                "firstVersion": 0,
+                "lastVersion": 6,
+                "distinctVersions": 7,
+                "kinds": {
+                  "optimistic_projection": 1,
+                  "authorization_snapshot": 6
+                },
+                "lastTables": {
+                  "reposts": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "server": {
+          "activeConnections": 2,
+          "subscriptions": 12,
+          "liveEvaluation": {
+            "evaluationsStarted": 72,
+            "evaluationsFinished": 72,
+            "evaluationsAbandoned": 0,
+            "evaluationsExecuted": 290,
+            "memoHits": 0,
+            "memoMisses": 72,
+            "memoEvictions": 0,
+            "memoOversizeRefusals": 0,
+            "cumulativeDurationMs": 2616.452496,
+            "lastTurnDurationMs": 37.096583,
+            "deliveredFramesByWireKind": {},
+            "deliveredBytes": 0
+          },
+          "liveCoalesce": {
+            "deferredCommits": 6,
+            "coalescedFlushes": 0,
+            "backstopFlushes": 72,
+            "lastFlushMergedFrames": 1
+          },
+          "liveWatermarks": {
+            "envelopesEmitted": 0,
+            "envelopesCoalesced": 0
+          },
+          "recentDiagnostics": {
+            "SNAPBACK_IBEX_FUNCTIONS_LOADED": 1
+          }
+        }
+      },
+      "settlement": {
+        "samplesMs": [
+          54,
+          62,
+          71,
+          117,
+          70,
+          64
+        ],
+        "minMs": 54,
+        "p50Ms": 64,
+        "p95Ms": 117,
+        "maxMs": 117
+      },
+      "convergenceAfterSettlement": {
+        "samplesMs": [
+          1577,
+          1581,
+          1600,
+          1580,
+          1585,
+          1590
+        ],
+        "minMs": 1577,
+        "p50Ms": 1581,
+        "p95Ms": 1600,
+        "maxMs": 1600
+      },
+      "total": {
+        "samplesMs": [
+          1631,
+          1643,
+          1671,
+          1697,
+          1656,
+          1655
+        ],
+        "minMs": 1631,
+        "p50Ms": 1655,
+        "p95Ms": 1697,
+        "maxMs": 1697
+      }
+    },
+    {
+      "arm": "relational-reference",
+      "writes": 6,
+      "observationCeilingMs": 15000,
+      "expectedSubscriptionsPerPrincipal": 1,
+      "mutationOutcomes": [
+        {
+          "revision": 7,
+          "writer": "alice",
+          "status": "fulfilled",
+          "code": null
+        },
+        {
+          "revision": 8,
+          "writer": "bob",
+          "status": "fulfilled",
+          "code": null
+        },
+        {
+          "revision": 9,
+          "writer": "alice",
+          "status": "fulfilled",
+          "code": null
+        },
+        {
+          "revision": 10,
+          "writer": "bob",
+          "status": "fulfilled",
+          "code": null
+        },
+        {
+          "revision": 11,
+          "writer": "alice",
+          "status": "fulfilled",
+          "code": null
+        },
+        {
+          "revision": 12,
+          "writer": "bob",
+          "status": "fulfilled",
+          "code": null
+        }
+      ],
+      "misses": [],
+      "before": {
+        "principals": {
+          "alice": {
+            "auth": {
+              "phase": "settled",
+              "capture": {
+                "authorityEpoch": 1,
+                "custodyRevision": 3
+              },
+              "authority": {
+                "kind": "session",
+                "isAuthenticated": true,
+                "userId": "usr_496rm19dgxjv8z02d90b8bn52d",
+                "sessionId": "ses_01m0n1tdjren5r08wakn37f0bg",
+                "authorizationStreamIncarnation": "01a02a1d-3384-71c0-b188-c094f2516879"
+              },
+              "terminal": {
+                "terminated": false,
+                "code": null,
+                "authorityDisposition": null,
+                "atMs": null
+              }
+            },
+            "outbox": {
+              "supported": false,
+              "pending": 0,
+              "failed": 0,
+              "stranded": 0,
+              "quarantined": 0,
+              "resultGone": 0,
+              "replaying": false,
+              "drainMode": "none",
+              "oldestPendingAtMs": null,
+              "drainPhase": "idle",
+              "lastAttemptAtMs": null,
+              "nextRetryAtMs": null,
+              "blockedReason": null
+            },
+            "snapshot": {
+              "renders": 3,
+              "incoherentRenders": 0,
+              "last": {
+                "tables": {
+                  "profiles": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "posts": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "follows": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "likes": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "reposts": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "replies": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  }
+                },
+                "states": {
+                  "relationalState": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  }
+                }
+              }
+            },
+            "subscriptions": {
+              "provider": {
+                "stores": 1,
+                "consumers": 2,
+                "serverSubscriptions": 1,
+                "leases": 2,
+                "listeners": 2,
+                "terminal": false,
+                "custodyPaused": false,
+                "hostPaused": false,
+                "diagnostics": []
+              },
+              "client": {
+                "managers": [
+                  {
+                    "connectionId": "familiar-contention-relational-reference-alice",
+                    "ownershipTuple": {
+                      "canonicalAppId": "snapback-familiar-six-contention-tYIQNo",
+                      "storagePartition": "familiar-contention-alice",
+                      "serverOrigin": "http://127.0.0.1:49191",
+                      "settledAuthority": {
+                        "state": "reconnecting",
+                        "settled": true,
+                        "transitionOwner": null,
+                        "barrierPhase": null
+                      }
+                    },
+                    "open": true,
+                    "closed": false,
+                    "socketDemand": 1,
+                    "durableListeners": 0,
+                    "ephemeralListeners": 0,
+                    "stateListeners": 1,
+                    "readinessListeners": 0,
+                    "pendingRequests": 0,
+                    "reconnectTimer": 0,
+                    "heartbeatTimer": 1,
+                    "grantAgeMs": 214
+                  }
+                ],
+                "managerCount": 1,
+                "grants": [
+                  "familiar-contention-relational-reference-alice"
+                ],
+                "ownershipTuple": {
+                  "canonicalAppId": "snapback-familiar-six-contention-tYIQNo",
+                  "storagePartition": "familiar-contention-alice",
+                  "serverOrigin": "http://127.0.0.1:49191",
+                  "settledAuthority": {
+                    "state": "reconnecting",
+                    "settled": true,
+                    "transitionOwner": null,
+                    "barrierPhase": null
+                  }
+                },
+                "outboxSuspensionReason": null,
+                "grantCount": 1,
+                "laneConsumers": [
+                  {
+                    "connectionId": "familiar-contention-relational-reference-alice",
+                    "durable": 2,
+                    "ephemeral": 0
+                  }
+                ],
+                "subscriptions": [
+                  {
+                    "owner": "provider:provider-3-c644d195-819e-4e2b-9126-8dc05581e465/query:contention.relationalState",
+                    "connectionId": "familiar-contention-relational-reference-alice",
+                    "functionName": "contention.relationalState",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 1,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  }
+                ],
+                "subscriptionCount": 1,
+                "socketDemand": 1,
+                "timers": 1,
+                "listeners": 1
+              }
+            },
+            "transport": {
+              "contention.relationalState": {
+                "frames": 1,
+                "firstVersion": 6,
+                "lastVersion": 6,
+                "distinctVersions": 1,
+                "kinds": {
+                  "authorization_snapshot": 1
+                },
+                "lastTables": {
+                  "profiles": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "posts": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "follows": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "likes": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "reposts": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "replies": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "bob": {
+            "auth": {
+              "phase": "settled",
+              "capture": {
+                "authorityEpoch": 1,
+                "custodyRevision": 3
+              },
+              "authority": {
+                "kind": "session",
+                "isAuthenticated": true,
+                "userId": "usr_05zqq4y2xg31xk5g88f0dgnn5z",
+                "sessionId": "ses_01m0n1tdmkfrjbr419whacce73",
+                "authorizationStreamIncarnation": "01a02a1d-3384-71c0-b188-c094f2516879"
+              },
+              "terminal": {
+                "terminated": false,
+                "code": null,
+                "authorityDisposition": null,
+                "atMs": null
+              }
+            },
+            "outbox": {
+              "supported": false,
+              "pending": 0,
+              "failed": 0,
+              "stranded": 0,
+              "quarantined": 0,
+              "resultGone": 0,
+              "replaying": false,
+              "drainMode": "none",
+              "oldestPendingAtMs": null,
+              "drainPhase": "idle",
+              "lastAttemptAtMs": null,
+              "nextRetryAtMs": null,
+              "blockedReason": null
+            },
+            "snapshot": {
+              "renders": 3,
+              "incoherentRenders": 0,
+              "last": {
+                "tables": {
+                  "profiles": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "posts": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "follows": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "likes": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "reposts": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "replies": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  }
+                },
+                "states": {
+                  "relationalState": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  }
+                }
+              }
+            },
+            "subscriptions": {
+              "provider": {
+                "stores": 1,
+                "consumers": 2,
+                "serverSubscriptions": 1,
+                "leases": 2,
+                "listeners": 2,
+                "terminal": false,
+                "custodyPaused": false,
+                "hostPaused": false,
+                "diagnostics": []
+              },
+              "client": {
+                "managers": [
+                  {
+                    "connectionId": "familiar-contention-relational-reference-bob",
+                    "ownershipTuple": {
+                      "canonicalAppId": "snapback-familiar-six-contention-tYIQNo",
+                      "storagePartition": "familiar-contention-bob",
+                      "serverOrigin": "http://127.0.0.1:49191",
+                      "settledAuthority": {
+                        "state": "reconnecting",
+                        "settled": true,
+                        "transitionOwner": null,
+                        "barrierPhase": null
+                      }
+                    },
+                    "open": true,
+                    "closed": false,
+                    "socketDemand": 1,
+                    "durableListeners": 0,
+                    "ephemeralListeners": 0,
+                    "stateListeners": 1,
+                    "readinessListeners": 0,
+                    "pendingRequests": 0,
+                    "reconnectTimer": 0,
+                    "heartbeatTimer": 1,
+                    "grantAgeMs": 77
+                  }
+                ],
+                "managerCount": 1,
+                "grants": [
+                  "familiar-contention-relational-reference-bob"
+                ],
+                "ownershipTuple": {
+                  "canonicalAppId": "snapback-familiar-six-contention-tYIQNo",
+                  "storagePartition": "familiar-contention-bob",
+                  "serverOrigin": "http://127.0.0.1:49191",
+                  "settledAuthority": {
+                    "state": "reconnecting",
+                    "settled": true,
+                    "transitionOwner": null,
+                    "barrierPhase": null
+                  }
+                },
+                "outboxSuspensionReason": null,
+                "grantCount": 1,
+                "laneConsumers": [
+                  {
+                    "connectionId": "familiar-contention-relational-reference-bob",
+                    "durable": 2,
+                    "ephemeral": 0
+                  }
+                ],
+                "subscriptions": [
+                  {
+                    "owner": "provider:provider-4-aa091be8-bac2-4922-830f-980054f7b2af/query:contention.relationalState",
+                    "connectionId": "familiar-contention-relational-reference-bob",
+                    "functionName": "contention.relationalState",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 1,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  }
+                ],
+                "subscriptionCount": 1,
+                "socketDemand": 1,
+                "timers": 1,
+                "listeners": 1
+              }
+            },
+            "transport": {
+              "contention.relationalState": {
+                "frames": 1,
+                "firstVersion": 6,
+                "lastVersion": 6,
+                "distinctVersions": 1,
+                "kinds": {
+                  "authorization_snapshot": 1
+                },
+                "lastTables": {
+                  "profiles": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "posts": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "follows": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "likes": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "reposts": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  },
+                  "replies": {
+                    "bob": {
+                      "revision": 6,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 5,
+                      "enabled": false
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "server": {
+          "activeConnections": 2,
+          "subscriptions": 2,
+          "liveEvaluation": {
+            "evaluationsStarted": 72,
+            "evaluationsFinished": 72,
+            "evaluationsAbandoned": 0,
+            "evaluationsExecuted": 292,
+            "memoHits": 0,
+            "memoMisses": 72,
+            "memoEvictions": 0,
+            "memoOversizeRefusals": 0,
+            "cumulativeDurationMs": 2616.452496,
+            "lastTurnDurationMs": 37.096583,
+            "deliveredFramesByWireKind": {},
+            "deliveredBytes": 0
+          },
+          "liveCoalesce": {
+            "deferredCommits": 6,
+            "coalescedFlushes": 0,
+            "backstopFlushes": 72,
+            "lastFlushMergedFrames": 1
+          },
+          "liveWatermarks": {
+            "envelopesEmitted": 0,
+            "envelopesCoalesced": 0
+          },
+          "recentDiagnostics": {
+            "SNAPBACK_IBEX_FUNCTIONS_LOADED": 1
+          }
+        }
+      },
+      "after": {
+        "principals": {
+          "alice": {
+            "auth": {
+              "phase": "settled",
+              "capture": {
+                "authorityEpoch": 1,
+                "custodyRevision": 3
+              },
+              "authority": {
+                "kind": "session",
+                "isAuthenticated": true,
+                "userId": "usr_496rm19dgxjv8z02d90b8bn52d",
+                "sessionId": "ses_01m0n1tdjren5r08wakn37f0bg",
+                "authorizationStreamIncarnation": "01a02a1d-3384-71c0-b188-c094f2516879"
+              },
+              "terminal": {
+                "terminated": false,
+                "code": null,
+                "authorityDisposition": null,
+                "atMs": null
+              }
+            },
+            "outbox": {
+              "supported": false,
+              "pending": 0,
+              "failed": 0,
+              "stranded": 0,
+              "quarantined": 0,
+              "resultGone": 0,
+              "replaying": false,
+              "drainMode": "none",
+              "oldestPendingAtMs": null,
+              "drainPhase": "idle",
+              "lastAttemptAtMs": null,
+              "nextRetryAtMs": null,
+              "blockedReason": null
+            },
+            "snapshot": {
+              "renders": 9,
+              "incoherentRenders": 0,
+              "last": {
+                "tables": {
+                  "profiles": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  },
+                  "posts": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  },
+                  "follows": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  },
+                  "likes": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  },
+                  "reposts": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  },
+                  "replies": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  }
+                },
+                "states": {
+                  "relationalState": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  }
+                }
+              }
+            },
+            "subscriptions": {
+              "provider": {
+                "stores": 1,
+                "consumers": 2,
+                "serverSubscriptions": 1,
+                "leases": 2,
+                "listeners": 2,
+                "terminal": false,
+                "custodyPaused": false,
+                "hostPaused": false,
+                "diagnostics": []
+              },
+              "client": {
+                "managers": [
+                  {
+                    "connectionId": "familiar-contention-relational-reference-alice",
+                    "ownershipTuple": {
+                      "canonicalAppId": "snapback-familiar-six-contention-tYIQNo",
+                      "storagePartition": "familiar-contention-alice",
+                      "serverOrigin": "http://127.0.0.1:49191",
+                      "settledAuthority": {
+                        "state": "reconnecting",
+                        "settled": true,
+                        "transitionOwner": null,
+                        "barrierPhase": null
+                      }
+                    },
+                    "open": true,
+                    "closed": false,
+                    "socketDemand": 1,
+                    "durableListeners": 0,
+                    "ephemeralListeners": 0,
+                    "stateListeners": 1,
+                    "readinessListeners": 0,
+                    "pendingRequests": 0,
+                    "reconnectTimer": 0,
+                    "heartbeatTimer": 1,
+                    "grantAgeMs": 1543
+                  }
+                ],
+                "managerCount": 1,
+                "grants": [
+                  "familiar-contention-relational-reference-alice"
+                ],
+                "ownershipTuple": {
+                  "canonicalAppId": "snapback-familiar-six-contention-tYIQNo",
+                  "storagePartition": "familiar-contention-alice",
+                  "serverOrigin": "http://127.0.0.1:49191",
+                  "settledAuthority": {
+                    "state": "reconnecting",
+                    "settled": true,
+                    "transitionOwner": null,
+                    "barrierPhase": null
+                  }
+                },
+                "outboxSuspensionReason": null,
+                "grantCount": 1,
+                "laneConsumers": [
+                  {
+                    "connectionId": "familiar-contention-relational-reference-alice",
+                    "durable": 2,
+                    "ephemeral": 0
+                  }
+                ],
+                "subscriptions": [
+                  {
+                    "owner": "provider:provider-3-c644d195-819e-4e2b-9126-8dc05581e465/query:contention.relationalState",
+                    "connectionId": "familiar-contention-relational-reference-alice",
+                    "functionName": "contention.relationalState",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 7,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  }
+                ],
+                "subscriptionCount": 1,
+                "socketDemand": 1,
+                "timers": 1,
+                "listeners": 1
+              }
+            },
+            "transport": {
+              "contention.relationalState": {
+                "frames": 7,
+                "firstVersion": 6,
+                "lastVersion": 12,
+                "distinctVersions": 7,
+                "kinds": {
+                  "authorization_snapshot": 7
+                },
+                "lastTables": {
+                  "profiles": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  },
+                  "posts": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  },
+                  "follows": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  },
+                  "likes": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  },
+                  "reposts": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  },
+                  "replies": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "bob": {
+            "auth": {
+              "phase": "settled",
+              "capture": {
+                "authorityEpoch": 1,
+                "custodyRevision": 3
+              },
+              "authority": {
+                "kind": "session",
+                "isAuthenticated": true,
+                "userId": "usr_05zqq4y2xg31xk5g88f0dgnn5z",
+                "sessionId": "ses_01m0n1tdmkfrjbr419whacce73",
+                "authorizationStreamIncarnation": "01a02a1d-3384-71c0-b188-c094f2516879"
+              },
+              "terminal": {
+                "terminated": false,
+                "code": null,
+                "authorityDisposition": null,
+                "atMs": null
+              }
+            },
+            "outbox": {
+              "supported": false,
+              "pending": 0,
+              "failed": 0,
+              "stranded": 0,
+              "quarantined": 0,
+              "resultGone": 0,
+              "replaying": false,
+              "drainMode": "none",
+              "oldestPendingAtMs": null,
+              "drainPhase": "idle",
+              "lastAttemptAtMs": null,
+              "nextRetryAtMs": null,
+              "blockedReason": null
+            },
+            "snapshot": {
+              "renders": 9,
+              "incoherentRenders": 0,
+              "last": {
+                "tables": {
+                  "profiles": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  },
+                  "posts": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  },
+                  "follows": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  },
+                  "likes": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  },
+                  "reposts": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  },
+                  "replies": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  }
+                },
+                "states": {
+                  "relationalState": {
+                    "status": "ready",
+                    "connection": "live",
+                    "freshness": "current",
+                    "errorCode": null
+                  }
+                }
+              }
+            },
+            "subscriptions": {
+              "provider": {
+                "stores": 1,
+                "consumers": 2,
+                "serverSubscriptions": 1,
+                "leases": 2,
+                "listeners": 2,
+                "terminal": false,
+                "custodyPaused": false,
+                "hostPaused": false,
+                "diagnostics": []
+              },
+              "client": {
+                "managers": [
+                  {
+                    "connectionId": "familiar-contention-relational-reference-bob",
+                    "ownershipTuple": {
+                      "canonicalAppId": "snapback-familiar-six-contention-tYIQNo",
+                      "storagePartition": "familiar-contention-bob",
+                      "serverOrigin": "http://127.0.0.1:49191",
+                      "settledAuthority": {
+                        "state": "reconnecting",
+                        "settled": true,
+                        "transitionOwner": null,
+                        "barrierPhase": null
+                      }
+                    },
+                    "open": true,
+                    "closed": false,
+                    "socketDemand": 1,
+                    "durableListeners": 0,
+                    "ephemeralListeners": 0,
+                    "stateListeners": 1,
+                    "readinessListeners": 0,
+                    "pendingRequests": 0,
+                    "reconnectTimer": 0,
+                    "heartbeatTimer": 1,
+                    "grantAgeMs": 1406
+                  }
+                ],
+                "managerCount": 1,
+                "grants": [
+                  "familiar-contention-relational-reference-bob"
+                ],
+                "ownershipTuple": {
+                  "canonicalAppId": "snapback-familiar-six-contention-tYIQNo",
+                  "storagePartition": "familiar-contention-bob",
+                  "serverOrigin": "http://127.0.0.1:49191",
+                  "settledAuthority": {
+                    "state": "reconnecting",
+                    "settled": true,
+                    "transitionOwner": null,
+                    "barrierPhase": null
+                  }
+                },
+                "outboxSuspensionReason": null,
+                "grantCount": 1,
+                "laneConsumers": [
+                  {
+                    "connectionId": "familiar-contention-relational-reference-bob",
+                    "durable": 2,
+                    "ephemeral": 0
+                  }
+                ],
+                "subscriptions": [
+                  {
+                    "owner": "provider:provider-4-aa091be8-bac2-4922-830f-980054f7b2af/query:contention.relationalState",
+                    "connectionId": "familiar-contention-relational-reference-bob",
+                    "functionName": "contention.relationalState",
+                    "state": "active",
+                    "connection": "live",
+                    "snapshotVersion": 7,
+                    "authBarrier": "active",
+                    "readiness": "ready",
+                    "outboxSuspensionReason": null
+                  }
+                ],
+                "subscriptionCount": 1,
+                "socketDemand": 1,
+                "timers": 1,
+                "listeners": 1
+              }
+            },
+            "transport": {
+              "contention.relationalState": {
+                "frames": 7,
+                "firstVersion": 6,
+                "lastVersion": 12,
+                "distinctVersions": 7,
+                "kinds": {
+                  "authorization_snapshot": 7
+                },
+                "lastTables": {
+                  "profiles": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  },
+                  "posts": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  },
+                  "follows": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  },
+                  "likes": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  },
+                  "reposts": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  },
+                  "replies": {
+                    "bob": {
+                      "revision": 12,
+                      "enabled": true
+                    },
+                    "alice": {
+                      "revision": 11,
+                      "enabled": false
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "server": {
+          "activeConnections": 2,
+          "subscriptions": 2,
+          "liveEvaluation": {
+            "evaluationsStarted": 84,
+            "evaluationsFinished": 84,
+            "evaluationsAbandoned": 0,
+            "evaluationsExecuted": 316,
+            "memoHits": 0,
+            "memoMisses": 84,
+            "memoEvictions": 0,
+            "memoOversizeRefusals": 0,
+            "cumulativeDurationMs": 3071.7113699999995,
+            "lastTurnDurationMs": 38.529417,
+            "deliveredFramesByWireKind": {},
+            "deliveredBytes": 0
+          },
+          "liveCoalesce": {
+            "deferredCommits": 12,
+            "coalescedFlushes": 0,
+            "backstopFlushes": 84,
+            "lastFlushMergedFrames": 1
+          },
+          "liveWatermarks": {
+            "envelopesEmitted": 0,
+            "envelopesCoalesced": 0
+          },
+          "recentDiagnostics": {
+            "SNAPBACK_IBEX_FUNCTIONS_LOADED": 1
+          }
+        }
+      },
+      "settlement": {
+        "samplesMs": [
+          52,
+          62,
+          61,
+          50,
+          60,
+          61
+        ],
+        "minMs": 50,
+        "p50Ms": 60,
+        "p95Ms": 62,
+        "maxMs": 62
+      },
+      "convergenceAfterSettlement": {
+        "samplesMs": [
+          163,
+          162,
+          160,
+          162,
+          162,
+          161
+        ],
+        "minMs": 160,
+        "p50Ms": 162,
+        "p95Ms": 163,
+        "maxMs": 163
+      },
+      "total": {
+        "samplesMs": [
+          215,
+          224,
+          221,
+          212,
+          223,
+          222
+        ],
+        "minMs": 212,
+        "p50Ms": 221,
+        "p95Ms": 224,
+        "maxMs": 224
+      }
+    }
+  ]
+}

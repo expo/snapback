@@ -41,3 +41,16 @@ proof.
 
 - A cold agent building a two-browser live-profile check does not have to
   discover the mint by watching Alice’s edits appear as Bob.
+
+## R1 corroboration — 2026-08-22
+
+LLP 0295's cold packed Expo probes reproduced the same starting condition: the
+supervised provider adopted its convenience session before the required
+password-entry journey. The green R1 path kept the shipped binding exchange,
+declined only `resolveSupervisedAuthority`, assigned stable public
+`storagePartition` values through the provider's application-client factory,
+and then used ordinary password signup/sign-in. Both Explicit and Familiar
+retained distinct sessions through additive schema activation and a later cold
+provider boot after the binding TTL. No custom relay or binding middleware was
+needed. The retained record is
+`benchmarks/runs/2026-08-22-r1-cold-probes/record.md`.

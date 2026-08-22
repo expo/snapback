@@ -1,8 +1,11 @@
 // @ref LLP 0223#dated-amendment--2026-08-21-d01-ruling--the-canonical-development-lifecycle — packed Expo-provider, real-Vite, and headless consumers share the receipt-bound dev lifecycle and prove additive sessions continuity without their own carrier or binding environment. Exact-runtime evidence remains LLP 0295 W7.
+// @ref LLP 0295#r1-cheap-external-journey — the optional arm/profile driver
+// runs each client/profile cell from a fresh package closure and emits the
+// password-custody, two-client-live, and additive-successor receipt R1 needs.
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { webcrypto } from 'node:crypto';
+import { createHash, webcrypto } from 'node:crypto';
 import {
   copyFileSync,
   existsSync,
@@ -29,6 +32,27 @@ const runtimeBinary = process.env.SNAPBACK_RUNTIME_BINARY
   ?? join(repoRoot, 'target', 'debug', 'snapback');
 const runtimeReadiness = `${runtimeBinary}.runtime-readiness.json`;
 
+const selectedArm = process.env.SNAPBACK_R1_ARM ?? 'all';
+const selectedProfile = process.env.SNAPBACK_R1_PROFILE ?? 'explicit';
+const r1ReceiptPath = process.env.SNAPBACK_R1_RECEIPT_PATH ?? null;
+assert.ok(
+  ['all', 'headless', 'vite-exact', 'expo'].includes(selectedArm),
+  `SNAPBACK_R1_ARM must be all, headless, vite-exact, or expo (received ${selectedArm})`,
+);
+assert.ok(
+  ['explicit', 'familiar'].includes(selectedProfile),
+  `SNAPBACK_R1_PROFILE must be explicit or familiar (received ${selectedProfile})`,
+);
+assert.ok(
+  selectedArm !== 'all' || selectedProfile === 'explicit',
+  'the legacy all-arm control is Explicit; R1 Familiar probes select one arm',
+);
+const r1Mode = selectedArm !== 'all';
+const authoringProfile = selectedProfile === 'familiar'
+  ? 'snapback-familiar-ts-v1'
+  : 'snapback-explicit-v1';
+const runArm = (arm) => selectedArm === 'all' || selectedArm === arm;
+
 assert.ok(
   existsSync(runtimeBinary) && existsSync(runtimeReadiness),
   'packed lifecycle proof requires the bootstrap-qualified native runtime',
@@ -43,6 +67,7 @@ const metroScript = join(externalRoot, 'packed-metro.mjs');
 const packageManager = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8')).packageManager;
 const expectedBun = /^bun@(.+)$/u.exec(packageManager)?.[1];
 assert.ok(expectedBun, 'repository packageManager must pin Bun');
+const r1Receipts = [];
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -278,16 +303,193 @@ function installScaffoldLane(lane, packedTarballs) {
   }
 }
 
+function configureAuthoringProfile(lane) {
+  if (!r1Mode) return;
+  for (const name of ['schema.mjs', 'functions.mjs', 'seed.json']) {
+    rmSync(join(lane.backendRoot, name), { force: true });
+  }
+  rmSync(join(lane.backendRoot, 'generated'), { recursive: true, force: true });
+  if (selectedProfile === 'explicit') {
+    writeFileSync(join(lane.backendRoot, 'schema.mjs'), `
+import { defineAuth, defineSchema, defineTable, v } from '@expo/snapback-codegen/define';
+
+const authProgram = defineAuth({
+  version: 1,
+  mechanisms: {
+    password: {
+      kind: 'password',
+      identifier: 'email',
+      provider: 'builtIn',
+      recovery: 'recoveryCodes',
+    },
+  },
+  assuranceRequirements: {},
+  recoveryPolicy: {
+    recoveryCodes: {
+      enabled: true,
+      requiredWhen: 'no-independent-recovery',
+      rotateAfterUse: true,
+      plaintextCustody: 'one-time-response',
+    },
+    lastAuthenticator: 'enforce',
+  },
+  guestPolicy: { enabled: false },
+  secretReferences: {},
+});
+
+export default defineSchema({
+  records: defineTable({ value: v.string() })
+    .visibility({ kind: 'public-read' })
+    .index('by_value', ['value']),
+}, { auth: { mode: 'sessions' }, authProgram });
+`);
+    writeFileSync(join(lane.backendRoot, 'functions.mjs'), `
+import {
+  arg,
+  bindingRef,
+  defineLiveQuery,
+  defineMutation,
+  insert,
+  returnDocument,
+  v,
+} from '@expo/snapback-codegen/define';
+
+const listRecords = defineLiveQuery({
+  args: {},
+  auth: 'authenticated',
+  table: 'records',
+  index: 'by_value',
+});
+
+const createRecord = defineMutation({
+  args: { value: v.string() },
+  auth: 'authenticated',
+  plan: insert('records', { value: arg('value') }, { bindIdAs: 'recordId' }),
+  returns: returnDocument('records', bindingRef('recordId')),
+});
+
+export { listRecords as 'records.listRecords', createRecord as 'records.createRecord' };
+`);
+    lane.schemaPath = join(lane.backendRoot, 'schema.mjs');
+    return;
+  }
+  writeFileSync(join(lane.backendRoot, 'codegen.policy.json'), `${JSON.stringify({
+    schemaVersion: 'snapback.codegen-policy.v1',
+    committedProjections: [],
+    authoringProfile: 'snapback-familiar-ts-v1',
+  }, null, 2)}\n`);
+  writeFileSync(join(lane.backendRoot, 'schema.ts'), `
+import { defineAuth } from '@expo/snapback-codegen/define';
+import { defineSchema, defineTable, v } from './generated/server';
+
+const authProgram = defineAuth({
+  version: 1,
+  mechanisms: {
+    password: {
+      kind: 'password',
+      identifier: 'email',
+      provider: 'builtIn',
+      recovery: 'recoveryCodes',
+    },
+  },
+  assuranceRequirements: {},
+  recoveryPolicy: {
+    recoveryCodes: {
+      enabled: true,
+      requiredWhen: 'no-independent-recovery',
+      rotateAfterUse: true,
+      plaintextCustody: 'one-time-response',
+    },
+    lastAuthenticator: 'enforce',
+  },
+  guestPolicy: { enabled: false },
+  secretReferences: {},
+});
+
+export default defineSchema({
+  records: defineTable({ value: v.string() })
+    .visibility({ kind: 'public-read' })
+    .index('by_value', ['value']),
+}, { auth: { mode: 'sessions' }, authProgram });
+`);
+  writeFileSync(join(lane.backendRoot, 'records.ts'), `
+import { mutation, query, v } from './generated/server';
+
+export const listRecords = query({
+  args: {},
+  returns: v.array(v.doc('records')),
+  auth: 'authenticated',
+  reads: ['records'],
+  handler: async (ctx) => ctx.db.query('records').withIndex('by_value').collect(),
+});
+
+export const createRecord = mutation({
+  args: { value: v.string() },
+  returns: v.doc('records'),
+  auth: 'authenticated',
+  reads: ['records'],
+  writes: ['records'],
+  handler: async (ctx, args) => {
+    const id = await ctx.db.insert('records', args);
+    const created = await ctx.db.get('records', id);
+    if (created === null) return ctx.refuse('R1_RECORD_INSERT_NOT_OBSERVED');
+    return created;
+  },
+});
+`);
+  lane.schemaPath = join(lane.backendRoot, 'schema.ts');
+}
+
+function packageClosureReceipt(packedTarballs) {
+  return Object.entries(packedTarballs)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([name, path]) => ({
+      name,
+      sha256: `sha256:${createHash('sha256').update(readFileSync(path)).digest('hex')}`,
+    }));
+}
+
+function journeyReferences(generated) {
+  if (r1Mode) {
+    const create = selectedProfile === 'familiar'
+      ? generated.api?.records?.createRecord
+      : generated.api?.['records.createRecord'];
+    const list = selectedProfile === 'familiar'
+      ? generated.api?.records?.listRecords
+      : generated.api?.['records.listRecords'];
+    assert.ok(create && list, JSON.stringify({
+      moduleKeys: Object.keys(generated),
+      apiKeys: Object.keys(generated.api ?? {}),
+      defaultKeys: Object.keys(generated.default ?? {}),
+    }));
+    return {
+      create,
+      list,
+      args: (value) => ({ value }),
+      matches: (row, value) => row.value === value,
+    };
+  }
+  return {
+    create: generated.default.createTodo,
+    list: generated.default.listTodos,
+    args: (value) => ({ title: value }),
+    matches: (row, value) => row.title === value,
+  };
+}
+
 function writeAdditiveSchema(lane) {
   const predecessor = readFileSync(lane.schemaPath, 'utf8');
-  const anchor = predecessor.includes('    todos: defineTable({')
+  const anchor = predecessor.includes('  records: defineTable({')
+    ? '  records: defineTable({'
+    : predecessor.includes('    todos: defineTable({')
     ? '    todos: defineTable({'
     : '    users: defineTable({';
+  const indentation = anchor.startsWith('  records') ? '  ' : '    ';
   const successor = predecessor.replace(
     anchor,
-    `    lifecycleLabels: defineTable({
-      name: v.string(),
-    }).visibility({ kind: 'public-read' }).sync(),
+    `${indentation}lifecycleLabels: defineTable({
+${indentation}  name: v.string(),
+${indentation}}).visibility({ kind: 'public-read' }).sync(),
 ${anchor}`,
   );
   assert.notEqual(successor, predecessor, `${lane.name} must add one compatible table`);
@@ -321,6 +523,8 @@ async function proveM1ToM2({
   events,
   expectedClientOrigins,
   expectedBindingOrigin = null,
+  platformKind = 'browser',
+  afterM2 = async () => null,
 }) {
   const applicationReadyFile = `${lane.readyFile}.application-ready`;
   const m1Receipt = readApplicationReadyReceipt(applicationReadyFile);
@@ -333,40 +537,111 @@ async function proveM1ToM2({
   assert.equal(m1Receipt.runtimeIdentity.wrapper.package, '@expo/snapback-cli');
   assert.equal(m1Receipt.runtimeIdentity.qualifiedBinary.path, qualifiedRuntimeBinary);
 
-  const platform = Object.freeze({
-    kind: 'browser',
+  const platformA = Object.freeze({
+    kind: platformKind,
+    broadcastChannelFactory: null,
+    hintStorage: null,
     indexedDB: new IDBFactory(),
     cryptoObject: webcrypto,
-    databaseName: `snapback-packed-lifecycle-${lane.name}`,
+    databaseName: `snapback-packed-lifecycle-${lane.name}-a`,
   });
-  let appClient = await createSnapbackAppClient({
+  const platformB = Object.freeze({
+    kind: platformKind,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+    indexedDB: new IDBFactory(),
+    cryptoObject: webcrypto,
+    databaseName: `snapback-packed-lifecycle-${lane.name}-b`,
+  });
+  let appClientA = await createSnapbackAppClient({
     app: m1Generated.app,
     binding: m1Binding,
-    platform,
+    platform: platformA,
+    storagePartition: `${lane.name}:r1:writer`,
   });
+  let appClientB = await createSnapbackAppClient({
+    app: m1Generated.app,
+    binding: m1Binding,
+    platform: platformB,
+    storagePartition: `${lane.name}:r1:observer`,
+  });
+  let liveHandle = null;
   const email = `${lane.name}@packed-lifecycle.test`;
-  const title = `${lane.name} M1 row`;
-  await appClient.auth.signUpWithPassword({
+  const password = 'PackedLifecyclePassword!2026';
+  const value = `${lane.name} M1 row`;
+  const m1References = journeyReferences(m1Generated);
+  assert.equal(
+    appClientA.auth.currentPrincipal().status,
+    'anonymous',
+    `R1 client A must begin anonymous: ${JSON.stringify(appClientA.auth.currentPrincipal())}`,
+  );
+  assert.equal(
+    appClientB.auth.currentPrincipal().status,
+    'anonymous',
+    `R1 client B must begin anonymous: ${JSON.stringify(appClientB.auth.currentPrincipal())}`,
+  );
+  await appClientA.auth.signUpWithPassword({
     email,
-    password: 'PackedLifecyclePassword!2026',
+    password,
   });
-  const originalPrincipal = appClient.auth.currentPrincipal();
-  assert.equal(originalPrincipal.status, 'authenticated');
-  const originalSession = await appClient.client.authSession();
-  assert.equal(originalSession.authority.userId, originalPrincipal.userId);
-  assert.equal(typeof originalSession.authority.sessionId, 'string');
-  await appClient.client.mutate(m1Generated.default.createTodo, {
-    args: { title },
+  assert.equal(
+    appClientB.auth.currentPrincipal().status,
+    'anonymous',
+    `R1 client B must remain independently anonymous: ${JSON.stringify(appClientB.auth.currentPrincipal())}`,
+  );
+  await appClientB.auth.signInWithPassword({ email, password });
+  const originalPrincipalA = appClientA.auth.currentPrincipal();
+  const originalPrincipalB = appClientB.auth.currentPrincipal();
+  assert.equal(originalPrincipalA.status, 'authenticated');
+  assert.equal(originalPrincipalB.status, 'authenticated');
+  assert.equal(originalPrincipalB.userId, originalPrincipalA.userId);
+  const originalSessionA = await appClientA.client.authSession();
+  const originalSessionB = await appClientB.client.authSession();
+  assert.equal(originalSessionA.authority.userId, originalPrincipalA.userId);
+  assert.equal(originalSessionB.authority.userId, originalPrincipalA.userId);
+  assert.equal(typeof originalSessionA.authority.sessionId, 'string');
+  assert.equal(typeof originalSessionB.authority.sessionId, 'string');
+  assert.notEqual(originalSessionA.authority.sessionId, originalSessionB.authority.sessionId);
+  const liveUpdates = [];
+  liveHandle = await appClientB.client.liveQuery(m1References.list, {
+    args: {},
+    connectionId: `${lane.name}-r1-observer`,
+    transport: 'stream',
+    fallbackToPoll: false,
+    onUpdate: (rows) => liveUpdates.push(rows),
+  });
+  await eventually(() => {
+    if (liveHandle.error) throw liveHandle.error;
+    if (liveHandle.connection !== 'live') {
+      throw new Error(JSON.stringify({
+        connection: liveHandle.connection,
+        freshness: liveHandle.freshness,
+        rowCount: liveHandle.rows?.length ?? null,
+      }));
+    }
+    return true;
+  }, { label: `${lane.name} observer live-query readiness` });
+  await appClientA.client.mutate(m1References.create, {
+    args: m1References.args(value),
     queue: false,
   });
+  await eventually(
+    () => liveUpdates.some((rows) => rows.some((row) => m1References.matches(row, value)))
+      || liveHandle.rows.some((row) => m1References.matches(row, value)),
+    { label: `${lane.name} two-client live M1 delivery` },
+  );
   assert.ok(
-    (await appClient.client.query(m1Generated.default.listTodos)).rows.some(
-      (row) => row.title === title,
+    (await appClientA.client.query(m1References.list)).rows.some(
+      (row) => m1References.matches(row, value),
     ),
     `${lane.name} reaches M1 green before schema evolution`,
   );
-  await appClient.dispose();
-  appClient = null;
+  await liveHandle.dispose();
+  liveHandle = null;
+  await appClientA.dispose();
+  await appClientB.dispose();
+  appClientA = null;
+  appClientB = null;
 
   writeAdditiveSchema(lane);
   const requestId = `${lane.name}-m2-additive`;
@@ -393,26 +668,72 @@ async function proveM1ToM2({
   assert.equal(m2Binding.descriptorIdentity, m2Receipt.binding.descriptorIdentity);
   assert.notEqual(m2Binding.descriptorIdentity, m1Binding.descriptorIdentity);
   if (expectedBindingOrigin !== null) assert.equal(m2Binding.target.origin, expectedBindingOrigin);
-  appClient = await createSnapbackAppClient({
+  const m2References = journeyReferences(m2Generated);
+  appClientA = await createSnapbackAppClient({
     app: m2Generated.app,
     binding: m2Binding,
-    platform,
+    platform: platformA,
+    storagePartition: `${lane.name}:r1:writer`,
+  });
+  appClientB = await createSnapbackAppClient({
+    app: m2Generated.app,
+    binding: m2Binding,
+    platform: platformB,
+    storagePartition: `${lane.name}:r1:observer`,
   });
   try {
-    const survivingPrincipal = appClient.auth.currentPrincipal();
-    assert.equal(survivingPrincipal.status, 'authenticated');
-    assert.equal(survivingPrincipal.userId, originalPrincipal.userId);
-    const survivingSession = await appClient.client.authSession();
-    assert.equal(survivingSession.authority.sessionId, originalSession.authority.sessionId);
+    const survivingPrincipalA = appClientA.auth.currentPrincipal();
+    const survivingPrincipalB = appClientB.auth.currentPrincipal();
+    assert.equal(survivingPrincipalA.status, 'authenticated');
+    assert.equal(survivingPrincipalB.status, 'authenticated');
+    assert.equal(survivingPrincipalA.userId, originalPrincipalA.userId);
+    assert.equal(survivingPrincipalB.userId, originalPrincipalB.userId);
+    const survivingSessionA = await appClientA.client.authSession();
+    const survivingSessionB = await appClientB.client.authSession();
+    assert.equal(survivingSessionA.authority.sessionId, originalSessionA.authority.sessionId);
+    assert.equal(survivingSessionB.authority.sessionId, originalSessionB.authority.sessionId);
     assert.ok(
-      (await appClient.client.query(m2Generated.default.listTodos)).rows.some(
-        (row) => row.title === title,
+      (await appClientA.client.query(m2References.list)).rows.some(
+        (row) => m2References.matches(row, value),
       ),
       `${lane.name} preserves the original product row through M2`,
     );
   } finally {
-    await appClient.dispose();
+    await appClientA.dispose();
+    await appClientB.dispose();
   }
+  const extension = await afterM2({
+    app: m2Generated.app,
+    platformA,
+    originalPrincipalA,
+    originalSessionA,
+  });
+  return {
+    m1: {
+      passwordAuth: true,
+      durableCustody: true,
+      twoClientLive: true,
+      principalId: originalPrincipalA.userId,
+      sessionIds: [
+        originalSessionA.authority.sessionId,
+        originalSessionB.authority.sessionId,
+      ].map((sessionId) => `sha256:${createHash('sha256').update(sessionId).digest('hex')}`),
+    },
+    additiveSchema: {
+      table: 'lifecycleLabels',
+      continuity: advance.continuity,
+      deploymentAdvanced: true,
+      principalsPreserved: true,
+      sessionsPreserved: true,
+      productRowsPreserved: true,
+    },
+    lifecycle: {
+      fromDeployment: advance.fromDeployment,
+      toDeployment: advance.toDeployment,
+      readyReceipt: m2Receipt,
+    },
+    extension,
+  };
 }
 
 async function assertOwnerStillRunning(owner, consumerLabel) {
@@ -435,9 +756,11 @@ async function closeOwner(owner, consumerLabel) {
 
 let activeOwner = null;
 let activeConsumer = null;
+let packedClosure = [];
 try {
   mkdirSync(externalRoot, { recursive: true });
   const packedTarballs = materializePackedPackages();
+  packedClosure = packageClosureReceipt(packedTarballs);
   materializeQualifiedRuntime();
   writeMetroFixture();
 
@@ -459,34 +782,37 @@ try {
     consumerRequire.resolve('fake-indexeddb'),
   ).href);
 
-  // VCF-E-L1 negative: corrupt the materialized packed template, not the
-  // source workspace, and prove the shipped scaffold entrypoint refuses
-  // before creating output with the missing stage named.
-  const packedReactManifestPath = join(installedCli, 'templates', 'react', 'package.json');
-  const packedReactManifestBytes = readFileSync(packedReactManifestPath, 'utf8');
-  const packedReactManifest = JSON.parse(packedReactManifestBytes);
-  delete packedReactManifest.scripts.prove;
-  const missingLifecycleTarget = join(externalRoot, 'missing-lifecycle-stage');
-  try {
-    writeFileSync(
-      packedReactManifestPath,
-      `${JSON.stringify(packedReactManifest, null, 2)}\n`,
-    );
-    assert.throws(
-      () => cli.scaffoldApp(missingLifecycleTarget, { template: 'react' }),
-      (error) => error?.code === 'SNAPBACK_SCAFFOLD_LIFECYCLE_STAGE_MISSING'
-        && error?.diagnostic?.details?.stage === 'prove',
-    );
-    assert.equal(existsSync(missingLifecycleTarget), false);
-  } finally {
-    writeFileSync(packedReactManifestPath, packedReactManifestBytes);
+  if (!r1Mode) {
+    // VCF-E-L1 negative: corrupt the materialized packed template, not the
+    // source workspace, and prove the shipped scaffold entrypoint refuses
+    // before creating output with the missing stage named.
+    const packedReactManifestPath = join(installedCli, 'templates', 'react', 'package.json');
+    const packedReactManifestBytes = readFileSync(packedReactManifestPath, 'utf8');
+    const packedReactManifest = JSON.parse(packedReactManifestBytes);
+    delete packedReactManifest.scripts.prove;
+    const missingLifecycleTarget = join(externalRoot, 'missing-lifecycle-stage');
+    try {
+      writeFileSync(
+        packedReactManifestPath,
+        `${JSON.stringify(packedReactManifest, null, 2)}\n`,
+      );
+      assert.throws(
+        () => cli.scaffoldApp(missingLifecycleTarget, { template: 'react' }),
+        (error) => error?.code === 'SNAPBACK_SCAFFOLD_LIFECYCLE_STAGE_MISSING'
+          && error?.diagnostic?.details?.stage === 'prove',
+      );
+      assert.equal(existsSync(missingLifecycleTarget), false);
+    } finally {
+      writeFileSync(packedReactManifestPath, packedReactManifestBytes);
+    }
   }
 
   // Headless: a second packed CLI instance attaches to the receipt-bound owner,
   // advances the schema, and closes without terminating the owner.
-  {
+  if (runArm('headless')) {
     const lane = scaffoldLane(cli.scaffoldApp, 'react');
     installScaffoldLane(lane, packedTarballs);
+    configureAuthoringProfile(lane);
     const events = [];
     activeOwner = await cli.runDev({
       backendDirectory: lane.backendRoot,
@@ -510,7 +836,13 @@ try {
       serverStdio: ['ignore', 'ignore', 'ignore'],
       onEvent: (event) => events.push(event),
     });
-    await proveM1ToM2({
+    assert.ok(activeConsumer.verbs?.reload, JSON.stringify({
+      state: activeConsumer.state ?? null,
+      keys: Object.keys(activeConsumer),
+      diagnostic: activeConsumer.diagnostic ?? null,
+      diagnostics: activeConsumer.diagnostics ?? null,
+    }));
+    const receipt = await proveM1ToM2({
       lane,
       IDBFactory,
       createSnapbackAppClient: client.createSnapbackAppClient,
@@ -520,6 +852,7 @@ try {
       events,
       expectedClientOrigins: [],
     });
+    r1Receipts.push({ arm: 'headless', ...receipt });
     await activeConsumer.close();
     activeConsumer = null;
     await assertOwnerStillRunning(activeOwner, 'headless attach');
@@ -530,24 +863,27 @@ try {
       projectRoot: lane.projectRoot,
     });
     assert.equal(projectReadiness.ok, true, JSON.stringify(projectReadiness.diagnostic));
-    const prove = run('npm', ['run', 'prove'], {
-      cwd: lane.projectRoot,
-      timeout: 180_000,
-      env: { SNAPBACK_RUNTIME_BINARY: qualifiedRuntimeBinary },
-    });
-    const proveReceipt = JSON.parse(readFileSync(
-      join(lane.projectRoot, '.snapback', 'verify-receipt.json'),
-      'utf8',
-    ));
-    assert.equal(proveReceipt.ok, true, prove.stdout);
+    if (!r1Mode) {
+      const prove = run('npm', ['run', 'prove'], {
+        cwd: lane.projectRoot,
+        timeout: 180_000,
+        env: { SNAPBACK_RUNTIME_BINARY: qualifiedRuntimeBinary },
+      });
+      const proveReceipt = JSON.parse(readFileSync(
+        join(lane.projectRoot, '.snapback', 'verify-receipt.json'),
+        'utf8',
+      ));
+      assert.equal(proveReceipt.ok, true, prove.stdout);
+    }
   }
 
   // Vite: a real Vite server loads the packed plugin. Its configure cut
   // consumes the application receipt through the shared CLI attach path; no
   // direct lifecycle controller, fake host descriptor, or custom relay stands
   // in for the shipped arm.
-  {
+  if (runArm('vite-exact')) {
     const lane = scaffoldLane(cli.scaffoldApp, 'vite-exact');
+    configureAuthoringProfile(lane);
     const viteEvents = [];
     const backendPort = await freeLoopbackPort();
     const clientPort = await freeLoopbackPort();
@@ -590,15 +926,16 @@ try {
       return server;
     };
 
-    // Same host, same browser origin, stale capability identity: the actual
-    // packed Vite attach refuses before changing the owner receipt or child.
-    const applicationReadyFile = `${lane.readyFile}.application-ready`;
-    const correctReceiptBytes = readFileSync(applicationReadyFile, 'utf8');
-    const staleReceipt = JSON.parse(correctReceiptBytes);
-    staleReceipt.capabilityManifestDigest = `sha256:${'0'.repeat(64)}`;
-    writeFileSync(applicationReadyFile, `${JSON.stringify(staleReceipt, null, 2)}\n`, { mode: 0o600 });
-    const staleViteWitness = join(lane.stateRoot, 'stale-vite-witness.mjs');
-    writeFileSync(staleViteWitness, `
+    if (!r1Mode) {
+      // Same host, same browser origin, stale capability identity: the actual
+      // packed Vite attach refuses before changing the owner receipt or child.
+      const applicationReadyFile = `${lane.readyFile}.application-ready`;
+      const correctReceiptBytes = readFileSync(applicationReadyFile, 'utf8');
+      const staleReceipt = JSON.parse(correctReceiptBytes);
+      staleReceipt.capabilityManifestDigest = `sha256:${'0'.repeat(64)}`;
+      writeFileSync(applicationReadyFile, `${JSON.stringify(staleReceipt, null, 2)}\n`, { mode: 0o600 });
+      const staleViteWitness = join(lane.stateRoot, 'stale-vite-witness.mjs');
+      writeFileSync(staleViteWitness, `
 import { createServer } from ${JSON.stringify(pathToFileURL(installedViteEntry).href)};
 import { snapbackDev } from ${JSON.stringify(pathToFileURL(join(installedVite, 'index.mjs')).href)};
 try {
@@ -629,15 +966,19 @@ try {
 }
 process.exit();
 `);
-    assert.equal(
-      run(process.execPath, [staleViteWitness], { cwd: lane.projectRoot }).stdout.trim(),
-      'SNAPBACK_DEV_APPLICATION_READY_STALE',
-    );
-    assert.equal(readFileSync(applicationReadyFile, 'utf8').includes(`sha256:${'0'.repeat(64)}`), true);
-    await assertOwnerStillRunning(activeOwner, 'stale Vite attach');
-    writeFileSync(applicationReadyFile, correctReceiptBytes, { mode: 0o600 });
-    await closeOwner(activeOwner, 'stale Vite attach owner');
-    activeOwner = null;
+      assert.equal(
+        run(process.execPath, [staleViteWitness], { cwd: lane.projectRoot }).stdout.trim(),
+        'SNAPBACK_DEV_APPLICATION_READY_STALE',
+      );
+      assert.equal(readFileSync(applicationReadyFile, 'utf8').includes(`sha256:${'0'.repeat(64)}`), true);
+      await assertOwnerStillRunning(activeOwner, 'stale Vite attach');
+      writeFileSync(applicationReadyFile, correctReceiptBytes, { mode: 0o600 });
+      await closeOwner(activeOwner, 'stale Vite attach owner');
+      activeOwner = null;
+    } else {
+      await closeOwner(activeOwner, 'R1 pre-managed Vite owner');
+      activeOwner = null;
+    }
 
     activeConsumer = await startViteConsumer('managed');
     const originalViteServer = activeConsumer;
@@ -662,7 +1003,7 @@ process.exit();
       return originalFetch(resolved, init);
     };
     try {
-      await proveM1ToM2({
+      const receipt = await proveM1ToM2({
         lane,
         IDBFactory,
         createSnapbackAppClient: client.createSnapbackAppClient,
@@ -692,6 +1033,7 @@ process.exit();
         expectedClientOrigins: [clientOrigin],
         expectedBindingOrigin: '/__snapback',
       });
+      r1Receipts.push({ arm: 'vite-exact', ...receipt });
     } finally {
       globalThis.fetch = originalFetch;
       if (originalLocation === undefined) delete globalThis.location;
@@ -715,12 +1057,14 @@ process.exit();
   // rendezvous. Metro's complete loopback-alias set is declared before the
   // backend cut, and two sequential supervisors prove attach-after-projection
   // remains idempotent without Expo rewriting the application-ready carrier.
-  {
+  if (runArm('expo')) {
     const lane = scaffoldLane(cli.scaffoldApp, 'expo', 'expo-chat');
+    configureAuthoringProfile(lane);
     const events = [];
     const backendPort = await freeLoopbackPort();
     const metroPort = await freeLoopbackPort();
     const metroClientOrigins = expoDev.expoBackendClientOrigins(metroPort);
+    let expoNowMs = Date.now();
     activeOwner = await cli.runDev({
       backendDirectory: lane.backendRoot,
       projectRoot: lane.projectRoot,
@@ -745,7 +1089,12 @@ process.exit();
       attach: true,
       platform: 'web',
       metroPort,
-      email: 'expo-supervisor@packed-lifecycle.test',
+      ...(r1Mode ? {
+        now: () => expoNowMs,
+        bindingTtlMs: 60_000,
+        bindingRefreshWindowMs: 15_000,
+      } : {}),
+      ...(!r1Mode ? { email: 'expo-supervisor@packed-lifecycle.test' } : {}),
       metroCommand: { command: process.execPath, args: [metroScript] },
       env: {
         ...process.env,
@@ -827,73 +1176,166 @@ process.exit();
       resolveAppClientPlatform: () => expoPlatform,
     });
 
-    const m1Generated = await importGeneratedApp(lane, 'expo-provider-m1');
-    let boot = expo.createSnapbackExpoBoot({
-      app: m1Generated.app,
-      environment: bootEnvironment(),
-    });
-    let bootState = await boot.start();
-    assert.equal(bootState.status, 'ready', JSON.stringify(bootState));
-    assert.ok(boot.reactProvider(), 'packed Expo arm must construct the canonical React provider');
-    let appClient = boot.appClient();
-    assert.ok(appClient, 'packed Expo arm must construct the application client');
-    const principal = appClient.auth.currentPrincipal();
-    assert.equal(principal.status, 'authenticated');
-    const originalSession = await appClient.client.authSession();
-    const conversations = (await appClient.client.query(m1Generated.conversations)).rows;
-    const users = (await appClient.client.query(m1Generated.users)).rows;
-    assert.ok(conversations.length > 0 && users.length > 0);
-    const conversationId = conversations[0]._id;
-    const senderId = users[0]._id;
-    const text = 'Packed Expo provider survives M1 to M2';
-    await appClient.client.mutate(m1Generated.sendText, {
-      args: { conversationId, senderId, text },
-      queue: false,
-    });
-    assert.ok(
-      (await appClient.client.query(m1Generated.messagesForConversation, {
-        args: { conversationId },
-      }))
-        .rows.some((row) => row.text === text),
-    );
-    await boot.dispose();
-    boot = null;
-    appClient = null;
+    if (r1Mode) {
+      const createExpoProviderClient = async ({ app, platform }) => {
+        const supervisedEnvironment = expo.createSupervisedExpoEnvironment({
+          exchangeOrigin: activeConsumer.exchangeOrigin,
+          appState: appState(),
+          clientOptions: {
+            rqsStore: null,
+            offlineQueue: false,
+            clientStoreId: platform.databaseName,
+          },
+        });
+        const environment = Object.freeze({
+          ...supervisedEnvironment,
+          // R1 is a password-entry journey. Keep the shipped supervised
+          // binding exchange while declining its convenience session so the
+          // first-party app client begins at its documented anonymous state.
+          resolveSupervisedAuthority: async () => ({ status: 'unavailable' }),
+          resolveAppClientPlatform: () => platform,
+        });
+        const providerBoot = expo.createSnapbackExpoBoot({
+          app,
+          environment,
+          rqsStore: null,
+          createApplicationClient: async (input, observer) => {
+            const applicationClient = await client.createSnapbackAppClient({
+              ...input,
+              rqsStore: null,
+              storagePartition: `${lane.name}:r1:${platform.databaseName}`,
+            });
+            observer(applicationClient.bootstrapState());
+            return applicationClient;
+          },
+        });
+        const state = await providerBoot.start();
+        assert.equal(state.status, 'ready', JSON.stringify(state));
+        assert.ok(providerBoot.reactProvider(), 'R1 Expo clients construct the canonical React provider');
+        const providerClient = providerBoot.appClient();
+        assert.ok(providerClient, 'R1 Expo provider constructs the application client');
+        return {
+          auth: providerClient.auth,
+          client: providerClient.client,
+          dispose: () => providerBoot.dispose(),
+        };
+      };
+      const receipt = await proveM1ToM2({
+        lane,
+        IDBFactory,
+        createSnapbackAppClient: createExpoProviderClient,
+        readApplicationReadyReceipt: cli.readApplicationReadyReceipt,
+        binding: () => activeConsumer.binding,
+        refreshBinding: async (m2App) => eventually(
+          () => activeConsumer.binding.descriptorIdentity === m2App.identity.descriptor,
+          { label: 'Expo M2 binding projection' },
+        ),
+        reload: activeConsumer.verbs.reload,
+        events,
+        expectedClientOrigins: metroClientOrigins,
+        platformKind: 'expo-web',
+        afterM2: async ({ app, platformA, originalPrincipalA, originalSessionA }) => {
+          const predecessorBinding = activeConsumer.binding;
+          expoNowMs = Date.parse(predecessorBinding.provenance.expiresAt) + 1;
+          const coldBoot = await createExpoProviderClient({ app, platform: platformA });
+          try {
+            const principal = coldBoot.auth.currentPrincipal();
+            assert.equal(principal.status, 'authenticated');
+            assert.equal(principal.userId, originalPrincipalA.userId);
+            const session = await coldBoot.client.authSession();
+            assert.equal(session.authority.sessionId, originalSessionA.authority.sessionId);
+            const successorBinding = activeConsumer.binding;
+            assert.equal(
+              successorBinding.provenance.supervisorGeneration,
+              predecessorBinding.provenance.supervisorGeneration,
+            );
+            assert.equal(successorBinding.descriptorIdentity, predecessorBinding.descriptorIdentity);
+            assert.deepEqual(successorBinding.target, predecessorBinding.target);
+            assert.deepEqual(successorBinding.capabilities, predecessorBinding.capabilities);
+            assert.notEqual(successorBinding.provenance.issuedAt, predecessorBinding.provenance.issuedAt);
+            assert.notEqual(successorBinding.provenance.expiresAt, predecessorBinding.provenance.expiresAt);
+            return {
+              bindingTtlRefresh: true,
+              coldProviderReattach: true,
+              originalSessionPreserved: true,
+              originalSupervisorPreserved: true,
+              nativePlatformBoot: false,
+            };
+          } finally {
+            await coldBoot.dispose();
+          }
+        },
+      });
+      r1Receipts.push({ arm: 'expo', ...receipt });
+    } else {
+      const m1Generated = await importGeneratedApp(lane, 'expo-provider-m1');
+      let boot = expo.createSnapbackExpoBoot({
+        app: m1Generated.app,
+        environment: bootEnvironment(),
+      });
+      let bootState = await boot.start();
+      assert.equal(bootState.status, 'ready', JSON.stringify(bootState));
+      assert.ok(boot.reactProvider(), 'packed Expo arm must construct the canonical React provider');
+      let appClient = boot.appClient();
+      assert.ok(appClient, 'packed Expo arm must construct the application client');
+      const principal = appClient.auth.currentPrincipal();
+      assert.equal(principal.status, 'authenticated');
+      const originalSession = await appClient.client.authSession();
+      const conversations = (await appClient.client.query(m1Generated.conversations)).rows;
+      const users = (await appClient.client.query(m1Generated.users)).rows;
+      assert.ok(conversations.length > 0 && users.length > 0);
+      const conversationId = conversations[0]._id;
+      const senderId = users[0]._id;
+      const text = 'Packed Expo provider survives M1 to M2';
+      await appClient.client.mutate(m1Generated.sendText, {
+        args: { conversationId, senderId, text },
+        queue: false,
+      });
+      assert.ok(
+        (await appClient.client.query(m1Generated.messagesForConversation, {
+          args: { conversationId },
+        }))
+          .rows.some((row) => row.text === text),
+      );
+      await boot.dispose();
+      boot = null;
+      appClient = null;
 
-    writeAdditiveSchema(lane);
-    const requestId = 'expo-m2-additive';
-    const reloaded = await activeConsumer.verbs.reload({ requestId });
-    assert.equal(reloaded.state, 'generated-and-loaded', JSON.stringify(reloaded));
-    const advance = deploymentEvent(events, requestId);
-    assert.ok(advance, 'Expo reports the M1 -> M2 deployment identity advance');
-    assert.deepEqual(advance.continuity, {
-      database: 'preserved',
-      accounts: 'preserved',
-      sessions: 'preserved',
-      stores: 'preserved',
-    });
-    const m2Generated = await importGeneratedApp(lane, 'expo-provider-m2');
-    assert.equal(activeConsumer.binding.descriptorIdentity, m2Generated.app.identity.descriptor);
-    boot = expo.createSnapbackExpoBoot({
-      app: m2Generated.app,
-      environment: bootEnvironment(),
-    });
-    bootState = await boot.start();
-    assert.equal(bootState.status, 'ready', JSON.stringify(bootState));
-    assert.ok(boot.reactProvider());
-    appClient = boot.appClient();
-    const survivingPrincipal = appClient.auth.currentPrincipal();
-    assert.equal(survivingPrincipal.userId, principal.userId);
-    const survivingSession = await appClient.client.authSession();
-    assert.equal(survivingSession.authority.sessionId, originalSession.authority.sessionId);
-    assert.ok(
-      (await appClient.client.query(m2Generated.messagesForConversation, {
-        args: { conversationId },
-      }))
-        .rows.some((row) => row.text === text),
-      'packed Expo provider preserves its product row through M2',
-    );
-    await boot.dispose();
+      writeAdditiveSchema(lane);
+      const requestId = 'expo-m2-additive';
+      const reloaded = await activeConsumer.verbs.reload({ requestId });
+      assert.equal(reloaded.state, 'generated-and-loaded', JSON.stringify(reloaded));
+      const advance = deploymentEvent(events, requestId);
+      assert.ok(advance, 'Expo reports the M1 -> M2 deployment identity advance');
+      assert.deepEqual(advance.continuity, {
+        database: 'preserved',
+        accounts: 'preserved',
+        sessions: 'preserved',
+        stores: 'preserved',
+      });
+      const m2Generated = await importGeneratedApp(lane, 'expo-provider-m2');
+      assert.equal(activeConsumer.binding.descriptorIdentity, m2Generated.app.identity.descriptor);
+      boot = expo.createSnapbackExpoBoot({
+        app: m2Generated.app,
+        environment: bootEnvironment(),
+      });
+      bootState = await boot.start();
+      assert.equal(bootState.status, 'ready', JSON.stringify(bootState));
+      assert.ok(boot.reactProvider());
+      appClient = boot.appClient();
+      const survivingPrincipal = appClient.auth.currentPrincipal();
+      assert.equal(survivingPrincipal.userId, principal.userId);
+      const survivingSession = await appClient.client.authSession();
+      assert.equal(survivingSession.authority.sessionId, originalSession.authority.sessionId);
+      assert.ok(
+        (await appClient.client.query(m2Generated.messagesForConversation, {
+          args: { conversationId },
+        }))
+          .rows.some((row) => row.text === text),
+        'packed Expo provider preserves its product row through M2',
+      );
+      await boot.dispose();
+    }
     assert.equal(
       activeConsumer.inspection().applicationReady.hostReadyDescriptorDigest,
       cli.readApplicationReadyReceipt(`${lane.readyFile}.application-ready`).hostReadyDescriptorDigest,
@@ -905,9 +1347,91 @@ process.exit();
     activeOwner = null;
   }
 
-  console.log(
-    'packed-dev-lifecycle.test.mjs: VCF-E-L1 scaffold -> install -> generate -> dev -> prove plus packed headless, real Vite, and Expo provider M1 -> M2 continuity passes',
-  );
+  if (r1Mode) {
+    assert.equal(r1Receipts.length, 1, 'one selected R1 arm emits one receipt');
+    const readiness = JSON.parse(readFileSync(runtimeReadiness, 'utf8'));
+    const receipt = {
+      schemaVersion: 'snapback.r1-cold-probe.v1',
+      ok: true,
+      arm: selectedArm,
+      profile: authoringProfile,
+      cold: {
+        freshPackedPackages: true,
+        isolatedExternalDirectory: true,
+        freshStore: true,
+        packageClosure: packedClosure,
+      },
+      constraints: {
+        snapbackSourceInspections: 0,
+        exactSourceInspections: 0,
+        customRelayOrBindingMiddleware: 0,
+        destructiveReseeds: 0,
+        outOfScopeSkillPackets: 0,
+      },
+      accounting: {
+        tokens: {
+          available: false,
+          reason: 'deterministic Node acceptance carrier has no model-harness token stream',
+        },
+        actions: {
+          taxonomy: 'LLP 0186 2026-08-21',
+          phases: {
+            m1: {
+              'guide-lookup': 0,
+              'source-inspection': 0,
+              edit: 0,
+              generate: 1,
+              process: 1,
+              reseed: 0,
+              suite: 0,
+              choreography: 1,
+              retry: 0,
+            },
+            additiveSchema: {
+              'guide-lookup': 0,
+              'source-inspection': 0,
+              edit: 1,
+              generate: 1,
+              process: 0,
+              reseed: 0,
+              suite: 0,
+              choreography: 0,
+              retry: 0,
+            },
+            verification: {
+              'guide-lookup': 0,
+              'source-inspection': 0,
+              edit: 0,
+              generate: 0,
+              process: 0,
+              reseed: 0,
+              suite: 1,
+              choreography: 0,
+              retry: 0,
+            },
+          },
+        },
+      },
+      runtime: {
+        platform: readiness.platform,
+        buildIdentity: readiness.buildIdentity,
+        binary: readiness.binary,
+        qualification: readiness.qualification,
+      },
+      failures: [],
+      probe: r1Receipts[0],
+    };
+    if (r1ReceiptPath !== null) {
+      const resolvedReceiptPath = resolve(r1ReceiptPath);
+      mkdirSync(dirname(resolvedReceiptPath), { recursive: true });
+      writeFileSync(resolvedReceiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+    }
+    process.stdout.write(`${JSON.stringify(receipt)}\n`);
+  } else {
+    console.log(
+      'packed-dev-lifecycle.test.mjs: VCF-E-L1 scaffold -> install -> generate -> dev -> prove plus packed headless, real Vite, and Expo provider M1 -> M2 continuity passes',
+    );
+  }
 } finally {
   await activeConsumer?.close?.().catch(() => {});
   await activeOwner?.close?.().catch(() => {});

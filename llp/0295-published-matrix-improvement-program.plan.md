@@ -783,6 +783,39 @@ the binding TTL while the original supervisor is still running, so refresh is
 actually exercised rather than waited past. Failures classify by owner as
 elsewhere in R1.
 
+#### R1 progress — 2026-08-22
+
+The retained cold run at
+`benchmarks/runs/2026-08-22-r1-cold-probes/record.md` is green for all six
+packed headless, real-Vite, and Expo-provider web/profile cells. Every cell
+started from a fresh packed closure, directory, store, and durable persona
+partitions; reached password-auth M1 with a pushed two-client query; and
+activated one additive schema successor with accounts, both sessions, stores,
+and product rows preserved. The receipts record zero Snapback/Exact source
+inspection, custom relay/binding middleware, destructive reseed, and
+out-of-scope packets. The deterministic carrier has no model token stream, so
+it records per-phase actions and marks token fields unavailable; those cells
+retain their product results but are scorecard-ineligible for token/wall
+comparisons.
+
+The Familiar six-reference R1 observation kept all 12 subscriptions
+live/current, fulfilled all 12 mutations, completed 72/72 scheduler turns with
+zero abandoned, and saw zero 15-second misses or overload conversions. The
+independent form therefore remains supported on this run; the relational form
+remains an optimization rather than the only accepted path.
+
+LLP 0294 W6's digest and binding-refresh repairs are ancestors of the pin.
+Both packed Expo profile cells crossed a controlled binding term and cold-
+reattached through the original supervisor with the original password session.
+Packed iOS/Android digest parity, native-custody provider, and Expo-closure
+checks passed. The actual native process boot remains unexecuted because this
+host has neither `simctl` nor `adb`, and its documented fleet record is absent.
+That evidence blocker stays owned by
+`issues/20260821-expo-crypto-adapter-native-witness.md`; it is not recorded as
+a Snapback failure and the native R1 extension is not green yet. No new issue
+was filed because the primary cells found no genuine product failure and the
+two non-green observations already have exact live owner tickets.
+
 ### R2. Load-isolated calibration rerun
 
 Repeat the 12 cells with reserved machines or enforced load ceilings. Preserve

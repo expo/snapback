@@ -32,3 +32,23 @@ From a fresh packed Expo scaffold installed from the exact package tarballs:
 
 This ticket closes only when both packed native boots and the byte-equal
 WebCrypto comparison have been witnessed on those platform-capable hosts.
+
+## R1 attempt — 2026-08-22
+
+LLP 0295 R1 confirmed that the implementation gate is open on
+`fa36a048e8e08f188ca0d486f76f7bb12b3541f2`: native digest commit
+`55b266cf7` and supervised binding-refresh commit `38b2d9d56` are both
+ancestors. Fresh packed Expo Explicit and Familiar probes passed password auth,
+durable session restoration after additive schema activation, and a cold
+provider reattach after a controlled binding term while the original
+supervisor remained running. The digest parity test passed 4/4, the native
+custody provider matrix passed 30/30, and the nested packed Expo closure passed
+1/1.
+
+The required launched native witness could not run on this host:
+`xcode-select -p` reports `/Library/Developer/CommandLineTools`, `xcrun` cannot
+find `simctl`, `adb` is absent, and the documented
+`~/Dropbox/APIKeys/MACHINE_FLEET.md` dispatch record is absent. The retained
+blocked receipt is
+`benchmarks/runs/2026-08-22-r1-cold-probes/receipts/native-gate.json`. This does
+not close the ticket or establish an iOS/Android boot claim.

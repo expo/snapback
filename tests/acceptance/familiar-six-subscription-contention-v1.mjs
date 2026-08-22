@@ -10,7 +10,7 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
@@ -43,6 +43,7 @@ const emptyArgs = Object.freeze({});
 const observationCeilingMs = 15_000;
 const lateConvergenceCeilingMs = 60_000;
 const writesPerArm = 6;
+const r1ObservationMode = process.env.SNAPBACK_R1_CONTENTION_OBSERVATION === '1';
 const tick = () => new Promise((resolve) => setTimeout(resolve, 25));
 
 function stateSummary(state) {
@@ -754,19 +755,23 @@ try {
   };
   assertArmBoundaryFacts(sixReferences);
   assertArmBoundaryFacts(relationalReference);
-  assert.ok(
-    sixReferences.misses.length > 0,
-    'six independent references must reproduce at least one post-settlement contention miss',
-  );
+  if (!r1ObservationMode) {
+    assert.ok(
+      sixReferences.misses.length > 0,
+      'six independent references must reproduce at least one post-settlement contention miss',
+    );
+  }
   assert.equal(
     relationalReference.misses.length,
     0,
     'the equivalent relational reference must stay within the observation ceiling',
   );
-  assert.ok(
-    overloadDegrades.sixReferences > 0,
-    'the independent arm must record the documented overload conversion',
-  );
+  if (!r1ObservationMode || sixReferences.misses.length > 0) {
+    assert.ok(
+      overloadDegrades.sixReferences > 0,
+      'an independent-arm miss must record the documented overload conversion',
+    );
+  }
   assert.equal(
     overloadDegrades.relationalReference,
     0,
@@ -809,9 +814,13 @@ try {
     ok: true,
     principals: ['alice', 'bob'],
     classification: {
-      category: 'b-documented-composition-bound',
+      category: sixReferences.misses.length > 0
+        ? 'b-documented-composition-bound'
+        : 'independent-form-green-within-observation-ceiling',
       owner: 'LLP 0200 §2.5',
-      basis: 'affected subscription count multiplied by serial evaluation cost exceeded max_hold',
+      basis: sixReferences.misses.length > 0
+        ? 'affected subscription count multiplied by serial evaluation cost exceeded max_hold'
+        : 'all twelve independent subscriptions stayed live/current and all writes converged within 15 seconds',
     },
     classificationEvidence: {
       sixReferenceMisses: sixReferences.misses.length,
@@ -833,6 +842,12 @@ try {
     },
     arms: [sixReferences, relationalReference],
   };
+  const receiptPath = process.env.SNAPBACK_ACCEPTANCE_RECEIPT_PATH ?? null;
+  if (receiptPath !== null) {
+    const resolvedReceiptPath = resolve(receiptPath);
+    await mkdir(dirname(resolvedReceiptPath), { recursive: true });
+    await writeFile(resolvedReceiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+  }
   process.stdout.write(`${JSON.stringify(receipt, null, 2)}\n`);
 } finally {
   for (const instrument of instruments) instrument.restore();

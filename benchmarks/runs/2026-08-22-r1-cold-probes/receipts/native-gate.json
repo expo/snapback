@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "snapback.r1-native-gate.v1",
+  "status": "blocked-environment",
+  "productFailure": false,
+  "gateOpen": true,
+  "pin": "fa36a048e8e08f188ca0d486f76f7bb12b3541f2",
+  "landedRepairs": {
+    "nativeDigestAdapter": "55b266cf7da0289336c43fbcbf76659b202f1fa1",
+    "supervisedBindingRefresh": "38b2d9d5663e96658fa785bd24a50426a89789cf"
+  },
+  "host": {
+    "platform": "darwin-arm64",
+    "developerDirectory": "/Library/Developer/CommandLineTools",
+    "simctl": "unavailable",
+    "adb": "unavailable",
+    "machineFleetRecord": "unavailable-at-documented-path"
+  },
+  "availableEvidence": {
+    "packedExpoClosure": true,
+    "webcryptoIosAndroidDigestParity": true,
+    "nativeCustodyProviderMatrix": true,
+    "coldProviderReattachAfterBindingTtl": true,
+    "originalSessionPreserved": true,
+    "originalSupervisorPreserved": true
+  },
+  "missingEvidence": {
+    "coldIosBoot": true,
+    "coldAndroidBoot": true,
+    "nativeReattachAfterBindingTtl": true
+  },
+  "owner": {
+    "workstream": "LLP 0294 W6 / LLP 0258 D3-D7",
+    "issue": "issues/20260821-expo-crypto-adapter-native-witness.md"
+  }
+}

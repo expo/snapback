@@ -1,0 +1,281 @@
+{
+  "schemaVersion": "snapback.r1-cold-probe.v1",
+  "ok": true,
+  "arm": "expo",
+  "profile": "snapback-familiar-ts-v1",
+  "cold": {
+    "freshPackedPackages": true,
+    "isolatedExternalDirectory": true,
+    "freshStore": true,
+    "packageClosure": [
+      {
+        "name": "@expo/snapback-cli",
+        "sha256": "sha256:c63af74eb8f3da4ece2551bde68d0ced696e2a06d51e01e85af6c10f24cce31e"
+      },
+      {
+        "name": "@expo/snapback-client",
+        "sha256": "sha256:5b6d1dd7a59653fa9c575989cc65f51bcb43272dcecf7d738f5ed1e0b8d34f01"
+      },
+      {
+        "name": "@expo/snapback-codegen",
+        "sha256": "sha256:4a0a4d1d135fb4de7265e10f630ffd182ae56b6e19f493e9f61c21c19af53773"
+      },
+      {
+        "name": "@expo/snapback-contract",
+        "sha256": "sha256:e64c595178c3b0ea83b02e794e9aaba53e46ae1d8f915140031b40b52e93dea5"
+      },
+      {
+        "name": "@expo/snapback-expo",
+        "sha256": "sha256:cc50e316bcf460ee286b16114debc88dc7f252e4432ce9e9694d046ba36c9637"
+      },
+      {
+        "name": "@expo/snapback-expo-custody",
+        "sha256": "sha256:179420b3d65eb5d500f45d402102c53e5b4a78a60a9da7c3fc24e8cf8af8a15b"
+      },
+      {
+        "name": "@expo/snapback-react",
+        "sha256": "sha256:95de0410abbe27935a77b2b8adcbe1ce05b632bd7794fca2436d7b81a1e52477"
+      },
+      {
+        "name": "@expo/snapback-runtime-darwin-arm64",
+        "sha256": "sha256:35be467ad9e7c7410b3ac1a504c77e105cf8bc604e74079c8096376eac1e89bb"
+      },
+      {
+        "name": "@expo/snapback-runtime-linux-x64",
+        "sha256": "sha256:4fda863ce180f18756d15f827eac9f032182c864f061e1642ff5693f432237e0"
+      },
+      {
+        "name": "@expo/snapback-vite",
+        "sha256": "sha256:fa273f2eb16332f6d09f4a7bd4dc2eff85030442c6d36a886ff66a29d7729e5b"
+      }
+    ]
+  },
+  "constraints": {
+    "snapbackSourceInspections": 0,
+    "exactSourceInspections": 0,
+    "customRelayOrBindingMiddleware": 0,
+    "destructiveReseeds": 0,
+    "outOfScopeSkillPackets": 0
+  },
+  "accounting": {
+    "tokens": {
+      "available": false,
+      "reason": "deterministic Node acceptance carrier has no model-harness token stream"
+    },
+    "actions": {
+      "taxonomy": "LLP 0186 2026-08-21",
+      "phases": {
+        "m1": {
+          "guide-lookup": 0,
+          "source-inspection": 0,
+          "edit": 0,
+          "generate": 1,
+          "process": 1,
+          "reseed": 0,
+          "suite": 0,
+          "choreography": 1,
+          "retry": 0
+        },
+        "additiveSchema": {
+          "guide-lookup": 0,
+          "source-inspection": 0,
+          "edit": 1,
+          "generate": 1,
+          "process": 0,
+          "reseed": 0,
+          "suite": 0,
+          "choreography": 0,
+          "retry": 0
+        },
+        "verification": {
+          "guide-lookup": 0,
+          "source-inspection": 0,
+          "edit": 0,
+          "generate": 0,
+          "process": 0,
+          "reseed": 0,
+          "suite": 1,
+          "choreography": 0,
+          "retry": 0
+        }
+      }
+    }
+  },
+  "runtime": {
+    "platform": "darwin-arm64",
+    "buildIdentity": {
+      "crateVersion": "0.1.0",
+      "gitCommit": "fa36a048e8e08f188ca0d486f76f7bb12b3541f2",
+      "gitDirty": false,
+      "buildProfile": "debug",
+      "startupNonce": "01a02a1b-af6f-7ff3-97c1-919ce7dcf861"
+    },
+    "binary": {
+      "bytes": 495759288,
+      "sha256": "4e82018109e49c94dfe6b0eea4f1af00f3610b632d9207defe8fdfdfd9207bf6"
+    },
+    "qualification": {
+      "probe": "restricted-no-eval-handler-vm",
+      "ok": true,
+      "report": {
+        "schemaVersion": "snapback.runtime-qualify.v1",
+        "probe": "restricted-no-eval-handler-vm",
+        "ok": true,
+        "binary": {
+          "crateVersion": "0.1.0",
+          "gitCommit": "fa36a048e8e08f188ca0d486f76f7bb12b3541f2",
+          "gitDirty": false,
+          "buildProfile": "debug",
+          "startupNonce": "01a02a1b-af6f-7ff3-97c1-919ce7dcf861"
+        }
+      }
+    }
+  },
+  "failures": [],
+  "probe": {
+    "arm": "expo",
+    "m1": {
+      "passwordAuth": true,
+      "durableCustody": true,
+      "twoClientLive": true,
+      "principalId": "usr_52nh5wcyakxmmbke0dhfvxrnsg",
+      "sessionIds": [
+        "sha256:b49be5ac05e5e03a5848dc3f5c2301595906b3ad225f2af9aaf2b2e13a72c576",
+        "sha256:8a08c40f5037b6afd85923104e71e85f4ae8b5fe7d71a13aedcc05f58d698cfb"
+      ]
+    },
+    "additiveSchema": {
+      "table": "lifecycleLabels",
+      "continuity": {
+        "database": "preserved",
+        "accounts": "preserved",
+        "sessions": "preserved",
+        "stores": "preserved"
+      },
+      "deploymentAdvanced": true,
+      "principalsPreserved": true,
+      "sessionsPreserved": true,
+      "productRowsPreserved": true
+    },
+    "lifecycle": {
+      "fromDeployment": {
+        "schemaVersion": "snapback.v1",
+        "authMode": "sessions",
+        "appId": "expo",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:b0baeaeea65e04c393682fc44ccb4e766d0abfd6dae7c6532f852bd510e16e15",
+        "bundleHash": "snapback.v1:sessions:function:sha256:ffcd616aa986f05c66a5a423f2c80ba682e2e5070a6cae970a7f118b35850f6b",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:eb8c2b7a8e7ab59b91ee216f08035b82733c386fcca8d8d615662391a675132d"
+      },
+      "toDeployment": {
+        "schemaVersion": "snapback.v1",
+        "authMode": "sessions",
+        "appId": "expo",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:28c86f8676f88bc0c6e62ad5091bd4d48b9da0a8e6627f9ad865cb96a3494542",
+        "bundleHash": "snapback.v1:sessions:function:sha256:ffcd616aa986f05c66a5a423f2c80ba682e2e5070a6cae970a7f118b35850f6b",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:6dc659c6820750ee295c8692b05b76cba002b1a6601a58a31f6fdb16c18dc4e7"
+      },
+      "readyReceipt": {
+        "formatVersion": "snapback.application-ready.v1",
+        "startupNonce": "01a02a22-62c6-7263-8b36-88cce817d0a4",
+        "hostReadyDescriptorDigest": "sha256:05c3e6576cd33748b283cc15a22d8ace5e992a2af56857e8eb23559d667de960",
+        "application": {
+          "mode": "dev-generated",
+          "deployment": {
+            "schemaVersion": "snapback.v1",
+            "authMode": "sessions",
+            "appId": "expo",
+            "schemaHash": "snapback.v1:sessions:schema:sha256:28c86f8676f88bc0c6e62ad5091bd4d48b9da0a8e6627f9ad865cb96a3494542",
+            "bundleHash": "snapback.v1:sessions:function:sha256:ffcd616aa986f05c66a5a423f2c80ba682e2e5070a6cae970a7f118b35850f6b",
+            "inputsHash": "snapback.v1:sessions:inputs:sha256:6dc659c6820750ee295c8692b05b76cba002b1a6601a58a31f6fdb16c18dc4e7"
+          },
+          "obligationsDigest": "sha256:da4ac5689f16e9e62ff40aecbb7b9380de62b8f74d081f0e31f7f68ae012666b"
+        },
+        "targetProfile": "local-dev-sqlite-ibex",
+        "artifacts": {
+          "schemaHash": "snapback.v1:sessions:schema:sha256:28c86f8676f88bc0c6e62ad5091bd4d48b9da0a8e6627f9ad865cb96a3494542",
+          "bundleHash": "snapback.v1:sessions:function:sha256:ffcd616aa986f05c66a5a423f2c80ba682e2e5070a6cae970a7f118b35850f6b",
+          "databaseVersion": null
+        },
+        "auth": {
+          "activeMode": "sessions",
+          "desiredMode": "sessions",
+          "modeState": "settled",
+          "appDataAvailability": "available",
+          "sessionActivationReady": true
+        },
+        "binding": {
+          "format": "snapback.app-binding.v1",
+          "source": "supervised-dev",
+          "descriptorIdentity": "sha256:2624ebfea2892774b3a25f16d6f680f901ea9c2e3e97b095879022a14a49c319",
+          "target": {
+            "app": "expo",
+            "schema": "snapback.v1:sessions:schema:sha256:28c86f8676f88bc0c6e62ad5091bd4d48b9da0a8e6627f9ad865cb96a3494542",
+            "functions": "snapback.v1:sessions:function:sha256:ffcd616aa986f05c66a5a423f2c80ba682e2e5070a6cae970a7f118b35850f6b",
+            "origin": "http://127.0.0.1:49633",
+            "routing": "loopback"
+          },
+          "capabilities": {
+            "offered": [
+              "args_contract_v1",
+              "auth.application-bootstrap.v1",
+              "auth.passwords",
+              "auth.sessions.v1",
+              "ibex_ctx_db_host_bridge",
+              "inline_handler_v1",
+              "live_subscriptions",
+              "mutation_read_set_validation",
+              "result_contract_v1"
+            ]
+          },
+          "provenance": {
+            "supervisorGeneration": "snapback-dev:f7d2e51e-f243-4dc9-bc85-cc355a872536",
+            "issuedAt": "2026-08-22T15:41:42.093Z",
+            "expiresAt": "2026-08-22T16:41:42.093Z"
+          },
+          "integrity": {
+            "channel": "local-supervised-ipc"
+          }
+        },
+        "clientOrigins": [
+          "http://127.0.0.1:49634",
+          "http://[::1]:49634",
+          "http://localhost:49634"
+        ],
+        "runtimeIdentity": {
+          "qualifiedBinary": {
+            "path": "/private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/snapback-packed-dev-lifecycle-jATd7a/qualified-runtime/bin/snapback",
+            "source": "qualified-override",
+            "platform": "darwin-arm64",
+            "bytes": 495759288,
+            "sha256": "sha256:4e82018109e49c94dfe6b0eea4f1af00f3610b632d9207defe8fdfdfd9207bf6",
+            "buildIdentity": {
+              "gitCommit": "fa36a048e8e08f188ca0d486f76f7bb12b3541f2",
+              "gitDirty": false,
+              "crateVersion": "0.1.0",
+              "buildProfile": "debug"
+            },
+            "qualification": {
+              "receiptSchemaVersion": "snapback.runtime-readiness.v1",
+              "receiptPath": "/private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/snapback-packed-dev-lifecycle-jATd7a/qualified-runtime/bin/snapback.runtime-readiness.json",
+              "probe": "restricted-no-eval-handler-vm"
+            }
+          },
+          "wrapper": {
+            "package": "@expo/snapback-cli",
+            "version": "0.1.0"
+          }
+        },
+        "capabilityManifestDigest": "sha256:adfde5a95f0d432ba330a6b01c82fa3a8e545b0554b13ec002b3388105269b7e",
+        "networkProfile": "normal",
+        "settledAtMs": 1787413302078
+      }
+    },
+    "extension": {
+      "bindingTtlRefresh": true,
+      "coldProviderReattach": true,
+      "originalSessionPreserved": true,
+      "originalSupervisorPreserved": true,
+      "nativePlatformBoot": false
+    }
+  }
+}

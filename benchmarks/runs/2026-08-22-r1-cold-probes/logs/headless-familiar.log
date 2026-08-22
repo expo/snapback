@@ -1,0 +1,5 @@
+command: SNAPBACK_R1_ARM=headless SNAPBACK_R1_PROFILE=familiar node packages/snapback-cli/packed-dev-lifecycle.test.mjs
+runtime: target/debug/snapback (qualified fa36a048e8e08f188ca0d486f76f7bb12b3541f2)
+exit: 0
+result: password auth green; two durable persona sessions; stream delivery green; additive schema continuity green
+receipt: ../receipts/headless-familiar.json

@@ -1,0 +1,270 @@
+{
+  "schemaVersion": "snapback.r1-cold-probe.v1",
+  "ok": true,
+  "arm": "headless",
+  "profile": "snapback-explicit-v1",
+  "cold": {
+    "freshPackedPackages": true,
+    "isolatedExternalDirectory": true,
+    "freshStore": true,
+    "packageClosure": [
+      {
+        "name": "@expo/snapback-cli",
+        "sha256": "sha256:c63af74eb8f3da4ece2551bde68d0ced696e2a06d51e01e85af6c10f24cce31e"
+      },
+      {
+        "name": "@expo/snapback-client",
+        "sha256": "sha256:5b6d1dd7a59653fa9c575989cc65f51bcb43272dcecf7d738f5ed1e0b8d34f01"
+      },
+      {
+        "name": "@expo/snapback-codegen",
+        "sha256": "sha256:4a0a4d1d135fb4de7265e10f630ffd182ae56b6e19f493e9f61c21c19af53773"
+      },
+      {
+        "name": "@expo/snapback-contract",
+        "sha256": "sha256:e64c595178c3b0ea83b02e794e9aaba53e46ae1d8f915140031b40b52e93dea5"
+      },
+      {
+        "name": "@expo/snapback-expo",
+        "sha256": "sha256:cc50e316bcf460ee286b16114debc88dc7f252e4432ce9e9694d046ba36c9637"
+      },
+      {
+        "name": "@expo/snapback-expo-custody",
+        "sha256": "sha256:179420b3d65eb5d500f45d402102c53e5b4a78a60a9da7c3fc24e8cf8af8a15b"
+      },
+      {
+        "name": "@expo/snapback-react",
+        "sha256": "sha256:95de0410abbe27935a77b2b8adcbe1ce05b632bd7794fca2436d7b81a1e52477"
+      },
+      {
+        "name": "@expo/snapback-runtime-darwin-arm64",
+        "sha256": "sha256:35be467ad9e7c7410b3ac1a504c77e105cf8bc604e74079c8096376eac1e89bb"
+      },
+      {
+        "name": "@expo/snapback-runtime-linux-x64",
+        "sha256": "sha256:4fda863ce180f18756d15f827eac9f032182c864f061e1642ff5693f432237e0"
+      },
+      {
+        "name": "@expo/snapback-vite",
+        "sha256": "sha256:fa273f2eb16332f6d09f4a7bd4dc2eff85030442c6d36a886ff66a29d7729e5b"
+      }
+    ]
+  },
+  "constraints": {
+    "snapbackSourceInspections": 0,
+    "exactSourceInspections": 0,
+    "customRelayOrBindingMiddleware": 0,
+    "destructiveReseeds": 0,
+    "outOfScopeSkillPackets": 0
+  },
+  "accounting": {
+    "tokens": {
+      "available": false,
+      "reason": "deterministic Node acceptance carrier has no model-harness token stream"
+    },
+    "actions": {
+      "taxonomy": "LLP 0186 2026-08-21",
+      "phases": {
+        "m1": {
+          "guide-lookup": 0,
+          "source-inspection": 0,
+          "edit": 0,
+          "generate": 1,
+          "process": 1,
+          "reseed": 0,
+          "suite": 0,
+          "choreography": 1,
+          "retry": 0
+        },
+        "additiveSchema": {
+          "guide-lookup": 0,
+          "source-inspection": 0,
+          "edit": 1,
+          "generate": 1,
+          "process": 0,
+          "reseed": 0,
+          "suite": 0,
+          "choreography": 0,
+          "retry": 0
+        },
+        "verification": {
+          "guide-lookup": 0,
+          "source-inspection": 0,
+          "edit": 0,
+          "generate": 0,
+          "process": 0,
+          "reseed": 0,
+          "suite": 1,
+          "choreography": 0,
+          "retry": 0
+        }
+      }
+    }
+  },
+  "runtime": {
+    "platform": "darwin-arm64",
+    "buildIdentity": {
+      "crateVersion": "0.1.0",
+      "gitCommit": "fa36a048e8e08f188ca0d486f76f7bb12b3541f2",
+      "gitDirty": false,
+      "buildProfile": "debug",
+      "startupNonce": "01a02a1b-af6f-7ff3-97c1-919ce7dcf861"
+    },
+    "binary": {
+      "bytes": 495759288,
+      "sha256": "4e82018109e49c94dfe6b0eea4f1af00f3610b632d9207defe8fdfdfd9207bf6"
+    },
+    "qualification": {
+      "probe": "restricted-no-eval-handler-vm",
+      "ok": true,
+      "report": {
+        "schemaVersion": "snapback.runtime-qualify.v1",
+        "probe": "restricted-no-eval-handler-vm",
+        "ok": true,
+        "binary": {
+          "crateVersion": "0.1.0",
+          "gitCommit": "fa36a048e8e08f188ca0d486f76f7bb12b3541f2",
+          "gitDirty": false,
+          "buildProfile": "debug",
+          "startupNonce": "01a02a1b-af6f-7ff3-97c1-919ce7dcf861"
+        }
+      }
+    }
+  },
+  "failures": [],
+  "probe": {
+    "arm": "headless",
+    "m1": {
+      "passwordAuth": true,
+      "durableCustody": true,
+      "twoClientLive": true,
+      "principalId": "usr_30pe40anmmer1vyh2yc6gxfnz7",
+      "sessionIds": [
+        "sha256:dedd818459796e94a1b09794beb4e733c69c272ccddb003d5b18f563b61b8ec4",
+        "sha256:09b3eb08c1c76c878f626bfc9c55f54f6e5dc05c075b3b7153b17e6489e8e459"
+      ]
+    },
+    "additiveSchema": {
+      "table": "lifecycleLabels",
+      "continuity": {
+        "database": "preserved",
+        "accounts": "preserved",
+        "sessions": "preserved",
+        "stores": "preserved"
+      },
+      "deploymentAdvanced": true,
+      "principalsPreserved": true,
+      "sessionsPreserved": true,
+      "productRowsPreserved": true
+    },
+    "lifecycle": {
+      "fromDeployment": {
+        "schemaVersion": "snapback.v1",
+        "authMode": "sessions",
+        "appId": "react",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:81243f77bb4a7dbcc154059882d377575f6dae658b7d4bc6fa247887c3cd5b2b",
+        "bundleHash": "snapback.v1:sessions:function:sha256:8091f287d423a7927bb90a60b2f3103a9394b7dca1096137b2e217efcb508ea8",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:2dcc42799d2e7c2394dfa5f8d589f827b0181bf42045e19ca36e4354d5dbf3e3"
+      },
+      "toDeployment": {
+        "schemaVersion": "snapback.v1",
+        "authMode": "sessions",
+        "appId": "react",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:fb8eead02db212362d2b6f73a86cffbbfe7afe64e405e2c74b9d196a2325210f",
+        "bundleHash": "snapback.v1:sessions:function:sha256:8091f287d423a7927bb90a60b2f3103a9394b7dca1096137b2e217efcb508ea8",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:e7962c63ea3553d3574157e332485460447f66dbc52002aac1f9f3daa43b9135"
+      },
+      "readyReceipt": {
+        "formatVersion": "snapback.application-ready.v1",
+        "startupNonce": "01a02a20-f89d-7eb0-ac1f-2205c81d4354",
+        "hostReadyDescriptorDigest": "sha256:55af6f73cede48a225da5021d99219f575a4eff0734dde1e49647e7afc9c6832",
+        "application": {
+          "mode": "dev-generated",
+          "deployment": {
+            "schemaVersion": "snapback.v1",
+            "authMode": "sessions",
+            "appId": "react",
+            "schemaHash": "snapback.v1:sessions:schema:sha256:fb8eead02db212362d2b6f73a86cffbbfe7afe64e405e2c74b9d196a2325210f",
+            "bundleHash": "snapback.v1:sessions:function:sha256:8091f287d423a7927bb90a60b2f3103a9394b7dca1096137b2e217efcb508ea8",
+            "inputsHash": "snapback.v1:sessions:inputs:sha256:e7962c63ea3553d3574157e332485460447f66dbc52002aac1f9f3daa43b9135"
+          },
+          "obligationsDigest": "sha256:1df8ee40edb5d72be1e3129f963ca8354082ec5e3312233cf99262d82338efc9"
+        },
+        "targetProfile": "local-dev-sqlite-ibex",
+        "artifacts": {
+          "schemaHash": "snapback.v1:sessions:schema:sha256:fb8eead02db212362d2b6f73a86cffbbfe7afe64e405e2c74b9d196a2325210f",
+          "bundleHash": "snapback.v1:sessions:function:sha256:8091f287d423a7927bb90a60b2f3103a9394b7dca1096137b2e217efcb508ea8",
+          "databaseVersion": null
+        },
+        "auth": {
+          "activeMode": "sessions",
+          "desiredMode": "sessions",
+          "modeState": "settled",
+          "appDataAvailability": "available",
+          "sessionActivationReady": true
+        },
+        "binding": {
+          "format": "snapback.app-binding.v1",
+          "source": "supervised-dev",
+          "descriptorIdentity": "sha256:e3ce6e2e9e6c22400e794e8803ba1c810519c30858736006ff9003b0b32fdc30",
+          "target": {
+            "app": "react",
+            "schema": "snapback.v1:sessions:schema:sha256:fb8eead02db212362d2b6f73a86cffbbfe7afe64e405e2c74b9d196a2325210f",
+            "functions": "snapback.v1:sessions:function:sha256:8091f287d423a7927bb90a60b2f3103a9394b7dca1096137b2e217efcb508ea8",
+            "origin": "http://127.0.0.1:4287",
+            "routing": "loopback"
+          },
+          "capabilities": {
+            "offered": [
+              "args_contract_v1",
+              "auth.application-bootstrap.v1",
+              "auth.passwords",
+              "auth.sessions.v1",
+              "host_plan_runtime",
+              "live_subscriptions",
+              "mutation_read_set_validation",
+              "result_contract_v1"
+            ]
+          },
+          "provenance": {
+            "supervisorGeneration": "snapback-dev:343063c3-6d43-4f83-8ae7-1711bf4d8645",
+            "issuedAt": "2026-08-22T15:40:04.313Z",
+            "expiresAt": "2026-08-22T16:40:04.313Z"
+          },
+          "integrity": {
+            "channel": "local-supervised-ipc"
+          }
+        },
+        "clientOrigins": [],
+        "runtimeIdentity": {
+          "qualifiedBinary": {
+            "path": "/private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/snapback-packed-dev-lifecycle-4ATtK1/qualified-runtime/bin/snapback",
+            "source": "qualified-override",
+            "platform": "darwin-arm64",
+            "bytes": 495759288,
+            "sha256": "sha256:4e82018109e49c94dfe6b0eea4f1af00f3610b632d9207defe8fdfdfd9207bf6",
+            "buildIdentity": {
+              "gitCommit": "fa36a048e8e08f188ca0d486f76f7bb12b3541f2",
+              "gitDirty": false,
+              "crateVersion": "0.1.0",
+              "buildProfile": "debug"
+            },
+            "qualification": {
+              "receiptSchemaVersion": "snapback.runtime-readiness.v1",
+              "receiptPath": "/private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/snapback-packed-dev-lifecycle-4ATtK1/qualified-runtime/bin/snapback.runtime-readiness.json",
+              "probe": "restricted-no-eval-handler-vm"
+            }
+          },
+          "wrapper": {
+            "package": "@expo/snapback-cli",
+            "version": "0.1.0"
+          }
+        },
+        "capabilityManifestDigest": "sha256:adfde5a95f0d432ba330a6b01c82fa3a8e545b0554b13ec002b3388105269b7e",
+        "networkProfile": "normal",
+        "settledAtMs": 1787413204300
+      }
+    },
+    "extension": null
+  }
+}

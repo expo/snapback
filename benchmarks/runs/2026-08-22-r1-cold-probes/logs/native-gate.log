@@ -1,0 +1,13 @@
+gate: OPEN
+native-digest-commit: 55b266cf7da0289336c43fbcbf76659b202f1fa1 (ancestor of pin)
+binding-refresh-commit: 38b2d9d5663e96658fa785bd24a50426a89789cf (ancestor of pin)
+host: Darwin arm64
+xcode-select: /Library/Developer/CommandLineTools
+simctl: unavailable (xcrun could not find utility)
+adb: unavailable
+machine-fleet-record: unavailable at documented path
+packed-digest-parity: PASS
+packed-native-custody-matrix: PASS
+packed-expo-closure: PASS
+cold-provider-binding-TTL-reattach: PASS in both Expo profile cells
+cold-native-process-launch: BLOCKED — environment/evidence, owner issues/20260821-expo-crypto-adapter-native-witness.md
