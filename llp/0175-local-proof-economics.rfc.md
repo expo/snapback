@@ -219,7 +219,7 @@ answer instead of recompiling to ask the same question again.
 ### Finding 3 — the versioned-seed corpus hides two kinds of build work
 
 The versioned-seed suite runs `cargo build --bin snapback` and a filtered
-`cargo test --lib versioned_seed`, then builds or reuses an exact historical
+`cargo test -p snapback-kernel --lib versioned_seed`, then builds or reuses an exact historical
 predecessor in a temporary content-addressed directory. The predecessor cache
 is local to the runner filesystem and is not restored explicitly by the
 workflow.
