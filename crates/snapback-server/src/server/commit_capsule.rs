@@ -20,6 +20,7 @@ use crate::local::LocalSnapback;
 use serde_json::{Map, Value, json};
 use std::any::Any;
 use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::sync::{Arc, Mutex};
 use tokio::time::{Instant, timeout_at};
 
 pub(crate) const COMMIT_OUTCOME_UNCERTAIN_CODE: &str = "SNAPBACK_COMMIT_OUTCOME_UNCERTAIN";
@@ -32,10 +33,10 @@ pub(crate) struct CommitCapsuleSpec {
 }
 
 #[derive(Debug)]
-pub(crate) enum CommitAttempt<T, U> {
+pub(crate) enum CommitAttempt<T> {
     Committed(T),
     RolledBack(SnapbackError),
-    CommitUncertain { cause: SnapbackError, carrier: U },
+    CommitUncertain { cause: SnapbackError },
 }
 
 #[derive(Debug)]
@@ -110,39 +111,72 @@ enum FinalCutDisposition {
     CommitStarted,
 }
 
-type ErasedUncertain = Box<dyn Any + Send>;
-type RetainUncertain = Box<dyn FnOnce(ErasedUncertain) + Send>;
+/// Shared storage that receives an ambiguity carrier before any retain-step
+/// hook can run. The caller keeps another handle to the same storage, so an
+/// unwind after insertion cannot drop the last fail-closed owner.
+pub(crate) struct CommitUncertainRetention<U> {
+    retained: Arc<Mutex<Vec<U>>>,
+    #[cfg(test)]
+    after_store_for_test: Option<Box<dyn FnOnce() + Send>>,
+}
+
+impl<U> CommitUncertainRetention<U> {
+    pub(crate) fn new(retained: &Arc<Mutex<Vec<U>>>) -> Self {
+        Self {
+            retained: Arc::clone(retained),
+            #[cfg(test)]
+            after_store_for_test: None,
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_after_store_for_test(&mut self, hook: impl FnOnce() + Send + 'static) {
+        assert!(
+            self.after_store_for_test.replace(Box::new(hook)).is_none(),
+            "a commit capsule retain-step hook is already installed"
+        );
+    }
+
+    fn retain(&mut self, carrier: U) {
+        {
+            let mut retained = self
+                .retained
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            retained.push(carrier);
+        }
+        #[cfg(test)]
+        if let Some(hook) = self.after_store_for_test.take() {
+            hook();
+        }
+    }
+}
 
 /// The final-cut token exposes no validation or Local-entry capability. It
 /// checks the one absolute deadline, acquires the non-reentrant admission
 /// guard, marks ambiguity, and invokes the kernel COMMIT primitive.
-pub(crate) struct FinalCommitCut {
+pub(crate) struct FinalCommitCut<U> {
     operation: &'static str,
     deadline: Instant,
     disposition: Option<FinalCutDisposition>,
-    panic_uncertain: Option<ErasedUncertain>,
-    retain_uncertain: Option<RetainUncertain>,
+    panic_uncertain: Option<U>,
+    uncertain_retention: CommitUncertainRetention<U>,
     #[cfg(test)]
     before_guard_for_test: Option<Box<dyn FnOnce() + Send>>,
 }
 
-impl FinalCommitCut {
-    fn new<U, Retain>(operation: &'static str, deadline: Instant, retain_uncertain: Retain) -> Self
-    where
-        U: Send + 'static,
-        Retain: FnOnce(U) + Send + 'static,
-    {
+impl<U: Send + 'static> FinalCommitCut<U> {
+    fn new(
+        operation: &'static str,
+        deadline: Instant,
+        uncertain_retention: CommitUncertainRetention<U>,
+    ) -> Self {
         Self {
             operation,
             deadline,
             disposition: None,
             panic_uncertain: None,
-            retain_uncertain: Some(Box::new(move |carrier| {
-                let carrier = carrier
-                    .downcast::<U>()
-                    .expect("commit capsule retained the wrong uncertainty carrier type");
-                retain_uncertain(*carrier);
-            })),
+            uncertain_retention,
             #[cfg(test)]
             before_guard_for_test: None,
         }
@@ -160,9 +194,9 @@ impl FinalCommitCut {
         &mut self,
         reservation: &AuthorizedEffectReservation,
         pending: Pending,
-    ) -> CommitAttempt<T, Pending::Uncertain>
+    ) -> CommitAttempt<T>
     where
-        Pending: PendingCommit<Output = T>,
+        Pending: PendingCommit<Output = T, Uncertain = U>,
     {
         assert!(
             self.disposition.is_none(),
@@ -200,7 +234,7 @@ impl FinalCommitCut {
 
         let mut pending = pending;
         let carrier = pending.prepare_commit();
-        self.panic_uncertain = Some(Box::new(carrier));
+        self.panic_uncertain = Some(carrier);
         // Nothing that can fail or unwind sits between CommitStarted and the
         // COMMIT call. From this assignment onward a timeout is forbidden.
         self.disposition = Some(FinalCutDisposition::CommitStarted);
@@ -216,16 +250,10 @@ impl FinalCommitCut {
                 CommitAttempt::Committed(value)
             }
             Err(cause) => {
-                let carrier = self
-                    .panic_uncertain
-                    .take()
-                    .expect("COMMIT error lost its ambiguity carrier")
-                    .downcast::<Pending::Uncertain>()
-                    .expect("COMMIT error retained the wrong carrier type");
-                CommitAttempt::CommitUncertain {
-                    cause,
-                    carrier: *carrier,
-                }
+                // Keep the carrier capsule-owned across the return into the
+                // caller-supplied transaction closure. Caller unwind between
+                // this point and reconciliation therefore cannot reopen it.
+                CommitAttempt::CommitUncertain { cause }
             }
         }
     }
@@ -234,24 +262,13 @@ impl FinalCommitCut {
         let Some(carrier) = self.panic_uncertain.take() else {
             return;
         };
-        if let Some(retain) = self.retain_uncertain.take() {
-            retain(carrier);
-        }
+        self.uncertain_retention.retain(carrier);
     }
 
-    fn own_reconciliation_carrier<U: Send + 'static>(&mut self, carrier: U) {
-        assert!(
-            self.panic_uncertain.replace(Box::new(carrier)).is_none(),
-            "commit capsule already owns an uncertainty carrier"
-        );
-    }
-
-    fn reconciliation_carrier<U: Send + 'static>(&self) -> &U {
+    fn reconciliation_carrier(&self) -> &U {
         self.panic_uncertain
             .as_ref()
             .expect("reconciliation lost its capsule-owned uncertainty carrier")
-            .downcast_ref::<U>()
-            .expect("reconciliation borrowed the wrong uncertainty carrier type")
     }
 
     fn discard_reconciled_carrier(&mut self) {
@@ -275,14 +292,14 @@ pub(crate) async fn with_bounded_commit_capsule<T, Intent, Gate, Uncertain>(
         &Intent,
         Gate,
         &AuthorizedEffectReservation,
-        &mut FinalCommitCut,
-    ) -> CommitAttempt<T, Uncertain>
+        &mut FinalCommitCut<Uncertain>,
+    ) -> CommitAttempt<T>
     + Send
     + 'static,
     reconcile: impl FnOnce(&mut LocalSnapback, &Intent, &Uncertain) -> ExactReconciliation<T>
     + Send
     + 'static,
-    retain_uncertain: impl FnOnce(Uncertain) + Send + 'static,
+    uncertain_retention: CommitUncertainRetention<Uncertain>,
 ) -> CommitCapsuleOutcome<T>
 where
     T: Send + 'static,
@@ -316,11 +333,18 @@ where
             intent,
             transact,
             reconcile,
-            retain_uncertain,
+            uncertain_retention,
         )
     };
-    let Ok((mut guard, reservation, terminal_gate, intent, transact, reconcile, retain_uncertain)) =
-        timeout_at(spec.deadline, queued).await
+    let Ok((
+        mut guard,
+        reservation,
+        terminal_gate,
+        intent,
+        transact,
+        reconcile,
+        uncertain_retention,
+    )) = timeout_at(spec.deadline, queued).await
     else {
         return CommitCapsuleOutcome::TimedOut {
             phase: CommitTimeoutPhase::WriterAcquire,
@@ -330,8 +354,7 @@ where
     tokio::task::spawn_blocking(move || {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
         let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
-        let mut final_cut =
-            FinalCommitCut::new::<Uncertain, _>(spec.operation, spec.deadline, retain_uncertain);
+        let mut final_cut = FinalCommitCut::new(spec.operation, spec.deadline, uncertain_retention);
         let attempt = catch_unwind(AssertUnwindSafe(|| {
             transact(
                 &mut guard,
@@ -344,25 +367,24 @@ where
 
         let output = match attempt {
             Err(payload) => {
-                // If COMMIT had started, FinalCommitCut moved the ambiguity
-                // carrier here before calling the pending adapter. Retain it
-                // only after the admission guard has unwound.
+                // If COMMIT had started, FinalCommitCut has owned the
+                // ambiguity carrier since before calling the pending adapter.
+                // Retain it only after the admission guard has unwound.
                 final_cut.retain_panic_uncertain();
                 drop(reservation);
                 BlockingCapsuleResult::Panicked(payload)
             }
             Ok(attempt) => {
-                // The caller permit never spans reconciliation or response
-                // publication, even when COMMIT returned an ambiguous error.
-                drop(reservation);
                 match attempt {
                     CommitAttempt::Committed(value) => {
+                        drop(reservation);
                         BlockingCapsuleResult::Complete(CommitCapsuleOutcome::Committed {
                             value,
                             reconciled: false,
                         })
                     }
                     CommitAttempt::RolledBack(error) => {
+                        drop(reservation);
                         BlockingCapsuleResult::Complete(match final_cut.disposition {
                             Some(FinalCutDisposition::TimedOut) => CommitCapsuleOutcome::TimedOut {
                                 phase: CommitTimeoutPhase::FinalCut,
@@ -375,18 +397,14 @@ where
                     }
                     CommitAttempt::CommitUncertain {
                         cause: _commit_cause,
-                        carrier,
                     } => {
-                        // Reconciliation only borrows the carrier. The capsule
-                        // owns the value before entering caller code, so an
-                        // unwind cannot drop the last fail-closed owner.
-                        final_cut.own_reconciliation_carrier(carrier);
+                        // FinalCommitCut has owned the carrier continuously
+                        // since prepare_commit, including across the return
+                        // through caller code. Release the caller permit only
+                        // after that ownership is established.
+                        drop(reservation);
                         let reconciliation = catch_unwind(AssertUnwindSafe(|| {
-                            reconcile(
-                                &mut guard,
-                                &intent,
-                                final_cut.reconciliation_carrier::<Uncertain>(),
-                            )
+                            reconcile(&mut guard, &intent, final_cut.reconciliation_carrier())
                         }));
                         match reconciliation {
                             Err(payload) => {

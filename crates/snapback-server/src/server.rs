@@ -155,7 +155,8 @@ pub use api_error::*;
 use asset_routes::*;
 pub(crate) use commit_capsule::{
     CommitAttempt, CommitCapsuleOutcome, CommitCapsuleSpec, CommitTimeoutPhase,
-    ExactReconciliation, FinalCommitCut, PendingCommit, with_bounded_commit_capsule,
+    CommitUncertainRetention, ExactReconciliation, FinalCommitCut, PendingCommit,
+    with_bounded_commit_capsule,
 };
 use effects::*;
 use instance_home::*;

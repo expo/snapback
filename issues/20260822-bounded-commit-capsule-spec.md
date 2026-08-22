@@ -136,13 +136,16 @@ pub(crate) struct CommitCapsuleSpec {
     pub uncertain_diagnostic: &'static str,
 }
 
-pub(crate) enum CommitAttempt<T, U> {
+pub(crate) enum CommitAttempt<T> {
     Committed(T),
     RolledBack(SnapbackError),
     CommitUncertain {
         cause: SnapbackError,
-        carrier: U,
     },
+}
+
+pub(crate) struct CommitUncertainRetention<U> {
+    retained: Arc<Mutex<Vec<U>>>,
 }
 
 pub(crate) enum ExactReconciliation<T> {
@@ -181,14 +184,14 @@ pub(crate) async fn with_bounded_commit_capsule<T, Intent, Gate, Uncertain>(
         &Intent,
         Gate,
         &AuthorizedEffectReservation,
-        &mut FinalCommitCut,
-    ) -> CommitAttempt<T, Uncertain> + Send + 'static,
+        &mut FinalCommitCut<Uncertain>,
+    ) -> CommitAttempt<T> + Send + 'static,
     reconcile: impl FnOnce(
         &mut LocalSnapback,
         &Intent,
         &Uncertain,
     ) -> ExactReconciliation<T> + Send + 'static,
-    retain_uncertain: impl FnOnce(Uncertain) + Send + 'static,
+    uncertain_retention: CommitUncertainRetention<Uncertain>,
 ) -> CommitCapsuleOutcome<T>;
 ```
 
@@ -197,22 +200,23 @@ future that has not been polled owns no permit, and the API cannot accept an alr
 reservation. A reservation refusal returns its existing typed authority error before the capsule
 opens a transaction.
 
-After an ambiguous COMMIT, the capsule takes ownership of the uncertainty carrier before invoking
-`reconcile`, which only borrows it. A reconciliation panic is caught while the carrier is still
-capsule-owned and transfers that carrier to `retain_uncertain`; only a normal exact result may
-discard it.
+Before COMMIT, the capsule takes ownership of the uncertainty carrier and keeps it continuously
+through the return from caller-controlled transaction code and through `reconcile`, which only
+borrows it. Uncertain and panic paths insert the carrier directly into shared capsule retention
+storage before any retain-step hook may run. A retain-step unwind therefore cannot drop the sole
+carrier; only a normal exact result may discard it.
 
 `Gate` must be an opaque, non-cloneable rollback-on-drop carrier. Revocation passes `ServiceAuthorityTerminalGate`; ordinary writes pass `()`.
 
 `FinalCommitCut` exposes only the final operation:
 
 ```rust
-impl FinalCommitCut {
+impl<U> FinalCommitCut<U> {
     fn commit<T>(
         &mut self,
         reservation: &AuthorizedEffectReservation,
-        pending: impl PendingCommit<Output = T>,
-    ) -> CommitAttempt<T, _>;
+        pending: impl PendingCommit<Output = T, Uncertain = U>,
+    ) -> CommitAttempt<T>;
 }
 ```
 
@@ -378,7 +382,10 @@ One hardening is required before prototype success: the existing service-termina
 
 Adoption can be route-by-route; no simultaneous program-wide cutover is required.
 
-For each landed split-phase fence, replace only the post-reservation `lock_managed_snapback` acquisition and thread the final-cut token to its deepest transaction seam. Success behavior and queue ordering remain unchanged.
+For each landed split-phase fence, replace the caller-side reservation plus post-reservation
+`lock_managed_snapback` acquisition with one capsule call, pass its `PreparedAuthority`, and thread
+the final-cut token to the deepest transaction seam. Success behavior and queue ordering remain
+unchanged.
 
 Observable behavior does change:
 
@@ -406,6 +413,7 @@ A timeout after one sibling commit may never claim `effectCommitted: false`.
 | Pre-guard | Pause immediately before the paired deadline-check/`commit_guard`; let deadline expire | Explicit rollback, final-cut timeout/effect false, commit observer count zero, logout drains | `commit_guard`, COMMIT, uncertainty |
 | During COMMIT | Pause after `CommitStarted`; let deadline expire; inject success-with-lost-ack and real commit error variants | Never return timeout; exact successor becomes committed, otherwise uncertainty; caller permit drops | Effect-free retry diagnostic |
 | Reconciliation | Return an ambiguous COMMIT, pause inside exact reconciliation, then panic | Caller permit is already released; the capsule retains the carrier and the terminal domain stays fail-closed | Rollback-on-drop reopening the terminal domain |
+| Retention | Return unresolved reconciliation; pause after shared retention storage owns the carrier; panic inside the retain step | The stored carrier survives unwind and the terminal domain stays fail-closed; caller permit is already released | Sole carrier ownership in the panicking frame or terminal reopen |
 | Post-commit/pre-response | Pause after COMMIT and resource release but before response; start logout and then drop response | Logout completes; one durable effect; no automatic retry on transport loss; replay of the same idempotency identity returns existing result | A second grant/watch/job/mutation or `effectCommitted: false` |
 
 Every barrier also runs a panic/unwind variant. Before COMMIT, reopening and permit release are required. After `CommitStarted`, the target gate must stay ambiguous/fail-closed and the result must never become retryable.
@@ -428,7 +436,7 @@ Before migrating any route, build a test-only, route-free prototype consisting o
 2. `FinalCommitCut` over one file-backed SQLite transaction.
 3. A test-only operation ledger row keyed by an immutable operation ID, with an exact expected payload and a consumed-proof row.
 4. Real `AuthorizedEffectReservation` and `ServiceAuthorityTerminalGate` fixtures.
-5. The seven barriers above.
+5. The eight barriers above.
 6. A commit adapter that can inject:
    - rollback before COMMIT;
    - commit success;

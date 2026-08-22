@@ -36336,9 +36336,11 @@ struct CommitCapsuleHooks {
     pre_guard: Option<Arc<CommitCapsuleBarrier>>,
     during_commit: Option<Arc<CommitCapsuleBarrier>>,
     reconcile: Option<Arc<CommitCapsuleBarrier>>,
+    retain: Option<Arc<CommitCapsuleBarrier>>,
     panic_post_staging: bool,
     panic_pre_guard: bool,
     panic_reconcile: bool,
+    panic_retain: bool,
     commit_guard_failure: Option<SnapbackError>,
 }
 
@@ -36357,6 +36359,19 @@ async fn run_commit_capsule_prototype<Gate: Send + 'static>(
     let transact_receipt = commit_receipt.clone();
     let reconcile_barrier = hooks.reconcile.clone();
     let panic_reconcile = hooks.panic_reconcile;
+    let retain_barrier = hooks.retain.clone();
+    let panic_retain = hooks.panic_retain;
+    let mut uncertain_retention = super::CommitUncertainRetention::new(&retained);
+    if retain_barrier.is_some() || panic_retain {
+        uncertain_retention.set_after_store_for_test(move || {
+            if let Some(barrier) = retain_barrier {
+                barrier.block();
+            }
+            if panic_retain {
+                panic!("injected bounded commit capsule panic during retain")
+            }
+        });
+    }
     super::with_bounded_commit_capsule(
         state,
         super::CommitCapsuleSpec {
@@ -36456,12 +36471,7 @@ async fn run_commit_capsule_prototype<Gate: Send + 'static>(
                 Err(cause) => super::ExactReconciliation::Uncertain { cause },
             }
         },
-        move |carrier| {
-            retained
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .push(carrier);
-        },
+        uncertain_retention,
     )
     .await
 }
@@ -36539,6 +36549,51 @@ async fn bounded_commit_capsule_unpolled_future_owns_no_authority_permit() {
             phase: super::CommitTimeoutPhase::WriterAcquire
         }
     ));
+    let facts = database.facts(&intent).await;
+    assert_eq!(facts.operation_rows, 0);
+    assert_eq!(facts.proof_rows, 0);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn bounded_commit_capsule_live_reservation_refusal_is_not_timeout() {
+    let database = CommitCapsulePrototypeDatabase::new().await;
+    let intent = commit_capsule_intent("entry-refusal");
+    let caller = CommitCapsuleCallerFixture::new("entry-refusal").await;
+    let authority = caller.authority();
+    let expected_guard = caller.expected_guard();
+
+    // End the prepared caller authority before the capsule is first polled.
+    // The still-live deadline must not hide that terminal refusal as a 503.
+    assert_commit_capsule_logout_completes(caller.spawn_logout_drain()).await;
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(30);
+    let retained = Arc::new(StdMutex::new(Vec::<CommitCapsuleUncertain<()>>::new()));
+    let outcome = run_commit_capsule_prototype(
+        &database.state,
+        deadline,
+        authority,
+        (),
+        intent.clone(),
+        CommitCapsuleInjection::Success,
+        CommitCapsuleHooks::default(),
+        expected_guard,
+        Arc::new(StdMutex::new(None)),
+        retained.clone(),
+    )
+    .await;
+
+    assert!(tokio::time::Instant::now() < deadline);
+    let super::CommitCapsuleOutcome::Refused(error) = outcome else {
+        panic!("a live capsule-entry refusal must remain Refused")
+    };
+    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_SESSION_EXPIRED");
+    assert_eq!(
+        error.diagnostic.details["capsuleOutcome"],
+        "authorityRefused"
+    );
+    assert_eq!(error.diagnostic.details["effectCommitted"], false);
+    assert_eq!(error.diagnostic.details["effectMayHaveCommitted"], false);
+    assert_eq!(error.diagnostic.details["retryable"], false);
+    assert!(retained.lock().unwrap().is_empty());
     let facts = database.facts(&intent).await;
     assert_eq!(facts.operation_rows, 0);
     assert_eq!(facts.proof_rows, 0);
@@ -37265,6 +37320,81 @@ async fn bounded_commit_capsule_reconciliation_panic_retains_terminal_domain() {
     assert_eq!(facts.operation_rows, 1);
     assert_eq!(facts.proof_rows, 1);
     assert!(facts.exact_intended_rows);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn bounded_commit_capsule_retain_panic_keeps_terminal_domain_closed() {
+    let database = CommitCapsulePrototypeDatabase::new().await;
+    let intent = commit_capsule_intent("retain-panic");
+    let caller = CommitCapsuleCallerFixture::new("retain-panic").await;
+    let expected_guard = caller.expected_guard();
+    let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
+    let barrier = Arc::new(CommitCapsuleBarrier::default());
+    let receipt = Arc::new(StdMutex::new(None));
+    let retained = Arc::new(StdMutex::new(Vec::<
+        CommitCapsuleUncertain<crate::auth::service_fence::ServiceAuthorityTerminalGate>,
+    >::new()));
+    let state = database.state.clone();
+    let capsule = tokio::spawn({
+        let barrier = barrier.clone();
+        let receipt = receipt.clone();
+        let retained = retained.clone();
+        let intent = intent.clone();
+        let authority = caller.authority();
+        async move {
+            run_commit_capsule_prototype(
+                &state,
+                tokio::time::Instant::now() + Duration::from_secs(3),
+                authority,
+                gate,
+                intent,
+                CommitCapsuleInjection::CommitErrorRowsAbsent,
+                CommitCapsuleHooks {
+                    retain: Some(barrier),
+                    panic_retain: true,
+                    ..CommitCapsuleHooks::default()
+                },
+                expected_guard,
+                receipt,
+                retained,
+            )
+            .await
+        }
+    });
+
+    barrier.wait_until_reached().await;
+    assert_eq!(
+        retained.lock().unwrap().len(),
+        1,
+        "shared retention must own the carrier before retain-step caller code"
+    );
+    assert!(terminal.is_fail_closed());
+    assert!(
+        !capsule.is_finished(),
+        "retain barrier keeps the capsule live"
+    );
+    assert_commit_capsule_logout_completes(caller.spawn_logout_drain()).await;
+
+    barrier.release();
+    let panicked = capsule
+        .await
+        .expect_err("retain-step panic reaches the caller task");
+    assert!(panicked.is_panic());
+    let observed = receipt
+        .lock()
+        .unwrap()
+        .clone()
+        .expect("retain panic commit observation");
+    assert_eq!(observed.matching_commits(), 1);
+    assert_eq!(observed.mismatched_commits(), 0);
+    assert_eq!(retained.lock().unwrap().len(), 1);
+    assert!(terminal.is_fail_closed());
+    let facts = database.facts(&intent).await;
+    assert_eq!(facts.operation_rows, 0);
+    assert_eq!(facts.proof_rows, 0);
+    assert!(!facts.exact_intended_rows);
+    retained.lock().unwrap().clear();
+    terminal.assert_reopened();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
