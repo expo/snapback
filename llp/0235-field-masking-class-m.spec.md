@@ -1017,13 +1017,17 @@ Class M is not implemented or claimable until all of the following pass:
 
 ## Status
 
-Draft. This document specifies the class-M contract; it does not claim the
+Accepted. This document specifies the class-M contract; it does not claim the
 current runtime implements it. The current pointing-room boundary remains the
-declared, handler-enforced `fieldBoundary:` residual until the Acceptance gate
-passes.
+declared, handler-enforced `fieldBoundary:` residual until the implementation
+Acceptance gate passes.
 
 ## Revision history
 
+- 2026-08-22 — Accepted by author ruling as the governing class-M design after
+  W6; implementation remains scheduled after LLP 0294 W6, and the shipped
+  pointing-room boundary remains the declared `fieldBoundary:` residual until
+  the implementation Acceptance gate passes.
 - 2026-08-12 — first revision (Draft); final self-review added the explicit
   relation `via` grammar and completed the pointing-room `rounds`/`votes` policy
   pair.

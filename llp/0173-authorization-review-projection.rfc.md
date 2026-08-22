@@ -5,6 +5,8 @@
 **Systems:** Authorization, Code generation, Generated artifacts, Diagnostics, Testing
 **Author:** Codex (gpt-5.6-sol) / Charlie Cheever
 **Date:** 2026-08-04
+**Revised:** 2026-08-22 (recorded LLP 0235's author acceptance separately from
+the contemporaneous 2026-08-15 Draft history; projection remains reserved)
 **Revised:** 2026-08-15
 **Related:** LLP 0032, LLP 0037, LLP 0058, LLP 0062, LLP 0065, LLP 0100, LLP 0115, LLP 0170, LLP 0172, LLP 0231, LLP 0234, LLP 0235, LLP 0240
 
@@ -333,6 +335,10 @@ human renderer's closed table-policy relation does not authorize any of them.
   relational/bounded/snapshot uncomposed diagnostics, LLP 0231 D7 call-local
   `ctx.db.elevated`, handler `fieldBoundary:` residuals, and LLP 0240 authority
   profile identity. Reserved empty, versioned schema room for Draft LLP 0234
-  overrides/transitions, Accepted LLP 0235 class-M projection facts, and future
+  overrides/transitions, Draft LLP 0235 class-M projection facts, and future
   LLP 0231 D6 write checks; specified the focused staleness checker and
   structural human diff rendering without changing this RFC's status.
+- 2026-08-22 — recorded the author ruling that Accepted LLP 0235 now governs
+  class-M design. The projection section remains reserved and empty until
+  implementation; this changes neither the projection schema nor this RFC's
+  status.

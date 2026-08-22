@@ -5,6 +5,8 @@
 **Systems:** Auth, Security/authorization, Storage, Live queries, Code generation, Client integration, Testing
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-10
+**Revised:** 2026-08-22 (D3 sibling status reconciled with the LLP 0235 author
+ruling; class-M implementation remains unshipped)
 **Revised:** 2026-08-15 (D3 all-read-surface composition closure; D7 explicit handler-read authority; membership self-resource visibility; D5 elevated-read runtime observation)
 **Related:** LLP 0011, LLP 0035, LLP 0043, LLP 0046, LLP 0053, LLP 0056, LLP 0070, LLP 0073, LLP 0080, LLP 0085, LLP 0170, LLP 0172, LLP 0173, LLP 0187, LLP 0230, LLP 0234, LLP 0235
 
@@ -333,7 +335,8 @@ the prior-art survey (LLP 0230) contained no field-level enforcement literature
 grammar goes to a sibling spec grounded in that reading, with pointing-room as
 its acceptance-gated worked case. **That reading was done on 2026-08-12 and
 lands as LLP 0230 Tier 5; the sibling is
-[LLP 0235](./0235-field-masking-class-m.spec.md), Draft.** The reading changed
+[LLP 0235](./0235-field-masking-class-m.spec.md), Accepted and
+unimplemented.** The reading changed
 one thing this section should record: masking applied at projection time is not
 a boundary as a matter of empirical record rather than argument — SurrealDB
 shipped a correct conditional per-field rule and had it bypassed six documented
@@ -844,3 +847,6 @@ and the uncomposed-surface diagnostic is now a generation refusal.
   card-game completion matrix removes the real hand policy in a temporary
   fixture and proves the direct, relational, bounded, and snapshot paths fail;
   card-game has no search index.
+- 2026-08-22 — reconciled D3's live sibling status with the author ruling:
+  LLP 0235 is Accepted and unimplemented. The dated 2026-08-12 Draft entry
+  remains the contemporaneous record.

@@ -9,8 +9,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:c890384688d13e21ac6712b7874108395d57bdcc5831244ca05e841e8aaf85ba
+reviewed: 2026-08-22
+reviewed-authorities-digest: sha256:d6eec55da534593e1752c945db0d2955d4a85dde8ad31c43bba75e4dc1c1f84f
 ---
 
 # Capability index

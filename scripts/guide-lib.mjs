@@ -65,7 +65,7 @@ const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
 // Bumped 58880 -> 60416 on 2026-08-16 for LLP 0240's shipped custom-authority
 // and effective-authority-inspection rows.
 // Bumped 60416 -> 61440 on 2026-08-21 for the required auth.field-masking GAP
-// row owned by Draft LLP 0235; the index had no room for the classification,
+// row owned by LLP 0235 while it was Draft; the index had no room for the classification,
 // exact diary vocabulary, owner, review date, filing pointer, and workaround.
 const CAPABILITIES_SIZE_BUDGET_BYTES = 61440;
 const SURFACE_MAP_SIZE_BUDGET_BYTES = 16384;
