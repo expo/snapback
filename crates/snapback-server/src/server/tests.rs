@@ -18065,6 +18065,39 @@ async fn integration_key_holder_retires_the_complete_installed_family() {
     })
     .await
     .unwrap();
+
+    // Exercise the registered route and its InvocationSource gate. A direct
+    // handler call would miss the source/authority matrix that previously
+    // made this documented integration branch unreachable.
+    let delegated_watch = Request::builder()
+        .method("POST")
+        .uri("/watches")
+        .header(header::CONTENT_TYPE, "application/json")
+        .header(header::AUTHORIZATION, format!("Bearer {scoped_token}"))
+        .header("x-snapback-auth-client-protocol", "1")
+        .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+        .body(Body::from(
+            serde_json::to_vec(&json!({
+                "ownerKind": "integration",
+                "authorityMode": "capturedGrant",
+                "query": { "function": "liveItems", "args": {} },
+                "predicate": { "path": "/rows", "op": "exists" },
+                "reaction": { "kind": "function", "function": "listItems", "args": {} },
+            }))
+            .unwrap(),
+        ))
+        .unwrap();
+    let delegated_watch = router.clone().oneshot(delegated_watch).await.unwrap();
+    let delegated_watch_status = delegated_watch.status();
+    let delegated_watch = response_json(delegated_watch).await;
+    assert_eq!(
+        delegated_watch_status,
+        StatusCode::CREATED,
+        "production-gated delegated watch creation: {delegated_watch}"
+    );
+    assert_eq!(delegated_watch["ownerKind"], "integration");
+    assert_eq!(delegated_watch["authorityMode"], "capturedGrant");
+
     let attributed_query = Request::builder()
         .method("POST")
         .uri("/api/v1/query/listItems")
@@ -25774,6 +25807,143 @@ async fn detached_ctx_push_send_durable_reservation_returns_without_admission_re
 }
 
 #[tokio::test]
+async fn watch_reaction_ctx_push_send_without_caller_publication_commits() {
+    let mut snapback = LocalSnapback::memory().expect("watch-reaction push state");
+    let keyring = Arc::new(AuthKeyringStore::in_memory());
+    activate_catalog(
+        snapback.remainder_auth_database_mut(),
+        keyring.as_ref(),
+        super::now_millis(),
+        &OsRandom,
+    )
+    .expect("activate watch-reaction push auth catalog");
+    let provider = Arc::new(
+        AuthProvider::new(AuthProviderProfile::Test, keyring)
+            .expect("construct watch-reaction push auth provider"),
+    );
+    let mut context = ServerContext::detached();
+    context.profile = ServerProfile::Test;
+    let state = activate_test_sessions(
+        test_app_state_from_snapback(snapback, context)
+            .with_policy_auth_mode(PolicyAuthMode::Sessions)
+            .try_with_auth_provider(provider)
+            .expect("install watch-reaction push auth provider"),
+    );
+    let watch_owner =
+        crate::ids::mint(crate::ids::Kind::User).expect("watch-reaction push owner principal");
+    with_snapback(&state.snapback, {
+        let watch_owner = watch_owner.clone();
+        move |snapback| {
+            let declaration = immediate_push_declaration();
+            let database = snapback.remainder_auth_database_mut();
+            database.activate_push_registry_for_test(declaration.clone())?;
+            let mut schema = database.schema().clone();
+            schema.push_seam = Some(declaration);
+            schema.tables.push(TableManifest {
+                name: "app_members".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "principal".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "role".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                ],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                membership: Some(crate::manifest::MembershipManifest {
+                    id: Some("app_members".to_owned()),
+                    principal: "principal".to_owned(),
+                    resource: None,
+                    role: "role".to_owned(),
+                    roles: vec!["sender".to_owned()],
+                    pending_roles: None,
+                    bootstrap_role: None,
+                    last_holder: None,
+                    expiry: None,
+                    incidental: None,
+                    provenance: None,
+                    transitions: Vec::new(),
+                    principal_addressed_writes: None,
+                    scope: crate::manifest::MembershipScope::App,
+                    resource_table: None,
+                }),
+                authority_profile: None,
+                asset_sharing: None,
+                visibility: None,
+                history: None,
+            });
+            database
+                .push_registry()
+                .install_immediate_sender_for_test(schema, &watch_owner)?;
+            let diagnostics = snapback.load_functions(generation_test_manifest());
+            assert!(
+                diagnostics.iter().all(|diagnostic| {
+                    diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
+                }),
+                "watch-reaction push functions load: {diagnostics:?}"
+            );
+            Ok::<_, SnapbackError>(())
+        }
+    })
+    .await
+    .expect("activate watch-reaction push seam and action");
+
+    let staged = stage_held_action(&state.snapback);
+    let mut host = held_action_host(state.snapback.clone(), &staged);
+    host.authority = InvocationGate::prepare_admitted_authority(
+        InvocationSource::WatchReaction,
+        AuthMode::Sessions,
+        state.server.profile,
+        test_route_admission(&state).0,
+        &WireAuthorityFields::default(),
+        ResolvedAppAuthority::RevalidatedPrincipal {
+            user_id: watch_owner,
+            authority_instance_id: "watch-reaction-push-authority".into(),
+        },
+        None,
+    )
+    .expect("prepare credential-free watch-reaction authority");
+    assert!(
+        !host.authority.has_fenced_publication(),
+        "watch reactions must not synthesize a caller publication"
+    );
+    let unregistered_principal = crate::ids::mint(crate::ids::Kind::User)
+        .expect("unregistered watch-reaction push principal");
+    let response = host
+        .push_send(crate::push::PushSendRequestV1 {
+            to: crate::contract_types::PushAudienceReferenceV1 {
+                audience: "selectedMembers".into(),
+                args: Map::from_iter([("principalIds".into(), json!([unregistered_principal]))]),
+            },
+            title: "watch reaction".into(),
+            body: "credential-free send still commits".into(),
+            data: None,
+            dedupe_key: "watch-reaction-credential-free".into(),
+            redrive_ambiguous: false,
+        })
+        .expect("credential-free watch-reaction ctx.push.send commits");
+    assert_eq!(response.target_count, 0);
+    assert_eq!(response.batch_count, 0);
+    let intent_id = response.intent_id.clone();
+    let durable_state = with_snapback(&state.snapback, move |snapback| {
+        snapback.push_intent_state(&intent_id)
+    })
+    .await
+    .expect("watch-reaction push intent is durably readable after send");
+    assert_eq!(durable_state, response.state);
+}
+
+#[tokio::test]
 async fn llp0163_managed_host_action_retries_reuse_one_host_child_envelope() {
     let mut snapback = LocalSnapback::memory().expect("managed host identity state");
     let app_id = "operation-carrier-fixture";
@@ -31796,6 +31966,124 @@ mode_only_migration_authorized_effect_race_tests!(
     watch_creation_authorized_effect_reservation_wins_before_logout,
     ModeOnlyMigrationAuthorizedEffectSite::WatchCreation
 );
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn watch_creation_writer_wait_timeout_drops_reservation_and_unblocks_logout() {
+    let fixture = mode_only_migration_authorized_effect_fixture(
+        ModeOnlyMigrationAuthorizedEffectSite::WatchCreation,
+    )
+    .await;
+    let authority = prepared_test_session_route_authority(
+        &fixture.state,
+        InvocationSource::WatchManagement,
+        &fixture.bearer,
+    );
+    let preflight_authority = authority.clone();
+    let prepared = with_snapback(&fixture.state.snapback, move |snapback| {
+        snapback.preflight_watch_creation(
+            &preflight_authority,
+            crate::watches::CreateWatchSpec {
+                query_function: "liveItems".to_owned(),
+                query_args: json!({}),
+                predicate: json!({ "path": "/rows", "op": "exists" }),
+                reaction: crate::watches::WatchReactionSpec::Function {
+                    function: "listItems".to_owned(),
+                    args: json!({}),
+                },
+                debounce_ms: crate::watches::DEFAULT_DEBOUNCE_MS,
+                daily_firing_budget: crate::watches::DEFAULT_DAILY_FIRING_BUDGET,
+            },
+            super::now_millis(),
+        )
+    })
+    .await
+    .expect("watch preflight completes before reservation");
+
+    // Prepare the read-only logout plan before deliberately occupying Local,
+    // so the terminal projection drain below isolates the retained permit
+    // from logout's own database planning work.
+    let provider = fixture
+        .state
+        .auth_provider
+        .clone()
+        .expect("watch timeout auth provider");
+    let admission = provider.admit().await;
+    let logout_bearer = fixture.bearer.clone();
+    let logout_now_ms = provider.now_ms();
+    let planned_logout = with_snapback(&fixture.state.snapback, move |snapback| {
+        snapback.execute_auth_plan(admission.plan_logout_plan(&logout_bearer, logout_now_ms))
+    })
+    .await
+    .expect("prepare watch-timeout logout plan");
+    let super::PlannedLogout::Revoke(logout_plan) = planned_logout else {
+        panic!("live watch-timeout session must produce a revocation plan");
+    };
+    let reservation = authority
+        .reserve_authorized_effect("bounded watch writer wait test")
+        .expect("reserve watch authority");
+
+    let writer_blocker = fixture.state.snapback.clone().lock_owned().await;
+    let commit_state = fixture.state.snapback.clone();
+    let commit = tokio::spawn(async move {
+        super::writer_gate::with_snapback_lock_timeout(
+            &commit_state,
+            Duration::from_millis(25),
+            "watch creation test commit",
+            move |snapback| {
+                snapback.commit_preflighted_watch_with_authorized_effect(
+                    &authority,
+                    prepared,
+                    super::now_millis(),
+                    reservation,
+                )
+            },
+        )
+        .await
+    });
+    let error = tokio::time::timeout(Duration::from_secs(2), commit)
+        .await
+        .expect("watch writer wait is bounded")
+        .expect("watch commit task")
+        .expect_err("blocked writer must time out");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_WRITER_ACQUIRE_TIMEOUT");
+
+    let coordinator = fixture
+        .state
+        .auth_coordinator
+        .clone()
+        .expect("watch timeout auth coordinator");
+    let carrier = tokio::time::timeout(
+        Duration::from_secs(2),
+        coordinator.premark_revocation(logout_plan),
+    )
+    .await
+    .expect("logout projection drain completes after the timed-out waiter drops its reservation")
+    .expect("premark watch-timeout logout");
+    let rollback = SnapbackError::error("TEST_ROLLBACK", "test", "known rollback");
+    let (rollback_outcome, committed_revocations) = coordinator
+        .finish_revocation(carrier, AuthTransactionAttempt::RolledBack(rollback))
+        .into_parts();
+    assert!(committed_revocations.is_empty());
+    assert_eq!(
+        rollback_outcome.unwrap_err().diagnostic.code,
+        "TEST_ROLLBACK"
+    );
+
+    drop(writer_blocker);
+    let logout = tokio::time::timeout(
+        Duration::from_secs(2),
+        fixture.router.oneshot(session_auth_http_request(
+            "/auth/logout",
+            br#"{}"#.to_vec(),
+            &fixture.bearer,
+        )),
+    )
+    .await
+    .expect("production logout completes after the bounded writer failure")
+    .expect("bounded-wait logout response");
+    assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+}
+
 mode_only_migration_authorized_effect_race_tests!(
     agent_invitation_mint_logout_wins_before_authorized_effect_reservation,
     agent_invitation_mint_authorized_effect_reservation_wins_before_logout,

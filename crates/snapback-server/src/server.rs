@@ -2016,14 +2016,13 @@ impl IbexActionHost for DetachedActionHost {
             provider_base.trim_end_matches('/')
         );
         let now_ms = now_millis();
-        let reserve_authorized_effect = match trigger_mode {
-            crate::push::PushTriggerModeV1::Immediate => Some(
+        let reserve_authorized_effect = if self.authority.has_fenced_publication() {
+            Some(
                 self.authority
                     .reserve_authorized_effect("push durable reservation")?,
-            ),
-            crate::push::PushTriggerModeV1::System | crate::push::PushTriggerModeV1::Deferred => {
-                None
-            }
+            )
+        } else {
+            None
         };
         let (mut attempt, access_token) = {
             let mut snapback = self.lock_live("push.send.reserve")?;
@@ -2058,13 +2057,13 @@ impl IbexActionHost for DetachedActionHost {
         });
 
         for batch in &attempt.batches {
-            let claim_authorized_effect = match trigger_mode {
-                crate::push::PushTriggerModeV1::Immediate => Some(
+            let claim_authorized_effect = if self.authority.has_fenced_publication() {
+                Some(
                     self.authority
                         .reserve_authorized_effect("push batch claim")?,
-                ),
-                crate::push::PushTriggerModeV1::System
-                | crate::push::PushTriggerModeV1::Deferred => None,
+                )
+            } else {
+                None
             };
             let Some(claim) = ({
                 let mut snapback = self.lock_live("push.send.claim")?;
@@ -2093,13 +2092,13 @@ impl IbexActionHost for DetachedActionHost {
             let permit = self
                 .authority
                 .begin_service_external_effect(now_millis(), Instant::now())?;
-            let transmitting_authorized_effect = match trigger_mode {
-                crate::push::PushTriggerModeV1::Immediate => Some(
+            let transmitting_authorized_effect = if self.authority.has_fenced_publication() {
+                Some(
                     self.authority
                         .reserve_authorized_effect("push batch transmitting marker")?,
-                ),
-                crate::push::PushTriggerModeV1::System
-                | crate::push::PushTriggerModeV1::Deferred => None,
+                )
+            } else {
+                None
             };
             {
                 let mut snapback = self.lock_live("push.send.transmitting")?;
@@ -26218,6 +26217,8 @@ fn watch_default_renewal_ttl_ms() -> u64 {
     crate::watches::ANCHOR_LIFETIME_MS
 }
 
+const WATCH_CREATION_COMMIT_LOCK_TIMEOUT: Duration = Duration::from_secs(5);
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct WatchRenewRequest {
@@ -26281,23 +26282,39 @@ async fn watch_create(
             .into());
         }
     };
+    let spec = crate::watches::CreateWatchSpec {
+        query_function: request.query.function,
+        query_args: request.query.args,
+        predicate: request.predicate,
+        reaction,
+        debounce_ms: request.debounce_ms,
+        daily_firing_budget: request.daily_firing_budget,
+    };
+    let preflight_authority = authority.clone();
+    let prepared = with_snapback(&state, move |snapback| {
+        snapback.preflight_watch_creation(&preflight_authority, spec, now_millis())
+    })
+    .await?;
+
+    // DNS resolution, webhook validation, and the initial live-query handler
+    // have completed before the exact publication is retained. The bounded
+    // reacquisition below is the only lock wait while logout must drain this
+    // reservation; dropping a timed-out waiter also drops the reservation.
     let authorized_effect =
         reserve_route_authorized_effect(&authority, &headers, "watch creation transaction").await?;
-    let record = with_snapback(&state, move |snapback| {
-        snapback.create_watch_with_authorized_effect(
-            &authority,
-            crate::watches::CreateWatchSpec {
-                query_function: request.query.function,
-                query_args: request.query.args,
-                predicate: request.predicate,
-                reaction,
-                debounce_ms: request.debounce_ms,
-                daily_firing_budget: request.daily_firing_budget,
-            },
-            now_millis(),
-            authorized_effect,
-        )
-    })
+    let record = writer_gate::with_snapback_lock_timeout(
+        &state,
+        WATCH_CREATION_COMMIT_LOCK_TIMEOUT,
+        "watch creation commit",
+        move |snapback| {
+            snapback.commit_preflighted_watch_with_authorized_effect(
+                &authority,
+                prepared,
+                now_millis(),
+                authorized_effect,
+            )
+        },
+    )
     .await?;
     Ok((StatusCode::CREATED, Json(record)))
 }

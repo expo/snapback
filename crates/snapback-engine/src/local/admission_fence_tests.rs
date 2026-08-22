@@ -1302,10 +1302,11 @@ fn watch_creation_refuses_retired_epoch_and_holds_the_guard_through_commit() {
     let (mut snapback, controller) = watch_creation_fixture();
     let authority = session_authority_for_source(&controller, InvocationSource::WatchManagement);
     let before = durable_database_image(&snapback);
+    let config_generation_before = snapback.config.generation();
     let fired = retire_at_next_effect(AdmissionEffectSite::WatchCreation, controller.clone());
 
     let error = snapback
-        .create_watch(&authority, watch_request(), NOW_MS)
+        .create_watch(&authority, watch_webhook_request(), NOW_MS)
         .expect_err("retired admission must refuse watch creation");
 
     assert_retired_refusal(&error, &fired);
@@ -1314,13 +1315,24 @@ fn watch_creation_refuses_retired_epoch_and_holds_the_guard_through_commit() {
         before,
         "refused watch creation must not add a durable watch"
     );
+    assert_eq!(
+        snapback.config.generation(),
+        config_generation_before,
+        "a refused watch must not durably publish its webhook secret"
+    );
 
     let authority = session_authority_for_source(&controller, InvocationSource::WatchManagement);
     let commit_observed =
         observe_guard_through_next_commit(AdmissionEffectSite::WatchCreation, controller);
     let created = snapback
-        .create_watch(&authority, watch_request(), NOW_MS + 1)
+        .create_watch(&authority, watch_webhook_request(), NOW_MS + 1)
         .expect("live admission guard permits watch creation");
+    let secret_ref = format!("_snapback.webhook.{}", created.watch.id);
+    assert_eq!(
+        snapback.config.values(&secret_ref),
+        Some(["admission-fence-webhook-secret".to_owned()].as_slice()),
+        "the webhook secret and watch row publish beneath the same live guard"
+    );
     assert_eq!(
         snapback
             .list_watches(&authority)

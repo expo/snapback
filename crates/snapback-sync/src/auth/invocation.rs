@@ -1469,6 +1469,14 @@ impl PreparedAuthority {
         self
     }
 
+    /// Whether this prepared caller carries the process-live authorization
+    /// publication that an authorized-effect reservation must retain. Some
+    /// credential-free internal invocations (including watch reactions) run
+    /// in sessions mode without such a carrier and remain mode-fenced only.
+    pub fn has_fenced_publication(&self) -> bool {
+        self.publication.is_some()
+    }
+
     pub fn with_service_publication(mut self, publication: ServiceAuthorityPublication) -> Self {
         self.service_publication = Some(publication);
         self
@@ -2556,9 +2564,16 @@ fn source_allows_authority(
         | InvocationSource::AgentGrantManagement
         | InvocationSource::CapabilityLinkManagement
         | InvocationSource::EffectManagement
-        | InvocationSource::WatchManagement
         | InvocationSource::PushTokenRegistry => {
             mode == AuthMode::Sessions && matches!(resolved, ResolvedAppAuthority::Session { .. })
+        }
+        InvocationSource::WatchManagement => {
+            mode == AuthMode::Sessions
+                && matches!(
+                    resolved,
+                    ResolvedAppAuthority::Session { .. }
+                        | ResolvedAppAuthority::ServicePrincipal { .. }
+                )
         }
         InvocationSource::HttpQuery
         | InvocationSource::HttpMutation
@@ -3676,9 +3691,14 @@ mod tests {
                 | InvocationSource::AgentGrantManagement
                 | InvocationSource::CapabilityLinkManagement
                 | InvocationSource::EffectManagement
-                | InvocationSource::WatchManagement
                 | InvocationSource::PushTokenRegistry => {
                     mode == AuthMode::Sessions && matches!(kind, Kind::Session)
+                }
+                InvocationSource::WatchManagement => {
+                    matches!(
+                        (mode, kind),
+                        (AuthMode::Sessions, Kind::Session | Kind::Service)
+                    )
                 }
                 InvocationSource::HttpQuery
                 | InvocationSource::HttpMutation
