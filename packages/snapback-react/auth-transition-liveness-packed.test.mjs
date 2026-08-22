@@ -36,6 +36,7 @@ const packages = Object.freeze([
   Object.freeze({ name: '@expo/snapback-contract', directory: 'packages/snapback-contract' }),
   Object.freeze({ name: '@expo/snapback-client', directory: 'packages/snapback-client' }),
   Object.freeze({ name: '@expo/snapback-react', directory: 'packages/snapback-react' }),
+  Object.freeze({ name: '@expo/snapback-expo', directory: 'packages/snapback-expo' }),
 ]);
 
 try {

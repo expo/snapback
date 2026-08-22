@@ -7,6 +7,7 @@ import type {
 import type {
   AuthCoordinator,
   SnapbackAuthBarrierParticipant,
+  SnapbackAuthorityTransitionStatus,
 } from '@expo/snapback-contract/auth-coordinator';
 
 export {
@@ -389,6 +390,12 @@ export interface FunctionAttribution {
   readonly dryRun: boolean;
 }
 
+export interface MutationServerTiming {
+  readonly authorizedAtMs: number;
+  readonly executedAtMs: number;
+  readonly committedAtMs: number;
+}
+
 export interface MutationOutput<Result> {
   readonly version: number;
   readonly changed_count: number;
@@ -399,6 +406,7 @@ export interface MutationOutput<Result> {
   readonly receipt: Readonly<Record<string, unknown>>;
   readonly attribution?: FunctionAttribution;
   readonly facts?: FunctionInvocationFacts;
+  readonly timing: MutationServerTiming;
   readonly clientMutationId?: string;
   readonly optimistic?: Readonly<{
     operationHash: `sha256:${string}`;
@@ -432,9 +440,18 @@ export type MutationDispatchOutcome<Result> =
     readonly presentation: 'installed' | 'withheld' | 'unavailable';
     readonly operationCoverageDisposition?: string;
     readonly operationHash?: string;
+    readonly blockedReason?: 'auth-barrier' | 'connectivity';
   };
 
-export type MutationDisposition =
+export interface MutationTiming {
+  readonly enqueuedAtMs: number | null;
+  readonly dispatchedAtMs: number | null;
+  readonly authorizedAtMs: number | null;
+  readonly executedAtMs: number | null;
+  readonly committedAtMs: number | null;
+}
+
+export type MutationDisposition = (
   | { readonly status: 'pending'; readonly blockedReason: string | null }
   | {
     readonly status: 'settled';
@@ -453,7 +470,8 @@ export type MutationDisposition =
     readonly outcome: 'committed' | 'refused';
     readonly receiptDigest: `sha256:${string}`;
   }
-  | { readonly status: 'unknown' };
+  | { readonly status: 'unknown' }
+) & { readonly timing: MutationTiming };
 
 export interface OptimisticMutationViewSnapshot {
   readonly format: 'snapback.optimistic-rebase-snapshot.v1';
@@ -640,6 +658,8 @@ export interface SnapbackClientAuthNamespace {
   readonly authLogout: SnapbackClient['authLogout'];
   readonly authTerminalStatus: SnapbackClient['authTerminalStatus'];
   readonly subscribeAuthTerminal: SnapbackClient['subscribeAuthTerminal'];
+  readonly authorityTransitionStatus: SnapbackClient['authorityTransitionStatus'];
+  readonly subscribeAuthorityTransition: SnapbackClient['subscribeAuthorityTransition'];
 }
 
 export interface AuthChallengePublicProjectionV1 {
@@ -831,6 +851,10 @@ export interface LiveQueryAuthorizationDenial {
 export interface LiveQueryHandle<Rows> {
   subscriptionId: string | null;
   version: number;
+  /** Wall-clock time of the most recent authoritative delivery. */
+  readonly lastDeliveryAtMs: number | null;
+  /** Monotone count of authoritative deliveries for this handle. */
+  readonly authoritativeRevision: number;
   rows: Rows;
   /** Canonical server/retained rows before generated private layers. */
   readonly authoritativeRows: Rows;
@@ -1843,6 +1867,11 @@ export class SnapbackClient {
       readonly optimisticOperation?: Readonly<Record<string, unknown>> | null;
       readonly authorityCapture?: unknown;
       readonly queue?: 'auto' | boolean;
+      readonly housekeeping?: Readonly<{
+        readonly key: string;
+        readonly idempotent: true;
+        readonly successorValid: true;
+      }> | null;
     },
   ): Promise<MutationDispatchOutcome<FunctionResult<Ref>>>;
   mutate<Result = unknown>(
@@ -1859,6 +1888,11 @@ export class SnapbackClient {
       readonly optimisticOperation?: Readonly<Record<string, unknown>> | null;
       readonly authorityCapture?: unknown;
       readonly queue?: 'auto' | boolean;
+      readonly housekeeping?: Readonly<{
+        readonly key: string;
+        readonly idempotent: true;
+        readonly successorValid: true;
+      }> | null;
     },
   ): Promise<MutationDispatchOutcome<Result>>;
   /** The resolved persistence store's implementation/durability facts. */
@@ -1931,6 +1965,11 @@ export class SnapbackClient {
    * a custody replacement; returns the unsubscribe. Listeners observe via
    * authTerminalStatus() and never own auth state. */
   subscribeAuthTerminal(listener: () => void): () => void;
+  /** Phase-9 settled-authority readiness consumed by provider adapters. */
+  authorityTransitionStatus(): SnapbackAuthorityTransitionStatus;
+  subscribeAuthorityTransition(
+    listener: (status: SnapbackAuthorityTransitionStatus) => void,
+  ): () => void;
   /** Structured LLP 0043 M2 queue/replay diagnostics (bounded ring). */
   readonly outboxDiagnostics: readonly Record<string, unknown>[];
   action<Ref extends FunctionRef<'Action'>>(
@@ -2262,3 +2301,24 @@ export {
   type DefaultRqsStoreResolution,
   type NativeRqsFilesProvider,
 } from './rqs-store-default.mjs';
+export type {
+  ClientAuthorityConformanceRow,
+  ClientAuthorityMatrixCell,
+  ClientAuthorityOperationTiming,
+  ClientAuthorityState,
+  ClientAuthoritySurface,
+  ClientAuthorityTerminal,
+  ClientAuthorityTransitionEvent,
+} from './authority-transition.mjs';
+export {
+  CLIENT_AUTHORITY_OPERATION_TIMINGS,
+  CLIENT_AUTHORITY_STATES,
+  CLIENT_AUTHORITY_STATE_MATRIX,
+  CLIENT_AUTHORITY_SURFACES,
+  CLIENT_AUTHORITY_TERMINALS,
+  CLIENT_AUTHORITY_TRANSITION_CONFORMANCE_ROWS,
+  CLIENT_AUTHORITY_TRANSITION_EVENTS,
+  authorityTransitionCell,
+  classifyClientAuthorityState,
+  generateAuthorityTransitionConformanceRows,
+} from './authority-transition.mjs';

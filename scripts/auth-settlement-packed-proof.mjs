@@ -19,6 +19,12 @@ const {
   createMemoryAuthCustodyStorage,
 } = await import(moduleUrl('@expo/snapback-contract', 'auth-coordinator.mjs'));
 const { SnapbackClient } = await import(moduleUrl('@expo/snapback-client', 'index.mjs'));
+const { createMemoryRqsResumeStore } = await import(
+  moduleUrl('@expo/snapback-client', 'rqs-store-memory.mjs')
+);
+const {
+  CLIENT_AUTHORITY_TRANSITION_CONFORMANCE_ROWS,
+} = await import(moduleUrl('@expo/snapback-client', 'authority-transition.mjs'));
 const { prepareReactBindingForClient } = await import(
   moduleUrl('@expo/snapback-client', 'react-binding.mjs')
 );
@@ -29,6 +35,17 @@ const {
   SnapbackProvider: FamiliarSnapbackProvider,
   useQuery: useFamiliarQuery,
 } = await import(moduleUrl('@expo/snapback-react', 'familiar.mjs'));
+const packedExpo = await import(moduleUrl('@expo/snapback-expo', 'index.mjs'));
+
+assert.equal(CLIENT_AUTHORITY_TRANSITION_CONFORMANCE_ROWS.length, 2_250);
+assert.equal(
+  packedExpo.CLIENT_AUTHORITY_TRANSITION_CONFORMANCE_ROWS.length,
+  CLIENT_AUTHORITY_TRANSITION_CONFORMANCE_ROWS.length,
+);
+assert.deepEqual(
+  packedExpo.CLIENT_AUTHORITY_TRANSITION_CONFORMANCE_ROWS[0],
+  CLIENT_AUTHORITY_TRANSITION_CONFORMANCE_ROWS[0],
+);
 
 const APP_ID = '018f0d90-7d10-7a22-8c33-445566778899';
 const INCARNATION = '018f0d90-7d11-7a22-8c33-445566778899';
@@ -264,6 +281,127 @@ async function proveOneShots() {
     await gate?.unregister();
     await client.close();
     await coordinator.close();
+    globalThis.fetch = originalFetch;
+  }
+}
+
+async function proveModePendingReload() {
+  const originalFetch = globalThis.fetch;
+  const modePending = (details = {}) => Response.json({
+    diagnostic: {
+      code: 'SNAPBACK_AUTH_MODE_PENDING',
+      message: 'auth-mode activation is settling',
+      details,
+    },
+  }, { status: 503 });
+  const coordinator = new AuthCoordinator({
+    appId: APP_ID,
+    storage: createMemoryAuthCustodyStorage(),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const anonymousCapture = await coordinator.establishAnonymous({
+    kind: 'anonymous',
+    authMode: 'sessions',
+    authorizationStreamIncarnation: INCARNATION,
+  });
+  await coordinator.transition(anonymousCapture, sessionSuccessor(), 'login');
+  const client = new SnapbackClient('https://auth-settlement-packed-mode-pending.test', {
+    authCoordinator: coordinator,
+    authClientProtocol: 1,
+    authInvalidationProtocol: 1,
+    authorityDescriptorProtocol: 1,
+    rqsStore: null,
+    reservationRetryJitterMilliseconds: [0, 0],
+  });
+  try {
+    let attempts = 0;
+    globalThis.fetch = async (url) => {
+      if (new URL(url).pathname === '/auth/session') return Response.json(handshake(true));
+      attempts += 1;
+      return attempts < 3
+        ? modePending()
+        : Response.json({ version: 1, rows: [{ id: 'successor' }] });
+    };
+    assert.deepEqual((await client.query('packedWatchReloadProbe')).rows, [{ id: 'successor' }]);
+    assert.equal(attempts, 3);
+    assert.equal(client.authTerminalStatus().terminated, false);
+    assert.equal(coordinator.settledView().authority.sessionId, SESSION_ID);
+
+    attempts = 0;
+    globalThis.fetch = async (url) => {
+      if (new URL(url).pathname === '/auth/session') return Response.json(handshake(false));
+      attempts += 1;
+      return modePending({ authorityDisposition: 'durableDelete' });
+    };
+    await assert.rejects(
+      client.query('packedStagedModeTransitionProbe'),
+      (error) => (
+        error.diagnostic?.code === 'SNAPBACK_AUTH_MODE_PENDING'
+        && error.authorityDisposition === 'durableDelete'
+      ),
+    );
+    assert.equal(attempts, 1);
+    return Object.freeze({ axislessAttempts: 3, dispositionTerminalAttempts: 1 });
+  } finally {
+    await client.closeAuth();
+    await coordinator.close();
+    globalThis.fetch = originalFetch;
+  }
+}
+
+async function proveHousekeepingBarrier() {
+  const originalFetch = globalThis.fetch;
+  let transportAttempts = 0;
+  globalThis.fetch = async () => {
+    transportAttempts += 1;
+    throw new Error('packed auth-barrier housekeeping proof must issue zero transport');
+  };
+  const transitionStatus = Object.freeze({
+    state: 'authenticating',
+    settled: false,
+    subscribeSafe: false,
+    ephemeralAuthorityUsable: false,
+    transitionOwner: TRANSITION_OWNER,
+    barrierPhase: 'commitDurable',
+    authorityEpoch: 1,
+    custodyRevision: 2,
+    closed: false,
+  });
+  const authorityFence = {
+    authority: null,
+    registerParticipant: () => null,
+    authorityTransitionStatus: () => transitionStatus,
+    subscribeAuthorityTransition(listener) {
+      listener(transitionStatus);
+      return () => {};
+    },
+  };
+  const store = createMemoryRqsResumeStore();
+  store.durability = () => ({ implementation: 'packed-memory-test-double', durable: true });
+  const client = new SnapbackClient('https://auth-settlement-packed-housekeeping.test', {
+    authCoordinator: authorityFence,
+    rqsStore: store,
+    __offlineMutationReplayCapability: true,
+    __outboxDrainLifecycle: false,
+  });
+  try {
+    const queued = await client.mutate('refreshCache', {
+      args: { route: '/inbox' },
+      clientMutationId: 'packed-housekeeping-auth-barrier',
+      housekeeping: { key: 'route-inbox', idempotent: true, successorValid: true },
+    });
+    assert.equal(queued.status, 'queued');
+    assert.equal(queued.blockedReason, 'auth-barrier');
+    assert.equal(transportAttempts, 0);
+    const record = (await store.outboxRecords())
+      .find(({ id }) => id === 'packed-housekeeping-auth-barrier');
+    assert.equal(record.dispatchLane, 'housekeeping');
+    assert.equal(record.status, 'pending');
+    assert.equal((await client.outboxStatus()).blockedReason, 'auth-barrier');
+    return Object.freeze({ blockedReason: 'auth-barrier', transportAttempts });
+  } finally {
+    await client.closeAuth();
     globalThis.fetch = originalFetch;
   }
 }
@@ -520,6 +658,8 @@ async function proveLive() {
 const result = Object.freeze({
   oneShot: await proveOneShots(),
   live: await proveLive(),
+  modePendingReload: await proveModePendingReload(),
+  housekeeping: await proveHousekeepingBarrier(),
 });
 process.stdout.write(`${JSON.stringify(result)}\n`);
 // guide-auth-settlement-packed-proof:end

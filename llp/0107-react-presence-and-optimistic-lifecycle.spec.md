@@ -48,7 +48,7 @@ suites, guide, and exact ten-check retained receipt are complete; hosted
 presence remains unsupported). 2026-07-27 (final author reconciliation pins
 result-contract and expiry negotiation carriers plus remaining lifecycle
 diagnostics/tests)
-**Related:** LLP 0012, LLP 0013, LLP 0034, LLP 0043, LLP 0053, LLP 0059, LLP 0064, LLP 0094, LLP 0095, LLP 0101, LLP 0114, LLP 0105, LLP 0218, LLP 0295 (D0.2 — LLP 0059 owns the shared authority-transition matrix this surface projects), `issues/20260821-client-authority-transition-state-matrix.md`
+**Related:** LLP 0012, LLP 0013, LLP 0034, LLP 0043, LLP 0053, LLP 0059, LLP 0064, LLP 0094, LLP 0095, LLP 0101, LLP 0114, LLP 0105, LLP 0218, LLP 0295 (D0.2 — LLP 0059 owns the shared authority-transition matrix this surface projects), `issues/closed/20260821-client-authority-transition-state-matrix.md`
 
 ## Summary
 
@@ -463,7 +463,18 @@ collapse a fenced predecessor or a blocked authenticated query into
   sign-in cannot observe `SNAPBACK_EPHEMERAL_AUTHORITY_PENDING`.
 - The W2 conformance suite replays the shared row table through the React
   and Familiar projections; rows and checklist live in
-  `issues/20260821-client-authority-transition-state-matrix.md`.
+  `issues/closed/20260821-client-authority-transition-state-matrix.md`.
+
+W2 implements that binding by exporting the shared row artifact through the
+React root (and therefore Expo), replaying all 225 React/Familiar coordinates
+in `authority-transition-conformance.test.mjs`, and retaining the existing
+five-scenario optional-user successor suite for actual sign-in, sign-out,
+A → B, reconnect-during-transition, and unmount/remount choreography. Query
+state now carries the headless ruling-6 delivery facts `lastDeliveryAtMs` and
+`authoritativeRevision`; a retained delivery does not advance either fact.
+The packed external proof imports the same 2,250-row artifact from the packed
+Expo root, closing the re-export boundary rather than trusting workspace
+source resolution.
 
 ## Package and acceptance
 

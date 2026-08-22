@@ -3,6 +3,11 @@ export declare const OUTBOX_MAX_RECORD_BYTES: 262144;
 export declare const OUTBOX_MAX_PENDING_ACKS: 4096;
 export declare const OUTBOX_QUARANTINE_TOMBSTONE_FORMAT: 'snapback.outbox-quarantine-tombstone.v1';
 
+export declare function createOutboxAuthorizationDispatchGate(): <T>(
+  operation: () => T | Promise<T>,
+  options?: Readonly<{ lane?: 'foreground' | 'housekeeping' | null }>,
+) => Promise<T>;
+
 export interface OutboxError extends Error {
   readonly code: string;
 }
@@ -16,6 +21,9 @@ export interface OutboxRecordInput {
   readonly clientMutationId: string;
   readonly functionId: string;
   readonly args: unknown;
+  readonly dispatchLane?: 'foreground' | 'housekeeping';
+  readonly housekeepingKey?: string | null;
+  readonly successorTargetedHousekeeping?: boolean;
   readonly capturedAt?: string;
   readonly optimisticOperation?: Readonly<Record<string, unknown>> | null;
   /** Process epoch used only to merge durable and ephemeral presentation layers. */
@@ -49,6 +57,13 @@ export interface OutboxRecordInput {
 export interface StoredOutboxRecord extends OutboxRecordInput {
   readonly sequence: number;
   readonly status: 'pending' | 'settled' | 'failed' | 'result-gone' | 'quarantined' | 'stranded';
+  readonly timing?: Readonly<{
+    enqueuedAtMs: number | null;
+    dispatchedAtMs: number | null;
+    authorizedAtMs: number | null;
+    executedAtMs: number | null;
+    committedAtMs: number | null;
+  }>;
 }
 
 export interface OutboxQuarantineTombstone {

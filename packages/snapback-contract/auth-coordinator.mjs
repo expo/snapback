@@ -1073,6 +1073,7 @@ export class AuthCoordinator {
   #exhaustedWakeupCut = null;
   #activeCutCompletions = new Set();
   #destructiveCutGeneration = 0;
+  #authorityTransitionListeners = new Set();
 
   constructor({
     appId,
@@ -1133,6 +1134,98 @@ export class AuthCoordinator {
       ...clone(this.#record.authority),
       isAuthenticated: this.#record.authority.kind === 'session',
     };
+  }
+
+  /**
+   * Level-triggered settled-authority fact for provider and drain adapters.
+   * The barrier remains active through phase-9 resume, so durable custody by
+   * itself never makes subscribeSafe true.
+   *
+   * @ref LLP 0059#dated-amendment-total-client-authority-transition-state-and-settlement-matrix-2026-08-21-llp-0295-d02 — provider readiness observes the five-state barrier classifier and phase-9 settlement boundary.
+   */
+  authorityTransitionStatus() {
+    const barrier = this.#activeBarrier;
+    const previous = barrier?.context?.previousAuthority ?? null;
+    const next = barrier?.context?.nextAuthority ?? null;
+    let state;
+    if (barrier !== null) {
+      const modeChanged = previous?.authMode !== next?.authMode;
+      const incarnationChanged = previous?.authorizationStreamIncarnation
+        !== next?.authorizationStreamIncarnation;
+      state = modeChanged || incarnationChanged || previous?.kind === 'session'
+        ? 'revoking'
+        : 'authenticating';
+    } else {
+      state = this.#record?.authority?.kind === 'session'
+        ? 'authenticated'
+        : 'anonymous';
+    }
+    const settled = !this.#closed
+      && this.#counterExhaustionError === null
+      && barrier === null
+      && !this.#publicationPaused
+      && this.#record?.phase === 'settled';
+    return Object.freeze({
+      state,
+      settled,
+      subscribeSafe: settled,
+      ephemeralAuthorityUsable: settled,
+      transitionOwner: barrier === null ? null : 'auth-coordinator',
+      barrierPhase: barrier?.phase ?? null,
+      authorityEpoch: this.#record?.authorityEpoch ?? null,
+      custodyRevision: this.#record?.revision ?? null,
+      closed: this.#closed,
+    });
+  }
+
+  /** Subscribe to a level-triggered status; the current fact is delivered now. */
+  subscribeAuthorityTransition(listener) {
+    if (typeof listener !== 'function') {
+      throw new TypeError('subscribeAuthorityTransition requires a listener');
+    }
+    this.#authorityTransitionListeners.add(listener);
+    listener(this.authorityTransitionStatus());
+    return () => { this.#authorityTransitionListeners.delete(listener); };
+  }
+
+  /** Join the current bounded barrier (or the next settled publication). */
+  whenAuthoritySettled() {
+    const current = this.authorityTransitionStatus();
+    if (current.settled) return Promise.resolve(current);
+    if (current.closed) {
+      return Promise.reject(coordinatorError(
+        'SNAPBACK_AUTH_COORDINATOR_CLOSED',
+        'authority coordinator closed before authority settled',
+      ));
+    }
+    return new Promise((resolve, reject) => {
+      let unsubscribe = null;
+      let finishedDuringRegistration = false;
+      const finish = (settle, value) => {
+        if (unsubscribe === null) finishedDuringRegistration = true;
+        else unsubscribe();
+        settle(value);
+      };
+      unsubscribe = this.subscribeAuthorityTransition((status) => {
+        if (status.settled) {
+          finish(resolve, status);
+        } else if (status.closed) {
+          finish(reject, coordinatorError(
+            'SNAPBACK_AUTH_COORDINATOR_CLOSED',
+            'authority coordinator closed before authority settled',
+          ));
+        }
+      });
+      if (finishedDuringRegistration) unsubscribe();
+    });
+  }
+
+  #notifyAuthorityTransition() {
+    if (this.#authorityTransitionListeners.size === 0) return;
+    const status = this.authorityTransitionStatus();
+    for (const listener of [...this.#authorityTransitionListeners]) {
+      try { listener(status); } catch { /* observers cannot break custody */ }
+    }
   }
 
   capture() {
@@ -2367,6 +2460,7 @@ export class AuthCoordinator {
       this.#broadcast.onmessage = null;
       this.#broadcast.close?.();
     }
+    this.#notifyAuthorityTransition();
   }
 
   async #recoverOwned(owner, clearing, reason) {
@@ -2430,6 +2524,7 @@ export class AuthCoordinator {
         context: barrier,
       },
     };
+    this.#notifyAuthorityTransition();
     this.#publish(validated);
     return {
       settleClearingAfterOwnership: true,
@@ -2551,7 +2646,10 @@ export class AuthCoordinator {
         this.#attachParticipantFailures(primaryError, failures);
       } finally {
         barrierState?.completion?.resolve();
-        if (this.#activeBarrier === barrierState) this.#activeBarrier = null;
+        if (this.#activeBarrier === barrierState) {
+          this.#activeBarrier = null;
+          this.#notifyAuthorityTransition();
+        }
       }
       throw primaryError;
     }
@@ -2716,7 +2814,10 @@ export class AuthCoordinator {
       throw primaryError;
     } finally {
       barrierState?.completion?.resolve();
-      if (this.#activeBarrier === barrierState) this.#activeBarrier = null;
+      if (this.#activeBarrier === barrierState) {
+        this.#activeBarrier = null;
+        this.#notifyAuthorityTransition();
+      }
     }
   }
 
@@ -2749,6 +2850,7 @@ export class AuthCoordinator {
       cutGeneration: this.#destructiveCutGeneration,
     };
     this.#activeBarrier = barrier;
+    this.#notifyAuthorityTransition();
     try {
       for (;;) {
         await this.#runAwaitedPhase('quiesce', context);
@@ -2801,7 +2903,10 @@ export class AuthCoordinator {
       throw error;
     } finally {
       completion.resolve();
-      if (this.#activeBarrier === barrier) this.#activeBarrier = null;
+      if (this.#activeBarrier === barrier) {
+        this.#activeBarrier = null;
+        this.#notifyAuthorityTransition();
+      }
     }
   }
 
@@ -2821,6 +2926,7 @@ export class AuthCoordinator {
     };
     const snapshot = this.#participants.filter((entry) => !entry.removed);
     this.#activeBarrier = barrier;
+    this.#notifyAuthorityTransition();
     try {
       // @ref LLP 0059#cross-context-ownership — a mandatory custody-read
       // failure is a complete local cut. One faulty participant cannot retain
@@ -2833,7 +2939,10 @@ export class AuthCoordinator {
       );
     } finally {
       completion.resolve();
-      if (this.#activeBarrier === barrier) this.#activeBarrier = null;
+      if (this.#activeBarrier === barrier) {
+        this.#activeBarrier = null;
+        this.#notifyAuthorityTransition();
+      }
     }
   }
 
@@ -3080,6 +3189,7 @@ export class AuthCoordinator {
       );
     }
     this.#publicationPaused = false;
+    this.#notifyAuthorityTransition();
   }
 
   async #confirmOfflineDurableExact(expected, reason, onConfirmed = null) {
@@ -3304,6 +3414,7 @@ export class AuthCoordinator {
         context,
       },
     };
+    this.#notifyAuthorityTransition();
     const barrierState = this.#activeBarrier;
     try {
       await this.#runAwaitedPhase('quiesce', context);
@@ -3359,7 +3470,10 @@ export class AuthCoordinator {
       throw error;
     } finally {
       completion.resolve();
-      if (this.#activeBarrier === barrierState) this.#activeBarrier = null;
+      if (this.#activeBarrier === barrierState) {
+        this.#activeBarrier = null;
+        this.#notifyAuthorityTransition();
+      }
     }
   }
 
@@ -3500,6 +3614,7 @@ export class AuthCoordinator {
     if (this.#counterExhaustionError) throw this.#counterExhaustionError;
     const barrier = this.#activeBarrier;
     barrier.phase = method;
+    this.#notifyAuthorityTransition();
     for (const entry of this.#participants) {
       if (entry.removed || this.#phaseDone(barrier, entry, method)) continue;
       if (entry.registrationError) throw entry.registrationError;
@@ -3513,6 +3628,7 @@ export class AuthCoordinator {
     if (this.#closed && method !== 'quiesce') this.#assertUsable();
     const barrier = this.#activeBarrier;
     barrier.phase = method;
+    this.#notifyAuthorityTransition();
     for (;;) {
       if (this.#counterExhaustionError) throw this.#counterExhaustionError;
       if (this.#closed && method !== 'quiesce') this.#assertUsable();

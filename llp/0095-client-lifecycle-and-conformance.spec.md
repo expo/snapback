@@ -726,7 +726,7 @@ tighten or confirm them before they are conformance-frozen as fixtures.
   self-sufficient: the provider consumes settled authority as an event, not a
   poll. What an operation started during an authorization barrier returns is
   the settlement contract the still-open LLP 0295 D0.2 decision will pin
-  (`issues/20260821-client-authority-transition-state-matrix.md`); nothing
+  (`issues/closed/20260821-client-authority-transition-state-matrix.md`); nothing
   here presumes that matrix exists yet.
 - **Principal-class change tears down before it builds.** On authority
   replacement the provider releases every predecessor-owned subscription

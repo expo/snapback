@@ -236,7 +236,7 @@ The ruling must answer:
 LLP 0059/0107/0218 remain mechanism owners. This Plan requires one shared
 transition matrix and conformance suite so each surface cannot improvise.
 Decision/conformance ticket:
-`issues/20260821-client-authority-transition-state-matrix.md`.
+`issues/closed/20260821-client-authority-transition-state-matrix.md`.
 
 ### D0.3 — Authoring-profile product contract
 
@@ -368,7 +368,7 @@ bisection.
 
 - `issues/20260818-guide-gap-fixed-origin-dev-attach-recipe.md`
 - `issues/20260818-guide-gap-node-client-storage-partition-default.md`
-- `issues/20260818-guide-gap-background-writes-during-auth-transitions.md`
+- `issues/closed/20260818-guide-gap-background-writes-during-auth-transitions.md`
 - `issues/20260818-guide-gap-presence-heartbeat-vs-bound-value.md`
 - `issues/20260820-guide-gap-familiar-handler-dialect.md`
 - `issues/20260820-guide-gap-membership-roster-projection-recipe.md`

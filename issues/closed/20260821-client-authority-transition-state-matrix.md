@@ -1,14 +1,14 @@
 # Define and enforce one client authority-transition state matrix
 
-**Status:** Open
+**Status:** Closed — implemented 2026-08-21
 **Opened:** 2026-08-21
 **Systems:** Client auth coordinator, Live queries, Mutations/outbox, React,
 Familiar projections, Headless/provider adapters, Diagnostics
 **Governing:** LLP 0295 D0.2/W2; LLP 0059; LLP 0107; LLP 0218
-**Related:** `issues/20260820-agent-auth-transition-residuals.md`;
-`issues/20260820-optional-user-live-query-auth-transition-stall.md`;
-`issues/20260820-authenticated-query-signed-out-settlement.md`;
-`issues/20260818-guide-gap-background-writes-during-auth-transitions.md`;
+**Related:** `issues/closed/20260820-agent-auth-transition-residuals.md`;
+`issues/closed/20260820-optional-user-live-query-auth-transition-stall.md`;
+`issues/closed/20260820-authenticated-query-signed-out-settlement.md`;
+`issues/closed/20260818-guide-gap-background-writes-during-auth-transitions.md`;
 `issues/20260820-familiar-live-subscription-contention.md`
 
 ## Problem
@@ -101,41 +101,41 @@ questions)":
 
 ## W2 implementation checklist
 
-- [ ] Author the normative row table (surface × auth declaration × starting
+- [x] Author the normative row table (surface × auth declaration × starting
       state × transition event × operation timing → terminal semantic +
       observable fields) as the shared conformance artifact; events and
       timings per the LLP 0059 amendment's suite-shape section.
-- [ ] Implement the shared core state machine in the headless client; expose
+- [x] Implement the shared core state machine in the headless client; expose
       the settled-authority signal provider adapters consume.
-- [ ] Core/headless projection of the suite (reference execution).
-- [ ] React hook projection; Familiar projection (identical semantics);
+- [x] Core/headless projection of the suite (reference execution).
+- [x] React hook projection; Familiar projection (identical semantics);
       Expo re-export rows; provider-adapter projection.
-- [ ] `optional-user` successor restart rows: sign-in, sign-out, A → B,
+- [x] `optional-user` successor restart rows: sign-in, sign-out, A → B,
       reconnect during transition, unmount/remount, late predecessor frame
       never repopulates (closes
       `20260820-optional-user-live-query-auth-transition-stall.md`).
-- [ ] Prompt signed-out settlement rows, timeout-independent (closes
+- [x] Prompt signed-out settlement rows, timeout-independent (closes
       `20260820-authenticated-query-signed-out-settlement.md`).
-- [ ] Watch-reload rows: no custody loss on transient
+- [x] Watch-reload rows: no custody loss on transient
       `SNAPBACK_AUTH_MODE_PENDING`; live-stream successor; tight-loop
       awaited-sign-in/ephemeral-authority witness (closes
       `20260820-agent-auth-transition-residuals.md`).
-- [ ] `auth-barrier` blocked reason (beside shipped `custody-unsettled`) +
+- [x] `auth-barrier` blocked reason (beside shipped `custody-unsettled`) +
       level-triggered settle wakeup in the LLP 0218 drain; housekeeping lane
       split + declaration spelling + item-5-aligned strand/delete
       dispositions + typed supersession; head-of-line witness (foreground
-      send latency unaffected by suspended housekeeping).
-- [ ] Phase-separated diagnostics row: the ruling-6 `timing` fields
+      send latency unaffected by suspended or slow housekeeping).
+- [x] Phase-separated diagnostics row: the ruling-6 `timing` fields
       (queue/authorization/execution/commit) plus subscription
       `lastDeliveryAtMs` populated, ordered, and disjoint for one
       instrumented mutation.
-- [ ] Same-user/new-session rows: strand (never delete) predecessor intent;
+- [x] Same-user/new-session rows: strand (never delete) predecessor intent;
       authenticated surfaces re-admit under the same principal.
-- [ ] Guide recipe for background writes during auth transitions from the
+- [x] Guide recipe for background writes during auth transitions from the
       matrix (absorbs
       `20260818-guide-gap-background-writes-during-auth-transitions.md`),
       with cold retrieval probes per LLP 0061.
-- [ ] Prove fixes through packed external packages (LLP 0295 Phase 1A exit),
+- [x] Prove fixes through packed external packages (LLP 0295 Phase 1A exit),
       not source-checkout-only.
 
 ## Exit
@@ -145,3 +145,33 @@ Decision above); the conformance suite proves every named surface against it;
 the related defect tickets close on their specific reproductions; and no
 transition can remain indefinitely ready/empty/disconnected, pending without
 an admitted wait, or silently bound to the predecessor principal.
+
+## Implementation evidence (2026-08-21)
+
+`packages/snapback-client/authority-transition.mjs` generates 2,250 immutable
+rows from ten surfaces, five authority states, nine transition events, and
+five operation timings. The core suite independently transcribes all 50
+surface/state terminal cells, exercises the ordered classifier and
+mode-pending discriminant, and pins housekeeping admission both before and
+after a predecessor delete root, successor binding, typed supersession,
+cross-lane concurrency with exclusive authority cuts, and the strictly ordered five-phase
+mutation timing carrier. Contract's readiness suite holds real coordinator
+barriers (including same-user/new-session) and joins 200 phase-9 waiters.
+React/Familiar replay their matrix projection and retain the production
+optional-user choreography for sign-in, sign-out, A → B, reconnect,
+unmount/remount, and late-predecessor fencing.
+
+The packed receipt
+`node packages/snapback-react/auth-transition-liveness-packed.test.mjs`
+installs tarballs for Contract, Client, React, and Expo. It verifies the Expo
+row re-export, prompt one-shot and live terminal behavior, Familiar's
+optional-user successor, durable-session survival through axisless
+mode-pending retries (with a disposition-bearing negative control), and
+declared housekeeping queueing under `auth-barrier` with zero transport.
+
+Ruling-6 plumbing is public on every mutation disposition (`timing`) and live
+projection (`lastDeliveryAtMs`, `authoritativeRevision`); server mutation
+responses stamp authorization, execution, and durable commit separately.
+`guide/recipes/auth-transition-writes.md` and retrieval case 61 teach the
+declaration, diagnostics, lane behavior, and anti-patterns. The two residual
+tickets named by the checklist are resolved under `issues/closed/`.

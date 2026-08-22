@@ -453,7 +453,8 @@ test('optional-user transition accepts a retained seed after quarantine', async 
     );
 
     assertSingleSettledSuccessor(client, capture);
-    assert.deepEqual(mounted.snapshot(), {
+    const retainedSnapshot = mounted.snapshot();
+    assert.deepEqual({ ...retainedSnapshot, lastDeliveryAtMs: undefined, authoritativeRevision: undefined }, {
       status: 'refreshing',
       data: rowsFor('A'),
       error: null,
@@ -462,7 +463,11 @@ test('optional-user transition accepts a retained seed after quarantine', async 
       answerClass: 'labeled-retained',
       retention: null,
       optimisticPresentation: null,
+      lastDeliveryAtMs: undefined,
+      authoritativeRevision: undefined,
     });
+    assert.equal(Number.isSafeInteger(retainedSnapshot.lastDeliveryAtMs), true);
+    assert.equal(retainedSnapshot.authoritativeRevision, 1);
 
     client.state.attempts.at(-1).publish(rowsFor('A'));
     assertReadyFor(mounted, 'A');

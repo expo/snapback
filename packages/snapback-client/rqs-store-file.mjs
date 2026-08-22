@@ -59,6 +59,7 @@ import {
 } from './rqs-store.mjs';
 import {
   allOutboxRecords,
+  createOutboxAuthorizationDispatchGate,
   emptyOutboxState,
   outboxAuthorizationStatus,
   outboxNotWriterError,
@@ -553,18 +554,10 @@ export function createFileRqsResumeStore({
     return result;
   };
 
-  let authorizationDispatchTail = Promise.resolve();
-  const withAuthorizationDispatch = async (operation) => {
+  const authorizationDispatchGate = createOutboxAuthorizationDispatchGate();
+  const withAuthorizationDispatch = (operation, options = undefined) => {
     requireOpen();
-    const predecessor = authorizationDispatchTail;
-    let release;
-    authorizationDispatchTail = new Promise((resolve) => { release = resolve; });
-    await predecessor;
-    try {
-      return await operation();
-    } finally {
-      release();
-    }
+    return authorizationDispatchGate(operation, options);
   };
 
   const acquireLock = async () => {
@@ -884,7 +877,9 @@ export function createFileRqsResumeStore({
   authorizationMutationBroker = (transition) => withAuthorizationDispatch(
     () => authorizationMutationWithinDispatchBroker(transition),
   );
-  authorizationDispatchBroker = (operation) => withAuthorizationDispatch(operation);
+  authorizationDispatchBroker = (operation, options = undefined) => (
+    withAuthorizationDispatch(operation, options)
+  );
 
   const requireOpen = () => {
     if (closed) throw storeError('SNAPBACK_RQS_STORE_CLOSED', 'RQS resume store is closed');
@@ -980,9 +975,9 @@ export function createFileRqsResumeStore({
     );
   });
 
-  const withSharedAuthorizationDispatch = async (operation) => {
+  const withSharedAuthorizationDispatch = async (operation, options = undefined) => {
     await initialAcquisition;
-    if (writer) return withAuthorizationDispatch(operation);
+    if (writer) return withAuthorizationDispatch(operation, options);
     const holder = heldLocks.get(lockPath);
     if (
       holder?.instanceId !== competingWriter?.instanceId
@@ -995,7 +990,7 @@ export function createFileRqsResumeStore({
       } finally {
         borrowedAuthorizationDispatchDepth -= 1;
       }
-    });
+    }, options);
   };
 
   // @ref LLP 0053#client-fences — public and follower-request wipes share the
@@ -1059,8 +1054,8 @@ export function createFileRqsResumeStore({
       return writer && !closed;
     },
 
-    async withOutboxAuthorizationDispatch(operation) {
-      return withSharedAuthorizationDispatch(operation);
+    async withOutboxAuthorizationDispatch(operation, options = undefined) {
+      return withSharedAuthorizationDispatch(operation, options);
     },
 
     /// Settles (and, unlike web's queued lock, re-attempts) ownership: a
@@ -1250,7 +1245,11 @@ export function createFileRqsResumeStore({
     async outboxPrepareSubmission(id, options = undefined) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
-        (outbox) => outboxOps.prepareSubmission(outbox, id, options),
+        (outbox) => outboxOps.prepareSubmission(
+          outbox,
+          id,
+          { ...(options ?? {}), now: now() },
+        ),
       )).result);
     },
 

@@ -857,8 +857,22 @@ export function createIndexedDbRqsResumeStore({
     /// serializes each state commit; this lock extends the cut across prepare
     /// -> fetch -> settlement so a reader tab's root or transition cannot race
     /// between those stages.
-    async withOutboxAuthorizationDispatch(operation) {
+    async withOutboxAuthorizationDispatch(operation, { lane = null } = {}) {
       if (closed) throw storeError('SNAPBACK_RQS_STORE_CLOSED', 'RQS resume store is closed');
+      if (lane !== null && lane !== 'foreground' && lane !== 'housekeeping') {
+        throw new TypeError('authorization dispatch lane must be foreground or housekeeping');
+      }
+      if (lane !== null) {
+        return lockManager.request(
+          `${lockName}:authorization-dispatch:${lane}`,
+          { mode: 'exclusive' },
+          () => lockManager.request(
+            `${lockName}:authorization-dispatch`,
+            { mode: 'shared' },
+            operation,
+          ),
+        );
+      }
       return lockManager.request(
         `${lockName}:authorization-dispatch`,
         { mode: 'exclusive' },
@@ -1030,7 +1044,11 @@ export function createIndexedDbRqsResumeStore({
     },
 
     async outboxPrepareSubmission(id, options = undefined) {
-      return outboxWrite((state) => outboxOps.prepareSubmission(state, id, options));
+      return outboxWrite((state) => outboxOps.prepareSubmission(
+        state,
+        id,
+        { ...(options ?? {}), now: now() },
+      ));
     },
 
     async outboxRecords() {

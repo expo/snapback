@@ -339,6 +339,8 @@ function pending(connection = 'idle') {
     freshness: 'unknown',
     answerClass: 'unknown',
     retention: null,
+    lastDeliveryAtMs: null,
+    authoritativeRevision: 0,
   });
 }
 
@@ -354,6 +356,8 @@ const AUTHENTICATION_REQUIRED_BLOCKED = Object.freeze({
   freshness: 'unknown',
   answerClass: 'unknown',
   retention: null,
+  lastDeliveryAtMs: null,
+  authoritativeRevision: 0,
 });
 
 const AUTHENTICATION_NOT_SETTLED_BLOCKED = Object.freeze({
@@ -366,6 +370,8 @@ const AUTHENTICATION_NOT_SETTLED_BLOCKED = Object.freeze({
   freshness: 'unknown',
   answerClass: 'unknown',
   retention: null,
+  lastDeliveryAtMs: null,
+  authoritativeRevision: 0,
 });
 
 const generatedAuthScopedLiveReference = (reference) => (
@@ -955,6 +961,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     store.snapshot = Object.freeze({
       ...snapshot,
       answerClass,
+      lastDeliveryAtMs: store.lastDeliveryAtMs,
+      authoritativeRevision: store.authoritativeRevision,
       ...(presentation === undefined ? {} : { optimisticPresentation: presentation }),
     });
     for (const listener of [...store.listeners.values()]) {
@@ -1069,6 +1077,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     presentedRows = rows,
   ) => {
     store.authoritativeRevision += 1;
+    store.lastDeliveryAtMs = Date.now();
     store.authoritativeData = validateQueryRows(store.resultContract, rows);
     store.generatedData = validateQueryRows(store.resultContract, presentedRows);
     store.freshness = 'current';
@@ -1748,6 +1757,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       generatedData: readOnlySnapshot?.rows ?? Object.freeze([]),
       generatedPresentation: null,
       authoritativeRevision: readOnlySnapshot === null ? 0 : 1,
+      lastDeliveryAtMs: null,
       freshness: readOnlySnapshot === null ? 'unknown' : 'snapshot',
       retention: null,
       authorizationProjectionSuspended: false,

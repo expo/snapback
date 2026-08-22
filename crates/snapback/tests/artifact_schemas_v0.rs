@@ -3232,6 +3232,11 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         },
         attribution: None,
         facts: None,
+        timing: snapback::server::MutationServerTiming {
+            authorized_at_ms: 1,
+            executed_at_ms: 2,
+            committed_at_ms: 3,
+        },
     };
     let mutation_response = serde_json::to_value(mutation_response).unwrap();
     assert_validates("mutation.output.schema.json", &mutation_response);

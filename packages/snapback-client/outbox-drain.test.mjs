@@ -1020,13 +1020,22 @@ test('terminal refusal: typed replay refusal stops that record and remains obser
     () => controller.status().blockedReason === 'terminal-disposition:SNAPBACK_DRAIN_TERMINAL_TEST',
     'terminal drain disposition',
   );
-  assert.deepEqual(await client.mutationStatus('cm-terminal'), {
+  const terminalStatus = await client.mutationStatus('cm-terminal');
+  assert.deepEqual({
+    status: terminalStatus.status,
+    failure: terminalStatus.failure,
+  }, {
     status: 'failed',
     failure: {
       code: 'SNAPBACK_DRAIN_TERMINAL_TEST',
       message: 'SNAPBACK_DRAIN_TERMINAL_TEST: typed refusal',
     },
   });
+  assert.equal(Number.isInteger(terminalStatus.timing.enqueuedAtMs), true);
+  assert.equal(Number.isInteger(terminalStatus.timing.dispatchedAtMs), true);
+  assert.equal(terminalStatus.timing.authorizedAtMs, null);
+  assert.equal(terminalStatus.timing.executedAtMs, null);
+  assert.equal(terminalStatus.timing.committedAtMs, null);
   assert.equal(
     (await client.outboxStatus()).blockedReason,
     'terminal-disposition:SNAPBACK_DRAIN_TERMINAL_TEST',

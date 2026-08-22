@@ -51,6 +51,18 @@ import {
 
 export { DEFAULT_AUTH_STORAGE_PARTITION } from './app-client-defaults.mjs';
 export { createSnapbackAppClient } from './app-client.mjs';
+export {
+  CLIENT_AUTHORITY_OPERATION_TIMINGS,
+  CLIENT_AUTHORITY_STATES,
+  CLIENT_AUTHORITY_STATE_MATRIX,
+  CLIENT_AUTHORITY_SURFACES,
+  CLIENT_AUTHORITY_TERMINALS,
+  CLIENT_AUTHORITY_TRANSITION_CONFORMANCE_ROWS,
+  CLIENT_AUTHORITY_TRANSITION_EVENTS,
+  authorityTransitionCell,
+  classifyClientAuthorityState,
+  generateAuthorityTransitionConformanceRows,
+} from './authority-transition.mjs';
 import {
   SEARCH_REQUEST_ARGS_CONTRACT_GENERATION,
   SEARCH_REQUEST_ARGS_CONTRACT_HASH,
@@ -338,6 +350,7 @@ const foregroundOutboxFenceSequence = (store) => {
   return fence;
 };
 const isForegroundReplayEligible = (store, record) => {
+  if (record?.dispatchLane === 'housekeeping') return false;
   const fence = foregroundOutboxFenceSequence(store);
   if (fence === null) return true;
   return Number.isSafeInteger(record?.sequence) && record.sequence < fence;
@@ -345,8 +358,9 @@ const isForegroundReplayEligible = (store, record) => {
 const replayEligibleOutboxRecords = (store, records) => records
   .filter((record) => record?.status === 'pending')
   .filter((record) => isForegroundReplayEligible(store, record));
+const isHousekeepingReplayEligible = (record) => record?.dispatchLane === 'housekeeping';
 
-const acquireOutboxAuthorizationDispatch = async (store) => {
+const acquireOutboxAuthorizationDispatch = async (store, lane = null) => {
   if (typeof store?.withOutboxAuthorizationDispatch !== 'function') {
     return async () => {};
   }
@@ -361,7 +375,7 @@ const acquireOutboxAuthorizationDispatch = async (store) => {
   const task = Promise.resolve(store.withOutboxAuthorizationDispatch(async () => {
     enterResolve();
     await held;
-  }));
+  }, { lane }));
   task.catch(enterReject);
   await entered;
   let released = false;
@@ -473,6 +487,17 @@ const freezeDeep = (value) => {
   }
   return value;
 };
+
+const mutationTiming = (record = null) => Object.freeze({
+  enqueuedAtMs: record?.timing
+    && Object.prototype.hasOwnProperty.call(record.timing, 'enqueuedAtMs')
+    ? record.timing.enqueuedAtMs
+    : record?.enqueuedAt ?? null,
+  dispatchedAtMs: record?.timing?.dispatchedAtMs ?? null,
+  authorizedAtMs: record?.timing?.authorizedAtMs ?? record?.settlement?.timing?.authorizedAtMs ?? null,
+  executedAtMs: record?.timing?.executedAtMs ?? record?.settlement?.timing?.executedAtMs ?? null,
+  committedAtMs: record?.timing?.committedAtMs ?? record?.settlement?.timing?.committedAtMs ?? null,
+});
 
 const isUnresolvedOutboxRecord = (record) => (
   record?.status === 'pending'
@@ -1117,6 +1142,7 @@ const RECEIPT_RING_CAP = 256;
 const RESERVATION_RETRY_DIAGNOSTIC_RING_CAP = 256;
 const DEFAULT_RESERVATION_RETRY_MAX_ATTEMPTS = 40;
 const DEFAULT_RESERVATION_RETRY_JITTER_MILLISECONDS = Object.freeze([20, 80]);
+const AUTH_MODE_PENDING_RETRY_MAX_ATTEMPTS = 40;
 // A subscription registers its lane consumer before dispatching the snapshot
 // request, then buffers deltas until that snapshot arrives. Keep a hung request
 // from turning the temporary queue into an unbounded client-memory sink.
@@ -1657,6 +1683,7 @@ const SUPERSEDED_AUTH_CODES = new Set([
 const requestFailureReentersAuthorityTransport = (error) => {
   const code = authorityErrorCode(error);
   return code === 'SNAPBACK_AUTH_SENDER_PROOF_REQUIRED'
+    || code === 'SNAPBACK_AUTH_MODE_PENDING'
     || code === 'SNAPBACK_CLIENT_AUTHORITY_CLEARING'
     || code === 'SNAPBACK_CLIENT_AUTHORITY_STALE'
     || SUPERSEDED_AUTH_CODES.has(code)
@@ -1701,17 +1728,32 @@ const LIVE_TERMINAL_AUTH_REASONS = new Set([
 const LIVE_AUTHORITY_DISPOSITIONS = new Set(['carrier', 'durableDelete']);
 
 const finiteAuthorityDisposition = (diagnostic) => {
-  if (!TERMINAL_AUTH_CODES.has(diagnostic?.code)) return null;
-  const details = diagnostic?.details;
   if (
-    exactRecord(details, ['authorityDisposition'])
+    !TERMINAL_AUTH_CODES.has(diagnostic?.code)
+    && diagnostic?.code !== 'SNAPBACK_AUTH_MODE_PENDING'
+  ) return null;
+  const details = diagnostic?.details;
+  const declaresDisposition = details !== null
+    && typeof details === 'object'
+    && Object.hasOwn(details, 'authorityDisposition');
+  if (
+    declaresDisposition
     && LIVE_AUTHORITY_DISPOSITIONS.has(details.authorityDisposition)
   ) return details.authorityDisposition;
+  if (diagnostic?.code === 'SNAPBACK_AUTH_MODE_PENDING' && !declaresDisposition) return null;
   // Finite terminal codes historically collapsed expiry and revocation.
   // Missing or malformed causal metadata must terminate the live carrier but
   // must not destroy durable replay/session custody.
   return 'carrier';
 };
+
+const isTerminalAuthorityError = (error) => (
+  TERMINAL_AUTH_CODES.has(authorityErrorCode(error))
+  || (
+    authorityErrorCode(error) === 'SNAPBACK_AUTH_MODE_PENDING'
+    && (error?.authorityDisposition === 'carrier' || error?.authorityDisposition === 'durableDelete')
+  )
+);
 
 // @ref LLP 0059#typed-terminal-auth-error — the identifier-free frame applies
 //   only to the authority capture that owns this socket and never reconnects.
@@ -3398,6 +3440,8 @@ export class SnapbackClient {
       authLogout: (...args) => this.authLogout(...args),
       authTerminalStatus: (...args) => this.authTerminalStatus(...args),
       subscribeAuthTerminal: (...args) => this.subscribeAuthTerminal(...args),
+      authorityTransitionStatus: (...args) => this.authorityTransitionStatus(...args),
+      subscribeAuthorityTransition: (...args) => this.subscribeAuthorityTransition(...args),
     });
     // @ref LLP 0270#d4-queue-and-settle-offline-intent-by-default — client
     // readiness is the completed construction/bootstrap-binding cut. Starting
@@ -3775,7 +3819,7 @@ export class SnapbackClient {
     } catch (error) {
       const code = error?.diagnostic?.code ?? error?.code;
       if (
-        TERMINAL_AUTH_CODES.has(code)
+        isTerminalAuthorityError(error)
         && this.authProtocols.authClient === 1
         && typeof bearerAtStart === 'string'
         && bearerAtStart.length > 0
@@ -3841,7 +3885,7 @@ export class SnapbackClient {
       return committed.value;
     } catch (error) {
       const code = error?.diagnostic?.code ?? error?.code;
-      if (TERMINAL_AUTH_CODES.has(code)) {
+      if (isTerminalAuthorityError(error)) {
         const terminal = offeredCapture
           ? this.handleTerminalAuthLoss(offeredCapture, error)
           : this.agentAuthority.terminateValidatedCredential(credential, {
@@ -5024,7 +5068,7 @@ export class SnapbackClient {
         if (recovered !== null) return recovered;
       }
       if (
-        TERMINAL_AUTH_CODES.has(code)
+        isTerminalAuthorityError(error)
         && error?.authorityDisposition === 'carrier'
       ) {
         const recovered = await this.#recoverUnrecognizedAuthority(
@@ -5055,7 +5099,7 @@ export class SnapbackClient {
     } catch (error) {
       const code = error?.diagnostic?.code ?? error?.code;
       if (
-        TERMINAL_AUTH_CODES.has(code)
+        isTerminalAuthorityError(error)
         && error?.authorityDisposition === 'carrier'
       ) {
         const witness = await this.#probeUnrecognizedAuthority(credential.authority);
@@ -5682,6 +5726,7 @@ export class SnapbackClient {
     onTransportFailure = null,
     authAdmissionReference = null,
     authAdmissionOperation = null,
+    authModePendingRetry = 0,
   } = {}) {
     this.#assertAuthCountersAvailable();
     if (authAdmissionReference !== null) {
@@ -6019,6 +6064,33 @@ export class SnapbackClient {
           onTransportFailure,
           authAdmissionReference,
           authAdmissionOperation,
+          authModePendingRetry,
+        });
+      }
+      if (
+        code === 'SNAPBACK_AUTH_MODE_PENDING'
+        && error?.authorityDisposition == null
+        && authModePendingRetry < AUTH_MODE_PENDING_RETRY_MAX_ATTEMPTS
+      ) {
+        // @ref LLP 0059#typed-terminal-auth-error — an axisless finite
+        // mode-pending refusal is a watch-reload window, not terminal
+        // authority evidence. Release happened through onTransportFailure;
+        // retry the same operation within a bounded short-jitter budget.
+        await new Promise((resolve) => setTimeout(
+          resolve,
+          this.#reservationRetryDelayMilliseconds(),
+        ));
+        return this.#request(method, path, body, headers, {
+          admin,
+          supersededRetry,
+          senderChallengeRetry,
+          expectedAuthorityCapture,
+          externalBearerTransitionPermit,
+          beforeTransportDispatch,
+          onTransportFailure,
+          authAdmissionReference,
+          authAdmissionOperation,
+          authModePendingRetry: authModePendingRetry + 1,
         });
       }
       if (this.authorityFence && capture && error?.receipt) {
@@ -6037,7 +6109,7 @@ export class SnapbackClient {
         && captureHasAnonymousAuthority(this.authCoordinator, capture)
       );
       if (
-        TERMINAL_AUTH_CODES.has(code)
+        isTerminalAuthorityError(error)
         && !anonymousAuthRequiredRefusal
         && (
           (this.authorityFence && capture)
@@ -6060,6 +6132,7 @@ export class SnapbackClient {
             onTransportFailure,
             authAdmissionReference,
             authAdmissionOperation,
+            authModePendingRetry,
           });
         }
         try { await this.#familyAlarmWithBearer(bearerUsed); } catch { /* named stolen-successor residual */ }
@@ -6071,7 +6144,7 @@ export class SnapbackClient {
       } else if (
         this.authCoordinator
         && capture
-        && TERMINAL_AUTH_CODES.has(code)
+        && isTerminalAuthorityError(error)
         && !anonymousAuthRequiredRefusal
         && error?.authorityDisposition !== 'carrier'
       ) {
@@ -6082,7 +6155,6 @@ export class SnapbackClient {
         await terminalHandle.settlement;
       }
       if (!anonymousAuthRequiredRefusal && !terminalHandle && !custodyCleared && [
-        'SNAPBACK_AUTH_MODE_PENDING',
         'SNAPBACK_AUTH_REQUIRED',
         'SNAPBACK_AUTH_SESSION_EXPIRED',
         'SNAPBACK_AUTH_SESSION_REVOKED',
@@ -6649,11 +6721,14 @@ export class SnapbackClient {
   }
 
   #installEphemeralOptimisticRecord(record, sequence) {
+    const enqueuedAt = Date.now();
     const stored = Object.freeze({
       ...structuredClone(record),
       sequence,
       status: 'pending',
-      enqueuedAt: Date.now(),
+      enqueuedAt,
+      // This process-local optimistic carrier was never durably enqueued.
+      timing: mutationTiming(),
     });
     this.__ephemeralOptimisticRecords.set(stored.id, stored);
     while (this.__ephemeralOptimisticRecords.size > 256) {
@@ -6674,6 +6749,18 @@ export class SnapbackClient {
       status: 'settled',
       settlement: structuredClone(settlement),
       settledAt: Date.now(),
+      timing: mutationTiming({ ...record, settlement }),
+    }));
+    this.#notifyOutboxListeners();
+    return true;
+  }
+
+  #markEphemeralOptimisticDispatched(clientMutationId) {
+    const record = this.__ephemeralOptimisticRecords.get(clientMutationId) ?? null;
+    if (record === null || record.timing?.dispatchedAtMs !== null) return false;
+    this.__ephemeralOptimisticRecords.set(clientMutationId, Object.freeze({
+      ...record,
+      timing: Object.freeze({ ...record.timing, dispatchedAtMs: Date.now() }),
     }));
     this.#notifyOutboxListeners();
     return true;
@@ -8744,6 +8831,11 @@ export class SnapbackClient {
         ? 'not-writer'
         : null
     );
+    const authorityTransition = this.authorityTransitionStatus();
+    if (
+      blockedReason === null
+      && authorityTransition.transitionOwner === 'auth-coordinator'
+    ) blockedReason = 'auth-barrier';
     try {
       const custody = await this.#reconcileQueueCustody(store);
       if (!custody.settled && blockedReason === null) blockedReason = 'custody-unsettled';
@@ -8803,58 +8895,67 @@ export class SnapbackClient {
           status: 'settled',
           settlement: structuredClone(ephemeral.settlement),
           settledAt: ephemeral.settledAt,
+          timing: mutationTiming(ephemeral),
         });
       }
       if (ephemeral.status === 'failed') {
         return freezeDeep({
           status: 'failed',
           failure: structuredClone(ephemeral.failure),
+          timing: mutationTiming(ephemeral),
         });
       }
-      return Object.freeze({ status: 'pending', blockedReason: null });
+      return Object.freeze({ status: 'pending', blockedReason: null, timing: mutationTiming(ephemeral) });
     }
     let store = null;
     try { store = this.#offlineQueueStore(); } catch { store = null; }
     if (!store || typeof store.outboxRecords !== 'function') {
-      return Object.freeze({ status: 'unknown' });
+      return Object.freeze({ status: 'unknown', timing: mutationTiming() });
     }
     const notWriter = typeof store.isWriter === 'function' && store.isWriter() !== true;
     const custody = await this.#reconcileQueueCustody(store);
-    if (!custody.settled && !notWriter) return Object.freeze({ status: 'unknown' });
+    if (!custody.settled && !notWriter) return Object.freeze({ status: 'unknown', timing: mutationTiming() });
     let record;
     try {
       record = (await store.outboxRecords())
         .find((candidate) => candidate?.id === clientMutationId);
     } catch {
-      return Object.freeze({ status: 'unknown' });
+      return Object.freeze({ status: 'unknown', timing: mutationTiming() });
     }
-    if (!record) return Object.freeze({ status: 'unknown' });
+    if (!record) return Object.freeze({ status: 'unknown', timing: mutationTiming() });
     const disposition = (value) => freezeDeep(value);
     if (record.status === 'pending') {
       // LLP 0218 §4.1: the current store records no durable
       // identity-horizon-passed marker, so outcome-unknown cannot be inferred
       // from a merely pending record and blockedReason remains null.
-      return Object.freeze({ status: 'pending', blockedReason: null });
+      const authorityStatus = this.authorityFence?.authorityTransitionStatus?.() ?? null;
+      return Object.freeze({
+        status: 'pending',
+        blockedReason: authorityStatus?.transitionOwner === 'auth-coordinator' ? 'auth-barrier' : null,
+        timing: mutationTiming(record),
+      });
     }
     if (record.status === 'settled') {
       return freezeDeep({
         status: 'settled',
         settlement: structuredClone(record.settlement),
         settledAt: record.settledAt,
+        timing: mutationTiming(record),
       });
     }
     if (record.status === 'failed') {
       return disposition({
         status: 'failed',
         failure: structuredClone(record.failure),
+        timing: mutationTiming(record),
       });
     }
-    if (record.status === 'stranded') return disposition({ status: 'stranded' });
-    if (record.status === 'quarantined') return disposition({ status: 'quarantined' });
+    if (record.status === 'stranded') return disposition({ status: 'stranded', timing: mutationTiming(record) });
+    if (record.status === 'quarantined') return disposition({ status: 'quarantined', timing: mutationTiming(record) });
     if (record.status === 'result-gone') {
-      return disposition({ status: 'resultGone', ...structuredClone(record.resultGone) });
+      return disposition({ status: 'resultGone', ...structuredClone(record.resultGone), timing: mutationTiming(record) });
     }
-    return Object.freeze({ status: 'unknown' });
+    return Object.freeze({ status: 'unknown', timing: mutationTiming(record) });
   }
 
   /// Observe one durable mutation disposition over the existing outbox seam.
@@ -9310,6 +9411,37 @@ export class SnapbackClient {
     return () => { this.__authTerminalListeners.delete(listener); };
   }
 
+  /** Settled-authority signal projected from the shared coordinator. */
+  authorityTransitionStatus() {
+    if (typeof this.authorityFence?.authorityTransitionStatus === 'function') {
+      return this.authorityFence.authorityTransitionStatus();
+    }
+    let settled = false;
+    try { settled = this.authorityFence === null || this.authorityFence.capture?.() !== null; } catch {}
+    return Object.freeze({
+      state: this.auth.currentPrincipal().status === 'authenticated' ? 'authenticated' : 'anonymous',
+      settled,
+      subscribeSafe: settled,
+      ephemeralAuthorityUsable: settled,
+      transitionOwner: null,
+      barrierPhase: null,
+      authorityEpoch: null,
+      custodyRevision: null,
+      closed: this.__clientClosed,
+    });
+  }
+
+  subscribeAuthorityTransition(listener) {
+    if (typeof listener !== 'function') {
+      throw new TypeError('subscribeAuthorityTransition requires a listener function');
+    }
+    if (typeof this.authorityFence?.subscribeAuthorityTransition === 'function') {
+      return this.authorityFence.subscribeAuthorityTransition(listener);
+    }
+    listener(this.authorityTransitionStatus());
+    return () => {};
+  }
+
   #recordAuthTerminalFact(error, authorityDisposition) {
     const code = error?.diagnostic?.code ?? error?.code ?? null;
     const previous = this.__authTerminalFact;
@@ -9705,6 +9837,9 @@ export class SnapbackClient {
         participant.cleanups.push(
           client.subscribeOutbox(() => lifecycle.noteOutboxTransition()),
           client.subscribeAuthTerminal(() => lifecycle.wake('participant-authority-transition')),
+          client.subscribeAuthorityTransition((status) => {
+            if (status.settled) lifecycle.wake('settled-authority');
+          }),
         );
         participants.set(client, participant);
         try { reconcile(); } catch (error) {
@@ -9777,6 +9912,8 @@ export class SnapbackClient {
     const connectionId = `snapback-outbox-drain-${outboxDrainControllerCounter}`;
     let running = true;
     let requested = false;
+    let requestGeneration = 0;
+    let activeCycleRequestGeneration = 0;
     let pumpTask = null;
     let retryTimer = null;
     let writerPollTimer = null;
@@ -9923,6 +10060,7 @@ export class SnapbackClient {
 
     const scheduleBackoff = (reason) => {
       if (!running) return;
+      const wakeAlreadyQueued = requestGeneration !== activeCycleRequestGeneration;
       requested = false;
       rearmLatchedReplayWake();
       clearRetryTimer();
@@ -9952,6 +10090,10 @@ export class SnapbackClient {
         nextRetryAtMs = null;
         requestCycle('backoff-expired');
       }, delay);
+      if (wakeAlreadyQueued) {
+        clearRetryTimer();
+        requested = true;
+      }
     };
 
     const scheduleWriterPoll = () => {
@@ -9987,12 +10129,14 @@ export class SnapbackClient {
     };
 
     const pause = (reason, { pollWriter = false } = {}) => {
+      const wakeAlreadyQueued = requestGeneration !== activeCycleRequestGeneration;
       requested = false;
       rearmLatchedReplayWake();
       clearRetryTimer();
       if (!pollWriter) clearWriterPollTimer();
       publish('paused', reason, null);
       if (pollWriter) scheduleWriterPoll();
+      if (wakeAlreadyQueued) requested = true;
     };
 
     const barrierFailure = (error) => {
@@ -10018,7 +10162,7 @@ export class SnapbackClient {
       const records = typeof store.outboxRecords === 'function'
         ? await store.outboxRecords()
         : await store.outboxPending();
-      return replayEligibleOutboxRecords(store, records);
+      return records.filter((record) => record?.status === 'pending');
     };
 
     const runCycle = async () => {
@@ -10030,12 +10174,27 @@ export class SnapbackClient {
         return lastOutcome;
       }
       if (!running) return lastOutcome;
-      if (pending.length === 0) {
+      if (
+        pending.length === 0
+        || !pending.some((record) => (
+          isForegroundReplayEligible(store, record)
+          || isHousekeepingReplayEligible(record)
+        ))
+      ) {
         retryAttempt = 0;
         clearRetryTimer();
         clearWriterPollTimer();
         freshBarrierAvailable = false;
         publish('idle', null, null);
+        return lastOutcome;
+      }
+      const authorityTransition = this.authorityTransitionStatus();
+      if (authorityTransition.transitionOwner === 'auth-coordinator') {
+        this.__outboxLastReplayStop = Object.freeze({
+          kind: 'paused',
+          reason: 'auth-barrier',
+        });
+        pause('auth-barrier');
         return lastOutcome;
       }
       try {
@@ -10121,6 +10280,19 @@ export class SnapbackClient {
           shouldContinue: () => running && !this.__clientClosed,
           shouldReplayRecord: (record) => isForegroundReplayEligible(store, record),
         }));
+        // The foreground lane always receives first admission. Only after it
+        // yields do coalesced housekeeping records enter their own ordered
+        // lane, so a suspended background head is skipped by foreground work.
+        if (
+          running
+          && lastOutcome.stopped !== true
+          && (await scanPending()).some(isHousekeepingReplayEligible)
+        ) {
+          lastOutcome = Object.freeze(await this.#replayQueuedMutationsWithOptions({
+            shouldContinue: () => running && !this.__clientClosed,
+            shouldReplayRecord: isHousekeepingReplayEligible,
+          }));
+        }
       } catch (error) {
         if (running) {
           const code = error?.diagnostic?.code ?? error?.code ?? 'unavailable';
@@ -10167,6 +10339,7 @@ export class SnapbackClient {
     const pump = async () => {
       while (running && requested) {
         requested = false;
+        activeCycleRequestGeneration = requestGeneration;
         await runCycle();
       }
       return lastOutcome;
@@ -10176,10 +10349,18 @@ export class SnapbackClient {
       if (!running || (!automatic && !manual)) return Promise.resolve(lastOutcome);
       if (retryTimer !== null) clearRetryTimer();
       if (reason !== 'writer-lock-poll') clearWriterPollTimer();
+      requestGeneration += 1;
       requested = true;
       if (pumpTask === null) {
         pumpTask = pump().finally(() => {
           pumpTask = null;
+          // @ref LLP 0218#43-the-platform-owned-drain — enqueue/relinquish
+          // wakes are level facts even at the pump-task finalization cut.
+          // A foreground ownership release can publish at the exact cut where
+          // pump() observed `requested === false` but before this finalizer
+          // clears the task. Preserve that level wake instead of stranding it
+          // behind an already-resolved pump promise.
+          if (running && requested) requestCycle('pump-tail-level-wake');
         });
       }
       return Promise.race([pumpTask, stoppedTask]);
@@ -10673,8 +10854,14 @@ export class SnapbackClient {
           queue: false,
           __authorizationDispatchOwnership: OUTBOX_AUTHORIZATION_DISPATCH_OWNERSHIP,
           __beforeTransportDispatch: async () => {
-            authorizationDispatchRelease = await acquireOutboxAuthorizationDispatch(store);
-            const submission = await store.outboxPrepareSubmission(record.id);
+            authorizationDispatchRelease = await acquireOutboxAuthorizationDispatch(
+              store,
+              record.dispatchLane ?? 'foreground',
+            );
+            const submission = await store.outboxPrepareSubmission(
+              record.id,
+              { markDispatched: true },
+            );
             if (submission?.status !== 'ready' || !submission.record) {
               const error = new Error(
                 `SNAPBACK_OUTBOX_SUBMISSION_NOT_READY: replay record is ${submission?.status ?? 'missing'}`,
@@ -11129,6 +11316,9 @@ export class SnapbackClient {
     // when delivery fails at the transport (connectivity) and the client
     // carries an outbox-capable store; `false` restores fail-loud delivery.
     queue = 'auto',
+    // Declared background intent: idempotent, latest-wins, and valid under
+    // the settled successor. The opaque key is its coalescing identity.
+    housekeeping = null,
   } = {}, argumentsAlreadyNormalized = false) {
     assertClientReferenceKind({
       reference: ref,
@@ -11149,6 +11339,61 @@ export class SnapbackClient {
     }
     args = argumentsAlreadyNormalized ? args : validateGeneratedArguments(ref, args, name);
     const generation = expectedGeneration(ref);
+    if (
+      housekeeping !== null
+      && (
+        typeof housekeeping !== 'object'
+        || housekeeping.idempotent !== true
+        || housekeeping.successorValid !== true
+        || typeof housekeeping.key !== 'string'
+        || !SNAPBACK_OPAQUE_ID.test(housekeeping.key)
+      )
+    ) {
+      throw new TypeError('mutate housekeeping requires { key, idempotent: true, successorValid: true }');
+    }
+    const dispatchLane = housekeeping === null ? 'foreground' : 'housekeeping';
+    if (dispatchLane === 'housekeeping') clientMutationId ??= createClientMutationId();
+    const transitionStatus = this.authorityTransitionStatus();
+    if (dispatchLane === 'housekeeping' && transitionStatus.transitionOwner === 'auth-coordinator') {
+      if (queue === false) {
+        throw oneShotAuthAdmissionError({
+          code: 'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+          message: 'housekeeping mutation cannot dispatch during an authority barrier',
+          reason: AUTHENTICATION_NOT_SETTLED_REASON,
+          retryStrategy: 'after-authentication-settles',
+          operation: 'mutation',
+          refKind: ref?.kind ?? null,
+        });
+      }
+      const store = this.#offlineQueueStore(true);
+      clientMutationId ??= createClientMutationId();
+      const queueFence = outboxAuthorizationFenceFrom(await store.outboxAuthorizationStatus());
+      const stored = await store.outboxEnqueue({
+        id: clientMutationId,
+        function: name,
+        args,
+        userId: typeof userId === 'string' ? userId : null,
+        readSet,
+        correlation,
+        expectedGeneration: generation,
+        settlementLane: settlementLane ?? 'replay-accept',
+        settlementIdentity,
+        settlementClaims,
+        boundedSkew,
+        dispatchLane,
+        housekeepingKey: housekeeping.key,
+        successorTargetedHousekeeping: true,
+        capturedNow: Date.now(),
+      }, queueFence);
+      this.#notifyOutboxListeners();
+      return Object.freeze({
+        status: 'queued',
+        clientMutationId: stored.id,
+        sequence: stored.sequence,
+        presentation: 'unavailable',
+        blockedReason: 'auth-barrier',
+      });
+    }
     const authAdmissionError = (
       __authorizationDispatchOwnership === OUTBOX_AUTHORIZATION_DISPATCH_OWNERSHIP
     )
@@ -11414,6 +11659,8 @@ export class SnapbackClient {
         ? {}
         : { argumentSchema: ref.argumentSchema }),
       settlementLane: settlementLane ?? 'replay-accept',
+      dispatchLane,
+      housekeepingKey: housekeeping?.key ?? null,
       settlementIdentity,
       settlementClaims,
       boundedSkew,
@@ -11499,7 +11746,7 @@ export class SnapbackClient {
     let foregroundOutboxOwnershipHeld = false;
     let foregroundOutboxOwnershipId = null;
     const claimForegroundOwnership = (record) => {
-      if (foregroundOutboxOwnershipHeld) return;
+      if (dispatchLane === 'housekeeping' || foregroundOutboxOwnershipHeld) return;
       foregroundOutboxOwnershipHeld = claimForegroundOutboxRecord(queueStore, record);
       if (foregroundOutboxOwnershipHeld) foregroundOutboxOwnershipId = record.id;
     };
@@ -11775,40 +12022,45 @@ export class SnapbackClient {
                 preparationAuthorityCapture !== null
                 && !this.isAuthorityCaptureCurrent(preparationAuthorityCapture)
               ) throw staleAuthorityError();
-              if (!authorizationDispatchStore) return;
-              await releaseAuthorizationDispatch();
-              authorizationDispatchRelease = await acquireOutboxAuthorizationDispatch(
-                authorizationDispatchStore,
-              );
-              if (!durableOnlineRecord) {
-                const status = await authorizationDispatchStore.outboxAuthorizationStatus();
-                if (status?.suspended === true) {
-                  const error = new Error(
-                    'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED: foreground mutation waits for authorization proof',
-                  );
-                  error.code = 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED';
-                  throw error;
-                }
-                return;
-              }
-              const prepared = await queueStore.outboxPrepareSubmission(
-                clientMutationId,
-                { authorizationOnly: true },
-              );
-              if (prepared?.status !== 'ready' || !prepared.record) {
-                const error = new Error(
-                  `SNAPBACK_OUTBOX_SUBMISSION_NOT_READY: foreground record is ${prepared?.status ?? 'missing'}`,
+              if (authorizationDispatchStore) {
+                await releaseAuthorizationDispatch();
+                authorizationDispatchRelease = await acquireOutboxAuthorizationDispatch(
+                  authorizationDispatchStore,
+                  dispatchLane,
                 );
-                error.code = prepared?.status === 'authorization-suspended'
-                  ? 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED'
-                  : prepared?.status === 'authorization-stale'
-                    || prepared?.status === 'stranded'
-                    ? 'SNAPBACK_OUTBOX_AUTHORIZATION_STALE'
-                    : 'SNAPBACK_OUTBOX_SUBMISSION_NOT_READY';
-                throw error;
+                if (!durableOnlineRecord) {
+                  const status = await authorizationDispatchStore.outboxAuthorizationStatus();
+                  if (status?.suspended === true) {
+                    const error = new Error(
+                      'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED: foreground mutation waits for authorization proof',
+                    );
+                    error.code = 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED';
+                    throw error;
+                  }
+                } else {
+                  const prepared = await queueStore.outboxPrepareSubmission(
+                    clientMutationId,
+                    { authorizationOnly: true, markDispatched: true },
+                  );
+                  if (prepared?.status !== 'ready' || !prepared.record) {
+                    const error = new Error(
+                      `SNAPBACK_OUTBOX_SUBMISSION_NOT_READY: foreground record is ${prepared?.status ?? 'missing'}`,
+                    );
+                    error.code = prepared?.status === 'authorization-suspended'
+                      ? 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED'
+                      : prepared?.status === 'authorization-stale'
+                        || prepared?.status === 'stranded'
+                        ? 'SNAPBACK_OUTBOX_AUTHORIZATION_STALE'
+                        : 'SNAPBACK_OUTBOX_SUBMISSION_NOT_READY';
+                    throw error;
+                  }
+                  durableOnlineStoredRecord = prepared.record;
+                  authorizationDispatchFence = prepared.fence;
+                }
               }
-              durableOnlineStoredRecord = prepared.record;
-              authorizationDispatchFence = prepared.fence;
+              if (ephemeralOptimisticRecord) {
+                this.#markEphemeralOptimisticDispatched(clientMutationId);
+              }
             },
             onTransportFailure: async (error) => {
               await __onTransportFailure?.(error);
@@ -13576,6 +13828,11 @@ export class SnapbackClient {
         return currentSubscriptionId;
       },
       version: 0,
+      // Ruling-6 delivery facts advance only on authoritative publication;
+      // retained seeds and authority blanking never impersonate delivery.
+      // @ref LLP 0059#dated-amendment-total-client-authority-transition-state-and-settlement-matrix-2026-08-21-llp-0295-d02 — delivery time and authoritative revision are distinct public subscription facts.
+      lastDeliveryAtMs: null,
+      authoritativeRevision: 0,
       get rows() {
         return projectRowsForConsumer(presentedRows);
       },
@@ -13963,18 +14220,21 @@ export class SnapbackClient {
     };
 
     onUpdate = (rows, detail = {}) => {
+      const authorizationBoundary = detail?.kind === 'authorization_delete'
+        || detail?.kind === 'authorization_denied'
+        || detail?.kind === 'authorization_quarantine'
+        || detail?.kind === 'authorization_error';
+      if (!authorizationBoundary && detail?.freshness !== 'retained') {
+        handle.lastDeliveryAtMs = Date.now();
+        handle.authoritativeRevision += 1;
+      }
       authoritativeRows = Array.isArray(rows) ? rows : [];
       // Preserve the synchronous liveQuery handle contract: canonical
       // delivery is readable immediately, while the serialized projection
       // pass may replace it with rebased rows before notifying the adapter.
       presentedRows = authoritativeRows;
       lastAuthoritativeDetail = detail;
-      if (
-        detail?.kind === 'authorization_delete'
-        || detail?.kind === 'authorization_denied'
-        || detail?.kind === 'authorization_quarantine'
-        || detail?.kind === 'authorization_error'
-      ) {
+      if (authorizationBoundary) {
         closeAutomaticOptimisticView();
         presentedRows = authoritativeRows;
         publishOptimisticPresentation(detail);

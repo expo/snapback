@@ -1,6 +1,6 @@
 # Agent auth-transition residuals around reload and ephemeral settlement
 
-**Status:** Open
+**Status:** Closed — resolved 2026-08-21 by LLP 0295 W2
 **Opened:** 2026-08-20 (split from the duplicate open copy of
 `20260815-agent-lifecycle-auth-seams.md`)
 **Systems:** Client auth coordinator, Live queries, Ephemeral state, Dev loop
@@ -50,3 +50,24 @@ A signed-in client survives an ordinary watch reload without losing custody;
 its live resources settle or rebuild with an explicit state; and an operation
 started immediately after awaited signin does not expose an ephemeral-authority
 race to application code.
+
+## Resolution (2026-08-21)
+
+The W2 client now treats an axisless finite
+`SNAPBACK_AUTH_MODE_PENDING` refusal as reconnecting: it performs a bounded
+client-owned retry, does not invoke terminal-auth custody clearing, and
+releases/re-enters the authorization-dispatch gate between attempts. A
+disposition-bearing occurrence remains terminal, so a real staged auth-mode
+transition still runs the LLP 0059 item-5 path. Live terminal frames retain
+that same disposition-bearing rule.
+
+`authority-transition-conformance.test.mjs` pins both discriminant branches.
+The coordinator readiness suite holds a real phase-9 transition while 200
+waiters join `whenAuthoritySettled()` and proves that every returned status
+has `ephemeralAuthorityUsable: true`. The packed external-package receipt
+also starts from durable session custody, absorbs two axisless reload
+refusals, observes the successor response, and proves that the session
+remains installed; its disposition-bearing negative control terminates in
+one attempt.
+
+Evidence: `node packages/snapback-react/auth-transition-liveness-packed.test.mjs`.

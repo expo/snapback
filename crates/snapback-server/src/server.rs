@@ -27348,6 +27348,7 @@ async fn invoke_mutation(
         let conformance_name = name.clone();
         let facts_mode = authority.active_mode();
         let facts_authority = authority.clone();
+        let authorized_at_ms = now_millis();
         let (
             result,
             receipt,
@@ -27356,6 +27357,7 @@ async fn invoke_mutation(
             facts,
             commit_ack,
             conformance,
+            mutation_timing,
         ) = with_snapback_staged_authorization_write(
             &state,
             runtime.live_fanout_coalescer.clone(),
@@ -27377,15 +27379,21 @@ async fn invoke_mutation(
                         stage_media_command.clone(),
                         stage_wire_version.as_deref(),
                     )?;
-                Ok((preflight, (response_authority_descriptor, staged)))
+                // Millisecond wall clocks can tie across adjacent phases.
+                // Preserve the public carrier's strict phase ordering with a
+                // one-millisecond logical floor when the clock has not moved.
+                let executed_at_ms = now_millis().max(authorized_at_ms.saturating_add(1));
+                Ok((preflight, (response_authority_descriptor, staged, executed_at_ms)))
             },
-            move |snapback, (response_authority_descriptor, staged)| {
+            move |snapback, (response_authority_descriptor, staged, executed_at_ms)| {
                 snapback
                     .commit_staged_recorded_authorization_mutation_with_authorized_effect(
                         staged,
                         &authorized_effect,
                     )
                     .and_then(|(result, receipt, network_basis, capture)| {
+                        let committed_at_ms =
+                            now_millis().max(executed_at_ms.saturating_add(1));
                         let facts = if result.is_ok() {
                             facts_authority.validate_admission("mutation generation facts")?;
                             snapback.function_invocation_facts(facts_mode)?
@@ -27418,6 +27426,11 @@ async fn invoke_mutation(
                             facts,
                             commit_ack,
                             conformance,
+                            response_types::MutationServerTiming {
+                                authorized_at_ms,
+                                executed_at_ms,
+                                committed_at_ms,
+                            },
                         ))
                     })
             },
@@ -27448,6 +27461,7 @@ async fn invoke_mutation(
                     attribution,
                     response_authority_descriptor,
                     facts,
+                    mutation_timing,
                 )),
                 conformance,
             )),

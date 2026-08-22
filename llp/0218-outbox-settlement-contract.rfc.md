@@ -8,7 +8,7 @@
 **Revised:** 2026-08-21 (LLP 0295 D0.2 cross-reference amendment: LLP 0059's
 dated authority-transition matrix amendment owns the cross-surface state and
 settlement semantics this contract's dispatch/queue/drain behavior composes
-into; registers the matrix-ruled prospective W2 changes to this contract —
+into; records the implemented matrix-ruled W2 changes to this contract —
 the typed `auth-barrier` blocked reason beside the shipped
 `custody-unsettled` vocabulary, the declared-housekeeping lane split so
 foreground sends never head-of-line block behind housekeeping, item-5-
@@ -68,7 +68,7 @@ surface; gets a producer-cadence wording amendment per §4.4), `benchmarks/recor
 `issues/20260731-js-arm-lease-custody-and-sessions-outbox.md`,
 LLP 0059 (owner of the D0.2 authority-transition matrix this contract's
 queue/drain semantics compose into), LLP 0295 (D0.2 commissioning Plan),
-`issues/20260821-client-authority-transition-state-matrix.md`
+`issues/closed/20260821-client-authority-transition-state-matrix.md`
 
 ## Summary
 
@@ -526,11 +526,9 @@ anonymous/authenticating/authenticated/revoking/reconnecting state machine.
 The shipped semantics this RFC implemented — the dispatch union, the
 relinquishment cut, the disposition map, and the pause-with-observable-reason
 drain — remain this RFC's and are not retroactively changed; the matrix
-binds how they compose across an authorization barrier and commissions three
-**prospective W2 changes to this contract**, implemented through
-`issues/20260821-client-authority-transition-state-matrix.md` (until W2
-lands, the shipped drain remains one global single-flight sequence with the
-shipped `blockedReason` vocabulary):
+binds how they compose across an authorization barrier. The following three
+W2 changes are implemented through
+`issues/closed/20260821-client-authority-transition-state-matrix.md`:
 
 1. **Typed `auth-barrier` blocked reason.** While a transition barrier is
    active, the drain pauses with `blockedReason: auth-barrier` and wakes
@@ -559,7 +557,7 @@ shipped `blockedReason` vocabulary):
    (matrix ruling 3) — these are successor intent and drain at settle —
    while other dispatches join the bounded barrier settlement or refuse
    typed. The declaration spelling (dispatch option or generated
-   annotation) is W2 implementation-owned.
+   annotation) is recorded in the implementation section below.
 3. **Predecessor intent at the barrier** continues to follow LLP 0059's
    item-5 custody transition table (strand/delete); this RFC adds no
    alternative. Item-5 deletion is observable afterward as disposition
@@ -573,3 +571,28 @@ disposition union gains a `timing` object (`enqueuedAtMs`, `dispatchedAtMs`,
 queue wait and suspension attribution, the live projection owns delivery
 (`lastDeliveryAtMs`, `authoritativeRevision`), and the LLP 0219 channel
 carries the events.
+
+### W2 implementation record (2026-08-21)
+
+The prospective changes above are implemented. The disposition union now
+always carries the five-field nullable `timing` object. Durable enqueue and
+first transport admission are recorded atomically in every JS store arm;
+successful server responses contribute separate authorization, handler-
+execution, and durable-commit stamps, which durable settlement merges before
+publication. Existing records and older servers project missing phases as
+`null` rather than fabricating chronology.
+
+The declaration spelling is
+`housekeeping: { key, idempotent: true, successorValid: true }`. Same-key
+pending housekeeping intent is atomically failed with
+`SNAPBACK_HOUSEKEEPING_SUPERSEDED`; an active coordinator barrier accepts only
+that declared shape and returns queued with `blockedReason: auth-barrier` and
+zero transport. The drain subscribes to the coordinator's level-triggered
+settlement signal, selects foreground replay before the independent
+housekeeping sequence, and uses a two-lane authorization-dispatch gate:
+single-flight within each lane, concurrent admission across lanes, and an
+exclusive mode for roots and authority-transition cuts. Thus an already slow
+housekeeping transport does not block a foreground send. Successor-targeted
+housekeeping remains pending even when admitted after a predecessor delete
+root is installed, then binds exact successor custody at settlement; shared
+item-5 custody reconciliation remains in force for both lanes.

@@ -65,6 +65,18 @@ pub struct ErrorResponse {
     pub ephemeral_authority_instance: Option<String>,
 }
 
+/// Server-owned mutation phase timestamps carried by a successful response.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MutationServerTiming {
+    #[serde(rename = "authorizedAtMs")]
+    pub authorized_at_ms: u64,
+    #[serde(rename = "executedAtMs")]
+    pub executed_at_ms: u64,
+    #[serde(rename = "committedAtMs")]
+    pub committed_at_ms: u64,
+}
+
 /// Successful `POST /mutation/{name}` response. The mutation output and its
 /// terminal receipt are one closed, typed envelope; rejected mutations keep
 /// using [`ErrorResponse`] with the same receipt attached by the error path.
@@ -102,6 +114,10 @@ pub struct MutationResponse {
     ///   is generated from the envelope actually served.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub attribution: Option<FunctionAttribution>,
+    /// Server-owned phases of the public mutation disposition timing carrier.
+    /// Queue and dispatch timestamps are supplied by the client/outbox.
+    /// @ref LLP 0059#dated-amendment-total-client-authority-transition-state-and-settlement-matrix-2026-08-21-llp-0295-d02 — authorization, execution, and durable commit remain separately observable.
+    pub timing: MutationServerTiming,
 }
 
 /// Closed request carrier for the sole full-query lease issuance path. The
@@ -242,6 +258,7 @@ impl MutationResponse {
         attribution: Option<FunctionAttribution>,
         authority_descriptor: AuthorityDescriptor,
         facts: Option<FunctionInvocationFacts>,
+        timing: MutationServerTiming,
     ) -> Self {
         // Exhaustive destructuring makes an added MutationOutput field a
         // compile error here instead of silent drift in the public envelope.
@@ -265,6 +282,7 @@ impl MutationResponse {
             receipt,
             facts,
             attribution,
+            timing,
         }
     }
 }

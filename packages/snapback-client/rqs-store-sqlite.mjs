@@ -727,8 +727,12 @@ export async function createSqliteRqsResumeStore({
       return serialized(async () => clone(outboxOps.operationIdentityRange(await readOutbox(), key).result));
     },
     outboxPending() { return serialized(async () => clone(pendingOutboxRecords(await readOutbox()))); },
-    outboxPrepareSubmission(id) {
-      return mutateOutbox('outbox-prepare-submission', (state) => outboxOps.prepareSubmission(state, id));
+    outboxPrepareSubmission(id, options = undefined) {
+      return mutateOutbox('outbox-prepare-submission', (state) => outboxOps.prepareSubmission(
+        state,
+        id,
+        { ...(options ?? {}), now: now() },
+      ));
     },
     outboxRecords() { return serialized(async () => clone(allOutboxRecords(await readOutbox()))); },
     outboxSettle(id) {

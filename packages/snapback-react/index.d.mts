@@ -32,6 +32,27 @@ import type {
   StrandedMutation,
   StrandedMutationDiscardOutcome,
 } from '@expo/snapback-client';
+export type {
+  ClientAuthorityConformanceRow,
+  ClientAuthorityMatrixCell,
+  ClientAuthorityOperationTiming,
+  ClientAuthorityState,
+  ClientAuthoritySurface,
+  ClientAuthorityTerminal,
+  ClientAuthorityTransitionEvent,
+} from '@expo/snapback-client/authority-transition';
+export {
+  CLIENT_AUTHORITY_OPERATION_TIMINGS,
+  CLIENT_AUTHORITY_STATES,
+  CLIENT_AUTHORITY_STATE_MATRIX,
+  CLIENT_AUTHORITY_SURFACES,
+  CLIENT_AUTHORITY_TERMINALS,
+  CLIENT_AUTHORITY_TRANSITION_CONFORMANCE_ROWS,
+  CLIENT_AUTHORITY_TRANSITION_EVENTS,
+  authorityTransitionCell,
+  classifyClientAuthorityState,
+  generateAuthorityTransitionConformanceRows,
+} from '@expo/snapback-client/authority-transition';
 import type {
   AssetDiagnostic,
   AssetFileLike,
@@ -162,6 +183,8 @@ export type QueryState<Result> = (
 ) & Readonly<{
   answerClass: SnapbackAnswerClass;
   optimisticPresentation?: GeneratedOptimisticPresentation | null;
+  lastDeliveryAtMs: number | null;
+  authoritativeRevision: number;
 }>;
 
 export type QueryReference<

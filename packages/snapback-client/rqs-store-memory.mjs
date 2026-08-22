@@ -10,6 +10,7 @@
 
 import {
   allOutboxRecords,
+  createOutboxAuthorizationDispatchGate,
   emptyOutboxState,
   outboxAuthorizationStatus,
   outboxNotWriterError,
@@ -44,6 +45,7 @@ export function createMemoryRqsResumeStore({
   onBeforeStoreIdentityRotation = null,
 } = {}) {
   const state = backing ?? createMemoryRqsStoreBacking({ clientStoreId, randomBytes });
+  state.authorizationDispatchGate ??= createOutboxAuthorizationDispatchGate();
   const instance = {};
   let resolveOwnership;
   const ownership = new Promise((resolve) => { resolveOwnership = resolve; });
@@ -80,17 +82,9 @@ export function createMemoryRqsResumeStore({
     return state.writer === instance;
   };
 
-  const withAuthorizationDispatch = async (operation) => {
+  const withAuthorizationDispatch = (operation, options = undefined) => {
     requireOpen();
-    const predecessor = state.authorizationDispatchTail;
-    let release;
-    state.authorizationDispatchTail = new Promise((resolve) => { release = resolve; });
-    await predecessor;
-    try {
-      return await operation();
-    } finally {
-      release();
-    }
+    return state.authorizationDispatchGate(operation, options);
   };
 
   const commitAuthorityTransitionAsWriter = async (
@@ -167,8 +161,8 @@ export function createMemoryRqsResumeStore({
       return ownership;
     },
 
-    withOutboxAuthorizationDispatch(operation) {
-      return withAuthorizationDispatch(operation);
+    withOutboxAuthorizationDispatch(operation, options = undefined) {
+      return withAuthorizationDispatch(operation, options);
     },
 
     // @ref LLP 0218#43-the-platform-owned-drain — lock takeover is a level
@@ -518,7 +512,11 @@ export function createMemoryRqsResumeStore({
 
     async outboxPrepareSubmission(id, options = undefined) {
       if (!requireWriter()) return false;
-      const applied = outboxOps.prepareSubmission(state.outbox, id, options);
+      const applied = outboxOps.prepareSubmission(
+        state.outbox,
+        id,
+        { ...(options ?? {}), now: now() },
+      );
       state.outbox = applied.state;
       return structuredClone(applied.result);
     },
@@ -779,7 +777,7 @@ export function createMemoryRqsStoreBacking({ clientStoreId = null, randomBytes 
     storeMeta: createInitialStoreMeta({ clientStoreId, randomBytes }),
     writer: null,
     waiters: [],
-    authorizationDispatchTail: Promise.resolve(),
+    authorizationDispatchGate: createOutboxAuthorizationDispatchGate(),
     authorityTransitionWipers: new Map(),
   };
 }

@@ -188,7 +188,7 @@ transition intent, phase-8 ownership release, close-code terminal latch,
 handshake app-identity/UUIDv7, final-fence handshake capture, readiness probes)
 as named defect obligations. Full triage in §Open decisions and status.)
 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0059-session-projection-and-client-barrier.codex.md` and applied its editorial correction to the public credential-classification prose; material findings remain for author triage). 2026-07-14 (ENG-24982 session-clock-floor audit: persist a durable non-decreasing `auth_session_clock_floor_ms`, seed the process clock from it at startup, and derive every wall-clock lifetime decision at `max(sample, floor)` so a backward wall move across restart cannot rebuild a slid or absolute-expired session as current). 2026-07-14 (leased-handoff reconciliation: share one bounded projection/outbox budget, preserve level-triggered projection suffixes, rank recovery markers through final HTTP/WebSocket transfer, and keep projection-only responses behind the exact outbox cut). 2026-07-14 (client poison-latch reconciliation: a connection-continuity loss permanently closes that ephemeral overlay generation, including against delayed snapshots; only a fresh subscribe may construct its successor, while room-scoped resync retains in-place snapshot recovery). 2026-07-14 (client-store version reconciliation: qualify format 3 as the historical item-5 predecessor and point the composed production format 5 and its v1–v4 migration rules to LLP 0043 without self-ratifying this Draft). 2026-07-14 (overflow containment reconciliation: bound and byte-charge exact recovery markers, collapse exhausted recovery state to one fail-closed all-authority signal, and route connection-wide clear-retained recovery across durable and ephemeral client lanes). 2026-07-14 (resume-transfer reconciliation: keep a changed-generation successor scope and effect fence unpublished until fresh authorization, retry resolution, and any newly available authenticated predecessor-retirement frontier are commit-ready; roll failed staging back to the quarantined retained predecessor). 2026-07-14 (final effect-fence reconciliation: record the exact stream/grant/session fence on retained realtime state, scoped queue overflow/purge, replacement-safe room reauthorization phases, mint-only containment, and the bounded ordinary WebSocket handoff). 2026-07-14 (final auth audit reconciliation: retain mode admission through the final HTTP body sink and make same-mode sessions activation wait for predecessor responses while projecting its exact authorization event before reopen). 2026-07-14 (implementation-evidence reconciliation: record ENG-24603/item 5's landed server/client mechanisms, distinguish its historical activation boundary from the now-composed items 6–8 posture, and remove item 8 from future decisions without self-ratifying this Draft). 2026-07-14 (final audit reconciliation: align the missing/unsupported auth-client offer with LLP 0012's registered `SNAPBACK_AUTH_POLICY_UNAVAILABLE` refusal and preserve independent surface-specific protocol negotiation); 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
-**Related:** LLP 0000, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0052, LLP 0053, LLP 0057, LLP 0058, LLP 0060, LLP 0258 (application auth bootstrap — composition owner over this protocol; cross-reference only, no protocol change), LLP 0107 (React/Familiar surface projection of the D0.2 transition matrix), LLP 0218 (outbox settlement contract the matrix composes), LLP 0219 (dev diagnostics channel carrying the D0.2 ruling-6 events), LLP 0295 (D0.2 commissioning Plan), `issues/20260821-client-authority-transition-state-matrix.md`
+**Related:** LLP 0000, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0052, LLP 0053, LLP 0057, LLP 0058, LLP 0060, LLP 0258 (application auth bootstrap — composition owner over this protocol; cross-reference only, no protocol change), LLP 0107 (React/Familiar surface projection of the D0.2 transition matrix), LLP 0218 (outbox settlement contract the matrix composes), LLP 0219 (dev diagnostics channel carrying the D0.2 ruling-6 events), LLP 0295 (D0.2 commissioning Plan), `issues/closed/20260821-client-authority-transition-state-matrix.md`
 
 ## Summary
 
@@ -1658,7 +1658,7 @@ discriminated by carrier:
   the refusal as live-stream terminal, and never surfaces it as a
   caller-terminal one-shot settlement; only retry exhaustion settles a
   typed transport refusal
-  (`issues/20260820-agent-auth-transition-residuals.md` residuals 1–2).
+  (`issues/closed/20260820-agent-auth-transition-residuals.md` residuals 1–2).
 
 The transient-occurrence retry rule applies **only** to the non-terminal
 refusal shapes named above — a finite HTTP or subscribe-admission refusal
@@ -3294,7 +3294,7 @@ disposition or operator repair rather than weakening the incarnation witness.
 ## Dated amendment: total client authority-transition state and settlement matrix (2026-08-21, LLP 0295 D0.2)
 
 **Adopted per LLP 0295; the author may revise.** Commissioned by LLP 0295
-D0.2/W2 through `issues/20260821-client-authority-transition-state-matrix.md`;
+D0.2/W2 through `issues/closed/20260821-client-authority-transition-state-matrix.md`;
 this Spec is the accepting owner (the LLP 0295 Plan is the commissioning
 register, not the accepting authority).
 This amendment is the single cross-surface owner of the client
@@ -3307,8 +3307,8 @@ carry dated cross-references to this section; a surface may adapt vocabulary
 but may not invent different terminal semantics. Evidence:
 `issues/20260820-optional-user-live-query-auth-transition-stall.md`,
 `issues/20260820-authenticated-query-signed-out-settlement.md`,
-`issues/20260820-agent-auth-transition-residuals.md`, and
-`issues/20260818-guide-gap-background-writes-during-auth-transitions.md`.
+`issues/closed/20260820-agent-auth-transition-residuals.md`, and
+`issues/closed/20260818-guide-gap-background-writes-during-auth-transitions.md`.
 This is the client/runtime authority lifecycle, distinct from LLP 0293's
 kernel authority-write chokepoint.
 
@@ -3376,7 +3376,7 @@ Definitions the matrix depends on:
   justifies `clearAuthSession()` or any other custody clearing, and it is
   never live-stream terminal — the stream projects a bounded transition and
   arms a successor
-  (`issues/20260820-agent-auth-transition-residuals.md` residuals 1–2).
+  (`issues/closed/20260820-agent-auth-transition-residuals.md` residuals 1–2).
   The terminal occurrence (the closed frame/close or finite-HTTP twin
   carrying the `authorityDisposition` axis with
   `reason: "mode_transition"`) is a real staged mode transition and remains
@@ -3499,7 +3499,7 @@ diagnostic, or a fenced predecessor into `ready`/empty.
    surface waits on the observable suspension or declines to dispatch
    (a typed refusal, never a silent skip); it never hot-retries against the
    barrier
-   (`issues/20260818-guide-gap-background-writes-during-auth-transitions.md`).
+   (`issues/closed/20260818-guide-gap-background-writes-during-auth-transitions.md`).
 4. **Foreground work never queues behind housekeeping.** The outbox splits
    into a foreground lane (ordered, LLP 0218 single-flight semantics
    unchanged within the lane) and a housekeeping lane (declared writes:
@@ -3601,6 +3601,45 @@ surface vocabulary for the observable fields.
 - a superseded housekeeping record settles the typed supersession
   disposition, never a silent no-op.
 
-Suite placement, harness, and exact spellings are W2 implementation work
-tracked in `issues/20260821-client-authority-transition-state-matrix.md`,
-which carries the executable checklist.
+Suite placement, harness, and exact spellings are tracked in
+`issues/closed/20260821-client-authority-transition-state-matrix.md`, which carries
+the executable checklist and the implementation evidence recorded below.
+
+### W2 implementation record (2026-08-21)
+
+`packages/snapback-client/authority-transition.mjs` is the executable owner
+of this amendment's five states, ordered classifier, closed terminal cells,
+and W2 row product. It generates 2,250 immutable coordinates (ten matrix
+surfaces × five states × nine events × five timing bands); the client and
+React/Familiar conformance suites replay those rows, and the packed external
+proof verifies the same artifact through the Expo re-export.
+
+The coordinator now publishes level-triggered readiness through
+`authorityTransitionStatus`, `subscribeAuthorityTransition`, and
+`whenAuthoritySettled`; `subscribeSafe` and `ephemeralAuthorityUsable` do not
+become true until the active barrier has completed resume and been removed.
+The client forwards that signal to provider/drain adapters. Mutation
+dispositions carry the five ruling-6 timing fields, with enqueue/dispatch
+stamped in durable client custody and authorization/execution/commit stamped
+at their server route boundaries. Headless live handles and React/Familiar
+query state carry `lastDeliveryAtMs` and `authoritativeRevision`.
+
+The W2 housekeeping declaration is
+`housekeeping: { key, idempotent: true, successorValid: true }`. During an
+active barrier it queues with `blockedReason: auth-barrier`; same-key pending
+intent settles `failed(SNAPBACK_HOUSEKEEPING_SUPERSEDED)`. Each lane remains
+single-flight, but the shared authorization-dispatch gate admits foreground
+and housekeeping concurrently while preserving an exclusive authority-cut
+mode across both; a slow housekeeping request therefore cannot head-of-line
+block foreground admission. Successor-targeted intent is exempt from an
+already-installed predecessor delete root only while explicitly marked for
+successor binding; item-5 custody reconciliation remains common to both
+record classes.
+
+The watch-reload discriminant is executable as well: axisless finite
+`SNAPBACK_AUTH_MODE_PENDING` is absorbed by a bounded reconnect retry without
+clearing custody, while a valid `carrier`/`durableDelete` disposition remains
+terminal and enters the ordinary item-5 path. The packed proof starts with a
+durably installed session and pins both branches; the coordinator suite joins
+200 waiters to one held phase-9 settlement and proves ephemeral authority is
+usable for every waiter before it returns.

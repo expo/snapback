@@ -38,6 +38,59 @@ export const OUTBOX_MAX_RECORD_BYTES = 262_144; // 256 KiB serialized
 export const OUTBOX_MAX_PENDING_ACKS = 4096;
 export const OUTBOX_QUARANTINE_TOMBSTONE_FORMAT = 'snapback.outbox-quarantine-tombstone.v1';
 
+/**
+ * Fair two-lane dispatch gate. Foreground and housekeeping each remain
+ * single-flight, but one lane never queues behind work already admitted in
+ * the other. Calls without a lane are exclusive and fence both lanes for
+ * authorization-root and authority-transition cuts.
+ */
+export function createOutboxAuthorizationDispatchGate() {
+  const queue = [];
+  const activeLanes = new Set();
+  let exclusiveActive = false;
+
+  function run(entry) {
+    if (entry.lane === null) exclusiveActive = true;
+    else activeLanes.add(entry.lane);
+    Promise.resolve()
+      .then(entry.operation)
+      .then(entry.resolve, entry.reject)
+      .finally(() => {
+        if (entry.lane === null) exclusiveActive = false;
+        else activeLanes.delete(entry.lane);
+        pump();
+      });
+  }
+
+  function pump() {
+    if (exclusiveActive) return;
+    if (activeLanes.size === 0 && queue[0]?.lane === null) {
+      run(queue.shift());
+      return;
+    }
+    const exclusiveIndex = queue.findIndex(({ lane }) => lane === null);
+    const candidates = queue.slice(0, exclusiveIndex === -1 ? queue.length : exclusiveIndex);
+    for (const entry of candidates) {
+      if (activeLanes.has(entry.lane)) continue;
+      queue.splice(queue.indexOf(entry), 1);
+      run(entry);
+    }
+  }
+
+  return (operation, { lane = null } = {}) => {
+    if (typeof operation !== 'function') {
+      return Promise.reject(new TypeError('authorization dispatch operation must be a function'));
+    }
+    if (lane !== null && lane !== 'foreground' && lane !== 'housekeeping') {
+      return Promise.reject(new TypeError('authorization dispatch lane must be foreground or housekeeping'));
+    }
+    return new Promise((resolve, reject) => {
+      queue.push({ operation, lane, resolve, reject });
+      pump();
+    });
+  };
+}
+
 // Connectivity classification shared by the LLP 0043 M2 queue path and the
 // offline binding-receipt path (react-binding.mjs, which cannot import
 // index.mjs without a cycle): transport PROVENANCE, not constructor identity
@@ -182,6 +235,21 @@ export function normalizeOutboxRecordInput(record) {
       'outbox settlement lane must be replay-accept or re-derive',
     );
   }
+  const dispatchLane = record.dispatchLane ?? 'foreground';
+  if (dispatchLane !== 'foreground' && dispatchLane !== 'housekeeping') {
+    throw invalidOutboxRecord('outbox dispatch lane must be foreground or housekeeping');
+  }
+  const housekeepingKey = dispatchLane === 'housekeeping' ? record.housekeepingKey : null;
+  if (
+    dispatchLane === 'housekeeping'
+    && (typeof housekeepingKey !== 'string' || !REPLAY_OPAQUE_ID.test(housekeepingKey))
+  ) {
+    throw invalidOutboxRecord('housekeeping outbox records require an opaque housekeeping key');
+  }
+  const successorTargetedHousekeeping = record.successorTargetedHousekeeping === true;
+  if (successorTargetedHousekeeping && dispatchLane !== 'housekeeping') {
+    throw invalidOutboxRecord('only housekeeping intent may target authority-barrier settlement');
+  }
   // The protocol identity is the layer identity. Callers may capture the IR
   // before minting an id; normalize the durable copy once rather than retain
   // a second local-only identity that cannot match settlement.
@@ -254,6 +322,9 @@ export function normalizeOutboxRecordInput(record) {
     // @ref LLP 0133#the-two-settlement-lanes — mixed queues retain one
     //   immutable policy and claim carrier per sequence-ordered mutation.
     settlementLane,
+    dispatchLane,
+    housekeepingKey,
+    successorTargetedHousekeeping,
     settlementIdentity: record.settlementIdentity ?? null,
     settlementClaims: record.settlementClaims ?? null,
     boundedSkew: record.boundedSkew ?? null,
@@ -733,6 +804,22 @@ const rebaseUnscopedAuthorizationFences = (records, authorizationQueue) => Objec
   )),
 );
 
+// Declared successor-valid housekeeping may be durably admitted before the
+// barrier's store wipe. It is neither predecessor custody nor an ordinary
+// unattributable record: advance its CAS fence into the successor generation,
+// then bind exact custody only after the successor has settled.
+const rebaseSuccessorTargetedAuthorizationFences = (records, authorizationQueue) => Object.fromEntries(
+  Object.entries(records).map(([id, record]) => (
+    record.status === 'pending' && record.successorTargetedHousekeeping === true
+      ? [id, {
+        ...record,
+        authorizationAuthorityGeneration: authorizationQueue.authorityGeneration,
+        authorizationQueueGeneration: authorizationQueue.generation,
+      }]
+      : [id, record]
+  )),
+);
+
 const authorizationQueueResult = (authorizationQueue, extra = {}) => Object.freeze({
   ...extra,
   authorityGeneration: authorizationQueue.authorityGeneration,
@@ -763,6 +850,17 @@ const effectProvenance = (value) => {
 
 const redactOutboxForAuthorizationDelete = (records, authorizationQueue) => Object.fromEntries(
   Object.entries(records).map(([id, record]) => {
+    if (
+      record.status === 'pending'
+      && record.dispatchLane === 'housekeeping'
+      && record.successorTargetedHousekeeping === true
+    ) {
+      return [id, {
+        ...record,
+        authorizationAuthorityGeneration: authorizationQueue.authorityGeneration,
+        authorizationQueueGeneration: authorizationQueue.generation,
+      }];
+    }
     if (
       record.status !== 'pending'
       && record.status !== 'failed'
@@ -1199,9 +1297,12 @@ export const outboxOps = {
       state: {
         ...state,
         authorizationQueue,
-        records: rebaseUnscopedPending
-          ? rebaseUnscopedAuthorizationFences(state.records, authorizationQueue)
-          : state.records,
+        records: rebaseSuccessorTargetedAuthorizationFences(
+          rebaseUnscopedPending
+            ? rebaseUnscopedAuthorizationFences(state.records, authorizationQueue)
+            : state.records,
+          authorizationQueue,
+        ),
       },
       result: authorizationQueueResult(authorizationQueue, { status: 'authority-advanced' }),
     };
@@ -1239,6 +1340,14 @@ export const outboxOps = {
       ...normalized,
       sequence: state.sequence + 1,
       enqueuedAt: now,
+      // @ref LLP 0059#dated-amendment-total-client-authority-transition-state-and-settlement-matrix-2026-08-21-llp-0295-d02 — queue, dispatch, authorization, execution, and commit are distinct public mutation phases.
+      timing: {
+        enqueuedAtMs: now,
+        dispatchedAtMs: null,
+        authorizedAtMs: null,
+        executedAtMs: null,
+        committedAtMs: null,
+      },
       status: 'pending',
       failure: null,
       authorizationAuthorityGeneration: authorizationQueue.authorityGeneration,
@@ -1249,11 +1358,30 @@ export const outboxOps = {
       : stored;
     const bytes = outboxRecordBytes(admitted);
     if (bytes > OUTBOX_MAX_RECORD_BYTES) throw outboxOversizeError(bytes);
+    const records = { ...state.records };
+    if (admitted.dispatchLane === 'housekeeping') {
+      for (const [id, candidate] of Object.entries(records)) {
+        if (
+          candidate.status !== 'pending'
+          || candidate.dispatchLane !== 'housekeeping'
+          || candidate.housekeepingKey !== admitted.housekeepingKey
+          || candidate.timing?.dispatchedAtMs != null
+        ) continue;
+        records[id] = {
+          ...candidate,
+          status: 'failed',
+          failure: {
+            code: 'SNAPBACK_HOUSEKEEPING_SUPERSEDED',
+            message: `housekeeping intent ${admitted.housekeepingKey} was superseded by newer intent`,
+          },
+        };
+      }
+    }
     return {
       state: {
         ...state,
         sequence: admitted.sequence,
-        records: { ...state.records, [admitted.id]: admitted },
+        records: { ...records, [admitted.id]: admitted },
       },
       // `insertionOwned` is an atomic receipt for this call, not durable
       // record state. Compensation pairs it with the monotone sequence and
@@ -1446,6 +1574,30 @@ export const outboxOps = {
     const strandedIds = [];
     for (const record of Object.values(state.records).sort(outboxOrder)) {
       if (!isFencedRecord(record)) {
+        if (
+          record.status === 'pending'
+          && record.dispatchLane === 'housekeeping'
+          && record.successorTargetedHousekeeping === true
+        ) {
+          working = {
+            ...working,
+            records: {
+              ...working.records,
+              [record.id]: {
+                ...working.records[record.id],
+                userId: currentScope.userId,
+                authorityDescriptor,
+                principalScope: currentScope,
+                custody: currentCustody,
+                operationAuthorityPrincipalId: currentScope.userId,
+                successorTargetedHousekeeping: false,
+                authorizationAuthorityGeneration: authorizationQueue.authorityGeneration,
+                authorizationQueueGeneration: authorizationQueue.generation,
+              },
+            },
+          };
+          continue;
+        }
         const currentDeleteTombstone = record.status === 'stranded'
           && record.disposition === 'delete'
           && record.discardOnly === true
@@ -1792,6 +1944,13 @@ export const outboxOps = {
         settlement?.authorityDescriptor ?? existing.settlementAuthorityDescriptor ?? null,
       settlement,
       settledAt: now,
+      timing: {
+        enqueuedAtMs: existing.timing?.enqueuedAtMs ?? existing.enqueuedAt ?? null,
+        dispatchedAtMs: existing.timing?.dispatchedAtMs ?? null,
+        authorizedAtMs: settlement?.timing?.authorizedAtMs ?? null,
+        executedAtMs: settlement?.timing?.executedAtMs ?? null,
+        committedAtMs: settlement?.timing?.committedAtMs ?? null,
+      },
       failure: null,
     };
     if (outboxRecordBytes(stored) > OUTBOX_MAX_RECORD_BYTES) {
@@ -1810,7 +1969,11 @@ export const outboxOps = {
     );
     return { state: acknowledged.state, result: stored };
   },
-  prepareSubmission(state, id, { authorizationOnly = false } = {}) {
+  prepareSubmission(
+    state,
+    id,
+    { authorizationOnly = false, markDispatched = false, now = Date.now() } = {},
+  ) {
     const authorizationQueue = state.authorizationQueue ?? emptyOutboxState().authorizationQueue;
     if (authorizationQueueResult(authorizationQueue).suspended) {
       return {
@@ -1843,6 +2006,10 @@ export const outboxOps = {
       };
     }
     if (authorizationOnly) {
+      if (markDispatched && target.timing?.dispatchedAtMs == null) {
+        target = { ...target, timing: { ...target.timing, dispatchedAtMs: now } };
+        working = { ...working, records: { ...working.records, [id]: target } };
+      }
       return {
         state: working,
         result: {
@@ -1881,6 +2048,10 @@ export const outboxOps = {
           result: { status: target?.status ?? 'missing', record: target ?? null },
         };
       }
+    }
+    if (markDispatched && target.timing?.dispatchedAtMs == null) {
+      target = { ...target, timing: { ...target.timing, dispatchedAtMs: now } };
+      working = { ...working, records: { ...working.records, [id]: target } };
     }
     return {
       state: working,

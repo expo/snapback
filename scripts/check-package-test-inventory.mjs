@@ -123,6 +123,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'auth-anonymous-read-recovery.test.mjs',
       'auth-exchange-concurrency.test.mjs',
       'authorization-invalidation.test.mjs',
+      'authority-transition-conformance.test.mjs',
       'bearer-rotation.test.mjs',
       'browser-closure.test.mjs',
       'bundle.test.mjs',
@@ -228,6 +229,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'assets.test.mjs',
       'auth-bootstrap.test.mjs',
       'auth-transition-liveness-packed.test.mjs',
+      'authority-transition-conformance.test.mjs',
       'authority-hooks.test.mjs',
       'ssr-hydration.test.mjs',
       'auth-blocked-resource.test.mjs',
@@ -426,6 +428,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'auth-custody-secure-store.test.mjs',
       'auth-invalidation.test.mjs',
       'auth-sender-custody.test.mjs',
+      'authority-transition-signal.test.mjs',
       'agent-authority-contract.test.mjs',
       'authorized-contract.test.mjs',
       'authorized-lease.test.mjs',
@@ -560,7 +563,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 321,
+  expectedTotal = 324,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1036,6 +1039,8 @@ export function checkPackageTestInventories(options = {}) {
 // @expo/snapback-react gains the isolated fresh-tarball auth-transition liveness runner.
 // 320 -> 321 (2026-08-21, LLP 0295 Phase 1B diagnostics):
 // @expo/snapback-react gains the packed nullable asset-URL runtime/type fixture.
+// 321 -> 324 (2026-08-21, LLP 0295 W2): client matrix, coordinator readiness,
+// and React/Familiar projection conformance become maintained package suites.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

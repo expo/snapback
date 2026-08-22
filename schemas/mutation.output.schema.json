@@ -249,6 +249,33 @@
       ],
       "type": "string"
     },
+    "MutationServerTiming": {
+      "additionalProperties": false,
+      "description": "Server-owned mutation phase timestamps carried by a successful response.",
+      "properties": {
+        "authorizedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "committedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "executedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "authorizedAtMs",
+        "executedAtMs",
+        "committedAtMs"
+      ],
+      "type": "object"
+    },
     "Receipt": {
       "description": "A retention-ring receipt (LLP 0034 §3.2): connectionless facts about\nmutations and subscription lifecycle, served by the receipts snapshot and\nechoed in live-subscribe/unsubscribe outputs. Privacy (§3.3): receipts\ncarry opaque ids, versions, table names, and reasons — never row data or\nargument values.",
       "oneOf": [
@@ -640,6 +667,10 @@
       "$ref": "#/$defs/Receipt"
     },
     "result": true,
+    "timing": {
+      "$ref": "#/$defs/MutationServerTiming",
+      "description": "Server-owned phases of the public mutation disposition timing carrier.\nQueue and dispatch timestamps are supplied by the client/outbox.\n@ref LLP 0059#dated-amendment-total-client-authority-transition-state-and-settlement-matrix-2026-08-21-llp-0295-d02 — authorization, execution, and durable commit remain separately observable."
+    },
     "version": {
       "format": "uint64",
       "maximum": 9007199254740991,
@@ -652,7 +683,8 @@
     "changed_count",
     "result",
     "authorityDescriptor",
-    "receipt"
+    "receipt",
+    "timing"
   ],
   "title": "MutationResponse",
   "type": "object"

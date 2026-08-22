@@ -4089,7 +4089,11 @@ test('mutationStatus reports pending durable intent without inferring outcome-un
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
 
   const disposition = await client.mutationStatus('cm-status-pending');
-  assert.deepEqual(disposition, { status: 'pending', blockedReason: null });
+  assert.deepEqual(
+    { ...disposition, timing: undefined },
+    { status: 'pending', blockedReason: null, timing: undefined },
+  );
+  assert.equal(Number.isSafeInteger(disposition.timing.enqueuedAtMs), true);
   assert.equal(Object.isFrozen(disposition), true);
 });
 
@@ -4127,10 +4131,13 @@ test('mutationStatus reports a retained terminal failure', async () => {
   });
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
 
-  assert.deepEqual(await client.mutationStatus('cm-status-failed'), {
+  const disposition = await client.mutationStatus('cm-status-failed');
+  assert.deepEqual({ ...disposition, timing: undefined }, {
     status: 'failed',
     failure: { code: 'SNAPBACK_TEST_REFUSAL', message: 'fixture refusal' },
+    timing: undefined,
   });
+  assert.equal(Number.isSafeInteger(disposition.timing.enqueuedAtMs), true);
 });
 
 test('mutationStatus reports a payload-free quarantined disposition', async () => {
@@ -4141,10 +4148,8 @@ test('mutationStatus reports a payload-free quarantined disposition', async () =
   });
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
 
-  assert.deepEqual(
-    await client.mutationStatus('cm-status-quarantined'),
-    { status: 'quarantined' },
-  );
+  const disposition = await client.mutationStatus('cm-status-quarantined');
+  assert.deepEqual({ ...disposition, timing: undefined }, { status: 'quarantined', timing: undefined });
 });
 
 test('mutationStatus maps result-gone and carries its retained outcome facts', async () => {
@@ -4157,11 +4162,13 @@ test('mutationStatus maps result-gone and carries its retained outcome facts', a
   });
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
 
-  assert.deepEqual(await client.mutationStatus('cm-status-result-gone'), {
+  const disposition = await client.mutationStatus('cm-status-result-gone');
+  assert.deepEqual({ ...disposition, timing: undefined }, {
     status: 'resultGone',
     disposition: 'result-expired',
     outcome: 'committed',
     receiptDigest,
+    timing: undefined,
   });
 });
 
@@ -4210,7 +4217,7 @@ test('mutationStatus reports unknown after ACK consumption and collection', asyn
   assert.equal(await store.outboxConfirmAcknowledgements(['cm-status-collected']), 1);
 
   const disposition = await client.mutationStatus('cm-status-collected');
-  assert.deepEqual(disposition, { status: 'unknown' });
+  assert.deepEqual({ ...disposition, timing: undefined }, { status: 'unknown', timing: undefined });
   assert.equal(Object.isFrozen(disposition), true);
 });
 

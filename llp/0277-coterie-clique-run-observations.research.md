@@ -485,7 +485,7 @@ foreground sends. Straight defects:
 `issues/20260820-optional-user-live-query-auth-transition-stall.md` and
 `issues/20260820-authenticated-query-signed-out-settlement.md`. The background
 authoring recipe is already ticketed at
-`issues/20260818-guide-gap-background-writes-during-auth-transitions.md`; the
+`issues/closed/20260818-guide-gap-background-writes-during-auth-transitions.md`; the
 composition ruling belongs to LLP 0295 W2 and LLP 0059/0107/0218.
 
 #### P17. Published Expo packages contain a Metro initialization cycle — single-run, blocking

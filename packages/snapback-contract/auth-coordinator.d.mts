@@ -102,6 +102,18 @@ export interface SnapbackAuthorityCredentialView extends SnapbackAuthorityCaptur
   readonly refreshAfterMs: number | null;
 }
 
+export interface SnapbackAuthorityTransitionStatus {
+  readonly state: 'anonymous' | 'authenticating' | 'authenticated' | 'revoking' | 'reconnecting';
+  readonly settled: boolean;
+  readonly subscribeSafe: boolean;
+  readonly ephemeralAuthorityUsable: boolean;
+  readonly transitionOwner: 'auth-coordinator' | null;
+  readonly barrierPhase: string | null;
+  readonly authorityEpoch: number | null;
+  readonly custodyRevision: number | null;
+  readonly closed: boolean;
+}
+
 /** Transactional owner handed to `withOwnership` operations. */
 export interface SnapbackAuthCustodyOwner {
   read(): Promise<SnapbackAuthCustodyRecord | null>;
@@ -269,6 +281,13 @@ export class AuthCoordinator {
       refreshAfterMs: number | null;
     }
   >;
+
+  /** Level-triggered phase-9 readiness fact consumed by provider adapters. */
+  authorityTransitionStatus(): SnapbackAuthorityTransitionStatus;
+  subscribeAuthorityTransition(
+    listener: (status: SnapbackAuthorityTransitionStatus) => void,
+  ): () => void;
+  whenAuthoritySettled(): Promise<SnapbackAuthorityTransitionStatus>;
 
   /** Narrow transport read used during the post-settle resume barrier. */
   credentialFor(capture: SnapbackAuthorityCapture): Readonly<{
