@@ -2,8 +2,9 @@
 //! acquisition, staging, the final admission cut, COMMIT, and exact
 //! reconciliation.
 //!
-//! This module deliberately has no production-route caller yet. The first
-//! caller is the route-free failure-injection prototype in `server/tests.rs`.
+//! Durable watch management is the first production adopter. The route-free
+//! failure-injection prototype in `server/tests.rs` remains the mechanism-level
+//! proof for queueing, deadline, panic, and ambiguity behavior.
 //!
 //! @ref LLP 0058#split-phase-authorized-effect-fence — caller authority is
 //!   reserved outside Local and the mode guard is acquired only at COMMIT.
@@ -28,11 +29,13 @@ use tokio::time::{Instant, timeout_at};
 
 pub(crate) const COMMIT_OUTCOME_UNCERTAIN_CODE: &str = "SNAPBACK_COMMIT_OUTCOME_UNCERTAIN";
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct CommitCapsuleSpec {
     pub operation: &'static str,
     pub deadline: Instant,
     pub uncertain_diagnostic: &'static str,
+    #[cfg(test)]
+    pub test_pause_id: Option<String>,
 }
 
 #[derive(Debug)]
@@ -590,10 +593,24 @@ where
             phase: CommitTimeoutPhase::WriterAcquire,
         };
     }
+    #[cfg(test)]
+    super::pause_test_finite_authority_request(
+        spec.test_pause_id.as_deref(),
+        super::TestFiniteAuthorityPausePoint::BeforeAuthorizedEffectReservation,
+        None,
+    )
+    .await;
     let reservation = match authority.reserve_authorized_effect(spec.operation) {
         Ok(reservation) => reservation,
         Err(error) => return CommitCapsuleOutcome::Refused(with_refusal_facts(error)),
     };
+    #[cfg(test)]
+    super::pause_test_finite_authority_request(
+        spec.test_pause_id.as_deref(),
+        super::TestFiniteAuthorityPausePoint::AfterAuthorizedEffectReservation,
+        None,
+    )
+    .await;
 
     // The entire queued future owns the reservation, gate, immutable intent,
     // and both closures. Timeout cancellation therefore removes only this

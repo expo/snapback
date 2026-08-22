@@ -24469,6 +24469,60 @@ impl LocalSnapback {
             .ok_or_else(crate::storage::watches::watch_not_found)
     }
 
+    /// Stage one publication-backed watch management operation for the
+    /// server-owned bounded final cut. This replaces, rather than wraps, the
+    /// mode-only guard used by the legacy no-publication sibling.
+    ///
+    /// @ref LLP 0058#split-phase-authorized-effect-fence — validation happens
+    /// before the capsule's non-reentrant commit guard.
+    pub fn stage_watch_management<'connection>(
+        &'connection mut self,
+        authority: &PreparedAuthority,
+        intent: &crate::storage::watches::WatchManagementIntent,
+    ) -> SnapbackResult<crate::storage::watches::WatchManagementPending<'connection>> {
+        authority.validate_admission("watch management transaction")?;
+        if authority.source() != InvocationSource::WatchManagement {
+            return Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_SOURCE_INVALID",
+                "watches",
+                "watch management requires the registered management source",
+            ));
+        }
+        let management_principal_id = match intent {
+            crate::storage::watches::WatchManagementIntent::Transition { .. } => {
+                watch_management_owner(authority)?.0
+            }
+            crate::storage::watches::WatchManagementIntent::Renewal { .. } => {
+                let ResolvedAppAuthority::Session { user_id, .. } = authority.resolved() else {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_WATCH_RENEWAL_DENIED",
+                        "watches",
+                        "watchAnchor renewal requires fresh user session consent",
+                    ));
+                };
+                user_id.clone()
+            }
+        };
+        self.db
+            .stage_watch_management(intent, &management_principal_id)
+    }
+
+    pub fn reconcile_watch_management(
+        &mut self,
+        intended: &crate::storage::watches::WatchManagementIntendedRows,
+    ) -> SnapbackResult<Option<crate::storage::watches::WatchManagementCommit>> {
+        self.db.reconcile_watch_management(intended)
+    }
+
+    pub fn observe_watch_management_commit(
+        &self,
+        committed: &crate::storage::watches::WatchManagementCommit,
+    ) {
+        if committed.evaluation_enqueued {
+            self.jobs_active.store(true, Ordering::Relaxed);
+        }
+    }
+
     pub fn renew_watch(
         &mut self,
         authority: &PreparedAuthority,

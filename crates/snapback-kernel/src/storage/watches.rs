@@ -148,6 +148,140 @@ pub struct WatchAnchorAuthority {
     pub integration_status: crate::storage::auth_integrations::IntegrationStatus,
 }
 
+/// Immutable operation identity and inputs for one caller-backed watch
+/// management commit. Generated successor ids are chosen before the capsule
+/// reserves authority, so COMMIT reconciliation never has to invent an
+/// identity after the durable cut.
+#[derive(Clone, Debug)]
+pub enum WatchManagementIntent {
+    Transition {
+        operation_identity: String,
+        watch_id: String,
+        target: WatchStatus,
+        now_ms: u64,
+        resume_job_id: Option<String>,
+    },
+    Renewal {
+        operation_identity: String,
+        watch_id: String,
+        ttl_ms: u64,
+        now_ms: u64,
+        replacement_grant_id: String,
+    },
+}
+
+impl WatchManagementIntent {
+    pub fn operation_identity(&self) -> &str {
+        match self {
+            Self::Transition {
+                operation_identity, ..
+            }
+            | Self::Renewal {
+                operation_identity, ..
+            } => operation_identity,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct WatchAnchorGrantRow {
+    id: String,
+    actor_user_id: String,
+    effective_user_id: String,
+    scopes: String,
+    created_at_ms: u64,
+    expires_at_ms: u64,
+    revoked_at_ms: Option<u64>,
+    created_by: String,
+    request_id: Option<String>,
+    consent_digest: Vec<u8>,
+    last_used_at_ms: u64,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct WatchDurableRow(Vec<rusqlite::types::Value>);
+
+#[derive(Clone, Debug)]
+enum WatchManagementIntendedEffect {
+    Transition {
+        resume_job_id: Option<String>,
+        now_ms: u64,
+        available_at_ms: Option<u64>,
+    },
+    Renewal {
+        old_anchor: WatchAnchorGrantRow,
+        replacement_anchor: WatchAnchorGrantRow,
+    },
+}
+
+/// Exact durable successor predicate retained before COMMIT begins.
+///
+/// The response row alone is insufficient for resume (which also inserts a
+/// durable evaluation job) and renewal (which revokes and inserts grants), so
+/// those sibling rows are inseparable members of this carrier.
+#[derive(Clone, Debug)]
+pub struct WatchManagementIntendedRows {
+    watch: WatchRecord,
+    durable_watch: WatchDurableRow,
+    effect: WatchManagementIntendedEffect,
+}
+
+#[derive(Clone, Debug)]
+pub struct WatchManagementCommit {
+    pub record: WatchRecord,
+    pub evaluation_enqueued: bool,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[derive(Clone, Debug)]
+pub struct WatchManagementFactsForTest {
+    pub watch: WatchRecord,
+    durable_watch: WatchDurableRow,
+    pub dirty_while_pending: bool,
+    pub evaluation_job_count: u64,
+    pub linked_pending_job_count: u64,
+    pub anchor_grant_count: u64,
+    pub live_anchor_grant_count: u64,
+    pub revoked_anchor_grant_count: u64,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+impl PartialEq for WatchManagementFactsForTest {
+    fn eq(&self, other: &Self) -> bool {
+        self.durable_watch == other.durable_watch
+            && self.dirty_while_pending == other.dirty_while_pending
+            && self.evaluation_job_count == other.evaluation_job_count
+            && self.linked_pending_job_count == other.linked_pending_job_count
+            && self.anchor_grant_count == other.anchor_grant_count
+            && self.live_anchor_grant_count == other.live_anchor_grant_count
+            && self.revoked_anchor_grant_count == other.revoked_anchor_grant_count
+    }
+}
+
+pub struct WatchManagementPending<'connection> {
+    tx: Transaction<'connection>,
+    intended: WatchManagementIntendedRows,
+    value: WatchManagementCommit,
+}
+
+impl WatchManagementPending<'_> {
+    pub fn intended_rows(&self) -> &WatchManagementIntendedRows {
+        &self.intended
+    }
+
+    pub fn rollback(self) -> SnapbackResult<()> {
+        self.tx.rollback()?;
+        Ok(())
+    }
+
+    pub fn commit(self) -> SnapbackResult<WatchManagementCommit> {
+        #[cfg(any(test, feature = "test-support"))]
+        super::observe_durable_commit_for_test();
+        self.tx.commit()?;
+        Ok(self.value)
+    }
+}
+
 pub fn manifest_enabled(manifest: &SchemaManifest) -> bool {
     manifest.api.as_ref().is_some_and(|api| api.enabled)
 }
@@ -367,93 +501,12 @@ impl LocalDatabase {
         if record.owner_kind != WatchOwnerKind::Integration {
             return Ok(None);
         }
-        let Some(anchor_grant_id) = record.anchor_grant_id.as_deref() else {
-            return Err(catalog_corrupt());
-        };
-        let Some(installation_grant_id) = record.installation_grant_id.as_deref() else {
-            return Err(catalog_corrupt());
-        };
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let integration = match super::auth_integrations::require_active_if_integration_on(
-            &tx,
-            &record.owner_principal_id,
-        ) {
-            Ok(Some(integration_record))
-                if integration_record.integration_id == record.owner_authority_instance_id =>
-            {
-                integration_record
-            }
-            Ok(_) | Err(_) => return Ok(None),
-        };
-        if super::auth_integrations::require_installation_grant_if_integration_on(
-            &tx,
-            &record.owner_principal_id,
-            installation_grant_id,
-        )
-        .is_err()
-        {
-            return Ok(None);
-        }
-        let installation_live = tx
-            .query_row(
-                "SELECT revoked_at_ms IS NULL AND expires_at_ms > ?1
-             FROM _auth_grants WHERE id = ?2 AND actor_user_id = ?3",
-                params![now_ms, installation_grant_id, record.owner_principal_id],
-                |row| row.get::<_, bool>(0),
-            )
-            .optional()?
-            .unwrap_or(false);
-        if !installation_live {
-            return Ok(None);
-        }
-        let anchor = tx
-            .query_row(
-                "SELECT actor_user_id, effective_user_id, scopes, expires_at_ms,
-                    revoked_at_ms, created_by, consent_digest
-             FROM _auth_grants WHERE id = ?1",
-                params![anchor_grant_id],
-                |row| {
-                    Ok((
-                        row.get::<_, String>(0)?,
-                        row.get::<_, String>(1)?,
-                        row.get::<_, String>(2)?,
-                        row.get::<_, u64>(3)?,
-                        row.get::<_, Option<u64>>(4)?,
-                        row.get::<_, String>(5)?,
-                        row.get::<_, Vec<u8>>(6)?,
-                    ))
-                },
-            )
-            .optional()?;
-        let Some((actor, effective, encoded, expires_at_ms, revoked, created_by, digest)) = anchor
-        else {
-            return Ok(None);
-        };
-        if actor != record.owner_principal_id
-            || revoked.is_some()
-            || expires_at_ms <= now_ms
-            || expires_at_ms != record.anchor_expires_at_ms
-            || created_by != format!("watchAnchor:{}", record.id)
-        {
-            return Ok(None);
-        }
-        let scopes = super::auth_grants::current_grant_scopes_on(&tx, &encoded)?;
-        if !anchor_scopes_cover_record(&scopes, record)
-            || digest.as_slice() != watch_anchor_digest(record, &effective, &encoded)?.as_slice()
-        {
-            return Ok(None);
-        }
+        let authority = revalidate_watch_anchor_on(&tx, record, now_ms)?;
         tx.commit()?;
-        Ok(Some(WatchAnchorAuthority {
-            actor_user_id: actor,
-            effective_user_id: effective,
-            grant_id: anchor_grant_id.to_owned(),
-            scopes,
-            expires_at_ms,
-            integration_status: integration.status,
-        }))
+        Ok(authority)
     }
 
     pub fn renew_watch_anchor_for_user(
@@ -563,6 +616,469 @@ impl LocalDatabase {
         )?;
         tx.commit()?;
         row_for_id_on(&self.conn, id)?.ok_or_else(catalog_corrupt)
+    }
+
+    /// Stage one caller-backed watch management effect without committing it.
+    /// The returned pending value is consumed only by the server's bounded
+    /// final-cut capsule.
+    ///
+    /// @ref LLP 0058#split-phase-authorized-effect-fence — the mode guard is
+    /// acquired by the capsule only after every SQL effect is staged.
+    /// @ref LLP 0204#d93--durable-watches-end-user-automations — resume's
+    /// activation and exact evaluation enqueue are one durable operation.
+    pub fn stage_watch_management<'connection>(
+        &'connection mut self,
+        intent: &WatchManagementIntent,
+        management_principal_id: &str,
+    ) -> SnapbackResult<WatchManagementPending<'connection>> {
+        match intent {
+            WatchManagementIntent::Transition {
+                operation_identity: _,
+                watch_id,
+                target,
+                now_ms,
+                resume_job_id,
+            } => {
+                if (*target == WatchStatus::Active) != resume_job_id.is_some() {
+                    return Err(catalog_corrupt());
+                }
+                let tx = self
+                    .conn
+                    .transaction_with_behavior(TransactionBehavior::Immediate)?;
+                let current = watch_for_owner_on(&tx, watch_id, management_principal_id)?
+                    .ok_or_else(watch_not_found)?;
+                require_watch_transition(current.status, *target)?;
+                let reason = transition_reason(*target);
+                let changed = tx.execute(
+                    "UPDATE _snapback_watches SET status = ?1, status_reason = ?2,
+                     notification_json = CASE WHEN ?1 = 'active' THEN NULL ELSE notification_json END,
+                     pending_job_id = NULL, dirty_while_pending = 0,
+                     pending_firing_ordinal = NULL, pending_firing_job_id = NULL,
+                     updated_at_ms = ?3 WHERE id = ?4 AND owner_principal_id = ?5",
+                    params![
+                        target.as_str(),
+                        reason,
+                        now_ms,
+                        watch_id,
+                        management_principal_id
+                    ],
+                )?;
+                if changed != 1 {
+                    return Err(catalog_corrupt());
+                }
+                let available_at_ms = if let Some(job_id) = resume_job_id {
+                    let next_at = tx.query_row(
+                        "SELECT next_evaluation_at_ms FROM _snapback_watches WHERE id = ?1",
+                        params![watch_id],
+                        |row| row.get::<_, u64>(0),
+                    )?;
+                    let available_at_ms = (*now_ms).max(next_at);
+                    enqueue_on_with_job_id(&tx, watch_id, job_id, *now_ms, available_at_ms)?;
+                    Some(available_at_ms)
+                } else {
+                    None
+                };
+                let watch = row_for_id_on(&tx, watch_id)?.ok_or_else(catalog_corrupt)?;
+                let durable_watch =
+                    durable_watch_row_on(&tx, watch_id)?.ok_or_else(catalog_corrupt)?;
+                let intended = WatchManagementIntendedRows {
+                    watch: watch.clone(),
+                    durable_watch,
+                    effect: WatchManagementIntendedEffect::Transition {
+                        resume_job_id: resume_job_id.clone(),
+                        now_ms: *now_ms,
+                        available_at_ms,
+                    },
+                };
+                Ok(WatchManagementPending {
+                    tx,
+                    intended,
+                    value: WatchManagementCommit {
+                        record: watch,
+                        evaluation_enqueued: resume_job_id.is_some(),
+                    },
+                })
+            }
+            WatchManagementIntent::Renewal {
+                operation_identity: _,
+                watch_id,
+                ttl_ms,
+                now_ms,
+                replacement_grant_id,
+            } => {
+                if *ttl_ms == 0 || *ttl_ms > crate::watches::RENEWAL_CEILING_MS {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_WATCH_RENEWAL_INVALID",
+                        "watches",
+                        "watchAnchor renewal must be positive and no more than 365 days",
+                    ));
+                }
+                let tx = self
+                    .conn
+                    .transaction_with_behavior(TransactionBehavior::Immediate)?;
+                let record = row_for_id_on(&tx, watch_id)?.ok_or_else(watch_not_found)?;
+                if record.owner_kind != WatchOwnerKind::Integration
+                    || record.status == WatchStatus::Dead
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_WATCH_RENEWAL_DENIED",
+                        "watches",
+                        "only a live integration watch's consenting user can renew its anchor",
+                    ));
+                }
+                let anchor =
+                    revalidate_watch_anchor_on(&tx, &record, *now_ms)?.ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_WATCH_AUTHORITY_DEAD",
+                            "watches",
+                            "watchAnchor is no longer renewable",
+                        )
+                    })?;
+                if anchor.effective_user_id != management_principal_id {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_WATCH_RENEWAL_DENIED",
+                        "watches",
+                        "the current session did not grant this watchAnchor",
+                    ));
+                }
+                let expires_at_ms = now_ms
+                    .checked_add(*ttl_ms)
+                    .filter(|value| *value <= 9_007_199_254_740_991)
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_WATCH_RENEWAL_INVALID",
+                            "watches",
+                            "renewal expiry overflows portable time",
+                        )
+                    })?;
+                let old_grant_id = record
+                    .anchor_grant_id
+                    .as_deref()
+                    .ok_or_else(catalog_corrupt)?;
+                let mut old_anchor =
+                    anchor_grant_row_on(&tx, old_grant_id)?.ok_or_else(catalog_corrupt)?;
+                let encoded = super::auth_grants::canonical_scopes_json(&anchor.scopes)?;
+                let digest = anchor_binding_digest(
+                    &record.id,
+                    management_principal_id,
+                    &encoded,
+                    &record.query_args_digest,
+                    &record.reaction_args_digest,
+                    record.webhook_url.as_deref(),
+                    record
+                        .installation_grant_id
+                        .as_deref()
+                        .ok_or_else(catalog_corrupt)?,
+                    expires_at_ms,
+                )?;
+                let changed = tx.execute(
+                    "UPDATE _auth_grants SET revoked_at_ms = ?1
+                     WHERE id = ?2 AND effective_user_id = ?3 AND revoked_at_ms IS NULL
+                       AND expires_at_ms > ?1",
+                    params![now_ms, old_grant_id, management_principal_id],
+                )?;
+                if changed != 1 {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_WATCH_AUTHORITY_DEAD",
+                        "watches",
+                        "watchAnchor ended during renewal",
+                    ));
+                }
+                old_anchor.revoked_at_ms = Some(*now_ms);
+                tx.execute(
+                    "INSERT INTO _auth_grants(
+                       id, actor_user_id, effective_user_id, scopes, created_at_ms,
+                       expires_at_ms, revoked_at_ms, created_by, request_id,
+                       consent_digest, last_used_at_ms
+                     ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, NULL, ?7, NULL, ?8, ?5)",
+                    params![
+                        replacement_grant_id,
+                        record.owner_principal_id,
+                        management_principal_id,
+                        encoded,
+                        now_ms,
+                        expires_at_ms,
+                        format!("watchAnchor:{}", record.id),
+                        digest.as_slice(),
+                    ],
+                )?;
+                let changed = tx.execute(
+                    "UPDATE _snapback_watches SET anchor_grant_id = ?1,
+                     anchor_expires_at_ms = ?2, updated_at_ms = ?3
+                     WHERE id = ?4 AND anchor_grant_id = ?5",
+                    params![
+                        replacement_grant_id,
+                        expires_at_ms,
+                        now_ms,
+                        watch_id,
+                        old_grant_id
+                    ],
+                )?;
+                if changed != 1 {
+                    return Err(catalog_corrupt());
+                }
+                let watch = row_for_id_on(&tx, watch_id)?.ok_or_else(catalog_corrupt)?;
+                let durable_watch =
+                    durable_watch_row_on(&tx, watch_id)?.ok_or_else(catalog_corrupt)?;
+                let replacement_anchor =
+                    anchor_grant_row_on(&tx, replacement_grant_id)?.ok_or_else(catalog_corrupt)?;
+                let intended = WatchManagementIntendedRows {
+                    watch: watch.clone(),
+                    durable_watch,
+                    effect: WatchManagementIntendedEffect::Renewal {
+                        old_anchor,
+                        replacement_anchor,
+                    },
+                };
+                Ok(WatchManagementPending {
+                    tx,
+                    intended,
+                    value: WatchManagementCommit {
+                        record: watch,
+                        evaluation_enqueued: false,
+                    },
+                })
+            }
+        }
+    }
+
+    /// Reconcile only the complete exact successor tuple. Absence, a partial
+    /// successor, or any different valid successor remains uncertain.
+    pub fn reconcile_watch_management(
+        &mut self,
+        intended: &WatchManagementIntendedRows,
+    ) -> SnapbackResult<Option<WatchManagementCommit>> {
+        if durable_watch_row_on(&self.conn, &intended.watch.id)?.as_ref()
+            != Some(&intended.durable_watch)
+        {
+            return Ok(None);
+        }
+        let Some(watch) = row_for_id_on(&self.conn, &intended.watch.id)? else {
+            return Ok(None);
+        };
+        let evaluation_enqueued = match &intended.effect {
+            WatchManagementIntendedEffect::Transition {
+                resume_job_id,
+                now_ms,
+                available_at_ms,
+            } => match (resume_job_id, available_at_ms) {
+                (Some(job_id), Some(available_at_ms)) => {
+                    if !exact_watch_evaluation_job_on(
+                        &self.conn,
+                        &intended.watch.id,
+                        job_id,
+                        *now_ms,
+                        *available_at_ms,
+                    )? {
+                        return Ok(None);
+                    }
+                    true
+                }
+                (None, None) => false,
+                _ => return Err(catalog_corrupt()),
+            },
+            WatchManagementIntendedEffect::Renewal {
+                old_anchor,
+                replacement_anchor,
+            } => {
+                if anchor_grant_row_on(&self.conn, &old_anchor.id)?.as_ref() != Some(old_anchor)
+                    || anchor_grant_row_on(&self.conn, &replacement_anchor.id)?.as_ref()
+                        != Some(replacement_anchor)
+                {
+                    return Ok(None);
+                }
+                false
+            }
+        };
+        Ok(Some(WatchManagementCommit {
+            record: watch,
+            evaluation_enqueued,
+        }))
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn watch_management_facts_for_test(
+        &self,
+        watch_id: &str,
+    ) -> SnapbackResult<WatchManagementFactsForTest> {
+        let watch = row_for_id_on(&self.conn, watch_id)?.ok_or_else(watch_not_found)?;
+        let dirty_while_pending = self.conn.query_row(
+            "SELECT dirty_while_pending FROM _snapback_watches WHERE id = ?1",
+            params![watch_id],
+            |row| row.get::<_, bool>(0),
+        )?;
+        let producer = format!("watch:{watch_id}");
+        let evaluation_job_count = self.conn.query_row(
+            "SELECT COUNT(*) FROM _snapback_jobs_v1
+             WHERE producer_mutation_id = ?1 AND action = ?2",
+            params![producer, INTERNAL_EVALUATION_ACTION],
+            |row| row.get(0),
+        )?;
+        let linked_pending_job_count = self.conn.query_row(
+            "SELECT COUNT(*) FROM _snapback_jobs_v1
+             WHERE job_id = ?1 AND producer_mutation_id = ?2 AND action = ?3",
+            params![
+                watch.pending_job_id.as_deref(),
+                format!("watch:{watch_id}"),
+                INTERNAL_EVALUATION_ACTION
+            ],
+            |row| row.get(0),
+        )?;
+        let created_by = format!("watchAnchor:{watch_id}");
+        let (anchor_grant_count, live_anchor_grant_count, revoked_anchor_grant_count) =
+            self.conn.query_row(
+                "SELECT COUNT(*),
+                        COALESCE(SUM(CASE WHEN revoked_at_ms IS NULL THEN 1 ELSE 0 END), 0),
+                        COALESCE(SUM(CASE WHEN revoked_at_ms IS NOT NULL THEN 1 ELSE 0 END), 0)
+                 FROM _auth_grants WHERE created_by = ?1",
+                params![created_by],
+                |row| {
+                    Ok((
+                        row.get::<_, u64>(0)?,
+                        row.get::<_, u64>(1)?,
+                        row.get::<_, u64>(2)?,
+                    ))
+                },
+            )?;
+        Ok(WatchManagementFactsForTest {
+            watch,
+            durable_watch: durable_watch_row_on(&self.conn, watch_id)?
+                .ok_or_else(catalog_corrupt)?,
+            dirty_while_pending,
+            evaluation_job_count,
+            linked_pending_job_count,
+            anchor_grant_count,
+            live_anchor_grant_count,
+            revoked_anchor_grant_count,
+        })
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn seed_renewable_watch_for_management_test(
+        &mut self,
+        watch_id: &str,
+        effective_user_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<WatchRecord> {
+        let principal_id = format!("{watch_id}:integration-principal");
+        let integration_id = format!("{watch_id}:integration-record");
+        let query_function_id = format!("{watch_id}:query");
+        let reaction_function_id = format!("{watch_id}:reaction");
+        let installation_grant_id = format!("{watch_id}:installation-grant");
+        let pairing_id = format!("{watch_id}:installation-pairing");
+        let anchor_grant_id = format!("{watch_id}:watch-anchor");
+        self.create_agent_principal(
+            &principal_id,
+            now_ms,
+            &crate::storage::auth_agents::AgentRegistration {
+                display_name: Some("Watch renewal race integration".to_owned()),
+                operator_contact: None,
+                registration_provenance: json!({"class": "watch-renewal-race"}).to_string(),
+                owner_user_id: None,
+            },
+        )?;
+        self.conn.execute(
+            "INSERT INTO _snapback_integration_records(
+               id, principal_user_id, display_name, origin, redirect_uris_json,
+               status, created_at_ms, updated_at_ms, provenance, owner_claim_state
+             ) VALUES(?1, ?2, 'Watch renewal race integration',
+               'https://watch-renewal-race.invalid', '[]', 'active', ?3, ?3,
+               '{\"source\":\"watch-management-race\"}', 'claimed')",
+            params![integration_id, principal_id, now_ms],
+        )?;
+        let scopes = vec![
+            crate::storage::auth_grants::ExactGrantScope {
+                function_id: query_function_id.clone(),
+                kind: crate::storage::auth_grants::ScopedFunctionKind::LiveQuery,
+                basis: 1,
+                authority_creating: false,
+            },
+            crate::storage::auth_grants::ExactGrantScope {
+                function_id: reaction_function_id.clone(),
+                kind: crate::storage::auth_grants::ScopedFunctionKind::Action,
+                basis: 1,
+                authority_creating: false,
+            },
+        ];
+        for scope in &scopes {
+            self.conn.execute(
+                "INSERT INTO _auth_scope_bases(
+                   function_id, kind, generation, present, authority_creating
+                 ) VALUES(?1, ?2, ?3, 1, 0)",
+                params![scope.function_id, scope.kind.as_str(), scope.basis],
+            )?;
+        }
+        let scopes_json = super::auth_grants::canonical_scopes_json(&scopes)?;
+        let installation_expires_at_ms = now_ms
+            .checked_add(2 * crate::watches::RENEWAL_CEILING_MS)
+            .ok_or_else(catalog_corrupt)?;
+        self.conn.execute(
+            "INSERT INTO _auth_grants(
+               id, actor_user_id, effective_user_id, scopes, created_at_ms,
+               expires_at_ms, revoked_at_ms, created_by, request_id,
+               consent_digest, last_used_at_ms
+             ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, NULL, ?7, ?8, ?9, ?5)",
+            params![
+                installation_grant_id,
+                principal_id,
+                effective_user_id,
+                scopes_json,
+                now_ms,
+                installation_expires_at_ms,
+                format!("pairing:{pairing_id}"),
+                pairing_id,
+                vec![7_u8; 32],
+            ],
+        )?;
+        self.conn.execute(
+            "INSERT INTO _auth_pairing_requests(
+               id, code_hash, minted_by_user_id, agent_user_id,
+               requested_scopes, state, attempts, created_at_ms,
+               expires_at_ms, consumed_at_ms, grant_id
+             ) VALUES(?1, ?2, ?3, ?4, ?5, 'approved', 0, ?6, ?7, ?6, ?8)",
+            params![
+                pairing_id,
+                vec![8_u8; 32],
+                effective_user_id,
+                principal_id,
+                scopes_json,
+                now_ms,
+                installation_expires_at_ms,
+                installation_grant_id,
+            ],
+        )?;
+        self.create_watch(CreateWatchRecord {
+            id: watch_id.to_owned(),
+            owner_kind: WatchOwnerKind::Integration,
+            owner_principal_id: principal_id,
+            owner_authority_instance_id: integration_id,
+            authority_mode: WatchAuthorityMode::CapturedGrant,
+            anchor_grant_id: Some(anchor_grant_id),
+            installation_grant_id: Some(installation_grant_id),
+            anchor_effective_user_id: Some(effective_user_id.to_owned()),
+            anchor_scopes: scopes,
+            anchor_expires_at_ms: now_ms + crate::watches::ANCHOR_LIFETIME_MS,
+            query_function_id,
+            query_function_name: "watchRenewalRaceQuery".to_owned(),
+            query_basis: 1,
+            query_args_json: "{}".to_owned(),
+            query_args_digest: "watch-renewal-race-query-args".to_owned(),
+            read_dependencies: Vec::new(),
+            predicate_json: "{\"path\":\"/rows\",\"op\":\"exists\"}".to_owned(),
+            reaction_kind: WatchReactionKind::Function,
+            reaction_function_id,
+            reaction_function_name: "watchRenewalRaceReaction".to_owned(),
+            reaction_function_kind: WatchFunctionKind::Action,
+            reaction_basis: 1,
+            reaction_args_json: "{}".to_owned(),
+            reaction_args_digest: "watch-renewal-race-reaction-args".to_owned(),
+            webhook_url: None,
+            webhook_secret_ref: None,
+            daily_firing_budget: crate::watches::DEFAULT_DAILY_FIRING_BUDGET,
+            debounce_ms: crate::watches::DEFAULT_DEBOUNCE_MS,
+            initial_predicate_state: false,
+            now_ms,
+        })
     }
 
     pub fn transition_watch(
@@ -952,6 +1468,293 @@ impl LocalDatabase {
     }
 }
 
+fn watch_for_owner_on(
+    conn: &Connection,
+    id: &str,
+    owner: &str,
+) -> SnapbackResult<Option<WatchRecord>> {
+    match row_for_id_on(conn, id)? {
+        Some(record) if record.owner_principal_id == owner => Ok(Some(record)),
+        Some(_) => Err(SnapbackError::error(
+            "SNAPBACK_WATCH_OWNER_DENIED",
+            "watches",
+            "the watch belongs to a different owner",
+        )),
+        None => Ok(None),
+    }
+}
+
+fn durable_watch_row_on(
+    conn: &Connection,
+    watch_id: &str,
+) -> SnapbackResult<Option<WatchDurableRow>> {
+    Ok(conn
+        .query_row(
+            "SELECT * FROM _snapback_watches WHERE id = ?1",
+            params![watch_id],
+            |row| {
+                let values = (0..row.as_ref().column_count())
+                    .map(|index| row.get(index))
+                    .collect::<Result<Vec<rusqlite::types::Value>, _>>()?;
+                Ok(WatchDurableRow(values))
+            },
+        )
+        .optional()?)
+}
+
+fn require_watch_transition(current: WatchStatus, target: WatchStatus) -> SnapbackResult<()> {
+    if matches!(
+        (current, target),
+        (WatchStatus::Active, WatchStatus::Suspended)
+            | (WatchStatus::Suspended, WatchStatus::Active)
+            | (
+                WatchStatus::Active | WatchStatus::Suspended,
+                WatchStatus::Dead
+            )
+    ) {
+        return Ok(());
+    }
+    Err(SnapbackError::error(
+        "SNAPBACK_WATCH_STATUS_INVALID",
+        "watches",
+        "the requested watch state transition is not allowed",
+    ))
+}
+
+fn transition_reason(target: WatchStatus) -> Option<&'static str> {
+    match target {
+        WatchStatus::Suspended => Some("owner_suspended"),
+        WatchStatus::Dead => Some("owner_deleted"),
+        WatchStatus::Active => None,
+    }
+}
+
+fn revalidate_watch_anchor_on(
+    conn: &Transaction<'_>,
+    record: &WatchRecord,
+    now_ms: u64,
+) -> SnapbackResult<Option<WatchAnchorAuthority>> {
+    if record.owner_kind != WatchOwnerKind::Integration {
+        return Ok(None);
+    }
+    let Some(anchor_grant_id) = record.anchor_grant_id.as_deref() else {
+        return Err(catalog_corrupt());
+    };
+    let Some(installation_grant_id) = record.installation_grant_id.as_deref() else {
+        return Err(catalog_corrupt());
+    };
+    let integration = match super::auth_integrations::require_active_if_integration_on(
+        conn,
+        &record.owner_principal_id,
+    ) {
+        Ok(Some(integration_record))
+            if integration_record.integration_id == record.owner_authority_instance_id =>
+        {
+            integration_record
+        }
+        Ok(_) | Err(_) => return Ok(None),
+    };
+    if super::auth_integrations::require_installation_grant_if_integration_on(
+        conn,
+        &record.owner_principal_id,
+        installation_grant_id,
+    )
+    .is_err()
+    {
+        return Ok(None);
+    }
+    let installation_live = conn
+        .query_row(
+            "SELECT revoked_at_ms IS NULL AND expires_at_ms > ?1
+             FROM _auth_grants WHERE id = ?2 AND actor_user_id = ?3",
+            params![now_ms, installation_grant_id, record.owner_principal_id],
+            |row| row.get::<_, bool>(0),
+        )
+        .optional()?
+        .unwrap_or(false);
+    if !installation_live {
+        return Ok(None);
+    }
+    let anchor = conn
+        .query_row(
+            "SELECT actor_user_id, effective_user_id, scopes, expires_at_ms,
+                    revoked_at_ms, created_by, consent_digest
+             FROM _auth_grants WHERE id = ?1",
+            params![anchor_grant_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, u64>(3)?,
+                    row.get::<_, Option<u64>>(4)?,
+                    row.get::<_, String>(5)?,
+                    row.get::<_, Vec<u8>>(6)?,
+                ))
+            },
+        )
+        .optional()?;
+    let Some((actor, effective, encoded, expires_at_ms, revoked, created_by, digest)) = anchor
+    else {
+        return Ok(None);
+    };
+    if actor != record.owner_principal_id
+        || revoked.is_some()
+        || expires_at_ms <= now_ms
+        || expires_at_ms != record.anchor_expires_at_ms
+        || created_by != format!("watchAnchor:{}", record.id)
+    {
+        return Ok(None);
+    }
+    let scopes = super::auth_grants::current_grant_scopes_on(conn, &encoded)?;
+    if !anchor_scopes_cover_record(&scopes, record)
+        || digest.as_slice() != watch_anchor_digest(record, &effective, &encoded)?.as_slice()
+    {
+        return Ok(None);
+    }
+    Ok(Some(WatchAnchorAuthority {
+        actor_user_id: actor,
+        effective_user_id: effective,
+        grant_id: anchor_grant_id.to_owned(),
+        scopes,
+        expires_at_ms,
+        integration_status: integration.status,
+    }))
+}
+
+fn anchor_grant_row_on(
+    conn: &Connection,
+    grant_id: &str,
+) -> SnapbackResult<Option<WatchAnchorGrantRow>> {
+    Ok(conn
+        .query_row(
+            "SELECT id, actor_user_id, effective_user_id, scopes, created_at_ms,
+                    expires_at_ms, revoked_at_ms, created_by, request_id,
+                    consent_digest, last_used_at_ms
+             FROM _auth_grants WHERE id = ?1",
+            params![grant_id],
+            |row| {
+                Ok(WatchAnchorGrantRow {
+                    id: row.get(0)?,
+                    actor_user_id: row.get(1)?,
+                    effective_user_id: row.get(2)?,
+                    scopes: row.get(3)?,
+                    created_at_ms: row.get(4)?,
+                    expires_at_ms: row.get(5)?,
+                    revoked_at_ms: row.get(6)?,
+                    created_by: row.get(7)?,
+                    request_id: row.get(8)?,
+                    consent_digest: row.get(9)?,
+                    last_used_at_ms: row.get(10)?,
+                })
+            },
+        )
+        .optional()?)
+}
+
+fn exact_watch_evaluation_job_on(
+    conn: &Connection,
+    watch_id: &str,
+    job_id: &str,
+    enqueued_at_ms: u64,
+    available_at_ms: u64,
+) -> SnapbackResult<bool> {
+    let args = json!({ "watchId": watch_id });
+    let (args_json, args_digest) = super::jobs::canonical_args(&args)?;
+    let row = conn
+        .query_row(
+            "SELECT queue, action, args_json, args_digest, idempotency_key,
+                    available_at_ms, enqueued_at_ms, max_attempts,
+                    producer_mutation_id, producer_snapshot_version,
+                    producer_function, producer_principal, state, state_version,
+                    attempt_count, current_claim_id, current_fence,
+                    claim_expires_at_ms, terminal_at_ms, last_error_code
+             FROM _snapback_jobs_v1 WHERE job_id = ?1",
+            params![job_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, Option<String>>(4)?,
+                    row.get::<_, u64>(5)?,
+                    row.get::<_, u64>(6)?,
+                    row.get::<_, u32>(7)?,
+                    row.get::<_, String>(8)?,
+                    row.get::<_, Option<u64>>(9)?,
+                    row.get::<_, String>(10)?,
+                    row.get::<_, Option<String>>(11)?,
+                    row.get::<_, String>(12)?,
+                    row.get::<_, u64>(13)?,
+                    row.get::<_, u32>(14)?,
+                    row.get::<_, Option<String>>(15)?,
+                    row.get::<_, u64>(16)?,
+                    row.get::<_, Option<u64>>(17)?,
+                    row.get::<_, Option<u64>>(18)?,
+                    row.get::<_, Option<String>>(19)?,
+                ))
+            },
+        )
+        .optional()?;
+    let exact = row.is_some_and(
+        |(
+            queue,
+            action,
+            actual_args_json,
+            actual_args_digest,
+            idempotency_key,
+            actual_available_at_ms,
+            actual_enqueued_at_ms,
+            max_attempts,
+            producer_mutation_id,
+            producer_snapshot_version,
+            producer_function,
+            producer_principal,
+            state,
+            state_version,
+            attempt_count,
+            current_claim_id,
+            current_fence,
+            claim_expires_at_ms,
+            terminal_at_ms,
+            last_error_code,
+        )| {
+            queue == super::jobs::JOBS_DEFAULT_QUEUE
+                && action == INTERNAL_EVALUATION_ACTION
+                && actual_args_json == args_json
+                && actual_args_digest == args_digest
+                && idempotency_key == Some(format!("watch:{watch_id}:{job_id}"))
+                && actual_available_at_ms == available_at_ms
+                && actual_enqueued_at_ms == enqueued_at_ms
+                && max_attempts == super::jobs::JOBS_MAX_ATTEMPTS_CEILING
+                && producer_mutation_id == format!("watch:{watch_id}")
+                && producer_snapshot_version == Some(0)
+                && producer_function == INTERNAL_EVALUATION_ACTION
+                && producer_principal.is_none()
+                && state == "pending"
+                && state_version == 1
+                && attempt_count == 0
+                && current_claim_id.is_none()
+                && current_fence == 0
+                && claim_expires_at_ms.is_none()
+                && terminal_at_ms.is_none()
+                && last_error_code.is_none()
+        },
+    );
+    if !exact {
+        return Ok(false);
+    }
+    let auxiliary_rows = conn.query_row(
+        "SELECT
+           (SELECT COUNT(*) FROM _snapback_job_push_grants_v1 WHERE job_id = ?1) +
+           (SELECT COUNT(*) FROM _snapback_job_rehearsal_provenance_v1 WHERE job_id = ?1)",
+        params![job_id],
+        |row| row.get::<_, u64>(0),
+    )?;
+    Ok(auxiliary_rows == 0)
+}
+
 fn mint_watch_anchor_on(tx: &Transaction<'_>, request: &CreateWatchRecord) -> SnapbackResult<()> {
     let anchor_grant_id = request
         .anchor_grant_id
@@ -1245,6 +2048,45 @@ fn enqueue_on(
     let job_id = crate::ids::mint_time_ordered(crate::ids::Kind::Job);
     let enqueue = BufferedJobEnqueue {
         job_id: job_id.clone(),
+        queue: super::jobs::JOBS_DEFAULT_QUEUE.to_owned(),
+        action: INTERNAL_EVALUATION_ACTION.to_owned(),
+        args: json!({ "watchId": watch_id }),
+        idempotency_key: Some(format!("watch:{watch_id}:{job_id}")),
+        max_attempts: super::jobs::JOBS_MAX_ATTEMPTS_CEILING,
+        available_at_ms,
+        push_grant: None,
+        rehearsal_provenance: None,
+    };
+    super::jobs::insert_enqueued_jobs_in_tx(
+        conn,
+        &JobProducer {
+            mutation_id: format!("watch:{watch_id}"),
+            function: INTERNAL_EVALUATION_ACTION.to_owned(),
+            principal: None,
+        },
+        0,
+        &[enqueue],
+        enqueued_at_ms,
+    )?;
+    conn.execute(
+        "UPDATE _snapback_watches SET pending_job_id = ?1, dirty_while_pending = 0,
+         updated_at_ms = MAX(updated_at_ms, ?2) WHERE id = ?3 AND status = 'active'",
+        params![job_id, enqueued_at_ms, watch_id],
+    )?;
+    Ok(())
+}
+
+fn enqueue_on_with_job_id(
+    conn: &Connection,
+    watch_id: &str,
+    job_id: &str,
+    enqueued_at_ms: u64,
+    available_at_ms: u64,
+) -> SnapbackResult<()> {
+    // @ref LLP 0070#job-identity-and-enqueue — watch evaluation is an
+    // ordinary durable queued intent with immutable args and attempt receipts.
+    let enqueue = BufferedJobEnqueue {
+        job_id: job_id.to_owned(),
         queue: super::jobs::JOBS_DEFAULT_QUEUE.to_owned(),
         action: INTERNAL_EVALUATION_ACTION.to_owned(),
         args: json!({ "watchId": watch_id }),
@@ -1817,6 +2659,52 @@ mod tests {
                 .is_none()
         );
     }
+
+    #[test]
+    fn staged_resume_rolls_back_activation_and_its_exact_evaluation_job_together() {
+        let mut db = integration_watch_database();
+        let active = db
+            .create_watch(integration_watch_request(
+                "watch-resume-atomic",
+                "watch-resume-atomic-anchor",
+            ))
+            .expect("create resume atomicity fixture");
+        db.transition_watch(
+            &active.id,
+            "integration-principal",
+            WatchStatus::Suspended,
+            TEST_NOW_MS + 10,
+        )
+        .expect("suspend resume atomicity fixture");
+        let before = db
+            .watch_management_facts_for_test(&active.id)
+            .expect("read suspended resume fixture");
+        assert_eq!(before.watch.status, WatchStatus::Suspended);
+        assert_eq!(before.evaluation_job_count, 0);
+
+        let intent = WatchManagementIntent::Transition {
+            operation_identity: "watch-resume-atomic:rollback".to_owned(),
+            watch_id: active.id.clone(),
+            target: WatchStatus::Active,
+            now_ms: TEST_NOW_MS + 20,
+            resume_job_id: Some("watch-resume-atomic-job".to_owned()),
+        };
+        let pending = db
+            .stage_watch_management(&intent, "integration-principal")
+            .expect("stage combined resume transaction");
+        pending
+            .rollback()
+            .expect("roll back combined resume transaction");
+
+        let after = db
+            .watch_management_facts_for_test(&active.id)
+            .expect("read rolled-back resume fixture");
+        assert_eq!(after, before);
+        assert_eq!(after.watch.status, WatchStatus::Suspended);
+        assert!(!after.watch.pending);
+        assert_eq!(after.evaluation_job_count, 0);
+        assert_eq!(after.linked_pending_job_count, 0);
+    }
 }
 impl super::ServingDatabase {
     pub fn create_watch(&mut self, request: CreateWatchRecord) -> SnapbackResult<WatchRecord> {
@@ -1838,6 +2726,20 @@ impl super::ServingDatabase {
     ) -> SnapbackResult<WatchRecord> {
         self.db
             .renew_watch_anchor_for_user(id, effective_user_id, ttl_ms, now_ms)
+    }
+    pub fn stage_watch_management<'connection>(
+        &'connection mut self,
+        intent: &WatchManagementIntent,
+        management_principal_id: &str,
+    ) -> SnapbackResult<WatchManagementPending<'connection>> {
+        self.db
+            .stage_watch_management(intent, management_principal_id)
+    }
+    pub fn reconcile_watch_management(
+        &mut self,
+        intended: &WatchManagementIntendedRows,
+    ) -> SnapbackResult<Option<WatchManagementCommit>> {
+        self.db.reconcile_watch_management(intended)
     }
     pub fn transition_watch(
         &mut self,
