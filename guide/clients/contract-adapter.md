@@ -239,12 +239,13 @@ so a delivered update proves stream push:
           fallbackToPoll: false,
           onUpdate: (rows) => {
             if (!subscription.active || subscription.generation !== generation) return;
+            const nextRows = (rows ?? []) as readonly BackendProfileRow[];
             if (this.#testHooks.suppressProfileUpdate?.(
-              rows as readonly BackendProfileRow[],
+              nextRows,
             )) return;
-            this.#rememberProfileIdentities(rows as readonly BackendProfileRow[]);
+            this.#rememberProfileIdentities(nextRows);
             if (!established) return;
-            const nextRows = rows as readonly BackendProfileRow[];
+            const sameProfiles = nextRows.length === subscription.backendRows.length
 ```
 
 Its avatar path keeps byte acquisition and digesting app-owned, then uses the

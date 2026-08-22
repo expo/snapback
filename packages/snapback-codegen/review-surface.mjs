@@ -93,7 +93,7 @@ export function logicalArtifactKind(path) {
   if (path === 'provider-introspection.json') return 'provider-introspection';
   if (path === 'provider-bindings.json' || path === 'provider-bindings.d.ts') return 'provider-binding';
   if (path === 'app.descriptor.json' || /^app\.descriptor\.[0-9a-f]{64}\.json$/u.test(path)) return 'app-descriptor';
-  if (path === 'app.binding.mjs' || /^app\.binding\.[0-9a-f]{64}\.mjs$/u.test(path) || path === 'app.mjs' || path === 'app.d.ts') return 'typed-app-descriptor';
+  if (path === 'app.binding.mjs' || /^app\.binding\.[0-9a-f]{64}\.mjs$/u.test(path) || path === 'app.mjs' || path === 'app.d.ts' || path === 'app.d.mts') return 'typed-app-descriptor';
   if (path === 'api.mjs' || path === 'api.d.ts' || path === 'api.d.mts') return 'typed-api';
   if (path === 'package.json') return 'package-metadata';
   if (path === 'routes.manifest.json') return 'route-manifest';
@@ -113,7 +113,7 @@ export function artifactConsumer(path) {
   }
   if (path === 'contract-data.manifest.json' || path.startsWith('contract/')) return 'contract';
   if (path === 'app.descriptor.json') return 'inspection';
-  if (/^app\.descriptor\.[0-9a-f]{64}\.json$/u.test(path) || path === 'app.binding.mjs' || /^app\.binding\.[0-9a-f]{64}\.mjs$/u.test(path) || path === 'app.mjs' || path === 'app.d.ts' || path === 'api.mjs' || path === 'api.d.ts' || path === 'api.d.mts' || path === 'package.json') return 'client-bundler';
+  if (/^app\.descriptor\.[0-9a-f]{64}\.json$/u.test(path) || path === 'app.binding.mjs' || /^app\.binding\.[0-9a-f]{64}\.mjs$/u.test(path) || path === 'app.mjs' || path === 'app.d.ts' || path === 'app.d.mts' || path === 'api.mjs' || path === 'api.d.ts' || path === 'api.d.mts' || path === 'package.json') return 'client-bundler';
   if (path.startsWith('operations/')) return 'app-cli';
   if (path.startsWith('remote-')) return 'release';
   return 'tooling';
@@ -126,7 +126,7 @@ export function createArtifactFileRecords(
 ) {
   // @ref LLP 0173#1-artifact-and-custody — the authorization projection is
   // always consumer-committed; app policy cannot demote this review surface.
-  const committed = new Set([...committedProjectionPaths, 'authorization-review.json']);
+  const committed = withDeclarationPairCustody(new Set([...committedProjectionPaths, 'authorization-review.json']));
   const expectedPaths = [...artifactPaths].sort(compareCodeUnits);
   const actualPaths = listArtifactPaths(graphRoot);
   if (
@@ -556,4 +556,19 @@ function normalizePath(path) {
 
 function compareCodeUnits(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
+}
+
+// @ref LLP 0277#f11-small-clientcodegen-papercuts--single-run-each — a
+// relative `.mjs` consumer needs the `.d.mts` leaf, so declaration custody
+// follows the compatibility `.d.ts` leaf (and vice versa) as one unit.
+function withDeclarationPairCustody(committed) {
+  for (const stem of ['app', 'api']) {
+    const legacyDeclaration = `${stem}.d.ts`;
+    const moduleDeclaration = `${stem}.d.mts`;
+    if (committed.has(legacyDeclaration) || committed.has(moduleDeclaration)) {
+      committed.add(legacyDeclaration);
+      committed.add(moduleDeclaration);
+    }
+  }
+  return committed;
 }

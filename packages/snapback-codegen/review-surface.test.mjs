@@ -48,7 +48,7 @@ export const unknownResult = defineJsQuery({
 writeFileSync(join(project, 'demo.snapback.json'), JSON.stringify({ id: 'review-surface' }, null, 2));
 const policySource = JSON.stringify({
   schemaVersion: 'snapback.codegen-policy.v1',
-  committedProjections: ['api.d.ts'],
+  committedProjections: ['api.d.ts', 'app.d.ts'],
 }, null, 2);
 writeFileSync(join(backend, 'codegen.policy.json'), policySource);
 writeFileSync(join(backend, 'schema.mjs'), schemaSource);
@@ -146,7 +146,13 @@ try {
   );
   assert.equal(apiModuleDeclaration.logicalKind, 'typed-api');
   assert.equal(apiModuleDeclaration.consumer, 'client-bundler');
-  assert.equal(apiModuleDeclaration.custody, CUSTODY.regenerableCache);
+  assert.equal(apiModuleDeclaration.custody, CUSTODY.consumerCommitted);
+  const appModuleDeclaration = first.artifactIndex.files.find(
+    ({ path }) => path === 'app.d.mts',
+  );
+  assert.equal(appModuleDeclaration.logicalKind, 'typed-app-descriptor');
+  assert.equal(appModuleDeclaration.consumer, 'client-bundler');
+  assert.equal(appModuleDeclaration.custody, CUSTODY.consumerCommitted);
   const handlerProfileRecord = first.artifactIndex.files.find(
     ({ path }) => path === 'handler-runtime-profile.v1.json',
   );

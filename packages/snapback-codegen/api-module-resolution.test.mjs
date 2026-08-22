@@ -41,30 +41,42 @@ export const listTodos = defineQuery({
 
   const generated = await generate(backend);
   assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
-  const legacyDeclaration = readFileSync(join(generated.outDir, 'api.d.ts'), 'utf8');
-  const moduleDeclaration = readFileSync(join(generated.outDir, 'api.d.mts'), 'utf8');
-  assert.equal(
-    moduleDeclaration,
-    legacyDeclaration,
-    'the .d.ts compatibility leaf and .d.mts module-resolution leaf stay byte-identical',
-  );
+  for (const stem of ['api', 'app']) {
+    const legacyDeclaration = readFileSync(join(generated.outDir, `${stem}.d.ts`), 'utf8');
+    const moduleDeclaration = readFileSync(join(generated.outDir, `${stem}.d.mts`), 'utf8');
+    assert.equal(
+      moduleDeclaration,
+      legacyDeclaration,
+      `${stem} .d.ts compatibility and .d.mts module-resolution leaves stay byte-identical`,
+    );
+  }
 
   const fixture = join(backend, 'consumer.ts');
   writeFileSync(fixture, `
 import api from './generated/api.mjs';
+import app from './generated/app.mjs';
 
 type ArgsOf<Reference> = Reference extends { readonly __args?: infer Args } ? Args : never;
 const name: 'listTodos' = api.listTodos.name;
 const args: ArgsOf<typeof api.listTodos> = { ownerId: 'owner_1' };
 // @ts-expect-error generated argument types must reject the wrong scalar.
 const wrongArgs: ArgsOf<typeof api.listTodos> = { ownerId: 42 };
-void [name, args, wrongArgs];
+const appName: 'listTodos' = app.api.queries.listTodos.name;
+const appArgs: ArgsOf<typeof app.api.queries.listTodos> = { ownerId: 'owner_1' };
+// @ts-expect-error generated app argument types must reject the wrong scalar.
+const wrongAppArgs: ArgsOf<typeof app.api.queries.listTodos> = { ownerId: 42 };
+void [name, args, wrongArgs, appName, appArgs, wrongAppArgs];
 `);
 
   // @ref LLP 0277#f11-small-clientcodegen-papercuts--single-run-each — the
   // exact relative `.mjs` spelling must retain full generated types in both
   // resolver families without allowJs or a consumer declaration shim.
-  for (const moduleResolution of ['node', 'bundler']) {
+  const resolverModes = [
+    { module: 'esnext', moduleResolution: 'node' },
+    { module: 'esnext', moduleResolution: 'bundler' },
+    { module: 'nodenext', moduleResolution: 'nodenext' },
+  ];
+  for (const { module, moduleResolution } of resolverModes) {
     const typecheck = spawnSync(
       join(repositoryRoot, 'node_modules', '.bin', 'tsc'),
       [
@@ -72,7 +84,7 @@ void [name, args, wrongArgs];
         '--strict',
         '--skipLibCheck',
         '--target', 'es2022',
-        '--module', 'esnext',
+        '--module', module,
         '--moduleResolution', moduleResolution,
         fixture,
       ],
@@ -88,4 +100,4 @@ void [name, args, wrongArgs];
   rmSync(backend, { recursive: true, force: true });
 }
 
-console.log('api-module-resolution.test.mjs: node + bundler relative .mjs types pass');
+console.log('api-module-resolution.test.mjs: node + bundler + nodenext relative .mjs types pass');

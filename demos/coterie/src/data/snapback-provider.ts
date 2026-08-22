@@ -18,14 +18,10 @@ import {
 } from '../../../../packages/snapback-contract/auth-coordinator.mjs';
 import { createIndexedDbAuthCustodyStorage } from '../../../../packages/snapback-contract/auth-custody-indexeddb.mjs';
 
-import type {
-  GeneratedApi,
-  GeneratedDataModel,
-} from '../../snapback/generated/api.d.ts';
-// TypeScript's bundler resolver does not pair generated `.mjs` modules with
-// their adjacent `.d.ts` declaration, so preserve that generated type here.
-// @ts-expect-error generated Snapback ESM is typed by the adjacent api.d.ts
-import { api as generatedApi } from '../../snapback/generated/api.mjs';
+import {
+  api,
+  type GeneratedDataModel,
+} from '../../snapback/generated/api.mjs';
 import {
   coterieAvatarRefForSourceDigest,
   coterieAvatarUrlForRef,
@@ -36,8 +32,6 @@ import {
 } from './coterie-fixtures.ts';
 import { coterieSurfaceManifest } from './memory-provider.ts';
 import { coterieProviderClaims } from './provider-claims.ts';
-
-const api = generatedApi as GeneratedApi;
 
 export const COTERIE_SNAPBACK_MILESTONE = 'M3-minus-typing' as const;
 
@@ -174,7 +168,7 @@ interface ProfileSubscription<T> {
   generation: number;
   observer: DataObserver<T>;
   handle: {
-    readonly rows: readonly BackendProfileRow[];
+    readonly rows: readonly BackendProfileRow[] | null;
     readonly connection: unknown;
     dispose(): void | Promise<void>;
   } | null;
@@ -190,7 +184,7 @@ interface ProfileSubscription<T> {
 }
 
 interface LiveHandle {
-  readonly rows: readonly unknown[];
+  readonly rows: readonly unknown[] | null;
   readonly connection: unknown;
   dispose(): void | Promise<void>;
 }
@@ -1668,12 +1662,12 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
           fallbackToPoll: false,
           onUpdate: (rows) => {
             if (!subscription.active || subscription.generation !== generation) return;
+            const nextRows = (rows ?? []) as readonly BackendProfileRow[];
             if (this.#testHooks.suppressProfileUpdate?.(
-              rows as readonly BackendProfileRow[],
+              nextRows,
             )) return;
-            this.#rememberProfileIdentities(rows as readonly BackendProfileRow[]);
+            this.#rememberProfileIdentities(nextRows);
             if (!established) return;
-            const nextRows = rows as readonly BackendProfileRow[];
             const sameProfiles = nextRows.length === subscription.backendRows.length
               && nextRows.every((row) => subscription.statsHandles.has(row._id));
             if (sameProfiles) {
@@ -1701,7 +1695,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
         }
         subscription.handle = handle;
         established = true;
-        const rows = handle.rows as readonly BackendProfileRow[];
+        const rows = (handle.rows ?? []) as readonly BackendProfileRow[];
         this.#rememberProfileIdentities(rows);
         subscription.connection = toConnection(handle.connection);
         await this.#rebuildProfileStats(subscription, rows, generation);
@@ -1808,7 +1802,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
               || subscription.generation !== profileGeneration
               || !subscription.backendRows.some((candidate) => candidate._id === row._id)
             ) return;
-            const stats = (statsRows as readonly BackendProfileStatsRow[])[0];
+            const stats = ((statsRows ?? []) as readonly BackendProfileStatsRow[])[0];
             if (stats) subscription.stats.set(row._id, stats);
             else subscription.stats.delete(row._id);
             if (subscription.statsReady) {
@@ -1839,7 +1833,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
         }
         subscription.statsHandles.set(row._id, handle as LiveHandle);
         subscription.statsConnections.set(row._id, toConnection(handle.connection));
-        const stats = (handle.rows as readonly BackendProfileStatsRow[])[0];
+        const stats = ((handle.rows ?? []) as readonly BackendProfileStatsRow[])[0];
         if (stats) subscription.stats.set(row._id, stats);
       }));
       if (
@@ -1902,8 +1896,8 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     const generation = ++subscription.generation;
     subscription.start = (async () => {
       let pendingDelivery = Promise.resolve();
-      const publishRows = (rows: readonly unknown[]): Promise<void> => {
-        const deliveryRows = [...rows];
+      const publishRows = (rows: readonly unknown[] | null): Promise<void> => {
+        const deliveryRows = [...(rows ?? [])];
         pendingDelivery = pendingDelivery.then(async () => {
           if (!subscription.active || subscription.generation !== generation) return;
           try {
@@ -1953,7 +1947,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
             connectionId,
             transport: 'stream' as const,
             fallbackToPoll: false,
-            onUpdate: (rows: readonly BackendFeedRow[]) => { void publishRows(rows); },
+            onUpdate: (rows: readonly BackendFeedRow[] | null) => { void publishRows(rows); },
             onConnectionChange,
           };
           handle = mode === 'global'
@@ -2023,8 +2017,8 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     const generation = ++subscription.generation;
     subscription.start = (async () => {
       let pendingDelivery = Promise.resolve();
-      const publishRows = (rows: readonly unknown[]): Promise<void> => {
-        const deliveryRows = [...rows];
+      const publishRows = (rows: readonly unknown[] | null): Promise<void> => {
+        const deliveryRows = [...(rows ?? [])];
         pendingDelivery = pendingDelivery.then(async () => {
           if (!subscription.active || subscription.generation !== generation) return;
           try {

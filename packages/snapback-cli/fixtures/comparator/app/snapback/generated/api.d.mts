@@ -242,7 +242,7 @@ export interface GeneratedApi {
    * Auth: `optional-user`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `6f6a61391ee7f4628390667235bf2079e6a0209fb4da8ae03362b7848f57b54f`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `514ec96ee3dd94ee0e0bc03e3e79df16793d8e48f34353de045cc2adc32bad68`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "activityRows": FunctionReference<"activityRows", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"activityRows">; "_version": number; "_createdAt": number; "_updatedAt": number; "value": string }>, "snapback-explicit-v1">;
   /**
@@ -251,7 +251,7 @@ export interface GeneratedApi {
    * Auth: `optional-user`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `6f6a61391ee7f4628390667235bf2079e6a0209fb4da8ae03362b7848f57b54f`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `514ec96ee3dd94ee0e0bc03e3e79df16793d8e48f34353de045cc2adc32bad68`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "liveRows": FunctionReference<"liveRows", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"liveRows">; "_version": number; "_createdAt": number; "_updatedAt": number; "body": string }>, "snapback-explicit-v1">;
   /**
@@ -260,7 +260,7 @@ export interface GeneratedApi {
    * Auth: `optional-user`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `6f6a61391ee7f4628390667235bf2079e6a0209fb4da8ae03362b7848f57b54f`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `514ec96ee3dd94ee0e0bc03e3e79df16793d8e48f34353de045cc2adc32bad68`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "primaryRows": FunctionReference<"primaryRows", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"primaryRows">; "_version": number; "_createdAt": number; "_updatedAt": number; "value": string }>, "snapback-explicit-v1">;
   /**
@@ -269,7 +269,7 @@ export interface GeneratedApi {
    * Auth: `optional-user`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `6f6a61391ee7f4628390667235bf2079e6a0209fb4da8ae03362b7848f57b54f`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `514ec96ee3dd94ee0e0bc03e3e79df16793d8e48f34353de045cc2adc32bad68`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "publishLiveRow": FunctionReference<"publishLiveRow", 'Mutation', { body: string }, unknown, "snapback-explicit-v1">;
   /**
@@ -278,7 +278,7 @@ export interface GeneratedApi {
    * Auth: `optional-user`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `6f6a61391ee7f4628390667235bf2079e6a0209fb4da8ae03362b7848f57b54f`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `514ec96ee3dd94ee0e0bc03e3e79df16793d8e48f34353de045cc2adc32bad68`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "rejectInvalidWrite": FunctionReference<"rejectInvalidWrite", 'Mutation', { value: string }, unknown, "snapback-explicit-v1">;
   /**
@@ -287,7 +287,7 @@ export interface GeneratedApi {
    * Auth: `optional-user`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `6f6a61391ee7f4628390667235bf2079e6a0209fb4da8ae03362b7848f57b54f`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `514ec96ee3dd94ee0e0bc03e3e79df16793d8e48f34353de045cc2adc32bad68`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "rejectionRows": FunctionReference<"rejectionRows", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"rejectionRows">; "_version": number; "_createdAt": number; "_updatedAt": number; "value": string }>, "snapback-explicit-v1">;
   /**
@@ -296,7 +296,7 @@ export interface GeneratedApi {
    * Auth: `optional-user`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `6f6a61391ee7f4628390667235bf2079e6a0209fb4da8ae03362b7848f57b54f`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `514ec96ee3dd94ee0e0bc03e3e79df16793d8e48f34353de045cc2adc32bad68`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "writePrimaryAndActivity": FunctionReference<"writePrimaryAndActivity", 'Mutation', { primary: string; activity: string }, unknown, "snapback-explicit-v1">;
   ephemeral: GeneratedEphemeral;

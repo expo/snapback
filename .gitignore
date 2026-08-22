@@ -35,6 +35,7 @@ demos/*/snapback-sessions/generated/*
 !demos/*/snapback-sessions/generated/visibility-override-baseline.json
 !demos/*/snapback-sessions/generated/visibility-override-owner-baseline.json
 !demos/competitive-checkpoint/snapback/generated/api.d.ts
+!demos/competitive-checkpoint/snapback/generated/api.d.mts
 !demos/competitive-checkpoint/snapback/generated/api.mjs
 !demos/competitive-checkpoint/snapback/generated/functions.manifest.json
 !demos/media-happy-post/snapback/generated/functions.manifest.json
@@ -44,6 +45,8 @@ demos/*/snapback-sessions/generated/*
 !demos/todo-v2/snapback/generated/functions.manifest.json
 !demos/todo-v2/snapback/generated/schema.manifest.json
 !demos/partiful-matrix/snapback/generated/api.mjs
+!demos/team-chat/snapback/generated/api.d.ts
+!demos/team-chat/snapback/generated/api.d.mts
 demos/todo-v2/snapback/generated-remote-service/*
 !demos/todo-v2/snapback/generated-remote-service/artifacts.json
 !demos/todo-v2/snapback/generated-remote-service/authorization-review.json

@@ -23,17 +23,21 @@ full types with no bridge, checked in the codegen test suite.
 
 ## Resolution
 
-Resolved 2026-08-21. Codegen now emits byte-identical `api.d.ts` and
-`api.d.mts` leaves. The compatibility `.d.ts` remains available to existing
-direct imports and generated package export maps, while TypeScript pairs the
-`.d.mts` leaf with relative `api.mjs` imports under both `node` and `bundler`
-resolution. Both leaves participate in the complete artifact inventory and
-typed-API review classification; Familiar bootstrap output follows the same
-pairing.
+Resolved 2026-08-21. Codegen now emits byte-identical `.d.ts` and `.d.mts`
+pairs for both `api.mjs` and `app.mjs`. The compatibility `.d.ts` leaves remain
+available to existing direct imports and generated package export maps, while
+TypeScript pairs `.d.mts` with relative `.mjs` imports under `node`, `bundler`,
+and `nodenext` resolution. Both leaves participate in each complete artifact
+inventory and review classification; committing either declaration leaf gives
+the pair consumer-committed custody. Familiar API bootstrap output follows the
+same pairing.
 
 `packages/snapback-codegen/api-module-resolution.test.mjs` generates a real
-API, imports `./generated/api.mjs` without `allowJs` or a declaration shim,
-and runs exact positive/negative type probes under both resolver modes.
+API and app descriptor, imports their relative `.mjs` modules without
+`allowJs` or declaration shims, and runs exact positive/negative type probes
+under all three resolver modes. The originating Coterie provider now imports
+the generated API and data-model type directly from `api.mjs` and compiles in
+strict bundler mode without its former `@ts-expect-error`/cast bridge.
 `scripts/check-generated-types` also compiles both declaration leaves and
 routes its maintained typed consumer through relative `.mjs` imports.
 Maintained demo review manifests, fully committed fixtures, the remote
@@ -43,8 +47,10 @@ Verification:
 
 - `node packages/snapback-codegen/api-module-resolution.test.mjs`
 - `scripts/check-generated-types`
-- `node scripts/check-package-test-inventory.mjs`
-- `node scripts/verify-generated-review-surface.mjs <starter roots>`
+- `scripts/check-generated-artifacts`
+- `node scripts/check-inventories.mjs`
+- `node packages/snapback-codegen/review-surface.test.mjs`
+- `tsc --noEmit -p demos/coterie/tsconfig.json`
 - `./ref-check --verbose`
 
-Landing SHA: TBD
+Landing SHA: 659897953803cad3aacf442a81207c422220e689

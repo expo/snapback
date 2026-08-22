@@ -8013,7 +8013,7 @@ async function generateInProcessLocked({
     bundleHash,
     authoredSourceHash,
     ...(activationGenerationAdvanced === null ? {} : { activationGenerationAdvanced }),
-    artifacts: ['schema.manifest.json', 'functions.manifest.json', AUTHORIZATION_REVIEW_FILE, 'normalized-definition.v1.json', 'handler-runtime-profile.v1.json', HANDLER_TYPESCRIPT_PROFILE_ARTIFACT_FILE, CLIENT_LIFECYCLE_MANIFEST_FILE, 'client-lifecycle.manifest.json', 'capability.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'app.descriptor.json', contentAddressedDescriptorFile, 'app.binding.mjs', contentAddressedAppBindingFile, 'app.mjs', 'app.d.ts', 'api.mjs', 'api.d.ts', 'api.d.mts', ...(apiFlatModule ? ['api.flat.mjs'] : []), ...(familiarServerModule ? ['server.mjs', 'server.d.ts'] : []), API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
+    artifacts: ['schema.manifest.json', 'functions.manifest.json', AUTHORIZATION_REVIEW_FILE, 'normalized-definition.v1.json', 'handler-runtime-profile.v1.json', HANDLER_TYPESCRIPT_PROFILE_ARTIFACT_FILE, CLIENT_LIFECYCLE_MANIFEST_FILE, 'client-lifecycle.manifest.json', 'capability.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'app.descriptor.json', contentAddressedDescriptorFile, 'app.binding.mjs', contentAddressedAppBindingFile, 'app.mjs', 'app.d.ts', 'app.d.mts', 'api.mjs', 'api.d.ts', 'api.d.mts', ...(apiFlatModule ? ['api.flat.mjs'] : []), ...(familiarServerModule ? ['server.mjs', 'server.d.ts'] : []), API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
     tables: Object.keys(tables),
     ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
     functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
@@ -17929,7 +17929,6 @@ function renderFamiliarApiBootstrapModule(operationNames) {
 function synthesizeFamiliarBootstrap(backendRoot, operationNames) {
   const directory = join(backendRoot, 'generated');
   mkdirSync(directory, { recursive: true });
-  const apiTypes = `${HEADER}\n// Familiar definition bootstrap; replaced by the transactional final projection.\nexport declare const api: Readonly<Record<string, Readonly<Record<string, unknown>>>>;\nexport default api;\n`;
   const files = new Map([
     ['server.mjs', renderFamiliarServerModule()],
     ['server.d.ts', renderFamiliarServerTypes()],
@@ -17937,8 +17936,7 @@ function synthesizeFamiliarBootstrap(backendRoot, operationNames) {
     // evaluation gets a deterministic, capability-empty bootstrap graph. The
     // final app-bound namespace cannot exist until definitions have evaluated.
     ['api.mjs', renderFamiliarApiBootstrapModule(operationNames)],
-    ['api.d.ts', apiTypes],
-    ['api.d.mts', apiTypes],
+    ['api.d.ts', renderFamiliarApiBootstrapTypes()], ['api.d.mts', renderFamiliarApiBootstrapTypes()],
   ]);
   for (const [name, source] of files) {
     const path = join(directory, name);
@@ -19949,14 +19947,10 @@ function writeGeneratedOutput(outDir, {
   writeFileSync(join(outDir, 'app.binding.mjs'), appBindingModule);
   writeFileSync(join(outDir, contentAddressedAppBindingFile), contentAddressedAppBindingModule);
   writeFileSync(join(outDir, 'app.mjs'), appModule);
-  writeFileSync(join(outDir, 'app.d.ts'), appTypes);
+  writeDeclarationPair(outDir, 'app', appTypes);
   writeFileSync(join(outDir, 'api.mjs'), apiModule);
   if (apiFlatModule) writeFileSync(join(outDir, 'api.flat.mjs'), apiFlatModule);
-  // @ref LLP 0277#f11-small-clientcodegen-papercuts--single-run-each — a
-  // relative `.mjs` import resolves through `.d.mts` in bundler mode, while
-  // the retained `.d.ts` leaf preserves existing direct and package-map users.
-  writeFileSync(join(outDir, 'api.d.ts'), apiTypes);
-  writeFileSync(join(outDir, 'api.d.mts'), apiTypes);
+  writeDeclarationPair(outDir, 'api', apiTypes);
   if (familiarServerModule) writeFileSync(join(outDir, 'server.mjs'), familiarServerModule);
   if (familiarServerTypes) writeFileSync(join(outDir, 'server.d.ts'), familiarServerTypes);
   if (microArtifacts) {
@@ -20242,4 +20236,15 @@ function authorityProfileForMembershipSearch(
     return null;
   }
   return authorityProfiles.get(search.visibility.declaration);
+}
+
+// @ref LLP 0277#f11-small-clientcodegen-papercuts--single-run-each — relative
+// `.mjs` imports resolve through `.d.mts`; `.d.ts` preserves compatibility.
+function writeDeclarationPair(outDir, stem, source) {
+  writeFileSync(join(outDir, `${stem}.d.ts`), source);
+  writeFileSync(join(outDir, `${stem}.d.mts`), source);
+}
+
+function renderFamiliarApiBootstrapTypes() {
+  return `${HEADER}\n// Familiar definition bootstrap; replaced by the transactional final projection.\nexport declare const api: Readonly<Record<string, Readonly<Record<string, unknown>>>>;\nexport default api;\n`;
 }

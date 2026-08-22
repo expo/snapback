@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# LLP 0032 P3(b): tsc --noEmit over every generated api declaration pair plus
-# the typed consumer fixture, so emitted-invalid-TypeScript (the S5.D2 class)
+# LLP 0032 P3(b): tsc --noEmit over every generated api/app declaration pair
+# plus the typed consumer fixture, so emitted-invalid-TypeScript (the S5.D2 class)
 # and runtime/declaration resolution drift cannot land. TypeScript is an exact
 # root workspace dependency so this gate never consults the registry or an
 # ambient npm cache while proving committed output.
@@ -54,7 +54,7 @@ node packages/snapback-codegen/index.mjs demos/graffiti/snapback >/dev/null
 node packages/snapback-codegen/index.mjs demos/card-game/snapback >/dev/null
 node packages/snapback-codegen/index.mjs demos/rbac/snapback >/dev/null
 
-API_DECLARATIONS=(
+GENERATED_DECLARATIONS=(
     demos/todo/snapback/generated/api.d.ts
     demos/todo-v2/snapback/generated/api.d.ts
     demos/all-aboard/snapback/generated/api.d.ts
@@ -69,8 +69,15 @@ API_DECLARATIONS=(
     demos/public-dashboard/snapback/generated/api.d.ts
     demos/access-desk/snapback/generated/api.d.ts
 )
+API_DECLARATIONS=("${GENERATED_DECLARATIONS[@]}")
+GENERATED_DECLARATIONS=()
 for declaration in "${API_DECLARATIONS[@]}"; do
-    API_DECLARATIONS+=("${declaration%.d.ts}.d.mts")
+    GENERATED_DECLARATIONS+=(
+        "$declaration"
+        "${declaration%.d.ts}.d.mts"
+        "${declaration%api.d.ts}app.d.ts"
+        "${declaration%api.d.ts}app.d.mts"
+    )
 done
 
 "$TSC" \
@@ -79,7 +86,7 @@ done
     --target es2022 \
     --module esnext \
     --moduleResolution bundler \
-    "${API_DECLARATIONS[@]}" \
+    "${GENERATED_DECLARATIONS[@]}" \
     demos/_kit/tests/typed-consumer-fixture.ts
 
-echo "[check-generated-types] ok: generated .d.ts/.d.mts pairs + relative .mjs consumer fixture compile clean"
+echo "[check-generated-types] ok: generated api/app .d.ts/.d.mts pairs + relative .mjs consumer fixture compile clean"
