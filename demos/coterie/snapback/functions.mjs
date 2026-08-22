@@ -591,27 +591,6 @@ export const followingFeed = defineJsLiveQuery({
   handler: async (ctx, args) => feedRows(ctx, args, true),
 });
 
-// Fixed-size, snapshot-only acceptance carrier. Production followingFeed has
-// no caller-controlled cost knob; this separate query forces multiple chunks
-// in the small checked fixture without accepting a chunk-size argument.
-export const followingFeedAcceptance = defineJsQuery({
-  auth: 'authenticated',
-  args: { before: v.optional(v.string()) },
-  result: results.records(feedRow, { minItems: 0, maxItems: 20 }),
-  reads: [
-    'feedEvents',
-    'posts',
-    'profiles',
-    'postImages',
-    'postVideos',
-    'likes',
-    'reposts',
-    'follows',
-  ],
-  refusals: ['PROFILE_REQUIRED'],
-  handler: async (ctx, args) => feedRows(ctx, args, true, 3),
-});
-
 export const thread = defineJsLiveQuery({
   auth: 'authenticated',
   args: { postId: v.id('posts') },
@@ -2892,4 +2871,4 @@ export const ensureFixtureMessage = defineJsMutation({
   },
 });
 
-export { chunkValues, followingSetLimit, requireFollowingSetCapacity };
+export { chunkValues };

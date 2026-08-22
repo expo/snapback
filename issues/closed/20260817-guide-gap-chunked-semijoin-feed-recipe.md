@@ -37,9 +37,12 @@ It explicitly preserves LLP 0278 D3 as design-only.
 Review correction (2026-08-21): the final recipe states the `public-read`
 prerequisite behind the 499 calculation, reserves host visibility bindings
 for protected tables, admits at most 1,024 follow edges, and replaces the
-caller-selected seam with `followingFeedAcceptance`. Acceptance now walks two
-forced-multi-chunk pages and compares the complete sequence with an
-independently filtered global feed.
+caller-selected seam with a harness-only `followingFeedAcceptance`. The test
+injects that query into a temporary backend and runs codegen there; the
+production `functions.mjs`, committed manifest, and generated API omit it.
+Acceptance now walks two forced-multi-chunk pages, compares the complete
+sequence with an independently filtered global feed, and drives real
+`setFollow` writes through edge 1,024 plus the pre-write edge-1,025 refusal.
 
 Linked the composition from `guide/recipes/paged-list.md` and the query-bound
 section, added the `backend.query-in-chunking` capability row with the diary's
@@ -47,4 +50,4 @@ wrong vocabulary, and added retrieval-eval cases 88–89. Regenerated the
 diagnostic registry so `SNAPBACK_QUERY_IN_ITEMS_EXCEEDED` points first to the
 recipe, then regenerated the Guide manifest and flat projections.
 
-Landing SHA: TBD
+Landing SHA: 1dc7f8e2d4944debe60b4649210db19b6e9eb376

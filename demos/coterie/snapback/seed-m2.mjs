@@ -18,7 +18,7 @@ import { installM1Fixtures } from './seed-m1.mjs';
 const backendDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(backendDir, '..', '..', '..');
 const fixtureRoot = join(repoRoot, 'benchmarks', 'fixtures', 'social-messenger');
-const api = await loadGeneratedApi();
+const productionApi = await loadGeneratedApi();
 const schemaManifest = loadGeneratedJson('schema.manifest.json');
 const mediaManifest = JSON.parse(readFileSync(join(fixtureRoot, 'media', 'manifest.json'), 'utf8'));
 
@@ -164,7 +164,7 @@ function postActionShape(action, postIds) {
   };
 }
 
-async function existingPostMatches(client, action, shape, post) {
+async function existingPostMatches(client, action, shape, post, generatedApi) {
   if (!post) return false;
   if (
     post.fixtureDigest !== action.digest
@@ -172,7 +172,7 @@ async function existingPostMatches(client, action, shape, post) {
     || post.body !== shape.body
     || (post.parentId ?? null) !== (shape.parentId ?? null)
   ) return false;
-  const media = (await client.query(api.getMyFixturePostMedia, {
+  const media = (await client.query(generatedApi.getMyFixturePostMedia, {
     args: { postId: post._id },
   })).rows;
   if (media.length !== shape.mediaPaths.length) return false;
@@ -191,12 +191,12 @@ async function existingPostMatches(client, action, shape, post) {
   return true;
 }
 
-async function ensurePost(client, action, postIds) {
+async function ensurePost(client, action, postIds, generatedApi) {
   const shape = postActionShape(action, postIds);
-  const existing = (await client.query(api.getMyFixturePost, {
+  const existing = (await client.query(generatedApi.getMyFixturePost, {
     args: { fixtureId: shape.fixtureId },
   })).rows[0] ?? null;
-  if (await existingPostMatches(client, action, shape, existing)) {
+  if (await existingPostMatches(client, action, shape, existing, generatedApi)) {
     return { fixtureId: shape.fixtureId, postId: existing._id, disposition: 'matched' };
   }
 
@@ -204,12 +204,12 @@ async function ensurePost(client, action, postIds) {
   const videoPath = shape.kind === 'video' ? shape.mediaPaths[0] : undefined;
   const imageAssetIds = [];
   for (const path of imagePaths) {
-    imageAssetIds.push(await uploadFixtureMedia(client, path, api.postImageUpload));
+    imageAssetIds.push(await uploadFixtureMedia(client, path, generatedApi.postImageUpload));
   }
   const videoAssetId = videoPath
-    ? await uploadFixtureMedia(client, videoPath, api.postVideoUpload)
+    ? await uploadFixtureMedia(client, videoPath, generatedApi.postVideoUpload)
     : undefined;
-  const outcome = (await client.mutate(api.ensureFixturePost, {
+  const outcome = (await client.mutate(generatedApi.ensureFixturePost, {
     args: {
       fixtureId: shape.fixtureId,
       fixtureDigest: action.digest,
@@ -224,11 +224,19 @@ async function ensurePost(client, action, postIds) {
   return { fixtureId: shape.fixtureId, ...outcome };
 }
 
-export async function installM2Fixtures({ baseUrl, runId = 'install' }) {
+export async function installM2Fixtures({
+  baseUrl,
+  runId = 'install',
+  generatedApi = productionApi,
+}) {
   if (typeof baseUrl !== 'string' || !baseUrl.startsWith('http')) {
     throw new TypeError('installM2Fixtures requires a Snapback baseUrl');
   }
-  const m1 = await installM1Fixtures({ baseUrl, runId: `m2-${runId}` });
+  const m1 = await installM1Fixtures({
+    baseUrl,
+    runId: `m2-${runId}`,
+    generatedApi,
+  });
   const clients = new Map();
   const profiles = new Map();
   try {
@@ -236,7 +244,7 @@ export async function installM2Fixtures({ baseUrl, runId = 'install' }) {
       const client = passwordClient(baseUrl, `coterie-m2-${runId}-${persona.id}`);
       clients.set(persona.id, client);
       await client.authPasswordSignIn({ email: persona.email, password: persona.password });
-      const profile = (await client.query(api.getMyProfile, { args: {} })).rows[0];
+      const profile = (await client.query(generatedApi.getMyProfile, { args: {} })).rows[0];
       if (!profile || profile.fixtureId !== persona.id) {
         throw new Error(`fixture principal ${persona.id} has no matching profile`);
       }
@@ -252,7 +260,7 @@ export async function installM2Fixtures({ baseUrl, runId = 'install' }) {
         const [targetActor, state, mutationId] = action.args;
         if (state !== 'set') throw new Error(`starter follow ${mutationId} is not set-state`);
         const target = profiles.get(targetActor);
-        const disposition = (await client.mutate(api.ensureFixtureFollow, {
+        const disposition = (await client.mutate(generatedApi.ensureFixtureFollow, {
           args: {
             profileId: target._id,
             mutationId,
@@ -261,14 +269,14 @@ export async function installM2Fixtures({ baseUrl, runId = 'install' }) {
         })).result;
         report.follows.push({ mutationId, disposition });
       } else if (action.verb === 'post' || action.verb === 'reply') {
-        const outcome = await ensurePost(client, action, postIds);
+        const outcome = await ensurePost(client, action, postIds, generatedApi);
         postIds.set(outcome.fixtureId, outcome.postId);
         report.posts.push(outcome);
       } else if (action.verb === 'like') {
         const [postFixtureId, state, mutationId] = action.args;
         if (state !== 'set') throw new Error(`starter like ${mutationId} is not set-state`);
         const postId = postIds.get(postFixtureId);
-        const disposition = (await client.mutate(api.ensureFixtureLike, {
+        const disposition = (await client.mutate(generatedApi.ensureFixtureLike, {
           args: { postId, mutationId, sourceDigest: action.digest },
         })).result;
         report.likes.push({ mutationId, disposition });
@@ -276,7 +284,7 @@ export async function installM2Fixtures({ baseUrl, runId = 'install' }) {
         const [postFixtureId, state, mutationId] = action.args;
         if (state !== 'set') throw new Error(`starter repost ${mutationId} is not set-state`);
         const postId = postIds.get(postFixtureId);
-        const disposition = (await client.mutate(api.ensureFixtureRepost, {
+        const disposition = (await client.mutate(generatedApi.ensureFixtureRepost, {
           args: { postId, mutationId, sourceDigest: action.digest },
         })).result;
         report.reposts.push({ mutationId, disposition });

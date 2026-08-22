@@ -1047,7 +1047,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:7d7e8cebef184f437a0af3e61c03d6acf0dc5aa0169fff5d43354e693fb499fe
+reviewed-authorities-digest: sha256:b8739e9379714807830ce2539b2ad050a64c0bc97bdac6e0fc84031abd28c2ba
 ---
 
 # Recipe: chunk a membership feed across `in()`
@@ -1109,10 +1109,6 @@ function pageKeyFor(ctx, createdAt) {
 
 function queryFilterBindingLimit() {
   return 500;
-}
-
-function threadDirectReplyLimit() {
-  return 1023;
 }
 ```
 
@@ -1272,9 +1268,40 @@ surfaces own opaque custody-bound cursors, as the
 ## Force the multi-chunk path in acceptance
 
 A fixture with fewer than 500 visible actors can silently exercise only one
-chunk. Coterie uses a separate fixed-size acceptance query whose only argument
-is the global cursor; its handler always uses three actors per chunk. The
-production `followingFeed` neither declares nor reads `actorChunkSize`.
+chunk. Every `define*` export in an application's production `functions.mjs`
+is generated and ships; leaving an operation out of product call sites or
+provider mappings does not make it test-only. Coterie's production module
+therefore has no forced-size query at all. Its M2 test copies the production
+schema and functions into a temporary backend, injects a harness-only query,
+runs codegen for that temporary backend, and provisions those temporary
+artifacts on the isolated acceptance server. The committed production
+manifest and generated API are separately asserted not to contain the
+acceptance operation.
+
+The harness-only query accepts only the global cursor and always uses three
+actors per chunk. This definition lives in `acceptance-m2.test.mjs`, which
+production codegen does not load; production `followingFeed` neither declares
+nor reads `actorChunkSize`:
+
+```js source=demos/coterie/snapback/acceptance-m2.test.mjs
+export const followingFeedAcceptance = defineJsQuery({
+  auth: 'authenticated',
+  args: { before: v.optional(v.string()) },
+  result: results.records(feedRow, { minItems: 0, maxItems: 20 }),
+  reads: [
+    'feedEvents',
+    'posts',
+    'profiles',
+    'postImages',
+    'postVideos',
+    'likes',
+    'reposts',
+    'follows',
+  ],
+  refusals: ['PROFILE_REQUIRED'],
+  handler: async (ctx, args) => feedRows(ctx, args, true, 3),
+});
+```
 
 The test makes the viewer plus three followed actors span two chunks, walks a
 full 20-row page and a non-empty second page through that forced-multi-chunk
@@ -1327,9 +1354,11 @@ global feed:
   });
 ```
 
-Keep the fixed-size query acceptance-only and omit it from a production
-function bundle. Application behavior must not depend on a caller-selected
-chunk size, and an ordinary product query must never accept `actorChunkSize`.
+Keep the fixed-size query in harness-owned source that production codegen does
+not load. Never put it in production `functions.mjs`: every `define*` there is
+a deployed operation even when product code never calls or maps it.
+Application behavior must not depend on a caller-selected chunk size, and an
+ordinary product query must never accept `actorChunkSize`.
 
 ## Design reference: the closed semi-join does not ship
 
@@ -3193,7 +3222,7 @@ code, sign in with the fixture password and inspect the owner-scoped profile:
           email: persona.email,
           password: persona.password,
         });
-        rows = (await fixture.client.query(api.getMyProfile, { args: {} })).rows;
+        rows = (await fixture.client.query(generatedApi.getMyProfile, { args: {} })).rows;
         const current = rows[0];
         const fixtureMatches = rows.length === 1
           && current
@@ -3228,7 +3257,7 @@ typed avatar does not already match the fixture digest; require the upload task
 to reach `ready`, then attach the asset through the application mutation:
 
 ```js source=demos/coterie/snapback/seed-m1.mjs
-      const profileId = (await fixture.client.mutate(api.ensureMyProfile, {
+      const profileId = (await fixture.client.mutate(generatedApi.ensureMyProfile, {
         args: {
           fixtureId: persona.id,
           handle: persona.profile.handle,
@@ -3239,7 +3268,7 @@ to reach `ready`, then attach the asset through the application mutation:
         },
       })).result;
 
-      rows = (await fixture.client.query(api.getMyProfile, { args: {} })).rows;
+      rows = (await fixture.client.query(generatedApi.getMyProfile, { args: {} })).rows;
       if (rows.length !== 1 || rows[0]._id !== profileId) {
         throw new Error(`fixture ${persona.id} did not resolve its own profile`);
       }
@@ -3247,7 +3276,7 @@ to reach `ready`, then attach the asset through the application mutation:
         const bytes = readFileSync(join(fixtureRoot, persona.profile.avatar));
         const assets = createAssetClient(fixture.client);
         const upload = assets.start({
-          upload: api.avatarUpload,
+          upload: generatedApi.avatarUpload,
           file: new Blob([bytes], { type: 'image/png' }),
           declaredFilename: `${persona.id}-avatar.png`,
           declaredContentType: 'image/png',
@@ -3256,14 +3285,14 @@ to reach `ready`, then attach the asset through the application mutation:
         if (terminal.status !== 'ready') {
           throw new Error(`fixture ${persona.id} avatar failed: ${JSON.stringify(terminal.diagnostic ?? terminal)}`);
         }
-        await fixture.client.mutate(api.attachMyAvatar, {
+        await fixture.client.mutate(generatedApi.attachMyAvatar, {
           args: {
             profileId,
             assetId: terminal.assetId,
             sourceDigest: avatarDigest,
           },
         });
-        rows = (await fixture.client.query(api.getMyProfile, { args: {} })).rows;
+        rows = (await fixture.client.query(generatedApi.getMyProfile, { args: {} })).rows;
       }
 ```
 

@@ -963,3 +963,22 @@ single-page chunking and ordinary pagination tests could not cover. The guide
 also now says why 499 is specific to Coterie's `public-read` `feedEvents`
 table: owner and membership visibility bindings on protected tables consume
 the same 500-binding budget and must be reserved before choosing a chunk size.
+
+The second review found that “never used by the provider” was not the same as
+acceptance-only: Snapback generates every `define*` in `functions.mjs`, so the
+fixed-three query was still an authenticated deployed API and could amplify a
+1,024-follow request into roughly 342 indexed reads. The corrected acceptance
+test now copies the production source into a temporary backend, injects the
+fixed query there, runs codegen, and provisions only that isolated test server
+with the augmented artifacts. The committed production manifest and API have
+no such operation, and a regression asserts that absence. This was a useful
+Snapback-specific lesson compared with ad hoc server modules: there is no
+implicit “unmapped means private” operation class.
+
+The same round replaced a mock call to the admission helper with the real
+write path. A harness-only state seeder prepares 1,023 edges plus two distinct
+boundary targets; real `setFollow` creates edge 1,024, the next call refuses
+edge 1,025 before insert, and authoritative stats remain unchanged for the
+overflow target. The cheaper fixture still proves that `setFollowCore`
+actually invokes the guard rather than merely proving the guard function in
+isolation.

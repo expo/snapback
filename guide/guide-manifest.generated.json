@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:56d4de8c3f5f5650f85816d89daf0a94d7ab71dd129ffa5f56efb98fbe4deb04"
+    "sourceDigest": "sha256:0391ca33c5b8df7bf05f8f2faf312221ed7ecbc6e6867c2c889c7015fb64fbf6"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -5022,8 +5022,8 @@
         "demos/coterie"
       ],
       "reviewed": "2026-08-21",
-      "reviewedAuthoritiesDigest": "sha256:7d7e8cebef184f437a0af3e61c03d6acf0dc5aa0169fff5d43354e693fb499fe",
-      "sha256": "1c49ac665936becaf6ba793eb7445edbede3e4b30af4e11c6515b9aabde21c24",
+      "reviewedAuthoritiesDigest": "sha256:b8739e9379714807830ce2539b2ad050a64c0bc97bdac6e0fc84031abd28c2ba",
+      "sha256": "ad256c3ca81d1684dc19fac1cb5b5bc97bb87178af1f144e0f126c8391fde299",
       "snippets": [
         {
           "lang": "js",
@@ -5054,6 +5054,11 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/coterie/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/coterie/snapback/acceptance-m2.test.mjs"
         },
         {
           "lang": "js",
@@ -5735,7 +5740,7 @@
       ],
       "reviewed": "2026-08-17",
       "reviewedAuthoritiesDigest": "sha256:31512f6cc26158c28004237b72dafe2261f13253628e5a1675164ebfb29caae7",
-      "sha256": "37b550a909d4209c9191d80e690b15bba5d089e722041878f4f7728c8d754c6a",
+      "sha256": "305df120b50dfc0b49d5b67e2f98b7adb0aa88fac43cf129b52fd68b5a0842ca",
       "snippets": [
         {
           "lang": "js",
@@ -12652,7 +12657,7 @@
       "examples": [],
       "reviewed": "2026-08-21",
       "reviewedAuthoritiesDigest": "sha256:10af46608872447c531a418afe66fcbdafccb07872e6f8a0a20c6b3257b73c57",
-      "sha256": "1930a301c19360e6e4aabaf99933f77ef2c58823e9110fa4945aee9135c4fa45",
+      "sha256": "4b4a6ee2e8b54ebe3b8df0a08e88cc4810ec7e2d3bd83fee6cb033c0720dcaf3",
       "snippets": []
     },
     "start.crud-dashboard": {
@@ -13171,7 +13176,7 @@
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
       "bytes": 2622642,
-      "sha256": "5e042cfc445316ac0905edac42edd7b3fe57924733c9e3469973b24e32444bde",
+      "sha256": "2d9f30b9ca20fe7837a50772a613e35af0a7755a694e60462558bcff1d8eb296",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -13180,7 +13185,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:c1e8262d94adb817ebb4db0636b640493bead2ed5c227aba54129fab72e4a037",
+      "sourceDigest": "sha256:54cffa6d110e4d5274d4c8c3236e71f2a5152d1afd60f817321afb3a20729f68",
       "codes": 3474,
       "emittingSites": 12019
     }
@@ -13322,16 +13327,16 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3783296,
-      "sha256": "8ce43c3eb3a18e1afda4fdca821c8f6f344d1a9d72acaf137fe4e55fe670ab4f"
+      "bytes": 3784557,
+      "sha256": "277ba4241665e69b14c982c5b3ae4f791a27c8388cda615614a3f477eed45e67"
     },
     "sections": {
       "meta": {
         "path": "guide/guide-flat.meta.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.meta.generated.md",
         "uri": "snapback-guide://flat/meta",
-        "bytes": 171002,
-        "sha256": "44649eefeda82c7f71fb5d4ee742f8bcec229edf903eb881a14c09d58f0d99b8"
+        "bytes": 170983,
+        "sha256": "a571fb5f8a6c6bfb14d7f0ecabf5b8462a9ca413145f7c9c9397206ddd5d96ae"
       },
       "auth": {
         "path": "guide/guide-flat.auth.generated.md",
@@ -13393,8 +13398,8 @@
         "path": "guide/guide-flat.recipes.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.recipes.generated.md",
         "uri": "snapback-guide://flat/recipes",
-        "bytes": 252311,
-        "sha256": "d63b109aa307829586c1c3221dc229a9edba9b91b81ba5b011f4cecdc30ac77a"
+        "bytes": 253591,
+        "sha256": "94a2f69da7f2a2bc70ac476e666127a07fac0c47fdfc402dc668fc20891516fc"
       },
       "reference": {
         "path": "guide/guide-flat.reference.generated.md",
@@ -13426,5 +13431,5 @@
       }
     }
   },
-  "contentHash": "56d4de8c3f5f5650f85816d89daf0a94d7ab71dd129ffa5f56efb98fbe4deb04"
+  "contentHash": "0391ca33c5b8df7bf05f8f2faf312221ed7ecbc6e6867c2c889c7015fb64fbf6"
 }

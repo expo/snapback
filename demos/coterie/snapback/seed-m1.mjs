@@ -19,7 +19,7 @@ import { loadGeneratedApi, loadGeneratedJson } from './generated-artifacts.mjs';
 const backendDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(backendDir, '..', '..', '..');
 const fixtureRoot = join(repoRoot, 'benchmarks', 'fixtures', 'social-messenger');
-const api = await loadGeneratedApi();
+const productionApi = await loadGeneratedApi();
 const schemaManifest = loadGeneratedJson('schema.manifest.json');
 const mediaManifest = JSON.parse(readFileSync(join(fixtureRoot, 'media', 'manifest.json'), 'utf8'));
 
@@ -103,7 +103,11 @@ async function avatarMatchesFixture(client, row, expectedDigest) {
   }
 }
 
-export async function installM1Fixtures({ baseUrl, runId = 'install' }) {
+export async function installM1Fixtures({
+  baseUrl,
+  runId = 'install',
+  generatedApi = productionApi,
+}) {
   if (typeof baseUrl !== 'string' || !baseUrl.startsWith('http')) {
     throw new TypeError('installM1Fixtures requires a Snapback baseUrl');
   }
@@ -127,7 +131,7 @@ export async function installM1Fixtures({ baseUrl, runId = 'install' }) {
           email: persona.email,
           password: persona.password,
         });
-        rows = (await fixture.client.query(api.getMyProfile, { args: {} })).rows;
+        rows = (await fixture.client.query(generatedApi.getMyProfile, { args: {} })).rows;
         const current = rows[0];
         const fixtureMatches = rows.length === 1
           && current
@@ -147,7 +151,7 @@ export async function installM1Fixtures({ baseUrl, runId = 'install' }) {
         accountDisposition = 'repaired';
       }
 
-      const profileId = (await fixture.client.mutate(api.ensureMyProfile, {
+      const profileId = (await fixture.client.mutate(generatedApi.ensureMyProfile, {
         args: {
           fixtureId: persona.id,
           handle: persona.profile.handle,
@@ -158,7 +162,7 @@ export async function installM1Fixtures({ baseUrl, runId = 'install' }) {
         },
       })).result;
 
-      rows = (await fixture.client.query(api.getMyProfile, { args: {} })).rows;
+      rows = (await fixture.client.query(generatedApi.getMyProfile, { args: {} })).rows;
       if (rows.length !== 1 || rows[0]._id !== profileId) {
         throw new Error(`fixture ${persona.id} did not resolve its own profile`);
       }
@@ -166,7 +170,7 @@ export async function installM1Fixtures({ baseUrl, runId = 'install' }) {
         const bytes = readFileSync(join(fixtureRoot, persona.profile.avatar));
         const assets = createAssetClient(fixture.client);
         const upload = assets.start({
-          upload: api.avatarUpload,
+          upload: generatedApi.avatarUpload,
           file: new Blob([bytes], { type: 'image/png' }),
           declaredFilename: `${persona.id}-avatar.png`,
           declaredContentType: 'image/png',
@@ -175,14 +179,14 @@ export async function installM1Fixtures({ baseUrl, runId = 'install' }) {
         if (terminal.status !== 'ready') {
           throw new Error(`fixture ${persona.id} avatar failed: ${JSON.stringify(terminal.diagnostic ?? terminal)}`);
         }
-        await fixture.client.mutate(api.attachMyAvatar, {
+        await fixture.client.mutate(generatedApi.attachMyAvatar, {
           args: {
             profileId,
             assetId: terminal.assetId,
             sourceDigest: avatarDigest,
           },
         });
-        rows = (await fixture.client.query(api.getMyProfile, { args: {} })).rows;
+        rows = (await fixture.client.query(generatedApi.getMyProfile, { args: {} })).rows;
       }
       if (!await avatarMatchesFixture(fixture.client, rows[0], avatarDigest)) {
         throw new Error(`fixture ${persona.id} avatar digest does not match ${avatarDigest}`);

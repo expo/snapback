@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -13,10 +14,11 @@ import {
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { SnapbackClient } from '../../../packages/snapback-client/index.mjs';
 import { createAssetClient } from '../../../packages/snapback-client/assets.mjs';
+import { generate } from '../../../packages/snapback-codegen/index.mjs';
 import {
   AuthCoordinator,
   createMemoryAuthCustodyStorage,
@@ -24,11 +26,7 @@ import {
 import { startServer } from '../../_kit/server-process.mjs';
 
 import { loadGeneratedApi, loadGeneratedJson } from './generated-artifacts.mjs';
-import {
-  chunkValues,
-  followingSetLimit,
-  requireFollowingSetCapacity,
-} from './functions.mjs';
+import { chunkValues } from './functions.mjs';
 import { installM1Fixtures } from './seed-m1.mjs';
 import { installM2Fixtures } from './seed-m2.mjs';
 
@@ -40,10 +38,135 @@ const runtimeBinary = resolve(
   process.env.SNAPBACK_RUNTIME_BINARY
     ?? '/Users/ccheever/projects/snapback/.claude/worktrees/llp0240/target/debug/snapback',
 );
-const api = await loadGeneratedApi();
+const productionApi = await loadGeneratedApi();
 const schema = loadGeneratedJson('schema.manifest.json');
 const functions = loadGeneratedJson('functions.manifest.json');
 const starterM2Digest = 'e74ec486e34ffb5d6fc0dac19d1312d3dd061c87912083be130a71e5658d3be6';
+const defineModuleUrl = pathToFileURL(join(repoRoot, 'demos', '_kit', 'define.mjs')).href;
+
+const acceptanceDefinitions = String.raw`
+// Harness-only operations. acceptance-m2.test.mjs injects these definitions
+// into a temporary backend before codegen; production functions.mjs and its
+// committed generated API never load them.
+export const followingFeedAcceptance = defineJsQuery({
+  auth: 'authenticated',
+  args: { before: v.optional(v.string()) },
+  result: results.records(feedRow, { minItems: 0, maxItems: 20 }),
+  reads: [
+    'feedEvents',
+    'posts',
+    'profiles',
+    'postImages',
+    'postVideos',
+    'likes',
+    'reposts',
+    'follows',
+  ],
+  refusals: ['PROFILE_REQUIRED'],
+  handler: async (ctx, args) => feedRows(ctx, args, true, 3),
+});
+
+export const seedFollowingBoundaryStateAcceptance = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    start: v.integer(),
+    count: v.integer(),
+    following: v.boolean(),
+  },
+  result: results.value(v.array(v.id('profiles'), {
+    maxItems: 128,
+  })),
+  reads: ['profiles', 'follows'],
+  writes: ['profiles', 'follows'],
+  refusals: ['ACCEPTANCE_INPUT_INVALID'],
+  handler: async (ctx, args) => {
+    if (
+      !Number.isSafeInteger(args.start)
+      || args.start < 0
+      || !Number.isSafeInteger(args.count)
+      || args.count < 1
+      || args.count > 128
+    ) {
+      ctx.refuse('ACCEPTANCE_INPUT_INVALID');
+    }
+    const follower = await requireMyProfile(ctx);
+    const rows = [];
+    for (let offset = 0; offset < args.count; offset += 1) {
+      const index = args.start + offset;
+      const ownerId = 'acceptance:following-boundary:' + String(index).padStart(4, '0');
+      const existing = await ctx.db
+        .query('profiles')
+        .withIndex('by_owner')
+        .eq('ownerId', ownerId)
+        .first();
+      const profileId = existing?._id ?? await ctx.db.insert('profiles', {
+        ownerId,
+        handle: 'fb' + String(index).padStart(6, '0'),
+        displayName: 'Following boundary ' + String(index),
+        bio: '',
+        location: '',
+        link: '',
+      });
+      if (args.following) {
+        const follow = await ctx.db
+          .query('follows')
+          .withIndex('by_pair')
+          .eq('followerProfileId', follower._id)
+          .eq('followedProfileId', profileId)
+          .first();
+        if (!follow) {
+          await ctx.db.insert('follows', {
+            followerId: ctx.auth.userId,
+            followerProfileId: follower._id,
+            followedProfileId: profileId,
+            createdAt: ctx.runtime.now(),
+          });
+        }
+      }
+      rows.push(profileId);
+    }
+    return rows;
+  },
+});
+`;
+
+function codegenSource(filename) {
+  const source = readFileSync(join(backendDir, filename), 'utf8');
+  const importSpecifier = "'../../_kit/define.mjs'";
+  assert.equal(
+    source.split(importSpecifier).length,
+    2,
+    `${filename} must have exactly one Snapback definition-module import`,
+  );
+  return source.replace(importSpecifier, `'${defineModuleUrl}'`);
+}
+
+async function generateAcceptanceBackend(scratch) {
+  const acceptanceBackend = join(scratch, 'coterie', 'snapback');
+  mkdirSync(acceptanceBackend, { recursive: true });
+  writeFileSync(join(acceptanceBackend, 'schema.mjs'), codegenSource('schema.mjs'));
+
+  const marker = '\nexport const thread = defineJsLiveQuery({';
+  const productionFunctionsSource = codegenSource('functions.mjs');
+  assert.equal(
+    productionFunctionsSource.split(marker).length,
+    2,
+    'functions.mjs must have exactly one thread declaration insertion marker',
+  );
+  writeFileSync(
+    join(acceptanceBackend, 'functions.mjs'),
+    productionFunctionsSource.replace(marker, `${acceptanceDefinitions}${marker}`),
+  );
+
+  const generated = await generate(acceptanceBackend);
+  assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
+  const generatedRoot = join(acceptanceBackend, 'generated');
+  return {
+    api: (await import(pathToFileURL(join(generatedRoot, 'api.mjs')).href)).default,
+    schema: JSON.parse(readFileSync(join(generatedRoot, 'schema.manifest.json'), 'utf8')),
+    functions: JSON.parse(readFileSync(join(generatedRoot, 'functions.manifest.json'), 'utf8')),
+  };
+}
 
 test('query operand chunking keeps the 500/501 boundary exact', () => {
   assert.deepEqual(chunkValues(Array.from({ length: 500 }, (_, index) => index), 500)
@@ -52,21 +175,18 @@ test('query operand chunking keeps the 500/501 boundary exact', () => {
     .map((chunk) => chunk.length), [500, 1]);
 });
 
-test('following-set admission accepts the 1,024th edge and refuses the 1,025th', () => {
-  const refusalContext = {
-    refuse(appCode) {
-      const error = new Error(appCode);
-      error.appCode = appCode;
-      throw error;
-    },
-  };
-  assert.doesNotThrow(() => requireFollowingSetCapacity(
-    refusalContext,
-    followingSetLimit() - 1,
-  ));
-  assert.throws(
-    () => requireFollowingSetCapacity(refusalContext, followingSetLimit()),
-    (error) => error?.appCode === 'FOLLOWING_SET_LIMIT_EXCEEDED',
+test('the production bundle omits the forced-chunk acceptance operations', () => {
+  assert.equal(productionApi.followingFeedAcceptance, undefined);
+  assert.equal(productionApi.seedFollowingBoundaryStateAcceptance, undefined);
+  assert.equal(
+    functions.functions.some(({ exportedName }) => exportedName === 'followingFeedAcceptance'),
+    false,
+  );
+  assert.equal(
+    functions.functions.some(
+      ({ exportedName }) => exportedName === 'seedFollowingBoundaryStateAcceptance',
+    ),
+    false,
   );
 });
 
@@ -178,9 +298,17 @@ async function allPages(client, reference) {
   return (await feedPages(client, reference)).flat();
 }
 
-test('Coterie Snapback M2 backend', { timeout: 600_000 }, async (t) => {
+test('Coterie Snapback M2 backend', { timeout: 1_800_000 }, async (t) => {
   assert(existsSync(runtimeBinary), `charter-pinned runtime is missing: ${runtimeBinary}`);
   const scratch = mkdtempSync(join(tmpdir(), 'coterie-m2-'));
+  const acceptance = await generateAcceptanceBackend(scratch);
+  const api = acceptance.api;
+  assert(
+    acceptance.functions.functions.some(
+      ({ exportedName }) => exportedName === 'followingFeedAcceptance',
+    ),
+    'the harness-generated bundle must carry the forced-chunk query',
+  );
   const clients = [];
   const handles = [];
   let server = null;
@@ -200,7 +328,11 @@ test('Coterie Snapback M2 backend', { timeout: 600_000 }, async (t) => {
   const stagedRuntime = join(scratch, 'snapback-runtime');
   symlinkSync(runtimeBinary, stagedRuntime);
   const carrier = join(scratch, 'startup-artifacts.json');
-  writeFileSync(carrier, `${JSON.stringify({ formatVersion: 1, schema, functions })}\n`, {
+  writeFileSync(carrier, `${JSON.stringify({
+    formatVersion: 1,
+    schema: acceptance.schema,
+    functions: acceptance.functions,
+  })}\n`, {
     mode: 0o600,
   });
   server = await startServer({
@@ -211,7 +343,11 @@ test('Coterie Snapback M2 backend', { timeout: 600_000 }, async (t) => {
     serverBinary: stagedRuntime,
   });
 
-  await installM1Fixtures({ baseUrl: server.baseUrl, runId: 'm2-acceptance-setup' });
+  await installM1Fixtures({
+    baseUrl: server.baseUrl,
+    runId: 'm2-acceptance-setup',
+    generatedApi: api,
+  });
   const personas = JSON.parse(readFileSync(join(fixtureRoot, 'personas.json'), 'utf8')).starter;
   const actors = new Map();
   for (const persona of personas.filter(({ id }) => ['alice', 'bob', 'carol', 'dave'].includes(id))) {
@@ -225,6 +361,29 @@ test('Coterie Snapback M2 backend', { timeout: 600_000 }, async (t) => {
   const bob = actors.get('bob');
   const carol = actors.get('carol');
   const dave = actors.get('dave');
+  const boundaryClient = passwordClient(
+    server.baseUrl,
+    'coterie-m2-acceptance-following-boundary',
+  );
+  clients.push(boundaryClient);
+  await boundaryClient.authPasswordSignup({
+    email: 'following-boundary@coterie.test',
+    password: 'FollowingBoundary123!',
+  });
+  const boundaryProfileId = (await boundaryClient.mutate(api.ensureMyProfile, {
+    args: {
+      handle: 'followboundary',
+      displayName: 'Following Boundary',
+      bio: '',
+      location: '',
+      link: '',
+    },
+  })).result;
+  const boundaryActor = {
+    client: boundaryClient,
+    profile: (await boundaryClient.query(api.getMyProfile, { args: {} })).rows[0],
+  };
+  assert.equal(boundaryActor.profile._id, boundaryProfileId);
   const created = { bob: [], alice: {}, carol: null, dave: null, reply: {} };
 
   await t.test('schema and upload manifests carry the M2 structural invariants', async () => {
@@ -291,6 +450,80 @@ test('Coterie Snapback M2 backend', { timeout: 600_000 }, async (t) => {
       mediaTypes: ['video/mp4'],
     });
     assert(readFileSync(join(mediaRoot, 'vid-01.mp4')).length < videoIntent.accept.maxBytes);
+  });
+
+  await t.test('setFollow admits the 1,024th edge and refuses the 1,025th before write', async () => {
+    const boundaryLimit = 1_024;
+    const targetProfileIds = [];
+    for (let start = 0; start < boundaryLimit - 1; start += 64) {
+      const count = Math.min(64, boundaryLimit - 1 - start);
+      const seeded = (await boundaryActor.client.mutate(
+        api.seedFollowingBoundaryStateAcceptance,
+        {
+          args: { start, count, following: true },
+        },
+      )).result;
+      targetProfileIds.push(...seeded);
+    }
+    targetProfileIds.push(...(await boundaryActor.client.mutate(
+      api.seedFollowingBoundaryStateAcceptance,
+      {
+        args: { start: boundaryLimit - 1, count: 2, following: false },
+      },
+    )).result);
+    assert.equal(targetProfileIds.length, boundaryLimit + 1);
+
+    const before = (await boundaryActor.client.query(api.profileStats, {
+      args: { profileId: boundaryActor.profile._id },
+    })).rows[0];
+    assert.equal(before.followingCount, boundaryLimit - 1);
+
+    const boundaryResult = (await boundaryActor.client.mutate(api.setFollow, {
+      args: {
+        profileId: targetProfileIds[boundaryLimit - 1],
+        following: true,
+        mutationId: 'following-boundary-1024',
+      },
+    })).result;
+    assert.deepEqual(boundaryResult, {
+      following: true,
+      followerCount: 1,
+      followingCount: boundaryLimit,
+    });
+
+    const atBoundary = (await boundaryActor.client.query(api.profileStats, {
+      args: { profileId: boundaryActor.profile._id },
+    })).rows[0];
+    const overflowTargetBefore = (await boundaryActor.client.query(api.profileStats, {
+      args: { profileId: targetProfileIds[boundaryLimit] },
+    })).rows[0];
+    assert.equal(atBoundary.followingCount, boundaryLimit);
+    assert.equal(overflowTargetBefore.followerCount, 0);
+    assert.equal(overflowTargetBefore.viewerFollows, false);
+
+    await expectAppCode(
+      boundaryActor.client.mutate(api.setFollow, {
+        args: {
+          profileId: targetProfileIds[boundaryLimit],
+          following: true,
+          mutationId: 'following-boundary-overflow',
+        },
+      }),
+      'FOLLOWING_SET_LIMIT_EXCEEDED',
+    );
+
+    const afterRefusal = (await boundaryActor.client.query(api.profileStats, {
+      args: { profileId: boundaryActor.profile._id },
+    })).rows[0];
+    const overflowTargetAfter = (await boundaryActor.client.query(api.profileStats, {
+      args: { profileId: targetProfileIds[boundaryLimit] },
+    })).rows[0];
+    assert.equal(afterRefusal.followingCount, boundaryLimit);
+    assert.deepEqual(
+      overflowTargetAfter,
+      overflowTargetBefore,
+      'the 1,025th refusal must not insert a follow edge',
+    );
   });
 
   await t.test('video admission accepts 50 MB exactly and rejects max+1', async () => {
@@ -651,7 +884,7 @@ test('Coterie Snapback M2 backend', { timeout: 600_000 }, async (t) => {
     const [global, following, bobPosts] = await Promise.all([
       allPages(bob.client, api.globalFeed),
       allPages(bob.client, api.followingFeed),
-      allPagesForProfile(bob.client, bob.profile._id),
+      allPagesForProfile(bob.client, bob.profile._id, api),
     ]);
     const replyIds = new Set(Object.values(created.reply));
     assert(global.every((row) => !replyIds.has(row._id)));
@@ -782,8 +1015,16 @@ test('Coterie Snapback M2 backend', { timeout: 600_000 }, async (t) => {
   });
 
   await t.test('the complete M2 fixture installer is digest-verified and idempotent', async () => {
-    const first = await installM2Fixtures({ baseUrl: server.baseUrl, runId: 'first' });
-    const second = await installM2Fixtures({ baseUrl: server.baseUrl, runId: 'second' });
+    const first = await installM2Fixtures({
+      baseUrl: server.baseUrl,
+      runId: 'first',
+      generatedApi: api,
+    });
+    const second = await installM2Fixtures({
+      baseUrl: server.baseUrl,
+      runId: 'second',
+      generatedApi: api,
+    });
     assert.equal(first.follows.length, 12);
     assert.equal(first.posts.length, 28);
     assert.equal(first.likes.length, 8);
@@ -805,11 +1046,11 @@ test('Coterie Snapback M2 backend', { timeout: 600_000 }, async (t) => {
   });
 });
 
-async function allPagesForProfile(client, profileId) {
+async function allPagesForProfile(client, profileId, generatedApi) {
   const output = [];
   let before;
   for (let page = 0; page < 20; page += 1) {
-    const rows = (await client.query(api.profilePosts, {
+    const rows = (await client.query(generatedApi.profilePosts, {
       args: { profileId, ...(before ? { before } : {}) },
     })).rows;
     output.push(...rows);

@@ -2037,7 +2037,7 @@ or assuming LLP 0278 D3 shipped.
     independent ordered result.
     Expected pages: `recipes/chunked-semijoin-feed.md`.
     Route terms: "actorChunkSize", "multi-chunk path", "indexed top-20 per chunk".
-    Required guidance: "separate fixed-size acceptance query",
+    Required guidance: "temporary backend",
     "compares the complete sequence against an independently filtered global feed".
 
 ## Static routing check

@@ -114,7 +114,7 @@ code, sign in with the fixture password and inspect the owner-scoped profile:
           email: persona.email,
           password: persona.password,
         });
-        rows = (await fixture.client.query(api.getMyProfile, { args: {} })).rows;
+        rows = (await fixture.client.query(generatedApi.getMyProfile, { args: {} })).rows;
         const current = rows[0];
         const fixtureMatches = rows.length === 1
           && current
@@ -149,7 +149,7 @@ typed avatar does not already match the fixture digest; require the upload task
 to reach `ready`, then attach the asset through the application mutation:
 
 ```js source=demos/coterie/snapback/seed-m1.mjs
-      const profileId = (await fixture.client.mutate(api.ensureMyProfile, {
+      const profileId = (await fixture.client.mutate(generatedApi.ensureMyProfile, {
         args: {
           fixtureId: persona.id,
           handle: persona.profile.handle,
@@ -160,7 +160,7 @@ to reach `ready`, then attach the asset through the application mutation:
         },
       })).result;
 
-      rows = (await fixture.client.query(api.getMyProfile, { args: {} })).rows;
+      rows = (await fixture.client.query(generatedApi.getMyProfile, { args: {} })).rows;
       if (rows.length !== 1 || rows[0]._id !== profileId) {
         throw new Error(`fixture ${persona.id} did not resolve its own profile`);
       }
@@ -168,7 +168,7 @@ to reach `ready`, then attach the asset through the application mutation:
         const bytes = readFileSync(join(fixtureRoot, persona.profile.avatar));
         const assets = createAssetClient(fixture.client);
         const upload = assets.start({
-          upload: api.avatarUpload,
+          upload: generatedApi.avatarUpload,
           file: new Blob([bytes], { type: 'image/png' }),
           declaredFilename: `${persona.id}-avatar.png`,
           declaredContentType: 'image/png',
@@ -177,14 +177,14 @@ to reach `ready`, then attach the asset through the application mutation:
         if (terminal.status !== 'ready') {
           throw new Error(`fixture ${persona.id} avatar failed: ${JSON.stringify(terminal.diagnostic ?? terminal)}`);
         }
-        await fixture.client.mutate(api.attachMyAvatar, {
+        await fixture.client.mutate(generatedApi.attachMyAvatar, {
           args: {
             profileId,
             assetId: terminal.assetId,
             sourceDigest: avatarDigest,
           },
         });
-        rows = (await fixture.client.query(api.getMyProfile, { args: {} })).rows;
+        rows = (await fixture.client.query(generatedApi.getMyProfile, { args: {} })).rows;
       }
 ```
 
