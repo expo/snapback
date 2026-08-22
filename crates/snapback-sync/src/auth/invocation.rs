@@ -1539,6 +1539,12 @@ impl PreparedAuthority {
         self.publication.is_some()
     }
 
+    /// Whether this prepared caller carries a process-live finite-service
+    /// publication in addition to, or instead of, a caller publication.
+    pub fn has_service_publication(&self) -> bool {
+        self.service_publication.is_some()
+    }
+
     pub fn with_service_publication(mut self, publication: ServiceAuthorityPublication) -> Self {
         self.service_publication = Some(publication);
         self

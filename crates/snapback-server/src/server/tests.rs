@@ -23531,6 +23531,7 @@ const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_WRITER_ACQUIRE_TIMEOUT",
     "SNAPBACK_COMMIT_DEADLINE_EXCEEDED",
     "SNAPBACK_COMMIT_OUTCOME_UNCERTAIN",
+    "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_EXHAUSTED",
     "SNAPBACK_CONNECTED_CLIENT_CAPACITY",
     "SNAPBACK_WEBHOOK_TARGET_UNAVAILABLE",
     "SNAPBACK_AUTH_BUDGET_AUTHORITY_UNAVAILABLE",
@@ -36115,6 +36116,415 @@ fn watch_anchor_renewal_route_is_session_only_and_surface_mapped() {
     );
 }
 
+// Watch management bounded-capsule adoption ----------------------------------------------
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum WatchManagementRaceSite {
+    Delete,
+    Suspend,
+    Resume,
+    Renew,
+}
+
+struct WatchManagementRaceFixture {
+    state: AppState,
+    router: SnapbackApp,
+    bearer: String,
+    session_id: String,
+    watch_id: String,
+    request: Option<Request<Body>>,
+}
+
+async fn watch_management_race_fixture(
+    site: WatchManagementRaceSite,
+) -> WatchManagementRaceFixture {
+    let state = sessions_activation_server_fixture_with_integrations_async().await;
+    let credential =
+        mint_test_credential(&state, &format!("watch-management-{site:?}@example.test")).await;
+    let bearer = credential["token"]
+        .as_str()
+        .expect("watch management session bearer")
+        .to_owned();
+    let session_id = credential["session"]["id"]
+        .as_str()
+        .expect("watch management session id")
+        .to_owned();
+    let principal_id = credential["session"]["userId"]
+        .as_str()
+        .expect("watch management principal id")
+        .to_owned();
+    let watch_id = crate::ids::mint_time_ordered(crate::ids::Kind::Watch);
+    let seed_watch_id = watch_id.clone();
+    let seed_principal_id = principal_id.clone();
+    let seed_session_id = session_id.clone();
+    with_snapback(&state.snapback, move |snapback| {
+        let db = snapback.remainder_auth_database_mut();
+        if site == WatchManagementRaceSite::Renew {
+            db.seed_renewable_watch_for_management_test(
+                &seed_watch_id,
+                &seed_principal_id,
+                super::now_millis(),
+            )?;
+        } else {
+            let now_ms = super::now_millis();
+            db.create_watch(crate::storage::watches::CreateWatchRecord {
+                id: seed_watch_id.clone(),
+                owner_kind: crate::watches::WatchOwnerKind::User,
+                owner_principal_id: seed_principal_id.clone(),
+                owner_authority_instance_id: seed_session_id,
+                authority_mode: crate::watches::WatchAuthorityMode::RevalidatePrincipal,
+                anchor_grant_id: None,
+                installation_grant_id: None,
+                anchor_effective_user_id: None,
+                anchor_scopes: Vec::new(),
+                anchor_expires_at_ms: 0,
+                query_function_id: "watch-management-race-query".to_owned(),
+                query_function_name: "liveItems".to_owned(),
+                query_basis: 1,
+                query_args_json: "{}".to_owned(),
+                query_args_digest: "watch-management-race-query-args".to_owned(),
+                read_dependencies: Vec::new(),
+                predicate_json: "{\"path\":\"/rows\",\"op\":\"exists\"}".to_owned(),
+                reaction_kind: crate::watches::WatchReactionKind::Function,
+                reaction_function_id: "watch-management-race-reaction".to_owned(),
+                reaction_function_name: "listItems".to_owned(),
+                reaction_function_kind: crate::watches::WatchFunctionKind::Action,
+                reaction_basis: 1,
+                reaction_args_json: "{}".to_owned(),
+                reaction_args_digest: "watch-management-race-reaction-args".to_owned(),
+                webhook_url: None,
+                webhook_secret_ref: None,
+                daily_firing_budget: crate::watches::DEFAULT_DAILY_FIRING_BUDGET,
+                debounce_ms: crate::watches::DEFAULT_DEBOUNCE_MS,
+                initial_predicate_state: false,
+                now_ms,
+            })?;
+            if site == WatchManagementRaceSite::Resume {
+                db.transition_watch(
+                    &seed_watch_id,
+                    &seed_principal_id,
+                    crate::watches::WatchStatus::Suspended,
+                    now_ms + 1,
+                )?;
+            }
+        }
+        Ok::<_, SnapbackError>(())
+    })
+    .await
+    .expect("seed watch management race fixture");
+
+    let uri = match site {
+        WatchManagementRaceSite::Delete => format!("/watches/{watch_id}"),
+        WatchManagementRaceSite::Suspend => format!("/watches/{watch_id}/suspend"),
+        WatchManagementRaceSite::Resume => format!("/watches/{watch_id}/resume"),
+        WatchManagementRaceSite::Renew => format!("/watches/{watch_id}/renew"),
+    };
+    let body = if site == WatchManagementRaceSite::Renew {
+        serde_json::to_vec(&json!({ "ttlMs": crate::watches::RENEWAL_CEILING_MS }))
+            .expect("serialize watch renewal race request")
+    } else {
+        Vec::new()
+    };
+    let mut request = session_auth_http_request(&uri, body, &bearer);
+    if site == WatchManagementRaceSite::Delete {
+        *request.method_mut() = axum::http::Method::DELETE;
+    }
+    let router = app(state.clone());
+    WatchManagementRaceFixture {
+        state,
+        router,
+        bearer,
+        session_id,
+        watch_id,
+        request: Some(request),
+    }
+}
+
+async fn watch_management_facts(
+    fixture: &WatchManagementRaceFixture,
+) -> crate::storage::watches::WatchManagementFactsForTest {
+    let watch_id = fixture.watch_id.clone();
+    with_snapback(&fixture.state.snapback, move |snapback| {
+        snapback
+            .remainder_auth_database_mut()
+            .watch_management_facts_for_test(&watch_id)
+    })
+    .await
+    .expect("read watch management race facts")
+}
+
+async fn assert_watch_management_session_expired(
+    response: axum::response::Response,
+    authority_disposition: &str,
+) {
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    let response = response_json(response).await;
+    assert_eq!(
+        response["diagnostic"]["code"],
+        "SNAPBACK_AUTH_SESSION_EXPIRED"
+    );
+    assert_eq!(
+        response["diagnostic"]["details"]["authorityDisposition"],
+        authority_disposition
+    );
+}
+
+fn assert_watch_management_effect(
+    site: WatchManagementRaceSite,
+    before: &crate::storage::watches::WatchManagementFactsForTest,
+    after: &crate::storage::watches::WatchManagementFactsForTest,
+) {
+    assert_ne!(after, before, "reserved {site:?} did not commit");
+    match site {
+        WatchManagementRaceSite::Delete => {
+            assert_eq!(before.watch.status, crate::watches::WatchStatus::Active);
+            assert_eq!(after.watch.status, crate::watches::WatchStatus::Dead);
+            assert!(!after.watch.pending);
+            assert_eq!(after.evaluation_job_count, before.evaluation_job_count);
+        }
+        WatchManagementRaceSite::Suspend => {
+            assert_eq!(before.watch.status, crate::watches::WatchStatus::Active);
+            assert_eq!(after.watch.status, crate::watches::WatchStatus::Suspended);
+            assert!(!after.watch.pending);
+            assert_eq!(after.evaluation_job_count, before.evaluation_job_count);
+        }
+        WatchManagementRaceSite::Resume => {
+            assert_eq!(before.watch.status, crate::watches::WatchStatus::Suspended);
+            assert_eq!(after.watch.status, crate::watches::WatchStatus::Active);
+            assert!(after.watch.pending);
+            assert_eq!(after.evaluation_job_count, before.evaluation_job_count + 1);
+            assert_eq!(after.linked_pending_job_count, 1);
+            assert!(!after.dirty_while_pending);
+        }
+        WatchManagementRaceSite::Renew => {
+            assert_ne!(after.watch.anchor_grant_id, before.watch.anchor_grant_id);
+            assert_eq!(
+                after.watch.anchor_expires_at_ms,
+                after.watch.updated_at_ms + crate::watches::RENEWAL_CEILING_MS,
+                "renewal installs the requested full-ceiling successor anchor"
+            );
+            assert_eq!(after.anchor_grant_count, before.anchor_grant_count + 1);
+            assert_eq!(after.live_anchor_grant_count, 1);
+            assert_eq!(after.revoked_anchor_grant_count, 1);
+        }
+    }
+}
+
+/// @ref LLP 0058#split-phase-authorized-effect-fence — logout closes the
+/// publication before the watch route can reserve it, so no watch/grant/job
+/// successor may persist.
+async fn watch_management_logout_wins(site: WatchManagementRaceSite) {
+    let mut fixture = watch_management_race_fixture(site).await;
+    let before = watch_management_facts(&fixture).await;
+    let pause = install_test_finite_authority_pause(
+        TestFiniteAuthorityPausePoint::BeforeAuthorizedEffectReservation,
+    );
+    fixture
+        .request
+        .as_mut()
+        .expect("watch race target request")
+        .headers_mut()
+        .insert(
+            HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
+            HeaderValue::from_str(pause.id()).expect("watch pre-reservation pause header"),
+        );
+    let target_request = fixture.request.take().expect("watch race target request");
+    let target_router = fixture.router.clone();
+    let target = tokio::spawn(async move {
+        target_router
+            .oneshot(target_request)
+            .await
+            .expect("logout-racing watch management response")
+    });
+    tokio::time::timeout(Duration::from_secs(5), pause.wait_until_reached())
+        .await
+        .unwrap_or_else(|_| panic!("{site:?} reaches its pre-reservation pause"));
+
+    let logout = tokio::time::timeout(
+        Duration::from_secs(5),
+        fixture.router.clone().oneshot(session_auth_http_request(
+            "/auth/logout",
+            br#"{}"#.to_vec(),
+            &fixture.bearer,
+        )),
+    )
+    .await
+    .unwrap_or_else(|_| panic!("{site:?} racing logout does not hang"))
+    .expect("watch-racing logout response");
+    assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+
+    pause.release().await;
+    let response = tokio::time::timeout(Duration::from_secs(5), target)
+        .await
+        .unwrap_or_else(|_| panic!("logged-out {site:?} request does not hang"))
+        .expect("logout-winning watch management task");
+    assert_watch_management_session_expired(response, "durableDelete").await;
+    let after = watch_management_facts(&fixture).await;
+    assert_eq!(after, before, "retired caller committed {site:?} rows");
+}
+
+/// @ref LLP 0058#split-phase-authorized-effect-fence — a reserved caller
+/// permit holds logout's durable terminal cut until the exact watch effect
+/// commits, including resume's sibling job and renewal's grant tuple.
+async fn watch_management_reservation_wins(site: WatchManagementRaceSite) {
+    let mut fixture = watch_management_race_fixture(site).await;
+    let before = watch_management_facts(&fixture).await;
+    let logout_premark_probe = prepared_provider_route_authority(
+        &fixture.state,
+        InvocationSource::AuthLogout,
+        &fixture.bearer,
+    )
+    .0;
+    let effect_pause = install_test_finite_authority_pause(
+        TestFiniteAuthorityPausePoint::AfterAuthorizedEffectReservation,
+    );
+    fixture
+        .request
+        .as_mut()
+        .expect("watch race target request")
+        .headers_mut()
+        .insert(
+            HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
+            HeaderValue::from_str(effect_pause.id()).expect("watch reservation pause header"),
+        );
+    let target_request = fixture.request.take().expect("watch race target request");
+    let target_router = fixture.router.clone();
+    let target = tokio::spawn(async move {
+        target_router
+            .oneshot(target_request)
+            .await
+            .expect("reservation-winning watch management response")
+    });
+    tokio::time::timeout(Duration::from_secs(5), effect_pause.wait_until_reached())
+        .await
+        .unwrap_or_else(|_| panic!("{site:?} reserves authority before Local"));
+
+    let logout_pause = install_test_finite_authority_pause(
+        TestFiniteAuthorityPausePoint::AfterSessionTerminalPremark,
+    );
+    let mut logout_request =
+        session_auth_http_request("/auth/logout", br#"{}"#.to_vec(), &fixture.bearer);
+    logout_request.headers_mut().insert(
+        HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
+        HeaderValue::from_str(logout_pause.id()).expect("watch logout premark pause header"),
+    );
+    let logout_router = fixture.router.clone();
+    let logout = tokio::spawn(async move {
+        logout_router
+            .oneshot(logout_request)
+            .await
+            .expect("watch permit-draining logout response")
+    });
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            match logout_premark_probe
+                .reserve_authorized_effect("watch management logout premark probe")
+            {
+                Ok(probe) => {
+                    drop(probe);
+                    tokio::task::yield_now().await;
+                }
+                Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_SESSION_EXPIRED" => break,
+                Err(error) => panic!(
+                    "watch logout premark probe returned {} for {site:?}",
+                    error.diagnostic.code
+                ),
+            }
+        }
+    })
+    .await
+    .unwrap_or_else(|_| panic!("logout closes later {site:?} reservations"));
+    assert!(
+        !logout_pause.has_reached(),
+        "logout crossed the outstanding {site:?} permit"
+    );
+    assert!(
+        !logout.is_finished(),
+        "logout finished while {site:?} was reserved"
+    );
+
+    effect_pause.release().await;
+    let response = tokio::time::timeout(Duration::from_secs(5), target)
+        .await
+        .unwrap_or_else(|_| panic!("reservation-winning {site:?} request does not hang"))
+        .expect("reservation-winning watch management task");
+    assert_watch_management_session_expired(response, "carrier").await;
+    tokio::time::timeout(Duration::from_secs(5), logout_pause.wait_until_reached())
+        .await
+        .unwrap_or_else(|_| panic!("logout drains after {site:?} commits"));
+    let committed = watch_management_facts(&fixture).await;
+    assert_watch_management_effect(site, &before, &committed);
+    let precommit_session_facts = with_snapback(&fixture.state.snapback, {
+        let session_id = fixture.session_id.clone();
+        move |snapback| {
+            snapback
+                .remainder_auth_database_mut()
+                .auth_catalog()
+                .session_lifetime_facts_for_test(&session_id)
+        }
+    })
+    .await
+    .expect("read pre-terminal watch management session facts");
+    assert_eq!(precommit_session_facts.2, 1);
+    assert!(!precommit_session_facts.3);
+
+    logout_pause.release().await;
+    let logout = tokio::time::timeout(Duration::from_secs(5), logout)
+        .await
+        .expect("drained watch logout does not hang")
+        .expect("drained watch logout task");
+    assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+    let terminal_session_facts = with_snapback(&fixture.state.snapback, {
+        let session_id = fixture.session_id.clone();
+        move |snapback| {
+            snapback
+                .remainder_auth_database_mut()
+                .auth_catalog()
+                .session_lifetime_facts_for_test(&session_id)
+        }
+    })
+    .await
+    .expect("read terminal watch management session facts");
+    assert_eq!(terminal_session_facts.2, 2);
+    assert!(terminal_session_facts.3);
+    assert_eq!(watch_management_facts(&fixture).await, committed);
+}
+
+macro_rules! watch_management_race_tests {
+    ($logout_test:ident, $reservation_test:ident, $site:expr) => {
+        #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+        async fn $logout_test() {
+            watch_management_logout_wins($site).await;
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+        async fn $reservation_test() {
+            watch_management_reservation_wins($site).await;
+        }
+    };
+}
+
+watch_management_race_tests!(
+    watch_delete_logout_wins_before_reservation,
+    watch_delete_reservation_wins_before_logout,
+    WatchManagementRaceSite::Delete
+);
+watch_management_race_tests!(
+    watch_suspend_logout_wins_before_reservation,
+    watch_suspend_reservation_wins_before_logout,
+    WatchManagementRaceSite::Suspend
+);
+watch_management_race_tests!(
+    watch_resume_logout_wins_before_reservation,
+    watch_resume_reservation_wins_before_logout,
+    WatchManagementRaceSite::Resume
+);
+watch_management_race_tests!(
+    watch_renew_logout_wins_before_reservation,
+    watch_renew_reservation_wins_before_logout,
+    WatchManagementRaceSite::Renew
+);
+
 /// LLP 0031 §Enforcement — the retired/moved privileged operations must not
 /// reappear at the root in the declared registry.
 #[test]
@@ -36781,6 +37191,7 @@ async fn run_commit_capsule_prototype<Gate: Send + 'static>(
             operation: "bounded commit capsule prototype",
             deadline,
             uncertain_diagnostic: super::commit_capsule::COMMIT_OUTCOME_UNCERTAIN_CODE,
+            test_pause_id: None,
         },
         authority,
         terminal_gate,
