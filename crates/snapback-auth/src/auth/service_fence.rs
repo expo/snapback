@@ -18,7 +18,6 @@ use crate::auth::service_authority_contract::{
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeSet, HashMap};
-use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, Weak};
@@ -38,7 +37,7 @@ thread_local! {
     /// that operation must reuse the already-proven witness instead of trying
     /// to lock the same non-reentrant mutex. The stack is thread-local because
     /// the guarded closure cannot suspend or migrate.
-    static ACTIVE_SERVICE_AUTHORITY_ACTS: RefCell<Vec<(usize, ServiceAuthorityWitness)>> =
+    static ACTIVE_SERVICE_AUTHORITY_ACTS: RefCell<Vec<ActiveServiceAuthorityEntry>> =
         const { RefCell::new(Vec::new()) };
 
     /// One independently drained exact-token reservation may be installed by
@@ -116,8 +115,13 @@ pub struct ServiceAuthorityTerminalGate {
 }
 
 struct ActiveServiceAuthorityAct {
+    identity: Rc<()>,
+}
+
+struct ActiveServiceAuthorityEntry {
+    identity: Rc<()>,
     key: usize,
-    _thread_bound: PhantomData<Rc<()>>,
+    witness: ServiceAuthorityWitness,
 }
 
 struct ServiceDomainPublicationPermit {
@@ -127,9 +131,28 @@ struct ServiceDomainPublicationPermit {
 impl Drop for ActiveServiceAuthorityAct {
     fn drop(&mut self) {
         ACTIVE_SERVICE_AUTHORITY_ACTS.with(|active| {
-            let popped = active.borrow_mut().pop();
-            debug_assert!(popped.is_some_and(|(key, _)| key == self.key));
+            let mut active = active.borrow_mut();
+            if let Some(position) = active
+                .iter()
+                .position(|entry| Rc::ptr_eq(&entry.identity, &self.identity))
+            {
+                active.remove(position);
+            }
         });
+    }
+}
+
+impl ActiveServiceAuthorityAct {
+    fn enter(key: usize, witness: ServiceAuthorityWitness) -> Self {
+        let identity = Rc::new(());
+        ACTIVE_SERVICE_AUTHORITY_ACTS.with(|active| {
+            active.borrow_mut().push(ActiveServiceAuthorityEntry {
+                identity: Rc::clone(&identity),
+                key,
+                witness,
+            });
+        });
+        Self { identity }
     }
 }
 
@@ -171,15 +194,9 @@ impl ServiceAuthorityExternalEffectPermit {
     /// acquired last and returned to a transaction sink.
     pub fn retain_authority(&self) -> RetainedServiceAuthorityGuard<'_> {
         let key = Arc::as_ptr(&self.fence) as usize;
-        ACTIVE_SERVICE_AUTHORITY_ACTS.with(|active| {
-            active.borrow_mut().push((key, self.witness.clone()));
-        });
         RetainedServiceAuthorityGuard {
             _permit: self,
-            _active: ActiveServiceAuthorityAct {
-                key,
-                _thread_bound: PhantomData,
-            },
+            _active: ActiveServiceAuthorityAct::enter(key, self.witness.clone()),
         }
     }
 
@@ -228,17 +245,12 @@ impl ServiceAuthorityPublication {
                 .borrow()
                 .iter()
                 .rev()
-                .find_map(|(candidate, witness)| (*candidate == key).then(|| witness.clone()))
+                .find_map(|entry| (entry.key == key).then(|| entry.witness.clone()))
         })
     }
 
     fn enter_active_act(&self, witness: ServiceAuthorityWitness) -> ActiveServiceAuthorityAct {
-        let key = self.fence_key();
-        ACTIVE_SERVICE_AUTHORITY_ACTS.with(|active| active.borrow_mut().push((key, witness)));
-        ActiveServiceAuthorityAct {
-            key,
-            _thread_bound: PhantomData,
-        }
+        ActiveServiceAuthorityAct::enter(self.fence_key(), witness)
     }
 
     #[cfg(any(test, feature = "test-support"))]
@@ -1444,6 +1456,53 @@ mod tests {
             })
             .expect("nested validation under outer act");
         assert_eq!(nested, Some(7));
+    }
+
+    #[test]
+    fn out_of_order_retained_guard_drop_does_not_bypass_terminal_authority() {
+        let registry = ServiceAuthorityFenceRegistry::default();
+        let monotonic = Instant::now();
+        let publication_a = registry
+            .register(witness("token-a", 200), 100, monotonic)
+            .expect("register token A witness");
+        let publication_b = registry
+            .register(witness("token-b", 200), 100, monotonic)
+            .expect("register token B witness");
+        let permit_a = publication_a
+            .begin_authority_work(101, monotonic)
+            .expect("retain token A authority work");
+        let permit_b = publication_b
+            .begin_authority_work(101, monotonic)
+            .expect("retain token B authority work");
+        let guard_a = permit_a.retain_authority();
+        let guard_b = permit_b.retain_authority();
+
+        drop(guard_a);
+        drop(permit_a);
+        registry
+            .prepare_terminal(
+                &["token-a".to_owned()],
+                ServiceAuthorityDisposition::DurableDelete,
+            )
+            .expect("token A terminal gate drains after its permit drops")
+            .committed()
+            .expect("commit token A terminal authority");
+
+        assert!(matches!(
+            publication_b.resolve_act(101, monotonic).unwrap(),
+            ServiceAuthorityActResolution::Current(ServiceAuthorityWitness {
+                ref token_id,
+                ..
+            }) if token_id == "token-b"
+        ));
+        assert_eq!(
+            publication_a.resolve_act(101, monotonic).unwrap(),
+            ServiceAuthorityActResolution::Terminal(ServiceAuthorityDisposition::DurableDelete),
+            "dropping token A's guard out of order must not leave its witness active"
+        );
+
+        drop(guard_b);
+        drop(permit_b);
     }
 
     #[test]
