@@ -1024,8 +1024,8 @@ Acceptance gate passes.
 
 ## Revision history
 
-- 2026-08-22 — Accepted by author ruling as the governing class-M design after
-  W6; implementation remains scheduled after LLP 0294 W6, and the shipped
+- 2026-08-22 — Accepted by author ruling as the governing class-M design;
+  implementation is scheduled after LLP 0294 W6 closes, and the shipped
   pointing-room boundary remains the declared `fieldBoundary:` residual until
   the implementation Acceptance gate passes.
 - 2026-08-12 — first revision (Draft); final self-review added the explicit

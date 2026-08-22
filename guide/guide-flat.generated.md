@@ -29329,7 +29329,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-22
-reviewed-authorities-digest: sha256:b16f3d950a249e24914486249d810409af1473676a4daeb0e64d44403c3ec264
+reviewed-authorities-digest: sha256:63d23e482aea60de8c68499c0859b310ae1b231463e358958c6118307eed5e84
 ---
 
 # Recipe: split a sensitive field into its own table
