@@ -6,7 +6,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { after, test } from 'node:test';
 
 import { createNodeSqliteNamespace } from '../../demos/expo-local-first-carrier/node-sqlite-adapter.mjs';
-import { exerciseOutboxAuthorizationFenceCompareAndCommit } from './outbox-authorization-fence-test-support.mjs';
+import { exerciseOutboxAuthorizationFenceCompareAndCommit } from './outbox-authorization-fence.fixture.mjs';
 import { createSqliteRqsResumeStore } from './rqs-store-sqlite.mjs';
 
 const roots = [];

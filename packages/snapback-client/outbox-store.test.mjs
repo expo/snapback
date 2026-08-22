@@ -36,7 +36,7 @@ import {
   outboxNotWriterError,
   outboxOps,
 } from './outbox-shared.mjs';
-import { exerciseOutboxAuthorizationFenceCompareAndCommit } from './outbox-authorization-fence-test-support.mjs';
+import { exerciseOutboxAuthorizationFenceCompareAndCommit } from './outbox-authorization-fence.fixture.mjs';
 
 class SnapbackClient extends InspectingSnapbackClient {
   constructor(baseUrl, options = {}) {
