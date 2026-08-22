@@ -4390,11 +4390,15 @@ reviewed-authorities-digest: sha256:cae1bdf3d49c2b1aadcf382dbf0a34443abb18a83c57
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-Use this workaround when most of a row may be visible to a wider audience but
-one field must not be. Snapback does not currently provide field masking: it
-cannot keep one row visible while conditionally returning one stored field as
-`null`. The honest supported pattern is to move the sensitive value to a
-second table and give that table its own row visibility.
+Use this workaround only when most of a row may be visible to a wider audience
+but row-level absence of its private half is acceptable to unauthorized
+readers. Snapback does not currently provide field masking: it cannot keep one
+row visible while conditionally returning one stored field as `null`. If the
+public row must remain present with one cell replaced by `null`, as with votes
+or tallies, there is no shipped answer; Draft [LLP
+0235](repo:llp/0235-field-masking-class-m.spec.md) owns that design. When
+row-level absence is acceptable, the honest supported pattern is to move the
+sensitive value to a second table and give that table its own row visibility.
 
 Find this page by: `maskField`, "mask a field", "hide one field",
 "mask phone number", "private column", "field level security", or
@@ -4423,9 +4427,13 @@ If profile creation requires both records, write them in one mutation so the
 public and private halves commit atomically. Table visibility controls reads;
 the mutation must still enforce who may create, replace, or delete each half.
 
-The protection comes from row visibility on the second table. An unauthorized
-reader receives no phone row at all; Snapback is not masking a field on the
-public profile row.
+The protection comes from row visibility on the second table. On read surfaces
+that compose the table policy, an unauthorized reader receives no phone row at
+all; Snapback is not masking a field on the public profile row. Search and
+vector indexes carry their own visibility and do not inherit the table's
+`.visibility(...)` policy. Do not put a public, or otherwise
+broader-than-table, search or vector index on the private table. See
+[Protecting data](../auth/protecting-data.md#declare-who-can-read-each-table).
 
 ## Read the public and private halves
 
@@ -4483,8 +4491,13 @@ bytes out of the wider table rather than adding projection-only nulling.
 
 ## Anti-patterns
 
+- Using this split when unauthorized readers must still receive the public row
+  with one field set to `null`; vote and tally shapes need the unshipped class-M
+  answer in Draft LLP 0235, not this recipe.
 - Keeping `phoneNumber` on `profiles` and removing it in the client, a result
   projection, or a JS handler.
+- Giving a search or vector index on `profilePhoneNumbers` public visibility,
+  or any visibility broader than the private table policy.
 - Fetching the private table with elevated access and deciding in application
   code which callers receive it.
 - Publishing the private row or a public joined projection to make the merge
