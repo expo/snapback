@@ -2268,6 +2268,8 @@ fn protected_room_server_fixture() -> (AppState, tempfile::TempDir) {
         table: "roomMembers".to_owned(),
         subject_field: "userId".to_owned(),
         scope_fields: BTreeMap::from([("roomId".to_owned(), "roomId".to_owned())]),
+        role_field: None,
+        allowed_roles: None,
     };
     let collection = EphemeralCollection::local_cursor("protectedPresence", "roomId")
         .require_room_permission("room")

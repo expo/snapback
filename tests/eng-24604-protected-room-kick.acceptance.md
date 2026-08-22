@@ -8,13 +8,14 @@ rooms. A and B subscribe to the affected board and presence room; B also has a
 second game. The trace deletes A's real membership row through the ordinary
 storage mutation/interlock path.
 
-The slice-1 codegen-emitted `allow.members` artifact now rides
+The codegen-emitted role-aware `allow.members` artifact now rides
 `ephemeral::tests::codegen_emitted_membership_projection_parses_and_activates_in_sessions`
 and the
-`local::auth_room_kick_acceptance::codegen_manifest_enforces_anonymous_nonmember_and_member_room_grants`
+`local::auth_room_kick_acceptance::codegen_manifest_enforces_anonymous_pending_and_active_role_room_grants`
 and
-`local::auth_room_kick_acceptance::codegen_membership_removal_unregisters_the_room_subscriber`
-grant/removal tests.
+`local::auth_room_kick_acceptance::codegen_membership_role_downgrade_kicks_and_scrubs_the_room_subscriber`
+grant/downgrade tests. The artifact admits owner/member, excludes invited and
+moderator, and drives member→moderator through the same barrier as removal.
 
 | LLP 0053 kick clause | Executable evidence |
 | --- | --- |

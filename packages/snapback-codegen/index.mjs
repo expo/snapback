@@ -8590,18 +8590,6 @@ function buildEphemeralCollections(ephemeralDef, tables, err, targetProfile) {
               },
             );
           }
-          if (Object.hasOwn(policy, 'roles')) {
-            err(
-              'EPHEMERAL_MEMBERSHIP_ROLES_UNSUPPORTED',
-              'ephemeral',
-              `${name} ${operation} uses allow.members roles, but role narrowing is not yet supported`,
-              {
-                collection: name,
-                operation,
-                declaration: policy.declaration ?? null,
-              },
-            );
-          }
         } else if (policy.kind !== 'AllowAll' && policy.kind !== 'RequireRoomPermission') {
           err('EPHEMERAL_INVALID_AUTH', 'ephemeral', `${name} ${operation} uses an unsupported access policy`, {
             collection: name,
@@ -8641,14 +8629,6 @@ function buildEphemeralCollections(ephemeralDef, tables, err, targetProfile) {
             );
           } else {
             resolvedDeclarations.set(declaration, resolved);
-            if ((resolved.membership.pendingRoles?.length ?? 0) > 0) {
-              err(
-                'EPHEMERAL_MEMBERSHIP_PENDING_ROLES',
-                'ephemeral',
-                `${name} membership declaration ${declaration} has pendingRoles; membership-backed rooms require role-aware grants before that declaration is safe`,
-                { collection: name, declaration },
-              );
-            }
           }
         }
 
@@ -8656,6 +8636,67 @@ function buildEphemeralCollections(ephemeralDef, tables, err, targetProfile) {
           const declaration = membershipIds.values().next().value;
           const resolved = resolvedDeclarations.get(declaration);
           if (resolved) {
+            let roleMismatch = false;
+            const activeRoleVocabulary = new Set(resolved.membership.roles);
+            const effectiveRolePolicies = [];
+            for (const { operation, policy } of membershipPolicies) {
+              const roles = Object.hasOwn(policy, 'roles')
+                ? policy.roles
+                : resolved.membership.roles;
+              const validShape = Array.isArray(roles)
+                && roles.length > 0
+                && roles.every((role) => typeof role === 'string' && role.length > 0)
+                && new Set(roles).size === roles.length;
+              if (!validShape) {
+                err(
+                  'EPHEMERAL_MEMBERSHIP_ROLES_INVALID',
+                  'ephemeral',
+                  `${name} ${operation} allow.members roles must be a non-empty unique string array`,
+                  { collection: name, operation, declaration },
+                );
+                roleMismatch = true;
+                continue;
+              }
+              const unknownRoles = roles.filter((role) => !activeRoleVocabulary.has(role));
+              if (unknownRoles.length > 0) {
+                err(
+                  'EPHEMERAL_MEMBERSHIP_ROLE_UNKNOWN',
+                  'ephemeral',
+                  `${name} ${operation} allow.members roles must be drawn from membership declaration ${declaration}'s active role vocabulary`,
+                  {
+                    collection: name,
+                    operation,
+                    declaration,
+                    unknownRoles,
+                    activeRoles: resolved.membership.roles,
+                  },
+                );
+                roleMismatch = true;
+                continue;
+              }
+              effectiveRolePolicies.push({ operation, roles });
+            }
+            if (!roleMismatch && effectiveRolePolicies.length === 2) {
+              const [first, second] = effectiveRolePolicies;
+              const secondRoles = new Set(second.roles);
+              if (
+                first.roles.length !== second.roles.length
+                || first.roles.some((role) => !secondRoles.has(role))
+              ) {
+                err(
+                  'EPHEMERAL_MEMBERSHIP_MIXED_POLICY',
+                  'ephemeral',
+                  `${name} publish and subscribe must admit the same effective membership roles because v1 activates one room permission projection`,
+                  {
+                    collection: name,
+                    declaration,
+                    publishRoles: effectiveRolePolicies.find(({ operation }) => operation === 'publish')?.roles,
+                    subscribeRoles: effectiveRolePolicies.find(({ operation }) => operation === 'subscribe')?.roles,
+                  },
+                );
+                roleMismatch = true;
+              }
+            }
             let roomScopeField = null;
             let scopeMismatch = false;
             if (resolved.membership.scope !== 'resource' || !resolved.membership.resource) {
@@ -8744,15 +8785,16 @@ function buildEphemeralCollections(ephemeralDef, tables, err, targetProfile) {
             const prefix = membershipPermissionPrefix(declaration);
             const prefixValid = IDENT.test(prefix)
               && Buffer.byteLength(prefix) <= MAX_EPHEMERAL_SCOPE_KEY_BYTES;
-            const pendingRoles = (resolved.membership.pendingRoles?.length ?? 0) > 0;
-            if (!scopeMismatch && prefixValid && !pendingRoles) {
-              // @ref LLP 0013#dated-note-declaration-bound-room-authority-2026-07-16
-              //   — the stable declaration id lowers to the room permission and
-              //   its canonical membership table supplies the durable projection.
+            if (!scopeMismatch && !roleMismatch && prefixValid) {
+              // @ref LLP 0013#lowering-and-one-validator-convergence — the
+              // declaration's active-role subset lowers into the same durable
+              // projection that Rust validates for direct artifacts.
               permissionBacking = {
                 table: resolved.table.name,
                 subjectField: resolved.membership.principal,
                 scopeFields: { [roomScopeField]: resolved.membership.resource },
+                roleField: resolved.membership.role,
+                allowedRoles: effectiveRolePolicies[0].roles,
               };
             }
           }

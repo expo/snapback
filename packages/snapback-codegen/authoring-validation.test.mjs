@@ -45,6 +45,13 @@ export default defineSchema({
     () => allow.members('conversation_members', { scopeFiled: 'conversationId' }),
     /unknown field scopeFiled/u,
   );
+  const narrowed = allow.members('conversation_members', { roles: ['owner', 'member'] });
+  assert.deepEqual(narrowed.roles, ['owner', 'member']);
+  assert.equal(Object.isFrozen(narrowed.roles), true, 'allow.members() roles must be copied and frozen');
+  assert.throws(
+    () => allow.members('conversation_members', { roles: [] }),
+    (error) => error?.code === 'SNAPBACK_EPHEMERAL_MEMBERSHIP_ROLES_INVALID',
+  );
 }
 
 // LLP 0010's no-silent-drops rule applies uniformly to the three primary
@@ -1065,7 +1072,7 @@ export default defineSchema({${tables}}, { ephemeral: defineEphemeral({${collect
 // Counterpart: src/ephemeral.rs:
 // tests::codegen_emitted_membership_projection_parses_and_activates_in_sessions.
 const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_CANONICAL_SHA256 =
-  '8fb7b3c54c59d1b711c79f951ee2247a111a59ddc8dcdceef6203bc78de5aec3';
+  'a04c870f974c6de86c0596cf67027e1f934a7228aa26d86eed9245634211bf77';
 
 function canonicalJson(value) {
   const sort = (entry) => {
@@ -1102,16 +1109,20 @@ export default defineSchema({
     principal: 'userId',
     resource: 'conversationId',
     role: 'role',
-    roles: ['owner', 'member'],
-    transitions: [{ op: 'remove', from: ['member'], by: ['owner'], target: 'other' }],
+    roles: ['owner', 'member', 'moderator'],
+    pendingRoles: ['invited'],
+    transitions: [
+      { op: 'remove', from: ['member'], by: ['owner'], target: 'other' },
+      { op: 'setRole', from: ['member'], to: ['moderator'], by: ['owner'], target: 'other' },
+    ],
   }),
 }, { ephemeral: defineEphemeral({
   typing: ephemeral.collection({
     scope: { conversationId: v.id('conversations') },
     value: v.object({ active: v.boolean() }),
     ttlMs: 1000,
-    publish: allow.members('conversation_members'),
-    subscribe: allow.members('conversation_members'),
+    publish: allow.members('conversation_members', { roles: ['owner', 'member'] }),
+    subscribe: allow.members('conversation_members', { roles: ['owner', 'member'] }),
   }),
 }), auth: { mode: 'sessions' } });
 `);
@@ -1366,7 +1377,7 @@ for (const [publish, subscribe] of [
 }
 
 {
-  const diagnostics = await invalidCase({
+  const generated = await validCase({
     schema: ephemeralMembershipSchema({
       tables: `
   conversations: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
@@ -1389,11 +1400,18 @@ for (const [publish, subscribe] of [
     }),
     functions: 'export const nothing = 0;\n',
   });
-  assert(diagnostics.some((d) => d.code === 'EPHEMERAL_MEMBERSHIP_PENDING_ROLES'), JSON.stringify(diagnostics));
+  const manifest = JSON.parse(readFileSync(join(generated.outDir, 'schema.manifest.json'), 'utf8'));
+  assert.deepEqual(manifest.ephemeralCollections[0].permissionBacking, {
+    table: 'conversationMembers',
+    subjectField: 'userId',
+    scopeFields: { conversationId: 'conversationId' },
+    roleField: 'role',
+    allowedRoles: ['member'],
+  });
 }
 
 {
-  const diagnostics = await invalidCase({
+  const generated = await validCase({
     schema: ephemeralMembershipSchema({
       collections: `
   typing: ephemeral.collection({
@@ -1407,9 +1425,67 @@ for (const [publish, subscribe] of [
     }),
     functions: 'export const nothing = 0;\n',
   });
+  const manifest = JSON.parse(readFileSync(join(generated.outDir, 'schema.manifest.json'), 'utf8'));
+  assert.deepEqual(manifest.ephemeralCollections[0].permissionBacking.allowedRoles, ['member']);
+}
+
+{
+  const diagnostics = await invalidCase({
+    schema: ephemeralMembershipSchema({
+      tables: `
+  conversations: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
+  conversationMembers: defineTable({
+    userId: v.principal(), conversationId: v.id('conversations'), role: v.string(),
+  }).visibility({ kind: 'owner', field: 'userId' }).membership({
+    id: 'conversation_members', principal: 'userId', resource: 'conversationId', role: 'role',
+    roles: ['owner', 'member'], transitions: [],
+  }),
+`,
+      collections: `
+  typing: ephemeral.collection({
+    scope: { conversationId: v.id('conversations') },
+    value: v.object({ active: v.boolean() }),
+    ttlMs: 1000,
+    publish: allow.members('conversation_members', { roles: ['member'] }),
+    subscribe: allow.members('conversation_members'),
+  }),
+`,
+    }),
+    functions: 'export const nothing = 0;\n',
+  });
   assert(diagnostics.some((d) => (
-    d.code === 'EPHEMERAL_MEMBERSHIP_ROLES_UNSUPPORTED'
-      && /not yet supported/u.test(d.message)
+    d.code === 'EPHEMERAL_MEMBERSHIP_MIXED_POLICY'
+      && /same effective membership roles/u.test(d.message)
+  )), JSON.stringify(diagnostics));
+}
+
+for (const role of ['invited', 'ghost']) {
+  const diagnostics = await invalidCase({
+    schema: ephemeralMembershipSchema({
+      tables: `
+  conversations: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
+  conversationMembers: defineTable({
+    userId: v.principal(), conversationId: v.id('conversations'), role: v.string(),
+  }).visibility({ kind: 'owner', field: 'userId' }).membership({
+    id: 'conversation_members', principal: 'userId', resource: 'conversationId', role: 'role',
+    roles: ['owner', 'member'], pendingRoles: ['invited'], transitions: [],
+  }),
+`,
+      collections: `
+  typing: ephemeral.collection({
+    scope: { conversationId: v.id('conversations') },
+    value: v.object({ active: v.boolean() }),
+    ttlMs: 1000,
+    publish: allow.members('conversation_members', { roles: [${JSON.stringify(role)}] }),
+    subscribe: allow.members('conversation_members', { roles: [${JSON.stringify(role)}] }),
+  }),
+`,
+    }),
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(diagnostics.some((d) => (
+    d.code === 'EPHEMERAL_MEMBERSHIP_ROLE_UNKNOWN'
+      && d.unknownRoles?.includes(role)
   )), JSON.stringify(diagnostics));
 }
 
@@ -1473,6 +1549,15 @@ export default defineSchema({}, { ephemeral: defineEphemeral({
 {
   const generated = await validCase({
     schema: ephemeralMembershipSchema({
+      tables: `
+  conversations: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
+  conversationMembers: defineTable({
+    userId: v.principal(), conversationId: v.id('conversations'), role: v.string(),
+  }).visibility({ kind: 'owner', field: 'userId' }).membership({
+    id: 'conversation_members', principal: 'userId', resource: 'conversationId', role: 'role',
+    roles: ['owner', 'member'], pendingRoles: ['invited'], transitions: [],
+  }),
+`,
       collections: `
   implicitTyping: ephemeral.collection({
     scope: { conversationId: v.id('conversations') },
@@ -1485,8 +1570,8 @@ export default defineSchema({}, { ephemeral: defineEphemeral({
     scope: { roomId: v.id('conversations') },
     value: v.object({ active: v.boolean() }),
     ttlMs: 1000,
-    publish: allow.members('conversation_members', { scopeField: 'roomId' }),
-    subscribe: allow.members('conversation_members', { scopeField: 'roomId' }),
+    publish: allow.members('conversation_members', { scopeField: 'roomId', roles: ['member'] }),
+    subscribe: allow.members('conversation_members', { scopeField: 'roomId', roles: ['member'] }),
   }),
 `,
     }),
@@ -1498,6 +1583,8 @@ export default defineSchema({}, { ephemeral: defineEphemeral({
     table: 'conversationMembers',
     subjectField: 'userId',
     scopeFields: { conversationId: 'conversationId' },
+    roleField: 'role',
+    allowedRoles: ['owner', 'member'],
   });
   assert.deepEqual(byName.implicitTyping.publish, {
     RequireRoomPermission: { prefix: 'm_conversation_members' },
@@ -1509,6 +1596,8 @@ export default defineSchema({}, { ephemeral: defineEphemeral({
     table: 'conversationMembers',
     subjectField: 'userId',
     scopeFields: { roomId: 'conversationId' },
+    roleField: 'role',
+    allowedRoles: ['member'],
   });
 }
 

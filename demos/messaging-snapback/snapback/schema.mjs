@@ -84,6 +84,7 @@ export const conversationMemberships = defineTable({
     transitions: [
       { op: 'insert', by: ['owner'], target: 'other', to: ['member'], fields: ['joinedAt'] },
       { op: 'setRole', by: ['owner'], target: 'other', from: ['member'], to: ['moderator'] },
+      { op: 'setRole', by: ['owner'], target: 'other', from: ['moderator'], to: ['member'] },
       { op: 'remove', by: ['owner'], target: 'other', from: ['moderator', 'member'] },
       { op: 'remove', by: ['self'], target: 'self', from: ['moderator', 'member'] },
     ],
@@ -195,10 +196,11 @@ export default defineSchema({
         userHandle: v.string(),
         name: v.string(),
       }),
-      // @ref LLP 0013#authorization-and-privacy — both operations bind to one
-      // durable membership declaration so removal revokes the whole room edge.
-      publish: allow.members('conversationMemberships'),
-      subscribe: allow.members('conversationMemberships'),
+      // @ref LLP 0013#lowering-and-one-validator-convergence — both operations
+      // bind the same active-role subset; a member→moderator downgrade revokes
+      // the whole room edge through the ordinary authorization barrier.
+      publish: allow.members('conversationMemberships', { roles: ['owner', 'member'] }),
+      subscribe: allow.members('conversationMemberships', { roles: ['owner', 'member'] }),
     }),
   }),
 });

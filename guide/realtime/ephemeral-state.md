@@ -185,7 +185,7 @@ The option inventory is:
 | `maxValueBytes` / `hardMaxValueBytes` | Defaults 1,024/4,096 bytes; neither may cross the 4 KiB local hard cap. |
 | `publishRate` | Defaults to `{ sustainedHz: 20, burst: 60 }`, enforced per connection/collection. |
 | `delivery` | Defaults to `{ mode: 'latest', dispatchMs: 33 }`; `latest` is the only shipped mode. |
-| `publish` / `subscribe` | Both require explicit policies: `allow.all()`, `allow.roomPermission(prefix)`, or declaration-bound `allow.members(declarationId)`. |
+| `publish` / `subscribe` | Both require explicit policies: `allow.all()`, `allow.roomPermission(prefix)`, or declaration-bound `allow.members(declarationId, { roles? })`. Omitted roles mean all non-pending declaration roles. |
 | `value` | Required portable validator; generated clients and the server validate it. |
 | `targets` | Defaults to `local-dev-sqlite-ibex`; codegen rejects an undeclared selected target. |
 | `maxPendingEphemeralKeys` | Defaults to 1,024, bounding coalesced keys retained for dispatch. |
@@ -233,28 +233,28 @@ For conversation, channel, or document rooms, the normal protected posture is
 typing room to the canonical `conversationMemberships` declaration:
 
 ```js source=demos/messaging-snapback/snapback/schema.mjs
-      // @ref LLP 0013#authorization-and-privacy — both operations bind to one
-      // durable membership declaration so removal revokes the whole room edge.
-      publish: allow.members('conversationMemberships'),
-      subscribe: allow.members('conversationMemberships'),
+      // @ref LLP 0013#lowering-and-one-validator-convergence — both operations
+      // bind the same active-role subset; a member→moderator downgrade revokes
+      // the whole room edge through the ordinary authorization barrier.
+      publish: allow.members('conversationMemberships', { roles: ['owner', 'member'] }),
+      subscribe: allow.members('conversationMemberships', { roles: ['owner', 'member'] }),
 ```
 
 The stable declaration id lowers to a generated `m_<declarationId>` room
 permission and a `permissionBacking` projection over the declaration's
-canonical table. V1 grants on row existence: the session principal must have a
-current membership row whose resource id equals the room scope. That ships
-current-membership reads, removal invalidation, and write scoping—only a current
-member may subscribe or publish. Both policies must name the same declaration;
+canonical table. The session principal must have a current membership row whose
+resource id equals the room scope and whose role is in the emitted
+`allowedRoles`. Omitted `roles` lowers the declaration's complete non-pending
+role vocabulary; an explicit non-empty active-role subset narrows it. That ships
+current-membership reads, removal and downgrade invalidation, and write
+scoping—only an admitted active role may subscribe or publish. Pending roles,
+including invited rows, grant nothing. Both policies must name the same
+declaration and have the same effective role set;
 mixing `allow.members` with `allow.all()` is refused because room authority is
 currently derived from the subscribe policy. V1 also refuses app-scoped or
 multi-field scopes, a scope validator other than `v.id()` of the declaration's
-resource table, unknown declarations, and declarations with `pendingRoles`.
-
-Role narrowing is not shipped. The `roles` option is refused, and the runtime's
-existence check has no role predicate. A change between active roles wakes the
-authorization barrier but can regrant the same row, so a role downgrade alone
-is not yet a kick. The follow-on is tracked in
-[`issues/20260817-ephemeral-membership-role-narrowing.md`](repo:issues/20260817-ephemeral-membership-role-narrowing.md).
+resource table, unknown declarations, role names outside the declaration's
+active vocabulary, and different publish/subscribe subsets.
 
 Sessions mode enforces the emitted projection: identity comes from the session,
 and client permission strings are ignored. Direct/dev mode instead admits room
@@ -266,15 +266,16 @@ demo's `useTyping` wrapper shows that dev-only bridge; it is not a production
 authorization proof. Run the recipe's Sessions acceptance shape before claiming
 membership privacy.
 
-Removal is terminal through every shipped client surface. The removed
-subscriber receives one `PermissionDenied` frame and then no later frames,
-while survivors receive `AuthRevoked` removal. The base overlay applies the
-error once and latches its trusted `SNAPBACK_AUTH_PERMISSION_DENIED`
-diagnostic; a later frame or socket-loss event cannot reopen the overlay or
-replace that diagnostic with transport noise. `startEphemeralRoom` projects an
-empty `status: "error"` room with `reason: "auth_revoked"`, and React presence
-and activity-presence consumers pass through that status and diagnostic rather
-than presenting an empty ready room.
+Removal and allowed-to-disallowed role downgrade are terminal through every
+shipped client surface. The revoked subscriber receives one `PermissionDenied`
+frame and then no later frames, while survivors receive `AuthRevoked` removal.
+The base overlay applies the error once and latches its trusted
+`SNAPBACK_AUTH_PERMISSION_DENIED` diagnostic; a later frame or socket-loss
+event cannot reopen the overlay or replace that diagnostic with transport
+noise. `startEphemeralRoom` projects an empty `status: "error"` room with
+`reason: "auth_revoked"`, and React presence and activity-presence consumers
+pass through that status and diagnostic rather than presenting an empty ready
+room.
 
 ## Subscribe to snapshot plus deltas
 

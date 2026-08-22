@@ -8,8 +8,9 @@ Memberships, Code generation, Runtime, Client integration, Exact/Contract
 integration, Diagnostics, Guide, Testing
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-08-17
-**Revised:** 2026-08-21 (P17 follow-through: records the packed external Expo
-Metro cycle repair); 2026-08-20 (0.1.24 matrix amendment: adds the completed
+**Revised:** 2026-08-21 (F5 residual reconciliation: membership-backed room
+role narrowing is closed); 2026-08-21 (P17 follow-through: records the packed
+external Expo Metro cycle repair); 2026-08-20 (0.1.24 matrix amendment: adds the completed
 three-model-family x two-profile x two-app published-package run, preserves
 its calibration-only claim posture, enumerates the positive and negative
 findings, and analyzes where wall clock, output tokens, and correction loops
@@ -260,9 +261,9 @@ membership relation into the protected ephemeral permission backing, with
 current-row (not incarnation) authority, terminal removal, write scoping, and
 first-class negative fixtures
 (`issues/closed/20260817-ephemeral-membership-permission-backing.md`).
-Residuals: role narrowing
-(`issues/20260817-ephemeral-membership-role-narrowing.md`), the overlay's
-missing terminal Error arm
+Role narrowing subsequently closed on 2026-08-21
+(`issues/closed/20260817-ephemeral-membership-role-narrowing.md`). Residuals are
+the overlay's missing terminal Error arm
 (`issues/20260817-ephemeral-overlay-missing-error-arm.md`), and Coterie's own
 adoption — its schema uses incarnation-oriented membership and must migrate
 to a canonical `membership()` declaration first

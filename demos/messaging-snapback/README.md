@@ -115,8 +115,9 @@ node demos/messaging-snapback/tests/acceptance/headless.mjs
 
 Twenty-five checks: the existing messaging and asset-upload proofs; an
 eight-part Sessions-mode typing-membership battery (anonymous and non-member
-refusal, creator principal binding, cross-member visibility, removal
-revocation, leave/add projection coherence, and fresh rejoin); plus
+refusal, creator principal binding, cross-member visibility, allowed-to-
+disallowed role revocation, durable-roster coherence, and role restoration
+through a fresh subscription); plus
 recipient-set validation; hostile pending/outsider delivery; repeated and
 concurrent second-open refusal from product consumption state; strict
 403→200→403 close; two-recipient delete-for-everyone; and close-then-delete

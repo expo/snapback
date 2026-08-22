@@ -133,6 +133,7 @@ export const conversationMemberships = defineTable({
     transitions: [
       { op: 'insert', by: ['owner'], target: 'other', to: ['member'], fields: ['joinedAt'] },
       { op: 'setRole', by: ['owner'], target: 'other', from: ['member'], to: ['moderator'] },
+      { op: 'setRole', by: ['owner'], target: 'other', from: ['moderator'], to: ['member'] },
       { op: 'remove', by: ['owner'], target: 'other', from: ['moderator', 'member'] },
       { op: 'remove', by: ['self'], target: 'self', from: ['moderator', 'member'] },
     ],

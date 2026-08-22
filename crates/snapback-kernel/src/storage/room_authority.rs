@@ -3047,6 +3047,8 @@ mod tests {
             table: "memberships".to_owned(),
             subject_field: "userId".to_owned(),
             scope_fields: BTreeMap::from([("boardId".to_owned(), "boardId".to_owned())]),
+            role_field: Some("role".to_owned()),
+            allowed_roles: Some(vec!["member".to_owned()]),
         };
         let collection = protected_collection().permission_backed_by(projection);
         let table = TableManifest {

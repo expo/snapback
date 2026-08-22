@@ -2719,12 +2719,17 @@ export const allow = Object.freeze({
       'allow.members() expects a membership declaration id',
     );
     exactObject(opts, 'allow.members() options', new Set(['scopeField', 'roles']));
+    const roles = Object.hasOwn(opts, 'roles')
+      ? stringArray(opts.roles, 'allow.members() roles', {
+          code: 'SNAPBACK_EPHEMERAL_MEMBERSHIP_ROLES_INVALID',
+        })
+      : undefined;
     return Object.freeze({
       __accessPolicy: true,
       kind: 'RequireMembership',
       declaration: declarationId,
       ...(Object.hasOwn(opts, 'scopeField') ? { scopeField: opts.scopeField } : {}),
-      ...(Object.hasOwn(opts, 'roles') ? { roles: opts.roles } : {}),
+      ...(roles ? { roles: Object.freeze(roles) } : {}),
     });
   },
 });

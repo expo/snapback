@@ -62,6 +62,7 @@ export const conversationMemberships = defineTable({
     transitions: [
       { op: 'insert', by: ['owner'], target: 'other', to: ['member'], fields: ['joinedAt'] },
       { op: 'setRole', by: ['owner'], target: 'other', from: ['member'], to: ['moderator'] },
+      { op: 'setRole', by: ['owner'], target: 'other', from: ['moderator'], to: ['member'] },
       { op: 'remove', by: ['owner'], target: 'other', from: ['moderator', 'member'] },
       { op: 'remove', by: ['self'], target: 'self', from: ['moderator', 'member'] },
     ],
@@ -100,19 +101,23 @@ the declaration. Publish and subscribe name the same stable declaration id:
         userHandle: v.string(),
         name: v.string(),
       }),
-      // @ref LLP 0013#authorization-and-privacy — both operations bind to one
-      // durable membership declaration so removal revokes the whole room edge.
-      publish: allow.members('conversationMemberships'),
-      subscribe: allow.members('conversationMemberships'),
+      // @ref LLP 0013#lowering-and-one-validator-convergence — both operations
+      // bind the same active-role subset; a member→moderator downgrade revokes
+      // the whole room edge through the ordinary authorization barrier.
+      publish: allow.members('conversationMemberships', { roles: ['owner', 'member'] }),
+      subscribe: allow.members('conversationMemberships', { roles: ['owner', 'member'] }),
     }),
 ```
 
 Codegen emits the generated `m_conversationMemberships` permission prefix and
 the durable `permissionBacking` projection. V1 intentionally accepts only one
 room scope field, and that field must be exactly `v.id()` of the membership
-resource table. It refuses `pendingRoles`, `roles` narrowing, app-scoped
-memberships, multi-field scope, unknown declarations, wrong-table ids, and any
-mix of `allow.members()` with `allow.all()`.
+resource table. Omitted `roles` lowers every non-pending declaration role;
+explicit roles must be a non-empty subset of the active vocabulary and must be
+the same for publish and subscribe. Pending roles never grant room authority.
+Codegen still refuses app-scoped memberships, multi-field scope, unknown
+declarations, wrong-table ids, and any mix of `allow.members()` with
+`allow.all()`.
 
 ## 2. Publish on activity and withdraw on idle
 
@@ -240,20 +245,26 @@ authenticated non-member clients must fail both subscribe and publish:
   });
 ```
 
-For a former member, remove the canonical row while subscriptions are live.
-The former member receives one terminal denial, cannot publish, and receives no
-later frames; a surviving member receives the `AuthRevoked` removal:
+For a role-narrowed room, downgrade a current member outside the admitted
+subset while subscriptions are live. The durable membership row remains, but
+the downgraded subscriber receives one terminal denial, cannot publish, and
+receives no later frames; a surviving allowed role receives the `AuthRevoked`
+removal:
 
 ```js source=demos/messaging-snapback/tests/acceptance/headless.mjs
-  await suite.check('typing membership (e): removing B revokes B and removes B from A', async () => {
-    await app.clients.recipientA.mutate(api.leaveConversation, {
-      args: { conversationId: typingConversationId },
+  await suite.check('typing membership (e): allowed-to-disallowed role downgrade revokes B and removes B from A', async () => {
+    await app.clients.owner.mutate(api.conversationMemberships.changeRole, {
+      args: {
+        scopeId: typingConversationId,
+        principal: recipientAPrincipal,
+        role: 'moderator',
+      },
     });
 
     await eventually(async () => {
       await Promise.all([memberAOverlay.drain(), memberBOverlay.drain()]);
       const denied = ephemeralMessage(memberBFrames.at(-1));
-      assert(memberBTerminalMessage, 'removed member receives the PermissionDenied terminal frame');
+      assert(memberBTerminalMessage, 'downgraded member receives the PermissionDenied terminal frame');
       assertEqual(
         denied?.Error?.error?.code,
         'PermissionDenied',
@@ -267,7 +278,7 @@ later frames; a surviving member receives the `AuthRevoked` removal:
       assertEqual(
         denied.Error.room_authority_generation,
         2,
-        'removed member terminal frame carries the successor authority generation',
+        'downgraded member terminal frame carries the successor authority generation',
       );
       assertEqual(
         memberBOverlayTerminalNotifications,
@@ -298,23 +309,23 @@ later frames; a surviving member receives the `AuthRevoked` removal:
       assert(revoked, 'surviving member receives the AuthRevoked removal frame');
       assert(
         !memberAOverlay.currentEntries().some((entry) => entry.key === memberBEntryKey),
-        'member A no longer sees member B typing',
+        'member A no longer sees downgraded member B typing',
       );
-    }, 'membership removal revokes B and deletes B typing');
+    }, 'membership role downgrade revokes B and deletes B typing');
 
     const publishError = await captureRejection(memberBOverlay.publish(
-      { userHandle: recipientAPrincipal, name: 'Removed member B' },
+      { userHandle: recipientAPrincipal, name: 'Downgraded member B' },
       { ttlMs: typingRef.maxTtlMs },
-    ), 'removed member typing publish');
-    assertPermissionDenied(publishError, 'removed member typing publish');
+    ), 'downgraded member typing publish');
+    assertPermissionDenied(publishError, 'downgraded member typing publish');
 
     assertEqual(
       memberBFrames.length,
       memberBTerminalFrameCount,
-      'removed member receives zero frames between terminal denial and survivor probe',
+      'downgraded member receives zero frames between terminal denial and survivor probe',
     );
     await memberAOverlay.publish(
-      { userHandle: ownerPrincipal, name: 'Member A after removal' },
+      { userHandle: ownerPrincipal, name: 'Member A after downgrade' },
       { ttlMs: typingRef.maxTtlMs },
     );
     await memberAOverlay.drain();
@@ -322,7 +333,7 @@ later frames; a surviving member receives the `AuthRevoked` removal:
     assertEqual(
       memberBFrames.length,
       memberBTerminalFrameCount,
-      'removed member subscription stays silent after its terminal frame',
+      'downgraded member subscription stays silent after its terminal frame',
     );
     assertEqual(
       memberBOverlayTerminalNotifications,
@@ -337,10 +348,10 @@ later frames; a surviving member receives the `AuthRevoked` removal:
         && message.Remove.reason === 'AuthRevoked'
       ));
     return {
-      removedSubscriberFrameCode: memberBTerminalMessage.Error.error.code,
+      downgradedSubscriberFrameCode: memberBTerminalMessage.Error.error.code,
       successorAuthorityGeneration: memberBTerminalMessage.Error.room_authority_generation,
       survivorRemovalReason: removal.Remove.reason,
-      formerMemberPublish: publishError.diagnostic.code,
+      disallowedRolePublish: publishError.diagnostic.code,
       overlayDiagnostic: memberBOverlayTerminalDiagnostic.code,
       roomHandleStatus: memberBRoom.getSnapshot().status,
       postTerminalFrames: memberBFrames.length - memberBTerminalFrameCount,
@@ -349,9 +360,9 @@ later frames; a surviving member receives the `AuthRevoked` removal:
 ```
 
 Keep the two positive witnesses in the same battery: member A sees member B's
-typing entry before removal, and B can publish through a fresh subscription
-after rejoin. Together these are the five capability scenarios, not merely
-three static denials.
+typing entry before downgrade, and B can publish through a fresh subscription
+after an upgrade back into the allowed subset. Together these are the five
+capability scenarios, not merely three static denials.
 
 The same scenario also pins the base client surface: the overlay notifies
 exactly once and the room handle becomes terminal `error` with
@@ -363,14 +374,15 @@ instead of presenting an empty ready room.
 ## Sessions and direct/dev prove different things
 
 - **Sessions is the privacy proof.** The authenticated principal and emitted
-  durable projection decide membership. Removal invalidates the live room edge
-  and later publication.
+  durable role-aware projection decide membership. Removal and
+  allowed-to-disallowed downgrade invalidate the live room edge and later
+  publication.
 - **Direct/dev is an assertion harness.** The caller supplies `userId` and
   `roomPermission('m_<declarationId>', scope)`. It proves room behavior, not
   that the server derived the authority from membership.
-- **Role is not a v1 predicate.** `allow.members(..., { roles })` and
-  declarations with `pendingRoles` fail closed. A role downgrade is not yet a
-  kick; track the role-narrowing follow-on from the reference page.
+- **Role narrowing is one room policy.** Publish and subscribe must choose the
+  same effective active-role subset. Pending roles are always excluded; a
+  downgrade outside the subset is a kick.
 
 ## Anti-patterns
 

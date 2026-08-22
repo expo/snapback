@@ -25702,6 +25702,8 @@ fn dynamic_ephemeral_registration_preserves_permission_projection_closure() {
                 table: "memberships".to_owned(),
                 subject_field: "userId".to_owned(),
                 scope_fields: BTreeMap::from([("gameId".to_owned(), "gameId".to_owned())]),
+                role_field: None,
+                allowed_roles: None,
             });
 
     let register_error = snapback

@@ -515,3 +515,24 @@ Snapback's private, non-enumerable authority prevents the projection from
 becoming an authorization source, but the useful product rule is stricter:
 ordinary app-visible data is not automatically public data, and every
 caller-selected room read still needs an admission boundary.
+
+## 2026-08-21 — Typing authority narrows by active role
+
+The typing room now admits only `owner` and `member`, while `moderator` remains
+an active durable conversation role. That distinction made the Sessions
+battery materially stronger than its earlier delete-only proof: an owner uses
+the generated `conversationMemberships.changeRole` mutation to downgrade a
+live member, the old-generation typing update is quiesced, the downgraded
+subscriber receives one terminal denial, and the surviving owner receives the
+`AuthRevoked` removal. The same durable row remains visible in the inbox and
+roster after reconciliation, so the test cannot accidentally pass by treating
+role narrowing as membership deletion. A later publish is denied, and a role
+upgrade plus fresh subscription restores access.
+
+The ergonomic win is that the room declaration names the subset once with
+`allow.members(..., { roles })`; codegen supplies the role field and validates
+the closed vocabulary. Compared with a hand-written Convex authorization check
+or Supabase policy, the application does not duplicate the predicate at every
+subscribe and publish seam. The constraint is deliberate and visible: publish
+and subscribe currently need the same effective subset because one runtime
+projection owns both operations.

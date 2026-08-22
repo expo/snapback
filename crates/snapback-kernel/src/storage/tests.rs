@@ -12565,6 +12565,8 @@ mod guarded_commit_tests {
             table: "memberships".to_owned(),
             subject_field: "userId".to_owned(),
             scope_fields: BTreeMap::from([("boardId".to_owned(), "boardId".to_owned())]),
+            role_field: None,
+            allowed_roles: None,
         };
         let collection =
             crate::ephemeral::EphemeralCollection::local_cursor("boardCursors", "boardId")
@@ -12629,11 +12631,20 @@ mod guarded_commit_tests {
                                 field_type: FieldType::String,
                                 optional: false,
                             },
+                            FieldManifest {
+                                name: "role".to_owned(),
+                                field_type: FieldType::String,
+                                optional: false,
+                            },
                         ],
                         indexes: Vec::new(),
                         syncable: true,
                         permission_backing: true,
-                        permission_fields: Some(vec!["userId".to_owned(), "boardId".to_owned()]),
+                        permission_fields: Some(vec![
+                            "userId".to_owned(),
+                            "boardId".to_owned(),
+                            "role".to_owned(),
+                        ]),
                         search_indexes: Vec::new(),
                         vector_indexes: Vec::new(),
                         search_live_limits: None,
@@ -12654,6 +12665,7 @@ mod guarded_commit_tests {
                             ("_id".to_owned(), json!("grant")),
                             ("userId".to_owned(), json!("alice")),
                             ("boardId".to_owned(), json!("board-a")),
+                            ("role".to_owned(), json!("member")),
                         ])],
                     )]),
                 })
@@ -12664,9 +12676,24 @@ mod guarded_commit_tests {
                     "userId",
                     "alice",
                     &[("boardId".to_owned(), "board-a".to_owned())],
+                    Some("role"),
+                    Some(&["member".to_owned()]),
                     1,
                 )
                 .unwrap()
+            );
+            assert!(
+                !db.room_permission_projection_granted(
+                    "memberships",
+                    "userId",
+                    "alice",
+                    &[("boardId".to_owned(), "board-a".to_owned())],
+                    Some("role"),
+                    Some(&["owner".to_owned()]),
+                    1,
+                )
+                .unwrap(),
+                "role narrowing must refuse a durable row outside allowedRoles"
             );
             db.conn
                 .execute(
@@ -12681,6 +12708,8 @@ mod guarded_commit_tests {
                     "userId",
                     "alice",
                     &[("boardId".to_owned(), "board-a".to_owned())],
+                    Some("role"),
+                    Some(&["member".to_owned()]),
                     1,
                 )
                 .expect_err("corrupt authorization source must not grant a room");

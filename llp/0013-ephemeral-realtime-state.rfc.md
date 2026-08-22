@@ -5,6 +5,7 @@
 **Systems:** Realtime, Sync, Storage, API, Runtime, Auth, Deployment, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
+**Revised:** 2026-08-22 (membership-backed room role narrowing: optional artifact-compatible `roleField`/`allowedRoles`, active-vocabulary activation, pinned role predicates, default and explicit `allow.members` role lowering, and downgrade-kick evidence).
 **Revised:** 2026-08-21 (client overlays now terminally apply ephemeral `Error`
 frames, room handles and React/activity bindings surface the trusted
 diagnostic, and the Sessions battery pins one notification plus no reopen).
@@ -947,10 +948,9 @@ Room membership predicates bind to a membership declaration by stable id, not
 table spelling or an ambient role string. Removal is a kick for room
 authority: the existing item-6 barrier reauthorizes or unregisters the
 affected connection before later effects can escape. A role DOWNGRADE fires
-the same barrier but, in the shipped role-blind row-existence grant, the
-re-grant succeeds — downgrade today is a transient suspension, not a kick.
-Downgrade-as-kick is the role-narrowing follow-on (see the 2026-08-17
-amendment and issues/20260817-ephemeral-membership-role-narrowing.md).
+the same barrier; when the room narrows `allowedRoles`, a transition from an
+allowed role to a disallowed active role denies the pinned re-read and is a
+kick with the same old-generation quiescence and survivor cleanup as removal.
 
 ## Dated amendment: source-authored membership-backed rooms (2026-08-17)
 
@@ -964,7 +964,9 @@ below.
 ephemeral policy. `declarationId` resolves by stable effective id to one
 installed LLP 0056 `membership()` declaration; arbitrary tables, legacy raw
 `permissionBacking()` tables, and unknown declarations are not admitted.
-`opts` is closed to `scopeField` and the reserved `roles` option.
+`opts` is closed to `scopeField` and `roles`. Omitting `roles` means the
+declaration's complete non-pending `roles`; supplying it chooses a non-empty,
+unique subset of that active vocabulary. `pendingRoles` are never room grants.
 
 V1 fails closed unless all of these are true:
 
@@ -982,10 +984,9 @@ V1 fails closed unless all of these are true:
   `v.id(<the declaration resource table>)`. A non-id validator, optional id,
   or `v.id()` naming another table is refused: matching field spelling does
   not establish the same nominal resource domain;
-- the declaration has no `pendingRoles`. The runtime grant is role-blind row
-  existence, so admitting invited rows would leak membership authority; and
-- neither policy supplies `roles`. The option is reserved for the role-aware
-  follow-on and is refused rather than ignored.
+- publish and subscribe have the same effective allowed-role set. V1 installs
+  one collection-level runtime projection, so per-operation role subsets are
+  refused rather than silently widened or intersected.
 
 Generated membership prefixes occupy the `m_<declarationId>` namespace.
 Author-supplied `allow.roomPermission()` prefixes may not collide with that
@@ -1000,7 +1001,9 @@ For both operations, codegen lowers `allow.members(id)` to the existing
 permissionBacking: {
   table: <canonical declaration table>,
   subjectField: <declaration principal field>,
-  scopeFields: { <room scope field>: <declaration resource field> }
+  scopeFields: { <room scope field>: <declaration resource field> },
+  roleField: <declaration role field>,
+  allowedRoles: <explicit roles or declaration non-pending roles>
 }
 ```
 
@@ -1009,27 +1012,24 @@ projection names the resolved canonical table and fields. The emitted artifact
 uses the existing Rust-owned manifest shape and passes the same activation
 validator as a hand-built manifest. Codegen does not create a parallel
 validator or wire concept: this is the one-validator convergence required by
-LLP 0037.
+LLP 0037. `roleField` and `allowedRoles` are serde-defaulted optional additions,
+so pre-role artifacts remain valid and preserve their role-blind meaning. When
+either is present, activation requires the pair, the declaration's actual role
+axis, an authorization-affecting field, and a non-empty unique subset of the
+declaration's active (not pending) vocabulary.
 
 ### V1 grant and invalidation semantics
 
 In Sessions mode the authenticated principal is matched against the emitted
-projection with a pinned-snapshot `EXISTS` query over subject and resource.
+projection with a pinned-snapshot `EXISTS` query over subject, resource, and
+`role IN allowedRoles`.
 Because only a canonical LLP 0056 declaration may back the policy, row
 existence is equivalent to **current membership** rather than a historical
-incarnation. A current member can subscribe and publish. Removing the row
+incarnation. An allowed active role can subscribe and publish. Removing the row
+or changing its role out of the allowed subset
 installs the existing authorization barrier, re-resolves at or after the
 membership commit, unregisters the denied subscriber, removes that
 connection's entries for survivors, and denies later publication.
-
-V1 does **not** narrow by role: `permissionBacking` has no role field or
-allowed-role set and the `EXISTS` query has no role predicate. A transition
-between active roles wakes the barrier but row existence can regrant the
-connection. Therefore the 2026-07-16 sentence “a role downgrade is a kick” is
-the intended role-aware completion, not a claim about this shipped slice.
-[`issues/20260817-ephemeral-membership-role-narrowing.md`](../issues/20260817-ephemeral-membership-role-narrowing.md)
-owns `roleField`/`allowedRoles`, the role predicate, validation, codegen's
-lifting of the `pendingRoles`/`roles` refusals, and the downgrade-kick witness.
 
 Direct/dev mode remains intentionally different: room admission rests solely on
 the asserted `roomPermission('m_<id>', scope)` token (the runtime's
@@ -1043,11 +1043,13 @@ Membership-backed ephemeral rooms are a capability claim only while the
 messaging demo's Sessions acceptance battery preserves all five scenarios:
 
 1. anonymous subscribe and publish are denied;
-2. authenticated non-member subscribe and publish are denied;
+2. authenticated non-member and pending-role subscribe and publish are denied;
 3. member A observes member B's typing entry;
-4. removing B gives B one terminal denial followed by wire silence, removes
-   B's entry from A with `AuthRevoked`, and denies B's later publish; and
-5. reseating B admits a fresh subscription and publication.
+4. downgrading B from an allowed role to a disallowed active role gives B one
+   terminal denial followed by wire silence, removes B's entry from A with
+   `AuthRevoked`, and denies B's later publish; and
+5. upgrading B back into the allowed subset admits a fresh subscription and
+   publication.
 
 These are first-class fixtures, not prose examples. Scenario 4 also pins the
 base client projection: the denied overlay applies the terminal `Error` once,

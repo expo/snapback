@@ -3949,6 +3949,8 @@ impl LocalDatabase {
         subject_field: &str,
         user_id: &str,
         scope_fields: &[(String, String)],
+        role_field: Option<&str>,
+        allowed_roles: Option<&[String]>,
         min_commit_version: u64,
     ) -> SnapbackResult<bool> {
         room_permission_projection_granted_on(
@@ -3958,6 +3960,8 @@ impl LocalDatabase {
             subject_field,
             user_id,
             scope_fields,
+            role_field,
+            allowed_roles,
             min_commit_version,
         )
     }
@@ -7022,6 +7026,8 @@ pub(crate) fn room_permission_projection_granted_on(
     subject_field: &str,
     user_id: &str,
     scope_fields: &[(String, String)],
+    role_field: Option<&str>,
+    allowed_roles: Option<&[String]>,
     min_commit_version: u64,
 ) -> SnapbackResult<bool> {
     with_pinned_read_snapshot(conn, |conn| {
@@ -7044,22 +7050,41 @@ pub(crate) fn room_permission_projection_granted_on(
         for (field, _) in scope_fields {
             ensure_field(table, field)?;
         }
+        let role_narrowing = match (role_field, allowed_roles) {
+            (None, None) => None,
+            (Some(role_field), Some(allowed_roles)) if !allowed_roles.is_empty() => {
+                ensure_field(table, role_field)?;
+                Some((role_field, allowed_roles))
+            }
+            // Activation rejects malformed pairs. Keep this lower seam
+            // independently fail-closed for direct-library callers.
+            _ => return Ok(false),
+        };
         let mut predicates = vec![format!("{} = ?1", quote_ident(subject_field)?)];
         for (index, (field, _)) in scope_fields.iter().enumerate() {
             predicates.push(format!("{} = ?{}", quote_ident(field)?, index + 2));
         }
-        let sql = format!(
-            "SELECT EXISTS(SELECT 1 FROM {} WHERE {} LIMIT 1)",
-            quote_ident(table_name)?,
-            predicates.join(" AND ")
-        );
-        let values = std::iter::once(SqlValue::Text(user_id.to_owned()))
+        let mut values = std::iter::once(SqlValue::Text(user_id.to_owned()))
             .chain(
                 scope_fields
                     .iter()
                     .map(|(_, value)| SqlValue::Text(value.clone())),
             )
             .collect::<Vec<_>>();
+        if let Some((role_field, allowed_roles)) = role_narrowing {
+            let first_parameter = values.len() + 1;
+            let parameters = (0..allowed_roles.len())
+                .map(|offset| format!("?{}", first_parameter + offset))
+                .collect::<Vec<_>>()
+                .join(", ");
+            predicates.push(format!("{} IN ({parameters})", quote_ident(role_field)?));
+            values.extend(allowed_roles.iter().cloned().map(SqlValue::Text));
+        }
+        let sql = format!(
+            "SELECT EXISTS(SELECT 1 FROM {} WHERE {} LIMIT 1)",
+            quote_ident(table_name)?,
+            predicates.join(" AND ")
+        );
         let granted: i64 =
             conn.query_row(&sql, params_from_iter(values.iter()), |row| row.get(0))?;
         Ok(granted != 0)
@@ -8922,6 +8947,8 @@ impl DbRead<'_> {
         subject_field: &str,
         user_id: &str,
         scope_fields: &[(String, String)],
+        role_field: Option<&str>,
+        allowed_roles: Option<&[String]>,
         min_commit_version: u64,
     ) -> SnapbackResult<(bool, AuthorizationVersion)> {
         self.with_connection(|conn| {
@@ -8932,6 +8959,8 @@ impl DbRead<'_> {
                 subject_field,
                 user_id,
                 scope_fields,
+                role_field,
+                allowed_roles,
                 min_commit_version,
             )?;
             Ok((granted, authorization_version_on(conn)?))

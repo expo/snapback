@@ -46,7 +46,7 @@ fn codegen_emitted_membership_projection_parses_and_activates_in_sessions() {
     }
 
     let embedded: serde_json::Value = serde_json::from_str(CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON)
-        .expect("slice-1 codegen schema manifest is valid JSON");
+        .expect("codegen schema manifest is valid JSON");
     let digest = format!("{:x}", Sha256::digest(canonical_json(&embedded).as_bytes()));
     assert_eq!(
         digest, CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_CANONICAL_SHA256,
@@ -54,7 +54,7 @@ fn codegen_emitted_membership_projection_parses_and_activates_in_sessions() {
     );
 
     let schema: SchemaManifest = serde_json::from_value(embedded)
-        .expect("slice-1 codegen schema manifest parses through the Rust carrier");
+        .expect("codegen schema manifest parses through the Rust carrier");
     schema
         .validate_artifact()
         .expect("slice-1 codegen schema artifact header is valid");
@@ -74,6 +74,8 @@ fn codegen_emitted_membership_projection_parses_and_activates_in_sessions() {
                 "conversationId".to_owned(),
                 "conversationId".to_owned(),
             )]),
+            role_field: Some("role".to_owned()),
+            allowed_roles: Some(vec!["owner".to_owned(), "member".to_owned()]),
         })
     );
     for policy in [&collection.publish, &collection.subscribe] {
@@ -94,4 +96,25 @@ fn codegen_emitted_membership_projection_parses_and_activates_in_sessions() {
         schema.effective_auth_mode() == AuthMode::Sessions,
     )
     .expect("sessions activation accepts the codegen-emitted membership projection");
+
+    for refused_role in ["invited", "ghost"] {
+        let mut doctored = schema.clone();
+        doctored.ephemeral_collections[0]
+            .permission_backing
+            .as_mut()
+            .unwrap()
+            .allowed_roles = Some(vec![refused_role.to_owned()]);
+        let error = validate_collection_permission_backing(
+            &doctored.ephemeral_collections,
+            &doctored.tables,
+            true,
+        )
+        .expect_err("artifact activation must refuse pending and unknown role grants");
+        assert_eq!(
+            error.code.diagnostic_code(),
+            "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION",
+            "{refused_role}"
+        );
+        assert!(error.message.contains("active membership roles"));
+    }
 }

@@ -27,9 +27,10 @@ bind. Steps:
 
 ## Constraints
 
-- Role narrowing is still open
-  (`issues/20260817-ephemeral-membership-role-narrowing.md`); Coterie's
-  typing needs only row-existence authority, so it is not blocked.
+- Role narrowing closed on 2026-08-21
+  (`issues/closed/20260817-ephemeral-membership-role-narrowing.md`); Coterie may
+  still use the default complete active-role set, so its adoption shape is
+  unchanged.
 - The v8 declaration is byte-frozen; claiming typing changes only the
   adapter's claims/refusals, not the declaration, unless the Exact
   ephemeral-descriptor generation lands first (graduated to the Exact repo;

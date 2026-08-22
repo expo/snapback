@@ -552,7 +552,7 @@ impl KickFixture {
 }
 
 #[test]
-fn codegen_manifest_enforces_anonymous_nonmember_and_member_room_grants() {
+fn codegen_manifest_enforces_anonymous_pending_and_active_role_room_grants() {
     let snapback = codegen_membership_snapback();
     let scope = codegen_membership_scope();
 
@@ -561,10 +561,10 @@ fn codegen_manifest_enforces_anonymous_nonmember_and_member_room_grants() {
         .expect_err("anonymous authority cannot satisfy a membership projection");
     assert_eq!(anonymous.diagnostic.code, "SNAPBACK_AUTH_PERMISSION_DENIED");
 
-    let nonmember = snapback
+    let pending = snapback
         .authorize_ephemeral_room_observed("typing", &scope, codegen_membership_auth(Some(USER_C)))
-        .expect_err("an authenticated non-member cannot satisfy the projection");
-    assert_eq!(nonmember.diagnostic.code, "SNAPBACK_AUTH_PERMISSION_DENIED");
+        .expect_err("an invited pending row cannot satisfy the active-role projection");
+    assert_eq!(pending.diagnostic.code, "SNAPBACK_AUTH_PERMISSION_DENIED");
 
     let (member, observed) = snapback
         .authorize_ephemeral_room_observed("typing", &scope, codegen_membership_auth(Some(USER_A)))
@@ -574,7 +574,7 @@ fn codegen_manifest_enforces_anonymous_nonmember_and_member_room_grants() {
             "m_conversation_members:{}",
             scope.normalized_key()
         )),
-        "the grant uses the slice-1 generated membership prefix"
+        "the grant uses the generated membership prefix"
     );
     assert_eq!(
         snapback.ephemeral.authorization_expectation_for_test(),
@@ -627,20 +627,20 @@ fn legacy_room_permission_without_backing_refuses_sessions_activation() {
 }
 
 #[test]
-fn codegen_membership_removal_unregisters_the_room_subscriber() {
+fn codegen_membership_role_downgrade_kicks_and_scrubs_the_room_subscriber() {
     let mut snapback = codegen_membership_snapback();
     let ephemeral = snapback.ephemeral_api();
     let scope = codegen_membership_scope();
-    let (member_auth, observed) = snapback
+    let (member_auth, observed_a) = snapback
         .authorize_ephemeral_room_observed("typing", &scope, codegen_membership_auth(Some(USER_A)))
         .expect("current member receives the codegen-backed room grant");
-    let permit = ephemeral
+    let permit_a = ephemeral
         .begin_server_authorized_room_act("typing", &scope)
         .expect("room authority is available")
         .expect("protected collection returns a room permit");
     assert_eq!(
         ephemeral.authorization_expectation_for_test(),
-        Some(observed)
+        Some(observed_a)
     );
     ephemeral
         .subscribe(
@@ -654,21 +654,71 @@ fn codegen_membership_removal_unregisters_the_room_subscriber() {
             10,
         )
         .expect("member registers in the codegen-backed room");
-    drop(permit);
-    assert_eq!(ephemeral.diagnostics().subscriber_count, 1);
+    drop(permit_a);
+
+    let (owner_auth, observed_b) = snapback
+        .authorize_ephemeral_room_observed("typing", &scope, codegen_membership_auth(Some(USER_B)))
+        .expect("owner is also in the explicit allowed role subset");
+    let permit_b = ephemeral
+        .begin_server_authorized_room_act("typing", &scope)
+        .expect("room authority is available")
+        .expect("protected collection returns a room permit");
+    assert_eq!(
+        ephemeral.authorization_expectation_for_test(),
+        Some(observed_b)
+    );
+    ephemeral
+        .subscribe(
+            SubscribeRequest {
+                collection: "typing".to_owned(),
+                scope: scope.clone(),
+                connection_id: "codegen-owner-b".to_owned(),
+                auth: owner_auth.clone(),
+                since_chunk: None,
+            },
+            11,
+        )
+        .expect("owner registers as the survivor");
+    drop(permit_b);
+    assert_eq!(ephemeral.diagnostics().subscriber_count, 2);
+
+    let (publish_auth, _) = snapback
+        .authorize_ephemeral_room_observed("typing", &scope, codegen_membership_auth(Some(USER_A)))
+        .expect("member may publish before the downgrade");
+    let publish_permit = ephemeral
+        .begin_server_authorized_room_act("typing", &scope)
+        .expect("room authority is available")
+        .expect("protected collection returns a room permit");
+    ephemeral
+        .publish(
+            PublishRequest {
+                collection: "typing".to_owned(),
+                scope: scope.clone(),
+                connection_id: "codegen-member-a".to_owned(),
+                session_id: None,
+                user_id: Some(USER_A.to_owned()),
+                custom_key: None,
+                value: b"member-before-downgrade".to_vec(),
+                ttl_ms: None,
+                auth: publish_auth,
+            },
+            12,
+        )
+        .expect("member publication enters the room before downgrade");
+    drop(publish_permit);
 
     let writer = MembershipWriter::User {
         effective_principal: USER_B.to_owned(),
     };
-    let removal = snapback
+    let downgrade = snapback
         .db
         .membership_plans()
-        .plan_membership_remove(&writer, "conversationMembers", MEMBER_A)
-        .expect("the emitted owner transition authorizes removing the member");
+        .plan_membership_set_role(&writer, "conversationMembers", MEMBER_A, "moderator")
+        .expect("the emitted owner transition authorizes the role downgrade");
     let admission = snapback
         .admission
         .admit_for_mode(AuthMode::Sessions)
-        .expect("membership removal holds sessions publication admission");
+        .expect("membership role change holds sessions publication admission");
     let committed = snapback
         .try_with_direct_authorization_write(
             AuthorizationCommitPreflight::AllProtectedRooms,
@@ -676,7 +726,7 @@ fn codegen_membership_removal_unregisters_the_room_subscriber() {
                 let committed = snapback
                     .db
                     .membership_plans()
-                    .commit_membership_plan(&writer, removal)?;
+                    .commit_membership_plan(&writer, downgrade)?;
                 if let Some(authorization) = committed
                     .authorization
                     .as_ref()
@@ -694,7 +744,7 @@ fn codegen_membership_removal_unregisters_the_room_subscriber() {
         .expect("the direct embedder installs the room reservation")
         .require_finalized()
         .expect("the direct embedder observes authorization finalization")
-        .expect("membership removal commits through the authorization interlock");
+        .expect("membership downgrade commits through the authorization interlock");
     assert_eq!(committed.output.changed_count, 1);
     let pending = ephemeral.pending_room_reauthorizations();
     assert_eq!(pending.len(), 1);
@@ -703,17 +753,67 @@ fn codegen_membership_removal_unregisters_the_room_subscriber() {
         committed.output.version
     );
 
+    let pre_reauthorization_a = drain_through_test_sink(&ephemeral, "codegen-member-a");
+    let pre_reauthorization_b = drain_through_test_sink(&ephemeral, "codegen-owner-b");
+    assert_auth_changed(&pre_reauthorization_a, 2);
+    assert_auth_changed(&pre_reauthorization_b, 2);
+    for frames in [&pre_reauthorization_a, &pre_reauthorization_b] {
+        assert!(
+            frames.iter().all(|frame| !matches!(
+                frame,
+                RealtimeEnvelope::Ephemeral(EphemeralMessage::Upsert {
+                    room_authority_generation: 1,
+                    ..
+                })
+            )),
+            "the barrier quiesces the queued old-generation publication at every sink"
+        );
+    }
+
     let completed = snapback
         .reauthorize_pending_ephemeral_rooms(|connection_id, previous| {
-            assert_eq!(connection_id, "codegen-member-a");
+            assert!(matches!(
+                connection_id,
+                "codegen-member-a" | "codegen-owner-b"
+            ));
             Ok(Some(previous.clone()))
         })
-        .expect("the committed removal is re-read through the emitted projection");
+        .expect("the committed role change is re-read through the emitted projection");
     assert_eq!(completed, 1);
     assert_eq!(
         ephemeral.diagnostics().subscriber_count,
-        0,
-        "durable membership denial unregisters the subscriber"
+        1,
+        "the disallowed moderator is unregistered while the allowed owner survives"
+    );
+    let denied = drain_through_test_sink(&ephemeral, "codegen-member-a");
+    assert!(denied.iter().any(|frame| matches!(
+        frame,
+        RealtimeEnvelope::Ephemeral(EphemeralMessage::Error {
+            error,
+            room_authority_generation: Some(2),
+            ..
+        }) if error.code == EphemeralErrorCode::PermissionDenied
+    )));
+    let survivor = drain_through_test_sink(&ephemeral, "codegen-owner-b");
+    assert!(
+        survivor.iter().any(|frame| matches!(
+            frame,
+            RealtimeEnvelope::Ephemeral(EphemeralMessage::Remove {
+                key: crate::ephemeral::EntryKey(key),
+                reason: RemoveReason::AuthRevoked,
+                room_authority_generation: 2,
+                ..
+            }) if key == "codegen-member-a"
+        )),
+        "survivor receives removal of the downgraded member's entry"
+    );
+
+    let denied_publish = snapback
+        .authorize_ephemeral_room_observed("typing", &scope, codegen_membership_auth(Some(USER_A)))
+        .expect_err("the downgraded moderator cannot authorize a later publication");
+    assert_eq!(
+        denied_publish.diagnostic.code,
+        "SNAPBACK_AUTH_PERMISSION_DENIED"
     );
 }
 
@@ -1250,6 +1350,12 @@ fn codegen_membership_snapback_with_binding() -> (LocalSnapback, EngineInvalidat
                         ("conversationId".to_owned(), json!(BOARD_ID)),
                         ("role".to_owned(), json!("owner")),
                     ]),
+                    Map::from_iter([
+                        ("_id".to_owned(), json!("member-c")),
+                        ("userId".to_owned(), json!(USER_C)),
+                        ("conversationId".to_owned(), json!(BOARD_ID)),
+                        ("role".to_owned(), json!("invited")),
+                    ]),
                 ],
             )]),
         })
@@ -1666,6 +1772,8 @@ fn game_schema() -> SchemaManifest {
                     table: "gameMembers".to_owned(),
                     subject_field: "userId".to_owned(),
                     scope_fields: BTreeMap::from([("gameId".to_owned(), "gameId".to_owned())]),
+                    role_field: None,
+                    allowed_roles: None,
                 }),
         ],
         ..SchemaManifest::default()

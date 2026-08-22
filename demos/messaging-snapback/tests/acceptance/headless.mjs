@@ -961,15 +961,19 @@ try {
     return { memberAObservedMemberB: true };
   });
 
-  await suite.check('typing membership (e): removing B revokes B and removes B from A', async () => {
-    await app.clients.recipientA.mutate(api.leaveConversation, {
-      args: { conversationId: typingConversationId },
+  await suite.check('typing membership (e): allowed-to-disallowed role downgrade revokes B and removes B from A', async () => {
+    await app.clients.owner.mutate(api.conversationMemberships.changeRole, {
+      args: {
+        scopeId: typingConversationId,
+        principal: recipientAPrincipal,
+        role: 'moderator',
+      },
     });
 
     await eventually(async () => {
       await Promise.all([memberAOverlay.drain(), memberBOverlay.drain()]);
       const denied = ephemeralMessage(memberBFrames.at(-1));
-      assert(memberBTerminalMessage, 'removed member receives the PermissionDenied terminal frame');
+      assert(memberBTerminalMessage, 'downgraded member receives the PermissionDenied terminal frame');
       assertEqual(
         denied?.Error?.error?.code,
         'PermissionDenied',
@@ -983,7 +987,7 @@ try {
       assertEqual(
         denied.Error.room_authority_generation,
         2,
-        'removed member terminal frame carries the successor authority generation',
+        'downgraded member terminal frame carries the successor authority generation',
       );
       assertEqual(
         memberBOverlayTerminalNotifications,
@@ -1014,23 +1018,23 @@ try {
       assert(revoked, 'surviving member receives the AuthRevoked removal frame');
       assert(
         !memberAOverlay.currentEntries().some((entry) => entry.key === memberBEntryKey),
-        'member A no longer sees member B typing',
+        'member A no longer sees downgraded member B typing',
       );
-    }, 'membership removal revokes B and deletes B typing');
+    }, 'membership role downgrade revokes B and deletes B typing');
 
     const publishError = await captureRejection(memberBOverlay.publish(
-      { userHandle: recipientAPrincipal, name: 'Removed member B' },
+      { userHandle: recipientAPrincipal, name: 'Downgraded member B' },
       { ttlMs: typingRef.maxTtlMs },
-    ), 'removed member typing publish');
-    assertPermissionDenied(publishError, 'removed member typing publish');
+    ), 'downgraded member typing publish');
+    assertPermissionDenied(publishError, 'downgraded member typing publish');
 
     assertEqual(
       memberBFrames.length,
       memberBTerminalFrameCount,
-      'removed member receives zero frames between terminal denial and survivor probe',
+      'downgraded member receives zero frames between terminal denial and survivor probe',
     );
     await memberAOverlay.publish(
-      { userHandle: ownerPrincipal, name: 'Member A after removal' },
+      { userHandle: ownerPrincipal, name: 'Member A after downgrade' },
       { ttlMs: typingRef.maxTtlMs },
     );
     await memberAOverlay.drain();
@@ -1038,7 +1042,7 @@ try {
     assertEqual(
       memberBFrames.length,
       memberBTerminalFrameCount,
-      'removed member subscription stays silent after its terminal frame',
+      'downgraded member subscription stays silent after its terminal frame',
     );
     assertEqual(
       memberBOverlayTerminalNotifications,
@@ -1053,40 +1057,49 @@ try {
         && message.Remove.reason === 'AuthRevoked'
       ));
     return {
-      removedSubscriberFrameCode: memberBTerminalMessage.Error.error.code,
+      downgradedSubscriberFrameCode: memberBTerminalMessage.Error.error.code,
       successorAuthorityGeneration: memberBTerminalMessage.Error.room_authority_generation,
       survivorRemovalReason: removal.Remove.reason,
-      formerMemberPublish: publishError.diagnostic.code,
+      disallowedRolePublish: publishError.diagnostic.code,
       overlayDiagnostic: memberBOverlayTerminalDiagnostic.code,
       roomHandleStatus: memberBRoom.getSnapshot().status,
       postTerminalFrames: memberBFrames.length - memberBTerminalFrameCount,
     };
   });
 
-  await suite.check('typing membership (f): leave removes B from inbox and member-count projections', async () => {
-    const departedInbox = await app.clients.recipientA.query(api.myConversations, {
+  await suite.check('typing membership (f): disallowed moderator remains durable membership while typing stays revoked', async () => {
+    await app.clients.owner.mutate(api.reconcileConversationRoster, {
+      args: { conversationId: typingConversationId },
+    });
+    const moderatorInbox = await app.clients.recipientA.query(api.myConversations, {
       args: {},
     });
     const roster = await app.clients.owner.query(api.conversationRoster, {
       args: { conversationId: typingConversationId },
     });
     assert(
-      !departedInbox.rows.some((row) => row._id === typingConversationId),
-      'departed member no longer sees the conversation in their inbox',
+      moderatorInbox.rows.some((row) => row._id === typingConversationId),
+      'disallowed moderator remains an active durable member with an inbox edge',
     );
     assert(
-      !roster.rows.some((member) => member.userHandle === recipientAPrincipal),
-      'departed member is removed from the product roster',
+      roster.rows.some((member) => (
+        member.userHandle === recipientAPrincipal && member.role === 'moderator'
+      )),
+      'reconciled product roster records the active but typing-disallowed moderator role',
     );
-    return { departedInboxEdge: false, departedMemberHandle: false };
+    return { moderatorInboxEdge: true, moderatorTypingAuthority: false };
   });
 
-  await suite.check('typing membership (g): add restores B to inbox and member-count projections', async () => {
-    await app.clients.owner.mutate(api.addConversationMember, {
+  await suite.check('typing membership (g): role upgrade restores B to the allowed subset', async () => {
+    await app.clients.owner.mutate(api.conversationMemberships.changeRole, {
       args: {
-        conversationId: typingConversationId,
-        userHandle: recipientAPrincipal,
+        scopeId: typingConversationId,
+        principal: recipientAPrincipal,
+        role: 'member',
       },
+    });
+    await app.clients.owner.mutate(api.reconcileConversationRoster, {
+      args: { conversationId: typingConversationId },
     });
     const restoredInbox = await app.clients.recipientA.query(api.myConversations, {
       args: {},
@@ -1096,13 +1109,15 @@ try {
     });
     assert(
       restoredInbox.rows.some((row) => row._id === typingConversationId),
-      're-added member sees the conversation in their inbox',
+      'restored member retains the conversation in their inbox',
     );
     assert(
-      roster.rows.some((member) => member.userHandle === recipientAPrincipal),
-      're-added member is restored to the product roster',
+      roster.rows.some((member) => (
+        member.userHandle === recipientAPrincipal && member.role === 'member'
+      )),
+      'product roster records the role upgrade back into the allowed subset',
     );
-    return { restoredInboxEdge: true, restoredMemberHandle: true };
+    return { restoredInboxEdge: true, restoredAllowedRole: 'member' };
   });
 
   await suite.check('typing membership (h): B rejoins through a fresh subscription', async () => {

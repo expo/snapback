@@ -49,3 +49,34 @@ role downgrade is not the kick described as the target semantics in LLP 0013's
 This follow-on implements a provisional, overridable author ruling: role
 narrowing was severed from the row-existence capability rather than blocking
 its first release.
+
+## Resolution
+
+Resolved 2026-08-21. `RoomPermissionProjection` now carries optional,
+artifact-compatible `roleField`/`allowedRoles`; activation validates the pair
+against the membership declaration's authorization-affecting role axis and
+active vocabulary; and the pinned durable grant query applies the role subset.
+Codegen lowers explicit subsets or defaults to every active, non-pending role,
+then routes the emitted artifact through the same Rust validator.
+
+The codegen fixture, Rust artifact activation seam, engine downgrade trace, and
+messaging Sessions battery prove pending-role denial, vocabulary refusal,
+allowed-role admission, old-generation quiescence at every sink, terminal
+downgrade denial, survivor cleanup, later publication denial, durable
+membership retention, and restoration after a role upgrade. LLP 0013, its LLP
+0056 companion, and the Guide now state the earned role-aware behavior.
+
+Verification:
+
+- `cargo test -p snapback-kernel room_permission_projection -- --nocapture`
+- `cargo test -p snapback-sync membership_declaration_is_a_room_permission_backing_table -- --nocapture`
+- `cargo test -p snapback-server codegen_emitted_membership_projection_parses_and_activates_in_sessions -- --nocapture`
+- `cargo test -p snapback-engine codegen_ -- --nocapture`
+- `node packages/snapback-codegen/authoring-validation.test.mjs`
+- `node demos/messaging-snapback/tests/acceptance/headless.mjs` — 25/25
+- `scripts/bootstrap-ibex-runtime`
+- `node scripts/check-guide.mjs` — 22/22
+- `./ref-check --verbose`
+- `node scripts/check-inventories.mjs`
+
+Landing SHA: TBD

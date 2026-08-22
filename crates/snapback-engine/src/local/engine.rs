@@ -25158,6 +25158,8 @@ impl LocalSnapback {
             &projection.subject_field,
             user_id,
             &scope_fields,
+            projection.role_field.as_deref(),
+            projection.allowed_roles.as_deref(),
             min_commit_version,
         )
     }
@@ -31262,6 +31264,8 @@ impl ReadLane {
                 &projection.subject_field,
                 user_id,
                 &scope_fields,
+                projection.role_field.as_deref(),
+                projection.allowed_roles.as_deref(),
                 0,
             )
         })?;

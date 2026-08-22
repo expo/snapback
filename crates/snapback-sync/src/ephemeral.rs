@@ -670,7 +670,7 @@ pub const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON: &str = r#"{
   "auth": {
     "mode": "sessions"
   },
-  "authoredSourceHash": "sha256:942cb1c36c709566ff8c7e32af306feff1d83d381b80fbdd6881789e24b71f08",
+  "authoredSourceHash": "sha256:da721a4dfd7de042fa66dfef28a1ee5d7901573bd094918a83382ad4087dbd09",
   "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [
     {
@@ -684,6 +684,11 @@ pub const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON: &str = r#"{
       "maxValueBytes": 1024,
       "name": "typing",
       "permissionBacking": {
+        "allowedRoles": [
+          "owner",
+          "member"
+        ],
+        "roleField": "role",
         "scopeFields": {
           "conversationId": "conversationId"
         },
@@ -738,12 +743,12 @@ pub const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON: &str = r#"{
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:ba4e4030aaad36eadc657c777bc5c5c7e274612a605473036c3287449f157982",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:e4b2d3686166e3388187d057521915be8124a3b4ffa4a78387000e984badd536",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "auth.sessions.v1"
   ],
-  "schemaHash": "snapback.v1:sessions:schema:sha256:cf4ceb3187cae9cc9d28ee1e65939906215360430505394e6d0cdf03d6e66ed2",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:d2d349fc5876171836b4a46dca1e908320866a77b116267448f53d46e459b9ff",
   "schemaVersion": "snapback.v1",
   "tables": [
     {
@@ -786,13 +791,17 @@ pub const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON: &str = r#"{
       "indexes": [],
       "membership": {
         "id": "conversation_members",
+        "pendingRoles": [
+          "invited"
+        ],
         "principal": "userId",
         "resource": "conversationId",
         "resourceTable": "conversations",
         "role": "role",
         "roles": [
           "owner",
-          "member"
+          "member",
+          "moderator"
         ],
         "scope": "resource",
         "transitions": [
@@ -805,6 +814,19 @@ pub const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON: &str = r#"{
             ],
             "op": "remove",
             "target": "other"
+          },
+          {
+            "by": [
+              "owner"
+            ],
+            "from": [
+              "member"
+            ],
+            "op": "setRole",
+            "target": "other",
+            "to": [
+              "moderator"
+            ]
           }
         ]
       },
@@ -824,7 +846,7 @@ pub const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON: &str = r#"{
 // codegenEmittedMembershipManifestMatchesRustFixtureDigest.
 #[cfg(any(test, feature = "test-support"))]
 pub const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_CANONICAL_SHA256: &str =
-    "8fb7b3c54c59d1b711c79f951ee2247a111a59ddc8dcdceef6203bc78de5aec3";
+    "a04c870f974c6de86c0596cf67027e1f934a7228aa26d86eed9245634211bf77";
 
 /// The bound on the durable and resync outbox lanes, independent of a
 /// collection's coalescing-map cap. A subscriber that never drains cannot grow
@@ -8735,6 +8757,8 @@ mod tests {
             table: "memberships".to_owned(),
             subject_field: "userId".to_owned(),
             scope_fields: BTreeMap::from([("boardId".to_owned(), "boardId".to_owned())]),
+            role_field: Some("role".to_owned()),
+            allowed_roles: Some(vec!["member".to_owned()]),
         };
         let ephemeral_collection = collection().permission_backed_by(projection);
         let table = TableManifest {
@@ -8804,6 +8828,64 @@ mod tests {
             true,
         )
         .expect("membership declaration derives the durable room backing");
+
+        let legacy_projection: RoomPermissionProjection =
+            serde_json::from_value(serde_json::json!({
+                "table": "memberships",
+                "subjectField": "userId",
+                "scopeFields": { "boardId": "boardId" }
+            }))
+            .expect("legacy role-blind projection remains readable");
+        assert_eq!(legacy_projection.role_field, None);
+        assert_eq!(legacy_projection.allowed_roles, None);
+        let legacy_json = serde_json::to_value(&legacy_projection).expect("serialize projection");
+        assert!(legacy_json.get("roleField").is_none());
+        assert!(legacy_json.get("allowedRoles").is_none());
+
+        let mut pending_table = table.clone();
+        pending_table.membership.as_mut().unwrap().pending_roles = Some(vec!["invited".to_owned()]);
+        let mut pending_collection = ephemeral_collection.clone();
+        pending_collection
+            .permission_backing
+            .as_mut()
+            .unwrap()
+            .allowed_roles = Some(vec!["invited".to_owned()]);
+        let error = validate_collection_permission_backing(
+            std::slice::from_ref(&pending_collection),
+            std::slice::from_ref(&pending_table),
+            true,
+        )
+        .expect_err("pending roles must never activate as room grants");
+        assert_eq!(
+            error.code,
+            EphemeralErrorCode::IncompatibleCollectionDefinition
+        );
+
+        let mut doctored_incidental_role = table.clone();
+        doctored_incidental_role
+            .membership
+            .as_mut()
+            .unwrap()
+            .incidental = Some(vec!["role".to_owned()]);
+        validate_collection_permission_backing(
+            std::slice::from_ref(&ephemeral_collection),
+            std::slice::from_ref(&doctored_incidental_role),
+            true,
+        )
+        .expect_err("the projected role axis must affect authorization");
+
+        let mut mismatched_pair = ephemeral_collection;
+        mismatched_pair
+            .permission_backing
+            .as_mut()
+            .unwrap()
+            .allowed_roles = None;
+        validate_collection_permission_backing(
+            std::slice::from_ref(&mismatched_pair),
+            std::slice::from_ref(&table),
+            true,
+        )
+        .expect_err("roleField and allowedRoles activate as one closed pair");
     }
 
     fn publish_request(connection_id: &str, value: &[u8]) -> PublishRequest {

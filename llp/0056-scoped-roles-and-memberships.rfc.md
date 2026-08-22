@@ -5,7 +5,8 @@
 **Systems:** Auth, Sync, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-08-17 (companion pointer to LLP 0013's shipped
+**Revised:** 2026-08-21 (LLP 0013 companion now narrows membership-backed
+rooms by active role and proves downgrade kick). 2026-08-17 (companion pointer to LLP 0013's shipped
 membership-backed ephemeral lowering and its role-narrowing boundary).
 2026-08-15 (bounded atomic initial rosters on generated resource
 bootstrap; transition-checked, consent-gated, and still one host command).
@@ -1237,10 +1238,9 @@ member list cannot break role evaluation for guests.
   0053's one-commit-hook rule for **every** writer, with no bulk-path special
   case (reset/import carry event-3/declared-restore incarnation semantics;
   schema activation is event 2 — inherited, not restated).
-- **Rooms.** Because membership writes are event 1, a kick by delete — and a
-  role downgrade, which fires the same barrier but re-grants under the shipped
-  role-blind row-existence check (downgrade-as-kick is the LLP 0013 2026-08-17
-  amendment's role-narrowing follow-on) — on a resource backing a protected
+- **Rooms.** Because membership writes are event 1, a kick by delete — and an
+  allowed-to-disallowed role downgrade under LLP 0013's role-aware projection
+  — on a resource backing a protected
   ephemeral room ([LLP 0013](./0013-ephemeral-realtime-state.rfc.md)) advances
   the version and projects room-authority suspension and fresh
   membership-snapshot reauthorization, exactly 0053's card-game fixture. The
@@ -1763,8 +1763,9 @@ semi-join amendment** and are not v1 acceptance.
 - [live] Room binding: a kick **by delete** on a declared membership backing a
   protected room suspends delivery and reauthorizes from a fresh membership
   snapshot (0053's card-game fixture, driven through the declaration and its
-  stable id); a downgrade suspends and re-grants under the shipped role-blind
-  check (role narrowing pending — LLP 0013 2026-08-17 amendment).
+  stable id); a downgrade from the room's allowed active-role subset to a
+  disallowed active role is the same barrier-owned kick (LLP 0013's 2026-08-21
+  completion).
 - [live] Blast-radius measurement reports version advances and
   quarantine/resnapshot counts **per declaration and globally**.
 - [retained — deferred with the 0008 semi-join amendment] A retained role-gated
@@ -1838,8 +1839,9 @@ semi-join amendment** and are not v1 acceptance.
 - **LLP 0013 companion amendment** —
   [source-authored membership-backed rooms](./0013-ephemeral-realtime-state.rfc.md#dated-amendment-source-authored-membership-backed-rooms-2026-08-17)
   binds room policy to this declaration's stable id and ships current-row
-  removal invalidation. Its v1 grant is role-blind row existence; role
-  narrowing and the downgrade kick remain the named follow-on.
+  invalidation. Its role-aware projection excludes `pendingRoles`, defaults to
+  this declaration's active roles, permits explicit active-role subsets, and
+  turns allowed-to-disallowed downgrades into ordinary room kicks.
 - **LLP 0012 registrations** — the vocabulary/uniqueness/immutability/nullability/
   activation/raw-write diagnostics, the role-denial details schema (invariant
   public payload; full doctor variant), and the unique-index manifest capability.
