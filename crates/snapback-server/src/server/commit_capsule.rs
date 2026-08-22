@@ -19,8 +19,11 @@ use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::local::LocalSnapback;
 use serde_json::{Map, Value, json};
 use std::any::Any;
+use std::collections::BTreeMap;
+use std::marker::PhantomData;
 use std::panic::{AssertUnwindSafe, catch_unwind};
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
 use tokio::time::{Instant, timeout_at};
 
 pub(crate) const COMMIT_OUTCOME_UNCERTAIN_CODE: &str = "SNAPBACK_COMMIT_OUTCOME_UNCERTAIN";
@@ -111,22 +114,182 @@ enum FinalCutDisposition {
     CommitStarted,
 }
 
-/// Shared storage that receives an ambiguity carrier before any retain-step
-/// hook can run. The caller keeps another handle to the same storage, so an
-/// unwind after insertion cannot drop the last fail-closed owner.
+const MAX_COMMIT_UNCERTAIN_RETENTIONS: usize = 1_024;
+
+static NEXT_COMMIT_UNCERTAIN_RETENTION_ID: AtomicU64 = AtomicU64::new(1);
+static COMMIT_UNCERTAIN_RETENTION_REGISTRY: OnceLock<Mutex<CommitUncertainRetentionRegistry>> =
+    OnceLock::new();
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub(crate) struct CommitUncertainRetentionId(u64);
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum CommitUncertainRetentionState {
+    Reserved,
+    Retaining,
+    Recoverable,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CommitUncertainRetentionSnapshot {
+    pub id: CommitUncertainRetentionId,
+    pub operation_identity: String,
+    pub state: CommitUncertainRetentionState,
+}
+
+struct CommitUncertainRetentionSlot<U> {
+    carrier: Mutex<Option<U>>,
+}
+
+struct CommitUncertainRetentionEntry {
+    operation_identity: String,
+    state: CommitUncertainRetentionState,
+    slot: Arc<dyn Any + Send + Sync>,
+}
+
+#[derive(Default)]
+struct CommitUncertainRetentionRegistry {
+    entries: BTreeMap<CommitUncertainRetentionId, CommitUncertainRetentionEntry>,
+}
+
+fn commit_uncertain_retention_registry() -> &'static Mutex<CommitUncertainRetentionRegistry> {
+    COMMIT_UNCERTAIN_RETENTION_REGISTRY
+        .get_or_init(|| Mutex::new(CommitUncertainRetentionRegistry::default()))
+}
+
+/// Identity-only inspection and recovery authority for one retained ambiguity.
+///
+/// This handle owns no storage. The process registry is the independent owner,
+/// and exact removal is refused until the capsule has left its retain step.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct CommitUncertainRetentionHandle<U> {
+    id: CommitUncertainRetentionId,
+    marker: PhantomData<fn() -> U>,
+}
+
+impl<U: Send + 'static> CommitUncertainRetentionHandle<U> {
+    pub(crate) fn id(&self) -> CommitUncertainRetentionId {
+        self.id
+    }
+
+    pub(crate) fn snapshot(&self) -> Option<CommitUncertainRetentionSnapshot> {
+        let registry = commit_uncertain_retention_registry()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        registry
+            .entries
+            .get(&self.id)
+            .map(|entry| CommitUncertainRetentionSnapshot {
+                id: self.id,
+                operation_identity: entry.operation_identity.clone(),
+                state: entry.state,
+            })
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.snapshot()
+            .is_none_or(|snapshot| snapshot.state == CommitUncertainRetentionState::Reserved)
+    }
+
+    /// Remove one exact carrier only after its capsule has stopped using it.
+    /// The operation-specific recovery owner must first prove the durable
+    /// predecessor or successor and then settle the returned carrier.
+    pub(crate) fn remove_after_recovery(&self) -> SnapbackResult<U> {
+        let mut registry = commit_uncertain_retention_registry()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let Some(entry) = registry.entries.get(&self.id) else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_NOT_FOUND",
+                "server",
+                "the exact commit-uncertain retention identity is not present",
+            ));
+        };
+        if entry.state != CommitUncertainRetentionState::Recoverable {
+            return Err(SnapbackError::error(
+                "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_ACTIVE",
+                "server",
+                "commit-uncertain retention cannot be removed while its capsule is active",
+            ));
+        }
+        let slot = Arc::downcast::<CommitUncertainRetentionSlot<U>>(Arc::clone(&entry.slot))
+            .expect("a commit-uncertain retention handle keeps its carrier type");
+        let carrier = slot
+            .carrier
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take()
+            .expect("a recoverable commit-uncertain entry owns its carrier");
+        registry.entries.remove(&self.id);
+        Ok(carrier)
+    }
+}
+
+/// Capsule-owned write authority for one bounded commit-uncertain slot.
+///
+/// Construction reserves one of the process-wide bounded slots and registers
+/// an independent owner before the capsule can reach COMMIT. Callers receive
+/// only an identity-based inspection/recovery handle, never mutable storage.
 pub(crate) struct CommitUncertainRetention<U> {
-    retained: Arc<Mutex<Vec<U>>>,
+    id: CommitUncertainRetentionId,
+    slot: Arc<CommitUncertainRetentionSlot<U>>,
     #[cfg(test)]
     after_store_for_test: Option<Box<dyn FnOnce() + Send>>,
 }
 
-impl<U> CommitUncertainRetention<U> {
-    pub(crate) fn new(retained: &Arc<Mutex<Vec<U>>>) -> Self {
-        Self {
-            retained: Arc::clone(retained),
-            #[cfg(test)]
-            after_store_for_test: None,
+impl<U: Send + 'static> CommitUncertainRetention<U> {
+    pub(crate) fn new(
+        operation_identity: impl Into<String>,
+    ) -> SnapbackResult<(Self, CommitUncertainRetentionHandle<U>)> {
+        let operation_identity = operation_identity.into();
+        assert!(
+            !operation_identity.is_empty(),
+            "commit-uncertain retention requires an operation identity"
+        );
+        let id = CommitUncertainRetentionId(
+            NEXT_COMMIT_UNCERTAIN_RETENTION_ID.fetch_add(1, Ordering::Relaxed),
+        );
+        let slot = Arc::new(CommitUncertainRetentionSlot {
+            carrier: Mutex::new(None),
+        });
+        let mut registry = commit_uncertain_retention_registry()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if registry.entries.len() >= MAX_COMMIT_UNCERTAIN_RETENTIONS {
+            return Err(SnapbackError::error(
+                "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_EXHAUSTED",
+                "server",
+                "the bounded commit-uncertain retention registry is full",
+            )
+            .with_details(json!({
+                "maxEntries": MAX_COMMIT_UNCERTAIN_RETENTIONS,
+                "effectCommitted": false,
+                "effectMayHaveCommitted": false,
+                "retryable": false,
+            })));
         }
+        let previous = registry.entries.insert(
+            id,
+            CommitUncertainRetentionEntry {
+                operation_identity,
+                state: CommitUncertainRetentionState::Reserved,
+                slot: slot.clone(),
+            },
+        );
+        assert!(previous.is_none(), "commit-uncertain retention id reused");
+        drop(registry);
+        Ok((
+            Self {
+                id,
+                slot,
+                #[cfg(test)]
+                after_store_for_test: None,
+            },
+            CommitUncertainRetentionHandle {
+                id,
+                marker: PhantomData,
+            },
+        ))
     }
 
     #[cfg(test)]
@@ -138,16 +301,55 @@ impl<U> CommitUncertainRetention<U> {
     }
 
     fn retain(&mut self, carrier: U) {
-        {
-            let mut retained = self
-                .retained
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            retained.push(carrier);
-        }
+        let mut registry = commit_uncertain_retention_registry()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let entry = registry
+            .entries
+            .get_mut(&self.id)
+            .expect("a live capsule keeps its reserved retention slot registered");
+        assert_eq!(
+            entry.state,
+            CommitUncertainRetentionState::Reserved,
+            "a commit capsule ambiguity can be retained only once"
+        );
+        let previous = self
+            .slot
+            .carrier
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .replace(carrier);
+        assert!(
+            previous.is_none(),
+            "a commit-uncertain retention slot already owns a carrier"
+        );
+        entry.state = CommitUncertainRetentionState::Retaining;
+        drop(registry);
         #[cfg(test)]
         if let Some(hook) = self.after_store_for_test.take() {
             hook();
+        }
+    }
+}
+
+impl<U> Drop for CommitUncertainRetention<U> {
+    fn drop(&mut self) {
+        let mut registry = commit_uncertain_retention_registry()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let Some(entry) = registry.entries.get_mut(&self.id) else {
+            return;
+        };
+        let has_carrier = self
+            .slot
+            .carrier
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .is_some();
+        if has_carrier {
+            entry.state = CommitUncertainRetentionState::Recoverable;
+        } else {
+            registry.entries.remove(&self.id);
         }
     }
 }
@@ -398,10 +600,10 @@ where
                     CommitAttempt::CommitUncertain {
                         cause: _commit_cause,
                     } => {
-                        // FinalCommitCut has owned the carrier continuously
-                        // since prepare_commit, including across the return
-                        // through caller code. Release the caller permit only
-                        // after that ownership is established.
+                        // The reservation now owns only caller-effect permits;
+                        // the exact terminal closure is held by panic_uncertain.
+                        // Releasing those permits lets terminal drain proceed
+                        // and cannot settle or drop the ambiguity carrier.
                         drop(reservation);
                         let reconciliation = catch_unwind(AssertUnwindSafe(|| {
                             reconcile(&mut guard, &intent, final_cut.reconciliation_carrier())

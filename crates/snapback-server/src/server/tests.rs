@@ -36253,6 +36253,7 @@ enum CommitCapsuleInjection {
     PanicAfterCommit,
 }
 
+#[derive(Debug)]
 struct CommitCapsuleUncertain<Gate> {
     _gate: Arc<StdMutex<Option<Gate>>>,
 }
@@ -36354,14 +36355,13 @@ async fn run_commit_capsule_prototype<Gate: Send + 'static>(
     hooks: CommitCapsuleHooks,
     expected_guard: crate::storage::AdmissionEffectGuardIdentityForTest,
     commit_receipt: Arc<StdMutex<Option<crate::storage::DurableCommitObservationReceiptForTest>>>,
-    retained: Arc<StdMutex<Vec<CommitCapsuleUncertain<Gate>>>>,
+    mut uncertain_retention: super::CommitUncertainRetention<CommitCapsuleUncertain<Gate>>,
 ) -> super::CommitCapsuleOutcome<crate::storage::commit_capsule_prototype::PrototypeValue> {
     let transact_receipt = commit_receipt.clone();
     let reconcile_barrier = hooks.reconcile.clone();
     let panic_reconcile = hooks.panic_reconcile;
     let retain_barrier = hooks.retain.clone();
     let panic_retain = hooks.panic_retain;
-    let mut uncertain_retention = super::CommitUncertainRetention::new(&retained);
     if retain_barrier.is_some() || panic_retain {
         uncertain_retention.set_after_store_for_test(move || {
             if let Some(barrier) = retain_barrier {
@@ -36476,6 +36476,16 @@ async fn run_commit_capsule_prototype<Gate: Send + 'static>(
     .await
 }
 
+fn commit_capsule_retention<Gate: Send + 'static>(
+    intent: &crate::storage::commit_capsule_prototype::PrototypeIntent,
+) -> (
+    super::CommitUncertainRetention<CommitCapsuleUncertain<Gate>>,
+    super::CommitUncertainRetentionHandle<CommitCapsuleUncertain<Gate>>,
+) {
+    super::CommitUncertainRetention::new(intent.operation_id.clone())
+        .expect("reserve bounded commit capsule uncertainty retention")
+}
+
 fn commit_capsule_intent(
     operation_id: &str,
 ) -> crate::storage::commit_capsule_prototype::PrototypeIntent {
@@ -36524,6 +36534,7 @@ async fn bounded_commit_capsule_unpolled_future_owns_no_authority_permit() {
     let intent = commit_capsule_intent("unpolled-reservation");
     let caller = CommitCapsuleCallerFixture::new("unpolled-reservation").await;
     let deadline = tokio::time::Instant::now() + Duration::from_millis(200);
+    let (retention, _retained) = commit_capsule_retention(&intent);
 
     // Constructing the future transfers only prepared authority. Until the
     // capsule is polled, no reservation exists that can pin terminal logout.
@@ -36537,7 +36548,7 @@ async fn bounded_commit_capsule_unpolled_future_owns_no_authority_permit() {
         CommitCapsuleHooks::default(),
         caller.expected_guard(),
         Arc::new(StdMutex::new(None)),
-        Arc::new(StdMutex::new(Vec::new())),
+        retention,
     );
     assert_commit_capsule_logout_completes(caller.spawn_logout_drain()).await;
     tokio::time::sleep_until(deadline + Duration::from_millis(25)).await;
@@ -36566,7 +36577,7 @@ async fn bounded_commit_capsule_live_reservation_refusal_is_not_timeout() {
     // The still-live deadline must not hide that terminal refusal as a 503.
     assert_commit_capsule_logout_completes(caller.spawn_logout_drain()).await;
     let deadline = tokio::time::Instant::now() + Duration::from_secs(30);
-    let retained = Arc::new(StdMutex::new(Vec::<CommitCapsuleUncertain<()>>::new()));
+    let (retention, retained) = commit_capsule_retention(&intent);
     let outcome = run_commit_capsule_prototype(
         &database.state,
         deadline,
@@ -36577,7 +36588,7 @@ async fn bounded_commit_capsule_live_reservation_refusal_is_not_timeout() {
         CommitCapsuleHooks::default(),
         expected_guard,
         Arc::new(StdMutex::new(None)),
-        retained.clone(),
+        retention,
     )
     .await;
 
@@ -36593,7 +36604,7 @@ async fn bounded_commit_capsule_live_reservation_refusal_is_not_timeout() {
     assert_eq!(error.diagnostic.details["effectCommitted"], false);
     assert_eq!(error.diagnostic.details["effectMayHaveCommitted"], false);
     assert_eq!(error.diagnostic.details["retryable"], false);
-    assert!(retained.lock().unwrap().is_empty());
+    assert!(retained.is_empty());
     let facts = database.facts(&intent).await;
     assert_eq!(facts.operation_rows, 0);
     assert_eq!(facts.proof_rows, 0);
@@ -36623,12 +36634,9 @@ async fn bounded_commit_capsule_queue_timeout_preserves_fifo_and_drains_logout()
     tokio::time::sleep(Duration::from_millis(20)).await;
 
     let receipt = Arc::new(StdMutex::new(None));
-    let retained = Arc::new(StdMutex::new(Vec::<
-        CommitCapsuleUncertain<crate::auth::service_fence::ServiceAuthorityTerminalGate>,
-    >::new()));
+    let (retention, retained) = commit_capsule_retention(&intent);
     let capsule_state = database.state.clone();
     let capsule_receipt = receipt.clone();
-    let capsule_retained = retained.clone();
     let capsule = tokio::spawn(async move {
         run_commit_capsule_prototype(
             &capsule_state,
@@ -36640,7 +36648,7 @@ async fn bounded_commit_capsule_queue_timeout_preserves_fifo_and_drains_logout()
             CommitCapsuleHooks::default(),
             expected_guard,
             capsule_receipt,
-            capsule_retained,
+            retention,
         )
         .await
     });
@@ -36668,7 +36676,7 @@ async fn bounded_commit_capsule_queue_timeout_preserves_fifo_and_drains_logout()
         }
     ));
     assert!(receipt.lock().unwrap().is_none());
-    assert!(retained.lock().unwrap().is_empty());
+    assert!(retained.is_empty());
     terminal.assert_reopened();
     assert_commit_capsule_logout_completes(logout).await;
 
@@ -36702,13 +36710,10 @@ async fn bounded_commit_capsule_handoff_timeout_drops_only_its_waiter_and_drains
     let expected_guard = caller.expected_guard();
     let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
     let receipt = Arc::new(StdMutex::new(None));
-    let retained = Arc::new(StdMutex::new(Vec::<
-        CommitCapsuleUncertain<crate::auth::service_fence::ServiceAuthorityTerminalGate>,
-    >::new()));
+    let (retention, retained) = commit_capsule_retention(&intent);
     let capsule_state = database.state.clone();
     let capsule = tokio::spawn({
         let receipt = receipt.clone();
-        let retained = retained.clone();
         async move {
             run_commit_capsule_prototype(
                 &capsule_state,
@@ -36720,7 +36725,7 @@ async fn bounded_commit_capsule_handoff_timeout_drops_only_its_waiter_and_drains
                 CommitCapsuleHooks::default(),
                 expected_guard,
                 receipt,
-                retained,
+                retention,
             )
             .await
         }
@@ -36750,7 +36755,7 @@ async fn bounded_commit_capsule_handoff_timeout_drops_only_its_waiter_and_drains
         .expect("timed-out handoff waiter owns no Local guard");
     drop(raw_guard);
     assert!(receipt.lock().unwrap().is_none());
-    assert!(retained.lock().unwrap().is_empty());
+    assert!(retained.is_empty());
     terminal.assert_reopened();
     assert_commit_capsule_logout_completes(logout).await;
     managed_handoff.reopen();
@@ -36763,12 +36768,11 @@ async fn bounded_commit_capsule_post_staging_barrier_is_invisible_and_unwind_saf
     let caller = CommitCapsuleCallerFixture::new("post-staging-success").await;
     let barrier = Arc::new(CommitCapsuleBarrier::default());
     let receipt = Arc::new(StdMutex::new(None));
-    let retained = Arc::new(StdMutex::new(Vec::<CommitCapsuleUncertain<()>>::new()));
+    let (retention, _retained) = commit_capsule_retention(&intent);
     let state = database.state.clone();
     let capsule = tokio::spawn({
         let barrier = barrier.clone();
         let receipt = receipt.clone();
-        let retained = retained.clone();
         let intent = intent.clone();
         let authority = caller.authority();
         let expected_guard = caller.expected_guard();
@@ -36786,7 +36790,7 @@ async fn bounded_commit_capsule_post_staging_barrier_is_invisible_and_unwind_saf
                 },
                 expected_guard,
                 receipt,
-                retained,
+                retention,
             )
             .await
         }
@@ -36831,7 +36835,7 @@ async fn bounded_commit_capsule_post_staging_barrier_is_invisible_and_unwind_saf
         let barrier = panic_barrier.clone();
         let intent = panic_intent.clone();
         let receipt = Arc::new(StdMutex::new(None));
-        let retained = Arc::new(StdMutex::new(Vec::new()));
+        let retention = commit_capsule_retention(&intent).0;
         let authority = panic_caller.authority();
         let expected_guard = panic_caller.expected_guard();
         async move {
@@ -36849,7 +36853,7 @@ async fn bounded_commit_capsule_post_staging_barrier_is_invisible_and_unwind_saf
                 },
                 expected_guard,
                 receipt,
-                retained,
+                retention,
             )
             .await
         }
@@ -36878,13 +36882,12 @@ async fn bounded_commit_capsule_final_cut_timeout_rolls_back_and_drains_every_ca
     let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
     let barrier = Arc::new(CommitCapsuleBarrier::default());
     let receipt = Arc::new(StdMutex::new(None));
-    let retained = Arc::new(StdMutex::new(Vec::new()));
+    let (retention, retained) = commit_capsule_retention(&intent);
     let state = database.state.clone();
     let deadline = tokio::time::Instant::now() + Duration::from_millis(350);
     let capsule = tokio::spawn({
         let barrier = barrier.clone();
         let receipt = receipt.clone();
-        let retained = retained.clone();
         let intent = intent.clone();
         async move {
             run_commit_capsule_prototype(
@@ -36900,7 +36903,7 @@ async fn bounded_commit_capsule_final_cut_timeout_rolls_back_and_drains_every_ca
                 },
                 expected_guard,
                 receipt,
-                retained,
+                retention,
             )
             .await
         }
@@ -36927,7 +36930,7 @@ async fn bounded_commit_capsule_final_cut_timeout_rolls_back_and_drains_every_ca
         .expect("final-cut observation");
     assert_eq!(observed.matching_commits(), 0);
     assert_eq!(observed.mismatched_commits(), 0);
-    assert!(retained.lock().unwrap().is_empty());
+    assert!(retained.is_empty());
     terminal.assert_reopened();
     assert_commit_capsule_logout_completes(logout).await;
 
@@ -36960,12 +36963,11 @@ async fn bounded_commit_capsule_final_guard_refusal_rolls_back_and_drains_logout
     let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
     let barrier = Arc::new(CommitCapsuleBarrier::default());
     let receipt = Arc::new(StdMutex::new(None));
-    let retained = Arc::new(StdMutex::new(Vec::new()));
+    let (retention, retained) = commit_capsule_retention(&intent);
     let state = database.state.clone();
     let capsule = tokio::spawn({
         let barrier = barrier.clone();
         let receipt = receipt.clone();
-        let retained = retained.clone();
         let intent = intent.clone();
         async move {
             run_commit_capsule_prototype(
@@ -36986,7 +36988,7 @@ async fn bounded_commit_capsule_final_guard_refusal_rolls_back_and_drains_logout
                 },
                 expected_guard,
                 receipt,
-                retained,
+                retention,
             )
             .await
         }
@@ -37012,7 +37014,7 @@ async fn bounded_commit_capsule_final_guard_refusal_rolls_back_and_drains_logout
         .expect("refusal observation");
     assert_eq!(observed.matching_commits(), 0);
     assert_eq!(observed.mismatched_commits(), 0);
-    assert!(retained.lock().unwrap().is_empty());
+    assert!(retained.is_empty());
     terminal.assert_reopened();
     assert_commit_capsule_logout_completes(logout).await;
     let facts = database.facts(&intent).await;
@@ -37028,6 +37030,7 @@ async fn bounded_commit_capsule_known_rollback_drops_reservation_and_terminal_ga
     let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
     let barrier = Arc::new(CommitCapsuleBarrier::default());
     let state = database.state.clone();
+    let retention = commit_capsule_retention(&intent).0;
     let capsule = tokio::spawn({
         let barrier = barrier.clone();
         let intent = intent.clone();
@@ -37047,7 +37050,7 @@ async fn bounded_commit_capsule_known_rollback_drops_reservation_and_terminal_ga
                 },
                 expected_guard,
                 Arc::new(StdMutex::new(None)),
-                Arc::new(StdMutex::new(Vec::new())),
+                retention,
             )
             .await
         }
@@ -37079,6 +37082,7 @@ async fn bounded_commit_capsule_pre_guard_panic_rolls_back_and_releases_every_ow
     let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
     let barrier = Arc::new(CommitCapsuleBarrier::default());
     let state = database.state.clone();
+    let retention = commit_capsule_retention(&intent).0;
     let capsule = tokio::spawn({
         let barrier = barrier.clone();
         let intent = intent.clone();
@@ -37097,7 +37101,7 @@ async fn bounded_commit_capsule_pre_guard_panic_rolls_back_and_releases_every_ow
                 },
                 expected_guard,
                 Arc::new(StdMutex::new(None)),
-                Arc::new(StdMutex::new(Vec::new())),
+                retention,
             )
             .await
         }
@@ -37156,14 +37160,11 @@ async fn bounded_commit_capsule_during_commit_never_times_out_and_reconciles_exa
         let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
         let barrier = Arc::new(CommitCapsuleBarrier::default());
         let receipt = Arc::new(StdMutex::new(None));
-        let retained = Arc::new(StdMutex::new(Vec::<
-            CommitCapsuleUncertain<crate::auth::service_fence::ServiceAuthorityTerminalGate>,
-        >::new()));
+        let (retention, retained) = commit_capsule_retention(&intent);
         let state = database.state.clone();
         let capsule = tokio::spawn({
             let barrier = barrier.clone();
             let receipt = receipt.clone();
-            let retained = retained.clone();
             let intent = intent.clone();
             async move {
                 run_commit_capsule_prototype(
@@ -37179,7 +37180,7 @@ async fn bounded_commit_capsule_during_commit_never_times_out_and_reconciles_exa
                     },
                     expected_guard,
                     receipt,
-                    retained,
+                    retention,
                 )
                 .await
             }
@@ -37221,7 +37222,7 @@ async fn bounded_commit_capsule_during_commit_never_times_out_and_reconciles_exa
                 }
             ));
             assert!(facts.exact_intended_rows, "{suffix}");
-            assert!(retained.lock().unwrap().is_empty(), "{suffix}");
+            assert!(retained.is_empty(), "{suffix}");
             terminal.assert_reopened();
         } else {
             let super::CommitCapsuleOutcome::Uncertain(error) = outcome else {
@@ -37242,9 +37243,17 @@ async fn bounded_commit_capsule_during_commit_never_times_out_and_reconciles_exa
                 "{suffix}"
             );
             assert!(!facts.exact_intended_rows, "{suffix}");
-            assert_eq!(retained.lock().unwrap().len(), 1, "{suffix}");
+            assert_eq!(
+                retained.snapshot().unwrap().state,
+                super::CommitUncertainRetentionState::Recoverable,
+                "{suffix}"
+            );
             assert!(terminal.is_fail_closed(), "{suffix}");
-            retained.lock().unwrap().clear();
+            drop(
+                retained
+                    .remove_after_recovery()
+                    .expect("remove exact recovered uncertainty"),
+            );
             terminal.assert_reopened();
         }
     }
@@ -37259,14 +37268,11 @@ async fn bounded_commit_capsule_reconciliation_panic_retains_terminal_domain() {
     let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
     let barrier = Arc::new(CommitCapsuleBarrier::default());
     let receipt = Arc::new(StdMutex::new(None));
-    let retained = Arc::new(StdMutex::new(Vec::<
-        CommitCapsuleUncertain<crate::auth::service_fence::ServiceAuthorityTerminalGate>,
-    >::new()));
+    let (retention, retained) = commit_capsule_retention(&intent);
     let state = database.state.clone();
     let capsule = tokio::spawn({
         let barrier = barrier.clone();
         let receipt = receipt.clone();
-        let retained = retained.clone();
         let intent = intent.clone();
         let authority = caller.authority();
         async move {
@@ -37284,7 +37290,7 @@ async fn bounded_commit_capsule_reconciliation_panic_retains_terminal_domain() {
                 },
                 expected_guard,
                 receipt,
-                retained,
+                retention,
             )
             .await
         }
@@ -37312,9 +37318,16 @@ async fn bounded_commit_capsule_reconciliation_panic_retains_terminal_domain() {
         .expect("reconciliation panic commit observation");
     assert_eq!(observed.matching_commits(), 1);
     assert_eq!(observed.mismatched_commits(), 0);
-    assert_eq!(retained.lock().unwrap().len(), 1);
+    assert_eq!(
+        retained.snapshot().unwrap().state,
+        super::CommitUncertainRetentionState::Recoverable
+    );
     assert!(terminal.is_fail_closed());
-    retained.lock().unwrap().clear();
+    drop(
+        retained
+            .remove_after_recovery()
+            .expect("remove exact reconciled panic uncertainty"),
+    );
     terminal.assert_reopened();
     let facts = database.facts(&intent).await;
     assert_eq!(facts.operation_rows, 1);
@@ -37323,7 +37336,7 @@ async fn bounded_commit_capsule_reconciliation_panic_retains_terminal_domain() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn bounded_commit_capsule_retain_panic_keeps_terminal_domain_closed() {
+async fn bounded_commit_capsule_retain_panic_is_safe_without_caller_storage_owner() {
     let database = CommitCapsulePrototypeDatabase::new().await;
     let intent = commit_capsule_intent("retain-panic");
     let caller = CommitCapsuleCallerFixture::new("retain-panic").await;
@@ -37331,14 +37344,14 @@ async fn bounded_commit_capsule_retain_panic_keeps_terminal_domain_closed() {
     let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
     let barrier = Arc::new(CommitCapsuleBarrier::default());
     let receipt = Arc::new(StdMutex::new(None));
-    let retained = Arc::new(StdMutex::new(Vec::<
-        CommitCapsuleUncertain<crate::auth::service_fence::ServiceAuthorityTerminalGate>,
-    >::new()));
+    // The moved owner is the only typed storage owner. `retained` is an
+    // identity-only handle; the process registry supplies the independent
+    // fail-closed owner that caller discipline previously had to provide.
+    let (retention, retained) = commit_capsule_retention(&intent);
     let state = database.state.clone();
     let capsule = tokio::spawn({
         let barrier = barrier.clone();
         let receipt = receipt.clone();
-        let retained = retained.clone();
         let intent = intent.clone();
         let authority = caller.authority();
         async move {
@@ -37356,17 +37369,28 @@ async fn bounded_commit_capsule_retain_panic_keeps_terminal_domain_closed() {
                 },
                 expected_guard,
                 receipt,
-                retained,
+                retention,
             )
             .await
         }
     });
 
     barrier.wait_until_reached().await;
+    let retaining = retained
+        .snapshot()
+        .expect("process-owned retention is visible by identity");
+    assert_eq!(retaining.id, retained.id());
+    assert_eq!(retaining.operation_identity, intent.operation_id);
     assert_eq!(
-        retained.lock().unwrap().len(),
-        1,
-        "shared retention must own the carrier before retain-step caller code"
+        retaining.state,
+        super::CommitUncertainRetentionState::Retaining
+    );
+    let active_removal = retained
+        .remove_after_recovery()
+        .expect_err("active retention cannot be removed between storage and unwind");
+    assert_eq!(
+        active_removal.diagnostic.code,
+        "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_ACTIVE"
     );
     assert!(terminal.is_fail_closed());
     assert!(
@@ -37387,13 +37411,20 @@ async fn bounded_commit_capsule_retain_panic_keeps_terminal_domain_closed() {
         .expect("retain panic commit observation");
     assert_eq!(observed.matching_commits(), 1);
     assert_eq!(observed.mismatched_commits(), 0);
-    assert_eq!(retained.lock().unwrap().len(), 1);
+    assert_eq!(
+        retained.snapshot().unwrap().state,
+        super::CommitUncertainRetentionState::Recoverable
+    );
     assert!(terminal.is_fail_closed());
     let facts = database.facts(&intent).await;
     assert_eq!(facts.operation_rows, 0);
     assert_eq!(facts.proof_rows, 0);
     assert!(!facts.exact_intended_rows);
-    retained.lock().unwrap().clear();
+    drop(
+        retained
+            .remove_after_recovery()
+            .expect("remove exact retain-panic uncertainty after unwind"),
+    );
     terminal.assert_reopened();
 }
 
@@ -37421,14 +37452,11 @@ async fn bounded_commit_capsule_during_commit_panics_retain_ambiguity_and_drain_
         let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
         let barrier = Arc::new(CommitCapsuleBarrier::default());
         let receipt = Arc::new(StdMutex::new(None));
-        let retained = Arc::new(StdMutex::new(Vec::<
-            CommitCapsuleUncertain<crate::auth::service_fence::ServiceAuthorityTerminalGate>,
-        >::new()));
+        let (retention, retained) = commit_capsule_retention(&intent);
         let state = database.state.clone();
         let capsule = tokio::spawn({
             let barrier = barrier.clone();
             let receipt = receipt.clone();
-            let retained = retained.clone();
             let intent = intent.clone();
             async move {
                 run_commit_capsule_prototype(
@@ -37444,7 +37472,7 @@ async fn bounded_commit_capsule_during_commit_panics_retain_ambiguity_and_drain_
                     },
                     expected_guard,
                     receipt,
-                    retained,
+                    retention,
                 )
                 .await
             }
@@ -37474,9 +37502,17 @@ async fn bounded_commit_capsule_during_commit_panics_retain_ambiguity_and_drain_
         let facts = database.facts(&intent).await;
         assert_eq!(facts.operation_rows, expected_operations, "{suffix}");
         assert_eq!(facts.proof_rows, expected_proofs, "{suffix}");
-        assert_eq!(retained.lock().unwrap().len(), 1, "{suffix}");
+        assert_eq!(
+            retained.snapshot().unwrap().state,
+            super::CommitUncertainRetentionState::Recoverable,
+            "{suffix}"
+        );
         assert!(terminal.is_fail_closed(), "{suffix}");
-        retained.lock().unwrap().clear();
+        drop(
+            retained
+                .remove_after_recovery()
+                .expect("remove exact during-COMMIT panic uncertainty"),
+        );
         terminal.assert_reopened();
     }
 }
@@ -37497,6 +37533,7 @@ async fn bounded_commit_capsule_post_commit_response_loss_and_retry_cannot_dupli
         let authority = caller.authority();
         let expected_guard = caller.expected_guard();
         async move {
+            let retention = commit_capsule_retention(&intent).0;
             let outcome = run_commit_capsule_prototype(
                 &state,
                 tokio::time::Instant::now() + Duration::from_secs(3),
@@ -37507,7 +37544,7 @@ async fn bounded_commit_capsule_post_commit_response_loss_and_retry_cannot_dupli
                 CommitCapsuleHooks::default(),
                 expected_guard,
                 receipt,
-                Arc::new(StdMutex::new(Vec::new())),
+                retention,
             )
             .await;
             reached_tx
@@ -37562,6 +37599,7 @@ async fn bounded_commit_capsule_post_commit_response_loss_and_retry_cannot_dupli
     // opening a second pending COMMIT.
     let retry_caller = CommitCapsuleCallerFixture::new("post-commit-retry").await;
     let retry_receipt = Arc::new(StdMutex::new(None));
+    let retry_retention = commit_capsule_retention(&intent).0;
     let retry = run_commit_capsule_prototype(
         &database.state,
         tokio::time::Instant::now() + Duration::from_secs(3),
@@ -37572,7 +37610,7 @@ async fn bounded_commit_capsule_post_commit_response_loss_and_retry_cannot_dupli
         CommitCapsuleHooks::default(),
         retry_caller.expected_guard(),
         retry_receipt.clone(),
-        Arc::new(StdMutex::new(Vec::new())),
+        retry_retention,
     )
     .await;
     let super::CommitCapsuleOutcome::Committed {
@@ -37605,6 +37643,7 @@ async fn bounded_commit_capsule_post_commit_panic_has_one_durable_effect_and_no_
         let authority = caller.authority();
         let expected_guard = caller.expected_guard();
         async move {
+            let retention = commit_capsule_retention(&intent).0;
             let outcome = run_commit_capsule_prototype(
                 &state,
                 tokio::time::Instant::now() + Duration::from_secs(3),
@@ -37615,7 +37654,7 @@ async fn bounded_commit_capsule_post_commit_panic_has_one_durable_effect_and_no_
                 CommitCapsuleHooks::default(),
                 expected_guard,
                 Arc::new(StdMutex::new(None)),
-                Arc::new(StdMutex::new(Vec::new())),
+                retention,
             )
             .await;
             assert!(matches!(
@@ -37662,6 +37701,7 @@ async fn bounded_commit_capsule_queue_and_handoff_unwinds_release_reservation_an
         let authority = queue_caller.authority();
         let expected_guard = queue_caller.expected_guard();
         async move {
+            let retention = commit_capsule_retention(&intent).0;
             run_commit_capsule_prototype(
                 &queue_state,
                 tokio::time::Instant::now() + Duration::from_secs(3),
@@ -37675,7 +37715,7 @@ async fn bounded_commit_capsule_queue_and_handoff_unwinds_release_reservation_an
                 },
                 expected_guard,
                 Arc::new(StdMutex::new(None)),
-                Arc::new(StdMutex::new(Vec::new())),
+                retention,
             )
             .await
         }
@@ -37716,6 +37756,7 @@ async fn bounded_commit_capsule_queue_and_handoff_unwinds_release_reservation_an
         let authority = handoff_caller.authority();
         let expected_guard = handoff_caller.expected_guard();
         async move {
+            let retention = commit_capsule_retention(&intent).0;
             run_commit_capsule_prototype(
                 &handoff_state,
                 tokio::time::Instant::now() + Duration::from_secs(3),
@@ -37729,7 +37770,7 @@ async fn bounded_commit_capsule_queue_and_handoff_unwinds_release_reservation_an
                 },
                 expected_guard,
                 Arc::new(StdMutex::new(None)),
-                Arc::new(StdMutex::new(Vec::new())),
+                retention,
             )
             .await
         }

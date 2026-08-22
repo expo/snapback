@@ -145,7 +145,19 @@ pub(crate) enum CommitAttempt<T> {
 }
 
 pub(crate) struct CommitUncertainRetention<U> {
-    retained: Arc<Mutex<Vec<U>>>,
+    id: CommitUncertainRetentionId,
+    slot: Arc<CommitUncertainRetentionSlot<U>>,
+}
+
+pub(crate) struct CommitUncertainRetentionHandle<U> {
+    id: CommitUncertainRetentionId,
+    // identity only: this handle owns no storage Arc
+}
+
+pub(crate) enum CommitUncertainRetentionState {
+    Reserved,
+    Retaining,
+    Recoverable,
 }
 
 pub(crate) enum ExactReconciliation<T> {
@@ -200,11 +212,23 @@ future that has not been polled owns no permit, and the API cannot accept an alr
 reservation. A reservation refusal returns its existing typed authority error before the capsule
 opens a transaction.
 
+Before a capsule can reach COMMIT, `CommitUncertainRetention::new(operationIdentity)` reserves one
+of 1,024 process-wide slots and returns the capsule-owned writer plus an identity-only
+`CommitUncertainRetentionHandle`. The process registry, not the caller, owns the independent
+storage `Arc`; callers cannot supply storage or obtain mutable access to it. Exhaustion therefore
+refuses before COMMIT rather than discovering after ambiguity that no bounded slot is available.
+The bound covers both active reservations and unresolved ambiguities process-wide.
+
 Before COMMIT, the capsule takes ownership of the uncertainty carrier and keeps it continuously
 through the return from caller-controlled transaction code and through `reconcile`, which only
-borrows it. Uncertain and panic paths insert the carrier directly into shared capsule retention
-storage before any retain-step hook may run. A retain-step unwind therefore cannot drop the sole
-carrier; only a normal exact result may discard it.
+borrows it. Uncertain and panic paths insert the carrier into the reserved process-owned slot
+before any test-only post-store callback may run. While the capsule still owns the slot its state
+is `Retaining`, and `remove_after_recovery` refuses; after a normal uncertain result or unwind,
+owner drop changes the exact entry to `Recoverable`. Recovery inspects the operation identity and
+state, proves the operation-specific durable predecessor or successor, and removes only that exact
+retention id to settle the returned carrier. Thus a retain-step unwind cannot drop the sole carrier
+even when the caller retained no storage owner. A normal exact result discards its in-capsule
+carrier and removes the empty reserved slot.
 
 `Gate` must be an opaque, non-cloneable rollback-on-drop carrier. Revocation passes `ServiceAuthorityTerminalGate`; ordinary writes pass `()`.
 
@@ -220,15 +244,18 @@ impl<U> FinalCommitCut<U> {
 }
 ```
 
-`PendingCommit` supplies `rollback(self)` and `commit(self)`. The implementation:
+`PendingCommit` supplies `rollback(self)`, `prepare_commit(&mut self)`, and `commit(self)`. The
+implementation:
 
 1. Checks the absolute deadline.
 2. If expired, explicitly rolls back without calling `commit_guard`.
 3. Calls `reservation.commit_guard`.
 4. If refused, explicitly rolls back.
-5. Marks `CommitStarted`.
-6. Calls `pending.commit()` with no further deadline check.
-7. Converts every commit error into `CommitUncertain`.
+5. Calls `pending.prepare_commit()` to obtain the already-prepared ambiguity carrier.
+6. Stores that carrier in `FinalCommitCut::panic_uncertain` before caller or storage code can run.
+7. Marks `CommitStarted`.
+8. Calls `pending.commit()` with no further deadline check.
+9. Converts every commit error into `CommitUncertain` while retaining the stored carrier.
 
 All SQL staging and transaction-final bookkeeping must precede this method. That structurally leaves only the deadline check, `commit_guard`, and `tx.commit()` at the final cut.
 
