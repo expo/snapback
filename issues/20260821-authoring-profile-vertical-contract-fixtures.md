@@ -24,6 +24,13 @@ generated/runtime contracts.
 Fixing only the page, generator, or runtime can move the mismatch one boundary
 downstream.
 
+**Candidate-0.1.25 evidence, 2026-08-22:** a packed Familiar Air lane again
+rejected the served scalar live-query example, while a packed Explicit lane
+accepted server declarations whose authored application refusal codes later
+collapsed at the client boundary. Add the latter path to the fixture catalogue:
+an advertised declared refusal is not vertically coherent until generated
+headless and framework clients preserve its admitted `appCode`.
+
 ## Scope
 
 - Provide a reusable packed-external-package fixture shape that starts from one
@@ -38,6 +45,9 @@ downstream.
   arrays, closed object/value results, mutation document results, authored
   membership resource identity, and the shared ephemeral declaration import
   path.
+- Cover declared-refusal projection in both profiles: the server-admitted
+  `appCode` and bounded details must survive generated headless and framework
+  clients, while undeclared claims retain the generic fail-closed envelope.
 - Add the fixture as an acceptance obligation to future fixes that change an
   advertised authoring path; do not turn internal lowering syntax into public
   contract.

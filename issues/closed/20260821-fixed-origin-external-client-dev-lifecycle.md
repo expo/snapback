@@ -155,3 +155,20 @@ diagnostics.
 This ticket's Vite evidence covers the Snapback-owned plugin and relay. It does
 not claim to execute the Exact runtime; that cross-repository evidence remains
 LLP 0295 W7 / LLP 0279 scope.
+
+
+## Post-closure evidence (2026-08-22, pre-fix pin)
+
+Recorded during the LLP 0295 execution reconciliation. The candidate-0.1.25
+Air lanes ran packages built from `9a3036236`, which predates this ticket's
+closing landing, so the observation below re-confirms the pre-fix state and
+is not evidence about the repair; R1's cold packed probe verifies it.
+
+both candidate-0.1.25 Clique Air lanes
+again left the stock managed path to satisfy fixed port ranges. Explicit
+wrapped the published runtime while retaining managed startup-carrier
+behavior; Familiar used the direct first-party provider after the Expo
+supervisor opened an auxiliary listener outside its allowed range. Both lanes
+finished green, so the workaround is viable, but neither deleted the W1
+lifecycle tax. This is the third successive Clique configuration to reproduce
+the same seam.

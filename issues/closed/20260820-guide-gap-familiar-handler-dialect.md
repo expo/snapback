@@ -100,3 +100,18 @@ The complete source/runtime authority remains in LLP 0237/0252/0253 and the
 handler-runtime Guide. This table is only the bounded first-read projection.
 
 landing SHA: a5e518c0a
+
+
+## Post-closure evidence (2026-08-22, pre-fix pin)
+
+Recorded during the LLP 0295 execution reconciliation. The candidate-0.1.25
+Air lanes ran packages built from `9a3036236`, which predates this ticket's
+closing landing, so the observation below re-confirms the pre-fix state and
+is not evidence about the repair; R1's cold packed probe verifies it.
+
+The candidate-0.1.25 Air rerun reproduced the scalar/value boundary from
+packed packages: the served Familiar Guide's scalar live-query example was
+rejected by the same candidate codegen with
+`SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID`, and the app again used bounded
+singleton relational arrays. This upgrades the page/runtime disagreement from
+one local-source observation to a packaged-candidate regression obligation.

@@ -72,3 +72,19 @@ Closure evidence:
   is bounded for construct-all-then-sign-in ordering;
 - the client unit suite, Guide suite under Node 24.18.0, retrieval evaluation,
   inventory check, and `ref-check` pass.
+
+
+## Post-closure evidence (2026-08-22, pre-fix pin)
+
+Recorded during the LLP 0295 execution reconciliation. The candidate-0.1.25
+Air lanes ran packages built from `9a3036236`, which predates this ticket's
+closing landing, so the observation below re-confirms the pre-fix state and
+is not evidence about the repair; R1's cold packed probe verifies it.
+
+the candidate-0.1.25 Explicit Air lane
+again found that one process permits only one generated app auth owner. Its
+fixture replay had to switch personas sequentially rather than retain one
+independent generated client per actor. The Guide should distinguish the
+single generated-auth-owner rule from storage partitioning: partitions isolate
+durable custody, while generated owner installation still constrains process
+topology.
