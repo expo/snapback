@@ -5,6 +5,8 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
+**Revised:** 2026-08-22 (qualified debug bootstrap now reports binary-size and
+`__LINKEDIT` drift against a receipt-bound baseline without blocking readiness.)
 **Revised:** 2026-08-21 (proof timeouts now share one canonical decimal parser
 between runtime and inventory, v3 gate JSONL distinguishes natural exits from
 timeouts/cleanup failures, FIFO capture completion is bounded, and the shared
@@ -278,6 +280,22 @@ to require its platform runtime package and production seal. When an
 application persists its own verify receipt for this source runtime, the
 artifact root remains the checkout (including the bootstrapped Hermes inputs),
 not the binary's `target/` parent.
+
+### Debug binary size metrology
+
+The qualified developer binary retains full split debug information; bootstrap
+therefore runs `scripts/binary-size-metrology.mjs check` after qualification as
+a report-only size signal. The committed `scripts/binary-size-baseline.json`
+binds the binary SHA-256, total bytes, Mach-O segments, `LC_SYMTAB`, and
+`__eh_frame` to a digest-coherent, qualified readiness receipt's commit and
+dirty state. A baseline write refuses a malformed or incoherent present
+receipt; only a binary under the current worktree's `target/` may use
+current-git fallback when its receipt is absent, and the record names which
+provenance source was used. Growth beyond tolerance in total bytes,
+`__LINKEDIT`, or the symbol string table emits the script-level
+`BINARY_SIZE_DRIFT` code, not a registry-governed `SNAPBACK_*` diagnostic;
+bootstrap ignores that exit status so size drift cannot change runtime-readiness
+semantics.
 
 ### Bootstrap diagnostic codes
 

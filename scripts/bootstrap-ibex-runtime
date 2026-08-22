@@ -54,6 +54,20 @@ log() {
     printf '[snapback-bootstrap] %s\n' "$*"
 }
 
+report_binary_size() {
+    local binary="$1"
+    if ! command -v node >/dev/null 2>&1; then
+        log "binary size check skipped: active node is unavailable"
+        return 0
+    fi
+    if node "$ROOT/scripts/binary-size-metrology.mjs" check "$binary"; then
+        return 0
+    else
+        local status="$?"
+        log "binary size check reported a non-blocking failure (exit $status)"
+    fi
+}
+
 fail() {
     printf '[snapback-bootstrap] error: %s\n' "$*" >&2
     exit 1
@@ -614,6 +628,7 @@ link_peer_cli
 if [ "$RUN_CHECK" != "0" ]; then
     if [ -n "${SNAPBACK_PREPARED_RUNTIME_ROOT:-}" ]; then
         if reuse_prepared_runtime_receipt; then
+            report_binary_size "${SNAPBACK_PREPARED_RUNTIME_BINARY:-$SNAPBACK_PREPARED_RUNTIME_ROOT/target/debug/snapback}"
             log "Ibex runtime bootstrap complete"
             exit 0
         fi
@@ -622,6 +637,7 @@ if [ "$RUN_CHECK" != "0" ]; then
         # qualification/source/toolchain/platform miss back into reuse.
     elif reuse_authoritative_runtime_receipt; then
         log "reusing exact current-revision runtime readiness receipt; link and qualification are already authoritative"
+        report_binary_size "$ROOT/target/debug/snapback"
         log "Ibex runtime bootstrap complete"
         exit 0
     fi
@@ -649,6 +665,7 @@ if [ "$RUN_CHECK" != "0" ]; then
         fail "$probe_code: $probe_message"
     fi
     log "exact link + launch + handler-VM qualification smoke passed with dynamic-loader overrides scrubbed"
+    report_binary_size "$ROOT/target/debug/snapback"
 fi
 
 log "Ibex runtime bootstrap complete"

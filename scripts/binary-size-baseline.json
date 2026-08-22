@@ -1,0 +1,20 @@
+{
+  "commit": "9a30362362cae9bf176bc7db420a753ff36cea10",
+  "gitDirty": false,
+  "provenanceSource": "readiness-receipt",
+  "sha256": "baccca4fc92f602ab3b6d076d955715d2d93203a55c5d6cdbdf57bbbc5876075",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "targetTriple": "aarch64-apple-darwin",
+  "hostArch": "arm64",
+  "measuredAt": "2026-08-22T15:36:20.946Z",
+  "metrics": {
+    "bytes": 489895784,
+    "__TEXT": 207880192,
+    "__eh_frame": 28471768,
+    "__DATA_CONST": 4063232,
+    "__DATA": 114688,
+    "__LINKEDIT": 277856256,
+    "nsyms": 3173196,
+    "strsize": 163725768
+  }
+}
