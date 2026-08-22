@@ -43,6 +43,7 @@ import {
   normalizeArgumentsAgainstContractV1,
   normalizeGeneratedArgumentsV1,
 } from './argument-normalization.mjs';
+import { canonicalizeClientValueV1 } from './canonical-client-value.mjs';
 import {
   SnapbackDiagnosticError,
   asSnapbackDiagnosticError,
@@ -12918,7 +12919,14 @@ export class SnapbackClient {
       } else {
         publishSnapshot({
           connection: currentConnection,
-          ...(detail.error && current.status !== 'ready'
+          // @ref LLP 0107#closed-presence-state — terminal room diagnostics
+          // remain authoritative while later manager events may still update
+          // connection state. Transport noise cannot replace the reason this
+          // room generation closed.
+          ...(detail.error
+            && current.status !== 'ready'
+            && current.status !== 'error'
+            && current.status !== 'unsupported'
             ? { diagnostic: clientDiagnosticFromError(detail.error) }
             : {}),
         });
@@ -19006,7 +19014,32 @@ function messageRoom(message) {
 }
 
 function sameRoom(a, b) {
-  return a.collection === b.collection && a.routing_key === b.routing_key;
+  if (
+    typeof a?.collection !== 'string'
+    || typeof b?.collection !== 'string'
+    || typeof a?.routing_key !== 'string'
+    || typeof b?.routing_key !== 'string'
+    || a?.scope === null
+    || b?.scope === null
+    || typeof a?.scope !== 'object'
+    || typeof b?.scope !== 'object'
+    || Array.isArray(a.scope)
+    || Array.isArray(b.scope)
+  ) return false;
+  let leftScope;
+  let rightScope;
+  try {
+    leftScope = canonicalizeClientValueV1(a.scope);
+    rightScope = canonicalizeClientValueV1(b.scope);
+  } catch {
+    return false;
+  }
+  // @ref LLP 0013#routing-and-rooms — routing selects the room authority but
+  // RoomId identity includes the complete normalized scope. Two documents may
+  // share a narrower routing key without sharing authorization or overlay state.
+  return a.collection === b.collection
+    && a.routing_key === b.routing_key
+    && leftScope === rightScope;
 }
 
 function monotonicNowMs() {

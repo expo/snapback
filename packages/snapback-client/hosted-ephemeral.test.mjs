@@ -109,7 +109,11 @@ try {
   const snapshot = (instance) => ({
     Snapshot: {
       ephemeral_authority_instance: instance,
-      room: { collection: 'presence', routing_key: 'roomId=lobby' },
+      room: {
+        collection: 'presence',
+        scope: { roomId: 'lobby' },
+        routing_key: '6:roomId=5:lobby',
+      },
       scope_epoch: 1,
       room_authority_generation: 1,
       high_water_version: 0,
@@ -121,7 +125,11 @@ try {
   assert.equal(overlay.apply(snapshot('authority-a')), 'ignored_stale_authority');
   assert.equal(overlay.apply({
     Upsert: {
-      room: { collection: 'presence', scope: { roomId: 'lobby' } },
+      room: {
+        collection: 'presence',
+        scope: { roomId: 'lobby' },
+        routing_key: '6:roomId=5:lobby',
+      },
       room_authority_generation: 1,
       entry: {
         key: 'late',
@@ -134,6 +142,62 @@ try {
     },
   }), 'authority_missing');
 
+  // RoomId includes the complete normalized scope, even when the adapter
+  // routes several rooms through the same narrower key. A denial for document
+  // B must not terminally poison document A's overlay in the same org.
+  const scopedOverlay = new EphemeralOverlay(fakeClient, 'presence', {
+    connectionId: 'fake-scoped',
+    scope: { orgId: 'org-1', docId: 'doc-a' },
+    permissions: [],
+  });
+  assert.equal(scopedOverlay.applyInitialSnapshot({
+    Snapshot: {
+      ephemeral_authority_instance: 'authority-scoped',
+      room: {
+        collection: 'presence',
+        scope: { orgId: 'org-1', docId: 'doc-a' },
+        routing_key: '5:orgId=5:org-1',
+      },
+      scope_epoch: 1,
+      room_authority_generation: 1,
+      high_water_version: 0,
+      entries: [],
+    },
+  }), 'applied');
+  let scopedNotifications = 0;
+  const offScoped = scopedOverlay.onChange(() => { scopedNotifications += 1; });
+  assert.equal(scopedOverlay.apply({
+    Error: {
+      ephemeral_authority_instance: 'authority-scoped',
+      room: {
+        collection: 'presence',
+        scope: { orgId: 'org-1', docId: 'doc-b' },
+        routing_key: '5:orgId=5:org-1',
+      },
+      room_authority_generation: 2,
+      error: { code: 'PermissionDenied', message: 'document B membership was revoked' },
+    },
+  }), 'foreign_room');
+  assert.equal(scopedNotifications, 0, 'a foreign full scope sends no overlay notification');
+  assert.equal(scopedOverlay.terminalDiagnostic, null, 'a foreign full scope cannot set the terminal latch');
+  assert.equal(scopedOverlay.apply({
+    Snapshot: {
+      ephemeral_authority_instance: 'authority-scoped',
+      room: {
+        collection: 'presence',
+        scope: { docId: 'doc-a', orgId: 'org-1' },
+        routing_key: '5:orgId=5:org-1',
+      },
+      scope_epoch: 2,
+      room_authority_generation: 2,
+      high_water_version: 0,
+      entries: [],
+    },
+  }), 'applied', 'scope field order does not change canonical RoomId equality');
+  assert.equal(scopedNotifications, 1, 'the original full scope remains live after the foreign denial');
+  offScoped();
+  scopedOverlay.dispose();
+
   const terminalChanges = [];
   const offTerminal = overlay.onChange((result, changed) => {
     if (result === 'terminal_error') {
@@ -143,7 +207,11 @@ try {
   assert.equal(overlay.apply({
     Error: {
       ephemeral_authority_instance: 'authority-b',
-      room: { collection: 'other-room', routing_key: 'roomId=lobby' },
+      room: {
+        collection: 'other-room',
+        scope: { roomId: 'lobby' },
+        routing_key: '6:roomId=5:lobby',
+      },
       room_authority_generation: 2,
       error: { code: 'PermissionDenied', message: 'membership was revoked' },
     },
@@ -152,7 +220,11 @@ try {
   assert.equal(overlay.apply({
     Error: {
       ephemeral_authority_instance: 'authority-b',
-      room: { collection: 'presence', routing_key: 'roomId=lobby' },
+      room: {
+        collection: 'presence',
+        scope: { roomId: 'lobby' },
+        routing_key: '6:roomId=5:lobby',
+      },
       room_authority_generation: 2,
       error: { code: 'PermissionDenied', message: 'membership was revoked' },
     },

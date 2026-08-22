@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import React, { StrictMode } from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 
+import { EphemeralOverlay, SnapbackClient } from '../snapback-client/index.mjs';
 import { prepareReactBindingForClient } from '../snapback-client/react-binding.mjs';
 import {
   SnapbackProvider,
@@ -153,19 +154,6 @@ function fakeClient() {
           }));
           publishSnapshot();
         },
-        setTerminal(diagnostic) {
-          ownEntry = null;
-          peerEntries = [];
-          snapshot = Object.freeze({
-            ...snapshot,
-            status: 'error',
-            entries: Object.freeze([]),
-            selfKey: null,
-            diagnostic,
-            reason: 'auth_revoked',
-          });
-          for (const listener of [...listeners]) listener();
-        },
       };
       handles.add(handle);
       queueMicrotask(() => {
@@ -234,14 +222,84 @@ function fakeClient() {
       setPeers(entries) {
         for (const handle of handles) handle.setPeers(entries);
       },
-      setTerminal(diagnostic) {
-        for (const handle of handles) handle.setTerminal(diagnostic);
-      },
     }),
     inspection() {
       return { starts, publishAttempts, publishes, deletes, activeHandles };
     },
   };
+}
+
+function managedTerminalRoomClient() {
+  const client = fakeClient();
+  let managerListener = null;
+  let managerOpen = true;
+  let roomHandle = null;
+  let roomOverlay = null;
+  const manager = {
+    onState(listener) {
+      managerListener = listener;
+      listener('open');
+      return () => {
+        if (managerListener === listener) managerListener = null;
+      };
+    },
+    isOpen() { return managerOpen; },
+    async waitUntilReady() {},
+    async settled() {},
+    emit(state, detail = {}) {
+      managerOpen = state === 'open';
+      managerListener?.(state, detail);
+    },
+  };
+  client.authProtocols = {};
+  client.registerEphemeralConsumer = () => () => {};
+  client.liveStreamManager = () => manager;
+  client.connectionGrant = async () => ({
+    id: 'managed-self',
+    ephemeralExpiryProtocol: 1,
+  });
+  client.subscribeEphemeral = async (ref, { connectionId, scope }) => {
+    roomOverlay = new EphemeralOverlay(client, ref, {
+      connectionId,
+      scope,
+      permissions: [],
+    });
+    roomOverlay.grantedConnectionId = 'managed-self';
+    roomOverlay.applyInitialSnapshot({
+      Snapshot: {
+        room: {
+          collection: ref.name,
+          scope,
+          routing_key: `room:${scope.roomId}`,
+        },
+        scope_epoch: 1,
+        room_authority_generation: 1,
+        high_water_version: 0,
+        entries: [],
+      },
+    });
+    return roomOverlay;
+  };
+  client.unsubscribeEphemeral = async () => ({ removed: true });
+  client.startEphemeralRoom = (definition, scope) => {
+    roomHandle = SnapbackClient.prototype.startEphemeralRoom.call(client, definition, scope);
+    return roomHandle;
+  };
+  client.controls = Object.freeze({
+    ...client.controls,
+    applyPermissionDenied() {
+      return roomOverlay.apply({
+        Error: {
+          room: roomOverlay.room,
+          room_authority_generation: 2,
+          error: { code: 'PermissionDenied', message: 'membership was revoked' },
+        },
+      });
+    },
+    emitManager(state, detail = {}) { manager.emit(state, detail); },
+    roomSnapshot() { return roomHandle.getSnapshot(); },
+  });
+  return client;
 }
 
 async function createHarness({
@@ -252,8 +310,9 @@ async function createHarness({
   value = () => ({ userHandle: 'ada', name: 'Ada' }),
   onError = undefined,
   strict = false,
+  client: suppliedClient = null,
 } = {}) {
-  const client = fakeClient();
+  const client = suppliedClient ?? fakeClient();
   const binding = await prepareReactBindingForClient(client, {
     generatedManifest: { functions, schema, capabilityManifest },
   });
@@ -315,16 +374,31 @@ async function createHarness({
 // @ref LLP 0257#result-and-error-surface — activity presence is an exact
 // base-state projection: terminal denial stays distinct from an empty ready room.
 {
-  const harness = await createHarness();
-  const diagnostic = codedError(
-    'SNAPBACK_AUTH_PERMISSION_DENIED',
-    'membership was revoked',
-  ).diagnostic;
-  act(() => { harness.client.controls.setTerminal(diagnostic); });
+  const client = managedTerminalRoomClient();
+  const harness = await createHarness({ client });
+  act(() => {
+    assert.equal(client.controls.applyPermissionDenied(), 'terminal_error');
+  });
+  const diagnostic = client.controls.roomSnapshot().diagnostic;
   assert.equal(harness.current.status, 'error');
   assert.equal(harness.current.diagnostic, diagnostic);
   assert.deepEqual(harness.current.peers, []);
   assert.equal(harness.current.lastError, null, 'base terminal state is passthrough, not a helper action failure');
+
+  const transportError = codedError('NETWORK_LOST', 'socket was lost');
+  act(() => { client.controls.emitManager('lost', { error: transportError }); });
+  assert.equal(client.controls.roomSnapshot().status, 'error');
+  assert.equal(client.controls.roomSnapshot().diagnostic, diagnostic);
+  assert.equal(client.controls.roomSnapshot().connection, 'stale');
+  assert.equal(client.controls.roomSnapshot().reason, 'auth_revoked');
+  assert.equal(harness.current.status, 'error');
+  assert.equal(
+    harness.current.diagnostic,
+    diagnostic,
+    'React/activity preserves the terminal diagnostic identity after transport noise',
+  );
+  assert.equal(harness.current.diagnostic.code, 'SNAPBACK_AUTH_PERMISSION_DENIED');
+  assert.equal(harness.current.connection, 'stale');
   await harness.unmount();
 }
 

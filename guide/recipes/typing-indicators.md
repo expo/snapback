@@ -11,7 +11,7 @@ targets: [local]
 maturity: shipped
 since: 0.1.24
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:2628bdaa1c76e3c47a8f56ba8a83b6e56ca82ff517813618601438face2351b9
+reviewed-authorities-digest: sha256:f3312eca75febfc7c4816fc221b7a43ff6fef7bd44af221fb53303200824f7ba
 ---
 
 # Recipe: membership-scoped typing indicators

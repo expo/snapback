@@ -292,7 +292,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:1190009b17d3ac0b05067a12e6d0d94c12cb6f39ef982633ba5734eda65e7bd8
+reviewed-authorities-digest: sha256:9a60c2f3fbc466a0c6e0cd02e9e38d34f9108aedeec935d6d0de749d8b8e4505
 ---
 
 # Ephemeral realtime state
@@ -548,13 +548,15 @@ demo's `useTyping` wrapper shows that dev-only bridge; it is not a production
 authorization proof. Run the recipe's Sessions acceptance shape before claiming
 membership privacy.
 
-Removal is correct on the wire: the removed subscriber receives its terminal
-denial and then no later frames, while survivors receive `AuthRevoked` removal.
-The base client overlay does not yet apply that terminal `Error` frame, so React
-hooks cannot surface terminal status/diagnostic until
-[`issues/20260817-ephemeral-overlay-missing-error-arm.md`](repo:issues/20260817-ephemeral-overlay-missing-error-arm.md)
-lands. Do not interpret an empty/stalled hook after removal as a surfaced
-terminal state.
+Removal is terminal through every shipped client surface. The removed
+subscriber receives one `PermissionDenied` frame and then no later frames,
+while survivors receive `AuthRevoked` removal. The base overlay applies the
+error once and latches its trusted `SNAPBACK_AUTH_PERMISSION_DENIED`
+diagnostic; a later frame or socket-loss event cannot reopen the overlay or
+replace that diagnostic with transport noise. `startEphemeralRoom` projects an
+empty `status: "error"` room with `reason: "auth_revoked"`, and React presence
+and activity-presence consumers pass through that status and diagnostic rather
+than presenting an empty ready room.
 
 ## Subscribe to snapshot plus deltas
 
