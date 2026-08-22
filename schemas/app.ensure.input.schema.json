@@ -6375,6 +6375,23 @@
     "RoomPermissionProjection": {
       "additionalProperties": false,
       "properties": {
+        "allowedRoles": {
+          "description": "Closed active-role subset admitted by `role_field`. This is paired with\n`role_field`; activation rejects either field in isolation.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "roleField": {
+          "description": "Optional role axis for membership-backed room authority. Omission on a\nmembership table canonicalizes to its declared role axis; only legacy\nnon-membership permission-backing tables remain role-blind.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "scopeFields": {
           "additionalProperties": {
             "type": "string"

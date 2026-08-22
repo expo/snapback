@@ -27,6 +27,95 @@ fn collection_requires_room_permission(collection: &EphemeralCollection) -> bool
     )
 }
 
+pub(crate) struct EffectiveRoomPermissionRoleNarrowing<'a> {
+    pub(crate) role_field: &'a str,
+    pub(crate) allowed_roles: &'a [String],
+}
+
+/// Resolve the role predicate enforced by one durable room projection.
+///
+/// Membership declarations make their role axis structurally knowable, so an
+/// older or directly authored projection that omits the additive role fields
+/// is canonicalized to the declaration's complete active-role vocabulary.
+/// Only legacy permission-backing tables without a membership declaration may
+/// retain the historical role-blind shape.
+///
+/// @ref LLP 0013#lowering-and-one-validator-convergence — generated and direct
+/// artifacts share the same membership-aware projection semantics.
+pub(crate) fn effective_room_permission_role_narrowing<'a>(
+    projection_name: &str,
+    table: &'a crate::manifest::TableManifest,
+    role_field: Option<&'a str>,
+    allowed_roles: Option<&'a [String]>,
+) -> Result<Option<EffectiveRoomPermissionRoleNarrowing<'a>>, EphemeralError> {
+    let narrowing = match (role_field, allowed_roles) {
+        (None, None) => {
+            table
+                .membership
+                .as_ref()
+                .map(|membership| EffectiveRoomPermissionRoleNarrowing {
+                    role_field: membership.role.as_str(),
+                    allowed_roles: membership.roles.as_slice(),
+                })
+        }
+        (Some(role_field), Some(allowed_roles)) => {
+            let Some(membership) = table.membership.as_ref() else {
+                return Err(EphemeralError::new(
+                    EphemeralErrorCode::IncompatibleCollectionDefinition,
+                    format!(
+                        "ephemeral collection {projection_name} role-aware permissionBacking requires a membership declaration on {}",
+                        table.name
+                    ),
+                ));
+            };
+            if role_field != membership.role {
+                return Err(EphemeralError::new(
+                    EphemeralErrorCode::IncompatibleCollectionDefinition,
+                    format!(
+                        "ephemeral collection {projection_name} permissionBacking roleField must name the declared role axis on {}",
+                        table.name
+                    ),
+                ));
+            }
+            Some(EffectiveRoomPermissionRoleNarrowing {
+                role_field,
+                allowed_roles,
+            })
+        }
+        _ => {
+            return Err(EphemeralError::new(
+                EphemeralErrorCode::IncompatibleCollectionDefinition,
+                format!(
+                    "ephemeral collection {projection_name} permissionBacking roleField and allowedRoles must be declared together"
+                ),
+            ));
+        }
+    };
+
+    let Some(narrowing) = narrowing else {
+        return Ok(None);
+    };
+    let membership = table
+        .membership
+        .as_ref()
+        .expect("a resolved role narrowing always has a membership declaration");
+    let active_roles = membership.roles.iter().collect::<BTreeSet<_>>();
+    let allowed_role_set = narrowing.allowed_roles.iter().collect::<BTreeSet<_>>();
+    if narrowing.allowed_roles.is_empty()
+        || allowed_role_set.len() != narrowing.allowed_roles.len()
+        || !allowed_role_set.is_subset(&active_roles)
+    {
+        return Err(EphemeralError::new(
+            EphemeralErrorCode::IncompatibleCollectionDefinition,
+            format!(
+                "ephemeral collection {projection_name} permissionBacking allowedRoles must be a non-empty unique subset of {}'s active membership roles",
+                table.name
+            ),
+        ));
+    }
+    Ok(Some(narrowing))
+}
+
 /// Validate the complete local ephemeral definition set before it can replace
 /// live authority state. Codegen performs the same authoring checks, but the
 /// Rust parser is the artifact authority (LLP 0037), so direct ingestion must
@@ -234,55 +323,13 @@ pub fn validate_collection_permission_backing(
             .cloned()
             .collect::<BTreeSet<_>>();
         read_fields.insert(projection.subject_field.clone());
-        match (&projection.role_field, &projection.allowed_roles) {
-            (None, None) => {}
-            (Some(role_field), Some(allowed_roles)) => {
-                // @ref LLP 0013#lowering-and-one-validator-convergence — role-aware
-                // room authority is one activated projection, not a codegen-only
-                // convention; direct and generated artifacts share this validator.
-                let Some(membership) = table.membership.as_ref() else {
-                    return Err(EphemeralError::new(
-                        EphemeralErrorCode::IncompatibleCollectionDefinition,
-                        format!(
-                            "ephemeral collection {} role-aware permissionBacking requires a membership declaration on {}",
-                            collection.name, table.name
-                        ),
-                    ));
-                };
-                if role_field != &membership.role {
-                    return Err(EphemeralError::new(
-                        EphemeralErrorCode::IncompatibleCollectionDefinition,
-                        format!(
-                            "ephemeral collection {} permissionBacking roleField must name the declared role axis on {}",
-                            collection.name, table.name
-                        ),
-                    ));
-                }
-                let active_roles = membership.roles.iter().collect::<BTreeSet<_>>();
-                let allowed_role_set = allowed_roles.iter().collect::<BTreeSet<_>>();
-                if allowed_roles.is_empty()
-                    || allowed_role_set.len() != allowed_roles.len()
-                    || !allowed_role_set.is_subset(&active_roles)
-                {
-                    return Err(EphemeralError::new(
-                        EphemeralErrorCode::IncompatibleCollectionDefinition,
-                        format!(
-                            "ephemeral collection {} permissionBacking allowedRoles must be a non-empty unique subset of {}'s active membership roles",
-                            collection.name, table.name
-                        ),
-                    ));
-                }
-                read_fields.insert(role_field.clone());
-            }
-            _ => {
-                return Err(EphemeralError::new(
-                    EphemeralErrorCode::IncompatibleCollectionDefinition,
-                    format!(
-                        "ephemeral collection {} permissionBacking roleField and allowedRoles must be declared together",
-                        collection.name
-                    ),
-                ));
-            }
+        if let Some(narrowing) = effective_room_permission_role_narrowing(
+            &collection.name,
+            table,
+            projection.role_field.as_deref(),
+            projection.allowed_roles.as_deref(),
+        )? {
+            read_fields.insert(narrowing.role_field.to_owned());
         }
         if read_fields.iter().any(|field| table.field(field).is_none()) {
             return Err(EphemeralError::new(

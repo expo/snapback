@@ -5,6 +5,7 @@
 **Systems:** Realtime, Sync, Storage, API, Runtime, Auth, Deployment, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
+**Revised:** 2026-08-22 (membership-backed projections canonicalize omitted role fields to the declared role and all active roles; pending-denial evidence is bound to the engine/codegen fixture).
 **Revised:** 2026-08-22 (membership-backed room role narrowing: optional artifact-compatible `roleField`/`allowedRoles`, active-vocabulary activation, pinned role predicates, default and explicit `allow.members` role lowering, and downgrade-kick evidence).
 **Revised:** 2026-08-21 (client overlays now terminally apply ephemeral `Error`
 frames, room handles and React/activity bindings surface the trusted
@@ -1012,11 +1013,14 @@ projection names the resolved canonical table and fields. The emitted artifact
 uses the existing Rust-owned manifest shape and passes the same activation
 validator as a hand-built manifest. Codegen does not create a parallel
 validator or wire concept: this is the one-validator convergence required by
-LLP 0037. `roleField` and `allowedRoles` are serde-defaulted optional additions,
-so pre-role artifacts remain valid and preserve their role-blind meaning. When
-either is present, activation requires the pair, the declaration's actual role
-axis, an authorization-affecting field, and a non-empty unique subset of the
-declaration's active (not pending) vocabulary.
+LLP 0037. `roleField` and `allowedRoles` are serde-defaulted optional additions.
+Legacy permission-backing tables without a membership declaration preserve
+their role-blind meaning. On a membership-backed projection, however, omitting
+both fields canonicalizes to the declaration's role axis and complete
+active-role vocabulary, so a directly authored or pre-role artifact cannot
+grant a pending role. When either field is present, activation requires the
+pair, the declaration's actual role axis, an authorization-affecting field, and
+a non-empty unique subset of the declaration's active (not pending) vocabulary.
 
 ### V1 grant and invalidation semantics
 
@@ -1039,11 +1043,16 @@ prove the Sessions projection. Production privacy claims bind to Sessions eviden
 
 ### Capability fixture obligations
 
-Membership-backed ephemeral rooms are a capability claim only while the
-messaging demo's Sessions acceptance battery preserves all five scenarios:
+Membership-backed ephemeral rooms are a capability claim only while the bound
+messaging Sessions and engine/codegen acceptance fixtures preserve all five
+scenarios:
 
 1. anonymous subscribe and publish are denied;
-2. authenticated non-member and pending-role subscribe and publish are denied;
+2. the messaging Sessions battery denies authenticated non-member subscribe
+   and publish, while
+   `crates/snapback-engine/src/local/auth_room_kick_acceptance.rs` denies the
+   `USER_C` pending role through both the codegen artifact and the direct
+   serialized-artifact omission fixture;
 3. member A observes member B's typing entry;
 4. downgrading B from an allowed role to a disallowed active role gives B one
    terminal denial followed by wire silence, removes B's entry from A with

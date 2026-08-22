@@ -8835,12 +8835,19 @@ mod tests {
                 "subjectField": "userId",
                 "scopeFields": { "boardId": "boardId" }
             }))
-            .expect("legacy role-blind projection remains readable");
+            .expect("omitted role projection remains readable");
         assert_eq!(legacy_projection.role_field, None);
         assert_eq!(legacy_projection.allowed_roles, None);
         let legacy_json = serde_json::to_value(&legacy_projection).expect("serialize projection");
         assert!(legacy_json.get("roleField").is_none());
         assert!(legacy_json.get("allowedRoles").is_none());
+        let omitted_role_collection = collection().permission_backed_by(legacy_projection);
+        validate_collection_permission_backing(
+            std::slice::from_ref(&omitted_role_collection),
+            std::slice::from_ref(&table),
+            true,
+        )
+        .expect("membership omission canonicalizes to its active role vocabulary");
 
         let mut pending_table = table.clone();
         pending_table.membership.as_mut().unwrap().pending_roles = Some(vec!["invited".to_owned()]);

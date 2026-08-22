@@ -298,8 +298,9 @@ pub struct RoomPermissionProjection {
     pub subject_field: String,
     /// Exact room-scope field → backing-table field mapping.
     pub scope_fields: BTreeMap<String, String>,
-    /// Optional role axis for membership-backed room authority. Omission
-    /// preserves legacy role-blind permission-backing artifacts.
+    /// Optional role axis for membership-backed room authority. Omission on a
+    /// membership table canonicalizes to its declared role axis; only legacy
+    /// non-membership permission-backing tables remain role-blind.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role_field: Option<String>,
     /// Closed active-role subset admitted by `role_field`. This is paired with

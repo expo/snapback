@@ -7050,15 +7050,16 @@ pub(crate) fn room_permission_projection_granted_on(
         for (field, _) in scope_fields {
             ensure_field(table, field)?;
         }
-        let role_narrowing = match (role_field, allowed_roles) {
-            (None, None) => None,
-            (Some(role_field), Some(allowed_roles)) if !allowed_roles.is_empty() => {
-                ensure_field(table, role_field)?;
-                Some((role_field, allowed_roles))
-            }
+        let role_narrowing = match crate::ephemeral::effective_room_permission_role_narrowing(
+            table_name,
+            table,
+            role_field,
+            allowed_roles,
+        ) {
+            Ok(narrowing) => narrowing,
             // Activation rejects malformed pairs. Keep this lower seam
             // independently fail-closed for direct-library callers.
-            _ => return Ok(false),
+            Err(_) => return Ok(false),
         };
         let mut predicates = vec![format!("{} = ?1", quote_ident(subject_field)?)];
         for (index, (field, _)) in scope_fields.iter().enumerate() {
@@ -7071,7 +7072,10 @@ pub(crate) fn room_permission_projection_granted_on(
                     .map(|(_, value)| SqlValue::Text(value.clone())),
             )
             .collect::<Vec<_>>();
-        if let Some((role_field, allowed_roles)) = role_narrowing {
+        if let Some(role_narrowing) = role_narrowing {
+            let role_field = role_narrowing.role_field;
+            let allowed_roles = role_narrowing.allowed_roles;
+            ensure_field(table, role_field)?;
             let first_parameter = values.len() + 1;
             let parameters = (0..allowed_roles.len())
                 .map(|offset| format!("?{}", first_parameter + offset))

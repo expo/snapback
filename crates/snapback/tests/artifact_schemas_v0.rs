@@ -3519,7 +3519,7 @@ fn agent_safe_capability_schema_rejects_axis_and_extension_tampering() {
     assert_rejects("capability.manifest.schema.json", &version);
 }
 
-const GENERATED_BACKENDS: [&str; 7] = [
+const GENERATED_BACKENDS: [&str; 8] = [
     "demos/todo/snapback/generated",
     "demos/todo-v2/snapback/generated",
     "demos/all-aboard/snapback/generated",
@@ -3527,6 +3527,8 @@ const GENERATED_BACKENDS: [&str; 7] = [
     "demos/cursors-web/snapback/generated",
     "demos/graffiti/snapback/generated",
     "demos/card-game/snapback/generated",
+    // Membership-backed ephemeral role narrowing is represented here.
+    "demos/messaging-snapback/snapback/generated",
 ];
 
 /// Demo-artifact gate: every committed generated demo manifest validates against
