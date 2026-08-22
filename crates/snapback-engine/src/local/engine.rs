@@ -23806,14 +23806,40 @@ impl LocalSnapback {
         }
     }
 
-    /// Recheck only facts that can move while the preflight result is outside
-    /// Local: API activation, exact query/reaction definitions, and their
-    /// authorization-scope bases. The kernel transaction separately checks
-    /// the initial query's captured reads and integration/installation grant.
+    /// Recheck facts that can move while the preflight result is outside Local:
+    /// API activation, exact query/reaction definitions, their authorization-
+    /// scope bases, and captured permission epochs. The kernel transaction
+    /// separately checks the initial query's storage reads and the
+    /// integration/installation grant.
     fn revalidate_watch_creation_preflight(
         &mut self,
         prepared: &PreparedWatchCreation,
     ) -> SnapbackResult<()> {
+        // @ref LLP 0020#remaining-phase-4-design-dependency-vocabulary-and-auth-epochs
+        // — a prepared predicate is authorized only under the exact permission
+        // epochs captured by its initial query. The kernel deliberately leaves
+        // ordinary Permission dependencies to Local's epoch authority.
+        let permission_epoch_moved = prepared
+            .record
+            .read_dependencies
+            .iter()
+            .filter(|dependency| {
+                dependency.kind == CapturedReadKind::Permission && dependency.table.is_none()
+            })
+            .any(|dependency| {
+                let Some(scope) = dependency.value.as_ref().and_then(Value::as_str) else {
+                    return true;
+                };
+                let Some(captured_epoch) = dependency.version else {
+                    return true;
+                };
+                self.permission_epoch(scope) != captured_epoch
+            });
+        if permission_epoch_moved {
+            return Err(watch_preflight_stale(
+                "watch query permission epoch changed after preflight",
+            ));
+        }
         self.validate_external_api_function(&prepared.record.query_function_name)?;
         let query = self
             .function(&prepared.record.query_function_name)

@@ -3961,8 +3961,11 @@ async fn capability_link_server_fixture() -> AppState {
     .expect("construct capability-link fixture off async workers")
 }
 
-fn watch_authorized_effect_server_fixture_on_snapback(snapback: LocalSnapback) -> AppState {
-    let mut functions = activation_functions('2', false);
+fn watch_authorized_effect_functions(
+    hide_rows: bool,
+    bump_authenticated_permission_epoch: bool,
+) -> FunctionManifest {
+    let mut functions = activation_functions('2', hide_rows);
     for function in &mut functions.functions {
         function.api_exposure = Some(ApiFunctionExposure::default());
     }
@@ -3978,6 +3981,21 @@ fn watch_authorized_effect_server_fixture_on_snapback(snapback: LocalSnapback) -
             approval: None,
         });
     }
+    if bump_authenticated_permission_epoch {
+        functions
+            .functions
+            .iter_mut()
+            .find(|function| function.name == "queuedWrite")
+            .expect("watch permission-epoch mutation")
+            .permission_epoch_bumps = vec![crate::contract_types::PermissionScopeExpr::AuthUser];
+    }
+    functions
+}
+
+fn watch_authorized_effect_server_fixture_on_snapback_with_functions(
+    snapback: LocalSnapback,
+    functions: FunctionManifest,
+) -> AppState {
     sessions_activation_server_fixture_with_api_and_password_mode_on_snapback(
         snapback,
         functions,
@@ -4009,15 +4027,33 @@ fn watch_authorized_effect_server_fixture_on_snapback(snapback: LocalSnapback) -
     )
 }
 
-async fn finish_watch_authorized_effect_server_fixture(state: AppState) -> AppState {
-    with_snapback(&state.snapback, |snapback| {
+fn watch_authorized_effect_server_fixture_on_snapback(snapback: LocalSnapback) -> AppState {
+    watch_authorized_effect_server_fixture_on_snapback_with_functions(
+        snapback,
+        watch_authorized_effect_functions(false, false),
+    )
+}
+
+async fn finish_watch_authorized_effect_server_fixture_with_functions(
+    state: AppState,
+    functions: FunctionManifest,
+) -> AppState {
+    with_snapback(&state.snapback, move |snapback| {
         snapback
             .remainder_auth_database_mut()
-            .reconcile_auth_scope_bases(&activation_functions('2', false))
+            .reconcile_auth_scope_bases(&functions)
             .expect("install watch exact-function authority bases");
     })
     .await;
     state
+}
+
+async fn finish_watch_authorized_effect_server_fixture(state: AppState) -> AppState {
+    finish_watch_authorized_effect_server_fixture_with_functions(
+        state,
+        watch_authorized_effect_functions(false, false),
+    )
+    .await
 }
 
 async fn watch_authorized_effect_server_fixture() -> AppState {
@@ -4043,6 +4079,21 @@ async fn persistent_watch_authorized_effect_server_fixture(database_path: PathBu
     .await
     .expect("construct persistent watch authorized-effect fixture");
     finish_watch_authorized_effect_server_fixture(state).await
+}
+
+async fn watch_permission_epoch_server_fixture() -> AppState {
+    let functions = watch_authorized_effect_functions(true, true);
+    let loaded_functions = functions.clone();
+    let state = tokio::task::spawn_blocking(move || {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        watch_authorized_effect_server_fixture_on_snapback_with_functions(
+            LocalSnapback::memory().expect("memory watch permission-epoch fixture"),
+            loaded_functions,
+        )
+    })
+    .await
+    .expect("construct watch permission-epoch fixture");
+    finish_watch_authorized_effect_server_fixture_with_functions(state, functions).await
 }
 
 async fn sessions_activation_server_fixture_with_ask_async(
@@ -32125,6 +32176,129 @@ async fn watch_creation_writer_wait_timeout_drops_reservation_and_unblocks_logou
     .expect("production logout completes after the bounded writer failure")
     .expect("bounded-wait logout response");
     assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn watch_creation_permission_epoch_gap_refuses_stale_preflight_and_fresh_retry_succeeds() {
+    let state = watch_permission_epoch_server_fixture().await;
+    let credential = mint_test_credential(&state, "watch-permission-gap@example.test").await;
+    let bearer = credential["token"]
+        .as_str()
+        .expect("watch permission-gap session bearer")
+        .to_owned();
+    let principal_id = credential["session"]["userId"]
+        .as_str()
+        .expect("watch permission-gap principal")
+        .to_owned();
+    let request = || crate::watches::CreateWatchSpec {
+        query_function: "liveItems".to_owned(),
+        query_args: json!({}),
+        predicate: json!({ "path": "/rows", "op": "exists" }),
+        reaction: crate::watches::WatchReactionSpec::Function {
+            function: "listItems".to_owned(),
+            args: json!({}),
+        },
+        debounce_ms: crate::watches::DEFAULT_DEBOUNCE_MS,
+        daily_firing_budget: crate::watches::DEFAULT_DAILY_FIRING_BUDGET,
+    };
+
+    let authority =
+        prepared_test_session_route_authority(&state, InvocationSource::WatchManagement, &bearer);
+    let preflight_authority = authority.clone();
+    let stale_preflight = with_snapback(&state.snapback, move |snapback| {
+        snapback.preflight_watch_creation(&preflight_authority, request(), super::now_millis())
+    })
+    .await
+    .expect("watch preflight captures permission epoch N");
+
+    let mutation_authority =
+        prepared_test_session_route_authority(&state, InvocationSource::HttpMutation, &bearer);
+    let mutation = with_snapback(&state.snapback, move |snapback| {
+        snapback.run_function_with_authority(
+            "queuedWrite",
+            HandlerInput {
+                args: json!({ "value": "permission-gap-unrelated" }),
+                ..HandlerInput::default()
+            },
+            mutation_authority,
+        )
+    })
+    .await;
+    assert!(
+        mutation.ok,
+        "permission-affecting gap mutation must commit: {mutation:?}"
+    );
+    assert_eq!(mutation.changed_count, Some(1));
+
+    let authorized_effect = authority
+        .reserve_authorized_effect("watch permission-epoch gap commit")
+        .expect("reserve stale-preflight watch authority");
+    let commit_authority = authority.clone();
+    let error = with_snapback(&state.snapback, move |snapback| {
+        snapback.commit_preflighted_watch_with_authorized_effect(
+            &commit_authority,
+            stale_preflight,
+            super::now_millis(),
+            authorized_effect,
+        )
+    })
+    .await
+    .expect_err("epoch N preflight must not commit after the gap advances it to N+1");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_WATCH_PREFLIGHT_STALE");
+    assert_eq!(error.diagnostic.subsystem, "watches");
+    assert_eq!(error.diagnostic.details["retryable"], true);
+
+    let refused_principal = principal_id.clone();
+    let refused_watches = with_snapback(&state.snapback, move |snapback| {
+        snapback
+            .remainder_auth_database_mut()
+            .list_watches_for_owner(&refused_principal)
+    })
+    .await
+    .expect("list permission-race refused watches");
+    assert!(
+        refused_watches.is_empty(),
+        "stale predicate state must not become durable"
+    );
+
+    let authority =
+        prepared_test_session_route_authority(&state, InvocationSource::WatchManagement, &bearer);
+    let preflight_authority = authority.clone();
+    let fresh_preflight = with_snapback(&state.snapback, move |snapback| {
+        snapback.preflight_watch_creation(&preflight_authority, request(), super::now_millis())
+    })
+    .await
+    .expect("retry preflight captures current permission epoch");
+    let authorized_effect = authority
+        .reserve_authorized_effect("fresh watch permission-epoch commit")
+        .expect("reserve fresh-preflight watch authority");
+    let commit_authority = authority.clone();
+    let created = with_snapback(&state.snapback, move |snapback| {
+        snapback.commit_preflighted_watch_with_authorized_effect(
+            &commit_authority,
+            fresh_preflight,
+            super::now_millis(),
+            authorized_effect,
+        )
+    })
+    .await
+    .expect("non-racing preflight commits");
+
+    let committed_watches = with_snapback(&state.snapback, move |snapback| {
+        snapback
+            .remainder_auth_database_mut()
+            .list_watches_for_owner(&principal_id)
+    })
+    .await
+    .expect("list permission-race committed watches");
+    assert_eq!(
+        committed_watches
+            .iter()
+            .map(|watch| watch.id.as_str())
+            .collect::<Vec<_>>(),
+        vec![created.watch.id.as_str()],
+        "the fresh retry must publish exactly its watch"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
