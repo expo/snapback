@@ -1665,13 +1665,13 @@ const scaffoldAuthoringSkillFiles = [
 ];
 
 export function renderScaffoldAuthoringSkill(canonicalContent) {
-  const note = [
-    '> In this scaffolded app the Guide is served, not checked out: with the dev server',
-    '> running, open `/_snapback/guide/<path>` on the server origin printed at startup',
-    '> (default `http://127.0.0.1:4287`), or run `snapback guide <query>`;',
-    '> `guide/index.md` is served at `/_snapback/guide/index.md`.',
-  ].join('\n');
+  const note = '> Scaffolded app: use `snapback guide <query>` or, while dev runs, `/_snapback/guide/<path>` at the printed server origin.';
+  // The diaries/issues bullet is a checkout-only obligation (AGENTS.md); a
+  // scaffold has no repository, so the consumer form drops it to stay inside
+  // the LLP 0259 per-skill budget without losing any instruction that applies.
+  const checkoutOnlyBullet = /^- In this repository, record the build experience[\s\S]*?skip this bullet\.\n/mu;
   return canonicalContent
+    .replace(checkoutOnlyBullet, '')
     .replaceAll('](../../guide/', '](/_snapback/guide/')
     .replace('# snapback-authoring\n', `# snapback-authoring\n\n${note}\n`);
 }

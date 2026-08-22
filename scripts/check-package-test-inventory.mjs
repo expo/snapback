@@ -85,6 +85,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'packaged-store-qualification.test.mjs',
       'reset-dev-fresh.test.mjs',
       'reference-lookup.test.mjs',
+      'scaffold-skill-budget.test.mjs',
       'sessions-dev-loop.test.mjs',
       'visibility-governance-dev-loop.test.mjs',
       'verify.test.mjs',
@@ -567,7 +568,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 328,
+  expectedTotal = 329,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1056,6 +1057,8 @@ export function checkPackageTestInventories(options = {}) {
 // authority-projection packed external fixture.
 // 327 -> 328 (2026-08-22, LLP 0295 W3 post-W4 rebase): @expo/snapback-codegen
 // gains the closed-plan result/dependency derivation fixture (VCF-E-P1–P4).
+// 328 -> 329 (2026-08-22, LLP 0259 skill-budget repair): @expo/snapback-cli
+// gains the rendered consumer snapback-authoring steering-budget regression.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');
