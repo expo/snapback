@@ -789,7 +789,14 @@ export default defineSchema({ rsvps: defineTable({ eventId: v.string(), userId: 
   const result = await validCase({
     schema: `
 import { defineSchema, defineTable, v } from '${defineUrl}';
-export default defineSchema({ rsvps: defineTable({ eventId: v.string(), userId: v.optional(v.principal()) }).index('by_event_user', ['eventId', 'userId'], { unique: true }).visibility({ kind: 'public-read' }) });
+export default defineSchema({
+  rsvps: defineTable({
+    eventId: v.string(),
+    userId: v.optional(v.principal()),
+  })
+    .index('by_event_user', ['eventId', 'userId'], { unique: true })
+    .visibility({ kind: 'public-read' }),
+});
 `,
     functions: 'export const nothing = 0;\n',
   });
@@ -800,6 +807,25 @@ export default defineSchema({ rsvps: defineTable({ eventId: v.string(), userId: 
     unique: true,
     whereApplicable: true,
   }]);
+}
+
+{
+  const diagnostics = await invalidCase({
+    schema: `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  rsvps: defineTable({ eventId: v.string(), userId: v.optional(v.principal()) })
+    .index('by_event_user', ['eventId', 'userId'], { unique: true, whereApplicable: true }),
+});
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(diagnostics.some((diagnostic) => (
+    diagnostic.code === 'CODEGEN_MODULE_EVALUATION_FAILED'
+      && diagnostic.message.includes('index by_event_user options has unknown field whereApplicable')
+      && diagnostic.message.includes('codegen derives whereApplicable when { unique: true } indexes a v.optional(...) field')
+      && diagnostic.message.includes('.index("by_event_user", fields, { unique: true })')
+  )), JSON.stringify(diagnostics));
 }
 
 {

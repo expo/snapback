@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:46147d74a2d26fe478b7826855e02827d9f62f3d34a9ad56ef34fa90d6458bf1
+reviewed: 2026-08-22
+reviewed-authorities-digest: sha256:e8b9df7473926b3bedcaa432ae4c3183c01270b67f08a1ead99f05a045b1bb30
 ---
 
 # Queries
@@ -228,10 +228,30 @@ reason or hidden count.
 closed, complete object containing exactly that index's components. Object
 construction order does not matter; Snapback canonicalizes components in
 manifest index order. Static malformed literals refuse during generation;
-malformed dynamic keys refuse before storage. For an index declared with
-`whereApplicable: true`, every single-field or compound component must be
-present, non-null, and valid for its declared field type, or the whole batch
-refuses.
+malformed dynamic keys refuse before storage.
+
+### Declare a unique index over optional fields
+
+Use the ordinary public index option `{ unique: true }`, even when one or more
+indexed fields are optional:
+
+```js source=packages/snapback-codegen/authoring-validation.test.mjs
+  rsvps: defineTable({
+    eventId: v.string(),
+    userId: v.optional(v.principal()),
+  })
+    .index('by_event_user', ['eventId', 'userId'], { unique: true })
+    .visibility({ kind: 'public-read' }),
+```
+
+Codegen sees the optional `userId` component and derives the manifest fact
+`whereApplicable: true`; `whereApplicable` is not an `.index(...)` authoring
+option. A row participates in uniqueness only when **all** index components
+are present. If any optional component is absent, that row does not
+participate. A `uniqueMany` key must still supply every component as a
+present, non-null value valid for its field type, or the whole batch refuses.
+Authors searching for “whereApplicable index option” or
+“unique index optional field” should use this same declaration.
 
 Use these methods when the handler already has exact ids or complete unique
 keys and needs bounded JavaScript hydration. If the code is instead discovering
@@ -256,11 +276,12 @@ known loops below three iterations stay quiet, while an unknown cardinality is
 eligible only for an unconditional call site.
 
 The warning suggests `getMany` or `uniqueMany` and never rewrites the handler
-or changes how any read executes. `whereApplicable` unique indexes stay quiet:
-their optional components do not participate in uniqueness when absent, while
-`uniqueMany` requires every component to be present and non-null. Calls already
-using either batch method, point reads outside loops, guarded calls, and loops
-whose table is not one static literal also stay quiet.
+or changes how any read executes. Unique indexes whose manifests carry the
+codegen-derived `whereApplicable: true` fact stay quiet: their optional
+components do not participate in uniqueness when absent, while `uniqueMany`
+requires every component to be present and non-null. Calls already using
+either batch method, point reads outside loops, guarded calls, and loops whose
+table is not one static literal also stay quiet.
 
 ## Bound every collection intentionally
 

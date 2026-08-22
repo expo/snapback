@@ -19710,6 +19710,17 @@ function codegenWorkerFailure(error) {
 const DEFINITION_EVALUATION_TIMEOUT_MS = 5_000;
 const DEFINITION_EVALUATOR_PROCESS_TIMEOUT_MS = 15_000;
 const DEFINITION_EVALUATOR_MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
+
+// @ref LLP 0007#index-contract — whereApplicable is a generated manifest fact,
+// not a second authoring syntax for optional unique indexes.
+// @ref LLP 0178#2-diagnostic-shape — preserve the existing refusal code while
+// teaching the supported declaration only for this exact evaluation message.
+function definitionEvaluationMessage(message) {
+  const match = /^\[snapback-define\] index ([A-Za-z_][A-Za-z0-9_]*) options has unknown field whereApplicable$/u.exec(message);
+  if (match === null) return message;
+  return `${message}; codegen derives whereApplicable when { unique: true } indexes a v.optional(...) field. Declare the optional component with v.optional(...) and use .index(${JSON.stringify(match[1])}, fields, { unique: true }).`;
+}
+
 const DEFINITION_EVALUATION_DIAGNOSTIC_CODES = new Set([
   'SNAPBACK_AUTH_RECOVERY_POLICY_UNSUPPORTED',
   'SNAPBACK_CODEGEN_FAMILIAR_AUTH_MISSING',
@@ -20333,7 +20344,9 @@ function evaluateDefinitionBundles(
             : 'CODEGEN_MODULE_EVALUATION_FAILED',
           severity: 'error',
           subsystem: 'codegen',
-          message: response?.error?.message ?? 'isolated definition evaluation failed',
+          message: definitionEvaluationMessage(
+            response?.error?.message ?? 'isolated definition evaluation failed',
+          ),
           ...(response?.error?.name ? { errorName: response.error.name } : {}),
           ...(response?.error?.path ? { path: response.error.path } : {}),
           ...handlerDiagnosticDetails(evaluationCode),

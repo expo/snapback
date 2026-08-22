@@ -9,7 +9,7 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-21
+reviewed: 2026-08-22
 reviewed-authorities-digest: sha256:10af46608872447c531a418afe66fcbdafccb07872e6f8a0a20c6b3257b73c57
 ---
 
@@ -908,6 +908,27 @@ or assuming LLP 0278 D3 shipped.
     Route terms: "actorChunkSize", "multi-chunk path", "indexed top-20 per chunk".
     Required guidance: "temporary backend",
     "compares the complete sequence against an independently filtered global feed".
+
+Cases 90–91 absorb the optional-unique-index authoring miss in which the
+derived manifest fact looked like a public schema option.
+
+90. **whereApplicable index option:** "Add `whereApplicable: true` to an
+    index declaration so uniqueness applies only when an optional component
+    is present." The run fails if it passes `whereApplicable` to `.index(...)`
+    instead of declaring the component with `v.optional(...)` and passing
+    only `{ unique: true }`.
+    Expected pages: `backend/queries.md`.
+    Route terms: "whereApplicable index option".
+    Required guidance: "whereApplicable is not an .index(...) authoring option",
+    "If any optional component is absent, that row does not participate".
+
+91. **Unique index optional field:** "Declare a unique compound index that
+    includes an optional field." The run fails if it invents a second index
+    option or says partially populated rows participate in uniqueness.
+    Expected pages: `backend/queries.md`.
+    Route terms: "unique index optional field".
+    Required guidance: "Use the ordinary public index option { unique: true }",
+    "A row participates in uniqueness only when all index components are present".
 
 ## Static routing check
 
