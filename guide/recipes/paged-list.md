@@ -35,6 +35,11 @@ boundary. Owner- and membership-protected generated pages have an opaque
 cursor and a different custody contract; [use that path](#use-opaque-cursors-for-protected-pages)
 instead of copying this public-feed shape.
 
+If one global page instead fans in rows from a bounded membership set and the
+actor IDs approach the `.in()` operand ceiling, use the
+[chunked membership-feed recipe](./chunked-semijoin-feed.md). It preserves one
+global cursor while reading and merging indexed top-N windows per actor chunk.
+
 ## Give every row a unique immutable page key
 
 A display timestamp is not a keyset boundary. Two rows can share one
@@ -200,5 +205,7 @@ would be a separate client feature.
 - Do not append every live replacement; merge by canonical `_id`.
 - Do not claim the React archive is retained or offline-complete.
 - Do not feed a raw boundary to a standard-pattern cursor argument.
+- Do not stretch this single-table recipe across a large membership set; use
+  the chunked membership-feed composition.
 - Do not keep protected accumulated rows across logout, membership loss, or
   another authority partition change.

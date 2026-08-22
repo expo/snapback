@@ -347,7 +347,9 @@ The builder enforces its own caps, each with a stable diagnostic:
 These are authoring-shape refusals raised while the chain is being built,
 before any storage read. A predicate that needs more than 500 operands is a
 sign the membership set belongs in a table the query can join or index, not
-in an argument list.
+in an argument list. For a bounded membership-driven top-N feed, use the
+[checked chunked `in()` composition](../recipes/chunked-semijoin-feed.md);
+Snapback does not yet ship the closed semi-join proposed by LLP 0278 D3.
 
 ## Scope on the server
 

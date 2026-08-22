@@ -20,7 +20,7 @@ LLP 0267, LLP 0270,
 LLP 0274, LLP 0277, LLP 0279, LLP 0280, LLP 0295, Diary 0078, Diary 0086,
 Diary 0105,
 `issues/20260817-coterie-message-envelope-growth.md`,
-`issues/20260817-guide-gap-chunked-semijoin-feed-recipe.md`,
+`issues/closed/20260817-guide-gap-chunked-semijoin-feed-recipe.md`,
 `issues/20260821-provider-connection-subscription-budget-decision.md`,
 `issues/20260821-private-authority-product-roster-decision.md`,
 `issues/20260820-familiar-live-subscription-contention.md`
@@ -165,7 +165,7 @@ semiJoin({
   (an unbounded follow graph is not silently accepted).
 
 Until this lands, the guide should carry the hand-chunked recipe verbatim
-from the Coterie backend (`issues/20260817-guide-gap-chunked-semijoin-feed-recipe.md`).
+from the Coterie backend (`issues/closed/20260817-guide-gap-chunked-semijoin-feed-recipe.md`).
 
 ### D4. Set-keyed aggregate projections
 

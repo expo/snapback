@@ -884,6 +884,32 @@ miss and binds it to the runtime warning rather than prose alone.
     "personas share login", "SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE".
     Required guidance: "one stable explicit storagePartition per persona or worker".
 
+Cases 88–89 absorb the Coterie membership-feed miss recorded in Diary 0086
+and LLP 0277 F3. Their route terms preserve the run's wrong vocabulary so an
+author reaches the checked interim recipe before inventing an unbounded query
+or assuming LLP 0278 D3 shipped.
+
+88. **Five-hundred-follow feed:** "Build Following for a 500-follow probe
+    without exceeding the `in()` operand bound, then paginate it with one
+    global cursor." The run fails if it puts 500 actor IDs beside the cursor
+    predicate, scans all matching events, keeps per-chunk cursors, or claims a
+    first-class semi-join ships.
+    Expected pages: `recipes/chunked-semijoin-feed.md`.
+    Route terms: "500-follow probe", "followingFeed", "chunked semi-join",
+    "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED".
+    Required guidance: "at most 499 actor IDs per chunk",
+    "LLP 0278 D3 remains design-only".
+
+89. **Force the membership-feed chunk seam:** "Prove a membership feed's
+    top 20 merge across multiple actor chunks without creating 500 fixture
+    accounts." The run fails if the acceptance only exercises one chunk,
+    lets product behavior depend on the test seam, or asserts rows without an
+    independent ordered result.
+    Expected pages: `recipes/chunked-semijoin-feed.md`.
+    Route terms: "actorChunkSize", "multi-chunk path", "top 20 per chunk".
+    Required guidance: "acceptance-only actorChunkSize",
+    "compares the merged result IDs against an independent global-feed filter".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:

@@ -54,6 +54,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.codegen | Generate one digest-verified `snapback/generated/` graph for both profiles; `_generated/` refuses | codegen, artifacts, custody, _generated, contractMetadata, npm-only typecheck | all | shipped | packages/snapback-cli/familiar-dev-loop.test.mjs | llp/0010, llp/0012, llp/0253 | getting-started/generated-artifacts.md |
 | backend.handler-runtime-profile | Current-rule handler admission profile + complete non-replacing generation preflight: operation selection, build-bound diagnostics, exact definition paths, separate executable/raw-evidence digests | handler runtime profile, generate --check, Can I import a helper?, Can I use Node crypto?, BUNDLE_UNSUPPORTED_IMPORT, SNAPBACK_INLINE_HELPER_INADMISSIBLE, SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED, SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE | all | shipped | packages/snapback-codegen/handler-runtime-profile.test.mjs + packages/snapback-cli/generate-check.test.mjs | llp/0237, llp/0108 | backend/handler-runtime.md |
 | backend.batch-reads | Experimental local exact-id and complete-unique-key batches; unsupported targets refuse at generation | batch get, getMany, uniqueMany, N+1, dataloader, IN clause, where id in, Convex db.get loop | local | partial | crates/snapback-engine/src/runtime/host_glue.rs batch tests + crates/snapback/tests/local_v0.rs snapshot test + packages/snapback-harness/envelope.test.mjs host-call test | llp/0248 | backend/queries.md |
+| backend.query-in-chunking | Exact chunked top-N membership feed within `in()` binding bounds; semi-join design-only | in(), IN clause, membership feed, followingFeed, 500-follow probe, chunked semi-join, actorChunkSize, SNAPBACK_QUERY_IN_ITEMS_EXCEEDED, SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED | local | shipped | demos/coterie/snapback/acceptance-m2.test.mjs | llp/0277, llp/0278 | recipes/chunked-semijoin-feed.md |
 | backend.handler-typescript | Single-file `.ts`/`.mts` handler modules under the pinned syntax-erasing `bounded-handler-typescript-v1` profile | typescript handler, .ts backend, ts handler, type-check handler, erasure | local | partial | `transformTypeScriptHandler` in packages/snapback-codegen/typescript-transform.mjs | llp/0246 | GAP (page pending multi-file custody; owner: LLP 0246, review: 2026-09-15; issue: issues/20260812-0246-remaining-rollouts-stacked-on-0237.md); getting-started/generated-artifacts.md |
 | backend.familiar-profile-v1 | Familiar TS: API, direct/relational point reads, assets, Expo, SecureStore custody | familiar profile, snapback-familiar-ts-v1, authoringProfile, Familiar TypeScript, api.todos.list, SecureStore custody, Expo Router familiar | local | partial | scripts/familiar-vdoc-vertical-contract.mjs + packages/snapback-codegen/familiar-phase-b.test.mjs + packages/snapback-expo/app-binding.test.mjs + packages/snapback-contract/auth-custody-secure-store.test.mjs | llp/0253, llp/0252, llp/0059 | backend/familiar-profile.md |
 | authoring.declaration-suggestions | Review/apply result-only candidates; committed declaration stays authoritative | infer result, suggest contract, write my result contract, convex-style inference | local | partial | packages/snapback-codegen/declaration-suggestion.test.mjs | llp/0245, llp/0108 | getting-started/the-authoring-loop.md |
@@ -2012,6 +2013,32 @@ miss and binds it to the runtime warning rather than prose alone.
     Route terms: "second client same user", "multiple clients same session",
     "personas share login", "SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE".
     Required guidance: "one stable explicit storagePartition per persona or worker".
+
+Cases 88–89 absorb the Coterie membership-feed miss recorded in Diary 0086
+and LLP 0277 F3. Their route terms preserve the run's wrong vocabulary so an
+author reaches the checked interim recipe before inventing an unbounded query
+or assuming LLP 0278 D3 shipped.
+
+88. **Five-hundred-follow feed:** "Build Following for a 500-follow probe
+    without exceeding the `in()` operand bound, then paginate it with one
+    global cursor." The run fails if it puts 500 actor IDs beside the cursor
+    predicate, scans all matching events, keeps per-chunk cursors, or claims a
+    first-class semi-join ships.
+    Expected pages: `recipes/chunked-semijoin-feed.md`.
+    Route terms: "500-follow probe", "followingFeed", "chunked semi-join",
+    "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED".
+    Required guidance: "at most 499 actor IDs per chunk",
+    "LLP 0278 D3 remains design-only".
+
+89. **Force the membership-feed chunk seam:** "Prove a membership feed's
+    top 20 merge across multiple actor chunks without creating 500 fixture
+    accounts." The run fails if the acceptance only exercises one chunk,
+    lets product behavior depend on the test seam, or asserts rows without an
+    independent ordered result.
+    Expected pages: `recipes/chunked-semijoin-feed.md`.
+    Route terms: "actorChunkSize", "multi-chunk path", "top 20 per chunk".
+    Required guidance: "acceptance-only actorChunkSize",
+    "compares the merged result IDs against an independent global-feed filter".
 
 ## Static routing check
 
@@ -5769,7 +5796,9 @@ The builder enforces its own caps, each with a stable diagnostic:
 These are authoring-shape refusals raised while the chain is being built,
 before any storage read. A predicate that needs more than 500 operands is a
 sign the membership set belongs in a table the query can join or index, not
-in an argument list.
+in an argument list. For a bounded membership-driven top-N feed, use the
+[checked chunked `in()` composition](../recipes/chunked-semijoin-feed.md);
+Snapback does not yet ship the closed semi-join proposed by LLP 0278 D3.
 
 ## Scope on the server
 
@@ -25219,6 +25248,276 @@ not.
 
 ---
 
+<!-- snapback-guide-source: guide/recipes/chunked-semijoin-feed.md -->
+---
+title: "Recipe: chunk a membership feed across in()"
+id: recipes.chunked-semijoin-feed
+order: 4
+audience: agent-first
+capabilities: [backend.query-in-chunking]
+authorities: [llp/0277-coterie-clique-run-observations.research.md, llp/0278-paged-live-results-and-relational-composition.rfc.md, demos/coterie/snapback/schema.mjs, demos/coterie/snapback/functions.mjs, demos/coterie/snapback/acceptance-m2.test.mjs]
+examples: [demos/coterie]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-08-21
+reviewed-authorities-digest: sha256:d3990b6dfabd6e729c40471be58dc8ebbd95f553cac6488289c85727691d0fed
+---
+
+# Recipe: chunk a membership feed across `in()`
+
+<!-- @ref LLP 0277#f3-the-in-operand-bound-turns-membership-feeds-into-bespoke-query-planning--repeated — this is the checked interim recipe requested by the Coterie run -->
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+Use this composition when one top-N feed spans an application-owned bounded
+set of actors and one `.in()` query cannot carry the whole set. If the feed is
+one ordered table with no membership fan-in, use the simpler
+[paginated-list recipe](./paged-list.md).
+
+Coterie's Following feed is the executable carrier. It normalizes posts and
+reposts into `feedEvents`, chunks the visible actor IDs, reads the indexed top
+20 in each chunk, and merges those candidate pages by one global `pageKey`.
+This is a hand-built composition over shipped query primitives, not a
+first-class Snapback semi-join.
+
+## Handle `SNAPBACK_QUERY_IN_ITEMS_EXCEEDED` by reserving the cursor binding
+
+One builder admits at most 500 total `.in()` operands and at most 500 total
+filter bindings. The latter count includes every `.eq()`/range predicate and
+every item passed to `.in()`. A page after the first adds
+`.lt('pageKey', before)`, so use **at most 499 actor IDs per chunk** and reserve
+the 500th binding for that cursor predicate. This keeps the same chunk shape
+valid on the first and every later page.
+
+More than 500 total `.in()` items refuses with
+`SNAPBACK_QUERY_IN_ITEMS_EXCEEDED`; 500 actor items plus the cursor predicate
+instead exceeds the total binding budget and refuses with
+`SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED`. Coterie keeps the ceiling and the
+generic chunk helper explicit:
+
+```js source=demos/coterie/snapback/functions.mjs
+function pageKeyFor(ctx, createdAt) {
+  return `${String(createdAt).padStart(16, '0')}:${ctx.runtime.id()}`;
+}
+
+function queryFilterBindingLimit() {
+  return 500;
+}
+
+function threadDirectReplyLimit() {
+  return 1023;
+}
+
+function chunkValues(values, maxItems) {
+  const chunks = [];
+  for (let start = 0; start < values.length; start += maxItems) {
+    chunks.push(values.slice(start, start + maxItems));
+  }
+  return chunks;
+}
+```
+
+Do not use a 500-item chunk merely because the cursor is absent on the first
+page. The next page would add the 501st binding and change the query's
+admissibility at the page boundary.
+
+## Normalize every feed event behind one immutable total order
+
+The merge is exact only when every candidate shares one immutable, unique,
+totally ordered key. Coterie creates `pageKey` from server time plus a fresh
+runtime ID, never patches it, and makes the global index unique. Its
+actor-plus-page index makes each chunk read indexed rather than a table scan:
+
+```js source=demos/coterie/snapback/schema.mjs
+    feedEvents: defineTable({
+      eventKind: v.string(),
+      sourceKey: v.string(),
+      postId: v.id('posts'),
+      actorProfileId: v.id('profiles'),
+      pageKey: v.string(),
+      createdAt: v.integer(),
+    })
+      .index('by_page_key', ['pageKey'], { unique: true })
+      .index('by_actor_page', ['actorProfileId', 'pageKey'])
+      .index('by_source_key', ['sourceKey'], { unique: true })
+      .visibility({ kind: 'public-read' })
+      .sync(),
+```
+
+`feedEvents` is the normalization seam: an original post and a repost can
+have different source rows and hydration rules while the feed planner sees
+the same `actorProfileId` and `pageKey` columns. If every source kind cannot
+produce the same immutable total order, this merge proof does not apply.
+
+## Read top N per chunk, then merge the candidates
+
+Apply the same strict global cursor to every chunk before ordering and taking
+N rows. Merge all chunk candidates by the same descending key and take N
+again:
+
+```js source=demos/coterie/snapback/functions.mjs
+async function followingFeedEvents(ctx, visibleActorIds, before, actorChunkSize) {
+  const chunkPages = [];
+  for (const actorIds of chunkValues(visibleActorIds, actorChunkSize)) {
+    let eventsQuery = ctx.db
+      .query('feedEvents')
+      .withIndex('by_actor_page')
+      .in('actorProfileId', actorIds);
+    if (before) eventsQuery = eventsQuery.lt('pageKey', before);
+    chunkPages.push(...await eventsQuery.order('pageKey', 'desc').take(20).collect());
+  }
+  // Every row outside a chunk's top 20 has at least 20 newer rows in that
+  // same chunk, so it cannot belong to the global top 20. Merging the chunk
+  // tops and taking the first 20 is therefore exact, not an approximation.
+  return chunkPages
+    .sort((left, right) => (left.pageKey > right.pageKey ? -1 : left.pageKey < right.pageKey ? 1 : 0))
+    .slice(0, 20);
+}
+```
+
+The proof generalizes from 20 to N: a row below rank N in its own chunk has
+at least N globally newer candidates in that chunk alone, so it cannot enter
+the global top N. It depends on indexed per-chunk reads, the identical strict
+cursor on every chunk, and the immutable total order above.
+
+The production path clamps any requested test seam to the safe range and
+defaults to 499:
+
+```js source=demos/coterie/snapback/functions.mjs
+    const visibleActorIds = [viewer._id, ...follows.map((follow) => follow.followedProfileId)];
+    const requestedChunkSize = Number.isSafeInteger(args.actorChunkSize)
+      ? args.actorChunkSize
+      : queryFilterBindingLimit() - 1;
+    // Leave one binding for the optional page-key predicate on every page.
+    const actorChunkSize = Math.max(
+      1,
+      Math.min(requestedChunkSize, queryFilterBindingLimit() - 1),
+    );
+    events = await followingFeedEvents(ctx, visibleActorIds, args.before, actorChunkSize);
+```
+
+Bound the membership read separately. Chunking makes a declared finite actor
+set queryable; it does not make an unbounded follow graph or unbounded fan-out
+safe.
+
+## Keep one cursor owner across all chunks
+
+The feed function owns one global `before` value. It is the last returned
+row's raw `pageKey`, not one cursor per actor chunk and not a chunk offset.
+Every chunk receives the same boundary, and the merge returns the next global
+window. Coterie's acceptance cursor walk demonstrates that ownership:
+
+```js source=demos/coterie/snapback/acceptance-m2.test.mjs
+async function allPages(client, reference) {
+  const output = [];
+  let before;
+  for (let page = 0; page < 20; page += 1) {
+    const rows = (await client.query(reference, {
+      args: { ...(before ? { before } : {}) },
+    })).rows;
+    output.push(...rows);
+    if (rows.length < 20) return output;
+    before = rows.at(-1).pageKey;
+  }
+  throw new Error('feed pagination did not terminate within twenty pages');
+}
+```
+
+This raw application-owned cursor is specific to this recipe. Do not pass it
+to `defineMembershipKeysetPages` or another standard-pattern page: those
+surfaces own opaque custody-bound cursors, as the
+[paged-list recipe explains](./paged-list.md#use-opaque-cursors-for-protected-pages).
+
+## Force the multi-chunk path in acceptance
+
+A fixture with fewer than 500 visible actors can silently exercise only one
+chunk. Coterie exposes an acceptance-only `actorChunkSize` argument, clamps it
+to 1–499 in the handler, and has production callers omit it. The test sets it
+to three while the viewer plus three followed actors make four visible actors,
+forcing two chunks. It compares the merged result IDs against an independent
+global-feed filter rather than merely asserting that the query returned:
+
+```js source=demos/coterie/snapback/acceptance-m2.test.mjs
+  await t.test('following-feed chunks merge to the exact top 20 across actor sets', async () => {
+    created.dave = (await dave.client.mutate(api.createPost, {
+      args: { kind: 'text', body: 'Dave crosses the chunk boundary.', imageAssetIds: [] },
+    })).result;
+    const followed = [alice, carol, dave];
+    for (const actor of followed) {
+      await bob.client.mutate(api.setFollow, {
+        args: {
+          profileId: actor.profile._id,
+          following: true,
+          mutationId: `chunk-follow-${actor.profile.handle}`,
+        },
+      });
+    }
+
+    const chunked = (await bob.client.query(api.followingFeed, {
+      args: { actorChunkSize: 3 },
+    })).rows;
+    const visibleActors = new Set([
+      bob.profile._id,
+      ...followed.map((actor) => actor.profile._id),
+    ]);
+    const expected = (await allPages(bob.client, api.globalFeed))
+      .filter((row) => visibleActors.has(
+        row.eventKind === 'repost' ? row.repostedByProfileId : row.authorProfileId,
+      ))
+      .slice(0, 20);
+    assert.deepEqual(
+      chunked.map(({ itemId }) => itemId),
+      expected.map(({ itemId }) => itemId),
+    );
+    assert(chunked.some(({ _id }) => _id === created.dave));
+
+    for (const actor of followed) {
+      await bob.client.mutate(api.setFollow, {
+        args: {
+          profileId: actor.profile._id,
+          following: false,
+          mutationId: `chunk-unfollow-${actor.profile.handle}`,
+        },
+      });
+    }
+  });
+```
+
+Keep this seam acceptance-only: application behavior must not depend on a
+caller-selected chunk size. If exposing such an argument to ordinary clients
+is unacceptable for an application, carry the same helper in an
+acceptance-specific query instead.
+
+## Design reference: the closed semi-join does not ship
+
+LLP 0278 D3 proposes a closed membership semi-join in which the runtime owns
+chunking, indexed reads, merge, bounded-actor admission, cursor semantics, and
+codegen-visible cost facts. **LLP 0278 D3 remains design-only.** There is no
+shipped `semiJoin()` helper, and this manual recipe does not let codegen prove
+maximum chunks × per-chunk take or cursor correctness. Do not copy the RFC's
+pseudocode into an application or claim the author-visible chunk seam has
+disappeared; use the checked Coterie composition above until a published
+surface replaces it.
+
+## Anti-patterns
+
+- Do not put 500 actor IDs in a paged `.in()` query; the cursor needs the
+  remaining filter binding.
+- Do not collect every matching event and sort in JavaScript; take the
+  indexed top N inside each chunk.
+- Do not merge on a mutable timestamp, a non-unique display value, or
+  different keys per source kind.
+- Do not keep one cursor per chunk; one global ordered feed owns one global
+  boundary.
+- Do not let production callers tune `actorChunkSize` or mistake chunking for
+  an unbounded-fan-out primitive.
+- Do not claim LLP 0278 D3's closed semi-join ships.
+
+---
+
 <!-- snapback-guide-source: guide/recipes/paged-list.md -->
 ---
 title: "Recipe: paginated and load-more lists"
@@ -25256,6 +25555,11 @@ This recipe is for a public/shared feed with a raw, application-owned unique
 boundary. Owner- and membership-protected generated pages have an opaque
 cursor and a different custody contract; [use that path](#use-opaque-cursors-for-protected-pages)
 instead of copying this public-feed shape.
+
+If one global page instead fans in rows from a bounded membership set and the
+actor IDs approach the `.in()` operand ceiling, use the
+[chunked membership-feed recipe](./chunked-semijoin-feed.md). It preserves one
+global cursor while reading and merging indexed top-N windows per actor chunk.
 
 ## Give every row a unique immutable page key
 
@@ -25422,6 +25726,8 @@ would be a separate client feature.
 - Do not append every live replacement; merge by canonical `_id`.
 - Do not claim the React archive is retained or offline-complete.
 - Do not feed a raw boundary to a standard-pattern cursor argument.
+- Do not stretch this single-table recipe across a large membership set; use
+  the chunked membership-feed composition.
 - Do not keep protected accumulated rows across logout, membership loss, or
   another authority partition change.
 
@@ -32032,7 +32338,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-query-filter-value-invalid"></a>`SNAPBACK_QUERY_FILTER_VALUE_INVALID` | queries | 400 | [guide](../backend/queries.md#builder-bounds-and-their-refusal-codes) | `crates/snapback-engine/src/runtime/host_glue.rs:6632` | 10 |
 | <a id="diagnostic-snapback-query-hydration-failed"></a>`SNAPBACK_QUERY_HYDRATION_FAILED` | queries | — | — | `packages/snapback-client/registration-ledger.mjs:434` | 1 |
 | <a id="diagnostic-snapback-query-implicit-limit-reached"></a>`SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED` | queries | 400 | [guide](../backend/queries.md#bound-every-collection-intentionally) | `crates/snapback-engine/src/runtime/host_glue.rs:6634` | 4 |
-| <a id="diagnostic-snapback-query-in-items-exceeded"></a>`SNAPBACK_QUERY_IN_ITEMS_EXCEEDED` | queries | 400 | [guide](../backend/queries.md#builder-bounds-and-their-refusal-codes) | `crates/snapback-engine/src/runtime/host_glue.rs:6633` | 6 |
+| <a id="diagnostic-snapback-query-in-items-exceeded"></a>`SNAPBACK_QUERY_IN_ITEMS_EXCEEDED` | queries | 400 | [guide](../recipes/chunked-semijoin-feed.md#handle-snapbackqueryinitemsexceeded-by-reserving-the-cursor-binding) | `crates/snapback-engine/src/runtime/host_glue.rs:6633` | 6 |
 | <a id="diagnostic-snapback-query-keyset-invalid"></a>`SNAPBACK_QUERY_KEYSET_INVALID` | queries | — | — | `crates/snapback-kernel/src/storage.rs:7156` | 4 |
 | <a id="diagnostic-snapback-query-limit-invalid"></a>`SNAPBACK_QUERY_LIMIT_INVALID` | queries | 400 | [guide](../backend/queries.md#builder-bounds-and-their-refusal-codes) | `crates/snapback-engine/src/runtime/host_glue.rs:6635` | 6 |
 | <a id="diagnostic-snapback-query-offline-unavailable"></a>`SNAPBACK_QUERY_OFFLINE_UNAVAILABLE` | queries | — | — | `packages/snapback-client/index.mjs:2664` | 3 |

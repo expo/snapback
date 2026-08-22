@@ -226,7 +226,7 @@ plan the author designed from first principles. The guide's paged-list recipe
 covers one ordered table; the `feedEvents` normalization and cursor ownership
 had no paved analogue. Routed to LLP 0278 (closed semi-join helper);
 interim guide recipe ticketed in
-`issues/20260817-guide-gap-chunked-semijoin-feed-recipe.md`.
+`issues/closed/20260817-guide-gap-chunked-semijoin-feed-recipe.md`.
 
 ### F4. Cross-system write seams are real and unpaved — convergent
 

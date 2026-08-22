@@ -497,6 +497,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.codegen | Generate one digest-verified `snapback/generated/` graph for both profiles; `_generated/` refuses | codegen, artifacts, custody, _generated, contractMetadata, npm-only typecheck | all | shipped | packages/snapback-cli/familiar-dev-loop.test.mjs | llp/0010, llp/0012, llp/0253 | getting-started/generated-artifacts.md |
 | backend.handler-runtime-profile | Current-rule handler admission profile + complete non-replacing generation preflight: operation selection, build-bound diagnostics, exact definition paths, separate executable/raw-evidence digests | handler runtime profile, generate --check, Can I import a helper?, Can I use Node crypto?, BUNDLE_UNSUPPORTED_IMPORT, SNAPBACK_INLINE_HELPER_INADMISSIBLE, SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED, SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE | all | shipped | packages/snapback-codegen/handler-runtime-profile.test.mjs + packages/snapback-cli/generate-check.test.mjs | llp/0237, llp/0108 | backend/handler-runtime.md |
 | backend.batch-reads | Experimental local exact-id and complete-unique-key batches; unsupported targets refuse at generation | batch get, getMany, uniqueMany, N+1, dataloader, IN clause, where id in, Convex db.get loop | local | partial | crates/snapback-engine/src/runtime/host_glue.rs batch tests + crates/snapback/tests/local_v0.rs snapshot test + packages/snapback-harness/envelope.test.mjs host-call test | llp/0248 | backend/queries.md |
+| backend.query-in-chunking | Exact chunked top-N membership feed within `in()` binding bounds; semi-join design-only | in(), IN clause, membership feed, followingFeed, 500-follow probe, chunked semi-join, actorChunkSize, SNAPBACK_QUERY_IN_ITEMS_EXCEEDED, SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED | local | shipped | demos/coterie/snapback/acceptance-m2.test.mjs | llp/0277, llp/0278 | recipes/chunked-semijoin-feed.md |
 | backend.handler-typescript | Single-file `.ts`/`.mts` handler modules under the pinned syntax-erasing `bounded-handler-typescript-v1` profile | typescript handler, .ts backend, ts handler, type-check handler, erasure | local | partial | `transformTypeScriptHandler` in packages/snapback-codegen/typescript-transform.mjs | llp/0246 | GAP (page pending multi-file custody; owner: LLP 0246, review: 2026-09-15; issue: issues/20260812-0246-remaining-rollouts-stacked-on-0237.md); getting-started/generated-artifacts.md |
 | backend.familiar-profile-v1 | Familiar TS: API, direct/relational point reads, assets, Expo, SecureStore custody | familiar profile, snapback-familiar-ts-v1, authoringProfile, Familiar TypeScript, api.todos.list, SecureStore custody, Expo Router familiar | local | partial | scripts/familiar-vdoc-vertical-contract.mjs + packages/snapback-codegen/familiar-phase-b.test.mjs + packages/snapback-expo/app-binding.test.mjs + packages/snapback-contract/auth-custody-secure-store.test.mjs | llp/0253, llp/0252, llp/0059 | backend/familiar-profile.md |
 | authoring.declaration-suggestions | Review/apply result-only candidates; committed declaration stays authoritative | infer result, suggest contract, write my result contract, convex-style inference | local | partial | packages/snapback-codegen/declaration-suggestion.test.mjs | llp/0245, llp/0108 | getting-started/the-authoring-loop.md |
@@ -2012,6 +2013,32 @@ miss and binds it to the runtime warning rather than prose alone.
     Route terms: "second client same user", "multiple clients same session",
     "personas share login", "SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE".
     Required guidance: "one stable explicit storagePartition per persona or worker".
+
+Cases 88–89 absorb the Coterie membership-feed miss recorded in Diary 0086
+and LLP 0277 F3. Their route terms preserve the run's wrong vocabulary so an
+author reaches the checked interim recipe before inventing an unbounded query
+or assuming LLP 0278 D3 shipped.
+
+88. **Five-hundred-follow feed:** "Build Following for a 500-follow probe
+    without exceeding the `in()` operand bound, then paginate it with one
+    global cursor." The run fails if it puts 500 actor IDs beside the cursor
+    predicate, scans all matching events, keeps per-chunk cursors, or claims a
+    first-class semi-join ships.
+    Expected pages: `recipes/chunked-semijoin-feed.md`.
+    Route terms: "500-follow probe", "followingFeed", "chunked semi-join",
+    "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED".
+    Required guidance: "at most 499 actor IDs per chunk",
+    "LLP 0278 D3 remains design-only".
+
+89. **Force the membership-feed chunk seam:** "Prove a membership feed's
+    top 20 merge across multiple actor chunks without creating 500 fixture
+    accounts." The run fails if the acceptance only exercises one chunk,
+    lets product behavior depend on the test seam, or asserts rows without an
+    independent ordered result.
+    Expected pages: `recipes/chunked-semijoin-feed.md`.
+    Route terms: "actorChunkSize", "multi-chunk path", "top 20 per chunk".
+    Required guidance: "acceptance-only actorChunkSize",
+    "compares the merged result IDs against an independent global-feed filter".
 
 ## Static routing check
 

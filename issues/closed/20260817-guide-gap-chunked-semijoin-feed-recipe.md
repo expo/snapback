@@ -22,3 +22,20 @@ chunked composition verbatim from `demos/coterie/snapback/` — chunking rule,
 merge key requirements (immutable, totally ordered), cursor ownership, and
 the multi-chunk acceptance technique. Link it from the paged-list page and
 the capability index row for `in()` so the bound's refusal names the recipe.
+
+## Resolution (2026-08-21)
+
+Added `guide/recipes/chunked-semijoin-feed.md` with byte-exact, verified
+transclusions from the Coterie schema, functions, cursor walk, and multi-chunk
+acceptance. The recipe teaches the 500-binding ceiling and ≤499 actor chunks,
+indexed top-N reads per chunk, exact merge by immutable totally ordered
+`pageKey`, one global cursor owner, and the acceptance-only `actorChunkSize`
+seam. It explicitly preserves LLP 0278 D3 as design-only.
+
+Linked the composition from `guide/recipes/paged-list.md` and the query-bound
+section, added the `backend.query-in-chunking` capability row with the diary's
+wrong vocabulary, and added retrieval-eval cases 88–89. Regenerated the
+diagnostic registry so `SNAPBACK_QUERY_IN_ITEMS_EXCEEDED` points first to the
+recipe, then regenerated the Guide manifest and flat projections.
+
+Landing SHA: TBD
