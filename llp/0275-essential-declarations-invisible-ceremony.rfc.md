@@ -7,6 +7,11 @@ Authorization, Runtime readiness, Packaging, Templates, Verification,
 Developer experience, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-17
+**Revised:** 2026-08-22 (author ruling: the recurring starter acceptance
+harness becomes the public `@expo/snapback-acceptance` root entrypoint. The
+package owns platform lifecycle and receipt compatibility while product
+assertions and evidence intent stay in application source; a versioned
+eject/extend contract remains supported. D9 records the ruling and API.)
 **Revised:** 2026-08-22 (W3 implementation evidence: VCF-E-P1–P4 derive exact
 closed-plan result/dependency facts with provenance, including final-write
 binding shadowing, nullable return-document settlement, and its implicit read;
@@ -417,6 +422,151 @@ lifecycle against W1's M1→M2 continuity carrier. Authored policy is unchanged.
 D4, D5, `returnLiteral`/provable-`returnExpr` expansion, the other VCF-E rows,
 and the corpus-wide D7 ceremony measurement remain open.
 
+### D9. Public starter acceptance runner (author ruling 2026-08-22)
+
+**Ruling.** The recurring starter acceptance harness is a small supported
+public package, **`@expo/snapback-acceptance` at its root entrypoint**. It is
+not copied into templates and is not a private template implementation detail.
+This section is author-ruled and may be implemented even while the rest of
+D5 remains Draft.
+
+Two guardrails bind the ruling:
+
+1. **Product meaning stays in application source.** Application assertions,
+   journey order, expected product outcomes, and the evidence intent attached
+   to a path remain visible beside the app. The package owns platform
+   lifecycle, session minting, application-readiness waiting, bounded retries
+   and callback deadlines, verifier receipt shape, cleanup, and the starter
+   conformance projection. It must not absorb domain assertions or infer that
+   invoking an operation proves the application intended to test it.
+2. **Eject and extension stay supported.** Authors may add steps and resources,
+   replace the managed-lifecycle adapter, or eject the default runner through
+   the explicit compatibility contract below. They do not have to fork an
+   undocumented template implementation or reproduce verifier-private receipt
+   fields.
+
+#### Harness inventory and ownership split
+
+The four first-party live acceptances contain the following split. Static
+source/generated coherence checks remain separate `acceptance.static.mjs`
+tests; this runner does not turn source grep into live journey evidence.
+
+| Template | Recurring platform-owned machinery moved to the package | Application-owned journey and evidence intent retained in source |
+| --- | --- | --- |
+| React | isolated temp database and ready file; `snapback dev` supervision; bounded stdout/stderr and lifecycle events; application-ready wait; polling deadline; cleanup and receipt projection | browser auth bootstrap expectations; signup/recovery, reload, authenticated-entry refusal, and sign-out assertions; todo query, generated React binding, mutation settlement, and live observation |
+| CRUD dashboard | isolated lifecycle/readiness; first-call no-retry rule; failure normalization; subscription/process/temp cleanup; identity and receipt projection | relational directory shape; create-project result; live detail update; delete observation |
+| Media feed | the same lifecycle/readiness/cleanup machinery plus ordinary-session minting | retained-page ordering and boundary stability; typed upload and attachment; live feed observation; thumbnail/display delivery assertions |
+| Expo chat | the same lifecycle, minting, bounded polling, cleanup, and receipt machinery; bounded scheduling and cleanup registration for the preflight | zero-config supervised-connect assertions and app round trip; web/native auth and custody expectations; membership/persona shape; conversation surface, send, reply, and reaction observations |
+
+The package may expose a platform helper that reduces a recurring callback's
+mechanics, but the call and its product postconditions remain in the app-owned
+callback. In particular, Expo's zero-config connection claim stays a named
+journey step in the Expo template rather than becoming an automatic package
+claim.
+
+#### Runner and builder API
+
+The supported root entrypoint exports the following conceptual v1 surface
+(the hand-written `.d.mts` is normative for exact types):
+
+```js
+import {
+  defineStarterAcceptance,
+  runStarterAcceptanceIfMain,
+  starterVerifyProfileOptions,
+} from '@expo/snapback-acceptance';
+
+export const acceptance = defineStarterAcceptance({
+  acceptanceFile: import.meta.url,
+  appRoot: import.meta.dirname,
+  artifacts,
+  paths: {
+    listTodos: {
+      id: 'list-todos',
+      kind: 'success',
+      targetProfileId: 'local-dev-sqlite-ibex',
+      operation: api.listTodos,
+      provenance: 'baseline',
+    },
+  },
+  async journey({ paths, step, until, defer, mintSession, ready }) {
+    await step(paths.listTodos, async () => {
+      // The query and every application assertion stay here.
+      return { rowCount };
+    });
+  },
+});
+
+await runStarterAcceptanceIfMain(import.meta, acceptance);
+```
+
+`operation` accepts a generated operation reference object and the builder
+derives its exact id. It never accepts an app-authored raw function-id string.
+`step(pathToken, callback)` records the token's operation as observed only
+after the bounded callback and its assertions succeed. A non-operation product
+or delivery claim uses a builder-issued journey-path token and the same bounded
+callback; it is not projected as operation evidence. Arbitrary output from a
+callback is rejected unless it is bounded JSON-safe detail. The app never
+constructs `snapback.starter-acceptance.*` JSON.
+
+The verify config imports the same declaration and composes it with D5:
+
+```js
+import { defineStarterVerifyProfile } from '@expo/snapback-cli/verify';
+import { starterVerifyProfileOptions } from '@expo/snapback-acceptance';
+import { acceptance } from './acceptance.mjs';
+
+defineStarterVerifyProfile(starterVerifyProfileOptions(acceptance, {
+  id: 'react-live',
+  title: 'React starter live acceptance',
+}));
+```
+
+`starterVerifyProfileOptions` derives `paths`, generated `functionId` values,
+the provenance baseline, the acceptance file, and the package runner bytes
+from that declaration. Therefore registration and observation share the same
+path token and generated reference. The package's receipt projector and the
+CLI adapter's receipt validator are the same package-owned compatibility
+implementation, so adding or changing a verifier receipt field changes the
+package and its verifier consumer, not every application acceptance file.
+
+The package also owns the unsupported-provenance starter conformance projection
+currently produced by the CLI adapter. That projection stays explicit: a
+successful starter path is identity-bound observation, not complete D1
+read/write provenance.
+
+#### Authority and compatibility boundary
+
+This package is **not a second proof authority**. Direct execution remains the
+raw `npm test` debugging path. The package emits one bounded profile result;
+only LLP 0146 D2's `snapback verify` composes artifact freshness, runtime
+readiness, admission, capabilities, registered profiles, `next[]`, and the
+aggregate receipt. The package must not use `passed` to claim product
+completeness or publication qualification.
+
+The public compatibility contract is:
+
+- declaration fields, generated-reference path tokens, `step`, `until`,
+  `defer`, `mintSession`, `starterVerifyProfileOptions`, and the v1 lifecycle
+  adapter interface are supported root exports; context additions are
+  additive, while removals or semantic changes require a package major;
+- custom steps and cleanup resources extend the default runner without
+  changing profile or receipt authority;
+- a custom lifecycle implements the versioned `StarterLifecycleAdapterV1`
+  start/readiness/stop contract. Cleanup remains runner-supervised and bounded;
+- a fully ejected process may keep the declaration/profile builder and call the
+  public receipt projector/validator. If it emits a receipt independently, the
+  accepted `snapback.starter-acceptance.v1` contract is its compatibility
+  target and `defineStarterVerifyProfile` remains the admitting authority;
+- deep imports, child-process layout, temp filenames, log formatting, and raw
+  receipt-object members are not extension points. Templates pin the
+  acceptance package to the same Snapback release as the CLI so the builder
+  and adapter rotate together.
+
+This ruling resolves Open Question 3's entrypoint and ownership decision. It
+does not automatically resolve D5's product-policy questions about the default
+visibility of unclaimed generated operations.
+
 ## Compatibility and migration
 
 This RFC synthesizes existing safety and evidence boundaries into an authoring
@@ -424,7 +574,8 @@ rule; it does not supersede LLP 0108, LLP 0123, LLP 0146, LLP 0189, LLP 0231,
 or LLP 0245, and author acceptance is required before its classification or
 rollout becomes normative — with one carve-out: D8's classification is the
 LLP 0295 D0.3 ruling and carries that ruling's adopted-may-revise status on
-its own, while every other section keeps this paragraph's Draft posture.
+its own, and D9 carries the 2026-08-22 public-entrypoint ruling and guardrails,
+while every other section keeps this paragraph's Draft posture.
 Until each owner adopts its rule it is additive:
 
 - Existing explicit result contracts remain valid and authoritative.
@@ -539,8 +690,12 @@ be implemented before improving its own golden path.
 2. Should plan-derived exact results be emitted only as generated effective
    contracts, or should LLP 0245 offer a source-freezing patch for consistency
    with opaque handlers?
-3. What is the smallest single-source profile API that preserves an explicit
-   expected-path set without duplicating identities between config and runner?
+3. **Ruled 2026-08-22:** D9 pins the public
+   `@expo/snapback-acceptance` root entrypoint. One declaration supplies
+   builder-issued path tokens backed by generated operation references to both
+   bounded journey steps and `starterVerifyProfileOptions`; application source
+   never assembles receipt JSON. The eject/extend and non-authority boundaries
+   in D9 bind the implementation.
 4. Should unclaimed generated operations be quiet by default and visible only
    in `prove --verbose`, or should first-party templates surface them after the
    starter operation set changes?
@@ -561,3 +716,8 @@ be implemented before improving its own golden path.
   exhaustiveness) and the W3 Explicit economy lane registration with its
   fixture receipts; recorded the Compatibility carve-out that D8 carries the
   D0.3 ruling's status while the RFC's other sections remain Draft.
+- 2026-08-22 r4: author ruling — added D9, selecting the public
+  `@expo/snapback-acceptance` root entrypoint, inventorying the four template
+  harnesses, pinning the generated-reference/bounded-callback builder API,
+  retaining app-owned product meaning, and defining the eject/extend and
+  no-second-authority boundaries; resolved Open Question 3.
