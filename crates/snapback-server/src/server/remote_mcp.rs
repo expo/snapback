@@ -498,6 +498,7 @@ async fn call_tool(
                 Extension(authority.clone()),
                 Extension(route),
                 None,
+                HeaderMap::new(),
                 Path(tool.function_name.clone()),
                 Result::<_, JsonRejection>::Ok(Json(MutationRequest {
                     input,

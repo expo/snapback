@@ -12080,8 +12080,10 @@ async fn pause_test_coordinated_mutation_after_commit(function: &str) {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum TestFiniteAuthorityPausePoint {
     BeforeHandler,
+    AfterAuthorizedEffectReservation,
     BeforeResponsePublication,
     AfterRefreshPremark,
+    AfterSessionTerminalPremark,
     AfterScopedTokenStreamCapture,
     AfterScopedTokenDurableResolve,
     AfterSessionTerminalOwnedSpawn,
@@ -17302,6 +17304,13 @@ async fn auth_logout(
             .premark_revocation(plan)
             .await
             .map_err(ApiError::from)?;
+        #[cfg(test)]
+        pause_test_finite_authority_request(
+            test_finite_authority_pause_id.as_deref(),
+            TestFiniteAuthorityPausePoint::AfterSessionTerminalPremark,
+            None,
+        )
+        .await;
         let commit_plan = carrier.plan().clone();
         let effect_authority = authority.clone();
         let owned_state = runtime.clone();
@@ -26040,6 +26049,7 @@ async fn capability_link_invoke(
                 Extension(authority),
                 Extension(route),
                 Some(Extension(link.clone())),
+                HeaderMap::new(),
                 Path(function.name),
                 Ok(Json(request)),
             )
@@ -27239,6 +27249,7 @@ async fn invoke_mutation(
     Extension(authority): Extension<PreparedAuthority>,
     Extension(route): Extension<RouteSpec>,
     effect_link: Option<Extension<ResolvedCapabilityLink>>,
+    _headers: HeaderMap,
     Path(name): Path<String>,
     input: Result<Json<MutationRequest>, JsonRejection>,
 ) -> Response {
@@ -27297,6 +27308,27 @@ async fn invoke_mutation(
             )
             .with_attribution(attribution));
         }
+        // Reserve the request's exact stream/session and optional service
+        // authority before the blocking owner enters managed Local. The
+        // carrier is lock-free and crosses the async handoff; the engine
+        // acquires mode admission last at the existing tx.commit() boundary.
+        //
+        // @ref LLP 0058#split-phase-authorized-effect-fence — ordinary finite
+        // mutation sites choose authorized effects explicitly; logout and
+        // other terminal carriers remain on their mode-only commit path.
+        let authorized_effect = authority
+            .reserve_authorized_effect("HTTP mutation authorized-effect reservation")
+            .map_err(ApiError::from)
+            .map_err(|error| error.with_attribution(attribution.clone()))?;
+        #[cfg(test)]
+        pause_test_finite_authority_request(
+            _headers
+                .get(TEST_FINITE_AUTHORITY_PAUSE_HEADER)
+                .and_then(|value| value.to_str().ok()),
+            TestFiniteAuthorityPausePoint::AfterAuthorizedEffectReservation,
+            None,
+        )
+        .await;
         // Receipt emission rides the L7 blocking offload: the recording call
         // (Hermes eval + rusqlite) runs via with_snapback, and the envelope is
         // assembled from its (result, receipt) pair back on the async side.
@@ -27347,7 +27379,10 @@ async fn invoke_mutation(
             },
             move |snapback, (response_authority_descriptor, staged)| {
                 snapback
-                    .commit_staged_recorded_authorization_mutation_with_network_egress_and_dependencies(staged)
+                    .commit_staged_recorded_authorization_mutation_with_authorized_effect(
+                        staged,
+                        &authorized_effect,
+                    )
                     .and_then(|(result, receipt, network_basis, capture)| {
                         let facts = if result.is_ok() {
                             facts_authority.validate_admission("mutation generation facts")?;

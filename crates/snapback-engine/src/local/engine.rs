@@ -12,9 +12,9 @@ use crate::auth::invalidation::{
     ScopeRetirement, ScopeRetirementCandidate,
 };
 use crate::auth::invocation::{
-    FunctionAttribution, HandlerAuthProjection, InvocationGate, InvocationSource,
-    PreparedAuthority, PreparedInvocation, ResolvedAppAuthority, RetainedLiveAuthority,
-    WireAuthorityFields, descriptor_for_authority,
+    AuthorizedEffectCommitGuard, AuthorizedEffectReservation, FunctionAttribution,
+    HandlerAuthProjection, InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation,
+    ResolvedAppAuthority, RetainedLiveAuthority, WireAuthorityFields, descriptor_for_authority,
 };
 use crate::auth::lease::{
     AuthorizedLease, AuthorizedLeaseConfig, AuthorizedLeaseData, AuthorizedLeaseIssue,
@@ -1384,6 +1384,56 @@ pub enum StagedAction {
 pub enum StagedRecordedMutation {
     Done(Box<(SnapbackResult<MutationOutput>, Receipt)>),
     Ready(Box<StagedRecordedMutationCommit>),
+}
+
+/// Commit posture is an explicit site choice. `ModeOnlyOrTerminalCarrier`
+/// preserves the existing internal/terminal behavior; ordinary finite HTTP
+/// mutations pass an authority reservation acquired before entering Local.
+/// No absent optional carrier is interpreted as permission to weaken the cut.
+enum MutationEffectPosture<'a> {
+    Authorized(&'a AuthorizedEffectReservation),
+    ModeOnlyOrTerminalCarrier,
+}
+
+enum BoundMutationEffectPosture<'a> {
+    Authorized(&'a AuthorizedEffectReservation),
+    ModeOnlyOrTerminalCarrier(&'a PreparedInvocation),
+}
+
+#[allow(
+    dead_code,
+    reason = "the guard variants exist solely for RAII lifetime"
+)]
+enum MutationEffectCommitGuard<'a> {
+    Authorized(AuthorizedEffectCommitGuard<'a>),
+    ModeOnlyOrTerminalCarrier(AdmissionEffectGuard<'a>),
+}
+
+impl<'a> MutationEffectPosture<'a> {
+    fn bind<'b>(self, prepared: &'b PreparedInvocation) -> BoundMutationEffectPosture<'b>
+    where
+        'a: 'b,
+    {
+        match self {
+            Self::Authorized(reservation) => BoundMutationEffectPosture::Authorized(reservation),
+            Self::ModeOnlyOrTerminalCarrier => {
+                BoundMutationEffectPosture::ModeOnlyOrTerminalCarrier(prepared)
+            }
+        }
+    }
+}
+
+impl BoundMutationEffectPosture<'_> {
+    fn commit_guard(&self, effect: &'static str) -> SnapbackResult<MutationEffectCommitGuard<'_>> {
+        match self {
+            Self::Authorized(reservation) => reservation
+                .commit_guard(effect)
+                .map(MutationEffectCommitGuard::Authorized),
+            Self::ModeOnlyOrTerminalCarrier(prepared) => prepared
+                .mode_effect_guard(effect)
+                .map(MutationEffectCommitGuard::ModeOnlyOrTerminalCarrier),
+        }
+    }
 }
 
 /// Captured dependency evidence retained across the recording/settlement
@@ -15825,6 +15875,46 @@ impl LocalSnapback {
         crate::network_profile::MutationEgressBasis,
         MutationDependencyCapture,
     )> {
+        self.commit_staged_recorded_authorization_mutation_inner(
+            staged,
+            MutationEffectPosture::ModeOnlyOrTerminalCarrier,
+        )
+    }
+
+    /// Commit an ordinary finite mutation under stream/session, optional
+    /// service, and mode authority reserved by the async owner before Local.
+    /// This is deliberately a separate entry point: terminal writers and
+    /// internal mode-only lanes must choose their posture explicitly.
+    ///
+    /// @ref LLP 0058#split-phase-authorized-effect-fence — the async site
+    /// reserves publication authority; this synchronous sink acquires the
+    /// composite inner guard only at the existing deepest commit boundary.
+    pub fn commit_staged_recorded_authorization_mutation_with_authorized_effect(
+        &mut self,
+        staged: StagedRecordedMutation,
+        authorized_effect: &AuthorizedEffectReservation,
+    ) -> SnapbackResult<(
+        SnapbackResult<MutationOutput>,
+        Receipt,
+        crate::network_profile::MutationEgressBasis,
+        MutationDependencyCapture,
+    )> {
+        self.commit_staged_recorded_authorization_mutation_inner(
+            staged,
+            MutationEffectPosture::Authorized(authorized_effect),
+        )
+    }
+
+    fn commit_staged_recorded_authorization_mutation_inner(
+        &mut self,
+        staged: StagedRecordedMutation,
+        effect_posture: MutationEffectPosture<'_>,
+    ) -> SnapbackResult<(
+        SnapbackResult<MutationOutput>,
+        Receipt,
+        crate::network_profile::MutationEgressBasis,
+        MutationDependencyCapture,
+    )> {
         let staged = match staged {
             StagedRecordedMutation::Done(recorded) => {
                 let (result, receipt) = *recorded;
@@ -15856,6 +15946,7 @@ impl LocalSnapback {
             execution,
             observation,
         } = *staged;
+        let effect_posture = effect_posture.bind(&prepared);
         let trace_identity = crate::spike_trace::MutationTraceIdentity::capture(
             &input,
             identity.as_ref(),
@@ -15878,7 +15969,7 @@ impl LocalSnapback {
                         .expect("validated media command carries a mutation identity"),
                     media_command.as_ref().expect("matched media command"),
                     settlement_time.as_ref(),
-                    || prepared.effect_guard("media command mutation transaction"),
+                    || effect_posture.commit_guard("media command mutation transaction"),
                 ),
             StagedMutationExecution::HostPlan(plan) => match identity.as_ref() {
                 Some(identity)
@@ -15895,7 +15986,7 @@ impl LocalSnapback {
                             Some(identity),
                             settlement_time.as_ref(),
                             || Ok(()),
-                            || prepared.effect_guard("host child mutation transaction"),
+                            || effect_posture.commit_guard("host child mutation transaction"),
                         )
                 }
                 Some(identity) => self
@@ -15906,7 +15997,7 @@ impl LocalSnapback {
                         &input,
                         identity,
                         settlement_time.as_ref(),
-                        || prepared.effect_guard("idempotent mutation transaction"),
+                        || effect_posture.commit_guard("idempotent mutation transaction"),
                     ),
                 None => self
                     .db
@@ -15916,7 +16007,7 @@ impl LocalSnapback {
                         &input,
                         settlement_time.as_ref(),
                         || Ok(()),
-                        || prepared.effect_guard("mutation transaction"),
+                        || effect_posture.commit_guard("mutation transaction"),
                     ),
             },
             StagedMutationExecution::Buffered(payload) if media_command.is_some() => self
@@ -15928,7 +16019,7 @@ impl LocalSnapback {
                     identity.as_ref(),
                     media_command.as_ref().expect("matched media command"),
                     || Ok(()),
-                    || prepared.effect_guard("media command ibex transaction"),
+                    || effect_posture.commit_guard("media command ibex transaction"),
                 ),
             StagedMutationExecution::Buffered(payload) => {
                 let payload = *payload;
@@ -15945,7 +16036,7 @@ impl LocalSnapback {
                             payload,
                             identity.as_ref(),
                             || Ok(()),
-                            || prepared.effect_guard("host child ibex mutation transaction"),
+                            || effect_posture.commit_guard("host child ibex mutation transaction"),
                         )
                 } else {
                     self.db
@@ -15955,7 +16046,7 @@ impl LocalSnapback {
                             payload,
                             identity.as_ref(),
                             || Ok(()),
-                            || prepared.effect_guard("ibex mutation transaction"),
+                            || effect_posture.commit_guard("ibex mutation transaction"),
                         )
                 }
             }
