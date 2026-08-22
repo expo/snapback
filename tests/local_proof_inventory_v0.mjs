@@ -6,11 +6,79 @@ import test from 'node:test';
 
 import {
   checkLocalProof,
+  observeRustWitnesses,
   parseGateCalls,
+  suiteFailureDetail,
+  suiteFailureDiagnostic,
   validateGateCalls,
 } from '../scripts/check-local-proof-gates.mjs';
 
 const root = resolve(import.meta.dirname, '..');
+
+function failingNode(source) {
+  const result = spawnSync(process.execPath, ['-e', source], { encoding: 'utf8' });
+  assert.notEqual(result.status, 0, 'fixture must exercise Node\'s uncaught-error renderer');
+  return result;
+}
+
+test('versioned-seed total-failure diagnostics understand real Node error shapes', () => {
+  const assertion = failingNode(
+    "const assert = require('node:assert/strict'); assert.equal(1, 2, 'seed witness mismatch')",
+  );
+  assert.equal(
+    suiteFailureDiagnostic(assertion),
+    'suite failed: AssertionError [ERR_ASSERTION]: seed witness mismatch | 1 !== 2',
+  );
+
+  const multiline = failingNode(
+    "throw new Error('outer label:\\ncargo failed: could not compile snapback-kernel"
+      + "\\nserver stderr: bind refused')",
+  );
+  assert.equal(
+    suiteFailureDiagnostic(multiline),
+    'suite failed: Error: outer label: | cargo failed: could not compile snapback-kernel '
+      + '| server stderr: bind refused',
+  );
+  assert.equal(
+    suiteFailureDetail(multiline),
+    `suite failed: ${multiline.stderr}`,
+    'the receipt diagnostic must retain the complete multiline stderr',
+  );
+
+  const thrownValue = failingNode("throw 'seed witness exploded without Error prefix'");
+  assert.equal(
+    suiteFailureDiagnostic(thrownValue),
+    'suite failed: seed witness exploded without Error prefix',
+  );
+});
+
+test('versioned-seed Rust witnesses are counted from exact executed test records', () => {
+  const expected = ['versioned_seed_one', 'versioned_seed_two'];
+  const renamed = observeRustWitnesses(
+    'running 2 tests\n'
+      + 'test storage::tests::versioned_seed_one_suffix ... ok\n'
+      + 'test storage::tests::versioned_seed_two ... ok\n'
+      + 'test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out;\n',
+    expected,
+  );
+  assert.deepEqual(renamed.executedWitnesses, ['versioned_seed_two']);
+  assert.deepEqual(renamed.missingWitnesses, ['versioned_seed_one']);
+
+  const replaced = observeRustWitnesses(
+    'running 2 tests\n'
+      + 'test storage::tests::versioned_seed_replacement_a ... ok\n'
+      + 'test storage::tests::versioned_seed_replacement_b ... ok\n',
+    expected,
+  );
+  assert.equal(replaced.executedTests.length, 2);
+  assert.deepEqual(replaced.executedWitnesses, []);
+
+  const none = observeRustWitnesses(
+    'running 0 tests\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out;\n',
+    expected,
+  );
+  assert.deepEqual(none.executedTests, []);
+});
 
 test('the canonical proof has named gates and its producer edges are closed', () => {
   const result = checkLocalProof();
