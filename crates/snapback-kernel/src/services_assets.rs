@@ -72,6 +72,17 @@ pub trait AssetAttemptsProofLocalExt {
         digest: &str,
         now: u64,
     ) -> SnapbackResult<AssetPublicationPlannedProof>;
+
+    fn attempt_finalize_commit_plan_proved_guarded<G, BeforeCommit>(
+        &mut self,
+        app_id: &str,
+        attempt_id: &str,
+        digest: &str,
+        now: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<AssetPublicationPlannedProof>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>;
 }
 
 impl AssetAttemptsProofLocalExt for AssetAttemptsKernel<'_> {
@@ -90,5 +101,25 @@ impl AssetAttemptsProofLocalExt for AssetAttemptsKernel<'_> {
         now: u64,
     ) -> SnapbackResult<AssetPublicationPlannedProof> {
         self.attempt_finalize_commit_plan_proved(app_id, attempt_id, digest, now)
+    }
+
+    fn attempt_finalize_commit_plan_proved_guarded<G, BeforeCommit>(
+        &mut self,
+        app_id: &str,
+        attempt_id: &str,
+        digest: &str,
+        now: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<AssetPublicationPlannedProof>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.attempt_finalize_commit_plan_proved_guarded(
+            app_id,
+            attempt_id,
+            digest,
+            now,
+            before_commit,
+        )
     }
 }

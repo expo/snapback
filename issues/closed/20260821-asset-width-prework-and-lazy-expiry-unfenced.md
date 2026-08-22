@@ -1,6 +1,6 @@
 # Asset width prework and TUS HEAD/inspect lazy expiry remain unfenced after the asset migration
 
-Status: Open
+Status: Resolved 2026-08-22
 Created: 2026-08-21
 Related: issues/20260821-authorized-effect-remedy-classification.md,
 issues/20260821-durable-authority-to-effect-handoff-design.md,
@@ -53,3 +53,29 @@ remaining callers, so one write is not fenced on some paths and unfenced on othe
 Item 1 splits: fence the SQLite blob/rendition/quota commit; route the blob PUT through the
 withholding rule rather than a fence. Prefer reserving before width prework if the route can be
 reordered without holding authority across the PUT.
+
+## Resolution
+
+Resolved on `lane/assetfix` by extending the asset authorized-effect split phase rather than
+holding authority across physical object-store work:
+
+- ordinary attempt inspection and TUS HEAD reserve caller authority through the shared lazy-expiry
+  SQLite commit, then release it before staging cleanup; host/inspect entry points without a
+  session publication retain their prior behavior;
+- signed-URL and strict-delivery width materialization reserve before prework, release before the
+  source read/render, reserve for the publication-plan commit, release before blob PUT, and reserve
+  again for the staged plus blob/rendition/quota commits;
+- caller-backed finalize now uses the same choreography for lazy expiry, publication planning,
+  primary and required-rendition PUTs, staged/publication/quota completion, cleanup, and the final
+  cleanup receipt.
+
+The blob PUT remains deliberately outside a caller permit. A publication plan can therefore
+outlive the caller after its fenced commit and name an idempotent external PUT; completion cannot
+commit after retirement without a fresh reservation. The durable authority-to-effect handoff for
+that external cut remains tracked by
+`issues/20260821-durable-authority-to-effect-handoff-design.md`.
+
+The shared `AssetAuthorizedEffectSite` race matrix proves both orderings for all five added sites:
+logout-first returns the expired diagnostic with no durable SQLite delta, while reservation-first
+commits the exact durable transition and makes logout drain the permit. Removing the caller permit
+made all ten new ordering tests fail; restoring it made all ten pass.

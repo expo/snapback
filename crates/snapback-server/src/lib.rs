@@ -29,8 +29,11 @@ pub mod assets {
         AssetFactsLocalExt, AssetFinalizePreparation, AssetFinalizePrepareError,
         AssetFinalizePrepareFailure, AssetFsStoreLocalExt, AssetPreparedCanonical,
         AssetPreparedCanonicalObject, AssetTusPatchTicketV1, AssetVariantPreparation,
-        FinalizeCommitTicketV1, FinalizePhaseAOutcomeV1, FinalizePreflightV1,
-        FinalizePreparationV1, FinalizePrepareTicketV1, FinalizePutTicketV1, prepare_asset_variant,
+        AssetWidthCommitTicketV1, AssetWidthPlanTicketV1, AssetWidthPreflightV1,
+        AssetWidthPrepareTicketV1, AssetWidthPutTicketV1, FinalizeCleanupCommitTicketV1,
+        FinalizeCleanupTicketV1, FinalizeCommitTicketV1, FinalizePhaseAOutcomeV1,
+        FinalizePhaseCDOutcomeV1, FinalizePreflightV1, FinalizePreparationV1,
+        FinalizePrepareTicketV1, FinalizePutTicketV1, prepare_asset_variant,
         prepare_required_asset_variants,
     };
     pub use snapback_services::assets::{AssetFsStore, detect_content_type};

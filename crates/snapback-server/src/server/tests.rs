@@ -31188,6 +31188,12 @@ globalThis.__snapbackHandlers = {
   },
   async signedUpload(ctx) {
     return { owner: ctx.auth.userId };
+  },
+  async strictImageUpload(ctx) {
+    return { owner: ctx.auth.userId };
+  },
+  async signedImageUpload(ctx) {
+    return { owner: ctx.auth.userId };
   }
 };
 "#;
@@ -31196,6 +31202,7 @@ fn asset_authorized_effect_test_intent(
     name: &str,
     delivery: crate::assets::AssetDeliveryProfile,
 ) -> crate::manifest::AssetUploadIntentDefinition {
+    let image = name.contains("Image");
     crate::manifest::AssetUploadIntentDefinition {
         id: format!("app:{name}"),
         name: name.to_owned(),
@@ -31205,7 +31212,11 @@ fn asset_authorized_effect_test_intent(
         intent_policy_hash: format!("sha256:asset-authorized-effect-test-policy-{name}"),
         auth_requirement: None,
         accept: crate::manifest::AssetAcceptPolicy {
-            media_types: vec!["application/octet-stream".to_owned()],
+            media_types: vec![if image {
+                "image/png".to_owned()
+            } else {
+                "application/octet-stream".to_owned()
+            }],
             max_bytes: 64 * 1024,
         },
         delivery: crate::manifest::AssetDeliveryPolicy { kind: delivery },
@@ -31213,7 +31224,10 @@ fn asset_authorized_effect_test_intent(
             read: crate::assets::AssetReadAccessPolicy::OwnerOnly,
         },
         grants: false,
-        image: None,
+        image: image.then_some(crate::manifest::AssetImagePolicy {
+            location: crate::manifest::AssetLocationPolicy::Retain,
+            variants: Vec::new(),
+        }),
         video: None,
         on: None,
         declared_reads: Vec::new(),
@@ -31239,6 +31253,14 @@ async fn asset_authorized_effect_server_fixture_async() -> AppState {
                 "signedUpload",
                 crate::assets::AssetDeliveryProfile::PrivateSigned,
             ),
+            asset_authorized_effect_test_intent(
+                "strictImageUpload",
+                crate::assets::AssetDeliveryProfile::PrivateStrict,
+            ),
+            asset_authorized_effect_test_intent(
+                "signedImageUpload",
+                crate::assets::AssetDeliveryProfile::PrivateSigned,
+            ),
         ];
         sessions_activation_server_fixture_with(functions, None)
     })
@@ -31250,10 +31272,15 @@ async fn asset_authorized_effect_server_fixture_async() -> AppState {
 enum AssetAuthorizedEffectSite {
     AttemptCreation,
     AttemptCancellation,
+    AttemptInspectLazyExpiry,
+    TusHeadLazyExpiry,
     TusPatchAcknowledgement,
+    Finalize,
     ExplicitDelete,
     SignedUrlReceipt,
     StrictDeliveryReceipt,
+    SignedUrlWidthMaterialization,
+    StrictDeliveryWidthMaterialization,
 }
 
 impl AssetAuthorizedEffectSite {
@@ -31261,22 +31288,67 @@ impl AssetAuthorizedEffectSite {
         match self {
             Self::AttemptCreation => "attempt-creation",
             Self::AttemptCancellation => "attempt-cancellation",
+            Self::AttemptInspectLazyExpiry => "attempt-inspect-lazy-expiry",
+            Self::TusHeadLazyExpiry => "tus-head-lazy-expiry",
             Self::TusPatchAcknowledgement => "tus-patch-acknowledgement",
+            Self::Finalize => "finalize",
             Self::ExplicitDelete => "explicit-delete",
             Self::SignedUrlReceipt => "signed-url-receipt",
             Self::StrictDeliveryReceipt => "strict-delivery-receipt",
+            Self::SignedUrlWidthMaterialization => "signed-url-width-materialization",
+            Self::StrictDeliveryWidthMaterialization => "strict-delivery-width-materialization",
         }
     }
 
     fn needs_ready_asset(self) -> bool {
-        matches!(self, Self::SignedUrlReceipt | Self::StrictDeliveryReceipt)
+        matches!(
+            self,
+            Self::SignedUrlReceipt
+                | Self::StrictDeliveryReceipt
+                | Self::SignedUrlWidthMaterialization
+                | Self::StrictDeliveryWidthMaterialization
+        )
+    }
+
+    fn needs_complete_transfer(self) -> bool {
+        matches!(self, Self::Finalize)
+    }
+
+    fn needs_expired_attempt(self) -> bool {
+        matches!(
+            self,
+            Self::AttemptInspectLazyExpiry | Self::TusHeadLazyExpiry
+        )
     }
 
     fn intent_name(self) -> &'static str {
-        if matches!(self, Self::SignedUrlReceipt) {
-            "signedUpload"
+        match self {
+            Self::SignedUrlReceipt => "signedUpload",
+            Self::SignedUrlWidthMaterialization => "signedImageUpload",
+            Self::StrictDeliveryWidthMaterialization => "strictImageUpload",
+            _ => "strictUpload",
+        }
+    }
+
+    fn upload_bytes(self) -> &'static [u8] {
+        if matches!(
+            self,
+            Self::SignedUrlWidthMaterialization | Self::StrictDeliveryWidthMaterialization
+        ) {
+            include_bytes!("../../../../brand/favicon-16.png")
         } else {
-            "strictUpload"
+            b"x"
+        }
+    }
+
+    fn upload_content_type(self) -> &'static str {
+        if matches!(
+            self,
+            Self::SignedUrlWidthMaterialization | Self::StrictDeliveryWidthMaterialization
+        ) {
+            "image/png"
+        } else {
+            "application/octet-stream"
         }
     }
 }
@@ -31322,6 +31394,8 @@ async fn asset_test_create(
     router: &SnapbackApp,
     bearer: &str,
     intent_name: &str,
+    declared_length: usize,
+    declared_content_type: &str,
 ) -> AssetAuthorizedEffectTarget {
     let response = router
         .clone()
@@ -31336,8 +31410,8 @@ async fn asset_test_create(
                 "implementationHash": "sha256:asset-authorized-effect-test-impl",
                 "args": {},
                 "declaredFilename": "asset-authority-race.bin",
-                "declaredLength": 1,
-                "declaredContentType": "application/octet-stream",
+                "declaredLength": declared_length,
+                "declaredContentType": declared_content_type,
             }))
             .expect("serialize asset create request"),
             Some("application/json"),
@@ -31365,11 +31439,11 @@ async fn asset_test_create(
     }
 }
 
-async fn asset_test_patch(router: &SnapbackApp, bearer: &str, attempt_id: &str, byte: u8) {
+async fn asset_test_patch(router: &SnapbackApp, bearer: &str, attempt_id: &str, bytes: &[u8]) {
     let mut request = asset_session_request(
         "PATCH",
         &format!("/assets/tus/{attempt_id}"),
-        vec![byte],
+        bytes.to_vec(),
         Some("application/offset+octet-stream"),
         bearer,
     );
@@ -31442,16 +31516,37 @@ async fn asset_authorized_effect_fixture(
             lifecycle_generation: None,
         }
     } else {
-        let target = asset_test_create(&router, &bearer, site.intent_name()).await;
-        if site.needs_ready_asset() {
+        let target = asset_test_create(
+            &router,
+            &bearer,
+            site.intent_name(),
+            site.upload_bytes().len(),
+            site.upload_content_type(),
+        )
+        .await;
+        if site.needs_ready_asset() || site.needs_complete_transfer() {
             asset_test_patch(
                 &router,
                 &bearer,
                 target.attempt_id.as_deref().expect("ready attempt id"),
-                b'x',
+                site.upload_bytes(),
             )
             .await;
+        }
+        if site.needs_ready_asset() {
             asset_test_finalize(&router, &bearer, &target).await;
+        }
+        if site.needs_expired_attempt() {
+            let attempt_id = target
+                .attempt_id
+                .as_deref()
+                .expect("lazy-expiry attempt id")
+                .to_owned();
+            with_snapback(&state.snapback, move |snapback| {
+                snapback_engine::test_support::asset_set_attempt_expiry(snapback, &attempt_id, 1)
+            })
+            .await
+            .expect("rewind asset attempt expiry");
         }
         target
     };
@@ -31468,9 +31563,28 @@ async fn asset_authorized_effect_fixture(
 #[derive(Debug, Eq, PartialEq)]
 enum AssetDurableWitness {
     AssetCount(usize),
-    Attempt { state: String, offset: u64 },
+    Attempt {
+        state: String,
+        offset: u64,
+    },
+    AttemptLifecycle {
+        state: String,
+        receipt_count: usize,
+    },
     Availability(String),
     ReceiptCount(usize),
+    Width {
+        publication_count: u64,
+        rendition_count: usize,
+        settled_bytes: u64,
+    },
+    Finalize {
+        publication_count: u64,
+        attempt_state: String,
+        availability: String,
+        rendition_count: usize,
+        settled_bytes: u64,
+    },
 }
 
 async fn asset_durable_witness(
@@ -31516,7 +31630,37 @@ async fn asset_durable_witness(
     })
     .await
     .expect("inspect asset race witness");
+    let publication_count = with_snapback(&fixture.state.snapback, |snapback| {
+        snapback_engine::test_support::asset_publication_count(snapback)
+    })
+    .await
+    .expect("count asset publication rows for race witness");
     match site {
+        AssetAuthorizedEffectSite::AttemptInspectLazyExpiry
+        | AssetAuthorizedEffectSite::TusHeadLazyExpiry => {
+            let attempt_id = fixture
+                .target
+                .attempt_id
+                .as_deref()
+                .expect("lazy-expiry target attempt id")
+                .to_owned();
+            let durable_attempt_state = with_snapback(&fixture.state.snapback, move |snapback| {
+                snapback_engine::test_support::asset_attempt_state(snapback, &attempt_id)
+            })
+            .await
+            .expect("load durable lazy-expiry attempt state");
+            AssetDurableWitness::AttemptLifecycle {
+                state: serde_json::to_value(durable_attempt_state)
+                    .expect("serialize lazy-expiry attempt state")
+                    .as_str()
+                    .expect("lazy-expiry attempt state string")
+                    .to_owned(),
+                receipt_count: inspected["receipts"]
+                    .as_array()
+                    .expect("asset receipts")
+                    .len(),
+            }
+        }
         AssetAuthorizedEffectSite::TusPatchAcknowledgement => AssetDurableWitness::Attempt {
             state: inspected["currentAttempt"]["state"]
                 .as_str()
@@ -31526,6 +31670,38 @@ async fn asset_durable_witness(
                 .as_u64()
                 .expect("current attempt offset"),
         },
+        AssetAuthorizedEffectSite::Finalize => {
+            let attempt_id = fixture
+                .target
+                .attempt_id
+                .as_deref()
+                .expect("finalize target attempt id")
+                .to_owned();
+            let durable_attempt_state = with_snapback(&fixture.state.snapback, move |snapback| {
+                snapback_engine::test_support::asset_attempt_state(snapback, &attempt_id)
+            })
+            .await
+            .expect("load durable finalize attempt state");
+            AssetDurableWitness::Finalize {
+                publication_count,
+                attempt_state: serde_json::to_value(durable_attempt_state)
+                    .expect("serialize finalize attempt state")
+                    .as_str()
+                    .expect("finalize attempt state string")
+                    .to_owned(),
+                availability: inspected["asset"]["availability"]
+                    .as_str()
+                    .expect("finalize asset availability")
+                    .to_owned(),
+                rendition_count: inspected["renditions"]
+                    .as_array()
+                    .expect("finalize renditions")
+                    .len(),
+                settled_bytes: inspected["accounting"]["settledBytes"]
+                    .as_u64()
+                    .expect("finalize settled-byte accounting"),
+            }
+        }
         AssetAuthorizedEffectSite::ExplicitDelete => AssetDurableWitness::Availability(
             inspected["asset"]["availability"]
                 .as_str()
@@ -31540,6 +31716,19 @@ async fn asset_durable_witness(
                 .expect("asset receipts")
                 .len(),
         ),
+        AssetAuthorizedEffectSite::SignedUrlWidthMaterialization
+        | AssetAuthorizedEffectSite::StrictDeliveryWidthMaterialization => {
+            AssetDurableWitness::Width {
+                publication_count,
+                rendition_count: inspected["renditions"]
+                    .as_array()
+                    .expect("asset renditions")
+                    .len(),
+                settled_bytes: inspected["accounting"]["settledBytes"]
+                    .as_u64()
+                    .expect("asset settled-byte accounting"),
+            }
+        }
         AssetAuthorizedEffectSite::AttemptCreation => unreachable!(),
     }
 }
@@ -31582,6 +31771,30 @@ fn asset_target_request(
             Some("application/json"),
             &fixture.bearer,
         ),
+        AssetAuthorizedEffectSite::AttemptInspectLazyExpiry => asset_session_request(
+            "GET",
+            &format!(
+                "/assets/attempts/{}",
+                attempt_id.expect("attempt-inspect attempt id")
+            ),
+            Vec::new(),
+            None,
+            &fixture.bearer,
+        ),
+        AssetAuthorizedEffectSite::TusHeadLazyExpiry => {
+            let mut request = asset_session_request(
+                "HEAD",
+                &format!("/assets/tus/{}", attempt_id.expect("TUS HEAD attempt id")),
+                Vec::new(),
+                None,
+                &fixture.bearer,
+            );
+            request.headers_mut().insert(
+                HeaderName::from_static("tus-resumable"),
+                HeaderValue::from_static("1.0.0"),
+            );
+            request
+        }
         AssetAuthorizedEffectSite::TusPatchAcknowledgement => {
             let mut request = asset_session_request(
                 "PATCH",
@@ -31600,6 +31813,20 @@ fn asset_target_request(
             );
             request
         }
+        AssetAuthorizedEffectSite::Finalize => asset_session_request(
+            "POST",
+            &format!(
+                "/assets/attempts/{}/finalize",
+                attempt_id.expect("finalize attempt id")
+            ),
+            serde_json::to_vec(&json!({
+                "attemptId": attempt_id,
+                "lifecycleGeneration": fixture.target.lifecycle_generation,
+            }))
+            .expect("serialize racing finalize request"),
+            Some("application/json"),
+            &fixture.bearer,
+        ),
         AssetAuthorizedEffectSite::ExplicitDelete => asset_session_request(
             "DELETE",
             &format!(
@@ -31625,6 +31852,26 @@ fn asset_target_request(
             &format!(
                 "/assets/records/{}/bytes/primary",
                 asset_id.expect("strict-delivery asset id")
+            ),
+            Vec::new(),
+            None,
+            &fixture.bearer,
+        ),
+        AssetAuthorizedEffectSite::SignedUrlWidthMaterialization => asset_session_request(
+            "POST",
+            &format!(
+                "/assets/records/{}/signed-url",
+                asset_id.expect("signed width asset id")
+            ),
+            br#"{"widthPx":8}"#.to_vec(),
+            Some("application/json"),
+            &fixture.bearer,
+        ),
+        AssetAuthorizedEffectSite::StrictDeliveryWidthMaterialization => asset_session_request(
+            "GET",
+            &format!(
+                "/assets/records/{}/bytes/primary?width=8",
+                asset_id.expect("strict width asset id")
             ),
             Vec::new(),
             None,
@@ -31665,6 +31912,50 @@ fn assert_asset_effect_committed(
             assert_eq!(*after_offset, before_offset + 1);
         }
         (
+            AssetAuthorizedEffectSite::Finalize,
+            AssetDurableWitness::Finalize {
+                publication_count: before_publications,
+                attempt_state: before_state,
+                availability: before_availability,
+                rendition_count: before_renditions,
+                settled_bytes: before_settled,
+            },
+            AssetDurableWitness::Finalize {
+                publication_count: after_publications,
+                attempt_state: after_state,
+                availability: after_availability,
+                rendition_count: after_renditions,
+                settled_bytes: after_settled,
+            },
+        ) => {
+            assert_eq!(before_state, "transferring");
+            assert_eq!(before_availability, "pending");
+            assert_eq!(after_state, "complete");
+            assert_eq!(after_availability, "ready");
+            assert_eq!(*after_publications, before_publications + 1);
+            assert_eq!(*after_renditions, before_renditions + 1);
+            assert!(
+                after_settled > before_settled,
+                "finalize must settle canonical quota"
+            );
+        }
+        (
+            AssetAuthorizedEffectSite::AttemptInspectLazyExpiry
+            | AssetAuthorizedEffectSite::TusHeadLazyExpiry,
+            AssetDurableWitness::AttemptLifecycle {
+                state: before_state,
+                receipt_count: before_receipts,
+            },
+            AssetDurableWitness::AttemptLifecycle {
+                state: after_state,
+                receipt_count: after_receipts,
+            },
+        ) => {
+            assert_eq!(before_state, "open");
+            assert_eq!(after_state, "expired");
+            assert_eq!(*after_receipts, before_receipts + 1);
+        }
+        (
             AssetAuthorizedEffectSite::ExplicitDelete,
             AssetDurableWitness::Availability(before),
             AssetDurableWitness::Availability(after),
@@ -31679,8 +31970,57 @@ fn assert_asset_effect_committed(
             AssetDurableWitness::ReceiptCount(before),
             AssetDurableWitness::ReceiptCount(after),
         ) => assert_eq!(*after, before + 1),
+        (
+            AssetAuthorizedEffectSite::SignedUrlWidthMaterialization
+            | AssetAuthorizedEffectSite::StrictDeliveryWidthMaterialization,
+            AssetDurableWitness::Width {
+                publication_count: before_publications,
+                rendition_count: before_renditions,
+                settled_bytes: before_settled,
+            },
+            AssetDurableWitness::Width {
+                publication_count: after_publications,
+                rendition_count: after_renditions,
+                settled_bytes: after_settled,
+            },
+        ) => {
+            assert_eq!(*after_publications, before_publications + 1);
+            assert_eq!(*after_renditions, before_renditions + 1);
+            assert!(
+                after_settled > before_settled,
+                "width materialization must settle rendition quota"
+            );
+        }
         _ => panic!("mismatched asset durable witnesses: {site:?}, {before:?}, {after:?}"),
     }
+}
+
+async fn assert_asset_session_expired_response(
+    response: axum::response::Response,
+    site: AssetAuthorizedEffectSite,
+    authority_disposition: &str,
+) {
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    let bytes = to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("read asset race response");
+    if matches!(site, AssetAuthorizedEffectSite::TusHeadLazyExpiry) {
+        // HTTP HEAD suppresses the JSON diagnostic body. The unauthorized
+        // status is the on-wire projection of the same typed session-expired
+        // error asserted with its full carrier below on every body-bearing
+        // member of this shared race mechanism.
+        assert!(bytes.is_empty(), "TUS HEAD must not emit a response body");
+        return;
+    }
+    let response: Value = serde_json::from_slice(&bytes).expect("asset race diagnostic JSON");
+    assert_eq!(
+        response["diagnostic"]["code"],
+        "SNAPBACK_AUTH_SESSION_EXPIRED"
+    );
+    assert_eq!(
+        response["diagnostic"]["details"]["authorityDisposition"],
+        authority_disposition
+    );
 }
 
 async fn asset_logout_wins_before_reservation(site: AssetAuthorizedEffectSite) {
@@ -31723,16 +32063,7 @@ async fn asset_logout_wins_before_reservation(site: AssetAuthorizedEffectSite) {
         .await
         .expect("logged-out asset request does not hang")
         .expect("logged-out asset request task");
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-    let response = response_json(response).await;
-    assert_eq!(
-        response["diagnostic"]["code"],
-        "SNAPBACK_AUTH_SESSION_EXPIRED"
-    );
-    assert_eq!(
-        response["diagnostic"]["details"]["authorityDisposition"],
-        "durableDelete"
-    );
+    assert_asset_session_expired_response(response, site, "durableDelete").await;
     let after = asset_durable_witness(&fixture, site).await;
     assert_eq!(after, before, "retired caller committed {site:?}");
 }
@@ -31813,16 +32144,7 @@ async fn asset_reservation_wins_before_logout(site: AssetAuthorizedEffectSite) {
         .await
         .expect("reservation-winning asset request does not hang")
         .expect("reservation-winning asset request task");
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-    let response = response_json(response).await;
-    assert_eq!(
-        response["diagnostic"]["code"],
-        "SNAPBACK_AUTH_SESSION_EXPIRED"
-    );
-    assert_eq!(
-        response["diagnostic"]["details"]["authorityDisposition"],
-        "carrier"
-    );
+    assert_asset_session_expired_response(response, site, "carrier").await;
 
     tokio::time::timeout(Duration::from_secs(5), logout_pause.wait_until_reached())
         .await
@@ -31889,9 +32211,24 @@ asset_authorized_effect_race_tests!(
     AssetAuthorizedEffectSite::AttemptCancellation
 );
 asset_authorized_effect_race_tests!(
+    asset_attempt_inspect_lazy_expiry_logout_wins_before_reservation,
+    asset_attempt_inspect_lazy_expiry_reservation_wins_before_logout,
+    AssetAuthorizedEffectSite::AttemptInspectLazyExpiry
+);
+asset_authorized_effect_race_tests!(
+    asset_tus_head_lazy_expiry_logout_wins_before_reservation,
+    asset_tus_head_lazy_expiry_reservation_wins_before_logout,
+    AssetAuthorizedEffectSite::TusHeadLazyExpiry
+);
+asset_authorized_effect_race_tests!(
     asset_tus_patch_acknowledgement_logout_wins_before_reservation,
     asset_tus_patch_acknowledgement_reservation_wins_before_logout,
     AssetAuthorizedEffectSite::TusPatchAcknowledgement
+);
+asset_authorized_effect_race_tests!(
+    asset_finalize_logout_wins_before_reservation,
+    asset_finalize_reservation_wins_before_logout,
+    AssetAuthorizedEffectSite::Finalize
 );
 asset_authorized_effect_race_tests!(
     asset_explicit_delete_logout_wins_before_reservation,
@@ -31907,6 +32244,16 @@ asset_authorized_effect_race_tests!(
     asset_strict_delivery_receipt_logout_wins_before_reservation,
     asset_strict_delivery_receipt_reservation_wins_before_logout,
     AssetAuthorizedEffectSite::StrictDeliveryReceipt
+);
+asset_authorized_effect_race_tests!(
+    asset_signed_url_width_materialization_logout_wins_before_reservation,
+    asset_signed_url_width_materialization_reservation_wins_before_logout,
+    AssetAuthorizedEffectSite::SignedUrlWidthMaterialization
+);
+asset_authorized_effect_race_tests!(
+    asset_strict_delivery_width_materialization_logout_wins_before_reservation,
+    asset_strict_delivery_width_materialization_reservation_wins_before_logout,
+    AssetAuthorizedEffectSite::StrictDeliveryWidthMaterialization
 );
 
 /// Regression for `issues/20260821-effect-guard-does-not-fence-logout.md`

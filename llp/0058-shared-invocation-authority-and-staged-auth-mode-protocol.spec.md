@@ -5,6 +5,11 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
+**Revised:** 2026-08-22 (asset closure extends the split-phase fence to
+attempt-inspect and TUS HEAD lazy expiry, caller-backed finalize SQLite
+phases, and signed/strict on-demand-width publication commits. Finalize and
+width preparation, blob PUTs, and physical cleanup remain outside permits;
+the external PUT authority handoff remains governed separately.)
 **Revised:** 2026-08-21 (cold-startup mismatch remediation now distinguishes
 data-preserving live evolution from destructive whole-store dev reset. The
 fresh route uses `snapback reset --dev-fresh` and explicitly rejects the
@@ -1378,8 +1383,16 @@ evidence: `issues/20260821-authorized-effect-remedy-classification.md`.
 
 **Split-phase (caller-backed).** The ordinary HTTP mutation seam, and the asset
 sites: upload-attempt creation; cancellation and TUS termination; TUS preflight
-lazy expiry and the acknowledgement offset CAS; explicit-delete tombstone;
-signed-URL issuance receipt; strict-delivery receipt.
+lazy expiry and the acknowledgement offset CAS; TUS HEAD and attempt-inspect
+lazy expiry; finalize lazy expiry, refusal, publication-plan, staged,
+blob/rendition/quota, and post-cleanup receipt commits; explicit-delete
+tombstone; signed-URL issuance receipt; strict-delivery receipt; and
+signed/strict on-demand-width plan, staged, and blob/rendition/quota commits.
+Finalize byte/media preparation and width source-read/render work own no
+permit. Their blob PUTs and physical cleanup likewise run outside permits;
+where a publication plan wins before caller retirement but its later external
+PUT runs after retirement, the remaining authority-to-effect question belongs
+to the durable handoff design rather than to this commit fence.
 
 **Mode guard only (no session publication exists to reserve).** Initial one-off
 job claim; seven watch-job families (evaluation begin, dead-state transition,

@@ -1312,6 +1312,16 @@ impl LocalDatabase {
         })
     }
 
+    fn test_asset_publication_count(&mut self) -> SnapbackResult<u64> {
+        self.asset_reads_transaction(|tx| {
+            Ok(tx.query_row(
+                "SELECT COUNT(*) FROM _snapback_asset_publications_v1",
+                [],
+                |row| row.get(0),
+            )?)
+        })
+    }
+
     fn test_asset_published_records(
         &mut self,
         rendition_id: &str,
@@ -2127,6 +2137,10 @@ impl<'a> AssetReadsKernel<'a> {
 
     pub fn receipt_events(&mut self, asset_id: &str) -> SnapbackResult<Vec<String>> {
         self.db.test_asset_receipt_events(asset_id)
+    }
+
+    pub fn publication_count(&mut self) -> SnapbackResult<u64> {
+        self.db.test_asset_publication_count()
     }
 
     pub fn published_records(

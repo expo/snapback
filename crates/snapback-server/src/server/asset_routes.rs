@@ -151,9 +151,18 @@ pub(super) async fn asset_attempt_inspect_route(
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
     Path(id): Path<String>,
+    headers: HeaderMap,
 ) -> Result<Json<crate::assets::AssetTaskStateV1>, ApiError> {
+    let authorized_effect = reserve_asset_authorized_effect(
+        &authority,
+        &headers,
+        "asset attempt inspection lazy-expiry reservation",
+        true,
+        true,
+    )
+    .await?;
     let task = with_snapback(&state, move |snapback| {
-        snapback.asset_attempt_inspect(&authority, &id)
+        snapback.asset_attempt_inspect_with_authorized_effect(&authority, &id, authorized_effect)
     })
     .await?;
     Ok(Json(task))
@@ -205,6 +214,7 @@ pub(super) async fn asset_attempt_finalize_route(
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
     Path(id): Path<String>,
+    headers: HeaderMap,
     input: Result<Json<crate::assets::AssetFinalizeRequestV1>, JsonRejection>,
 ) -> Result<Json<crate::assets::AssetFinalizeResponseV1>, ApiError> {
     let Json(request) = input.map_err(ApiError::from_json_rejection)?;
@@ -215,9 +225,21 @@ pub(super) async fn asset_attempt_finalize_route(
             "the finalize body names a different attempt than the route",
         )));
     }
+    let preflight_effect = reserve_asset_authorized_effect(
+        &authority,
+        &headers,
+        "asset finalize preflight reservation",
+        false,
+        false,
+    )
+    .await?;
     let preflight_authority = authority.clone();
     let preflight = with_snapback(&state, move |snapback| {
-        snapback.asset_attempt_finalize_preflight(&preflight_authority, request)
+        snapback.asset_attempt_finalize_preflight_with_authorized_effect(
+            &preflight_authority,
+            request,
+            preflight_effect,
+        )
     })
     .await?;
     let ticket = match preflight {
@@ -233,9 +255,22 @@ pub(super) async fn asset_attempt_finalize_route(
     .await
     .expect("asset finalization preparation task panicked");
     let preparation = preparation?;
+    let phase_a_effect = reserve_asset_authorized_effect(
+        &authority,
+        &headers,
+        "asset finalize publication-plan reservation",
+        true,
+        false,
+    )
+    .await?;
     let phase_a_authority = authority.clone();
     let phase_a = with_snapback(&state, move |snapback| {
-        snapback.asset_attempt_finalize_plan(&phase_a_authority, ticket, preparation)
+        snapback.asset_attempt_finalize_plan_with_authorized_effect(
+            &phase_a_authority,
+            ticket,
+            preparation,
+            phase_a_effect,
+        )
     })
     .await?;
     let put_ticket = match phase_a {
@@ -246,9 +281,46 @@ pub(super) async fn asset_attempt_finalize_route(
     };
     let commit_ticket = tokio::task::spawn_blocking(move || put_ticket.put())
         .await
-        .expect("asset canonical object put task panicked")?;
+        .expect("asset publication object put task panicked")?;
+    let complete_effect = reserve_asset_authorized_effect(
+        &authority,
+        &headers,
+        "asset finalize publication/quota reservation",
+        false,
+        true,
+    )
+    .await?;
+    let complete_authority = authority.clone();
+    let outcome = with_snapback(&state, move |snapback| {
+        snapback.asset_attempt_finalize_complete_with_authorized_effect(
+            &complete_authority,
+            commit_ticket,
+            complete_effect,
+        )
+    })
+    .await?;
+    let cleanup_ticket = match outcome {
+        crate::assets::FinalizePhaseCDOutcomeV1::AlreadyComplete(response) => {
+            return Ok(Json(response));
+        }
+        crate::assets::FinalizePhaseCDOutcomeV1::Cleanup(ticket) => ticket,
+    };
+    let cleanup_commit = tokio::task::spawn_blocking(move || cleanup_ticket.cleanup())
+        .await
+        .expect("asset finalize cleanup task panicked")?;
+    let cleanup_effect = reserve_asset_authorized_effect(
+        &authority,
+        &headers,
+        "asset finalize staging-cleaned receipt reservation",
+        false,
+        false,
+    )
+    .await?;
     let response = with_snapback(&state, move |snapback| {
-        snapback.asset_attempt_finalize_complete(&authority, commit_ticket)
+        snapback.asset_attempt_finalize_cleanup_commit_with_authorized_effect(
+            cleanup_commit,
+            cleanup_effect,
+        )
     })
     .await?;
     Ok(Json(response))
@@ -261,8 +333,16 @@ pub(super) async fn asset_tus_head_route(
     headers: HeaderMap,
 ) -> Result<Response, ApiError> {
     require_tus_version(&headers)?;
+    let authorized_effect = reserve_asset_authorized_effect(
+        &authority,
+        &headers,
+        "asset TUS HEAD lazy-expiry reservation",
+        true,
+        true,
+    )
+    .await?;
     let attempt = with_snapback(&state, move |snapback| {
-        snapback.asset_tus_head(&authority, &id)
+        snapback.asset_tus_head_with_authorized_effect(&authority, &id, authorized_effect)
     })
     .await?;
     let mut response = StatusCode::OK.into_response();
@@ -453,16 +533,63 @@ pub(super) async fn asset_deliver_route(
         .get("width")
         .and_then(|value| value.parse::<u64>().ok());
     let variant = if let Some(requested_width) = width {
+        // Reserve before any width prework so an already-terminal caller does
+        // not trigger source reads or rendering. This permit is consumed by
+        // read-only authorization/preflight and drops before store I/O.
+        let prework_effect = reserve_asset_authorized_effect(
+            &authority,
+            &headers,
+            "asset strict-delivery width prework reservation",
+            false,
+            false,
+        )
+        .await?;
         let width_authority = authority.clone();
         let width_asset_id = id.clone();
-        with_snapback(&state, move |snapback| {
-            snapback.asset_strict_delivery_prepare_width(
+        let preflight = with_snapback(&state, move |snapback| {
+            snapback.asset_strict_delivery_width_preflight_with_authorized_effect(
                 &width_authority,
                 &width_asset_id,
                 requested_width,
+                prework_effect,
             )
         })
-        .await?
+        .await?;
+        match preflight {
+            crate::assets::AssetWidthPreflightV1::AlreadyReady(variant) => variant,
+            crate::assets::AssetWidthPreflightV1::Proceed(ticket) => {
+                let plan_ticket = tokio::task::spawn_blocking(move || ticket.prepare())
+                    .await
+                    .expect("asset strict width preparation task panicked")?;
+                let plan_effect = reserve_asset_authorized_effect(
+                    &authority,
+                    &headers,
+                    "asset strict-delivery width plan reservation",
+                    true,
+                    false,
+                )
+                .await?;
+                let put_ticket = with_snapback(&state, move |snapback| {
+                    snapback.asset_width_plan_with_authorized_effect(plan_ticket, plan_effect)
+                })
+                .await?;
+                let commit_ticket = tokio::task::spawn_blocking(move || put_ticket.put())
+                    .await
+                    .expect("asset strict width blob PUT task panicked")?;
+                let commit_effect = reserve_asset_authorized_effect(
+                    &authority,
+                    &headers,
+                    "asset strict-delivery width commit reservation",
+                    false,
+                    true,
+                )
+                .await?;
+                with_snapback(&state, move |snapback| {
+                    snapback.asset_width_commit_with_authorized_effect(commit_ticket, commit_effect)
+                })
+                .await?
+            }
+        }
     } else {
         variant
     };
@@ -470,8 +597,8 @@ pub(super) async fn asset_deliver_route(
         &authority,
         &headers,
         "asset strict-delivery receipt reservation",
-        true,
-        true,
+        width.is_none(),
+        width.is_none(),
     )
     .await?;
     let outcome = with_snapback(&state, move |snapback| {
@@ -607,20 +734,62 @@ pub(super) async fn asset_signed_url_issue_route(
 ) -> Result<Json<crate::assets::AssetSignedUrlIssueResponseV1>, ApiError> {
     let request = parse_asset_signed_url_issue_request(body)?;
     let resolved_width_variant = if let Some(requested_width) = request.width_px {
+        let prework_effect = reserve_asset_authorized_effect(
+            &authority,
+            &headers,
+            "asset signed-URL width prework reservation",
+            false,
+            false,
+        )
+        .await?;
         let width_authority = authority.clone();
         let width_asset_id = id.clone();
         let ttl_ms = request.ttl_ms;
-        Some(
-            with_snapback(&state, move |snapback| {
-                snapback.asset_signed_url_prepare_width(
-                    &width_authority,
-                    &width_asset_id,
-                    requested_width,
-                    ttl_ms,
+        let preflight = with_snapback(&state, move |snapback| {
+            snapback.asset_signed_url_width_preflight_with_authorized_effect(
+                &width_authority,
+                &width_asset_id,
+                requested_width,
+                ttl_ms,
+                prework_effect,
+            )
+        })
+        .await?;
+        Some(match preflight {
+            crate::assets::AssetWidthPreflightV1::AlreadyReady(variant) => variant,
+            crate::assets::AssetWidthPreflightV1::Proceed(ticket) => {
+                let plan_ticket = tokio::task::spawn_blocking(move || ticket.prepare())
+                    .await
+                    .expect("asset signed-URL width preparation task panicked")?;
+                let plan_effect = reserve_asset_authorized_effect(
+                    &authority,
+                    &headers,
+                    "asset signed-URL width plan reservation",
+                    true,
+                    false,
                 )
-            })
-            .await?,
-        )
+                .await?;
+                let put_ticket = with_snapback(&state, move |snapback| {
+                    snapback.asset_width_plan_with_authorized_effect(plan_ticket, plan_effect)
+                })
+                .await?;
+                let commit_ticket = tokio::task::spawn_blocking(move || put_ticket.put())
+                    .await
+                    .expect("asset signed-URL width blob PUT task panicked")?;
+                let commit_effect = reserve_asset_authorized_effect(
+                    &authority,
+                    &headers,
+                    "asset signed-URL width commit reservation",
+                    false,
+                    true,
+                )
+                .await?;
+                with_snapback(&state, move |snapback| {
+                    snapback.asset_width_commit_with_authorized_effect(commit_ticket, commit_effect)
+                })
+                .await?
+            }
+        })
     } else {
         None
     };
@@ -628,8 +797,8 @@ pub(super) async fn asset_signed_url_issue_route(
         &authority,
         &headers,
         "asset signed-URL issuance reservation",
-        true,
-        true,
+        request.width_px.is_none(),
+        request.width_px.is_none(),
     )
     .await?;
     let response = with_snapback(&state, move |snapback| {

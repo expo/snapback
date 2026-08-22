@@ -91,6 +91,25 @@ pub fn asset_store_obj(
     snapback.asset_store_obj()
 }
 
+pub fn asset_set_attempt_expiry(
+    snapback: &mut LocalSnapback,
+    attempt_id: &str,
+    expires_at_ms: u64,
+) -> SnapbackResult<()> {
+    snapback.asset_set_attempt_expiry_for_test(attempt_id, expires_at_ms)
+}
+
+pub fn asset_publication_count(snapback: &mut LocalSnapback) -> SnapbackResult<u64> {
+    snapback.asset_publication_count_for_test()
+}
+
+pub fn asset_attempt_state(
+    snapback: &mut LocalSnapback,
+    attempt_id: &str,
+) -> SnapbackResult<crate::assets::AssetAttemptState> {
+    snapback.asset_attempt_state_for_test(attempt_id)
+}
+
 pub fn prepare_subscribe_live_for_transport(
     snapback: &mut LocalSnapback,
     name: String,

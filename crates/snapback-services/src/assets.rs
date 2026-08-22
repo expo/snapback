@@ -505,6 +505,168 @@ pub struct AssetTusPatchTicketV1 {
     store: std::sync::Arc<dyn crate::assets_store::AssetStore>,
 }
 
+/// Read-only authorization/preflight either resolves an existing ladder
+/// rendition or hands the database-free source read/render to the caller.
+pub enum AssetWidthPreflightV1 {
+    AlreadyReady(String),
+    Proceed(AssetWidthPrepareTicketV1),
+}
+
+/// Owned facts needed to read and render one bounded on-demand width without
+/// retaining `LocalSnapback`, SQLite, or caller authority.
+pub struct AssetWidthPrepareTicketV1 {
+    asset_id: String,
+    key: String,
+    width: u64,
+    primary_key: String,
+    content_type: String,
+    store: std::sync::Arc<dyn crate::assets_store::AssetStore>,
+    app_id: String,
+    app_quota: u64,
+}
+
+/// Rendered bytes awaiting their caller-fenced durable publication plan.
+pub struct AssetWidthPlanTicketV1 {
+    ticket: AssetWidthPrepareTicketV1,
+    prepared: AssetVariantPreparation,
+}
+
+/// A committed publication plan names the external blob PUT. This ticket
+/// carries no caller permit; the separate durable authority-handoff design
+/// governs retirement that races the idempotent PUT.
+pub struct AssetWidthPutTicketV1 {
+    plan: AssetWidthPlanTicketV1,
+    publication: AssetPublicationRecordV1,
+}
+
+/// Verified blob bytes awaiting the caller-fenced staged and
+/// rendition/blob/quota commits.
+pub struct AssetWidthCommitTicketV1 {
+    asset_id: String,
+    key: String,
+    app_id: String,
+    app_quota: u64,
+    prepared: snapback_kernel::storage::AssetPreparedVariant,
+}
+
+impl AssetWidthPrepareTicketV1 {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        asset_id: String,
+        key: String,
+        width: u64,
+        primary_key: String,
+        content_type: String,
+        store: std::sync::Arc<dyn crate::assets_store::AssetStore>,
+        app_id: String,
+        app_quota: u64,
+    ) -> Self {
+        Self {
+            asset_id,
+            key,
+            width,
+            primary_key,
+            content_type,
+            store,
+            app_id,
+            app_quota,
+        }
+    }
+
+    /// The source read and media render may involve remote storage and CPU;
+    /// both run after the route has dropped its prework authority permit.
+    pub fn prepare(self) -> SnapbackResult<AssetWidthPlanTicketV1> {
+        let canonical_bytes = self
+            .store
+            .read(crate::assets_store::AssetObjectRef::Blob(&self.primary_key))?;
+        let variant = crate::manifest::AssetImageVariant {
+            key: self.key.clone(),
+            width: self.width,
+            required: false,
+        };
+        let prepared = prepare_asset_variant(&canonical_bytes, &self.content_type, &variant, 1)?;
+        Ok(AssetWidthPlanTicketV1 {
+            ticket: self,
+            prepared,
+        })
+    }
+}
+
+impl AssetWidthPlanTicketV1 {
+    pub fn app_id(&self) -> &str {
+        &self.ticket.app_id
+    }
+
+    pub fn digest(&self) -> &str {
+        &self.prepared.digest
+    }
+
+    pub fn into_put(self, publication: AssetPublicationRecordV1) -> AssetWidthPutTicketV1 {
+        AssetWidthPutTicketV1 {
+            plan: self,
+            publication,
+        }
+    }
+}
+
+impl AssetWidthPutTicketV1 {
+    /// Perform and verify the irreversible external cut without a caller
+    /// permit or database owner. The committed plan is its durable handoff.
+    pub fn put(self) -> SnapbackResult<AssetWidthCommitTicketV1> {
+        let store = &self.plan.ticket.store;
+        store.put_blob_idempotent(&self.publication.planned_key, &self.plan.prepared.rendered)?;
+        let copied = store.hash(crate::assets_store::AssetObjectRef::Blob(
+            &self.publication.planned_key,
+        ))?;
+        if copied.digest != self.plan.prepared.digest
+            || copied.byte_length != self.plan.prepared.byte_length
+        {
+            let _ = store.delete_blob(&self.publication.planned_key);
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                "assets",
+                "the published variant object did not verify",
+            ));
+        }
+        let AssetWidthPlanTicketV1 { ticket, prepared } = self.plan;
+        Ok(AssetWidthCommitTicketV1 {
+            asset_id: ticket.asset_id,
+            key: ticket.key,
+            app_id: ticket.app_id,
+            app_quota: ticket.app_quota,
+            prepared: snapback_kernel::storage::AssetPreparedVariant {
+                key: prepared.key,
+                width: prepared.width,
+                publication: self.publication,
+                digest: prepared.digest,
+                byte_length: prepared.byte_length,
+                content_type: prepared.content_type,
+                recipe_version: prepared.recipe_version,
+            },
+        })
+    }
+}
+
+impl AssetWidthCommitTicketV1 {
+    pub fn into_parts(
+        self,
+    ) -> (
+        String,
+        String,
+        String,
+        u64,
+        snapback_kernel::storage::AssetPreparedVariant,
+    ) {
+        (
+            self.asset_id,
+            self.key,
+            self.app_id,
+            self.app_quota,
+            self.prepared,
+        )
+    }
+}
+
 impl AssetTusPatchTicketV1 {
     /// Construct a continuity ticket only from the kernel's proof of the exact
     /// current attempt snapshot.
@@ -591,6 +753,13 @@ pub enum FinalizePhaseAOutcomeV1 {
     Proceed(Box<FinalizePutTicketV1>),
 }
 
+/// Phase C/D either observes a concurrent idempotent completion or hands
+/// physical cleanup to the caller after the fenced publication commits.
+pub enum FinalizePhaseCDOutcomeV1 {
+    AlreadyComplete(AssetFinalizeResponseV1),
+    Cleanup(FinalizeCleanupTicketV1),
+}
+
 /// Type-state handoff from lock-held Phase A to lock-free Phase B. It owns the
 /// immutable prepare result, exact publication key, and clone-shared store;
 /// it carries no `LocalSnapback` or database borrow.
@@ -598,6 +767,7 @@ pub struct FinalizePutTicketV1 {
     ticket: FinalizePrepareTicketV1,
     prepared: AssetFinalizePreparation,
     publication: AssetPublicationRecordV1,
+    required_publications: Vec<AssetPublicationRecordV1>,
     grade: AssetIntegrityGrade,
 }
 
@@ -605,6 +775,22 @@ pub struct FinalizePutTicketV1 {
 /// Only this ticket is accepted by lock-held Phase C/D.
 pub struct FinalizeCommitTicketV1 {
     put: FinalizePutTicketV1,
+    prepared_required: Vec<snapback_kernel::storage::AssetPreparedVariant>,
+}
+
+/// Post-publication physical cleanup runs without caller permits or Local.
+/// Its resulting receipt is committed only after the route reserves again.
+pub struct FinalizeCleanupTicketV1 {
+    response: AssetFinalizeResponseV1,
+    store: std::sync::Arc<dyn crate::assets_store::AssetStore>,
+    staging_key: String,
+    reused_blob_key: Option<String>,
+}
+
+pub struct FinalizeCleanupCommitTicketV1 {
+    response: AssetFinalizeResponseV1,
+    attempt_id: String,
+    asset_id: String,
 }
 
 impl FinalizePutTicketV1 {
@@ -612,6 +798,7 @@ impl FinalizePutTicketV1 {
         proof: crate::asset_proof::AssetPublicationPlannedProof,
         ticket: FinalizePrepareTicketV1,
         prepared: AssetFinalizePreparation,
+        required_publications: Vec<AssetPublicationRecordV1>,
         grade: AssetIntegrityGrade,
     ) -> SnapbackResult<Self> {
         let publication = proof.into_publication();
@@ -619,6 +806,7 @@ impl FinalizePutTicketV1 {
             ticket,
             prepared,
             publication,
+            required_publications,
             grade,
         })
     }
@@ -627,6 +815,13 @@ impl FinalizePutTicketV1 {
     /// deliberately database-free so transports can run remote/object-store
     /// latency without retaining the global Local writer.
     pub fn put(self) -> SnapbackResult<FinalizeCommitTicketV1> {
+        if self.prepared.required_variants.len() != self.required_publications.len() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_RECORD_INVALID",
+                "assets",
+                "the required rendition publication plans do not match the prepared variants",
+            ));
+        }
         let planned_key = &self.publication.planned_key;
         self.ticket
             .store
@@ -645,7 +840,44 @@ impl FinalizePutTicketV1 {
                 "the published object did not verify against the canonical digest",
             ));
         }
-        Ok(FinalizeCommitTicketV1 { put: self })
+        let mut prepared_required = Vec::with_capacity(self.required_publications.len());
+        for (prepared, publication) in self
+            .prepared
+            .required_variants
+            .iter()
+            .zip(&self.required_publications)
+        {
+            self.ticket
+                .store
+                .put_blob_idempotent(&publication.planned_key, &prepared.rendered)?;
+            let copied = self
+                .ticket
+                .store
+                .hash(crate::assets_store::AssetObjectRef::Blob(
+                    &publication.planned_key,
+                ))?;
+            if copied.digest != prepared.digest || copied.byte_length != prepared.byte_length {
+                let _ = self.ticket.store.delete_blob(&publication.planned_key);
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                    "assets",
+                    "the published required variant object did not verify",
+                ));
+            }
+            prepared_required.push(snapback_kernel::storage::AssetPreparedVariant {
+                key: prepared.key.clone(),
+                width: prepared.width,
+                publication: publication.clone(),
+                digest: prepared.digest.clone(),
+                byte_length: prepared.byte_length,
+                content_type: prepared.content_type.clone(),
+                recipe_version: prepared.recipe_version,
+            });
+        }
+        Ok(FinalizeCommitTicketV1 {
+            put: self,
+            prepared_required,
+        })
     }
 }
 
@@ -794,8 +1026,53 @@ impl FinalizePutTicketV1 {
 }
 
 impl FinalizeCommitTicketV1 {
-    pub fn into_put(self) -> FinalizePutTicketV1 {
-        self.put
+    pub fn into_parts(
+        self,
+    ) -> (
+        FinalizePutTicketV1,
+        Vec<snapback_kernel::storage::AssetPreparedVariant>,
+    ) {
+        (self.put, self.prepared_required)
+    }
+}
+
+impl FinalizeCleanupTicketV1 {
+    pub fn new(
+        response: AssetFinalizeResponseV1,
+        store: std::sync::Arc<dyn crate::assets_store::AssetStore>,
+        staging_key: String,
+        reused_blob_key: Option<String>,
+    ) -> Self {
+        Self {
+            response,
+            store,
+            staging_key,
+            reused_blob_key,
+        }
+    }
+
+    pub fn cleanup(self) -> SnapbackResult<FinalizeCleanupCommitTicketV1> {
+        self.store.delete_staging_pair(&self.staging_key)?;
+        if let Some(blob_key) = &self.reused_blob_key {
+            self.store.delete_blob(blob_key).map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                    "assets",
+                    format!("cannot remove condemned object: {error}"),
+                )
+            })?;
+        }
+        Ok(FinalizeCleanupCommitTicketV1 {
+            attempt_id: self.response.task.attempt_id.clone(),
+            asset_id: self.response.task.asset_id.clone(),
+            response: self.response,
+        })
+    }
+}
+
+impl FinalizeCleanupCommitTicketV1 {
+    pub fn into_parts(self) -> (AssetFinalizeResponseV1, String, String) {
+        (self.response, self.attempt_id, self.asset_id)
     }
 }
 

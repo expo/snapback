@@ -3539,7 +3539,9 @@ pub struct LocalSnapback {
 }
 
 pub(crate) use crate::assets::{
-    AssetTusPatchTicketV1, FinalizeCommitTicketV1, FinalizePhaseAOutcomeV1, FinalizePreflightV1,
+    AssetTusPatchTicketV1, AssetWidthCommitTicketV1, AssetWidthPlanTicketV1, AssetWidthPreflightV1,
+    AssetWidthPrepareTicketV1, FinalizeCleanupCommitTicketV1, FinalizeCleanupTicketV1,
+    FinalizeCommitTicketV1, FinalizePhaseAOutcomeV1, FinalizePhaseCDOutcomeV1, FinalizePreflightV1,
     FinalizePreparationV1, FinalizePrepareTicketV1, FinalizePutTicketV1,
 };
 
@@ -11947,12 +11949,60 @@ impl LocalSnapback {
         )
     }
 
+    #[cfg(any(test, feature = "test-support"))]
+    pub(crate) fn asset_set_attempt_expiry_for_test(
+        &mut self,
+        attempt_id: &str,
+        expires_at_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.db
+            .asset_reads()
+            .set_attempt_expiry(attempt_id, expires_at_ms)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub(crate) fn asset_publication_count_for_test(&mut self) -> SnapbackResult<u64> {
+        self.db.asset_reads().publication_count()
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub(crate) fn asset_attempt_state_for_test(
+        &mut self,
+        attempt_id: &str,
+    ) -> SnapbackResult<crate::assets::AssetAttemptState> {
+        Ok(self.db.asset_reads().load_attempt(attempt_id)?.state)
+    }
+
     pub fn asset_attempt_inspect(
         &mut self,
         authority: &PreparedAuthority,
         attempt_id: &str,
     ) -> SnapbackResult<crate::assets::AssetTaskStateV1> {
         let attempt = self.asset_attempt_for_caller(authority, attempt_id)?;
+        let asset = self.db.asset_reads().load_asset(&attempt.asset_id)?;
+        Ok(asset_task_state(&attempt, asset.as_ref()))
+    }
+
+    /// Ordinary caller-facing attempt inspection. The only possible write is
+    /// lazy expiry; retain the caller reservation through exactly that commit
+    /// and release it before any lifecycle-owned staging cleanup.
+    ///
+    /// @ref LLP 0058#split-phase-authorized-effect-fence — apparently read-only
+    /// asset routes still reserve when their lazy lifecycle transition writes.
+    pub fn asset_attempt_inspect_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        attempt_id: &str,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<crate::assets::AssetTaskStateV1> {
+        let (attempt, expired_staging) =
+            self.asset_attempt_for_caller_state_inner(authority, attempt_id, || {
+                authorized_effect.commit_guard("asset attempt inspection lazy-expiry transaction")
+            })?;
+        drop(authorized_effect);
+        if let Some(staging_key) = expired_staging {
+            self.asset_store_obj()?.delete_staging_pair(&staging_key)?;
+        }
         let asset = self.db.asset_reads().load_asset(&attempt.asset_id)?;
         Ok(asset_task_state(&attempt, asset.as_ref()))
     }
@@ -12923,6 +12973,31 @@ impl LocalSnapback {
         Ok(attempt)
     }
 
+    /// Ordinary TUS HEAD. Lazy expiry is a durable transition even though the
+    /// successful operation is a read, so the caller reservation reaches that
+    /// commit and drops before staging cleanup.
+    ///
+    /// @ref LLP 0058#split-phase-authorized-effect-fence — the same lazy-expiry
+    /// transaction is fenced on every caller-backed transfer route.
+    pub fn asset_tus_head_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        attempt_id: &str,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<crate::assets::AssetAttemptRecordV1> {
+        let (attempt, expired_staging) =
+            self.asset_attempt_for_caller_state_inner(authority, attempt_id, || {
+                authorized_effect.commit_guard("asset TUS HEAD lazy-expiry transaction")
+            })?;
+        let current = self.db.asset_attempts().attempt_require_current(&attempt);
+        drop(authorized_effect);
+        if let Some(staging_key) = expired_staging {
+            self.asset_store_obj()?.delete_staging_pair(&staging_key)?;
+        }
+        current?;
+        Ok(attempt)
+    }
+
     pub(crate) fn asset_tus_patch(
         &mut self,
         authority: &PreparedAuthority,
@@ -13231,9 +13306,37 @@ impl LocalSnapback {
         authority: &PreparedAuthority,
         request: crate::assets::AssetFinalizeRequestV1,
     ) -> SnapbackResult<FinalizePreflightV1> {
+        let attempt = self.asset_attempt_for_caller(authority, &request.attempt_id)?;
+        self.asset_attempt_finalize_preflight_from_attempt(request, attempt)
+    }
+
+    /// Caller-backed HTTP preflight. Its only possible durable effect is the
+    /// shared lazy-expiry transition; the permit drops before staging cleanup
+    /// and before the repeatable byte/media preparation begins.
+    pub fn asset_attempt_finalize_preflight_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        request: crate::assets::AssetFinalizeRequestV1,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<FinalizePreflightV1> {
+        let (attempt, expired_staging) =
+            self.asset_attempt_for_caller_state_inner(authority, &request.attempt_id, || {
+                authorized_effect.commit_guard("asset finalize preflight lazy-expiry transaction")
+            })?;
+        drop(authorized_effect);
+        if let Some(staging_key) = expired_staging {
+            self.asset_store_obj()?.delete_staging_pair(&staging_key)?;
+        }
+        self.asset_attempt_finalize_preflight_from_attempt(request, attempt)
+    }
+
+    fn asset_attempt_finalize_preflight_from_attempt(
+        &mut self,
+        request: crate::assets::AssetFinalizeRequestV1,
+        attempt: crate::assets::AssetAttemptRecordV1,
+    ) -> SnapbackResult<FinalizePreflightV1> {
         use crate::assets;
 
-        let attempt = self.asset_attempt_for_caller(authority, &request.attempt_id)?;
         if attempt.lifecycle_generation != request.lifecycle_generation {
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_GENERATION_STALE",
@@ -13379,7 +13482,26 @@ impl LocalSnapback {
         ticket: FinalizePrepareTicketV1,
         preparation: FinalizePreparationV1,
     ) -> SnapbackResult<FinalizePhaseAOutcomeV1> {
-        self.asset_attempt_finalize_plan_inner(authority, ticket, preparation, None)
+        self.asset_attempt_finalize_plan_inner(authority, ticket, preparation, None, None)
+    }
+
+    /// HTTP Phase A: fence lazy expiry, deterministic refusal, the primary
+    /// plan, and every required-rendition plan with one reservation. The
+    /// owned permit drops before the returned ticket performs blob PUTs.
+    pub fn asset_attempt_finalize_plan_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        ticket: FinalizePrepareTicketV1,
+        preparation: FinalizePreparationV1,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<FinalizePhaseAOutcomeV1> {
+        self.asset_attempt_finalize_plan_inner(
+            authority,
+            ticket,
+            preparation,
+            None,
+            Some(authorized_effect),
+        )
     }
 
     /// Lock-held Phase C/D. The attempt is reloaded before `staged` so a
@@ -13391,6 +13513,42 @@ impl LocalSnapback {
     ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
         let response = self.asset_attempt_finalize_complete_inner(authority, ticket, None)?;
         self.notify_asset_record_change(std::slice::from_ref(&response.task.asset_id));
+        Ok(response)
+    }
+
+    /// HTTP Phase C/D. Every SQLite transition is guarded, while all primary
+    /// and required-rendition blob PUTs have already completed without a
+    /// permit. Successful publication hands physical cleanup back to the
+    /// route instead of retaining authority across store I/O.
+    pub fn asset_attempt_finalize_complete_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        ticket: FinalizeCommitTicketV1,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<FinalizePhaseCDOutcomeV1> {
+        self.asset_attempt_finalize_complete_state_inner(
+            authority,
+            ticket,
+            None,
+            Some(authorized_effect),
+        )
+    }
+
+    /// Final post-cleanup receipt. The route reacquires authority after
+    /// physical cleanup, so neither the cleanup nor its store latency is part
+    /// of logout's permit drain.
+    pub fn asset_attempt_finalize_cleanup_commit_with_authorized_effect(
+        &mut self,
+        ticket: FinalizeCleanupCommitTicketV1,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
+        let (response, attempt_id, asset_id) = ticket.into_parts();
+        self.db
+            .asset_attempts()
+            .attempt_finalize_commit_staging_cleaned_guarded(&attempt_id, &asset_id, || {
+                authorized_effect.commit_guard("asset finalize staging-cleaned receipt transaction")
+            })?;
+        drop(authorized_effect);
         Ok(response)
     }
 
@@ -13488,7 +13646,13 @@ impl LocalSnapback {
         preparation: FinalizePreparationV1,
         crash_after: Option<AssetFinalizeCrashPoint>,
     ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
-        match self.asset_attempt_finalize_plan_inner(authority, ticket, preparation, crash_after)? {
+        match self.asset_attempt_finalize_plan_inner(
+            authority,
+            ticket,
+            preparation,
+            crash_after,
+            None,
+        )? {
             FinalizePhaseAOutcomeV1::AlreadyComplete(response) => Ok(response),
             FinalizePhaseAOutcomeV1::Proceed(ticket) => {
                 let ticket = Self::asset_attempt_finalize_put_inner(*ticket, crash_after)?;
@@ -13503,6 +13667,7 @@ impl LocalSnapback {
         ticket: FinalizePrepareTicketV1,
         preparation: FinalizePreparationV1,
         crash_after: Option<AssetFinalizeCrashPoint>,
+        authorized_effect: Option<AuthorizedEffectReservation>,
     ) -> SnapbackResult<FinalizePhaseAOutcomeV1> {
         use crate::assets;
 
@@ -13524,7 +13689,18 @@ impl LocalSnapback {
         // Reload through the same caller/lifecycle gates as today's retry
         // path: complete is idempotent; every other terminal state keeps its
         // existing structured refusal from the closed transition table.
-        let attempt = self.asset_attempt_for_caller(authority, &ticket.attempt().attempt_id)?;
+        let (attempt, expired_staging) = match authorized_effect.as_ref() {
+            Some(effect) => self.asset_attempt_for_caller_state_inner(
+                authority,
+                &ticket.attempt().attempt_id,
+                || effect.commit_guard("asset finalize Phase-A lazy-expiry transaction"),
+            )?,
+            None => self.asset_attempt_for_caller_state_inner(
+                authority,
+                &ticket.attempt().attempt_id,
+                || Ok(()),
+            )?,
+        };
         if attempt.lifecycle_generation != ticket.request().lifecycle_generation {
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_GENERATION_STALE",
@@ -13543,12 +13719,26 @@ impl LocalSnapback {
                 },
             ));
         }
-        self.db.asset_attempts().attempt_require_current(&attempt)?;
+        if let Err(error) = self.db.asset_attempts().attempt_require_current(&attempt) {
+            drop(authorized_effect);
+            if let Some(staging_key) = expired_staging {
+                self.asset_store_obj()?.delete_staging_pair(&staging_key)?;
+            }
+            return Err(error);
+        }
 
         let prepared = match preparation {
             FinalizePreparationV1::Prepared(prepared) => prepared,
             FinalizePreparationV1::Refused(failure) => {
-                return self.asset_fail_attempt(&attempt, failure.asset_outcome, failure.refusal);
+                let staging_key = self.asset_fail_attempt_state(
+                    &attempt,
+                    failure.asset_outcome,
+                    &failure.refusal,
+                    authorized_effect.as_ref(),
+                )?;
+                drop(authorized_effect);
+                self.asset_store_obj()?.delete_staging_pair(&staging_key)?;
+                return Err(failure.refusal);
             }
         };
         // The integrity grade is honest: end-to-end verified only when every
@@ -13568,10 +13758,45 @@ impl LocalSnapback {
         let now = now_millis();
         let attempt_id = attempt.attempt_id.clone();
         let digest = prepared.canonical.digest.clone();
-        let publication_proof = self
-            .db
-            .asset_attempts()
-            .attempt_finalize_commit_plan_proved(ticket.app_id(), &attempt_id, &digest, now)?;
+        let publication_proof = match authorized_effect.as_ref() {
+            Some(effect) => self
+                .db
+                .asset_attempts()
+                .attempt_finalize_commit_plan_proved_guarded(
+                    ticket.app_id(),
+                    &attempt_id,
+                    &digest,
+                    now,
+                    || effect.commit_guard("asset finalize publication-plan transaction"),
+                )?,
+            None => self
+                .db
+                .asset_attempts()
+                .attempt_finalize_commit_plan_proved(ticket.app_id(), &attempt_id, &digest, now)?,
+        };
+        let mut required_publications = Vec::with_capacity(prepared.required_variants.len());
+        for required in &prepared.required_variants {
+            let publication = match authorized_effect.as_ref() {
+                Some(effect) => self
+                    .db
+                    .asset_attempts()
+                    .stage_prepared_variant_plan_guarded(
+                        ticket.app_id(),
+                        &required.digest,
+                        now,
+                        || {
+                            effect
+                                .commit_guard("asset finalize required-rendition plan transaction")
+                        },
+                    )?,
+                None => self.db.asset_attempts().stage_prepared_variant_plan(
+                    ticket.app_id(),
+                    &required.digest,
+                    now,
+                )?,
+            };
+            required_publications.push(publication);
+        }
         if crash_after == Some(AssetFinalizeCrashPoint::AfterPlanned) {
             return Err(asset_test_crash());
         }
@@ -13581,6 +13806,7 @@ impl LocalSnapback {
                 publication_proof,
                 ticket,
                 prepared,
+                required_publications,
                 grade,
             )?,
         )))
@@ -13605,9 +13831,34 @@ impl LocalSnapback {
         ticket: FinalizeCommitTicketV1,
         crash_after: Option<AssetFinalizeCrashPoint>,
     ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
+        match self.asset_attempt_finalize_complete_state_inner(
+            authority,
+            ticket,
+            crash_after,
+            None,
+        )? {
+            FinalizePhaseCDOutcomeV1::AlreadyComplete(response) => Ok(response),
+            FinalizePhaseCDOutcomeV1::Cleanup(ticket) => {
+                let (response, attempt_id, asset_id) = ticket.cleanup()?.into_parts();
+                self.db
+                    .asset_attempts()
+                    .attempt_finalize_commit_staging_cleaned(&attempt_id, &asset_id)?;
+                Ok(response)
+            }
+        }
+    }
+
+    fn asset_attempt_finalize_complete_state_inner(
+        &mut self,
+        authority: &PreparedAuthority,
+        ticket: FinalizeCommitTicketV1,
+        crash_after: Option<AssetFinalizeCrashPoint>,
+        authorized_effect: Option<AuthorizedEffectReservation>,
+    ) -> SnapbackResult<FinalizePhaseCDOutcomeV1> {
         use crate::assets;
 
-        let (ticket, prepared, mut publication, grade) = ticket.into_put().into_parts();
+        let (ticket, mut prepared_required) = ticket.into_parts();
+        let (ticket, prepared, mut publication, grade) = ticket.into_parts();
         let attempt_id = ticket.attempt().attempt_id.clone();
 
         // Phase A releases Local before the put, so either finalizer may
@@ -13616,7 +13867,14 @@ impl LocalSnapback {
         // second: it returns the ordinary idempotent completion and cannot
         // stage/publish again. Cancellation/expiry likewise retains its
         // existing closed-table refusal.
-        let attempt = self.asset_attempt_for_caller(authority, &attempt_id)?;
+        let (attempt, expired_staging) = match authorized_effect.as_ref() {
+            Some(effect) => {
+                self.asset_attempt_for_caller_state_inner(authority, &attempt_id, || {
+                    effect.commit_guard("asset finalize Phase-C lazy-expiry transaction")
+                })?
+            }
+            None => self.asset_attempt_for_caller_state_inner(authority, &attempt_id, || Ok(()))?,
+        };
         if attempt.lifecycle_generation != ticket.request().lifecycle_generation {
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_GENERATION_STALE",
@@ -13629,11 +13887,19 @@ impl LocalSnapback {
                 .db
                 .asset_attempts()
                 .attempt_finalize_load_asset(&attempt.asset_id)?;
-            return Ok(crate::assets::AssetFinalizeResponseV1 {
-                task: asset_task_state(&attempt, asset.as_ref()),
-            });
+            return Ok(FinalizePhaseCDOutcomeV1::AlreadyComplete(
+                crate::assets::AssetFinalizeResponseV1 {
+                    task: asset_task_state(&attempt, asset.as_ref()),
+                },
+            ));
         }
-        self.db.asset_attempts().attempt_require_current(&attempt)?;
+        if let Err(error) = self.db.asset_attempts().attempt_require_current(&attempt) {
+            drop(authorized_effect);
+            if let Some(staging_key) = expired_staging {
+                self.asset_store_obj()?.delete_staging_pair(&staging_key)?;
+            }
+            return Err(error);
+        }
 
         let (
             _ticket_attempt,
@@ -13650,29 +13916,58 @@ impl LocalSnapback {
         let detected = prepared.detected_content_type;
         let canonical = prepared.canonical;
         let image_media_facts = prepared.media_facts;
-        let rendered_required = prepared.required_variants;
         let digest = canonical.digest.clone();
         let now = now_millis();
 
         // Phase C — the object write is acknowledged: `planned → staged`.
         if publication.state == assets::AssetPublicationState::Planned {
-            publication = self.db.asset_attempts().attempt_finalize_commit_staged(
-                &attempt_id,
-                &publication,
-                now,
-            )?;
+            publication = match authorized_effect.as_ref() {
+                Some(effect) => self
+                    .db
+                    .asset_attempts()
+                    .attempt_finalize_commit_staged_guarded(
+                        &attempt_id,
+                        &publication,
+                        now,
+                        || effect.commit_guard("asset finalize publication-staged transaction"),
+                    )?,
+                None => self.db.asset_attempts().attempt_finalize_commit_staged(
+                    &attempt_id,
+                    &publication,
+                    now,
+                )?,
+            };
         }
         if crash_after == Some(AssetFinalizeCrashPoint::AfterStaged) {
             return Err(asset_test_crash());
         }
 
-        // Declared variants (LLP 0044 §step 8/9): required ones were rendered
-        // by the unlocked, repeatable prepare. Their publication plans and
-        // object puts remain here, after the primary reached `staged`, so the
-        // publishing transaction can commit them with the primary and switch
-        // `ready` atomically with the last required publication. Optional
-        // ones enqueue ledger work inside that same transaction and never
-        // gate the asset.
+        // Required variants were rendered during prepare, planned under the
+        // Phase-A reservation, and PUT beside the primary with no permit.
+        // Mark each verified publication staged before the atomic completion
+        // transaction consumes it.
+        for prepared in &mut prepared_required {
+            match authorized_effect.as_ref() {
+                Some(effect) => self
+                    .db
+                    .asset_attempts()
+                    .stage_prepared_variant_commit_staged_guarded(
+                        &mut prepared.publication,
+                        || {
+                            effect.commit_guard(
+                                "asset finalize required-rendition staged transaction",
+                            )
+                        },
+                    )?,
+                None => self
+                    .db
+                    .asset_attempts()
+                    .stage_prepared_variant_commit_staged(&mut prepared.publication)?,
+            }
+        }
+
+        // Optional variants enqueue ledger work inside the completion
+        // transaction and never gate the asset.
         let declared_variants: Vec<crate::manifest::AssetImageVariant> = frozen_intent
             .image
             .as_ref()
@@ -13681,26 +13976,6 @@ impl LocalSnapback {
         let variants_enabled = image_finalization_enabled
             && !declared_variants.is_empty()
             && matches!(detected, "image/jpeg" | "image/png");
-        let mut prepared_required: Vec<AssetPreparedVariant> = Vec::new();
-        if variants_enabled {
-            for rendered in &rendered_required {
-                match self.asset_stage_prepared_variant(store.as_ref(), &app_id, rendered) {
-                    Ok(prepared) => prepared_required.push(prepared),
-                    // Preserve the prior classification for commit-side
-                    // publication failures: store errors stay retryable;
-                    // deterministic non-store refusals reject.
-                    Err(error) => {
-                        let availability =
-                            if error.diagnostic.code == "SNAPBACK_ASSET_STORE_UNAVAILABLE" {
-                                assets::AssetAvailability::Pending
-                            } else {
-                                assets::AssetAvailability::Rejected
-                            };
-                        return self.asset_fail_attempt(&attempt, availability, error);
-                    }
-                }
-            }
-        }
         let optional_variants: Vec<crate::manifest::AssetImageVariant> = if variants_enabled {
             declared_variants
                 .iter()
@@ -13738,37 +14013,68 @@ impl LocalSnapback {
             let digest_value = digest.clone();
             let required_variants = prepared_required.clone();
             let optional_keys = optional_variants.clone();
-            let publish_attempt = self.db.asset_attempts().attempt_finalize_commit_completion(
-                &attempt,
-                attempt_id.clone(),
-                publication_id,
-                &schema,
-                &witness_input,
-                witness_snapshot,
-                auth_moved,
-                canonical_length,
-                canonical_policy,
-                image_facts,
-                detected_type,
-                app,
-                digest_value,
-                required_variants,
-                optional_keys,
-                app_quota,
-                &on_ready,
-                grade,
-                now,
-            );
+            let publish_attempt = match authorized_effect.as_ref() {
+                Some(effect) => self
+                    .db
+                    .asset_attempts()
+                    .attempt_finalize_commit_completion_guarded(
+                        &attempt,
+                        attempt_id.clone(),
+                        publication_id,
+                        &schema,
+                        &witness_input,
+                        witness_snapshot,
+                        auth_moved,
+                        canonical_length,
+                        canonical_policy,
+                        image_facts,
+                        detected_type,
+                        app,
+                        digest_value,
+                        required_variants,
+                        optional_keys,
+                        app_quota,
+                        &on_ready,
+                        grade,
+                        now,
+                        || effect.commit_guard("asset finalize publication/quota transaction"),
+                    ),
+                None => self.db.asset_attempts().attempt_finalize_commit_completion(
+                    &attempt,
+                    attempt_id.clone(),
+                    publication_id,
+                    &schema,
+                    &witness_input,
+                    witness_snapshot,
+                    auth_moved,
+                    canonical_length,
+                    canonical_policy,
+                    image_facts,
+                    detected_type,
+                    app,
+                    digest_value,
+                    required_variants,
+                    optional_keys,
+                    app_quota,
+                    &on_ready,
+                    grade,
+                    now,
+                ),
+            };
             let result = match publish_attempt {
                 Ok(result) => result,
                 Err(error) if error.diagnostic.code == "SNAPBACK_ASSET_QUOTA_EXCEEDED" => {
                     // The transaction aborted whole; quota can free later,
                     // so the asset stays pending and retry-eligible.
-                    return self.asset_fail_attempt(
+                    let staging_key = self.asset_fail_attempt_state(
                         &attempt,
                         assets::AssetAvailability::Pending,
-                        error,
-                    );
+                        &error,
+                        authorized_effect.as_ref(),
+                    )?;
+                    drop(authorized_effect);
+                    store.delete_staging_pair(&staging_key)?;
+                    return Err(error);
                 }
                 Err(error) => return Err(error),
             };
@@ -13781,6 +14087,13 @@ impl LocalSnapback {
                     break (*attempt, *asset, reused);
                 }
                 AssetPublishOutcome::WitnessMoved => {
+                    if authorized_effect.is_some() {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_ASSET_ADMISSION_CONFLICT",
+                            "assets",
+                            "asset admission moved before the fenced publication commit; retry finalization",
+                        ));
+                    }
                     // Re-validate, then refuse only on denial: re-run the
                     // FROZEN generation's retained authorizer under current
                     // authority; a materially identical admit (the
@@ -13857,31 +14170,27 @@ impl LocalSnapback {
         };
         let (final_attempt, final_asset, reused) = outcome;
 
-        // Step 9 — staging cleanup after the publication committed; the
-        // reused path also removes its own now-condemned object. Both are
-        // idempotent, and the reconciliation sweep backstops a crash here.
-        store.delete_staging_pair(&final_attempt.staging_key)?;
-        if reused {
-            match store.delete_blob(&publication.planned_key) {
-                Ok(()) => {}
-                Err(error) => {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                        "assets",
-                        format!("cannot remove condemned object: {error}"),
-                    ));
-                }
-            }
+        // Step 9 is handed back across the Local boundary. The route drops
+        // this phase's permit before deleting staging or a condemned object,
+        // then reserves afresh for the final cleanup receipt.
+        let caller_backed = authorized_effect.is_some();
+        drop(authorized_effect);
+        if caller_backed {
+            // Live fan-out can evaluate handlers. It follows the durable cut
+            // only after the caller permit has ended, matching the other
+            // migrated asset sites' no-handler-under-permit rule.
+            self.notify_asset_record_change(std::slice::from_ref(&final_attempt.asset_id));
         }
-        let attempt_ref = final_attempt.attempt_id.clone();
-        let asset_ref = final_attempt.asset_id.clone();
-        self.db
-            .asset_attempts()
-            .attempt_finalize_commit_staging_cleaned(&attempt_ref, &asset_ref)?;
-
-        Ok(crate::assets::AssetFinalizeResponseV1 {
-            task: asset_task_state(&final_attempt, Some(&final_asset)),
-        })
+        Ok(FinalizePhaseCDOutcomeV1::Cleanup(
+            FinalizeCleanupTicketV1::new(
+                crate::assets::AssetFinalizeResponseV1 {
+                    task: asset_task_state(&final_attempt, Some(&final_asset)),
+                },
+                store,
+                final_attempt.staging_key,
+                reused.then(|| publication.planned_key.clone()),
+            ),
+        ))
     }
 
     /// Terminal refusal path shared by the byte/policy verification steps:
@@ -13895,6 +14204,18 @@ impl LocalSnapback {
         asset_outcome: crate::assets::AssetAvailability,
         refusal: SnapbackError,
     ) -> SnapbackResult<T> {
+        let staging_key = self.asset_fail_attempt_state(attempt, asset_outcome, &refusal, None)?;
+        self.asset_store_obj()?.delete_staging_pair(&staging_key)?;
+        Err(refusal)
+    }
+
+    fn asset_fail_attempt_state(
+        &mut self,
+        attempt: &crate::assets::AssetAttemptRecordV1,
+        asset_outcome: crate::assets::AssetAvailability,
+        refusal: &SnapbackError,
+        authorized_effect: Option<&AuthorizedEffectReservation>,
+    ) -> SnapbackResult<String> {
         let now = now_millis();
         let attempt_id = attempt.attempt_id.clone();
         // The rejected callback resolves from the deployed intent; a removed
@@ -13908,15 +14229,23 @@ impl LocalSnapback {
             "code": refusal.diagnostic.code,
             "message": refusal.diagnostic.message,
         });
-        let staging_key = self.db.asset_attempts().attempt_fail(
-            &attempt_id,
-            asset_outcome,
-            &refusal_facts,
-            on_rejected.as_deref(),
-            now,
-        )?;
-        self.asset_store_obj()?.delete_staging_pair(&staging_key)?;
-        Err(refusal)
+        match authorized_effect {
+            Some(effect) => self.db.asset_attempts().attempt_fail_guarded(
+                &attempt_id,
+                asset_outcome,
+                &refusal_facts,
+                on_rejected.as_deref(),
+                now,
+                || effect.commit_guard("asset finalize terminal-refusal transaction"),
+            ),
+            None => self.db.asset_attempts().attempt_fail(
+                &attempt_id,
+                asset_outcome,
+                &refusal_facts,
+                on_rejected.as_deref(),
+                now,
+            ),
+        }
     }
 
     /// The publication-record maintenance pass (LLP 0044 §Publication and
@@ -14112,6 +14441,108 @@ impl LocalSnapback {
         Ok(key)
     }
 
+    /// Read-only half of caller-backed width materialization. It freezes the
+    /// source/store facts for database-free rendering and performs no durable
+    /// write or blob I/O.
+    fn asset_width_preflight(
+        &mut self,
+        asset_id: &str,
+        requested_width: u64,
+    ) -> SnapbackResult<AssetWidthPreflightV1> {
+        use crate::assets;
+        if !self.asset_image_finalization_enabled() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_WIDTH_UNSUPPORTED",
+                "assets",
+                "on-demand widths require the image-finalization capability",
+            ));
+        }
+        let Some(width) = assets::normalize_on_demand_width(requested_width) else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_WIDTH_ABOVE_CEILING",
+                "assets",
+                format!(
+                    "width {requested_width} exceeds the declared on-demand ceiling {}",
+                    assets::ASSET_ON_DEMAND_MAX_WIDTH_PX
+                ),
+            ));
+        };
+        let key = format!("w{width}");
+        if self
+            .db
+            .asset_attempts()
+            .resolve_width_variant_is_ready(asset_id, &key)?
+        {
+            return Ok(AssetWidthPreflightV1::AlreadyReady(key));
+        }
+        let (primary_key, content_type) = self
+            .db
+            .asset_attempts()
+            .resolve_width_variant_primary(asset_id)?;
+        Ok(AssetWidthPreflightV1::Proceed(
+            AssetWidthPrepareTicketV1::new(
+                asset_id.to_owned(),
+                key,
+                width,
+                primary_key,
+                content_type,
+                self.asset_store_obj()?,
+                self.functions.app_id.clone(),
+                self.asset_app_quota(),
+            ),
+        ))
+    }
+
+    /// Commit the write-ahead publication plan under one caller reservation,
+    /// then release it before the external blob PUT.
+    ///
+    /// @ref LLP 0058#split-phase-authorized-effect-fence — mode admission is
+    /// acquired only at the plan COMMIT and the permit ends before blob I/O.
+    pub fn asset_width_plan_with_authorized_effect(
+        &mut self,
+        ticket: AssetWidthPlanTicketV1,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<crate::assets::AssetWidthPutTicketV1> {
+        let publication = self
+            .db
+            .asset_attempts()
+            .stage_prepared_variant_plan_guarded(
+                ticket.app_id(),
+                ticket.digest(),
+                now_millis(),
+                || authorized_effect.commit_guard("asset width publication-plan transaction"),
+            )?;
+        drop(authorized_effect);
+        Ok(ticket.into_put(publication))
+    }
+
+    /// After the unguarded external PUT verifies, fence both SQLite cuts: the
+    /// publication's staged transition and the blob/rendition/quota commit.
+    pub fn asset_width_commit_with_authorized_effect(
+        &mut self,
+        ticket: AssetWidthCommitTicketV1,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<String> {
+        let (asset_id, key, app_id, app_quota, mut prepared) = ticket.into_parts();
+        self.db
+            .asset_attempts()
+            .stage_prepared_variant_commit_staged_guarded(&mut prepared.publication, || {
+                authorized_effect.commit_guard("asset width publication-staged transaction")
+            })?;
+        self.db
+            .asset_attempts()
+            .resolve_width_variant_commit_guarded(
+                &app_id,
+                &asset_id,
+                &prepared,
+                app_quota,
+                now_millis(),
+                || authorized_effect.commit_guard("asset width blob/rendition/quota transaction"),
+            )?;
+        drop(authorized_effect);
+        Ok(key)
+    }
+
     pub fn asset_deliver(
         &mut self,
         authority: &PreparedAuthority,
@@ -14183,6 +14614,22 @@ impl LocalSnapback {
     ) -> SnapbackResult<String> {
         self.asset_strict_read_probe(authority, asset_id)?;
         self.asset_resolve_width_variant(asset_id, requested_width)
+    }
+
+    /// Caller-backed strict-delivery width preflight. The route reserves
+    /// authority before entering this read-only phase, then this sink drops
+    /// the permit before returning the store/render ticket.
+    pub fn asset_strict_delivery_width_preflight_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        asset_id: &str,
+        requested_width: u64,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<AssetWidthPreflightV1> {
+        self.asset_strict_read_probe(authority, asset_id)?;
+        let ticket = self.asset_width_preflight(asset_id, requested_width)?;
+        drop(authorized_effect);
+        Ok(ticket)
     }
 
     /// `private-signed` issuance: authorization happens here, per request;
@@ -14283,6 +14730,28 @@ impl LocalSnapback {
             .asset_reads()
             .signed_url_width_probe(&schema, caller.as_deref(), asset_id)?;
         self.asset_resolve_width_variant(asset_id, requested_width)
+    }
+
+    /// Caller-backed signed-URL width preflight. As on strict delivery, the
+    /// route proves live authority before prework and releases the permit
+    /// before any source read, render, or blob PUT.
+    pub fn asset_signed_url_width_preflight_with_authorized_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        asset_id: &str,
+        requested_width: u64,
+        ttl_ms: Option<u64>,
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<AssetWidthPreflightV1> {
+        Self::asset_signed_url_ttl(ttl_ms)?;
+        let caller = Self::asset_caller_principal(authority);
+        let schema = self.db.schema().clone();
+        self.db
+            .asset_reads()
+            .signed_url_width_probe(&schema, caller.as_deref(), asset_id)?;
+        let ticket = self.asset_width_preflight(asset_id, requested_width)?;
+        drop(authorized_effect);
+        Ok(ticket)
     }
 
     fn asset_signed_url_ttl(ttl_ms: Option<u64>) -> SnapbackResult<u64> {
