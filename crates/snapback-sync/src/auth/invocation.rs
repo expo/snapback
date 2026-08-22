@@ -1231,6 +1231,9 @@ pub struct AuthorizedEffectReservation {
     authority: PreparedAuthority,
     _publication: AuthorizedPublicationReservation,
     service: Option<ServiceAuthorityWorkPermit>,
+    #[cfg(any(test, feature = "test-support"))]
+    before_commit_guard_for_test:
+        std::sync::Mutex<Option<Box<dyn FnOnce(&'static str) + Send + 'static>>>,
 }
 
 /// The inner synchronous commit guard for an authorized effect. Field order is
@@ -1244,12 +1247,38 @@ pub struct AuthorizedEffectCommitGuard<'a> {
 }
 
 impl AuthorizedEffectReservation {
+    /// Install one exact-reservation callback immediately before the mode
+    /// commit guard is acquired. This test-only seam can retire the captured
+    /// epoch at the historical pre-guard cut without affecting another
+    /// concurrent authorized effect.
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn with_before_commit_guard_for_test(
+        self,
+        hook: impl FnOnce(&'static str) + Send + 'static,
+    ) -> Self {
+        *self
+            .before_commit_guard_for_test
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(Box::new(hook));
+        self
+    }
+
     /// Acquire the independent mode guard last and retain the complete
     /// authority bundle until the returned transaction guard is dropped.
     pub fn commit_guard(
         &self,
         effect: &'static str,
     ) -> SnapbackResult<AuthorizedEffectCommitGuard<'_>> {
+        #[cfg(any(test, feature = "test-support"))]
+        if let Some(hook) = self
+            .before_commit_guard_for_test
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take()
+        {
+            hook(effect);
+        }
         let service = self
             .service
             .as_ref()
@@ -1716,6 +1745,8 @@ impl PreparedAuthority {
             authority: self.clone(),
             _publication: publication,
             service,
+            #[cfg(any(test, feature = "test-support"))]
+            before_commit_guard_for_test: std::sync::Mutex::new(None),
         })
     }
 
