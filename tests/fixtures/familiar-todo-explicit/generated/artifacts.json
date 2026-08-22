@@ -279,7 +279,7 @@
       "sha256": "sha256:75ff86354caa8f82b340f05ce24981f289d5b5c62d5c4e27380847126659ec0d"
     },
     {
-      "bytes": 25246,
+      "bytes": 25401,
       "consumer": "developer-tooling",
       "custody": "regenerable-cache",
       "logicalKind": "handler-runtime-profile",
@@ -288,7 +288,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:41d82bdeb0ced973a189431dd4617522599928a4a416df102535c7e9660d6426"
+      "sha256": "sha256:08dddb8a5a56580649d2e29004bd0baae5c0eeba14872bb057695ed45c0ec86f"
     },
     {
       "bytes": 2563,
@@ -430,13 +430,13 @@
   ],
   "generatedAt": 0,
   "identities": {
-    "bundleId": "sha256:31f86addf79fff5b2b3672aae714488fc58a3595473e083e183644319180289b",
+    "bundleId": "sha256:80fb62343c8e0e54013a4640697cbe9e8d502f70982c8e9557fbabce06014cfa",
     "evidenceId": "sha256:8cad87d72fcc29b29334625c7969fe190555650c9c463f92a6251216e83d85ce",
     "executableId": "sha256:877162741da00bf9b2c387882961f2e20c48b8a39745ecbcb002c83ce270c49d",
     "executableIdsByTarget": {
       "local-dev-sqlite-ibex": "sha256:877162741da00bf9b2c387882961f2e20c48b8a39745ecbcb002c83ce270c49d"
     },
-    "generationId": "sha256:c29843100cca1f7461588ae0bcfd78b83c6814ca6ae3889a909c796c9173eb37",
+    "generationId": "sha256:c6b3009f426f08f378a52ce0154895dc509746954674029a79de1b2159fab530",
     "normalizedContractId": "sha256:ac25b4c219ee1162b82925a4283afe4235ca0a200a25c33c5989704a64e7c30d",
     "normalizedSchemaId": "sha256:1215a502ea9d20eecd894a24e7c75c3a75867ae1d912cf2a742688be2b67e2bb",
     "schemaVersion": "snapback.semantic-identity.v1",
@@ -464,6 +464,7 @@
       "ephemeralCollections": 0,
       "fieldBoundaries": 0,
       "implicitAuthRequirements": 0,
+      "migrationAdvisories": 1,
       "operations": {
         "action": 1,
         "live": 1,
@@ -479,6 +480,25 @@
     "fieldBoundaries": [],
     "implicitAuthRequirements": [],
     "inputsHash": "94244a950287b6feb719c0a4f83a519e1628a86fd46c74cd5394db573ec28f4e",
+    "migrationAdvisories": [
+      {
+        "affectedOperationCount": 1,
+        "affectedOperations": [
+          "todos.create"
+        ],
+        "affectedTableCount": 1,
+        "affectedTables": [
+          "todos"
+        ],
+        "code": "SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING",
+        "detailSurfaces": [
+          "--json diagnostics",
+          "generated/authorization-review.json#writePolicyChecks"
+        ],
+        "occurrences": 1,
+        "repairClass": "declare-explicit-write-authority"
+      }
+    ],
     "schemaVersion": "snapback.codegen-summary.v1",
     "tableVisibility": {
       "counts": {

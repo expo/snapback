@@ -7,6 +7,11 @@ Authorization, Runtime readiness, Packaging, Templates, Verification,
 Developer experience, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-17
+**Revised:** 2026-08-22 (W3 implementation evidence: VCF-E-P1–P4 derive exact
+closed-plan result/dependency facts with provenance and conflict refusal, and
+VCF-E-L1 supplies the recurring scaffold/install/generate/dev/prove wiring
+while preserving authored policy. D4, D5, the remaining Explicit fixtures,
+and the corpus-wide D7 measurement remain open.)
 **Revised:** 2026-08-21 (LLP 0295 D0.3 amendment: D1's four-class taxonomy
 applied fact-by-fact to the Explicit profile's authored surface, and the W3
 Explicit economy lane registered with its fixture receipts. Adopted per
@@ -391,6 +396,17 @@ rest of the
 Explicit-lane catalogue in LLP 0253 S9.2 are the lane's acceptance
 receipts, executed through
 `issues/20260821-authoring-profile-vertical-contract-fixtures.md`.
+
+**Implementation evidence (2026-08-22).** VCF-E-P1–P4 now derive exact
+`returnBinding`, `returnChangedCount`, and `returnDocument` contracts plus the
+closed plan's read/write table facts, project provenance, and refuse a
+conflicting authored transcription before output. Their authored-compatible
+controls retain the same effective manifest, dependency, and authority facts;
+the improvement is fewer semantic correction actions, not a line-count claim.
+VCF-E-L1 scaffolds and proves the fixed install → generate → dev → prove
+lifecycle against W1's M1→M2 continuity carrier. Authored policy is unchanged.
+D4, D5, `returnLiteral`/provable-`returnExpr` expansion, the other VCF-E rows,
+and the corpus-wide D7 ceremony measurement remain open.
 
 ## Compatibility and migration
 

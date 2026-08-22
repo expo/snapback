@@ -1676,6 +1676,32 @@ export function renderScaffoldAuthoringSkill(canonicalContent) {
     .replace('# snapback-authoring\n', `# snapback-authoring\n\n${note}\n`);
 }
 
+const SCAFFOLD_LIFECYCLE_STAGES = Object.freeze(['generate', 'dev', 'prove']);
+
+export function validateScaffoldLifecycleManifest(manifest, { template = 'unknown' } = {}) {
+  for (const stage of SCAFFOLD_LIFECYCLE_STAGES) {
+    if (typeof manifest?.scripts?.[stage] !== 'string' || manifest.scripts[stage].trim() === '') {
+      throw diagnosticError(
+        'SNAPBACK_SCAFFOLD_LIFECYCLE_STAGE_MISSING',
+        `template ${template} is missing scaffold lifecycle stage ${stage}`,
+        {
+          template,
+          stage,
+          requiredStages: [...SCAFFOLD_LIFECYCLE_STAGES],
+          guideAnchor: '/_snapback/guide/start/index.md',
+        },
+      );
+    }
+  }
+  return Object.freeze({
+    schemaVersion: 'snapback.scaffold-lifecycle.v1',
+    stages: Object.freeze(['scaffold', 'install', ...SCAFFOLD_LIFECYCLE_STAGES]),
+    scripts: Object.freeze(Object.fromEntries(
+      SCAFFOLD_LIFECYCLE_STAGES.map((stage) => [stage, manifest.scripts[stage]]),
+    )),
+  });
+}
+
 export function scaffoldApp(target, options = {}) {
   const template = options.template ?? 'todo-contract';
   const destination = resolve(target);
@@ -1689,6 +1715,12 @@ export function scaffoldApp(target, options = {}) {
   if (!existsSync(templateRoot)) {
     throw diagnosticError('SNAPBACK_NEW_TEMPLATE_UNKNOWN', `unknown template ${template}`, { template });
   }
+  // @ref LLP 0275#d8-explicit-profile-classification-under-llp-0295-d03-2026-08-21
+  // — recurring lifecycle wiring is scaffold-owned environment ceremony.
+  // Validate the packed template before output so a missing stage is named
+  // rather than discovered after install or during a developer's first run.
+  const templateManifest = JSON.parse(readFileSync(join(templateRoot, 'package.json'), 'utf8'));
+  const lifecycle = validateScaffoldLifecycleManifest(templateManifest, { template });
   cpSync(templateRoot, destination, { recursive: true, errorOnExist: true });
   const packedGitignore = join(destination, 'gitignore.template');
   if (existsSync(packedGitignore)) {
@@ -1722,6 +1754,7 @@ export function scaffoldApp(target, options = {}) {
     ok: true,
     template,
     target: destination,
+    lifecycle,
     skillFiles: [...scaffoldAuthoringSkillFiles],
   };
 }

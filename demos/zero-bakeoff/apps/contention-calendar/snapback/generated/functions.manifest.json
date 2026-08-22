@@ -766,5 +766,24 @@
   "generatedAt": 0,
   "inputsHash": "044f2aa1c14cf1ec945f1553d6cfdc4aaddf284fd3e13eadf7a41ace0689362a",
   "schemaVersion": "snapback.v0",
-  "unsupportedDependencyDiagnostics": []
+  "unsupportedDependencyDiagnostics": [
+    {
+      "code": "SNAPBACK_PLAN_FACTS_DERIVED",
+      "details": {
+        "dependencySet": {
+          "reads": [],
+          "writes": [
+            "reservations"
+          ]
+        },
+        "dependencySetProvenance": "plan-derived",
+        "function": "reserve",
+        "resultContractHash": "sha256:bc1b7c246a4f71f7367282a145ddd03081c61d8f669f2aede20cc369bea2e561",
+        "resultContractProvenance": "authored-compatible-plan-derived"
+      },
+      "message": "reserve: closed plan result/dependency facts resolved with provenance",
+      "severity": "info",
+      "subsystem": "function"
+    }
+  ]
 }

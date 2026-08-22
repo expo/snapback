@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
   cpSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   readdirSync,
@@ -40,6 +41,7 @@ import {
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(packageRoot, '..', '..');
+const ctxBootstrap = readFileSync(join(repoRoot, 'packages', 'snapback-harness', 'ctx-bootstrap.js'), 'utf8');
 const defineUrl = pathToFileURL(join(packageRoot, 'define.mjs')).href;
 const familiarFixture = join(repoRoot, 'tests', 'fixtures', 'familiar-todo');
 const explicitFixture = join(repoRoot, 'tests', 'fixtures', 'familiar-todo-explicit');
@@ -108,6 +110,37 @@ function runtimeHandler(name, expressionSource, contextKind, apiDigest = 'sha256
   const sandbox = Object.create(null);
   vm.runInNewContext(source, sandbox, { filename: `${name}.familiar-runtime.js` });
   return sandbox.__snapbackHandlers[name];
+}
+
+async function settledRuntimeFailure(name, expressionSource, contextKind) {
+  const canonical = {
+    source: renderInlineHandlerModule(name, expressionSource),
+    segments: [],
+  };
+  const source = renderFamiliarHandlerRuntime(
+    name,
+    { expressionSource },
+    canonical,
+    contextKind,
+    'sha256:test-api',
+  ).source;
+  const context = vm.createContext({});
+  vm.runInContext(ctxBootstrap, context, { filename: 'ctx-bootstrap.js' });
+  vm.runInContext(source, context, { filename: `${name}.familiar-runtime.js` });
+  const envelope = await context.__snapbackSettle(
+    name,
+    '{}',
+    '{}',
+    contextKind,
+    null,
+    null,
+    '1',
+    (operation) => {
+      assert.match(operation, /\|action\.metadata$/u);
+      return {};
+    },
+  );
+  return JSON.parse(envelope).r;
 }
 
 function mockQueryContext(rows, trace) {
@@ -187,12 +220,12 @@ test('familiar returns lowering preserves row shapes and admits exact scalar val
   assert.throws(
     () => lowerFamiliarReturns('mutation', v.array(v.doc('todos'))),
     ({ code, message }) => code === 'SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE'
-      && /document-containing composite values require the explicit result: grammar/u.test(message),
+      && /document-containing composite values require the explicit profile's result: grammar/u.test(message),
   );
   assert.throws(
     () => lowerFamiliarReturns('action', v.array(v.doc('todos'))),
     ({ code, message }) => code === 'SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE'
-      && /document-containing composite values require the explicit result: grammar/u.test(message),
+      && /document-containing composite values require the explicit profile's result: grammar/u.test(message),
   );
 });
 
@@ -591,6 +624,16 @@ test('withIndex recorder is no-drop and action facade is an exact frozen table',
     async () => foreignCompose(actionContext, { reference: 'todos.create', title: 'one' }),
     ({ code }) => code === 'SNAPBACK_FAMILIAR_RUNMUTATION_REF_REQUIRED',
   );
+  const settledRawReference = await settledRuntimeFailure(
+    'todos.rawReference',
+    '(ctx) => ctx.runMutation("todos.create", {})',
+    'action',
+  );
+  assert.equal(
+    settledRawReference.code,
+    'SNAPBACK_FAMILIAR_RUNMUTATION_REF_REQUIRED',
+    `the generated facade must carry its stable refusal through the trusted settle envelope: ${JSON.stringify(settledRawReference)}`,
+  );
   const runQuery = runtimeHandler('todos.runQuery', '(ctx) => ctx.runQuery()', 'action');
   await assert.rejects(
     async () => runQuery(actionContext, {}),
@@ -682,6 +725,59 @@ export { dotted as "todos.list", camel as todosList };
   assert(collision.diagnostics.some(
     ({ code }) => code === 'SNAPBACK_CODEGEN_FAMILIAR_NAME_COLLISION',
   ));
+});
+
+test('Familiar bounded helper modules execute in the admitted handler graph and refuse escapes', async () => {
+  const positiveRoot = temporaryFamiliarFixture();
+  mkdirSync(join(positiveRoot, 'helpers'));
+  writeFileSync(join(positiveRoot, 'helpers', 'title.ts'), `
+export function trimTitle(value: string): string { return value.trim(); }
+`);
+  writeFileSync(
+    join(positiveRoot, 'todos.ts'),
+    readFileSync(join(positiveRoot, 'todos.ts'), 'utf8')
+      .replace(
+        'import { titleValidator } from "./contracts";',
+        'import { titleValidator } from "./contracts";\nimport { trimTitle } from "./helpers/title";',
+      )
+      .concat(`
+export const helperTitle = query({
+  args: { title: v.string() },
+  returns: v.string(),
+  auth: "public",
+  reads: ["todos"],
+  handler: async (_ctx, args) => trimTitle(args.title),
+});
+`),
+  );
+  const positive = await generate(positiveRoot);
+  assert.equal(positive.ok, true, JSON.stringify(positive.diagnostics));
+  const helperOperation = readJson(join(positiveRoot, 'generated', 'functions.manifest.json'))
+    .functions.find(({ name }) => name === 'todos.helperTitle');
+  assert.match(helperOperation.runtime.IbexModule.source, /function trimTitle/u);
+
+  const negativeRoot = temporaryFamiliarFixture();
+  writeFileSync(
+    join(negativeRoot, 'todos.ts'),
+    readFileSync(join(negativeRoot, 'todos.ts'), 'utf8')
+      .replace(
+        'import { titleValidator } from "./contracts";',
+        'import { titleValidator } from "./contracts";\nimport { trimTitle } from "../outside/title";',
+      )
+      .replace(
+        'api.todos.create;',
+        'api.todos.create; trimTitle("probe");',
+      ),
+  );
+  const negative = await generate(negativeRoot);
+  assert.equal(negative.ok, false);
+  const refusal = negative.diagnostics.find(
+    ({ code }) => code === 'SNAPBACK_CODEGEN_FAMILIAR_HELPER_IMPORT_UNAVAILABLE',
+  );
+  assert(refusal, JSON.stringify(negative.diagnostics));
+  assert.match(refusal.message, /helper subdirectory.*import it relatively/u);
+  assert.match(refusal.guideAnchor, /familiar-profile\.md#translate-the-familiar-handler-dialect/u);
+  assert.equal(refusal.profileSwitchSuggestion, undefined);
 });
 
 test('familiar generation refuses a literal take beyond the relational ceiling', async () => {

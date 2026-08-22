@@ -213,6 +213,19 @@ export function effectiveResultContract(options: Readonly<{
   tables: Readonly<Record<string, ResultContractTable>>;
 }>): ResultContractDescriptor;
 
+export type ResultContractProvenance =
+  | 'authored'
+  | 'authored-compatible-plan-derived'
+  | 'plan-derived'
+  | 'platform-derived'
+  | 'unknown';
+
+/** The effective descriptor together with the authority that established it. */
+export function effectiveResultContractFacts(options: Parameters<typeof effectiveResultContract>[0]): Readonly<{
+  contract: ResultContractDescriptor;
+  provenance: ResultContractProvenance;
+}>;
+
 /** Renders the TypeScript result type for a contract descriptor. */
 export function resultContractType(
   contract: ResultContractDescriptor,

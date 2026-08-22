@@ -1,12 +1,23 @@
 export {
   allow,
-  defineAssetUpload,
+  defineEphemeral,
   defineSchema,
+  ephemeral,
   membershipResource,
   v,
 } from './define.js';
 
-import type { MembershipPredicate, TableBuilder, Validator } from './define.js';
+import type { AssetUploadSpec, MembershipPredicate, TableBuilder, Validator } from './define.js';
+
+export type FamiliarAssetAuthorizeContext = Readonly<{
+  auth: Readonly<{ userId: string | null }>;
+}>;
+
+export declare function defineAssetUpload(
+  spec: Omit<AssetUploadSpec, 'authorize'> & Readonly<{
+    authorize?: (ctx: FamiliarAssetAuthorizeContext, args?: unknown) => unknown;
+  }>,
+): unknown;
 
 export declare function defineTable<const Fields extends Record<string, Validator>>(
   fields: Fields,

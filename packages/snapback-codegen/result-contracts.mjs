@@ -904,7 +904,54 @@ function pushLedgerRowsValue() {
   };
 }
 
-export function effectiveResultContract({
+// @ref LLP 0275#d8-explicit-profile-classification-under-llp-0295-d03-2026-08-21
+// — only exact closed-plan return forms cross from authored-because-underivable
+// into plan-derived facts; opaque return expressions stay unknown.
+function planDerivedResultContract({ runtime, tables }) {
+  const plan = runtime?.HostPlan?.Mutation;
+  if (!plan) return null;
+  const returned = plan.return_value;
+  if (returned === 'ChangedCount') {
+    return validateEffectiveResultContract({
+      kind: 'value',
+      value: scalar('integer', { min: 0, max: JS_SAFE_INTEGER }),
+    });
+  }
+  if (returned?.Binding) {
+    const insert = (plan.steps ?? [])
+      .map((step) => step.Insert)
+      .find((step) => step?.bind_id_as === returned.Binding);
+    if (!insert) return null;
+    if (!tables[insert.table]) {
+      throw new TypeError(`plan-derived binding references unknown table ${insert.table}`);
+    }
+    return validateEffectiveResultContract({
+      kind: 'value',
+      value: scalar('id', { table: insert.table }),
+    });
+  }
+  if (returned?.Document?.table) {
+    return validateEffectiveResultContract({
+      kind: 'document',
+      table: returned.Document.table,
+      document: tableDocumentValue(returned.Document.table, tables),
+    });
+  }
+  return null;
+}
+
+function authoredContractContainsDerived(authored, derived) {
+  if (canonicalJson(authored) === canonicalJson(derived)) return true;
+  if (authored?.kind !== 'value' || derived?.kind !== 'value') return false;
+  const authoredValue = authored.value;
+  const derivedValue = derived.value;
+  if (authoredValue?.kind === 'integer' && derivedValue?.kind === 'integer') {
+    return authoredValue.min <= derivedValue.min && authoredValue.max >= derivedValue.max;
+  }
+  return false;
+}
+
+export function effectiveResultContractFacts({
   def,
   functionKind,
   runtime,
@@ -925,55 +972,80 @@ export function effectiveResultContract({
     (functionKind === 'Query' || functionKind === 'LiveQuery')
     && runtime?.HostPlan?.BoundedChildrenQuery
   ) {
-    return validateEffectiveResultContract(boundedChildrenRowsValue(runtime, tables));
+    return {
+      contract: validateEffectiveResultContract(boundedChildrenRowsValue(runtime, tables)),
+      provenance: 'platform-derived',
+    };
   }
   const authored = authoredContract(def?.resultContract, tables);
-  if (authored) return validateEffectiveResultContract(authored);
+  const derived = functionKind === 'Mutation'
+    ? planDerivedResultContract({ runtime, tables })
+    : null;
+  if (authored && derived && !authoredContractContainsDerived(authored, derived)) {
+    throw new TypeError(
+      `authored result contract conflicts with the closed plan-derived contract; remove result: or make it compatible with ${canonicalJson(derived)}`,
+    );
+  }
+  if (authored && derived) {
+    return {
+      contract: derived,
+      provenance: 'authored-compatible-plan-derived',
+    };
+  }
+  if (authored) {
+    return {
+      contract: validateEffectiveResultContract(authored),
+      provenance: 'authored',
+    };
+  }
+  if (derived) return { contract: derived, provenance: 'plan-derived' };
   if (
     (functionKind === 'Query' || functionKind === 'LiveQuery')
     && def?.result
-  ) return validateEffectiveResultContract(legacyRows(def.result));
+  ) return {
+    contract: validateEffectiveResultContract(legacyRows(def.result)),
+    provenance: 'authored',
+  };
   const queryTable = runtime?.HostPlan?.Query?.table;
   if ((functionKind === 'Query' || functionKind === 'LiveQuery') && queryTable) {
-    return validateEffectiveResultContract({
-      kind: 'documents',
-      table: queryTable,
-      document: tableDocumentValue(queryTable, tables),
-    });
+    return {
+      contract: validateEffectiveResultContract({
+        kind: 'documents',
+        table: queryTable,
+        document: tableDocumentValue(queryTable, tables),
+      }),
+      provenance: 'plan-derived',
+    };
   }
   if (
     (functionKind === 'Query' || functionKind === 'LiveQuery')
     && runtime?.HostPlan?.SearchQuery
   ) {
-    return validateEffectiveResultContract(searchRowsValue(runtime, tables));
+    return { contract: validateEffectiveResultContract(searchRowsValue(runtime, tables)), provenance: 'plan-derived' };
   }
   if (
     (functionKind === 'Query' || functionKind === 'LiveQuery')
     && runtime?.HostPlan?.RelationalQuery
   ) {
-    return validateEffectiveResultContract(relationalRowsValue(runtime, tables));
+    return { contract: validateEffectiveResultContract(relationalRowsValue(runtime, tables)), provenance: 'plan-derived' };
   }
   if (functionKind === 'Query' && runtime?.HostPlan?.VectorQuery) {
-    return validateEffectiveResultContract(vectorRowsValue(runtime, tables));
+    return { contract: validateEffectiveResultContract(vectorRowsValue(runtime, tables)), provenance: 'plan-derived' };
   }
   if (
     (functionKind === 'Query' || functionKind === 'LiveQuery')
     && runtime?.HostPlan?.JobStatusQuery
   ) {
-    return validateEffectiveResultContract(jobStatusRowsValue());
+    return { contract: validateEffectiveResultContract(jobStatusRowsValue()), provenance: 'platform-derived' };
   }
   if (functionKind === 'Query' && runtime?.HostPlan?.PushLedgerQuery) {
-    return validateEffectiveResultContract(pushLedgerRowsValue());
+    return { contract: validateEffectiveResultContract(pushLedgerRowsValue()), provenance: 'platform-derived' };
   }
-  const returnedDocument = runtime?.HostPlan?.Mutation?.return_value?.Document?.table;
-  if (functionKind === 'Mutation' && returnedDocument) {
-    return validateEffectiveResultContract({
-      kind: 'document',
-      table: returnedDocument,
-      document: tableDocumentValue(returnedDocument, tables),
-    });
-  }
-  return { kind: 'unknown' };
+  return { contract: { kind: 'unknown' }, provenance: 'unknown' };
+}
+
+export function effectiveResultContract(args) {
+  return effectiveResultContractFacts(args).contract;
 }
 
 // @ref LLP 0244#d4-result-artifact-retention-and-rqs-identity-rotate-explicitly

@@ -7,5 +7,5 @@
     "strict": true,
     "target": "ES2022"
   },
-  "include": ["client-projection.ts", "schema.ts", "todos.ts", "generated/*.d.ts"]
+  "include": ["client-projection.ts", "entrypoint-projection.ts", "schema.ts", "todos.ts", "generated/*.d.ts"]
 }

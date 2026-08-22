@@ -176,6 +176,7 @@ import {
   canonicalJson as canonicalResultJson,
   effectiveArgsContract,
   effectiveResultContract,
+  effectiveResultContractFacts,
   resultContractHash,
   resultContractType,
   searchPageResultType,
@@ -2152,6 +2153,10 @@ async function generateInProcessLocked({
     const attributionProperties = new Map();
     familiarFunctionSourceSpans = {};
     for (const module of sourceLayout.functionModules) {
+      // @ref LLP 0253#s92-w3-vertical-contract-fixture-catalogue — the two
+      // disposition-4 handler forms have Familiar-specific, pre-output routes
+      // and are not allowed to degrade into evaluator/runtime failures.
+      validateFamiliarDispositionFourHandlerForms(module.source, module.path, err);
       const erased = eraseFamiliarDefinitionSource(module.source, module.path, diagnostics);
       if (!erased) continue;
       const captured = captureFamiliarApiReferences(
@@ -2160,7 +2165,16 @@ async function generateInProcessLocked({
         familiarBootstrap.apiDigest,
         err,
       );
-      const extracted = extractInlineHandlers(captured, {
+      const helperBundle = await bundleFamiliarHandlerHelpers({
+        backendRoot,
+        modulePath: module.path,
+        source: module.source,
+        entrySource: captured,
+        sourceOverrides: definitionSourceOverrides,
+        diagnostics,
+      });
+      const extractionSource = helperBundle?.javascript ?? captured;
+      const extracted = extractInlineHandlers(extractionSource, {
         path: relative(backendRoot, module.path).split(sep).join('/'),
       });
       if (erased.sourceMap) {
@@ -2186,10 +2200,11 @@ async function generateInProcessLocked({
           for (const helper of handler.helpers ?? []) remap(helper);
         }
       }
-      diagnostics.push(...extracted.diagnostics);
+      diagnostics.push(...extracted.diagnostics.map(projectFamiliarHandlerDiagnostic));
       definitionSourceOverrides.set(resolve(module.path), {
         ...erased,
         javascript: extracted.transformedSource,
+        ...(helperBundle ? { runtimeBytes: helperBundle.runtimeBytes } : {}),
       });
       const attribution = definitionAttributionFromSource(
         captured,
@@ -6643,13 +6658,35 @@ async function generateInProcessLocked({
           snapshotBatchIdentityV2(fn.runtime.HostPlan.SnapshotBatchV2, fn.argsContract),
         );
       }
-      fn.resultContract = effectiveResultContract({
+      const resultFacts = effectiveResultContractFacts({
         def,
         functionKind: fn.kind,
         runtime: fn.runtime,
         tables,
       });
+      fn.resultContract = resultFacts.contract;
       fn.resultContractHash = resultContractHash(fn.resultContract);
+      if (fn.runtime?.HostPlan?.Mutation) {
+        // @ref LLP 0275#d8-explicit-profile-classification-under-llp-0295-d03-2026-08-21
+        // — result/dependency facts proven by a closed plan are emitted once
+        // with provenance. Authored authority and policy stay untouched.
+        infoDiagnostics.push({
+          code: 'SNAPBACK_PLAN_FACTS_DERIVED',
+          severity: 'info',
+          subsystem: 'function',
+          message: `${fn.name}: closed plan result/dependency facts resolved with provenance`,
+          details: {
+            function: fn.name,
+            resultContractProvenance: resultFacts.provenance,
+            resultContractHash: fn.resultContractHash,
+            dependencySet: {
+              reads: [...(fn.declaredReads ?? [])].sort(compareCodeUnits),
+              writes: [...(fn.declaredWrites ?? [])].sort(compareCodeUnits),
+            },
+            dependencySetProvenance: 'plan-derived',
+          },
+        });
+      }
       if (fn.fieldBoundary !== undefined) {
         for (const field of fn.fieldBoundary.fields) {
           if (resultContractRowHasField(fn.resultContract, field) === false) {
@@ -18117,7 +18154,7 @@ function renderFamiliarServerModule() {
   // @ref LLP 0253#s32-generated-local-modules — this bootstrap cannot depend
   // on Phase C's umbrella package; every runtime value comes from the Phase B
   // adapter that codegen already owns.
-  return `${HEADER}\nexport { defineSchema, defineTable, defineAssetUpload, query, mutation, action, allow, membershipResource, v } from '@expo/snapback-codegen/familiar';\n`;
+  return `${HEADER}\nexport { defineSchema, defineTable, defineAssetUpload, defineEphemeral, ephemeral, query, mutation, action, allow, membershipResource, v } from '@expo/snapback-codegen/familiar';\n`;
 }
 
 function renderFamiliarServerTypes() {
@@ -18125,7 +18162,7 @@ function renderFamiliarServerTypes() {
 import { v as familiarV } from '@expo/snapback-codegen/familiar';
 import type { InferObjectValidatorFields, InferValidator, MembershipPredicate, Validator } from '@expo/snapback-codegen/define';
 import type { FunctionArgs, FunctionReference, FunctionResult, GeneratedActionContext, GeneratedDataModel, GeneratedHandlerSchema, GeneratedIndexNames, GeneratedMutationContext, GeneratedQueryContext, GeneratedReadableTableName, Id, QueryBuilder } from './api';
-export { allow, defineAssetUpload, defineSchema, defineTable, membershipResource } from '@expo/snapback-codegen/familiar';
+export { allow, defineAssetUpload, defineEphemeral, defineSchema, defineTable, ephemeral, membershipResource } from '@expo/snapback-codegen/familiar';
 export declare const v: Omit<typeof familiarV, 'doc' | 'id'> & {
   doc<const Table extends keyof GeneratedDataModel & string>(table: Table): Validator<GeneratedDataModel[Table], { readonly AppSchemaRef: { readonly authority: 'app'; readonly table: Table } }, false>;
   id<const Table extends keyof GeneratedDataModel & string>(table: Table): Validator<Id<Table>, { readonly Id: { readonly table: Table } }, false>;
@@ -18308,6 +18345,133 @@ function eraseFamiliarDefinitionSource(source, sourcePath, diagnostics) {
   };
 }
 
+async function bundleFamiliarHandlerHelpers({
+  backendRoot,
+  modulePath,
+  source,
+  entrySource,
+  sourceOverrides,
+  diagnostics,
+}) {
+  const relativeImports = staticImportSpecifiers(source, modulePath).filter(
+    (specifier) => isLocalModuleSpecifier(specifier)
+      && !/(?:^|\/)generated\/(?:server|api)(?:\.(?:mjs|js|mts|ts))?$/u.test(specifier),
+  );
+  if (relativeImports.length === 0) return null;
+  const withinBackend = (candidate) => {
+    const rel = relative(resolve(backendRoot), resolve(candidate));
+    return rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
+  };
+  const helperSources = [];
+  try {
+    const result = await esbuild({
+      absWorkingDir: backendRoot,
+      entryPoints: [modulePath],
+      bundle: true,
+      format: 'esm',
+      platform: 'neutral',
+      target: ['es2022'],
+      treeShaking: false,
+      write: false,
+      logLevel: 'silent',
+      legalComments: 'none',
+      plugins: [{
+        name: 'snapback-familiar-handler-helpers',
+        setup(build) {
+          build.onResolve({ filter: /.*/ }, (args) => {
+            if (DEFINITION_PACKAGE_IMPORTS.has(args.path)
+              || /(?:^|\/)generated\/(?:server|api)(?:\.(?:mjs|js|mts|ts))?$/u.test(args.path)) {
+              return { path: args.path, external: true };
+            }
+            if (!isLocalModuleSpecifier(args.path)) {
+              return {
+                errors: [{
+                  text: `Familiar handler helper import ${JSON.stringify(args.path)} is not a relative S2 helper-module path`,
+                  detail: { snapbackCode: 'SNAPBACK_CODEGEN_FAMILIAR_HELPER_IMPORT_UNAVAILABLE' },
+                }],
+              };
+            }
+            let candidate = args.path.startsWith('file:')
+              ? fileURLToPath(args.path)
+              : resolve(args.resolveDir || dirname(args.importer), args.path);
+            if (!existsSync(candidate) && !/\.[A-Za-z0-9]+$/u.test(candidate)) {
+              candidate = ['.mts', '.ts', '.mjs', '.js']
+                .map((extension) => `${candidate}${extension}`)
+                .find((path) => existsSync(path)) ?? candidate;
+            }
+            if (!withinBackend(candidate) || !existsSync(candidate)) {
+              return {
+                errors: [{
+                  text: `Familiar handler helper ${JSON.stringify(args.path)} is outside the admitted app graph; place it under the backend (a helper subdirectory is supported) and import it relatively`,
+                  detail: {
+                    snapbackCode: 'SNAPBACK_CODEGEN_FAMILIAR_HELPER_IMPORT_UNAVAILABLE',
+                    specifier: args.path,
+                  },
+                }],
+              };
+            }
+            return { path: resolve(candidate), namespace: 'file' };
+          });
+          build.onLoad({ filter: /.*/, namespace: 'file' }, (args) => {
+            const override = sourceOverrides.get(resolve(args.path));
+            const loaded = resolve(args.path) === resolve(modulePath)
+              ? entrySource
+              : override?.javascript
+              ?? readDefinitionSource(args.path, backendRoot, 'FAMILIAR_HELPER_SOURCE');
+            if (resolve(args.path) !== resolve(modulePath)) {
+              helperSources.push({
+                path: relative(backendRoot, args.path).split(sep).join('/'),
+                source: loaded,
+              });
+            }
+            return {
+              contents: loaded,
+              loader: resolve(args.path) === resolve(modulePath) || override
+                ? 'js'
+                : definitionLoader(args.path),
+              resolveDir: dirname(args.path),
+            };
+          });
+        },
+      }],
+    });
+    const javascript = result.outputFiles?.[0]?.text;
+    if (typeof javascript !== 'string') throw new Error('esbuild returned no helper bundle');
+    return {
+      javascript,
+      // @ref LLP 0253#s2-familiar-source-layout-and-discovery — bind every
+      // admitted helper's path and erased bytes into executable identity even
+      // though the evaluator consumes the flattened bounded closure.
+      runtimeBytes: Buffer.from([
+        javascript,
+        ...helperSources
+          .sort((left, right) => compareCodeUnits(left.path, right.path))
+          .flatMap(({ path, source: helperSource }) => [`\n/* helper:${path} */\n`, helperSource]),
+      ].join(''), 'utf8'),
+    };
+  } catch (error) {
+    const failures = Array.isArray(error?.errors) && error.errors.length > 0
+      ? error.errors
+      : [error];
+    for (const failure of failures) {
+      diagnostics.push({
+        code: failure?.detail?.snapbackCode
+          ?? 'SNAPBACK_CODEGEN_FAMILIAR_HELPER_IMPORT_UNAVAILABLE',
+        severity: 'error',
+        subsystem: 'function',
+        message: failure?.text ?? failure?.message ?? String(failure),
+        path: modulePath,
+        alternative: 'Place the helper under the Familiar backend and import it with a relative S2 helper-module path.',
+        guideAnchor: '/_snapback/guide/backend/familiar-profile.md#translate-the-familiar-handler-dialect',
+        ...(failure?.detail?.specifier
+          ? { details: { specifier: failure.detail.specifier } }
+          : {}),
+      });
+    }
+    return null;
+  }
+}
+
 function validateFamiliarWithIndexCallbacks(sourceFile, sourcePath, err) {
   const allowedMethods = new Set(['eq', 'in', 'lt', 'lte', 'gt', 'gte']);
   const unwrap = (node) => {
@@ -18388,6 +18552,119 @@ function validateFamiliarWithIndexCallbacks(sourceFile, sourcePath, err) {
     ts.forEachChild(node, inspect);
   };
   inspect(sourceFile);
+}
+
+function validateFamiliarDispositionFourHandlerForms(source, sourcePath, err) {
+  const sourceFile = ts.createSourceFile(
+    sourcePath,
+    source,
+    ts.ScriptTarget.ES2022,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const familiarGuide = '/_snapback/guide/backend/familiar-profile.md#translate-the-familiar-handler-dialect';
+  const point = (node) => {
+    const start = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+    return { line: start.line + 1, column: start.character + 1 };
+  };
+  const report = (code, message, node, route) => {
+    const sourcePoint = point(node);
+    err(code, 'function', message, {
+      path: sourcePath,
+      ...sourcePoint,
+      sourceSpan: { file: sourcePath, ...sourcePoint },
+      guideAnchor: familiarGuide,
+      alternative: message,
+      profileSwitchSuggestion: {
+        from: FAMILIAR_AUTHORING_PROFILE,
+        to: EXPLICIT_AUTHORING_PROFILE,
+        route,
+      },
+    });
+  };
+  const within = (node, container) => container.pos <= node.pos && node.end <= container.end;
+  const controlsBranch = (node) => {
+    for (let parent = node.parent; parent; parent = parent.parent) {
+      if (ts.isIfStatement(parent) && within(node, parent.expression)) return true;
+      if (ts.isConditionalExpression(parent) && within(node, parent.condition)) return true;
+      if (ts.isWhileStatement(parent) && within(node, parent.expression)) return true;
+      if (ts.isDoStatement(parent) && within(node, parent.expression)) return true;
+      if (ts.isForStatement(parent) && parent.condition && within(node, parent.condition)) return true;
+      if (ts.isFunctionLike(parent)) return false;
+    }
+    return false;
+  };
+  const inspect = (node) => {
+    if (
+      ts.isCallExpression(node)
+      && ts.isPropertyAccessExpression(node.expression)
+      && node.expression.name.text === 'now'
+      && ts.isIdentifier(node.expression.expression)
+      && node.expression.expression.text === 'Date'
+      && controlsBranch(node)
+    ) {
+      report(
+        'BUNDLE_UNSUPPORTED_TIME',
+        'Familiar clock-dependent visibility cannot use Date.now(); use the Explicit profile temporal vocabulary (boundedSkew or standardPattern)',
+        node,
+        'boundedSkew/standardPattern',
+      );
+    }
+    if (
+      ts.isCallExpression(node)
+      && ts.isPropertyAccessExpression(node.expression)
+      && node.expression.name.text === 'allocate'
+      && ts.isPropertyAccessExpression(node.expression.expression)
+      && node.expression.expression.name.text === 'sequence'
+    ) {
+      report(
+        'SNAPBACK_CODEGEN_FAMILIAR_SEQUENCE_UNSUPPORTED',
+        'Familiar has no sequence allocator; use the Explicit profile declared sequences surface',
+        node,
+        'sequences',
+      );
+    }
+    ts.forEachChild(node, inspect);
+  };
+  inspect(sourceFile);
+}
+
+function projectFamiliarHandlerDiagnostic(diagnostic) {
+  const guideAnchor = '/_snapback/guide/backend/familiar-profile.md#translate-the-familiar-handler-dialect';
+  if (
+    diagnostic.code === 'SNAPBACK_INLINE_HANDLER_SYNTAX_FORBIDDEN'
+    && /dynamic computed member access/u.test(diagnostic.message)
+  ) {
+    return {
+      ...diagnostic,
+      message: `${diagnostic.message}; use static/destructured access or pass the selected value through args`,
+      alternative: 'Use static/destructured access or pass the selected value through args.',
+      guideAnchor,
+    };
+  }
+  if (
+    diagnostic.code === 'SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER'
+    && /capturedConstant|PREFIX/u.test(diagnostic.message)
+  ) {
+    return {
+      ...diagnostic,
+      message: `${diagnostic.message}; inline the value or pass it through args`,
+      alternative: 'Inline the value or pass it through args.',
+      guideAnchor,
+    };
+  }
+  if (
+    diagnostic.code === 'SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER'
+    && /importedHelper|importedTitle/u.test(diagnostic.message)
+  ) {
+    return {
+      ...diagnostic,
+      message: `${diagnostic.message}; place the helper under the backend and import it with a relative S2 helper-module path`,
+      alternative: 'Place the helper under the backend and import it with a relative S2 helper-module path.',
+      guideAnchor,
+    };
+  }
+  return diagnostic;
 }
 
 function captureFamiliarApiReferences(source, sourcePath, apiDigest, err) {
@@ -18497,7 +18774,11 @@ function captureFamiliarApiReferences(source, sourcePath, apiDigest, err) {
 export function renderFamiliarHandlerRuntime(name, extracted, canonicalRendered, contextKind, apiDigest) {
   const registrationEnd = renderInlineHandlerModule(name, extracted.expressionSource).length;
   const helpers = canonicalRendered.source.slice(registrationEnd);
-  const capturedReferencePattern = /Object\.freeze\(\{__snapbackFamiliarApiReference:Object\.freeze\(\{name:("(?:[^"\\]|\\.)*"),apiDigest:("(?:[^"\\]|\\.)*")\}\)\}\)/gu;
+  // esbuild retains the exact marker shape while inserting presentation
+  // whitespace when an admitted helper graph is flattened. Match both the
+  // unbundled and flattened spellings; the closed keys/order keep this scoped
+  // to captureFamiliarApiReferences output.
+  const capturedReferencePattern = /Object\.freeze\(\s*\{\s*__snapbackFamiliarApiReference\s*:\s*Object\.freeze\(\s*\{\s*name\s*:\s*("(?:[^"\\]|\\.)*")\s*,\s*apiDigest\s*:\s*("(?:[^"\\]|\\.)*")\s*\}\s*\)\s*\}\s*\)/gu;
   const runtimeExpressionSource = extracted.expressionSource.replace(
     capturedReferencePattern,
     '__snapbackFamiliarReference($1, $2)',
@@ -18510,7 +18791,10 @@ export function renderFamiliarHandlerRuntime(name, extracted, canonicalRendered,
   // foreign objects. Only markers minted while evaluating the statically
   // rewritten handler expression enter this closure-private nominal set.
   const lines = [
-    'function __snapbackFamiliarFail(code, message) { const error = new Error(message); error.code = code; throw error; }',
+    // @ref LLP 0253#s92-w3-vertical-contract-fixture-catalogue — direct
+    // facade callers inspect `code`; the trusted settle wrapper reads the
+    // private marker before both serving decoders admit A1's exact code.
+    'function __snapbackFamiliarFail(code, message) { const error = new Error(message); error.code = code; error.__snapbackCode = code; throw error; }',
     'const __snapbackFamiliarReferences = new WeakSet();',
     'function __snapbackFamiliarReference(name, apiDigest) { const reference = Object.freeze({ __snapbackFamiliarApiReference: Object.freeze({ name, apiDigest }) }); __snapbackFamiliarReferences.add(reference); return reference; }',
     `const __snapbackFamiliarHandler = (${runtimeExpressionSource});`,

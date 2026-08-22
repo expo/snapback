@@ -487,6 +487,13 @@ test('mutation settlement availability refusals survive the JS-host decoder', ()
   );
 });
 
+test('Familiar generated-reference refusals survive the JS-host decoder', () => {
+  assert.equal(
+    handlerEnvelopeCode('SNAPBACK_FAMILIAR_RUNMUTATION_REF_REQUIRED'),
+    'SNAPBACK_FAMILIAR_RUNMUTATION_REF_REQUIRED',
+  );
+});
+
 test('settle extraction isolates hostile name/constructor/stack/message getters', async () => {
   for (const getter of ['name', 'constructor', 'stack', 'message']) {
     const decoded = parseHandlerEnvelope(await settleHostile(getter));

@@ -2924,11 +2924,67 @@
       "subsystem": "function"
     },
     {
+      "code": "SNAPBACK_PLAN_FACTS_DERIVED",
+      "details": {
+        "dependencySet": {
+          "reads": [],
+          "writes": [
+            "conversations"
+          ]
+        },
+        "dependencySetProvenance": "plan-derived",
+        "function": "createConversation",
+        "resultContractHash": "sha256:344bedd6d97d9e9634aabc51f0e23fd5a8c8fa5a3e732ea66aa7caed1d886d6b",
+        "resultContractProvenance": "plan-derived"
+      },
+      "message": "createConversation: closed plan result/dependency facts resolved with provenance",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_PLAN_FACTS_DERIVED",
+      "details": {
+        "dependencySet": {
+          "reads": [
+            "conversations"
+          ],
+          "writes": [
+            "conversations"
+          ]
+        },
+        "dependencySetProvenance": "plan-derived",
+        "function": "deleteConversation",
+        "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+        "resultContractProvenance": "unknown"
+      },
+      "message": "deleteConversation: closed plan result/dependency facts resolved with provenance",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
       "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
       "details": {
         "function": "deleteConversation"
       },
       "message": "deleteConversation: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_PLAN_FACTS_DERIVED",
+      "details": {
+        "dependencySet": {
+          "reads": [],
+          "writes": [
+            "models"
+          ]
+        },
+        "dependencySetProvenance": "plan-derived",
+        "function": "registerModel",
+        "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+        "resultContractProvenance": "unknown"
+      },
+      "message": "registerModel: closed plan result/dependency facts resolved with provenance",
       "severity": "info",
       "subsystem": "function"
     },
@@ -2965,6 +3021,26 @@
         "function": "streamReply"
       },
       "message": "streamReply: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_PLAN_FACTS_DERIVED",
+      "details": {
+        "dependencySet": {
+          "reads": [
+            "conversations"
+          ],
+          "writes": [
+            "conversations"
+          ]
+        },
+        "dependencySetProvenance": "plan-derived",
+        "function": "updateConversation",
+        "resultContractHash": "sha256:344bedd6d97d9e9634aabc51f0e23fd5a8c8fa5a3e732ea66aa7caed1d886d6b",
+        "resultContractProvenance": "plan-derived"
+      },
+      "message": "updateConversation: closed plan result/dependency facts resolved with provenance",
       "severity": "info",
       "subsystem": "function"
     }

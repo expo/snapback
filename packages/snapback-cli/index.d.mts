@@ -285,12 +285,24 @@ export interface ScaffoldResult {
   ok: true;
   template: string;
   target: string;
+  readonly lifecycle: ScaffoldLifecycle;
   readonly skillFiles: readonly string[];
+}
+
+export interface ScaffoldLifecycle {
+  readonly schemaVersion: 'snapback.scaffold-lifecycle.v1';
+  readonly stages: readonly ['scaffold', 'install', 'generate', 'dev', 'prove'];
+  readonly scripts: Readonly<Record<'generate' | 'dev' | 'prove', string>>;
 }
 
 export function listTemplates(): string[];
 
 export function renderScaffoldAuthoringSkill(canonicalContent: string): string;
+
+export function validateScaffoldLifecycleManifest(
+  manifest: Readonly<{ scripts?: Readonly<Record<string, string>> }>,
+  options?: { readonly template?: string },
+): ScaffoldLifecycle;
 
 export function scaffoldApp(target: string, options?: {
   readonly template?: string;

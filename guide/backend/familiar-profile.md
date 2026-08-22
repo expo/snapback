@@ -164,16 +164,16 @@ Further terms: captured constants; mutation document arrays; monotonic counter; 
 | Allowed form | Refused familiar-looking form | Standard rewrite | When Explicit is the better profile |
 | --- | --- | --- | --- |
 | `for...of`, array methods, or a literal index such as `array[0]` | Dynamic `array[i]` | Iterate, search, or use a statically fixed literal index. | Dynamic indexed algorithms are central to the operation. |
-| Current implementation: a reachable same-file named function declaration | `import { helper } from './helper'` | **Current implementation gap:** imported Familiar helpers are specified by LLP 0253 S2 under the LLP 0237 bounded graph, but are not implemented yet ([tracking ticket](repo:issues/20260821-familiar-imported-helper-support.md)). Until that lands, move the helper declaration into the function module. | As an interim escape, use Explicit when the backend requires a real multi-file handler graph. |
+| A reachable same-file function or a literal relative import from a bounded helper module under the backend | A bare-package helper, an import outside the backend, or an unresolved helper path | Put the helper under the backend (a `helpers/` subdirectory is supported) and import it relatively. The admitted helper graph is flattened into handler identity and runtime bytes. | The operation needs dependencies outside the closed backend helper graph. |
 | A handler-local literal `const`, or validated `args` | A referenced top-level `const` | Move the value inside the handler or pass it through `args`; top-level values are not spliced into executable bytes. | Many operations need a shared authored configuration graph. |
-| `ctx.runtime.now()` returning integer epoch milliseconds | `Date.now()` or `new Date()` | Read trusted time from `ctx.runtime` and store the returned integer. | The operation needs unsupported timers or ambient APIs. |
+| Static visibility/authorization; `ctx.runtime.now()` only for an ordinary trusted timestamp that is not an authority rule | Clock-dependent visibility or authority using `Date.now()` / `new Date()` | Use the Explicit profile temporal vocabulary: declare the applicable `boundedSkew` or `standardPattern` route. | Any authorization or settlement rule depends on time. |
 | Queries: bare/nullable `v.doc(...)` values or `v.array(v.doc(...))`; mutations/actions: one bare `v.doc(...)` or arrays of closed values | Mutation/action `returns: v.array(v.doc('todos'))` | Return one document, or a closed array of receipt records/ids. Mutation/action document arrays refuse before generation publishes activation output. | A mutation/action document-array carrier is part of the public contract. |
 | No Familiar sequence allocator | `ctx.sequence.allocate(...)` in a Familiar mutation | Use the Explicit profile's declared `sequences` mutation surface. Do not replace it with an app read/increment/write counter. | Dense scoped sequence allocation is required. |
 
 The complete source/runtime refusal matrix remains in
 [Handler runtime profile and generation preflight](./handler-runtime.md).
-In particular, a same-file helper is a function declaration, not a captured
-arrow assigned to a top-level constant.
+In particular, imported helpers must remain inside the bounded backend graph;
+captured top-level values are not a substitute for an admitted helper module.
 
 ### Escape to shared declarations, not a second runtime
 

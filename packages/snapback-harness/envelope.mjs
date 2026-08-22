@@ -26,6 +26,10 @@ const PASSTHROUGH_CODES = new Set([
   'SNAPBACK_VALUE_TOO_LARGE',
   'SNAPBACK_SEQUENCE_EXHAUSTED',
   'SNAPBACK_SEQUENCE_UNDECLARED',
+  // @ref LLP 0253#s92-w3-vertical-contract-fixture-catalogue — the
+  // generated Familiar action facade owns this refusal; A1 requires both
+  // serving decoders to preserve it through the handler envelope.
+  'SNAPBACK_FAMILIAR_RUNMUTATION_REF_REQUIRED',
   'SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE',
   'SNAPBACK_RELATION_PARENT_UNAVAILABLE',
   'SNAPBACK_UNKNOWN_TABLE',

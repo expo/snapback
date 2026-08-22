@@ -7,18 +7,28 @@ import {
   allow,
   defineAction,
   defineAssetUpload,
+  defineEphemeral,
   defineJsLiveQuery,
   defineJsMutation,
   defineJsQuery,
   defineSchema,
   defineTable as defineCanonicalTable,
   membershipResource,
+  ephemeral,
   results,
   v,
 } from './define.mjs';
 import { FAMILIAR_DISPOSITIONS } from './familiar-dispositions.mjs';
 
-export { allow, defineAssetUpload, defineSchema, membershipResource, v };
+export {
+  allow,
+  defineAssetUpload,
+  defineEphemeral,
+  defineSchema,
+  ephemeral,
+  membershipResource,
+  v,
+};
 
 const AUTH = new Set(['public', 'optional-user', 'authenticated']);
 const QUERY_KEYS = new Set([
@@ -205,7 +215,7 @@ export function lowerFamiliarReturns(kind, validator) {
   return unlowerable(
     kind,
     validator,
-    'document-containing composite values require the explicit result: grammar',
+    "document-containing composite values require the explicit profile's result: grammar",
   );
 }
 

@@ -31,6 +31,7 @@ import {
   scaffoldApp,
   sealHostedAdmissionEnvelope,
   showTarget,
+  validateScaffoldLifecycleManifest,
   validateDevTarget,
   validateTargetDescriptor,
   verifyBackupManifest,
@@ -54,6 +55,15 @@ const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'snapback-cli-packag
 // construction. Assert that identity rather than the `^x.y.z` shape — a shape
 // match passes on any stamped version, including a hardcoded one.
 const SCAFFOLD_PIN = `^${JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version}`;
+assert.throws(
+  () => validateScaffoldLifecycleManifest({
+    scripts: { generate: 'snapback generate snapback', dev: 'snapback dev snapback' },
+  }, { template: 'missing-prove-control' }),
+  (error) => error?.code === 'SNAPBACK_SCAFFOLD_LIFECYCLE_STAGE_MISSING'
+    && error?.diagnostic?.details?.stage === 'prove'
+    && error?.message.includes('missing scaffold lifecycle stage prove'),
+  'VCF-E-L1 must refuse a missing scaffolded stage before output and name it',
+);
 // @ref LLP 0259#2-start-packet-not-a-handful-of-independent-cards — every
 // scaffold's AGENTS.md transcludes its template start packet with a digest
 // comment; identity is a compare against the canonical guide/start page, the

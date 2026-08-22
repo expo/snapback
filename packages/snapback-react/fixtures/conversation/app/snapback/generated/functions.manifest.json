@@ -1746,5 +1746,104 @@
   "generatedAt": 0,
   "inputsHash": "snapback.v1:sessions:inputs:sha256:4b3d0a594a0985b3fde165a405de4c2959e2863d9a499223ba1b7088929678f7",
   "schemaVersion": "snapback.v1",
-  "unsupportedDependencyDiagnostics": []
+  "unsupportedDependencyDiagnostics": [
+    {
+      "code": "SNAPBACK_PLAN_FACTS_DERIVED",
+      "details": {
+        "dependencySet": {
+          "reads": [],
+          "writes": [
+            "reactions"
+          ]
+        },
+        "dependencySetProvenance": "plan-derived",
+        "function": "addReaction",
+        "resultContractHash": "sha256:ea0d0f469f0cbf9048fa8fd6b81259b9efe0dd13fe087a8d6df9785bdc267fde",
+        "resultContractProvenance": "authored"
+      },
+      "message": "addReaction: closed plan result/dependency facts resolved with provenance",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_PLAN_FACTS_DERIVED",
+      "details": {
+        "dependencySet": {
+          "reads": [
+            "reactions"
+          ],
+          "writes": [
+            "reactions"
+          ]
+        },
+        "dependencySetProvenance": "plan-derived",
+        "function": "removeReaction",
+        "resultContractHash": "sha256:0049db6e709bdb59a11e258e49985b10e4f27b3ab92169ee256ec5b271f6a123",
+        "resultContractProvenance": "authored"
+      },
+      "message": "removeReaction: closed plan result/dependency facts resolved with provenance",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_PLAN_FACTS_DERIVED",
+      "details": {
+        "dependencySet": {
+          "reads": [],
+          "writes": [
+            "messages"
+          ]
+        },
+        "dependencySetProvenance": "plan-derived",
+        "function": "sendMessage",
+        "resultContractHash": "sha256:5d40a11d2dd3c7c273d1fd3dcb5e37d6150af9b70a47c703a7db7fd6f1d067c0",
+        "resultContractProvenance": "authored"
+      },
+      "message": "sendMessage: closed plan result/dependency facts resolved with provenance",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_PLAN_FACTS_DERIVED",
+      "details": {
+        "dependencySet": {
+          "reads": [
+            "conversations"
+          ],
+          "writes": [
+            "conversations",
+            "messages"
+          ]
+        },
+        "dependencySetProvenance": "plan-derived",
+        "function": "sendReply",
+        "resultContractHash": "sha256:5d40a11d2dd3c7c273d1fd3dcb5e37d6150af9b70a47c703a7db7fd6f1d067c0",
+        "resultContractProvenance": "authored"
+      },
+      "message": "sendReply: closed plan result/dependency facts resolved with provenance",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_PLAN_FACTS_DERIVED",
+      "details": {
+        "dependencySet": {
+          "reads": [
+            "conversations"
+          ],
+          "writes": [
+            "conversations",
+            "messages"
+          ]
+        },
+        "dependencySetProvenance": "plan-derived",
+        "function": "sendText",
+        "resultContractHash": "sha256:5d40a11d2dd3c7c273d1fd3dcb5e37d6150af9b70a47c703a7db7fd6f1d067c0",
+        "resultContractProvenance": "authored"
+      },
+      "message": "sendText: closed plan result/dependency facts resolved with provenance",
+      "severity": "info",
+      "subsystem": "function"
+    }
+  ]
 }

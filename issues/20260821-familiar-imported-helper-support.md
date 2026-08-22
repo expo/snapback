@@ -34,3 +34,14 @@ not permanent profile semantics.
 - The LLP 0237 negative matrix remains fail-closed before artifact replacement.
 - Familiar retrieval and vertical fixtures teach the admitted import path, and
   the Guide no longer labels imported helpers as a current implementation gap.
+
+## W3 progress (2026-08-22)
+
+VCF-F-D2 now proves a relative helper under the backend is flattened into the
+handler's executable identity, generates and executes from packed packages,
+and that an out-of-graph import refuses pre-output with the one supported S2
+rewrite. The Familiar first-read Guide teaches that path.
+
+The issue remains open for the complete LLP 0237 negative matrix named above
+(explicit graph bounds, cycle, snapshot, and unsupported-initializer cases);
+the vertical receipt does not claim that broader closure.

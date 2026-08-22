@@ -695,7 +695,10 @@ export type TableVisibilityArmSpec<Fields extends Record<string, Validator> = Re
   | {
     kind: 'membership';
     declaration: string | MembershipTableBuilder;
-    resourceField: keyof Fields & string;
+    // @ref LLP 0253#s91-contract-rulings — `_id` is the canonical
+    // self-resource field even though it is supplied by storage rather than
+    // authored in the table's field object.
+    resourceField: (keyof Fields & string) | '_id';
     roles?: readonly string[];
   };
 

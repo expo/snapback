@@ -382,6 +382,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'omission-defaults.test.mjs',
       'operation-schemas.test.mjs',
       'plain-join-advisory.test.mjs',
+      'plan-derived-facts.test.mjs',
       'provider-introspection.test.mjs',
       'protected-query-profile.test.mjs',
       'refusal-tracking-authoring.test.mjs',
@@ -566,7 +567,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 327,
+  expectedTotal = 328,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1053,6 +1054,8 @@ export function checkPackageTestInventories(options = {}) {
 // node/bundler/nodenext relative-api-module declaration-resolution regression suite.
 // 326 -> 327 (2026-08-22, LLP 0295 W4): @expo/snapback-codegen gains the
 // authority-projection packed external fixture.
+// 327 -> 328 (2026-08-22, LLP 0295 W3 post-W4 rebase): @expo/snapback-codegen
+// gains the closed-plan result/dependency derivation fixture (VCF-E-P1–P4).
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

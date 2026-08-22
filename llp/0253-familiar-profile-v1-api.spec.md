@@ -6,6 +6,15 @@
 Code generation, React, Client integration, Packaging, Documentation, Testing
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-08-13
+**Revised:** 2026-08-22 (W3 implementation: one packed external-app carrier
+now binds the complete VCF-F catalogue across Guide retrieval, advertised
+imports, clean generation, runtime admission, headless/React projection, and
+negative repair. Invocation-local ID provenance closes VCF-F-M2 without
+pretending opaque IDs carry table tags; R4 exports, membership-backed
+ephemeral presence, authority visibility, dialect rewrites/refusals, asset
+delivery, and disposition-4-only profile routes are included. A paired
+Explicit carrier binds VCF-E-P1–P4 derivation and VCF-E-L1 lifecycle wiring;
+the remaining Explicit catalogue stays open.)
 **Revised:** 2026-08-21 (LLP 0295 D0.3 decision packet: new S9 records the
 authoring-profile product contract for the Familiar side — one-pass clean
 generation and phase parity as normative contract, the S4.3 partition pinned

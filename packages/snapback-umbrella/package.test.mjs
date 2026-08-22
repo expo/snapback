@@ -4,6 +4,10 @@ import { test } from 'node:test';
 
 import * as define from '@expo/snapback-codegen/define';
 import * as familiarCodegen from '@expo/snapback-codegen/familiar';
+import {
+  FAMILIAR_ADVERTISED_ENTRYPOINT_EXPORTS,
+  FAMILIAR_DISPOSITIONS,
+} from '../snapback-codegen/familiar-dispositions.mjs';
 import * as familiarReact from '@expo/snapback-react/familiar';
 import * as react from './react.mjs';
 import * as server from './server.mjs';
@@ -13,6 +17,8 @@ test('the experimental umbrella is identity-preserving re-exports only', () => {
   assert.equal(server.defineSchema, define.defineSchema);
   assert.equal(server.defineTable, define.defineTable);
   assert.equal(server.defineAssetUpload, define.defineAssetUpload);
+  assert.equal(server.defineEphemeral, define.defineEphemeral);
+  assert.equal(server.ephemeral, define.ephemeral);
   assert.equal(server.query, familiarCodegen.query);
   assert.equal(server.mutation, familiarCodegen.mutation);
   assert.equal(server.action, familiarCodegen.action);
@@ -28,6 +34,24 @@ test('the experimental umbrella is identity-preserving re-exports only', () => {
       file,
     );
     assert.doesNotMatch(source, /\b(?:class|function|new|createContext)\b/u, file);
+  }
+});
+
+test('advertised Familiar entrypoints cover every claimed constructor', () => {
+  const entrypoints = { server, values };
+  for (const [entrypoint, names] of Object.entries(FAMILIAR_ADVERTISED_ENTRYPOINT_EXPORTS)) {
+    for (const name of names) {
+      const disposition = FAMILIAR_DISPOSITIONS.constructors[name];
+      assert(
+        disposition && (disposition.disposition === 1 || disposition.disposition === 2),
+        `${entrypoint}.${name} is advertised without a direct/defaulted constructor disposition`,
+      );
+      assert.equal(
+        Object.hasOwn(entrypoints[entrypoint], name),
+        true,
+        `${entrypoint}.${name} is claimed but absent from the advertised entrypoint`,
+      );
+    }
   }
 });
 

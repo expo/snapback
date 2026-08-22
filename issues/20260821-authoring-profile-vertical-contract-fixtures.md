@@ -99,41 +99,93 @@ Key rulings, in brief:
 
 **Familiar coherence lane:**
 
-- [ ] One-pass clean generation with schema-derived `v.doc` results
+- [x] One-pass clean generation with schema-derived `v.doc` results
       (VCF-F-G1) and mutation-doc runtime parity (VCF-F-M1) — closes
       `issues/20260820-familiar-vdoc-generation-runtime-parity.md`.
-- [ ] Close the remaining per-layer S4.3 catch-all divergences: nullable
+- [x] Close the remaining per-layer S4.3 catch-all divergences: nullable
       point result through generated types, runtime admission, and client
       projection (VCF-F-Q6 — the lowering is already green) and the
       value-object live-query runtime refusal (VCF-F-Q7); align guide,
       types, codegen, runtime, and client on the one partition.
-- [ ] Row-shaped partition fixtures VCF-F-Q1..Q5, VCF-F-Q8, VCF-F-M2,
+- [x] Row-shaped partition fixtures VCF-F-Q1..Q5, VCF-F-Q8, VCF-F-M2,
       VCF-F-N1, VCF-F-A1 green from packed packages.
-- [ ] `defineEphemeral` and the `ephemeral` collection-builder namespace
+- [x] `defineEphemeral` and the `ephemeral` collection-builder namespace
       re-exported from `@expo/snapback/server` and `generated/server`;
       export-parity check over every claimed disposition-1/2 constructor;
       VCF-F-E1 green.
-- [ ] Membership resource-identity spelling corroborated across guide,
+- [x] Membership resource-identity spelling corroborated across guide,
       generated, and runtime contracts; VCF-F-MB1 (paired with VCF-E-MB1)
       green.
-- [ ] First-read handler-dialect table plus retrieval-eval cases; each
+- [x] First-read handler-dialect table plus retrieval-eval cases; each
       dialect boundary proves its single supported rewrite end to end with
       the refused form as the step-6 negative (VCF-F-D1..D3), and
       clock-dependent visibility refuses with the one Explicit route
       (VCF-F-D4) — closes
       `issues/20260820-guide-gap-familiar-handler-dialect.md`.
-- [ ] Sequence refusal route stable and first-read-discoverable (VCF-F-SQ1);
+- [x] Sequence refusal route stable and first-read-discoverable (VCF-F-SQ1);
       asset intent recast with retrieval + negative steps (VCF-F-AS1).
-- [ ] Profile-switch suggestions confined to disposition-4 refusal sites.
+- [x] Profile-switch suggestions confined to disposition-4 refusal sites.
+
+### W3 implementation status — 2026-08-22
+
+- The packed external-app carrier verifies the complete S9.2 Familiar
+  catalogue: VCF-F-G1, Q1–Q8, M1–M2, N1, A1, D1–D4, E1, AS1, MB1, and SQ1.
+  It begins without generated output, typechecks only packed packages, runs
+  the packed native binary, exercises headless and React clients, and places
+  every negative at its earliest capable layer. The receipt has no pending
+  Familiar rows.
+- VCF-F-M2 now distinguishes invocation-local IDs minted by `ctx.db.insert`:
+  a same-table ID is admitted and a wrong-table ID minted in the same handler
+  is rejected. Opaque pre-existing IDs remain admissible because Snapback row
+  IDs deliberately carry no context-free table tag.
+- R4's `defineEphemeral` and `ephemeral` exports are identity-preserving from
+  both `@expo/snapback/server` and `generated/server`. VCF-F-E1 additionally
+  proves membership-backed presence and the retired `_generated/` refusal.
+  VCF-F-MB1 proves `_id` self-resource and child-resource visibility through
+  generated and runtime contracts.
+- The dialect carrier executes the one supported rewrite for D1–D3, refuses
+  their familiar-looking negative forms pre-output, and routes only D4, N1,
+  and SQ1 disposition-4 refusals to Explicit. VCF-F-AS1 uploads and reads back
+  identical MP4 bytes and preserves the nested unsupported-media diagnostic.
+- The Explicit economy carrier verifies VCF-E-P1–P4: exact result and table
+  dependency facts are derived from closed plans, provenance is projected,
+  compatible authored controls preserve the same generated contract and
+  authority evidence, and conflicts refuse before output. VCF-E-L1 binds the
+  scaffolded install → generate → dev → prove lifecycle to the landed
+  W1 M1→M2 continuity proof. The other Explicit catalogue rows, D4/D5
+  economy work, and the corpus-wide ceremony measurement remain open.
+
+Verification evidence for this increment:
+
+- `node --test packages/snapback-harness/envelope.test.mjs` — 15/15 passed.
+- `cargo test -p snapback-engine tagged_failure_maps_code --lib` — 1/1 passed
+  (the focused envelope case passed); the focused invocation-local ID
+  provenance test also passed 1/1 (495 filtered).
+- `cargo build --bin snapback` and
+  `target/debug/snapback runtime-qualify` — current dirty-worktree binary built;
+  restricted no-eval handler VM qualified.
+- `SNAPBACK_RUNTIME_BINARY=target/debug/snapback node
+  scripts/familiar-vdoc-vertical-contract.mjs` — complete Familiar catalogue
+  and Explicit P1–P4 receipt passed with no pending Familiar rows; its R6
+  control proves an ordinary timestamp refusal retains the
+  `ctx.runtime.now()` rewrite without a profile-switch suggestion.
+- `SNAPBACK_RUNTIME_BINARY=target/debug/snapback node
+  packages/snapback-cli/packed-dev-lifecycle.test.mjs` — VCF-E-L1 passed the
+  packed scaffold/install/generate/dev/prove lifecycle and W1 M1→M2
+  continuity proof.
+- `scripts/bootstrap-ibex-runtime` — ran before Cargo as required, installed
+  the lazy Ibex/Hermes state, then timed out after 900 seconds with stable code
+  `SNAPBACK_IBEX_RUNTIME_LINK_TIMEOUT`; the subsequent focused Cargo build and
+  runtime qualification succeeded.
 
 **Explicit economy lane:**
 
-- [ ] Plan-derived result contracts (LLP 0275 D3) with provenance markers
+- [x] Plan-derived result contracts (LLP 0275 D3) with provenance markers
       and closed-plan dependency-set derivation; duplicate `result:` blocks
       and transcribed dependency lists removed from first-party templates;
       VCF-E-P1..P4 as receipts — via
       `issues/20260817-0275-derive-closed-plan-result-contracts.md`.
-- [ ] Recurring fixed lifecycle wiring supplied by template scaffolding
+- [x] Recurring fixed lifecycle wiring supplied by template scaffolding
       through the packed cold-install closure (LLP 0275 P5/P7, D6);
       VCF-E-L1 as the receipt.
 - [ ] Auto-qualification in the ordinary proof (LLP 0275 D4) — via

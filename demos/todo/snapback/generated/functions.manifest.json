@@ -215,7 +215,7 @@
       "exportedName": "editTitle",
       "handlerForm": "plan",
       "id": "todo:editTitle",
-      "implementationHash": "sha256:a164473f858ea0135b3ff21dd7e66464c1f476989b7b086c7d77984a3ecdfcb2",
+      "implementationHash": "sha256:18ebcaad77f7feac11fa68091430d96a5e9aa67833b937c92ac2b46522620a82",
       "kind": "Mutation",
       "name": "editTitle",
       "readSetSummary": {
@@ -233,9 +233,14 @@
         "args_contract_v1"
       ],
       "resultContract": {
-        "kind": "unknown"
+        "kind": "value",
+        "value": {
+          "kind": "integer",
+          "max": 9007199254740991,
+          "min": 0
+        }
       },
-      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "resultContractHash": "sha256:530ad5d05463934ffbd1071d04a666deca4addbc36ab5958d08bb5d266f1a415",
       "runtime": {
         "HostPlan": {
           "Mutation": {
@@ -671,11 +676,22 @@
       "subsystem": "function"
     },
     {
-      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "code": "SNAPBACK_PLAN_FACTS_DERIVED",
       "details": {
-        "function": "editTitle"
+        "dependencySet": {
+          "reads": [
+            "todos"
+          ],
+          "writes": [
+            "todos"
+          ]
+        },
+        "dependencySetProvenance": "plan-derived",
+        "function": "editTitle",
+        "resultContractHash": "sha256:530ad5d05463934ffbd1071d04a666deca4addbc36ab5958d08bb5d266f1a415",
+        "resultContractProvenance": "plan-derived"
       },
-      "message": "editTitle: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "message": "editTitle: closed plan result/dependency facts resolved with provenance",
       "severity": "info",
       "subsystem": "function"
     },

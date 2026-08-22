@@ -108,6 +108,7 @@ function materializePackedPackages() {
     '@expo/snapback-vite',
   ]);
   const specifiers = {};
+  const tarballs = {};
   for (const [name, source] of [...closure].sort(([left], [right]) => left.localeCompare(right))) {
     if (name === '@expo/snapback-codegen') {
       run(process.execPath, ['prepare-runtime-artifacts.mjs'], { cwd: source.root });
@@ -123,6 +124,7 @@ function materializePackedPackages() {
     ], { cwd: source.root });
     assert.ok(existsSync(artifact), `${name} produced a package tarball`);
     specifiers[name] = localSpecifier(externalRoot, artifact);
+    tarballs[name] = artifact;
   }
 
   writeFileSync(join(externalRoot, 'package.json'), `${JSON.stringify({
@@ -152,6 +154,7 @@ function materializePackedPackages() {
       `${name} must not resolve into the source workspace`,
     );
   }
+  return Object.freeze(tarballs);
 }
 
 function materializeQualifiedRuntime() {
@@ -229,7 +232,13 @@ async function eventually(check, { timeoutMs = 15_000, label = 'condition' } = {
 
 function scaffoldLane(scaffoldApp, name, template = 'react') {
   const projectRoot = join(externalRoot, name);
-  assert.equal(scaffoldApp(projectRoot, { template }).ok, true);
+  const scaffolded = scaffoldApp(projectRoot, { template });
+  assert.equal(scaffolded.ok, true);
+  assert.deepEqual(
+    scaffolded.lifecycle.stages,
+    ['scaffold', 'install', 'generate', 'dev', 'prove'],
+    `${template} must bind W1's runtime lifecycle to VCF-E-L1's scaffolded command path`,
+  );
   const backendRoot = join(projectRoot, 'snapback');
   return {
     name,
@@ -241,6 +250,32 @@ function scaffoldLane(scaffoldApp, name, template = 'react') {
     readyFile: join(projectRoot, '.snapback', 'dev.ready.json'),
     database: join(projectRoot, '.snapback', 'dev.sqlite3'),
   };
+}
+
+function installScaffoldLane(lane, packedTarballs) {
+  const manifestPath = join(lane.projectRoot, 'package.json');
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  const requiredPackages = new Set();
+  const overrides = Object.fromEntries(
+    Object.entries(packedTarballs).map(([name, tarball]) => [name, `file:${tarball}`]),
+  );
+  for (const section of ['dependencies', 'devDependencies']) {
+    for (const name of Object.keys(manifest[section] ?? {})) {
+      const tarball = packedTarballs[name];
+      if (tarball === undefined) continue;
+      const specifier = `file:${tarball}`;
+      manifest[section][name] = specifier;
+      requiredPackages.add(name);
+    }
+  }
+  manifest.overrides = { ...(manifest.overrides ?? {}), ...overrides };
+  writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  run('bun', ['install'], { cwd: lane.projectRoot });
+  for (const name of requiredPackages) {
+    const installed = join(lane.projectRoot, 'node_modules', ...name.split('/'));
+    assert.ok(existsSync(installed), `${lane.name} install materializes ${name}`);
+    assert.equal(lstatSync(installed).isSymbolicLink(), false, `${name} must not be a workspace link`);
+  }
 }
 
 function writeAdditiveSchema(lane) {
@@ -402,7 +437,7 @@ let activeOwner = null;
 let activeConsumer = null;
 try {
   mkdirSync(externalRoot, { recursive: true });
-  materializePackedPackages();
+  const packedTarballs = materializePackedPackages();
   materializeQualifiedRuntime();
   writeMetroFixture();
 
@@ -427,7 +462,8 @@ try {
   // Headless: a second packed CLI instance attaches to the receipt-bound owner,
   // advances the schema, and closes without terminating the owner.
   {
-    const lane = scaffoldLane(cli.scaffoldApp, 'headless');
+    const lane = scaffoldLane(cli.scaffoldApp, 'react');
+    installScaffoldLane(lane, packedTarballs);
     const events = [];
     activeOwner = await cli.runDev({
       backendDirectory: lane.backendRoot,
@@ -466,6 +502,21 @@ try {
     await assertOwnerStillRunning(activeOwner, 'headless attach');
     await closeOwner(activeOwner, 'headless');
     activeOwner = null;
+    const projectReadiness = cli.packagedRuntimeReadiness({
+      runtimeBinary: qualifiedRuntimeBinary,
+      projectRoot: lane.projectRoot,
+    });
+    assert.equal(projectReadiness.ok, true, JSON.stringify(projectReadiness.diagnostic));
+    const prove = run('npm', ['run', 'prove'], {
+      cwd: lane.projectRoot,
+      timeout: 180_000,
+      env: { SNAPBACK_RUNTIME_BINARY: qualifiedRuntimeBinary },
+    });
+    const proveReceipt = JSON.parse(readFileSync(
+      join(lane.projectRoot, '.snapback', 'verify-receipt.json'),
+      'utf8',
+    ));
+    assert.equal(proveReceipt.ok, true, prove.stdout);
   }
 
   // Vite: a real Vite server loads the packed plugin. Its configure cut
@@ -832,7 +883,7 @@ process.exit();
   }
 
   console.log(
-    'packed-dev-lifecycle.test.mjs: packed headless, real Vite, and Expo provider M1 -> M2 receipt-bound continuity passes',
+    'packed-dev-lifecycle.test.mjs: VCF-E-L1 scaffold -> install -> generate -> dev -> prove plus packed headless, real Vite, and Expo provider M1 -> M2 continuity passes',
   );
 } finally {
   await activeConsumer?.close?.().catch(() => {});

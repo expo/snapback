@@ -9,6 +9,23 @@
 
 export const FAMILIAR_DISPOSITION_SCHEMA_VERSION = 'snapback.familiar-dispositions.v1';
 
+// @ref LLP 0253#s91-contract-rulings — R4 makes advertised-entrypoint
+// reachability part of the disposition contract instead of a package-local
+// coincidence. Every name here must remain a direct/defaulted constructor.
+export const FAMILIAR_ADVERTISED_ENTRYPOINT_EXPORTS = Object.freeze({
+  server: Object.freeze([
+    'action',
+    'defineAssetUpload',
+    'defineEphemeral',
+    'defineSchema',
+    'defineTable',
+    'ephemeral',
+    'mutation',
+    'query',
+  ]),
+  values: Object.freeze(['v']),
+});
+
 const entry = (disposition, route) => Object.freeze({ disposition, route });
 const category = (entries) => Object.freeze(Object.fromEntries(
   Object.entries(entries).sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0)),
@@ -95,11 +112,11 @@ export const FAMILIAR_DISPOSITIONS = Object.freeze({
     defineCommand: entry(4, 'use the Snapback command extension or explicit profile'),
     defineSurface: entry(4, 'use the Snapback surface extension or explicit profile'),
     defineMaintainedProjection: entry(4, 'use the explicit profile projection vocabulary'),
-    defineAssetUpload: entry(4, 'use the Snapback asset extension or explicit profile'),
+    defineAssetUpload: entry(1, 'shared Snapback asset extension'),
     defineMediaCommand: entry(4, 'use the Snapback media-command extension or explicit profile'),
     defineConfig: entry(4, 'use the Snapback configuration extension or explicit profile'),
-    defineEphemeral: entry(4, 'use the Snapback ephemeral extension or explicit profile'),
-    ephemeral: entry(4, 'use the Snapback ephemeral extension vocabulary'),
+    defineEphemeral: entry(1, 'shared Snapback ephemeral extension'),
+    ephemeral: entry(1, 'shared Snapback ephemeral collection vocabulary'),
     definePushSeam: entry(4, 'use the Snapback push extension or explicit profile'),
     defineAuth: entry(4, 'use the Snapback auth extension or explicit profile'),
     defineVisibilityOverride: entry(4, 'use the explicit profile for governed visibility overrides'),

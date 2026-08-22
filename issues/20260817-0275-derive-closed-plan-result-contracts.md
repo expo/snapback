@@ -49,3 +49,17 @@ shapes. Do not widen a partially derived expression to `v.json()` or
   result declarations are removed.
 - Generated artifacts expose result-contract provenance and freshness checks
   cover it.
+
+## W3 progress (2026-08-22)
+
+VCF-E-P1–P4 are implemented and packed: `returnBinding` of an inserted ID,
+`returnChangedCount`, and `returnDocument` derive exact effective contracts;
+closed-plan table dependencies and result provenance are projected; compatible
+authored controls produce identical result/dependency and authority evidence;
+and conflicting authored transcriptions refuse before active output. The React
+template no longer repeats the now-derivable result contract.
+
+This ticket remains open because D3's wider acceptance still calls for exact
+`returnLiteral` and provable `returnExpr` rules, the remaining first-party
+template migrations, and their ambiguity fixtures. W3 does not relabel those
+underivable cases as exact.

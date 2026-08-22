@@ -422,6 +422,54 @@ pub struct ExecutedIbexMutation {
     pub media_projection_scope: Option<MediaProjectionInvocationScopeV1>,
 }
 
+/// Reject a result id when this invocation's own host-minted insert proves
+/// that the opaque string belongs to a different table. Unknown strings stay
+/// admissible: row ids deliberately do not encode table names, so only the
+/// host's exact mint provenance can strengthen the ordinary string check.
+///
+/// @ref LLP 0253#s92-w3-vertical-contract-fixture-catalogue — VCF-F-M2's
+/// negative is a foreign-table id minted by `ctx.db.insert`; its table fact is
+/// available here before either the result or buffered effects can escape.
+fn validate_buffered_result_id_provenance(
+    function_id: &str,
+    result_contract_hash: Option<&str>,
+    contract: &FunctionResultContract,
+    result: &Value,
+    writes: &[BufferedWrite],
+) -> SnapbackResult<()> {
+    let FunctionResultContract::Value {
+        value: ResultValueContract::Id {
+            table: expected_table,
+        },
+    } = contract
+    else {
+        return Ok(());
+    };
+    let Some(returned_id) = result.as_str() else {
+        return Ok(());
+    };
+    let Some(minted_table) = writes.iter().find_map(|write| match write {
+        BufferedWrite::Insert { table, id, .. } if id == returned_id => Some(table),
+        _ => None,
+    }) else {
+        return Ok(());
+    };
+    if minted_table == expected_table {
+        return Ok(());
+    }
+    Err(SnapbackError::error(
+        "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION",
+        "runtime",
+        format!("handler {function_id:?} returned a value outside its declared result contract"),
+    )
+    .with_details(json!({
+        "functionId": function_id,
+        "resultContractHash": result_contract_hash,
+        "path": "$",
+        "constraint": "type",
+    })))
+}
+
 #[derive(Clone, Debug)]
 struct BufferedDocumentReadWitness {
     table: String,
@@ -739,6 +787,13 @@ pub(crate) fn dry_run_ibex_mutation_prepared(
         return Err(denial);
     }
     let mut result = result?;
+    validate_buffered_result_id_provenance(
+        prepared.function_id(),
+        prepared.result_contract_hash(),
+        prepared.result_contract(),
+        &result,
+        &invocation.writes,
+    )?;
     let media_projection = invocation.normalize_media_result(&mut result, prepared)?;
     let result_document_projection =
         invocation.buffered_document_result_projection(&result, prepared.result_contract());
@@ -858,6 +913,13 @@ pub fn execute_ibex_mutation_prepared(
         return Err(denial);
     }
     let mut result = result?;
+    validate_buffered_result_id_provenance(
+        prepared.function_id(),
+        prepared.result_contract_hash(),
+        prepared.result_contract(),
+        &result,
+        &invocation.writes,
+    )?;
     let media_projection = invocation.normalize_media_result(&mut result, prepared)?;
     let result_document_projection =
         invocation.buffered_document_result_projection(&result, prepared.result_contract());
@@ -7074,6 +7136,10 @@ fn handler_envelope_code(code: &str) -> &str {
         // outcomes remain typed across both handler-envelope decoders.
         | "SNAPBACK_SEQUENCE_EXHAUSTED"
         | "SNAPBACK_SEQUENCE_UNDECLARED"
+        // @ref LLP 0253#s92-w3-vertical-contract-fixture-catalogue —
+        // A1's generated Familiar facade owns this refusal; preserve it
+        // through the Rust decoder exactly as the JS-host decoder does.
+        | "SNAPBACK_FAMILIAR_RUNMUTATION_REF_REQUIRED"
         | "SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE"
         | "SNAPBACK_RELATION_PARENT_UNAVAILABLE"
         // LLP 0051 D1: ledger divergence and the ledger-length limit are
@@ -7303,6 +7369,66 @@ fn run_service_principal_ibex_mutation_for_test(
         true,
     )?;
     run_ibex_handler_with_context(module, &mut invocation, None)
+}
+
+#[cfg(test)]
+mod result_id_provenance_tests {
+    use super::validate_buffered_result_id_provenance;
+    use crate::manifest::{FunctionResultContract, ResultValueContract};
+    use crate::storage::BufferedWrite;
+    use serde_json::{Map, json};
+
+    fn id_contract(table: &str) -> FunctionResultContract {
+        FunctionResultContract::Value {
+            value: ResultValueContract::Id {
+                table: table.to_owned(),
+            },
+        }
+    }
+
+    fn insert(table: &str, id: &str) -> BufferedWrite {
+        BufferedWrite::Insert {
+            table: table.to_owned(),
+            id: id.to_owned(),
+            values: Map::new(),
+        }
+    }
+
+    #[test]
+    fn host_minted_result_ids_preserve_their_table_provenance() {
+        let contract = id_contract("todos");
+        validate_buffered_result_id_provenance(
+            "fn:returnTodoId",
+            Some("sha256:result"),
+            &contract,
+            &json!("todo_1"),
+            &[insert("todos", "todo_1")],
+        )
+        .expect("same-table mint passes");
+        validate_buffered_result_id_provenance(
+            "fn:returnTodoId",
+            Some("sha256:result"),
+            &contract,
+            &json!("stale_or_external_id"),
+            &[],
+        )
+        .expect("an opaque id without invocation-local mint evidence stays admissible");
+
+        let error = validate_buffered_result_id_provenance(
+            "fn:returnTodoId",
+            Some("sha256:result"),
+            &contract,
+            &json!("other_1"),
+            &[insert("otherTodos", "other_1")],
+        )
+        .expect_err("a provably foreign host mint must refuse");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION"
+        );
+        assert_eq!(error.diagnostic.details["path"], json!("$"));
+        assert_eq!(error.diagnostic.details["constraint"], json!("type"));
+    }
 }
 
 #[cfg(test)]
@@ -7904,6 +8030,7 @@ mod parse_handler_output_tests {
         for code in [
             "SNAPBACK_SEQUENCE_EXHAUSTED",
             "SNAPBACK_SEQUENCE_UNDECLARED",
+            "SNAPBACK_FAMILIAR_RUNMUTATION_REF_REQUIRED",
             "SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE",
             "SNAPBACK_RELATION_PARENT_UNAVAILABLE",
         ] {
