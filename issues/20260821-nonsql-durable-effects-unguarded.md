@@ -1,6 +1,8 @@
 # Non-SQL durable effects: irreversible and external effects land unguarded
 
-**Status:** Open
+**Status:** Open — design landed (`e7444c76b`,
+`issues/20260821-durable-authority-to-effect-handoff-design.md`); 4 of 9 effects
+need work, 5 are already correct
 **Filed:** 2026-08-21
 **Companion to:** `issues/20260821-unguarded-durable-writes-admission-fence.md` (22 SQLite-side families)
 

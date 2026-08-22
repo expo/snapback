@@ -1,6 +1,7 @@
 # `effect_guard` fences the global mode epoch, not session logout or grant revocation
 
-**Status:** Open — DEMONSTRATED; sharper than originally filed
+**Status:** Resolved 2026-08-21 by the split-phase primitive (`138d24164`,
+`1b0d76425`); see "Resolution" at the end
 **Filed:** 2026-08-21
 **Found by:** codex and grok, independently, reviewing `065363756`
 **Related:** `issues/20260821-unguarded-durable-writes-admission-fence.md`
@@ -186,3 +187,31 @@ another check/commit race. Acquiring the session lock inside SQLite is
 prohibited by the lock order (LLP 0059 §751).
 
 So: reservation, not rollback. Proceed with the split-phase design.
+
+
+## Resolution (2026-08-21)
+
+Closed by the split-phase authorized-effect reservation:
+
+- `b441f87b7` — the regression, committed failing, demonstrating that logout
+  returned 204 with the session terminal while the caller's row committed anyway.
+- `138d24164` — the primitive. Session/service publication is reserved outside
+  `LocalSnapback`, the lock-free permit is carried in, the mode guard is acquired
+  last at the SQLite commit, and the permit is retained through durable commit.
+  Logout's premark drains outstanding permits before committing terminal state.
+- `1b0d76425` — exact-entry removal of retained service guards, fixing a
+  release-build authority bypass found in review: the TLS stack was popped by
+  top rather than by identity, so an out-of-order guard drop left a stale entry
+  that `active_witness()` would honour after terminal state committed.
+
+Both race orderings are proven and were verified unsandboxed at the landed
+commit: logout-wins (no durable row, caller gets `SNAPBACK_AUTH_SESSION_EXPIRED`)
+and reservation-wins (write commits, logout waits, terminal state commits after).
+
+Reviewed by codex and grok independently. Two findings were raised and fixed; a
+third (unbounded logout drain) was refuted as pre-existing LLP 0059 behaviour
+rather than introduced here, and is tracked separately as follow-up work.
+
+Scope note: the primitive is wired at the ordinary HTTP mutation seam. Migrating
+the remaining call sites is tracked in
+`issues/20260821-authorized-effect-remedy-classification.md`.

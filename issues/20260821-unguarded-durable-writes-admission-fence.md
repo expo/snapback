@@ -1,7 +1,7 @@
 # Unguarded durable writes: ordinary-caller reachable on expected-retirement paths
 
-**Status:** Open — Ask reservation/settlement guarded and mutation-proven; 19
-SQLite-side families remain
+**Status:** Open — 10 mode-only families landed and mutation-proven
+(`65ab481ad`); 7 split-phase families remain. See "Progress" at the end
 **Filed:** 2026-08-21
 **Found by:** sink-first audit in `lane/fenceproof` (`d291f4b89`)
 **Governing:** LLP 0058 gate algorithm
@@ -289,3 +289,29 @@ examples already visible:
 That class needs its own sweep. Until then, 22 is the SQLite-side total and the
 overall total is unknown — which is the honest statement, and better than the
 two earlier versions of this census that claimed completeness they did not have.
+
+
+## Progress (2026-08-21)
+
+The original count of "19 remaining families" conflated sites with remedies. The
+remedy classification (`issues/20260821-authorized-effect-remedy-classification.md`)
+established that a site needs the split-phase reservation only if a *live caller
+authority* can retire mid-flight; job, watch and webhook contexts reconstruct
+credential-free execution authority and carry no session publication to reserve,
+so the existing mode guard is already the correct and sufficient fence there.
+
+Landed since:
+
+- `65ab481ad` — all ten mode-only families fenced, each with a mutation test that
+  fails when its fence is removed: initial one-off job claim; seven watch-job
+  families (evaluation begin, dead-state transition, decision/enqueue,
+  retry/failure, firing settlement/retry, webhook reservation, webhook-attempt
+  settlement); derived-fork egress-denial marker; registered-writer coverage-gap
+  persistence on admitted callers only. Reviewed clean by codex and grok
+  independently. Verified unsandboxed at the landed commit: engine 494/0,
+  kernel 812/0, fence module 26/0.
+
+Remaining, all split-phase: five asset families (attempt creation, cancellation,
+TUS state, explicit delete, signed/strict receipts) and two stream families.
+Two families need no fence at all (invalidation-driven watch scheduling,
+post-reset cron-state persistence).

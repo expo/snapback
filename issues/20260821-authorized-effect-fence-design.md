@@ -1,10 +1,12 @@
 # Design decision: split-phase authorized-effect fence
 
-**Status:** Open — decision recorded, not yet implemented
+**Status:** Implemented 2026-08-21 (`138d24164`, `1b0d76425`); migration of
+remaining call sites tracked in the remedy classification
 **Filed:** 2026-08-21
 **Decides:** `issues/20260821-effect-guard-does-not-fence-logout.md`
-**Governs:** the ~20 remaining fences in
-`issues/20260821-unguarded-durable-writes-admission-fence.md`
+**Governs:** the remaining fences, now scoped by
+`issues/20260821-authorized-effect-remedy-classification.md` to 7 split-phase
+families rather than ~20
 
 ## The question
 
