@@ -64,7 +64,10 @@ const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
 // issues/20260815-finish-media-happy-path.md).
 // Bumped 58880 -> 60416 on 2026-08-16 for LLP 0240's shipped custom-authority
 // and effective-authority-inspection rows.
-const CAPABILITIES_SIZE_BUDGET_BYTES = 60416;
+// Bumped 60416 -> 61440 on 2026-08-21 for the required auth.field-masking GAP
+// row owned by Draft LLP 0235; the index had no room for the classification,
+// exact diary vocabulary, owner, review date, filing pointer, and workaround.
+const CAPABILITIES_SIZE_BUDGET_BYTES = 61440;
 const SURFACE_MAP_SIZE_BUDGET_BYTES = 16384;
 // Vacuous-pass guards for the source scans: extraction returning fewer
 // entries than these floors means the scan broke, not that surface shrank.

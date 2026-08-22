@@ -46,3 +46,18 @@ The missing artifact is a reviewed execution decision and implementation plan.
 - No convenience helper ships ahead of LLP 0235's physical and logical
   noninterference gates.
 
+## Interim Guide deliverables — 2026-08-21
+
+The interim deliverables from LLP 0294 W8 and Sequencing 8 landed without
+waiting for a masking implementation:
+
+- `guide/recipes/split-sensitive-fields.md` documents the honest split-table
+  workaround using Messtimate's phone-number case, including separate reads,
+  bounded owner-only joins, and explicit nonclaims;
+- `guide/capabilities.md` records field masking as a GAP owned by Draft LLP
+  0235; and
+- retrieval-eval case 73 preserves the diary's plausible wrong vocabulary.
+
+This ticket remains **Open**. The accept-vs-shelve ruling and costing remain
+unfinished. The LLP 0005 review ruling awaits the author; this interim landing
+does not make or imply that ruling and does not modify LLP 0235.

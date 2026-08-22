@@ -815,6 +815,20 @@ wrong vocabulary from the source diaries and review evidence.
     Route terms: "enumerate members".
     Required guidance: "The branch contract is explicit", "Keep one retryable coordinator, but do not call it exclusive".
 
+Case 80 absorbs the Messtimate 0.1.24 field-masking miss recorded in
+`issues/20260821-0235-field-masking-productization.md`.
+
+80. **Sensitive field split:** "A consumer-visible profile includes a private
+    phone number. How do I hide one field or mask the phone number?" The run
+    fails if it keeps the value in the wider table and nulls it in a projection,
+    makes a private join public, invents a masking flag/helper, or claims the
+    workaround provides class-M field masking.
+    Expected pages: `recipes/split-sensitive-fields.md`.
+    Route terms: "hide one field", "mask phone number", "private column",
+    "field level security", "column visibility".
+    Required guidance: "Snapback does not currently provide field masking",
+    "The protection comes from row visibility on the second table".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:

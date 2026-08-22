@@ -410,6 +410,10 @@ proof command, and honest nonclaims without opening every demo.
 - [Provider connection lifecycle](./recipes/provider-lifecycle.md) — share
   managers and stores, settle authority, deduplicate snapshots, inspect, and
   retire resources without inventing an undecided numeric budget.
+- [Split a sensitive field into its own table](./recipes/split-sensitive-fields.md)
+  — the honest row-visibility workaround for a private column such as
+  Messtimate's phone number, with separate-read, owner-only join, and
+  field-masking nonclaims.
 - [Coming from Convex/Supabase?](./recipes/coming-from-convex-and-supabase.md)
   — worked-example translations of common Convex/Supabase journeys into
   Snapback, CI-verified against real demo sources (LLP 0186 W2).
@@ -445,13 +449,13 @@ id: meta.capabilities
 order: 2
 audience: agent-first
 capabilities: []
-authorities: [llp/0041-packaged-dev-loop.rfc.md, llp/0045-notifications-outbox.rfc.md, llp/0061-agent-first-snapback-guide.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0133-local-settlement.spec.md, llp/0154-minimal-observability.rfc.md, llp/0155-local-sync-product-direction.rfc.md, llp/0156-minimal-error-tracking.rfc.md, llp/0188-ltx-sqlite-replication.rfc.md, llp/0211-typed-opaque-structured-stored-values.spec.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md, llp/0248-bounded-batch-reads.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, crates/snapback-server/src/server.rs, crates/snapback-server/src/admin.rs, crates/snapback-services/src/replication.rs, crates/snapback-cli/src/cli.rs, crates/snapback-services/src/telemetry_query.rs, crates/snapback-services/src/errors_query.rs, packages/snapback-codegen/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs, llp/0219-client-dev-diagnostics-channel.rfc.md, packages/snapback-client/client-diagnostics.mjs, packages/snapback-react/implementation.mjs]
+authorities: [llp/0041-packaged-dev-loop.rfc.md, llp/0045-notifications-outbox.rfc.md, llp/0061-agent-first-snapback-guide.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0133-local-settlement.spec.md, llp/0154-minimal-observability.rfc.md, llp/0155-local-sync-product-direction.rfc.md, llp/0156-minimal-error-tracking.rfc.md, llp/0188-ltx-sqlite-replication.rfc.md, llp/0211-typed-opaque-structured-stored-values.spec.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0235-field-masking-class-m.spec.md, llp/0245-infer-show-freeze-declarations.rfc.md, llp/0248-bounded-batch-reads.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, crates/snapback-server/src/server.rs, crates/snapback-server/src/admin.rs, crates/snapback-services/src/replication.rs, crates/snapback-cli/src/cli.rs, crates/snapback-services/src/telemetry_query.rs, crates/snapback-services/src/errors_query.rs, packages/snapback-codegen/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs, llp/0219-client-dev-diagnostics-channel.rfc.md, packages/snapback-client/client-diagnostics.mjs, packages/snapback-react/implementation.mjs]
 examples: []
 status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:90f41a3deed106338959d819e7672ddf869e4685d5d1b757cff2ab40cb52ccca
+reviewed-authorities-digest: sha256:1b524585d05c02c2bcef3d9c13b31b3344d96df36337f0fe95cdf8d53080cd4a
 ---
 
 # Capability index
@@ -528,6 +532,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | auth.application-bootstrap-native-custody | Source-current iOS and Android admit durable-required at `single-runtime`; UNPUBLISHED behind issues/20260816-custody-first-publish-gate.md. Simulator evidence only: physical-device (D), backup/migration, and cross-process fencing remain unclaimed; a share extension was exercised, while the built/embedded NSE is not invokable via `simctl push`. | native custody, Android force-stop, iOS share extension | ios + android | shipped | demos/native-custody-probes/evidence/20260816T214639Z-0a6c91ed-phase2-android + demos/native-custody-probes/evidence/20260817T023429Z-1c2624fb-phase2-ios + packages/snapback-expo/provider-native-custody.test.mjs | llp/0258, llp/0263 | auth/passwords.md |
 | auth.scoped-queries | Caller-bound filters enforce reads; `authScopeField` is invalidation/retention metadata | hidden data, per-user, row security, Supabase RLS | local | shipped | `authScopeField` in packages/snapback-codegen/define.mjs | llp/0039, llp/0053 | auth/sessions-and-principals.md |
 | auth.table-visibility | Table owner/membership policy composed into all shipped read plans and ordinary `ctx.db`; `anyOf`, resource `_id`, explicit `ctx.db.elevated` | table visibility, joins, bounded children, snapshot batch, elevated read | local | shipped | `compose_declared_table_visibility` in crates/snapback-kernel/src/storage.rs | llp/0231, llp/0056 | auth/protecting-data.md |
+| auth.field-masking | Conditional disclosure of one field while its row stays visible is not implemented; use a separately visible table when row-level absence is acceptable | hide one field, mask phone number, private column, field level security, column visibility, field masking | none | design-only | llp/0235-field-masking-class-m.spec.md (Draft design; no shipped witness) | llp/0235 | GAP (owner: Draft LLP 0235, review: 2026-09-04; issue: issues/20260821-0235-field-masking-productization.md); recipes/split-sensitive-fields.md |
 | auth.invalidation-barrier | Authorization invalidation; logout blanking | logout, revoke, invalidation | local | shipped | route /live/authorization-invalidation/acknowledge | llp/0053 | auth/protecting-data.md |
 | auth.authorized-leases | Lease-bounded offline retention of authorized reads | offline auth, lease, retained | local | shipped | route /query/{name}/authorized-lease | llp/0059 | auth/protecting-data.md |
 | auth.target-honesty | Per-target auth claims and non-claims; readiness reporting | hosted auth, production auth | all | shipped | `AuthProgramReadiness` in crates/snapback-types/src/auth/mode.rs | llp/0060 | auth/targets.md |
@@ -1934,6 +1939,20 @@ wrong vocabulary from the source diaries and review evidence.
     Expected pages: `recipes/membership-roster-projection.md`.
     Route terms: "enumerate members".
     Required guidance: "The branch contract is explicit", "Keep one retryable coordinator, but do not call it exclusive".
+
+Case 80 absorbs the Messtimate 0.1.24 field-masking miss recorded in
+`issues/20260821-0235-field-masking-productization.md`.
+
+80. **Sensitive field split:** "A consumer-visible profile includes a private
+    phone number. How do I hide one field or mask the phone number?" The run
+    fails if it keeps the value in the wider table and nulls it in a projection,
+    makes a private join public, invents a masking flag/helper, or claims the
+    workaround provides class-M field masking.
+    Expected pages: `recipes/split-sensitive-fields.md`.
+    Route terms: "hide one field", "mask phone number", "private column",
+    "field level security", "column visibility".
+    Required guidance: "Snapback does not currently provide field masking",
+    "The protection comes from row visibility on the second table".
 
 ## Static routing check
 

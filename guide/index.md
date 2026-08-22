@@ -405,6 +405,10 @@ proof command, and honest nonclaims without opening every demo.
 - [Provider connection lifecycle](./recipes/provider-lifecycle.md) — share
   managers and stores, settle authority, deduplicate snapshots, inspect, and
   retire resources without inventing an undecided numeric budget.
+- [Split a sensitive field into its own table](./recipes/split-sensitive-fields.md)
+  — the honest row-visibility workaround for a private column such as
+  Messtimate's phone number, with separate-read, owner-only join, and
+  field-masking nonclaims.
 - [Coming from Convex/Supabase?](./recipes/coming-from-convex-and-supabase.md)
   — worked-example translations of common Convex/Supabase journeys into
   Snapback, CI-verified against real demo sources (LLP 0186 W2).

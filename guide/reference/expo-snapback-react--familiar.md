@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:73a34983bb2fb364e48a63e91baf468ae1dc3a0f8c09
 # @expo/snapback-react/familiar
 
 Build-bound public API projection for `@expo/snapback-react/familiar`. Canonical registry identity:
-`sha256:01f4a0f0a0ac8c39c8715d59fd5ffffab2995e7f4cbb4b94bbce8cc25be5c9be`.
+`sha256:775c27627c1ad8c9f0e3e899d5753f30c02ec6f69f39b12a8f52e2de038cc437`.
 Runtime parity condition:
 `import` → `packages/snapback-react/familiar.mjs`.
 
