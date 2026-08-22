@@ -184,6 +184,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'unrecognized-authority-recovery.test.mjs',
       'webcrypto-fallback.test.mjs',
       'wire-version.test.mjs',
+          'authority-transition-conformance.test.mjs',
     ],
   },
   {
@@ -254,6 +255,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'subscribe-runtime-import-failure.test.mjs',
       'surface.test.mjs',
       'webcrypto-fallback.test.mjs',
+          'authority-transition-conformance.test.mjs',
     ],
   },
   {
@@ -462,6 +464,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'session-queue-axis.test.mjs',
       'surface-construction-failure.test.mjs',
       'unsolicited-protocol-echo.test.mjs',
+          'authority-transition-signal.test.mjs',
     ],
   },
   {
@@ -561,7 +564,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 322,
+  expectedTotal = 325,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1039,6 +1042,11 @@ export function checkPackageTestInventories(options = {}) {
 // @expo/snapback-react gains the packed nullable asset-URL runtime/type fixture.
 // 321 -> 322 (2026-08-21, LLP 0295 W1): @expo/snapback-cli gains the packed
 // headless, Vite/Exact, and Expo M1 -> M2 receipt-bound continuity fixture.
+// 322 -> 325 (2026-08-21): register the authority-transition conformance suites
+// that landed unregistered and left check-inventories red on main --
+// @expo/snapback-client and @expo/snapback-react gain
+// authority-transition-conformance, @expo/snapback-contract gains
+// authority-transition-signal. All three were run and pass before registration.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');
