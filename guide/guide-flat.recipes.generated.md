@@ -4396,8 +4396,9 @@ cannot keep one row visible while conditionally returning one stored field as
 `null`. The honest supported pattern is to move the sensitive value to a
 second table and give that table its own row visibility.
 
-Find this page by: "hide one field", "mask phone number", "private column",
-"field level security", or "column visibility".
+Find this page by: `maskField`, "mask a field", "hide one field",
+"mask phone number", "private column", "field level security", or
+"column visibility".
 
 ## Apply the Messtimate phone-number split
 
@@ -4458,10 +4459,18 @@ field masking. In particular, it does not:
   and `null`;
 - protect a phone number left on `profiles`, even if a query projection, JS
   handler, or UI omits it;
-- make filters, ordering, indexes, search, aggregates, joins, handlers, or live
-  timing over a hidden field noninterfering;
+- make filters, ordering, indexes, search, aggregates, joins, or handlers over a
+  hidden field noninterfering;
+- prevent a unique or other constraint over the sensitive field from leaking it
+  through success versus refusal, or hide refusal and error codes, public error
+  details, public diagnostics, or log text;
 - hide public correlation facts such as `hasPhone`, a phone-derived sort key,
   or a public relationship key that the application chose to store;
+- suppress client-visible live wake or delivery events, delivery kind,
+  invalidation disposition, or delivery timing that could reveal a hidden-value
+  change;
+- make query or write execution timing constant-time or otherwise
+  noninterfering;
 - authorize writes, `ctx.db.elevated`, operator/admin access, exports, logs,
   analytics, actions, or external services that receive the value; or
 - implement conditional disclosure such as "show the phone after approval"

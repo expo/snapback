@@ -824,8 +824,9 @@ Case 80 absorbs the Messtimate 0.1.24 field-masking miss recorded in
     makes a private join public, invents a masking flag/helper, or claims the
     workaround provides class-M field masking.
     Expected pages: `recipes/split-sensitive-fields.md`.
-    Route terms: "hide one field", "mask phone number", "private column",
-    "field level security", "column visibility".
+    Route terms: `maskField`, "mask a field", "hide one field",
+    "mask phone number", "private column", "field level security",
+    "column visibility".
     Required guidance: "Snapback does not currently provide field masking",
     "The protection comes from row visibility on the second table".
 

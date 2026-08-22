@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:8283024eefc7f0ca571730bf096e0248d8651cf7ea3c628ad542c639143f2302"
+    "sourceDigest": "sha256:20dae68e4821779a411c7b74996c8e885bdaaef98c7ceedeb0ed236a9da93430"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -2907,7 +2907,7 @@
       "examples": [],
       "reviewed": "2026-08-21",
       "reviewedAuthoritiesDigest": "sha256:1b524585d05c02c2bcef3d9c13b31b3344d96df36337f0fe95cdf8d53080cd4a",
-      "sha256": "d12c807aafe35b6dc4066ab2ae536933ca73f8b3e4a65b4c38872edcc40a04c1",
+      "sha256": "32167be5e2ad15e1c1ab6c79ab4b93f74f7eaa1c04f88d90b0483371a007f0ff",
       "snippets": []
     },
     "clients.app-cli": {
@@ -5571,7 +5571,7 @@
       "examples": [],
       "reviewed": "2026-08-21",
       "reviewedAuthoritiesDigest": "sha256:cae1bdf3d49c2b1aadcf382dbf0a34443abb18a83c57dece7ab4325ae9d533bf",
-      "sha256": "ddb5a7679a60df267efde06a26695104ab18cfc3ffde28338c210f3d0e0c8b5c",
+      "sha256": "181bcde23a547569471feb7e44a5703b54c0ea6eb3f81e93f76d383276433f5f",
       "snippets": []
     },
     "recipes.typing-indicators": {
@@ -12216,7 +12216,7 @@
       "examples": [],
       "reviewed": "2026-08-21",
       "reviewedAuthoritiesDigest": "sha256:10af46608872447c531a418afe66fcbdafccb07872e6f8a0a20c6b3257b73c57",
-      "sha256": "89725ca627646b44c43c155b1eeca5d0a5f9baec1d48bf7e50f6cca28542cd8b",
+      "sha256": "4ab8746fb3031fa1379aec512656e46d9d049f2b4c31f6ea1ae72ba04a6c91eb",
       "snippets": []
     },
     "start.crud-dashboard": {
@@ -12735,7 +12735,7 @@
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
       "bytes": 2610957,
-      "sha256": "5d21c83e4ea99b3dd6629963459d67fa7c901daf46947b0632963ac10574cc3a",
+      "sha256": "01f184f076247c1661f27909487440be4c2081c39578ea2fb35ffad231852de1",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -12744,7 +12744,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:77310fd51a97e0acf803d68f0dc304eb8b67754e309feafbfe27a832557bdbe8",
+      "sourceDigest": "sha256:c04181ab5c1af37124c395964402b11c63d4ef2f2bbff2f4bf8e915601be6458",
       "codes": 3465,
       "emittingSites": 11961
     }
@@ -12884,16 +12884,16 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3689025,
-      "sha256": "f474a173d059883d83c9555fe489a1efc472fad3a33cce877829e8ceda9dafbc"
+      "bytes": 3689548,
+      "sha256": "08873d0cd1dcb339c4bbe0d7f1143e5e57a7922a26207c78e3f10d2060d2a4d9"
     },
     "sections": {
       "meta": {
         "path": "guide/guide-flat.meta.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.meta.generated.md",
         "uri": "snapback-guide://flat/meta",
-        "bytes": 165986,
-        "sha256": "c497eff97bba34079df579704dc7ec38b83f2b3a548752b38c03b1a3c7fd3df9"
+        "bytes": 166044,
+        "sha256": "1b2da2de1bbf923524a0273eae92b4d3a0c531deca7218190f38f1fc42926749"
       },
       "auth": {
         "path": "guide/guide-flat.auth.generated.md",
@@ -12955,8 +12955,8 @@
         "path": "guide/guide-flat.recipes.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.recipes.generated.md",
         "uri": "snapback-guide://flat/recipes",
-        "bytes": 207331,
-        "sha256": "765037d10cf5421e986c564fc3ece9ed55094bb93f4d483ac189b646aec68397"
+        "bytes": 207796,
+        "sha256": "7062820ab70a2d27661afec2695c592c9bf14082b10385915acac39ca142dd4f"
       },
       "reference": {
         "path": "guide/guide-flat.reference.generated.md",
@@ -12988,5 +12988,5 @@
       }
     }
   },
-  "contentHash": "8283024eefc7f0ca571730bf096e0248d8651cf7ea3c628ad542c639143f2302"
+  "contentHash": "20dae68e4821779a411c7b74996c8e885bdaaef98c7ceedeb0ed236a9da93430"
 }
