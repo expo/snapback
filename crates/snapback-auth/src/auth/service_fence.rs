@@ -18,6 +18,8 @@ use crate::auth::service_authority_contract::{
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeSet, HashMap};
+use std::marker::PhantomData;
+use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 use std::time::{Duration, Instant};
@@ -88,6 +90,18 @@ pub struct ServiceAuthorityExternalEffectPermit {
     settled: bool,
 }
 
+/// Thread-bound witness installed by one already-reserved finite-service
+/// authority permit. It contains no mutex guard and may therefore be retained
+/// beside a later-ranked mode guard through a synchronous SQLite commit.
+///
+/// The guard must not cross an await: its witness lives in thread-local
+/// custody so nested storage validation on the same blocking owner can reuse
+/// the exact pre-reserved authority without reacquiring the service fence.
+pub struct RetainedServiceAuthorityGuard<'a> {
+    _permit: &'a ServiceAuthorityExternalEffectPermit,
+    _active: ActiveServiceAuthorityAct,
+}
+
 /// The external-effect permit is also the retained finite-authority work
 /// permit. Both operations need the same begin-before-terminal interlock.
 pub type ServiceAuthorityWorkPermit = ServiceAuthorityExternalEffectPermit;
@@ -103,6 +117,7 @@ pub struct ServiceAuthorityTerminalGate {
 
 struct ActiveServiceAuthorityAct {
     key: usize,
+    _thread_bound: PhantomData<Rc<()>>,
 }
 
 struct ServiceDomainPublicationPermit {
@@ -146,12 +161,26 @@ impl ServiceAuthorityExternalEffectPermit {
     /// nested witness, so unrelated/new callers cannot publish through a
     /// pending ending while this predecessor drains.
     pub fn with_retained_authority<T>(&self, operation: impl FnOnce() -> T) -> T {
+        let _active = self.retain_authority();
+        operation()
+    }
+
+    /// Install the exact retained witness until the returned synchronous guard
+    /// is dropped. This is the split-phase sibling of
+    /// [`Self::with_retained_authority`], used when a later guard must be
+    /// acquired last and returned to a transaction sink.
+    pub fn retain_authority(&self) -> RetainedServiceAuthorityGuard<'_> {
         let key = Arc::as_ptr(&self.fence) as usize;
         ACTIVE_SERVICE_AUTHORITY_ACTS.with(|active| {
             active.borrow_mut().push((key, self.witness.clone()));
         });
-        let _active = ActiveServiceAuthorityAct { key };
-        operation()
+        RetainedServiceAuthorityGuard {
+            _permit: self,
+            _active: ActiveServiceAuthorityAct {
+                key,
+                _thread_bound: PhantomData,
+            },
+        }
     }
 
     fn settle(&mut self) {
@@ -206,7 +235,10 @@ impl ServiceAuthorityPublication {
     fn enter_active_act(&self, witness: ServiceAuthorityWitness) -> ActiveServiceAuthorityAct {
         let key = self.fence_key();
         ACTIVE_SERVICE_AUTHORITY_ACTS.with(|active| active.borrow_mut().push((key, witness)));
-        ActiveServiceAuthorityAct { key }
+        ActiveServiceAuthorityAct {
+            key,
+            _thread_bound: PhantomData,
+        }
     }
 
     #[cfg(any(test, feature = "test-support"))]

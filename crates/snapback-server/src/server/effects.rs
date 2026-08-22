@@ -334,6 +334,7 @@ pub(super) async fn effect_approve(
                     Extension(original),
                     Extension(route),
                     None,
+                    HeaderMap::new(),
                     Path(decided.function_name.clone()),
                     Ok(Json(request)),
                 )

@@ -31299,6 +31299,128 @@ async fn logout_wins_after_preparation_before_authority_work_reservation() {
     );
 }
 
+/// The complementary ordering for the split-phase fence: once the mutation
+/// reserves authority, logout may close new work but must drain this permit
+/// before its durable terminal write. The mutation therefore commits first;
+/// its later response publication is still refused by the pending logout.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn authorized_effect_reservation_commits_before_logout_terminal_write() {
+    let state = sessions_activation_server_fixture_async().await;
+    let credential = mint_test_credential(&state, "logout-reserved-race@example.test").await;
+    let bearer = credential["token"]
+        .as_str()
+        .expect("ordinary session bearer")
+        .to_owned();
+    let session_id = credential["session"]["id"]
+        .as_str()
+        .expect("ordinary session id")
+        .to_owned();
+    let router = app(state.clone());
+    let item_count_before = finite_authority_matrix_item_count(&state).await;
+
+    let mutation_pause = install_test_finite_authority_pause(
+        TestFiniteAuthorityPausePoint::AfterAuthorizedEffectReservation,
+    );
+    let mut mutation_request = session_auth_http_request(
+        "/mutation/queuedWrite",
+        serde_json::to_vec(&json!({
+            "args": { "value": "commits-before-logout" },
+        }))
+        .expect("serialize reservation-winning mutation"),
+        &bearer,
+    );
+    mutation_request.headers_mut().insert(
+        HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
+        HeaderValue::from_str(mutation_pause.id()).expect("mutation reservation pause header"),
+    );
+    let mutation_router = router.clone();
+    let mutation = tokio::spawn(async move {
+        mutation_router
+            .oneshot(mutation_request)
+            .await
+            .expect("reservation-winning mutation response")
+    });
+    tokio::time::timeout(Duration::from_secs(5), mutation_pause.wait_until_reached())
+        .await
+        .expect("mutation reserves authority before Local");
+
+    let logout_pause = install_test_finite_authority_pause(
+        TestFiniteAuthorityPausePoint::AfterSessionTerminalPremark,
+    );
+    let mut logout_request = session_auth_http_request("/auth/logout", br#"{}"#.to_vec(), &bearer);
+    logout_request.headers_mut().insert(
+        HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
+        HeaderValue::from_str(logout_pause.id()).expect("logout premark pause header"),
+    );
+    let logout_router = router.clone();
+    let logout = tokio::spawn(async move {
+        logout_router
+            .oneshot(logout_request)
+            .await
+            .expect("permit-draining logout response")
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    assert!(
+        !logout.is_finished(),
+        "logout cannot finish while predecessor authority work is reserved"
+    );
+
+    mutation_pause.release().await;
+    let mutation_response = tokio::time::timeout(Duration::from_secs(5), mutation)
+        .await
+        .expect("reservation-winning mutation does not hang")
+        .expect("reservation-winning mutation task");
+    assert_eq!(mutation_response.status(), StatusCode::UNAUTHORIZED);
+    let mutation_response = response_json(mutation_response).await;
+    assert_eq!(
+        mutation_response["diagnostic"]["code"],
+        "SNAPBACK_AUTH_SESSION_EXPIRED"
+    );
+    assert_eq!(
+        mutation_response["diagnostic"]["details"]["authorityDisposition"], "carrier",
+        "the response is refused while logout is pending but not durable"
+    );
+
+    tokio::time::timeout(Duration::from_secs(5), logout_pause.wait_until_reached())
+        .await
+        .expect("logout premark drains after the mutation commit");
+    assert_eq!(
+        finite_authority_matrix_item_count(&state).await,
+        item_count_before + 1,
+        "the pre-reserved authorized effect commits before logout"
+    );
+    let precommit_session_facts = with_snapback(&state.snapback, {
+        let session_id = session_id.clone();
+        move |snapback| {
+            snapback
+                .remainder_auth_database_mut()
+                .auth_catalog()
+                .session_lifetime_facts_for_test(&session_id)
+        }
+    })
+    .await
+    .expect("read pre-logout-commit session facts");
+    assert_eq!(precommit_session_facts.2, 1);
+    assert!(!precommit_session_facts.3);
+
+    logout_pause.release().await;
+    let logout_response = tokio::time::timeout(Duration::from_secs(5), logout)
+        .await
+        .expect("drained logout does not hang")
+        .expect("drained logout task");
+    assert_eq!(logout_response.status(), StatusCode::NO_CONTENT);
+    let terminal_session_facts = with_snapback(&state.snapback, move |snapback| {
+        snapback
+            .remainder_auth_database_mut()
+            .auth_catalog()
+            .session_lifetime_facts_for_test(&session_id)
+    })
+    .await
+    .expect("read committed logout session facts");
+    assert_eq!(terminal_session_facts.2, 2);
+    assert!(terminal_session_facts.3);
+}
+
 #[tokio::test]
 async fn committed_reset_terminalizes_only_the_exact_bound_socket() {
     let state = auth_invalidation_reset_fixture();

@@ -29836,7 +29836,7 @@ fn permission_epoch_exhaustion_refuses_guarded_and_detached_commit_seams() {
 fn permission_epoch_capacity_preflights_every_mutation_commit_seam() {
     let source = include_str!("../../../../snapback-engine/src/local/engine.rs");
     for needle in [
-        "pub fn commit_staged_recorded_authorization_mutation",
+        "fn commit_staged_recorded_authorization_mutation_inner",
         "fn invoke_mutation_commit_with_id_and_authority",
         "fn invoke_host_plan_mutation_commit_guarded",
         "pub fn commit_detached_ibex_mutation_guarded",
@@ -29852,6 +29852,33 @@ fn permission_epoch_capacity_preflights_every_mutation_commit_seam() {
             "{needle} must preflight permission epoch capacity before durable commit"
         );
     }
+
+    let mode_only = source
+        .split_once(
+            "pub fn commit_staged_recorded_authorization_mutation_with_network_egress_and_dependencies",
+        )
+        .expect("mode-only staged mutation entry point remains")
+        .1
+        .split_once("pub fn commit_staged_recorded_authorization_mutation_with_authorized_effect")
+        .expect("authorized staged mutation entry point follows mode-only entry point")
+        .0;
+    assert!(
+        mode_only.contains("commit_staged_recorded_authorization_mutation_inner")
+            && mode_only.contains("MutationEffectPosture::ModeOnlyOrTerminalCarrier"),
+        "mode-only staged mutations must explicitly delegate to the preflighted inner seam"
+    );
+    let authorized = source
+        .split_once("pub fn commit_staged_recorded_authorization_mutation_with_authorized_effect")
+        .expect("authorized staged mutation entry point remains")
+        .1
+        .split_once("fn commit_staged_recorded_authorization_mutation_inner")
+        .expect("preflighted inner seam follows authorized entry point")
+        .0;
+    assert!(
+        authorized.contains("commit_staged_recorded_authorization_mutation_inner")
+            && authorized.contains("MutationEffectPosture::Authorized"),
+        "authorized staged mutations must explicitly delegate to the preflighted inner seam"
+    );
 }
 
 #[test]

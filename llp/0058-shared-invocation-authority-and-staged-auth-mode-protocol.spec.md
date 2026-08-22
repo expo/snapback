@@ -5,7 +5,10 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-08-12 (Dev browser-origin hardening: body-selected users are
+**Revised:** 2026-08-21 (split-phase authorized-effect fence: ordinary
+authority-sensitive durable effects reserve stream/session and optional
+service permits before Local, then acquire mode admission last at the inner
+commit boundary; mode-only and terminal-carrier sites remain explicit). 2026-08-12 (Dev browser-origin hardening: body-selected users are
 admitted only from the bound origin or an explicit exact loopback allowlist;
 no-Origin trusted-local callers are unchanged). 2026-08-12 (target registry
 amendment: positive `offline_mutation_replay` support now names the registered
@@ -1307,6 +1310,44 @@ Both durable generation and process-local `admissionEpoch` are checked again
 atomically at write commit and response/live publication. A stage or timed-out
 barrier that retires an epoch therefore prevents late success, callback, or
 nested work from crossing the boundary.
+
+### Split-phase authorized-effect fence
+
+The mode-admission check and session/service publication fences guard distinct
+transitions. A current mode epoch does not prove that an ordinary session or
+scoped grant remains current. Authority-sensitive durable effects therefore use
+one split-phase primitive:
+
+1. Outside managed/direct `LocalSnapback` and SQLite, the site explicitly calls
+   `PreparedAuthority::reserve_authorized_effect`.
+2. The primitive samples the applicable clock, reserves the authorization
+   stream and optional session through `FencedPublication::try_reserve_work`,
+   then reserves optional finite-service authority. A refused reservation maps
+   to the authority's typed terminal diagnostic; a sessions-mode authority with
+   no publication fails projection availability rather than degrading.
+3. The owned permits contain no mutex guard. The async owner transfers them to
+   the synchronous writer and retains them through `tx.commit()`.
+4. At the existing deepest commit cut, the writer calls the reservation's
+   inner `commit_guard`. It installs the retained service witness when present
+   and acquires `mode_effect_guard` last. Guard drop releases mode first, then
+   the retained witness; reservation drop performs only atomic-counter RAII
+   cleanup for the authority-work permits.
+
+Sites choose this authorized path or the explicitly named
+`mode_effect_guard`/terminal-carrier path. They never signal mode-only posture
+with a missing optional reservation. Logout, reset, revocation and other
+durable authority-ending writers remain terminal carriers: applying the
+authorized primitive transparently would make them require the unretired
+authority they are responsible for ending. No request input or other
+caller-settable bypass selects the posture.
+
+This ordering composes with LLP 0059's pending-first terminal protocol. If the
+terminal premark wins, every later authorized-effect reservation refuses before
+mutation work begins. If the effect reserves first, terminal premark closes new
+reservations and drains that predecessor permit, so the effect commits before
+the terminal durable write. No stream/session/service mutex is acquired from
+beneath Local, SQLite, or the later-ranked mode guard, and no mutex guard crosses
+an await.
 
 Credential precedence under sessions remains LLP 0039/0057's: a current bearer,
 otherwise anonymous; malformed/unknown is `SNAPBACK_AUTH_REQUIRED`;

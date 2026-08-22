@@ -18,9 +18,10 @@ use crate::auth::service_authority_contract::{
     ServiceAuthorityActResolution, ServiceAuthorityDeadlineTerminal, ServiceAuthorityDisposition,
 };
 use crate::auth::service_fence::{
-    ServiceAuthorityExternalEffectPermit, ServiceAuthorityPublication,
+    RetainedServiceAuthorityGuard, ServiceAuthorityExternalEffectPermit,
+    ServiceAuthorityPublication, ServiceAuthorityWorkPermit,
 };
-use crate::auth::session_projection::FencedPublication;
+use crate::auth::session_projection::{FencedAuthorityWorkPermit, FencedPublication};
 use crate::contract_types::ServerProfile;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
@@ -1213,6 +1214,61 @@ pub struct PreparedAuthority {
     rehearsal_fence: Option<crate::auth::rehearsal::RehearsalAuthorityFence>,
 }
 
+/// Explicit stream/session reservation for an authority-sensitive durable
+/// effect. Dev authority is represented by its own closed variant; absence of
+/// a session publication is never interpreted as an implicit mode-only bypass.
+enum AuthorizedPublicationReservation {
+    Fenced { _permit: FencedAuthorityWorkPermit },
+    DevMode,
+}
+
+/// Owned, lock-free authority permits reserved before entering managed Local.
+/// The only constructor validates stream/session first and optional finite
+/// service authority second. Callers carry this value into a synchronous
+/// write and acquire its commit guard only at the final transaction cut.
+#[must_use = "authorized-effect reservations must be retained through the durable commit"]
+pub struct AuthorizedEffectReservation {
+    authority: PreparedAuthority,
+    _publication: AuthorizedPublicationReservation,
+    service: Option<ServiceAuthorityWorkPermit>,
+}
+
+/// The inner synchronous commit guard for an authorized effect. Field order is
+/// release order: mode admission drops before the retained service witness,
+/// while the borrowed reservation keeps every authority-work permit alive.
+/// No synchronous mutex guard in this value may cross an await.
+pub struct AuthorizedEffectCommitGuard<'a> {
+    _mode: AdmissionEffectGuard<'a>,
+    _service: Option<RetainedServiceAuthorityGuard<'a>>,
+    _reservation: &'a AuthorizedEffectReservation,
+}
+
+impl AuthorizedEffectReservation {
+    /// Acquire the independent mode guard last and retain the complete
+    /// authority bundle until the returned transaction guard is dropped.
+    pub fn commit_guard(
+        &self,
+        effect: &'static str,
+    ) -> SnapbackResult<AuthorizedEffectCommitGuard<'_>> {
+        let service = self
+            .service
+            .as_ref()
+            .map(ServiceAuthorityWorkPermit::retain_authority);
+        let mode = match self.authority.mode_effect_guard(effect) {
+            Ok(mode) => mode,
+            Err(error) => {
+                drop(service);
+                return Err(error);
+            }
+        };
+        Ok(AuthorizedEffectCommitGuard {
+            _mode: mode,
+            _service: service,
+            _reservation: self,
+        })
+    }
+}
+
 /// Process-live rehearsal authority bound to an admitted authorization
 /// coordinator. Its registry is intentionally opaque: callers may carry the
 /// binding across the engine boundary but cannot mint one or substitute raw
@@ -1605,9 +1661,123 @@ impl PreparedAuthority {
         }
     }
 
-    pub fn effect_guard(&self, effect: &'static str) -> SnapbackResult<AdmissionEffectGuard<'_>> {
+    /// Reserve stream/session and optional finite-service authority before a
+    /// synchronous Local write. The returned permits are lock-free; terminal
+    /// premark closes every later reservation and drains an earlier one before
+    /// its durable terminal transaction may begin.
+    ///
+    /// @ref LLP 0058#split-phase-authorized-effect-fence — sites choose this
+    /// authorized path explicitly; reservation ordering, typed stale mapping,
+    /// retained-witness installation, and mode-last commit guarding stay here.
+    /// @ref LLP 0059#allowed-order — stream/session precede optional service;
+    /// the independent mode guard is acquired only by the inner commit guard.
+    pub fn reserve_authorized_effect(
+        &self,
+        effect: &'static str,
+    ) -> SnapbackResult<AuthorizedEffectReservation> {
+        self.validate_admission(effect)?;
+        let (epoch_now_ms, monotonic_now) =
+            self.service_clock_sample(rehearsal_now_ms(), Instant::now());
+        let publication = match &self.publication {
+            Some(publication) => publication
+                .try_reserve_work(epoch_now_ms, monotonic_now)?
+                .map(|permit| AuthorizedPublicationReservation::Fenced { _permit: permit })
+                .ok_or_else(|| self.authorized_effect_stale(epoch_now_ms, monotonic_now))?,
+            None if self.active_mode == AuthMode::Dev => AuthorizedPublicationReservation::DevMode,
+            None => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                    "auth",
+                    "authorized effect requires an installed authorization publication",
+                ));
+            }
+        };
+        let service = match self
+            .service_publication
+            .as_ref()
+            .map(|service| service.begin_authority_work(epoch_now_ms, monotonic_now))
+            .transpose()
+        {
+            Ok(service) => service,
+            Err(error) => {
+                drop(publication);
+                return Err(error);
+            }
+        };
+        Ok(AuthorizedEffectReservation {
+            authority: self.clone(),
+            _publication: publication,
+            service,
+        })
+    }
+
+    fn authorized_effect_stale(&self, epoch_now_ms: u64, monotonic_now: Instant) -> SnapbackError {
+        match &self.resolved {
+            ResolvedAppAuthority::Session { .. } => {
+                let disposition = self
+                    .session_terminal_reason(epoch_now_ms, monotonic_now)
+                    .ok()
+                    .flatten()
+                    .map(|reason| match reason.authority_disposition() {
+                        crate::contract_types::TerminalAuthorityDisposition::Carrier => "carrier",
+                        crate::contract_types::TerminalAuthorityDisposition::DurableDelete => {
+                            "durableDelete"
+                        }
+                    })
+                    .unwrap_or("carrier");
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_SESSION_EXPIRED",
+                    "auth",
+                    "authentication session is expired or revoked",
+                )
+                .with_details(serde_json::json!({
+                    "authorityDisposition": disposition,
+                }))
+            }
+            ResolvedAppAuthority::ServicePrincipal { .. } => {
+                let disposition =
+                    match self.service_terminal_disposition(epoch_now_ms, monotonic_now) {
+                        Some(ServiceAuthorityDisposition::DurableDelete) => "durableDelete",
+                        Some(ServiceAuthorityDisposition::Carrier) | None => "carrier",
+                    };
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+                    "auth",
+                    "scoped agent token authority is no longer current",
+                )
+                .with_details(serde_json::json!({
+                    "authorityDisposition": disposition,
+                }))
+            }
+            _ => SnapbackError::error(
+                "SNAPBACK_AUTH_STREAM_RESET",
+                "auth",
+                "the authorization stream is no longer current",
+            )
+            .with_details(serde_json::json!({
+                "authorityDisposition": "carrier",
+                "retryable": true,
+                "cause": "stream_replaced",
+            })),
+        }
+    }
+
+    /// Mode-only/terminal-carrier effect guard. This does not reserve
+    /// stream/session or finite-service authority; call sites select it
+    /// explicitly only when publication authority is inapplicable or the
+    /// operation is itself responsible for ending that authority.
+    pub fn mode_effect_guard(
+        &self,
+        effect: &'static str,
+    ) -> SnapbackResult<AdmissionEffectGuard<'_>> {
         self.validate_admission(effect)?;
         self.admission.effect_guard(effect)
+    }
+
+    /// Compatibility spelling for existing mode-only fences. New durable
+    /// authority-sensitive sites choose `reserve_authorized_effect` instead.
+    pub fn effect_guard(&self, effect: &'static str) -> SnapbackResult<AdmissionEffectGuard<'_>> {
+        self.mode_effect_guard(effect)
     }
 
     /// Validate the exact authorization stream/session leaf and perform one
@@ -1875,8 +2045,15 @@ impl PreparedInvocation {
         self.authority.validate_admission(effect)
     }
 
+    pub fn mode_effect_guard(
+        &self,
+        effect: &'static str,
+    ) -> SnapbackResult<AdmissionEffectGuard<'_>> {
+        self.authority.mode_effect_guard(effect)
+    }
+
     pub fn effect_guard(&self, effect: &'static str) -> SnapbackResult<AdmissionEffectGuard<'_>> {
-        self.authority.effect_guard(effect)
+        self.mode_effect_guard(effect)
     }
 
     /// Retain the exact service-grant entry selected by this function's
