@@ -143,3 +143,52 @@ Convex's more mature hosted operations.
   - Google fixture produced a different principal.
   - Repeating Google login returned the same principal and profile.
   - The app received one-time exchange fields and no provider token.
+
+## Adaptive auth profile follow-up
+
+The Clerk comparison changed the demo from a mode flag into one provider-entry
+Module. App code now calls one controller. A pure resolver selects synthetic,
+shared browser, app-owned browser, or app-owned native before the attempt
+starts. Injected Adapter tests prove that a native failure never calls the
+shared Adapter.
+
+The local shared broker now exercises the actual completion shape instead of
+calling the fixture route directly. The app creates a redemption verifier. The
+broker binds its challenge to the app id and an exact return target, shows a
+Snapback Development Auth browser page, and redirects only a one-use code plus
+state. Redemption consumes the code and returns the ordinary Snapback exchange.
+Tests cover replay, a wrong verifier, an arbitrary return target, and the
+100-user limit.
+
+Native readiness needs provider configuration and a native-build probe. The
+Expo config installs receipt URL schemes and adds Google's native config plugin
+only when its iOS URL scheme exists. This caught a development-client problem:
+the Expo tools floating window can cover the system auth browser and intercept
+automated taps. The next development build disables that tools button through
+the `expo-dev-client` plugin.
+
+The shared broker still uses hermetic provider identities. That is honest but
+not the final product experience. Real zero-setup Apple and Google accounts
+still need Snapback-owned registrations and a public callback host behind this
+same protocol.
+
+The client resolver alone was insufficient as a deployment boundary because
+Expo public configuration is mutable client input. The local broker now repeats
+admission from server-only deployment configuration: development is allowed,
+preview additionally needs an owner-authorized unexpired window, and staging or
+production never instantiate shared auth.
+
+Verification for this slice:
+
+- TypeScript compiled with `npx tsc --noEmit`.
+- Resolver, timeout, shared-protocol, replay, verifier, user-cap, and broker
+  admission tests passed.
+- The social-auth acceptance path passed against an explicitly selected,
+  already-qualified Snapback binary. The current checkout could not rebuild its
+  default binary because the user's modified `vendor/ibex` no longer exposes
+  the expected `sfe-static-network` feature.
+- A clean iOS development-client build completed with the native Google module,
+  Apple capability, auth receipt schemes, and Expo tools overlay disabled.
+- On the iPhone 17 Pro simulator, both Apple and Google shared entries opened
+  Snapback Development Auth, returned through the one-use custom-scheme
+  callback, entered distinct Snapback principals, and signed out cleanly.

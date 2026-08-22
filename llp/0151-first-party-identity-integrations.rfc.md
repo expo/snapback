@@ -8,12 +8,14 @@ OpenAI Codex (`gpt-5.6-sol`) and a non-author Fable context (rounds 1–2, per
 Charlie's direction that the other family participate in the design, not
 only review it)
 **Date:** 2026-08-02
-**Revised:** 2026-08-21 (author ruling: first-party providers get a
-zero-setup shared development profile. Snapback-owned provider registrations
-serve non-production rehearsal only. Staging and production require app-owned
-credentials, and activation refuses while a development profile or rehearsal
-identity remains. Apple development identities do not graduate because Apple
-subjects and relay addresses are team-scoped.) 2026-08-08 (wave-4 kickoff: the **generated-domain passkeys
+**Revised:** 2026-08-21 (author ruling and follow-on concurrence:
+first-party providers get zero-setup shared development profiles. Local
+development and expiring owner-authenticated previews may use Snapback-owned
+registrations, with a 100-user limit. The resolver selects full native auth
+only after both app-owned provider configuration and the installed client build
+verify. Native runtime failures never fall back to shared credentials. Staging
+and production require app-owned credentials and reject rehearsal state.)
+2026-08-08 (wave-4 kickoff: the **generated-domain passkeys
 tier is RULED — preview-only exception**, with a named promotion condition;
 see the dated ruling in §Open questions. The shared-delivery twin remains
 open and is no longer bound to the passkeys answer.) 2026-08-06 (sitting #4: wave-4 deferral of the generated-domain passkeys tier and shared-delivery questions AFFIRMED; decided together at wave-4 kickoff.) 2026-08-03 (decision-sitting propagation: the two remaining
@@ -810,42 +812,161 @@ providers: {
 }
 ```
 
-`auto` is one authored setting with deployment-specific resolution:
+The application calls one client interface regardless of the selected Adapter:
 
-- local development uses the Snapback shared development profile;
-- tests and checked demos use the synthetic conformance IdP;
-- a hosted preview may use the shared profile only with an explicit expiry,
-  an app binding, and provider-specific abuse budgets; and
-- staging and production require app-owned credentials from LLP 0036 config.
+```ts
+await auth.signIn({ provider: 'apple' });
+```
 
-The development profile uses the browser completion flow, including on native
-apps. Shared credentials cannot satisfy bundle-id, signing-certificate, or
-team-bound native provider checks. The broker accepts only a generated app
-binding and a fixed provider name. It never accepts an arbitrary callback URL.
-The app holds the redemption verifier. The callback carries only a one-use
-completion code, and the app redeems both values for the ordinary Snapback
-session. Provider tokens and Snapback session credentials never cross a URL.
+`auto` is a request for deployment-specific resolution. It is not permission
+for the client to choose credentials or retry through another identity realm.
+The generated auth program remains the single source declaration under LLP
+0258. The resolver combines that declaration with deployment state, LLP 0036
+configuration readiness, the current app binding, and a client-build receipt.
+
+#### Resolved provider entry
+
+The exact artifact schema belongs to the completion-protocol implementing
+Spec. Its minimum semantic content is:
+
+```ts
+type ResolvedProviderEntryV1 = {
+  format: 'snapback.resolved-provider-entry.v1';
+  provider: 'apple' | 'google' | 'github' | 'expo';
+  providerInstallationId: string;
+  adapter:
+    | 'synthetic'
+    | 'snapback-shared-browser'
+    | 'app-owned-browser'
+    | 'app-owned-native';
+  identityRealm: 'rehearsal' | 'application';
+  authProfileGeneration: string;
+  configGeneration?: string;
+  clientBuildReceipt?: string;
+  readiness: 'ready' | 'blocked';
+  nextAction?: string;
+};
+```
+
+The projection contains no credential value, provider token, callback secret,
+user identity, or Snapback session credential. The resolver binds one result to
+the auth-profile generation before sign-in begins.
+
+The selection rules are closed:
+
+| Deployment and readiness | Selected Adapter | Identity realm |
+|---|---|---|
+| Test or checked demo | Synthetic conformance IdP | Rehearsal |
+| Local development with verified app-owned configuration and a matching native build receipt | App-owned native | Application |
+| Local development without both native readiness facts | Snapback shared browser | Rehearsal |
+| Owner-authenticated preview with an explicit expiry and an active rehearsal window | Snapback shared browser | Rehearsal |
+| Staging or production with complete app-owned configuration | App-owned native or app-owned browser, according to the client surface | Application |
+| Staging or production with incomplete app-owned configuration | Refuse activation | None |
+
+Shared previews are capped at 100 users. Every preview carries an expiry, an
+app binding, provider-specific abuse budgets, and a rehearsal authority. The
+shared profile is unavailable to an anonymous deployment or a deployment that
+claims staging or production posture.
+
+The client projection is not the admission boundary. The shared broker repeats
+the deployment, owner-authentication, expiry, app-binding, and user-cap checks
+from server-held state before it creates a transaction. A modified client
+cannot promote itself into a shared preview or enable shared auth in staging or
+production.
+
+#### Native readiness requires both halves
+
+Provider configuration alone cannot select native auth. The current client
+must also prove that its signed build contains the matching native integration.
+
+Apple readiness includes the app identity, developer team, Sign in with Apple
+capability, signed entitlement, accepted audiences, and production revocation
+configuration. Google readiness includes the platform client ids, iOS return
+scheme or Android signing-certificate binding, server audience, and native SDK
+configuration. The implementing Spec may add provider facts, but it cannot
+weaken the two-part rule.
+
+Configuration that is ready while the installed build is not ready keeps local
+development on the shared browser Adapter. The projected `nextAction` tells the
+author to rebuild. Staging and production refuse instead of serving a shared
+profile.
+
+#### Native failures never fall back
+
+Resolution is frozen for one sign-in attempt. If the selected native Adapter
+returns cancellation, timeout, `invalid_client`, token refusal, or any other
+failure, Snapback reports that result. It does not open the shared browser
+Adapter.
+
+Silent fallback would change the consent brand, provider installation,
+identity realm, and possibly the provider subject. It could create a second
+principal while hiding broken production configuration. An operator may stage
+a new auth-profile generation that selects the shared development Adapter, but
+an individual request cannot make that change.
+
+#### Shared development browser Adapter
+
+The shared Adapter uses the external-user-agent completion flow on native and
+the server-callback flow on web. Shared credentials cannot satisfy bundle-id,
+signing-certificate, or team-bound native checks.
+
+The broker accepts only a generated app binding and a fixed provider name. It
+never accepts an arbitrary callback URL. The app holds the redemption verifier.
+The callback carries only a short-lived one-use completion code. Redemption
+requires both values and issues the ordinary Snapback session through the
+common completion path. Provider tokens and Snapback session credentials never
+cross a URL.
 
 The development broker creates an app-scoped rehearsal identity. The durable
 identity tuple includes the development provider installation and a subject
 derived from both the app id and the provider subject. The broker does not use
-email to link accounts. Two apps that use the shared profile do not receive the
-same Snapback identity.
+email to link accounts. Two apps that use the same shared provider do not
+receive the same Snapback identity.
 
-Rehearsal is disposable. Switching from `auto` to app-owned credentials does
-not reinterpret an existing provider installation. Apple subjects and relay
-addresses can change with the developer team, and Google continuity is not a
-reason to weaken the uniform rule. Before staging or production, the operator
-must either reset rehearsal auth state or run an explicit reviewed migration.
-Production activation refuses if the resolved provider profile is shared,
-the app still contains a rehearsal identity, or a required app-owned config
-reference is unset.
+The earlier transparent Google-issuer relay remains a possible future mode for
+identity continuity. It is not the default shared development profile. The
+default profile chooses disposable rehearsal identity over implicit migration.
 
-The setup interface reports the transition as one replacement task per
-provider. It opens the provider registration page, captures public client ids
+#### Switching to app-owned credentials
+
+Shared and app-owned credentials are separate provider installations. A
+configuration change never reinterprets an existing installation. The switch
+stages a successor auth-profile generation and signs out rehearsal custody
+before the app enters the application identity realm.
+
+Resetting rehearsal auth state is the default transition. An app may implement
+an explicit reviewed migration that asks the user to prove both identities.
+Snapback never merges the identities by email, provider profile claims, or a
+Google-only continuity exception. Apple subjects and private relay addresses
+can change with the developer team, so one uniform rule is safer and easier to
+test.
+
+Before staging or production, the operator must reset rehearsal state or
+complete the explicit migration. Production activation refuses if the resolved
+provider profile is shared, any rehearsal identity remains, or a required
+app-owned config reference is unset. This is the LLP 0214 rehearsal-provenance
+rule applied to the complete identity store, not only the current session.
+
+#### Setup and status
+
+The setup interface reports one replacement task per provider. The intended
+commands are:
+
+```sh
+snapback auth configure apple
+snapback auth configure google
+snapback auth status
+```
+
+Configuration opens the provider registration page, writes public client ids
 and secret values into LLP 0036 deployment state, verifies the callback, and
-changes the resolved profile to app-owned. Secret values never enter source,
-generated artifacts, client bundles, logs, or receipts.
+stages the app-owned profile. Native configuration then requires a new client
+build and a matching build receipt before the resolver selects it.
+
+`auth status` reports the selected Adapter, identity realm, configuration
+readiness, client-build readiness, and one next action. Secret values never
+enter source, generated artifacts, client bundles, logs, status output, or
+receipts.
 
 ## Non-goals
 
@@ -889,12 +1010,34 @@ identity — exercising the three mechanisms whose composition this RFC most
 depends on, against the conformance IdP in CI and real Google in the
 labeled walkthrough.
 
+The zero-setup profile adds these acceptance obligations:
+
+- one authored `credentials: 'auto'` declaration selects synthetic, shared
+  browser, app-owned browser, or app-owned native through resolver inputs only;
+- verified provider configuration without a matching client-build receipt
+  keeps local development on shared browser auth and reports rebuild as the
+  next action;
+- a selected native Adapter that returns cancellation, timeout,
+  `invalid_client`, or token refusal reports that result without starting a
+  shared browser flow;
+- two apps using the same shared provider receive distinct app-scoped rehearsal
+  identities;
+- an owner-authenticated preview expires, refuses its 101st user, and cannot
+  outlive its rehearsal authority;
+- staging and production refuse incomplete app-owned configuration, shared
+  credential selection, and any remaining rehearsal identity; and
+- switching to an app-owned installation signs out rehearsal custody and
+  neither reinterprets nor auto-links the old provider identity.
+
 ## Open questions
 
 - **Credential ownership — ANSWERED 2026-08-02, amended 2026-08-21:** Option D
-  is the production path. The shared broker is the default development profile
-  and issues only app-scoped rehearsal identities. The production provider
-  installation remains app-owned.
+  is the production path. Shared credentials are the default for local
+  development and expiring owner-authenticated previews, capped at 100 users.
+  They issue only app-scoped rehearsal identities. The resolver selects native
+  auth only after provider configuration and the client build both verify, and
+  runtime failures never fall back. The production provider installation
+  remains app-owned.
 - **SMS tier placement — ANSWERED 2026-08-02:** tier 2, supported with vendor
   configuration; promotion requires a named delivery-vendor owner.
 - **Generated-domain passkeys — RULED 2026-08-08 (Charlie, wave-4 kickoff):

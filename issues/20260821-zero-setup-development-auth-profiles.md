@@ -5,6 +5,20 @@
 **Owner:** Unassigned
 **Related:** LLP 0036, LLP 0151, LLP 0214, LLP 0258, Diary 0104
 
+## Demo checkpoint, 2026-08-21
+
+Knockoff now implements the provider-entry resolver, no-runtime-fallback
+controller, native-build probes, shared browser transaction, exact return
+allowlist, client-held verifier, one-use redemption, replay refusal, app-scoped
+rehearsal identities, and the 100-user limit. Apple uses its native SDK after
+readiness. Google uses `@react-native-google-signin/google-signin` after
+readiness.
+
+The local shared Adapter uses hermetic identities. The product work remains
+open because Snapback-owned provider registrations, the public callback host,
+generated bootstrap policy, hosted rehearsal authority, production admission,
+and setup commands do not exist yet.
+
 ## Problem
 
 A new app can declare Apple or Google login, but the first real run stops at

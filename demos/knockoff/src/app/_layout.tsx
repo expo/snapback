@@ -54,7 +54,7 @@ export default function RootLayout() {
       />
     </View>}
   >
-    <SocialEntry>
+    <SocialEntry appId={app.identity.app}>
       <StatusBar style="auto" />
       <Stack screenOptions={{
         headerBackButtonDisplayMode: 'minimal',
