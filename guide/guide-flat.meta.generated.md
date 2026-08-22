@@ -1889,7 +1889,6 @@ packed-package author to a nonexistent raw-client namespace.
     Route terms: "client.assets.start", "createAssetClient(client)",
     "raw SnapbackClient assets".
 
-<<<<<<< HEAD
 Cases 73–74 extend the provider-lifecycle repair with the remaining exact
 wrong vocabulary from the source diaries and review evidence.
 
