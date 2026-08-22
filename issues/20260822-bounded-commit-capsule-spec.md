@@ -21,7 +21,8 @@ One absolute `tokio::time::Instant`, created immediately before authority reserv
 ```
 prework without permit
 → absolute deadline
-→ reserve caller authority
+→ enter capsule with prepared caller authority
+→ capsule reserves caller authority
 → timeout_at(deadline, lock_managed_snapback(...))
 → synchronous staging
 → check the same deadline
@@ -67,9 +68,10 @@ against an intended-row predicate carried by the caller.
 
 ## Retrofit — incremental, but not invisible
 
-Adoption is route-by-route; no program-wide cutover. For each landed fence, replace only the
-post-reservation acquisition and thread the final-cut token to its deepest transaction seam.
-Success behaviour and queue ordering are unchanged.
+Adoption is route-by-route; no program-wide cutover. For each landed fence, replace the
+caller-side reservation plus post-reservation acquisition with one capsule call, and thread the
+final-cut token to its deepest transaction seam. Success behaviour and queue ordering are
+unchanged.
 
 But observable behaviour **does** change, and this should not be described as a silent
 improvement: a request that previously waited indefinitely can now return a typed 503; logout can
@@ -109,7 +111,8 @@ Use one absolute `tokio::time::Instant`, created immediately before authority re
 ```text
 prework without permit
 → calculate absolute deadline
-→ reserve caller authority
+→ enter capsule with prepared caller authority
+→ capsule reserves caller authority
 → timeout_at(deadline, lock_managed_snapback(...))
 → synchronous staging
 → check same deadline
@@ -142,11 +145,10 @@ pub(crate) enum CommitAttempt<T, U> {
     },
 }
 
-pub(crate) enum ExactReconciliation<T, U> {
+pub(crate) enum ExactReconciliation<T> {
     IntendedRows(T),
     Uncertain {
         cause: SnapbackError,
-        carrier: U,
     },
 }
 
@@ -171,7 +173,7 @@ pub(crate) enum CommitTimeoutPhase {
 pub(crate) async fn with_bounded_commit_capsule<T, Intent, Gate, Uncertain>(
     state: &SharedSnapback,
     spec: CommitCapsuleSpec,
-    reservation: AuthorizedEffectReservation,
+    authority: PreparedAuthority,
     terminal_gate: Gate, // `()` when none
     intent: Intent,
     transact: impl FnOnce(
@@ -184,13 +186,21 @@ pub(crate) async fn with_bounded_commit_capsule<T, Intent, Gate, Uncertain>(
     reconcile: impl FnOnce(
         &mut LocalSnapback,
         &Intent,
-        Uncertain,
-    ) -> ExactReconciliation<T, Uncertain> + Send + 'static,
+        &Uncertain,
+    ) -> ExactReconciliation<T> + Send + 'static,
     retain_uncertain: impl FnOnce(Uncertain) + Send + 'static,
 ) -> CommitCapsuleOutcome<T>;
 ```
 
-The reservation is acquired immediately before this call. A reservation refusal therefore returns its existing typed authority error before the capsule opens a transaction.
+The capsule acquires the reservation from `PreparedAuthority` before queuing for Local. A capsule
+future that has not been polled owns no permit, and the API cannot accept an already-held
+reservation. A reservation refusal returns its existing typed authority error before the capsule
+opens a transaction.
+
+After an ambiguous COMMIT, the capsule takes ownership of the uncertainty carrier before invoking
+`reconcile`, which only borrows it. A reconciliation panic is caught while the carrier is still
+capsule-owned and transfers that carrier to `retain_uncertain`; only a normal exact result may
+discard it.
 
 `Gate` must be an opaque, non-cloneable rollback-on-drop carrier. Revocation passes `ServiceAuthorityTerminalGate`; ordinary writes pass `()`.
 
@@ -288,7 +298,9 @@ The current client automatically retries only the exact `SNAPBACK_AUTH_RESERVATI
 
 ## Deadline semantics
 
-The deadline is created before reservation, so it bounds the complete permit-held interval.
+The deadline is created before the capsule is constructed, and the capsule itself acquires the
+reservation, so it bounds the complete permit-held interval. Delaying or abandoning an unpolled
+capsule future cannot pin logout because no reservation exists yet.
 
 The same deadline wraps the entire queued writer future:
 
@@ -393,14 +405,20 @@ A timeout after one sibling commit may never claim `effectCommitted: false`.
 | Post-staging | Pause after all SQL writes are staged but before final-cut entry | Rows remain invisible; logout waits only while the bounded reservation is live; release before deadline commits once | Response/fanout, visible partial state, admission re-entry |
 | Pre-guard | Pause immediately before the paired deadline-check/`commit_guard`; let deadline expire | Explicit rollback, final-cut timeout/effect false, commit observer count zero, logout drains | `commit_guard`, COMMIT, uncertainty |
 | During COMMIT | Pause after `CommitStarted`; let deadline expire; inject success-with-lost-ack and real commit error variants | Never return timeout; exact successor becomes committed, otherwise uncertainty; caller permit drops | Effect-free retry diagnostic |
+| Reconciliation | Return an ambiguous COMMIT, pause inside exact reconciliation, then panic | Caller permit is already released; the capsule retains the carrier and the terminal domain stays fail-closed | Rollback-on-drop reopening the terminal domain |
 | Post-commit/pre-response | Pause after COMMIT and resource release but before response; start logout and then drop response | Logout completes; one durable effect; no automatic retry on transport loss; replay of the same idempotency identity returns existing result | A second grant/watch/job/mutation or `effectCommitted: false` |
 
 Every barrier also runs a panic/unwind variant. Before COMMIT, reopening and permit release are required. After `CommitStarted`, the target gate must stay ambiguous/fail-closed and the result must never become retryable.
 
-The crucial duplication proof has two halves:
+The production-route duplication proof has two halves:
 
 1. The only diagnostics admitted to effect-free retry are emitted before COMMIT was invoked.
 2. If the response is lost after COMMIT, the client receives no such diagnostic; where explicit retry is supported, the same durable operation identity resolves the prior result and the test asserts exactly one effect row.
+
+The prototype executably demonstrates those mechanics only for its own route-free storage path:
+`stage()` returns `Existing` for a test-only `operation_id`, and the response-loss test observes one
+toy effect row after replay. That is not a client-resendable, principal-scoped identity and does
+not prove that every future fence can retry without duplicating effects.
 
 ## Smallest prototype
 
@@ -410,7 +428,7 @@ Before migrating any route, build a test-only, route-free prototype consisting o
 2. `FinalCommitCut` over one file-backed SQLite transaction.
 3. A test-only operation ledger row keyed by an immutable operation ID, with an exact expected payload and a consumed-proof row.
 4. Real `AuthorizedEffectReservation` and `ServiceAuthorityTerminalGate` fixtures.
-5. The six barriers above.
+5. The seven barriers above.
 6. A commit adapter that can inject:
    - rollback before COMMIT;
    - commit success;
@@ -429,7 +447,22 @@ The prototype is complete only if it demonstrates:
 - Deadline expiry during COMMIT never becomes timeout.
 - Exact reconciliation returns committed only for the complete intended tuple.
 - An unresolved result remains non-retryable and keeps the target terminal domain fail-closed.
-- Response loss plus retry produces exactly one durable operation.
+- For the prototype's test-only `operation_id`, response loss plus replay through its `Existing`
+  path produces exactly one durable operation.
+
+This prototype does **not** establish route-wide retry safety. A real adopting route must still
+supply all of the following:
+
+- a client-resendable operation identity scoped to the principal, not a test-only token;
+- reconciliation of the exact intended rows and values for that route;
+- `FinalCommitCut` as the route's only COMMIT;
+- for revocation, `with_service_authority_terminal_gate` installed in the kernel transaction,
+  rather than the prototype's RAII `take()`-and-drop adapter.
+
+The prototype also does not emit `SNAPBACK_COMMIT_RECONCILED_COMMITTED`; its in-process
+`reconciled: bool` is the deliberately sufficient substitute at this stage. In particular, a
+reconciled success in the prototype does not by itself demonstrate settlement of a terminal gate
+as a committed ending.
 
 ## Author rulings
 

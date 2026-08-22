@@ -256,6 +256,10 @@ pub mod hosted_admission;
 #[path = "storage/authorized_lease.rs"]
 pub mod authorized_lease;
 
+#[cfg(any(test, feature = "test-support"))]
+#[path = "storage/commit_capsule_prototype.rs"]
+pub mod commit_capsule_prototype;
+
 #[allow(dead_code)] // Called by the ENG-24603 pre-bind/coordinator integration lane.
 #[path = "storage/auth_stream.rs"]
 pub mod auth_stream;
