@@ -1460,6 +1460,10 @@ a mutation that needs them outgrew the IR (below).
 
 ## Return bindings
 
+`SNAPBACK_PLAN_FACTS_DERIVED` is the informational generation diagnostic for
+the exact result and dependency facts derived from the closed plan forms in
+this section.
+
 `returns` declares what the mutation's logical `result` is, without running
 code:
 
@@ -1468,8 +1472,8 @@ code:
 - `returnChangedCount()` — the committed changed-row count.
 - `returnDocument(table, id)` — one complete stored document, read inside
   the committing transaction at the new version, so it observes the plan's
-  own writes; a missing row returns `null`. The `id` is an expression. Pair
-  with `results.document(table)`.
+  own writes; a missing row returns `null`. The `id` is an expression. Its
+  exact contract is `results.value(v.union([v.null(), v.doc(table)]))`.
 - `returnLiteral(value)` — a constant.
 - `returnExpr(expr)` — any expression; with `record({...})` this covers
   computed summaries, as in `createPost` above.
@@ -2195,7 +2199,7 @@ Further terms: captured constants; mutation document arrays; monotonic counter; 
 | `for...of`, array methods, or a literal index such as `array[0]` | Dynamic `array[i]` | Iterate, search, or use a statically fixed literal index. | Dynamic indexed algorithms are central to the operation. |
 | A reachable same-file function or a literal relative import from a bounded helper module under the backend | A bare-package helper, an import outside the backend, or an unresolved helper path | Put the helper under the backend (a `helpers/` subdirectory is supported) and import it relatively. The admitted helper graph is flattened into handler identity and runtime bytes. | The operation needs dependencies outside the closed backend helper graph. |
 | A handler-local literal `const`, or validated `args` | A referenced top-level `const` | Move the value inside the handler or pass it through `args`; top-level values are not spliced into executable bytes. | Many operations need a shared authored configuration graph. |
-| Static visibility/authorization; `ctx.runtime.now()` only for an ordinary trusted timestamp that is not an authority rule | Clock-dependent visibility or authority using `Date.now()` / `new Date()` | Use the Explicit profile temporal vocabulary: declare the applicable `boundedSkew` or `standardPattern` route. | Any authorization or settlement rule depends on time. |
+| Persisted visibility/authorization state; `ctx.runtime.now()` only for an ordinary trusted timestamp that is not an authority rule | Clock-dependent visibility or authority using `Date.now()` / `new Date()` | Model visibility as persisted application state, update it through a mutation, and query that stored state. | The application truly needs a separate time-driven workflow rather than an explicit state transition. |
 | Queries: bare/nullable `v.doc(...)` values or `v.array(v.doc(...))`; mutations/actions: one bare `v.doc(...)` or arrays of closed values | Mutation/action `returns: v.array(v.doc('todos'))` | Return one document, or a closed array of receipt records/ids. Mutation/action document arrays refuse before generation publishes activation output. | A mutation/action document-array carrier is part of the public contract. |
 | No Familiar sequence allocator | `ctx.sequence.allocate(...)` in a Familiar mutation | Use the Explicit profile's declared `sequences` mutation surface. Do not replace it with an app read/increment/write counter. | Dense scoped sequence allocation is required. |
 
@@ -2208,11 +2212,10 @@ captured top-level values are not a substitute for an admitted helper module.
 
 The profile still generates the canonical `api`, `groups`, asset, and
 ephemeral references used by the ordinary clients. Shared schema declarations
-may use the lower-level public schema vocabulary when the Familiar convenience
-entrypoint does not re-export a constructor. For a membership-backed ephemeral
-collection, import `defineEphemeral` and `ephemeral` from
-`@expo/snapback-codegen/define`, while keeping Familiar functions on
-`query`/`mutation` from `./generated/server`. The declaration still lowers into
+use the same generated local entrypoint as Familiar functions. For a
+membership-backed ephemeral collection, import `defineEphemeral`, `ephemeral`,
+and `allow` from `./generated/server`, alongside `query`/`mutation`. The
+declaration still lowers into
 the same canonical generated `api.ephemeral` reference; it does not create a
 second backend or authorize mixing Explicit function builders into the
 Familiar module tree.

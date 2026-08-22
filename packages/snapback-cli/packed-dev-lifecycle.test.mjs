@@ -459,6 +459,29 @@ try {
     consumerRequire.resolve('fake-indexeddb'),
   ).href);
 
+  // VCF-E-L1 negative: corrupt the materialized packed template, not the
+  // source workspace, and prove the shipped scaffold entrypoint refuses
+  // before creating output with the missing stage named.
+  const packedReactManifestPath = join(installedCli, 'templates', 'react', 'package.json');
+  const packedReactManifestBytes = readFileSync(packedReactManifestPath, 'utf8');
+  const packedReactManifest = JSON.parse(packedReactManifestBytes);
+  delete packedReactManifest.scripts.prove;
+  const missingLifecycleTarget = join(externalRoot, 'missing-lifecycle-stage');
+  try {
+    writeFileSync(
+      packedReactManifestPath,
+      `${JSON.stringify(packedReactManifest, null, 2)}\n`,
+    );
+    assert.throws(
+      () => cli.scaffoldApp(missingLifecycleTarget, { template: 'react' }),
+      (error) => error?.code === 'SNAPBACK_SCAFFOLD_LIFECYCLE_STAGE_MISSING'
+        && error?.diagnostic?.details?.stage === 'prove',
+    );
+    assert.equal(existsSync(missingLifecycleTarget), false);
+  } finally {
+    writeFileSync(packedReactManifestPath, packedReactManifestBytes);
+  }
+
   // Headless: a second packed CLI instance attaches to the receipt-bound owner,
   // advances the schema, and closes without terminating the owner.
   {

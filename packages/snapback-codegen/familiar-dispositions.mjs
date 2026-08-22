@@ -9,24 +9,11 @@
 
 export const FAMILIAR_DISPOSITION_SCHEMA_VERSION = 'snapback.familiar-dispositions.v1';
 
-// @ref LLP 0253#s91-contract-rulings — R4 makes advertised-entrypoint
-// reachability part of the disposition contract instead of a package-local
-// coincidence. Every name here must remain a direct/defaulted constructor.
-export const FAMILIAR_ADVERTISED_ENTRYPOINT_EXPORTS = Object.freeze({
-  server: Object.freeze([
-    'action',
-    'defineAssetUpload',
-    'defineEphemeral',
-    'defineSchema',
-    'defineTable',
-    'ephemeral',
-    'mutation',
-    'query',
-  ]),
-  values: Object.freeze(['v']),
+const entry = (disposition, route, projection = {}) => Object.freeze({
+  disposition,
+  route,
+  ...projection,
 });
-
-const entry = (disposition, route) => Object.freeze({ disposition, route });
 const category = (entries) => Object.freeze(Object.fromEntries(
   Object.entries(entries).sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0)),
 ));
@@ -88,13 +75,13 @@ export const FAMILIAR_DISPOSITIONS = Object.freeze({
     outgrewIr: entry(4, 'use the explicit profile; familiar v1 has no IR escape marker'),
   }),
   constructors: category({
-    query: entry(1, 'lower to defineJsLiveQuery or defineJsQuery from delivery'),
-    mutation: entry(1, 'lower to defineJsMutation'),
-    action: entry(1, 'lower to the handler-backed defineAction form'),
-    defineJsLiveQuery: entry(1, 'query with delivery live'),
-    defineJsQuery: entry(1, 'query with delivery read'),
-    defineJsMutation: entry(1, 'mutation'),
-    defineAction: entry(1, 'action'),
+    query: entry(1, 'lower to defineJsLiveQuery or defineJsQuery from delivery', { entrypoint: 'server' }),
+    mutation: entry(1, 'lower to defineJsMutation', { entrypoint: 'server' }),
+    action: entry(1, 'lower to the handler-backed defineAction form', { entrypoint: 'server' }),
+    defineJsLiveQuery: entry(1, 'query with delivery live', { loweringOnly: true }),
+    defineJsQuery: entry(1, 'query with delivery read', { loweringOnly: true }),
+    defineJsMutation: entry(1, 'mutation', { loweringOnly: true }),
+    defineAction: entry(1, 'action', { loweringOnly: true }),
     defineLiveQuery: entry(4, 'use query with a handler, or the explicit profile'),
     defineQuery: entry(4, 'use query with a handler, or the explicit profile'),
     defineMutation: entry(4, 'use mutation with a handler, or the explicit profile'),
@@ -112,19 +99,19 @@ export const FAMILIAR_DISPOSITIONS = Object.freeze({
     defineCommand: entry(4, 'use the Snapback command extension or explicit profile'),
     defineSurface: entry(4, 'use the Snapback surface extension or explicit profile'),
     defineMaintainedProjection: entry(4, 'use the explicit profile projection vocabulary'),
-    defineAssetUpload: entry(1, 'shared Snapback asset extension'),
+    defineAssetUpload: entry(1, 'shared Snapback asset extension', { entrypoint: 'server' }),
     defineMediaCommand: entry(4, 'use the Snapback media-command extension or explicit profile'),
     defineConfig: entry(4, 'use the Snapback configuration extension or explicit profile'),
-    defineEphemeral: entry(1, 'shared Snapback ephemeral extension'),
-    ephemeral: entry(1, 'shared Snapback ephemeral collection vocabulary'),
+    defineEphemeral: entry(1, 'shared Snapback ephemeral extension', { entrypoint: 'server' }),
+    ephemeral: entry(1, 'shared Snapback ephemeral collection vocabulary', { entrypoint: 'server' }),
     definePushSeam: entry(4, 'use the Snapback push extension or explicit profile'),
     defineAuth: entry(4, 'use the Snapback auth extension or explicit profile'),
     defineVisibilityOverride: entry(4, 'use the explicit profile for governed visibility overrides'),
-    defineSchema: entry(1, 'shared verbatim'),
-    defineTable: entry(1, 'shared verbatim'),
-    membershipResource: entry(1, 'shared authority-profile resource reference'),
-    v: entry(1, 'shared verbatim'),
-    allow: entry(1, 'shared verbatim'),
+    defineSchema: entry(1, 'shared verbatim', { entrypoint: 'server' }),
+    defineTable: entry(1, 'shared verbatim', { entrypoint: 'server' }),
+    membershipResource: entry(1, 'shared authority-profile resource reference', { entrypoint: 'server' }),
+    v: entry(1, 'shared verbatim', { entrypoint: 'values' }),
+    allow: entry(1, 'shared verbatim', { entrypoint: 'server' }),
   }),
   tableBuilderMethods: category({
     index: entry(1, 'shared index declaration and withIndex target'),
@@ -148,3 +135,17 @@ export const FAMILIAR_DISPOSITIONS = Object.freeze({
     requiredCapabilities: entry(1, 'shared verbatim'),
   }),
 });
+
+// @ref LLP 0253#s91-contract-rulings — R4 makes advertised-entrypoint
+// reachability a projection of the disposition contract. A direct/defaulted
+// constructor must either name its public entrypoint or declare that it is an
+// adapter-only lowering primitive; there is no second manual export list.
+export const FAMILIAR_ADVERTISED_ENTRYPOINT_EXPORTS = Object.freeze(
+  Object.freeze(['server', 'values']).reduce((byEntrypoint, entrypoint) => {
+    byEntrypoint[entrypoint] = Object.freeze(Object.entries(FAMILIAR_DISPOSITIONS.constructors)
+      .filter(([, disposition]) => disposition.entrypoint === entrypoint)
+      .map(([name]) => name)
+      .sort());
+    return byEntrypoint;
+  }, {}),
+);

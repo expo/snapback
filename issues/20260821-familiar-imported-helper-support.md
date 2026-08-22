@@ -40,7 +40,10 @@ not permanent profile semantics.
 VCF-F-D2 now proves a relative helper under the backend is flattened into the
 handler's executable identity, generates and executes from packed packages,
 and that an out-of-graph import refuses pre-output with the one supported S2
-rewrite. The Familiar first-read Guide teaches that path.
+rewrite. External bundle source maps are composed with the TypeScript erasure
+maps, and a focused fixture proves an ambient-clock diagnostic in
+`helpers/clock.ts` reports that helper file and its original line rather than
+the importing functions file. The Familiar first-read Guide teaches the path.
 
 The issue remains open for the complete LLP 0237 negative matrix named above
 (explicit graph bounds, cycle, snapshot, and unsupported-initializer cases);

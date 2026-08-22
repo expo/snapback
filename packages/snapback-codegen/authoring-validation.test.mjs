@@ -1072,7 +1072,7 @@ export default defineSchema({${tables}}, { ephemeral: defineEphemeral({${collect
 // Counterpart: src/ephemeral.rs:
 // tests::codegen_emitted_membership_projection_parses_and_activates_in_sessions.
 const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_CANONICAL_SHA256 =
-  'a04c870f974c6de86c0596cf67027e1f934a7228aa26d86eed9245634211bf77';
+  '096d773f2323c986d521710741a07328b9134ffcc5e5529a0e3a898e775a6f0d';
 
 function canonicalJson(value) {
   const sort = (entry) => {

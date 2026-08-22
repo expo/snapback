@@ -8,10 +8,11 @@ Developer experience, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-17
 **Revised:** 2026-08-22 (W3 implementation evidence: VCF-E-P1–P4 derive exact
-closed-plan result/dependency facts with provenance and conflict refusal, and
-VCF-E-L1 supplies the recurring scaffold/install/generate/dev/prove wiring
-while preserving authored policy. D4, D5, the remaining Explicit fixtures,
-and the corpus-wide D7 measurement remain open.)
+closed-plan result/dependency facts with provenance, including final-write
+binding shadowing, nullable return-document settlement, and its implicit read;
+incompatible authored result controls refuse. VCF-E-L1 supplies recurring
+scaffold/install/generate/dev/prove wiring while preserving authored policy.
+D4, D5, the remaining Explicit fixtures, and D7 measurement remain open.)
 **Revised:** 2026-08-21 (LLP 0295 D0.3 amendment: D1's four-class taxonomy
 applied fact-by-fact to the Explicit profile's authored surface, and the W3
 Explicit economy lane registered with its fixture receipts. Adopted per
@@ -121,7 +122,8 @@ Examples:
 - `insert('bugs', ..., { bindIdAs: 'bugId' })` plus
   `returnBinding('bugId')` determines `v.id('bugs')`;
 - `returnChangedCount()` determines an integer result;
-- `returnDocument('bugs', id)` determines `results.document('bugs')`; and
+- `returnDocument('bugs', id)` determines the nullable value contract
+  `results.value(v.union([v.null(), v.doc('bugs')]))`; and
 - a closed declarative read or write plan determines its table dependency set.
 
 The derived effective contract remains hashed, generated, reviewable, and
@@ -252,9 +254,12 @@ cover ordinary reads; authors should not repeat the same policy per query.
 Codegen should compute an effective result contract when a declarative plan's
 return form determines it without ambiguity. The initial admitted forms are:
 
-- `returnBinding` of an ID minted by a typed `insert`;
+- `returnBinding` whose final binding write in evaluation order is an ID
+  minted by a typed `insert` (a later `Insert`, `Get`, `Let`, or allocation
+  shadows the earlier value);
 - `returnChangedCount`;
-- `returnDocument(table, id)`;
+- `returnDocument(table, id)`, as the nullable union of the table document and
+  `null` because the resolved id may be absent;
 - `returnLiteral` for an exactly representable closed literal; and
 - `returnExpr` only where the expression algebra proves the complete validator
   without inventing bounds or refinements.
@@ -399,10 +404,14 @@ receipts, executed through
 
 **Implementation evidence (2026-08-22).** VCF-E-P1–P4 now derive exact
 `returnBinding`, `returnChangedCount`, and `returnDocument` contracts plus the
-closed plan's read/write table facts, project provenance, and refuse a
-conflicting authored transcription before output. Their authored-compatible
-controls retain the same effective manifest, dependency, and authority facts;
-the improvement is fewer semantic correction actions, not a line-count claim.
+closed plan's read/write table facts. The proof includes final-write binding
+shadowing across Insert/Get/Let, the nullable present/absent return-document
+paths, and a patch-A/return-B plan whose published reads include B. A mismatched
+authored result for the shadowed insert refuses before output; authored-
+compatible result controls retain the same effective manifest and authority
+facts. An authored `reads` field is separately rejected by the closed grammar
+as unknown, not presented as a derived/authored conflict comparison. The
+improvement is fewer semantic correction actions, not a line-count claim.
 VCF-E-L1 scaffolds and proves the fixed install → generate → dev → prove
 lifecycle against W1's M1→M2 continuity carrier. Authored policy is unchanged.
 D4, D5, `returnLiteral`/provable-`returnExpr` expansion, the other VCF-E rows,

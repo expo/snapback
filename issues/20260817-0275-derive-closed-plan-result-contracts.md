@@ -38,8 +38,9 @@ shapes. Do not widen a partially derived expression to `v.json()` or
 
 ## Acceptance
 
-- `returnBinding` of an ID minted by typed `insert`, `returnChangedCount`, and
-  `returnDocument` produce exact generated result types without `result:`.
+- `returnBinding` whose final write is an ID minted by typed `insert`,
+  `returnChangedCount`, and nullable `returnDocument` produce exact generated
+  result types without `result:`.
 - Exact `returnLiteral` and admitted `returnExpr` cases have positive and
   ambiguity/refusal fixtures.
 - Authored/derived mismatch fails before artifacts activate.
@@ -52,11 +53,16 @@ shapes. Do not widen a partially derived expression to `v.json()` or
 
 ## W3 progress (2026-08-22)
 
-VCF-E-P1–P4 are implemented and packed: `returnBinding` of an inserted ID,
-`returnChangedCount`, and `returnDocument` derive exact effective contracts;
-closed-plan table dependencies and result provenance are projected; compatible
-authored controls produce identical result/dependency and authority evidence;
-and conflicting authored transcriptions refuse before active output. The React
+VCF-E-P1–P4 are implemented and packed. `returnBinding` derives an ID only
+when the final write to that binding is a typed insert; later Insert/Get/Let
+writes are honored, and a mismatched authored contract for a shadowed insert
+refuses before active output. `returnChangedCount` derives an integer.
+`returnDocument` derives a nullable document-or-null contract, executes both
+the present and absent-id cases, and contributes its resolution read to the
+derived dependency set even when the plan steps touch a different table.
+Compatible authored controls produce identical result and authority evidence.
+The closed spec's authored `reads` transcription is separately refused as an
+unknown field; it is not described as a derived/authored conflict. The React
 template no longer repeats the now-derivable result contract.
 
 This ticket remains open because D3's wider acceptance still calls for exact

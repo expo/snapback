@@ -7,7 +7,7 @@
   "artifactKind": "functionManifest",
   "authoredSourceHash": "sha256:0801314370e973a41e5b8e2e966a190d1a41a9ab98538975b77900b06822b8ad",
   "authoringProfile": "snapback-explicit-v1",
-  "bundleHash": "sha256:873729acbf05e798",
+  "bundleHash": "sha256:516470d7f94769b8",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -654,7 +654,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "5f4ea39a277509060a203fe6de621de9cc80742b631063f5d32b2516510b3ac4",
+  "inputsHash": "ca3a987352a6211148aa73a69db6182068a2edd2f9920f383b4b485b9ee68211",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": [
     {
@@ -691,6 +691,7 @@
         "resultContractHash": "sha256:530ad5d05463934ffbd1071d04a666deca4addbc36ab5958d08bb5d266f1a415",
         "resultContractProvenance": "plan-derived"
       },
+      "guideAnchor": "/_snapback/guide/backend/declarative-plans.md#return-bindings",
       "message": "editTitle: closed plan result/dependency facts resolved with provenance",
       "severity": "info",
       "subsystem": "function"

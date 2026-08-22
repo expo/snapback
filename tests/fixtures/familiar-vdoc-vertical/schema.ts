@@ -60,7 +60,8 @@ export default defineSchema({
   todos: defineTable({
     title: v.string(),
     completed: v.boolean(),
-  }).visibility({ kind: "public-read" }),
+    visible: v.boolean(),
+  }).visibility({ kind: "public-read" }).index("by_visible", ["visible"]),
   otherTodos: defineTable({
     title: v.string(),
   }).visibility({ kind: "public-read" }),

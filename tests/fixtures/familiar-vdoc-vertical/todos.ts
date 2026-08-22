@@ -158,6 +158,31 @@ export const prefixedTitle = query({
   },
 });
 
+// VCF-F-D4: Familiar visibility uses persisted application state and an
+// explicit mutation, never an ambient clock inside the read rule.
+export const setVisible = mutation({
+  args: { id: v.id("todos") },
+  returns: v.null(),
+  auth: "public",
+  reads: ["todos"],
+  writes: ["todos"],
+  handler: async (ctx, args) => {
+    await ctx.db.patch("todos", args.id, { visible: true });
+    return null;
+  },
+});
+
+export const visibleTodos = query({
+  args: {},
+  returns: v.array(v.doc("todos")),
+  auth: "public",
+  reads: ["todos"],
+  handler: async (ctx) => ctx.db
+    .query("todos")
+    .withIndex("by_visible", (q) => q.eq("visible", true))
+    .collect(),
+});
+
 export const helperTitle = query({
   args: { title: v.string() },
   returns: v.string(),
@@ -234,6 +259,7 @@ export const create = mutation({
     const id = await ctx.db.insert("todos", {
       title: args.title,
       completed: false,
+      visible: false,
     });
     const created = await ctx.db.get("todos", id);
     if (created === null) return ctx.refuse("TODO_INSERT_NOT_OBSERVED");
@@ -279,7 +305,7 @@ export const partialDocument = mutation({
   reads: ["todos"],
   writes: ["todos"],
   // @ts-expect-error VCF-F-M1 deliberately proves complete document admission.
-  handler: async () => ({ title: "partial", completed: false }),
+  handler: async () => ({ title: "partial", completed: false, visible: false }),
 });
 
 export const createFromAction = action({

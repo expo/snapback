@@ -5,4 +5,7 @@ export default defineSchema({
     title: v.string(),
     done: v.boolean(),
   }).visibility({ kind: 'public-read' }).sync(),
+  otherTodos: defineTable({
+    title: v.string(),
+  }).visibility({ kind: 'public-read' }).sync(),
 });

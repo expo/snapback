@@ -19,6 +19,8 @@ test('the experimental umbrella is identity-preserving re-exports only', () => {
   assert.equal(server.defineAssetUpload, define.defineAssetUpload);
   assert.equal(server.defineEphemeral, define.defineEphemeral);
   assert.equal(server.ephemeral, define.ephemeral);
+  assert.equal(server.allow, define.allow);
+  assert.equal(server.membershipResource, define.membershipResource);
   assert.equal(server.query, familiarCodegen.query);
   assert.equal(server.mutation, familiarCodegen.mutation);
   assert.equal(server.action, familiarCodegen.action);
@@ -39,6 +41,20 @@ test('the experimental umbrella is identity-preserving re-exports only', () => {
 
 test('advertised Familiar entrypoints cover every claimed constructor', () => {
   const entrypoints = { server, values };
+  for (const [name, constructor] of Object.entries(FAMILIAR_DISPOSITIONS.constructors)) {
+    if (constructor.disposition !== 1 && constructor.disposition !== 2) continue;
+    assert.equal(
+      Boolean(constructor.entrypoint) !== Boolean(constructor.loweringOnly),
+      true,
+      `${name} must be exactly public-entrypoint projected or adapter-only lowering`,
+    );
+    if (constructor.entrypoint) {
+      assert(
+        FAMILIAR_ADVERTISED_ENTRYPOINT_EXPORTS[constructor.entrypoint]?.includes(name),
+        `${name} is direct/defaulted but absent from its advertised entrypoint projection`,
+      );
+    }
+  }
   for (const [entrypoint, names] of Object.entries(FAMILIAR_ADVERTISED_ENTRYPOINT_EXPORTS)) {
     for (const name of names) {
       const disposition = FAMILIAR_DISPOSITIONS.constructors[name];

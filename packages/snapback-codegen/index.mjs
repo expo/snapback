@@ -2181,16 +2181,41 @@ async function generateInProcessLocked({
         const remap = (holder) => {
           if (holder.generatedSourceSpan) return;
           const generatedSourceSpan = holder.sourceSpan;
-          const authored = mapGeneratedTypeScriptPosition(
-            erased.sourceMap,
-            generatedSourceSpan.line,
-            generatedSourceSpan.column,
-          );
+          const bundled = helperBundle?.sourceMap
+            ? mapGeneratedTypeScriptPosition(
+                helperBundle.sourceMap,
+                generatedSourceSpan.line,
+                generatedSourceSpan.column,
+              )
+            : null;
+          const transformedPath = bundled?.file
+            ? (isAbsolute(bundled.file)
+                ? resolve(bundled.file)
+                : resolve(backendRoot, bundled.file))
+            : resolve(module.path);
+          const transformed = definitionSourceOverrides.get(transformedPath)
+            ?? (transformedPath === resolve(module.path) ? erased : null);
+          // Attribution crosses both deterministic transforms: esbuild maps
+          // the flattened graph to one erased module, then that module's TS
+          // map reaches the authored source. Retain the same chain so later
+          // write-site offsets are mapped exactly, not merely from the
+          // handler/helper declaration start.
+          const authored = transformed?.sourceMap
+            ? mapGeneratedTypeScriptPosition(
+                transformed.sourceMap,
+                bundled?.line ?? generatedSourceSpan.line,
+                bundled?.column ?? generatedSourceSpan.column,
+              )
+            : bundled;
           if (!authored) return;
           holder.generatedSourceSpan = generatedSourceSpan;
-          holder.sourceMap = erased.sourceMap;
+          holder.sourceMapChain = [
+            ...(helperBundle?.sourceMap ? [helperBundle.sourceMap] : []),
+            ...(transformed?.sourceMap ? [transformed.sourceMap] : []),
+          ];
+          holder.sourceMap = holder.sourceMapChain[0] ?? null;
           holder.sourceSpan = {
-            file: relative(backendRoot, module.path).split(sep).join('/'),
+            file: relative(backendRoot, transformedPath).split(sep).join('/'),
             line: authored.line,
             column: authored.column,
           };
@@ -2199,6 +2224,7 @@ async function generateInProcessLocked({
           remap(handler);
           for (const helper of handler.helpers ?? []) remap(helper);
         }
+        for (const diagnostic of extracted.diagnostics) remap(diagnostic);
       }
       diagnostics.push(...extracted.diagnostics.map(projectFamiliarHandlerDiagnostic));
       definitionSourceOverrides.set(resolve(module.path), {
@@ -4567,14 +4593,14 @@ async function generateInProcessLocked({
         ) ?? capabilityRendered.segments[0];
         err(issue.code, 'bundle', `${name}: ${issue.message}`, {
           function: name,
-          source: 'functions.mjs',
+          source: segment.sourceSpan.file,
           token: issue.token,
           ...(segment.kind === 'helper' ? { helper: segment.name } : {}),
           ...(segment.kind === 'authorization-evaluator'
             ? { customAuthorizationEvaluator: true }
             : {}),
           sourceSpan: {
-            file: 'functions.mjs',
+            file: segment.sourceSpan.file,
             line: segment.sourceSpan.line + issue.line - segment.startLine,
             column: issue.line === segment.startLine
               ? segment.sourceSpan.column + issue.column
@@ -6675,6 +6701,7 @@ async function generateInProcessLocked({
           severity: 'info',
           subsystem: 'function',
           message: `${fn.name}: closed plan result/dependency facts resolved with provenance`,
+          guideAnchor: '/_snapback/guide/backend/declarative-plans.md#return-bindings',
           details: {
             function: fn.name,
             resultContractProvenance: resultFacts.provenance,
@@ -10124,6 +10151,12 @@ function mutationReadTables(plan) {
       reads.add(body.table);
       reads.add(body.scope_table);
     }
+  }
+  // @ref LLP 0275#d8-explicit-profile-classification-under-llp-0295-d03-2026-08-21
+  // — resolving ReturnValue::Document performs a storage read even when no
+  // step names that table. Publish it so patch-A/return-B cannot under-report.
+  if (plan.return_value?.Document?.table) {
+    reads.add(plan.return_value.Document.table);
   }
   return [...reads];
 }
@@ -18373,6 +18406,9 @@ async function bundleFamiliarHandlerHelpers({
       target: ['es2022'],
       treeShaking: false,
       write: false,
+      outfile: 'familiar-handler-bundle.mjs',
+      sourcemap: 'external',
+      sourcesContent: true,
       logLevel: 'silent',
       legalComments: 'none',
       plugins: [{
@@ -18435,10 +18471,15 @@ async function bundleFamiliarHandlerHelpers({
         },
       }],
     });
-    const javascript = result.outputFiles?.[0]?.text;
-    if (typeof javascript !== 'string') throw new Error('esbuild returned no helper bundle');
+    const bundledJavaScript = result.outputFiles?.find(({ path }) => !path.endsWith('.map'))?.text;
+    if (typeof bundledJavaScript !== 'string') throw new Error('esbuild returned no helper bundle');
+    const javascript = bundledJavaScript.replace(/\/\/# sourceMappingURL=.*?(?:\r?\n)?$/u, '');
+    const sourceMapText = result.outputFiles?.find(({ path }) => path.endsWith('.map'))?.text;
+    if (typeof sourceMapText !== 'string') throw new Error('esbuild returned no helper source map');
+    const sourceMap = JSON.parse(sourceMapText);
     return {
       javascript,
+      sourceMap,
       // @ref LLP 0253#s2-familiar-source-layout-and-discovery — bind every
       // admitted helper's path and erased bytes into executable identity even
       // though the evaluator consumes the flattened bounded closure.
@@ -18575,11 +18616,13 @@ function validateFamiliarDispositionFourHandlerForms(source, sourcePath, err) {
       sourceSpan: { file: sourcePath, ...sourcePoint },
       guideAnchor: familiarGuide,
       alternative: message,
-      profileSwitchSuggestion: {
-        from: FAMILIAR_AUTHORING_PROFILE,
-        to: EXPLICIT_AUTHORING_PROFILE,
-        route,
-      },
+      ...(route === null ? {} : {
+        profileSwitchSuggestion: {
+          from: FAMILIAR_AUTHORING_PROFILE,
+          to: EXPLICIT_AUTHORING_PROFILE,
+          route,
+        },
+      }),
     });
   };
   const within = (node, container) => container.pos <= node.pos && node.end <= container.end;
@@ -18590,24 +18633,37 @@ function validateFamiliarDispositionFourHandlerForms(source, sourcePath, err) {
       if (ts.isWhileStatement(parent) && within(node, parent.expression)) return true;
       if (ts.isDoStatement(parent) && within(node, parent.expression)) return true;
       if (ts.isForStatement(parent) && parent.condition && within(node, parent.condition)) return true;
+      if (
+        ts.isBinaryExpression(parent)
+        && [
+          ts.SyntaxKind.AmpersandAmpersandToken,
+          ts.SyntaxKind.BarBarToken,
+          ts.SyntaxKind.QuestionQuestionToken,
+        ].includes(parent.operatorToken.kind)
+      ) return true;
       if (ts.isFunctionLike(parent)) return false;
     }
     return false;
   };
   const inspect = (node) => {
-    if (
+    const ambientClock = (
       ts.isCallExpression(node)
       && ts.isPropertyAccessExpression(node.expression)
       && node.expression.name.text === 'now'
       && ts.isIdentifier(node.expression.expression)
       && node.expression.expression.text === 'Date'
-      && controlsBranch(node)
-    ) {
+    ) || (
+      ts.isNewExpression(node)
+      && ts.isIdentifier(node.expression)
+      && node.expression.text === 'Date'
+      && (node.arguments?.length ?? 0) === 0
+    );
+    if (ambientClock && controlsBranch(node)) {
       report(
         'BUNDLE_UNSUPPORTED_TIME',
-        'Familiar clock-dependent visibility cannot use Date.now(); use the Explicit profile temporal vocabulary (boundedSkew or standardPattern)',
+        'Familiar clock-dependent visibility cannot use an ambient clock; model visibility as persisted application state, update it through a mutation, and query that stored state',
         node,
-        'boundedSkew/standardPattern',
+        null,
       );
     }
     if (
@@ -18644,7 +18700,9 @@ function projectFamiliarHandlerDiagnostic(diagnostic) {
   }
   if (
     diagnostic.code === 'SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER'
-    && /capturedConstant|PREFIX/u.test(diagnostic.message)
+    && diagnostic.identifierDeclarations?.some(
+      ({ declarationKind }) => declarationKind !== 'import',
+    )
   ) {
     return {
       ...diagnostic,
@@ -18655,7 +18713,9 @@ function projectFamiliarHandlerDiagnostic(diagnostic) {
   }
   if (
     diagnostic.code === 'SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER'
-    && /importedHelper|importedTitle/u.test(diagnostic.message)
+    && diagnostic.identifierDeclarations?.some(
+      ({ declarationKind }) => declarationKind === 'import',
+    )
   ) {
     return {
       ...diagnostic,
@@ -20074,6 +20134,19 @@ function evaluateDefinitionBundles(
       }
       if (!response?.ok) {
         const evaluationCode = response?.error?.code;
+        // R6: the evaluator reuses this code for malformed/missing `returns`
+        // and for the genuine disposition-4 composite. Only the latter is a
+        // truthful profile-switch suggestion.
+        const resultProfileSwitch = evaluationCode === 'SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE'
+          && /\breturns .+ cannot lower exactly\b/u.test(response?.error?.message ?? '')
+          ? {
+              profileSwitchSuggestion: {
+                from: FAMILIAR_AUTHORING_PROFILE,
+                to: EXPLICIT_AUTHORING_PROFILE,
+                route: 'result:',
+              },
+            }
+          : {};
         const attribution = response?.error?.label === 'functions'
           ? definitionAttributionDetails(
               functionDefinitionAttribution,
@@ -20100,6 +20173,7 @@ function evaluateDefinitionBundles(
           ...(response?.error?.name ? { errorName: response.error.name } : {}),
           ...(response?.error?.path ? { path: response.error.path } : {}),
           ...handlerDiagnosticDetails(evaluationCode),
+          ...resultProfileSwitch,
           ...attribution,
           ...(collectionRemediation === null ? {} : {
             details: {

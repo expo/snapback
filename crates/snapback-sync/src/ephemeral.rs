@@ -743,12 +743,12 @@ pub const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON: &str = r#"{
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:e4b2d3686166e3388187d057521915be8124a3b4ffa4a78387000e984badd536",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:0e49cba812b66fc7a5bf4930f27cf9316055be084b8afa4355750372296a923c",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "auth.sessions.v1"
   ],
-  "schemaHash": "snapback.v1:sessions:schema:sha256:d2d349fc5876171836b4a46dca1e908320866a77b116267448f53d46e459b9ff",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:ecf6a90f7749ca119710d28c5a2680c9613459fc506c357c0e6091c515f24852",
   "schemaVersion": "snapback.v1",
   "tables": [
     {
@@ -846,7 +846,7 @@ pub const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON: &str = r#"{
 // codegenEmittedMembershipManifestMatchesRustFixtureDigest.
 #[cfg(any(test, feature = "test-support"))]
 pub const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_CANONICAL_SHA256: &str =
-    "a04c870f974c6de86c0596cf67027e1f934a7228aa26d86eed9245634211bf77";
+    "096d773f2323c986d521710741a07328b9134ffcc5e5529a0e3a898e775a6f0d";
 
 /// The bound on the durable and resync outbox lanes, independent of a
 /// collection's coalescing-map cap. A subscriber that never drains cannot grow

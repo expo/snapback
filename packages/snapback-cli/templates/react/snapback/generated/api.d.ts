@@ -199,12 +199,16 @@ export type GeneratedAssetsContext = AssetsContext<string, Readonly<{ upload?: s
 export interface GeneratedPermissions {
 }
 export interface AuthorityRosterPageV1<Row> { readonly rows: readonly Row[]; readonly cursor: string | null }
+export interface AuthorityHistoryHorizonV1 { readonly earliestCoveredCommit: number; readonly coverageClass: 'full' | 'authorization-facts-only' }
+export interface AuthorityHistoryPageV1<Row> { readonly rows: readonly Row[]; readonly cursor: string | null; readonly boundary: 'exact' | 'at-limit'; readonly horizon: AuthorityHistoryHorizonV1 }
 export interface GeneratedAuthority {
+}
+export interface GeneratedMutationAuthority {
 }
 export interface GeneratedMembership {
 }
 export type GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = QueryContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, any, GeneratedRuntimeContext> & { readonly authority: GeneratedAuthority };
-export type GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = MutationContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, GeneratedAssetsContext, GeneratedRuntimeContext, GeneratedMembership, JobsContext, SequenceContext, MutationIdentityContext> & { readonly authority: GeneratedAuthority };
+export type GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = MutationContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, GeneratedAssetsContext, GeneratedRuntimeContext, GeneratedMembership, JobsContext, SequenceContext, MutationIdentityContext> & { readonly authority: GeneratedMutationAuthority };
 export type GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = ActionContext<Auth, GeneratedRuntimeContext, any, SecretsContext<any>, unknown, never, RealtimeContext>;
 export interface GeneratedFunctionContexts {
   "createTodo": GeneratedMutationContext;
@@ -221,7 +225,7 @@ export interface GeneratedApi {
    * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:13a6ad020f32c381b1ed18f67b456e0e101757833ed1c0e962d7cbe79910a760`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:536765baacd6bf749a472039d6ed746e9a017d0ae3fbb1041abe71bbe257f3f2`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "createTodo": FunctionReference<"createTodo", 'Mutation', { title: string }, Id<"todos">, "snapback-explicit-v1">;
   /**
@@ -230,7 +234,7 @@ export interface GeneratedApi {
    * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`, `single_table_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:13a6ad020f32c381b1ed18f67b456e0e101757833ed1c0e962d7cbe79910a760`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:536765baacd6bf749a472039d6ed746e9a017d0ae3fbb1041abe71bbe257f3f2`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "listTodos": FunctionReference<"listTodos", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"todos">; "_version": number; "_createdAt": number; "_updatedAt": number; "title": string; "completed": boolean }>, "snapback-explicit-v1">;
   ephemeral: GeneratedEphemeral;

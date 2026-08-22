@@ -234,10 +234,10 @@ async function proveDocumentArrayRefusal(codegen, negativeRoot, fixtureName) {
   );
 }
 
-async function proveUnknownTableRefusal(codegen, negativeRoot) {
+async function proveUnknownTableRefusal(codegen, negativeRoot, fixtureName) {
   copyFixtureFiles(negativeRoot, [
     'codegen.policy.json',
-    'negativeUnknownTable.ts',
+    fixtureName,
     'schema.ts',
   ]);
   assert.equal(existsSync(join(negativeRoot, 'generated')), false);
@@ -344,11 +344,15 @@ function smallMp4() {
   return Buffer.concat([assetBox('ftyp', ftyp), moov, assetBox('mdat', Buffer.alloc(32, 0x5a))]);
 }
 
-function assetFile(bytes, { name = 'packed.mp4', type = 'video/mp4' } = {}) {
+function assetFile(bytes, {
+  name = 'packed.mp4',
+  type = 'video/mp4',
+  size = bytes.length,
+} = {}) {
   return {
     name,
     type,
-    size: bytes.length,
+    size,
     slice: (start, end) => ({
       arrayBuffer: async () => bytes.subarray(start ?? 0, end ?? bytes.length),
     }),
@@ -503,10 +507,27 @@ async function provePackedFamiliarAsset({
       wrongMedia.diagnostic?.diagnostic?.code,
       'SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED',
     );
+    const oversized = await assets.start({
+      upload: generatedApi.api.media.videoUpload,
+      file: assetFile(Buffer.from('declared oversized'), {
+        name: 'packed-oversized.mp4',
+        type: 'video/mp4',
+        size: 1_000_001,
+      }),
+    }).done;
+    assert.equal(oversized.status, 'failed', JSON.stringify(oversized));
+    assert.equal(oversized.diagnostic?.code, 'SNAPBACK_ASSET_TRANSFER_FAILED');
+    assert.equal(
+      oversized.diagnostic?.diagnostic?.code,
+      'SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED',
+    );
     return {
       intent: 'media.videoUpload',
       bytes: bytes.length,
-      negativeCode: wrongMedia.diagnostic.diagnostic.code,
+      negativeCodes: [
+        wrongMedia.diagnostic.diagnostic.code,
+        oversized.diagnostic.diagnostic.code,
+      ],
     };
   } finally {
     try { await sessionClient?.closeAuth?.(); } catch { /* retain primary proof failure */ }
@@ -541,6 +562,12 @@ async function provePackedExplicitPlanEconomy({
   const changed = byName.get('markDone');
   const changedAuthoredControl = byName.get('markDoneAuthoredControl');
   const document = byName.get('createAndRead');
+  const authoredDocument = byName.get('createAndReadAuthoredControl');
+  const missingOther = byName.get('patchAndReadMissingOther');
+  const shadowedInsert = byName.get('shadowedInsert');
+  const shadowedInsertAuthored = byName.get('shadowedInsertAuthoredControl');
+  const shadowedGet = byName.get('shadowedGet');
+  const shadowedLet = byName.get('shadowedLet');
   const opaque = byName.get('echoOpaqueExpression');
   assert.deepEqual(create.resultContract, authoredControl.resultContract);
   assert.deepEqual(create.readSetSummary, authoredControl.readSetSummary);
@@ -561,8 +588,17 @@ async function provePackedExplicitPlanEconomy({
     changed.authorityProfileDependence,
     changedAuthoredControl.authorityProfileDependence,
   );
-  assert.equal(document.resultContract.kind, 'document');
-  assert.equal(document.resultContract.table, 'todos');
+  assert.equal(document.resultContract.kind, 'value');
+  assert.deepEqual(document.resultContract, authoredDocument.resultContract);
+  assert.deepEqual(document.resultContract.value.variants.map(({ kind }) => kind), ['null', 'object']);
+  assert.deepEqual(missingOther.resultContract.value.variants.map(({ kind }) => kind), ['null', 'object']);
+  assert.deepEqual(shadowedInsert.resultContract, {
+    kind: 'value',
+    value: { kind: 'id', table: 'otherTodos' },
+  });
+  assert.deepEqual(shadowedInsert.resultContract, shadowedInsertAuthored.resultContract);
+  assert.deepEqual(shadowedGet.resultContract, { kind: 'unknown' });
+  assert.deepEqual(shadowedLet.resultContract, { kind: 'unknown' });
   assert.deepEqual(opaque.resultContract, { kind: 'unknown' });
   assert.deepEqual(changed.readSetSummary.tables, ['todos']);
   assert.deepEqual(changed.writeSetSummary.tables, ['todos']);
@@ -587,6 +623,14 @@ async function provePackedExplicitPlanEconomy({
     reads: ['todos'],
     writes: ['todos'],
   });
+  assert.deepEqual(facts.get('patchAndReadMissingOther').dependencySet, {
+    reads: ['otherTodos', 'todos'],
+    writes: ['todos'],
+  });
+  assert.equal(
+    facts.get('createAndReadAuthoredControl').resultContractProvenance,
+    'authored-compatible-plan-derived',
+  );
 
   let runtime = null;
   let client = null;
@@ -616,17 +660,57 @@ async function provePackedExplicitPlanEconomy({
       queue: false,
     });
     assert.equal(typeof created.result, 'string');
+    const authoredCreated = await client.mutate(api.createTodoAuthoredControl, {
+      args: { title: 'authored control id' },
+      queue: false,
+    });
+    assert.equal(typeof authoredCreated.result, 'string');
     const marked = await client.mutate(api.markDone, {
       args: { id: created.result },
       queue: false,
     });
     assert.equal(marked.result, 1);
+    const authoredMarked = await client.mutate(api.markDoneAuthoredControl, {
+      args: { id: authoredCreated.result },
+      queue: false,
+    });
+    assert.equal(authoredMarked.result, 1);
     const returnedDocument = await client.mutate(api.createAndRead, {
       args: { title: 'derived document' },
       queue: false,
     });
     assert.equal(returnedDocument.result.title, 'derived document');
     assert.equal(returnedDocument.result.done, false);
+    const authoredReturnedDocument = await client.mutate(api.createAndReadAuthoredControl, {
+      args: { title: 'authored document control' },
+      queue: false,
+    });
+    assert.equal(authoredReturnedDocument.result?.title, 'authored document control');
+    const absentDocument = await client.mutate(api.patchAndReadMissingOther, {
+      args: { id: created.result, title: 'patch A, return absent B' },
+      queue: false,
+    });
+    assert.equal(absentDocument.result, null);
+    const shadowedId = await client.mutate(api.shadowedInsert, {
+      args: { title: 'last insert wins' },
+      queue: false,
+    });
+    assert.equal(typeof shadowedId.result, 'string');
+    const authoredShadowedId = await client.mutate(api.shadowedInsertAuthoredControl, {
+      args: { title: 'authored last insert wins' },
+      queue: false,
+    });
+    assert.equal(typeof authoredShadowedId.result, 'string');
+    const shadowedRead = await client.mutate(api.shadowedGet, {
+      args: { id: created.result, title: 'get overwrites insert binding' },
+      queue: false,
+    });
+    assert.equal(shadowedRead.result._id, created.result);
+    const shadowedLiteral = await client.mutate(api.shadowedLet, {
+      args: { title: 'let overwrites insert binding' },
+      queue: false,
+    });
+    assert.equal(shadowedLiteral.result, 'replacement');
     const opaqueResult = await client.mutate(api.echoOpaqueExpression, {
       args: { id: created.result, title: 'unknown stays runtime-exact' },
       queue: false,
@@ -653,25 +737,47 @@ async function provePackedExplicitPlanEconomy({
   );
   assert.equal(existsSync(join(conflictRoot, 'generated', 'functions.manifest.json')), false);
 
-  const dependencyConflictRoot = join(appRoot, 'explicit-plan-conflicting-dependency');
-  mkdirSync(dependencyConflictRoot, { recursive: true });
-  cpSync(join(explicitPlanFixtureRoot, 'schema.mjs'), join(dependencyConflictRoot, 'schema.mjs'));
+  const shadowConflictRoot = join(appRoot, 'explicit-plan-shadowed-result-conflict');
+  mkdirSync(shadowConflictRoot, { recursive: true });
+  cpSync(join(explicitPlanFixtureRoot, 'schema.mjs'), join(shadowConflictRoot, 'schema.mjs'));
+  cpSync(
+    join(explicitPlanFixtureRoot, 'conflicting-shadowed-result.mjs'),
+    join(shadowConflictRoot, 'functions.mjs'),
+  );
+  const shadowConflict = spawnSync(packedCli, ['generate', shadowConflictRoot, '--json'], {
+    cwd: appRoot,
+    encoding: 'utf8',
+    maxBuffer: 8 * 1024 * 1024,
+  });
+  assert.equal(shadowConflict.status, 1, shadowConflict.stderr || shadowConflict.stdout);
+  assert.match(
+    `${shadowConflict.stdout}\n${shadowConflict.stderr}`,
+    /authored result contract conflicts with the closed plan-derived contract/u,
+  );
+
+  const dependencyTranscriptionRoot = join(appRoot, 'explicit-plan-dependency-transcription');
+  mkdirSync(dependencyTranscriptionRoot, { recursive: true });
+  cpSync(join(explicitPlanFixtureRoot, 'schema.mjs'), join(dependencyTranscriptionRoot, 'schema.mjs'));
   cpSync(
     join(explicitPlanFixtureRoot, 'conflicting-dependency.mjs'),
-    join(dependencyConflictRoot, 'functions.mjs'),
+    join(dependencyTranscriptionRoot, 'functions.mjs'),
   );
-  const dependencyConflict = spawnSync(
+  const dependencyTranscription = spawnSync(
     packedCli,
-    ['generate', dependencyConflictRoot, '--json'],
+    ['generate', dependencyTranscriptionRoot, '--json'],
     { cwd: appRoot, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 },
   );
-  assert.equal(dependencyConflict.status, 1, dependencyConflict.stderr || dependencyConflict.stdout);
+  assert.equal(
+    dependencyTranscription.status,
+    1,
+    dependencyTranscription.stderr || dependencyTranscription.stdout,
+  );
   assert.match(
-    `${dependencyConflict.stdout}\n${dependencyConflict.stderr}`,
+    `${dependencyTranscription.stdout}\n${dependencyTranscription.stderr}`,
     /SNAPBACK_FUNCTION_SPEC_FIELD_UNKNOWN/u,
   );
   assert.equal(
-    existsSync(join(dependencyConflictRoot, 'generated', 'functions.manifest.json')),
+    existsSync(join(dependencyTranscriptionRoot, 'generated', 'functions.manifest.json')),
     false,
   );
 
@@ -680,10 +786,18 @@ async function provePackedExplicitPlanEconomy({
     generatedWithoutAuthoredTranscription: ['result', 'reads', 'writes'],
     effectiveContractMatchesAuthoredControl: true,
     authorityEvidenceMatchesAuthoredControl: true,
-    runtime: { id: true, changedCount: true, document: true, opaqueUnknown: true },
+    runtime: {
+      id: true,
+      changedCount: true,
+      nullableDocument: { present: true, absent: true },
+      shadowing: { insert: true, get: true, let: true },
+      authoredControls: true,
+      opaqueUnknown: true,
+    },
     negative: {
       resultConflict: 'pre-output',
-      dependencyConflict: 'SNAPBACK_FUNCTION_SPEC_FIELD_UNKNOWN',
+      shadowedResultConflict: 'pre-output',
+      dependencyTranscription: 'SNAPBACK_FUNCTION_SPEC_FIELD_UNKNOWN',
     },
   };
 }
@@ -917,6 +1031,13 @@ async function main() {
       'snapback',
       'server.mjs',
     )).href);
+    const packedValues = await import(pathToFileURL(join(
+      appRoot,
+      'node_modules',
+      '@expo',
+      'snapback',
+      'values.mjs',
+    )).href);
     const packedFamiliar = await import(pathToFileURL(join(
       appRoot,
       'node_modules',
@@ -924,11 +1045,48 @@ async function main() {
       'snapback-codegen',
       'familiar.mjs',
     )).href);
+    const packedDefine = await import(pathToFileURL(join(
+      appRoot,
+      'node_modules',
+      '@expo',
+      'snapback-codegen',
+      'define.mjs',
+    )).href);
     const generatedServer = await import(pathToFileURL(join(generatedRoot, 'server.mjs')).href);
-    for (const name of ['defineEphemeral', 'ephemeral']) {
-      assert.equal(packedServer[name], packedFamiliar[name], `@expo/snapback/server ${name}`);
+    const advertisedServerNames = [
+      'action',
+      'allow',
+      'defineAssetUpload',
+      'defineEphemeral',
+      'defineSchema',
+      'defineTable',
+      'ephemeral',
+      'membershipResource',
+      'mutation',
+      'query',
+    ];
+    for (const name of advertisedServerNames) {
+      const umbrellaOwner = ['action', 'mutation', 'query'].includes(name)
+        ? packedFamiliar
+        : packedDefine;
+      assert.equal(packedServer[name], umbrellaOwner[name], `@expo/snapback/server ${name}`);
       assert.equal(generatedServer[name], packedFamiliar[name], `generated/server ${name}`);
     }
+    for (const name of [
+      'action',
+      'defineAssetUpload',
+      'defineEphemeral',
+      'defineSchema',
+      'defineTable',
+      'mutation',
+      'query',
+    ]) assert.equal(typeof packedServer[name], 'function', `${name} constructor`);
+    for (const name of ['allow', 'ephemeral', 'membershipResource']) {
+      assert.equal(typeof packedServer[name], 'object', `${name} namespace`);
+      assert.notEqual(packedServer[name], null, `${name} namespace`);
+    }
+    assert.equal(packedValues.v, packedFamiliar.v, '@expo/snapback/values v');
+    assert.equal(generatedServer.v, packedFamiliar.v, 'generated/server v');
 
     run(join(appRoot, 'node_modules', '.bin', 'tsc'), ['--project', 'tsconfig.json'], {
       cwd: backendRoot,
@@ -959,7 +1117,13 @@ async function main() {
     );
     await proveUnknownTableRefusal(
       codegen,
-      join(appRoot, 'negative-unknown-table-snapback'),
+      join(appRoot, 'negative-unknown-document-snapback'),
+      'negativeUnknownDocument.ts',
+    );
+    await proveUnknownTableRefusal(
+      codegen,
+      join(appRoot, 'negative-unknown-document-array-snapback'),
+      'negativeUnknownTable.ts',
     );
     await proveLegacyGeneratedImportRefusal(
       codegen,
@@ -993,11 +1157,23 @@ async function main() {
       'negativeAmbientClock.ts',
       'BUNDLE_UNSUPPORTED_TIME',
     );
+    const ambientDateDiagnostic = await proveFamiliarDialectRefusal(
+      codegen,
+      join(appRoot, 'negative-ambient-date-snapback'),
+      'negativeAmbientDate.ts',
+      'BUNDLE_UNSUPPORTED_TIME',
+    );
     const ordinaryClockDiagnostic = await proveFamiliarDialectRefusal(
       codegen,
       join(appRoot, 'negative-ordinary-clock-snapback'),
       'negativeOrdinaryClock.ts',
       'BUNDLE_UNSUPPORTED_TIME',
+    );
+    const missingReturnsDiagnostic = await proveFamiliarDialectRefusal(
+      codegen,
+      join(appRoot, 'negative-missing-returns-snapback'),
+      'negativeMissingReturns.ts',
+      'SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE',
     );
     const sequenceDiagnostic = await proveFamiliarDialectRefusal(
       codegen,
@@ -1010,6 +1186,7 @@ async function main() {
       importedHelperDiagnostic,
       capturedConstantDiagnostic,
       ambientClockDiagnostic,
+      ambientDateDiagnostic,
       sequenceDiagnostic,
     ]) {
       assert.equal(
@@ -1021,12 +1198,27 @@ async function main() {
     assert.match(dynamicAccessDiagnostic.message, /static\/destructured access.*through args/u);
     assert.match(importedHelperDiagnostic.message, /helper subdirectory.*import it relatively/u);
     assert.match(capturedConstantDiagnostic.message, /inline the value.*through args/u);
-    assert.match(ambientClockDiagnostic.message, /boundedSkew.*standardPattern/u);
+    for (const diagnostic of [ambientClockDiagnostic, ambientDateDiagnostic]) {
+      assert.match(
+        diagnostic.message,
+        /persisted application state.*through a mutation.*query that stored state/u,
+      );
+      assert.equal(
+        diagnostic.profileSwitchSuggestion,
+        undefined,
+        'the executable persisted-state repair remains in Familiar and is not a profile switch',
+      );
+    }
     assert.match(ordinaryClockDiagnostic.message, /ctx\.runtime\.now\(\)/u);
     assert.equal(
       ordinaryClockDiagnostic.profileSwitchSuggestion,
       undefined,
       'an ordinary timestamp rewrite is supported Familiar vocabulary, not a profile switch',
+    );
+    assert.equal(
+      missingReturnsDiagnostic.profileSwitchSuggestion,
+      undefined,
+      'a malformed missing-returns declaration is not a disposition-4 profile switch',
     );
     assert.match(sequenceDiagnostic.message, /Explicit profile declared sequences surface/u);
     for (const diagnostic of [
@@ -1040,7 +1232,6 @@ async function main() {
         `${diagnostic.code} is a supported-rewrite site, not a disposition-4 switch site`,
       );
     }
-    assert.equal(ambientClockDiagnostic.profileSwitchSuggestion?.route, 'boundedSkew/standardPattern');
     assert.equal(sequenceDiagnostic.profileSwitchSuggestion?.route, 'sequences');
 
     const guideLookup = run(packedCli, ['guide', 'point query', '--json'], {
@@ -1132,7 +1323,7 @@ async function main() {
     };
     await client.reset({
       tables: {
-        todos: [{ _id: 'todo_welcome', title: 'packed seed', completed: false }],
+        todos: [{ _id: 'todo_welcome', title: 'packed seed', completed: false, visible: false }],
         otherTodos: [{ _id: 'other_seed', title: 'foreign seed' }],
       },
     });
@@ -1204,6 +1395,24 @@ async function main() {
       (await client.query(api.todos.helperTitle, { args: { title: '  helper title  ' } })).rows,
       'helper title',
       'VCF-F-D2 bounded relative helper module executes end to end',
+    );
+    assert.deepEqual(
+      (await client.query(api.todos.visibleTodos, { args: {} })).rows,
+      [],
+      'VCF-F-D4 persisted visibility starts false/absent without consulting a clock',
+    );
+    assert.equal(
+      (await client.mutate(api.todos.setVisible, {
+        args: { id: 'todo_welcome' },
+        queue: false,
+      })).result,
+      null,
+      'VCF-F-D4 supported mutation rewrite persists the visibility transition',
+    );
+    assert.deepEqual(
+      (await client.query(api.todos.visibleTodos, { args: {} })).rows.map(({ _id }) => _id),
+      ['todo_welcome'],
+      'VCF-F-D4 supported query rewrite reads persisted visibility state end to end',
     );
 
     const memberClient = memberSession.client;
@@ -1510,8 +1719,9 @@ async function main() {
         nominalId: { sameTable: true, foreignTableAdmission: 'refused' },
       },
       entrypoints: {
-        umbrellaServer: ['defineEphemeral', 'ephemeral'],
-        generatedServer: ['defineEphemeral', 'ephemeral'],
+        umbrellaServer: advertisedServerNames,
+        umbrellaValues: ['v'],
+        generatedServer: [...advertisedServerNames, 'v'],
         identityPreserving: true,
       },
       authority: {

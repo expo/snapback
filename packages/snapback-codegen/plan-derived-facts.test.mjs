@@ -19,6 +19,9 @@ export default defineSchema({
   todos: defineTable({ title: v.string(), done: v.boolean() })
     .visibility({ kind: 'public-read' })
     .sync(),
+  otherTodos: defineTable({ title: v.string() })
+    .visibility({ kind: 'public-read' })
+    .sync(),
 });
 `);
   writeFileSync(join(root, 'functions.mjs'), functionsSource);
@@ -27,8 +30,8 @@ export default defineSchema({
 
 const positiveSource = `
 import {
-  arg, bindingRef, defineMutation, insert, lit, patch,
-  results, returnBinding, returnChangedCount, returnDocument, returnExpr, v,
+  arg, bindingRef, defineMutation, get, insert, letBind, lit, patch,
+  results, returnBinding, returnChangedCount, returnDocument, returnExpr, runtimeId, v,
 } from ${JSON.stringify(defineUrl)};
 
 const createPlan = (binding) => insert('todos', {
@@ -67,6 +70,56 @@ export const createAndRead = defineMutation({
   returns: returnDocument('todos', bindingRef('readTodoId')),
 });
 
+export const createAndReadAuthored = defineMutation({
+  args: { title: v.string() },
+  plan: createPlan('authoredReadTodoId'),
+  returns: returnDocument('todos', bindingRef('authoredReadTodoId')),
+  result: results.value(v.union([v.null(), v.doc('todos')])),
+});
+
+export const patchAndReadMissingOther = defineMutation({
+  args: { id: v.id('todos'), title: v.string() },
+  plan: patch('todos', arg('id'), { title: arg('title') }),
+  returns: returnDocument('otherTodos', runtimeId()),
+});
+
+export const shadowedInsert = defineMutation({
+  args: { title: v.string() },
+  plan: [
+    createPlan('shadowed'),
+    insert('otherTodos', { title: arg('title') }, { bindIdAs: 'shadowed' }),
+  ],
+  returns: returnBinding('shadowed'),
+});
+
+export const shadowedInsertAuthored = defineMutation({
+  args: { title: v.string() },
+  plan: [
+    createPlan('authoredShadowed'),
+    insert('otherTodos', { title: arg('title') }, { bindIdAs: 'authoredShadowed' }),
+  ],
+  returns: returnBinding('authoredShadowed'),
+  result: results.value(v.id('otherTodos')),
+});
+
+export const shadowedGet = defineMutation({
+  args: { title: v.string(), id: v.id('todos') },
+  plan: [
+    createPlan('readShadowed'),
+    get('todos', arg('id'), 'readShadowed'),
+  ],
+  returns: returnBinding('readShadowed'),
+});
+
+export const shadowedLet = defineMutation({
+  args: { title: v.string() },
+  plan: [
+    createPlan('letShadowed'),
+    letBind('letShadowed', lit('replacement')),
+  ],
+  returns: returnBinding('letShadowed'),
+});
+
 export const echoOpaqueExpression = defineMutation({
   args: { id: v.id('todos'), title: v.string() },
   plan: patch('todos', arg('id'), { title: arg('title') }),
@@ -89,6 +142,12 @@ try {
   const changed = byName.get('markDone');
   const changedAuthored = byName.get('markDoneAuthored');
   const document = byName.get('createAndRead');
+  const authoredDocument = byName.get('createAndReadAuthored');
+  const missingOther = byName.get('patchAndReadMissingOther');
+  const shadowedInsert = byName.get('shadowedInsert');
+  const shadowedInsertAuthored = byName.get('shadowedInsertAuthored');
+  const shadowedGet = byName.get('shadowedGet');
+  const shadowedLet = byName.get('shadowedLet');
   const opaque = byName.get('echoOpaqueExpression');
 
   // @ref LLP 0275#d8-explicit-profile-classification-under-llp-0295-d03-2026-08-21
@@ -107,9 +166,18 @@ try {
     value: { kind: 'integer', min: 0, max: Number.MAX_SAFE_INTEGER },
   });
   assert.deepEqual(changedAuthored.resultContract, changed.resultContract);
-  assert.equal(document.resultContract.kind, 'document');
-  assert.equal(document.resultContract.table, 'todos');
-  assert.equal(document.resultContract.document.allowExtra, false);
+  assert.equal(document.resultContract.kind, 'value');
+  assert.deepEqual(document.resultContract, authoredDocument.resultContract);
+  assert.deepEqual(document.resultContract.value.variants.map(({ kind }) => kind), ['null', 'object']);
+  assert.equal(document.resultContract.value.variants[1].allowExtra, false);
+  assert.deepEqual(missingOther.resultContract.value.variants.map(({ kind }) => kind), ['null', 'object']);
+  assert.deepEqual(shadowedInsert.resultContract, {
+    kind: 'value',
+    value: { kind: 'id', table: 'otherTodos' },
+  });
+  assert.deepEqual(shadowedInsert.resultContract, shadowedInsertAuthored.resultContract);
+  assert.deepEqual(shadowedGet.resultContract, { kind: 'unknown' });
+  assert.deepEqual(shadowedLet.resultContract, { kind: 'unknown' });
   assert.deepEqual(opaque.resultContract, { kind: 'unknown' });
   assert.deepEqual(changed.readSetSummary.tables, ['todos']);
   assert.deepEqual(changed.writeSetSummary.tables, ['todos']);
@@ -134,14 +202,26 @@ try {
     writes: ['todos'],
   });
   assert.equal(facts.get('markDone').dependencySetProvenance, 'plan-derived');
+  assert.deepEqual(facts.get('patchAndReadMissingOther').dependencySet, {
+    reads: ['otherTodos', 'todos'],
+    writes: ['todos'],
+  });
+  assert.equal(
+    facts.get('createAndReadAuthored').resultContractProvenance,
+    'authored-compatible-plan-derived',
+  );
 
   const apiTypes = readFileSync(join(positiveRoot, 'generated', 'api.d.ts'), 'utf8');
   assert.match(apiTypes, /"createTodo": FunctionReference<[^\n]+Id<"todos">/u);
   assert.match(apiTypes, /"markDone": FunctionReference<[^\n]+number/u);
   assert.match(
     apiTypes,
-    /"createAndRead": FunctionReference<[^\n]+\{ "_id": Id<"todos">/u,
+    /"createAndRead": FunctionReference<[^\n]+null[^\n]+\{ "_id": Id<"todos">/u,
   );
+  assert.match(apiTypes, /"patchAndReadMissingOther": FunctionReference<[^\n]+null/u);
+  assert.match(apiTypes, /"shadowedInsert": FunctionReference<[^\n]+Id<"otherTodos">/u);
+  assert.match(apiTypes, /"shadowedGet": FunctionReference<[^\n]+unknown/u);
+  assert.match(apiTypes, /"shadowedLet": FunctionReference<[^\n]+unknown/u);
   assert.match(apiTypes, /"echoOpaqueExpression": FunctionReference<[^\n]+unknown/u);
 
   const conflictRoot = makeBackend(`
@@ -167,7 +247,28 @@ export const createTodo = defineMutation({
     'P1-P3 conflicts refuse before an active functions manifest is emitted',
   );
 
-  const dependencyConflictRoot = makeBackend(`
+  const shadowConflictRoot = makeBackend(`
+import {
+  arg, defineMutation, insert, lit, results, returnBinding, v,
+} from ${JSON.stringify(defineUrl)};
+export const shadowedInsert = defineMutation({
+  args: { title: v.string() },
+  plan: [
+    insert('todos', { title: arg('title'), done: lit(false) }, { bindIdAs: 'shadowed' }),
+    insert('otherTodos', { title: arg('title') }, { bindIdAs: 'shadowed' }),
+  ],
+  returns: returnBinding('shadowed'),
+  result: results.value(v.id('todos')),
+});
+`);
+  const shadowConflict = await generate(shadowConflictRoot);
+  assert.equal(shadowConflict.ok, false);
+  assert.match(
+    shadowConflict.diagnostics.map(({ message }) => message).join('\n'),
+    /authored result contract conflicts with the closed plan-derived contract/u,
+  );
+
+  const dependencyTranscriptionRoot = makeBackend(`
 import { arg, defineMutation, lit, patch, returnChangedCount, v } from ${JSON.stringify(defineUrl)};
 export const markDone = defineMutation({
   args: { id: v.id('todos') },
@@ -176,14 +277,16 @@ export const markDone = defineMutation({
   reads: [],
 });
 `);
-  const dependencyConflict = await generate(dependencyConflictRoot);
-  assert.equal(dependencyConflict.ok, false);
+  const dependencyTranscription = await generate(dependencyTranscriptionRoot);
+  assert.equal(dependencyTranscription.ok, false);
   assert.ok(
-    dependencyConflict.diagnostics.some(({ code }) => code === 'SNAPBACK_FUNCTION_SPEC_FIELD_UNKNOWN'),
-    JSON.stringify(dependencyConflict.diagnostics),
+    dependencyTranscription.diagnostics.some(
+      ({ code }) => code === 'SNAPBACK_FUNCTION_SPEC_FIELD_UNKNOWN',
+    ),
+    JSON.stringify(dependencyTranscription.diagnostics),
   );
 
-  console.log('plan-derived-facts.test.mjs: P1-P4 exact facts and refusals pass');
+  console.log('plan-derived-facts.test.mjs: P1-P4 exact facts, shadowing, and refusals pass');
 } finally {
   for (const root of roots) rmSync(root, { recursive: true, force: true });
 }

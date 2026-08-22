@@ -143,6 +143,10 @@ a mutation that needs them outgrew the IR (below).
 
 ## Return bindings
 
+`SNAPBACK_PLAN_FACTS_DERIVED` is the informational generation diagnostic for
+the exact result and dependency facts derived from the closed plan forms in
+this section.
+
 `returns` declares what the mutation's logical `result` is, without running
 code:
 
@@ -151,8 +155,8 @@ code:
 - `returnChangedCount()` — the committed changed-row count.
 - `returnDocument(table, id)` — one complete stored document, read inside
   the committing transaction at the new version, so it observes the plan's
-  own writes; a missing row returns `null`. The `id` is an expression. Pair
-  with `results.document(table)`.
+  own writes; a missing row returns `null`. The `id` is an expression. Its
+  exact contract is `results.value(v.union([v.null(), v.doc(table)]))`.
 - `returnLiteral(value)` — a constant.
 - `returnExpr(expr)` — any expression; with `record({...})` this covers
   computed summaries, as in `createPost` above.

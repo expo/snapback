@@ -911,6 +911,15 @@ function freeIdentifierHints(free, freeTopLevel) {
   return hints.length > 0 ? ` (${hints.join('; ')})` : '';
 }
 
+function freeIdentifierDeclarations(free, freeTopLevel) {
+  return free
+    .filter((identifier) => freeTopLevel.has(identifier))
+    .map((identifier) => ({
+      identifier,
+      declarationKind: freeTopLevel.get(identifier),
+    }));
+}
+
 const PLAIN_JOIN_IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/u;
 
 function unwrapParentheses(node) {
@@ -1313,7 +1322,11 @@ export function extractInlineHandlers(source, {
         path,
         declaration,
         sourceFile,
-        { helper: name, identifiers: free },
+        {
+          helper: name,
+          identifiers: free,
+          identifierDeclarations: freeIdentifierDeclarations(free, freeTopLevel),
+        },
       ));
     }
     for (const reference of inadmissibleRefs) {
@@ -1487,7 +1500,12 @@ export function extractInlineHandlers(source, {
         path,
         expression,
         sourceFile,
-        { function: name, customAuthorization: true, identifiers: free },
+        {
+          function: name,
+          customAuthorization: true,
+          identifiers: free,
+          identifierDeclarations: freeIdentifierDeclarations(free, freeTopLevel),
+        },
       ));
     }
     for (const reference of inadmissibleRefs) {
@@ -1684,7 +1702,11 @@ export function extractInlineHandlers(source, {
           path,
           expression,
           sourceFile,
-          { function: name, identifiers: free },
+          {
+            function: name,
+            identifiers: free,
+            identifierDeclarations: freeIdentifierDeclarations(free, freeTopLevel),
+          },
         ));
       }
       for (const reference of inadmissibleRefs) {
@@ -1830,9 +1852,10 @@ export function renderInlineOperationModule(name, extracted) {
     endLine: lineCount(registration),
     renderedStartColumn: registrationPrefix.length + 1,
     sourceSpan: extracted.sourceSpan,
-    ...(extracted.sourceMap && extracted.generatedSourceSpan
+    ...((extracted.sourceMap || extracted.sourceMapChain) && extracted.generatedSourceSpan
       ? {
           sourceMap: extracted.sourceMap,
+          ...(extracted.sourceMapChain ? { sourceMapChain: extracted.sourceMapChain } : {}),
           generatedSourceSpan: extracted.generatedSourceSpan,
         }
       : {}),
@@ -1849,9 +1872,10 @@ export function renderInlineOperationModule(name, extracted) {
       endLine: nextLine + lines - 1,
       renderedStartColumn: 1,
       sourceSpan: helper.sourceSpan,
-      ...(helper.sourceMap && helper.generatedSourceSpan
+      ...((helper.sourceMap || helper.sourceMapChain) && helper.generatedSourceSpan
         ? {
             sourceMap: helper.sourceMap,
+            ...(helper.sourceMapChain ? { sourceMapChain: helper.sourceMapChain } : {}),
             generatedSourceSpan: helper.generatedSourceSpan,
           }
         : {}),

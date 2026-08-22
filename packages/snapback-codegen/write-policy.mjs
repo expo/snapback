@@ -218,16 +218,23 @@ function authoredSourcePosition(node, sourcePath, sourceSegments) {
   if (!segment) return { path: sourcePath, line, column };
   const renderedStartColumn = Number.isInteger(segment.renderedStartColumn)
     ? segment.renderedStartColumn : 1;
-  if (segment.sourceMap && segment.generatedSourceSpan) {
+  const sourceMaps = Array.isArray(segment.sourceMapChain)
+    ? segment.sourceMapChain
+    : segment.sourceMap ? [segment.sourceMap] : [];
+  if (sourceMaps.length > 0 && segment.generatedSourceSpan) {
     const generatedLine = segment.generatedSourceSpan.line + line - segment.startLine;
     const generatedColumn = line === segment.startLine
       ? segment.generatedSourceSpan.column + column - renderedStartColumn
       : column;
-    const authored = mapGeneratedTypeScriptPosition(
-      segment.sourceMap,
-      generatedLine,
-      generatedColumn,
-    );
+    let authored = { line: generatedLine, column: generatedColumn, file: sourcePath };
+    for (const sourceMap of sourceMaps) {
+      authored = mapGeneratedTypeScriptPosition(
+        sourceMap,
+        authored.line,
+        authored.column,
+      );
+      if (!authored) break;
+    }
     if (authored) {
       return {
         path: segment.sourceSpan.file ?? authored.file ?? sourcePath,

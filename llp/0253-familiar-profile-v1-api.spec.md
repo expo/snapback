@@ -11,10 +11,11 @@ now binds the complete VCF-F catalogue across Guide retrieval, advertised
 imports, clean generation, runtime admission, headless/React projection, and
 negative repair. Invocation-local ID provenance closes VCF-F-M2 without
 pretending opaque IDs carry table tags; R4 exports, membership-backed
-ephemeral presence, authority visibility, dialect rewrites/refusals, asset
-delivery, and disposition-4-only profile routes are included. A paired
-Explicit carrier binds VCF-E-P1–P4 derivation and VCF-E-L1 lifecycle wiring;
-the remaining Explicit catalogue stays open.)
+ephemeral presence, authority visibility, generic/executable dialect repairs,
+asset policy bounds, and refusal-specific disposition-4 routes are included.
+A paired Explicit carrier binds VCF-E-P1–P4 nullable/shadowing/dependency
+derivation and VCF-E-L1 lifecycle wiring; the remaining Explicit catalogue
+stays open.)
 **Revised:** 2026-08-21 (LLP 0295 D0.3 decision packet: new S9 records the
 authoring-profile product contract for the Familiar side — one-pass clean
 generation and phase parity as normative contract, the S4.3 partition pinned
@@ -313,7 +314,7 @@ A new, thin, deletable package `@expo/snapback` (npm), marked
 
 | Entry | Re-exports |
 | --- | --- |
-| `@expo/snapback/server` | `defineSchema`, `defineTable`, `defineAssetUpload`, `defineEphemeral`, and the `ephemeral` collection-builder namespace from the canonical define module (the ephemeral pair added 2026-08-21 per S9.1 R4 — same canonical objects, no second owner); the familiar `query`, `mutation`, `action` constructors (S4) from `@expo/snapback-codegen/familiar` |
+| `@expo/snapback/server` | `defineSchema`, `defineTable`, `defineAssetUpload`, `defineEphemeral`, `allow`, `membershipResource`, and the `ephemeral` collection-builder namespace from the canonical define module (the shared schema vocabulary is identity-preserving — same canonical objects, no second owner); the familiar `query`, `mutation`, `action` constructors (S4) from `@expo/snapback-codegen/familiar` |
 | `@expo/snapback/values` | `v` (the existing canonical validator grammar, unchanged) |
 | `@expo/snapback/react` | the familiar React entrypoint `@expo/snapback-react/familiar` (S6) |
 
@@ -337,7 +338,8 @@ familiar-authoring import.
 ### S3.2 Generated local modules
 
 - `generated/server.{mjs,d.ts}` re-exports `query`, `mutation`, `action`,
-  `defineAssetUpload`, `defineEphemeral`, and the `ephemeral`
+  `defineAssetUpload`, `defineEphemeral`, `defineSchema`, `defineTable`,
+  `allow`, `membershipResource`, `v`, and the `ephemeral`
   collection-builder namespace (the ephemeral pair added 2026-08-21 per
   S9.1 R4)
   bound to the application's schema types (typed `ctx.db`, typed
@@ -1036,11 +1038,13 @@ and advertised entrypoints — never internal lowering syntax (LLP 0295
 Risk 8). Where a Familiar/Explicit pair below marks a shared semantic
 fact, the pair must witness the same normalized contract for the
 intended-equal facts. R6 (profile-switch suggestions) deliberately has no
-fixture of its own: it is a diagnostic-content rule, and every
-disposition-4 refusal fixture below (VCF-F-N1, VCF-F-D4, VCF-F-SQ1)
-asserts in its step 6 that the refusal names the Explicit route and that
-no switch suggestion appears on any fixture's success path — adding a
-separate fixture would duplicate those assertions.
+fixture of its own: it is a diagnostic-content rule. The disposition-4
+refusal fixtures VCF-F-N1 and VCF-F-SQ1 assert in step 6 that the refusal
+names the Explicit route, while a missing-returns control sharing N1's
+diagnostic code proves the route is attached only to the actual composite-
+return refusal. D4's persisted-state repair is executable in Familiar and
+therefore emits no profile switch. No switch suggestion appears on any
+fixture's success path.
 
 **Familiar coherence lane — one fixture per supported result kind plus
 the parity/dialect cases:**
@@ -1063,7 +1067,7 @@ the parity/dialect cases:**
 | VCF-F-D1 | dialect boundary: the supported rewrite of dynamic computed access — static/destructured access or the value passed through `args` — authored end to end | the `array[i]` dynamic-access form refuses pre-output naming exactly that rewrite |
 | VCF-F-D2 | dialect boundary: the same helper authored as a bounded-graph helper module per S2 and imported into the handler graph, end to end | an out-of-graph helper import refuses naming the S2 helper-module path as the one rewrite |
 | VCF-F-D3 | dialect boundary: the constant's value inlined or passed through `args`, end to end | a captured top-level constant refuses (the free-identifier family) naming exactly that rewrite |
-| VCF-F-D4 | dialect boundary: clock-dependent visibility (`Date.now`) refuses pre-output with the single supported rewrite — the Explicit profile's temporal vocabulary (`boundedSkew`/`standardPattern` route, disposition 4) (steps 1–3 + 6) | the fixture is the negative |
+| VCF-F-D4 | dialect boundary: persisted visibility state is written by a mutation and read by a static query, end to end; ambient `Date.now()` and `new Date()` visibility refuse pre-output naming that same executable Familiar repair, without a profile switch (steps 1–3 + 6) | both ambient-clock forms are negative fixtures |
 | VCF-F-E1 | ephemeral declaration authored via `defineEphemeral` + `ephemeral` collection builder imported from the advertised entrypoints (S3.1/S3.2), membership-backed typing, presence roundtrip (R4) | an import via the retired `_generated/` spelling gets the S2 rule 7 retired-spelling diagnostic naming the supported specifier |
 | VCF-F-AS1 | `defineAssetUpload` MP4 intent upload/readback via `api.media.videoUpload` (recasts the existing acceptance with steps 1 and 6) | oversized/wrong-media upload refuses per policy |
 | VCF-F-MB1 | membership visibility with `resourceField: "_id"` (resource table) and child resource-id field, enforced through `ctx.db` (R5) | non-member read hides the row; misspelled resource field refuses at generation |
@@ -1082,8 +1086,8 @@ plan-derived rows are the LLP 0275 D3 receipts:**
 | VCF-E-M2 | mutation `results.value` | wrong-type value rejects |
 | VCF-E-P1 | plan `returnBinding` of a typed insert with **no authored `result:`** — plan-derived `v.id(t)` contract (LLP 0275 D3) | conflicting authored `result:` fails generation |
 | VCF-E-P2 | plan `returnChangedCount`, plan-derived integer contract | conflicting authored contract fails generation |
-| VCF-E-P3 | plan `returnDocument(table, id)`, plan-derived document contract | underivable `returnExpr` stays `unknown`/authored, never widened |
-| VCF-E-P4 | closed declarative plan's table dependency set derived from the plan with no duplicate authored transcription (LLP 0295 W3 dependency-fact derivation; LLP 0275 D8 class 2) | a conflicting authored dependency declaration fails generation |
+| VCF-E-P3 | plan `returnDocument(table, id)`, plan-derived nullable document-or-null value contract; an absent id executes to `null` | underivable `returnExpr` stays `unknown`/authored, never widened |
+| VCF-E-P4 | closed declarative plan's table dependency set derived from steps plus the read performed by `returnDocument`, with no duplicate authored transcription (LLP 0295 W3 dependency-fact derivation; LLP 0275 D8 class 2) | the closed function spec rejects an authored `reads` transcription as an unknown field; this is not a derived-vs-authored conflict comparison |
 | VCF-E-L1 | recurring fixed lifecycle wiring supplied by template scaffolding (LLP 0295 W3; LLP 0275 P5/P7): scaffold → install → generate → dev → prove with zero hand-authored lifecycle ceremony | a template with a missing scaffolded lifecycle stage fails the cold-install gate with the stage named (LLP 0275 D6) |
 | VCF-E-MB1 | membership/authority visibility declaration — same semantic fact as VCF-F-MB1; the pair proves one shared spelling across profiles | non-member read hides the row |
 | VCF-E-E1 | ephemeral collection declaration and presence roundtrip | undeclared-collection use refuses |

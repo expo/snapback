@@ -5982,9 +5982,16 @@ impl LocalDatabase {
         let settlement_media = match &plan.return_value {
             Some(ReturnValue::Document { table, .. }) => {
                 let table = schema_table(&schema, table)?;
-                let contract = crate::manifest::FunctionResultContract::Document {
-                    table: table.name.clone(),
-                    document: crate::manifest::table_document_value_contract(table),
+                // @ref LLP 0275#d3-derive-exact-result-contracts-from-closed-plans —
+                // return-document lookup may be absent, so settlement media must
+                // hash the same nullable contract codegen publishes.
+                let contract = crate::manifest::FunctionResultContract::Value {
+                    value: crate::manifest::ResultValueContract::Union {
+                        variants: vec![
+                            crate::manifest::ResultValueContract::Null,
+                            crate::manifest::table_document_value_contract(table),
+                        ],
+                    },
                 };
                 let projection_plan = crate::runtime::media_projection_plan(&contract);
                 (!projection_plan.occurrences.is_empty()).then(|| SettlementMediaContextV1 {

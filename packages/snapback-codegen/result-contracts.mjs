@@ -904,9 +904,9 @@ function pushLedgerRowsValue() {
   };
 }
 
-// @ref LLP 0275#d8-explicit-profile-classification-under-llp-0295-d03-2026-08-21
-// — only exact closed-plan return forms cross from authored-because-underivable
-// into plan-derived facts; opaque return expressions stay unknown.
+// @ref LLP 0275#d3-derive-exact-result-contracts-from-closed-plans — binding
+// shadowing and nullable document lookup are part of the exact derivation;
+// opaque return expressions stay unknown.
 function planDerivedResultContract({ runtime, tables }) {
   const plan = runtime?.HostPlan?.Mutation;
   if (!plan) return null;
@@ -918,9 +918,16 @@ function planDerivedResultContract({ runtime, tables }) {
     });
   }
   if (returned?.Binding) {
-    const insert = (plan.steps ?? [])
-      .map((step) => step.Insert)
-      .find((step) => step?.bind_id_as === returned.Binding);
+    // Mutation bindings are an evaluation-ordered mutable namespace. Derive
+    // an id only when the final write to the returned binding is an insert;
+    // an earlier insert may be shadowed by Insert, Get, Let, or allocation.
+    const finalWrite = [...(plan.steps ?? [])].reverse().find((step) => (
+      step.Insert?.bind_id_as === returned.Binding
+      || step.Get?.bind_as === returned.Binding
+      || step.Let?.bind_as === returned.Binding
+      || step.AllocateSequence?.into === returned.Binding
+    ));
+    const insert = finalWrite?.Insert;
     if (!insert) return null;
     if (!tables[insert.table]) {
       throw new TypeError(`plan-derived binding references unknown table ${insert.table}`);
@@ -932,9 +939,8 @@ function planDerivedResultContract({ runtime, tables }) {
   }
   if (returned?.Document?.table) {
     return validateEffectiveResultContract({
-      kind: 'document',
-      table: returned.Document.table,
-      document: tableDocumentValue(returned.Document.table, tables),
+      kind: 'value',
+      value: nullable(tableDocumentValue(returned.Document.table, tables)),
     });
   }
   return null;

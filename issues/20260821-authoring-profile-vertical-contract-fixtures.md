@@ -14,12 +14,12 @@ LLP 0061; LLP 0252; LLP 0253; LLP 0275
 
 Layer-local tests allow an advertised path to change meaning across the Guide,
 public entrypoint, generated types, codegen, runtime validation, client hooks,
-and diagnostics. The current Familiar page now spells the qualified paths as
-an unbounded `v.array(v.doc(table))` plus `.take(1)` for an empty-capable point
-read, an authored child key such as `resourceField: "roomId"` for membership
-visibility, and the shared `@expo/snapback-codegen/define` import for a
-membership-backed ephemeral declaration. Those corrected spellings still need
-one packed fixture proving they agree with the generated/runtime contracts.
+and diagnostics. The current Familiar page spells the qualified paths as a
+nullable `v.union(v.doc(table), v.null())` point result, an authored child key
+such as `resourceField: "roomId"` for membership visibility, and the advertised
+`./generated/server` import for a membership-backed ephemeral declaration.
+Those spellings need one packed fixture proving they agree with the
+generated/runtime contracts.
 
 Fixing only the page, generator, or runtime can move the mismatch one boundary
 downstream.
@@ -85,9 +85,11 @@ Key rulings, in brief:
    `resourceField` rows must corroborate against the canonical grammar.
 5. The generator suggests profile switches only at disposition-4 refusal
    sites, Familiar→Explicit only, never on success (R6). R6 has no fixture
-   of its own by design: every disposition-4 refusal fixture (VCF-F-N1,
-   VCF-F-D4, VCF-F-SQ1) asserts the route in its step 6, and no fixture's
-   success path may emit a switch suggestion.
+   of its own by design: the disposition-4 refusal fixtures VCF-F-N1 and
+   VCF-F-SQ1 assert the route in step 6, while an unrelated same-code missing-
+   returns control proves the route is attached to the precise refusal, not the
+   shared diagnostic code. D4 has an executable Familiar repair and therefore
+   emits no profile switch. No fixture's success path may emit one.
 6. **LLP 0295 open question 2 — recommendation:** templates may choose
    profiles by workload/client stack while preserving one normalized
    definition; Familiar is not required to reach constructor-level feature
@@ -118,9 +120,9 @@ Key rulings, in brief:
       green.
 - [x] First-read handler-dialect table plus retrieval-eval cases; each
       dialect boundary proves its single supported rewrite end to end with
-      the refused form as the step-6 negative (VCF-F-D1..D3), and
-      clock-dependent visibility refuses with the one Explicit route
-      (VCF-F-D4) — closes
+      the refused form as the step-6 negative (VCF-F-D1..D3), and D4 proves a
+      persisted-state mutation/query repair while both `Date.now()` and
+      `new Date()` refuse naming that same executable Familiar repair — closes
       `issues/20260820-guide-gap-familiar-handler-dialect.md`.
 - [x] Sequence refusal route stable and first-read-discoverable (VCF-F-SQ1);
       asset intent recast with retrieval + negative steps (VCF-F-AS1).
@@ -138,19 +140,31 @@ Key rulings, in brief:
   a same-table ID is admitted and a wrong-table ID minted in the same handler
   is rejected. Opaque pre-existing IDs remain admissible because Snapback row
   IDs deliberately carry no context-free table tag.
-- R4's `defineEphemeral` and `ephemeral` exports are identity-preserving from
-  both `@expo/snapback/server` and `generated/server`. VCF-F-E1 additionally
-  proves membership-backed presence and the retired `_generated/` refusal.
-  VCF-F-MB1 proves `_id` self-resource and child-resource visibility through
-  generated and runtime contracts.
-- The dialect carrier executes the one supported rewrite for D1–D3, refuses
-  their familiar-looking negative forms pre-output, and routes only D4, N1,
-  and SQ1 disposition-4 refusals to Explicit. VCF-F-AS1 uploads and reads back
-  identical MP4 bytes and preserves the nested unsupported-media diagnostic.
+- The disposition table is the export authority: its disposition-1/2 server
+  projection now closes over `action`, `allow`, `defineAssetUpload`,
+  `defineEphemeral`, `defineSchema`, `defineTable`, `ephemeral`,
+  `membershipResource`, `mutation`, and `query`, while values projects `v`.
+  Unit and packed checks prove both the umbrella and generated entrypoints
+  match that authority. VCF-F-E1 additionally proves membership-backed
+  presence and the retired `_generated/` refusal. VCF-F-MB1 proves `_id`
+  self-resource and child-resource visibility through generated and runtime
+  contracts.
+- The dialect carrier executes the supported rewrites for D1–D4 and refuses
+  their familiar-looking negative forms pre-output. D3's diagnostic is based
+  on declaration kind rather than fixture names. D4 recognizes `Date.now()`
+  and `new Date()` under boolean-operator compositions, names the persisted-
+  state repair the positive fixture executes, and emits no dead profile route.
+  Only the actual N1 composite-return and SQ1 sequence disposition-4 refusals
+  route to Explicit; a missing-returns same-code control does not. VCF-F-AS1
+  uploads and reads back identical MP4 bytes and preserves both unsupported-
+  media and declared-oversize nested diagnostics.
 - The Explicit economy carrier verifies VCF-E-P1–P4: exact result and table
   dependency facts are derived from closed plans, provenance is projected,
-  compatible authored controls preserve the same generated contract and
-  authority evidence, and conflicts refuse before output. VCF-E-L1 binds the
+  nullable document lookup executes present and absent paths, binding
+  shadowing follows the final write, and return-document resolution publishes
+  its cross-table read. Compatible authored controls preserve the same
+  generated contract and authority evidence; a mismatched shadowed-result
+  control refuses before output. VCF-E-L1 binds the
   scaffolded install → generate → dev → prove lifecycle to the landed
   W1 M1→M2 continuity proof. The other Explicit catalogue rows, D4/D5
   economy work, and the corpus-wide ceremony measurement remain open.
@@ -164,19 +178,43 @@ Verification evidence for this increment:
 - `cargo build --bin snapback` and
   `target/debug/snapback runtime-qualify` — current dirty-worktree binary built;
   restricted no-eval handler VM qualified.
-- `SNAPBACK_RUNTIME_BINARY=target/debug/snapback node
+- `SNAPBACK_RUNTIME_BINARY="$(pwd)/target/debug/snapback" node
   scripts/familiar-vdoc-vertical-contract.mjs` — complete Familiar catalogue
   and Explicit P1–P4 receipt passed with no pending Familiar rows; its R6
-  control proves an ordinary timestamp refusal retains the
-  `ctx.runtime.now()` rewrite without a profile-switch suggestion.
-- `SNAPBACK_RUNTIME_BINARY=target/debug/snapback node
+  controls prove both the executable ambient-clock repair and an unrelated
+  missing-returns same-code refusal omit the composite-result profile switch.
+- `SNAPBACK_RUNTIME_BINARY="$(pwd)/target/debug/snapback" node
   packages/snapback-cli/packed-dev-lifecycle.test.mjs` — VCF-E-L1 passed the
   packed scaffold/install/generate/dev/prove lifecycle and W1 M1→M2
-  continuity proof.
-- `scripts/bootstrap-ibex-runtime` — ran before Cargo as required, installed
-  the lazy Ibex/Hermes state, then timed out after 900 seconds with stable code
-  `SNAPBACK_IBEX_RUNTIME_LINK_TIMEOUT`; the subsequent focused Cargo build and
-  runtime qualification succeeded.
+  continuity proof; removing the packed template's `prove` stage refuses with
+  `SNAPBACK_SCAFFOLD_LIFECYCLE_STAGE_MISSING` and names `prove`.
+- `scripts/bootstrap-ibex-runtime` — rebuilt the current dirty-worktree binary,
+  launched it, qualified the restricted no-eval handler VM, and persisted a
+  digest-bound readiness receipt.
+- `npm run test --ignore-scripts` in `packages/snapback-codegen` under Node 24
+  — the complete codegen package body passed, including the exact TypeScript +
+  esbuild source-map chain exercised by `write-policy.test.mjs`. The package's
+  generated-mutation, plan-derived-facts, media, and card-game pretests also
+  passed individually. The remaining `client-lifecycle.test.mjs` pretest red is
+  the inherited `SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_INCOMPATIBLE`/D9-row gap
+  already recorded in `issues/20260820-f3-bucket-b-pre-existing-reds.md`; this
+  W3 delta neither emits that code nor changes the D9 inventory.
+- `cargo test -p snapback-kernel
+  query_projection_is_snapshot_local_retry_is_exact_and_denied_delivery_is_not_an_oracle
+  --lib` and `cargo test -p snapback-server
+  codegen_emitted_membership_projection_parses_and_activates_in_sessions
+  --lib` — 1/1 passed in each affected Rust seam.
+- `node scripts/generate-guide-manifest.mjs` followed by
+  `node scripts/check-guide.mjs` under Node 24 — generated diagnostics/symbol
+  projections are current and all 22 Guide checks passed.
+- `./ref-check --verbose` — 297 LLP documents and 7,465 references checked,
+  with 0 errors and 0 unchecked references.
+- `node scripts/check-inventories.mjs` still reports the inherited
+  qualification-C leaf-set mismatch for
+  `demos/competitive-checkpoint/snapback/generated/api.d.mts`: the file and
+  reviewed path exist on `origin/main`, while that demo's unchanged
+  `artifacts.json` omits it from the consumer-committed set. W3 does not claim
+  or silently repair that unrelated publication-inventory defect.
 
 **Explicit economy lane:**
 

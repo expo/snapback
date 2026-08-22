@@ -756,6 +756,37 @@ export const helperTitle = query({
     .functions.find(({ name }) => name === 'todos.helperTitle');
   assert.match(helperOperation.runtime.IbexModule.source, /function trimTitle/u);
 
+  const attributedRoot = temporaryFamiliarFixture();
+  mkdirSync(join(attributedRoot, 'helpers'));
+  writeFileSync(join(attributedRoot, 'helpers', 'clock.ts'), `
+export function readAmbientClock(): number {
+  return Date.now();
+}
+`);
+  writeFileSync(
+    join(attributedRoot, 'todos.ts'),
+    readFileSync(join(attributedRoot, 'todos.ts'), 'utf8')
+      .replace(
+        'import { titleValidator } from "./contracts";',
+        'import { titleValidator } from "./contracts";\nimport { readAmbientClock } from "./helpers/clock";',
+      )
+      .concat(`
+export const helperClock = query({
+  args: {},
+  returns: v.integer(),
+  auth: "public",
+  reads: ["todos"],
+  handler: async () => readAmbientClock(),
+});
+`),
+  );
+  const attributed = await generate(attributedRoot);
+  assert.equal(attributed.ok, false);
+  const helperClock = attributed.diagnostics.find(({ code }) => code === 'BUNDLE_UNSUPPORTED_TIME');
+  assert(helperClock, JSON.stringify(attributed.diagnostics));
+  assert.equal(helperClock.sourceSpan?.file, 'helpers/clock.ts');
+  assert.equal(helperClock.sourceSpan?.line, 3);
+
   const negativeRoot = temporaryFamiliarFixture();
   writeFileSync(
     join(negativeRoot, 'todos.ts'),

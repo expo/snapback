@@ -34,6 +34,7 @@ import {
 } from './semantic-generation.mjs';
 import {
   AUTHORING_PROFILE_READ_ALLOWLIST,
+  AUTHORING_PROFILE_SCAN_ROOTS,
   scanAuthoringProfileBranches,
 } from '../../scripts/check-authoring-profile-branches.mjs';
 
@@ -262,7 +263,7 @@ test('explicit-profile default omission preserves the todo semantic identity', (
   assert.equal(explicitIds.semanticId, omittedIds.semanticId);
   assert.equal(
     explicitIds.semanticId,
-    'sha256:ae9972a2d0fb5257ed3492dacb2bf42671a1d2894180fa0d34cbef79079ece83',
+    'sha256:7d3d3804eabef4bcdf6de6baeb37b8b0d339315facfccf88d61eb3eceb52e761',
   );
   assert.deepEqual(
     completeGenerationIdentities({
@@ -344,12 +345,7 @@ test('disposition seed covers canonical fields, constructors, methods, and schem
 test('no-branch checker fails closed outside its exact sanctioned allowlist', () => {
   const root = mkdtempSync(join(tmpdir(), 'snapback-authoring-profile-branches-'));
   roots.push(root);
-  for (const path of [
-    'crates/snapback/src',
-    'packages/snapback-client',
-    'packages/snapback-react',
-    'packages/snapback-harness',
-  ]) {
+  for (const path of AUTHORING_PROFILE_SCAN_ROOTS) {
     mkdirSync(join(root, path), { recursive: true });
   }
   const allowed = AUTHORING_PROFILE_READ_ALLOWLIST[0].path;
@@ -371,7 +367,7 @@ test('no-branch checker fails closed outside its exact sanctioned allowlist', ()
   assert.equal(live.status, 1, live.stderr);
   assert.match(
     live.stderr,
-    /crates\/snapback\/src\/ephemeral\.rs:965 reads authoringProfile/u,
+    /crates\/snapback-sync\/src\/ephemeral\.rs:\d+ reads authoringProfile/u,
   );
   assert.doesNotMatch(live.stderr, /ENOENT/u);
 });
