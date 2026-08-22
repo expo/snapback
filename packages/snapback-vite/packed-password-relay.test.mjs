@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import {
   existsSync,
@@ -782,8 +783,9 @@ try {
   const backendUrl = await listen(backend);
   const database = join(externalApp, '.snapback', 'packed-relay.sqlite3');
   const readyFile = join(externalApp, '.snapback', 'packed-relay.ready.json');
+  const applicationReadyFile = `${readyFile}.application-ready`;
   writeFileSync(database, '');
-  writeFileSync(readyFile, `${JSON.stringify({
+  const readyBytes = `${JSON.stringify({
     schemaVersion: 'snapback.v0',
     descriptorKind: 'snapbackHostReady',
     ready: true,
@@ -791,12 +793,78 @@ try {
     serverUrl: backendUrl,
     database: { path: database },
     startupNonce,
+  })}\n`;
+  writeFileSync(readyFile, readyBytes, { mode: 0o600 });
+  const issuedAt = new Date().toISOString();
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1_000).toISOString();
+  // @ref LLP 0224#dated-amendment-d01-lifecycle-identity-extension-2026-08-21 — even this fake transport backend is admitted to the packed Vite consumer through the authoritative application receipt, never through a host descriptor masquerading as application readiness.
+  writeFileSync(applicationReadyFile, `${JSON.stringify({
+    formatVersion: 'snapback.application-ready.v1',
+    startupNonce,
+    hostReadyDescriptorDigest: `sha256:${createHash('sha256').update(readyBytes).digest('hex')}`,
+    application: {
+      mode: 'dev-generated',
+      deployment: handshakeFor(null).deploymentIdentity,
+      obligationsDigest: `sha256:${'0'.repeat(64)}`,
+    },
+    targetProfile: 'local-dev-sqlite-ibex',
+    artifacts: {
+      schemaHash: generatedLiveReference.expectedGeneration.schemaHash,
+      bundleHash: generatedLiveReference.expectedGeneration.bundleHash,
+      databaseVersion: 0,
+    },
+    auth: { activeMode: 'sessions', modeState: 'settled', sessionActivationReady: true },
+    binding: {
+      format: 'snapback.app-binding.v1',
+      source: 'supervised-dev',
+      descriptorIdentity: generatedApp.identity.descriptor,
+      target: {
+        app: generatedApp.identity.app,
+        schema: generatedApp.identity.schema,
+        functions: generatedApp.identity.functions,
+        origin: backendUrl,
+        routing: 'loopback',
+      },
+      capabilities: {
+        offered: [...new Set([
+          ...(generatedApp.capabilities?.required ?? []),
+          'auth.passwords',
+        ])].sort(),
+      },
+      provenance: {
+        supervisorGeneration: 'packed-password-relay',
+        issuedAt,
+        expiresAt,
+      },
+      integrity: { channel: 'local-supervised-ipc' },
+    },
+    clientOrigins: [],
+    runtimeIdentity: {
+      qualifiedBinary: {
+        path: process.execPath,
+        source: 'packed-relay-fixture',
+        platform: `${process.platform}-${process.arch}`,
+        bytes: 0,
+        sha256: `sha256:${'0'.repeat(64)}`,
+        buildIdentity: {},
+        qualification: {
+          receiptSchemaVersion: 'snapback.runtime-readiness.v1',
+          receiptPath: 'packed-relay-fixture',
+          probe: 'restricted-no-eval-handler-vm',
+        },
+      },
+      wrapper: { package: '@expo/snapback-cli', version: 'packed-fixture' },
+    },
+    capabilityManifestDigest: `sha256:${'0'.repeat(64)}`,
+    networkProfile: 'loopback-only',
+    settledAtMs: Date.now(),
   })}\n`, { mode: 0o600 });
 
   const { createServer: createViteServer } = await import(
     pathToFileURL(join(externalApp, 'node_modules', 'vite', 'dist', 'node', 'index.js')).href
   );
   const { default: snapbackDev } = await import(pathToFileURL(join(installedVite, 'index.mjs')).href);
+  const viteEvents = [];
   viteServer = await createViteServer({
     root: externalApp,
     configFile: false,
@@ -805,10 +873,15 @@ try {
       server: { mode: 'attach', db: database, readyFile },
       projectRoot: externalApp,
       logJson: false,
+      onEvent: (event) => viteEvents.push(event),
     })],
     server: { host: '127.0.0.1', port: 0, strictPort: false },
   });
   await viteServer.listen();
+  assert.ok(
+    viteEvents.some((event) => event.event === 'server-ready' && event.ready === true),
+    'packed Vite attach reaches ready through snapback.application-ready.v1',
+  );
   const address = viteServer.httpServer.address();
   assert.ok(address && typeof address !== 'string');
   const pageOrigin = `http://127.0.0.1:${address.port}`;

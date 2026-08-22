@@ -32,7 +32,8 @@ Backend boundary: Contract views import only binding functions generated from
 one ProviderNativeDeclaration, configured at boot with a conforming
 ContractDataProvider. All persistence, auth, live delivery, and mutation
 authority live behind that seam. The REQUIRED green for every milestone is
-against a real Snapback backend: published Snapback 0.1.24 from the public npm
+against a real Snapback backend: published Snapback {{SNAPBACK_VERSION}} from
+the public npm
 registry, authored in the familiar layout: a sessions-mode backend with
 `schema.ts`, top-level function modules with `query`/`mutation`/`action`
 constructors, and `_generated/` produced by the published codegen. Opt in
@@ -43,6 +44,17 @@ provider is optional scaffolding, not the deliverable. Snapback documentation
 is the Guide served by the running snapback binary (`snapback guide <query>` or
 `/_snapback/guide/` over HTTP); record every knowledge lookup and its source in
 run-log.md, and record any implementation-source reading as source inspection.
+
+Use the ruled fixed-origin lifecycle: one `snapback dev snapback --port
+<backend-port> --external-client-origin <exact-origin>` owner, with both ports
+inside the lane block. Configure the shipped Vite/Exact integration to consume
+the authoritative `snapback.application-ready.v1` receipt. Do not create a
+wrapper/environment script, invoke `snapback start --startup-artifacts`,
+hand-author a binding environment, add custom relay middleware or an endpoint
+`.env`, or destructively reseed between milestones. M1 -> M2 must be one
+additive schema successor in the running lifecycle; keep the original account,
+session, and application rows, and record the reported old -> new deployment
+identity.
 
 Build only M1, M2, and M3, in order. Do not build M4–M8 or run scale replay.
 Replay each starter log through the app's own write path. Ship one entrypoint:
@@ -55,13 +67,15 @@ pass; if the frozen harness itself makes green structurally impossible, record
 the exact instrument failure rather than relabeling it.
 
 Create run-log.md immediately. Its first lines must record lane id {{LANE_ID}},
-model {{MODEL}}, effort=xhigh, backend=snapback-familiar-0.1.24,
+model {{MODEL}}, effort=xhigh,
+backend=snapback-familiar-{{SNAPBACK_VERSION}},
 client=exact-contract, and start=<epoch>. Append timestamped lines at every
 milestone start, green or failure, error, retry, workaround, correction loop
 (each with an attribution: snapback-defect, exact-defect, agent-error,
 environment, or ambiguous, plus an evidence pointer), and knowledge lookup.
-Record every server PID you start and kill only those PIDs at the end; never
-use pkill/killall/pattern kills. Use only ports {{PORT_BASE}}–{{PORT_MAX}} for
+Record the lifecycle owner's process identity and close it through the
+lifecycle at the end so only owned children stop; never use
+pkill/killall/pattern kills. Use only ports {{PORT_BASE}}–{{PORT_MAX}} for
 every server you start. The safety limit is four hours per milestone; on
 exhaustion record capability-failure and obey dependency blocking.
 

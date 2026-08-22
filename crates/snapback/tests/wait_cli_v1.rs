@@ -18,6 +18,9 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
+const VISIBILITY_GOVERNANCE_TARGET_CONFIG_ENV: &str =
+    "SNAPBACK_VISIBILITY_GOVERNANCE_TARGET_CONFIG";
+
 struct ServerGuard(Child);
 
 impl Drop for ServerGuard {
@@ -55,6 +58,23 @@ fn wait_for_cli_ready(child: &mut Child, path: &Path) -> HostReadyDescriptor {
 }
 
 fn spawn_server(directory: &Path) -> (ServerGuard, HostReadyDescriptor, PathBuf) {
+    let repository = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
+    let backend = repository.join("demos/todo/snapback");
+    let governance_config = directory.join("visibility-governance-dev-target-config.json");
+    let governance_mint = Command::new("node")
+        .arg(repository.join("scripts/mint-visibility-governance-dev-config.mjs"))
+        .arg(&backend)
+        .arg("--out")
+        .arg(&governance_config)
+        .current_dir(&repository)
+        .output()
+        .expect("mint wait fixture visibility-governance dev config");
+    assert!(
+        governance_mint.status.success(),
+        "visibility-governance dev config mint failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&governance_mint.stdout),
+        String::from_utf8_lossy(&governance_mint.stderr),
+    );
     let database = directory.join("wait.sqlite3");
     let ready_file = directory.join("host-ready.json");
     let mut child = Command::new(env!("CARGO_BIN_EXE_snapback"))
@@ -63,6 +83,10 @@ fn spawn_server(directory: &Path) -> (ServerGuard, HostReadyDescriptor, PathBuf)
         .arg("--ready-file")
         .arg(&ready_file)
         .env_remove("SNAPBACK_ADMIN_TOKEN")
+        .env(
+            VISIBILITY_GOVERNANCE_TARGET_CONFIG_ENV,
+            governance_config,
+        )
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .spawn()

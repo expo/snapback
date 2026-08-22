@@ -10,8 +10,9 @@ authoring profile. The authoritative instrument is
 social-messenger.md and CONTRACT.md first, then the relevant fixture,
 assertion, UI-kit, and choreography files.
 
-Backend pin: published Snapback 0.1.24 from the public npm registry. Scaffold
-with `npm create snapback-app@0.1.24` (or `npx @expo/snapback-cli@0.1.24 new`)
+Backend pin: published Snapback {{SNAPBACK_VERSION}} from the public npm
+registry. Scaffold with `npm create snapback-app@{{SNAPBACK_VERSION}}` (or
+`npx @expo/snapback-cli@{{SNAPBACK_VERSION}} new`)
 using the template you judge best, then adapt. Author the backend in the
 explicit profile: the `snapback/` directory with explicit `schema.mjs` /
 `functions.mjs` modules and generated exact function references (do NOT set
@@ -23,6 +24,17 @@ Record every knowledge lookup and its source (model knowledge, served guide,
 package types, npm README, web) in run-log.md. Do not read Snapback
 implementation source beyond the published packages' own shipped files; if you
 must, record it as source inspection.
+
+Use the ruled lifecycle: one `snapback dev snapback --expo --expo-platform web
+--port <backend-port>` owner, with the backend port inside the lane block and
+Metro still supervisor-owned. Consume the lifecycle-issued
+`snapback.application-ready.v1` receipt and its supervised Expo projection.
+Do not create a wrapper/environment script, invoke `snapback start
+--startup-artifacts`, hand-author a binding environment, add custom relay
+middleware or an endpoint `.env`, or destructively reseed between milestones.
+M1 -> M2 must be one additive schema successor in the running lifecycle; keep
+the original account, session, and application rows, and record the reported
+old -> new deployment identity.
 
 Build only M1, M2, and M3, in order. Do not build M4–M8 or run scale replay.
 Use the frozen UI kit without changing component contracts. Replay each starter
@@ -36,12 +48,14 @@ harness itself makes green structurally impossible, record the exact instrument
 failure rather than relabeling it.
 
 Create run-log.md immediately. Its first lines must record lane id {{LANE_ID}},
-model {{MODEL}}, effort=xhigh, backend=snapback-explicit-0.1.24, and
+model {{MODEL}}, effort=xhigh,
+backend=snapback-explicit-{{SNAPBACK_VERSION}}, and
 start=<epoch>. Append timestamped lines at every milestone start, green or
 failure, error, retry, workaround, correction loop (each with an attribution:
 snapback-defect, agent-error, environment, or ambiguous, plus an evidence
-pointer), and knowledge lookup. Record every server PID you start and kill only
-those PIDs at the end; never use pkill/killall/pattern kills. Use only ports
+pointer), and knowledge lookup. Record the lifecycle owner's process identity
+and close it through the lifecycle at the end so only owned children stop;
+never use pkill/killall/pattern kills. Use only ports
 {{PORT_BASE}}–{{PORT_MAX}} for every server you start and pass the app origin
 to choreography through `CHOREO_BASE_URL`. The safety limit is four hours per
 milestone; on exhaustion record capability-failure and obey dependency

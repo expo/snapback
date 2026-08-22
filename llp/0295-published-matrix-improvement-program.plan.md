@@ -218,7 +218,7 @@ artifacts` plus hand-written environment objects as diagnostic primitives,
 not an alternative golden path. LLP 0223/0261 own the design. Acceptance must
 prove one M1->M2 additive change with the original accounts and sessions
 intact. Execution ticket:
-`issues/20260821-fixed-origin-external-client-dev-lifecycle.md`.
+`issues/closed/20260821-fixed-origin-external-client-dev-lifecycle.md`.
 
 ### D0.2 — Client authority-transition state machine (adopted and implemented)
 

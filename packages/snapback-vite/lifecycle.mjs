@@ -471,6 +471,14 @@ export function createSnapbackViteLifecycle(options = {}) {
           });
         },
       });
+      if (dev?.ok !== true) {
+        const refusal = dev?.diagnostics?.[0] ?? {};
+        throw diagnosticError(
+          refusal.code ?? 'SNAPBACK_DEV_SERVER_START_FAILED',
+          refusal.message ?? 'the canonical Snapback development lifecycle did not become application-ready',
+          refusal.details ?? { state: dev?.state ?? null },
+        );
+      }
       descriptor = validateDevTarget(readReadyDescriptor(readyFile), { readyFile, database });
       readVerifiedApplicationReceipt(descriptor);
       state.shape = 'managed';

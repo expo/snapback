@@ -1,7 +1,8 @@
 # Make fixed-origin external clients a first-party development lifecycle
 
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-08-21
+**Closed:** 2026-08-21
 **Systems:** CLI, Local server lifecycle, Expo, Vite/Exact, Headless client,
 Sessions auth, Verification
 **Governing:** LLP 0295 D0.1/W1; LLP 0223; LLP 0261
@@ -72,13 +73,13 @@ in brief:
 - [x] Preserve accounts, sessions, and stores across regenerate and one
       additive schema successor with the LLP 0058 identity advance reported
       (old/new pair asserted); make any destructive step explicit.
-- [ ] Packed-package acceptance fixtures: Expo, Vite/Exact, headless — each
+- [x] Packed-package acceptance fixtures: Expo, Vite/Exact, headless — each
       attaches, reaches ready, performs M1 -> M2 additive change with
       original accounts and sessions intact and the identity advance
       reported, shuts down owned children only.
 - [x] Negative fixtures: stale listener on pinned port; caller-supplied
       binding override (refuses, names the supported profile).
-- [ ] Delete startup-carrier wrappers and handwritten binding environments
+- [x] Delete startup-carrier wrappers and handwritten binding environments
       from the four matrix lane templates (Clique/Coterie x
       Explicit/Familiar benchmark prompt/template fixtures); this is not a
       CLI `carrier.mjs` template sweep.
@@ -104,11 +105,26 @@ continuity statement. Negative coverage includes an unrelated listener on the
 pinned port and a caller-supplied Vite binding override; both refusals name the
 supported fixed profile and leave existing ownership untouched.
 
-Checklist item 6 remains open for the full packed Expo, Vite/Exact, and
-headless M1→M2 matrix fixture. Item 8 remains open because its four published
-matrix prompt/template fixtures must be converted together with that packed
-vertical witness; deleting their carriers before the replacement package path
-is evidenced would make the benchmark templates unrunnable.
+The follow-through closes items 6 and 8 together. One external consumer
+materializes packed CLI, client, Vite, and support-package tarballs, then proves
+the headless, Vite/Exact, and Expo arms through M1→M2. Each arm preserves its
+signed-in principal, session identifier, and application row while asserting
+the reported old→new deployment identity and the receipt's continuity facts.
+The attached Vite and Expo consumers close without stopping the lifecycle
+owner; the owner then performs the one authorized shutdown.
+
+The four Clique/Coterie × Explicit/Familiar matrix templates now name only the
+ruled `snapback dev` lifecycle and authoritative application-ready receipt.
+They contain no startup-carrier wrapper, handwritten binding environment,
+custom relay, endpoint `.env`, or destructive reseed path. The packed fixture
+is their package-bound replacement proof. The Bun-hosted Vite witness also
+delegates isolated codegen to Node 24 while retaining lifecycle and relay
+ownership in Bun, so the canonical lifecycle remains usable on that shipped
+runtime boundary.
+
+Resolution evidence: `packages/snapback-cli/packed-dev-lifecycle.test.mjs`,
+`packages/snapback-vite/packed-password-relay.test.mjs`, and the four templates
+under `benchmarks/runs/2026-08-17-model-profile-app-matrix/`.
 
 ## Implementation scope after the ruling
 
@@ -130,6 +146,7 @@ Fresh packed-package Expo, Vite/Exact, and headless fixtures attach through the
 ruled lifecycle, reach application-ready state, perform an additive schema
 successor with the original accounts and sessions intact — asserting the
 reported old -> new deployment-identity advance per LLP 0058, never identity
-equality — and shut down only their owned children. They use no custom relay/binding middleware, destructive
-reseed, or source-checkout-only helper. A stale listener and a wrong binding
-both refuse with stable identity-bearing diagnostics.
+equality — and shut down only their owned children. They use no custom
+relay/binding middleware, destructive reseed, or source-checkout-only helper.
+A stale listener and a wrong binding both refuse with stable identity-bearing
+diagnostics.

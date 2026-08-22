@@ -37,7 +37,11 @@ per cell.
   comparable; cost and wall are the cross-model axes.
 
 Lane prompts are the four templates in this directory, rendered per lane
-(lane id, model, 20-port block). Raw lane directories, event streams, load
+(lane id, model, published Snapback version, 20-port block). The retained
+results describe their original 0.1.24 rendering; on 2026-08-21 the reusable
+templates advanced to LLP 0295 W1's ruled lifecycle and receipt contract, so a
+rerun must supply a published `{{SNAPBACK_VERSION}}` carrying that contract.
+Raw lane directories, event streams, load
 samples, and receipts are retained outside git at
 `/Users/ccheever/bench-matrix-20260817/` on the execution machine.
 Consolidated results: [record.md](./record.md). Build experience:

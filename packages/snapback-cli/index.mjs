@@ -3359,10 +3359,96 @@ export function initApp(target = process.cwd(), options = {}) {
   };
 }
 
+async function generateAppThroughNode(backendDirectory, { targetProfile, check }) {
+  const args = [
+    require.resolve('@expo/snapback-codegen'),
+    resolve(backendDirectory),
+    '--json',
+    '--target-profile', targetProfile,
+    ...(check ? ['--check'] : []),
+  ];
+  const allowedEnvironment = new Set([
+    'SNAPBACK_OUTBOUND_ACTIONS',
+    'SNAPBACK_GENERATED_AT_MS',
+    'SOURCE_DATE_EPOCH',
+    'PATH',
+    'SYSTEMROOT',
+    'WINDIR',
+    'COMSPEC',
+    'PATHEXT',
+    'TEMP',
+    'TMP',
+    'TMPDIR',
+  ]);
+  const environment = Object.fromEntries(
+    Object.entries(process.env).filter(
+      ([key, value]) => value !== undefined && allowedEnvironment.has(key.toUpperCase()),
+    ),
+  );
+  return new Promise((resolveResult) => {
+    const child = spawn('node', args, {
+      cwd: process.cwd(),
+      env: environment,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+    const stdout = [];
+    const stderr = [];
+    let stderrBytes = 0;
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      resolveResult(result);
+    };
+    child.stdout.on('data', (chunk) => stdout.push(chunk));
+    child.stderr.on('data', (chunk) => {
+      if (stderrBytes >= 4_000) return;
+      stderr.push(chunk);
+      stderrBytes += chunk.byteLength;
+    });
+    child.once('error', (error) => finish({
+      ok: false,
+      diagnostics: [{
+        code: 'CODEGEN_ISOLATED_EVALUATOR_FAILED',
+        severity: 'error',
+        subsystem: 'codegen',
+        message: `could not launch Node 24 for isolated code generation: ${error.message}`,
+      }],
+    }));
+    child.once('close', (code, signal) => {
+      try {
+        const result = JSON.parse(Buffer.concat(stdout).toString('utf8'));
+        finish(result);
+      } catch (error) {
+        finish({
+          ok: false,
+          diagnostics: [{
+            code: 'CODEGEN_ISOLATED_EVALUATOR_FAILED',
+            severity: 'error',
+            subsystem: 'codegen',
+            message: `Node 24 code generation returned no structured result (code ${code}, signal ${signal}): ${error.message}`,
+            details: {
+              stderr: Buffer.concat(stderr).toString('utf8').slice(0, 4_000),
+            },
+          }],
+        });
+      }
+    });
+  });
+}
+
 export async function generateApp(backendDirectory, options = {}) {
   const targetProfile = options.targetProfile ?? 'local-dev-sqlite-ibex';
   const check = options.check === true;
-  const result = await generate(resolve(backendDirectory), { targetProfile, check });
+  // @ref LLP 0010#generated-artifacts — definition evaluation still occurs
+  // under Node 24's permission model when a Bun-hosted Vite process owns the
+  // canonical dev lifecycle; Bun is only the supervisor of the Node child.
+  const canEvaluateIsolatedDefinitions = process.allowedNodeEnvironmentFlags
+    ?.has('--permission') === true;
+  const result = canEvaluateIsolatedDefinitions
+    ? await generate(resolve(backendDirectory), { targetProfile, check })
+    : await generateAppThroughNode(backendDirectory, { targetProfile, check });
   return {
     schemaVersion: 'snapback.generate.v1',
     ...result,
