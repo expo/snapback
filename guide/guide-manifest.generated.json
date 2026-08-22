@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:dc3442da357a8f56e41f2fdfc068cbd5f2ec1060876fad4328102563f019ab22"
+    "sourceDigest": "sha256:064d602a8295e84879e79408e3c33de86d11485391d2c55bcdaf787d528df7f9"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -2912,7 +2912,7 @@
       "examples": [],
       "reviewed": "2026-08-21",
       "reviewedAuthoritiesDigest": "sha256:1b524585d05c02c2bcef3d9c13b31b3344d96df36337f0fe95cdf8d53080cd4a",
-      "sha256": "640a6a29066a476fedf7c15862d7c22455efe0371e8980ed92e72bcef10cf58a",
+      "sha256": "f039becd58141756f0f97b7eecf9f5d6c6c67349b9f15c1ea284e4526f668998",
       "snippets": []
     },
     "clients.app-cli": {
@@ -4882,7 +4882,7 @@
       "maturity": "partial",
       "since": "0.1.24",
       "capabilities": [
-        "api.external-exposure"
+        "api.capability-links"
       ],
       "authorities": [
         "llp/0204-app-external-surfaces.rfc.md",
@@ -4901,7 +4901,7 @@
       ],
       "reviewed": "2026-08-21",
       "reviewedAuthoritiesDigest": "sha256:dc636112af1bf4c02640204a13226a5e75261f71c7ea013eb578170b04bfaf6b",
-      "sha256": "43fe6a344a10d74272445faa32d4c3ff1552b010c9b11f6a69579c928c31a199",
+      "sha256": "526f14cb0ccf2beef773b7b2d91c238fc7d5419d3b363dd072785cdd7d7c0d73",
       "snippets": [
         {
           "lang": "js",
@@ -12841,7 +12841,7 @@
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
       "bytes": 2612123,
-      "sha256": "d1561d42dd03d1e894547357f804e2a723572c39a730bc730f23f624b0e48a1f",
+      "sha256": "cc5312cb8c9cfddf624f9b82997d1b9dd6dd2d069ffbf1657ac437aea8b0ad3b",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -12850,13 +12850,14 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:5c9a445e04374d30bc526b3ffcf1b2f3007906a49394fe9c84e634693051b23f",
+      "sourceDigest": "sha256:6cddb231c5af4682c117867300c0ee608de987ced493f7f3a1bf8b8df64552d6",
       "codes": 3465,
       "emittingSites": 11965
     }
   },
   "capabilities": {
     "covered": [
+      "api.capability-links",
       "api.external-exposure",
       "assets.media-field.v1",
       "auth.agent-principals",
@@ -12990,16 +12991,16 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3718825,
-      "sha256": "e3fe73e798a8f12acb4ec08f78839ccb9286c132f02bc224ab5f316b2109d0c2"
+      "bytes": 3718919,
+      "sha256": "e28d879cb52251d9b0b937929771f4826043f1d8057a0859cdc3a93bee8b2ab3"
     },
     "sections": {
       "meta": {
         "path": "guide/guide-flat.meta.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.meta.generated.md",
         "uri": "snapback-guide://flat/meta",
-        "bytes": 168508,
-        "sha256": "9fd22e0e74bf0419c90227a34c1ca72332f562c8117c1e42db772545ea4146f3"
+        "bytes": 168506,
+        "sha256": "dbf852678fead2ce70b16744f0f67cd39951165b7563b9f12a9415373338e658"
       },
       "auth": {
         "path": "guide/guide-flat.auth.generated.md",
@@ -13061,8 +13062,8 @@
         "path": "guide/guide-flat.recipes.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.recipes.generated.md",
         "uri": "snapback-guide://flat/recipes",
-        "bytes": 233871,
-        "sha256": "5b69749686d8a7cb7dcecb57e2c492329d46381c3c1447c946a152fabff80b69"
+        "bytes": 233967,
+        "sha256": "8f3774f5f4299fd7804f0b046b4c46fdab2cd5e21ea01cb196af2b678676365a"
       },
       "reference": {
         "path": "guide/guide-flat.reference.generated.md",
@@ -13094,5 +13095,5 @@
       }
     }
   },
-  "contentHash": "dc3442da357a8f56e41f2fdfc068cbd5f2ec1060876fad4328102563f019ab22"
+  "contentHash": "064d602a8295e84879e79408e3c33de86d11485391d2c55bcdaf787d528df7f9"
 }

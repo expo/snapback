@@ -3,7 +3,7 @@ title: "Recipe: capability links for Expo and web"
 id: recipes.capability-links
 order: 15
 audience: agent-first
-capabilities: [api.external-exposure]
+capabilities: [api.capability-links]
 authorities: [llp/0204-app-external-surfaces.rfc.md, llp/0150-agent-token-acquisition.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0294-early-expo-workflow-closure.plan.md, crates/snapback-server/src/server.rs, crates/snapback-kernel/src/storage/capability_links.rs, crates/snapback/tests/route_policy_v1.rs, packages/snapback-codegen/auth-artifacts.test.mjs, scripts/check-guide-capability-link-example.mjs]
 examples: [packages/snapback-codegen/auth-artifacts.test.mjs, scripts/check-guide-capability-link-example.mjs]
 status: current
@@ -455,12 +455,13 @@ revocation, or deactivated minter principal returns the same
 
 The issuer can revoke with `DELETE /capability-links/{id}` only from the exact
 minting session and authority instance. A successful same-session revoke is
-immediate at the next landing/invoke gate. After refresh, rotation, or sign-out,
-a replacement session gets `SNAPBACK_CAPABILITY_LINK_REVOKE_DENIED`; the link
-does not die and remains usable until expiry, use exhaustion, or minter-
-principal deactivation. Treat revoke as a same-session convenience, not a
-durable issuer control. Bound every link with the shortest practical
-`expiresInMs` and a small `uses` count.
+immediate at the next landing/invoke gate. Refresh and password change keep the
+same session, so revoke still works when it sends the rotated bearer. Sign-out
+or a newly minted session cannot revoke: `DELETE` returns
+`SNAPBACK_CAPABILITY_LINK_REVOKE_DENIED`, while the link remains usable until
+expiry, use exhaustion, or minter-principal deactivation. Treat revoke as a
+same-session convenience, not a durable issuer control. Bound every link with
+the shortest practical `expiresInMs` and a small `uses` count.
 
 Keep `id` and token roles separate: management uses the safe id; recipients use
 the secret URL.
