@@ -1847,6 +1847,18 @@ pub struct PreparedWatchCreation {
     reaction_definition: Option<FunctionDefinition>,
     webhook_secret: Option<String>,
     generated_webhook_secret: Option<String>,
+    establishment_permission_epochs: BTreeMap<String, u64>,
+    establishment_data_version_stream: Option<String>,
+    establishment_head_version: u64,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+impl PreparedWatchCreation {
+    pub fn clear_reported_read_dependencies_for_test(&mut self) -> usize {
+        let reported = self.record.read_dependencies.len();
+        self.record.read_dependencies.clear();
+        reported
+    }
 }
 
 impl PreparedWatchAction {
@@ -23695,6 +23707,13 @@ impl LocalSnapback {
         let initial_document =
             serde_json::to_value(&initial.output).map_err(|_| crate::watches::catalog_corrupt())?;
         let initial_predicate_state = crate::watches::evaluate(&predicate, &initial_document);
+        // The dependency set is runtime-selected and some valid LiveQuery
+        // profiles intentionally report no storage reads. Capture an
+        // establishment-wide witness independently so every anchor closes the
+        // split preflight/commit window, including reset/restore ABA.
+        let establishment_permission_epochs = self.permission_epochs.clone();
+        let establishment_data_version_stream = self.db.observed_data_version_stream()?;
+        let establishment_head_version = self.db.versions_read().current_version()?;
         let anchor_expires_at_ms = now_ms
             .checked_add(crate::watches::ANCHOR_LIFETIME_MS)
             .filter(|value| *value <= 9_007_199_254_740_991)
@@ -23772,6 +23791,9 @@ impl LocalSnapback {
             reaction_definition,
             webhook_secret,
             generated_webhook_secret,
+            establishment_permission_epochs,
+            establishment_data_version_stream,
+            establishment_head_version,
         })
     }
 
@@ -23808,36 +23830,27 @@ impl LocalSnapback {
 
     /// Recheck facts that can move while the preflight result is outside Local:
     /// API activation, exact query/reaction definitions, their authorization-
-    /// scope bases, and captured permission epochs. The kernel transaction
-    /// separately checks the initial query's storage reads and the
-    /// integration/installation grant.
+    /// scope bases, and the coarse establishment witness. The kernel
+    /// transaction separately checks any initial-query storage reads the
+    /// runtime chose to report and the integration/installation grant.
     fn revalidate_watch_creation_preflight(
         &mut self,
         prepared: &PreparedWatchCreation,
     ) -> SnapbackResult<()> {
         // @ref LLP 0020#remaining-phase-4-design-dependency-vocabulary-and-auth-epochs
-        // — a prepared predicate is authorized only under the exact permission
-        // epochs captured by its initial query. The kernel deliberately leaves
-        // ordinary Permission dependencies to Local's epoch authority.
-        let permission_epoch_moved = prepared
-            .record
-            .read_dependencies
-            .iter()
-            .filter(|dependency| {
-                dependency.kind == CapturedReadKind::Permission && dependency.table.is_none()
-            })
-            .any(|dependency| {
-                let Some(scope) = dependency.value.as_ref().and_then(Value::as_str) else {
-                    return true;
-                };
-                let Some(captured_epoch) = dependency.version else {
-                    return true;
-                };
-                self.permission_epoch(scope) != captured_epoch
-            });
-        if permission_epoch_moved {
+        // — every prepared predicate is authorized under the complete Local
+        // permission-epoch state and app-data stream/head observed beside its
+        // initial query. This witness is deliberately independent of the
+        // runtime's captured-read vocabulary: some valid LiveQuery profiles
+        // report no ordinary Query or Permission dependency.
+        let establishment_moved = self.permission_epochs
+            != prepared.establishment_permission_epochs
+            || self.db.observed_data_version_stream()?
+                != prepared.establishment_data_version_stream
+            || self.db.versions_read().current_version()? != prepared.establishment_head_version;
+        if establishment_moved {
             return Err(watch_preflight_stale(
-                "watch query permission epoch changed after preflight",
+                "watch query permission or storage state changed after preflight",
             ));
         }
         self.validate_external_api_function(&prepared.record.query_function_name)?;
@@ -23893,6 +23906,9 @@ impl LocalSnapback {
             record,
             webhook_secret,
             generated_webhook_secret,
+            establishment_permission_epochs: _,
+            establishment_data_version_stream: _,
+            establishment_head_version: _,
             ..
         } = prepared;
         let webhook_secret_ref = record.webhook_secret_ref.clone();

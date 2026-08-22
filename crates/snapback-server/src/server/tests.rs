@@ -32302,6 +32302,157 @@ async fn watch_creation_permission_epoch_gap_refuses_stale_preflight_and_fresh_r
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn watch_creation_coarse_witness_covers_an_empty_reported_dependency_set() {
+    let state = watch_authorized_effect_server_fixture().await;
+    let credential = mint_test_credential(&state, "watch-empty-dependencies@example.test").await;
+    let bearer = credential["token"]
+        .as_str()
+        .expect("watch empty-dependencies session bearer")
+        .to_owned();
+    let principal_id = credential["session"]["userId"]
+        .as_str()
+        .expect("watch empty-dependencies principal")
+        .to_owned();
+    let authority =
+        prepared_test_session_route_authority(&state, InvocationSource::WatchManagement, &bearer);
+    let preflight_authority = authority.clone();
+    let mut stale_preflight = with_snapback(&state.snapback, move |snapback| {
+        snapback.preflight_watch_creation(
+            &preflight_authority,
+            crate::watches::CreateWatchSpec {
+                query_function: "liveItems".to_owned(),
+                query_args: json!({}),
+                predicate: json!({ "path": "/rows", "op": "exists" }),
+                reaction: crate::watches::WatchReactionSpec::Function {
+                    function: "listItems".to_owned(),
+                    args: json!({}),
+                },
+                debounce_ms: crate::watches::DEFAULT_DEBOUNCE_MS,
+                daily_firing_budget: crate::watches::DEFAULT_DAILY_FIRING_BUDGET,
+            },
+            super::now_millis(),
+        )
+    })
+    .await
+    .expect("watch preflight captures the coarse establishment witness");
+    assert!(
+        stale_preflight.clear_reported_read_dependencies_for_test() > 0,
+        "the fixture must prove that the coarse witness does not rely on reported reads"
+    );
+
+    let mutation_authority =
+        prepared_test_session_route_authority(&state, InvocationSource::HttpMutation, &bearer);
+    let mutation = with_snapback(&state.snapback, move |snapback| {
+        snapback.run_function_with_authority(
+            "queuedWrite",
+            HandlerInput {
+                args: json!({ "value": "empty-dependencies-gap" }),
+                ..HandlerInput::default()
+            },
+            mutation_authority,
+        )
+    })
+    .await;
+    assert!(mutation.ok, "gap mutation must commit: {mutation:?}");
+
+    let authorized_effect = authority
+        .reserve_authorized_effect("empty-dependencies watch gap commit")
+        .expect("reserve stale-preflight watch authority");
+    let commit_authority = authority.clone();
+    let error = with_snapback(&state.snapback, move |snapback| {
+        snapback.commit_preflighted_watch_with_authorized_effect(
+            &commit_authority,
+            stale_preflight,
+            super::now_millis(),
+            authorized_effect,
+        )
+    })
+    .await
+    .expect_err("an empty reported dependency set must not bypass the coarse witness");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_WATCH_PREFLIGHT_STALE");
+
+    let watches = with_snapback(&state.snapback, move |snapback| {
+        snapback
+            .remainder_auth_database_mut()
+            .list_watches_for_owner(&principal_id)
+    })
+    .await
+    .expect("list empty-dependencies refused watches");
+    assert!(watches.is_empty(), "stale predicate state became durable");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn watch_creation_stale_preflight_route_returns_retryable_conflict() {
+    let state = watch_permission_epoch_server_fixture().await;
+    let router = app(state.clone());
+    let credential = mint_test_credential(&state, "watch-stale-route@example.test").await;
+    let bearer = credential["token"]
+        .as_str()
+        .expect("watch stale-route session bearer")
+        .to_owned();
+    let pause = install_test_finite_authority_pause(
+        TestFiniteAuthorityPausePoint::BeforeAuthorizedEffectReservation,
+    );
+    let mut request = session_auth_http_request(
+        "/watches",
+        serde_json::to_vec(&json!({
+            "ownerKind": "user",
+            "authorityMode": "revalidatePrincipal",
+            "query": { "function": "liveItems", "args": {} },
+            "predicate": { "path": "/rows", "op": "exists" },
+            "reaction": { "kind": "function", "function": "listItems", "args": {} },
+        }))
+        .expect("serialize stale-route watch request"),
+        &bearer,
+    );
+    request.headers_mut().insert(
+        HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
+        HeaderValue::from_str(pause.id()).expect("stale-route pause header"),
+    );
+    let watch_router = router.clone();
+    let watch = tokio::spawn(async move {
+        watch_router
+            .oneshot(request)
+            .await
+            .expect("stale-route watch response")
+    });
+    tokio::time::timeout(Duration::from_secs(5), pause.wait_until_reached())
+        .await
+        .expect("watch route reaches the post-preflight gap");
+
+    let mutation = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/mutation/queuedWrite",
+            serde_json::to_vec(&json!({
+                "args": { "value": "stale-route-gap" },
+            }))
+            .expect("serialize stale-route gap mutation"),
+            &bearer,
+        ))
+        .await
+        .expect("stale-route gap mutation response");
+    let mutation_status = mutation.status();
+    let mutation = response_json(mutation).await;
+    assert_eq!(
+        mutation_status,
+        StatusCode::OK,
+        "stale-route gap mutation: {mutation}"
+    );
+
+    pause.release().await;
+    let response = tokio::time::timeout(Duration::from_secs(5), watch)
+        .await
+        .expect("stale watch route does not hang")
+        .expect("stale watch route task");
+    let status = response.status();
+    let body = response_json(response).await;
+    assert_eq!(status, StatusCode::CONFLICT, "stale watch route: {body}");
+    assert_eq!(body["diagnostic"]["code"], "SNAPBACK_WATCH_PREFLIGHT_STALE");
+    assert_eq!(body["diagnostic"]["details"]["retryable"], true);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn watch_creation_webhook_secret_and_row_share_mode_epoch_guard() {
     const WEBHOOK_SECRET: &str = "watch-guard-regression-secret";
 

@@ -172,7 +172,7 @@ pub(super) fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_WATCH_ANCHOR_SCOPE_MISMATCH"
         | "SNAPBACK_WATCH_RENEWAL_DENIED" => StatusCode::FORBIDDEN,
         "SNAPBACK_WATCH_NOT_FOUND" => StatusCode::NOT_FOUND,
-        "SNAPBACK_WATCH_STATUS_INVALID" => StatusCode::CONFLICT,
+        "SNAPBACK_WATCH_STATUS_INVALID" | "SNAPBACK_WATCH_PREFLIGHT_STALE" => StatusCode::CONFLICT,
         "SNAPBACK_WATCH_BUDGET_EXHAUSTED" | "SNAPBACK_WATCH_OWNER_EVALUATION_LIMIT" => {
             StatusCode::TOO_MANY_REQUESTS
         }

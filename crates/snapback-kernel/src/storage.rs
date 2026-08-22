@@ -3539,6 +3539,15 @@ impl LocalDatabase {
         })
     }
 
+    /// Observe the canonical data-version stream without initializing it.
+    ///
+    /// Split-phase callers use `None` as part of their establishment witness:
+    /// a later initialization is movement and must invalidate the prepared
+    /// result, while an ultimately refused preflight remains side-effect-free.
+    pub fn observed_data_version_stream(&self) -> SnapbackResult<Option<String>> {
+        crate::seed_identity::strict_current_data_version_stream(&self.conn)
+    }
+
     #[cfg(any(test, feature = "test-support"))]
     pub fn initialize_data_version_stream_for_test(&mut self) -> SnapbackResult<String> {
         let tx = self.conn.transaction()?;
