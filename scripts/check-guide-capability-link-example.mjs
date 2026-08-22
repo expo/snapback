@@ -1,9 +1,23 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const TOKEN = 'sbl_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+import { generate } from '../packages/snapback-codegen/index.mjs';
+import { startServer } from '../demos/_kit/server-process.mjs';
+
 const TOKEN_PATTERN = /^sbl_[A-Za-z0-9_-]{43}$/u;
 const UNAVAILABLE = 'SNAPBACK_CAPABILITY_LINK_UNAVAILABLE';
+const FIXTURE_TOKEN = 'sbl_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+const here = dirname(fileURLToPath(import.meta.url));
+const repositoryRoot = resolve(here, '..');
+const runtimeBinary = resolve(
+  process.env.SNAPBACK_RUNTIME_BINARY ?? join(repositoryRoot, 'target', 'debug', 'snapback'),
+);
 
 function resolveCapabilityTarget(rawUrl, {
   serverOrigin,
@@ -33,6 +47,15 @@ function resolveCapabilityTarget(rawUrl, {
   }
   if (!TOKEN_PATTERN.test(token ?? '')) return null;
   return new URL(`/capability-links/${token}`, serverOrigin).href;
+}
+
+export function toExpoCapabilityUrl(serverUrl, options) {
+  const target = resolveCapabilityTarget(serverUrl, options);
+  if (target === null || !/^[a-z][a-z0-9+.-]*$/u.test(options.expoScheme)) {
+    throw new TypeError('capability server URL or Expo scheme is invalid');
+  }
+  const token = new URL(target).pathname.split('/').at(-1);
+  return `${options.expoScheme}://share/${token}`;
 }
 
 async function requestCapability(fetchImpl, url, method, args) {
@@ -109,20 +132,25 @@ export async function openCapabilityLink(rawUrl, options) {
   });
 }
 
-// Expo calls this once when the share screen mounts. `Linking` is the
-// `expo-linking` module (or React Native's compatible Linking surface).
-export function subscribeExpoCapabilityLinks(Linking, consume) {
-  let active = true;
-  void Linking.getInitialURL().then((url) => {
-    if (active && url !== null) void consume(url);
-  });
-  const subscription = Linking.addEventListener('url', ({ url }) => {
-    if (active) void consume(url);
-  });
-  return () => {
-    active = false;
-    subscription.remove();
-  };
+// Expo Router calls this from app/+native-intent.tsx before it creates route
+// state. The secret target stays in this process-local, one-use handoff while
+// the router sees only /shared. No additive Linking listener receives it.
+let pendingNativeCapabilityTarget = null;
+
+export function redirectCapabilitySystemPath({ path }, options) {
+  const target = resolveCapabilityTarget(path, options);
+  if (target !== null) {
+    pendingNativeCapabilityTarget = target;
+    return '/shared';
+  }
+  if (typeof path === 'string' && path.includes('sbl_')) return '/invalid-link';
+  return path;
+}
+
+export function takePendingNativeCapabilityTarget() {
+  const target = pendingNativeCapabilityTarget;
+  pendingNativeCapabilityTarget = null;
+  return target;
 }
 
 // Read and scrub the web URL before analytics, logging hooks, or third-party
@@ -138,7 +166,12 @@ export function consumeWebCapabilityLocation(windowLike) {
 // convenience wrapper ships yet. Call only from an owner that already holds
 // the signed-in session bearer, and release that bearer with its normal
 // custody lifecycle.
-export async function mintShareLink(fetchImpl, serverOrigin, sessionBearer) {
+export async function mintShareLink(
+  fetchImpl,
+  serverOrigin,
+  sessionBearer,
+  { expiresInMs = 3_600_000, uses = 1 } = {},
+) {
   const response = await fetchImpl(new URL('/capability-links', serverOrigin), {
     method: 'POST',
     credentials: 'omit',
@@ -153,15 +186,15 @@ export async function mintShareLink(fetchImpl, serverOrigin, sessionBearer) {
       function: 'listTodos',
       pinnedArgs: {},
       callerArgs: [],
-      expiresInMs: 3_600_000,
-      uses: 1,
+      expiresInMs,
+      uses,
     }),
   });
   if (!response.ok) throw new Error('capability-link mint failed');
   const minted = await response.json();
   return Object.freeze({
     id: minted.id,
-    shareUrl: new URL(minted.url, serverOrigin).href,
+    serverUrl: new URL(minted.url, serverOrigin).href,
     expiresAtMs: minted.expiresAtMs,
     remainingUses: minted.remainingUses,
   });
@@ -184,160 +217,247 @@ export async function revokeShareLink(fetchImpl, serverOrigin, sessionBearer, id
   if (response.status !== 204) throw new Error('capability-link revoke failed');
 }
 
-function jsonResponse(payload, status = 200) {
-  return new Response(JSON.stringify(payload), {
-    status,
-    headers: { 'content-type': 'application/json' },
+function assertRequestControls(init, { bearer }) {
+  assert.equal(init.credentials, 'omit');
+  assert.equal(init.cache, 'no-store');
+  assert.equal(init.referrerPolicy, 'no-referrer');
+  assert.equal(new Headers(init.headers).has('authorization'), bearer);
+}
+
+function assertResponseControls(response, label) {
+  assert.match(response.headers.get('cache-control') ?? '', /(?:^|,)\s*no-store(?:,|$)/u, label);
+  assert.equal(response.headers.get('referrer-policy'), 'no-referrer', label);
+}
+
+async function responseJson(response) {
+  return response.json().catch(() => null);
+}
+
+async function mintSignedInSession(server) {
+  const protocolHeaders = {
+    'content-type': 'application/json',
+    'x-snapback-auth-client-protocol': '1',
+    'x-snapback-auth-invalidation-protocol': '1',
+    'x-snapback-authority-descriptor-protocol': '1',
+    'x-snapback-authorized-lease-protocol': '1',
+  };
+  const request = await fetch(`${server.baseUrl}/auth/request-code`, {
+    method: 'POST',
+    headers: protocolHeaders,
+    body: JSON.stringify({ email: 'guide-capability-link@example.test' }),
   });
-}
-
-function lifecycleFetch({ initialUses = 1 } = {}) {
-  let remainingUses = initialUses;
-  let revoked = false;
-  let expired = false;
-  const calls = [];
-  const fetchImpl = async (url, init) => {
-    calls.push({ url: String(url), init: structuredClone(init) });
-    assert.equal(init.credentials, 'omit');
-    assert.equal(init.cache, 'no-store');
-    assert.equal(init.referrerPolicy, 'no-referrer');
-    assert.equal(new Headers(init.headers).has('authorization'), false);
-    if (revoked || expired || remainingUses === 0) {
-      return jsonResponse({ diagnostic: { code: UNAVAILABLE } }, 404);
-    }
-    if (init.method === 'GET') {
-      return jsonResponse({
-        id: 'cplk_test',
-        function: 'listTodos',
-        kind: 'query',
-        callerArgs: [],
-        expiresAtMs: Date.now() + 60_000,
-        remainingUses,
-        approvalPerUse: false,
-      });
-    }
-    remainingUses -= 1;
-    return jsonResponse({ rows: [{ id: 'todo_42', title: 'Shared result' }] });
-  };
-  return {
-    calls,
-    fetchImpl,
-    expire() { expired = true; },
-    revoke() { revoked = true; },
-  };
-}
-
-const options = {
-  serverOrigin: 'https://snapback.example',
-  webOrigin: 'https://app.example',
-  expoScheme: 'messtimate',
-};
-
-for (const rejected of [
-  `https://app.example/share/${TOKEN}?campaign=leak`,
-  `https://app.example/share/${TOKEN}#fragment`,
-  `https://attacker.example/share/${TOKEN}`,
-  `https://user:password@app.example/share/${TOKEN}`,
-  'messtimate://share/not-a-capability-token',
-]) {
-  assert.equal(resolveCapabilityTarget(rejected, options), null);
-}
-
-{
-  const crawlerSafe = lifecycleFetch({ initialUses: 2 });
-  const controller = await openCapabilityLink(
-    `https://snapback.example/capability-links/${TOKEN}`,
-    { ...options, fetchImpl: crawlerSafe.fetchImpl },
-  );
-  assert.equal(controller.snapshot().preview.remainingUses, 2);
-  assert.deepEqual(crawlerSafe.calls.map(({ init }) => init.method), ['GET']);
-  assert.equal(JSON.stringify(controller.snapshot()).includes(TOKEN), false);
-  const first = await controller.invoke();
-  assert.equal(first.result.ok, true);
-  assert.equal(first.state.preview.remainingUses, 1);
-  assert.deepEqual(crawlerSafe.calls.map(({ init }) => init.method), ['GET', 'POST', 'GET']);
-  const second = await controller.invoke();
-  assert.equal(second.state.status, 'used');
-  const callsBeforeReplay = crawlerSafe.calls.length;
-  assert.equal((await controller.invoke()).invoked, false);
-  assert.equal(crawlerSafe.calls.length, callsBeforeReplay, 'terminal replay performs no request');
-}
-
-for (const terminalize of ['expire', 'revoke']) {
-  const lifecycle = lifecycleFetch();
-  const controller = await openCapabilityLink(
-    `messtimate://share/${TOKEN}`,
-    { ...options, fetchImpl: lifecycle.fetchImpl },
-  );
-  lifecycle[terminalize]();
-  assert.equal((await controller.refresh()).status, 'unavailable', terminalize);
-  assert.equal(JSON.stringify(controller.snapshot()).includes(TOKEN), false);
-}
-
-{
-  const order = [];
-  const windowLike = {
-    location: { href: `https://app.example/share/${TOKEN}` },
-    history: { replaceState() { order.push('scrub'); } },
-  };
-  const raw = consumeWebCapabilityLocation(windowLike);
-  order.push('open');
-  assert.equal(raw.endsWith(TOKEN), true);
-  assert.deepEqual(order, ['scrub', 'open']);
-}
-
-{
-  let initialConsumer;
-  let eventConsumer;
-  let removed = false;
-  const seen = [];
-  const Linking = {
-    getInitialURL: async () => `messtimate://share/${TOKEN}`,
-    addEventListener(_name, listener) {
-      eventConsumer = listener;
-      return { remove() { removed = true; } };
+  const challenge = await responseJson(request);
+  assert.equal(request.status, 200, JSON.stringify(challenge));
+  const mailboxResponse = await fetch(
+    `${server.baseUrl}/_snapback/api/auth/mailbox?challengeId=${encodeURIComponent(challenge.challengeId)}`,
+    {
+      headers: {
+        'x-snapback-admin-token': server.adminToken,
+        'x-snapback-impersonation-capability': server.impersonationCapability,
+      },
     },
-  };
-  initialConsumer = (url) => { seen.push(url); };
-  const unsubscribe = subscribeExpoCapabilityLinks(Linking, initialConsumer);
-  await Promise.resolve();
-  eventConsumer({ url: `messtimate://share/${TOKEN}` });
-  unsubscribe();
-  assert.equal(seen.length, 2);
-  assert.equal(removed, true);
+  );
+  const mailbox = await responseJson(mailboxResponse);
+  assert.equal(mailboxResponse.status, 200, JSON.stringify(mailbox));
+  const exchange = await fetch(`${server.baseUrl}/auth/exchange`, {
+    method: 'POST',
+    headers: protocolHeaders,
+    body: JSON.stringify({ challengeId: challenge.challengeId, code: mailbox.code }),
+  });
+  const credential = await responseJson(exchange);
+  assert.equal(exchange.status, 200, JSON.stringify(credential));
+  assert.equal(typeof credential.token, 'string');
+  return credential.token;
 }
 
-{
-  const calls = [];
-  const minted = await mintShareLink(async (url, init) => {
-    calls.push({ url: String(url), init });
-    return jsonResponse({
-      id: 'cplk_issuer',
-      url: `/capability-links/${TOKEN}`,
-      expiresAtMs: 1_800_000,
-      remainingUses: 1,
-      approvalPerUse: false,
+function injectExpiredBoundary(databasePath, id, nowMs) {
+  const database = new DatabaseSync(databasePath);
+  try {
+    const changed = database.prepare(`
+      UPDATE _snapback_capability_links
+      SET expires_at_ms = ?
+      WHERE id = ? AND status = 'active'
+    `).run(nowMs - 1, id);
+    assert.equal(changed.changes, 1, 'expiry fixture must target exactly one active real link');
+  } finally {
+    database.close();
+  }
+}
+
+async function realBackendAcceptance() {
+  assert.equal(
+    existsSync(runtimeBinary),
+    true,
+    `native Snapback runtime missing at ${runtimeBinary}; set SNAPBACK_RUNTIME_BINARY`,
+  );
+  const scratch = await mkdtemp(join(tmpdir(), 'snapback-guide-capability-link-'));
+  const backendRoot = join(scratch, 'app', 'snapback');
+  const databasePath = join(scratch, 'capability-link.sqlite3');
+  let server = null;
+  try {
+    await mkdir(backendRoot, { recursive: true });
+    const defineUrl = pathToFileURL(join(repositoryRoot, 'packages', 'snapback-codegen', 'define.mjs')).href;
+    await writeFile(join(backendRoot, 'schema.mjs'), `
+import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};
+export default defineSchema({
+  todos: defineTable({ title: v.string() })
+    .visibility({ kind: 'public-read' })
+    .index('by_title', ['title'])
+    .sync(),
+}, {
+  auth: { mode: 'sessions', agents: { mode: 'disabled' } },
+  api: {
+    enabled: true,
+    functions: { listTodos: { expose: true, since: 'v1' } },
+    origins: ['https://example.com:8443'],
+  },
+});
+`);
+    await writeFile(join(backendRoot, 'functions.mjs'), `
+import { defineLiveQuery, eq, lit } from ${JSON.stringify(defineUrl)};
+export const listTodos = defineLiveQuery({
+  table: 'todos',
+  index: 'by_title',
+  filter: [eq('title', lit('fixed'))],
+  auth: 'public',
+  authorityIndependent: true,
+});
+`);
+    const generated = await generate(backendRoot);
+    assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
+    const readGenerated = async (name) => JSON.parse(
+      await readFile(join(generated.outDir, name), 'utf8'),
+    );
+    const schema = await readGenerated('schema.manifest.json');
+    const functions = await readGenerated('functions.manifest.json');
+    const startupArtifacts = join(scratch, 'startup-artifacts.json');
+    await writeFile(startupArtifacts, `${JSON.stringify({ formatVersion: 1, schema, functions })}\n`, {
+      mode: 0o600,
     });
-  }, options.serverOrigin, 'issuer-session-secret');
-  assert.equal(minted.shareUrl, `https://snapback.example/capability-links/${TOKEN}`);
-  assert.equal(calls[0].url, 'https://snapback.example/capability-links');
-  assert.equal(new Headers(calls[0].init.headers).get('authorization'), 'Bearer issuer-session-secret');
-  assert.equal(JSON.stringify(minted).includes('issuer-session-secret'), false);
+    server = await startServer({
+      port: 0,
+      db: databasePath,
+      cwd: repositoryRoot,
+      serverBinary: runtimeBinary,
+      startupArtifacts,
+      captureImpersonationCapability: true,
+    });
+    assert.equal(server.reused, false);
+    const sessionBearer = await mintSignedInSession(server);
+    const options = {
+      serverOrigin: server.baseUrl,
+      webOrigin: 'https://app.example',
+      expoScheme: 'messtimate',
+    };
+    const observed = [];
+    const checkedFetch = async (url, init) => {
+      const address = String(url);
+      const bearer = new URL(address).pathname === '/capability-links'
+        || init.method === 'DELETE';
+      assertRequestControls(init, { bearer });
+      observed.push({ method: init.method, path: new URL(address).pathname, bearer });
+      const response = await fetch(url, init);
+      assertResponseControls(response, `${init.method} ${new URL(address).pathname}`);
+      return response;
+    };
+
+    const repeatable = await mintShareLink(
+      checkedFetch,
+      server.baseUrl,
+      sessionBearer,
+      { uses: 2 },
+    );
+    assert.equal(JSON.stringify(repeatable).includes(sessionBearer), false);
+    const repeatedLanding = async () => {
+      const response = await checkedFetch(repeatable.serverUrl, {
+        method: 'GET', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer',
+      });
+      const body = await responseJson(response);
+      assert.equal(response.status, 200, JSON.stringify(body));
+      return body;
+    };
+    assert.equal((await repeatedLanding()).remainingUses, 2);
+    assert.equal((await repeatedLanding()).remainingUses, 2, 'repeated GET must remain inert');
+    const invoke = async (url) => {
+      const response = await checkedFetch(`${url}/invoke`, {
+        method: 'POST',
+        credentials: 'omit',
+        cache: 'no-store',
+        referrerPolicy: 'no-referrer',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ args: {} }),
+      });
+      return { response, body: await responseJson(response) };
+    };
+    assert.equal((await invoke(repeatable.serverUrl)).response.status, 200);
+    assert.equal((await repeatedLanding()).remainingUses, 1);
+    assert.equal((await invoke(repeatable.serverUrl)).response.status, 200);
+    const replay = await invoke(repeatable.serverUrl);
+    assert.equal(replay.response.status, 404);
+    assert.equal(replay.body?.diagnostic?.code, UNAVAILABLE, 'server must refuse replay');
+
+    const expiring = await mintShareLink(checkedFetch, server.baseUrl, sessionBearer);
+    injectExpiredBoundary(databasePath, expiring.id, Date.now());
+    const expired = await checkedFetch(expiring.serverUrl, {
+      method: 'GET', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer',
+    });
+    assert.equal(expired.status, 404);
+    assert.equal((await responseJson(expired))?.diagnostic?.code, UNAVAILABLE);
+
+    const revocable = await mintShareLink(checkedFetch, server.baseUrl, sessionBearer);
+    await revokeShareLink(checkedFetch, server.baseUrl, sessionBearer, revocable.id);
+    const revoked = await checkedFetch(revocable.serverUrl, {
+      method: 'GET', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer',
+    });
+    assert.equal(revoked.status, 404);
+    assert.equal((await responseJson(revoked))?.diagnostic?.code, UNAVAILABLE);
+
+    const controllerLink = await mintShareLink(checkedFetch, server.baseUrl, sessionBearer);
+    const controller = await openCapabilityLink(controllerLink.serverUrl, {
+      ...options,
+      fetchImpl: checkedFetch,
+    });
+    assert.equal(controller.snapshot().status, 'ready');
+    assert.equal(JSON.stringify(controller.snapshot()).includes('sbl_'), false);
+    assert.equal((await controller.invoke()).state.status, 'used');
+    const callsBeforeLocalReplay = observed.length;
+    assert.equal((await controller.invoke()).invoked, false);
+    assert.equal(observed.length, callsBeforeLocalReplay, 'terminal UI replay performs no request');
+
+    const expoUrl = toExpoCapabilityUrl(controllerLink.serverUrl, options);
+    assert.equal(redirectCapabilitySystemPath({ path: expoUrl }, options), '/shared');
+    const handedOff = takePendingNativeCapabilityTarget();
+    assert.equal(handedOff, controllerLink.serverUrl);
+    assert.equal(takePendingNativeCapabilityTarget(), null, 'native handoff is one-use');
+    assert.equal(
+      redirectCapabilitySystemPath({ path: `messtimate://share/${FIXTURE_TOKEN}?leak=1` }, options),
+      '/invalid-link',
+    );
+
+    const webOrder = [];
+    const windowLike = {
+      location: { href: `https://app.example/share/${FIXTURE_TOKEN}` },
+      history: { replaceState() { webOrder.push('scrub'); } },
+    };
+    const raw = consumeWebCapabilityLocation(windowLike);
+    webOrder.push('open');
+    assert.equal(raw.endsWith(FIXTURE_TOKEN), true);
+    assert.deepEqual(webOrder, ['scrub', 'open']);
+
+    for (const rejected of [
+      `https://app.example/share/${FIXTURE_TOKEN}?campaign=leak`,
+      `https://app.example/share/${FIXTURE_TOKEN}#fragment`,
+      `https://attacker.example/share/${FIXTURE_TOKEN}`,
+      `https://user:password@app.example/share/${FIXTURE_TOKEN}`,
+      'messtimate://share/not-a-capability-token',
+    ]) {
+      assert.equal(resolveCapabilityTarget(rejected, options), null);
+    }
+  } finally {
+    await server?.stop();
+    await rm(scratch, { recursive: true, force: true });
+  }
 }
 
-{
-  const calls = [];
-  await revokeShareLink(async (url, init) => {
-    calls.push({ url: String(url), init });
-    return new Response(null, { status: 204 });
-  }, options.serverOrigin, 'issuer-session-secret', 'cplk_issuer');
-  assert.equal(calls[0].url, 'https://snapback.example/capability-links/cplk_issuer');
-  assert.equal(calls[0].init.method, 'DELETE');
-  assert.equal(calls[0].init.credentials, 'omit');
-  assert.equal(calls[0].init.cache, 'no-store');
-  assert.equal(calls[0].init.referrerPolicy, 'no-referrer');
-  assert.equal(new Headers(calls[0].init.headers).get('authorization'), 'Bearer issuer-session-secret');
-  assert.equal(JSON.stringify(calls[0].url).includes(TOKEN), false);
-}
-
-console.log('check-guide-capability-link-example: crawler-safe GET, explicit invoke, use count/replay, expiry, revoke request/state, strict Expo/web intake, and secret-free state pass');
+await realBackendAcceptance();
+console.log('check-guide-capability-link-example: real signed-in mint, inert GET, POST consumption, server replay refusal, injected expiry boundary, DELETE revocation, response controls, and pre-router token hygiene pass');

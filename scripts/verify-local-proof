@@ -663,6 +663,12 @@ run current-binary-build --requires native-runtime-bootstrap -- build_current_bi
 run current-binary-readiness --requires current-binary-build -- \
     node packages/snapback-cli/runtime-readiness.mjs issue \
     --binary "$ROOT/target/debug/snapback" --root "$ROOT" --issuer verify-local-proof
+# @ref LLP 0061#3-verification-snippets-that-ran — the capability-link Guide
+# recipe's lifecycle witness drives the qualified native router/server rather
+# than reimplementing GET/use/expiry/revocation state in a JavaScript mock.
+run guide-capability-link-real-backend --requires current-binary-readiness -- \
+    env SNAPBACK_RUNTIME_BINARY="$ROOT/target/debug/snapback" \
+    node scripts/check-guide-capability-link-example.mjs
 # @ref LLP 0041#runtime-distribution — the packaged CLI deliberately scrubs
 # LD_LIBRARY_PATH. On Linux, stage the freshly built debug executable in the
 # same bin/../lib closure as the public runtime package so these CLI proofs

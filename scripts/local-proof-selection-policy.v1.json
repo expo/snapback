@@ -44,7 +44,8 @@
       "cargo-clippy",
       "rust-tests",
       "current-binary-build",
-      "runtime-package-stage"
+      "runtime-package-stage",
+      "guide-capability-link-real-backend"
     ],
     "browser": [
       "browser-availability"
@@ -1053,6 +1054,17 @@
       ]
     },
     {
+      "id": "guide-capability-links",
+      "groups": [
+        "guide",
+        "guide-capability-links"
+      ],
+      "files": [
+        "guide/recipes/capability-links.md",
+        "scripts/check-guide-capability-link-example.mjs"
+      ]
+    },
+    {
       "id": "guide-scripts",
       "groups": [
         "guide"
@@ -1149,6 +1161,12 @@
         "guide-shell-command-fixtures",
         "guide-freshness-fixtures",
         "guide"
+      ]
+    },
+    "guide-capability-links": {
+      "lane": "affected",
+      "gates": [
+        "guide-capability-link-real-backend"
       ]
     },
     "telemetry-receipt": {

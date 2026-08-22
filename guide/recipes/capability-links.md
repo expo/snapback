@@ -11,19 +11,32 @@ targets: [local]
 maturity: partial
 since: 0.1.24
 reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:ee4234ffd6cb52c98fe0704e2a61d5d5aeebebfb3194086df3e3725126ac4771
+reviewed-authorities-digest: sha256:885b8edd57d6288da4fe40c167bb702aec2aa6e4ede51b51b168dad548e35616
 ---
 
 # Recipe: capability links for Expo and web
 
-> **Local target only.** Snapback 0.1.24 ships the local anonymous-set slice.
-> Hosted capability links, granted-operation links, identity-bearing links,
-> and guest-session entry are not shipped.
+> **Local target only.** Snapback 0.1.24 ships the local anonymous-set slice,
+> and only over local carriers. Use it from a same-host web app, iOS Simulator, or an
+> Android emulator whose supervised carrier can reach the loopback backend.
+> Public-recipient sharing, physical-device delivery, hosted capability links,
+> granted-operation links, identity-bearing links, and guest-session entry are
+> not shipped. Do not expose the local server through a public tunnel.
 
 Use this recipe for an expiring, revocable **share-to-view** URL whose target
 query is already callable by an anonymous user. It covers the full app journey:
 signed-in mint, share, crawler-safe inert `GET`, Expo/web intake, explicit
 `POST` invoke, use-count/replay handling, expiry, and revocation.
+
+The minted URL names the Snapback server origin. On another computer or phone,
+its loopback host names that recipient's device, not the development machine.
+The URL is therefore not a public share carrier. The supported journey here is
+same-host web or a supervised simulator/emulator route; a hosted application
+edge and physical-device recipient carrier remain future work. Use the
+[Expo carrier table](../clients/react-expo.md#choose-simulator-emulator-or-usb-routing)
+for exact routing constraints, and keep the
+[local-target boundary](../auth/targets.md#a-public-tunnel-does-not-make-the-loopback-server-production-ready)
+when choosing a carrier.
 
 An `sbl_…` capability-link token is a secret URL and bearer invocation input
 for one link. It is **not** a session, user, principal, login, guest identity,
@@ -93,7 +106,12 @@ an undocumented `appClient.client.bearerToken` property or copy browser/native
 custody into application state to make this call.
 
 ```js source=scripts/check-guide-capability-link-example.mjs
-export async function mintShareLink(fetchImpl, serverOrigin, sessionBearer) {
+export async function mintShareLink(
+  fetchImpl,
+  serverOrigin,
+  sessionBearer,
+  { expiresInMs = 3_600_000, uses = 1 } = {},
+) {
   const response = await fetchImpl(new URL('/capability-links', serverOrigin), {
     method: 'POST',
     credentials: 'omit',
@@ -108,24 +126,44 @@ export async function mintShareLink(fetchImpl, serverOrigin, sessionBearer) {
       function: 'listTodos',
       pinnedArgs: {},
       callerArgs: [],
-      expiresInMs: 3_600_000,
-      uses: 1,
+      expiresInMs,
+      uses,
     }),
   });
   if (!response.ok) throw new Error('capability-link mint failed');
   const minted = await response.json();
   return Object.freeze({
     id: minted.id,
-    shareUrl: new URL(minted.url, serverOrigin).href,
+    serverUrl: new URL(minted.url, serverOrigin).href,
     expiresAtMs: minted.expiresAtMs,
     remainingUses: minted.remainingUses,
   });
 }
 ```
 
-Share `shareUrl`; do not print it. The response also returns the safe management
+Use `serverUrl` directly only when the recipient carrier can reach that exact
+server origin. Do not print it. The response also returns the safe management
 id `cplk_…`. Retain that id only if the issuer UI needs a later revoke button.
 The URL token itself must not enter durable app state.
+
+For a supervised simulator/emulator app, construct a custom-scheme URL only by
+validating the minted server URL against the one configured origin and closed
+token shape:
+
+```js source=scripts/check-guide-capability-link-example.mjs
+export function toExpoCapabilityUrl(serverUrl, options) {
+  const target = resolveCapabilityTarget(serverUrl, options);
+  if (target === null || !/^[a-z][a-z0-9+.-]*$/u.test(options.expoScheme)) {
+    throw new TypeError('capability server URL or Expo scheme is invalid');
+  }
+  const token = new URL(target).pathname.split('/').at(-1);
+  return `${options.expoScheme}://share/${token}`;
+}
+```
+
+This changes only the app ingress carrier; invocation still targets the exact
+local `serverOrigin`. It does not make a physical device or public recipient
+able to reach a loopback server.
 
 The local target defaults to seven days and refuses expiry beyond thirty days.
 Set a shorter application-specific `expiresInMs` whenever possible. `uses: 1`
@@ -162,36 +200,55 @@ If the frontend cannot guarantee all four, share the minted Snapback URL
 directly. Do not put it in a `?token=` parameter, redirect it through a link
 shortener, or add campaign parameters.
 
-## Parse Expo links without adopting the token
+## Strip Expo links before router state exists
 
-Configure your Expo scheme/universal-link association outside this recipe,
-then consume both the cold-start URL and later URL events. This listener is
-exercised with the same `getInitialURL`/`addEventListener` contract in the
-Guide check:
+Do not add a `Linking.addEventListener` beside Expo Router. That listener is
+additive: the router or another subscriber can persist the same secret URL
+before your callback runs. Reserve capability-link ingress at Expo Router's
+native-intent boundary instead. Put this wrapper in `app/+native-intent.tsx`:
 
-```js source=scripts/check-guide-capability-link-example.mjs
-export function subscribeExpoCapabilityLinks(Linking, consume) {
-  let active = true;
-  void Linking.getInitialURL().then((url) => {
-    if (active && url !== null) void consume(url);
-  });
-  const subscription = Linking.addEventListener('url', ({ url }) => {
-    if (active) void consume(url);
-  });
-  return () => {
-    active = false;
-    subscription.remove();
-  };
+```ts fragment reason="application-owned Expo Router boundary wiring"
+import { redirectCapabilitySystemPath } from '../capability-link-intake';
+import { capabilityLinkOptions } from '../capability-link-options';
+
+export function redirectSystemPath({ path }: { path: string; initial: boolean }) {
+  return redirectCapabilitySystemPath({ path }, capabilityLinkOptions);
 }
 ```
 
-Pass `Linking` from `expo-linking` (or React Native's compatible Linking
-surface) and pass each raw URL directly to `openCapabilityLink` below. Do not
-route it through navigation analytics or serialize it into router state. The
-checked parser accepts only one fixed server origin, one fixed web origin, one
-fixed Expo scheme, and the exact `sbl_` token shape; it rejects query strings,
-fragments, embedded credentials, foreign origins, and arbitrary callback
-origins.
+The checked implementation runs before Expo Router creates navigation state.
+It moves a valid target into a process-local, one-use handoff and returns only
+the clean `/shared` route. A malformed token-bearing path returns the clean
+`/invalid-link` route; unrelated paths pass through unchanged.
+
+```js source=scripts/check-guide-capability-link-example.mjs
+let pendingNativeCapabilityTarget = null;
+
+export function redirectCapabilitySystemPath({ path }, options) {
+  const target = resolveCapabilityTarget(path, options);
+  if (target !== null) {
+    pendingNativeCapabilityTarget = target;
+    return '/shared';
+  }
+  if (typeof path === 'string' && path.includes('sbl_')) return '/invalid-link';
+  return path;
+}
+
+export function takePendingNativeCapabilityTarget() {
+  const target = pendingNativeCapabilityTarget;
+  pendingNativeCapabilityTarget = null;
+  return target;
+}
+```
+
+The `/shared` screen calls `takePendingNativeCapabilityTarget()` exactly once,
+constructs `openCapabilityLink`, and renders analytics or other application
+subsystems only after that take. If it returns `null`, render the unavailable
+state. Do not mirror the handoff into params, navigation state, a React store,
+or durable storage. The checked parser accepts only one fixed server origin,
+one fixed web origin, one fixed Expo scheme, and the exact `sbl_` token shape;
+it rejects query strings, fragments, embedded credentials, foreign origins,
+and arbitrary callback origins.
 
 ```js source=scripts/check-guide-capability-link-example.mjs
 const TOKEN_PATTERN = /^sbl_[A-Za-z0-9_-]{43}$/u;
@@ -243,6 +300,10 @@ export function consumeWebCapabilityLocation(windowLike) {
 
 The initial web request still reaches your edge with the token path, so
 `replaceState` complements rather than replaces the proxy controls above.
+Neither native-intent rewriting nor `replaceState` can erase OS/browser share
+history, notification previews, clipboard history, or records retained by the
+channel that delivered the URL. Bound that residual exposure with the shortest
+practical expiry, a small use count, and issuer revocation.
 
 ## Preview, then invoke only on a user action
 
@@ -380,16 +441,15 @@ The Guide consistency lane runs:
 node scripts/check-guide-capability-link-example.mjs
 ```
 
-It proves that opening/crawler preview performs only `GET`; invocation requires
-an explicit call and uses `POST`; a two-use link decrements; a terminal replay
-performs no request; expiry and revocation converge on unavailable; Expo cold
-and warm links are consumed; web scrubbing precedes opening; every bearer
-request uses `credentials: 'omit'`, `cache: 'no-store'`, and
-`referrerPolicy: 'no-referrer'`; no capability request sends `Authorization`;
-and public UI state never contains the token. The shipped server's route-policy
-and storage suites separately pin inert GET, secret hashing, use-count CAS,
-expiry, revocation, terminal non-enumeration, and no-store/no-referrer response
-classes.
+It generates a sessions/API fixture, boots the configured native Snapback
+runtime, signs in, and proves against the real routes that repeated crawler
+`GET` is inert; explicit `POST` consumes uses; exhausted server-side replay,
+an injected expiry boundary, and real `DELETE` revocation converge on the same
+unavailable diagnostic; and every mint/token/management response carries
+`Cache-Control: no-store` and `Referrer-Policy: no-referrer`. It also proves
+that Expo native-intent rewriting gives the router only a clean route, the
+volatile handoff is one-use, web scrubbing precedes opening, capability
+requests send no `Authorization`, and public UI state contains no token.
 
 ## Anti-patterns
 
@@ -400,6 +460,10 @@ classes.
   deep link grant. Guest entry remains unshipped and awaits owner review.
 - Putting the token in `Authorization`, client auth custody, durable storage,
   logs, analytics, crash reports, query parameters, redirects, or referrers.
+- Adding a capability-link `Linking` listener beside a router or another URL
+  consumer; intercept and strip at the exclusive pre-navigation boundary.
+- Treating a loopback server URL or custom-scheme wrapper as a public or
+  physical-device share carrier, or tunnelling the local server to make it one.
 - Invoking on `GET`, mount, route load, link receipt, crawler preview, or any
   event other than an explicit user action.
 - Claiming granted-operation capability links ship. They are commissioned

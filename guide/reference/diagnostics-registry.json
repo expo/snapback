@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:76fcd77d595ebd73af5138e50d438da1974f0f893f7ca68e596b3d629fa8b131"
+    "sourceDigest": "sha256:7468d80906d84d14b1788f92fdb9cc367e1c288c8bbf87c5567cbf837268a8f8"
   },
   "limits": {
     "lookupBytes": 16384
@@ -32364,10 +32364,10 @@
       ],
       "httpStatus": 404,
       "httpStatusClass": "4xx",
-      "guideAnchor": "/_snapback/guide/recipes/capability-links.md#parse-expo-links-without-adopting-the-token",
+      "guideAnchor": "/_snapback/guide/recipes/capability-links.md#preview-then-invoke-only-on-a-user-action",
       "guideAnchors": [
-        "/_snapback/guide/recipes/capability-links.md#parse-expo-links-without-adopting-the-token",
-        "/_snapback/guide/recipes/capability-links.md#preview-then-invoke-only-on-a-user-action"
+        "/_snapback/guide/recipes/capability-links.md#preview-then-invoke-only-on-a-user-action",
+        "/_snapback/guide/recipes/capability-links.md#strip-expo-links-before-router-state-exists"
       ]
     },
     "SNAPBACK_CAPABILITY_MINIFLARE_MISSING": {
