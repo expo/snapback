@@ -62,6 +62,7 @@ pub enum AssetFinalizePrepareError {
 
 /// The restricted-custody object containing the canonical bytes after
 /// preparation. It is not a deliverable blob and carries no database state.
+#[derive(Clone)]
 pub enum AssetPreparedCanonicalObject {
     Staging(String),
     Canonical(String),
@@ -76,6 +77,7 @@ impl AssetPreparedCanonicalObject {
     }
 }
 
+#[derive(Clone)]
 pub struct AssetPreparedCanonical {
     pub object: AssetPreparedCanonicalObject,
     pub digest: String,
@@ -94,6 +96,7 @@ pub struct AssetVariantPreparation {
     pub recipe_version: u64,
 }
 
+#[derive(Clone)]
 pub struct AssetFinalizePreparation {
     pub staged_digest: String,
     pub detected_content_type: &'static str,
@@ -505,6 +508,497 @@ pub struct AssetTusPatchTicketV1 {
     store: std::sync::Arc<dyn crate::assets_store::AssetStore>,
 }
 
+/// Read-only authorization/preflight either resolves an existing ladder
+/// rendition or hands the database-free source read/render to the caller.
+pub enum AssetWidthPreflightV1 {
+    AlreadyReady(String),
+    Proceed(AssetWidthPrepareTicketV1),
+}
+
+/// Owned facts needed to read and render one bounded on-demand width without
+/// retaining `LocalSnapback`, SQLite, or caller authority.
+pub struct AssetWidthPrepareTicketV1 {
+    asset_id: String,
+    key: String,
+    width: u64,
+    primary_key: String,
+    content_type: String,
+    store: std::sync::Arc<dyn crate::assets_store::AssetStore>,
+    app_id: String,
+    app_quota: u64,
+}
+
+/// Rendered bytes awaiting their caller-fenced durable publication plan.
+pub struct AssetWidthPlanTicketV1 {
+    ticket: AssetWidthPrepareTicketV1,
+    prepared: AssetVariantPreparation,
+}
+
+/// A committed publication plan names the external blob PUT. This ticket
+/// carries no caller permit; the separate durable authority-handoff design
+/// governs retirement that races the idempotent PUT.
+pub struct AssetWidthPutTicketV1 {
+    plan: AssetWidthPlanTicketV1,
+    publication: crate::asset_proof::AssetWidthPublicationPlannedProof,
+    put_lease: AssetPublicationPutLeaseV1,
+}
+
+/// Verified blob bytes awaiting the caller-fenced staged and
+/// rendition/blob/quota commits.
+pub struct AssetWidthCommitTicketV1 {
+    asset_id: String,
+    key: String,
+    app_id: String,
+    app_quota: u64,
+    prepared: crate::asset_proof::AssetWidthPreparedVariant,
+    put_lease: AssetPublicationPutLeaseV1,
+}
+
+/// Publication PUT tickets have enough time for the S3 seam's bounded PUT
+/// plus read-back verification, but cannot retain condemned bytes or rows
+/// indefinitely when a blocking job is abandoned.
+pub const ASSET_PUBLICATION_PUT_LEASE_MS: u64 = 5 * 60 * 1000;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum AssetPublicationPutLeasePhaseV1 {
+    Ready,
+    InFlight,
+    CommitPending,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct AssetPublicationPutLeaseRecordV1 {
+    expires_at: std::time::Instant,
+    phase: AssetPublicationPutLeasePhaseV1,
+}
+
+#[derive(Default)]
+struct AssetPublicationPutLeaseRegistryV1 {
+    next_lease_id: u64,
+    publications: std::collections::BTreeMap<
+        String,
+        std::collections::BTreeMap<u64, AssetPublicationPutLeaseRecordV1>,
+    >,
+}
+
+fn asset_publication_put_leases() -> &'static std::sync::Mutex<AssetPublicationPutLeaseRegistryV1> {
+    static LEASES: std::sync::OnceLock<std::sync::Mutex<AssetPublicationPutLeaseRegistryV1>> =
+        std::sync::OnceLock::new();
+    LEASES.get_or_init(|| std::sync::Mutex::new(AssetPublicationPutLeaseRegistryV1::default()))
+}
+
+/// Cleanup distinguishes an active lease from an external PUT that crossed
+/// its deadline. The latter no longer retains object bytes, but its durable
+/// condemned publication row remains the uncertainty owner until the call
+/// returns and drops the marker.
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AssetPublicationPutLeaseStateV1 {
+    None,
+    Active,
+    ExpiredInFlight,
+}
+
+fn asset_publication_put_lease_state_at(
+    publication_id: &str,
+    now: std::time::Instant,
+) -> AssetPublicationPutLeaseStateV1 {
+    let mut registry = asset_publication_put_leases()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let Some(leases) = registry.publications.get_mut(publication_id) else {
+        return AssetPublicationPutLeaseStateV1::None;
+    };
+    leases.retain(|_, lease| {
+        lease.expires_at > now || lease.phase == AssetPublicationPutLeasePhaseV1::InFlight
+    });
+    let state = if leases.values().any(|lease| lease.expires_at > now) {
+        AssetPublicationPutLeaseStateV1::Active
+    } else if leases
+        .values()
+        .any(|lease| lease.phase == AssetPublicationPutLeasePhaseV1::InFlight)
+    {
+        AssetPublicationPutLeaseStateV1::ExpiredInFlight
+    } else {
+        AssetPublicationPutLeaseStateV1::None
+    };
+    if leases.is_empty() {
+        registry.publications.remove(publication_id);
+    }
+    state
+}
+
+fn asset_publication_put_lease_expired() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+        "assets",
+        "the bounded publication lease expired before the PUT/commit ticket resolved",
+    )
+    .with_details(serde_json::json!({
+        "reason": "publication-put-lease-expired",
+        "leaseMs": ASSET_PUBLICATION_PUT_LEASE_MS,
+    }))
+}
+
+/// Process-local lifetime token for one PUT capability. The durable
+/// publication remains authoritative; this token only prevents maintenance
+/// from retiring that record while an in-memory ticket can still recreate its
+/// idempotent object.
+///
+/// @ref LLP 0044#publication-and-crash-recovery — bounded external PUT
+/// authority keeps its durable publication discoverable through the final
+/// blob/rendition commit; an expired service ticket never decides deletion.
+#[derive(Clone)]
+#[doc(hidden)]
+pub struct AssetPublicationPutLeaseV1 {
+    inner: std::sync::Arc<AssetPublicationPutLeaseInnerV1>,
+}
+
+struct AssetPublicationPutLeaseInnerV1 {
+    publication_id: String,
+    lease_id: u64,
+}
+
+impl AssetPublicationPutLeaseV1 {
+    fn acquire(publication_id: &str) -> Self {
+        let mut registry = asset_publication_put_leases()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        registry.next_lease_id = registry.next_lease_id.wrapping_add(1).max(1);
+        let lease_id = registry.next_lease_id;
+        registry
+            .publications
+            .entry(publication_id.to_owned())
+            .or_default()
+            .insert(
+                lease_id,
+                AssetPublicationPutLeaseRecordV1 {
+                    expires_at: std::time::Instant::now()
+                        + std::time::Duration::from_millis(ASSET_PUBLICATION_PUT_LEASE_MS),
+                    phase: AssetPublicationPutLeasePhaseV1::Ready,
+                },
+            );
+        Self {
+            inner: std::sync::Arc::new(AssetPublicationPutLeaseInnerV1 {
+                publication_id: publication_id.to_owned(),
+                lease_id,
+            }),
+        }
+    }
+
+    fn transition_if_active(&self, phase: AssetPublicationPutLeasePhaseV1) -> SnapbackResult<()> {
+        let now = std::time::Instant::now();
+        let mut registry = asset_publication_put_leases()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let active = registry
+            .publications
+            .get_mut(&self.inner.publication_id)
+            .and_then(|leases| leases.get_mut(&self.inner.lease_id))
+            .is_some_and(|lease| {
+                if lease.expires_at > now {
+                    lease.phase = phase;
+                    true
+                } else {
+                    false
+                }
+            });
+        if active {
+            return Ok(());
+        }
+        if let Some(leases) = registry.publications.get_mut(&self.inner.publication_id) {
+            leases.remove(&self.inner.lease_id);
+            if leases.is_empty() {
+                registry.publications.remove(&self.inner.publication_id);
+            }
+        }
+        Err(asset_publication_put_lease_expired())
+    }
+
+    fn is_active(&self) -> bool {
+        let now = std::time::Instant::now();
+        asset_publication_put_leases()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .publications
+            .get(&self.inner.publication_id)
+            .and_then(|leases| leases.get(&self.inner.lease_id))
+            .is_some_and(|lease| lease.expires_at > now)
+    }
+
+    /// A direct cleanup owned by this ticket may delete only when no sibling
+    /// ticket can still write the same key. Expired in-flight siblings remain
+    /// unresolved because their remote effect may return late.
+    fn has_unresolved_sibling(&self) -> bool {
+        let now = std::time::Instant::now();
+        let mut registry = asset_publication_put_leases()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let Some(leases) = registry.publications.get_mut(&self.inner.publication_id) else {
+            return false;
+        };
+        leases.retain(|_, lease| {
+            lease.expires_at > now || lease.phase == AssetPublicationPutLeasePhaseV1::InFlight
+        });
+        leases
+            .iter()
+            .any(|(lease_id, _)| *lease_id != self.inner.lease_id)
+    }
+}
+
+impl Drop for AssetPublicationPutLeaseInnerV1 {
+    fn drop(&mut self) {
+        let mut registry = asset_publication_put_leases()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(leases) = registry.publications.get_mut(&self.publication_id) {
+            leases.remove(&self.lease_id);
+            if leases.is_empty() {
+                registry.publications.remove(&self.publication_id);
+            }
+        }
+    }
+}
+
+#[doc(hidden)]
+pub fn asset_publication_put_lease_state(publication_id: &str) -> AssetPublicationPutLeaseStateV1 {
+    asset_publication_put_lease_state_at(publication_id, std::time::Instant::now())
+}
+
+#[cfg(any(test, feature = "remainder-tests"))]
+pub fn asset_publication_expire_put_leases_for_test(publication_id: &str) {
+    let mut registry = asset_publication_put_leases()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    if let Some(leases) = registry.publications.get_mut(publication_id) {
+        let expired = std::time::Instant::now()
+            .checked_sub(std::time::Duration::from_millis(1))
+            .unwrap_or_else(std::time::Instant::now);
+        for lease in leases.values_mut() {
+            lease.expires_at = expired;
+        }
+    }
+}
+
+impl AssetWidthPrepareTicketV1 {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        asset_id: String,
+        key: String,
+        width: u64,
+        primary_key: String,
+        content_type: String,
+        store: std::sync::Arc<dyn crate::assets_store::AssetStore>,
+        app_id: String,
+        app_quota: u64,
+    ) -> Self {
+        Self {
+            asset_id,
+            key,
+            width,
+            primary_key,
+            content_type,
+            store,
+            app_id,
+            app_quota,
+        }
+    }
+
+    /// The source read and media render may involve remote storage and CPU;
+    /// both run after the route has dropped its prework authority permit.
+    pub fn prepare(self) -> SnapbackResult<AssetWidthPlanTicketV1> {
+        let canonical_bytes = self
+            .store
+            .read(crate::assets_store::AssetObjectRef::Blob(&self.primary_key))?;
+        let variant = crate::manifest::AssetImageVariant {
+            key: self.key.clone(),
+            width: self.width,
+            required: false,
+        };
+        let prepared = prepare_asset_variant(&canonical_bytes, &self.content_type, &variant, 1)?;
+        Ok(AssetWidthPlanTicketV1 {
+            ticket: self,
+            prepared,
+        })
+    }
+
+    #[cfg(any(test, feature = "remainder-tests"))]
+    pub fn store_for_test(&self) -> std::sync::Arc<dyn crate::assets_store::AssetStore> {
+        self.store.clone()
+    }
+
+    #[cfg(any(test, feature = "remainder-tests"))]
+    pub fn replace_store_for_test(
+        &mut self,
+        store: std::sync::Arc<dyn crate::assets_store::AssetStore>,
+    ) {
+        self.store = store;
+    }
+}
+
+impl AssetWidthPlanTicketV1 {
+    pub fn app_id(&self) -> &str {
+        &self.ticket.app_id
+    }
+
+    pub fn digest(&self) -> &str {
+        &self.prepared.digest
+    }
+
+    pub fn asset_id(&self) -> &str {
+        &self.ticket.asset_id
+    }
+
+    pub fn variant_key(&self) -> &str {
+        &self.ticket.key
+    }
+
+    /// Construct the external PUT capability only from the opaque proof
+    /// returned by the kernel transaction that committed this exact plan.
+    ///
+    /// A raw, caller-synthesized publication record is intentionally the
+    /// wrong argument type:
+    ///
+    /// ```compile_fail
+    /// use snapback_services::assets::{
+    ///     AssetWidthPlanTicketV1, AssetWidthPutTicketV1,
+    /// };
+    /// use snapback_kernel::assets::AssetPublicationRecordV1;
+    ///
+    /// fn forge(
+    ///     ticket: AssetWidthPlanTicketV1,
+    ///     unproven: AssetPublicationRecordV1,
+    /// ) -> AssetWidthPutTicketV1 {
+    ///     ticket.into_put(unproven).unwrap()
+    /// }
+    /// ```
+    ///
+    /// An attempt-owned required-rendition proof is also the wrong domain,
+    /// even when it uses a real ladder key such as `w128` and its asset and
+    /// digest happen to match:
+    ///
+    /// ```compile_fail
+    /// use snapback_kernel::services_assets::AssetPublicationPlannedProof;
+    /// use snapback_services::assets::{
+    ///     AssetWidthPlanTicketV1, AssetWidthPutTicketV1,
+    /// };
+    ///
+    /// fn cross_publication_domains(
+    ///     ticket: AssetWidthPlanTicketV1,
+    ///     attempt_owned: AssetPublicationPlannedProof,
+    /// ) -> AssetWidthPutTicketV1 {
+    ///     ticket.into_put(attempt_owned).unwrap()
+    /// }
+    /// ```
+    pub fn into_put(
+        self,
+        proof: crate::asset_proof::AssetWidthPublicationPlannedProof,
+    ) -> SnapbackResult<AssetWidthPutTicketV1> {
+        let publication = proof.publication();
+        if publication.app_id != self.ticket.app_id
+            || publication.attempt_id.is_some()
+            || publication.asset_id.as_deref() != Some(self.ticket.asset_id.as_str())
+            || publication.variant_key.as_deref() != Some(self.ticket.key.as_str())
+            || publication.digest != self.prepared.digest
+            || !matches!(
+                publication.state,
+                crate::assets::AssetPublicationState::Planned
+                    | crate::assets::AssetPublicationState::Staged
+            )
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_RECORD_INVALID",
+                "assets",
+                "the committed width publication proof does not match the prepared variant",
+            ));
+        }
+        Ok(AssetWidthPutTicketV1 {
+            put_lease: AssetPublicationPutLeaseV1::acquire(&publication.publication_id),
+            plan: self,
+            publication: proof,
+        })
+    }
+}
+
+impl AssetWidthPutTicketV1 {
+    /// Perform and verify the irreversible external cut without a caller
+    /// permit or database owner. The committed plan is its durable handoff.
+    pub fn put(self) -> SnapbackResult<AssetWidthCommitTicketV1> {
+        self.put_lease
+            .transition_if_active(AssetPublicationPutLeasePhaseV1::InFlight)?;
+        let store = &self.plan.ticket.store;
+        let publication = self.publication.publication();
+        let put = store.put_blob_idempotent(&publication.planned_key, &self.plan.prepared.rendered);
+        if !self.put_lease.is_active() {
+            return Err(asset_publication_put_lease_expired());
+        }
+        put?;
+        let copied = store.hash(crate::assets_store::AssetObjectRef::Blob(
+            &publication.planned_key,
+        ));
+        if !self.put_lease.is_active() {
+            return Err(asset_publication_put_lease_expired());
+        }
+        let copied = copied?;
+        if copied.digest != self.plan.prepared.digest
+            || copied.byte_length != self.plan.prepared.byte_length
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                "assets",
+                "the published variant object did not verify",
+            ));
+        }
+        self.put_lease
+            .transition_if_active(AssetPublicationPutLeasePhaseV1::CommitPending)?;
+        let AssetWidthPlanTicketV1 { ticket, prepared } = self.plan;
+        Ok(AssetWidthCommitTicketV1 {
+            asset_id: ticket.asset_id,
+            key: ticket.key,
+            app_id: ticket.app_id,
+            app_quota: ticket.app_quota,
+            prepared: self.publication.into_prepared_variant(
+                prepared.key,
+                prepared.width,
+                prepared.digest,
+                prepared.byte_length,
+                prepared.content_type,
+                prepared.recipe_version,
+            ),
+            put_lease: self.put_lease,
+        })
+    }
+
+    #[cfg(any(test, feature = "remainder-tests"))]
+    pub fn publication_for_test(&self) -> &AssetPublicationRecordV1 {
+        self.publication.publication()
+    }
+}
+
+impl AssetWidthCommitTicketV1 {
+    pub fn into_parts(
+        self,
+    ) -> SnapbackResult<(
+        String,
+        String,
+        String,
+        u64,
+        crate::asset_proof::AssetWidthPreparedVariant,
+        AssetPublicationPutLeaseV1,
+    )> {
+        self.put_lease
+            .transition_if_active(AssetPublicationPutLeasePhaseV1::CommitPending)?;
+        Ok((
+            self.asset_id,
+            self.key,
+            self.app_id,
+            self.app_quota,
+            self.prepared,
+            self.put_lease,
+        ))
+    }
+}
+
 impl AssetTusPatchTicketV1 {
     /// Construct a continuity ticket only from the kernel's proof of the exact
     /// current attempt snapshot.
@@ -561,6 +1055,7 @@ impl AssetTusPatchTicketV1 {
 /// Immutable continuity ticket between asset-finalize preflight and commit.
 /// The byte-store handle is config-derived while Local is available, then
 /// clone-shareable without retaining any LocalSnapback or database borrow.
+#[derive(Clone)]
 pub struct FinalizePrepareTicketV1 {
     attempt: AssetAttemptRecordV1,
     request: AssetFinalizeRequestV1,
@@ -598,6 +1093,8 @@ pub struct FinalizePutTicketV1 {
     ticket: FinalizePrepareTicketV1,
     prepared: AssetFinalizePreparation,
     publication: AssetPublicationRecordV1,
+    required_publications: Vec<AssetPublicationRecordV1>,
+    publication_put_leases: Vec<AssetPublicationPutLeaseV1>,
     grade: AssetIntegrityGrade,
 }
 
@@ -605,20 +1102,130 @@ pub struct FinalizePutTicketV1 {
 /// Only this ticket is accepted by lock-held Phase C/D.
 pub struct FinalizeCommitTicketV1 {
     put: FinalizePutTicketV1,
+    prepared_required: Vec<snapback_kernel::storage::AssetPreparedVariant>,
+}
+
+/// Post-publication physical cleanup runs without caller permits or Local.
+/// Its resulting receipt is committed only after the route reserves again.
+pub struct FinalizeCleanupTicketV1 {
+    response: AssetFinalizeResponseV1,
+    store: std::sync::Arc<dyn crate::assets_store::AssetStore>,
+    staging_key: String,
+    reused_blob_key: Option<String>,
+    publication_put_leases: Vec<AssetPublicationPutLeaseV1>,
+}
+
+pub struct FinalizeCleanupCommitTicketV1 {
+    response: AssetFinalizeResponseV1,
+    attempt_id: String,
+    asset_id: String,
 }
 
 impl FinalizePutTicketV1 {
+    fn clone_with_leases(&self, publication_put_leases: Vec<AssetPublicationPutLeaseV1>) -> Self {
+        Self {
+            ticket: self.ticket.clone(),
+            prepared: self.prepared.clone(),
+            publication: self.publication.clone(),
+            required_publications: self.required_publications.clone(),
+            publication_put_leases,
+            grade: self.grade,
+        }
+    }
+
+    /// Every external PUT in this ticket is backed by its own opaque proof of
+    /// a committed publication plan. In particular, required rendition plans
+    /// cannot be supplied as caller-authored records.
+    ///
+    /// ```compile_fail
+    /// use snapback_services::assets::{
+    ///     AssetFinalizePreparation, FinalizePrepareTicketV1, FinalizePutTicketV1,
+    /// };
+    /// use snapback_kernel::{
+    ///     assets::{AssetIntegrityGrade, AssetPublicationRecordV1},
+    ///     services_assets::AssetPublicationPlannedProof,
+    /// };
+    ///
+    /// fn forge_required(
+    ///     primary: AssetPublicationPlannedProof,
+    ///     ticket: FinalizePrepareTicketV1,
+    ///     prepared: AssetFinalizePreparation,
+    ///     unproven: Vec<AssetPublicationRecordV1>,
+    /// ) {
+    ///     let _ = FinalizePutTicketV1::from_planned_publication(
+    ///         primary,
+    ///         ticket,
+    ///         prepared,
+    ///         unproven,
+    ///         AssetIntegrityGrade::ReceivedBytesCanonical,
+    ///     );
+    /// }
+    /// ```
     pub fn from_planned_publication(
         proof: crate::asset_proof::AssetPublicationPlannedProof,
         ticket: FinalizePrepareTicketV1,
         prepared: AssetFinalizePreparation,
+        required_proofs: Vec<crate::asset_proof::AssetPublicationPlannedProof>,
         grade: AssetIntegrityGrade,
     ) -> SnapbackResult<Self> {
         let publication = proof.into_publication();
+        if publication.app_id != ticket.app_id
+            || publication.attempt_id.as_deref() != Some(ticket.attempt.attempt_id.as_str())
+            || publication.digest != prepared.canonical.digest
+            || publication.variant_key.is_some()
+            || !matches!(
+                publication.state,
+                crate::assets::AssetPublicationState::Planned
+                    | crate::assets::AssetPublicationState::Staged
+            )
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_RECORD_INVALID",
+                "assets",
+                "the committed primary publication proof does not match finalization",
+            ));
+        }
+        if prepared.required_variants.len() != required_proofs.len() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_RECORD_INVALID",
+                "assets",
+                "the required rendition publication proofs do not match the prepared variants",
+            ));
+        }
+        let mut required_publications = Vec::with_capacity(required_proofs.len());
+        for (required, proof) in prepared.required_variants.iter().zip(required_proofs) {
+            let required_publication = proof.into_publication();
+            if required_publication.app_id != ticket.app_id
+                || required_publication.attempt_id.as_deref()
+                    != Some(ticket.attempt.attempt_id.as_str())
+                || required_publication.asset_id.as_deref()
+                    != Some(ticket.attempt.asset_id.as_str())
+                || required_publication.variant_key.as_deref() != Some(required.key.as_str())
+                || required_publication.digest != required.digest
+                || !matches!(
+                    required_publication.state,
+                    crate::assets::AssetPublicationState::Planned
+                        | crate::assets::AssetPublicationState::Staged
+                )
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_RECORD_INVALID",
+                    "assets",
+                    "a committed required-rendition proof does not match finalization",
+                ));
+            }
+            required_publications.push(required_publication);
+        }
+        let publication_put_leases = std::iter::once(&publication)
+            .chain(required_publications.iter())
+            .map(|publication| AssetPublicationPutLeaseV1::acquire(&publication.publication_id))
+            .collect();
         Ok(Self {
             ticket,
             prepared,
             publication,
+            required_publications,
+            publication_put_leases,
             grade,
         })
     }
@@ -627,25 +1234,118 @@ impl FinalizePutTicketV1 {
     /// deliberately database-free so transports can run remote/object-store
     /// latency without retaining the global Local writer.
     pub fn put(self) -> SnapbackResult<FinalizeCommitTicketV1> {
+        if self.prepared.required_variants.len() != self.required_publications.len()
+            || self.publication_put_leases.len() != self.required_publications.len() + 1
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_RECORD_INVALID",
+                "assets",
+                "the required rendition publication plans do not match the prepared variants",
+            ));
+        }
         let planned_key = &self.publication.planned_key;
-        self.ticket
+        let primary_put_lease = &self.publication_put_leases[0];
+        primary_put_lease.transition_if_active(AssetPublicationPutLeasePhaseV1::InFlight)?;
+        let copied_from_staging = self
+            .ticket
             .store
-            .copy_from_staging(self.prepared.canonical.object.as_ref(), planned_key)?;
+            .copy_from_staging(self.prepared.canonical.object.as_ref(), planned_key);
+        if !primary_put_lease.is_active() {
+            return Err(asset_publication_put_lease_expired());
+        }
+        copied_from_staging?;
         let copied = self
             .ticket
             .store
-            .hash(crate::assets_store::AssetObjectRef::Blob(planned_key))?;
+            .hash(crate::assets_store::AssetObjectRef::Blob(planned_key));
+        if !primary_put_lease.is_active() {
+            return Err(asset_publication_put_lease_expired());
+        }
+        let copied = copied?;
         if copied.digest != self.prepared.canonical.digest
             || copied.byte_length != self.prepared.canonical.byte_length
         {
-            let _ = self.ticket.store.delete_blob(planned_key);
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_STORE_UNAVAILABLE",
                 "assets",
                 "the published object did not verify against the canonical digest",
             ));
         }
-        Ok(FinalizeCommitTicketV1 { put: self })
+        primary_put_lease.transition_if_active(AssetPublicationPutLeasePhaseV1::CommitPending)?;
+        let mut prepared_required = Vec::with_capacity(self.required_publications.len());
+        for (index, (prepared, publication)) in self
+            .prepared
+            .required_variants
+            .iter()
+            .zip(&self.required_publications)
+            .enumerate()
+        {
+            let put_lease = &self.publication_put_leases[index + 1];
+            put_lease.transition_if_active(AssetPublicationPutLeasePhaseV1::InFlight)?;
+            let put = self
+                .ticket
+                .store
+                .put_blob_idempotent(&publication.planned_key, &prepared.rendered);
+            if !put_lease.is_active() {
+                return Err(asset_publication_put_lease_expired());
+            }
+            put?;
+            let copied = self
+                .ticket
+                .store
+                .hash(crate::assets_store::AssetObjectRef::Blob(
+                    &publication.planned_key,
+                ));
+            if !put_lease.is_active() {
+                return Err(asset_publication_put_lease_expired());
+            }
+            let copied = copied?;
+            if copied.digest != prepared.digest || copied.byte_length != prepared.byte_length {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                    "assets",
+                    "the published required variant object did not verify",
+                ));
+            }
+            put_lease.transition_if_active(AssetPublicationPutLeasePhaseV1::CommitPending)?;
+            prepared_required.push(snapback_kernel::storage::AssetPreparedVariant {
+                key: prepared.key.clone(),
+                width: prepared.width,
+                publication: publication.clone(),
+                digest: prepared.digest.clone(),
+                byte_length: prepared.byte_length,
+                content_type: prepared.content_type.clone(),
+                recipe_version: prepared.recipe_version,
+            });
+        }
+        Ok(FinalizeCommitTicketV1 {
+            put: self,
+            prepared_required,
+        })
+    }
+}
+
+impl Clone for FinalizePutTicketV1 {
+    fn clone(&self) -> Self {
+        let publication_put_leases = std::iter::once(&self.publication)
+            .chain(self.required_publications.iter())
+            .map(|publication| AssetPublicationPutLeaseV1::acquire(&publication.publication_id))
+            .collect();
+        self.clone_with_leases(publication_put_leases)
+    }
+}
+
+impl Clone for FinalizeCommitTicketV1 {
+    fn clone(&self) -> Self {
+        Self {
+            // A commit ticket has no remaining store-write capability. Its
+            // witness-retry clone shares the same lease identities so the
+            // retry handoff does not manufacture a false sibling PUT.
+            put: self
+                .put
+                .clone_with_leases(self.put.publication_put_leases.clone()),
+            prepared_required: self.prepared_required.clone(),
+        }
     }
 }
 
@@ -783,8 +1483,15 @@ impl FinalizePutTicketV1 {
         AssetFinalizePreparation,
         AssetPublicationRecordV1,
         AssetIntegrityGrade,
+        Vec<AssetPublicationPutLeaseV1>,
     ) {
-        (self.ticket, self.prepared, self.publication, self.grade)
+        (
+            self.ticket,
+            self.prepared,
+            self.publication,
+            self.grade,
+            self.publication_put_leases,
+        )
     }
 
     #[cfg(any(test, feature = "remainder-tests"))]
@@ -794,8 +1501,72 @@ impl FinalizePutTicketV1 {
 }
 
 impl FinalizeCommitTicketV1 {
-    pub fn into_put(self) -> FinalizePutTicketV1 {
-        self.put
+    pub fn attempt(&self) -> &AssetAttemptRecordV1 {
+        self.put.ticket.attempt()
+    }
+
+    pub fn frozen_intent(&self) -> &crate::manifest::AssetUploadIntentDefinition {
+        &self.put.ticket.frozen_intent
+    }
+
+    pub fn into_parts(
+        self,
+    ) -> SnapbackResult<(
+        FinalizePutTicketV1,
+        Vec<snapback_kernel::storage::AssetPreparedVariant>,
+    )> {
+        for put_lease in &self.put.publication_put_leases {
+            put_lease.transition_if_active(AssetPublicationPutLeasePhaseV1::CommitPending)?;
+        }
+        Ok((self.put, self.prepared_required))
+    }
+}
+
+impl FinalizeCleanupTicketV1 {
+    pub fn new(
+        response: AssetFinalizeResponseV1,
+        store: std::sync::Arc<dyn crate::assets_store::AssetStore>,
+        staging_key: String,
+        reused_blob_key: Option<String>,
+        publication_put_leases: Vec<AssetPublicationPutLeaseV1>,
+    ) -> Self {
+        Self {
+            response,
+            store,
+            staging_key,
+            reused_blob_key,
+            publication_put_leases,
+        }
+    }
+
+    pub fn cleanup(self) -> SnapbackResult<FinalizeCleanupCommitTicketV1> {
+        self.store.delete_staging_pair(&self.staging_key)?;
+        let sibling_put_unresolved = self
+            .publication_put_leases
+            .first()
+            .is_some_and(AssetPublicationPutLeaseV1::has_unresolved_sibling);
+        if let Some(blob_key) = &self.reused_blob_key
+            && !sibling_put_unresolved
+        {
+            self.store.delete_blob(blob_key).map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                    "assets",
+                    format!("cannot remove condemned object: {error}"),
+                )
+            })?;
+        }
+        Ok(FinalizeCleanupCommitTicketV1 {
+            attempt_id: self.response.task.attempt_id.clone(),
+            asset_id: self.response.task.asset_id.clone(),
+            response: self.response,
+        })
+    }
+}
+
+impl FinalizeCleanupCommitTicketV1 {
+    pub fn into_parts(self) -> (AssetFinalizeResponseV1, String, String) {
+        (self.response, self.attempt_id, self.asset_id)
     }
 }
 

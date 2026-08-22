@@ -1,4 +1,4 @@
-use super::{LocalDatabase, SnapbackResult};
+use super::{LocalDatabase, SnapbackError, SnapbackResult};
 use crate::assets;
 use rusqlite::TransactionBehavior;
 use serde_json::Value;
@@ -134,6 +134,40 @@ impl LocalDatabase {
                 .map(|id| assets::load_attempt(tx, id))
                 .transpose()
                 .map(Option::flatten)
+        })
+    }
+
+    /// An on-demand width has no upload attempt. Its durable owner is the
+    /// exact asset/variant pair recorded with the publication: while the
+    /// source asset remains ready and that rendition is still absent, the
+    /// plan is re-drivable and maintenance must not condemn an unlocked PUT.
+    pub(super) fn publication_width_owner_live(
+        &mut self,
+        record: &assets::AssetPublicationRecordV1,
+    ) -> SnapbackResult<bool> {
+        if record.attempt_id.is_some() {
+            return Ok(false);
+        }
+        let owner = match (&record.asset_id, &record.variant_key) {
+            (Some(asset_id), Some(variant_key)) => Some((asset_id, variant_key)),
+            (None, None) => None,
+            _ => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_RECORD_INVALID",
+                    "assets",
+                    "a publication variant owner is only partially recorded",
+                ));
+            }
+        };
+        let Some((asset_id, variant_key)) = owner else {
+            return Ok(false);
+        };
+        self.asset_maintenance_transaction(|tx| {
+            let asset_ready = assets::load_asset(tx, asset_id)?
+                .is_some_and(|asset| asset.availability == assets::AssetAvailability::Ready);
+            let rendition_ready = assets::load_rendition_by_variant(tx, asset_id, variant_key)?
+                .is_some_and(|rendition| rendition.state == assets::AssetRenditionState::Ready);
+            Ok(asset_ready && !rendition_ready)
         })
     }
 
@@ -726,6 +760,13 @@ impl<'a> AssetMaintenanceKernel<'a> {
         record: &assets::AssetPublicationRecordV1,
     ) -> SnapbackResult<Option<assets::AssetAttemptRecordV1>> {
         self.db.publication_attempt(record)
+    }
+
+    pub fn publication_width_owner_live(
+        &mut self,
+        record: &assets::AssetPublicationRecordV1,
+    ) -> SnapbackResult<bool> {
+        self.db.publication_width_owner_live(record)
     }
 
     pub fn publication_stage_verified_object(

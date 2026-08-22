@@ -1312,6 +1312,16 @@ impl LocalDatabase {
         })
     }
 
+    fn test_asset_publication_count(&mut self) -> SnapbackResult<u64> {
+        self.asset_reads_transaction(|tx| {
+            Ok(tx.query_row(
+                "SELECT COUNT(*) FROM _snapback_asset_publications_v1",
+                [],
+                |row| row.get(0),
+            )?)
+        })
+    }
+
     fn test_asset_published_records(
         &mut self,
         rendition_id: &str,
@@ -1430,6 +1440,21 @@ impl LocalDatabase {
             )?;
             tx.execute(
                 "INSERT INTO profiles (_id, _version, _createdAt, _updatedAt, name)
+                 VALUES ('phantom_1', ?1, 1, 1, 'ghost')",
+                [version],
+            )?;
+            Ok(())
+        })
+    }
+
+    fn test_asset_insert_items_phantom(&mut self, version: u64) -> SnapbackResult<()> {
+        self.asset_reads_transaction(|tx| {
+            tx.execute(
+                "UPDATE _snapback_version SET version = MAX(version, ?1) WHERE id = 1",
+                [version],
+            )?;
+            tx.execute(
+                "INSERT INTO items (_id, _version, _createdAt, _updatedAt, value)
                  VALUES ('phantom_1', ?1, 1, 1, 'ghost')",
                 [version],
             )?;
@@ -2129,6 +2154,10 @@ impl<'a> AssetReadsKernel<'a> {
         self.db.test_asset_receipt_events(asset_id)
     }
 
+    pub fn publication_count(&mut self) -> SnapbackResult<u64> {
+        self.db.test_asset_publication_count()
+    }
+
     pub fn published_records(
         &mut self,
         rendition_id: &str,
@@ -2179,6 +2208,10 @@ impl<'a> AssetReadsKernel<'a> {
 
     pub fn insert_phantom(&mut self, version: u64) -> SnapbackResult<()> {
         self.db.test_asset_insert_phantom(version)
+    }
+
+    pub fn insert_items_phantom(&mut self, version: u64) -> SnapbackResult<()> {
+        self.db.test_asset_insert_items_phantom(version)
     }
 
     pub fn load_attempt(

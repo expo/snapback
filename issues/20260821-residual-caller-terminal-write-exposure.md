@@ -3,8 +3,14 @@
 Status: Open — THREE CRITICAL. The program's headline property is not yet true.
 Created: 2026-08-21
 Related: issues/20260821-authorized-effect-remedy-classification.md,
-issues/20260821-asset-width-prework-and-lazy-expiry-unfenced.md,
+issues/closed/20260821-asset-width-prework-and-lazy-expiry-unfenced.md,
 issues/20260821-stream-attempt-fence-blocked-on-flush-api.md, LLP 0058
+
+Update 2026-08-22: the asset subset described below is closed. Caller-backed finalize, width
+SQLite materialization, and attempt-inspect/TUS-HEAD lazy expiry now use split-phase caller
+reservations. The external blob PUT remains intentionally unfenced and is tracked by the separate
+durable authority-to-effect handoff design. The other critical and residual families in this
+ticket remain open.
 
 ## The question and the answer
 
@@ -72,7 +78,8 @@ webhook families that carry no session publication and are correctly mode-only.
 ## Shortest closure set
 
 1. Complete the nine in-flight migrations.
-2. Close the asset ticket, including finalize, width prework and read-side lazy expiry.
+2. **Completed 2026-08-22:** close the asset ticket, including finalize, width prework and
+   read-side lazy expiry.
 3. Refactor and fence caller-backed stream-attempt transitions per the stream ticket.
 4. Add split-phase caller reservations to the new direct-route families: detached action nested
    mutations; pending-effect, grant/OAuth and watch management decisions; pending-intent,
@@ -277,9 +284,11 @@ The classification ticket remains accurate: [authorized-effect-remedy-classifica
 
 I treated these as in-flight, not new findings. Push, Ask, and capability settlement remain excluded under the settlement ruling.
 
-### Asset ticket
+### Asset ticket (closed 2026-08-22)
 
-[asset-width-prework-and-lazy-expiry-unfenced.md](issues/20260821-asset-width-prework-and-lazy-expiry-unfenced.md:1) remains accurate.
+[asset-width-prework-and-lazy-expiry-unfenced.md](issues/closed/20260821-asset-width-prework-and-lazy-expiry-unfenced.md:1)
+recorded the pre-fix state below. Its SQLite findings are now closed; the external blob PUT is
+separately governed by the durable authority-to-effect handoff design.
 
 - `POST /assets/attempts/{id}/finalize` has no reservation across its plan/staged/completion transactions [asset_routes.rs](crates/snapback-server/src/server/asset_routes.rs:204). The durable plan begins at [engine.rs](crates/snapback-engine/src/local/engine.rs:13565); publication/quota settlement runs at [engine.rs](crates/snapback-engine/src/local/engine.rs:13741); each unguarded asset transaction commits at [asset_attempts.rs](crates/snapback-kernel/src/storage/asset_attempts.rs:255). It can publish asset state, consume quota, and expose content. **High.**
 - Strict-delivery and signed-URL width materialization occur before their reservations [asset_routes.rs](crates/snapback-server/src/server/asset_routes.rs:455), [asset_routes.rs](crates/snapback-server/src/server/asset_routes.rs:609). Variant plan/blob/rendition writes begin at [engine.rs](crates/snapback-engine/src/local/engine.rs:13423). The caller receives no URL/bytes after terminal authority, but durable blob/quota state remains. **Medium–High.**
@@ -312,7 +321,8 @@ The following are structurally safe or outside scope:
 To make the literal SQLite property true:
 
 1. Complete the nine in-flight migrations in the existing classification ticket.
-2. Close the asset ticket, including finalize, width prework, and read-side lazy expiry.
+2. **Completed 2026-08-22:** close the asset ticket, including finalize, width prework, and
+   read-side lazy expiry.
 3. Refactor and fence caller-backed stream-attempt transitions as specified by the stream ticket.
 4. Add split-phase caller reservations to the new direct-route families:
    - detached action nested mutations;
@@ -322,6 +332,6 @@ To make the literal SQLite property true:
 
 For multi-transaction routes, the permit must either span every sibling transaction or each transaction must acquire its own reservation before entering `LocalSnapback`. In particular, adding a guard only around grant/OAuth’s main transaction would leave the earlier authorization-clock commit exposed. Mode must remain the final guard at every commit.
 
-So the plain answer is: **the “no durable SQLite write after terminal caller authority” property is not yet true. The ordinary mutation seam is sound, but direct action-child, consent/management, auxiliary issuance, lazy-write, asset, stream, and nine in-flight mode-only paths still violate it.**
+So the plain answer is: **the “no durable SQLite write after terminal caller authority” property is not yet true. The ordinary mutation seam and the asset family are sound, but direct action-child, consent/management, auxiliary issuance, other lazy-write, stream, and nine in-flight mode-only paths still violate it.**
 
-No files were modified.
+The original read-only audit modified no files.

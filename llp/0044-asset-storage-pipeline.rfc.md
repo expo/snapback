@@ -5,6 +5,14 @@
 **Systems:** Assets, Storage, API, Security, Auth, Runtime, Deployment, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
+**Revised:** 2026-08-22 (same-recipe/version width-publication convergence now
+compares the exact prepared digest before bypassing quota; every width and
+finalizer primary/required PUT capability holds a bounded five-minute
+process-local lease through its final blob/rendition commit; cleanup and
+retirement honor every sibling lease; an expired or verification-failed
+service ticket never raw-deletes its shared key; and only the existing durable
+reconciliation path deletes after proving the key condemned and not owned by a
+live blob.)
 **Revised:** 2026-08-21 (AssetRef schema-evolution diagnostics now render the
 bounded old/new intent and media-policy identity, name the changed facts, and
 separate the attachment-hook-safe successor-field repair from whole-store
@@ -781,6 +789,16 @@ that key. Whichever reaches Phase C first publishes; the other reloads the
 complete attempt and returns the ordinary idempotent completion outcome, with
 no second completion receipt.
 
+**Dated amendment (2026-08-22).** Each of those finalizers acquires a separate
+lease for the shared primary publication and for every shared required-
+rendition publication. The leases survive Phase B, Phase C/D, witness-retry
+ticket cloning, and the dedup-loser cleanup handoff. Read-back failure leaves
+the planned object and row to durable recovery rather than deleting from a
+stale service-layer snapshot. Dedup-loser cleanup may remove its durably
+condemned key only when no sibling lease remains unresolved; otherwise the
+already-enqueued condemned-object work and publication sweep perform the same
+cleanup after the sibling resolves. This adds no cleanup path.
+
 Crash cuts remain unchanged. Phase A still commits `planned` before Phase B's
 object put; Phase C still commits `staged` before Phase D publishes the blob,
 renditions, and asset readiness. A crash after Phase A and before the put leaves
@@ -870,6 +888,45 @@ run follow a write-ahead publication protocol:
    condemned, its object is cleaned by reconciliation, and in the same
    transaction the loser acquires a reference to the winner's blob — the
    race converges on one stored object with both assets published.
+   A process-local sibling PUT ticket may still hold the same idempotent key
+   after the losing publication is condemned. Every width PUT/commit ticket
+   and every finalizer primary/required PUT/commit ticket therefore retains a
+   process-local lease on that exact durable publication through the staged and
+   final blob/rendition cuts, witness revalidation, and any immediate dedup-
+   loser cleanup, or until the ticket drops. Clones made for the witness retry
+   share one lease identity; independently prepared finalizers acquire sibling
+   identities. Cleanup and retirement defer while any sibling is active.
+
+   The lease is bounded at five minutes. Expiry revokes a ticket that has not
+   started its PUT or is merely waiting to commit. If the deadline passes
+   inside a blocking PUT, reconciliation may delete an already-condemned object
+   but retains the publication row as the uncertainty owner until the call
+   returns. The returning call refuses with the ordinary store-unavailable
+   diagnostic and does **not** delete: its service-layer publication snapshot
+   may be stale, because a sibling may have committed that exact key as a live
+   blob while the remote call was blocked. The next reconciliation pass checks
+   current durable state, never deletes a key owned by a live blob, and removes
+   a late re-created condemned object before retiring its row. Verification
+   failures follow the same rule. Thus a hung call cannot retain condemned
+   object bytes or a committed publication row indefinitely, while an
+   in-process late write remains discoverable and cannot delete a winner's
+   committed bytes.
+
+   A crash drops every process-local ticket. An ordinary S3 transport timeout
+   can do the same without a restart: the propagated error drops its ticket,
+   but an HTTP timeout cannot prove that the remote PUT was cancelled. That
+   does **not** make every width publication reclaimable: an attempt-less
+   `planned` or `staged` row remains live while its asset is Ready and the width
+   is absent, so only a future request for that exact width or deletion of the
+   asset resolves it. This process-local lease therefore fences neither a
+   timeout-late remote PUT nor one that serializes after restart; durable
+   remote-effect uncertainty is separate design work.
+
+   For same-recipe/version width-publication `AlreadyCurrent` convergence,
+   recipe lineage alone is never sufficient: the Ready blob must match the
+   planned/prepared immutable digest identity. This digest rule is width-only;
+   attempt-owned pre-quota convergence retains its existing lineage predicate,
+   and a newer recipe version still wins before the exact-digest predicate.
 4. **Reconciliation sweep.** A mandatory sweep (same runner substrate as
    processing) resolves stale `planned` and `staged` publication records,
    deletes condemned and orphaned objects, and repairs reference counts;

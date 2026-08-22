@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:c4a2cb9665c2cb19841e776480f391d7203a226d0832
 # @expo/snapback-client/react-binding
 
 Build-bound public API projection for `@expo/snapback-client/react-binding`. Canonical registry identity:
-`sha256:4057067b58c118541c9a4142f48093dae0a22774c9b21455000b893a1741702b`.
+`sha256:1bb420068a8bdca0845eb56d7374769c7892fecf25aba716a599ca338fead61b`.
 Runtime parity condition:
 `import` → `packages/snapback-client/react-binding.mjs`.
 
