@@ -4389,6 +4389,100 @@ impl crate::assets_store::AssetStore for BlockFirstCanonicalCopyStore {
     }
 }
 
+/// Test-store gate after a width ticket's blob PUT but before its verifying
+/// hash. The production runner can therefore race the exact external-effect
+/// window without sleeps or an S3 fixture.
+struct BlockFirstBlobHashStore {
+    inner: Arc<dyn crate::assets_store::AssetStore>,
+    entered: std::sync::Mutex<Option<std::sync::mpsc::Sender<()>>>,
+    release: std::sync::Mutex<std::sync::mpsc::Receiver<()>>,
+}
+
+impl crate::assets_store::AssetStore for BlockFirstBlobHashStore {
+    fn kind(&self) -> &'static str {
+        self.inner.kind()
+    }
+
+    fn append_staging(&self, key: &str, offset: u64, chunk: &[u8]) -> SnapbackResult<()> {
+        self.inner.append_staging(key, offset, chunk)
+    }
+
+    fn write_canonical(&self, key: &str, bytes: &[u8]) -> SnapbackResult<()> {
+        self.inner.write_canonical(key, bytes)
+    }
+
+    fn put_blob_idempotent(&self, key: &str, bytes: &[u8]) -> SnapbackResult<()> {
+        self.inner.put_blob_idempotent(key, bytes)
+    }
+
+    fn copy_from_staging(
+        &self,
+        source: crate::assets_store::AssetObjectRef<'_>,
+        blob_key: &str,
+    ) -> SnapbackResult<()> {
+        self.inner.copy_from_staging(source, blob_key)
+    }
+
+    fn read(&self, object: crate::assets_store::AssetObjectRef<'_>) -> SnapbackResult<Vec<u8>> {
+        self.inner.read(object)
+    }
+
+    fn read_chunk(
+        &self,
+        object: crate::assets_store::AssetObjectRef<'_>,
+        offset: u64,
+        max_len: usize,
+    ) -> SnapbackResult<Vec<u8>> {
+        self.inner.read_chunk(object, offset, max_len)
+    }
+
+    fn hash(
+        &self,
+        object: crate::assets_store::AssetObjectRef<'_>,
+    ) -> SnapbackResult<crate::assets_store::AssetObjectDigest> {
+        if matches!(object, crate::assets_store::AssetObjectRef::Blob(_)) {
+            let entered = self.entered.lock().expect("hash gate lock").take();
+            if let Some(entered) = entered {
+                entered.send(()).expect("announce blocked blob hash");
+                self.release
+                    .lock()
+                    .expect("hash release lock")
+                    .recv()
+                    .expect("release blocked blob hash");
+            }
+        }
+        self.inner.hash(object)
+    }
+
+    fn exists(&self, object: crate::assets_store::AssetObjectRef<'_>) -> SnapbackResult<bool> {
+        self.inner.exists(object)
+    }
+
+    fn len(&self, object: crate::assets_store::AssetObjectRef<'_>) -> SnapbackResult<Option<u64>> {
+        self.inner.len(object)
+    }
+
+    fn delete_blob(&self, key: &str) -> SnapbackResult<()> {
+        self.inner.delete_blob(key)
+    }
+
+    fn delete_staging_pair(&self, key: &str) -> SnapbackResult<()> {
+        self.inner.delete_staging_pair(key)
+    }
+
+    fn list_staging_keys(&self) -> SnapbackResult<Vec<String>> {
+        self.inner.list_staging_keys()
+    }
+
+    fn copy_blob(&self, from: &str, to: &str) -> SnapbackResult<()> {
+        self.inner.copy_blob(from, to)
+    }
+
+    fn wipe_all(&self) -> SnapbackResult<()> {
+        self.inner.wipe_all()
+    }
+}
+
 #[test]
 fn asset_cut_exports_and_restores_onto_an_empty_instance() {
     let scratch = tempfile::tempdir().expect("tempdir");
@@ -10911,6 +11005,171 @@ fn asset_gc_retains_condemned_publication_until_last_width_put_resolves() {
             .expect("probe cleaned late width object"),
         "no undiscoverable object remains after cleanup",
     );
+}
+
+#[test]
+fn asset_runner_retains_active_width_put_then_bounded_expiry_reclaims_it() {
+    let mut snapback =
+        asset_variant_snapback(crate::manifest::AssetLocationPolicy::Strip, Vec::new());
+    let fixture = crate::assets_image::fixtures::plain_jpeg(200, 150);
+    let created = asset_upload(&mut snapback, "user_a", &fixture, true);
+    asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+        .expect("publish width source");
+    let asset_id = created.task.asset_id.clone();
+    let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+
+    // A, B, and C prepare before the width exists. A publishes w128; B and C
+    // subsequently share a fresh stale publication P.
+    let mut preflight = || match snapback
+        .asset_width_preflight(&asset_id, 100)
+        .expect("runner-race width preflight")
+    {
+        AssetWidthPreflightV1::Proceed(ticket) => ticket,
+        AssetWidthPreflightV1::AlreadyReady(_) => panic!("width is not materialized yet"),
+    };
+    let first_plan = preflight().prepare().expect("render first width");
+    let second_plan = preflight().prepare().expect("render second width");
+    let mut third_prepare = preflight();
+    let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let gated_store: Arc<dyn crate::assets_store::AssetStore> = Arc::new(BlockFirstBlobHashStore {
+        inner: third_prepare.store_for_test(),
+        entered: std::sync::Mutex::new(Some(entered_tx)),
+        release: std::sync::Mutex::new(release_rx),
+    });
+    third_prepare.replace_store_for_test(gated_store);
+    let third_plan = third_prepare.prepare().expect("render third width");
+
+    let first_effect = authority
+        .reserve_authorized_effect("runner-race first width plan")
+        .expect("reserve first width plan");
+    let first_put = snapback
+        .asset_width_plan_with_authorized_effect(first_plan, first_effect)
+        .expect("commit first width plan");
+    let first_commit = first_put.put().expect("first width PUT succeeds");
+    let first_commit_effect = authority
+        .reserve_authorized_effect("runner-race first width commit")
+        .expect("reserve first width commit");
+    snapback
+        .asset_width_commit_with_authorized_effect(first_commit, first_commit_effect)
+        .expect("first request publishes the width rendition");
+
+    let second_effect = authority
+        .reserve_authorized_effect("runner-race second width plan")
+        .expect("reserve second width plan");
+    let second_put = snapback
+        .asset_width_plan_with_authorized_effect(second_plan, second_effect)
+        .expect("commit stale second width plan");
+    let third_effect = authority
+        .reserve_authorized_effect("runner-race third width plan")
+        .expect("reserve third width plan");
+    let third_put = snapback
+        .asset_width_plan_with_authorized_effect(third_plan, third_effect)
+        .expect("third request joins stale publication");
+    let publication_id = second_put.publication_for_test().publication_id.clone();
+    let planned_key = second_put.publication_for_test().planned_key.clone();
+    assert_eq!(
+        third_put.publication_for_test().publication_id,
+        publication_id,
+        "B and C share the same condemned-work publication",
+    );
+
+    let second_commit = second_put.put().expect("second width PUT succeeds");
+    let second_commit_effect = authority
+        .reserve_authorized_effect("runner-race second width commit")
+        .expect("reserve second width commit");
+    snapback
+        .asset_width_commit_with_authorized_effect(second_commit, second_commit_effect)
+        .expect("B converges and enqueues production condemned cleanup");
+
+    // C has completed the idempotent PUT and is blocked immediately before
+    // hash verification. This is the S3 412/delete/hash race in deterministic
+    // form. The production runner must retry rather than delete P.
+    let third_put_thread = std::thread::spawn(move || third_put.put());
+    entered_rx
+        .recv()
+        .expect("C reaches the post-PUT verifying hash");
+    let store = snapback.asset_store_obj().expect("width store");
+    assert!(
+        store
+            .exists(crate::assets_store::AssetObjectRef::Blob(&planned_key))
+            .expect("probe C's object before runner"),
+        "C's PUT completed before the runner interleaving",
+    );
+
+    let runner_now = now_millis();
+    let retained = snapback
+        .asset_runner_tick(runner_now)
+        .expect("production runner overlaps active C ticket");
+    assert!(
+        store
+            .exists(crate::assets_store::AssetObjectRef::Blob(&planned_key))
+            .expect("probe lease-retained object"),
+        "the production runner cannot delete before C verifies",
+    );
+    assert_eq!(retained.claimed, 1, "the production cleanup row is driven");
+    assert_eq!(
+        retained.completed, 0,
+        "leased cleanup stays claimed for receipted work-lease re-drive",
+    );
+
+    // Force the monotonic deadline instead of sleeping five minutes. An
+    // in-flight call becomes row-only uncertainty custody: the runner can
+    // reclaim bytes, but it cannot make the late effect undiscoverable.
+    snapback_services::assets::asset_width_publication_expire_put_leases_for_test(&publication_id);
+    assert_eq!(
+        snapback_services::assets::asset_width_publication_put_lease_state(&publication_id),
+        snapback_services::assets::AssetWidthPublicationPutLeaseStateV1::ExpiredInFlight,
+    );
+    let expired = snapback
+        .asset_runner_tick(runner_now + crate::assets::ASSET_WORK_LEASE_MS + 1)
+        .expect("runner re-drives after bounded lease expiry");
+    assert_eq!(
+        expired.leases_reclaimed, 1,
+        "the deferred cleanup reclaims through the ordinary work lease",
+    );
+    assert_eq!(expired.completed, 1, "expired cleanup completes");
+    assert!(
+        !store
+            .exists(crate::assets_store::AssetObjectRef::Blob(&planned_key))
+            .expect("probe reclaimed expired object"),
+        "an expired PUT cannot pin condemned object bytes",
+    );
+    assert!(
+        snapback
+            .db
+            .asset_maintenance()
+            .publication_records_in_state(crate::assets::AssetPublicationState::Condemned)
+            .expect("read expired in-flight owner")
+            .iter()
+            .any(|record| record.publication_id == publication_id),
+        "the durable condemned row owns uncertainty until C returns",
+    );
+
+    release_tx.send(()).expect("release C's verifying hash");
+    let lease_error = match third_put_thread.join().expect("C put thread joins") {
+        Ok(_) => panic!("C crossing the lease deadline must fail closed"),
+        Err(error) => error,
+    };
+    assert_eq!(
+        lease_error.diagnostic.code,
+        "SNAPBACK_ASSET_STORE_UNAVAILABLE"
+    );
+    assert_eq!(
+        lease_error.diagnostic.details["reason"],
+        "width-publication-lease-expired"
+    );
+    assert!(
+        !store
+            .exists(crate::assets_store::AssetObjectRef::Blob(&planned_key))
+            .expect("probe post-expiry cleanup"),
+        "the expired call leaves no object behind",
+    );
+
+    let retired = snapback
+        .asset_publication_maintain(runner_now + crate::assets::ASSET_WORK_LEASE_MS + 2)
+        .expect("retire objectless publication after uncertainty resolves");
+    assert_eq!(retired.retired, 1);
 }
 
 #[test]

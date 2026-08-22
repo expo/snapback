@@ -554,10 +554,90 @@ pub struct AssetWidthCommitTicketV1 {
     put_lease: AssetWidthPutLeaseV1,
 }
 
-fn asset_width_put_leases() -> &'static std::sync::Mutex<std::collections::BTreeMap<String, u64>> {
-    static LEASES: std::sync::OnceLock<std::sync::Mutex<std::collections::BTreeMap<String, u64>>> =
+/// Width PUT tickets have enough time for the S3 seam's bounded PUT plus
+/// read-back verification, but cannot retain condemned bytes or publication
+/// rows indefinitely when a blocking job is abandoned.
+pub const ASSET_WIDTH_PUT_LEASE_MS: u64 = 5 * 60 * 1000;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum AssetWidthPutLeasePhaseV1 {
+    Ready,
+    InFlight,
+    CommitPending,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct AssetWidthPutLeaseRecordV1 {
+    expires_at: std::time::Instant,
+    phase: AssetWidthPutLeasePhaseV1,
+}
+
+#[derive(Default)]
+struct AssetWidthPutLeaseRegistryV1 {
+    next_lease_id: u64,
+    publications: std::collections::BTreeMap<
+        String,
+        std::collections::BTreeMap<u64, AssetWidthPutLeaseRecordV1>,
+    >,
+}
+
+fn asset_width_put_leases() -> &'static std::sync::Mutex<AssetWidthPutLeaseRegistryV1> {
+    static LEASES: std::sync::OnceLock<std::sync::Mutex<AssetWidthPutLeaseRegistryV1>> =
         std::sync::OnceLock::new();
-    LEASES.get_or_init(|| std::sync::Mutex::new(std::collections::BTreeMap::new()))
+    LEASES.get_or_init(|| std::sync::Mutex::new(AssetWidthPutLeaseRegistryV1::default()))
+}
+
+/// Cleanup distinguishes an active lease from an external PUT that crossed
+/// its deadline. The latter no longer retains object bytes, but its durable
+/// condemned publication row remains the uncertainty owner until the call
+/// returns and drops the marker.
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AssetWidthPublicationPutLeaseStateV1 {
+    None,
+    Active,
+    ExpiredInFlight,
+}
+
+fn asset_width_publication_put_lease_state_at(
+    publication_id: &str,
+    now: std::time::Instant,
+) -> AssetWidthPublicationPutLeaseStateV1 {
+    let mut registry = asset_width_put_leases()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let Some(leases) = registry.publications.get_mut(publication_id) else {
+        return AssetWidthPublicationPutLeaseStateV1::None;
+    };
+    leases.retain(|_, lease| {
+        lease.expires_at > now || lease.phase == AssetWidthPutLeasePhaseV1::InFlight
+    });
+    let state = if leases.values().any(|lease| lease.expires_at > now) {
+        AssetWidthPublicationPutLeaseStateV1::Active
+    } else if leases
+        .values()
+        .any(|lease| lease.phase == AssetWidthPutLeasePhaseV1::InFlight)
+    {
+        AssetWidthPublicationPutLeaseStateV1::ExpiredInFlight
+    } else {
+        AssetWidthPublicationPutLeaseStateV1::None
+    };
+    if leases.is_empty() {
+        registry.publications.remove(publication_id);
+    }
+    state
+}
+
+fn asset_width_put_lease_expired() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+        "assets",
+        "the bounded width publication lease expired before the PUT/commit ticket resolved",
+    )
+    .with_details(serde_json::json!({
+        "reason": "width-publication-lease-expired",
+        "leaseMs": ASSET_WIDTH_PUT_LEASE_MS,
+    }))
 }
 
 /// Process-local lifetime token for one PUT capability. The durable
@@ -565,47 +645,115 @@ fn asset_width_put_leases() -> &'static std::sync::Mutex<std::collections::BTree
 /// from retiring that record while an in-memory ticket can still recreate its
 /// idempotent object.
 ///
-/// @ref LLP 0044#publication-and-crash-recovery — external PUT authority keeps
-/// its durable publication discoverable until the staged cut resolves.
+/// @ref LLP 0044#publication-and-crash-recovery — bounded external PUT
+/// authority keeps its durable publication discoverable through the final
+/// blob/rendition commit, with row-only custody after in-flight expiry.
 #[doc(hidden)]
 pub struct AssetWidthPutLeaseV1 {
     publication_id: String,
+    lease_id: u64,
 }
 
 impl AssetWidthPutLeaseV1 {
     fn acquire(publication_id: &str) -> Self {
-        let mut leases = asset_width_put_leases()
+        let mut registry = asset_width_put_leases()
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        *leases.entry(publication_id.to_owned()).or_default() += 1;
+        registry.next_lease_id = registry.next_lease_id.wrapping_add(1).max(1);
+        let lease_id = registry.next_lease_id;
+        registry
+            .publications
+            .entry(publication_id.to_owned())
+            .or_default()
+            .insert(
+                lease_id,
+                AssetWidthPutLeaseRecordV1 {
+                    expires_at: std::time::Instant::now()
+                        + std::time::Duration::from_millis(ASSET_WIDTH_PUT_LEASE_MS),
+                    phase: AssetWidthPutLeasePhaseV1::Ready,
+                },
+            );
         Self {
             publication_id: publication_id.to_owned(),
+            lease_id,
         }
+    }
+
+    fn transition_if_active(&mut self, phase: AssetWidthPutLeasePhaseV1) -> SnapbackResult<()> {
+        let now = std::time::Instant::now();
+        let mut registry = asset_width_put_leases()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let active = registry
+            .publications
+            .get_mut(&self.publication_id)
+            .and_then(|leases| leases.get_mut(&self.lease_id))
+            .is_some_and(|lease| {
+                if lease.expires_at > now {
+                    lease.phase = phase;
+                    true
+                } else {
+                    false
+                }
+            });
+        if active {
+            return Ok(());
+        }
+        if let Some(leases) = registry.publications.get_mut(&self.publication_id) {
+            leases.remove(&self.lease_id);
+            if leases.is_empty() {
+                registry.publications.remove(&self.publication_id);
+            }
+        }
+        Err(asset_width_put_lease_expired())
+    }
+
+    fn is_active(&self) -> bool {
+        let now = std::time::Instant::now();
+        asset_width_put_leases()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .publications
+            .get(&self.publication_id)
+            .and_then(|leases| leases.get(&self.lease_id))
+            .is_some_and(|lease| lease.expires_at > now)
     }
 }
 
 impl Drop for AssetWidthPutLeaseV1 {
     fn drop(&mut self) {
-        let mut leases = asset_width_put_leases()
+        let mut registry = asset_width_put_leases()
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        if let Some(count) = leases.get_mut(&self.publication_id) {
-            if *count > 1 {
-                *count -= 1;
-            } else {
-                leases.remove(&self.publication_id);
+        if let Some(leases) = registry.publications.get_mut(&self.publication_id) {
+            leases.remove(&self.lease_id);
+            if leases.is_empty() {
+                registry.publications.remove(&self.publication_id);
             }
         }
     }
 }
 
 #[doc(hidden)]
-pub fn asset_width_publication_has_outstanding_put(publication_id: &str) -> bool {
-    asset_width_put_leases()
+pub fn asset_width_publication_put_lease_state(
+    publication_id: &str,
+) -> AssetWidthPublicationPutLeaseStateV1 {
+    asset_width_publication_put_lease_state_at(publication_id, std::time::Instant::now())
+}
+
+#[cfg(any(test, feature = "remainder-tests"))]
+pub fn asset_width_publication_expire_put_leases_for_test(publication_id: &str) {
+    let mut registry = asset_width_put_leases()
         .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .get(publication_id)
-        .is_some_and(|count| *count > 0)
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    if let Some(leases) = registry.publications.get_mut(publication_id) {
+        let expired = std::time::Instant::now()
+            .checked_sub(std::time::Duration::from_millis(1))
+            .unwrap_or_else(std::time::Instant::now);
+        for lease in leases.values_mut() {
+            lease.expires_at = expired;
+        }
+    }
 }
 
 impl AssetWidthPrepareTicketV1 {
@@ -648,6 +796,19 @@ impl AssetWidthPrepareTicketV1 {
             ticket: self,
             prepared,
         })
+    }
+
+    #[cfg(any(test, feature = "remainder-tests"))]
+    pub fn store_for_test(&self) -> std::sync::Arc<dyn crate::assets_store::AssetStore> {
+        self.store.clone()
+    }
+
+    #[cfg(any(test, feature = "remainder-tests"))]
+    pub fn replace_store_for_test(
+        &mut self,
+        store: std::sync::Arc<dyn crate::assets_store::AssetStore>,
+    ) {
+        self.store = store;
     }
 }
 
@@ -738,13 +899,25 @@ impl AssetWidthPlanTicketV1 {
 impl AssetWidthPutTicketV1 {
     /// Perform and verify the irreversible external cut without a caller
     /// permit or database owner. The committed plan is its durable handoff.
-    pub fn put(self) -> SnapbackResult<AssetWidthCommitTicketV1> {
+    pub fn put(mut self) -> SnapbackResult<AssetWidthCommitTicketV1> {
+        self.put_lease
+            .transition_if_active(AssetWidthPutLeasePhaseV1::InFlight)?;
         let store = &self.plan.ticket.store;
         let publication = self.publication.publication();
-        store.put_blob_idempotent(&publication.planned_key, &self.plan.prepared.rendered)?;
+        let put = store.put_blob_idempotent(&publication.planned_key, &self.plan.prepared.rendered);
+        if !self.put_lease.is_active() {
+            let _ = store.delete_blob(&publication.planned_key);
+            return Err(asset_width_put_lease_expired());
+        }
+        put?;
         let copied = store.hash(crate::assets_store::AssetObjectRef::Blob(
             &publication.planned_key,
-        ))?;
+        ));
+        if !self.put_lease.is_active() {
+            let _ = store.delete_blob(&publication.planned_key);
+            return Err(asset_width_put_lease_expired());
+        }
+        let copied = copied?;
         if copied.digest != self.plan.prepared.digest
             || copied.byte_length != self.plan.prepared.byte_length
         {
@@ -754,6 +927,13 @@ impl AssetWidthPutTicketV1 {
                 "assets",
                 "the published variant object did not verify",
             ));
+        }
+        if let Err(error) = self
+            .put_lease
+            .transition_if_active(AssetWidthPutLeasePhaseV1::CommitPending)
+        {
+            let _ = store.delete_blob(&publication.planned_key);
+            return Err(error);
         }
         let AssetWidthPlanTicketV1 { ticket, prepared } = self.plan;
         Ok(AssetWidthCommitTicketV1 {
@@ -781,23 +961,25 @@ impl AssetWidthPutTicketV1 {
 
 impl AssetWidthCommitTicketV1 {
     pub fn into_parts(
-        self,
-    ) -> (
+        mut self,
+    ) -> SnapbackResult<(
         String,
         String,
         String,
         u64,
         crate::asset_proof::AssetWidthPreparedVariant,
         AssetWidthPutLeaseV1,
-    ) {
-        (
+    )> {
+        self.put_lease
+            .transition_if_active(AssetWidthPutLeasePhaseV1::CommitPending)?;
+        Ok((
             self.asset_id,
             self.key,
             self.app_id,
             self.app_quota,
             self.prepared,
             self.put_lease,
-        )
+        ))
     }
 }
 

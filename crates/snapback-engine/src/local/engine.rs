@@ -14489,9 +14489,11 @@ impl LocalSnapback {
             .asset_maintenance()
             .publication_records_in_state(assets::AssetPublicationState::Condemned)?;
         for record in condemned {
-            if snapback_services::assets::asset_width_publication_has_outstanding_put(
+            let put_lease = snapback_services::assets::asset_width_publication_put_lease_state(
                 &record.publication_id,
-            ) {
+            );
+            if put_lease == snapback_services::assets::AssetWidthPublicationPutLeaseStateV1::Active
+            {
                 continue;
             }
             let object = crate::assets_store::AssetObjectRef::Blob(&record.planned_key);
@@ -14504,6 +14506,15 @@ impl LocalSnapback {
             if store.exists(object)? && !owned_by_blob {
                 store.delete_blob(&record.planned_key)?;
                 report.objects_deleted += 1;
+            }
+            if put_lease
+                == snapback_services::assets::AssetWidthPublicationPutLeaseStateV1::ExpiredInFlight
+            {
+                // The bounded lease no longer retains object bytes, but an
+                // external PUT may still return after this deletion. Keep the
+                // durable row as its uncertainty owner until that call drops
+                // its process-local marker.
+                continue;
             }
             self.db
                 .asset_maintenance()
@@ -14518,9 +14529,10 @@ impl LocalSnapback {
             .asset_maintenance()
             .publication_records_in_state(assets::AssetPublicationState::Committed)?;
         for record in committed {
-            if snapback_services::assets::asset_width_publication_has_outstanding_put(
+            if snapback_services::assets::asset_width_publication_put_lease_state(
                 &record.publication_id,
-            ) {
+            ) == snapback_services::assets::AssetWidthPublicationPutLeaseStateV1::Active
+            {
                 continue;
             }
             if now_ms.saturating_sub(record.updated_at_ms)
@@ -14582,7 +14594,7 @@ impl LocalSnapback {
             )?;
         let put = plan.into_put(proof)?;
         let commit = put.put()?;
-        let (asset_id, key, app_id, app_quota, mut prepared, _put_lease) = commit.into_parts();
+        let (asset_id, key, app_id, app_quota, mut prepared, _put_lease) = commit.into_parts()?;
         let stage_outcome = self
             .db
             .asset_attempts()
@@ -14684,7 +14696,7 @@ impl LocalSnapback {
         ticket: AssetWidthCommitTicketV1,
         authorized_effect: AuthorizedEffectReservation,
     ) -> SnapbackResult<String> {
-        let (asset_id, key, app_id, app_quota, mut prepared, _put_lease) = ticket.into_parts();
+        let (asset_id, key, app_id, app_quota, mut prepared, _put_lease) = ticket.into_parts()?;
         let stage_outcome = self
             .db
             .asset_attempts()
@@ -15227,9 +15239,19 @@ impl LocalSnapback {
 
         // Phase C: drive each claimed row by kind, then settle it with its
         // own receipt. Store effects run outside the settle transaction and
-        // are idempotent, exactly like finalization's object puts.
+        // are idempotent, exactly like finalization's object puts. Condemned
+        // cleanup overlapping an active width PUT deliberately leaves its
+        // row claimed: the ordinary work-lease reclaim is the bounded,
+        // receipted re-drive without burning the retry ceiling.
         for mut row in claimed {
             let outcome = self.asset_execute_work(&row, now_ms);
+            let deferred_by_width_put = outcome.as_ref().err().is_some_and(|error| {
+                error.diagnostic.code == "SNAPBACK_ASSET_STORE_UNAVAILABLE"
+                    && error.diagnostic.details["reason"] == "active-width-publication-put-lease"
+            });
+            if deferred_by_width_put {
+                continue;
+            }
             let (completed, retried, exhausted) = self
                 .db
                 .asset_maintenance()
@@ -15257,15 +15279,33 @@ impl LocalSnapback {
             assets::ASSET_WORK_KIND_CONDEMNED_CLEANUP => {
                 let store = self.asset_store_obj()?;
                 let condemned = self.db.asset_attempts().work_condemned_publications()?;
+                let mut active_put_retained = false;
                 for record in condemned
                     .iter()
                     .filter(|record| record.attempt_id.as_deref() == row.attempt_id.as_deref())
                 {
+                    if snapback_services::assets::asset_width_publication_put_lease_state(
+                        &record.publication_id,
+                    ) == snapback_services::assets::AssetWidthPublicationPutLeaseStateV1::Active
+                    {
+                        active_put_retained = true;
+                        continue;
+                    }
                     if store.exists(crate::assets_store::AssetObjectRef::Blob(
                         &record.planned_key,
                     ))? {
                         store.delete_blob(&record.planned_key)?;
                     }
+                }
+                if active_put_retained {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                        "assets",
+                        "condemned cleanup is deferred by an active width publication PUT lease",
+                    )
+                    .with_details(serde_json::json!({
+                        "reason": "active-width-publication-put-lease",
+                    })));
                 }
                 let _ = now_ms;
                 Ok(None)

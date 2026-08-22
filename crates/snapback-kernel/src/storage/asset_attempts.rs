@@ -106,12 +106,24 @@ fn asset_commit_prepared_variant(
             assets::AssetPublicationState::Condemned,
             now,
         )?;
+        // @ref LLP 0044#processing-runner-and-idempotency — cleanup work is
+        // generation-fenced at claim, so condemnation must enqueue the
+        // owning asset's current generation rather than an unfenced sentinel.
+        let lifecycle_generation = assets::load_asset(tx, asset_id)?
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_UNKNOWN",
+                    "assets",
+                    "a condemned publication cleanup has no owning asset",
+                )
+            })?
+            .lifecycle_generation;
         assets::enqueue_work(
             tx,
             assets::ASSET_WORK_KIND_CONDEMNED_CLEANUP,
             asset_id,
             None,
-            0,
+            lifecycle_generation,
             now,
         )?;
         Ok(())

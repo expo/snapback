@@ -5,10 +5,11 @@
 **Systems:** Assets, Storage, API, Security, Auth, Runtime, Deployment, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-22 (width-publication convergence now compares the exact
-prepared digest before bypassing quota, and each width PUT/commit ticket holds
-its publication row live through resolution so GC cannot retire the durable
-owner while a sibling ticket can still recreate its object.)
+**Revised:** 2026-08-22 (same-recipe/version width-publication convergence now
+compares the exact prepared digest before bypassing quota; each width PUT/commit
+ticket holds a bounded five-minute process-local lease through its final
+blob/rendition commit, and both the reconciliation sweep and production
+condemned-work runner honor its active/object-retention state.)
 **Revised:** 2026-08-21 (AssetRef schema-evolution diagnostics now render the
 bounded old/new intent and media-policy identity, name the changed facts, and
 separate the attachment-hook-safe successor-field repair from whole-store
@@ -876,12 +877,31 @@ run follow a write-ahead publication protocol:
    race converges on one stored object with both assets published.
    A process-local sibling PUT ticket may still hold the same idempotent key
    after the losing publication is condemned. Every width PUT/commit ticket
-   therefore retains a process-local lease on that durable publication through
-   its staged cut; reconciliation may delete and retire the row only after the
-   last such ticket resolves or drops. A crash drops every ticket before
-   recovery, while the durable row remains discoverable. Recipe lineage alone
-   is never sufficient for convergence; the Ready blob must match the
-   planned/prepared immutable digest identity.
+   therefore retains a process-local lease on that durable publication until
+   `asset_width_commit_with_authorized_effect` / `asset_resolve_width_variant`
+   returns — through the staged and final blob/rendition cuts — or the ticket
+   drops. The lease is bounded at five minutes. Expiry revokes a ticket that
+   has not started its PUT or is merely waiting to commit. If the deadline
+   passes inside a blocking PUT, cleanup may delete the condemned object but
+   retains the publication row as the uncertainty owner until the call returns;
+   the returning call refuses, issues a not-found-tolerant delete for any
+   object it wrote, and reports the ordinary store-unavailable diagnostic. A
+   delete error leaves the durable row for reconciliation. Thus a hung call
+   cannot retain condemned object bytes or a committed publication row
+   indefinitely, while an in-process late write remains discoverable.
+
+   A crash drops every process-local ticket. That does **not** make every width
+   publication reclaimable: an attempt-less `planned` or `staged` row remains
+   live while its asset is Ready and the width is absent, so only a future
+   request for that exact width or deletion of the asset resolves it. Nor does
+   this process-local lease fence a remote PUT that serializes only after a
+   restart; durable remote-effect uncertainty is separate design work.
+
+   For same-recipe/version width-publication `AlreadyCurrent` convergence,
+   recipe lineage alone is never sufficient: the Ready blob must match the
+   planned/prepared immutable digest identity. This digest rule is width-only;
+   attempt-owned pre-quota convergence retains its existing lineage predicate,
+   and a newer recipe version still wins before the exact-digest predicate.
 4. **Reconciliation sweep.** A mandatory sweep (same runner substrate as
    processing) resolves stale `planned` and `staged` publication records,
    deletes condemned and orphaned objects, and repairs reference counts;
