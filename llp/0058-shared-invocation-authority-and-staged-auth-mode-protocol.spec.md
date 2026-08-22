@@ -12,7 +12,9 @@ database-as-one-file model per LLP 0192.)
 **Revised:** 2026-08-21 (split-phase authorized-effect fence: ordinary
 authority-sensitive durable effects reserve stream/session and optional
 service permits before Local, then acquire mode admission last at the inner
-commit boundary; mode-only and terminal-carrier sites remain explicit.)
+commit boundary; mode-only and terminal-carrier sites remain explicit. Records
+which landed sites use which remedy, and that terminal accounting is mode-only
+by ruling rather than by omission.)
 **Revised:** 2026-08-12 (Dev browser-origin hardening: body-selected users are
 admitted only from the bound origin or an explicit exact loopback allowlist;
 no-Origin trusted-local callers are unchanged). 2026-08-12 (target registry
@@ -1365,6 +1367,40 @@ reservations and drains that predecessor permit, so the effect commits before
 the terminal durable write. No stream/session/service mutex is acquired from
 beneath Local, SQLite, or the later-ranked mode guard, and no mutex guard crosses
 an await.
+
+#### Which sites use which remedy
+
+A site needs the split-phase reservation only when a *live caller authority* can
+retire mid-flight. Job, watch and webhook contexts reconstruct credential-free
+execution authority and carry no session publication to reserve, so the mode
+guard alone is both correct and sufficient there. Classification and per-site
+evidence: `issues/20260821-authorized-effect-remedy-classification.md`.
+
+**Split-phase (caller-backed).** The ordinary HTTP mutation seam, and the asset
+sites: upload-attempt creation; cancellation and TUS termination; TUS preflight
+lazy expiry and the acknowledgement offset CAS; explicit-delete tombstone;
+signed-URL issuance receipt; strict-delivery receipt.
+
+**Mode guard only (no session publication exists to reserve).** Initial one-off
+job claim; seven watch-job families (evaluation begin, dead-state transition,
+decision/enqueue, retry/failure, firing settlement/retry, webhook reservation,
+webhook-attempt settlement); derived-fork egress-denial marker; registered-writer
+coverage-gap persistence on admitted callers only. Operator and lifecycle writer
+openings carry no app admission authority and are deliberately unfenced.
+
+**Terminal accounting is mode-only by ruling, not by omission.** Ask spend
+settlement, push settlement and capability-use settlement truthfully settle an
+outcome that has already been caused. Fencing them against a retired caller
+would not prevent the effect — it would strand the reservation and hide the
+outcome. See `issues/20260821-terminal-accounting-settlement-ruling.md`.
+
+**Irreversible and external effects are withheld, not fenced.** Holding a guard
+across the moment of irreversibility is too late; authority transfers to a
+durable record before the physical cut, and the cut is performed from that
+record. See `issues/20260821-durable-authority-to-effect-handoff-design.md`.
+
+Each fenced site carries a mutation test that fails when its own fence is
+removed; a fence without such a test is not considered proven.
 
 Credential precedence under sessions remains LLP 0039/0057's: a current bearer,
 otherwise anonymous; malformed/unknown is `SNAPBACK_AUTH_REQUIRED`;
