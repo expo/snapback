@@ -99,4 +99,4 @@ post-landing document-result split.
 The complete source/runtime authority remains in LLP 0237/0252/0253 and the
 handler-runtime Guide. This table is only the bounded first-read projection.
 
-landing SHA: TBD
+landing SHA: a5e518c0a

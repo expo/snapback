@@ -123,7 +123,7 @@ export const HANDLER_PROFILE_DIAGNOSTICS = Object.freeze([
   // @ref LLP 0253#s43-returns-lowering-kind-partitioned-refusing — Familiar
   // mutation/action document composites refuse with the first-read dialect
   // rewrite at the point of generation, before activation output exists.
-  rule('familiar.result.unlowerable', 'SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE', 'definition-evaluation', 'Use the Explicit profile result: grammar for mutation/action document composites.', 'translate-the-familiar-handler-dialect', FAMILIAR_HANDLER_DIALECT_GUIDE),
+  rule('familiar.result.unlowerable', 'SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE', 'definition-evaluation', 'See the diagnostic message and the Familiar handler dialect table.', 'translate-the-familiar-handler-dialect', FAMILIAR_HANDLER_DIALECT_GUIDE),
   rule('runtime.ambient-capability', 'SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED', 'runtime-check', 'Use the operation kind and ctx capability named by the diagnostic.', 'static-and-runtime-refusals'),
   rule('runtime.export.required', 'SNAPBACK_HANDLER_EXPORT_MISSING', 'runtime-check', 'Register the closed-script export on globalThis.__snapbackHandlers.', 'closed-script-handler-files'),
 ]);

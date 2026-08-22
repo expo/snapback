@@ -112,6 +112,10 @@ export const listTodos = defineJsQuery({
     handlerRuleForCode('SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE').guideAnchor,
     '/_snapback/guide/backend/familiar-profile.md#translate-the-familiar-handler-dialect',
   );
+  assert.equal(
+    handlerRuleForCode('SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE').alternative,
+    'See the diagnostic message and the Familiar handler dialect table.',
+  );
   const profileRecord = generated.artifactIndex.files.find(({ path }) => path === 'handler-runtime-profile.v1.json');
   assert.equal(profileRecord.logicalKind, 'handler-runtime-profile');
   assert.equal(profileRecord.consumer, 'developer-tooling');
