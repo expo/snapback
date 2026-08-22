@@ -16227,23 +16227,26 @@ export class SnapbackClient {
       // paths) is explicitly superseded; the first establish has none.
       // Capture only after acquiring the per-handle subscribe queue.
       let readinessRetries = 0;
-      for (;;) {
-        assertSubscribeLifecycle(lifecycle);
-        const supersedes = pendingSupersedesSubscriptionId
-          ?? handle.subscriptionId
-          ?? initialSupersedes;
-        const epochAtStart = socketLossEpoch;
-        const demandEpochAtStart = resubscribeDemandEpoch;
-        const durableAttempt = {
-          envelopes: [],
-          overflowed: false,
-          subscriptionId: null,
-          superseded: false,
-          supersedingReason: null,
-          publicationGeneration: subscriptionPublicationGeneration,
-        };
-        preSubscribeDurableAttempt = durableAttempt;
-        exclusiveSubscribeAttempt = durableAttempt;
+      let ownedExclusiveAttempt = null;
+      try {
+        for (;;) {
+          assertSubscribeLifecycle(lifecycle);
+          const supersedes = pendingSupersedesSubscriptionId
+            ?? handle.subscriptionId
+            ?? initialSupersedes;
+          const epochAtStart = socketLossEpoch;
+          const demandEpochAtStart = resubscribeDemandEpoch;
+          const durableAttempt = {
+            envelopes: [],
+            overflowed: false,
+            subscriptionId: null,
+            superseded: false,
+            supersedingReason: null,
+            publicationGeneration: subscriptionPublicationGeneration,
+          };
+          preSubscribeDurableAttempt = durableAttempt;
+          exclusiveSubscribeAttempt = durableAttempt;
+          ownedExclusiveAttempt = durableAttempt;
         let heldResume = null;
         let sub = null;
         try {
@@ -16336,17 +16339,11 @@ export class SnapbackClient {
             }
             pendingSupersedesSubscriptionId = sub.subscription_id;
             initialSupersedes = null;
-            if (exclusiveSubscribeAttempt === durableAttempt) {
-              exclusiveSubscribeAttempt = null;
-            }
             continue;
           }
         } catch (error) {
           if (preSubscribeDurableAttempt === durableAttempt) {
             preSubscribeDurableAttempt = null;
-          }
-          if (exclusiveSubscribeAttempt === durableAttempt) {
-            exclusiveSubscribeAttempt = null;
           }
           const code = error?.diagnostic?.code;
           if (
@@ -16570,9 +16567,6 @@ export class SnapbackClient {
           if (preSubscribeDurableAttempt === durableAttempt) {
             preSubscribeDurableAttempt = null;
           }
-          if (exclusiveSubscribeAttempt === durableAttempt) {
-            exclusiveSubscribeAttempt = null;
-          }
           if (preparedMaterialization) {
             preparedMaterialization.context.publicationGuard = null;
           }
@@ -16615,6 +16609,11 @@ export class SnapbackClient {
           }
         }
         return sub;
+        }
+      } finally {
+        if (exclusiveSubscribeAttempt === ownedExclusiveAttempt) {
+          exclusiveSubscribeAttempt = null;
+        }
       }
     };
 

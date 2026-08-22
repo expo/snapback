@@ -139,4 +139,4 @@ Verification:
 - Affected password-auth, hosted-ephemeral, ephemeral-room, coordinator, and
   missed-wakeup suites passed.
 
-Landing SHA: TBD
+Landing SHA: ea062befb5419dffcec5679c84e7f2325f432af4

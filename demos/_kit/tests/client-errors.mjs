@@ -2317,6 +2317,103 @@ try {
     return { subscribeCalls, events };
   });
 
+  await suite.check('unscoped resync during a session-replaced readiness wait keeps one exclusive successor owner', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_session_replaced_resync');
+    const db = new SnapbackClient('http://stub');
+    const events = [];
+    const subscribeInputs = [];
+    db.subscribeLive = async (_name, options) => {
+      const attempt = subscribeInputs.length + 1;
+      subscribeInputs.push({ attempt, supersedes: options.supersedes ?? null });
+      if (attempt === 2) {
+        throw diagnosticError(
+          'SNAPBACK_CONNECTION_SESSION_REPLACED',
+          'the successor POST raced the current socket session',
+        );
+      }
+      return {
+        subscription_id: `sub_session_replaced_resync_${attempt}`,
+        snapshot: { version: attempt, rows: [{ _id: `attempt_${attempt}` }] },
+      };
+    };
+    db.unsubscribeLive = async () => ({ removed: true });
+
+    const before = FakeWebSocket.instances.length;
+    const establishing = db.liveQuery('listTodos', {
+      connectionId: 'conn_session_replaced_resync',
+      transport: 'stream',
+      fallbackToPoll: false,
+      stream: { freshnessBudgetMs: 1_000 },
+      onSubscriptionEvent: (event) => events.push(event),
+    });
+    const ws = await nextSocket(before);
+    ws.dispatch('open', {});
+    const handle = await establishing;
+    const predecessorSubscriptionId = handle.subscriptionId;
+    const callsBefore = subscribeInputs.length;
+    const receiptsBefore = events.filter((event) => event.event === 'resubscribed').length;
+    const sentBefore = ws.sent.length;
+    const consumers = db.__laneConsumers.get('conn_session_replaced_resync');
+
+    for (const consumer of [...consumers.durable]) {
+      consumer({ kind: 'resync_required', reason: 'outbox_overflow' });
+    }
+    await waitFor(
+      () => subscribeInputs.length === callsBefore + 1,
+      'the successor POST to reach the effect-free session-replaced refusal',
+    );
+    const readinessPing = await nextSentPing(ws, sentBefore);
+    assertEqual(
+      subscribeInputs.length,
+      callsBefore + 1,
+      'the refused successor waits without issuing its retry POST',
+    );
+
+    // This connection-wide sentinel lands in the exact waitUntilReady window.
+    // The exclusive loop must absorb it as supersession of the refused attempt;
+    // entering resubscribe() here would bump the demand epoch and add successor D
+    // after the readiness retry installs successor C.
+    for (const consumer of [...consumers.durable]) {
+      consumer({ kind: 'resync_required', reason: 'outbox_overflow' });
+    }
+    await sleep(20);
+    assertEqual(
+      subscribeInputs.length,
+      callsBefore + 1,
+      'the overlapping resync leaves the readiness-waiting loop as sole replacement owner',
+    );
+
+    acknowledgePing(ws, readinessPing);
+    await waitFor(
+      () => handle.subscriptionId === `sub_session_replaced_resync_${callsBefore + 2}`,
+      'the single readiness retry successor to install',
+    );
+    await sleep(100);
+    assertEqual(
+      subscribeInputs.length,
+      callsBefore + 2,
+      'the 409 plus readiness retry creates exactly two successor POST attempts and no demand-loop successor',
+    );
+    assertEqual(
+      events.filter((event) => event.event === 'resubscribed').length,
+      receiptsBefore + 1,
+      'the race installs exactly one authoritative successor receipt',
+    );
+    assertEqual(
+      subscribeInputs.slice(callsBefore).map(({ supersedes }) => supersedes),
+      [predecessorSubscriptionId, predecessorSubscriptionId],
+      'both the refused POST and its sole retry supersede the same predecessor',
+    );
+    const installedSubscriptionId = handle.subscriptionId;
+    handle.dispose();
+    return {
+      successorPostAttempts: subscribeInputs.length - callsBefore,
+      successorReceipts: events.filter((event) => event.event === 'resubscribed').length - receiptsBefore,
+      installedSubscriptionId,
+    };
+  });
+
   await suite.check('stream readiness timeout sends no retry after the effect-free refusal', async () => {
     globalThis.WebSocket = FakeWebSocket;
     globalThis.fetch = grantFetch('conn_session_timeout');
