@@ -36016,6 +36016,15 @@ fn stale_apply_has_no_durable_effect() {
 
 // Bounded commit capsule prototype -----------------------------------------------------------
 
+static COMMIT_CAPSULE_REGISTRY_TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+async fn lock_commit_capsule_registry_tests() -> tokio::sync::MutexGuard<'static, ()> {
+    COMMIT_CAPSULE_REGISTRY_TEST_LOCK
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .await
+}
+
 #[derive(Default)]
 struct CommitCapsuleBarrier {
     reached: AtomicBool,
@@ -36258,6 +36267,9 @@ struct CommitCapsuleUncertain<Gate> {
     _gate: Arc<StdMutex<Option<Gate>>>,
 }
 
+type CommitCapsuleTerminalUncertain =
+    CommitCapsuleUncertain<crate::auth::service_fence::ServiceAuthorityTerminalGate>;
+
 struct CommitCapsulePending<'connection, Gate> {
     pending: Option<crate::storage::commit_capsule_prototype::PrototypePending<'connection>>,
     gate: Arc<StdMutex<Option<Gate>>>,
@@ -36478,12 +36490,11 @@ async fn run_commit_capsule_prototype<Gate: Send + 'static>(
 
 fn commit_capsule_retention<Gate: Send + 'static>(
     intent: &crate::storage::commit_capsule_prototype::PrototypeIntent,
-) -> (
+) -> crate::diagnostic::SnapbackResult<(
     super::CommitUncertainRetention<CommitCapsuleUncertain<Gate>>,
     super::CommitUncertainRetentionHandle<CommitCapsuleUncertain<Gate>>,
-) {
+)> {
     super::CommitUncertainRetention::new(intent.operation_id.clone())
-        .expect("reserve bounded commit capsule uncertainty retention")
 }
 
 fn commit_capsule_intent(
@@ -36528,13 +36539,63 @@ fn bounded_commit_capsule_diagnostics_are_typed_503s_with_effect_facts() {
     );
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn bounded_commit_capsule_retention_exhaustion_is_typed_and_effect_free() {
+    let _registry_test_guard = lock_commit_capsule_registry_tests().await;
+    let intent = commit_capsule_intent("retention-registry-exhaustion");
+    let mut reservations =
+        Vec::with_capacity(super::commit_capsule::MAX_COMMIT_UNCERTAIN_RETENTIONS);
+    for _ in 0..super::commit_capsule::MAX_COMMIT_UNCERTAIN_RETENTIONS {
+        reservations.push(
+            commit_capsule_retention::<()>(&intent)
+                .expect("every slot through the declared retention bound is available"),
+        );
+    }
+
+    let snapshots = super::CommitUncertainRetentionHandle::<CommitCapsuleUncertain<()>>::
+        snapshots_by_operation_identity(&intent.operation_id);
+    assert_eq!(
+        snapshots.len(),
+        super::commit_capsule::MAX_COMMIT_UNCERTAIN_RETENTIONS
+    );
+    assert!(snapshots.iter().all(|snapshot| {
+        snapshot.operation_identity == intent.operation_id
+            && snapshot.state == super::CommitUncertainRetentionState::Reserved
+    }));
+
+    let error = match commit_capsule_retention::<()>(&intent) {
+        Ok(_) => panic!("the retention registry must refuse its first over-bound reservation"),
+        Err(error) => error,
+    };
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_EXHAUSTED"
+    );
+    assert_eq!(
+        error.diagnostic.details["maxEntries"],
+        super::commit_capsule::MAX_COMMIT_UNCERTAIN_RETENTIONS
+    );
+    assert_eq!(error.diagnostic.details["effectCommitted"], false);
+    assert_eq!(error.diagnostic.details["effectMayHaveCommitted"], false);
+    assert_eq!(error.diagnostic.details["retryable"], false);
+
+    drop(reservations);
+    assert!(
+        super::CommitUncertainRetentionHandle::<CommitCapsuleUncertain<()>>::
+            snapshots_by_operation_identity(&intent.operation_id)
+            .is_empty()
+    );
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn bounded_commit_capsule_unpolled_future_owns_no_authority_permit() {
+    let _registry_test_guard = lock_commit_capsule_registry_tests().await;
     let database = CommitCapsulePrototypeDatabase::new().await;
     let intent = commit_capsule_intent("unpolled-reservation");
     let caller = CommitCapsuleCallerFixture::new("unpolled-reservation").await;
     let deadline = tokio::time::Instant::now() + Duration::from_millis(200);
-    let (retention, _retained) = commit_capsule_retention(&intent);
+    let (retention, _retained) = commit_capsule_retention(&intent)
+        .expect("reserve bounded commit capsule uncertainty retention");
 
     // Constructing the future transfers only prepared authority. Until the
     // capsule is polled, no reservation exists that can pin terminal logout.
@@ -36567,6 +36628,7 @@ async fn bounded_commit_capsule_unpolled_future_owns_no_authority_permit() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn bounded_commit_capsule_live_reservation_refusal_is_not_timeout() {
+    let _registry_test_guard = lock_commit_capsule_registry_tests().await;
     let database = CommitCapsulePrototypeDatabase::new().await;
     let intent = commit_capsule_intent("entry-refusal");
     let caller = CommitCapsuleCallerFixture::new("entry-refusal").await;
@@ -36577,7 +36639,8 @@ async fn bounded_commit_capsule_live_reservation_refusal_is_not_timeout() {
     // The still-live deadline must not hide that terminal refusal as a 503.
     assert_commit_capsule_logout_completes(caller.spawn_logout_drain()).await;
     let deadline = tokio::time::Instant::now() + Duration::from_secs(30);
-    let (retention, retained) = commit_capsule_retention(&intent);
+    let (retention, retained) = commit_capsule_retention(&intent)
+        .expect("reserve bounded commit capsule uncertainty retention");
     let outcome = run_commit_capsule_prototype(
         &database.state,
         deadline,
@@ -36612,6 +36675,7 @@ async fn bounded_commit_capsule_live_reservation_refusal_is_not_timeout() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn bounded_commit_capsule_queue_timeout_preserves_fifo_and_drains_logout() {
+    let _registry_test_guard = lock_commit_capsule_registry_tests().await;
     let database = CommitCapsulePrototypeDatabase::new().await;
     let intent = commit_capsule_intent("queue-timeout");
     let caller = CommitCapsuleCallerFixture::new("queue-timeout").await;
@@ -36634,7 +36698,8 @@ async fn bounded_commit_capsule_queue_timeout_preserves_fifo_and_drains_logout()
     tokio::time::sleep(Duration::from_millis(20)).await;
 
     let receipt = Arc::new(StdMutex::new(None));
-    let (retention, retained) = commit_capsule_retention(&intent);
+    let (retention, retained) = commit_capsule_retention(&intent)
+        .expect("reserve bounded commit capsule uncertainty retention");
     let capsule_state = database.state.clone();
     let capsule_receipt = receipt.clone();
     let capsule = tokio::spawn(async move {
@@ -36697,6 +36762,7 @@ async fn bounded_commit_capsule_queue_timeout_preserves_fifo_and_drains_logout()
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn bounded_commit_capsule_handoff_timeout_drops_only_its_waiter_and_drains_logout() {
+    let _registry_test_guard = lock_commit_capsule_registry_tests().await;
     let database = CommitCapsulePrototypeDatabase::new().await;
     let intent = commit_capsule_intent("handoff-timeout");
     let managed_handoff =
@@ -36710,7 +36776,8 @@ async fn bounded_commit_capsule_handoff_timeout_drops_only_its_waiter_and_drains
     let expected_guard = caller.expected_guard();
     let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
     let receipt = Arc::new(StdMutex::new(None));
-    let (retention, retained) = commit_capsule_retention(&intent);
+    let (retention, retained) = commit_capsule_retention(&intent)
+        .expect("reserve bounded commit capsule uncertainty retention");
     let capsule_state = database.state.clone();
     let capsule = tokio::spawn({
         let receipt = receipt.clone();
@@ -36763,12 +36830,14 @@ async fn bounded_commit_capsule_handoff_timeout_drops_only_its_waiter_and_drains
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn bounded_commit_capsule_post_staging_barrier_is_invisible_and_unwind_safe() {
+    let _registry_test_guard = lock_commit_capsule_registry_tests().await;
     let database = CommitCapsulePrototypeDatabase::new().await;
     let intent = commit_capsule_intent("post-staging-success");
     let caller = CommitCapsuleCallerFixture::new("post-staging-success").await;
     let barrier = Arc::new(CommitCapsuleBarrier::default());
     let receipt = Arc::new(StdMutex::new(None));
-    let (retention, _retained) = commit_capsule_retention(&intent);
+    let (retention, _retained) = commit_capsule_retention(&intent)
+        .expect("reserve bounded commit capsule uncertainty retention");
     let state = database.state.clone();
     let capsule = tokio::spawn({
         let barrier = barrier.clone();
@@ -36835,7 +36904,9 @@ async fn bounded_commit_capsule_post_staging_barrier_is_invisible_and_unwind_saf
         let barrier = panic_barrier.clone();
         let intent = panic_intent.clone();
         let receipt = Arc::new(StdMutex::new(None));
-        let retention = commit_capsule_retention(&intent).0;
+        let retention = commit_capsule_retention(&intent)
+            .expect("reserve bounded commit capsule uncertainty retention")
+            .0;
         let authority = panic_caller.authority();
         let expected_guard = panic_caller.expected_guard();
         async move {
@@ -36874,6 +36945,7 @@ async fn bounded_commit_capsule_post_staging_barrier_is_invisible_and_unwind_saf
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn bounded_commit_capsule_final_cut_timeout_rolls_back_and_drains_every_carrier() {
+    let _registry_test_guard = lock_commit_capsule_registry_tests().await;
     let database = CommitCapsulePrototypeDatabase::new().await;
     let intent = commit_capsule_intent("final-cut-timeout");
     let caller = CommitCapsuleCallerFixture::new("final-cut-timeout").await;
@@ -36882,7 +36954,8 @@ async fn bounded_commit_capsule_final_cut_timeout_rolls_back_and_drains_every_ca
     let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
     let barrier = Arc::new(CommitCapsuleBarrier::default());
     let receipt = Arc::new(StdMutex::new(None));
-    let (retention, retained) = commit_capsule_retention(&intent);
+    let (retention, retained) = commit_capsule_retention(&intent)
+        .expect("reserve bounded commit capsule uncertainty retention");
     let state = database.state.clone();
     let deadline = tokio::time::Instant::now() + Duration::from_millis(350);
     let capsule = tokio::spawn({
@@ -36955,6 +37028,7 @@ async fn bounded_commit_capsule_final_cut_timeout_rolls_back_and_drains_every_ca
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn bounded_commit_capsule_final_guard_refusal_rolls_back_and_drains_logout() {
+    let _registry_test_guard = lock_commit_capsule_registry_tests().await;
     let database = CommitCapsulePrototypeDatabase::new().await;
     let intent = commit_capsule_intent("final-guard-refusal");
     let caller = CommitCapsuleCallerFixture::new("final-guard-refusal").await;
@@ -36963,7 +37037,8 @@ async fn bounded_commit_capsule_final_guard_refusal_rolls_back_and_drains_logout
     let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
     let barrier = Arc::new(CommitCapsuleBarrier::default());
     let receipt = Arc::new(StdMutex::new(None));
-    let (retention, retained) = commit_capsule_retention(&intent);
+    let (retention, retained) = commit_capsule_retention(&intent)
+        .expect("reserve bounded commit capsule uncertainty retention");
     let state = database.state.clone();
     let capsule = tokio::spawn({
         let barrier = barrier.clone();
@@ -37024,13 +37099,16 @@ async fn bounded_commit_capsule_final_guard_refusal_rolls_back_and_drains_logout
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn bounded_commit_capsule_known_rollback_drops_reservation_and_terminal_gate() {
+    let _registry_test_guard = lock_commit_capsule_registry_tests().await;
     let database = CommitCapsulePrototypeDatabase::new().await;
     let intent = commit_capsule_intent("known-rollback");
     let caller = CommitCapsuleCallerFixture::new("known-rollback").await;
     let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
     let barrier = Arc::new(CommitCapsuleBarrier::default());
     let state = database.state.clone();
-    let retention = commit_capsule_retention(&intent).0;
+    let retention = commit_capsule_retention(&intent)
+        .expect("reserve bounded commit capsule uncertainty retention")
+        .0;
     let capsule = tokio::spawn({
         let barrier = barrier.clone();
         let intent = intent.clone();
@@ -37074,6 +37152,7 @@ async fn bounded_commit_capsule_known_rollback_drops_reservation_and_terminal_ga
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn bounded_commit_capsule_pre_guard_panic_rolls_back_and_releases_every_owner() {
+    let _registry_test_guard = lock_commit_capsule_registry_tests().await;
     let database = CommitCapsulePrototypeDatabase::new().await;
     let intent = commit_capsule_intent("pre-guard-panic");
     let caller = CommitCapsuleCallerFixture::new("pre-guard-panic").await;
@@ -37082,7 +37161,9 @@ async fn bounded_commit_capsule_pre_guard_panic_rolls_back_and_releases_every_ow
     let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
     let barrier = Arc::new(CommitCapsuleBarrier::default());
     let state = database.state.clone();
-    let retention = commit_capsule_retention(&intent).0;
+    let retention = commit_capsule_retention(&intent)
+        .expect("reserve bounded commit capsule uncertainty retention")
+        .0;
     let capsule = tokio::spawn({
         let barrier = barrier.clone();
         let intent = intent.clone();
@@ -37122,6 +37203,7 @@ async fn bounded_commit_capsule_pre_guard_panic_rolls_back_and_releases_every_ow
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn bounded_commit_capsule_during_commit_never_times_out_and_reconciles_exact_rows_only() {
+    let _registry_test_guard = lock_commit_capsule_registry_tests().await;
     for (injection, suffix, expected_operations, expected_proofs, committed) in [
         (
             CommitCapsuleInjection::SuccessWithLostAcknowledgement,
@@ -37160,7 +37242,8 @@ async fn bounded_commit_capsule_during_commit_never_times_out_and_reconciles_exa
         let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
         let barrier = Arc::new(CommitCapsuleBarrier::default());
         let receipt = Arc::new(StdMutex::new(None));
-        let (retention, retained) = commit_capsule_retention(&intent);
+        let (retention, retained) = commit_capsule_retention(&intent)
+            .expect("reserve bounded commit capsule uncertainty retention");
         let state = database.state.clone();
         let capsule = tokio::spawn({
             let barrier = barrier.clone();
@@ -37251,7 +37334,7 @@ async fn bounded_commit_capsule_during_commit_never_times_out_and_reconciles_exa
             assert!(terminal.is_fail_closed(), "{suffix}");
             drop(
                 retained
-                    .remove_after_recovery()
+                    .remove_after_recovery(&intent.operation_id)
                     .expect("remove exact recovered uncertainty"),
             );
             terminal.assert_reopened();
@@ -37261,6 +37344,7 @@ async fn bounded_commit_capsule_during_commit_never_times_out_and_reconciles_exa
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn bounded_commit_capsule_reconciliation_panic_retains_terminal_domain() {
+    let _registry_test_guard = lock_commit_capsule_registry_tests().await;
     let database = CommitCapsulePrototypeDatabase::new().await;
     let intent = commit_capsule_intent("reconciliation-panic");
     let caller = CommitCapsuleCallerFixture::new("reconciliation-panic").await;
@@ -37268,7 +37352,8 @@ async fn bounded_commit_capsule_reconciliation_panic_retains_terminal_domain() {
     let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
     let barrier = Arc::new(CommitCapsuleBarrier::default());
     let receipt = Arc::new(StdMutex::new(None));
-    let (retention, retained) = commit_capsule_retention(&intent);
+    let (retention, retained) = commit_capsule_retention(&intent)
+        .expect("reserve bounded commit capsule uncertainty retention");
     let state = database.state.clone();
     let capsule = tokio::spawn({
         let barrier = barrier.clone();
@@ -37325,7 +37410,7 @@ async fn bounded_commit_capsule_reconciliation_panic_retains_terminal_domain() {
     assert!(terminal.is_fail_closed());
     drop(
         retained
-            .remove_after_recovery()
+            .remove_after_recovery(&intent.operation_id)
             .expect("remove exact reconciled panic uncertainty"),
     );
     terminal.assert_reopened();
@@ -37337,6 +37422,7 @@ async fn bounded_commit_capsule_reconciliation_panic_retains_terminal_domain() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn bounded_commit_capsule_retain_panic_is_safe_without_caller_storage_owner() {
+    let _registry_test_guard = lock_commit_capsule_registry_tests().await;
     let database = CommitCapsulePrototypeDatabase::new().await;
     let intent = commit_capsule_intent("retain-panic");
     let caller = CommitCapsuleCallerFixture::new("retain-panic").await;
@@ -37347,7 +37433,8 @@ async fn bounded_commit_capsule_retain_panic_is_safe_without_caller_storage_owne
     // The moved owner is the only typed storage owner. `retained` is an
     // identity-only handle; the process registry supplies the independent
     // fail-closed owner that caller discipline previously had to provide.
-    let (retention, retained) = commit_capsule_retention(&intent);
+    let (retention, retained) = commit_capsule_retention(&intent)
+        .expect("reserve bounded commit capsule uncertainty retention");
     let state = database.state.clone();
     let capsule = tokio::spawn({
         let barrier = barrier.clone();
@@ -37386,7 +37473,7 @@ async fn bounded_commit_capsule_retain_panic_is_safe_without_caller_storage_owne
         super::CommitUncertainRetentionState::Retaining
     );
     let active_removal = retained
-        .remove_after_recovery()
+        .remove_after_recovery(&intent.operation_id)
         .expect_err("active retention cannot be removed between storage and unwind");
     assert_eq!(
         active_removal.diagnostic.code,
@@ -37422,14 +37509,134 @@ async fn bounded_commit_capsule_retain_panic_is_safe_without_caller_storage_owne
     assert!(!facts.exact_intended_rows);
     drop(
         retained
-            .remove_after_recovery()
+            .remove_after_recovery(&intent.operation_id)
             .expect("remove exact retain-panic uncertainty after unwind"),
     );
     terminal.assert_reopened();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn bounded_commit_capsule_cancelled_request_is_recoverable_by_operation_identity() {
+    let _registry_test_guard = lock_commit_capsule_registry_tests().await;
+    let database = CommitCapsulePrototypeDatabase::new().await;
+    let intent = commit_capsule_intent("cancelled-request-recovery");
+    let operation_identity = intent.operation_id.clone();
+    let caller = CommitCapsuleCallerFixture::new("cancelled-request-recovery").await;
+    let expected_guard = caller.expected_guard();
+    let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
+    let barrier = Arc::new(CommitCapsuleBarrier::default());
+    let receipt = Arc::new(StdMutex::new(None));
+    let state = database.state.clone();
+    let request = tokio::spawn({
+        let authority = caller.authority();
+        let barrier = barrier.clone();
+        let intent = intent.clone();
+        let receipt = receipt.clone();
+        async move {
+            let (retention, request_owned_handle) = commit_capsule_retention(&intent)
+                .expect("reserve cancelled request uncertainty retention");
+            assert_eq!(
+                request_owned_handle
+                    .snapshot()
+                    .expect("cancelled request retention is registered")
+                    .operation_identity,
+                intent.operation_id
+            );
+            run_commit_capsule_prototype(
+                &state,
+                tokio::time::Instant::now() + Duration::from_secs(3),
+                authority,
+                gate,
+                intent,
+                CommitCapsuleInjection::CommitErrorRowsAbsent,
+                CommitCapsuleHooks {
+                    during_commit: Some(barrier),
+                    ..CommitCapsuleHooks::default()
+                },
+                expected_guard,
+                receipt,
+                retention,
+            )
+            .await
+        }
+    });
+
+    barrier.wait_until_reached().await;
+    assert!(terminal.is_fail_closed());
+    request.abort();
+    let cancelled = request
+        .await
+        .expect_err("the request future is cancelled while blocking COMMIT continues");
+    assert!(cancelled.is_cancelled());
+
+    let logout = caller.spawn_logout_drain();
+    barrier.release();
+    assert_commit_capsule_logout_completes(logout).await;
+
+    let snapshot = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let snapshots = super::CommitUncertainRetentionHandle::<
+                CommitCapsuleTerminalUncertain,
+            >::snapshots_by_operation_identity(&operation_identity);
+            if let [snapshot] = snapshots.as_slice()
+                && snapshot.state == super::CommitUncertainRetentionState::Recoverable
+            {
+                break snapshot.clone();
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("cancelled request retention becomes recoverable without its original handle");
+    assert_eq!(snapshot.operation_identity, operation_identity);
+    let observed = receipt
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone()
+        .expect("cancelled request reached the COMMIT observer");
+    assert_eq!(observed.matching_commits(), 1);
+    assert_eq!(observed.mismatched_commits(), 0);
+
+    let lookup_mismatch = super::CommitUncertainRetentionHandle::<
+        CommitCapsuleTerminalUncertain,
+    >::lookup_by_operation_identity("different-operation-identity", snapshot.id)
+    .expect_err("registry lookup exact-checks the operation identity");
+    assert_eq!(
+        lookup_mismatch.diagnostic.code,
+        "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_IDENTITY_MISMATCH"
+    );
+    let recovered = super::CommitUncertainRetentionHandle::<CommitCapsuleTerminalUncertain>::
+        lookup_by_operation_identity(&operation_identity, snapshot.id)
+        .expect("rediscover cancelled request recovery authority by operation identity");
+    let mismatch = recovered
+        .remove_after_recovery("different-operation-identity")
+        .expect_err("recovery removal exact-checks the operation identity");
+    assert_eq!(
+        mismatch.diagnostic.code,
+        "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_IDENTITY_MISMATCH"
+    );
+    assert!(terminal.is_fail_closed());
+
+    let facts = database.facts(&intent).await;
+    assert_eq!(facts.operation_rows, 0);
+    assert_eq!(facts.proof_rows, 0);
+    assert!(!facts.exact_intended_rows);
+    drop(
+        recovered
+            .remove_after_recovery(&operation_identity)
+            .expect("remove cancelled request retention after exact predecessor proof"),
+    );
+    terminal.assert_reopened();
+    assert!(
+        super::CommitUncertainRetentionHandle::<CommitCapsuleTerminalUncertain>::
+            snapshots_by_operation_identity(&operation_identity)
+            .is_empty()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn bounded_commit_capsule_during_commit_panics_retain_ambiguity_and_drain_logout() {
+    let _registry_test_guard = lock_commit_capsule_registry_tests().await;
     for (injection, suffix, expected_operations, expected_proofs) in [
         (
             CommitCapsuleInjection::PanicDuringCommitBeforeStorage,
@@ -37452,7 +37659,8 @@ async fn bounded_commit_capsule_during_commit_panics_retain_ambiguity_and_drain_
         let (terminal, gate) = CommitCapsuleTerminalFixture::new().await;
         let barrier = Arc::new(CommitCapsuleBarrier::default());
         let receipt = Arc::new(StdMutex::new(None));
-        let (retention, retained) = commit_capsule_retention(&intent);
+        let (retention, retained) = commit_capsule_retention(&intent)
+            .expect("reserve bounded commit capsule uncertainty retention");
         let state = database.state.clone();
         let capsule = tokio::spawn({
             let barrier = barrier.clone();
@@ -37510,7 +37718,7 @@ async fn bounded_commit_capsule_during_commit_panics_retain_ambiguity_and_drain_
         assert!(terminal.is_fail_closed(), "{suffix}");
         drop(
             retained
-                .remove_after_recovery()
+                .remove_after_recovery(&intent.operation_id)
                 .expect("remove exact during-COMMIT panic uncertainty"),
         );
         terminal.assert_reopened();
@@ -37519,6 +37727,7 @@ async fn bounded_commit_capsule_during_commit_panics_retain_ambiguity_and_drain_
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn bounded_commit_capsule_post_commit_response_loss_and_retry_cannot_duplicate_effect() {
+    let _registry_test_guard = lock_commit_capsule_registry_tests().await;
     let database = CommitCapsulePrototypeDatabase::new().await;
     let intent = commit_capsule_intent("post-commit-response-loss");
     let caller = CommitCapsuleCallerFixture::new("post-commit-response-loss").await;
@@ -37533,7 +37742,9 @@ async fn bounded_commit_capsule_post_commit_response_loss_and_retry_cannot_dupli
         let authority = caller.authority();
         let expected_guard = caller.expected_guard();
         async move {
-            let retention = commit_capsule_retention(&intent).0;
+            let retention = commit_capsule_retention(&intent)
+                .expect("reserve bounded commit capsule uncertainty retention")
+                .0;
             let outcome = run_commit_capsule_prototype(
                 &state,
                 tokio::time::Instant::now() + Duration::from_secs(3),
@@ -37599,7 +37810,9 @@ async fn bounded_commit_capsule_post_commit_response_loss_and_retry_cannot_dupli
     // opening a second pending COMMIT.
     let retry_caller = CommitCapsuleCallerFixture::new("post-commit-retry").await;
     let retry_receipt = Arc::new(StdMutex::new(None));
-    let retry_retention = commit_capsule_retention(&intent).0;
+    let retry_retention = commit_capsule_retention(&intent)
+        .expect("reserve bounded commit capsule uncertainty retention")
+        .0;
     let retry = run_commit_capsule_prototype(
         &database.state,
         tokio::time::Instant::now() + Duration::from_secs(3),
@@ -37634,6 +37847,7 @@ async fn bounded_commit_capsule_post_commit_response_loss_and_retry_cannot_dupli
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn bounded_commit_capsule_post_commit_panic_has_one_durable_effect_and_no_permit() {
+    let _registry_test_guard = lock_commit_capsule_registry_tests().await;
     let database = CommitCapsulePrototypeDatabase::new().await;
     let intent = commit_capsule_intent("post-commit-response-panic");
     let caller = CommitCapsuleCallerFixture::new("post-commit-response-panic").await;
@@ -37643,7 +37857,9 @@ async fn bounded_commit_capsule_post_commit_panic_has_one_durable_effect_and_no_
         let authority = caller.authority();
         let expected_guard = caller.expected_guard();
         async move {
-            let retention = commit_capsule_retention(&intent).0;
+            let retention = commit_capsule_retention(&intent)
+                .expect("reserve bounded commit capsule uncertainty retention")
+                .0;
             let outcome = run_commit_capsule_prototype(
                 &state,
                 tokio::time::Instant::now() + Duration::from_secs(3),
@@ -37688,6 +37904,7 @@ async fn bounded_commit_capsule_post_commit_panic_has_one_durable_effect_and_no_
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn bounded_commit_capsule_queue_and_handoff_unwinds_release_reservation_and_gate() {
+    let _registry_test_guard = lock_commit_capsule_registry_tests().await;
     // Queue-wait unwind variant: cancelling the queued future drops the exact
     // reservation and gate captured alongside its FIFO queue position.
     let queue_database = CommitCapsulePrototypeDatabase::new().await;
@@ -37701,7 +37918,9 @@ async fn bounded_commit_capsule_queue_and_handoff_unwinds_release_reservation_an
         let authority = queue_caller.authority();
         let expected_guard = queue_caller.expected_guard();
         async move {
-            let retention = commit_capsule_retention(&intent).0;
+            let retention = commit_capsule_retention(&intent)
+                .expect("reserve bounded commit capsule uncertainty retention")
+                .0;
             run_commit_capsule_prototype(
                 &queue_state,
                 tokio::time::Instant::now() + Duration::from_secs(3),
@@ -37756,7 +37975,9 @@ async fn bounded_commit_capsule_queue_and_handoff_unwinds_release_reservation_an
         let authority = handoff_caller.authority();
         let expected_guard = handoff_caller.expected_guard();
         async move {
-            let retention = commit_capsule_retention(&intent).0;
+            let retention = commit_capsule_retention(&intent)
+                .expect("reserve bounded commit capsule uncertainty retention")
+                .0;
             run_commit_capsule_prototype(
                 &handoff_state,
                 tokio::time::Instant::now() + Duration::from_secs(3),

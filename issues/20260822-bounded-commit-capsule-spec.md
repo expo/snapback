@@ -154,6 +154,25 @@ pub(crate) struct CommitUncertainRetentionHandle<U> {
     // identity only: this handle owns no storage Arc
 }
 
+pub(crate) struct CommitUncertainRetentionSnapshot {
+    id: CommitUncertainRetentionId,
+    operation_identity: String,
+    state: CommitUncertainRetentionState,
+}
+
+impl<U: Send + 'static> CommitUncertainRetentionHandle<U> {
+    fn snapshots_by_operation_identity(
+        operation_identity: &str,
+    ) -> Vec<CommitUncertainRetentionSnapshot>;
+
+    fn lookup_by_operation_identity(
+        operation_identity: &str,
+        id: CommitUncertainRetentionId,
+    ) -> SnapbackResult<Self>;
+
+    fn remove_after_recovery(&self, operation_identity: &str) -> SnapbackResult<U>;
+}
+
 pub(crate) enum CommitUncertainRetentionState {
     Reserved,
     Retaining,
@@ -224,11 +243,21 @@ through the return from caller-controlled transaction code and through `reconcil
 borrows it. Uncertain and panic paths insert the carrier into the reserved process-owned slot
 before any test-only post-store callback may run. While the capsule still owns the slot its state
 is `Retaining`, and `remove_after_recovery` refuses; after a normal uncertain result or unwind,
-owner drop changes the exact entry to `Recoverable`. Recovery inspects the operation identity and
-state, proves the operation-specific durable predecessor or successor, and removes only that exact
-retention id to settle the returned carrier. Thus a retain-step unwind cannot drop the sole carrier
-even when the caller retained no storage owner. A normal exact result discards its in-capsule
-carrier and removes the empty reserved slot.
+owner drop changes the exact entry to `Recoverable`. The process registry enumerates every entry
+matching the stable operation identity because overlapping attempts may produce more than one
+retention id. Recovery can reconstruct a typed identity-only handle from an exact `(operation
+identity, retention id)` pair even after the request-owned handle was dropped. Lookup checks the
+stored identity and carrier type; removal atomically rechecks id, identity, type, and
+`Recoverable` state before settling the returned carrier.
+
+The registry does not read the adopting site's durable tables and therefore does not itself prove
+the operation-specific predecessor or successor. The operation-specific recovery owner must first
+run the exact durable predicate described in §Reconciliation contract, then pass the same operation
+identity to `remove_after_recovery`; an absent, partial, contradictory, or unreadable result must
+leave the entry registered. This is the deliberate enforcement split, rather than a claim that the
+generic registry understands site-specific rows. Thus request cancellation and retain-step unwind
+cannot drop or orphan the sole carrier even when the caller retained no storage owner. A normal
+exact result discards its in-capsule carrier and removes the empty reserved slot.
 
 `Gate` must be an opaque, non-cloneable rollback-on-drop carrier. Revocation passes `ServiceAuthorityTerminalGate`; ordinary writes pass `()`.
 

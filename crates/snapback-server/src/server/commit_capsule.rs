@@ -114,7 +114,7 @@ enum FinalCutDisposition {
     CommitStarted,
 }
 
-const MAX_COMMIT_UNCERTAIN_RETENTIONS: usize = 1_024;
+pub(crate) const MAX_COMMIT_UNCERTAIN_RETENTIONS: usize = 1_024;
 
 static NEXT_COMMIT_UNCERTAIN_RETENTION_ID: AtomicU64 = AtomicU64::new(1);
 static COMMIT_UNCERTAIN_RETENTION_REGISTRY: OnceLock<Mutex<CommitUncertainRetentionRegistry>> =
@@ -186,6 +186,57 @@ impl<U: Send + 'static> CommitUncertainRetentionHandle<U> {
             })
     }
 
+    /// Enumerate every process-owned slot for one stable operation identity.
+    ///
+    /// More than one exact retention id may exist when overlapping attempts
+    /// carry the same logical operation identity, so recovery must inspect
+    /// every returned snapshot rather than assuming identity uniqueness.
+    pub(crate) fn snapshots_by_operation_identity(
+        operation_identity: &str,
+    ) -> Vec<CommitUncertainRetentionSnapshot> {
+        let registry = commit_uncertain_retention_registry()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        registry
+            .entries
+            .iter()
+            .filter(|(_, entry)| entry.operation_identity == operation_identity)
+            .map(|(id, entry)| CommitUncertainRetentionSnapshot {
+                id: *id,
+                operation_identity: entry.operation_identity.clone(),
+                state: entry.state,
+            })
+            .collect()
+    }
+
+    /// Rediscover typed recovery authority from the stable operation identity
+    /// and one exact id returned by `snapshots_by_operation_identity`.
+    pub(crate) fn lookup_by_operation_identity(
+        operation_identity: &str,
+        id: CommitUncertainRetentionId,
+    ) -> SnapbackResult<Self> {
+        let registry = commit_uncertain_retention_registry()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let Some(entry) = registry.entries.get(&id) else {
+            return Err(retention_not_found());
+        };
+        if entry.operation_identity != operation_identity {
+            return Err(retention_identity_mismatch());
+        }
+        if Arc::downcast::<CommitUncertainRetentionSlot<U>>(Arc::clone(&entry.slot)).is_err() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_TYPE_MISMATCH",
+                "server",
+                "the commit-uncertain retention carrier type does not match its recovery owner",
+            ));
+        }
+        Ok(Self {
+            id,
+            marker: PhantomData,
+        })
+    }
+
     pub(crate) fn is_empty(&self) -> bool {
         self.snapshot()
             .is_none_or(|snapshot| snapshot.state == CommitUncertainRetentionState::Reserved)
@@ -194,17 +245,16 @@ impl<U: Send + 'static> CommitUncertainRetentionHandle<U> {
     /// Remove one exact carrier only after its capsule has stopped using it.
     /// The operation-specific recovery owner must first prove the durable
     /// predecessor or successor and then settle the returned carrier.
-    pub(crate) fn remove_after_recovery(&self) -> SnapbackResult<U> {
+    pub(crate) fn remove_after_recovery(&self, operation_identity: &str) -> SnapbackResult<U> {
         let mut registry = commit_uncertain_retention_registry()
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let Some(entry) = registry.entries.get(&self.id) else {
-            return Err(SnapbackError::error(
-                "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_NOT_FOUND",
-                "server",
-                "the exact commit-uncertain retention identity is not present",
-            ));
+            return Err(retention_not_found());
         };
+        if entry.operation_identity != operation_identity {
+            return Err(retention_identity_mismatch());
+        }
         if entry.state != CommitUncertainRetentionState::Recoverable {
             return Err(SnapbackError::error(
                 "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_ACTIVE",
@@ -213,7 +263,13 @@ impl<U: Send + 'static> CommitUncertainRetentionHandle<U> {
             ));
         }
         let slot = Arc::downcast::<CommitUncertainRetentionSlot<U>>(Arc::clone(&entry.slot))
-            .expect("a commit-uncertain retention handle keeps its carrier type");
+            .map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_TYPE_MISMATCH",
+                    "server",
+                    "the commit-uncertain retention carrier type does not match its recovery owner",
+                )
+            })?;
         let carrier = slot
             .carrier
             .lock()
@@ -223,6 +279,22 @@ impl<U: Send + 'static> CommitUncertainRetentionHandle<U> {
         registry.entries.remove(&self.id);
         Ok(carrier)
     }
+}
+
+fn retention_not_found() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_NOT_FOUND",
+        "server",
+        "the exact commit-uncertain retention identity is not present",
+    )
+}
+
+fn retention_identity_mismatch() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_IDENTITY_MISMATCH",
+        "server",
+        "the commit-uncertain retention does not match the recovery operation identity",
+    )
 }
 
 /// Capsule-owned write authority for one bounded commit-uncertain slot.
