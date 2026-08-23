@@ -37,6 +37,18 @@ const MAX_STEP_DETAIL_DEPTH = 8;
 const MAX_STEP_STRING_CHARS = 4_096;
 const PATH_TOKEN = Symbol('snapback.starter-acceptance.path');
 const DEFINITION = Symbol('snapback.starter-acceptance.definition');
+const STARTER_ACCEPTANCE_RECEIPT_KEYS = Object.freeze([
+  'schemaVersion',
+  'status',
+  'expectedCheckCount',
+  'executedCheckCount',
+  'checks',
+  'identity',
+  'lifecycle',
+  'operations',
+  'cleanup',
+  'diagnostic',
+]);
 
 const STARTER_ACCEPTANCE_MAX_INVALID_PATHS = 64;
 const STARTER_ACCEPTANCE_MAX_OPERATION_PATHS = 16;
@@ -680,6 +692,7 @@ export async function runStarterAcceptance(definition, options = {}) {
   const checks = [];
   const operations = {};
   const seenSteps = new Set();
+  const passedSteps = new Set();
   const cleanupStack = [];
   const sessionClients = [];
   let lifecycleState = null;
@@ -712,7 +725,10 @@ export async function runStarterAcceptance(definition, options = {}) {
     positiveInteger(intervalMs, 'until intervalMs');
     assert(typeof predicate === 'function', 'until predicate must be a function');
     assert(typeof label === 'string' && label.length > 0, 'until label must be non-empty');
-    const parentSignal = untilOptions.signal ?? activeStepSignal ?? activePhaseSignal ?? signal;
+    const executionSignal = activeStepSignal ?? activePhaseSignal ?? signal;
+    const parentSignal = untilOptions.signal == null
+      ? executionSignal
+      : AbortSignal.any([untilOptions.signal, executionSignal]);
     return withTimeout(async (untilSignal) => {
       for (;;) {
         health(untilSignal);
@@ -764,6 +780,7 @@ export async function runStarterAcceptance(definition, options = {}) {
       throw error;
     }
     checks.push(Object.freeze({ id, status: 'passed', details }));
+    passedSteps.add(id);
     if (path?.functionId !== null && path?.functionId !== undefined) {
       operations[path.id] = path.functionId;
     }
@@ -885,12 +902,12 @@ export async function runStarterAcceptance(definition, options = {}) {
       signal,
     );
     const missingPathIds = Object.values(definition.paths)
-      .filter(({ id }) => !seenSteps.has(id))
+      .filter(({ id }) => !passedSteps.has(id))
       .map(({ id }) => id);
     if (missingPathIds.length > 0) {
       const error = codedError(
         'SNAPBACK_STARTER_ACCEPTANCE_PATH_NOT_OBSERVED',
-        `starter acceptance did not execute declared paths: ${missingPathIds.join(', ')}`,
+        `starter acceptance did not produce passed checks for declared paths: ${missingPathIds.join(', ')}`,
       );
       throw error;
     }
@@ -899,10 +916,10 @@ export async function runStarterAcceptance(definition, options = {}) {
   } finally {
     clearTimeout(executionTimer);
     cleanup.attempted = true;
+    // External cancellation ends execution, but cleanup owns the reserved
+    // remainder through a fresh deadline so lifecycle.stop can terminate
+    // managed children even when the run signal is already aborted.
     const cleanupController = new AbortController();
-    const interruptCleanup = () => cleanupController.abort(abortError(externalSignal));
-    externalSignal?.addEventListener('abort', interruptCleanup, { once: true });
-    if (externalSignal?.aborted) interruptCleanup();
     const cleanupDeadline = Math.min(overallDeadline, Date.now() + definition.cleanupTimeoutMs);
     const cleanupTimer = setTimeout(
       () => cleanupController.abort(overallTimeoutError),
@@ -971,11 +988,11 @@ export async function runStarterAcceptance(definition, options = {}) {
       && cleanup.temporaryStateRemoved
       && failure === null;
     clearTimeout(cleanupTimer);
-    externalSignal?.removeEventListener('abort', interruptCleanup);
   }
   externalSignal?.removeEventListener('abort', interruptExecution);
 
   const passed = failure === null
+    && passedSteps.size === Object.keys(definition.paths).length
     && applicationReadyObserved
     && loadedIdentity !== null
     && cleanup.ok;
@@ -1152,11 +1169,15 @@ export function parseStarterAcceptanceReceipt(stdout) {
   ]) });
 }
 
-function operationReceiptPath(key) {
+function receiptObjectPath(parent, key) {
   const boundedKey = key.slice(0, 128);
   return /^[A-Za-z_$][A-Za-z0-9_$]*$/u.test(boundedKey)
-    ? `$.operations.${boundedKey}`
-    : `$.operations[${JSON.stringify(boundedKey)}]`;
+    ? `${parent}.${boundedKey}`
+    : `${parent}[${JSON.stringify(boundedKey)}]`;
+}
+
+function operationReceiptPath(key) {
+  return receiptObjectPath('$.operations', key);
 }
 
 function boundedRemediationId(key, value) {
@@ -1217,6 +1238,20 @@ export function validatePassingStarterReceipt(receipt, registeredPaths, artifact
     }
     return leaf;
   };
+
+  if (plainObject(receipt)) {
+    for (const key of Object.keys(receipt)) {
+      if (STARTER_ACCEPTANCE_RECEIPT_KEYS.includes(key)) continue;
+      add(invalidReceiptPath(
+        receiptObjectPath('$', key),
+        'absent',
+        'package-projector-owned-fields-only',
+        receipt[key],
+        true,
+        'unexpected-field',
+      ));
+    }
+  }
 
   requireLiteral(
     '$.schemaVersion', receipt, 'schemaVersion', 'string', STARTER_ACCEPTANCE_SCHEMA_VERSION,

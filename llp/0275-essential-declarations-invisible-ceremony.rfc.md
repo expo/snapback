@@ -7,6 +7,10 @@ Authorization, Runtime readiness, Packaging, Templates, Verification,
 Developer experience, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-17
+**Revised:** 2026-08-22 (D9 delta-review reconciliation: completeness is
+passed-per-path, caller retry signals compose with the active execution signal,
+and external abort preserves a fresh reserved-cleanup deadline through managed
+child termination.)
 **Revised:** 2026-08-22 (D9 review-fix reconciliation: builder tokens are
 definition-owned and generated-reference identity is artifact-generation
 bound; admission correlates each exact path id to both its operation entry and
@@ -530,7 +534,12 @@ journey, each step, retry predicates and waits, session-mint subprocesses,
 client inspection, and cleanup callbacks receive an `AbortSignal`; managed
 children are killed on abort, and public adapters/callbacks must honor the
 signal for asynchronous work. A timeout wrapper must abort the signal it
-passed to the underlying operation, not merely reject a detached race.
+passed to the underlying operation, not merely reject a detached race. A
+caller-supplied retry signal composes with rather than replaces the active
+step/execution signal. TERM, INT, or another external abort cancels execution
+at once but does not abort cleanup's own controller: cleanup receives a fresh
+deadline over the reserved cleanup remainder, and `lifecycle.stop` still runs
+to terminate the managed child.
 
 The verify config imports the same declaration and composes it with D5:
 
@@ -766,3 +775,7 @@ be implemented before improving its own golden path.
   declared-path execution, added the total deadline/cancellation contract, and
   separated lifecycle extension, projector-retaining process ejection, and
   complete package ejection with honest evidence and compatibility ownership.
+- 2026-08-22 r6: delta-review reconciliation — made completeness explicitly
+  passed-per-path, composed retry-local and execution cancellation, and stated
+  that external abort preserves the fresh reserved cleanup deadline through
+  managed-child termination.

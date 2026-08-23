@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import {
   chmodSync,
   cpSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -107,19 +108,6 @@ function definition(journey, options = {}) {
     },
     journey,
   });
-}
-
-const RECEIPT_ASSEMBLY_PATTERNS = Object.freeze([
-  /snapback\.starter-acceptance\.v1/u,
-  /expectedCheckCount|executedCheckCount/u,
-  /projectStarterAcceptanceReceipt/u,
-  /JSON\.stringify\s*\(\s*(?:receipt\b|outcome\b|\{[\s\S]{0,256}?(?:schemaVersion|checks|operations|cleanup|lifecycle)\s*:)/u,
-]);
-
-function assertNoApplicationReceiptAssembly(source, label) {
-  for (const pattern of RECEIPT_ASSEMBLY_PATTERNS) {
-    assert.doesNotMatch(source, pattern, `${label} must not assemble package-owned receipt fields`);
-  }
 }
 
 test('packed runner emits an admitted receipt and cleans up in reverse order', async () => {
@@ -261,6 +249,41 @@ test('step accepts only exact tokens from its own definition and every declared 
     assert.equal(receipt.diagnostic.code, 'SNAPBACK_STARTER_ACCEPTANCE_PATH_NOT_OBSERVED');
     assert.match(receipt.diagnostic.message, /delivery-path/u);
   });
+
+  await t.test('a journey returning before any declared path fails', async () => {
+    const declared = definition(async () => {});
+    const { receipt, exitCode } = await api.runStarterAcceptance(declared, {
+      lifecycle: lifecycle([]),
+      emit: false,
+    });
+    assert.equal(exitCode, 1);
+    assert.equal(receipt.status, 'failed');
+    assert.equal(receipt.executedCheckCount, 0);
+    assert.equal(receipt.diagnostic.code, 'SNAPBACK_STARTER_ACCEPTANCE_PATH_NOT_OBSERVED');
+    assert.match(receipt.diagnostic.message, /list-path/u);
+  });
+
+  await t.test('a caught failed step does not satisfy its path', async () => {
+    const declared = definition(async ({ paths, step }) => {
+      try {
+        await step(paths.list, () => {
+          throw new Error('product failed');
+        });
+      } catch {}
+      await step(paths.delivery, () => ({ delivered: true }));
+    }, { includeDelivery: true });
+    const { receipt, exitCode } = await api.runStarterAcceptance(declared, {
+      lifecycle: lifecycle([]),
+      emit: false,
+    });
+    assert.equal(exitCode, 1);
+    assert.equal(receipt.status, 'failed');
+    assert.equal(receipt.expectedCheckCount, 2);
+    assert.equal(receipt.executedCheckCount, 1);
+    assert.deepEqual(receipt.checks.map(({ id }) => id), ['delivery-path']);
+    assert.equal(receipt.diagnostic.code, 'SNAPBACK_STARTER_ACCEPTANCE_PATH_NOT_OBSERVED');
+    assert.match(receipt.diagnostic.message, /list-path/u);
+  });
 });
 
 test('admission correlates each operation and passed check to the exact registered path id', async () => {
@@ -335,6 +358,34 @@ test('overall, retry, and lifecycle-stop deadlines abort underlying work', async
     assert.equal(receipt.diagnostic.code, 'SNAPBACK_STARTER_ACCEPTANCE_RETRY_TIMEOUT');
   });
 
+  await t.test('caller retry signal remains combined with the execution deadline', async () => {
+    const callerController = new AbortController();
+    let predicateSignal = null;
+    let predicateCalls = 0;
+    const declared = definition(async ({ paths, step, until }) => {
+      await step(paths.list, () => until((signal) => {
+        predicateSignal = signal;
+        predicateCalls += 1;
+        return false;
+      }, 'overall-bounded predicate', {
+        timeoutMs: 5_000,
+        intervalMs: 5,
+        signal: callerController.signal,
+      }));
+    }, { stepTimeoutMs: 5_000, overallTimeoutMs: 100, cleanupTimeoutMs: 25 });
+    const { receipt } = await api.runStarterAcceptance(declared, {
+      lifecycle: lifecycle([]),
+      emit: false,
+    });
+    const callsAtReturn = predicateCalls;
+    const abortedAtReturn = predicateSignal?.aborted;
+    await new Promise((resolveWait) => setTimeout(resolveWait, 30));
+    callerController.abort('test complete');
+    assert.equal(receipt.diagnostic.code, 'SNAPBACK_STARTER_ACCEPTANCE_OVERALL_TIMEOUT');
+    assert.equal(abortedAtReturn, true);
+    assert.equal(predicateCalls, callsAtReturn, 'retry work continued after the runner returned');
+  });
+
   await t.test('hung client inspection is cancelled by disposing the client', async () => {
     let disposed = false;
     const adminClient = {
@@ -384,7 +435,7 @@ while :; do sleep 1; done
       chmodSync(executable, 0o755);
       const declared = definition(async ({ mintSession }) => {
         await mintSession({ email: 'bounded@example.test' });
-      }, { stepTimeoutMs: 500, overallTimeoutMs: 1_000, cleanupTimeoutMs: 200 });
+      }, { stepTimeoutMs: 2_000, overallTimeoutMs: 3_000, cleanupTimeoutMs: 500 });
       const mintLifecycle = Object.freeze({
         schemaVersion: 'snapback.starter-lifecycle-adapter.v1',
         async start() {
@@ -422,6 +473,108 @@ while :; do sleep 1; done
       assert.equal(receipt.diagnostic.code, 'SNAPBACK_STARTER_ACCEPTANCE_SESSION_MINT_TIMEOUT');
     } finally {
       rmSync(temporary, { recursive: true, force: true });
+    }
+  });
+
+  await t.test('external abort preserves cleanup reserve and terminates the managed dev child', async (testContext) => {
+    if (process.platform === 'win32') {
+      testContext.skip('fixture executable uses a POSIX shebang');
+      return;
+    }
+    const appRoot = mkdtempSync(join(tmpdir(), 'snapback-acceptance-external-abort-'));
+    const pidFile = join(appRoot, 'dev.pid');
+    const controller = new AbortController();
+    try {
+      const binRoot = join(appRoot, 'node_modules', '.bin');
+      mkdirSync(binRoot, { recursive: true });
+      const executable = join(binRoot, 'snapback');
+      writeFileSync(executable, `#!/usr/bin/env node
+const fs = require('node:fs');
+const command = process.argv[2];
+const arg = (name) => process.argv[process.argv.indexOf(name) + 1];
+if (command === 'wait') {
+  fs.writeFileSync(arg('--ready-file'), JSON.stringify({ ready: true, serverUrl: 'http://127.0.0.1:1' }));
+  process.stdout.write(JSON.stringify({ ok: true }) + '\\n');
+} else if (command === 'dev') {
+  fs.writeFileSync(process.env.SNAPBACK_TEST_DEV_PID_FILE, String(process.pid));
+  setInterval(() => {}, 1000);
+}
+`);
+      chmodSync(executable, 0o755);
+      const managed = api.createManagedDevLifecycleAdapter();
+      let stopCalled = false;
+      const managedLifecycle = Object.freeze({
+        schemaVersion: 'snapback.starter-lifecycle-adapter.v1',
+        async start(input) {
+          const state = await managed.start(input);
+          return Object.freeze({
+            ...state,
+            loadedIdentity: Object.freeze({
+              appId: artifacts.appId,
+              bundleHash: artifacts.bundleHash,
+            }),
+          });
+        },
+        async stop(state, options) {
+          stopCalled = true;
+          return managed.stop(state, options);
+        },
+      });
+      let journeyStarted;
+      const started = new Promise((resolveStarted) => { journeyStarted = resolveStarted; });
+      const declared = api.defineStarterAcceptance({
+        acceptanceFile: import.meta.url,
+        appRoot,
+        artifacts,
+        stepTimeoutMs: 5_000,
+        overallTimeoutMs: 1_000,
+        cleanupTimeoutMs: 300,
+        paths: {
+          list: {
+            id: 'list-path',
+            kind: 'success',
+            targetProfileId: 'local-dev-sqlite-ibex',
+            operation,
+          },
+        },
+        async journey({ paths, step }) {
+          await step(paths.list, (signal) => new Promise((resolveStep, rejectStep) => {
+            journeyStarted();
+            signal.addEventListener('abort', () => rejectStep(signal.reason), { once: true });
+          }));
+        },
+      });
+      const running = api.runStarterAcceptance(declared, {
+        lifecycle: managedLifecycle,
+        environment: { SNAPBACK_TEST_DEV_PID_FILE: pidFile },
+        signal: controller.signal,
+        emit: false,
+      });
+      await started;
+      for (let attempt = 0; attempt < 100 && !existsSync(pidFile); attempt += 1) {
+        await new Promise((resolveWait) => setTimeout(resolveWait, 5));
+      }
+      const pid = existsSync(pidFile) ? Number(readFileSync(pidFile, 'utf8')) : null;
+      controller.abort('SIGTERM');
+      const { receipt } = await running;
+      assert(Number.isSafeInteger(pid) && pid > 0, 'managed dev child did not publish its pid');
+      assert.equal(stopCalled, true);
+      assert.equal(receipt.status, 'failed');
+      assert.equal(receipt.diagnostic.code, 'SNAPBACK_STARTER_ACCEPTANCE_INTERRUPTED');
+      assert.equal(receipt.cleanup.devExited, true);
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        try {
+          process.kill(pid, 0);
+        } catch (error) {
+          assert.equal(error.code, 'ESRCH');
+          break;
+        }
+        await new Promise((resolveWait) => setTimeout(resolveWait, 10));
+        if (attempt === 19) assert.fail(`managed dev child ${pid} survived external abort cleanup`);
+      }
+    } finally {
+      controller.abort('test cleanup');
+      rmSync(appRoot, { recursive: true, force: true });
     }
   });
 
@@ -537,23 +690,12 @@ test('stale generated operation identity yields the bounded refresh remediation'
 // @ref LLP 0275#d6-treat-template-cold-install-closure-as-a-release-requirement — this
 // regression proves receipt-shape compatibility is isolated in the package and
 // verifier; app sources retain only generated identities and product meaning.
-test('template apps cannot assemble package-owned receipt fields', () => {
+test('template apps delegate receipt projection and admission to package entrypoints', () => {
   const templateRoot = join(workspaceRoot, 'packages', 'snapback-cli', 'templates');
   for (const template of ['react', 'crud-dashboard', 'media-feed', 'expo-chat']) {
     const source = readFileSync(join(templateRoot, template, 'acceptance.mjs'), 'utf8');
     assert.match(source, /from '@expo\/snapback-acceptance'/);
     assert.match(source, /defineStarterAcceptance/);
-    assertNoApplicationReceiptAssembly(source, template);
-  }
-  for (const negativeSource of [
-    "projectStarterAcceptanceReceipt({ passed: true });",
-    "JSON.stringify({ schemaVersion: 'snapback.starter-acceptance.v1', compatibilityEpoch: 2 });",
-    'JSON.stringify(receipt);',
-  ]) {
-    assert.throws(
-      () => assertNoApplicationReceiptAssembly(negativeSource, 'negative fixture'),
-      /must not assemble package-owned receipt fields/u,
-    );
   }
   const verifier = readFileSync(join(
     workspaceRoot,
@@ -614,12 +756,62 @@ export const acceptance = defineStarterAcceptance({
     writeFileSync(appPath, appSource);
     const appHashBefore = createHash('sha256').update(readFileSync(appPath)).digest('hex');
 
+    const mutatedApplicationPath = join(evolutionRoot, 'mutated-application.mjs');
+    writeFileSync(mutatedApplicationPath, `
+import { runStarterAcceptance } from '@expo/snapback-acceptance';
+import { acceptance } from './acceptance.mjs';
+const lifecycle = Object.freeze({
+  schemaVersion: 'snapback.starter-lifecycle-adapter.v1',
+  async start() {
+    return Object.freeze({
+      ready: Object.freeze({ ready: true, serverUrl: 'http://127.0.0.1:1' }),
+      loadedIdentity: Object.freeze({
+        appId: acceptance.artifacts.appId,
+        bundleHash: acceptance.artifacts.bundleHash,
+      }),
+    });
+  },
+  async stop() { return Object.freeze({ exited: true }); },
+});
+const { receipt } = await runStarterAcceptance(acceptance, { lifecycle, emit: false });
+const field = 'compatibility' + 'Epoch';
+process.stdout.write(JSON['string' + 'ify']({ ...receipt, [field]: 2 }) + '\\n');
+`);
+    const mutatedStdout = execFileSync(process.execPath, [mutatedApplicationPath], {
+      cwd: evolutionRoot,
+      encoding: 'utf8',
+    });
+    const mutatedParsed = api.parseStarterAcceptanceReceipt(mutatedStdout);
+    const mutatedAdmission = api.validatePassingStarterReceipt(
+      mutatedParsed.receipt,
+      [{
+        id: 'list-path',
+        kind: 'success',
+        targetProfileId: 'local-dev-sqlite-ibex',
+        functionId: operation.id,
+      }],
+      {
+        ...artifacts,
+        manifests: { functions: { functions: [{ id: operation.id }] } },
+      },
+    );
+    assert.equal(mutatedAdmission.complete, false);
+    assert(mutatedAdmission.invalidPaths.some(({ path, expected, observed }) => (
+      path === '$.compatibilityEpoch'
+        && expected.state === 'package-projector-owned-fields-only'
+        && observed.state === 'unexpected-field'
+    )), JSON.stringify(mutatedAdmission.invalidPaths));
+
     const packageIndex = join(evolvedPackage, 'index.mjs');
     const originalPackageSource = readFileSync(packageIndex, 'utf8');
     const evolvedPackageSource = originalPackageSource
       .replace(
         '    schemaVersion: STARTER_ACCEPTANCE_SCHEMA_VERSION,\n    status:',
         '    schemaVersion: STARTER_ACCEPTANCE_SCHEMA_VERSION,\n    compatibilityEpoch: 2,\n    status:',
+      )
+      .replace(
+        "  'schemaVersion',\n  'status',",
+        "  'schemaVersion',\n  'compatibilityEpoch',\n  'status',",
       )
       .replace(
         '  const expectedCheckCount = requireLiteral(',
@@ -686,59 +878,13 @@ process.stdout.write(JSON.stringify({ receipt: parsed.receipt, admission }));
     assert.equal(verified.admission.complete, true, JSON.stringify(verified.admission.invalidPaths));
     const appHashAfter = createHash('sha256').update(readFileSync(appPath)).digest('hex');
     assert.equal(appHashAfter, appHashBefore, 'application source changed during package schema evolution');
-    assertNoApplicationReceiptAssembly(readFileSync(appPath, 'utf8'), 'evolution fixture app');
   } finally {
     rmSync(evolutionRoot, { recursive: true, force: true });
   }
 });
 
-test('tarball-installed declarations compile both documented API compositions', () => {
+test('tarball-installed declarations compile against the real client and verifier types', () => {
   writeFileSync(join(fixtureRoot, 'package.json'), '{"type":"module"}\n');
-  const targetTypes = join(fixtureRoot, 'target-types.d.ts');
-  writeFileSync(targetTypes, `
-declare module '@expo/snapback-client' {
-  export type SnapbackApplicationDescriptorV1 = Readonly<{
-    format: 'snapback.app.v1';
-    identity: Readonly<{ app: string; schema: string; functions: string; descriptor: string }>;
-    authBootstrap: Readonly<Record<string, unknown>>;
-  }>;
-  export type SnapbackAppBindingV1 = Readonly<{
-    format: 'snapback.app-binding.v1';
-    source: 'supervised-dev';
-    descriptorIdentity: string;
-    target: Readonly<{
-      app: string; schema: string; functions: string; origin: string;
-      routing: 'loopback' | 'port-forward';
-    }>;
-    capabilities: Readonly<{ offered: readonly string[] }>;
-    provenance: Readonly<{ supervisorGeneration: string; issuedAt: string; expiresAt: string }>;
-    integrity: Readonly<{ channel: 'local-supervised-ipc' }>;
-  }>;
-  export function createSnapbackAppClient(input: Readonly<{
-    app: SnapbackApplicationDescriptorV1;
-    binding: SnapbackAppBindingV1;
-    platform: unknown;
-  }>): Promise<unknown>;
-}
-declare module '@expo/snapback-cli/verify' {
-  export interface StarterVerifyProfileOptions {
-    readonly id: string;
-    readonly title?: string;
-    readonly acceptanceFile: string | URL;
-    readonly additionalTestFiles?: readonly (string | URL)[];
-    readonly requiredCapabilities?: readonly string[];
-    readonly paths?: readonly {
-      readonly id: string;
-      readonly kind: 'success' | 'failure' | 'action' | 'relational' | 'search' | 'snapshot-bundle';
-      readonly targetProfileId: string;
-      readonly functionId?: string | null;
-    }[];
-    readonly provenanceBaseline?: readonly string[];
-    readonly timeoutMs?: number;
-  }
-  export function defineStarterVerifyProfile(options: StarterVerifyProfileOptions): unknown;
-}
-`);
   const consumer = join(fixtureRoot, 'types-consumer.ts');
   writeFileSync(consumer, `
 import {
@@ -750,6 +896,7 @@ import {
   createSnapbackAppClient,
   type SnapbackApplicationDescriptorV1,
   type SnapbackAppBindingV1,
+  type SnapbackAppClientPlatform,
 } from '@expo/snapback-client';
 import {
   defineStarterVerifyProfile,
@@ -760,19 +907,35 @@ declare const context: StarterJourneyContext;
 declare const app: SnapbackApplicationDescriptorV1;
 declare const acceptance: StarterAcceptanceDefinition;
 const binding: SnapbackAppBindingV1 = context.bindingFor(app);
-void createSnapbackAppClient({ app, binding, platform: {} });
+const platform: SnapbackAppClientPlatform = 'memory';
+void createSnapbackAppClient({ app, binding, platform });
 const profile: StarterVerifyProfileOptions = starterVerifyProfileOptions(acceptance, {
   id: 'typed-consumer',
 });
 defineStarterVerifyProfile(profile);
 `);
+  const tsconfig = join(fixtureRoot, 'tsconfig.json');
+  // The acceptance declaration comes from its installed tarball; resolve its
+  // peer imports to the real published declaration entrypoints, never ambient
+  // synthetic module declarations.
+  writeFileSync(tsconfig, `${JSON.stringify({
+    compilerOptions: {
+      noEmit: true,
+      strict: true,
+      target: 'ES2022',
+      module: 'NodeNext',
+      moduleResolution: 'NodeNext',
+      lib: ['ES2022', 'DOM'],
+      baseUrl: fixtureRoot,
+      paths: {
+        '@expo/snapback-client': [join(workspaceRoot, 'packages', 'snapback-client', 'index.d.mts')],
+        '@expo/snapback-contract/*': [join(workspaceRoot, 'packages', 'snapback-contract', '*.d.mts')],
+        '@expo/snapback-cli/verify': [join(workspaceRoot, 'packages', 'snapback-cli', 'verify.d.mts')],
+      },
+    },
+    files: [consumer],
+  }, null, 2)}\n`);
   execFileSync(join(workspaceRoot, 'node_modules', '.bin', 'tsc'), [
-    '--noEmit',
-    '--strict',
-    '--target', 'es2022',
-    '--module', 'nodenext',
-    '--moduleResolution', 'nodenext',
-    consumer,
-    targetTypes,
+    '--project', tsconfig,
   ], { cwd: fixtureRoot, encoding: 'utf8', stdio: 'pipe' });
 });
