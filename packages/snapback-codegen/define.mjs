@@ -3573,6 +3573,21 @@ function graphRefuse(code, message) {
   assert(false, message, code);
 }
 
+// @ref LLP 0209#2-the-graph-ir — the source carrier remains closed data after
+// construction; callers cannot mutate a checked literal into executable shape.
+function freezeGraphCarrier(value, seen = new Set()) {
+  if ((value === null || typeof value !== 'object') && typeof value !== 'function') return value;
+  if (seen.has(value)) return value;
+  seen.add(value);
+  for (const key of Reflect.ownKeys(value)) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (descriptor && Object.hasOwn(descriptor, 'value')) {
+      freezeGraphCarrier(descriptor.value, seen);
+    }
+  }
+  return Object.freeze(value);
+}
+
 function graphCanonicalPrimitivePreflight(value, path) {
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) {
@@ -3981,7 +3996,7 @@ export function defineGraphQuery(spec) {
   );
   const rootCost = queryCost.graph.nodes.find((cost) => cost.nodeId === rootNodes[0].nodeId);
   assert(Number.isSafeInteger(rootCost?.maxRootRowsPerPage), 'root cost requires maxRootRowsPerPage', 'SNAPBACK_GRAPH_UNBOUNDED_EXPANSION');
-  return {
+  return freezeGraphCarrier({
     [FN]: true,
     __kind: 'LiveQuery',
     auth: nodes.some((node) => node.authorityClass !== 1) ? 'authenticated' : 'public',
@@ -3997,7 +4012,7 @@ export function defineGraphQuery(spec) {
       authorityScopes: spec.authorityScopes ?? {},
       broadcast: { ...spec.broadcast },
     },
-  };
+  });
 }
 
 // ---------------------------------------------------------------------------

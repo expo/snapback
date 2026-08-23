@@ -19453,8 +19453,7 @@ const GRAPH_SOURCE_FAULT_ORDER = new Map([
   ['SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', 4],
 ]);
 
-function graphImportResolvesToOwnDefine(specifier, sourcePath) {
-  const ownDefine = DEFINITION_PACKAGE_IMPORTS.get('@expo/snapback-codegen/define');
+function graphResolveImportPath(specifier, sourcePath) {
   let candidate = DEFINITION_PACKAGE_IMPORTS.get(specifier);
   try {
     if (!candidate && specifier.startsWith('file:')) candidate = fileURLToPath(specifier);
@@ -19467,14 +19466,300 @@ function graphImportResolvesToOwnDefine(specifier, sourcePath) {
       }
     }
     if (!candidate && isAbsolute(specifier)) candidate = specifier;
-    if (!candidate) return false;
-    const real = (path) => {
-      try { return realpathSync(path); } catch { return resolve(path); }
-    };
-    return real(candidate) === real(ownDefine);
+    if (!candidate) return null;
+    try { return realpathSync(candidate); } catch { return resolve(candidate); }
   } catch {
-    return false;
+    return null;
   }
+}
+
+function graphImportResolvesToOwnDefine(specifier, sourcePath) {
+  const ownDefine = graphResolveImportPath('@expo/snapback-codegen/define', sourcePath);
+  return graphResolveImportPath(specifier, sourcePath) === ownDefine;
+}
+
+function graphBindingNameContains(name, expected) {
+  if (ts.isIdentifier(name)) return name.text === expected;
+  if (ts.isObjectBindingPattern(name) || ts.isArrayBindingPattern(name)) {
+    return name.elements.some((element) => (
+      ts.isBindingElement(element) && graphBindingNameContains(element.name, expected)
+    ));
+  }
+  return false;
+}
+
+function graphModuleBindingIsUnshadowed(identifier, expected, sourceFile) {
+  let child = identifier;
+  for (let scope = identifier.parent; scope && scope !== sourceFile; child = scope, scope = scope.parent) {
+    if (ts.isFunctionLike(scope)
+      && scope.parameters.some((parameter) => graphBindingNameContains(parameter.name, expected))) {
+      return false;
+    }
+    if (ts.isCatchClause(scope)
+      && scope.variableDeclaration
+      && graphBindingNameContains(scope.variableDeclaration.name, expected)) {
+      return false;
+    }
+    if (ts.isBlock(scope) || ts.isModuleBlock(scope)) {
+      for (const statement of scope.statements) {
+        if (statement === child) continue;
+        if (ts.isVariableStatement(statement)
+          && statement.declarationList.declarations.some(
+            (declaration) => graphBindingNameContains(declaration.name, expected),
+          )) return false;
+        if ((ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement))
+          && statement.name?.text === expected) return false;
+      }
+    }
+  }
+  return true;
+}
+
+// @ref LLP 0209#2-the-graph-ir — every syntactic graph-builder call site is
+// admitted only when its binding resolves through the captured module graph
+// to the one codegen-owned define.mjs export.
+function graphAuthoringBindingResolver(modules) {
+  const ownDefine = graphResolveImportPath('@expo/snapback-codegen/define', import.meta.url);
+  const byPath = new Map();
+  for (const module of modules) {
+    const path = graphResolveImportPath(module.path, module.path) ?? resolve(module.path);
+    const sourceFile = ts.createSourceFile(
+      path,
+      module.source,
+      ts.ScriptTarget.ES2022,
+      true,
+      /\.tsx?$/iu.test(path) ? ts.ScriptKind.TS : ts.ScriptKind.JS,
+    );
+    byPath.set(path, { ...module, path, sourceFile });
+  }
+
+  const moduleFor = (path) => byPath.get(
+    graphResolveImportPath(path, path) ?? resolve(path),
+  );
+  const importedPath = (specifier, sourcePath) => {
+    const path = graphResolveImportPath(specifier, sourcePath);
+    return path && (byPath.has(path) || path === ownDefine) ? path : null;
+  };
+  const hasExportModifier = (node) => ts.canHaveModifiers(node)
+    && ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword);
+
+  const resolveLocal = (modulePath, localName, seen = new Set()) => {
+    const key = `local:${modulePath}:${localName}`;
+    if (seen.has(key)) return null;
+    seen.add(key);
+    const module = moduleFor(modulePath);
+    if (!module) return null;
+    for (const statement of module.sourceFile.statements) {
+      if (ts.isImportDeclaration(statement)
+        && ts.isStringLiteral(statement.moduleSpecifier)) {
+        const target = importedPath(statement.moduleSpecifier.text, module.path);
+        if (!target) continue;
+        if (statement.importClause?.name?.text === localName) {
+          return resolveExport(target, 'default', seen);
+        }
+        const bindings = statement.importClause?.namedBindings;
+        if (bindings && ts.isNamespaceImport(bindings) && bindings.name.text === localName) {
+          return { kind: 'namespace', modulePath: target };
+        }
+        if (bindings && ts.isNamedImports(bindings)) {
+          const binding = bindings.elements.find((element) => element.name.text === localName);
+          if (binding) {
+            return resolveExport(target, binding.propertyName?.text ?? binding.name.text, seen);
+          }
+        }
+      }
+      if (ts.isVariableStatement(statement)) {
+        for (const declaration of statement.declarationList.declarations) {
+          if (ts.isIdentifier(declaration.name) && declaration.name.text === localName) {
+            return {
+              kind: 'local', modulePath: module.path, localName, declaration,
+            };
+          }
+        }
+      }
+      if ((ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement))
+        && statement.name?.text === localName) {
+        return { kind: 'local', modulePath: module.path, localName, declaration: statement };
+      }
+    }
+    return null;
+  };
+
+  const resolveExport = (modulePath, exportName, seen = new Set()) => {
+    if (modulePath === ownDefine) {
+      return { kind: 'own-export', modulePath, exportName };
+    }
+    const key = `export:${modulePath}:${exportName}`;
+    if (seen.has(key)) return null;
+    seen.add(key);
+    const module = moduleFor(modulePath);
+    if (!module) return null;
+    for (const statement of module.sourceFile.statements) {
+      if (ts.isExportDeclaration(statement)) {
+        const target = ts.isStringLiteral(statement.moduleSpecifier)
+          ? importedPath(statement.moduleSpecifier.text, module.path)
+          : null;
+        if (statement.exportClause && ts.isNamedExports(statement.exportClause)) {
+          const binding = statement.exportClause.elements.find(
+            (element) => element.name.text === exportName,
+          );
+          if (!binding) continue;
+          const imported = binding.propertyName?.text ?? binding.name.text;
+          return target
+            ? resolveExport(target, imported, seen)
+            : resolveLocal(module.path, imported, seen);
+        }
+        if (!statement.exportClause && target) {
+          const resolved = resolveExport(target, exportName, new Set(seen));
+          if (resolved) return resolved;
+        }
+      }
+      if (ts.isVariableStatement(statement) && hasExportModifier(statement)) {
+        for (const declaration of statement.declarationList.declarations) {
+          if (ts.isIdentifier(declaration.name) && declaration.name.text === exportName) {
+            return {
+              kind: 'local', modulePath: module.path, localName: exportName, declaration,
+            };
+          }
+        }
+      }
+      if ((ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement))
+        && hasExportModifier(statement) && statement.name?.text === exportName) {
+        return {
+          kind: 'local', modulePath: module.path, localName: exportName, declaration: statement,
+        };
+      }
+      if (exportName === 'default' && ts.isExportAssignment(statement)) {
+        return ts.isIdentifier(statement.expression)
+          ? resolveLocal(module.path, statement.expression.text, seen)
+          : { kind: 'expression', modulePath: module.path, expression: statement.expression };
+      }
+    }
+    return null;
+  };
+
+  const ownExport = (descriptor, exportName) => descriptor?.kind === 'own-export'
+    && descriptor.modulePath === ownDefine
+    && descriptor.exportName === exportName;
+  const propertyName = (node) => {
+    if (ts.isPropertyAccessExpression(node)) return node.name.text;
+    if (ts.isElementAccessExpression(node)
+      && (ts.isStringLiteral(node.argumentExpression)
+        || ts.isNoSubstitutionTemplateLiteral(node.argumentExpression))) {
+      return node.argumentExpression.text;
+    }
+    return null;
+  };
+  const propertyReceiver = (node) => (
+    ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)
+      ? node.expression
+      : null
+  );
+  const calleeOwnExport = (node, sourcePath, sourceFile, exportName, unwrap) => {
+    const target = unwrap(node);
+    const modulePath = graphResolveImportPath(sourcePath, sourcePath) ?? resolve(sourcePath);
+    if (ts.isIdentifier(target)) {
+      return graphModuleBindingIsUnshadowed(target, target.text, sourceFile)
+        && ownExport(resolveLocal(modulePath, target.text), exportName);
+    }
+    if (propertyName(target) !== exportName) return false;
+    const receiver = unwrap(propertyReceiver(target));
+    if (!ts.isIdentifier(receiver)
+      || !graphModuleBindingIsUnshadowed(receiver, receiver.text, sourceFile)) return false;
+    const namespace = resolveLocal(modulePath, receiver.text);
+    return namespace?.kind === 'namespace'
+      && ownExport(resolveExport(namespace.modulePath, exportName), exportName);
+  };
+  const builderTarget = (node, sourcePath, sourceFile, unwrap) => {
+    const target = unwrap(node);
+    const invocation = propertyName(target);
+    if ((invocation === 'call' || invocation === 'apply') && propertyReceiver(target)) {
+      const base = builderTarget(propertyReceiver(target), sourcePath, sourceFile, unwrap);
+      return base ? { ...base, invocation } : null;
+    }
+    if (ts.isIdentifier(target)) {
+      const descriptor = graphModuleBindingIsUnshadowed(
+        target, target.text, sourceFile,
+      ) ? resolveLocal(
+          graphResolveImportPath(sourcePath, sourcePath) ?? resolve(sourcePath),
+          target.text,
+        ) : null;
+      if (target.text === 'defineGraphQuery' || ownExport(descriptor, 'defineGraphQuery')) {
+        return { kind: 'builder', owned: ownExport(descriptor, 'defineGraphQuery'), invocation: null };
+      }
+      return null;
+    }
+    if (propertyName(target) !== 'defineGraphQuery') return null;
+    const receiver = unwrap(propertyReceiver(target));
+    let owned = false;
+    if (ts.isIdentifier(receiver)
+      && graphModuleBindingIsUnshadowed(receiver, receiver.text, sourceFile)) {
+      const namespace = resolveLocal(
+        graphResolveImportPath(sourcePath, sourcePath) ?? resolve(sourcePath),
+        receiver.text,
+      );
+      owned = namespace?.kind === 'namespace'
+        && ownExport(resolveExport(namespace.modulePath, 'defineGraphQuery'), 'defineGraphQuery');
+    }
+    return { kind: 'builder', owned, invocation: null };
+  };
+
+  const isTableBuilder = (initializer, module) => {
+    let current = initializer;
+    while (current && ts.isCallExpression(current)) {
+      const callee = current.expression;
+      if (calleeOwnExport(callee, module.path, module.sourceFile, 'defineTable', (value) => value)) {
+        return true;
+      }
+      if (ts.isPropertyAccessExpression(callee) || ts.isElementAccessExpression(callee)) {
+        current = callee.expression;
+        continue;
+      }
+      break;
+    }
+    return false;
+  };
+  const tableInstalled = (descriptor) => {
+    if (descriptor?.kind !== 'local' || !ts.isVariableDeclaration(descriptor.declaration)) {
+      return false;
+    }
+    const module = moduleFor(descriptor.modulePath);
+    if (!module || !isTableBuilder(descriptor.declaration.initializer, module)) return false;
+    let installed = false;
+    const visit = (node) => {
+      if (installed) return;
+      if (ts.isCallExpression(node)
+        && calleeOwnExport(
+          node.expression, module.path, module.sourceFile, 'defineSchema', (value) => value,
+        )) {
+        const tables = node.arguments[0];
+        if (tables && ts.isObjectLiteralExpression(tables)) {
+          installed = tables.properties.some((property) => (
+            ts.isShorthandPropertyAssignment(property)
+              ? property.name.text === descriptor.localName
+              : ts.isPropertyAssignment(property)
+                && ts.isIdentifier(property.initializer)
+                && property.initializer.text === descriptor.localName
+          ));
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(module.sourceFile);
+    return installed;
+  };
+
+  return {
+    builderTarget,
+    isDeclaredTableBinding(identifier, sourcePath, sourceFile) {
+      if (!graphModuleBindingIsUnshadowed(identifier, identifier.text, sourceFile)) return false;
+      const descriptor = resolveLocal(
+        graphResolveImportPath(sourcePath, sourcePath) ?? resolve(sourcePath),
+        identifier.text,
+      );
+      return tableInstalled(descriptor);
+    },
+  };
 }
 
 function graphPropertyName(property) {
@@ -19486,7 +19771,7 @@ function graphPropertyName(property) {
   return { computed: false, name: null };
 }
 
-function validateGraphAuthoringSource(source, path) {
+function validateGraphAuthoringSource(source, path, bindings) {
   if (typeof source !== 'string') return [];
   const sourceFile = ts.createSourceFile(
     path,
@@ -19495,7 +19780,6 @@ function validateGraphAuthoringSource(source, path) {
     true,
     /\.tsx?$/iu.test(path) ? ts.ScriptKind.TS : ts.ScriptKind.JS,
   );
-  const graphBuilders = new Set();
   const helperExports = new Set([
     'arg', 'lit', 'literal',
     'eq', 'ltFilter', 'lteFilter', 'gtFilter', 'gteFilter',
@@ -19508,23 +19792,34 @@ function validateGraphAuthoringSource(source, path) {
     if (!ts.isImportDeclaration(statement)
       || !ts.isStringLiteral(statement.moduleSpecifier)
       || !graphImportResolvesToOwnDefine(statement.moduleSpecifier.text, path)) continue;
-    const bindings = statement.importClause?.namedBindings;
-    if (bindings && ts.isNamespaceImport(bindings)) {
-      graphNamespaces.add(bindings.name.text);
+    const importedBindings = statement.importClause?.namedBindings;
+    if (importedBindings && ts.isNamespaceImport(importedBindings)) {
+      graphNamespaces.add(importedBindings.name.text);
       continue;
     }
-    if (!bindings || !ts.isNamedImports(bindings)) continue;
-    for (const specifier of bindings.elements) {
+    if (!importedBindings || !ts.isNamedImports(importedBindings)) continue;
+    for (const specifier of importedBindings.elements) {
       const imported = specifier.propertyName?.text ?? specifier.name.text;
-      if (imported === 'defineGraphQuery') graphBuilders.add(specifier.name.text);
       if (helperExports.has(imported)) graphLiteralHelpers.set(specifier.name.text, imported);
       if (imported === 'v') validatorRoots.add(specifier.name.text);
     }
   }
+  const unwrap = (node) => {
+    let current = node;
+    while (current && (
+      ts.isParenthesizedExpression(current)
+      || ts.isAsExpression(current)
+      || ts.isTypeAssertionExpression(current)
+      || ts.isSatisfiesExpression(current)
+      || ts.isNonNullExpression(current)
+    )) current = current.expression;
+    return current;
+  };
   const ownCallee = (node) => {
     const callee = unwrap(node);
+    const builder = bindings.builderTarget(callee, path, sourceFile, unwrap);
+    if (builder) return builder;
     if (ts.isIdentifier(callee)) {
-      if (graphBuilders.has(callee.text)) return { kind: 'builder', name: 'defineGraphQuery' };
       if (graphLiteralHelpers.has(callee.text)) {
         return { kind: 'helper', name: graphLiteralHelpers.get(callee.text) };
       }
@@ -19548,17 +19843,6 @@ function validateGraphAuthoringSource(source, path) {
     }
     return null;
   };
-  const unwrap = (node) => {
-    let current = node;
-    while (current && (
-      ts.isParenthesizedExpression(current)
-      || ts.isAsExpression(current)
-      || ts.isTypeAssertionExpression(current)
-      || ts.isSatisfiesExpression(current)
-      || ts.isNonNullExpression(current)
-    )) current = current.expression;
-    return current;
-  };
   const span = (node) => {
     const point = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
     return { file: path, line: point.line + 1, column: point.character + 1 };
@@ -19571,13 +19855,38 @@ function validateGraphAuthoringSource(source, path) {
   const collect = (node) => {
     if (!node) return;
     if (ts.isCallExpression(node)) {
-      if (ownCallee(node.expression)?.kind === 'builder') calls.push(node);
+      const binding = ownCallee(node.expression);
+      if (binding?.kind === 'builder') calls.push({ call: node, binding });
     }
     ts.forEachChild(node, collect);
   };
   collect(sourceFile);
-  for (const call of calls) {
-    const spec = unwrap(call.arguments[0]);
+  for (const entry of calls) {
+    const { call, binding } = entry;
+    if (!binding.owned) {
+      report(
+        'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+        call,
+        'defineGraphQuery binding does not resolve to the codegen-owned define.mjs export',
+      );
+      continue;
+    }
+    let specArgument = binding.invocation === 'call' ? call.arguments[1] : call.arguments[0];
+    if (binding.invocation === 'apply') {
+      const applied = unwrap(call.arguments[1]);
+      if (applied && ts.isArrayLiteralExpression(applied) && applied.elements.length === 1
+        && !ts.isSpreadElement(applied.elements[0])) {
+        [specArgument] = applied.elements;
+      } else {
+        report(
+          'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+          call,
+          'defineGraphQuery.apply requires one literal source-carrier argument',
+        );
+        continue;
+      }
+    }
+    const spec = unwrap(specArgument);
     if (!spec || !ts.isObjectLiteralExpression(spec)) {
       report('SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', call, 'defineGraphQuery requires an unconditional object-literal source carrier');
       continue;
@@ -19616,25 +19925,33 @@ function validateGraphAuthoringSource(source, path) {
         return;
       }
       if (ts.isCallExpression(current)) {
-        const binding = ownCallee(current.expression);
-        if (binding?.kind === 'builder' && current !== call) {
-          report('SNAPBACK_GRAPH_RECURSION_FORBIDDEN', current, 'a graph declaration may not invoke another graph declaration recursively');
+        const nestedBinding = ownCallee(current.expression);
+        if (nestedBinding?.kind === 'builder' && current !== call) {
+          report(
+            nestedBinding.owned
+              ? 'SNAPBACK_GRAPH_RECURSION_FORBIDDEN'
+              : 'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+            current,
+            nestedBinding.owned
+              ? 'a graph declaration may not invoke another graph declaration recursively'
+              : 'nested defineGraphQuery binding does not resolve to the codegen-owned export',
+          );
           return;
         }
         const inArgs = propertyPath[0] === 'args';
         const inFilters = propertyPath.includes('filters');
         const inOrder = propertyPath.includes('order');
-        const helperAllowed = binding?.kind === 'helper' && (
-          (['arg', 'lit', 'literal', 'eq', 'ltFilter', 'lteFilter', 'gtFilter', 'gteFilter'].includes(binding.name) && inFilters)
-          || (['asc', 'desc'].includes(binding.name) && inOrder)
+        const helperAllowed = nestedBinding?.kind === 'helper' && (
+          (['arg', 'lit', 'literal', 'eq', 'ltFilter', 'lteFilter', 'gtFilter', 'gteFilter'].includes(nestedBinding.name) && inFilters)
+          || (['asc', 'desc'].includes(nestedBinding.name) && inOrder)
         );
-        if (binding?.kind === 'helper' && binding.name === 'arg' && !inFilters) {
+        if (nestedBinding?.kind === 'helper' && nestedBinding.name === 'arg' && !inFilters) {
           report(
             'SNAPBACK_GRAPH_CLIENT_AST_FORBIDDEN',
             current,
             'an argument helper may bind only a closed filter value, never graph shape',
           );
-        } else if (!(helperAllowed || (binding?.kind === 'validator' && inArgs))) {
+        } else if (!(helperAllowed || (nestedBinding?.kind === 'validator' && inArgs))) {
           report(
             'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
             current,
@@ -19677,7 +19994,8 @@ function validateGraphAuthoringSource(source, path) {
       }
       if (ts.isIdentifier(current)) {
         const property = propertyPath.at(-1);
-        if (property === 'table' || property === 'targetTable') return;
+        if ((property === 'table' || property === 'targetTable')
+          && bindings.isDeclaredTableBinding(current, path, sourceFile)) return;
         report('SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', current, 'identifier references are unavailable outside declared table/helper positions');
         return;
       }
@@ -19700,11 +20018,15 @@ function validateGraphAuthoringGraph(graph, entryPath, entrySource, backendRoot,
       moduleIdentityLabel(left.path, backendRoot),
       moduleIdentityLabel(right.path, backendRoot),
     ));
+  const bindingResolver = graphAuthoringBindingResolver(modules.map((module) => ({
+    ...module,
+    source: resolve(module.path) === resolve(entryPath) ? entrySource : module.source,
+  })));
   for (const module of modules) {
     const source = resolve(module.path) === resolve(entryPath) ? entrySource : module.source;
     const path = moduleIdentityLabel(module.path, backendRoot)
       ?? relative(backendRoot, module.path).split(sep).join('/');
-    for (const fault of validateGraphAuthoringSource(source, module.path)) {
+    for (const fault of validateGraphAuthoringSource(source, module.path, bindingResolver)) {
       if (!faults.has(fault.code)) faults.set(fault.code, { ...fault, path });
     }
   }

@@ -4,6 +4,7 @@ const GRAPH_PLAN_DOMAIN = 'snapback:graph-plan:v1:';
 const ARGUMENT_CONTRACT_DOMAIN = 'snapback:argument-binding-contract:v1:';
 const PARTITION_FUNCTION_DOMAIN = 'snapback:graph-partition-function:v1:';
 const ZERO_HASH = `sha256:${'0'.repeat(64)}`;
+const GRAPH_MAX_SAFE_INTEGER = 9_007_199_254_740_991;
 
 export const GRAPH_IDENTITY_DOMAINS = Object.freeze({
   plan: GRAPH_PLAN_DOMAIN,
@@ -454,8 +455,405 @@ export function normalizeGraphPlanV1(candidate) {
   return plan;
 }
 
+const graphSafeCount = (value) => Number.isSafeInteger(value)
+  && value >= 0
+  && value <= GRAPH_MAX_SAFE_INTEGER;
+const graphPositiveCount = (value) => graphSafeCount(value) && value > 0;
+const graphBoundInvalid = (message) => graphError('SNAPBACK_GRAPH_BOUND_INVALID', message);
+const graphCheckedAdd = (left, right) => {
+  if (!graphSafeCount(left) || !graphSafeCount(right)) {
+    return graphBoundInvalid('graph cost addition has an invalid operand');
+  }
+  const value = left + right;
+  if (!graphSafeCount(value)) return graphBoundInvalid('graph cost addition exceeds the safe-integer boundary');
+  return value;
+};
+const graphCheckedMultiply = (left, right) => {
+  if (!graphSafeCount(left) || !graphSafeCount(right)) {
+    return graphBoundInvalid('graph cost multiplication has an invalid operand');
+  }
+  const value = left * right;
+  if (!graphSafeCount(value)) return graphBoundInvalid('graph cost multiplication exceeds the safe-integer boundary');
+  return value;
+};
+
+function graphFilterMultiplicativeInputs(node) {
+  const argumentsSet = new Set();
+  let literalFactor = 1;
+  for (const filter of node.filters ?? []) {
+    if (filter.op !== 'In') continue;
+    if (filter.value && typeof filter.value.Arg === 'string') {
+      argumentsSet.add(filter.value.Arg);
+    } else if (Array.isArray(filter.value?.Literal) && filter.value.Literal.length > 0) {
+      literalFactor = graphCheckedMultiply(literalFactor, filter.value.Literal.length);
+    } else {
+      graphBoundInvalid('an In filter must bind a collection argument or non-empty literal array');
+    }
+  }
+  return { argumentsSet, literalFactor };
+}
+
+function graphNodeMultiplicativeInputs(node) {
+  const { argumentsSet, literalFactor } = graphFilterMultiplicativeInputs(node);
+  if (node.kind === 'exists-semi-join' && node.mode === 'all'
+    && typeof node.argumentId === 'string') argumentsSet.add(node.argumentId);
+  if (node.kind === 'search-membership' && Array.isArray(node.argumentIds)) {
+    for (const argumentId of node.argumentIds) argumentsSet.add(argumentId);
+  }
+  return { argumentsSet, literalFactor };
+}
+
+function graphDemandPaged(node) {
+  return node.kind === 'root-window'
+    || (node.kind === 'bounded-to-many' && node.page?.kind === 'demand');
+}
+
+function validateGraphCostRecord(node, cost) {
+  if (!graphPositiveCount(cost.maxExaminedEntriesPerExecution)
+    || (cost.maxArgumentExpansion !== undefined
+      && !graphPositiveCount(cost.maxArgumentExpansion))) {
+    graphBoundInvalid(`node ${node.nodeId} has an invalid examined/argument bound`);
+  }
+  const windowFields = [
+    cost.maxWindowPages,
+    cost.maxWindowRootRows,
+    cost.maxWindowScannedRows,
+    cost.maxWindowResultRows,
+    cost.maxWindowResultBytes,
+    cost.maxWindowIndexRanges,
+  ];
+  const hasAllWindows = windowFields.every((value) => value !== undefined);
+  const hasNoWindows = windowFields.every((value) => value === undefined);
+  if (hasAllWindows && (
+    !graphPositiveCount(cost.maxWindowPages)
+    || !graphSafeCount(cost.maxWindowRootRows)
+    || !graphPositiveCount(cost.maxWindowScannedRows)
+    || !graphSafeCount(cost.maxWindowResultRows)
+    || !graphSafeCount(cost.maxWindowResultBytes)
+    || !graphPositiveCount(cost.maxWindowIndexRanges)
+  )) graphBoundInvalid(`node ${node.nodeId} has an invalid window bound`);
+
+  const noRoot = cost.maxRootRowsPerPage === undefined;
+  const noRelationships = cost.maxRelationshipLookupsPerExecution === undefined;
+  const noChildren = cost.maxChildrenPerParent === undefined;
+  let valid = false;
+  if (node.kind === 'root-window') {
+    valid = graphPositiveCount(cost.maxRootRowsPerPage)
+      && noRelationships && noChildren && hasAllWindows
+      && graphPositiveCount(cost.maxWindowRootRows);
+  } else if (node.kind === 'equality-to-one' || node.kind === 'principal-bound') {
+    valid = noRoot && graphPositiveCount(cost.maxRelationshipLookupsPerExecution)
+      && noChildren && hasNoWindows;
+  } else if (node.kind === 'bounded-to-many') {
+    valid = noRoot && graphPositiveCount(cost.maxRelationshipLookupsPerExecution)
+      && graphPositiveCount(cost.maxChildrenPerParent)
+      && (node.page?.kind === 'demand'
+        ? hasAllWindows && cost.maxWindowRootRows === 0
+        : hasNoWindows && graphPositiveCount(node.page?.take)
+          && cost.maxChildrenPerParent === node.page.take);
+  } else if (node.kind === 'exists-semi-join') {
+    valid = noRoot && graphPositiveCount(cost.maxRelationshipLookupsPerExecution)
+      && graphPositiveCount(cost.maxChildrenPerParent) && hasNoWindows
+      && (node.mode !== 'all' || graphPositiveCount(cost.maxArgumentExpansion));
+  } else if (node.kind === 'search-membership') {
+    valid = noRoot && graphPositiveCount(cost.maxRelationshipLookupsPerExecution)
+      && noChildren && hasNoWindows
+      && (node.argumentIds === undefined || graphPositiveCount(cost.maxArgumentExpansion));
+  }
+  if (!valid) graphBoundInvalid(`node ${node.nodeId} has cost fields incompatible with ${node.kind}`);
+}
+
+/**
+ * Exact JS twin of B1's `validate_graph_costs` rank-0 admission check.
+ * @ref LLP 0209#26-bounds-and-fixture-derivation — analytical physical
+ * fields and every derived aggregate are host-recomputed and exact-matched.
+ */
+function validateGraphCostsV1(plan) {
+  const wholeQueryLimits = [
+    plan.queryCost.maxScannedRows,
+    plan.queryCost.maxIndexRanges,
+    plan.queryCost.maxResultRows,
+    plan.queryCost.maxResultBytes,
+    plan.queryCost.maxEvaluationTurnMs,
+    plan.queryCost.maxObservers,
+    plan.queryCost.maxDistinctEvaluationGroups,
+    plan.queryCost.maxEstimatedLiveFanoutMs,
+  ];
+  if (wholeQueryLimits.some((value) => !graphPositiveCount(value))) {
+    graphBoundInvalid('whole-query limits must be positive safe integers');
+  }
+
+  const collectionBounds = new Map();
+  let expectedArgumentItems = 0;
+  let argumentCostIndex = 0;
+  for (const argument of plan.arguments) {
+    let argumentItems = 1;
+    if (argument.contract?.value?.kind === 'array') {
+      const contractMax = argument.contract.value.maxItems;
+      const cost = plan.queryCost.graph.arguments[argumentCostIndex];
+      if (!cost || cost.argumentId !== argument.argumentId
+        || !graphPositiveCount(cost.maxItems)
+        || !graphSafeCount(contractMax)
+        || cost.maxItems > contractMax) {
+        graphBoundInvalid(`collection argument ${argument.argumentId} has an invalid cost record`);
+      }
+      collectionBounds.set(argument.argumentId, cost.maxItems);
+      argumentCostIndex += 1;
+      argumentItems = cost.maxItems;
+    }
+    expectedArgumentItems = graphCheckedAdd(expectedArgumentItems, argumentItems);
+  }
+  if (argumentCostIndex !== plan.queryCost.graph.arguments.length
+    || plan.queryCost.graph.maxArgumentItems !== expectedArgumentItems
+    || !graphPositiveCount(plan.queryCost.graph.maxPageResultBytes)
+    || plan.queryCost.graph.maxPageResultBytes > plan.queryCost.maxResultBytes
+    || plan.queryCost.graph.maxMaintainedWritesPerMutation !== 0) {
+    graphBoundInvalid('graph argument, page-byte, or maintained-write aggregate mismatches');
+  }
+
+  const dataNodes = plan.nodes.filter((node) => node.kind !== 'closed-projection');
+  const nodeById = new Map(dataNodes.map((node) => [node.nodeId, node]));
+  const costById = new Map(plan.queryCost.graph.nodes.map((cost) => [cost.nodeId, cost]));
+  const actualCostOrder = plan.queryCost.graph.nodes
+    .filter((cost) => nodeById.has(cost.nodeId))
+    .map((cost) => cost.nodeId);
+  const expectedCostOrder = dataNodes
+    .filter((node) => costById.has(node.nodeId))
+    .map((node) => node.nodeId);
+  if (costById.size !== plan.queryCost.graph.nodes.length
+    || [...costById.keys()].some((nodeId) => !nodeById.has(nodeId))
+    || graphCanonicalJson(actualCostOrder) !== graphCanonicalJson(expectedCostOrder)) {
+    graphBoundInvalid('graph node costs must be unique and in canonical node order');
+  }
+  const missingCost = dataNodes.some((node) => !costById.has(node.nodeId));
+
+  const localFactorById = new Map();
+  for (const node of dataNodes) {
+    const { argumentsSet, literalFactor } = graphNodeMultiplicativeInputs(node);
+    let factor = 1;
+    for (const argumentId of argumentsSet) {
+      const bound = collectionBounds.get(argumentId);
+      if (bound === undefined) graphBoundInvalid(`node ${node.nodeId} has an unbounded argument input`);
+      factor = graphCheckedMultiply(factor, bound);
+    }
+    localFactorById.set(node.nodeId, { argumentsSet, factor, literalFactor });
+  }
+
+  const root = dataNodes[0];
+  if (!root || root.kind !== 'root-window') {
+    graphError('SNAPBACK_GRAPH_ROOT_COUNT_INVALID', 'the canonical first data node must be the root');
+  }
+  const rootCost = costById.get(root.nodeId);
+  if (!rootCost) {
+    graphError('SNAPBACK_GRAPH_UNBOUNDED_EXPANSION', 'the root lacks a cost record');
+  }
+  if (!graphPositiveCount(rootCost.maxRootRowsPerPage)) {
+    graphBoundInvalid('the root row bound must be a positive safe integer');
+  }
+  const rootRows = rootCost.maxRootRowsPerPage;
+
+  const parentPopulation = (node) => {
+    const path = [];
+    const visited = new Set();
+    let current = node;
+    while (current) {
+      if (visited.has(current.nodeId)) {
+        graphError('SNAPBACK_GRAPH_CYCLE', 'graph cost ancestry contains a cycle');
+      }
+      visited.add(current.nodeId);
+      path.push(current);
+      current = current.parentNodeId === undefined ? null : nodeById.get(current.parentNodeId);
+    }
+    path.reverse();
+    if (path[0]?.nodeId !== root.nodeId) {
+      graphBoundInvalid(`node ${node.nodeId} is outside the root cost lineage`);
+    }
+    const argumentIds = new Set();
+    let literalFactor = 1;
+    for (const pathNode of path) {
+      const local = localFactorById.get(pathNode.nodeId);
+      for (const argumentId of local.argumentsSet) argumentIds.add(argumentId);
+      literalFactor = graphCheckedMultiply(literalFactor, local.literalFactor);
+    }
+    if (node.kind === 'exists-semi-join' && node.mode === 'all') {
+      argumentIds.delete(node.argumentId);
+    }
+    let population = node.kind === 'root-window' ? 1 : rootRows;
+    for (const argumentId of argumentIds) {
+      const bound = collectionBounds.get(argumentId);
+      if (bound === undefined) graphBoundInvalid(`node ${node.nodeId} has an unbounded path argument`);
+      population = graphCheckedMultiply(population, bound);
+    }
+    population = graphCheckedMultiply(population, literalFactor);
+    if (node.kind !== 'root-window') {
+      for (const ancestor of path.slice(0, -1)) {
+        if (ancestor.kind !== 'bounded-to-many') continue;
+        const children = costById.get(ancestor.nodeId)?.maxChildrenPerParent
+          ?? (ancestor.page?.kind === 'literal' ? ancestor.page.take : undefined);
+        if (children === undefined) {
+          graphError('SNAPBACK_GRAPH_UNBOUNDED_EXPANSION', `ancestor ${ancestor.nodeId} lacks a child bound`);
+        }
+        population = graphCheckedMultiply(population, children);
+      }
+    }
+    return population;
+  };
+
+  let scanned = 0;
+  let indexRanges = 0;
+  const examinedById = new Map();
+  const rangesById = new Map();
+  for (const node of dataNodes) {
+    const cost = costById.get(node.nodeId);
+    if (!cost) continue;
+    validateGraphCostRecord(node, cost);
+    const local = localFactorById.get(node.nodeId);
+    const expectedArgumentExpansion = local.argumentsSet.size > 0 ? local.factor : undefined;
+    if (cost.maxArgumentExpansion !== expectedArgumentExpansion) {
+      graphBoundInvalid(`node ${node.nodeId} argument expansion is not host-derived`);
+    }
+    const population = parentPopulation(node);
+    let expectedExamined;
+    let expectedRelationships;
+    let expectedRanges;
+    if (node.kind === 'root-window') {
+      expectedExamined = graphCheckedMultiply(population, graphCheckedAdd(rootRows, 1));
+      expectedRelationships = undefined;
+      expectedRanges = population;
+    } else if (node.kind === 'equality-to-one') {
+      expectedExamined = population;
+      expectedRelationships = population;
+      expectedRanges = population;
+    } else if (node.kind === 'bounded-to-many') {
+      expectedExamined = graphCheckedMultiply(
+        population, graphCheckedAdd(cost.maxChildrenPerParent, 1),
+      );
+      expectedRelationships = population;
+      expectedRanges = population;
+    } else if (node.kind === 'exists-semi-join') {
+      const probes = node.mode === 'all' ? collectionBounds.get(node.argumentId) : 1;
+      if (probes === undefined) graphBoundInvalid(`all-mode node ${node.nodeId} lacks its argument bound`);
+      const attempts = graphCheckedMultiply(population, probes);
+      if (node.edge?.targetTable === undefined) {
+        const boundedRange = graphCheckedMultiply(
+          attempts, graphCheckedAdd(cost.maxChildrenPerParent, 1),
+        );
+        if (cost.maxExaminedEntriesPerExecution !== attempts
+          && cost.maxExaminedEntriesPerExecution !== boundedRange) {
+          graphBoundInvalid(`direct semi-join ${node.nodeId} has a non-analytical examined bound`);
+        }
+        expectedExamined = cost.maxExaminedEntriesPerExecution;
+        expectedRelationships = attempts;
+        expectedRanges = attempts;
+      } else {
+        const perProbe = graphCheckedAdd(
+          graphCheckedAdd(cost.maxChildrenPerParent, 1), cost.maxChildrenPerParent,
+        );
+        expectedExamined = graphCheckedMultiply(attempts, perProbe);
+        expectedRelationships = graphCheckedMultiply(
+          attempts, graphCheckedAdd(cost.maxChildrenPerParent, 1),
+        );
+        expectedRanges = expectedRelationships;
+      }
+    } else if (node.kind === 'principal-bound') {
+      const consultations = graphCheckedMultiply(
+        population, 1 + Number(node.binding !== undefined),
+      );
+      expectedExamined = consultations;
+      expectedRelationships = consultations;
+      expectedRanges = consultations;
+    } else if (node.kind === 'search-membership') {
+      expectedExamined = population;
+      expectedRelationships = population;
+      expectedRanges = population;
+    } else {
+      graphBoundInvalid(`unsupported cost node ${node.kind}`);
+    }
+    if (cost.maxExaminedEntriesPerExecution !== expectedExamined
+      || cost.maxRelationshipLookupsPerExecution !== expectedRelationships) {
+      graphBoundInvalid(`node ${node.nodeId} physical bounds do not match the analytical formula`);
+    }
+    scanned = graphCheckedAdd(scanned, expectedExamined);
+    indexRanges = graphCheckedAdd(indexRanges, expectedRanges);
+    examinedById.set(node.nodeId, expectedExamined);
+    rangesById.set(node.nodeId, expectedRanges);
+  }
+
+  const rollup = {
+    maxWindowPages: 0,
+    maxWindowRootRows: 0,
+    maxWindowScannedRows: 0,
+    maxWindowResultRows: 0,
+    maxWindowResultBytes: 0,
+    maxWindowIndexRanges: 0,
+  };
+  for (const node of dataNodes) {
+    if (!graphDemandPaged(node)) continue;
+    const cost = costById.get(node.nodeId);
+    if (!cost) {
+      graphError('SNAPBACK_GRAPH_UNBOUNDED_EXPANSION', `pageable node ${node.nodeId} lacks a cost record`);
+    }
+    const pages = cost.maxWindowPages;
+    if (!graphPositiveCount(pages)) graphBoundInvalid(`node ${node.nodeId} has invalid window pages`);
+    const isInSubtree = (candidate) => {
+      const visited = new Set();
+      let current = candidate;
+      while (current) {
+        if (current.nodeId === node.nodeId) return true;
+        if (visited.has(current.nodeId)) {
+          graphError('SNAPBACK_GRAPH_CYCLE', 'graph window ancestry contains a cycle');
+        }
+        visited.add(current.nodeId);
+        current = current.parentNodeId === undefined ? null : nodeById.get(current.parentNodeId);
+      }
+      return false;
+    };
+    let subtreeScanned = 0;
+    let subtreeRanges = 0;
+    for (const candidate of dataNodes) {
+      if (!isInSubtree(candidate)) continue;
+      subtreeScanned = graphCheckedAdd(subtreeScanned, examinedById.get(candidate.nodeId));
+      subtreeRanges = graphCheckedAdd(subtreeRanges, rangesById.get(candidate.nodeId));
+    }
+    const expectedRootRows = node.kind === 'root-window'
+      ? graphCheckedMultiply(pages, rootRows)
+      : 0;
+    const expectedWindowScanned = graphCheckedMultiply(pages, subtreeScanned);
+    const expectedWindowRanges = graphCheckedMultiply(pages, subtreeRanges);
+    const resultRows = cost.maxWindowResultRows;
+    const resultBytes = cost.maxWindowResultBytes;
+    if (!graphSafeCount(resultRows) || !graphSafeCount(resultBytes)
+      || cost.maxWindowRootRows !== expectedRootRows
+      || cost.maxWindowScannedRows !== expectedWindowScanned
+      || cost.maxWindowIndexRanges !== expectedWindowRanges
+      || resultRows > graphCheckedMultiply(pages, plan.queryCost.maxResultRows)
+      || resultBytes > graphCheckedMultiply(pages, plan.queryCost.graph.maxPageResultBytes)) {
+      graphBoundInvalid(`node ${node.nodeId} window aggregates do not match their lineage`);
+    }
+    rollup.maxWindowPages = graphCheckedAdd(rollup.maxWindowPages, pages);
+    rollup.maxWindowRootRows = graphCheckedAdd(rollup.maxWindowRootRows, expectedRootRows);
+    rollup.maxWindowScannedRows = graphCheckedAdd(
+      rollup.maxWindowScannedRows, expectedWindowScanned,
+    );
+    rollup.maxWindowResultRows = graphCheckedAdd(rollup.maxWindowResultRows, resultRows);
+    rollup.maxWindowResultBytes = graphCheckedAdd(rollup.maxWindowResultBytes, resultBytes);
+    rollup.maxWindowIndexRanges = graphCheckedAdd(
+      rollup.maxWindowIndexRanges, expectedWindowRanges,
+    );
+  }
+  if (graphCanonicalJson(plan.queryCost.graph.windowRollup) !== graphCanonicalJson(rollup)
+    || plan.queryCost.maxScannedRows !== scanned
+    || plan.queryCost.maxIndexRanges !== indexRanges) {
+    graphBoundInvalid('graph cost rollups do not match their host-derived aggregates');
+  }
+  if (missingCost) {
+    graphError('SNAPBACK_GRAPH_UNBOUNDED_EXPANSION', 'a graph data node lacks a cost record');
+  }
+}
+
 export function graphPlanIdentityV1(candidate) {
   const normalizedPlan = normalizeGraphPlanV1(candidate);
+  validateGraphCostsV1(normalizedPlan);
   return {
     normalizedPlan,
     planHash: graphDomainHash(GRAPH_PLAN_DOMAIN, normalizedPlan),

@@ -264,6 +264,41 @@ const oneHash = `sha256:${'1'.repeat(64)}`;
     collectionIdentity.normalizedPlan.queryCost.graph.arguments,
     [{ argumentId: 'a0', maxItems: 4 }],
   );
+  const compileCollectionCost = (candidateCost) => compileGraphQueryV1({
+    source: {
+      nodes: [root], projection, queryCost: candidateCost, authorityScopes: {},
+      broadcast: { classification: 'query-shaped' },
+    },
+    argsContract: {
+      fields: [{
+        name: 'ids', required: true,
+        value: { kind: 'array', element: { kind: 'string', maxBytes: 32 }, maxItems: 4 },
+      }],
+    },
+    resultContractHash: zeroHash,
+    tables: {
+      issues: { name: 'issues', fields: [], indexes: [], visibility: root.visibility },
+      membersTable: {
+        name: 'membersTable', fields: [], indexes: [],
+        membership: { id: 'members', scope: 'resource', roles: ['member', 'admin'] },
+        visibility: { kind: 'owner', field: 'principal' },
+      },
+    },
+  });
+  const incorrectArgumentAggregate = clone(queryCost);
+  incorrectArgumentAggregate.graph.maxArgumentItems = 3;
+  assert.throws(
+    () => compileCollectionCost(incorrectArgumentAggregate),
+    (error) => error.code === 'SNAPBACK_GRAPH_BOUND_INVALID',
+    'JS lowering must refuse the same maxArgumentItems mismatch as B1',
+  );
+  const incorrectScannedAggregate = clone(queryCost);
+  incorrectScannedAggregate.maxScannedRows = 4;
+  assert.throws(
+    () => compileCollectionCost(incorrectScannedAggregate),
+    (error) => error.code === 'SNAPBACK_GRAPH_BOUND_INVALID',
+    'JS lowering must refuse the same maxScannedRows mismatch as B1',
+  );
   assert.throws(
     () => compileGraphQueryV1({
       source: {
@@ -500,7 +535,16 @@ const oneHash = `sha256:${'1'.repeat(64)}`;
     }),
     (error) => error.code === 'SNAPBACK_GRAPH_SEARCH_UNADMITTED',
   );
-  assert.doesNotThrow(() => defineGraphQuery(base));
+  const frozenCarrier = defineGraphQuery(base);
+  assert(Object.isFrozen(frozenCarrier));
+  assert(Object.isFrozen(frozenCarrier.graphQuerySource));
+  assert(Object.isFrozen(frozenCarrier.graphQuerySource.nodes));
+  assert(Object.isFrozen(frozenCarrier.graphQuerySource.nodes[0]));
+  assert.throws(
+    () => { frozenCarrier.graphQuerySource.nodes[0].nodeId = 'mutated'; },
+    TypeError,
+    'post-hoc graph carrier mutation must throw',
+  );
   assert.equal(lit('ok').Literal, 'ok');
 }
 
@@ -592,6 +636,14 @@ try {
       `${code}: ${JSON.stringify(refused.diagnostics)}`,
     );
   };
+  const assertGeneratedAcceptance = async (source, message) => {
+    writeFileSync(join(fixture, 'issue-graph.mjs'), source);
+    const accepted = await generateInProcess(fixture, {}, { capabilityManifest: localCapability });
+    assert.equal(accepted.ok, true, `${message}: ${JSON.stringify(accepted.diagnostics)}`);
+  };
+  const withConditionalNodes = (source) => source
+    .replace('  nodes: [{', '  nodes: true ? [{')
+    .replace('  }],\n  projection:', '  }] : [],\n  projection:');
   const projectionOffset = literalFunctions.indexOf('  projection:');
   const authoredSearch = `${literalFunctions.slice(0, literalFunctions.indexOf('  nodes: [{'))}  nodes: [{
     nodeId: 'search', kind: 'search-membership', edgeName: '$root', authorityClass: 1,
@@ -620,6 +672,82 @@ ${literalFunctions.slice(projectionOffset)}`;
   await assertGeneratedRefusal(
     literalFunctions.replace('nodes: [{', 'nodes: [graphDsl.defineGraphQuery({}), {'),
     'SNAPBACK_GRAPH_RECURSION_FORBIDDEN',
+  );
+  await assertGeneratedAcceptance(
+    literalFunctions.replace(
+      'graphDsl.defineGraphQuery(',
+      "graphDsl['defineGraphQuery'](",
+    ),
+    'string-literal element access must resolve to the owned builder',
+  );
+  await assertGeneratedRefusal(
+    withConditionalNodes(literalFunctions.replace(
+      'graphDsl.defineGraphQuery(',
+      "graphDsl['defineGraphQuery'](",
+    )),
+    'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+  );
+  const callBuilder = literalFunctions.replace(
+    'graphDsl.defineGraphQuery({',
+    'graphDsl.defineGraphQuery.call(null, {',
+  );
+  await assertGeneratedRefusal(
+    withConditionalNodes(callBuilder),
+    'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+  );
+  const applyBuilder = literalFunctions
+    .replace('graphDsl.defineGraphQuery({', 'graphDsl.defineGraphQuery.apply(null, [{')
+    .replace(/\}\);\s*$/u, '}]);\n');
+  await assertGeneratedRefusal(
+    withConditionalNodes(applyBuilder),
+    'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+  );
+  await assertGeneratedRefusal(
+    withConditionalNodes(`const dsl = graphDsl;\n${literalFunctions}`.replace(
+      'graphDsl.defineGraphQuery(',
+      'dsl.defineGraphQuery(',
+    )),
+    'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+  );
+
+  writeFileSync(
+    join(fixture, 'graph-builder.mjs'),
+    "export { defineGraphQuery } from '@expo/snapback-codegen/define';\n",
+  );
+  const reexportedBuilder = literalFunctions
+    .replace(
+      "import * as graphDsl from '@expo/snapback-codegen/define';",
+      "import * as graphDsl from '@expo/snapback-codegen/define';\nimport { defineGraphQuery as reexportedGraphBuilder } from './graph-builder.mjs';",
+    )
+    .replace('graphDsl.defineGraphQuery(', 'reexportedGraphBuilder(');
+  await assertGeneratedAcceptance(
+    reexportedBuilder,
+    'a re-export chain to define.mjs must resolve',
+  );
+  await assertGeneratedRefusal(
+    withConditionalNodes(reexportedBuilder),
+    'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+  );
+
+  writeFileSync(
+    join(fixture, 'unknown-builder.mjs'),
+    'export const defineGraphQuery = (spec) => spec;\n',
+  );
+  await assertGeneratedRefusal(
+    literalFunctions
+      .replace(
+        "import * as graphDsl from '@expo/snapback-codegen/define';",
+        "import * as graphDsl from '@expo/snapback-codegen/define';\nimport { defineGraphQuery } from './unknown-builder.mjs';",
+      )
+      .replace('graphDsl.defineGraphQuery(', 'defineGraphQuery('),
+    'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+  );
+  await assertGeneratedRefusal(
+    `const arbitraryTable = issues;\n${literalFunctions}`.replace(
+      '    table: issues,',
+      '    table: arbitraryTable,',
+    ),
+    'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
   );
 
   await assertGeneratedRefusal(literalFunctions.replace(
