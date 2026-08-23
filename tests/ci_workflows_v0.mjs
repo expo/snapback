@@ -12,6 +12,7 @@ assert.deepEqual(workflowNames, [
   'all-aboard-cold-clone.yml',
   'app-bound-linux-qualification.yml',
   'deployment-identity.yml',
+  'inventories.yml',
   'linux-runtime-package.yml',
   'local-proof.yml',
   'ltx-conformance.yml',
