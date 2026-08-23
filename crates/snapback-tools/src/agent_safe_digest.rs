@@ -185,6 +185,14 @@ fn agent_safe_publication_cycle_path(path: &str) -> bool {
             | "crates/snapback-activation/src/local-agent-safe-storage-publication.carrier.json"
             | "crates/snapback-activation/src/local-agent-safe-derived-deployment-fork-publication.anchor.json"
             | "crates/snapback-activation/src/local-agent-safe-derived-deployment-fork-publication.carrier.json"
+            | "crates/snapback/src/local-agent-safe-storage-publication.anchor.json"
+            | "crates/snapback/src/local-agent-safe-storage-publication.carrier.json"
+            | "crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.anchor.json"
+            | "crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.carrier.json"
+            | "src/local-agent-safe-storage-publication.anchor.json"
+            | "src/local-agent-safe-storage-publication.carrier.json"
+            | "src/local-agent-safe-derived-deployment-fork-publication.anchor.json"
+            | "src/local-agent-safe-derived-deployment-fork-publication.carrier.json"
             | "tests/acceptance/receipts/agent-safe-storage-publication.2026-08-04.v1.json"
             | "tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json"
             | "tests/acceptance/fixtures/agent-safe-storage/acceptance-corpus.2026-08-04.v1.json"
@@ -210,6 +218,10 @@ fn agent_safe_publication_cycle_path(path: &str) -> bool {
             | "tests/acceptance/local-store-carrier-exit-v1-evidence.md"
             | "crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json"
             | "crates/snapback-engine/src/local-persistent-store-publication.v1.json"
+            | "crates/snapback/src/local-persistent-store-publication.anchor.v1.json"
+            | "crates/snapback/src/local-persistent-store-publication.v1.json"
+            | "src/local-persistent-store-publication.anchor.v1.json"
+            | "src/local-persistent-store-publication.v1.json"
     )
 }
 
