@@ -234,3 +234,34 @@ Missing enforcement: consumption/state transition on every first invocation, inc
 I found no comparable gap in the publication PUT lease registry: acquisition is private and transitions/drop address the exact publication and lease identity ([assets.rs:653](crates/snapback-services/src/assets.rs:653), [assets.rs:689](crates/snapback-services/src/assets.rs:689)). Apart from the unpacked watch-action settlement, the remaining mode-epoch carriers also retain their lease through private fields.
 
 Plainly: **the four known incidents were not the extent of it; this defect class is endemic at the fence work’s adapter and carrier boundaries.**
+---
+
+## 2026-08-22 — the suspect-test prediction is CONFIRMED on landed code
+
+This audit named
+`bounded_commit_capsule_during_commit_never_times_out_and_reconciles_exact_rows_only` as a test
+that "sounds structural" but whose helper performs the exact query before returning
+`IntendedRows`, so it never supplies a lying reconciliation closure. An independent review of
+the watch-management branch, run against the actual capsule sources rather than this audit,
+reached the same conclusion and traced it to the code:
+
+- `ExactReconciliation::IntendedRows` (`commit_capsule.rs:48`) is freely constructible, and the
+  capsule trusts a closure's claim at `commit_capsule.rs:705`. The test's helper always performs
+  the real query (`tests.rs:37270`). **"It would keep passing if the capsule continued accepting
+  lies -- which it does."**
+- `WatchManagementPending::commit` (`watches.rs:277`) is public despite a comment claiming the
+  pending value is consumed only by the capsule, so a caller can bypass `FinalCommitCut` and
+  `commit_guard` and still return `CommitAttempt::Committed`.
+- `with_bounded_commit_capsule` (`commit_capsule.rs:561`) accepts `state` and `authority`
+  independently, so nothing proves the reservation's authority governs the supplied
+  `LocalSnapback`. This is the audit's Critical 2 shape, found independently in the capsule.
+  The capsule's own structural test pairs database B with authority A and passes because it
+  checks that the observed guard matches A, not that A governs B.
+
+The capsule is landed (`6f39b50c0`), so these are defects in `main`, not in a branch. Fix
+dispatched.
+
+Two things this settles. First, the audit's method works: a suspect test named from reasoning
+about the shape was confirmed by a reviewer reading the code cold. Second, the class keeps
+reproducing at exactly the point where a new abstraction is introduced to prevent it — the
+capsule was built to make bounded commits structural, and it shipped trusting its callers.
