@@ -94,3 +94,38 @@ lazy-write paths that were not accepted.
 
 Multi-transaction routes need care: a permit must span every sibling transaction, or each must take
 its own. Guarding only the main transaction leaves the earlier authorization-clock commit exposed.
+
+---
+
+## 2026-08-22 — the two hard-date items are already done (queue correction)
+
+The program's only deadline-bearing work was believed to be the two raw-SQL ingress allowlist
+rows expiring 2026-09-19:
+`issues/20260819-fork-read-view-raw-sql-ingress.md` and
+`issues/20260819-replication-wal-raw-sql-ingress.md`. An analysis pass dispatched to scope their
+removal found the premise stale, and I verified each claim directly:
+
+- `crates/privilege-surface-allowlist.v1.json` contains `"entries": []` — the allowlist is
+  **empty**, so the gate now excuses nothing.
+- Both tickets are in `issues/closed/`, resolved 2026-08-19.
+- `ForkReadView` survives only as a private services type with a private constructor; both WAL
+  helpers are `pub(crate)`. No public kernel ingress remains.
+
+**The program now has no deadline-bearing work.** Every remaining item is fix-forward.
+
+Two details worth keeping:
+
+1. **These were never dangerous.** Both ingresses accepted a raw connection the caller *already
+   possessed* and returned neither a connection nor write authority. They were
+   ungoverned-by-the-gate, not a privilege escalation. The WAL operation is operationally
+   safety-critical, but making its helper public granted no capability a caller lacked. Useful
+   calibration: an allowlist row is evidence of ungoverned surface, not of exposure.
+2. **The expiry date was off by one in our own notes.** The gate rejects when
+   `expiresAt < today` on the Los Angeles calendar date
+   (`scripts/check-kernel-raw-sql-api.mjs:60-67`, `:110-123`), so the rows would first have gone
+   invalid on **2026-09-20**, not during 2026-09-19.
+
+Not claimed: a fresh green run of the live gate. The analysis ran read-only and the gate's helper
+build needs to write under `target/`, so this rests on static inspection plus the direct file
+checks above. Separately, `issues/20260819-security-gates-expected-red-until-f1.md` still expects
+the product gate red for unrelated F-1 reasons.
