@@ -67,7 +67,7 @@ documents have since attached to it:
    (amended 2026-08-23, Stage A fix round 2)
 4. **Completeness vocabulary bound to the IR** (§4): `unknown` /
    `complete` / `prefix` / `window` / `refused`, each claimed at an
-   (instance identity, partition, version) tuple.
+   (materialization identity, partition, version) tuple.
 5. **Per-node dependency capture specified for every admitted node kind**
    (§5 "required now, with the IR"): root → predicate + boundary; to-one/
    to-many → parent-indexed edge dependencies; semi-join → membership
@@ -90,8 +90,10 @@ documents have since attached to it:
    declaration surface; no `g0Bounds` twin): `maxRootRowsPerPage`,
    `maxExaminedEntriesPerExecution`, `maxRelationshipLookupsPerExecution`,
    `maxChildrenPerParent`, `maxItems`/`maxArgumentItems`/
-   `maxArgumentExpansion`, `maxResultBytes`/`maxPageResultBytes`, the
-   summed-window tuple, `maxMaintainedWritesPerMutation`.
+   `maxArgumentExpansion`, `maxPageResultBytes`, the six per-node
+   `maxWindow*` fields plus the derived checked `windowRollup`, and
+   `maxMaintainedWritesPerMutation`; whole-query
+   `queryCost.maxResultBytes` remains outside `queryCost.graph`.
 8. **The LLP 0268 §7 named inputs**, each present in the exit record by
    its label (G0-BCAST-CLASS, -SEPARATION, -SCOPE, -SCOPE-BINDING,
    -AUDIENCE, -INVALIDATION, -IDENTITY, -CORPUS, -BOUNDS). An exit that
@@ -151,13 +153,13 @@ ratification at the G0 exit (amended 2026-08-23, Stage A fix round 2):
   edges (bounded to-many on the list), comments on detail as a **window
   node** (paged), not a fanout node.
   (amended 2026-08-23, Stage A fix round 2)
-- **summed-window / examined-entry:** this is where the current ceiling
+- **per-node window / examined-entry:** this is where the current ceiling
   is *falsified by the fixtures*: even the contextual mean, a 1,000-row
   list × 2.00 labels/issue, is ~2,000 child rows, already over the 1,024
   summed-batch ceiling; the declaration itself uses the fixture maximum,
   not that mean, so the
   graph profile cannot reuse `SNAPSHOT_BATCH_SUMMED_TAKE_CEILING` as its
-  summed-window bound. The lane derives logical row/fanout/result/window
+  graph-window bound. The lane derives logical row/fanout/result/window
   values from fixture facts and oracle results. It declares physical examined,
   relationship, window-scan, and index-range bounds analytically from the
   normalized plan and marks them **[G2 measures]**; Stage B does not represent
@@ -167,7 +169,8 @@ ratification at the G0 exit (amended 2026-08-23, Stage A fix round 2):
 - **relationship / argument:** counted from the compiled corpus (lookups
   per node per execution; `maxItems` per collection argument from the
   control's filter arguments — selected labels, assignees, projects).
-- **byte:** `maxResultBytes` from the measured full-window frame size
+- **byte:** whole-query `queryCost.maxResultBytes` from the measured
+  full-window frame size
   (six-observer arms delivered ~61–68 MB total ≈ ~10–11 MB per
   1,000-row window frame, LLP 0209 E-1) — the lane records the exact
   per-frame number and proposes the bound with headroom.
@@ -178,7 +181,7 @@ ratification at the G0 exit (amended 2026-08-23, Stage A fix round 2):
 Every value is recorded with its fixture derivation beside it; "current
 ceiling" is never a derivation.
 
-## Author input 2 — OQ-1 grammar lineage: ruling proposed, applied unless overridden
+## Author input 2 — OQ-1 grammar lineage: ruling applied 2026-08-23 (resolved in LLP 0209)
 
 **Facts the ruling rests on** (surveyed 2026-08-23; pointers are to
 `crates/snapback-types/src/manifest/types.rs` unless noted):
@@ -226,7 +229,7 @@ ceiling" is never a derivation.
   corpus compiles" means the lane *declares* the list and detail graphs
   in the new profile and the existing JS handlers are the oracle.
 
-**Proposed ruling — extend the family with a sibling arm; freeze, do not
+**Ruling — extend the family with a sibling arm; freeze, do not
 mutate or migrate, the shipped carriers.**
 
 1. The graph IR lands as a **new `HandlerPlan` arm** (working name

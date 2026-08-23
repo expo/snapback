@@ -159,7 +159,7 @@ The following is the complete graph-owned v1 grammar. `readonly` is
 descriptive; the Rust/Serde types and generated JSON Schema are the wire
 authority. The only unexpanded names are shipped closed owner types reused
 byte-for-byte: `FilterExpr`, `OrderExpr`, `JoinEquality`,
-`TableVisibilityV1`, `KeysetAfter`, `ArgumentBindingContractV1`,
+`TableVisibilityV1`, `ArgumentBindingContractV1`,
 `CanonicalClientValueV1`, and `ExpectedGenerationV1`. Stage B may not create
 graph-local look-alikes or choose another optional/null spelling.
 
@@ -168,6 +168,14 @@ graph-local look-alikes or choose another optional/null spelling.
 type Sha256V1 = `sha256:${string}`
 type GraphAuthorityClassV1 = 1 | 2 | 3
 type GraphDirectionV1 = "forward" | "backward"
+
+// Stage B introduces this wire carrier in snapback-types. Its JSON is
+// byte-identical to the kernel's KeysetAfter; the kernel implements From/Into
+// in both directions and retains KeysetAfter as its storage-native type.
+type KeysetKeyV1 = Readonly<{
+  entries: readonly CanonicalClientValueV1[]
+  id: string
+}>
 
 type GraphArgumentV1 = Readonly<{
   argumentId: string
@@ -180,7 +188,7 @@ type GraphIntervalEndV1 =
   | Readonly<{ kind: "unbounded" }>
   | Readonly<{
       kind: "inclusive" | "exclusive"
-      key: KeysetAfter
+      key: KeysetKeyV1
     }>
 
 // The two spellings are exhaustive. Mixed literal/demand page fields do not
@@ -245,6 +253,279 @@ type GraphSearchMembershipIdentityV1 = Readonly<{
 
 type GraphProviderCompletenessClassV1 = "complete-membership-v1"
 
+type GraphDataNodeKindV1 =
+  | "root-window" | "equality-to-one" | "bounded-to-many"
+  | "exists-semi-join" | "principal-bound" | "search-membership"
+type GraphNonSearchDataNodeKindV1 =
+  | "root-window" | "equality-to-one" | "bounded-to-many"
+  | "exists-semi-join" | "principal-bound"
+type GraphCompletenessLabelV1 =
+  | "unknown" | "complete" | "prefix" | "window" | "refused"
+type GraphNodeCompletenessProofClassV1 =
+  | "none"
+  | "refusal"
+  | "whole-source"
+  | "unique-point"
+  | "parent-ranges"
+  | "complete-membership"
+  | "principal-point"
+  | "provider-certificate"
+  | "ordered-prefix"
+  | "named-window"
+  | "projection-composition"
+
+type GraphAdmissionRefusalReasonV1 =
+  | "SNAPBACK_GRAPH_CLIENT_AST_FORBIDDEN"
+  | "SNAPBACK_GRAPH_CODE_FORBIDDEN"
+  | "SNAPBACK_GRAPH_RECURSION_FORBIDDEN"
+  | "SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION"
+  | "SNAPBACK_GRAPH_ROOT_COUNT_INVALID"
+  | "SNAPBACK_GRAPH_PROJECTION_COUNT_INVALID"
+  | "SNAPBACK_GRAPH_NODE_KIND_UNSUPPORTED"
+  | "SNAPBACK_GRAPH_UNKNOWN_FIELD"
+  | "SNAPBACK_GRAPH_PARENT_INVALID"
+  | "SNAPBACK_GRAPH_NODE_INERT"
+  | "SNAPBACK_GRAPH_CYCLE"
+  | "SNAPBACK_GRAPH_UNBOUNDED_EXPANSION"
+  | "SNAPBACK_GRAPH_THROUGH_TABLE_UNDECLARED"
+  | "SNAPBACK_GRAPH_SCHEMA_REFERENCE_INVALID"
+  | "SNAPBACK_GRAPH_INDEX_UNPROVABLE"
+  | "SNAPBACK_GRAPH_INDEX_PREFIX_UNSUPPORTED"
+  | "SNAPBACK_GRAPH_ORDER_NOT_TOTAL"
+  | "SNAPBACK_GRAPH_PROJECTION_SCOPE_INVALID"
+  | "SNAPBACK_GRAPH_PROJECTION_OPEN"
+  | "SNAPBACK_GRAPH_PRINCIPAL_BINDING_UNPROVABLE"
+  | "SNAPBACK_GRAPH_SEARCH_UNADMITTED"
+  | "SNAPBACK_GRAPH_AUTHORITY_UNPROVABLE"
+  | "SNAPBACK_GRAPH_BROADCAST_SEPARATION_UNPROVABLE"
+  | "SNAPBACK_GRAPH_BROADCAST_SCOPE_UNBOUND"
+  | "SNAPBACK_GRAPH_BROADCAST_AUDIENCE_UNPROVABLE"
+  | "SNAPBACK_GRAPH_BROADCAST_INVALIDATION_INCOMPLETE"
+  | "SNAPBACK_GRAPH_BOUND_INVALID"
+  | "SNAPBACK_GRAPH_RESULT_CONTRACT_MISMATCH"
+  | "SNAPBACK_GRAPH_PLAN_IDENTITY_MISMATCH"
+  | "SNAPBACK_GRAPH_ARGUMENT_UNBOUND"
+
+type GraphDemandTimeRefusalReasonV1 =
+  | "SNAPBACK_GRAPH_ARGUMENT_INVALID"
+  | "SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID"
+  | "SNAPBACK_GRAPH_CURSOR_UNBOUND"
+  | "SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH"
+  | "SNAPBACK_QUERY_COST_CLIENT_UNSUPPORTED"
+
+type GraphEvaluationTimeRefusalReasonV1 =
+  | "SNAPBACK_QUERY_COST_INDEX_REQUIRED"
+  | "SNAPBACK_QUERY_COST_PAGINATION_REQUIRED"
+  | "SNAPBACK_QUERY_COST_BOUND_EXCEEDED"
+  | "SNAPBACK_QUERY_COST_LIVE_TURN_REFUSED"
+  | "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED"
+  | "SNAPBACK_STORAGE_VERSION_CORRUPT"
+  | "SNAPBACK_AUTH_STALE_RESULT"
+  | "SNAPBACK_LIVE_STAGE_FENCE_REQUIRED"
+  | "SNAPBACK_WATCH_AUTHORITY_DEAD"
+  | "SNAPBACK_LIVE_EVALUATION_TIMEOUT"
+
+type GraphQualificationFailureReasonV1 =
+  | "SNAPBACK_GRAPH_QUALIFICATION_DERIVATION_MISSING"
+  | "SNAPBACK_GRAPH_QUALIFICATION_CORPUS_MISMATCH"
+
+type GraphCompletenessUnknownReasonV1 =
+  | "proof-unavailable"
+  | "parent-range-unproved"
+  | "provider-incomplete"
+  | "provider-proof-invalidated"
+  | "zero-take-unproved"
+  | "mixed-prefix-window"
+
+type GraphRowKeyV1 = Readonly<{ table: string; id: string }>
+
+type GraphCompletenessProofTupleV1 = Readonly<{
+  materializationHash: Sha256V1
+  partitionHash: Sha256V1
+  version: string
+}>
+
+type GraphNodeCompletenessEvidenceV1 =
+  | Readonly<{
+      kind: GraphNonSearchDataNodeKindV1
+      label: "unknown"
+      reason: GraphCompletenessUnknownReasonV1
+    }>
+  | Readonly<{
+      kind: GraphDataNodeKindV1
+      label: "refused"
+      reason: GraphAdmissionRefusalReasonV1
+        | GraphDemandTimeRefusalReasonV1
+        | GraphEvaluationTimeRefusalReasonV1
+    }>
+  | Readonly<{
+      kind: "root-window"
+      label: "prefix"
+      order: readonly OrderExpr[]
+      continuation: KeysetKeyV1 | null
+      stableOrderProof: "declared-order-with-id-tiebreak"
+      take: number
+      consumed: number
+      hasMore: true
+    }>
+  | Readonly<{
+      kind: "root-window"
+      label: "window"
+      interval: Readonly<{
+        lower: GraphIntervalEndV1
+        upper: GraphIntervalEndV1
+      }>
+      take: number
+      consumed: number
+      hasMore: false
+    }>
+  | Readonly<{
+      kind: "root-window"
+      label: "complete"
+      interval: Readonly<{
+        lower: Readonly<{ kind: "unbounded" }>
+        upper: Readonly<{ kind: "unbounded" }>
+      }>
+      consumed: number
+      hasMore: false
+      sourceExhausted: true
+    }>
+  | Readonly<{
+      kind: "equality-to-one"
+      label: "complete"
+      found: boolean
+    }>
+  | Readonly<{
+      kind: "bounded-to-many"
+      label: "window" | "complete"
+      ranges: readonly Readonly<{
+        kind: "bounded-to-many"
+        label: "window" | "complete"
+        parentKey: GraphRowKeyV1
+        consumed: number
+        cap: number
+        hasMore: boolean
+      }>[]
+    }>
+  | Readonly<{
+      kind: "bounded-to-many"
+      label: "prefix"
+      order: readonly OrderExpr[]
+      stableOrderProof: "declared-order-with-id-tiebreak"
+      ranges: readonly Readonly<{
+        parentKey: GraphRowKeyV1
+        consumed: number
+        cap: number
+        hasMore: true
+        continuation: KeysetKeyV1
+      }>[]
+    }>
+  | Readonly<{
+      kind: "exists-semi-join"
+      label: "complete"
+      roots: readonly Readonly<{
+        rootKey: GraphRowKeyV1
+        childNodeIds: readonly string[]
+        existenceBits: readonly boolean[]
+      }>[]
+    }>
+  | Readonly<{
+      kind: "principal-bound"
+      label: "complete"
+      parentKey: GraphRowKeyV1
+      bindingFound: boolean
+      targetFound: boolean
+    }>
+  | Readonly<{
+      kind: "search-membership"
+      label: "complete"
+      providerCompletenessClass: "complete-membership-v1"
+      providerCertificateHash: Sha256V1
+    }>
+  | Readonly<{
+      kind: "search-membership"
+      label: "unknown"
+      providerCompletenessClass: GraphProviderCompletenessClassV1
+      reason: "provider-incomplete" | "provider-proof-invalidated"
+    }>
+  | Readonly<{
+      kind: "closed-projection"
+      label: GraphCompletenessLabelV1
+      composition: GraphCompositionProofV1
+    }>
+
+type GraphNodeCompletenessProofV1 = Readonly<
+  GraphCompletenessProofTupleV1 & GraphNodeCompletenessEvidenceV1
+>
+
+type GraphCompositionNodeCitationV1 = Readonly<{
+  nodeId: string
+  nodeKind: GraphDataNodeKindV1
+  label: GraphCompletenessLabelV1
+  proofHash: Sha256V1
+}>
+
+type GraphCompositionProofV1 =
+  | Readonly<{
+      kind: "graph-composition"
+      label: "refused"
+      nodes: readonly GraphCompositionNodeCitationV1[]
+      primaryReason: GraphAdmissionRefusalReasonV1
+        | GraphDemandTimeRefusalReasonV1
+        | GraphEvaluationTimeRefusalReasonV1
+    }>
+  | Readonly<{
+      kind: "graph-composition"
+      label: "unknown"
+      nodes: readonly GraphCompositionNodeCitationV1[]
+      reason: GraphCompletenessUnknownReasonV1
+    }>
+  | Readonly<{
+      kind: "graph-composition"
+      label: "complete"
+      nodes: readonly GraphCompositionNodeCitationV1[]
+      allComplete: true
+    }>
+  | Readonly<{
+      kind: "graph-composition"
+      label: "window" | "prefix"
+      nodes: readonly GraphCompositionNodeCitationV1[]
+      partialNodeIds: readonly string[]
+    }>
+
+type GraphPartitionEquivalenceProofV1 = Readonly<{
+  format: "snapback.graph-partition-equivalence-proof.v1"
+  nodeId: string
+  declaredClass: 2
+  policyInputs: readonly [Readonly<{
+    declarationId: string
+    kind: "permissionBacking" | "membership" | "role"
+    identity: Sha256V1
+  }>, ...Readonly<{
+    declarationId: string
+    kind: "permissionBacking" | "membership" | "role"
+    identity: Sha256V1
+  }>[]]
+  // Host-recomputed over the ordered declared inputs above.
+  partitionFunction: Sha256V1
+  equivalenceWitness: "declared-inputs-only"
+}>
+
+type GraphNodeAuthorityV1 =
+  | Readonly<{ declaredClass: 1 | 3; proof: null }>
+  | Readonly<{
+      declaredClass: 2
+      proof: GraphPartitionEquivalenceProofV1
+    }>
+
+type GraphQueryShapedReasonV1 =
+  | "base-not-class-1"
+  | "separation-unprovable"
+  | "scope-unbound"
+  | "audience-parity-failed"
+  | "invalidation-incomplete"
+  | "declared-query-shaped"
+
 type GraphProjectionLiteralV1 = null | boolean | string | number
 
 type GraphProjectionObjectV1 = Readonly<{
@@ -275,7 +556,7 @@ type GraphNodeV1 =
       nodeId: string
       kind: "root-window"
       edgeName: "$root"
-      authorityClass: GraphAuthorityClassV1
+      authority: GraphNodeAuthorityV1
       table: string
       visibility: TableVisibilityV1
       filters: readonly FilterExpr[]
@@ -287,7 +568,7 @@ type GraphNodeV1 =
       nodeId: string
       kind: "equality-to-one"
       edgeName: string
-      authorityClass: GraphAuthorityClassV1
+      authority: GraphNodeAuthorityV1
       parentNodeId: string
       table: string
       visibility: TableVisibilityV1
@@ -300,7 +581,7 @@ type GraphNodeV1 =
       nodeId: string
       kind: "bounded-to-many"
       edgeName: string
-      authorityClass: GraphAuthorityClassV1
+      authority: GraphNodeAuthorityV1
       parentNodeId: string
       table: string
       visibility: TableVisibilityV1
@@ -314,7 +595,7 @@ type GraphNodeV1 =
       nodeId: string
       kind: "exists-semi-join"
       edgeName: string
-      authorityClass: GraphAuthorityClassV1
+      authority: GraphNodeAuthorityV1
       parentNodeId: string
       mode: "exists"
       edge: DirectEdgeV1 | ThroughEdgeV1
@@ -325,7 +606,7 @@ type GraphNodeV1 =
       nodeId: string
       kind: "exists-semi-join"
       edgeName: string
-      authorityClass: GraphAuthorityClassV1
+      authority: GraphNodeAuthorityV1
       parentNodeId: string
       mode: "all"
       edge: DirectEdgeV1 | ThroughEdgeV1
@@ -336,7 +617,7 @@ type GraphNodeV1 =
       nodeId: string
       kind: "principal-bound"
       edgeName: string
-      authorityClass: 3
+      authority: Readonly<{ declaredClass: 3; proof: null }>
       parentNodeId: string
       table: string
       visibility: TableVisibilityV1
@@ -351,7 +632,7 @@ type GraphNodeV1 =
       nodeId: string
       kind: "search-membership"
       edgeName: string
-      authorityClass: GraphAuthorityClassV1
+      authority: GraphNodeAuthorityV1
       parentNodeId: string
       providerCapabilityId: string
       membershipIdentity: GraphSearchMembershipIdentityV1
@@ -365,7 +646,7 @@ type GraphNodeV1 =
       nodeId: string
       kind: "closed-projection"
       edgeName: "$result"
-      authorityClass: GraphAuthorityClassV1
+      authority: GraphNodeAuthorityV1
       object: GraphProjectionObjectV1
     }>
 
@@ -479,7 +760,7 @@ type GraphBroadcastAdmissionV1 =
   | Readonly<{
       format: "snapback.graph-broadcast-admission.v1"
       classification: "query-shaped"
-      reason: string
+      reason: GraphQueryShapedReasonV1
     }>
   | Readonly<{
       format: "snapback.graph-broadcast-admission.v1"
@@ -529,7 +810,6 @@ type GraphWindowIdentityV1 = Readonly<{
   take: number
 }>
 
-type GraphRowKeyV1 = Readonly<{ table: string; id: string }>
 type GraphParentWindowIdentityV1 = Readonly<{
   // null is valid only for the root; child entries require the exact parent.
   parentKey: GraphRowKeyV1 | null
@@ -585,9 +865,16 @@ non-negative safe integers subject to §2.6. `filters` is absent only when its
 conjunction is empty. `argumentIds` is absent only when search has no provider
 arguments; when present it is non-empty. `scopeBindings` and
 `invalidationTables` are non-empty. Every digest exact-matches its owner
-artifact before admission. Every `Sha256V1` string exact-matches JSON Schema
+artifact before admission. `GraphPartitionEquivalenceProofV1.policyInputs`
+is non-empty, sorts by `(declarationId,kind,identity)` in RFC 8785 string
+order, and `partitionFunction` is the host's digest over exactly that ordered
+vector; an authored mismatch refuses `SNAPBACK_GRAPH_AUTHORITY_UNPROVABLE`.
+The normalized proof is plan content at `GraphNodeV1.authority.proof`, is
+present exactly when `declaredClass` is 2, and is literal `null` for class 1
+or 3. It therefore participates in plan normalization and the plan hash.
+Every `Sha256V1` string exact-matches JSON Schema
 pattern `^sha256:[0-9a-f]{64}$`; the template-literal notation above is only
-the TypeScript shorthand. A search node's `authorityClass` and
+the TypeScript shorthand. A search node's `authority.declaredClass` and
 `providerCompletenessClass` must exact-match the same fields nested in
 `membershipIdentity`; its canonical `argumentIds` and `scopeBindings` must
 reproduce `argumentContractHash` and `scopeContractHash`, and the provider
@@ -604,7 +891,11 @@ does not create another row scope: fields of an `equality-to-one` or
 parent. A nested `object.nodeId` names that to-one child, its
 `object.scopeNodeId` exact-matches the parent scope, and it emits one object on
 a hit, literal `null` on an admitted optional miss, or refusal on a required
-miss.
+miss. A bare `field` naming that to-one child outside the `object` wrapper is
+invalid, even when the child exists. The `object` arm is only the to-one
+scope transition just described: using it to group fields from the current
+scope (`nodeId` equal to the enclosing `scopeNodeId`) is also invalid. Both
+forms refuse `SNAPBACK_GRAPH_PROJECTION_SCOPE_INVALID`.
 
 A to-many/semi-join child row may be referenced only by an `array` projection
 whose `scopeNodeId` is that row-producing node and whose
@@ -670,7 +961,12 @@ them. `contract` and `contractHash` reuse LLP 0157 §D2's
 `ArgumentBindingContractV1`. A collection requires the matching
 `queryCost.graph.arguments` entry in §2.6; a scalar forbids one. A collection
 without that `maxItems`, or with a `maxItems` larger than its argument-contract
-maximum, refuses. No runtime argument value is present in a plan.
+maximum, refuses. Graph filters bind by that rewritten id, never the authored
+name: the normalized `ValueExpr::Arg(String)` inside `FilterExpr.value`
+carries `a0`, `a1`, ... . The compiler rewrites authored names to ids during
+normalization and refuses any reference it cannot bind with
+`SNAPBACK_GRAPH_ARGUMENT_UNBOUND`. No runtime argument value is present in a
+plan.
 
 The shipped field and identity precedents are concrete: `TableVisibilityV1`
 is the closed public/owner/membership/any-of union
@@ -692,7 +988,8 @@ new look-alike types.
 ### 2.2 Node kinds
 
 Common required fields on every non-projection node are `nodeId`, `kind`,
-`edgeName`, and `authorityClass`. Any node that directly reads one declared
+`edgeName`, and `authority`. `authority.declaredClass` is the node class and
+`authority.proof` follows §2.1's class-discriminated placement. Any node that directly reads one declared
 application table, rather than reading through `edge` or an owner-issued
 provider certificate, additionally requires `table`, `accessIndex`, and an
 explicit `visibility: TableVisibilityV1`; public read is represented as
@@ -702,23 +999,23 @@ fields. `FilterExpr[]` is a conjunction.
 `OrderExpr[]` is semantic order; the compiler appends ascending `_id` when it
 is absent and rejects an authored non-ascending `_id`. This applies LLP 0007's
 total-order rule and reuses the shipped `KeysetAfter {entries,id}` boundary
-(`crates/snapback-kernel/src/storage.rs:8004`). Because the graph IR lands in
-`snapback-types`, Stage B moves/re-exports `KeysetAfter` there—or introduces
-the wire-equivalent name `KeysetKeyV1` there—with byte-identical JSON; it does
-not create a graph-local encoding.
+(`crates/snapback-kernel/src/storage.rs:8004`). Stage B introduces
+`KeysetKeyV1` in `snapback-types` with byte-identical JSON and adds `From` and
+`Into` conversions in both directions in the kernel; the storage-native
+`KeysetAfter` remains in place and is not moved.
 
 In the table, `new` means new to `graph_query_v1`; all unqualified names are
 literal normalized-record field names. “Dependency” names refer to §5.
 
 | Kind | Required fields | Optional fields | Reuse/new | Cardinality and edge rules | Exact `queryCost.graph` declarations | §5 dependencies | Allowed authority class |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `root-window` | common fields; `table`; `visibility`; `filters`; `accessIndex`; non-empty `order`; `page:{kind:"demand"}` | none | `FilterExpr`, `OrderExpr`, `TableVisibilityV1`, and `KeysetAfter` reused; demand page and named interval ends new | Exactly one; no parent; every non-projection node is reachable from it; maximum child-node count is its immutable normalized out-degree; the demand supplies `take`/direction/ends and contributes the mandatory root entry to §2.4's window vector | `maxRootRowsPerPage`; node `maxExaminedEntriesPerExecution`; all six node `maxWindow*` fields; whole-query `queryCost.maxScannedRows`; collection inputs also use the argument fields below | root range `Query`, returned `Row`, point-shaped `MissingRow`, `GraphNode.RootRange` | 1, 2, or 3 when §3 proves it |
+| `root-window` | common fields; `table`; `visibility`; `filters`; `accessIndex`; non-empty `order`; `page:{kind:"demand"}` | none | `FilterExpr`, `OrderExpr`, `TableVisibilityV1` reused; `KeysetKeyV1` is the new wire-identical carrier for kernel `KeysetAfter`; demand page and named interval ends new | Exactly one; no parent; every non-projection node is reachable from it; maximum child-node count is its immutable normalized out-degree; the demand supplies `take`/direction/ends and contributes the mandatory root entry to §2.4's window vector | `maxRootRowsPerPage`; node `maxExaminedEntriesPerExecution`; all six node `maxWindow*` fields; whole-query `queryCost.maxScannedRows`; collection inputs also use the argument fields below | root range `Query`, returned `Row`, point-shaped `MissingRow`, `GraphNode.RootRange` | 1, 2, or 3 when §3 proves it |
 | `equality-to-one` | common fields; `parentNodeId`; `table`; `visibility`; ordered non-empty `joinOn`; unique `accessIndex`; `presence: "required" \| "optional"` | `filters` | `JoinEquality`, `FilterExpr`, `TableVisibilityV1` reused; `parentNodeId`/`presence` new | Child of root, to-one, to-many, or principal-bound; one incoming edge; zero or one child row per parent, statically proved by the complete unique-index key; maximum child-node count is its immutable normalized out-degree | node `maxExaminedEntriesPerExecution`; `maxRelationshipLookupsPerExecution`; no `maxChildrenPerParent` (fixed one) | point `Row`/`MissingRow`, `GraphNode.ParentEdge` | 1, 2, or 3 when §3 proves it |
 | `bounded-to-many` | common fields; `parentNodeId`; `table`; `visibility`; ordered non-empty `joinOn`; `accessIndex`; non-empty `order`; `page` | `filters` | shipped expressions/visibility/keyset reused; parent-indexed edge and per-parent page new | Child of root, to-one, to-many, or principal-bound; one incoming edge; maximum child-node count is its immutable normalized out-degree; emitted rows per parent are at most the node's `maxChildrenPerParent`; `page:{kind:"literal",direction,lower,upper,take}` is wholly plan-literal and adds no demand identity, while `page:{kind:"demand"}` supplies all four values per parent and adds one keyed §2.4 vector entry for the node; no mixed spelling exists | node `maxExaminedEntriesPerExecution`; `maxRelationshipLookupsPerExecution`; `maxChildrenPerParent`; a demand-paged node also carries all six node `maxWindow*` fields | per-parent range `Query`, returned `Row`, empty range, `GraphNode.ParentRange` | 1, 2, or 3 when §3 proves it |
 | `exists-semi-join` | common fields; `parentNodeId`; `mode: "exists" \| "all"`; `edge: DirectEdgeV1 \| ThroughEdgeV1` | `filters`; `argumentId` only for `all` | `JoinEquality`, `FilterExpr`, `TableVisibilityV1` reused; bounded repeated existence and `ThroughEdgeV1 {table, visibility, parentJoin, targetTable, targetVisibility, targetJoin, parentIndex, targetIndex}` new | Predicate child of root or another result-bearing relation; leaf, so maximum child-node count is zero; contributes no result row unless projection uses its `exists` bit; `all` requires one bounded collection `argumentId`, probes each distinct canonical item once, and uses no vacuous hidden-row shortcut; a through table must be named in `ThroughEdgeV1` | node `maxExaminedEntriesPerExecution`; `maxRelationshipLookupsPerExecution`; `maxChildrenPerParent`; `all` also declares argument `maxItems`, graph `maxArgumentItems`, and node `maxArgumentExpansion` | ordinary membership `Query` including empty ranges, `GraphNode.Membership`; never `Permission` | 1, 2, or 3 when every edge and predicate has that proof |
 | `principal-bound` | common fields; `parentNodeId`; `table`; `visibility`; `parentJoin`; `principalField`; unique `accessIndex`; `principalSource: "auth.userId"` | `binding: {table, visibility, principalField, valueField, uniqueIndex}` only when the target stores an app-user id instead of `v.principal()`; `filters` | table/filter/visibility/join reused; server-principal source and optional declared binding new | Child of root, to-one, or to-many; maximum child-node count is its immutable normalized out-degree; exactly zero or one row per `(principal,parent)` from the complete unique index; the optional binding is one unique point step and may not be caller-selected. This covers Zerobugs' `identityBinding` plus private `viewState`/notification rows (`demos/zerobugs/control/snapback/schema.mjs:149`, `demos/zerobugs/control/snapback/schema.mjs:70`, `demos/zerobugs/control/snapback/schema.mjs:134`) | node `maxExaminedEntriesPerExecution`; `maxRelationshipLookupsPerExecution`; fixed fanout one | `Auth`, binding/target `Row` or `MissingRow`, `GraphNode.PrincipalField` | 3 only |
 | `search-membership` | common fields; `parentNodeId`; `providerCapabilityId`; `membershipIdentity`; `memberField`; `scopeBindings`; non-empty `invalidationTables`; `providerCompletenessClass` | `argumentIds` | parent field binding reused; provider certificate, membership identity, and invalidation tables new; the graph never embeds or evaluates search text | Predicate child of root only in v1; leaf, so maximum child-node count is zero; one admitted membership input may filter the root; no nested search, result hydration, or search implementation; the provider certificate binds plan, arguments, scope, authority class, version, and completeness | node `maxExaminedEntriesPerExecution`; `maxRelationshipLookupsPerExecution`; collection args use `maxItems`, `maxArgumentItems`, `maxArgumentExpansion` | `GraphNode.SearchTable` for every declared table; always table-granular in G0/G2 | exactly the class in the owner-issued provider certificate: 1, 2, or 3 |
-| `closed-projection` | `nodeId`; `kind`; `edgeName`; `object: GraphProjectionObjectV1`; `authorityClass` | none | closed nested projection new; scalar leaves reuse shipped result-value contracts and `resultContractHash` | Exactly one and last; no table and no children. Every object carries §2.1's lexical `scopeNodeId`; object fields preserve declared emitted-key order and use the exact `field {nodeId,field}`, `literal {value}`, `object {nodeId,object}`, `array {scopeNodeId,item}`, or `exists {nodeId}` arms. Every reference must satisfy the scope/correlation rules; undeclared fields and open objects refuse | no independent bound; its serialized whole result consumes `queryCost.maxResultBytes`/`maxPageResultBytes` and the per-lineage window byte/row fields | no storage read; `GraphNode.Projection` links source node ids for ledger composition | maximum class of every referenced or predicate-affecting node; author cannot declare it lower |
+| `closed-projection` | `nodeId`; `kind`; `edgeName`; `object: GraphProjectionObjectV1`; `authority` | none | closed nested projection new; scalar leaves reuse shipped result-value contracts and `resultContractHash` | Exactly one and last; no table and no children. Every object carries §2.1's lexical `scopeNodeId`; object fields preserve declared emitted-key order and use the exact `field {nodeId,field}`, `literal {value}`, `object {nodeId,object}`, `array {scopeNodeId,item}`, or `exists {nodeId}` arms. Every reference must satisfy the scope/correlation rules; undeclared fields and open objects refuse | no independent bound; its serialized whole result consumes `queryCost.maxResultBytes`/`maxPageResultBytes` and the per-lineage window byte/row fields | no storage read; `GraphNode.Projection` links source node ids for ledger composition | maximum class of every referenced or predicate-affecting node; author cannot declare it lower |
 
 Every non-root, non-projection node has exactly one `parentNodeId`, so the
 owned node edges form a rooted tree. The §2.1 walk rejects a back edge before
@@ -735,7 +1032,7 @@ component and `joinedField` is the downstream component. Therefore
 `parentJoin` maps parent → through and `targetJoin` maps through → target;
 neither edge reverses those meanings.
 
-### 2.3 Closure, admission refusals, demand-time refusals, and qualification failures
+### 2.3 Closure, admission, demand-time, evaluation-time, and qualification registers
 
 **Admission refusals** are decidable from the candidate manifest, installed
 schema, and installed policy declarations alone. Admission evaluates the
@@ -748,7 +1045,7 @@ materialization instance.
 
 | Order | Refusal reason | Exact refused condition |
 | ---: | --- | --- |
-| 1 | `SNAPBACK_GRAPH_CLIENT_AST_FORBIDDEN` | A runtime/client argument supplies a node, field, filter, order, projection, table, index, or operator rather than a value for a declared argument slot. |
+| 1 | `SNAPBACK_GRAPH_CLIENT_AST_FORBIDDEN` | The manifest declares any node, field, filter, order, projection, table, index, or operator position as argument-bindable instead of closing it as plan data. This condition is decided from the manifest argument-routing declarations; it does not inspect a runtime value. |
 | 2 | `SNAPBACK_GRAPH_CODE_FORBIDDEN` | The declaration contains a callback, JavaScript body, SQL text, dynamic property/table access, ambient time/randomness/network access, or any executable value. |
 | 3 | `SNAPBACK_GRAPH_RECURSION_FORBIDDEN` | A node or projection recursively contains itself or invokes the graph. |
 | 4 | `SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION` | A node/edge/projection exists only on a data-, authority-, or argument-dependent construction branch rather than as unconditional plan data. |
@@ -765,18 +1062,19 @@ materialization instance.
 | 15 | `SNAPBACK_GRAPH_INDEX_UNPROVABLE` | An access index is missing, ordered incompatibly, not bounded by the equality prefix/range, or not unique where v1 requires uniqueness. |
 | 16 | `SNAPBACK_GRAPH_INDEX_PREFIX_UNSUPPORTED` | An `accessIndex` equality/range prefix cannot support §2.6's unique entries-per-consultation cap for that node and would require an unbounded suffix scan. |
 | 17 | `SNAPBACK_GRAPH_ORDER_NOT_TOTAL` | An order is empty where required, uses an unportable field/direction, or cannot end in the canonical ascending `_id` tie-break. |
-| 18 | `SNAPBACK_GRAPH_PROJECTION_SCOPE_INVALID` | A projection object's `scopeNodeId` is absent/wrong, a field names a sibling or an uncorrelated descendant, a to-many row is referenced without its array scope, a to-one is not referenced from its parent scope, or another cross-cardinality reference violates §2.1. |
+| 18 | `SNAPBACK_GRAPH_PROJECTION_SCOPE_INVALID` | A projection object's `scopeNodeId` is absent/wrong, a field names a sibling or uncorrelated descendant, a to-many row is referenced without its array scope, a to-one field appears bare outside its required `object` wrapper, an `object` merely groups fields from the same scope, a to-one is not referenced from its parent scope, or another cross-cardinality reference violates §2.1. |
 | 19 | `SNAPBACK_GRAPH_PROJECTION_OPEN` | A projection is open, references an unprojectable field/node, or fails the exact result contract after lexical-scope validation. |
 | 20 | `SNAPBACK_GRAPH_PRINCIPAL_BINDING_UNPROVABLE` | A principal node accepts caller identity, lacks a unique declared binding, or cannot prove the target principal field from `auth.userId`. |
 | 21 | `SNAPBACK_GRAPH_SEARCH_UNADMITTED` | A search input lacks an owner-issued provider identity/class/completeness/invalidation certificate or attempts graph-side search evaluation. |
 | 22 | `SNAPBACK_GRAPH_AUTHORITY_UNPROVABLE` | §3 cannot prove the declared class and complete authority inputs for every node. |
-| 23 | `SNAPBACK_GRAPH_BROADCAST_SEPARATION_UNPROVABLE` | A broadcast candidate's establishment predicate reaches result membership/projection/order/length/existence/completeness or produces an overlay. |
-| 24 | `SNAPBACK_GRAPH_BROADCAST_SCOPE_UNBOUND` | A broadcast candidate lacks §3.3's same-instance canonical-argument/resource equality proof. |
-| 25 | `SNAPBACK_GRAPH_BROADCAST_AUDIENCE_UNPROVABLE` | Its establishment deny-set is not proved equal to the strict fail-closed audience at the same instance/version. |
-| 26 | `SNAPBACK_GRAPH_BROADCAST_INVALIDATION_INCOMPLETE` | Any establishment input lacks a declared authorization-event-to-affected-scope mapping. |
+| 23 | `SNAPBACK_GRAPH_BROADCAST_SEPARATION_UNPROVABLE` | The manifest authors `classification:"broadcast"`, but its certificate does not match the host proof because the establishment predicate reaches result membership/projection/order/length/existence/completeness or produces an overlay. |
+| 24 | `SNAPBACK_GRAPH_BROADCAST_SCOPE_UNBOUND` | The manifest authors `classification:"broadcast"`, but its certificate does not match the host proof of §3.3 same-instance canonical-argument/resource equality. |
+| 25 | `SNAPBACK_GRAPH_BROADCAST_AUDIENCE_UNPROVABLE` | The manifest authors `classification:"broadcast"`, but its certificate does not match the host proof that the establishment deny-set equals the strict fail-closed audience at the same instance/version. |
+| 26 | `SNAPBACK_GRAPH_BROADCAST_INVALIDATION_INCOMPLETE` | The manifest authors `classification:"broadcast"`, but its certificate does not match the host proof because an establishment input lacks a declared authorization-event-to-affected-scope mapping. |
 | 27 | `SNAPBACK_GRAPH_BOUND_INVALID` | A bound is zero where work is required, exceeds its argument/result contract, overflows checked arithmetic, conflicts with another bound, or differs from §2.6's unique analytical function/derived rollup. |
 | 28 | `SNAPBACK_GRAPH_RESULT_CONTRACT_MISMATCH` | The projection and host-recomputed `resultContractHash` do not describe the same exact serialized result. |
 | 29 | `SNAPBACK_GRAPH_PLAN_IDENTITY_MISMATCH` | The emitted normalized plan, plan hash, or authored `baseNodeIds` differs from admission-time host reconstruction. |
+| 30 | `SNAPBACK_GRAPH_ARGUMENT_UNBOUND` | A filter or other admitted expression refers to an authored argument name the compiler cannot rewrite to one normalized `argumentId`. |
 
 **Demand-time refusals** depend on one request's arguments, cursor, partition,
 or materialization inputs and therefore cannot inhabit the admission ladder.
@@ -789,20 +1087,41 @@ first miss is public and later misses may be value-free notes.
 | 2 | `SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID` | The demand omits/adds/duplicates a demand-paged node or per-parent interval, supplies a parent outside the evaluated parent set, uses a malformed end/direction/take, or violates canonical node/parent order. |
 | 3 | `SNAPBACK_GRAPH_CURSOR_UNBOUND` | A cursor or cumulative ledger cannot authenticate against `(generation, planHash, argsDigest, partition, target, nodeId, canonical per-parent interval vector)` or cannot reproduce its direction/boundary/lineage. |
 | 4 | `SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH` | The supplied instance/materialization record or hash differs from host reconstruction, or any `GraphWindowIdentityV1.order` differs byte-for-byte from its node's declared order. |
+| 5 | `SNAPBACK_QUERY_COST_CLIENT_UNSUPPORTED` | An enabled live-query guardrail receives a connection that did not negotiate LLP 0267's exact terminal protocol before snapshot/establishment. |
+
+**Evaluation-time refusals** occur only after the host has minted and begun a
+real `GraphMaterializationIdentityV1`; they are result outcomes at that
+materialization, even when no result bytes can be published. The register is
+closed over the LLP 0267 §4.1 hard error siblings that can arise during
+evaluation—`SNAPBACK_QUERY_COST_INDEX_REQUIRED`,
+`SNAPBACK_QUERY_COST_PAGINATION_REQUIRED`,
+`SNAPBACK_QUERY_COST_BOUND_EXCEEDED`,
+`SNAPBACK_QUERY_COST_LIVE_TURN_REFUSED`, and
+`SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED`—plus the existing storage and
+authority-transition fence outcomes `SNAPBACK_STORAGE_VERSION_CORRUPT`,
+`SNAPBACK_AUTH_STALE_RESULT`, `SNAPBACK_LIVE_STAGE_FENCE_REQUIRED`,
+`SNAPBACK_WATCH_AUTHORITY_DEAD`, and `SNAPBACK_LIVE_EVALUATION_TIMEOUT`.
+`SNAPBACK_QUERY_COST_WARNING` is not a refusal;
+`SNAPBACK_QUERY_COST_CLIENT_UNSUPPORTED` is demand-time because it refuses
+before materialization. Evaluation applies the owner register's ordering;
+when two imported owner registers fire at the same materialization, the first
+canonical node consulted wins, then the owner register order.
 
 **Qualification failures** require corpus, fixture, or observation artifacts
 that manifest admission cannot see. They block G0 exit and every capability
 publication, but do not retroactively turn a structurally admitted manifest
-into an admission refusal. They have stable ids but no precedence relative to
-the admission ladder:
+into an admission refusal. Qualification failures have no precedence at all:
+the runner reports the complete set of failures it observes, in stable id
+order, rather than selecting a primary failure or comparing them with another
+register.
 
 | Qualification failure | Exact failed condition |
 | --- | --- |
 | `SNAPBACK_GRAPH_QUALIFICATION_DERIVATION_MISSING` | An applicable declared bound lacks the required fixture/oracle derivation or normalized-plan analytical derivation and its required G0/G2 observation posture. |
 | `SNAPBACK_GRAPH_QUALIFICATION_CORPUS_MISMATCH` | A paired-world, allow/deny, audience, scope, transition, mixed-commit, oracle-parity, or refusal row falsifies the admitted static class/broadcast/result certificate. |
 
-Section 4's `refused` result label may draw from the admission register or the
-demand-time register, applying the applicable register's precedence.
+Section 4's `refused` label may draw from the admission, demand-time, or
+evaluation-time register, applying the applicable register's precedence.
 Qualification failures cannot become a result label: they fail the corpus/G0
 exit or publication qualification and produce no executable materialization.
 
@@ -817,7 +1136,8 @@ The normalized plan preimage is exactly the `GraphQueryPlanV1` record in
    conjunctions sort by their individual RFC 8785 JCS bytes. `JoinEquality`
    and `OrderExpr` arrays preserve index/semantic order. Projection object
    field arrays preserve declared emitted-key order; arguments sort by RFC
-   8785 UTF-16 code-unit name order.
+   8785 UTF-16 code-unit name order, then every authored filter-argument name
+   is replaced by its assigned `argumentId` before filter JCS sorting.
    Role/capability/table sets use the same string order and deduplicate. All
    other arrays retain the order their type states.
 3. Every record is serialized with RFC 8785 JCS, exactly the shipped
@@ -828,7 +1148,8 @@ The normalized plan preimage is exactly the `GraphQueryPlanV1` record in
    aliasing the shipped node/composite domains.
 4. Included facts are the complete nodes and nested projection, normalized
    argument contracts and collection maxima, every `queryCost` declaration,
-   per-node authority classes and the roll-up rule, the required tagged
+   every per-node `authority` record including each class-2
+   `GraphPartitionEquivalenceProofV1`, the roll-up rule, the required tagged
    broadcast admission record, capability id, and `resultContractHash`. The
    latter reuses the shipped authenticated result-contract digest
    (`crates/snapback-types/src/manifest/types.rs:3727`).
@@ -871,7 +1192,7 @@ four values are already in the plan hash. The root entry has exactly one
 interval and `parentKey:null`. A demand-paged child entry has exactly one
 interval per evaluated parent, sorted by the RFC 8785 JCS bytes of
 `parentKey`; duplicate parents refuse. Its per-parent continuation key is the
-tuple `(parentKey, KeysetAfter.entries order values, KeysetAfter.id)`. Both
+tuple `(parentKey, KeysetKeyV1.entries order values, KeysetKeyV1.id)`. Both
 decoded, schema-validated interval ends, including the `_id` component in each
 bounded end, are recorded in `window`; opaque cursor bytes never enter an
 identity.
@@ -991,7 +1312,22 @@ graph-level `windowRollup` is present but purely derived and exact-checked:
 each of pages, root rows, scanned rows, result rows, result bytes, and index
 ranges is the checked sum of its corresponding node maximum across all
 independent demand-page ledger lineages. It is not an independently chosen
-ceiling.
+ceiling. In particular, `windowRollup.maxWindowResultBytes` is a conservative
+ceiling: it is the checked sum of the lineage byte maxima even when those
+lineages' largest pages cannot occur simultaneously.
+
+`GraphNodeCostV1` presence is kind-conditional and closed; TypeScript's
+optional syntax does not weaken this table:
+
+| Node kind | Required `GraphNodeCostV1` fields | Required only when stated | Forbidden fields / entry |
+| --- | --- | --- | --- |
+| `root-window` | `nodeId`, `maxRootRowsPerPage`, `maxExaminedEntriesPerExecution`, and all six `maxWindow*` fields | `maxArgumentExpansion` only when a normalized collection argument multiplies root consultations | `maxRelationshipLookupsPerExecution`, `maxChildrenPerParent`; otherwise-conditional `maxArgumentExpansion` |
+| `equality-to-one` | `nodeId`, `maxExaminedEntriesPerExecution`, `maxRelationshipLookupsPerExecution` | `maxArgumentExpansion` only for normalized multiplicative collection arguments | `maxRootRowsPerPage`, `maxChildrenPerParent`, all six `maxWindow*`; otherwise-conditional `maxArgumentExpansion` |
+| `bounded-to-many` | `nodeId`, `maxExaminedEntriesPerExecution`, `maxRelationshipLookupsPerExecution`, `maxChildrenPerParent` | all six `maxWindow*` exactly when `page.kind == "demand"`; `maxArgumentExpansion` only for normalized multiplicative collection arguments | `maxRootRowsPerPage`; all six `maxWindow*` for literal pages; otherwise-conditional `maxArgumentExpansion` |
+| `exists-semi-join` | `nodeId`, `maxExaminedEntriesPerExecution`, `maxRelationshipLookupsPerExecution`, `maxChildrenPerParent` | `maxArgumentExpansion` for `mode:"all"` and for any other normalized multiplicative collection input | `maxRootRowsPerPage`, all six `maxWindow*`; otherwise-conditional `maxArgumentExpansion` |
+| `principal-bound` | `nodeId`, `maxExaminedEntriesPerExecution`, `maxRelationshipLookupsPerExecution` | `maxArgumentExpansion` only for normalized multiplicative collection arguments | `maxRootRowsPerPage`, `maxChildrenPerParent`, all six `maxWindow*`; otherwise-conditional `maxArgumentExpansion` |
+| `search-membership` | `nodeId`, `maxExaminedEntriesPerExecution`, `maxRelationshipLookupsPerExecution` | `maxArgumentExpansion` exactly when a declared collection `argumentId` multiplies provider consultations | `maxRootRowsPerPage`, `maxChildrenPerParent`, all six `maxWindow*`; otherwise-conditional `maxArgumentExpansion` |
+| `closed-projection` | none | none | no `GraphNodeCostV1` entry exists; every field is forbidden |
 
 **G0 declaration/observation ruling [author-ratify].** Ruled 2026-08-23 under
 `issues/20260823-llp0209-g0-commission.md`; author ratification recorded at the
@@ -1007,60 +1343,89 @@ and opaque-oracle results, which Stage B can observe without executing a graph:
 declared analytically from normalized plan shape:
 `maxExaminedEntriesPerExecution`,
 `maxRelationshipLookupsPerExecution`, `maxWindowScannedRows`,
-`maxWindowIndexRanges`, and whole-query `queryCost.maxScannedRows`; every one
+`maxWindowIndexRanges`, and whole-query `queryCost.maxScannedRows` plus
+`queryCost.maxIndexRanges`; every one
 is marked **[G2 measures]**. LLP 0267's observed-value consumption for graph
 plans begins at G2, when an executor exists.
 
 The physical declaration is the following closed analytical function. Because
 every input is normalized plan shape or a declared maximum, these physical
 fields are unique plan-hash inputs; an author cannot choose a looser number.
+Let `P(node)` be the checked product of the declared maximum parent-row,
+ancestor-fanout, and distinct multiplicative-argument factors reaching one
+node; `P(root) = 1`. The table enumerates every consultation made for each
+one of those parent rows:
 
-| Access shape | Entries per consultation |
-| --- | ---: |
-| Complete unique-index or point lookup, including to-one, principal binding/target, and unique search-provider consultation | `1` |
-| `root-window` | `maxRootRowsPerPage + 1`; the v1 keyset path reads exactly one lookahead row to decide whether a successor exists, so the `+1` is mandatory and checked |
-| `bounded-to-many` or semi-join range | `maxChildrenPerParent`; for a demand-paged node, the request-time value is its exact demand `take`, capped by that plan-hashed maximum |
+| Node kind / edge arm | Consultations per parent row | Maximum examined entries per parent row | Index ranges per parent row |
+| --- | --- | ---: | ---: |
+| `root-window` | one root range | `maxRootRowsPerPage + 1` (the mandatory successor lookahead) | `1` |
+| `equality-to-one` | one target point, including null-key/miss attempts | `1` | `0` |
+| `bounded-to-many` | one child range | `maxChildrenPerParent` | `1` |
+| `exists-semi-join` + `DirectEdgeV1` | one edge range for each distinct `all` argument item (the argument factor is already in `P`) | `maxChildrenPerParent` | `1` |
+| `exists-semi-join` + `ThroughEdgeV1` | two stages: one through-edge range, then one target point for every admitted through-edge row | `maxChildrenPerParent + maxChildrenPerParent` | `1` (the target points add zero) |
+| `principal-bound` without `binding` | one target point | `1` | `0` |
+| `principal-bound` with `binding` | two point consultations: one principal-binding point and one target point | `2` | `0` |
+| `search-membership` | one unique provider-membership point | `1` | `0` |
+| `closed-projection` | none | `0` | `0` |
 
-The plan-hashed maximum always substitutes `maxChildrenPerParent` in the last
-row; the exact demand `take` only tightens the request-time charge and cannot
-change the declaration.
+For a demand-paged `bounded-to-many`, the plan field that caps each parent
+interval's entries on one page is
+`GraphNodeCostV1.maxChildrenPerParent`; it is the plan-hashed page cap. The
+root equivalent is `maxRootRowsPerPage`. `maxWindowRootRows` and the other
+`maxWindow*` fields are cumulative lineage maxima, not substitutes for either
+per-page cap. The exact demand `take` is checked separately against the
+applicable page cap and may tighten one request's runtime budget, but it never
+enters a plan-hashed declaration.
 
-For a node, `consultations` is the checked product of every ancestor
-take/fanout factor and every distinct argument-expansion factor along its
-unique root path, substituting each plan-declared maximum; the root's empty
-product is one. Reusing one argument does not multiply it twice.
-`maxExaminedEntriesPerExecution = consultations ×
-entriesPerConsultation`.
-`maxRelationshipLookupsPerExecution = consultations` for every non-root
-relationship/search node, including null-key attempts. The host checked-sums
-every node's `maxExaminedEntriesPerExecution` into the sole whole-query
-`queryCost.maxScannedRows`. For each demand-paged node lineage,
-`maxWindowScannedRows = maxWindowPages ×` its analytical per-page examined
-maximum and `maxWindowIndexRanges = maxWindowPages ×` its per-page
-consultations; `windowRollup` then checked-sums corresponding maxima across
-lineages as specified above. Any checked overflow refuses
-`SNAPBACK_GRAPH_BOUND_INVALID`. Any `accessIndex` whose equality/range prefix
-cannot enforce the applicable entries-per-consultation cap refuses
+For each consultation row above, multiply its entry and range terms by
+`P(node)`; the through target-point term is additionally multiplied by the
+declared through-edge `maxChildrenPerParent`. Reusing one argument does not
+multiply it twice. A node's `maxExaminedEntriesPerExecution` is the checked
+sum of all its consultation-entry products, and its
+`maxRelationshipLookupsPerExecution` is the checked count of every attempted
+non-root consultation—including the second principal-binding point and every
+through target point. The host checked-sums node examined maxima into
+`queryCost.maxScannedRows`.
+
+`queryCost.maxIndexRanges` uses the same closed function: the host
+checked-sums one range for every range consultation in the table after the
+same `P(node)` multiplication; every point consultation contributes exactly
+zero. An authored different value refuses `SNAPBACK_GRAPH_BOUND_INVALID`.
+For each demand-paged node lineage, `maxWindowScannedRows = maxWindowPages ×`
+its analytical per-page examined maximum and `maxWindowIndexRanges =
+maxWindowPages ×` its analytical per-page range-consultation maximum;
+`windowRollup` then checked-sums corresponding maxima across lineages. Any
+checked overflow refuses `SNAPBACK_GRAPH_BOUND_INVALID`. Any `accessIndex`
+whose equality/range prefix cannot enforce the applicable
+entries-per-consultation cap refuses
 `SNAPBACK_GRAPH_INDEX_PREFIX_UNSUPPORTED`; it never receives a guessed scan
 bound. G2 observations must fit these declarations before publication.
 
-Worked `issueDetail` candidate calculation: its point-shaped issue root
-declares `maxRootRowsPerPage = 1`, so the mandatory lookahead makes `2`
-examined entries. Project, creator, and optional assignee to-ones each cost
-`1 × 1 = 1`. The candidate label edge uses
-`maxChildrenPerParent = 16`, so its range costs `1 × 16 = 16`; the label
-to-one below it has `16` consultations and costs `16 × 1 = 16`. The
-demand-paged comments node's corpus request has `take = 50`, so it costs
-`1 × 50 = 50`. Principal view-state and notification point nodes each cost
-`1`. For this candidate-bounded slice,
-`queryCost.maxScannedRows = 2 + 1 + 1 + 1 + 16 + 16 + 50 + 1 + 1 = 89`
-and relationship lookups sum to `23`. With one published root page and one
-comments page, the physical window contributions are respectively `(2
-scanned, 1 range)` and `(50 scanned, 1 range)`, and the derived rollup is
-`(52 scanned, 2 ranges)`. Additional issue-emoji/comment-emoji nodes do not
+Worked `issueDetail` candidate calculation uses only plan declarations. Its
+point-shaped issue root declares `maxRootRowsPerPage = 1`, so the mandatory
+lookahead makes `2` examined entries. Project, creator, and optional assignee
+to-ones cost `1` each. The label edge declares
+`maxChildrenPerParent = 16`, so its range costs `16`; the label to-one below
+it has `16` target-point consultations and costs `16`. Let `C_comments` be
+the Stage-B-derived, plan-hashed comments
+`GraphNodeCostV1.maxChildrenPerParent`; the comments range contributes
+`C_comments`, not the corpus request's `take = 50`. Each of the view-state and
+notification principal nodes uses its declared binding and therefore costs
+two point consultations. For this slice the plan declarations are therefore
+`queryCost.maxScannedRows = 2 + 1 + 1 + 1 + 16 + 16 + C_comments + 2 + 2 =
+41 + C_comments`, `maxRelationshipLookupsPerExecution = 25`, and
+`queryCost.maxIndexRanges = 3` (root, label, comments ranges; every point is
+zero).
+
+Request validation is separate: `take = 50` must satisfy
+`50 <= C_comments`; only then may the runtime tighten this request's comments
+entry budget to 50, yielding a request-local scanned ceiling of `91` without
+changing any plan field or hash. For a one-page illustration, the root and
+comments physical window contributions are `(2 scanned, 1 range)` and
+`(C_comments scanned, 1 range)` in the plan, versus `(50 scanned, 1 range)`
+for that validated request. Additional issue-emoji/comment-emoji nodes do not
 inherit `16`; Stage B must fill their fixture maxima or admission refuses,
-which keeps this worked calculation from fabricating an uncommissioned
-candidate.
+which keeps the example from fabricating an uncommissioned plan maximum.
 
 For logical rows, fixture maximum means the maximum fact or oracle result—not
 the mean—over `normal-seed-v1` and `large-seed42-v1`;
@@ -1080,6 +1445,7 @@ internally conflicting value is the admission refusal
 | `maxRootRowsPerPage` | Authorized root rows consumed before relationship projection | sole `root-window` | The hot fixture requests and observes exactly 1,000 roots; retain the existing portable 1,024 page boundary, giving 24 rows of explicit spare without changing the gate's shape | 1,024 **[author-ratify]** | **[Stage B fills]** |
 | `maxExaminedEntriesPerExecution` | Physical candidates consulted for one read node | every table/search/relationship node | Host analytical maximum from index shape × maximum consultations derived recursively from root take/fanout/argument expansion; logical result rows may not substitute | — | **[Stage B declares analytically; G2 measures]** |
 | `queryCost.maxScannedRows` | Whole-query checked sum of all graph-node examined entries | LLP 0267 whole-query carrier | Checked sum of every node's analytical `maxExaminedEntriesPerExecution`; no `GraphQueryCostV1.maxScannedRows` twin | — | **[Stage B declares analytically; G2 measures]** |
+| `queryCost.maxIndexRanges` | Whole-query checked sum of selected index-range consultations | LLP 0267 whole-query carrier | Apply the same consultation product as `maxScannedRows`; every range consultation contributes one and every point contributes zero, then checked-sum in canonical node/subconsultation order | — | **[Stage B declares analytically; G2 measures]** |
 | `maxRelationshipLookupsPerExecution` | Attempted edge resolutions, including null/omitted keys | every relationship, semi-join, principal, and search node | Host analytical maximum from attempted parent population × distinct argument expansion; one lookup per attempted edge | — | **[Stage B declares analytically; G2 measures]** |
 | `maxChildrenPerParent` | Maximum authorized to-many or semi-join edge rows consumed for one parent | `bounded-to-many`, `exists-semi-join` | Measure the per-parent maximum, not mean, on both fixtures; max × H. Label edges are the first slice; comments remain a pageable child window | 16 for label edges **[author-ratify]** | **[Stage B fills]** |
 | `maxItems` | Cardinality of one collection argument | each collection `GraphArgumentV1` | For each argument id (selected labels/assignees/projects and any later collection), max canonical array length in corpus cases × H, capped by its contract | — | **[Stage B fills]** |
@@ -1190,18 +1556,21 @@ the compiler can still enumerate its complete inputs. The paired-world corpus
 is a falsifier and qualification gate, never a substitute for a missing static
 proof.
 
-For class 2, an installed policy declaration must carry a closed
-`GraphPartitionEquivalenceProofV1 {declarationId, scopeArgumentIds,
-policyIdentity, permissionBacking, eventSelectors,
-equivalence:"all-principals-in-scope"}`. The compiler accepts that proof only
-when every policy leaf is scope-derived, `permissionBacking` names every table
-whose writes can change the predicate, `eventSelectors` covers §3.2's event
-universe, and no principal/session/grant/delegation value reaches result data.
-A raw owner/membership visibility declaration is principal-relative and
-therefore derives class 3 unless this stronger equivalence proof discharges
-it. This conservative rule chooses a smaller sharing class because schema
-membership alone proves access, not equal bytes for every principal in a
-partition.
+For class 2, each node carries §2.1's closed
+`GraphPartitionEquivalenceProofV1` at `GraphNodeV1.authority.proof`. The
+compiler reconstructs the ordered `policyInputs` from the installed
+permission-backing, membership, and role declarations, exact-checks
+`nodeId`/`declaredClass`, and recomputes `partitionFunction` over only those
+declared identities. `equivalenceWitness:"declared-inputs-only"` is valid
+only when every policy leaf is derived from those inputs and no
+principal/session/grant/delegation value reaches result data. A missing,
+extra, reordered, stale-identity, or hash-mismatched input refuses admission
+with `SNAPBACK_GRAPH_AUTHORITY_UNPROVABLE`. Class-1 and class-3 nodes carry
+`proof:null`; any non-null class-1/class-3 proof also refuses. A raw
+owner/membership visibility declaration is principal-relative and therefore
+derives class 3 unless this stronger equivalence proof discharges it. This
+conservative rule chooses a smaller sharing class because schema membership
+alone proves access, not equal bytes for every principal in a partition.
 
 | Node kind | Static compiler proof | What the corpus can falsify |
 | --- | --- | --- |
@@ -1267,8 +1636,9 @@ Versioning has two independent causes and neither may be omitted:
    metadata activation, reset/import/declared restore, and explicit
    out-of-band permission revocation advance or replace it. Every class-2
    declaration maps each such cause to affected `scopeIdentity` values; an
-   unknown mapping refuses broadcast and falls back conservatively for a
-   query-shaped graph.
+   unknown mapping successfully classifies the valid graph query-shaped with
+   `invalidation-incomplete`; only a contradictory authored broadcast
+   certificate refuses under §2.3 row 26.
 2. Login/logout, user switch, session expiry/admin revocation, lease expiry,
    and grant/credential/token issue or end are authority-instance transitions.
    They rotate/end the owner-issued partition or retire the affected retained
@@ -1282,9 +1652,19 @@ remains the separate third memo/completeness axis.
 ### 3.3 The nine LLP 0268 inputs and their carriers
 
 `GraphBroadcastAdmissionV1` is a closed plan member. It is either
-`{format, classification:"query-shaped", reason}` or a broadcast certificate
+`{format, classification:"query-shaped", reason:GraphQueryShapedReasonV1}` or a broadcast certificate
 with `classification:"broadcast"`, `baseNodeIds`, and
-`establishment`; its exact grammar is in §2.1. `baseNodeIds` is
+`establishment`; its exact grammar is in §2.1. A valid non-eligible graph is
+successfully admitted as `query-shaped`: class-2/3 base, failed separation,
+unbound scope, failed audience parity, and incomplete invalidation map to
+`base-not-class-1`, `separation-unprovable`, `scope-unbound`,
+`audience-parity-failed`, and `invalidation-incomplete` respectively. An
+author who elects the ordinary lane without presenting a broadcast
+certificate gets `declared-query-shaped`. These are classifications, not
+refusal reasons, and the ordinary query-shaped materialization remains
+executable.
+
+For a broadcast certificate, `baseNodeIds` is
 host-recomputed, not author-supplied: it is the canonical node-order set of
 **every** non-projection node that can affect bytes, membership, order, length,
 existence bits, completeness label, refusal reason, or future delta
@@ -1311,18 +1691,21 @@ an establishment scope from substituting for plan, instance, or partition
 identity. `strictEvaluatorIdentity` is the host-recomputed content identity of
 the closed fail-closed audience predicate, including its policy and schema
 declaration identities. The strict evaluator establishes exact audience parity
-at the same instance and authorization version. Failure classifies the graph
-query-shaped with the applicable stable §2.3 reason; it never produces a
-weaker broadcast certificate.
+at the same instance and authorization version. If the host is classifying an
+otherwise valid graph, failure produces the corresponding successful
+`query-shaped` reason above. If the manifest instead authors
+`classification:"broadcast"`, any contradiction between that authored
+certificate and the host recomputation is counterfeit and refuses admission
+under §2.3 rows 23–26; the host must not downgrade it to query-shaped.
 
 | LLP 0268 label | This Spec's carrier | Required §3.4 case kind(s) | G0 exit record must show |
 | --- | --- | --- | --- |
-| `G0-BCAST-CLASS` | §3.1 node certificates plus host-recomputed `GraphBroadcastAdmissionV1.baseNodeIds` | `pairedWorld`, `refusal` | Every complete delivered/delta-relevant §4.2 input derives class 1; no class 2/3, omitted, unreachable, or inert node; class-1 hidden worlds pass. |
-| `G0-BCAST-SEPARATION` | `establishment.effect`, literal-null `overlayProjection`, compiler data-flow proof | `allowDeny`, `refusal` | Establishment decides join/deny only; any overlay/result reach refuses `SNAPBACK_GRAPH_BROADCAST_SEPARATION_UNPROVABLE`. |
+| `G0-BCAST-CLASS` | §3.1 node certificates plus host-recomputed `GraphBroadcastAdmissionV1.baseNodeIds` | `pairedWorld`, `refusal` | Every complete delivered/delta-relevant §4.2 input in a broadcast certificate derives class 1; no omitted, unreachable, or inert node. A valid class-2/3 base is admitted query-shaped with `base-not-class-1`; an authored broadcast certificate claiming otherwise is counterfeit and refuses. |
+| `G0-BCAST-SEPARATION` | `establishment.effect`, literal-null `overlayProjection`, compiler data-flow proof | `allowDeny`, `refusal` | Establishment decides join/deny only. Valid non-separation is query-shaped with `separation-unprovable`; an authored broadcast certificate contradicted by overlay/result reach refuses `SNAPBACK_GRAPH_BROADCAST_SEPARATION_UNPROVABLE`. |
 | `G0-BCAST-SCOPE` | `establishment.scope` and its outer-materialization-bound owner scope identity | `allowDeny`, `scopeMismatch` | Canonical argument ordering, policy identity, normalization/hash vector, and P/Q-distinct scope vector. |
-| `G0-BCAST-SCOPE-BINDING` | `resourceEqualities` from each delivered resource to same-materialization scope arguments | `scopeMismatch`, `refusal` | Executable equality passes; P-member/Q-instance mismatch refuses `SNAPBACK_GRAPH_BROADCAST_SCOPE_UNBOUND`. An argument-only membership check never qualifies. |
-| `G0-BCAST-AUDIENCE` | `strictEvaluatorIdentity` plus exact-audience cases | `allowDeny`, `audienceParity` | For both pinned principals at one instance/version, establishment deny-set equals fresh strict evaluation; neither narrower nor broader scope passes. |
-| `G0-BCAST-INVALIDATION` | `establishment.invalidation` plus §3.2 event selectors | `authorityTransition`, `mixedCommit` | Every predicate/policy input maps permission writes and authority transitions to affected scopes; both case kinds prove fence-before-delivery. |
+| `G0-BCAST-SCOPE-BINDING` | `resourceEqualities` from each delivered resource to same-materialization scope arguments | `scopeMismatch`, `refusal` | Executable equality passes. Valid P/Q scope mismatch is successfully query-shaped with `scope-unbound`; an authored broadcast certificate claiming the binding refuses `SNAPBACK_GRAPH_BROADCAST_SCOPE_UNBOUND`. An argument-only membership check never qualifies. |
+| `G0-BCAST-AUDIENCE` | `strictEvaluatorIdentity` plus exact-audience cases | `allowDeny`, `audienceParity` | For both pinned principals at one instance/version, establishment deny-set equals fresh strict evaluation. Valid parity failure is query-shaped with `audience-parity-failed`; a counterfeit authored broadcast certificate refuses under row 25. |
+| `G0-BCAST-INVALIDATION` | `establishment.invalidation` plus §3.2 event selectors | `authorityTransition`, `mixedCommit` | Every predicate/policy input maps permission writes and authority transitions to affected scopes; both case kinds prove fence-before-delivery. Valid incompleteness is query-shaped with `invalidation-incomplete`; a counterfeit authored broadcast certificate refuses under row 26. |
 | `G0-BCAST-IDENTITY` | §2.4 outer materialization plus args/window-vector/partition/version/cut identities | `pairedWorld`, `audienceParity`, `scopeMismatch`, `authorityTransition` | Rust/JS/host vectors reproduce hashes and equal complete identity tuples produce byte-identical results/labels/refusals within one context; a contextual-axis change rotates the outer identity. |
 | `G0-BCAST-CORPUS` | §3.4 closed case union and `tests/conformance/graph/corpus.v1.json` (Stage B) | `pairedWorld`, `allowDeny`, `audienceParity`, `scopeMismatch`, `authorityTransition`, `mixedCommit`, `refusal` | Projection-versus-storage-column, hidden-world, allow/deny, P/Q mismatch, exact audience, transition, mixed-commit, and refusal rows all pass. |
 | `G0-BCAST-BOUNDS` | §2.6 declarations plus `GraphG0ExitObservationV1` | `pairedWorld`, `allowDeny`, `audienceParity`, `scopeMismatch`, `authorityTransition`, `mixedCommit` | For every corpus graph on normal/large/hot, record measured group count, subscriber fan-out, per-group result bytes, dependency bytes, and group-state bytes. These are G0-exit observations, not hard retained-state bounds; LLP 0268 B1 declares hard group-state/frame/handoff fields through LLP 0267's sole `queryCost` carrier amendment. |
@@ -1354,27 +1737,12 @@ type GraphCorpusInvocationV1 = Readonly<{
   cut: string
 }>
 
-type GraphCompletenessLabelV1 =
-  | "unknown" | "complete" | "prefix" | "window" | "refused"
-
-type GraphNodeCompletenessProofClassV1 =
-  | "none"
-  | "refusal"
-  | "whole-source"
-  | "unique-point"
-  | "parent-ranges"
-  | "complete-membership"
-  | "principal-point"
-  | "provider-certificate"
-  | "ordered-prefix"
-  | "named-window"
-  | "projection-composition"
-
 type NodeCompletenessV1 = Readonly<{
   nodeId: string
+  nodeKind: GraphDataNodeKindV1 | "closed-projection"
   label: GraphCompletenessLabelV1
   proofClass: GraphNodeCompletenessProofClassV1
-  proof: CanonicalClientValueV1 | null
+  proof: GraphNodeCompletenessProofV1
 }>
 
 type GraphCorpusGraphCompletenessV1 = Readonly<{
@@ -1382,26 +1750,44 @@ type GraphCorpusGraphCompletenessV1 = Readonly<{
   proofClass:
     | "none" | "refusal" | "all-complete"
     | "composed-prefix" | "composed-window"
-  proof: CanonicalClientValueV1 | null
+  proof: GraphCompositionProofV1
   materializationHash: Sha256V1
   partitionHash: Sha256V1
   version: string
 }>
 
-type GraphCorpusExpectedResultV1 = Readonly<{
-  kind: "result"
-  resultBytes: string
-  orderedRootIds: readonly string[]
-  resultLength: number
-  existenceBits: readonly boolean[]
-  nodeCompleteness: readonly NodeCompletenessV1[]
-  graphCompleteness: GraphCorpusGraphCompletenessV1
-  refusalReason: null
-}>
+type GraphCorpusExpectedResultV1 =
+  | Readonly<{
+      kind: "result"
+      label: "unknown" | "complete" | "prefix" | "window"
+      resultBytes: string
+      orderedRootIds: readonly string[]
+      resultLength: number
+      existenceBits: readonly boolean[]
+      nodeCompleteness: readonly NodeCompletenessV1[]
+      graphCompleteness: GraphCorpusGraphCompletenessV1
+      refusalReason: null
+    }>
+  | Readonly<{
+      kind: "result"
+      label: "refused"
+      resultBytes: null
+      orderedRootIds: readonly []
+      resultLength: 0
+      existenceBits: readonly []
+      nodeCompleteness: readonly NodeCompletenessV1[]
+      graphCompleteness: GraphCorpusGraphCompletenessV1
+      refusalReason:
+        | GraphDemandTimeRefusalReasonV1
+        | GraphEvaluationTimeRefusalReasonV1
+    }>
+
+type GraphOracleDivergenceV1 = "direction-tie-break"
 
 type GraphPairedWorldCaseV1 = Readonly<{
   caseKind: "pairedWorld"
   id: string
+  oracleDivergence?: GraphOracleDivergenceV1
   plan: GraphPlanIdentityV1
   invocation: GraphCorpusInvocationV1
   worlds: {
@@ -1415,6 +1801,7 @@ type GraphPairedWorldCaseV1 = Readonly<{
 type GraphAllowDenyCaseV1 = Readonly<{
   caseKind: "allowDeny"
   id: string
+  oracleDivergence?: GraphOracleDivergenceV1
   plan: GraphPlanIdentityV1
   invocations: Readonly<{
     allowed: GraphCorpusInvocationV1
@@ -1431,6 +1818,7 @@ type GraphAllowDenyCaseV1 = Readonly<{
 type GraphAudienceParityCaseV1 = Readonly<{
   caseKind: "audienceParity"
   id: string
+  oracleDivergence?: GraphOracleDivergenceV1
   plan: GraphPlanIdentityV1
   invocations: readonly [GraphCorpusInvocationV1, GraphCorpusInvocationV1]
   principals: readonly [string, string]
@@ -1443,6 +1831,7 @@ type GraphAudienceParityCaseV1 = Readonly<{
 type GraphScopeMismatchCaseV1 = Readonly<{
   caseKind: "scopeMismatch"
   id: string
+  oracleDivergence?: GraphOracleDivergenceV1
   plan: GraphPlanIdentityV1
   invocations: Readonly<{
     memberScope: GraphCorpusInvocationV1
@@ -1451,7 +1840,7 @@ type GraphScopeMismatchCaseV1 = Readonly<{
   principal: string
   expect: Readonly<{
     classification: "query-shaped"
-    reason: "SNAPBACK_GRAPH_BROADCAST_SCOPE_UNBOUND"
+    reason: "scope-unbound"
     resultBytes: null
   }>
 }>
@@ -1459,6 +1848,7 @@ type GraphScopeMismatchCaseV1 = Readonly<{
 type GraphAuthorityTransitionCaseV1 = Readonly<{
   caseKind: "authorityTransition"
   id: string
+  oracleDivergence?: GraphOracleDivergenceV1
   plan: GraphPlanIdentityV1
   invocations: Readonly<{
     before: GraphCorpusInvocationV1
@@ -1481,6 +1871,7 @@ type GraphAuthorityTransitionCaseV1 = Readonly<{
 type GraphMixedCommitCaseV1 = Readonly<{
   caseKind: "mixedCommit"
   id: string
+  oracleDivergence?: GraphOracleDivergenceV1
   plan: GraphPlanIdentityV1
   invocations: Readonly<{
     before: GraphCorpusInvocationV1
@@ -1501,28 +1892,48 @@ type GraphMixedCommitCaseV1 = Readonly<{
   }>[]
 }>
 
-type GraphRefusalCaseV1 = Readonly<{
-  caseKind: "refusal"
-  id: string
-  trigger:
-    | Readonly<{
+type GraphRefusalCaseV1 =
+  | Readonly<{
+      caseKind: "refusal"
+      id: string
+      trigger: Readonly<{
         phase: "admission"
         plan: CanonicalClientValueV1
         schemaFixture: string
         policyFixture: string
       }>
-    | Readonly<{
+      expect: Readonly<{
+        reason: GraphAdmissionRefusalReasonV1
+        resultBytes: null
+      }>
+    }>
+  | Readonly<{
+      caseKind: "refusal"
+      id: string
+      trigger: Readonly<{
         phase: "demand-time"
         plan: GraphPlanIdentityV1
         demandInputs: CanonicalClientValueV1
       }>
-    | Readonly<{
+      expect: Readonly<{
+        reason: GraphDemandTimeRefusalReasonV1
+        resultBytes: null
+      }>
+    }>
+  | Readonly<{
+      caseKind: "refusal"
+      id: string
+      trigger: Readonly<{
         phase: "qualification"
         plan: GraphPlanIdentityV1
         qualificationFixture: string
       }>
-  expect: Readonly<{ reason: string; resultBytes: null }>
-}>
+      expect: Readonly<{
+        reasons: readonly [GraphQualificationFailureReasonV1,
+                           ...GraphQualificationFailureReasonV1[]]
+        resultBytes: null
+      }>
+    }>
 ```
 
 `GraphCorpusInvocationV1` is the one reusable executable invocation record.
@@ -1546,12 +1957,32 @@ field under test, but not a valid outer-wrapper record.
 
 For a result, `nodeCompleteness` has exactly one entry for every normalized
 node in canonical order. Its label/proof-class pairing must satisfy §4.1;
-`unknown` uses `none`/`null`, `refused` uses `refusal` plus its reason, and
-positive labels use the node-kind proof class and complete tuple evidence.
+the outer `nodeKind`, `label`, and `proofClass` must exact-match the proof's
+`kind`/`label` discriminants and §4.1's proof-class mapping; there is no
+arbitrary or null proof payload. For an `exists-semi-join` proof, each root's
+`childNodeIds` is exactly that root row's applicable semi-join child node ids
+in normalized preorder, and `existenceBits[i]` is the Boolean for
+`childNodeIds[i]`; lengths must match and no storage-row or completion order
+may alter the index.
 `graphCompleteness` separately records §4.2's composed graph label and proof;
-it is not copied from one convenient node. An executable corpus result may
-not use the `refused` label/proof class; that outcome belongs exclusively to
-the discriminated non-materializing refusal case.
+it is not copied from one convenient node. Its `GraphCompositionProofV1.nodes`
+cites exactly every non-projection node proof in canonical node order, using
+the host-computed SHA-256 of that complete `NodeCompletenessV1` JCS entry;
+`partialNodeIds` is exactly the cited non-complete set. The projection node
+uses the same composition proof. Missing, extra, duplicate, reordered, or
+hash-mismatched citations fail the corpus.
+
+An executable `GraphCorpusExpectedResultV1` may be `label:"refused"` only
+after a real materialization exists and only with a demand-time or
+evaluation-time reason from §2.3; it publishes no rows or result bytes.
+For every expected result, the top-level `label` exact-matches
+`graphCompleteness.label`; on a refused result, `refusalReason` also
+exact-matches its composition proof's `primaryReason` and the first refused
+node selected by §4.2.
+Admission and pre-materialization demand/qualification triggers remain solely
+in non-executable `GraphRefusalCaseV1`. A demand-time code is therefore found
+in exactly one form per case: non-materializing raw-trigger refusal, or a
+materialized refused result, never both.
 
 Only `pairedWorld` is the hidden-world class proof. Its two fixture worlds
 have byte-identical schema, indexes, visible rows,
@@ -1572,16 +2003,16 @@ reuse `pairedWorld`'s authority/version-equality precheck.
 | `pairedWorld` | The worlds differ only by the named wholly hidden slice and exact-match result bytes, order, length, existence bits, per-node completeness, composed graph completeness, and the null refusal field. |
 | `allowDeny` | The allowed and denied invocation records differ only in declared principal/partition axes; `allowed` establishes and receives its complete `GraphCorpusExpectedResultV1`, while `denied` is rejected before any result byte is produced. |
 | `audienceParity` | Exactly two principals exercise allow and deny at one instance/version, and the two-entry establishment vector exact-equals the fresh strict-evaluator vector. |
-| `scopeMismatch` | A principal who is a member of P presented to a Q materialization is classified query-shaped and refuses exactly `SNAPBACK_GRAPH_BROADCAST_SCOPE_UNBOUND`; no result byte is produced. |
+| `scopeMismatch` | A principal who is a member of P presented to a Q broadcast candidate is successfully classified query-shaped with `scope-unbound`; this classification-only case produces no broadcast result byte and is not a refusal. An authored broadcast certificate making the contradicted claim belongs in a separate admission `refusal` case under row 24. |
 | `authorityTransition` | Its one commit contains at least one authority event, advances `authorizationVersion`, and records a fence at the new version before any later delivery; no old-version delivery occurs after the commit. |
 | `mixedCommit` | Its one commit contains at least one data change and one authority event, advances `authorizationVersion`, fences before any delivery, and delivers neither a data delta nor replacement under the old version. |
-| `refusal` | The named admission, demand-time, or qualification register returns exactly the stable expected reason and no result bytes; each reason is limited to that §2.3 register. |
+| `refusal` | Admission/demand-time returns exactly the stable expected primary reason; qualification returns the complete deduplicated failure set in stable id order. No form produces result bytes, and every reason is limited to its §2.3 register. |
 
-Every executable case's expected result has all fields present and
-`refusalReason:null`; it cannot carry a refused result. Only
-`GraphRefusalCaseV1` carries the required stable §2.3 identifier and
-`resultBytes:null`, with no result/order/existence/completeness fields or
-materialization. `hiddenSlice` entries sort by table then row id;
+Every successful executable result has all fields present and
+`refusalReason:null`; a materialized refused result instead has the closed
+empty-row/null-byte form above and retains per-node plus composed refused
+proofs. `GraphRefusalCaseV1` remains the only non-materializing refusal form
+and has no result/order/existence/completeness fields. `hiddenSlice` entries sort by table then row id;
 each row id must exist only in `present`, and the runner exact-compares every
 other fixture row and input before evaluating either world.
 
@@ -1636,24 +2067,33 @@ upgraded one is a conformance failure.
 ### 4.1 Per-node production rules
 
 Every evaluator returns one
-`NodeCompletenessV1 {nodeId, label, proofClass, proof}` for every normalized
-node, in canonical node order. `proof` is `null` for
-`unknown`, `{reason}` for `refused`, and otherwise names the outer
-materialization hash, partition hash, version, interval ends,
-terminal/source-exhausted bit, and
-input/output `KeysetAfter` boundary where applicable. A claimed terminal is
-an independently observed source/range end; reaching a cost or page bound is
-never terminal.
+`NodeCompletenessV1 {nodeId, nodeKind, label, proofClass, proof}` for every
+normalized node, in canonical node order. `proof` is §2.1's closed
+`GraphNodeCompletenessProofV1`, never `CanonicalClientValueV1` or `null`; its
+tuple fields name the outer materialization hash, partition hash, and version,
+and its `(kind,label)` discriminator selects the only legal evidence
+shape. Outer `nodeKind`/`label`/`proofClass` exact-match that arm. A claimed
+terminal is an independently observed source/range end; reaching a cost or
+page bound is never terminal.
 
 | Node kind | Labels it may produce | Required proof |
 | --- | --- | --- |
-| `root-window` | `unknown`, `prefix`, `window`, `complete`, `refused` | `prefix`: interval begins unbounded at the declared order minimum, every emitted root is authorized before `take`, order includes ascending `_id`, and authenticated successor boundary resumes strictly after/before the last consumed root in the requested direction. `window`: both named interval ends are validated and the requested interval is exhausted. `complete`: both ends are unbounded and the root source is exhausted. `take:0` performs no read and is `unknown` unless independent source/interval exhaustion proves `complete`/`window`; it never mints a zero-progress continuation. |
-| `equality-to-one` | `unknown`, `complete`, `refused` | One unique-index point resolution, including a captured `MissingRow`, is complete for every admitted parent at the tuple; visibility executes before presence/projection, so missing and invisible have the same public fact. |
-| `bounded-to-many` | `unknown`, `prefix`, `window`, `complete`, `refused` | Apply the root-window proofs independently to every admitted parent's exact indexed range. `prefix` requires every nonterminal parent range to begin at its minimum and carry a successor; `window` requires complete named ends for every ranged parent; `complete` requires every parent range exhausted. One unproved parent makes the node `unknown`. |
-| `exists-semi-join` | `unknown`, `complete`, `refused` | Every direct/through lookup, including empty ranges, is captured at one tuple. `all` additionally proves the complete deduplicated canonical argument set was checked and every item matched; hidden rows cannot alter the bit. There is no partial existence label. |
-| `principal-bound` | `unknown`, `complete`, `refused` | Host principal, optional unique binding, and unique `(principal,parent)` point result/miss are all proved at one authority tuple. Absence for anonymous authority is complete only when the result contract declares the node nullable and no lookup is attempted. |
-| `search-membership` | `unknown`, `complete`, `refused` | The owner-issued provider certificate names this membership/args/scope/partition/version and says its full membership input is complete. A provider prefix, stale epoch, absent certificate, or table-granular invalidation after the certificate yields `unknown` or the provider's stable refusal, never graph-minted `prefix`. |
-| `closed-projection` | `unknown`, `prefix`, `window`, `complete`, `refused` | Exact result-contract validation plus §4.2 composition over every referenced or predicate-affecting node; projection itself adds no data proof. |
+| `root-window` | `unknown`, `prefix`, `window`, `complete`, `refused` | `prefix` uses `{kind:"root-window",label:"prefix",order,continuation,stableOrderProof:"declared-order-with-id-tiebreak",take,consumed,hasMore:true}`; `continuation` must be non-null and resume strictly after/before the last consumed authorized root. `window` uses the closed `{interval:{lower,upper},take,consumed,hasMore:false}` arm and proves both named ends exhausted. `complete` uses two unbounded ends plus `sourceExhausted:true`. `take:0` is the closed `unknown/zero-take-unproved` arm unless independent exhaustion proves otherwise; it never mints a zero-progress continuation. |
+| `equality-to-one` | `unknown`, `complete`, `refused` | The `complete` arm carries `found:boolean` for the one unique-index point resolution, including a captured miss. Visibility executes before presence/projection, so missing and invisible have the same public fact. |
+| `bounded-to-many` | `unknown`, `prefix`, `window`, `complete`, `refused` | The proof carries one range record for every admitted `parentKey`, in parent-key order, with `consumed`, the plan cap, and `hasMore`; prefix ranges additionally carry a non-null continuation and total order. `window` proves each named parent interval exhausted; `complete` proves every parent range exhausted. One absent/unproved parent selects the closed `unknown/parent-range-unproved` arm. |
+| `exists-semi-join` | `unknown`, `complete`, `refused` | The `complete` arm captures every direct/through lookup, including empty ranges. For each root, `childNodeIds` is its applicable semi-join children in normalized preorder and `existenceBits[i]` is exactly the bit for `childNodeIds[i]`. `all` additionally proves the complete deduplicated canonical argument set was checked and every item matched; there is no partial existence label. |
+| `principal-bound` | `unknown`, `complete`, `refused` | The `complete` arm names `parentKey`, `bindingFound`, and `targetFound`, proving the host principal, optional unique binding point, and unique target point/miss at one tuple. Absence for anonymous authority is complete only when the result contract declares the node nullable and no lookup is attempted. |
+| `search-membership` | `unknown`, `complete`, `refused` | `complete` carries `providerCompletenessClass:"complete-membership-v1"` and the exact provider-certificate hash. `unknown` still carries the provider completeness class plus `provider-incomplete` or `provider-proof-invalidated`. A provider prefix, stale epoch, absent certificate, or invalidation after the certificate never becomes a graph-minted `prefix`. |
+| `closed-projection` | `unknown`, `prefix`, `window`, `complete`, `refused` | Exact result-contract validation plus §4.2's closed `GraphCompositionProofV1`; projection itself adds no data proof. |
+
+`proofClass` is also derived, never authored independently: `unknown → none`,
+`refused → refusal`, root `complete/prefix/window →
+whole-source/ordered-prefix/named-window`, to-one `complete → unique-point`,
+to-many `complete|window → parent-ranges` and `prefix → ordered-prefix`,
+semi-join `complete → complete-membership`, principal `complete →
+principal-point`, search `complete → provider-certificate`, and every
+projection label `→ projection-composition`. Any other pairing is a corpus
+mismatch.
 
 ### 4.2 Graph composition
 
@@ -1663,10 +2103,11 @@ following deterministic function of that set after exact result-contract
 validation; an evaluator may not choose a more optimistic label:
 
 1. Any refusal produces `refused(primaryReason)`. `primaryReason` is the first
-   reason in the applicable §2.3 admission or demand-time register. If neither
-   graph register owns an imported runtime refusal, use the first runtime node
-   in canonical order. Qualification failures never enter this composition.
-   The reason is a stable `SNAPBACK_GRAPH_*` identifier or an explicitly imported owner code such as
+   reason in the applicable §2.3 admission, demand-time, or evaluation-time
+   register. Imported evaluation refusals use that register's owner ordering,
+   then canonical node order as §2.3 specifies. Qualification failures never
+   enter this composition. The reason is a closed registered identifier,
+   including imported owner codes such as
    `SNAPBACK_QUERY_COST_BOUND_EXCEEDED`.
 2. Otherwise, any `unknown` produces `unknown`.
 3. Otherwise, if every input is `complete`, the graph is `complete`.
@@ -1677,7 +2118,12 @@ validation; an evaluator may not choose a more optimistic label:
 6. A mixture of `prefix` and `window` produces `unknown`: neither label alone
    states the mixed partial claim. Stage B pins this row in the corpus.
 
-The projection node records that composed label last and cannot hide a
+`GraphCompositionProofV1.nodes` cites exactly every non-projection input proof
+above, in canonical node order, by `(nodeId,nodeKind,label,proofHash)`;
+`proofHash` is SHA-256 over ASCII `snapback:graph-node-completeness:v1:` plus
+the complete `NodeCompletenessV1` RFC 8785 JCS. `partialNodeIds` is the exact
+ordered set of non-complete citations for `prefix`/`window`; `allComplete` and
+`primaryReason` close their respective arms. The projection node records that composed label last and cannot hide a
 predicate-affecting node. A graph labelled `prefix` therefore has a stable
 prefix at each partial sequence, not merely `rows.len() == take`; a graph
 labelled `window` names every non-whole interval. The composed proof and label
@@ -1790,7 +2236,7 @@ type GraphCapturedReadV1 = Readonly<{
         order: readonly OrderExpr[]
         limit: number
         resultCount: number
-        boundary: KeysetAfter | null
+        boundary: KeysetKeyV1 | null
         complete: boolean
       }>
     | GraphParentPointDependencyV1
@@ -1803,7 +2249,7 @@ type GraphCapturedReadV1 = Readonly<{
         order: readonly OrderExpr[]
         limit: number
         resultCount: number
-        boundary: KeysetAfter | null
+        boundary: KeysetKeyV1 | null
         complete: boolean
       }>
     | GraphMembershipDependencyV1
@@ -2116,13 +2562,24 @@ type GraphOracleLabelTranslationV1 =
         | "complete" | "incomplete" | "refreshing"
         | "not-found-authoritative"
       oracleReason: string | null
+      when: Readonly<{
+        cursor: "non-null" | "null" | "any"
+        rows: "non-empty" | "empty" | "any"
+      }>
       graphLabel: GraphCompletenessLabelV1
-      graphRefusalReason: string | null
+      graphRefusalReason:
+        | GraphDemandTimeRefusalReasonV1
+        | GraphEvaluationTimeRefusalReasonV1
+        | null
       excludedReason: null
     }>
   | Readonly<{
       oracleStatus: "refreshing" | "complete" | "incomplete"
       oracleReason: string | null
+      when: Readonly<{
+        cursor: "non-null" | "null" | "any"
+        rows: "non-empty" | "empty" | "any"
+      }>
       graphLabel: null
       graphRefusalReason: null
       excludedReason: string
@@ -2138,7 +2595,9 @@ type GraphOracleFieldMapV1 = Readonly<{
   order: Readonly<{
     graphNodeId: string
     oracleFields: readonly string[]
-    comparison: "exact-id-order"
+    comparison:
+      | "exact-id-order"
+      | "exact-after-id-tiebreak-normalization"
   }>
   nodeCompleteness: readonly Readonly<{
     graphNodeId: string
@@ -2178,38 +2637,59 @@ records the corresponding map for its root and demand-paged comments node, and
 `listIssueByID` records its point/list map. Every oracle-envelope field appears
 exactly once as corresponding or excluded.
 
-Each query's field map records the following closed, reason-sensitive rows;
-the status/reason pair and stated continuation/zero-row precondition are one
-translation key:
+The graph's total order is always declared order plus **ascending** `_id`,
+including for `direction:"backward"` (LLP 0007). The frozen Zerobugs D1
+control instead multiplies its id comparison by direction
+(`demos/zerobugs/control/snapback/functions.mjs:2824`–`:2833`); Stage B must
+not edit that oracle. A corpus case whose demand direction is backward and
+whose expected rows contain at least two equal declared sort keys must carry
+`oracleDivergence:"direction-tie-break"`; the field is forbidden otherwise.
+Its expected rows and order remain the graph/LLP-0007 order. The case
+exact-compares the row set, then exact-compares order after re-sorting only
+each oracle tie group by ascending `_id`; its field map uses
+`comparison:"exact-after-id-tiebreak-normalization"`. Every case without the
+disposition uses `exact-id-order` and compares exactly. The corpus file records
+the disposition, and the v0.6 exit note records it as a known control-app
+deviation; B3 files the follow-up ticket against the control. It is not a G0
+blocker and grants no other oracle normalization.
 
-| Query / mapped field | Oracle `(status, reason)` | Graph disposition |
-| --- | --- | --- |
-| all mapped node fields; `issueListV2` / `listIssueByID` outer | `complete, null` | `complete`, no refusal |
-| `issueListV2` outer | `incomplete, page-limit` | `prefix`, only with its non-null continuation and the §4.1 directional order proof |
-| `issueListV2` outer | `incomplete, child-bound` | `refused`, `SNAPBACK_QUERY_COST_BOUND_EXCEEDED` |
-| `issueListV2` outer | `incomplete, issue-read-model-bound` | `refused`, `SNAPBACK_QUERY_COST_BOUND_EXCEEDED` |
-| `issueListV2` outer | `incomplete, label-membership-bound` | `refused`, `SNAPBACK_QUERY_COST_BOUND_EXCEEDED` |
-| `issueListV2` outer | `incomplete, positive-limit-required` | `refused`, `SNAPBACK_GRAPH_ARGUMENT_INVALID` |
-| `issueListV2` outer | `refreshing, search-document-bound-or-epoch-missing` | excluded: transient provider state, not a graph result label |
-| `issueListV2` item `labelsCompleteness` | `incomplete, null` | `refused`, `SNAPBACK_QUERY_COST_BOUND_EXCEEDED` |
-| `issueDetail` outer | `complete, null` | excluded: aggregate duplicate; compose the mapped node labels under §4.2 |
-| `issueDetail` outer | `incomplete, bounded-child-window` | excluded: it coalesces pageable and hard-bound child causes; compose the mapped node labels under §4.2 |
-| `issueDetail` outer | `not-found-authoritative, missing-or-invisible-issue` | `complete` with zero root/result rows and no refusal |
-| `issueDetail` `labelsCompleteness` / `emojiCompleteness` | `incomplete, null` | `refused`, `SNAPBACK_QUERY_COST_BOUND_EXCEEDED` |
-| `issueDetail` `commentsCompleteness` | `incomplete, null` | `window`, only when `commentsCursor` is non-null and next-page row parity proves the named interval; a null cursor is the declared cost-bound refusal case |
-| `listIssueByID` outer | `not-found-authoritative, missing-or-outside-list-context` | `complete` with zero root/result rows and no refusal |
-| `listIssueByID` outer | `incomplete, child-bound` or `incomplete, label-membership-bound` | `refused`, `SNAPBACK_QUERY_COST_BOUND_EXCEEDED` |
-| `listIssueByID` outer | `refreshing, search-document-bound-or-epoch-missing` | excluded: transient provider state, not a graph result label |
-| `listIssueByID` item `labelsCompleteness` | `incomplete, null` | `refused`, `SNAPBACK_QUERY_COST_BOUND_EXCEEDED` |
+Each query's field map records the following closed, reason-sensitive rows;
+the status/reason pair plus the serialized `when:{cursor,rows}` discriminator
+is one translation key. `cursor` refers to the mapped continuation field and
+`rows` to the mapped row collection; `any` is explicit, never omission.
+
+| Query / mapped field | Oracle `(status, reason)` | `when.cursor` | `when.rows` | Graph disposition |
+| --- | --- | --- | --- | --- |
+| all mapped node fields; `issueListV2` / `listIssueByID` outer | `complete, null` | `any` | `any` | `complete`, no refusal |
+| `issueListV2` outer | `incomplete, page-limit` | `non-null` | `non-empty` | `prefix`, with the §4.1 directional order proof |
+| `issueListV2` outer | `incomplete, child-bound` | `any` | `any` | `refused`, `SNAPBACK_QUERY_COST_BOUND_EXCEEDED` |
+| `issueListV2` outer | `incomplete, issue-read-model-bound` | `any` | `any` | `refused`, `SNAPBACK_QUERY_COST_BOUND_EXCEEDED` |
+| `issueListV2` outer | `incomplete, label-membership-bound` | `any` | `any` | `refused`, `SNAPBACK_QUERY_COST_BOUND_EXCEEDED` |
+| `issueListV2` outer | `incomplete, positive-limit-required` | `null` | `empty` | `refused`, `SNAPBACK_GRAPH_ARGUMENT_INVALID` |
+| `issueListV2` outer | `refreshing, search-document-bound-or-epoch-missing` | `any` | `any` | excluded: transient provider state, not a graph result label |
+| `issueListV2` item `labelsCompleteness` | `incomplete, null` | `any` | `any` | `refused`, `SNAPBACK_QUERY_COST_BOUND_EXCEEDED` |
+| `issueDetail` outer | `complete, null` | `any` | `any` | excluded: aggregate duplicate; compose the mapped node labels under §4.2 |
+| `issueDetail` outer | `incomplete, bounded-child-window` | `any` | `any` | excluded: it coalesces pageable and hard-bound child causes; compose the mapped node labels under §4.2 |
+| `issueDetail` outer | `not-found-authoritative, missing-or-invisible-issue` | `null` | `empty` | `complete` with zero root/result rows and no refusal |
+| `issueDetail` `labelsCompleteness` / `emojiCompleteness` | `incomplete, null` | `any` | `any` | `refused`, `SNAPBACK_QUERY_COST_BOUND_EXCEEDED` |
+| `issueDetail` `commentsCompleteness` | `incomplete, null` | `non-null` | `non-empty` | `window`, when next-page row parity proves the named interval |
+| `issueDetail` `commentsCompleteness` | `incomplete, null` | `null` | `empty` | `refused`, `SNAPBACK_QUERY_COST_BOUND_EXCEEDED` (the oracle's 1,024-comment collection ceiling) |
+| `listIssueByID` outer | `not-found-authoritative, missing-or-outside-list-context` | `null` | `empty` | `complete` with zero root/result rows and no refusal |
+| `listIssueByID` outer | `incomplete, child-bound` or `incomplete, label-membership-bound` | `any` | `any` | `refused`, `SNAPBACK_QUERY_COST_BOUND_EXCEEDED` |
+| `listIssueByID` outer | `refreshing, search-document-bound-or-epoch-missing` | `any` | `any` | excluded: transient provider state, not a graph result label |
+| `listIssueByID` item `labelsCompleteness` | `incomplete, null` | `any` | `any` | `refused`, `SNAPBACK_QUERY_COST_BOUND_EXCEEDED` |
 
 The two slash/`or` rows above are emitted as separate
 `GraphOracleLabelTranslationV1` entries with identical dispositions. Every
 translation listed in the table is serialized into the applicable field map,
 including the excluded rows with their exact `excludedReason`. Any oracle
-`(status, reason)` pair absent from that map, a `page-limit`/comments window
-without the required continuation proof, or a continuation on a zero-row
+`(status, reason, when.cursor, when.rows)` key absent from that map, a
+`page-limit`/comments window without the required continuation proof, or a continuation on a zero-row
 authoritative miss fails the corpus with
 `SNAPBACK_GRAPH_QUALIFICATION_CORPUS_MISMATCH`.
+In particular, the null-cursor/empty-comments row above is the closed
+evaluation-time cost-bound result, never a
+`SNAPBACK_GRAPH_QUALIFICATION_CORPUS_MISMATCH` translation.
 
 `examined` is excluded because it is opaque-handler physical work rather than
 a graph result leaf; `total` because it is a full filtered count outside the
@@ -2236,10 +2716,10 @@ filters are stable test names, not prose descriptions.
 | ---: | --- | --- | --- |
 | 1 | [ ] **The IR, as data.** All seven §2.2 node kinds; finite, acyclic, closed; normative exclusions/refusals. | `GraphQueryPlanV1`/`GraphNodeV1` and `GraphQueryCarrierV1` in `snapback-types`; `defineGraphQuery`; `HandlerPlan::GraphQuery`; generated JSON Schema; fail-closed matcher arm; `@ref LLP 0209#2-the-graph-ir` on the IR. Placement follows LLP 0276; no new crate. | `cargo test -p snapback-types graph_query_v1 && volta run --node 24.18.0 node --test packages/snapback-codegen/graph-query.test.mjs` |
 | 2 | [ ] **Plan, demand, and contextual identity.** Host-recomputed normalized plan identity; plan × canonical args × keyed node-window-vector instance identity; LLP 0157 contextual materialization wrapper. | `GraphPlanIdentityV1`, `GraphInstanceIdentityV1`, `GraphMaterializationIdentityV1`, frozen Rust/JS positive and one-axis-rotation vectors in the graph corpus. | `cargo test -p snapback-types graph_plan_identity_v1 && cargo test -p snapback --test graph_corpus_v1 identity_vectors` |
-| 3 | [ ] **Per-node authority classification, proved not trusted.** Classes 1/2/3, compile checks, paired-world falsification, partition roll-up; class 3 is partition-of-one. | Codegen proof report embedded in normalized plans; `GraphAuthorityPartitionRuleV1`; paired-world and exact-audience corpus rows from §3; `@ref LLP 0209#3-authorization-at-every-node` on admission. | `volta run --node 24.18.0 node --test --test-name-pattern=authority packages/snapback-codegen/graph-query.test.mjs && cargo test -p snapback --test graph_corpus_v1 paired_worlds` |
-| 4 | [ ] **Completeness vocabulary bound to the IR.** `unknown`/`complete`/`prefix`/`window`/`refused` at one materialization/partition/version tuple. | Per-node and composed expected label/proof fields in every graph corpus case; refusal reason pinned. | `cargo test -p snapback --test graph_corpus_v1 completeness_labels` |
+| 3 | [ ] **Per-node authority classification, proved not trusted.** Classes 1/2/3, compile checks, paired-world falsification, partition roll-up; class 3 is partition-of-one. | Codegen proof report embedded in normalized plans; class-2 `GraphPartitionEquivalenceProofV1` host-recomputation vectors; `GraphAuthorityPartitionRuleV1`; paired-world and exact-audience corpus rows from §3; `@ref LLP 0209#3-authorization-at-every-node` on admission. | `volta run --node 24.18.0 node --test --test-name-pattern=authority packages/snapback-codegen/graph-query.test.mjs && cargo test -p snapback --test graph_corpus_v1 paired_worlds` |
+| 4 | [ ] **Completeness vocabulary bound to the IR.** `unknown`/`complete`/`prefix`/`window`/`refused` at one materialization/partition/version tuple. | Closed per-node `GraphNodeCompletenessProofV1` and composed `GraphCompositionProofV1` in every materialized corpus result; refusal reason pinned by register. | `cargo test -p snapback --test graph_corpus_v1 completeness_labels` |
 | 5 | [ ] **Per-node dependency capture specified for every kind.** Root predicate/boundary; parent edges; membership; principal field; table-granular search. | `CapturedReadKind::GraphNode`/`GraphCapturedReadV1` in `snapback-types`, with the matching vocabulary registered in `snapback-sync`; schema/round-trip fixtures only. Execution and matcher consumption wait for G2. | `cargo test -p snapback-types graph_captured_read_v1 && cargo test -p snapback-sync graph_captured_read_v1 && cargo test -p snapback --test graph_corpus_v1 dependency_shapes` |
-| 6 | [ ] **The Zerobugs corpus is declared and compiles or refuses.** `issueListV2`, `issueDetail`, and point/list companion shape use the opaque JS handlers as oracle. | Normal-fixture declared rows/order/node labels/continuation semantics, explicit per-query `GraphOracleFieldMapV1`, exclusions, stable refusals, host identities, oracle digests, and all §3.4 case kinds in `tests/conformance/graph/corpus.v1.json`; large-fixture identity/label spot checks. | `cargo test -p snapback --test graph_corpus_v1 && volta run --node 24.18.0 node scripts/check-inventories.mjs` |
+| 6 | [ ] **The Zerobugs corpus is declared and compiles or refuses.** `issueListV2`, `issueDetail`, and point/list companion shape use the opaque JS handlers as oracle. | Normal-fixture declared rows/order/node labels/continuation semantics, explicit per-query `GraphOracleFieldMapV1`, exclusions, stable refusals, host identities, oracle digests, closed `when` translation discriminators, any required `direction-tie-break` case disposition, and all §3.4 case kinds in `tests/conformance/graph/corpus.v1.json`; large-fixture identity/label spot checks. | `cargo test -p snapback --test graph_corpus_v1 && volta run --node 24.18.0 node scripts/check-inventories.mjs` |
 | 7 | [ ] **Every bound declared under the G0 ruling.** Logical fields are sized from fixture facts/oracle results; physical fields are analytical plan-shape declarations tagged `[G2 measures]`; 1,024 summed-batch reuse is rejected; maintained-write is zero. | Normal/large/hot logical derivations, analytical physical derivations, node-ledger declarations, `GraphG0ExitObservationV1`, and completed §2.6 table in the v0.6 note; no fabricated graph-executor observations. | `volta run --node 24.18.0 node demos/zerobugs/control/scripts/freeze-graph-g0-corpus.mjs --fixtures normal-seed-v1,large-seed42-v1,hot-recent-v1 && cargo test -p snapback --test graph_corpus_v1 bounds_are_fixture_derived` |
 | 8 | [ ] **All nine LLP 0268 §7 inputs.** Each named label has its §3.3 carrier, mapped case kinds, and exit evidence; omission blocks B1. | `GraphBroadcastAdmissionV1` proof/refusal records, all seven §3.4 case kinds, and normal/large/hot G0-exit observations. | `cargo test -p snapback --test graph_corpus_v1 broadcast_inputs_complete` |
 | 9 | [ ] **OQ-1 applied.** New sibling arm/capability/constructor; shipped carriers frozen; no migration; degenerate equivalence deferred to G2. | Registry reservation and schema arm for `graph_query_v1`; existing relational corpus unchanged; explicit no-executor admission test and fail-closed matcher arm. | `cargo test -p snapback-types graph_query_sibling_arm && cargo test -p snapback --test relational_corpus_v0 && cargo test -p snapback --test graph_corpus_v1 no_runtime_consumer` |
@@ -2248,7 +2728,9 @@ filters are stable test names, not prose descriptions.
 
 G0 exits only in a dated **v0.6 (“G0 exit”)** revision-history note. That
 note checks all nine rows above, links the Stage B commit/evidence, records
-the oracle/corpus digests, replaces every **[Stage B fills]**, and records the
+the oracle/corpus digests, records any `direction-tie-break` dispositions as
+the known frozen-control deviation together with the B3 follow-up ticket
+against the control, replaces every **[Stage B fills]**, and records the
 author's ratification of every **[author-ratify]** decision. It
 moves the §2–§4 content from Draft to Review, while making no G2/G3/runtime or
 publication claim. In particular, the author ratifies §2.6's ruled G0
@@ -2395,6 +2877,12 @@ or identities.
   `crates/snapback-kernel/src/live_matcher.rs`,
   `crates/snapback-kernel/src/ephemeral.rs`, and
   `crates/snapback-server/src/server.rs`; correction belongs to LLP 0268.
+- **Zerobugs D1 descending tie-break:** the frozen control multiplies `_id`
+  comparison by direction while LLP 0007 requires the graph's `_id` tie-break
+  to remain ascending. Stage B records only the closed
+  `direction-tie-break` corpus disposition; B3 files the control-app ticket
+  named in §9 and records it in the v0.6 exit note. G0 does not edit the
+  oracle and this known deviation is not a G0 blocker.
 
 ## Open questions
 
@@ -2477,6 +2965,14 @@ or identities.
   - **Fix round 2 — R6:** §2.1/§2.4/§2.6 move window maxima per demand-paged node, bind each ledger to its node interval vector, and exact-check a summed rollup.
   - **Fix round 2 — R7:** §2.3/§2.6 pin the unique analytical physical-bound function, index-prefix refusal, and numeric `issueDetail` candidate calculation.
   - **Fix round 2 — MINOR:** the plan broadcast tag, demand order identity, allowed-result expectation, sole result-byte check, keyset placement, join direction, SHA pattern, DFS example, and history figures are closed.
+  - **Fix round 3 — F1:** §2.1/§3.4/§4 replace arbitrary completeness payloads with node-kind/label proof unions, a closed existence-bit index, and exact graph-composition citations.
+  - **Fix round 3 — F2:** §2.1/§2.3/§3 separate evaluation-time materialized refusals, non-materializing refusal cases, successful query-shaped non-eligibility, and counterfeit broadcast certificates.
+  - **Fix round 3 — F3:** §9 makes oracle translation keys discriminate cursor/row state and maps the null-cursor/empty-comments ceiling to the evaluation-time cost refusal.
+  - **Fix round 3 — F4:** §2.6 hashes only plan maxima, counts every point/range/through consultation, derives `maxIndexRanges` identically, and separates the `take=50` demand check.
+  - **Fix round 3 — F5:** §2.1/§2.4/§3.1 define, place, normalize, hash, and host-recompute `GraphPartitionEquivalenceProofV1` for every class-2 node.
+  - **Fix round 3 — F6:** §3.4/§9 freeze the backward tied-key oracle divergence disposition without changing the D1 control and require B3's follow-up ticket at exit.
+  - **Fix round 3 — F7:** §2.3 makes admission row 1 manifest-decidable and qualification failures a complete unordered-by-precedence set.
+  - **Fix round 3 — rulings/minor:** §2/§9 and the commission packet pin the `KeysetKeyV1` placement/conversions, rewritten filter argument ids, conservative byte rollup, nested-object refusals, kind-conditional cost presence, resolved OQ-1 heading, materialization tuple, and per-node window wording.
 - **v0.4 (2026-08-23).** **G0 commissioned** (author ruling, Charlie
   Cheever, 2026-08-23 session: "worth commissioning G0 now"). Context: the
   fan-out P1 this Spec anchors is no longer minutes-scale — LLP 0200
