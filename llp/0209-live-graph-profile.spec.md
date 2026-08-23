@@ -502,6 +502,7 @@ type GraphNodeCompletenessEvidenceV1 =
       label: "complete"
       rows: readonly Readonly<{
         parentKey: GraphRowKeyV1
+        // Literal true (vacuous) when the normalized node omits binding.
         bindingFound: boolean
         targetFound: boolean
       }>[]
@@ -1345,18 +1346,26 @@ time and refuses any difference with
 cursor and each ledger is authenticated against the exact key `(generation,
 planHash, argsDigest, partition, target, nodeId, canonical per-parent interval
 vector)`, where the final component is the complete canonical
-`GraphParentWindowIdentityV1[]` for that node. There is one independent ledger lineage per
-demand-paged node—one for the root and one for each demand-paged child—and a
-child lineage cumulatively charges every per-parent interval in that node's
-vector entry. Every published page charges the whole subtree its lineage root
-induces: the root lineage's per-page scan, result-row, result-byte, and
-consultation values include every descendant consultation and result that root
-page triggers, while a demand-paged child lineage charges only that child and
-its descendants. The root lineage charges all six counters; a child lineage
-keeps `rootRows` at zero. Each maximum remains `maxWindowPages` times the
-corresponding per-page induced-subtree maximum. This extends LLP 0267 §5's
-singular one-window wording; no
-ledger counter can rotate an otherwise equal window or instance identity.
+`GraphParentWindowIdentityV1[]` for that node. There is one independent ledger
+lineage per demand-paged node—one for the root and one for each demand-paged
+child—and a child lineage cumulatively charges every per-parent interval in
+that node's vector entry. Every published page charges structural work for the
+whole subtree its lineage root induces: the root lineage's per-page
+`scannedRows`, `indexRanges`, and per-node consultations include every
+descendant consultation the root page triggers, while a demand-paged child
+lineage includes only that child and its descendants. Induced-subtree
+accounting applies only to those structural fields. Independently, every
+lineage page—root or child—charges the published graph's top-level `resultRows`
+and its one whole-result `resultBytes`, measured by the single
+`serde_json::to_vec` serialization required by LLP 0267 §1.4/§5, to its own
+ledger. A child-page publication therefore re-charges the whole result, a
+deliberately conservative ceiling; there is no serialized child result or
+child-sub-result carrier. The root lineage charges all six counters; a child
+lineage keeps `rootRows` at zero. Each structural maximum remains
+`maxWindowPages` times its per-page induced-subtree maximum, while each result
+maximum is `maxWindowPages` times the per-page top-level whole-result value.
+This extends LLP 0267 §5's singular one-window wording; no ledger counter can
+rotate an otherwise equal window or instance identity.
 
 The outer `GraphMaterializationIdentityV1` is host-recomputed over the inner
 instance hash using LLP 0157 §D2's contextual-wrapper precedent: app,
@@ -1451,9 +1460,11 @@ graph-level `windowRollup` is present but purely derived and exact-checked:
 each of pages, root rows, scanned rows, result rows, result bytes, and index
 ranges is the checked sum of its corresponding node maximum across all
 independent demand-page ledger lineages. It is not an independently chosen
-ceiling. In particular, `windowRollup.maxWindowResultBytes` is a conservative
-ceiling: it is the checked sum of the lineage byte maxima even when those
-lineages' largest pages cannot occur simultaneously.
+ceiling. The structural fields sum each lineage's induced-subtree maximum;
+`maxWindowResultRows` and `maxWindowResultBytes` sum lineage maxima that each
+re-charge the published graph's top-level rows and one whole-result
+serialization. The result rollups are therefore deliberately conservative,
+including when different lineages' largest pages cannot occur simultaneously.
 
 `GraphNodeCostV1` presence is kind-conditional and closed; TypeScript's
 optional syntax does not weaken this table:
@@ -1490,8 +1501,10 @@ plans begins at G2, when an executor exists.
 The physical declaration is one closed analytical consultation-count
 function. Because every input is normalized plan shape or a declared maximum,
 the physical fields are unique plan-hash inputs; an author cannot choose a
-looser number. Derivation always runs in these four steps and no field has a
-second counting rule.
+looser number. Analytical declarations take the worst-case consultation arm,
+while G2 observations charge zero consultations when the actual key is null or
+omitted. Derivation always runs in these four steps and no field has a second
+counting rule.
 
 1. **Parent population `P(node)`.** Let a present node
    `maxArgumentExpansion` contribute its declared checked factor and an absent
@@ -1516,10 +1529,12 @@ second counting rule.
    unchanged: one edge-range consultation plus `C` target-point consultations
    per probe. A principal-bound node makes one point consultation for the
    principal-keyed target row, plus one binding point only when its optional
-   `binding` is present; captured concrete-key misses still count. Anonymous
-   nullable absence for which §4 proves that no lookup is attempted makes no
-   storage consultation. Search makes one opaque provider consultation.
-   Projection makes none.
+   `binding` is present; captured concrete-key misses still count. When
+   `binding` is absent, the complete proof's only legal encoding is the literal
+   `bindingFound:true` (vacuous), and no binding consultation is charged.
+   Anonymous nullable absence for which §4 proves that no lookup is attempted
+   makes no storage consultation. Search makes one opaque provider
+   consultation. Projection makes none.
 3. **Entries per consultation.** Every point, unique, or opaque consultation
    has an entry maximum of 1. A non-unique direct semi-join's bounded-index
    range also has an entry maximum of 1 because its exact access is `LIMIT 1`;
@@ -1543,17 +1558,21 @@ second counting rule.
    `indexRangeCount == accessPathConsultations.length`; relationship lookups
    also contribute per LLP 0267 §5. The host checked-sums node examined maxima
    into `queryCost.maxScannedRows`. For each demand-paged lineage, a page's
-   corresponding maximum is the checked sum for the entire induced subtree:
-   the lineage node and every descendant consultation/result that publishing
-   that page triggers. The root lineage therefore includes all descendant work;
-   a child lineage includes only its own subtree. Every cumulative window field
-   is the checked product of `maxWindowPages` and that per-page maximum: root
-   rows (zero for a child lineage), examined entries, result rows, serialized
-   result bytes, and consultations. Thus, for example,
+   structural maximum is the checked sum for the entire induced subtree: the
+   lineage node and every descendant consultation that publishing that page
+   triggers. The root lineage therefore includes all descendant structural
+   work; a child lineage includes only its own subtree. `maxWindowRootRows`
+   remains zero for a child lineage. By contrast, every lineage page charges
+   the published graph's top-level `resultRows` and the single whole-result
+   `resultBytes` to its own ledger, including for a child-page publication.
+   Every cumulative window field is the checked product of `maxWindowPages`
+   and its applicable per-page maximum. Thus, for example,
    `maxWindowScannedRows = maxWindowPages × per-page induced-subtree examined
    maximum` and `maxWindowIndexRanges = maxWindowPages × per-page
-   induced-subtree consultation maximum`; `windowRollup` then checked-sums
-   corresponding lineage maxima.
+   induced-subtree consultation maximum`; the result-row and byte products use
+   the per-page top-level whole-result values instead. `windowRollup` then
+   checked-sums corresponding lineage maxima, conservatively re-charging that
+   whole result once per lineage page.
 
 For clarity, if a `ThroughEdgeV1` node has parent population `P`, probe count
 `Q` (`1` for `exists`, the declared `maxItems` for `all`), and edge cap `C`,
@@ -1598,11 +1617,20 @@ Request validation is separate: `take = 50` must satisfy
 `50 <= C_comments`; only then may the runtime tighten this request's comments
 range to `51` examined entries including lookahead, yielding a request-local
 scanned ceiling of `93` without changing any plan field or hash. For a
-one-page illustration, the root lineage charges its whole induced work:
-`(43 + C_comments scanned, 26 ranges)`, including all 25 descendant
-consultations. The comments lineage charges only its subtree:
-`(C_comments + 1 scanned, 1 range)` in the plan, versus `(51 scanned, 1 range)`
-for that validated request. Additional
+one-page illustration, the present-issue top-level `resultRows` is `1`; let
+`B_root` and `B_comments` be the single whole-result `resultBytes` of the root-
+and comments-page publications, respectively. The root lineage charges
+`(43 + C_comments scanned, 26 ranges, 1 result row, B_root result bytes)`,
+including all 25 descendant consultations. The comments lineage charges
+`(C_comments + 1 scanned, 1 range, 1 result row, B_comments result bytes)` in
+the plan, versus
+`(51 scanned, 1 range, 1 result row, B_comments result bytes)` for that
+validated request. Across those two one-page lineage maxima, `windowRollup`
+therefore carries `2` pages, `1` root row,
+`44 + 2 × C_comments` scanned rows, `2` result rows,
+`B_root + B_comments` result bytes, and `27` ranges. Both byte terms are full
+top-level result serializations; the conservative child-page charge is not
+evidence of a serialized comments sub-result. Additional
 issue-emoji/comment-emoji nodes do not inherit `16`; Stage B must fill their
 fixture maxima or admission refuses, which keeps the example from fabricating
 an uncommissioned plan maximum.
@@ -1644,10 +1672,10 @@ internally conflicting value is the admission refusal
 | node `maxWindowPages` | Published pages in one demand-paged-node ledger lineage | each demand-paged node | Count pages needed for the oracle to exhaust each named interval at declared page size; maximum × H, minimum one | — | **[Stage B fills]** |
 | node `maxWindowRootRows` | Cumulative authorized root rows across one lineage | each demand-paged node; zero for child lineages | Node `maxWindowPages` × per-page root maximum (`maxRootRowsPerPage` for root; zero for child) | — | **[Stage B fills]** |
 | node `maxWindowScannedRows` | Cumulative physical candidates across one demand-paged-node induced subtree | each demand-paged node | Checked analytical sum of the per-page examined maxima for the lineage node and every descendant that page triggers × node `maxWindowPages` | — | **[Stage B declares analytically; G2 measures]** |
-| node `maxWindowResultRows` | Cumulative result rows across one demand-paged-node induced subtree | each demand-paged node | Node `maxWindowPages` × the fixture/oracle-derived per-page result-row maximum for the lineage node and every descendant that page triggers | — | **[Stage B fills]** |
-| node `maxWindowResultBytes` | Cumulative validated result bytes across one demand-paged-node induced subtree | each demand-paged node | Node `maxWindowPages` × the fixture/oracle-derived per-page serialized-byte maximum for the lineage node and every descendant that page triggers | — | **[Stage B fills]** |
+| node `maxWindowResultRows` | Cumulative published-graph top-level result rows re-charged by one demand-paged-node lineage | each demand-paged node | Node `maxWindowPages` × the fixture/oracle-derived per-page top-level `resultRows`; a child lineage uses the same whole published-graph unit, not subtree rows | — | **[Stage B fills]** |
+| node `maxWindowResultBytes` | Cumulative published-graph whole-result bytes re-charged by one demand-paged-node lineage | each demand-paged node | Node `maxWindowPages` × the fixture/oracle-derived per-page single `serde_json::to_vec` whole-result bytes; no child serialization exists | — | **[Stage B fills]** |
 | node `maxWindowIndexRanges` | Cumulative access-path consultations across one demand-paged-node induced subtree | each demand-paged node | Checked analytical sum of every per-page consultation by the lineage node and every descendant that page triggers × node `maxWindowPages` | — | **[Stage B declares analytically; G2 measures]** |
-| `windowRollup.*` | Derived graph-wide totals for the six lineage fields | graph | Checked sum of each corresponding per-node maximum across demand-paged lineages; exact equality required | derived | **[Stage B exact-checks]** |
+| `windowRollup.*` | Derived graph-wide totals for the six lineage fields | graph | Checked sum of each corresponding per-node maximum across demand-paged lineages; structural fields retain induced-subtree units, while result rows/bytes conservatively sum repeated top-level whole-result charges; exact equality required | derived | **[Stage B exact-checks]** |
 | `maxMaintainedWritesPerMutation` | Graph-owned maintained fact/index writes attempted for one source mutation | graph | G0 has no maintained graph facts, so the exact observed and declared value is zero; G3 must amend it from mutation observations before maintenance | 0 | **[Stage B fills: 0]** |
 
 The general `queryCost` fields `maxIndexRanges` and `maxResultRows` remain
@@ -2303,7 +2331,7 @@ page bound is never terminal.
 | --- | --- | --- |
 | `root-window` | `unknown`, `prefix`, `window`, `complete`, `refused` | `prefix` uses `{kind:"root-window",label:"prefix",order,continuation,stableOrderProof:"declared-order-with-id-tiebreak",take,consumed,hasMore:true}`; `order` is the declared array without `_id`, and `continuation.id` supplies the implicit tie-break. `continuation` must be non-null and resume strictly after/before the last consumed authorized root. `window` uses the closed `{interval:{lower,upper},take,consumed,hasMore:false}` arm and proves both named ends exhausted. `complete` uses two unbounded ends plus `sourceExhausted:true`. `take:0` is the closed `unknown/zero-take-unproved` arm unless independent exhaustion proves otherwise; it never mints a zero-progress continuation. |
 | `equality-to-one` | `unknown`, `complete`, `refused` | The `complete` arm carries a parent-key-ordered `rows` array with one `{parentKey,found}` record for every admitted parent, including captured misses. Visibility executes before presence/projection, so missing and invisible have the same public fact. |
-| `bounded-to-many` | `unknown`, `prefix`, `window`, `complete`, `refused` | Each `(kind,label)` is a distinct arm. `complete` has one parent-key-ordered range per parent with literal `hasMore:false`; `window` has a named `interval` and `hasMore:boolean`; when `window.hasMore` is true it carries no continuation, and resume supplies the next named interval through §2.4's demand window vector. `prefix` has literal `hasMore:true`, non-null continuation, and total order; its `order` excludes `_id` and `continuation.id` supplies the implicit tie-break. One absent/unproved parent selects the closed `unknown/parent-range-unproved` arm. |
+| `bounded-to-many` | `unknown`, `prefix`, `window`, `complete`, `refused` | Each `(kind,label)` is a distinct arm. `complete` has one parent-key-ordered range per parent with literal `hasMore:false`; `window` has a named `interval` and `ranges[].hasMore:boolean`; when a `ranges[].hasMore` value is true that range carries no continuation, and resume supplies the next named interval through §2.4's demand window vector. `prefix` has literal `hasMore:true`, non-null continuation, and total order; its `order` excludes `_id` and `continuation.id` supplies the implicit tie-break. One absent/unproved parent selects the closed `unknown/parent-range-unproved` arm. |
 | `exists-semi-join` | `unknown`, `complete`, `refused` | The leaf node's `complete` arm captures every direct/through lookup, including misses, as one `{parentKey,existenceBit}` row per immediate parent in parent-key order. There is no `childNodeIds` field because the proof is already for this one node. `all` additionally proves the complete deduplicated canonical argument set was checked and every item matched; there is no partial existence label. |
 | `principal-bound` | `unknown`, `complete`, `refused` | The `complete` arm carries a parent-key-ordered `rows` array with one `{parentKey,bindingFound,targetFound}` record per admitted parent, proving the host principal, binding resolution, and target point/miss at one tuple. Absence for anonymous authority is complete only when the result contract declares the node nullable and no lookup is attempted. |
 | `search-membership` | `unknown`, `complete`, `refused` | `complete` carries `providerCompletenessClass:"complete-membership-v1"` and the exact provider-certificate hash. `unknown` still carries the provider completeness class plus `provider-incomplete` or `provider-proof-invalidated`. A provider prefix, stale epoch, absent certificate, or invalidation after the certificate never becomes a graph-minted `prefix`. |
@@ -2311,9 +2339,9 @@ page bound is never terminal.
 
 Every completeness `rows` or `ranges` entry identifies its immediate parent
 with `GraphRowKeyV1 {table,id}`. Each such array contains exactly one entry for
-every admitted parent and sorts entries by the RFC 8785 JCS bytes of that
-record. A duplicate or missing parent key fails the proof; `KeysetKeyV1` never
-serves as a parent key.
+every admitted parent and sorts entries by the RFC 8785 JCS bytes of its
+`parentKey` record alone, not the whole proof element. A duplicate or missing
+parent key fails the proof; `KeysetKeyV1` never serves as a parent key.
 
 `proofClass` is also derived, never authored independently: `unknown → none`,
 `refused → refusal`, root `complete/prefix/window →
@@ -2890,9 +2918,10 @@ translation's `when.cursor` and `when.rows` test exactly those two mapped
 fields—even for `"any"`—and never an inferred sibling, the outer result by
 convention, or a field borrowed from another query.
 
-The graph emits the declared order without `_id`; the kernel then applies the
-implicit **ascending** `_id` tie-break through `KeysetKeyV1.id`, including for
-`direction:"backward"` (LLP 0007). The frozen Zerobugs D1
+The graph emits the declared order without `_id`; the kernel appends `_id ASC`
+to the SQL order, including for `direction:"backward"` (LLP 0007).
+`KeysetKeyV1.id` only carries that tie-break's boundary value in a continuation
+or interval end; it does not apply the ordering. The frozen Zerobugs D1
 control instead multiplies its id comparison by direction
 (`demos/zerobugs/control/snapback/functions.mjs:2824`–`:2833`); Stage B must
 not edit that oracle. More precisely, `compareIssueRows` ties on
@@ -3254,10 +3283,12 @@ or identities.
   - **Fix round 4 — MINOR:** §2/§3/§4/§9 pin the partition-function preimage, query-shaped precedence, dotted oracle cursor/row bindings, source-id-to-`_id` normalization, mandatory root continuation, per-node lookup vector, graph proof-class derivation, and this history.
   - **Fix round 5 — H1:** §2.1/§4 use `GraphRowKeyV1` for every completeness parent and require JCS-byte parent ordering with complete, duplicate-free coverage.
   - **Fix round 5 — H2:** §2/§4/§9 keep declared `order` and `KeysetKeyV1.entries` free of `_id`; the separate `id` carries the implicit ascending tie-break in continuations and interval ends.
-  - **Fix round 5 — H3:** §2.4/§2.6 charge every demand-paged lineage for its page-induced subtree and re-derive the root example as `43 + C_comments` scanned entries and 26 ranges.
+  - **Fix round 5 — H3:** §2.4/§2.6 charge every demand-paged lineage for its page-induced subtree's structural work and re-derive the root example as `43 + C_comments` scanned entries and 26 ranges.
   - **Fix round 5 — H4:** §2.6/§5.1 distinguish direct semi-join range/unique-point access, optional principal binding points, and storage-free null-key to-one attempts.
   - **Fix round 5 — H5:** §6 keys graph memos on materialization, partition, authorization-version, and evaluation-cut axes and retires stale authorization versions. This tightens G1's shipped key description without changing the session-exact, pre-G0 G1 mechanism.
   - **Fix round 5 — MINOR:** §2.1/§4/§9 pin evaluation-cut integer schema, demand-vector resume for a to-many named window, outer oracle cursor/row bindings, the commission packet's four-axis completeness tuple, and this history.
+  - **Fix round 6 — J1 + MINOR:** §2.4/§2.6 restore LLP 0267's top-level `resultRows` and single whole-result `resultBytes` charge to every root or child lineage while keeping induced-subtree accounting structural; the worked example and `windowRollup` now expose the conservative repeated charge. §2.1/§2.6/§4.1/§9 pin vacuous principal binding evidence, worst-case-versus-observed null-key consultations, `ranges[].hasMore`, `parentKey`-only proof ordering, and kernel SQL tie-break ownership.
+  - **Converged:** grok READY r6; codex **[pending r7]**.
 - **v0.4 (2026-08-23).** **G0 commissioned** (author ruling, Charlie
   Cheever, 2026-08-23 session: "worth commissioning G0 now"). Context: the
   fan-out P1 this Spec anchors is no longer minutes-scale — LLP 0200
