@@ -7394,6 +7394,14 @@ impl LocalSnapback {
         &self,
         authority: &PreparedAuthority,
     ) -> SnapbackResult<()> {
+        self.validate_prepared_service_authority_classified(authority)
+            .map_err(AuthorizedEffectReservationError::into_error)
+    }
+
+    pub fn validate_prepared_service_authority_classified(
+        &self,
+        authority: &PreparedAuthority,
+    ) -> Result<(), AuthorizedEffectReservationError> {
         if let Some(principal) = authority.asset_callbacks_service() {
             let ResolvedAppAuthority::ServicePrincipal {
                 actor_user_id,
@@ -7405,7 +7413,8 @@ impl LocalSnapback {
                     "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
                     "auth",
                     "asset-callbacks authority lost its service-principal identity",
-                ));
+                )
+                .into());
             };
             if actor_user_id != &principal.actor_user_id
                 || grant_id != &principal.grant_id
@@ -7418,7 +7427,8 @@ impl LocalSnapback {
                     "auth",
                     "the asset-callbacks service-principal grant is no longer current",
                 )
-                .with_details(json!({ "reason": "terminally_invalid_entry" })));
+                .with_details(json!({ "reason": "terminally_invalid_entry" }))
+                .into());
             }
             return Ok(());
         }
@@ -7443,26 +7453,31 @@ impl LocalSnapback {
                     ServiceAuthorityDisposition::Carrier => "carrier",
                     ServiceAuthorityDisposition::DurableDelete => "durableDelete",
                 };
-                return Err(SnapbackError::error(
+                let error = SnapbackError::error(
                     "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
                     "auth",
                     "scoped agent token authority is no longer current",
                 )
-                .with_details(json!({ "authorityDisposition": wire })));
+                .with_details(json!({ "authorityDisposition": wire }));
+                return Err(AuthorizedEffectReservationError::Terminal(
+                    CallerAuthorityTerminalCause::ScopedServiceRetired { disposition, error },
+                ));
             }
             Some(ServiceAuthorityActResolution::Unavailable) => {
                 return Err(SnapbackError::error(
                     "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
                     "auth",
                     "finite service authority termination is unresolved",
-                ));
+                )
+                .into());
             }
             None => {
                 return Err(SnapbackError::error(
                     "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
                     "auth",
                     "finite service authority has no exact process fence",
-                ));
+                )
+                .into());
             }
         };
         if witness.actor_user_id() != actor_user_id
@@ -7477,7 +7492,8 @@ impl LocalSnapback {
                 "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
                 "auth",
                 "finite service authority disagrees with its exact process fence",
-            ));
+            )
+            .into());
         }
         // @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — re-read reversible integration admission under the app lock so suspension is named rather than collapsed into revocation/carrier churn.
         self.db
@@ -7493,12 +7509,16 @@ impl LocalSnapback {
             },
             now_ms,
         )? {
-            return Err(SnapbackError::error(
+            let disposition = ServiceAuthorityDisposition::Carrier;
+            let error = SnapbackError::error(
                 "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
                 "auth",
                 "scoped agent token authority is no longer current",
             )
-            .with_details(json!({ "authorityDisposition": "carrier" })));
+            .with_details(json!({ "authorityDisposition": "carrier" }));
+            return Err(AuthorizedEffectReservationError::Terminal(
+                CallerAuthorityTerminalCause::ScopedServiceRetired { disposition, error },
+            ));
         }
         Ok(())
     }
@@ -7507,8 +7527,16 @@ impl LocalSnapback {
         &mut self,
         authority: &PreparedAuthority,
     ) -> SnapbackResult<()> {
+        self.persist_and_validate_prepared_service_authority_classified(authority)
+            .map_err(AuthorizedEffectReservationError::into_error)
+    }
+
+    pub(crate) fn persist_and_validate_prepared_service_authority_classified(
+        &mut self,
+        authority: &PreparedAuthority,
+    ) -> Result<(), AuthorizedEffectReservationError> {
         self.persist_service_deadline_if_due(authority)?;
-        self.validate_prepared_service_authority(authority)
+        self.validate_prepared_service_authority_classified(authority)
     }
 
     pub fn persist_service_deadline_if_due(
@@ -23088,15 +23116,27 @@ impl LocalSnapback {
         authority: PreparedAuthority,
         identity: Option<&ClientMutationIdentity>,
     ) -> SnapbackResult<StagedNestedMutation> {
+        self.stage_nested_mutation_classified(name, input, authority, identity)
+            .map_err(AuthorizedEffectReservationError::into_error)
+    }
+
+    pub fn stage_nested_mutation_classified(
+        &mut self,
+        name: &str,
+        input: &HandlerInput,
+        authority: PreparedAuthority,
+        identity: Option<&ClientMutationIdentity>,
+    ) -> Result<StagedNestedMutation, AuthorizedEffectReservationError> {
         let function = self.function(name)?.clone();
-        let invocation = InvocationGate::prepare_function(authority, &function)?;
-        self.persist_and_validate_prepared_service_authority(invocation.authority())?;
+        let invocation = InvocationGate::prepare_function_classified(authority, &function)?;
+        self.persist_and_validate_prepared_service_authority_classified(invocation.authority())?;
         let mut canonical_input = invocation.canonicalize_input(input.clone());
         bind_authoritative_client_mutation_identity(&mut canonical_input, identity);
         // @ref LLP 0131#runtime-ingress-validation — action-hosted nested
         // mutations validate at staging, before any dry run, handler byte,
         // or detached effect.
-        crate::args_contract::validate_function_args(&function, &canonical_input.args)?;
+        crate::args_contract::validate_function_args(&function, &canonical_input.args)
+            .map_err(|error| AuthorizedEffectReservationError::NonTerminal(error.into()))?;
         match &function.runtime {
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
             | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
@@ -23152,7 +23192,8 @@ impl LocalSnapback {
                 "SNAPBACK_FUNCTION_KIND_MISMATCH",
                 "runtime",
                 format!("{name} is not a mutation"),
-            )),
+            )
+            .into()),
         }
     }
 
@@ -23170,10 +23211,26 @@ impl LocalSnapback {
         executed: &mut ExecutedIbexMutation,
         identity: Option<&ClientMutationIdentity>,
     ) -> SnapbackResult<DetachedNestedMutationPreview> {
+        self.preview_detached_nested_authorization_mutation_classified(
+            name, input, binding, executed, identity,
+        )
+        .map_err(AuthorizedEffectReservationError::into_error)
+    }
+
+    pub fn preview_detached_nested_authorization_mutation_classified(
+        &mut self,
+        name: &str,
+        input: &HandlerInput,
+        binding: &DetachedMutationBinding,
+        executed: &mut ExecutedIbexMutation,
+        identity: Option<&ClientMutationIdentity>,
+    ) -> Result<DetachedNestedMutationPreview, AuthorizedEffectReservationError> {
         binding
             .invocation
-            .validate_admission("detached nested mutation preview")?;
-        self.persist_and_validate_prepared_service_authority(binding.invocation.authority())?;
+            .validate_admission_classified("detached nested mutation preview")?;
+        self.persist_and_validate_prepared_service_authority_classified(
+            binding.invocation.authority(),
+        )?;
         let function = self.function(name)?.clone();
         if function != binding.function
             || self.db.schema() != &binding.schema
@@ -23185,7 +23242,8 @@ impl LocalSnapback {
                 format!(
                     "app code or schema changed while action-hosted mutation {name} was running"
                 ),
-            ));
+            )
+            .into());
         }
         let mut canonical_input = binding.invocation.canonicalize_input(input.clone());
         bind_authoritative_client_mutation_identity(&mut canonical_input, identity);
@@ -27996,6 +28054,17 @@ impl LocalSnapback {
         input: &HandlerInput,
         authority: &PreparedAuthority,
     ) -> SnapbackResult<Option<ClientMutationIdentity>> {
+        self.covered_host_child_identity_classified(parent, function, input, authority)
+            .map_err(AuthorizedEffectReservationError::into_error)
+    }
+
+    pub fn covered_host_child_identity_classified(
+        &mut self,
+        parent: &HostOperationParentV1,
+        function: &str,
+        input: &HandlerInput,
+        authority: &PreparedAuthority,
+    ) -> Result<Option<ClientMutationIdentity>, AuthorizedEffectReservationError> {
         // @ref LLP 0163#contract-summary-normative-details-per-llp-0162-0-2 —
         //   coverage is an explicit writer-lane cut; inactive targets neither
         //   mint nor consume host identity ordinals.
@@ -28006,8 +28075,8 @@ impl LocalSnapback {
             return Ok(None);
         }
         let (upstream_identity, commit_ordinal) = parent.next_child()?;
-        authority.validate_admission("host child operation identity")?;
-        self.persist_and_validate_prepared_service_authority(authority)?;
+        authority.validate_admission_classified("host child operation identity")?;
+        self.persist_and_validate_prepared_service_authority_classified(authority)?;
         let incarnation = self.db.ensure_authorization_stream_incarnation()?;
         let descriptor = descriptor_for_authority(authority, incarnation.as_str())?;
         let issuance = self.db.settlement().host_operation_issuance(
@@ -28123,16 +28192,34 @@ impl LocalSnapback {
         PreparedAuthority,
         StagedRecordedMutation,
     )> {
+        self.stage_managed_host_plan_action_step_classified(action, step, bindings)
+            .map_err(AuthorizedEffectReservationError::into_error)
+    }
+
+    pub fn stage_managed_host_plan_action_step_classified(
+        &mut self,
+        action: &ManagedHostPlanAction,
+        step: &ActionStep,
+        bindings: &BTreeMap<String, Value>,
+    ) -> Result<
+        (
+            crate::storage::AuthorizationCommitPreflight,
+            PreparedAuthority,
+            StagedRecordedMutation,
+        ),
+        AuthorizedEffectReservationError,
+    > {
         action.validate_generation()?;
         if self.app_generation != action.app_generation {
             return Err(managed_action_generation_conflict(
                 action.app_generation,
                 self.app_generation,
-            ));
+            )
+            .into());
         }
         action
             .invocation
-            .validate_admission("action step staging")?;
+            .validate_admission_classified("action step staging")?;
         let ActionStep::RunMutation { name, args, .. } = step;
         let mutation_args =
             eval_action_args(args, &action.input, bindings, &action.metadata, self)?;
@@ -28146,7 +28233,7 @@ impl LocalSnapback {
             correlation: None,
             ctx_ledger: None,
         };
-        let host_identity = self.covered_host_child_identity(
+        let host_identity = self.covered_host_child_identity_classified(
             &action.host_operation,
             name,
             &child_input,
@@ -28169,6 +28256,7 @@ impl LocalSnapback {
             true,
         )
         .map(|(preflight, staged)| (preflight, child_authority, staged))
+        .map_err(AuthorizedEffectReservationError::NonTerminal)
     }
 
     pub(crate) fn invoke_action_prepared(

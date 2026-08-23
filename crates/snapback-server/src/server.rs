@@ -940,6 +940,16 @@ impl NestedActionEffectReservation {
 ///
 /// @ref LLP 0028#execution-the-action-class — ENG-23324: actions no longer
 /// hold the global write mutex for the duration of the run.
+fn latch_action_authority_validation<T>(
+    latch: &ActionTerminalLatch,
+    result: Result<T, AuthorizedEffectReservationError>,
+) -> SnapbackResult<T> {
+    result.map_err(|error| match error {
+        AuthorizedEffectReservationError::Terminal(cause) => latch.latch_caller(cause),
+        AuthorizedEffectReservationError::NonTerminal(error) => error,
+    })
+}
+
 struct DetachedActionHost {
     state: SharedSnapback,
     connected_clients: crate::local::ConnectedClientObserver,
@@ -1741,9 +1751,25 @@ impl IbexActionHost for DetachedActionHost {
         let authority = self
             .authority
             .inherit_for(InvocationSource::NestedMutation)?;
-        let host_identity =
-            snapback.covered_host_child_identity(&self.host_operation, name, &input, &authority)?;
-        match snapback.stage_nested_mutation(name, &input, authority, host_identity.as_ref())? {
+        let host_identity = latch_action_authority_validation(
+            &self.terminal_latch,
+            snapback.covered_host_child_identity_classified(
+                &self.host_operation,
+                name,
+                &input,
+                &authority,
+            ),
+        )?;
+        let staged = latch_action_authority_validation(
+            &self.terminal_latch,
+            snapback.stage_nested_mutation_classified(
+                name,
+                &input,
+                authority,
+                host_identity.as_ref(),
+            ),
+        )?;
+        match staged {
             StagedNestedMutation::InLock(staged) => {
                 let child_authority = staged.invocation.authority().clone();
                 let snapshot = snapback.authorization_reservation_snapshot()?;
@@ -1892,12 +1918,15 @@ impl IbexActionHost for DetachedActionHost {
                     // preview its immutable buffered effects, then release Local
                     // before the potentially blocking room reservation.
                     let mut snapback = self.lock_live("runMutation")?;
-                    let preview = snapback.preview_detached_nested_authorization_mutation(
-                        name,
-                        &input,
-                        &binding,
-                        &mut executed,
-                        host_identity.as_ref(),
+                    let preview = latch_action_authority_validation(
+                        &self.terminal_latch,
+                        snapback.preview_detached_nested_authorization_mutation_classified(
+                            name,
+                            &input,
+                            &binding,
+                            &mut executed,
+                            host_identity.as_ref(),
+                        ),
                     )?;
                     let snapshot = snapback.authorization_reservation_snapshot()?;
                     let ephemeral = snapback.ephemeral_api();
@@ -4038,6 +4067,7 @@ struct NestedAfterLocalTestPauseState {
     after_batch_reached: AtomicBool,
     after_batch_released: AtomicBool,
     caller_permit_released: AtomicBool,
+    production_effects_before_hook: AtomicUsize,
     lock: StdMutex<()>,
     changed: std::sync::Condvar,
 }
@@ -4111,6 +4141,12 @@ impl NestedAfterLocalTestPause {
     fn caller_permit_released(&self) -> bool {
         self.state.caller_permit_released.load(Ordering::Acquire)
     }
+
+    fn production_effects_before_hook(&self) -> usize {
+        self.state
+            .production_effects_before_hook
+            .load(Ordering::Acquire)
+    }
 }
 
 #[cfg(test)]
@@ -4145,6 +4181,10 @@ fn install_nested_after_local_work_pause_for_test(
     assert!(
         crate::exec_guard::local_write_scope_active(),
         "nested after-Local pause must join the real Local batch"
+    );
+    pause.production_effects_before_hook.store(
+        crate::exec_guard::deferred_after_local_effect_count_for_test(),
+        Ordering::Release,
     );
     let effect_pause = pause.clone();
     crate::exec_guard::run_or_defer_after_local(move || {
@@ -4790,13 +4830,15 @@ async fn run_managed_host_plan_action(
                 let stage_action = action.clone();
                 let stage_step = step.clone();
                 let stage_bindings = bindings.clone();
+                let stage_latch = terminal_latch.clone();
                 let staged = with_snapback(&state, move |snapback| {
-                    let (preflight, child_authority, staged) = snapback
-                        .stage_managed_host_plan_action_step(
-                            &stage_action,
-                            &stage_step,
-                            &stage_bindings,
-                        )?;
+                    let staged = snapback.stage_managed_host_plan_action_step_classified(
+                        &stage_action,
+                        &stage_step,
+                        &stage_bindings,
+                    );
+                    let (preflight, child_authority, staged) =
+                        latch_action_authority_validation(&stage_latch, staged)?;
                     Ok::<_, SnapbackError>((
                         preflight,
                         child_authority,

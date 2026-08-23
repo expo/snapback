@@ -1353,6 +1353,12 @@ impl AuthorizedEffectReservationError {
     }
 }
 
+impl From<SnapbackError> for AuthorizedEffectReservationError {
+    fn from(error: SnapbackError) -> Self {
+        Self::NonTerminal(error)
+    }
+}
+
 /// The inner synchronous commit guard for an authorized effect. Field order is
 /// release order: mode admission drops before the retained service witness,
 /// while the borrowed reservation keeps every authority-work permit alive.
@@ -1955,8 +1961,21 @@ impl PreparedAuthority {
     }
 
     pub fn validate_admission(&self, effect: &'static str) -> SnapbackResult<()> {
-        self.admission.validate(effect)?;
+        self.validate_admission_classified(effect)
+            .map_err(AuthorizedEffectReservationError::into_error)
+    }
+
+    pub fn validate_admission_classified(
+        &self,
+        effect: &'static str,
+    ) -> Result<(), AuthorizedEffectReservationError> {
+        self.admission.validate(effect).map_err(|error| {
+            AuthorizedEffectReservationError::Terminal(
+                CallerAuthorityTerminalCause::AdmissionEpochRetired { error },
+            )
+        })?;
         self.validate_rehearsal_authority()
+            .map_err(AuthorizedEffectReservationError::NonTerminal)
     }
 
     fn validate_rehearsal_authority(&self) -> SnapbackResult<()> {
@@ -2360,6 +2379,13 @@ impl PreparedInvocation {
         self.authority.validate_admission(effect)
     }
 
+    pub fn validate_admission_classified(
+        &self,
+        effect: &'static str,
+    ) -> Result<(), AuthorizedEffectReservationError> {
+        self.authority.validate_admission_classified(effect)
+    }
+
     pub fn mode_effect_guard(
         &self,
         effect: &'static str,
@@ -2636,16 +2662,25 @@ impl InvocationGate {
     }
 
     pub fn prepare_function(
-        mut authority: PreparedAuthority,
+        authority: PreparedAuthority,
         function: &FunctionDefinition,
     ) -> SnapbackResult<PreparedInvocation> {
-        authority.validate_admission("function invocation preparation")?;
+        Self::prepare_function_classified(authority, function)
+            .map_err(AuthorizedEffectReservationError::into_error)
+    }
+
+    pub fn prepare_function_classified(
+        mut authority: PreparedAuthority,
+        function: &FunctionDefinition,
+    ) -> Result<PreparedInvocation, AuthorizedEffectReservationError> {
+        authority.validate_admission_classified("function invocation preparation")?;
         let InvocationTarget::Function(constraint) = authority.source.target() else {
             return Err(SnapbackError::error(
                 "SNAPBACK_INVOCATION_SOURCE_INVALID",
                 "auth",
                 "an authority-only source cannot invoke an application function",
-            ));
+            )
+            .into());
         };
         if !function_kind_matches(constraint, &function.kind) {
             return Err(SnapbackError::error(
@@ -2655,7 +2690,8 @@ impl InvocationGate {
                     "invocation source {:?} cannot run function kind {:?}",
                     authority.source, function.kind
                 ),
-            ));
+            )
+            .into());
         }
         authority.bind_elevation_root(&function.kind);
         let (requirement, authority_creating_consent, matched_grant_scope) =

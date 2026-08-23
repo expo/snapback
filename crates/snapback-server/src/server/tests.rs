@@ -8201,16 +8201,78 @@ enum NestedAfterLocalRuntime {
     DetachedIbex,
 }
 
+async fn install_after_local_production_subscription(
+    state: &AppState,
+    bearer: &str,
+    connection_id: &str,
+    query_instance_id: u64,
+) -> Arc<tokio::sync::Notify> {
+    let (_opened, connection_act) =
+        prepare_invalidation_session_connection_act(state, bearer, connection_id);
+    state.ephemeral.touch_connection(connection_id);
+    let admission = test_route_admission(state).0;
+    let subscribe_authority = InvocationGate::prepare_admitted_authority(
+        InvocationSource::LiveInitialQuery,
+        AuthMode::Sessions,
+        state.server.profile,
+        admission,
+        &WireAuthorityFields::default(),
+        connection_act.resolved.clone(),
+        test_session_claims_for(&connection_act.resolved),
+    )
+    .expect("prepare after-Local live authority")
+    .with_fenced_publication(connection_act.bound.publication().clone());
+    let effect_fence = connection_act.effect_fence();
+    let invalidation = connection_act.authorization_invalidation.clone();
+    let connection = connection_id.to_owned();
+    with_snapback(&state.snapback, move |snapback| {
+        snapback_engine::test_support::subscribe_live_prepared_with_invalidation(
+            snapback,
+            "liveItems",
+            LiveSubscribeInput {
+                connection_id: connection,
+                input: HandlerInput::default(),
+                authorization_namespace: Some(QueryNamespace {
+                    client_store_id: "after_local_production_store".to_owned(),
+                    query_key: "liveItems:{}".to_owned(),
+                    query_instance_id,
+                }),
+                supersedes: None,
+                resume_from_token: None,
+            },
+            subscribe_authority,
+            snapback_engine::test_support::live_invalidation_admission(
+                invalidation,
+                Some(effect_fence),
+                true,
+            ),
+        )
+    })
+    .await
+    .expect("install after-Local production subscription");
+
+    let notifier = state.ephemeral.delivery_notifier();
+    let (_generation, waker) = notifier
+        .register_bound(connection_id, connection_act.grant_id.clone())
+        .expect("register after-Local production delivery owner");
+    waker
+}
+
 /// A completed child no longer owns caller authority once its real after-Local
 /// phase starts. This covers managed HostPlan and both detached child runtimes
-/// and observes the exact reservation identity, not action completion.
+/// and observes the exact reservation identity, not action completion. A live
+/// subscriber proves a production notifier is already in the batch before the
+/// synthetic pause joins it.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn child_caller_permit_releases_before_after_local_work() {
-    for runtime in [
+    for (query_instance_id, runtime) in [
         NestedAfterLocalRuntime::ManagedHostPlan,
         NestedAfterLocalRuntime::DetachedHostPlan,
         NestedAfterLocalRuntime::DetachedIbex,
-    ] {
+    ]
+    .into_iter()
+    .enumerate()
+    {
         let functions = match runtime {
             NestedAfterLocalRuntime::ManagedHostPlan => finite_authority_matrix_functions(),
             NestedAfterLocalRuntime::DetachedHostPlan => {
@@ -8230,6 +8292,14 @@ async fn child_caller_permit_releases_before_after_local_work() {
             .as_str()
             .expect("after-Local session bearer")
             .to_owned();
+        let connection_id = format!("after-local-production-{runtime:?}");
+        let production_waker = install_after_local_production_subscription(
+            &fixture.state,
+            &bearer,
+            &connection_id,
+            92_000 + query_instance_id as u64,
+        )
+        .await;
         let pause = super::install_nested_after_local_test_pause(&fixture.state.snapback);
         let action_router = fixture.router.clone();
         let action_bearer = bearer.clone();
@@ -8249,6 +8319,14 @@ async fn child_caller_permit_releases_before_after_local_work() {
         assert!(
             pause.caller_permit_released(),
             "{runtime:?} entered after-Local work while retaining the child caller permit"
+        );
+        assert!(
+            pause.production_effects_before_hook() > 0,
+            "{runtime:?} synthetic pause was the first after-Local effect"
+        );
+        assert!(
+            futures_util::FutureExt::now_or_never(production_waker.notified()).is_some(),
+            "{runtime:?} production subscriber notifier did not run before the synthetic pause"
         );
         assert!(
             !action.is_finished(),
@@ -28311,6 +28389,174 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
     );
     registry.release_invocation(&host.stream_runner);
     upstream.join().expect("service fence fixture joins");
+}
+
+#[test]
+fn scoped_service_terminalization_before_child_reservation_latches_cancelled() {
+    // This host never reaches a per-read fence. The scoped service retires
+    // after output-attempt initialization, and the first observer is the
+    // child-staging path that precedes reserve_nested_effect.
+    let digest = |prefix: &str, marker: char| format!("{prefix}{}", marker.to_string().repeat(64));
+    let deployment = DeploymentIdentity {
+        schema_version: "snapback.v1".to_owned(),
+        auth_mode: AuthMode::Sessions,
+        app_id: "pre-reservation-service-fence-test".to_owned(),
+        schema_hash: digest(SCHEMA_V1_PREFIX, '4'),
+        bundle_hash: digest(FUNCTION_V1_PREFIX, '5'),
+        inputs_hash: digest(INPUTS_V1_PREFIX, '6'),
+    };
+    let mode = AuthModeStateRecord {
+        format_version: crate::auth::mode::AUTH_MODE_FORMAT_VERSION,
+        transition_generation: 1,
+        active: AuthMode::Sessions,
+        desired: AuthMode::Sessions,
+        mode_state: AuthModeStatus::Settled,
+        app_data_availability: AppDataAvailability::Available,
+        sessions_ever_activated: true,
+        active_deployment: Some(deployment),
+        requested_deployment: None,
+        quarantine: None,
+    };
+    let controller = crate::auth::admission::AdmissionController::from_mode_state(&mode)
+        .expect("sessions admission controller");
+    let registry = ServiceAuthorityFenceRegistry::default();
+    let monotonic = Instant::now();
+    let epoch_now_ms = super::now_millis();
+    let expires_at_ms = epoch_now_ms + 60_000;
+    let token_id = "pre-reservation-stream-fence-token";
+    let functions = generation_test_manifest();
+    let nested_function_id = functions
+        .functions
+        .iter()
+        .find(|function| function.name == "hostPlanWrite")
+        .expect("pre-reservation nested mutation declaration")
+        .id
+        .clone();
+    let publication = registry
+        .synthetic_publication_for_test(token_id, epoch_now_ms, expires_at_ms, monotonic)
+        .expect("register pre-reservation service publication");
+    let authority = InvocationGate::prepare_admitted_authority(
+        InvocationSource::HttpAction,
+        AuthMode::Sessions,
+        ServerProfile::Test,
+        controller
+            .admit_for_mode(AuthMode::Sessions)
+            .expect("admit sessions action"),
+        &WireAuthorityFields::default(),
+        ResolvedAppAuthority::ServicePrincipal {
+            actor_user_id: "agent-pre-reservation".to_owned(),
+            credential_id: "credential-pre-reservation".to_owned(),
+            credential_generation: 1,
+            grant_id: "grant-pre-reservation".to_owned(),
+            token_id: token_id.to_owned(),
+            effective_user_id: Some("user-pre-reservation".to_owned()),
+            scopes: vec![crate::auth::invocation::ResolvedGrantScope::from_exact(
+                crate::storage::auth_grants::ExactGrantScope {
+                    function_id: nested_function_id,
+                    kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
+                    basis: 0,
+                    authority_creating: false,
+                },
+            )],
+            token_expires_at_ms: expires_at_ms,
+            integration_status: None,
+        },
+        None,
+    )
+    .expect("prepare pre-reservation scoped-token action authority")
+    .with_service_publication(publication);
+
+    let mut snapback = LocalSnapback::memory().expect("pre-reservation service host state");
+    snapback.load_functions(functions);
+    let state = Arc::new(Mutex::new(snapback));
+    let staged = stage_held_action(&state);
+    let mut host = held_action_host(state, &staged);
+    host.authority = authority;
+    let stream_runner_host = host.authority.stream_runner_host(host.abandoned.clone());
+    host.commit_gate = stream_runner_host.runner().commit_gate();
+    host.stream_runner = stream_runner_host.runner().clone();
+    host.stream_runner_host = stream_runner_host;
+    host.output_stream_function_id = Some("heldAction".to_owned());
+    host.output_stream_initiator = Some(crate::stream_attempt::StreamInitiator::ServiceCredential(
+        "credential-pre-reservation".to_owned(),
+    ));
+    host.initialize_output_stream()
+        .expect("pre-reservation action initializes its durable output attempt");
+    let attempt_token = host
+        .output_stream_attempt
+        .clone()
+        .expect("pre-reservation output attempt token");
+
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("pre-reservation terminal runtime");
+    runtime.block_on(async {
+        let gate = registry
+            .acquire_terminal_gate(
+                &[token_id.to_owned()],
+                ServiceAuthorityDisposition::DurableDelete,
+            )
+            .await
+            .expect("close and drain pre-reservation service domain");
+        with_service_authority_terminal_gate(gate, || {
+            registry.commit_terminal_for_test(
+                &[token_id.to_owned()],
+                ServiceAuthorityDisposition::DurableDelete,
+            )
+        })
+        .expect("commit pre-reservation service terminal");
+    });
+
+    let refused = host
+        .run_mutation("hostPlanWrite", HandlerInput::default())
+        .expect_err("pre-reservation staging observes retired scoped service");
+    assert_eq!(
+        refused.diagnostic.code,
+        "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
+    );
+    assert!(matches!(
+        host.terminal_latch.cause(),
+        Some(crate::local::ActionTerminalCause::CallerAuthority(
+            crate::auth::invocation::CallerAuthorityTerminalCause::ScopedServiceRetired {
+                disposition: ServiceAuthorityDisposition::DurableDelete,
+                ..
+            }
+        ))
+    ));
+
+    let terminal_cause = super::detached_action_stream_terminal_cause(
+        &Err(refused.clone()),
+        true,
+        &host.terminal_latch,
+    );
+    assert_eq!(
+        terminal_cause,
+        crate::stream_attempt::StreamAttemptCause::Cancelled
+    );
+    let provider_refusal = host
+        .settle_provider_stream_attempt_host(&attempt_token, terminal_cause)
+        .expect_err("typed pre-reservation loss refuses ordinary provider settlement");
+    assert_eq!(
+        provider_refusal.diagnostic.code,
+        "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
+    );
+    let attempts = crate::stream_attempt::global_stream_attempt_registry();
+    assert_eq!(
+        attempts
+            .terminalize_invocation_host(&host.stream_runner_host, terminal_cause)
+            .len(),
+        1
+    );
+    host.flush_stream_attempts_trusted();
+    assert_eq!(
+        attempts
+            .terminal(&attempt_token)
+            .expect("pre-reservation output attempt has a durable winner")
+            .cause,
+        crate::stream_attempt::StreamAttemptCause::Cancelled
+    );
+    attempts.release_invocation(&host.stream_runner);
 }
 
 #[test]

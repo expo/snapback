@@ -9,6 +9,9 @@ publish = false
 name = "snapback_types"
 path = "src/lib.rs"
 
+[features]
+test-support = []
+
 [dependencies]
 base64 = "0.22"
 crc32fast = "1"

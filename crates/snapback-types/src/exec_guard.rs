@@ -214,6 +214,16 @@ pub fn run_or_defer_after_local(effect: impl FnOnce() + Send + 'static) {
     }
 }
 
+#[cfg(feature = "test-support")]
+#[doc(hidden)]
+pub fn deferred_after_local_effect_count_for_test() -> usize {
+    assert!(
+        LOCAL_APP_WRITE_DEPTH.with(Cell::get) != 0,
+        "after-Local effect inventory requires an active LocalSnapback scope"
+    );
+    AFTER_LOCAL_EFFECTS.with(|effects| effects.borrow().len())
+}
+
 /// Execute a fallible process-local projection immediately for direct-library
 /// use, or attach its result to the managed Local batch. The blocking owner
 /// must inspect [`run_after_local_batch`] before acknowledging its operation.

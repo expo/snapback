@@ -12,7 +12,7 @@ path = "src/lib.rs"
 [features]
 default = ["sync-owner"]
 sync-owner = []
-test-support = []
+test-support = ["snapback-types/test-support"]
 
 [dependencies]
 base64 = "0.22"
