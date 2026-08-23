@@ -1124,8 +1124,9 @@ explicit `visibility: TableVisibilityV1`; public read is represented as
 fields. `FilterExpr[]` is a conjunction. Normalized `OrderExpr[]` is exactly
 the non-empty declared semantic order and never contains `_id`; the compiler
 rejects an authored `_id` entry. The one total-order rule is: after every
-declared component, the kernel applies an implicit ascending `_id` tie-break,
-carried only in `KeysetKeyV1.id`. This applies LLP 0007's total-order rule and
+declared component, the kernel appends `_id ASC` to the SQL order as the
+implicit tie-break; `KeysetKeyV1.id` only carries that boundary value and
+applies no ordering itself. This applies LLP 0007's total-order rule and
 reuses the shipped `KeysetAfter {entries,id}` boundary
 (`crates/snapback-kernel/src/storage.rs:8004`). Stage B introduces
 `KeysetKeyV1` in `snapback-types` with byte-identical JSON and adds `From` and
@@ -3288,7 +3289,7 @@ or identities.
   - **Fix round 5 — H5:** §6 keys graph memos on materialization, partition, authorization-version, and evaluation-cut axes and retires stale authorization versions. This tightens G1's shipped key description without changing the session-exact, pre-G0 G1 mechanism.
   - **Fix round 5 — MINOR:** §2.1/§4/§9 pin evaluation-cut integer schema, demand-vector resume for a to-many named window, outer oracle cursor/row bindings, the commission packet's four-axis completeness tuple, and this history.
   - **Fix round 6 — J1 + MINOR:** §2.4/§2.6 restore LLP 0267's top-level `resultRows` and single whole-result `resultBytes` charge to every root or child lineage while keeping induced-subtree accounting structural; the worked example and `windowRollup` now expose the conservative repeated charge. §2.1/§2.6/§4.1/§9 pin vacuous principal binding evidence, worst-case-versus-observed null-key consultations, `ranges[].hasMore`, `parentKey`-only proof ordering, and kernel SQL tie-break ownership.
-  - **Converged:** grok READY r6; codex **[pending r7]**.
+  - **Converged:** grok READY r6 and r7; codex READY r7 (both on this revision).
 - **v0.4 (2026-08-23).** **G0 commissioned** (author ruling, Charlie
   Cheever, 2026-08-23 session: "worth commissioning G0 now"). Context: the
   fan-out P1 this Spec anchors is no longer minutes-scale — LLP 0200
