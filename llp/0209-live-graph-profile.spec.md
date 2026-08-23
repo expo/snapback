@@ -5,8 +5,9 @@
 **Systems:** Live queries, Relational queries, Schema, Auth, Performance, Client SDK
 **Author:** Claude Fable 5 (commissioned by the LLP 0191 author rulings, Charlie Cheever, 2026-08-08)
 **Date:** 2026-08-09
-**Revised:** 2026-08-16 (v0.3 — D2-H1 measured; G1 key recorded as
-session-exact; Status remains Draft)
+**Revised:** 2026-08-23 (v0.4 — G0 commissioned by author ruling; the
+two G0 author gates converted to lane deliverables ratified at exit; OQ-1
+ruling proposed in the commissioning ticket; Status remains Draft)
 **Related:** LLP 0183 (D2 charter this Spec owns), LLP 0191 (evidence and the
 five-rung ladder), LLP 0200 (the D4-side sibling: scheduling/settlement;
 measured Phase-1 record in its §6a), LLP 0008 (DK-3 `live_delta` precedent,
@@ -17,7 +18,10 @@ LLP 0170 (information flow), LLP 0190 (D3 seams; §4's authority question this
 Spec shares an answer with), LLP 0007 (query semantics, order/tie-break),
 `issues/closed/20260808-oq4-coalescing-measurement-spike.md` (measured basis),
 `issues/20260808-live-query-reevaluation-cost-at-scale.md` (workstream anchor),
-`issues/20260808-d2-d4-owner-specs-commission.md` (charter source)
+`issues/20260808-d2-d4-owner-specs-commission.md` (charter source),
+`issues/20260823-llp0209-g0-commission.md` (G0 commissioning packet),
+LLP 0267 §5 (`queryCost.graph` — the sole bound-declaration carrier),
+LLP 0268 §7 (nine named G0 inputs the exit record must carry)
 
 ## 0. Charter and position
 
@@ -140,7 +144,7 @@ the client can author neither the plan nor the admission
 read dependencies its execution contributes (§5). A graph plan without
 per-node dependency capture would regress affected-read precision exactly
 where the profile adds joins — today's two-source relational plans match
-table-granularly by design (`crates/snapback/src/live_matcher.rs`: a commit touching
+table-granularly by design (`crates/snapback-kernel/src/live_matcher.rs`: a commit touching
 either declared source resnapshots; LLP 0080 §4), which is honest for two
 tables and unacceptable for a 22-relation graph.
 
@@ -209,7 +213,7 @@ upgraded one is a conformance failure.
 
 ## 5. Rung 2 — affected-read precision: extend and measure
 
-**What exists** (grounded in `crates/snapback/src/live_matcher.rs`, LLP 0020 Phase 4):
+**What exists** (grounded in `crates/snapback-kernel/src/live_matcher.rs`, LLP 0020 Phase 4):
 subscriptions capture read dependencies at evaluation — `Row`/`MissingRow`
 point reads, `Query` dependencies carrying the serialized plan predicate,
 order, limit, result count, and the window **boundary** (first/last sort
@@ -488,8 +492,16 @@ or identities.
 - **OQ-1 (grammar lineage).** Does the graph IR extend the existing
   `RelationalQuery`/`BoundedChildrenQuery`/`SnapshotBatchV2` plan grammar
   in place, or supersede it with a migration path? The two-source plans
-  are shipped surface with their own owners (LLP 0080/0100/0155); G0
-  needs this ruled first.
+  are shipped surface with their own owners (LLP 0080 / 0110 /
+  0135+0157 per the code's `@ref` lineage — the earlier "0080/0100/0155"
+  attribution was drift, corrected 2026-08-23); G0 needs this ruled
+  first. **Ruling proposed 2026-08-23** in
+  `issues/20260823-llp0209-g0-commission.md` and applied unless the
+  author overrides before Stage A lands: a new sibling `HandlerPlan` arm
+  that reuses the shipped primitives and identity machinery, with the
+  three shipped carriers frozen (not widened, not migrated); the
+  degenerate-graph equivalence of a two-source plan is a G2 conformance
+  row, not a migration.
 - **OQ-2 (memo placement on hosted profiles).** On the Cloudflare DO
   target the single-threaded owner changes the memo's concurrency story
   (and LLP 0200 OQ-1's `waitUntil` question touches the same seam).
@@ -521,6 +533,27 @@ or identities.
 
 ## Revision history
 
+- **v0.4 (2026-08-23).** **G0 commissioned** (author ruling, Charlie
+  Cheever, 2026-08-23 session: "worth commissioning G0 now"). Context: the
+  fan-out P1 this Spec anchors is no longer minutes-scale — LLP 0200
+  Phases 1–4 plus G1 took six-observer burst settle p50 45 s → 1.65 s —
+  and the remainder is the per-turn opaque re-evaluation floor that only
+  G2/G3 remove, both sequenced behind G0; LLP 0268 (Accepted) further
+  binds its implementation on a recorded G0 exit carrying its §7 inputs.
+  Packet: `issues/20260823-llp0209-g0-commission.md`. Three rulings it
+  records against §9's G0 text: (1) **bounds are a lane deliverable, not
+  an author gate** — the lane sizes every §2 bound from the pinned
+  `normal-seed-v1` / `large-seed42-v1` fixtures with the derivation
+  beside each value, carried in LLP 0267 §5's `queryCost.graph` fields,
+  and the author ratifies the table at G0 exit (the packet records the
+  first-cut derivation, including that the 1,024 summed-batch ceiling is
+  already falsified by a 1,000-row list × 1.5 label edges); (2) **OQ-1 is
+  applied as proposed in the packet unless the author overrides** before
+  Stage A lands; (3) **OQ-3 is taken conservatively at G0**
+  (principal-scoped = partition of one). G0's exit record must
+  additionally carry LLP 0268 §7's nine named inputs by label. G0 changes
+  no runtime semantics and claims no latency effect; Status stays Draft
+  until the G0 exit note (v0.5) moves §2–§4 to Review.
 - **v0.3 (2026-08-16).** G1 measured, and its shipped key recorded
   precisely. Two facts the D2-H1 run established:
   1. **The sound pre-G0 key is session-exact, not user-exact.** Opaque JS

@@ -68,3 +68,12 @@ owner (`20260808-stored-literal-union-enums.md`,
 commissioning, W-ENUM's D2-vs-D5 dual routing resolved there); structured
 route-argument lowering as compiler prerequisite
 (`20260808-route-group-argument-lowering.md`).
+
+**D2-side G0 commissioned (2026-08-23):** LLP 0209 stayed Draft with G1
+landed and G0 blocked on two author inputs (bound values, OQ-1). Author
+ruling 2026-08-23 commissions G0 and converts both inputs into lane
+deliverables ratified at exit — packet and lane plan in
+`issues/20260823-llp0209-g0-commission.md`, ruling recorded in LLP 0209
+v0.4. LLP 0200 (D4-side) completed its four-phase program 2026-08-09
+(§6d) and sits at Review. This ticket still waits on the Specs'
+review/acceptance disposition.

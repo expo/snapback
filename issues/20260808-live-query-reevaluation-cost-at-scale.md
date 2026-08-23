@@ -202,3 +202,25 @@ revision note; arms under the g1-memo worktree's
 
 The structural ceiling this ticket names remains G2/G3's to remove (per-node
 precision + delta lanes); G1 removes the same-key multiplier only.
+
+## 2026-08-23 — status refresh and G0 commissioned
+
+**Where the number stands.** The 74 s median in the header is the 8/8
+pre-program baseline. After LLP 0200 Phases 1–4 (settlement isolation,
+write priority, cancellation, auth-lane split; §6a–§6d) and LLP 0209 G1
+(same-principal memoization), the same six-observer 5.5M-row harness
+measures burst settle p50 **1.65 s** (from 45 s same-binary legacy),
+sustained **6.8 s** (from 68 s), zero-observer ~30 ms — N=1–2 shape
+evidence; no N≥3 requalification and no zb5-hot full-gate rerun yet. The
+remainder is structural: one full opaque re-evaluation per observer
+(~0.9–1.15 s/turn) with one unpreemptible in-flight turn — LLP 0200 H-1
+stays unmet and scheduling policy cannot close it.
+
+**G0 commissioned** (author ruling 2026-08-23; LLP 0209 v0.4;
+`issues/20260823-llp0209-g0-commission.md`). G0 is the IR/identity/
+classification/corpus phase that G2 (per-node precision) and G3 (delta
+lanes — the actual incremental evaluation) are sequenced behind, and the
+exit LLP 0268 binds on. It moves no latency number itself; the first
+measured payoff is G3 on the first admitted hot shape. This ticket stays
+the evidence anchor; the hot gate's A/B rerun remains the acceptance
+instrument for every rung.
