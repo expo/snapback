@@ -1,0 +1,1 @@
+{"schemaVersion":"snapback.r2-cell-slot.v1","cellId":"sol-clique-explicit","status":"not-started","waveConfig":"../../harness-config.json","recordOutput":"record.json","recordSchema":"../../../../schema/social-messenger/run-record.schema.json","checkedValidator":"../../../../tools/social-messenger/record-validator.mjs"}

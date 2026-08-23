@@ -1,0 +1,421 @@
+{
+  "schemaVersion": "snapback.r2-harness-config.v1",
+  "runId": "2026-08-23-r2-published-0125",
+  "status": "prepared-blocked",
+  "noBenchmarkCellStarted": true,
+  "governing": [
+    "LLP 0295#r2-load-isolated-calibration-rerun",
+    "LLP 0295#d06-efficiency-instrument-and-target-registration",
+    "LLP 0295#efficiency-scorecard",
+    "LLP 0201#d2--quantitative-instrument",
+    "LLP 0201 2026-08-21 D0.6 amendment",
+    "LLP 0186 2026-08-21 D0.6 amendment",
+    "LLP 0277#published-0124-matrix-findings"
+  ],
+  "paths": {
+    "committedRunRoot": "benchmarks/runs/2026-08-23-r2-published-0125",
+    "privateExecutionRoot": "/Users/ccheever/bench-matrix-20260823-r2",
+    "instrumentRoot": "/Users/ccheever/bench-matrix-20260823-r2/instrument",
+    "exactPinnedCheckout": "/Users/ccheever/bench-matrix-20260817/exact-pinned"
+  },
+  "machine": {
+    "count": 1,
+    "hardwareModel": "MacBookPro18,4",
+    "os": "Darwin 25.6.0 arm64",
+    "physicalCpuCount": 10,
+    "logicalCpuCount": 10,
+    "memoryBytes": 68719476736,
+    "node": {
+      "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+      "version": "v24.18.0"
+    },
+    "bun": {
+      "path": "/Users/ccheever/.bun/bin/bun",
+      "version": "1.3.12"
+    },
+    "reservationRequired": true
+  },
+  "execution": {
+    "serial": true,
+    "maxConcurrentCells": 1,
+    "coldContextPerCell": true,
+    "reuseAcrossCells": [],
+    "milestones": ["M1", "M2", "M3"],
+    "perMilestoneWallSafetyLimitSeconds": 14400,
+    "loadIsolation": {
+      "policyId": "host-10cpu-loadavg-10-proposal",
+      "status": "needs-orchestrator-ruling",
+      "sampleEverySeconds": 60,
+      "metrics": ["loadavg1", "loadavg5", "loadavg15"],
+      "ceilingInclusive": {
+        "loadavg1": 10.0,
+        "loadavg5": 10.0,
+        "loadavg15": 10.0
+      },
+      "preStartConsecutivePassingSamples": 3,
+      "breachRule": "The first sample above any ceiling sets host-load-contamination for that cell.",
+      "onBreach": "Continue only for product findings; efficiencyScorecardEligible=false.",
+      "nextCellRule": "Prior process tree closed and three consecutive passing samples."
+    },
+    "contaminationVocabulary": {
+      "hostLoad": "host-load-contamination",
+      "api": "api-interruption",
+      "clean": "none"
+    },
+    "apiInterruptionRule": "Record every provider/API failure window from first failed request through the first successful replacement request; any nonempty window makes the cell scorecard-ineligible.",
+    "suiteStatus": {
+      "required": true,
+      "mustBeHashBound": true,
+      "greenRequiresSuiteAndChoreography": true,
+      "startupRefusalRequired": true,
+      "currentImplementationStatus": "blocked-current-choreography-still-optional"
+    }
+  },
+  "pins": {
+    "snapback0125": {
+      "version": "0.1.25",
+      "distTag": "latest",
+      "closureId": "fastpath-0-1-25-9d9265394953",
+      "qualifiedSourceRevision": "9d9265394953769aaa52e63c8a914464175f93ab",
+      "packages": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.25",
+        "@expo/snapback-runtime-linux-x64": "0.1.25",
+        "@expo/snapback-contract": "0.1.25",
+        "@expo/snapback-client": "0.1.25",
+        "@expo/snapback-codegen": "0.1.25",
+        "@expo/snapback-vite": "0.1.25",
+        "@expo/snapback-react": "0.1.25",
+        "@expo/snapback-expo": "0.1.25",
+        "@expo/snapback-app-cli": "0.1.25",
+        "@expo/snapback-cli": "0.1.25",
+        "create-snapback-app": "0.1.25",
+        "@expo/snapback": "0.1.25",
+        "@expo/snapback-expo-custody": "0.1.25",
+        "@expo/snapback-acceptance": "0.1.25"
+      },
+      "securityNonclaims": {
+        "f1DefectFamilies": "open",
+        "llp0284SecurityGates": "red-by-design",
+        "adversarialHandlerContainment": "not-claimed"
+      }
+    },
+    "exact0124Comparator": {
+      "revision": "4046cafcf965ee0eeb5c53cb90ec75476380aae8",
+      "ibexRevision": "d9822f6fb5015b770a5867f7f1e22c2b69fb0b70",
+      "distribution": "filesystem-read-only detached local checkout with frozen-lockfile dependencies; no npm release",
+      "status": "prepared-at-prompt-pinned-path"
+    },
+    "instrument": {
+      "semanticSnapshotRevision": "bbc324323f44f31c445843203c17a7ef6393d3a5",
+      "instrumentPin": "social-messenger@0.3.2-m8",
+      "manifestSha256": "3438c84b8831239ab95e167eed79675a2127d7d63b3cb0f1ce72811872e2898e",
+      "fixtureVersion": "0.2.0-m8",
+      "schemaVersion": "0.3.0-m8",
+      "uiVersion": "0.3.1-m8",
+      "choreographyVersion": "0.3.2-m8",
+      "d06MeteringOverlay": {
+        "revision": "bdb49313050a9497c14b807e8c1ab58c4fef1385",
+        "status": "landed",
+        "recordSchema": "benchmarks/schema/social-messenger/run-record.schema.json",
+        "recordSchemaSha256": "3403455e98fad656125ea2ab0993f780bdb112849fb127bd8bcfcbcf6f2b8a64",
+        "extensionSchemaSha256": "312e49c65717c2fb7668bbe16f1143731694082e9894d67456cc7e253632eb7f",
+        "meterSha256": "7f4a92e658c4802305281656da0c4b62950596aca90da9675bdcb888992d1871",
+        "laneSetupSha256": "93d373f4149c0e194a6edb3021496b6ac700c658acc399fa0295e4e94f591e22"
+      },
+      "observabilityBump": {
+        "issue": "issues/20260821-clique-instrument-observability-version-bump.md",
+        "status": "not-landed",
+        "included": false
+      }
+    }
+  },
+  "recording": {
+    "recordSchema": "benchmarks/schema/social-messenger/run-record.schema.json",
+    "checkedValidator": "benchmarks/tools/social-messenger/record-validator.mjs",
+    "currentSchemaCoverage": [
+      "harness-native milestone usage",
+      "terminal boundary and first-green proof",
+      "orientation and first-product-edit snapshot"
+    ],
+    "pendingCoordinatedBumpCoverage": [
+      "semantic actions and dispositions",
+      "failure-to-recovery episodes",
+      "restart and reseed counts",
+      "browser assertion attempts and wait wall",
+      "host-load windows",
+      "API-interruption windows",
+      "structured setup and suite-status linkage",
+      "hash linkage for required sidecars"
+    ],
+    "semanticActionTaxonomy": [
+      "guide-lookup",
+      "source-inspection",
+      "edit",
+      "generate",
+      "process",
+      "reseed",
+      "suite",
+      "choreography",
+      "retry"
+    ],
+    "semanticActionDispositions": ["progress", "correction"],
+    "requiredPerMilestone": [
+      "harness-native usage",
+      "semantic actions",
+      "failure-to-recovery episodes",
+      "restart and reseed counts",
+      "assertion attempts and wait wall",
+      "host load and API interruption windows",
+      "terminal boundary and first-green proof"
+    ],
+    "requiredBeforeFirstEdit": ["orientation bytes", "selected skills", "native token prefix"],
+    "eligibilityRule": "Missing phase usage, host-load-contamination, or api-interruption makes only the efficiency scorecard ineligible."
+  },
+  "harnesses": {
+    "codex-sol": {
+      "binary": "/Users/ccheever/.volta/bin/codex",
+      "observedVersion": "0.149.0",
+      "baselineVersion": "0.147.0",
+      "model": "gpt-5.6-sol",
+      "effort": "xhigh",
+      "permissionMode": "dangerously-bypass-approvals-and-sandbox",
+      "outputFormat": "jsonl",
+      "tokensSource": "codex-rollout-token-count",
+      "argvTemplate": [
+        "exec",
+        "--dangerously-bypass-approvals-and-sandbox",
+        "--json",
+        "--model",
+        "gpt-5.6-sol",
+        "-c",
+        "model_reasoning_effort=\"xhigh\"",
+        "-"
+      ]
+    },
+    "grok-46": {
+      "binary": "/Users/ccheever/.grok/bin/grok",
+      "observedVersion": "1.0.0 (3cd0d0cbcebe)",
+      "model": "grok-4.6",
+      "effort": "xhigh",
+      "permissionMode": "bypassPermissions",
+      "outputFormat": "streaming-json",
+      "tokensSource": null,
+      "meteringUnavailableReason": "advisory-family-no-approved-native-per-turn-adapter",
+      "argvTemplate": [
+        "--prompt-file",
+        "{renderedPrompt}",
+        "--model",
+        "grok-4.6",
+        "--reasoning-effort",
+        "xhigh",
+        "--permission-mode",
+        "bypassPermissions",
+        "--output-format",
+        "streaming-json"
+      ]
+    },
+    "claude-opus5": {
+      "binary": "/Users/ccheever/.local/bin/claude",
+      "observedVersion": "2.1.239",
+      "model": "claude-opus-5",
+      "effort": null,
+      "effortStatus": "needs-ruling: baseline harness record says default; prompt declares xhigh",
+      "permissionMode": "dangerously-skip-permissions",
+      "outputFormat": "stream-json",
+      "tokensSource": "claude-code-session-usage",
+      "argvTemplateWithoutEffortRuling": [
+        "--print",
+        "--model",
+        "claude-opus-5",
+        "--dangerously-skip-permissions",
+        "--output-format",
+        "stream-json",
+        "--verbose"
+      ]
+    }
+  },
+  "cellOrder": [
+    "sol-clique-explicit",
+    "sol-clique-familiar",
+    "sol-coterie-explicit",
+    "sol-coterie-familiar",
+    "grok-clique-explicit",
+    "grok-clique-familiar",
+    "grok-coterie-explicit",
+    "grok-coterie-familiar",
+    "opus-clique-explicit",
+    "opus-clique-familiar",
+    "opus-coterie-explicit",
+    "opus-coterie-familiar"
+  ],
+  "cells": [
+    {
+      "id": "sol-clique-explicit",
+      "harness": "codex-sol",
+      "model": "gpt-5.6-sol",
+      "effort": "xhigh",
+      "app": "Clique",
+      "clientStack": "Expo Router web",
+      "profile": "explicit",
+      "promptFile": "prompts/clique-explicit.md",
+      "ports": [42000, 42019],
+      "pins": ["snapback0125", "instrument"],
+      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "baseline": {"wallSeconds": 3720, "outputTokens": 120825}
+    },
+    {
+      "id": "sol-clique-familiar",
+      "harness": "codex-sol",
+      "model": "gpt-5.6-sol",
+      "effort": "xhigh",
+      "app": "Clique",
+      "clientStack": "Expo Router web",
+      "profile": "familiar",
+      "promptFile": "prompts/clique-familiar.md",
+      "ports": [42020, 42039],
+      "pins": ["snapback0125", "instrument"],
+      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "baseline": {"wallSeconds": 4748, "outputTokens": 139934}
+    },
+    {
+      "id": "sol-coterie-explicit",
+      "harness": "codex-sol",
+      "model": "gpt-5.6-sol",
+      "effort": "xhigh",
+      "app": "Coterie",
+      "clientStack": "Exact/Contract web",
+      "profile": "explicit",
+      "promptFile": "prompts/coterie-explicit.md",
+      "ports": [42040, 42059],
+      "pins": ["snapback0125", "instrument", "exact0124Comparator"],
+      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "baseline": {"wallSeconds": 5212, "outputTokens": 159445}
+    },
+    {
+      "id": "sol-coterie-familiar",
+      "harness": "codex-sol",
+      "model": "gpt-5.6-sol",
+      "effort": "xhigh",
+      "app": "Coterie",
+      "clientStack": "Exact/Contract web",
+      "profile": "familiar",
+      "promptFile": "prompts/coterie-familiar.md",
+      "ports": [42060, 42079],
+      "pins": ["snapback0125", "instrument", "exact0124Comparator"],
+      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "baseline": {"wallSeconds": 7631, "outputTokens": 152614}
+    },
+    {
+      "id": "grok-clique-explicit",
+      "harness": "grok-46",
+      "model": "grok-4.6",
+      "effort": "xhigh",
+      "app": "Clique",
+      "clientStack": "Expo Router web",
+      "profile": "explicit",
+      "promptFile": "prompts/clique-explicit.md",
+      "ports": [42080, 42099],
+      "pins": ["snapback0125", "instrument"],
+      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "baseline": {"wallSeconds": 4336, "outputTokens": 141020}
+    },
+    {
+      "id": "grok-clique-familiar",
+      "harness": "grok-46",
+      "model": "grok-4.6",
+      "effort": "xhigh",
+      "app": "Clique",
+      "clientStack": "Expo Router web",
+      "profile": "familiar",
+      "promptFile": "prompts/clique-familiar.md",
+      "ports": [42100, 42119],
+      "pins": ["snapback0125", "instrument"],
+      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "baseline": {"wallSeconds": 19346, "outputTokens": 188471, "contamination": ["host-load-contamination"]}
+    },
+    {
+      "id": "grok-coterie-explicit",
+      "harness": "grok-46",
+      "model": "grok-4.6",
+      "effort": "xhigh",
+      "app": "Coterie",
+      "clientStack": "Exact/Contract web",
+      "profile": "explicit",
+      "promptFile": "prompts/coterie-explicit.md",
+      "ports": [42120, 42139],
+      "pins": ["snapback0125", "instrument", "exact0124Comparator"],
+      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "baseline": {"wallSeconds": 7664, "outputTokens": 263396}
+    },
+    {
+      "id": "grok-coterie-familiar",
+      "harness": "grok-46",
+      "model": "grok-4.6",
+      "effort": "xhigh",
+      "app": "Coterie",
+      "clientStack": "Exact/Contract web",
+      "profile": "familiar",
+      "promptFile": "prompts/coterie-familiar.md",
+      "ports": [42140, 42159],
+      "pins": ["snapback0125", "instrument", "exact0124Comparator"],
+      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "baseline": {"wallSeconds": 7002, "outputTokens": 196650}
+    },
+    {
+      "id": "opus-clique-explicit",
+      "harness": "claude-opus5",
+      "model": "claude-opus-5",
+      "effort": "needs-ruling",
+      "app": "Clique",
+      "clientStack": "Expo Router web",
+      "profile": "explicit",
+      "promptFile": "prompts/clique-explicit.md",
+      "ports": [42160, 42179],
+      "pins": ["snapback0125", "instrument"],
+      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "baseline": {"wallSeconds": 27282, "outputTokens": 387583, "contamination": ["host-load-contamination", "api-interruption"]}
+    },
+    {
+      "id": "opus-clique-familiar",
+      "harness": "claude-opus5",
+      "model": "claude-opus-5",
+      "effort": "needs-ruling",
+      "app": "Clique",
+      "clientStack": "Expo Router web",
+      "profile": "familiar",
+      "promptFile": "prompts/clique-familiar.md",
+      "ports": [42180, 42199],
+      "pins": ["snapback0125", "instrument"],
+      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "baseline": {"wallSeconds": 12367, "outputTokens": 430232}
+    },
+    {
+      "id": "opus-coterie-explicit",
+      "harness": "claude-opus5",
+      "model": "claude-opus-5",
+      "effort": "needs-ruling",
+      "app": "Coterie",
+      "clientStack": "Exact/Contract web",
+      "profile": "explicit",
+      "promptFile": "prompts/coterie-explicit.md",
+      "ports": [42200, 42219],
+      "pins": ["snapback0125", "instrument", "exact0124Comparator"],
+      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "baseline": {"wallSeconds": 13504, "outputTokens": 365823}
+    },
+    {
+      "id": "opus-coterie-familiar",
+      "harness": "claude-opus5",
+      "model": "claude-opus-5",
+      "effort": "needs-ruling",
+      "app": "Coterie",
+      "clientStack": "Exact/Contract web",
+      "profile": "familiar",
+      "promptFile": "prompts/coterie-familiar.md",
+      "ports": [42220, 42239],
+      "pins": ["snapback0125", "instrument", "exact0124Comparator"],
+      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "baseline": {"wallSeconds": 8283, "outputTokens": 333058}
+    }
+  ]
+}

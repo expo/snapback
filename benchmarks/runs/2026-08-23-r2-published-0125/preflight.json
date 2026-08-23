@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "snapback.r2-preflight.v1",
+  "runId": "2026-08-23-r2-published-0125",
+  "recordedAt": "2026-08-23T21:02:38Z",
+  "noBenchmarkCellStarted": true,
+  "waveStartAllowed": false,
+  "checks": [
+    {
+      "id": "r1-web-gates",
+      "status": "pass",
+      "evidence": "benchmarks/runs/2026-08-22-r1-cold-probes/record.md",
+      "detail": "Clique Expo-web and Coterie Vite/Exact carrier probes are green in Explicit and Familiar."
+    },
+    {
+      "id": "codex-cli-exists",
+      "status": "pass",
+      "observed": "/Users/ccheever/.volta/bin/codex 0.149.0"
+    },
+    {
+      "id": "codex-auth",
+      "status": "pass",
+      "observed": "codex login status: logged in using ChatGPT"
+    },
+    {
+      "id": "codex-version-parity",
+      "status": "needs-ruling",
+      "observed": "0.149.0",
+      "expectedFrom0124": "0.147.0",
+      "detail": "LLP 0186 designates same harness/model; decide whether harness-family identity is sufficient or restore 0.147.0."
+    },
+    {
+      "id": "grok-cli-exists",
+      "status": "pass",
+      "observed": "/Users/ccheever/.grok/bin/grok 1.0.0 (3cd0d0cbcebe)"
+    },
+    {
+      "id": "grok-auth",
+      "status": "fail",
+      "observed": "grok models: You are not authenticated."
+    },
+    {
+      "id": "claude-cli-exists",
+      "status": "pass",
+      "observed": "/Users/ccheever/.local/bin/claude 2.1.239"
+    },
+    {
+      "id": "claude-auth",
+      "status": "pass",
+      "observed": "claude auth status: loggedIn=true, first-party subscription"
+    },
+    {
+      "id": "claude-effort-parity",
+      "status": "needs-ruling",
+      "observed": "The retained prompts declare xhigh; the retained harness record says Claude Opus 5 used harness-default effort.",
+      "detail": "Choose the actual launch effort before rendering any Claude cell; do not rewrite this after cell 1."
+    },
+    {
+      "id": "node24-toolchain",
+      "status": "pass",
+      "observed": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node v24.18.0",
+      "warning": "The login-shell default is Node v22.23.2 and must not launch cells."
+    },
+    {
+      "id": "published-0125-host-closure-install",
+      "status": "pass",
+      "observed": "Fresh Node 24 directory installed all 13 host-applicable package identities at 0.1.25; linux-x64 runtime was excluded by its declared platform fence."
+    },
+    {
+      "id": "published-0125-boot-smoke",
+      "status": "pass",
+      "observed": "snapback.published-closure-boot-smoke.v1 ok=true; 11/11 checks green; darwin runtime receipt 7f3757b72fad51848938a98f01a8ee4bcce6f5d80f27273ceff99751fae963da; admin snapshot 5ed4d703a5901fccb74112c29b5e6c9f7fad9dc2d2810c8d366247904708b354"
+    },
+    {
+      "id": "d0-6-metering-tests",
+      "status": "pass",
+      "observed": "16/16 metering tests and 10/10 lane-setup/schema tests passed."
+    },
+    {
+      "id": "versioned-instrument-materialization",
+      "status": "pass",
+      "observed": "/Users/ccheever/bench-matrix-20260823-r2/instrument is a read-only archive of bdb493130; social-messenger manifest sha256 3438c84b8831239ab95e167eed79675a2127d7d63b3cb0f1ce72811872e2898e.",
+      "detail": "A setup-only lane-setup probe accepted the manifest and emitted the bounded orientation carrier; no benchmark cell or authoring clock was started."
+    },
+    {
+      "id": "d2-record-schema",
+      "status": "pass",
+      "observed": "benchmarks/schema/social-messenger/run-record.schema.json composes the base and extension; checked validator is present and its composed-schema metering tests pass."
+    },
+    {
+      "id": "full-d0-6-record-linkage",
+      "status": "fail",
+      "observed": "The landed extension carries harness-native milestone usage and orientation/first-edit fields, but does not yet carry semantic actions, recovery episodes, restart/reseed counts, assertion wait, host-load windows, or API-interruption windows.",
+      "detail": "Do not substitute unlinked sidecars for the coordinated structured record. The observability bump must land and validate before cell 1."
+    },
+    {
+      "id": "suite-status-startup-refusal",
+      "status": "fail",
+      "observed": "Current choreography documents --suite-status as optional; issues/20260821-clique-instrument-observability-version-bump.md remains Open.",
+      "detail": "LLP 0295 W6 requires refusal before the authoring clock when linkage is absent."
+    },
+    {
+      "id": "observability-version-bump",
+      "status": "not-landed",
+      "observed": "Issue remains Open at both this branch and fetched origin/main 1fc781635; kit 0.3.1-m8 and choreography 0.3.2-m8 are unchanged.",
+      "detail": "No unlanded vocabulary or schema is included in this R2 configuration."
+    },
+    {
+      "id": "exact-4046cafcf-checkout",
+      "status": "pass",
+      "observed": "/Users/ccheever/bench-matrix-20260817/exact-pinned is a detached, clean, filesystem-read-only checkout of 4046cafcf965ee0eeb5c53cb90ec75476380aae8 with vendor/ibex d9822f6fb5015b770a5867f7f1e22c2b69fb0b70 and frozen-lockfile dependencies installed."
+    },
+    {
+      "id": "baseline-event-streams",
+      "status": "fail",
+      "observed": "The historical root now contains only the restored exact-pinned checkout; the twelve 0.1.24 lane workspaces and native event streams remain absent.",
+      "detail": "Output totals survive in git; retrospective D0.6 annotations and most M1 boundaries cannot be recovered from the committed aggregate."
+    },
+    {
+      "id": "load-ceiling",
+      "status": "needs-ruling",
+      "observed": "Proposed loadavg-1/loadavg-5/loadavg-15 ceiling is 10.00 on the 10-logical-CPU host.",
+      "detail": "LLP 0186 retained the old flags without specifying a number."
+    },
+    {
+      "id": "machine-reservation",
+      "status": "fail",
+      "observed": "The selected host is not yet reserved; uptime reports 6 users.",
+      "detail": "Reserve the host and stop unrelated fleet work before taking admission samples."
+    },
+    {
+      "id": "host-load-admission-sample",
+      "status": "fail",
+      "observedAt": "2026-08-23T20:56:59Z",
+      "observed": {"loadavg1": 3.24, "loadavg5": 5.16, "loadavg15": 11.12},
+      "detail": "Under the proposed 10.00 ceiling the fifteen-minute average is not yet admissible; this is a preflight sample, not a cell sample."
+    }
+  ]
+}
