@@ -1,5 +1,77 @@
 {
   "format": "snapback.graph-identity-vectors.v1",
+  "jcsBoundary": [
+    {
+      "name": "integer-index-key-nesting",
+      "json": "{\"nested\":{\"10\":true,\"2\":false}}",
+      "canonical": "{\"nested\":{\"10\":true,\"2\":false}}"
+    },
+    {
+      "name": "positive-max-safe-integer",
+      "json": "9007199254740991",
+      "canonical": "9007199254740991"
+    },
+    {
+      "name": "positive-unsafe-integer",
+      "json": "9007199254740992",
+      "refusal": "unsafe-integer"
+    },
+    {
+      "name": "positive-unsafe-integer-plus-one",
+      "json": "9007199254740993",
+      "refusal": "unsafe-integer"
+    },
+    {
+      "name": "negative-max-safe-integer",
+      "json": "-9007199254740991",
+      "canonical": "-9007199254740991"
+    },
+    {
+      "name": "negative-unsafe-integer",
+      "json": "-9007199254740992",
+      "refusal": "unsafe-integer"
+    },
+    {
+      "name": "negative-unsafe-integer-minus-one",
+      "json": "-9007199254740993",
+      "refusal": "unsafe-integer"
+    },
+    {
+      "name": "positive-exponent-threshold",
+      "json": "1e21",
+      "canonical": "1e+21"
+    },
+    {
+      "name": "negative-exponent-threshold",
+      "json": "1e-7",
+      "canonical": "1e-7"
+    },
+    {
+      "name": "negative-zero",
+      "json": "-0",
+      "canonical": "0"
+    },
+    {
+      "name": "unicode-line-separators",
+      "json": "\"\u2028\u2029\"",
+      "canonical": "\"  \""
+    },
+    {
+      "name": "lone-surrogate",
+      "json": "\"\\ud800\"",
+      "refusal": "lone-surrogate"
+    },
+    {
+      "name": "astral-key-utf16-order",
+      "json": "{\"\":1,\"𝌆\":2}",
+      "canonical": "{\"𝌆\":2,\"\":1}"
+    },
+    {
+      "name": "non-finite-number",
+      "javascript": "Infinity",
+      "refusal": "non-finite-number"
+    }
+  ],
   "plan": {
     "domain": "snapback:graph-plan:v1:",
     "hash": "sha256:568efc828e03e4b56d4d09cc3d3dee804fc977d9e6c50f1f2d5b18709f8f1e1e",

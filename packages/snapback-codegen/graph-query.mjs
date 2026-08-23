@@ -1,7 +1,5 @@
 import { createHash } from 'node:crypto';
 
-import { canonicalJson } from './result-contracts.mjs';
-
 const GRAPH_PLAN_DOMAIN = 'snapback:graph-plan:v1:';
 const ARGUMENT_CONTRACT_DOMAIN = 'snapback:argument-binding-contract:v1:';
 const PARTITION_FUNCTION_DOMAIN = 'snapback:graph-partition-function:v1:';
@@ -22,19 +20,140 @@ const graphError = (code, message) => {
   throw error;
 };
 
-const copy = (value) => JSON.parse(JSON.stringify(value));
+// This is a dependency-local mirror of packages/snapback-client/rqs.mjs's
+// shipped RFC 8785 implementation. snapback-codegen and snapback-client are
+// sibling published packages, so importing the client here would add an
+// authored-package edge that the repository topology does not admit. The
+// graph-query suite pins this function byte-for-byte against `rqs.mjs` on the
+// shared vectors and against the Rust-owned graph boundary vectors.
+//
+// Unlike JSON.stringify, this path cannot honor toJSON or invoke a getter. It
+// accepts only own enumerable data properties on plain records/arrays, which
+// is also the runtime preflight boundary for graph source carriers.
+function canonicalValueRefusal(reason) {
+  const error = new TypeError(`SNAPBACK_GRAPH_ARGUMENT_UNBOUND: canonical graph value refused (${reason})`);
+  error.code = 'SNAPBACK_GRAPH_ARGUMENT_UNBOUND';
+  error.canonicalValueReason = reason;
+  throw error;
+}
+
+function jcsEscape(value) {
+  let out = '"';
+  for (const ch of value) {
+    const code = ch.codePointAt(0);
+    if (ch === '"') out += '\\"';
+    else if (ch === '\\') out += '\\\\';
+    else if (code === 0x08) out += '\\b';
+    else if (code === 0x0c) out += '\\f';
+    else if (ch === '\n') out += '\\n';
+    else if (ch === '\r') out += '\\r';
+    else if (ch === '\t') out += '\\t';
+    else if (code < 0x20) out += `\\u${code.toString(16).padStart(4, '0')}`;
+    else out += ch;
+  }
+  return `${out}"`;
+}
+
+function assertWellFormed(value) {
+  if (typeof value.isWellFormed === 'function'
+    ? !value.isWellFormed()
+    : /[\uD800-\uDFFF]/u.test(value)
+      && !/^(?:[^\uD800-\uDFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF])*$/u.test(value)) {
+    canonicalValueRefusal('lone surrogate');
+  }
+}
+
+function jcsNumber(value) {
+  if (!Number.isFinite(value)) canonicalValueRefusal('non-finite number');
+  if (Number.isInteger(value)
+    && Math.abs(value) > Number.MAX_SAFE_INTEGER
+    && Math.abs(value) < 1e21) {
+    canonicalValueRefusal('unsafe integer');
+  }
+  if (Object.is(value, -0)) return '0';
+  return String(value);
+}
+
+function canonicalDataProperties(value, stack) {
+  const prototype = Object.getPrototypeOf(value);
+  const array = Array.isArray(value);
+  if (prototype !== null && prototype !== (array ? Array.prototype : Object.prototype)) {
+    canonicalValueRefusal('non-plain prototype');
+  }
+  if (stack.has(value)) canonicalValueRefusal('cyclic value');
+  stack.add(value);
+  try {
+    if (array) {
+      const keys = Reflect.ownKeys(value);
+      if (keys.length !== value.length + 1 || keys.at(-1) !== 'length') {
+        canonicalValueRefusal('non-dense array');
+      }
+      const entries = [];
+      for (let index = 0; index < value.length; index += 1) {
+        const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+        if (!descriptor || !descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) {
+          canonicalValueRefusal('array accessor or hole');
+        }
+        entries.push(graphCanonicalJsonInternal(descriptor.value, stack));
+      }
+      return `[${entries.join(',')}]`;
+    }
+    const entries = [];
+    for (const key of Reflect.ownKeys(value)) {
+      if (typeof key !== 'string') canonicalValueRefusal('symbol property');
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (!descriptor || !descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) {
+        canonicalValueRefusal('object accessor or hidden property');
+      }
+      if (descriptor.value !== undefined) entries.push([key, descriptor.value]);
+    }
+    entries.sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
+    for (const [key] of entries) assertWellFormed(key);
+    return `{${entries.map(([key, child]) => (
+      `${jcsEscape(key)}:${graphCanonicalJsonInternal(child, stack)}`
+    )).join(',')}}`;
+  } finally {
+    stack.delete(value);
+  }
+}
+
+function graphCanonicalJsonInternal(value, stack) {
+  if (value === null) return 'null';
+  if (value === true) return 'true';
+  if (value === false) return 'false';
+  if (typeof value === 'number') return jcsNumber(value);
+  if (typeof value === 'bigint') {
+    if (value > 9_007_199_254_740_991n || value < -9_007_199_254_740_991n) {
+      canonicalValueRefusal('unsafe integer');
+    }
+    return value.toString();
+  }
+  if (typeof value === 'string') {
+    assertWellFormed(value);
+    return jcsEscape(value);
+  }
+  if (typeof value === 'object') return canonicalDataProperties(value, stack);
+  canonicalValueRefusal(`unsupported value type ${typeof value}`);
+}
+
+export function graphCanonicalJson(value) {
+  return graphCanonicalJsonInternal(value, new Set());
+}
+
+const copy = (value) => JSON.parse(graphCanonicalJson(value));
 const compareCodeUnits = (left, right) => (left < right ? -1 : left > right ? 1 : 0);
 const compareJcs = (left, right) => Buffer.compare(
-  Buffer.from(canonicalJson(left), 'utf8'),
-  Buffer.from(canonicalJson(right), 'utf8'),
+  Buffer.from(graphCanonicalJson(left), 'utf8'),
+  Buffer.from(graphCanonicalJson(right), 'utf8'),
 );
 
 export function graphDomainHash(domain, value) {
-  return `sha256:${createHash('sha256').update(domain).update(canonicalJson(value)).digest('hex')}`;
+  const canonical = graphCanonicalJson(value);
+  return `sha256:${createHash('sha256').update(domain).update(canonical).digest('hex')}`;
 }
 
 const contentIdentity = (value) => `sha256:${createHash('sha256')
-  .update(canonicalJson(value))
+  .update(graphCanonicalJson(value))
   .digest('hex')}`;
 
 function normalizeVisibility(visibility) {
@@ -48,7 +167,7 @@ function normalizeVisibility(visibility) {
   if (normalized.kind === 'any-of') {
     normalized.arms = normalized.arms.map(normalizeLeaf).sort(compareJcs);
     normalized.arms = normalized.arms.filter(
-      (arm, index, arms) => index === 0 || canonicalJson(arm) !== canonicalJson(arms[index - 1]),
+      (arm, index, arms) => index === 0 || graphCanonicalJson(arm) !== graphCanonicalJson(arms[index - 1]),
     );
   } else {
     normalizeLeaf(normalized);
@@ -59,11 +178,11 @@ function normalizeVisibility(visibility) {
 function normalizePolicyInputs(inputs) {
   const normalized = copy(inputs).sort((left, right) => (
     compareCodeUnits(left.declarationId, right.declarationId)
-    || compareCodeUnits(canonicalJson(left.kind), canonicalJson(right.kind))
+    || compareCodeUnits(graphCanonicalJson(left.kind), graphCanonicalJson(right.kind))
     || compareCodeUnits(left.identity, right.identity)
   ));
   for (let index = 1; index < normalized.length; index += 1) {
-    if (canonicalJson(normalized[index - 1]) === canonicalJson(normalized[index])) {
+    if (graphCanonicalJson(normalized[index - 1]) === graphCanonicalJson(normalized[index])) {
       graphError('SNAPBACK_GRAPH_AUTHORITY_UNPROVABLE', 'a class-2 proof repeats a policy input');
     }
   }
@@ -241,7 +360,7 @@ export function normalizeGraphPlanV1(candidate) {
   for (const node of dataNodes) {
     if (node.parentNodeId === undefined) continue;
     if (!byId.has(node.parentNodeId)) graphError('SNAPBACK_GRAPH_PARENT_INVALID', 'graph parent does not exist');
-    const sibling = canonicalJson([node.parentNodeId, node.edgeName]);
+    const sibling = graphCanonicalJson([node.parentNodeId, node.edgeName]);
     if (siblingNames.has(sibling)) graphError('SNAPBACK_GRAPH_UNKNOWN_FIELD', 'sibling edgeName values must be unique');
     siblingNames.add(sibling);
     const list = children.get(node.parentNodeId) ?? [];
@@ -352,7 +471,7 @@ export function normalizeKeysetKeyV1(key, order) {
       || typeof entry[0] !== 'string'
       || entry[0] === '_id'
       || entry[0] !== order[index].field
-      || canonicalJson(entry[1]).length > 65_536
+      || graphCanonicalJson(entry[1]).length > 65_536
     ))) {
     graphError('SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID', 'keyset entries must exactly match declared order and carry _id separately');
   }
@@ -428,7 +547,7 @@ function nodePolicyInputs(node, tables) {
     if (node.edge.targetTable !== undefined) addTable(node.edge.targetTable, node.edge.targetVisibility);
   }
   if (node.kind === 'principal-bound' && node.binding) addTable(node.binding.table, node.binding.visibility);
-  const unique = new Map(inputs.map((input) => [canonicalJson({
+  const unique = new Map(inputs.map((input) => [graphCanonicalJson({
     declarationId: input.declarationId,
     kind: input.kind,
     identity: input.identity,
@@ -449,7 +568,6 @@ function visibilityClass(visibility, requestedClass) {
 
 function localAuthorityClass(node, inputs) {
   if (node.kind === 'principal-bound') return 3;
-  if (node.kind === 'search-membership') return node.membershipIdentity.authorityClass;
   const visibilities = [];
   if (['root-window', 'equality-to-one', 'bounded-to-many'].includes(node.kind)) visibilities.push(node.visibility);
   if (node.kind === 'exists-semi-join') {
@@ -501,7 +619,18 @@ export function compileGraphQueryV1({ source, argsContract, resultContractHash, 
     contractHash: ZERO_HASH,
   }));
   const nodes = copy(source.nodes);
+  if (nodes.some((node) => node.kind === 'search-membership')) {
+    graphError(
+      'SNAPBACK_GRAPH_SEARCH_UNADMITTED',
+      'B2 cannot author search membership before the owner-issued D6 admission certificate exists',
+    );
+  }
   const byId = new Map(nodes.map((node) => [node.nodeId, node]));
+  for (const node of nodes) {
+    if (node.parentNodeId !== undefined && !byId.has(node.parentNodeId)) {
+      graphError('SNAPBACK_GRAPH_PARENT_INVALID', `node ${node.nodeId} references unknown parent ${node.parentNodeId}`);
+    }
+  }
   const authorityPartitionInputs = [];
   const classById = new Map();
   const class2PolicyInputsByNode = new Map();
@@ -552,7 +681,7 @@ export function compileGraphQueryV1({ source, argsContract, resultContractHash, 
   const projectionInputs = projectionClass === 2
     ? [...new Map(
         [...class2PolicyInputsByNode.values()].flat().map((input) => [
-          canonicalJson({
+          graphCanonicalJson({
             declarationId: input.declarationId,
             kind: input.kind,
             identity: input.identity,

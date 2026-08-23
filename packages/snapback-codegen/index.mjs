@@ -2360,22 +2360,6 @@ async function generateInProcessLocked({
       },
     );
   }
-  // Graph shape refusals must run before definition evaluation: a nested
-  // defineGraphQuery call or other dynamic constructor can otherwise throw
-  // from an inner expression before the source-stage precedence register has
-  // a chance to classify it.
-  validateGraphAuthoringSource(
-    functionsSource,
-    relative(backendRoot, functionsPath).split(sep).join('/'),
-    err,
-  );
-  if (diagnostics.some((d) => d.severity === 'error')) {
-    return { ok: false, diagnostics };
-  }
-  if (diagnostics.some((d) => d.severity === 'error')) {
-    return { ok: false, diagnostics };
-  }
-
   // @ref LLP 0010#generated-artifacts — the AST resolver defines the complete
   // hashed graph; evaluation happens only from those bundled bytes, never by
   // letting Node's ambient loader discover a second, unaccounted-for graph.
@@ -2407,6 +2391,19 @@ async function generateInProcessLocked({
   const routesBuild = authoringProfile === EXPLICIT_AUTHORING_PROFILE && existsSync(routesPath)
     ? await buildDefinitionBundle(routesPath, backendRoot, diagnostics, 'routes', 'routes')
     : null;
+  // Graph shape refusals run over every authored module after the complete
+  // hashed graph exists but before any definition byte is evaluated. A graph
+  // re-exported from a helper module therefore receives the same fail-closed
+  // source register as one declared directly in functions.mjs.
+  if (functionsBuild) {
+    validateGraphAuthoringGraph(
+      functionsBuild.graph,
+      functionsPath,
+      functionsSource,
+      backendRoot,
+      err,
+    );
+  }
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
@@ -19449,8 +19446,48 @@ function exportedDefinitionSourceSpans(source) {
   return spans;
 }
 
-function validateGraphAuthoringSource(source, path, err) {
-  if (typeof source !== 'string' || !source.includes('defineGraphQuery')) return;
+const GRAPH_SOURCE_FAULT_ORDER = new Map([
+  ['SNAPBACK_GRAPH_CLIENT_AST_FORBIDDEN', 1],
+  ['SNAPBACK_GRAPH_CODE_FORBIDDEN', 2],
+  ['SNAPBACK_GRAPH_RECURSION_FORBIDDEN', 3],
+  ['SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', 4],
+]);
+
+function graphImportResolvesToOwnDefine(specifier, sourcePath) {
+  const ownDefine = DEFINITION_PACKAGE_IMPORTS.get('@expo/snapback-codegen/define');
+  let candidate = DEFINITION_PACKAGE_IMPORTS.get(specifier);
+  try {
+    if (!candidate && specifier.startsWith('file:')) candidate = fileURLToPath(specifier);
+    if (!candidate && (specifier.startsWith('./') || specifier.startsWith('../'))) {
+      candidate = resolve(dirname(sourcePath), specifier);
+      if (!existsSync(candidate) && !/\.[A-Za-z0-9]+$/u.test(candidate)) {
+        candidate = ['.mjs', '.js', '.mts', '.ts']
+          .map((extension) => `${candidate}${extension}`)
+          .find((path) => existsSync(path));
+      }
+    }
+    if (!candidate && isAbsolute(specifier)) candidate = specifier;
+    if (!candidate) return false;
+    const real = (path) => {
+      try { return realpathSync(path); } catch { return resolve(path); }
+    };
+    return real(candidate) === real(ownDefine);
+  } catch {
+    return false;
+  }
+}
+
+function graphPropertyName(property) {
+  const name = property?.name;
+  if (ts.isComputedPropertyName(name)) return { computed: true, name: null };
+  if (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) {
+    return { computed: false, name: name.text };
+  }
+  return { computed: false, name: null };
+}
+
+function validateGraphAuthoringSource(source, path) {
+  if (typeof source !== 'string') return [];
   const sourceFile = ts.createSourceFile(
     path,
     source,
@@ -19458,25 +19495,59 @@ function validateGraphAuthoringSource(source, path, err) {
     true,
     /\.tsx?$/iu.test(path) ? ts.ScriptKind.TS : ts.ScriptKind.JS,
   );
-  const graphBuilders = new Set(['defineGraphQuery']);
-  const graphLiteralHelpers = new Set([
+  const graphBuilders = new Set();
+  const helperExports = new Set([
     'arg', 'lit', 'literal',
     'eq', 'ltFilter', 'lteFilter', 'gtFilter', 'gteFilter',
     'asc', 'desc',
   ]);
+  const graphLiteralHelpers = new Map();
+  const graphNamespaces = new Set();
+  const validatorRoots = new Set();
   for (const statement of sourceFile.statements) {
     if (!ts.isImportDeclaration(statement)
-      || !statement.importClause?.namedBindings
-      || !ts.isNamedImports(statement.importClause.namedBindings)) continue;
-    for (const specifier of statement.importClause.namedBindings.elements) {
-      if ((specifier.propertyName?.text ?? specifier.name.text) === 'defineGraphQuery') {
-        graphBuilders.add(specifier.name.text);
-      }
-      if (graphLiteralHelpers.has(specifier.propertyName?.text ?? specifier.name.text)) {
-        graphLiteralHelpers.add(specifier.name.text);
-      }
+      || !ts.isStringLiteral(statement.moduleSpecifier)
+      || !graphImportResolvesToOwnDefine(statement.moduleSpecifier.text, path)) continue;
+    const bindings = statement.importClause?.namedBindings;
+    if (bindings && ts.isNamespaceImport(bindings)) {
+      graphNamespaces.add(bindings.name.text);
+      continue;
+    }
+    if (!bindings || !ts.isNamedImports(bindings)) continue;
+    for (const specifier of bindings.elements) {
+      const imported = specifier.propertyName?.text ?? specifier.name.text;
+      if (imported === 'defineGraphQuery') graphBuilders.add(specifier.name.text);
+      if (helperExports.has(imported)) graphLiteralHelpers.set(specifier.name.text, imported);
+      if (imported === 'v') validatorRoots.add(specifier.name.text);
     }
   }
+  const ownCallee = (node) => {
+    const callee = unwrap(node);
+    if (ts.isIdentifier(callee)) {
+      if (graphBuilders.has(callee.text)) return { kind: 'builder', name: 'defineGraphQuery' };
+      if (graphLiteralHelpers.has(callee.text)) {
+        return { kind: 'helper', name: graphLiteralHelpers.get(callee.text) };
+      }
+      return null;
+    }
+    if (ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression)) {
+      if (graphNamespaces.has(callee.expression.text)) {
+        if (callee.name.text === 'defineGraphQuery') return { kind: 'builder', name: callee.name.text };
+        if (helperExports.has(callee.name.text)) return { kind: 'helper', name: callee.name.text };
+      }
+      if (validatorRoots.has(callee.expression.text)) {
+        return { kind: 'validator', name: callee.name.text };
+      }
+    }
+    if (ts.isPropertyAccessExpression(callee)
+      && ts.isPropertyAccessExpression(callee.expression)
+      && ts.isIdentifier(callee.expression.expression)
+      && graphNamespaces.has(callee.expression.expression.text)
+      && callee.expression.name.text === 'v') {
+      return { kind: 'validator', name: callee.name.text };
+    }
+    return null;
+  };
   const unwrap = (node) => {
     let current = node;
     while (current && (
@@ -19488,25 +19559,19 @@ function validateGraphAuthoringSource(source, path, err) {
     )) current = current.expression;
     return current;
   };
-  const propertyName = (property) => {
-    const name = property?.name;
-    if (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) return name.text;
-    return null;
-  };
   const span = (node) => {
     const point = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
     return { file: path, line: point.line + 1, column: point.character + 1 };
   };
-  const report = (code, node, message) => err(code, 'graph', message, {
-    sourceSpan: span(node),
-    path,
-  });
+  const faults = new Map();
+  const report = (code, node, message) => {
+    if (!faults.has(code)) faults.set(code, { code, node, message, sourceSpan: span(node), path });
+  };
   const calls = [];
   const collect = (node) => {
     if (!node) return;
     if (ts.isCallExpression(node)) {
-      const callee = unwrap(node.expression);
-      if (ts.isIdentifier(callee) && graphBuilders.has(callee.text)) calls.push(node);
+      if (ownCallee(node.expression)?.kind === 'builder') calls.push(node);
     }
     ts.forEachChild(node, collect);
   };
@@ -19517,77 +19582,140 @@ function validateGraphAuthoringSource(source, path, err) {
       report('SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', call, 'defineGraphQuery requires an unconditional object-literal source carrier');
       continue;
     }
-    let fault = null;
-    const inspect = (node, context = 'shape') => {
-      if (fault || !node) return;
+    const inspect = (node, propertyPath = []) => {
+      if (!node) return;
       const current = unwrap(node);
-      if (ts.isArrowFunction(current) || ts.isFunctionExpression(current)) {
-        fault = ['SNAPBACK_GRAPH_CODE_FORBIDDEN', current, 'defineGraphQuery contains a callback or JavaScript body'];
+      if (ts.isStringLiteral(current) || ts.isNumericLiteral(current)
+        || ts.isNoSubstitutionTemplateLiteral(current)
+        || current.kind === ts.SyntaxKind.TrueKeyword
+        || current.kind === ts.SyntaxKind.FalseKeyword
+        || current.kind === ts.SyntaxKind.NullKeyword) return;
+      if (ts.isPrefixUnaryExpression(current)
+        && [ts.SyntaxKind.PlusToken, ts.SyntaxKind.MinusToken].includes(current.operator)
+        && ts.isNumericLiteral(unwrap(current.operand))) return;
+      if (ts.isArrowFunction(current) || ts.isFunctionExpression(current)
+        || ts.isFunctionDeclaration(current) || ts.isMethodDeclaration(current)
+        || ts.isGetAccessorDeclaration(current) || ts.isSetAccessorDeclaration(current)
+        || ts.isClassExpression(current) || ts.isClassDeclaration(current)
+        || ts.isNewExpression(current)) {
+        report('SNAPBACK_GRAPH_CODE_FORBIDDEN', current, 'defineGraphQuery contains executable code');
         return;
       }
       if (ts.isConditionalExpression(current)
+        || ts.isTemplateExpression(current)
         || ts.isBinaryExpression(current) && [
           ts.SyntaxKind.AmpersandAmpersandToken,
           ts.SyntaxKind.BarBarToken,
           ts.SyntaxKind.QuestionQuestionToken,
         ].includes(current.operatorToken.kind)) {
-        fault = ['SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', current, 'defineGraphQuery shape is data-dependent'];
+        report('SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', current, 'defineGraphQuery shape is data-dependent');
         return;
       }
       if (ts.isSpreadAssignment(current) || ts.isSpreadElement(current)) {
-        fault = ['SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', current, 'defineGraphQuery shape may not be spread or data-dependent'];
+        report('SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', current, 'defineGraphQuery shape may not be spread or data-dependent');
         return;
       }
       if (ts.isCallExpression(current)) {
-        const callee = unwrap(current.expression);
-        if (ts.isIdentifier(callee) && graphBuilders.has(callee.text) && current !== call) {
-          fault = ['SNAPBACK_GRAPH_RECURSION_FORBIDDEN', current, 'a graph declaration may not invoke another graph declaration recursively'];
+        const binding = ownCallee(current.expression);
+        if (binding?.kind === 'builder' && current !== call) {
+          report('SNAPBACK_GRAPH_RECURSION_FORBIDDEN', current, 'a graph declaration may not invoke another graph declaration recursively');
           return;
         }
-        const graphLiteralHelper = context === 'node'
-          && ts.isIdentifier(callee)
-          && graphLiteralHelpers.has(callee.text);
-        if (context === 'shape' || context === 'literal' || (context === 'node' && !graphLiteralHelper)) {
-          fault = ['SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', current, 'graph nodes, projection, bounds, and broadcast must be literal plan data'];
+        const inArgs = propertyPath[0] === 'args';
+        const inFilters = propertyPath.includes('filters');
+        const inOrder = propertyPath.includes('order');
+        const helperAllowed = binding?.kind === 'helper' && (
+          (['arg', 'lit', 'literal', 'eq', 'ltFilter', 'lteFilter', 'gtFilter', 'gteFilter'].includes(binding.name) && inFilters)
+          || (['asc', 'desc'].includes(binding.name) && inOrder)
+        );
+        if (binding?.kind === 'helper' && binding.name === 'arg' && !inFilters) {
+          report(
+            'SNAPBACK_GRAPH_CLIENT_AST_FORBIDDEN',
+            current,
+            'an argument helper may bind only a closed filter value, never graph shape',
+          );
+        } else if (!(helperAllowed || (binding?.kind === 'validator' && inArgs))) {
+          report(
+            'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+            current,
+            'graph values may call only codegen-owned helpers in their declared literal positions',
+          );
           return;
         }
+        for (const argument of current.arguments) inspect(argument, propertyPath);
+        return;
       }
-      ts.forEachChild(current, (child) => inspect(child, context));
+      if (ts.isObjectLiteralExpression(current)) {
+        for (const property of current.properties) {
+          if (ts.isSpreadAssignment(property)) {
+            report('SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', property, 'defineGraphQuery source carrier may not use object spread');
+            continue;
+          }
+          const named = graphPropertyName(property);
+          if (named.computed) {
+            report('SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', property.name, 'computed graph property keys are dynamic construction');
+          }
+          if (ts.isPropertyAssignment(property)) {
+            inspect(property.initializer, [...propertyPath, named.name]);
+          } else if (ts.isShorthandPropertyAssignment(property)) {
+            inspect(property.name, [...propertyPath, named.name]);
+          } else {
+            report('SNAPBACK_GRAPH_CODE_FORBIDDEN', property, 'graph objects admit data properties only');
+          }
+        }
+        return;
+      }
+      if (ts.isArrayLiteralExpression(current)) {
+        for (const element of current.elements) {
+          if (ts.isOmittedExpression(element)) {
+            report('SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', current, 'graph arrays must be dense literal arrays');
+          } else {
+            inspect(element, propertyPath);
+          }
+        }
+        return;
+      }
+      if (ts.isIdentifier(current)) {
+        const property = propertyPath.at(-1);
+        if (property === 'table' || property === 'targetTable') return;
+        report('SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', current, 'identifier references are unavailable outside declared table/helper positions');
+        return;
+      }
+      if (ts.isPropertyAccessExpression(current) || ts.isElementAccessExpression(current)) {
+        report('SNAPBACK_GRAPH_CODE_FORBIDDEN', current, 'dynamic property access is executable graph data');
+        return;
+      }
+      report('SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', current, 'graph values must be a syntactic object/array/primitive literal tree');
     };
-    const requiredLiteral = new Set(['nodes', 'projection', 'bounds', 'queryCost', 'broadcast']);
-    for (const property of spec.properties) {
-      if (fault) break;
-      if (ts.isSpreadAssignment(property)) {
-        fault = ['SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', property, 'defineGraphQuery source carrier may not use object spread'];
-        break;
-      }
-      if (!ts.isPropertyAssignment(property)) continue;
-      const name = propertyName(property);
-      const value = unwrap(property.initializer);
-      if (name === 'nodes') {
-        if (!ts.isArrayLiteralExpression(value)) {
-          fault = ['SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', value, 'defineGraphQuery nodes must be an unconditional array of object literals'];
-          break;
-        }
-        inspect(value, 'node');
-        if (!fault && value.elements.some((element) => !ts.isObjectLiteralExpression(unwrap(element)))) {
-          fault = ['SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', value, 'defineGraphQuery nodes must be an unconditional array of object literals'];
-        }
-      } else if (requiredLiteral.has(name)) {
-        if (!ts.isObjectLiteralExpression(value)) {
-          fault = ['SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', value, `defineGraphQuery ${name} must be object-literal plan data`];
-          break;
-        }
-        inspect(value, 'literal');
-      } else if (name === 'args' || name === 'authorityScopes') {
-        if (!ts.isObjectLiteralExpression(value)) {
-          fault = ['SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', value, `defineGraphQuery ${name} must be an object literal`];
-          break;
-        }
-        inspect(value, 'helper');
-      }
+    inspect(spec);
+  }
+  return [...faults.values()];
+}
+
+function validateGraphAuthoringGraph(graph, entryPath, entrySource, backendRoot, err) {
+  const faults = new Map();
+  const modules = [...graph.values()]
+    .filter(({ path }) => /\.(?:mjs|js|mts|ts)$/iu.test(path))
+    .sort((left, right) => compareCodeUnits(
+      moduleIdentityLabel(left.path, backendRoot),
+      moduleIdentityLabel(right.path, backendRoot),
+    ));
+  for (const module of modules) {
+    const source = resolve(module.path) === resolve(entryPath) ? entrySource : module.source;
+    const path = moduleIdentityLabel(module.path, backendRoot)
+      ?? relative(backendRoot, module.path).split(sep).join('/');
+    for (const fault of validateGraphAuthoringSource(source, module.path)) {
+      if (!faults.has(fault.code)) faults.set(fault.code, { ...fault, path });
     }
-    if (fault) report(...fault);
+  }
+  for (const fault of [...faults.values()].sort((left, right) => (
+    (GRAPH_SOURCE_FAULT_ORDER.get(left.code) ?? 255)
+      - (GRAPH_SOURCE_FAULT_ORDER.get(right.code) ?? 255)
+  ))) {
+    err(fault.code, 'graph', fault.message, {
+      sourceSpan: { ...fault.sourceSpan, file: fault.path },
+      path: fault.path,
+    });
   }
 }
 
@@ -20005,6 +20133,7 @@ const DEFINITION_EVALUATION_DIAGNOSTIC_CODES = new Set([
   // definition evaluator. Preserve only the closed ids that defineGraphQuery
   // itself can mint so the CLI receives the same stable refusal vocabulary.
   'SNAPBACK_GRAPH_AUTHORITY_UNPROVABLE',
+  'SNAPBACK_GRAPH_ARGUMENT_UNBOUND',
   'SNAPBACK_GRAPH_BOUND_INVALID',
   'SNAPBACK_GRAPH_CLIENT_AST_FORBIDDEN',
   'SNAPBACK_GRAPH_CODE_FORBIDDEN',
@@ -20017,6 +20146,7 @@ const DEFINITION_EVALUATION_DIAGNOSTIC_CODES = new Set([
   'SNAPBACK_GRAPH_RECURSION_FORBIDDEN',
   'SNAPBACK_GRAPH_ROOT_COUNT_INVALID',
   'SNAPBACK_GRAPH_SCHEMA_REFERENCE_INVALID',
+  'SNAPBACK_GRAPH_SEARCH_UNADMITTED',
   'SNAPBACK_GRAPH_THROUGH_TABLE_UNDECLARED',
   'SNAPBACK_GRAPH_UNBOUNDED_EXPANSION',
   'SNAPBACK_GRAPH_UNKNOWN_FIELD',

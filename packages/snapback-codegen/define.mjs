@@ -3573,6 +3573,25 @@ function graphRefuse(code, message) {
   assert(false, message, code);
 }
 
+function graphCanonicalPrimitivePreflight(value, path) {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      graphRefuse('SNAPBACK_GRAPH_ARGUMENT_UNBOUND', `${path} contains a non-finite canonical value`);
+    }
+    if (Number.isInteger(value)
+      && Math.abs(value) > Number.MAX_SAFE_INTEGER
+      && Math.abs(value) < 1e21) {
+      graphRefuse('SNAPBACK_GRAPH_ARGUMENT_UNBOUND', `${path} contains an unsafe-integer canonical value`);
+    }
+  }
+  if (typeof value === 'string' && (typeof value.isWellFormed === 'function'
+    ? !value.isWellFormed()
+    : /[\uD800-\uDFFF]/u.test(value)
+      && !/^(?:[^\uD800-\uDFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF])*$/u.test(value))) {
+    graphRefuse('SNAPBACK_GRAPH_ARGUMENT_UNBOUND', `${path} contains a lone-surrogate canonical value`);
+  }
+}
+
 function graphSourcePreflight(spec) {
   const stack = new Set();
   const visited = new Set();
@@ -3581,10 +3600,24 @@ function graphSourcePreflight(spec) {
       if (typeof value === 'function') {
         graphRefuse('SNAPBACK_GRAPH_CODE_FORBIDDEN', `${path} contains executable code`);
       }
+      if (typeof value === 'bigint' || typeof value === 'symbol' || typeof value === 'undefined') {
+        graphRefuse('SNAPBACK_GRAPH_ARGUMENT_UNBOUND', `${path} is outside the canonical-value grammar`);
+      }
+      graphCanonicalPrimitivePreflight(value, path);
       return;
     }
-    if (value.__table === true || value.fieldType !== undefined || value.resultKind !== undefined) return;
-    if (value.__expr === true && !/\.filters\[\d+\]\.value$/u.test(path)) {
+    const ownValue = (key) => {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      return descriptor && Object.hasOwn(descriptor, 'value') ? descriptor.value : undefined;
+    };
+    // Table builders are trusted DSL helper results with a private prototype;
+    // they are replaced by installed-schema data before the graph is cloned.
+    if (ownValue(TABLE) === true) return;
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== null && prototype !== (Array.isArray(value) ? Array.prototype : Object.prototype)) {
+      graphRefuse('SNAPBACK_GRAPH_CODE_FORBIDDEN', `${path} must use a plain object or array prototype`);
+    }
+    if (ownValue('__expr') === true && !/\.filters\[\d+\]\.value$/u.test(path)) {
       graphRefuse(
         'SNAPBACK_GRAPH_CLIENT_AST_FORBIDDEN',
         `${path} makes graph shape argument-bindable instead of closing it as plan data`,
@@ -3596,12 +3629,16 @@ function graphSourcePreflight(spec) {
     if (visited.has(value)) return;
     stack.add(value);
     for (const key of Reflect.ownKeys(value)) {
-      if (typeof key === 'symbol') continue;
+      if (typeof key === 'symbol') {
+        graphRefuse('SNAPBACK_GRAPH_UNKNOWN_FIELD', `${path} contains a symbol property`);
+      }
+      graphCanonicalPrimitivePreflight(key, path);
       const descriptor = Object.getOwnPropertyDescriptor(value, key);
-      if (descriptor?.get || descriptor?.set) {
+      if (Array.isArray(value) && key === 'length') continue;
+      if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
         graphRefuse('SNAPBACK_GRAPH_CODE_FORBIDDEN', `${path}.${key} uses executable property access`);
       }
-      visit(value[key], Array.isArray(value) ? `${path}[${key}]` : `${path}.${key}`);
+      visit(descriptor.value, Array.isArray(value) ? `${path}[${key}]` : `${path}.${key}`);
     }
     stack.delete(value);
     visited.add(value);
@@ -3611,7 +3648,7 @@ function graphSourcePreflight(spec) {
 
 function graphTableFacts(table, where) {
   assert(
-    table?.__table === true && typeof table.__tableName === 'string' && table.__tableName.length > 0,
+    table?.[TABLE] === true && typeof table.__tableName === 'string' && table.__tableName.length > 0,
     `defineGraphQuery ${where} must be a defineTable(...) installed in defineSchema(...)`,
     'SNAPBACK_GRAPH_SCHEMA_REFERENCE_INVALID',
   );
@@ -3763,17 +3800,10 @@ function graphNode(node, index, projectionFacts) {
     ...(node.parentNodeId === undefined ? {} : { parentNodeId: node.parentNodeId }),
   };
   if (node.kind === 'search-membership') {
-    projectionFacts.set(node.nodeId, { kind: node.kind, table: null });
-    return {
-      ...base,
-      providerCapabilityId: node.providerCapabilityId,
-      membershipIdentity: { ...node.membershipIdentity },
-      memberField: node.memberField,
-      scopeBindings: node.scopeBindings.map((binding) => ({ ...binding, source: { ...binding.source } })),
-      invalidationTables: [...node.invalidationTables],
-      providerCompletenessClass: node.providerCompletenessClass,
-      ...(node.argumentIds === undefined ? {} : { argumentIds: [...node.argumentIds] }),
-    };
+    graphRefuse(
+      'SNAPBACK_GRAPH_SEARCH_UNADMITTED',
+      `${where} cannot author search membership until D6 supplies an owner-issued admission certificate`,
+    );
   }
   if (node.kind === 'exists-semi-join') {
     projectionFacts.set(node.nodeId, { kind: node.kind, table: null });

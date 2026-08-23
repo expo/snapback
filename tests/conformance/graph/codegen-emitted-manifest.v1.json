@@ -1,0 +1,379 @@
+{
+  "acknowledgedExperimentalCapabilities": [
+    "args_contract_v1",
+    "graph_query_v1",
+    "result_contract_v1"
+  ],
+  "appId": "graph-codegen-vector",
+  "artifactKind": "functionManifest",
+  "authoredSourceHash": "sha256:b637d4abc44b3bfaa9ba3ee61e8d5c1930bd7bb70389c889806073fdd7796ad3",
+  "authoringProfile": "snapback-explicit-v1",
+  "bundleHash": "sha256:ca13bb320643c80d",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "labels",
+            "required": true,
+            "value": {
+              "element": {
+                "kind": "string",
+                "maxBytes": 32
+              },
+              "kind": "array",
+              "maxItems": 3
+            }
+          },
+          {
+            "name": "assignees",
+            "required": true,
+            "value": {
+              "element": {
+                "kind": "string",
+                "maxBytes": 32
+              },
+              "kind": "array",
+              "maxItems": 5
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:ee26f6c7e17cfff237fe627cf95c38cfec1128dedd4971c322efe028a2c7fde1",
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "issueGraph",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_updated",
+            "table": "issues"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "issueGraph",
+      "handlerForm": "plan",
+      "id": "graph-codegen-vector:issueGraph",
+      "implementationHash": "sha256:69e5cd548a56d8c03043c35136dd742bc572bce3bb6aabf9eedef497466ae4bb",
+      "kind": "LiveQuery",
+      "name": "issueGraph",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "issues",
+        "tables": [
+          "issues"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "graph_query_v1",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "records",
+        "record": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "rows": {
+          "maxItems": 2,
+          "minItems": 0
+        }
+      },
+      "resultContractHash": "sha256:788e82b99f16fe0de0aa15922c916eab1f451930d718356529db9eee16a5f07f",
+      "runtime": {
+        "HostPlan": {
+          "GraphQuery": {
+            "normalizedPlan": {
+              "arguments": [
+                {
+                  "argumentId": "a0",
+                  "contract": {
+                    "format": "snapback.argument-binding-contract.v1",
+                    "required": true,
+                    "value": {
+                      "element": {
+                        "kind": "string",
+                        "maxBytes": 32
+                      },
+                      "kind": "array",
+                      "maxItems": 5
+                    }
+                  },
+                  "contractHash": "sha256:693b95dab05e0a1fc7b87bcd85a82c15d9cb671e7d6a70903dd8ff6532f245e3",
+                  "name": "assignees"
+                },
+                {
+                  "argumentId": "a1",
+                  "contract": {
+                    "format": "snapback.argument-binding-contract.v1",
+                    "required": true,
+                    "value": {
+                      "element": {
+                        "kind": "string",
+                        "maxBytes": 32
+                      },
+                      "kind": "array",
+                      "maxItems": 3
+                    }
+                  },
+                  "contractHash": "sha256:0f4dc4c31df0a318efbc64bea6ae7db5c492405283da32c5fa019cfeee311624",
+                  "name": "labels"
+                }
+              ],
+              "authorityPartitionRule": {
+                "class2Inputs": [
+                  {
+                    "declarationId": "issues",
+                    "eventSelectors": [
+                      {
+                        "cause": "app-reset",
+                        "kind": "authorization-incarnation-change"
+                      },
+                      {
+                        "cause": "declared-physical-restore",
+                        "kind": "authorization-incarnation-change"
+                      },
+                      {
+                        "cause": "logical-import",
+                        "kind": "authorization-incarnation-change"
+                      },
+                      {
+                        "declarationId": "issues",
+                        "kind": "authorization-metadata-activation"
+                      },
+                      {
+                        "declarationId": "issues",
+                        "kind": "out-of-band-permission-revocation"
+                      },
+                      {
+                        "kind": "permission-backing-write",
+                        "permissionFields": [
+                          "title"
+                        ],
+                        "scope": {
+                          "kind": "all-declaration-scopes"
+                        },
+                        "table": "issues"
+                      }
+                    ],
+                    "nodeId": "n0",
+                    "policyIdentity": "sha256:a348adb5d538ab93f42eed832ba624fd56c25b20015c6d7c5c6d1bbb00763296",
+                    "scopeArgumentIds": []
+                  },
+                  {
+                    "declarationId": "issues",
+                    "eventSelectors": [
+                      {
+                        "cause": "app-reset",
+                        "kind": "authorization-incarnation-change"
+                      },
+                      {
+                        "cause": "declared-physical-restore",
+                        "kind": "authorization-incarnation-change"
+                      },
+                      {
+                        "cause": "logical-import",
+                        "kind": "authorization-incarnation-change"
+                      },
+                      {
+                        "declarationId": "issues",
+                        "kind": "authorization-metadata-activation"
+                      },
+                      {
+                        "declarationId": "issues",
+                        "kind": "out-of-band-permission-revocation"
+                      },
+                      {
+                        "kind": "permission-backing-write",
+                        "permissionFields": [
+                          "title"
+                        ],
+                        "scope": {
+                          "kind": "all-declaration-scopes"
+                        },
+                        "table": "issues"
+                      }
+                    ],
+                    "nodeId": "n1",
+                    "policyIdentity": "sha256:a348adb5d538ab93f42eed832ba624fd56c25b20015c6d7c5c6d1bbb00763296",
+                    "scopeArgumentIds": []
+                  }
+                ],
+                "class3": "none",
+                "format": "snapback.graph-authority-partition-rule.v1"
+              },
+              "broadcast": {
+                "classification": "query-shaped",
+                "format": "snapback.graph-broadcast-admission.v1",
+                "reason": "base-not-class-1"
+              },
+              "capabilityId": "graph_query_v1",
+              "format": "snapback.graph-query-plan.v1",
+              "nodes": [
+                {
+                  "accessIndex": "by_updated",
+                  "authority": {
+                    "declaredClass": 2,
+                    "proof": {
+                      "declaredClass": 2,
+                      "equivalenceWitness": "declared-inputs-only",
+                      "format": "snapback.graph-partition-equivalence-proof.v1",
+                      "nodeId": "n0",
+                      "partitionFunction": "sha256:9ecba72fbc743928729eb0b3f1bb3f319120139d4358ccd32cd3fd3891df0520",
+                      "policyInputs": [
+                        {
+                          "declarationId": "issues",
+                          "identity": "sha256:a348adb5d538ab93f42eed832ba624fd56c25b20015c6d7c5c6d1bbb00763296",
+                          "kind": "permissionBacking"
+                        }
+                      ]
+                    }
+                  },
+                  "edgeName": "$root",
+                  "filters": [],
+                  "kind": "root-window",
+                  "nodeId": "n0",
+                  "order": [
+                    {
+                      "direction": "Desc",
+                      "field": "updatedAt"
+                    }
+                  ],
+                  "page": {
+                    "kind": "demand"
+                  },
+                  "table": "issues",
+                  "visibility": {
+                    "kind": "public-read"
+                  }
+                },
+                {
+                  "authority": {
+                    "declaredClass": 2,
+                    "proof": {
+                      "declaredClass": 2,
+                      "equivalenceWitness": "declared-inputs-only",
+                      "format": "snapback.graph-partition-equivalence-proof.v1",
+                      "nodeId": "n1",
+                      "partitionFunction": "sha256:9ecba72fbc743928729eb0b3f1bb3f319120139d4358ccd32cd3fd3891df0520",
+                      "policyInputs": [
+                        {
+                          "declarationId": "issues",
+                          "identity": "sha256:a348adb5d538ab93f42eed832ba624fd56c25b20015c6d7c5c6d1bbb00763296",
+                          "kind": "permissionBacking"
+                        }
+                      ]
+                    }
+                  },
+                  "edgeName": "$result",
+                  "kind": "closed-projection",
+                  "nodeId": "n1",
+                  "object": {
+                    "fields": [
+                      {
+                        "name": "title",
+                        "value": {
+                          "field": "title",
+                          "kind": "field",
+                          "nodeId": "n0"
+                        }
+                      }
+                    ],
+                    "scopeNodeId": "n0"
+                  }
+                }
+              ],
+              "queryCost": {
+                "graph": {
+                  "arguments": [
+                    {
+                      "argumentId": "a0",
+                      "maxItems": 5
+                    },
+                    {
+                      "argumentId": "a1",
+                      "maxItems": 3
+                    }
+                  ],
+                  "maxArgumentItems": 8,
+                  "maxMaintainedWritesPerMutation": 0,
+                  "maxPageResultBytes": 100,
+                  "nodes": [
+                    {
+                      "maxExaminedEntriesPerExecution": 3,
+                      "maxRootRowsPerPage": 2,
+                      "maxWindowIndexRanges": 2,
+                      "maxWindowPages": 2,
+                      "maxWindowResultBytes": 200,
+                      "maxWindowResultRows": 4,
+                      "maxWindowRootRows": 4,
+                      "maxWindowScannedRows": 6,
+                      "nodeId": "n0"
+                    }
+                  ],
+                  "windowRollup": {
+                    "maxWindowIndexRanges": 2,
+                    "maxWindowPages": 2,
+                    "maxWindowResultBytes": 200,
+                    "maxWindowResultRows": 4,
+                    "maxWindowRootRows": 4,
+                    "maxWindowScannedRows": 6
+                  }
+                },
+                "maxDistinctEvaluationGroups": 1,
+                "maxEstimatedLiveFanoutMs": 10,
+                "maxEvaluationTurnMs": 10,
+                "maxIndexRanges": 1,
+                "maxObservers": 1,
+                "maxResultBytes": 100,
+                "maxResultRows": 2,
+                "maxScannedRows": 3
+              },
+              "resultContractHash": "sha256:788e82b99f16fe0de0aa15922c916eab1f451930d718356529db9eee16a5f07f",
+              "rootNodeId": "n0"
+            },
+            "planHash": "sha256:76258dc50747a2d3484a7796d5fa66960aa31498ed958b445e4a1a2e6de4f002"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "48d1cc891293672a5ff199859621e1f9424af6fdb7b64503d41d47ff29b523f7",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": []
+}

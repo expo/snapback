@@ -1,13 +1,15 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 
 import {
   GRAPH_IDENTITY_DOMAINS,
   compileGraphQueryV1,
+  graphCanonicalJson,
   graphDomainHash,
   graphPlanIdentityV1,
   normalizeGraphIntervalEndV1,
@@ -15,16 +17,39 @@ import {
   normalizeKeysetKeyV1,
 } from './graph-query.mjs';
 import { arg, defineGraphQuery, defineSchema, defineTable, eq, lit, v } from './define.mjs';
-import { generate, generateInProcess } from './index.mjs';
+import { generateInProcess } from './index.mjs';
+import { jcs as clientJcs } from '../snapback-client/rqs.mjs';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(packageDir, '../..');
-const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
 const graphCorpus = join(repoRoot, 'tests', 'conformance', 'graph');
 const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const zeroHash = `sha256:${'0'.repeat(64)}`;
 const oneHash = `sha256:${'1'.repeat(64)}`;
+
+// The dependency-local graph canonicalizer stays byte-equal to the shipped
+// client JCS on both the shared RQS corpus and the Rust-owned graph boundary
+// corpus. Refusal vectors must fail in both JS arms without reaching hashing.
+{
+  const shared = readJson(join(repoRoot, 'tests', 'fixtures', 'rqs-parity-v1.json'));
+  for (const [index, vector] of shared.jcs.entries()) {
+    const value = vector.input;
+    assert.equal(graphCanonicalJson(value), vector.canonical, `shared JCS vector ${index}`);
+    assert.equal(graphCanonicalJson(value), clientJcs(value), `shared JCS vector ${index}`);
+  }
+  const vectors = readJson(join(graphCorpus, 'identity-vectors.v1.json'));
+  for (const vector of vectors.jcsBoundary) {
+    const value = vector.javascript === 'Infinity' ? Infinity : JSON.parse(vector.json);
+    if (vector.canonical !== undefined) {
+      assert.equal(graphCanonicalJson(value), vector.canonical, vector.name);
+      assert.equal(graphCanonicalJson(value), clientJcs(value), vector.name);
+    } else {
+      assert.throws(() => graphCanonicalJson(value), undefined, vector.name);
+      assert.throws(() => clientJcs(value), undefined, vector.name);
+    }
+  }
+}
 
 // The JS mirror replays every B1 identity vector, including each one-axis
 // rotation, under the exact domain supplied by the Rust-owned corpus.
@@ -156,7 +181,9 @@ const oneHash = `sha256:${'1'.repeat(64)}`;
     vectors.broadcastScope.rotatedHash,
   );
   assert.deepEqual(
-    Object.fromEntries(Object.entries(vectors).filter(([name]) => name !== 'format').map(
+    Object.fromEntries(Object.entries(vectors).filter(([name]) => (
+      !['format', 'jcsBoundary'].includes(name)
+    )).map(
       ([name, vector]) => [name, vector.domain],
     )),
     GRAPH_IDENTITY_DOMAINS,
@@ -237,6 +264,29 @@ const oneHash = `sha256:${'1'.repeat(64)}`;
     collectionIdentity.normalizedPlan.queryCost.graph.arguments,
     [{ argumentId: 'a0', maxItems: 4 }],
   );
+  assert.throws(
+    () => compileGraphQueryV1({
+      source: {
+        nodes: [{ ...root, parentNodeId: 'missing-parent' }],
+        projection,
+        queryCost,
+        authorityScopes: {},
+        broadcast: { classification: 'query-shaped' },
+      },
+      argsContract: { fields: [] },
+      resultContractHash: zeroHash,
+      tables: {
+        issues: { name: 'issues', fields: [], indexes: [], visibility: root.visibility },
+        membersTable: {
+          name: 'membersTable', fields: [], indexes: [],
+          membership: { id: 'members', scope: 'resource', roles: ['member', 'admin'] },
+          visibility: { kind: 'owner', field: 'principal' },
+        },
+      },
+    }),
+    (error) => error.code === 'SNAPBACK_GRAPH_PARENT_INVALID',
+    'an unknown parent must refuse before topological cycle derivation',
+  );
 }
 
 // Preorder, keyset, literal-page, and Serde spelling vectors share the same
@@ -286,7 +336,7 @@ const oneHash = `sha256:${'1'.repeat(64)}`;
   assert.deepEqual(
     normalizeGraphPlanV1(unicodeFilters).nodes[0].filters.map(({ field }) => field),
     ['\uE000', '\u{10000}'],
-    'filter conjunctions sort by canonical JCS UTF-8 bytes, matching Rust String::cmp',
+    'filter conjunctions sort by the whole filter\'s canonical JCS UTF-8 bytes',
   );
 
   const keysets = readJson(join(graphCorpus, 'keyset-vectors.v1.json'));
@@ -374,71 +424,107 @@ const oneHash = `sha256:${'1'.repeat(64)}`;
     () => defineGraphQuery(recursive),
     (error) => error.code === 'SNAPBACK_GRAPH_RECURSION_FORBIDDEN',
   );
+  for (const value of [Infinity, 9_007_199_254_740_992, '\uD800']) {
+    assert.throws(
+      () => defineGraphQuery({
+        ...base,
+        nodes: [{ ...base.nodes[0], filters: [eq('title', lit(value))] }],
+      }),
+      (error) => error.code === 'SNAPBACK_GRAPH_ARGUMENT_UNBOUND',
+      `canonical-value refusal for ${String(value)}`,
+    );
+  }
+  let getterReads = 0;
+  const accessorSpec = { ...base };
+  Object.defineProperty(accessorSpec, 'broadcast', {
+    enumerable: true,
+    get() {
+      getterReads += 1;
+      return base.broadcast;
+    },
+  });
+  assert.throws(
+    () => defineGraphQuery(accessorSpec),
+    (error) => error.code === 'SNAPBACK_GRAPH_CODE_FORBIDDEN',
+  );
+  assert.equal(getterReads, 0, 'runtime preflight must not invoke authored getters');
+  let fakeTableGetterReads = 0;
+  const fakeTable = { __table: true };
+  Object.defineProperty(fakeTable, '__tableName', {
+    enumerable: true,
+    get() {
+      fakeTableGetterReads += 1;
+      return 'issues';
+    },
+  });
+  assert.throws(
+    () => defineGraphQuery({
+      ...base,
+      nodes: [{ ...base.nodes[0], table: fakeTable }],
+    }),
+    (error) => error.code === 'SNAPBACK_GRAPH_CODE_FORBIDDEN',
+  );
+  assert.equal(fakeTableGetterReads, 0, 'string markers cannot spoof a trusted table builder');
+  assert.throws(
+    () => defineGraphQuery(Object.assign(Object.create({ inherited: true }), base)),
+    (error) => error.code === 'SNAPBACK_GRAPH_CODE_FORBIDDEN',
+  );
+  let toJsonCalls = 0;
+  assert.throws(
+    () => defineGraphQuery({
+      ...base,
+      toJSON() {
+        toJsonCalls += 1;
+        return base;
+      },
+    }),
+    (error) => error.code === 'SNAPBACK_GRAPH_CODE_FORBIDDEN',
+  );
+  assert.equal(toJsonCalls, 0, 'runtime preflight and JCS must not honor toJSON');
+  assert.doesNotThrow(() => defineGraphQuery(Object.assign(Object.create(null), base)));
+  assert.throws(
+    () => defineGraphQuery({
+      ...base,
+      nodes: [{
+        nodeId: 'search',
+        kind: 'search-membership',
+        edgeName: '$root',
+        authorityClass: 1,
+        providerCapabilityId: 'search-provider',
+        membershipIdentity: { authorityClass: 3 },
+        memberField: 'title',
+        scopeBindings: [],
+        invalidationTables: [],
+        providerCompletenessClass: 'complete',
+      }],
+    }),
+    (error) => error.code === 'SNAPBACK_GRAPH_SEARCH_UNADMITTED',
+  );
   assert.doesNotThrow(() => defineGraphQuery(base));
   assert.equal(lit('ok').Literal, 'ok');
 }
 
-// End-to-end: author a literal graph, run the ordinary generator with a
-// test-only admission target, then ask Rust to deserialize and validate the
-// exact emitted FunctionManifest (including graph identity reconstruction).
-const fixture = mkdtempSync(join(tmpdir(), 'snapback-graph-query-'));
+// End-to-end: regenerate the committed authored fixture and byte-compare the
+// exact FunctionManifest with the vector consumed by the engine admission
+// test. The entry module deliberately only re-exports a helper-module graph;
+// that graph uses namespace property-access DSL calls, proving the source gate
+// follows every module in the authored definition graph.
+const fixtureRoot = mkdtempSync(join(tmpdir(), 'snapback-graph-query-'));
+const fixture = join(fixtureRoot, 'snapback');
 try {
+  mkdirSync(fixture, { recursive: true });
   const snapbackModules = join(fixture, 'node_modules', '@expo');
   mkdirSync(snapbackModules, { recursive: true });
   symlinkSync(packageDir, join(snapbackModules, 'snapback-codegen'), 'dir');
-  writeFileSync(join(fixture, 'schema.mjs'), `
-import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};
-export const issues = defineTable({ title: v.string(), updatedAt: v.integer() })
-  .index('by_updated', ['updatedAt'])
-  .permissionBacking(['title'])
-  .visibility({ kind: 'public-read' })
-  .sync();
-export default defineSchema({ issues });
-`);
-  const literalFunctions = `
-import { defineGraphQuery, desc, v } from ${JSON.stringify(defineUrl)};
-import { issues } from './schema.mjs';
-export const issueGraph = defineGraphQuery({
-  nodes: [{
-    nodeId: 'root', kind: 'root-window', edgeName: '$root', authorityClass: 2,
-    table: issues, filters: [], accessIndex: 'by_updated', order: [desc('updatedAt')],
-  }],
-  projection: {
-    nodeId: 'result', edgeName: '$result', authorityClass: 2,
-    object: { scopeNodeId: 'root', fields: [
-      { name: 'title', value: { kind: 'field', nodeId: 'root', field: 'title' } },
-    ] },
-  },
-  args: {
-    labels: v.array(v.string({ maxBytes: 32 }), { maxItems: 3 }),
-    assignees: v.array(v.string({ maxBytes: 32 }), { maxItems: 5 }),
-  },
-  bounds: {
-    maxScannedRows: 3, maxIndexRanges: 1, maxResultRows: 2, maxResultBytes: 100,
-    maxEvaluationTurnMs: 10, maxObservers: 1, maxDistinctEvaluationGroups: 1,
-    maxEstimatedLiveFanoutMs: 10,
-  },
-  queryCost: { graph: {
-    nodes: [{
-      nodeId: 'root', maxRootRowsPerPage: 2, maxExaminedEntriesPerExecution: 3,
-      maxWindowPages: 2, maxWindowRootRows: 4, maxWindowScannedRows: 6,
-      maxWindowResultRows: 4, maxWindowResultBytes: 200, maxWindowIndexRanges: 2,
-    }],
-    arguments: [
-      { argumentId: 'labels', maxItems: 3 },
-      { argumentId: 'assignees', maxItems: 5 },
-    ],
-    maxArgumentItems: 8, maxPageResultBytes: 100,
-    windowRollup: {
-      maxWindowPages: 2, maxWindowRootRows: 4, maxWindowScannedRows: 6,
-      maxWindowResultRows: 4, maxWindowResultBytes: 200, maxWindowIndexRanges: 2,
-    },
-    maxMaintainedWritesPerMutation: 0,
-  } },
-  broadcast: { classification: 'query-shaped' },
-});
-`;
-  writeFileSync(join(fixture, 'functions.mjs'), literalFunctions);
+  const authoredFixture = join(graphCorpus, 'codegen-fixture');
+  writeFileSync(
+    join(fixtureRoot, 'demo.snapback.json'),
+    readFileSync(join(authoredFixture, 'demo.snapback.json'), 'utf8'),
+  );
+  for (const name of ['schema.mjs', 'functions.mjs', 'issue-graph.mjs']) {
+    writeFileSync(join(fixture, name), readFileSync(join(authoredFixture, name), 'utf8'));
+  }
+  const literalFunctions = readFileSync(join(authoredFixture, 'issue-graph.mjs'), 'utf8');
   const localCapability = readJson(
     join(repoRoot, 'schemas', 'capability.manifest.local-dev-sqlite-ibex.json'),
   );
@@ -452,6 +538,11 @@ export const issueGraph = defineGraphQuery({
   const generated = await generateInProcess(fixture, {}, { capabilityManifest: localCapability });
   assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
   const manifestPath = join(fixture, 'generated', 'functions.manifest.json');
+  assert.equal(
+    readFileSync(manifestPath, 'utf8'),
+    readFileSync(join(graphCorpus, 'codegen-emitted-manifest.v1.json'), 'utf8'),
+    'codegen output must stay byte-equal to the engine admission vector',
+  );
   const manifest = readJson(manifestPath);
   const fn = manifest.functions.find(({ name }) => name === 'issueGraph');
   assert(fn, 'defineGraphQuery must emit one function');
@@ -492,48 +583,102 @@ export const issueGraph = defineGraphQuery({
     [...fn.requiredCapabilities].sort(),
     ['args_contract_v1', 'graph_query_v1', 'host_plan_runtime', 'live_subscriptions', 'result_contract_v1'],
   );
-  execFileSync('cargo', [
-    'test', '-p', 'snapback-types', '--test', 'graph_codegen_admission',
-    'emitted_graph_function_manifest_admits', '--', '--exact', '--nocapture',
-  ], {
-    cwd: repoRoot,
-    env: { ...process.env, SNAPBACK_GRAPH_CODEGEN_MANIFEST: manifestPath },
-    stdio: 'inherit',
-  });
-
   const assertGeneratedRefusal = async (source, code) => {
-    writeFileSync(join(fixture, 'functions.mjs'), source);
-    const refused = await generate(fixture);
+    writeFileSync(join(fixture, 'issue-graph.mjs'), source);
+    const refused = await generateInProcess(fixture, {}, { capabilityManifest: localCapability });
     assert.equal(refused.ok, false, `${code} source unexpectedly generated`);
     assert(
       refused.diagnostics.some((diagnostic) => diagnostic.code === code),
       `${code}: ${JSON.stringify(refused.diagnostics)}`,
     );
   };
+  const projectionOffset = literalFunctions.indexOf('  projection:');
+  const authoredSearch = `${literalFunctions.slice(0, literalFunctions.indexOf('  nodes: [{'))}  nodes: [{
+    nodeId: 'search', kind: 'search-membership', edgeName: '$root', authorityClass: 1,
+    providerCapabilityId: 'search-provider-v1',
+    membershipIdentity: { authorityClass: 3, providerVersion: 'v1' },
+    memberField: 'title', scopeBindings: [], invalidationTables: [],
+    providerCompletenessClass: 'complete-membership-v1',
+  }],
+${literalFunctions.slice(projectionOffset)}`;
+  rmSync(join(fixture, 'generated'), { recursive: true, force: true });
+  await assertGeneratedRefusal(authoredSearch, 'SNAPBACK_GRAPH_SEARCH_UNADMITTED');
+  assert.equal(
+    existsSync(manifestPath),
+    false,
+    'authored search membership must not publish a manifest',
+  );
   await assertGeneratedRefusal(
     literalFunctions
-      .replace('defineGraphQuery, desc', 'defineGraphQuery, desc, arg')
-      .replace("nodeId: 'root', kind: 'root-window'", "nodeId: arg('node'), kind: 'root-window'"),
+      .replace("nodeId: 'root',", "nodeId: graphDsl.arg('node'),"),
     'SNAPBACK_GRAPH_CLIENT_AST_FORBIDDEN',
   );
   await assertGeneratedRefusal(
-    literalFunctions.replace('table: issues, filters: []', 'table: issues, filters: [() => true]'),
+    literalFunctions.replace('    filters: [],', '    filters: [() => true],'),
     'SNAPBACK_GRAPH_CODE_FORBIDDEN',
   );
   await assertGeneratedRefusal(
-    literalFunctions.replace('nodes: [{', 'nodes: [defineGraphQuery({}), {'),
+    literalFunctions.replace('nodes: [{', 'nodes: [graphDsl.defineGraphQuery({}), {'),
     'SNAPBACK_GRAPH_RECURSION_FORBIDDEN',
   );
 
   await assertGeneratedRefusal(literalFunctions.replace(
-    "export const issueGraph = defineGraphQuery({\n  nodes: [{",
+    "export const issueGraph = graphDsl.defineGraphQuery({\n  nodes: [{",
     "const graphNodes = [{",
   ).replace(
     "  }],\n  projection:",
-    "  }];\nexport const issueGraph = defineGraphQuery({\n  nodes: graphNodes,\n  projection:",
+    "  }];\nexport const issueGraph = graphDsl.defineGraphQuery({\n  nodes: graphNodes,\n  projection:",
   ), 'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION');
+  await assertGeneratedRefusal(
+    literalFunctions.replace("    nodeId: 'root',", "    ['node' + 'Id']: 'root',"),
+    'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+  );
+  await assertGeneratedRefusal(
+    `const broadcast = { classification: 'query-shaped' };\n${literalFunctions}`
+      .replace("  broadcast: { classification: 'query-shaped' },", '  broadcast,'),
+    'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+  );
+  await assertGeneratedRefusal(
+    literalFunctions.replace("'query-shaped'", "new String('query-shaped')"),
+    'SNAPBACK_GRAPH_CODE_FORBIDDEN',
+  );
+  await assertGeneratedRefusal(
+    literalFunctions.replace("'query-shaped'", 'globalThis.graphClassification'),
+    'SNAPBACK_GRAPH_CODE_FORBIDDEN',
+  );
+  await assertGeneratedRefusal(
+    literalFunctions.replace("'query-shaped'", "`query-${'shaped'}`"),
+    'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+  );
+  await assertGeneratedRefusal(
+    `const fakeDsl = graphDsl;\n${literalFunctions}`.replace('graphDsl.desc', 'fakeDsl.desc'),
+    'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+  );
+
+  const allSourceFaults = literalFunctions
+    .replace("nodeId: 'root',", "nodeId: graphDsl.arg('node'),")
+    .replace('    filters: [],', '    filters: [() => true],')
+    .replace("'query-shaped'", "true ? 'query-shaped' : 'other'");
+  writeFileSync(join(fixture, 'issue-graph.mjs'), allSourceFaults);
+  const ordered = await generateInProcess(fixture, {}, { capabilityManifest: localCapability });
+  assert.equal(ordered.ok, false, 'multi-fault graph source must refuse');
+  assert.deepEqual(
+    ordered.diagnostics
+      .map(({ code }) => code)
+      .filter((code) => [
+        'SNAPBACK_GRAPH_CLIENT_AST_FORBIDDEN',
+        'SNAPBACK_GRAPH_CODE_FORBIDDEN',
+        'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+      ].includes(code)),
+    [
+      'SNAPBACK_GRAPH_CLIENT_AST_FORBIDDEN',
+      'SNAPBACK_GRAPH_CODE_FORBIDDEN',
+      'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+    ],
+    'source faults follow the normative register instead of traversal order',
+  );
 } finally {
-  rmSync(fixture, { recursive: true, force: true });
+  rmSync(fixtureRoot, { recursive: true, force: true });
 }
 
-console.log('graph-query.test.mjs: identity, normalization, source refusals, and Rust admission passed');
+console.log('graph-query.test.mjs: identity, normalization, source refusals, and frozen seam vector passed');

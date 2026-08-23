@@ -105,6 +105,62 @@ fn graph_test_schema() -> SchemaManifest {
     }
 }
 
+fn codegen_emitted_graph_schema() -> SchemaManifest {
+    let mut schema = graph_test_schema();
+    schema.app_id = "graph-codegen-vector".to_owned();
+    let issues = schema
+        .tables
+        .iter_mut()
+        .find(|table| table.name == "issues")
+        .expect("issues schema fixture");
+    issues
+        .fields
+        .retain(|field| matches!(field.name.as_str(), "title" | "updatedAt"));
+    issues.indexes.retain(|index| index.name == "by_updated");
+    issues.permission_backing = true;
+    issues.permission_fields = Some(vec!["title".to_owned()]);
+    schema
+}
+
+#[test]
+fn codegen_emitted_manifest_full_engine_admission_seam() {
+    let manifest: FunctionManifest = serde_json::from_str(include_str!(
+        "../../../../../tests/conformance/graph/codegen-emitted-manifest.v1.json"
+    ))
+    .expect("deserialize frozen codegen-emitted FunctionManifest");
+    let mut snapback = LocalSnapback::memory().expect("frozen graph admission engine");
+    snapback
+        .apply_schema(codegen_emitted_graph_schema())
+        .expect("install the codegen fixture schema and indexes");
+    validate_graph_query_admission(&manifest, snapback.db.schema())
+        .expect("complete engine seam admits the frozen codegen manifest");
+
+    let mut renamed_output = manifest;
+    let function = renamed_output
+        .functions
+        .iter_mut()
+        .find(|function| function.name == "issueGraph")
+        .expect("frozen issueGraph function");
+    let FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier)) = &mut function.runtime else {
+        panic!("frozen issueGraph uses the graph HostPlan runtime")
+    };
+    let crate::manifest::GraphNodeV1::ClosedProjection { object, .. } = carrier
+        .normalized_plan
+        .nodes
+        .last_mut()
+        .expect("frozen graph projection")
+    else {
+        panic!("frozen graph ends in a closed projection")
+    };
+    object.fields[0].name = "renamedTitle".to_owned();
+    let error = validate_graph_query_admission(&renamed_output, snapback.db.schema())
+        .expect_err("renamed projection output must refuse at the full engine seam");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_GRAPH_RESULT_CONTRACT_MISMATCH"
+    );
+}
+
 fn graph_test_function() -> FunctionDefinition {
     let mut plan: crate::manifest::GraphQueryPlanV1 =
         serde_json::from_str::<crate::manifest::GraphQueryCarrierV1>(include_str!(

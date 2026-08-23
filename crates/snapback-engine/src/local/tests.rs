@@ -20,7 +20,7 @@ use super::{
     query_invocation_estimated_bytes, reserve_unique_generation, settlement_id_map,
     snapshot_batch_max_boundary, snapshot_batch_max_plaintext_len, telemetry_correlation,
     validate_bounded_children_node_schema_references, validate_bounded_children_schema_plan,
-    validate_function_schema_references,
+    validate_function_schema_references, validate_graph_query_admission,
 };
 use crate::auth::admission::AdmissionController;
 use crate::auth::crypto::{CryptoError, RandomSource};

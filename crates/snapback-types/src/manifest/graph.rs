@@ -5479,6 +5479,41 @@ mod tests {
             "/../../tests/conformance/graph/identity-vectors.v1.json"
         )))
         .unwrap();
+        for vector in vectors["jcsBoundary"]
+            .as_array()
+            .expect("JCS boundary vectors are an array")
+        {
+            let name = vector["name"].as_str().expect("JCS vector has a name");
+            if vector["javascript"] == "Infinity" {
+                assert_eq!(
+                    crate::rqs_contract::ecma_number_string(f64::INFINITY),
+                    Err(crate::rqs_contract::MintRefusal::NonFiniteNumber),
+                    "{name}"
+                );
+                continue;
+            }
+            let parsed = serde_json::from_str::<Value>(
+                vector["json"].as_str().expect("JCS vector has JSON"),
+            );
+            if let Some(canonical) = vector["canonical"].as_str() {
+                assert_eq!(
+                    crate::rqs_contract::jcs(&parsed.expect("accepted JCS vector parses")),
+                    Ok(canonical.to_owned()),
+                    "{name}"
+                );
+            } else if name == "lone-surrogate" {
+                assert!(
+                    parsed.is_err(),
+                    "{name} must be structurally refused by Rust"
+                );
+            } else {
+                assert_eq!(
+                    crate::rqs_contract::jcs(&parsed.expect("numeric refusal vector parses")),
+                    Err(crate::rqs_contract::MintRefusal::UnsafeInteger),
+                    "{name}"
+                );
+            }
+        }
         let candidate = candidate_plan("authored-root", "authored-result");
         let plan = graph_plan_identity_v1(&candidate).expect("plan identity");
         assert_eq!(plan.normalized_plan.root_node_id, "n0");
