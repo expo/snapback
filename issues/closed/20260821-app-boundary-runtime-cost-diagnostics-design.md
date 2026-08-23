@@ -1,6 +1,7 @@
 # Design bounded runtime-cost diagnostics at the application boundary
 
-**Status:** Open — design packet; no ambient telemetry implementation yet
+**Status:** Closed — accepted 2026-08-22; implementation graduated to four
+filesystem tickets
 **Opened:** 2026-08-21
 **Systems:** Query evaluation, Mutations/outbox, Live queries, React/provider
 clients, Assets, Diagnostics, Telemetry
@@ -41,11 +42,16 @@ acceptance fixtures. Independently closable implementation tickets are filed
 for server phases, client subscription ownership, and framework multiplicity.
 No implementation begins by collecting unbounded ambient telemetry.
 
-## Design proposal drafted 2026-08-21 — LLP 0267 §7 (proposed; owners to accept)
+## Accepted design — LLP 0267 §7
 
-The W5 design packet is written as the dated amendment **LLP 0267 §7**
-("Runtime cost visibility at the app boundary"), marked *Proposed per
-LLP 0295 W5; owners to accept* — LLP 0267 for server/query phases,
+Charlie Cheever accepted the complete cross-owner packet on 2026-08-22: local
+developer diagnostics only in v1, hosted telemetry explicitly deferred, with
+the ownership seams in LLPs 0267, 0095, 0114, and 0278. No v0.14 semantic or
+numeric value changed.
+
+The W5 design packet was written as the dated amendment **LLP 0267 §7**
+("Runtime cost visibility at the app boundary"), originally marked *Proposed
+per LLP 0295 W5; owners to accept* — LLP 0267 for server/query phases,
 LLP 0095/LLP 0114 for client inspection and provider multiplicity, LLP 0278
 for subscription-budget interactions. Revised same day through two review
 rounds: LLP 0267 v0.8 (dual xhigh round — codex 5 MAJOR + grok MAJORs 1–5,
@@ -175,20 +181,29 @@ evaluation, removing the two overlapping matches). Summary:
   enumerated in §7.7 (attribution, redaction, bounds, multiplicity,
   hosted-off posture).
 
-### Implementation checklist (graduate each lane to its own ticket on owner acceptance)
+### Implementation graduation
 
-- [ ] Owner acceptance: LLP 0267 (this §7), LLP 0095/0114 client half,
-      LLP 0278 budget interactions — flip §7's marker from Proposed on
-      acceptance.
-- [ ] Recorder core: three ring families with byte-accounted admission,
+- [x] Owner acceptance: LLP 0267 (this §7), LLP 0095/0114 client half,
+      LLP 0278 budget interactions.
+- [x] Server recorder, mutation/query phase, and live-wave work graduated to
+      `issues/20260822-runtime-cost-recorder-and-server-observations.md`.
+- [x] Client phase and stalled-delivery attribution work graduated to
+      `issues/20260822-client-runtime-cost-and-delivery-inspection.md`.
+- [x] Equivalent-work and framework multiplicity facts graduated to
+      `issues/20260822-equivalent-work-and-framework-multiplicity-diagnostics.md`.
+- [x] Integrated gated surface, guide, and conformance proof graduated to
+      `issues/20260822-runtime-cost-diagnostics-integration-proof.md`.
+
+The checklist below is retained as the provenance for those four slices.
+- Recorder core: three ring families with byte-accounted admission,
       truncation markers, per-family `droppedRecords`; capped counter maps
       with `otherKeys`/`evictedKeys`; sampling rule; dev-on/serve-off
       default; hosted-off proof.
-- [ ] Server phases: per-function authorization/execution/commit phase
+- Server phases: per-function authorization/execution/commit phase
       counters in the ruled vocabulary; bounded
       `QueryCostObservationInspectV1` retention (sample + exact totals +
       truncation flag; no `fixtureIdentity` field).
-- [ ] `LiveDeliveryWaveV1` emission at the §1.5 boundaries — `waveSeq`,
+- `LiveDeliveryWaveV1` emission at the §1.5 boundaries — `waveSeq`,
       primary-cause precedence, `coalesced`/`coveredVersions`, per-group
       max+sum timing; registry rows maintain the exact unsampled
       per-subscription facts (`lastDeliveredWaveSeq`/
@@ -199,27 +214,27 @@ evaluation, removing the two overlapping matches). Summary:
       matcher/coalescer/evaluation/authority-gate/transport seams
       (complements the existing `liveCoalesce` inspect fields; no second
       coalesce surface).
-- [ ] Client: typed `MutationPhaseCostV1` from the ruling-6 fields (after
+- Client: typed `MutationPhaseCostV1` from the ruling-6 fields (after
       W2 lands the carriers); derived-duration vocabulary in one place;
       subscription-row delivery lag (first covering delivery, client
       clock, scalar = most recent covered commit); snapshot pseudonym
       projection for caller-influencable ids.
-- [ ] D0.5 inspection row: client-owned cost fields; inspect-time join
+- D0.5 inspection row: client-owned cost fields; inspect-time join
       tooling deriving `pendingDeliveryReason` per the pinned precedence
       and owed-delivery condition over both gated snapshots (client +
       provider surfaces); D0.5 tuple projection (authority class, instance
       self); `LIVE(version)` domain per LLP 0095 §1.3.
-- [ ] Repeated-equivalent-write counters (no-op commit, equivalent enqueue,
+- Repeated-equivalent-write counters (no-op commit, equivalent enqueue,
       housekeeping supersession).
-- [ ] React/provider duplicate-subscription and asset-issuance multiplicity
+- React/provider duplicate-subscription and asset-issuance multiplicity
       facts with owner labels.
-- [ ] Inspection snapshot surface (gated LLP 0031 D3 path or in-process
+- Inspection snapshot surface (gated LLP 0031 D3 path or in-process
       CLI; exact spelling implementation-owned) — pull-only; `PublicInspect`
       unchanged, proven by fixture.
-- [ ] Warning-code spellings through the generated diagnostics register.
-- [ ] Guide: extend `guide/backend/query-costs.md` (or a sibling page) with
+- Warning-code spellings through the generated diagnostics register.
+- Guide: extend `guide/backend/query-costs.md` (or a sibling page) with
       reading the cost snapshot and the two worked attributions.
-- [ ] Acceptance fixtures per §7.7 (attribution ×2, redaction incl.
+- Acceptance fixtures per §7.7 (attribution ×2, redaction incl.
       adversarial caller-supplied ids, join uniqueness incl.
       composite-state invalidation-during-evaluation, the authority-gate
       discard exit, commitless writeless restoration, T-LOSS/T-RECONNECT

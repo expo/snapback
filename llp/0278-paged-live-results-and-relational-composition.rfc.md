@@ -6,7 +6,9 @@
 Client integration, React, Guide, Testing, Developer experience
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-08-17
-**Revised:** 2026-08-22 (LLP 0295 W4 implementation: generated authority D1
+**Revised:** 2026-08-22 (author acceptance of LLP 0267 §7's interactions with
+the subscription budgets owned here; no numeric retuning).
+2026-08-22 (LLP 0295 W4 implementation: generated authority D1
 history envelopes, bounded `defineChunkedSemiJoin`/`defineSetKeyedAggregate`,
 and provider 16-warning/64-hard enforcement with complete-visible-snapshot
 dedup). 2026-08-21 (LLP 0295 D0.4/D0.5 rulings, query-shape half, as a
@@ -251,6 +253,12 @@ admission and non-enumerability come from LLP 0240; cost and cursor facts
 come from here (LLP 0295 W4).
 
 ### D0.5 subscription budgets (provisional)
+
+**W5 acceptance (2026-08-22).** By Charlie Cheever's author ruling, this RFC
+accepts the LLP 0267 §7 interactions with the subscription budgets below:
+cost visibility consumes the existing 16-per-view warning and
+64-per-connection ceiling, and adds no competing bound or refusal. The
+provisional values themselves are unchanged.
 
 The transport facts are already hard ceilings, not composition guidance:
 64 live subscriptions per connection and 2,048 durable registry rows per app

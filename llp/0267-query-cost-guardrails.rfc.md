@@ -1,11 +1,13 @@
 # LLP 0267: Query-cost guardrails before production admission
 
 **Type:** RFC
-**Status:** Accepted (§7 only: Proposed per LLP 0295 W5; owners to accept)
+**Status:** Accepted
 **Systems:** Live queries, Relational queries, Performance, Diagnostics, Schema
 **Author:** Codex gpt-5.6-sol xhigh, orchestrated by Claude Fable 5 (commissioned by the author performance-direction ruling 2026-08-15, Charlie Cheever)
 **Date:** 2026-08-16
-**Revised:** 2026-08-21 (v0.14 — §7 round-8: the four-outcome derivation is
+**Revised:** 2026-08-22 (v0.15 — author acceptance of the cross-owner §7
+W5 packet; implementation graduated to four independently closable tickets).
+2026-08-21 (v0.14 — §7 round-8: the four-outcome derivation is
 a strict ordered decision list — step-0 client lifecycle classes
 (initial-`PENDING`, lifecycle-settled/inverse-skew) precede the member
 enumeration and row-present residuals, removing the two overlapping
@@ -57,7 +59,7 @@ consumed by §7), LLP 0114 (React provider identity),
 LLP 0031 (D3 public/gated inspection split — §7's snapshot carrier),
 `issues/20260815-query-cost-guardrails-commission.md`,
 `issues/20260808-live-query-reevaluation-cost-at-scale.md`,
-`issues/20260821-app-boundary-runtime-cost-diagnostics-design.md`,
+`issues/closed/20260821-app-boundary-runtime-cost-diagnostics-design.md`,
 `issues/closed/20260808-p1-commit-turn-overhead.md`
 
 ## 0. Charter and position
@@ -611,12 +613,11 @@ snapshot-scoped.
 
 ## 7. Amendment (2026-08-21) — runtime cost visibility at the app boundary
 
-**Proposed per LLP 0295 W5; owners to accept.** This is a dated design
-proposal to this RFC (server/query cost phases) and to the client/React
-owners — LLP 0095/LLP 0114 (client lifecycle, provider identity) and
-LLP 0278 (subscription budgets) — for the visibility program LLP 0295 §W5
-commissioned in
-`issues/20260821-app-boundary-runtime-cost-diagnostics-design.md`. It adds a
+**Accepted 2026-08-22 by author ruling.** This is a dated cross-owner amendment
+to this RFC (server/query cost phases) and to the client/React owners — LLP
+0095/LLP 0114 (client lifecycle, provider identity) and LLP 0278
+(subscription budgets) — for the visibility program LLP 0295 §W5 commissioned
+in `issues/closed/20260821-app-boundary-runtime-cost-diagnostics-design.md`. It adds a
 **diagnostics/inspection surface only**: no new bounds surface, no policy
 rung, no change to §§1–6 enforcement, and no ambient telemetry. Sections
 7.2–7.6 consume the already-landed Phase 0 rulings (LLP 0059 ruling 6;
@@ -1241,25 +1242,31 @@ page.
 - posture: hosted-default-off proven; no export path exists to test;
 - guide: the §4.2 extension lands with the surfaces it documents.
 
-**Ownership and acceptance.** On acceptance, this RFC owns §§7.1, 7.3, and
+**Ownership and acceptance.** This cross-owner packet was accepted by author
+ruling (Charlie Cheever, 2026-08-22). This RFC owns §§7.1, 7.3, and
 the server half of 7.2/7.5; LLP 0095/LLP 0114 own the client inspection
 joins (§7.4, client 7.2) and provider multiplicity (§7.6); LLP 0278 owns
-the subscription-budget interactions it already owns today. Until each
-owner accepts, this section is a proposal and no implementation ticket may
-cite it as Accepted. Implementation slices and the graduation into
-independently closable tickets live in
-`issues/20260821-app-boundary-runtime-cost-diagnostics-design.md`.
+the subscription-budget interactions it already owns today. The accepting
+notes in those LLPs bind their owned seams without changing their existing
+status or the provisional budget values. Implementation slices are tracked by
+the four tickets graduated from
+`issues/closed/20260821-app-boundary-runtime-cost-diagnostics-design.md`.
 
 ## Open questions
 
 None. Signal dispositions, capture points, defaults, declaration/instance split, diagnostics,
 refusal parity, and the G0 relationship are decided. Calibration may motivate a dated amendment;
 implementation may not silently retune defaults or add another bounds surface.
-§7 is a dated **proposed** amendment (LLP 0295 W5) awaiting owner acceptance;
-it adds a visibility surface and deliberately adds no bounds surface.
+§7 is an **accepted** dated amendment (LLP 0295 W5, author ruling
+2026-08-22); it adds a visibility surface and deliberately adds no bounds
+surface.
 
 ## Revision history
 
+- **v0.15 (2026-08-22).** Charlie Cheever accepts the complete cross-owner
+  §7 packet and its local-only-v1/hosted-nonclaim posture. The implementation
+  checklist graduates into four independently closable filesystem tickets;
+  no v0.14 semantic or numeric value changes.
 - **v0.14 (2026-08-21).** §7 round-8 (codex ordering item, no new
   semantics): §7.4's derivation restructured as a strict ordered decision
   list — first match wins, and step-0 client lifecycle classification

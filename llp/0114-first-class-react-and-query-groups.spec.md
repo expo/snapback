@@ -5,7 +5,9 @@
 **Systems:** React, React/Expo, Client integration, Live Queries, Ephemeral state, Code generation, Sync, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-21 (`useSnapbackAssetUrl` ledger amendment: nullable
+**Revised:** 2026-08-22 (author acceptance of the LLP 0267 §7 provider/asset
+multiplicity obligations owned here; warning-only and local-gated).
+2026-08-21 (`useSnapbackAssetUrl` ledger amendment: nullable
 absence resolves in the neutral client to one inert `empty` store; the React
 hook adds no absence state and `skip` remains outside asset projection
 semantics). 2026-08-10 (LLP 0219 subscription-churn diagnostic amendment);
@@ -754,6 +756,12 @@ target-specific: local register support does not imply Cloudflare register
 support, and a web result does not establish an iOS or Android carrier.
 
 ## Diagnostics
+
+**W5 acceptance (2026-08-22).** By Charlie Cheever's author ruling, this Spec
+accepts LLP 0267 §7.6's React/provider duplicate-subscription and
+asset-issuance multiplicity facts. They are warning-class, value-free,
+bounded, and visible only through the gated local inspection carrier; they do
+not add a refusal or hosted telemetry surface.
 
 New stable diagnostics are:
 

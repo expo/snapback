@@ -8,7 +8,9 @@ Ephemeral state, Memberships, Assets, Client integration, Exact/Contract
 integration, Guide, Benchmarks, Testing, Performance, Rust build
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-20
-**Revised:** 2026-08-22 (R1 evidence correction: retains raw control/native
+**Revised:** 2026-08-22 (author rulings: accept LLP 0267 §7's local-only W5
+diagnostics packet and gate Coterie/Clique independently through R1 before
+commissioning their combined R2 wave). 2026-08-22 (R1 evidence correction: retains raw control/native
 outputs and structured toolchain/package setup, and narrows the Expo journey
 to two sessions for one principal with supervised authority unavailable before
 provider boot); 2026-08-22 (execution reconciliation: restores the Phase 0
@@ -715,10 +717,10 @@ cost guardrails and diagnostics to report:
 - React/provider subscription and asset-issuance multiplicity where the
   framework owns enough information to know it.
 
-This is a design proposal to LLP 0267 and the React/client owners, not a ticket
-to add ambient telemetry. Redaction, bounded storage, and local/hosted posture
-must be settled first. Design ticket:
-`issues/20260821-app-boundary-runtime-cost-diagnostics-design.md`.
+The accepted design is LLP 0267 §7 and its React/client ownership notes, not a
+license to add ambient telemetry. Redaction, bounded storage, and the
+local-only-v1/hosted-nonclaim posture are binding. Closed design ticket:
+`issues/closed/20260821-app-boundary-runtime-cost-diagnostics-design.md`.
 
 ### W6. Instrument and context economy
 
@@ -827,6 +829,13 @@ model, effort, prompt, app scope, fixtures, and package pins except for the
 new published Snapback/Exact closures and versioned instrument migration.
 Record N=1 as calibration again; use it to validate mechanisms and variance,
 not publish a profile winner.
+
+**Commissioning ruling (2026-08-22).** Gate Coterie and Clique independently
+through their cheap R1 probes. Commission the combined twelve-cell R2 wave
+only after both app gates are green. A failure in one app blocks that app's
+R2 cells, not collection of the other app's R1 evidence; this keeps failures
+attributable without weakening the requirement that the published R2
+comparison use one qualified combined wave.
 
 ### R3. Claim-eligible wave
 
@@ -940,10 +949,16 @@ for the efficiency scorecard while retaining its product findings.
    at R3) — recommendation recorded in LLP 0186's dated amendment; author
    may revise.
 5. Should W5 cost visibility ship first as local developer diagnostics only,
-   with hosted telemetry explicitly deferred?
+   with hosted telemetry explicitly deferred? **Answered 2026-08-22 (author
+   ruling): yes.** LLP 0267 §7 is accepted as the cross-owner W5 packet:
+   bounded/redacted local developer diagnostics in v1, with hosted export,
+   upload, and streaming telemetry explicit nonclaims pending a new dated
+   amendment and privacy review.
 6. Does the next R2 rerun include both Coterie and Clique immediately, or should
    the cheap R1 probes gate each app independently before all twelve cells are
-   commissioned?
+   commissioned? **Answered 2026-08-22 (author ruling): gate each app
+   independently through R1, then commission the combined twelve-cell R2 wave
+   only after both gates pass.**
 7. What ordinary independent-subscription envelope should the client promise,
    and does the six-reference reproduction need to gate R2 or only the Familiar
    React cell?

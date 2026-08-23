@@ -5,7 +5,9 @@
 **Systems:** Wire Protocol, Client SDK, Realtime, Live Queries, Native Clients, Tests
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-08-22 (LLP 0295 W4 implementation: manager-owned shared
+**Revised:** 2026-08-22 (author acceptance of the LLP 0267 §7 client
+inspection join owned here; local-only v1, hosted telemetry remains a
+nonclaim). 2026-08-22 (LLP 0295 W4 implementation: manager-owned shared
 transport proof, owner-labeled connection/subscription inspection,
 teardown-before-successor, callback reentrancy refusal, and provider snapshot
 dedup/budget fixtures). 2026-08-21 (LLP 0295 D0.5 ruling: provider connection-ownership,
@@ -747,6 +749,11 @@ tighten or confirm them before they are conformance-frozen as fixtures.
   amendment).
 
 ### Runtime and diagnostic inspection of active owners
+
+**W5 acceptance (2026-08-22).** By Charlie Cheever's author ruling, this Spec
+accepts the client inspection and lifecycle-join obligations assigned to it by
+LLP 0267 §§7.2 and 7.4. The new cost facts remain on gated local inspection
+surfaces; they do not enlarge `PublicInspect` or create hosted telemetry.
 
 The client exposes an inspection surface (exact carrier named by the
 implementation ticket; the shape aligns with LLP 0295 W5) enumerating, per

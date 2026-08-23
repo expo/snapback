@@ -178,11 +178,13 @@ Polling `/inspect` is not an application mechanism and does not meet Wanted #4.
 The open D0.5/W4 decision packet at
 `issues/closed/20260821-provider-connection-subscription-budget-decision.md` owns the
 supported independent-versus-aggregate envelope and the diagnostic emitted
-before that envelope is exceeded. The W5 design packet at
-`issues/20260821-app-boundary-runtime-cost-diagnostics-design.md` owns the
-bounded/redacted application projection. A follow-on implementation should
-carry the decided subscription-scoped pending/overload or convergence state to
-`useQueryState` and provider diagnostics while preserving LLP 0200's
+before that envelope is exceeded. The accepted W5 design packet at
+`issues/closed/20260821-app-boundary-runtime-cost-diagnostics-design.md` owns
+the bounded/redacted application projection; its client implementation is
+tracked by `issues/20260822-client-runtime-cost-and-delivery-inspection.md`.
+That implementation should carry the decided subscription-scoped
+pending/overload or convergence state to `useQueryState` and provider
+diagnostics while preserving LLP 0200's
 latest-value, fail-closed, refresh-obligation, and typed-teardown semantics.
 
 This ticket remains open until that client-visible diagnostic is implemented
