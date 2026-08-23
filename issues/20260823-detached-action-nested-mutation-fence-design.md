@@ -344,13 +344,15 @@ Required mutation checks before acceptance:
 
 ### 2026-08-23 final-gate coverage note
 
-The scoped-service pre-reservation regression proves only the classified process-fence observer in
-`stage_nested_mutation_classified`. Its operation-coverage lane returns `Ok(None)`, so it does not
-execute `covered_host_child_identity_classified`; because the process fence is already terminal,
-it also does not reach the `live_readonly` Carrier branch. Those two branches remain supported by
-typed call-graph inspection rather than that regression. Separate focused regressions exercise the
-repeated classified function-policy check and the classified persistence check reached through
-managed HostPlan's legacy recorded-mutation staging pipeline.
+The scoped-service regression proves eventual pre-commit terminal latching after retirement, not
+which observer latches the cause: the classified persistence check in
+`stage_nested_mutation_classified` and the later `reserve_nested_effect` cut can detect the same
+terminal state. Deleting the former therefore leaves this regression green. Its operation-coverage
+lane returns `Ok(None)`, so it does not execute `covered_host_child_identity_classified`; no oracle
+in this regression pins the classified staging observer or its `live_readonly` Carrier branch.
+Those observer-specific claims remain supported by typed call-graph inspection. Separate focused
+regressions exercise the repeated classified function-policy check and the classified persistence
+check reached through managed HostPlan's legacy recorded-mutation staging pipeline.
 
 ## 7. Risks and reshape triggers
 

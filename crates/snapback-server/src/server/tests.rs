@@ -28400,13 +28400,14 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
 }
 
 #[test]
-fn scoped_service_process_fence_before_child_reservation_latches_cancelled() {
-    // This fixture proves the classified process-fence check in
-    // stage_nested_mutation_classified. Its operation-coverage lane returns
-    // Ok(None), so covered_host_child_identity_classified is not reached; the
-    // already-terminal process fence also means the live_readonly Carrier
-    // branch is inspection-only here. The scoped service retires after output
-    // initialization, before reserve_nested_effect.
+fn scoped_service_retirement_eventually_latches_cancelled_before_child_commit() {
+    // This fixture proves eventual pre-commit terminal latching after scoped-
+    // service retirement, not which observer latches the cause. The current
+    // staging observer and the later reserve_nested_effect cut can detect the
+    // same retirement. Its operation-coverage lane returns Ok(None), so
+    // covered_host_child_identity_classified is not reached. The scoped
+    // service retires after output initialization and no assertion here pins
+    // the classified staging observer, whose coverage remains inspection-only.
     let digest = |prefix: &str, marker: char| format!("{prefix}{}", marker.to_string().repeat(64));
     let deployment = DeploymentIdentity {
         schema_version: "snapback.v1".to_owned(),
