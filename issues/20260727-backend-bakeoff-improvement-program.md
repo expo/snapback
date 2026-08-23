@@ -163,3 +163,32 @@ Before that review, the disposition must cover both residuals:
 3. Update the carrier/receipt evidence, Guide wording, and capability row from
    those outcomes. The date must not move again without another evidence-based
    disposition.
+
+## Expired write-activity GAP review disposition — 2026-08-22
+
+The `backend.write-activity-v1` Guide review gate fired on 2026-08-22. A fresh
+review against `main` at `9bd79dc4d` confirms that the GAP is still real:
+
+- the source-owned relation/activity carrier still publishes
+  `write_activity_v1` only for the exact `local-dev-sqlite-ibex`
+  contributor-source profile, and the retained conformance receipt still
+  records public-package status as `withheld-structured-gaps`;
+- `crates/snapback-engine/src/manifest/capabilities.rs` still rejects that
+  carrier when `buildDistribution` is not `contributor-source`, because no
+  release-key-verified `PackageCapabilityAttestationV1` loader has landed;
+- `schemas/capability.manifest.remote-service-sqlite-ibex.json` still lists
+  `write_activity_v1` in `capabilityGaps`, and no hosted relation/activity
+  corpus or target-scoped publication carrier establishes a contrary claim;
+  and
+- LLP 0295 W4's landed writer-seam product projection and bounded composition
+  helpers do not alter the older relation/activity publication authority,
+  while W5's accepted packet is explicitly local diagnostics with hosted
+  telemetry deferred. Neither landing closes either residual above.
+
+The Guide row therefore remains a local, partial GAP. Its wording now names
+the contributor-source boundary and both withheld target classes, and its
+authorities point to LLP 0110/0113's actual publication contract. Its next
+review is **2026-09-30**, aligned with the same Charlie-owned, release-key-
+signed packaged-capability attestation milestone already governing the atomic
+relation/activity pair. That date must not move again without another source,
+package, and hosted-publication review.
