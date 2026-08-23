@@ -831,6 +831,7 @@
       ],
       "files": [
         "packages/create-snapback-app/README.md",
+        "packages/snapback-acceptance/README.md",
         "packages/snapback-app-cli/README.md",
         "packages/snapback-cli/README.md",
         "packages/snapback-client/README.md",
