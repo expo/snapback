@@ -476,19 +476,34 @@ while :; do sleep 1; done
     }
   });
 
-  await t.test('external abort preserves cleanup reserve and terminates the managed dev child', async (testContext) => {
+  await t.test('hung cleanup cannot starve managed dev child termination', async (managedChildTest) => {
     if (process.platform === 'win32') {
-      testContext.skip('fixture executable uses a POSIX shebang');
+      managedChildTest.skip('fixture executable uses a POSIX shebang');
       return;
     }
-    const appRoot = mkdtempSync(join(tmpdir(), 'snapback-acceptance-external-abort-'));
-    const pidFile = join(appRoot, 'dev.pid');
-    const controller = new AbortController();
-    try {
-      const binRoot = join(appRoot, 'node_modules', '.bin');
-      mkdirSync(binRoot, { recursive: true });
-      const executable = join(binRoot, 'snapback');
-      writeFileSync(executable, `#!/usr/bin/env node
+
+    for (const scenario of [
+      {
+        name: 'external abort',
+        diagnosticCode: 'SNAPBACK_STARTER_ACCEPTANCE_INTERRUPTED',
+        abortExternally: true,
+      },
+      {
+        name: 'overall timeout',
+        diagnosticCode: 'SNAPBACK_STARTER_ACCEPTANCE_OVERALL_TIMEOUT',
+        abortExternally: false,
+      },
+    ]) {
+      await managedChildTest.test(scenario.name, async () => {
+        const appRoot = mkdtempSync(join(tmpdir(), `snapback-acceptance-${scenario.name.replace(' ', '-')}-`));
+        const pidFile = join(appRoot, 'dev.pid');
+        const controller = new AbortController();
+        let pid = null;
+        try {
+          const binRoot = join(appRoot, 'node_modules', '.bin');
+          mkdirSync(binRoot, { recursive: true });
+          const executable = join(binRoot, 'snapback');
+          writeFileSync(executable, `#!/usr/bin/env node
 const fs = require('node:fs');
 const command = process.argv[2];
 const arg = (name) => process.argv[process.argv.indexOf(name) + 1];
@@ -497,84 +512,110 @@ if (command === 'wait') {
   process.stdout.write(JSON.stringify({ ok: true }) + '\\n');
 } else if (command === 'dev') {
   fs.writeFileSync(process.env.SNAPBACK_TEST_DEV_PID_FILE, String(process.pid));
+  process.on('SIGTERM', () => {});
   setInterval(() => {}, 1000);
 }
 `);
-      chmodSync(executable, 0o755);
-      const managed = api.createManagedDevLifecycleAdapter();
-      let stopCalled = false;
-      const managedLifecycle = Object.freeze({
-        schemaVersion: 'snapback.starter-lifecycle-adapter.v1',
-        async start(input) {
-          const state = await managed.start(input);
-          return Object.freeze({
-            ...state,
-            loadedIdentity: Object.freeze({
-              appId: artifacts.appId,
-              bundleHash: artifacts.bundleHash,
-            }),
+          chmodSync(executable, 0o755);
+          const managed = api.createManagedDevLifecycleAdapter();
+          let cleanupCalls = 0;
+          let cleanupSignalAborted = false;
+          let stopCalls = 0;
+          const managedLifecycle = Object.freeze({
+            schemaVersion: 'snapback.starter-lifecycle-adapter.v1',
+            async start(input) {
+              const state = await managed.start(input);
+              return Object.freeze({
+                ...state,
+                loadedIdentity: Object.freeze({
+                  appId: artifacts.appId,
+                  bundleHash: artifacts.bundleHash,
+                }),
+              });
+            },
+            async stop(state, options) {
+              stopCalls += 1;
+              return managed.stop(state, options);
+            },
           });
-        },
-        async stop(state, options) {
-          stopCalled = true;
-          return managed.stop(state, options);
-        },
-      });
-      let journeyStarted;
-      const started = new Promise((resolveStarted) => { journeyStarted = resolveStarted; });
-      const declared = api.defineStarterAcceptance({
-        acceptanceFile: import.meta.url,
-        appRoot,
-        artifacts,
-        stepTimeoutMs: 5_000,
-        overallTimeoutMs: 1_000,
-        cleanupTimeoutMs: 300,
-        paths: {
-          list: {
-            id: 'list-path',
-            kind: 'success',
-            targetProfileId: 'local-dev-sqlite-ibex',
-            operation,
-          },
-        },
-        async journey({ paths, step }) {
-          await step(paths.list, (signal) => new Promise((resolveStep, rejectStep) => {
-            journeyStarted();
-            signal.addEventListener('abort', () => rejectStep(signal.reason), { once: true });
-          }));
-        },
-      });
-      const running = api.runStarterAcceptance(declared, {
-        lifecycle: managedLifecycle,
-        environment: { SNAPBACK_TEST_DEV_PID_FILE: pidFile },
-        signal: controller.signal,
-        emit: false,
-      });
-      await started;
-      for (let attempt = 0; attempt < 100 && !existsSync(pidFile); attempt += 1) {
-        await new Promise((resolveWait) => setTimeout(resolveWait, 5));
-      }
-      const pid = existsSync(pidFile) ? Number(readFileSync(pidFile, 'utf8')) : null;
-      controller.abort('SIGTERM');
-      const { receipt } = await running;
-      assert(Number.isSafeInteger(pid) && pid > 0, 'managed dev child did not publish its pid');
-      assert.equal(stopCalled, true);
-      assert.equal(receipt.status, 'failed');
-      assert.equal(receipt.diagnostic.code, 'SNAPBACK_STARTER_ACCEPTANCE_INTERRUPTED');
-      assert.equal(receipt.cleanup.devExited, true);
-      for (let attempt = 0; attempt < 20; attempt += 1) {
-        try {
-          process.kill(pid, 0);
-        } catch (error) {
-          assert.equal(error.code, 'ESRCH');
-          break;
+          let journeyStarted;
+          const started = new Promise((resolveStarted) => { journeyStarted = resolveStarted; });
+          const declared = api.defineStarterAcceptance({
+            acceptanceFile: import.meta.url,
+            appRoot,
+            artifacts,
+            stepTimeoutMs: 5_000,
+            overallTimeoutMs: 1_500,
+            cleanupTimeoutMs: 80,
+            paths: {
+              list: {
+                id: 'list-path',
+                kind: 'success',
+                targetProfileId: 'local-dev-sqlite-ibex',
+                operation,
+              },
+            },
+            async journey({ defer, paths, step }) {
+              defer((cleanupSignal) => new Promise((resolveCleanup, rejectCleanup) => {
+                cleanupCalls += 1;
+                const aborted = () => {
+                  cleanupSignalAborted = true;
+                  rejectCleanup(cleanupSignal.reason);
+                };
+                cleanupSignal.addEventListener('abort', aborted, { once: true });
+                if (cleanupSignal.aborted) aborted();
+              }));
+              await step(paths.list, (signal) => new Promise((resolveStep, rejectStep) => {
+                journeyStarted();
+                signal.addEventListener('abort', () => rejectStep(signal.reason), { once: true });
+              }));
+            },
+          });
+          const running = api.runStarterAcceptance(declared, {
+            lifecycle: managedLifecycle,
+            environment: { SNAPBACK_TEST_DEV_PID_FILE: pidFile },
+            ...(scenario.abortExternally ? { signal: controller.signal } : {}),
+            emit: false,
+          });
+          await started;
+          for (let attempt = 0; attempt < 100 && !existsSync(pidFile); attempt += 1) {
+            await new Promise((resolveWait) => setTimeout(resolveWait, 5));
+          }
+          pid = existsSync(pidFile) ? Number(readFileSync(pidFile, 'utf8')) : null;
+          if (scenario.abortExternally) controller.abort('SIGTERM');
+          const { receipt } = await running;
+          assert(Number.isSafeInteger(pid) && pid > 0, 'managed dev child did not publish its pid');
+          assert.equal(cleanupCalls, 1);
+          assert.equal(cleanupSignalAborted, true);
+          assert.equal(stopCalls, 1);
+          assert.equal(receipt.status, 'failed');
+          assert.equal(receipt.diagnostic.code, scenario.diagnosticCode);
+          for (let attempt = 0; attempt < 20; attempt += 1) {
+            try {
+              process.kill(pid, 0);
+            } catch (error) {
+              assert.equal(error.code, 'ESRCH');
+              break;
+            }
+            await new Promise((resolveWait) => setTimeout(resolveWait, 10));
+          }
+          assert.throws(
+            () => process.kill(pid, 0),
+            (error) => error?.code === 'ESRCH',
+            `managed dev child ${pid} survived ${scenario.name} cleanup`,
+          );
+        } finally {
+          controller.abort('test cleanup');
+          if (Number.isSafeInteger(pid) && pid > 0) {
+            try {
+              process.kill(pid, 'SIGKILL');
+            } catch (error) {
+              if (error?.code !== 'ESRCH') throw error;
+            }
+          }
+          rmSync(appRoot, { recursive: true, force: true });
         }
-        await new Promise((resolveWait) => setTimeout(resolveWait, 10));
-        if (attempt === 19) assert.fail(`managed dev child ${pid} survived external abort cleanup`);
-      }
-    } finally {
-      controller.abort('test cleanup');
-      rmSync(appRoot, { recursive: true, force: true });
+      });
     }
   });
 

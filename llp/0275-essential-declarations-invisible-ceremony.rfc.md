@@ -7,6 +7,9 @@ Authorization, Runtime readiness, Packaging, Templates, Verification,
 Developer experience, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-17
+**Revised:** 2026-08-22 (D9 terminal-cleanup reconciliation: lifecycle stop
+has an independent bounded last-chance controller, so cleanup callbacks and
+client inspection cannot starve its once-only managed-child termination.)
 **Revised:** 2026-08-22 (D9 delta-review reconciliation: completeness is
 passed-per-path, caller retry signals compose with the active execution signal,
 and external abort preserves a fresh reserved-cleanup deadline through managed
@@ -538,8 +541,13 @@ passed to the underlying operation, not merely reject a detached race. A
 caller-supplied retry signal composes with rather than replaces the active
 step/execution signal. TERM, INT, or another external abort cancels execution
 at once but does not abort cleanup's own controller: cleanup receives a fresh
-deadline over the reserved cleanup remainder, and `lifecycle.stop` still runs
-to terminate the managed child.
+deadline over the reserved cleanup remainder. Cleanup callbacks and client
+inspection share that bounded controller, but `lifecycle.stop` is invoked
+exactly once through an independent bounded last-chance controller even when
+the shared cleanup signal is already aborted. When no reserve remains, the
+stop signal aborts immediately so the managed adapter takes its terminal kill
+path instead of leaving the child alive. This guarantee applies after both an
+external abort and the runner's overall timeout.
 
 The verify config imports the same declaration and composes it with D5:
 
@@ -779,3 +787,7 @@ be implemented before improving its own golden path.
   passed-per-path, composed retry-local and execution cancellation, and stated
   that external abort preserves the fresh reserved cleanup deadline through
   managed-child termination.
+- 2026-08-22 r7: terminal-cleanup reconciliation — gave lifecycle stop an
+  independent bounded last-chance controller so callback reserve exhaustion
+  cannot suppress its once-only managed-child termination on either external
+  abort or overall timeout.

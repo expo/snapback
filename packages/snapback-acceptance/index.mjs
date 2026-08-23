@@ -959,12 +959,15 @@ export async function runStarterAcceptance(definition, options = {}) {
     }
     cleanup.clientResourcesReleased = resourceCleanupOk;
     try {
+      // Stop owns an independent last-chance controller. If callbacks or
+      // inspection spend the shared cleanup reserve, remaining() gives this
+      // call a bounded terminal slice whose abort drives managed children
+      // through their immediate-kill path instead of skipping stop entirely.
       const stopped = await withTimeout(
         (stopSignal) => lifecycle.stop(lifecycleState, Object.freeze({ signal: stopSignal })),
         Math.min(15_000, remaining(cleanupDeadline)),
         'SNAPBACK_STARTER_ACCEPTANCE_LIFECYCLE_STOP_TIMEOUT',
         'starter acceptance lifecycle stop timed out',
-        cleanupSignal,
       );
       cleanup.devExited = stopped?.exited === true;
       if (!cleanup.devExited) {
