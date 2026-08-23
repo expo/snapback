@@ -141,6 +141,8 @@ here (or listed here but gone from the code).
 | /auth/oauth/token | api.external-exposure |
 | /auth/exchange | auth.sessions |
 | /auth/family-alarm | auth.sessions |
+| /auth/guest | auth.guest-sessions |
+| /auth/guest/claim/password | auth.guest-sessions |
 | /auth/grant-requests | auth.agent-principals |
 | /auth/grant-requests/{id}/approve | auth.agent-principals |
 | /auth/grant-requests/{id}/deny | auth.agent-principals |

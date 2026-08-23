@@ -4,6 +4,7 @@ export const APP_DESCRIPTOR_FORMAT = 'snapback.app.v1';
 export const APP_DESCRIPTOR_MAX_BYTES = 16 * 1024 * 1024;
 export const APPLICATION_AUTH_BOOTSTRAP_FORMAT = 'snapback.application-auth-bootstrap.v1';
 export const APPLICATION_AUTH_BOOTSTRAP_ENTRY_MECHANISMS = Object.freeze([
+  'guest-v1',
   'password-v1',
   'email-code-v1',
   'external-session-explicit-v1',

@@ -2129,6 +2129,19 @@ export function defineAuth(program) {
   assert(guestPolicy && typeof guestPolicy === 'object' && !Array.isArray(guestPolicy), 'defineAuth guestPolicy must be an object');
   exactObject(guestPolicy, 'defineAuth guestPolicy', new Set(['enabled', 'claiming', 'reaping']));
   assert(typeof guestPolicy.enabled === 'boolean', 'defineAuth guestPolicy.enabled must be boolean');
+  const guestMechanismNames = Object.entries(mechanisms)
+    .filter(([, mechanism]) => mechanism.kind === 'guest')
+    .map(([name]) => name);
+  assert(
+    !guestPolicy.enabled || guestMechanismNames.length > 0,
+    'enabled defineAuth guestPolicy requires a declared guest mechanism',
+    'SNAPBACK_AUTH_PROGRAM_INVALID',
+  );
+  assert(
+    guestPolicy.enabled || guestMechanismNames.length === 0,
+    'defineAuth guest mechanisms require an enabled guestPolicy',
+    'SNAPBACK_AUTH_PROGRAM_INVALID',
+  );
   const claiming = guestPolicy.claiming ?? [];
   assert(Array.isArray(claiming) && claiming.every((name) => Object.hasOwn(mechanisms, name)), 'defineAuth guestPolicy.claiming must name declared mechanisms');
   let reaping;

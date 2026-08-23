@@ -7,7 +7,7 @@
   "artifactKind": "functionManifest",
   "authoredSourceHash": "sha256:76a80fefe75ac9eb4a707327e1e7268c3182bfb7f9db888622f6f08a90cd73f3",
   "authoringProfile": "snapback-explicit-v1",
-  "bundleHash": "sha256:647dc7cdb4f5dd6b",
+  "bundleHash": "sha256:db8c6185df17c005",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -258,9 +258,28 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "f639c7394b2d398e07ccb38fe0fe017d28fd6f85a8063c3bc59e5aebb3cf6626",
+  "inputsHash": "c94125ecab4b97e4e046429be49c4cdc15db7fb2d966141589b768a276bc03c8",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": [
+    {
+      "code": "SNAPBACK_PLAN_FACTS_DERIVED",
+      "details": {
+        "dependencySet": {
+          "reads": [],
+          "writes": [
+            "todos"
+          ]
+        },
+        "dependencySetProvenance": "plan-derived",
+        "function": "createTodo",
+        "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+        "resultContractProvenance": "unknown"
+      },
+      "guideAnchor": "/_snapback/guide/backend/declarative-plans.md#return-bindings",
+      "message": "createTodo: closed plan result/dependency facts resolved with provenance",
+      "severity": "info",
+      "subsystem": "function"
+    },
     {
       "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
       "details": {

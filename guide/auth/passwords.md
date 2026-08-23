@@ -244,6 +244,18 @@ The complete ordinary sequence is:
    authenticated refuses with a typed `signOut` remediation; there is no
    implicit latest-user-wins switch.
 
+### Claim a guest with a password
+
+When the generated policy includes `guest-v1`, the same facade can first run
+`await auth.enterAsGuest()` and later call
+`auth.claimGuestWithPassword({ email, password })`. Claim preserves the guest
+principal, revokes its guest-era sessions, and adopts the password successor
+through the ordinary coordinator barrier. Its recovery codes are a one-time
+return boundary with the same handling as signup. If the email already belongs
+to another principal, `SNAPBACK_AUTH_GUEST_CLAIM_COLLISION` refuses without
+revealing that account or taking it over. A reaped, expired, logged-out, or
+non-guest predecessor fails as the uniform invalid-guest-session class.
+
 The browser restoration path is package-tested against a fresh application
 client over the same durable custody record:
 

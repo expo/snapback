@@ -1019,6 +1019,38 @@ fn journal(tx: &Transaction<'_>, user: &str, kind: &str, now: u64) -> SnapbackRe
     Ok(())
 }
 
+/// Durable discriminator for the only guest cleanup contract implemented by
+/// the floor runtime. Reaping reads this creation fact instead of the current
+/// deployment manifest: disabling guest entry must not strand old guests, and
+/// changing a later declaration must never reinterpret an existing guest's
+/// cleanup contract.
+// @ref LLP 0214#11-guest-first-template-posture — cleanup is declared per
+// guest and cleanup failure leaves the principal active and retryable.
+pub(crate) const DEFAULT_GUEST_TOMBSTONE_EVENT_METADATA: &str = r#"{"guestCleanupContract":"declarative-default-tombstone-v1","notificationChannel":"unavailable"}"#;
+
+fn journal_guest_created(
+    tx: &Transaction<'_>,
+    user: &str,
+    session: &str,
+    now: u64,
+) -> SnapbackResult<()> {
+    tx.execute(
+        "INSERT INTO _auth_security_events(
+           id,user_id,kind,cause_class,session_id,occurred_at_ms,
+           correlation_id,redacted_metadata
+         ) VALUES(?1,?2,'guest.created','public-transition',?3,?4,?5,?6)",
+        params![
+            opaque_id("event"),
+            user,
+            session,
+            now,
+            opaque_id("correlation"),
+            DEFAULT_GUEST_TOMBSTONE_EVENT_METADATA,
+        ],
+    )?;
+    Ok(())
+}
+
 fn insert_recovery_set(
     tx: &Transaction<'_>,
     user: &str,
@@ -1420,8 +1452,7 @@ pub(crate) fn admit_password_issuance_in(
             });
             let collision: bool = transaction.query_row(
                 "SELECT EXISTS(SELECT 1 FROM _auth_identities
-                 WHERE provider='local-password' AND subject=?1
-                   AND disabled_at_ms IS NULL)",
+                 WHERE provider='local-password' AND subject=?1)",
                 [&plan.canonical_identifier],
                 |row| row.get(0),
             )?;
@@ -2830,7 +2861,7 @@ impl LocalDatabase {
             tx.execute("INSERT INTO _auth_users(id,created_at_ms,kind,guest_state,guest_expires_at_ms) VALUES(?1,?2,'human','active',?3)", params![user, now, expires_at])?;
             let (session, bearer) = insert_session(tx, &user, None, None, "guest", now, random)?;
             insert_assurance(tx, &user, &session, None, "authenticated", now, Some(expires_at))?;
-            journal(tx, &user, "guest.created", now)?;
+            journal_guest_created(tx, &user, &session, now)?;
             Ok(IdentitySession { user_id: user, session_id: session, bearer, recovery_codes: None })
         })
     }
@@ -2973,8 +3004,21 @@ impl LocalDatabase {
     pub fn identity_reap_guests_default_tombstone(&mut self, now: u64) -> SnapbackResult<u64> {
         self.with_auth_transaction(|tx|{
             super::auth::require_identity_core_v3_on(tx)?;
-            let mut stmt=tx.prepare("SELECT id FROM _auth_users WHERE guest_state='active' AND guest_expires_at_ms<=?1 ORDER BY id")?;
-            let users=stmt.query_map([now],|row|row.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?; drop(stmt);
+            let mut stmt=tx.prepare(
+                "SELECT u.id
+                   FROM _auth_users u
+                  WHERE u.guest_state='active'
+                    AND u.guest_expires_at_ms<=?1
+                    AND EXISTS (
+                      SELECT 1
+                        FROM _auth_security_events e
+                       WHERE e.user_id=u.id
+                         AND e.kind='guest.created'
+                         AND e.redacted_metadata=?2
+                    )
+                  ORDER BY u.id",
+            )?;
+            let users=stmt.query_map(params![now, DEFAULT_GUEST_TOMBSTONE_EVENT_METADATA],|row|row.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?; drop(stmt);
             for user in &users { tx.execute("UPDATE _auth_sessions SET revoked_at_ms=?2,generation=generation+1 WHERE user_id=?1 AND revoked_at_ms IS NULL",params![user,now])?; tx.execute("UPDATE _auth_users SET guest_state='reaped',guest_expires_at_ms=NULL WHERE id=?1 AND guest_state='active'",[user])?; journal(tx,user,"guest.reaped",now)?; }
             Ok(users.len() as u64)
         })
@@ -3004,6 +3048,31 @@ impl LocalDatabase {
                 )?,
                 ledger: read_password_attempt_on(connection, canonical_identifier)?,
             })
+        })
+    }
+
+    /// A disabled identity remains the immutable owner of its provider subject.
+    /// Guest claim uses this stronger ownership predicate rather than the
+    /// sign-in-eligible password snapshot so disabling an account can never
+    /// make its identifier claimable by another principal.
+    // @ref LLP 0214#81-guest-principal-and-session-creation — an existing
+    // identity collision refuses; guest claim never switches or merges users.
+    pub fn password_identity_subject_is_owned(
+        &self,
+        canonical_identifier: &str,
+        identifier_mode: PasswordIdentifierMode,
+    ) -> SnapbackResult<bool> {
+        self.with_auth_read(|connection| {
+            super::auth::require_password_identifier_mode_on(connection)?;
+            require_same_password_identifier_mode(connection, identifier_mode)?;
+            connection
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM _auth_identities
+                     WHERE provider='local-password' AND subject=?1)",
+                    [canonical_identifier],
+                    |row| row.get(0),
+                )
+                .map_err(Into::into)
         })
     }
 
@@ -3143,6 +3212,29 @@ impl LocalDatabase {
                     |row| row.get(0),
                 )
                 .map_err(Into::into)
+        })
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn disable_identity_for_test(
+        &mut self,
+        provider: &str,
+        subject: &str,
+        disabled_at_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.with_auth_transaction(|transaction| {
+            let changed = transaction.execute(
+                "UPDATE _auth_identities SET disabled_at_ms=?3
+                 WHERE provider=?1 AND subject=?2 AND disabled_at_ms IS NULL",
+                params![provider, subject, disabled_at_ms],
+            )?;
+            if changed != 1 {
+                return Err(auth_error(
+                    "INTERNAL_AUTH_STATE",
+                    "authentication state invariant failed",
+                ));
+            }
+            Ok(())
         })
     }
 
@@ -3824,7 +3916,27 @@ mod tests {
         assert_eq!(set.user_id, settable.user_id);
 
         let reapable = db.identity_guest_create(8, 7, &random).unwrap();
+        let unsupported_cleanup = db.identity_guest_create(8, 7, &random).unwrap();
+        db.with_auth_transaction(|tx| {
+            tx.execute(
+                "UPDATE _auth_security_events
+                    SET redacted_metadata='{}'
+                  WHERE user_id=?1 AND kind='guest.created'",
+                [&unsupported_cleanup.user_id],
+            )?;
+            Ok(())
+        })
+        .unwrap();
         assert_eq!(db.identity_reap_guests_default_tombstone(9).unwrap(), 1);
+        assert_eq!(
+            db.with_auth_read(|conn| Ok(conn.query_row(
+                "SELECT guest_state FROM _auth_users WHERE id=?1",
+                [&unsupported_cleanup.user_id],
+                |row| row.get::<_, String>(0),
+            )?))
+            .unwrap(),
+            "active"
+        );
         assert_eq!(
             db.identity_guest_claim_password(
                 &reapable.bearer,

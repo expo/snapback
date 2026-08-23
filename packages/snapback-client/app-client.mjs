@@ -41,6 +41,7 @@ const BINDING_KEYS = [
 ];
 const TARGET_KEYS = ['app', 'functions', 'origin', 'routing', 'schema'];
 const POLICY_MECHANISMS = [
+  'guest-v1',
   'password-v1',
   'email-code-v1',
   'external-session-explicit-v1',
@@ -476,6 +477,21 @@ function validateBinding(binding, app, policy, now = Date.now) {
         'selectCompatibleBinding',
         'Select a target binding that offers auth.passwords.',
         { requiredCapability: 'auth.passwords' },
+      )],
+    );
+  }
+  if (
+    policy.entryMechanisms.includes('guest-v1')
+    && !binding.capabilities.offered.includes('auth.guest-sessions')
+  ) {
+    throw refusal(
+      'SNAPBACK_AUTH_BOOTSTRAP_MECHANISM_UNAVAILABLE',
+      'The selected target does not offer the generated guest entry mechanism.',
+      { mechanism: 'guest-v1', missingCapability: 'auth.guest-sessions' },
+      [remediation(
+        'selectCompatibleBinding',
+        'Select a target binding that offers auth.guest-sessions.',
+        { requiredCapability: 'auth.guest-sessions' },
       )],
     );
   }
@@ -1322,6 +1338,21 @@ function requirePasswordMechanism(owner) {
   );
 }
 
+function requireGuestMechanism(owner) {
+  if (owner.policy.entryMechanisms.includes('guest-v1')) return;
+  throw refusal(
+    'SNAPBACK_AUTH_BOOTSTRAP_MECHANISM_UNAVAILABLE',
+    'The generated application auth policy does not admit guest-v1.',
+    { mechanism: 'guest-v1', policyAdmitted: false },
+    [remediation(
+      'regenerateAppDescriptor',
+      'Enable guestPolicy in the application auth program and regenerate.',
+      { mechanism: 'guest-v1' },
+    )],
+    { operation: 'auth-entry', effectCommitted: false, effectMayHaveCommitted: false },
+  );
+}
+
 function requireExternalSessionEntry(owner) {
   if (owner.policy.entryMechanisms.includes('external-session-explicit-v1')) return;
   throw refusal(
@@ -1357,10 +1388,12 @@ function entryFailure(error, signedOut, principalStatus) {
 }
 
 async function enterWith(owner, operation, {
+  requireGuest = false,
   requirePassword = false,
   requireExternal = false,
 } = {}) {
   return serializeOwner(owner, async () => {
+    if (requireGuest) requireGuestMechanism(owner);
     if (requirePassword) requirePasswordMechanism(owner);
     if (requireExternal) requireExternalSessionEntry(owner);
     const principal = owner.client.auth.currentPrincipal();
@@ -1450,6 +1483,24 @@ function createFacade(owner, subscriptions) {
         unsubscribe();
       };
     },
+    enterAsGuest: () => enterWith(
+      owner,
+      () => owner.client.auth.authEnterAsGuest(),
+      { requireGuest: true },
+    ),
+    claimGuestWithPassword: (input) => serializeOwner(owner, async () => {
+      requireGuestMechanism(owner);
+      requirePasswordMechanism(owner);
+      owner.ownerTransitionInFlight = true;
+      try {
+        const result = await owner.client.auth.authClaimGuestWithPassword(input);
+        owner.authoritySource = 'application-entry';
+        publishReady(owner);
+        return result;
+      } finally {
+        owner.ownerTransitionInFlight = false;
+      }
+    }),
     signUpWithPassword: (input) => enterWith(
       owner,
       () => owner.client.auth.authPasswordSignup(input),

@@ -204,12 +204,16 @@ export type GeneratedAssetsContext = AssetsContext<string, Readonly<{ upload?: s
 export interface GeneratedPermissions {
 }
 export interface AuthorityRosterPageV1<Row> { readonly rows: readonly Row[]; readonly cursor: string | null }
+export interface AuthorityHistoryHorizonV1 { readonly earliestCoveredCommit: number; readonly coverageClass: 'full' | 'authorization-facts-only' }
+export interface AuthorityHistoryPageV1<Row> { readonly rows: readonly Row[]; readonly cursor: string | null; readonly boundary: 'exact' | 'at-limit'; readonly horizon: AuthorityHistoryHorizonV1 }
 export interface GeneratedAuthority {
+}
+export interface GeneratedMutationAuthority {
 }
 export interface GeneratedMembership {
 }
 export type GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = QueryContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, any, GeneratedRuntimeContext> & { readonly authority: GeneratedAuthority };
-export type GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = MutationContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, GeneratedAssetsContext, GeneratedRuntimeContext, GeneratedMembership, JobsContext, SequenceContext, MutationIdentityContext> & { readonly authority: GeneratedAuthority };
+export type GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = MutationContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, GeneratedAssetsContext, GeneratedRuntimeContext, GeneratedMembership, JobsContext, SequenceContext, MutationIdentityContext> & { readonly authority: GeneratedMutationAuthority };
 export type GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = ActionContext<Auth, GeneratedRuntimeContext, any, SecretsContext<any>, unknown, never, RealtimeContext>;
 export interface GeneratedFunctionContexts {
   "createProject": GeneratedMutationContext;
@@ -230,7 +234,7 @@ export interface GeneratedApi {
    * Auth: `public`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `inline_handler_v1`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:253be6687509f6740c19e63b172030544699fff9d7eade2e6c9c4d2bddb5d792`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:2ffcce3090fec4aa5683ef0662ff6a5aac796c93b08818832223b17f471839bb`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "createProject": FunctionReference<"createProject", 'Mutation', { teamSlug: string; title: string; summary: string; status: string; budget: number }, string, "snapback-explicit-v1">;
   /**
@@ -239,7 +243,7 @@ export interface GeneratedApi {
    * Auth: `public`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `inline_handler_v1`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:253be6687509f6740c19e63b172030544699fff9d7eade2e6c9c4d2bddb5d792`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:2ffcce3090fec4aa5683ef0662ff6a5aac796c93b08818832223b17f471839bb`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "deleteProject": FunctionReference<"deleteProject", 'Mutation', { projectKey: string }, boolean, "snapback-explicit-v1">;
   /**
@@ -248,7 +252,7 @@ export interface GeneratedApi {
    * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`, `single_table_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:253be6687509f6740c19e63b172030544699fff9d7eade2e6c9c4d2bddb5d792`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:2ffcce3090fec4aa5683ef0662ff6a5aac796c93b08818832223b17f471839bb`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "listTeams": FunctionReference<"listTeams", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"teams">; "_version": number; "_createdAt": number; "_updatedAt": number; "slug": string; "name": string; "color": string }>, "snapback-explicit-v1">;
   /**
@@ -257,7 +261,7 @@ export interface GeneratedApi {
    * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`, `single_table_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:253be6687509f6740c19e63b172030544699fff9d7eade2e6c9c4d2bddb5d792`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:2ffcce3090fec4aa5683ef0662ff6a5aac796c93b08818832223b17f471839bb`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "projectDetail": FunctionReference<"projectDetail", 'LiveQuery', { projectKey: string }, ReadonlyArray<{ "_id": Id<"projects">; "_version": number; "_createdAt": number; "_updatedAt": number; "projectKey": string; "teamSlug": string; "title": string; "summary": string; "status": string; "budget": number; "updatedAt": number }>, "snapback-explicit-v1">;
   /**
@@ -266,7 +270,7 @@ export interface GeneratedApi {
    * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `relational_query_v1`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:253be6687509f6740c19e63b172030544699fff9d7eade2e6c9c4d2bddb5d792`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:2ffcce3090fec4aa5683ef0662ff6a5aac796c93b08818832223b17f471839bb`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "projectDirectory": FunctionReference<"projectDirectory", 'LiveQuery', { cursor?: string }, ReadonlyArray<{ "projectKey": string; "title": string; "summary": string; "status": string; "budget": number; "updatedAt": number; "teamSlug": string; "teamName": null | string; "teamColor": null | string }>, "snapback-explicit-v1">;
   /**
@@ -275,7 +279,7 @@ export interface GeneratedApi {
    * Auth: `public`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `inline_handler_v1`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:253be6687509f6740c19e63b172030544699fff9d7eade2e6c9c4d2bddb5d792`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:2ffcce3090fec4aa5683ef0662ff6a5aac796c93b08818832223b17f471839bb`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "updateProject": FunctionReference<"updateProject", 'Mutation', { projectKey: string; teamSlug: string; title: string; summary: string; status: string; budget: number }, { "projectKey": string; "teamSlug": string; "title": string; "summary": string; "status": string; "budget": number; "updatedAt": number }, "snapback-explicit-v1">;
   ephemeral: GeneratedEphemeral;

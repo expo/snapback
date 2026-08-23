@@ -60,7 +60,7 @@ export interface ApplicationAuthBootstrapV1 {
   readonly appId: string;
   readonly mode: 'sessions';
   readonly custody: 'durable-required' | 'volatile-explicit';
-  readonly entryMechanisms: readonly ('password-v1' | 'email-code-v1' | 'external-session-explicit-v1')[];
+  readonly entryMechanisms: readonly ('guest-v1' | 'password-v1' | 'email-code-v1' | 'external-session-explicit-v1')[];
   readonly anonymousPublic: 'allowed' | 'refused';
   readonly lifecycleProtocol: 1;
 }

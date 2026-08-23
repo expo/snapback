@@ -845,17 +845,20 @@ authority.
 
 82. **Capture link:** "Open a capture link, let the person continue as a guest,
     then claim the draft after signup." The run fails if it presents a
-    capability URL as guest-session authority or claims first-party guest entry
-    ships before owner review.
-    Expected pages: `recipes/capability-links.md`.
+    capability URL as guest-session authority, omits the separately generated
+    guest entry route, or lets the caller choose guest identity/lifetime facts.
+    Expected pages: `recipes/capability-links.md`, `auth/sessions-and-principals.md`.
     Route terms: "capture link".
+    Required guidance: "First-party guest entry is separate", "The public POST /auth/guest request body is exactly {}".
 
 83. **Claim link:** "Use a claim link to turn an anonymous draft into the
     signed-in user's account." The run fails if it treats capability-link
     possession as account or principal authority rather than routing to an
-    app-owned identity ceremony while guest/granted entry remains unshipped.
-    Expected pages: `recipes/capability-links.md`.
+    app-owned identity ceremony or the shipped guest-to-password transition;
+    either path must refuse identity collisions.
+    Expected pages: `recipes/capability-links.md`, `auth/sessions-and-principals.md`.
     Route terms: "claim link".
+    Required guidance: "A capability link cannot claim an account", "SNAPBACK_AUTH_GUEST_CLAIM_COLLISION".
 
 84. **Single-use token:** "Make a share-to-view URL a single-use token and
     explain what replay returns." The run must choose `uses: 1`, invoke only
@@ -929,6 +932,17 @@ derived manifest fact looked like a public schema option.
     Route terms: "unique index optional field".
     Required guidance: "Use the ordinary public index option { unique: true }",
     "A row participates in uniqueness only when all index components are present".
+
+Case 92 absorbs the first-party guest-session entry closure from LLP 0294 W6.1.
+
+92. **Guest entry and claim:** "Let someone enter as a guest, keep working
+    after a browser reload, then claim the same account with a password or log
+    out." The run fails if it invents an Expo-only auth owner, supplies ids,
+    expiry, or cleanup from the client, weakens custody, or merges into an
+    existing password identity.
+    Expected pages: `auth/sessions-and-principals.md`, `auth/passwords.md`.
+    Route terms: "enterAsGuest", "claimGuestWithPassword", "guest entry".
+    Required guidance: "A caller never supplies the principal id, session id, expiry, or cleanup policy", "An existing password identity refuses".
 
 ## Static routing check
 

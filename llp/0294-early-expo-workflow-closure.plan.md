@@ -14,6 +14,8 @@ design, and no adversarial-handler containment is claimed.)
 **Revised:** 2026-08-22 (author ruling accepts LLP 0235 as the governing
 class-M design and sequences its implementation after W6 closes; the
 split-sensitive-fields workaround remains the only shipped pattern until then.)
+**Revised:** 2026-08-22 (W6.1 owner review resolved: author ruling approves
+the `implement` option for the declared guest-creation transition.)
 **Revised:** 2026-08-21 (OQ7 resolved by orchestrator ruling: supervised
 AppBindings refresh lazily at bootstrap exchange through one supervisor-owned
 convergent publication point; no background timer or app-side extension.)
@@ -39,7 +41,7 @@ issues/20260819-heic-image-normalization.md,
 issues/20260819-minimal-expo-starter.md,
 issues/20260819-readme-notifications-capability-overclaim.md,
 issues/closed/20260821-guide-gap-asset-client-accessor-mismatch.md,
-issues/20260821-guest-session-client-entry.md,
+issues/closed/20260821-guest-session-client-entry.md,
 issues/closed/20260821-expo-native-auth-crypto-adapter.md,
 issues/closed/20260821-expo-supervised-binding-refresh.md,
 issues/20260821-guide-gap-capability-link-app-flows.md,
@@ -275,11 +277,12 @@ local Expo push from design-only first-class email/SMS/push. Tracked by
 
 Three defects compose into the native first-use boundary:
 
-1. Implement LLP 0214's declared guest-creation transition through the
+1. **Resolved 2026-08-22.** Implemented LLP 0214's declared guest-creation transition through the
    framework-neutral application client and project it through React/Expo under
    LLP 0258's existing coordinator. A declared `guestPolicy` must either have a
    usable entry or be described as server-design-only; the current split is not
-   acceptable.
+   acceptable. **Author ruling 2026-08-22: implement** the declared transition,
+   rather than retaining a server-design-only policy.
 2. Resolve the auth-custody partition digest through a provider-owned Expo
    crypto adapter. Binding-digest fallback and security-bearing randomness
    remain separate facts: a SHA-256 adapter does not create a CSPRNG.
@@ -289,10 +292,11 @@ Three defects compose into the native first-use boundary:
    `expiresAt` change absent another governing event. The app does not extend
    timestamps locally and neither side owns a background refresh timer.
 
-The guest route is a security-bearing feature and waits for its owner review.
-The crypto and binding-refresh defects are straight repairs and should proceed
-first with packed native witnesses. Tracked by
-`issues/20260821-guest-session-client-entry.md`,
+The guest route's security-bearing owner review resolved on 2026-08-22 with
+approval to implement, and the shared server/client transition plus packed
+browser/Expo witness are complete. The crypto and binding-refresh defects
+remain straight repairs with packed native witnesses. Tracked by
+`issues/closed/20260821-guest-session-client-entry.md`,
 `issues/closed/20260821-expo-native-auth-crypto-adapter.md`, and
 `issues/closed/20260821-expo-supervised-binding-refresh.md`.
 

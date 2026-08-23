@@ -9508,6 +9508,10 @@ pub enum CredentialResolution {
     /// A closed email-code challenge body proves authority only to exchange
     /// that challenge for a fresh credential; it is never a caller identity.
     ChallengeProof,
+    /// The exact empty guest-creation body is admitted only after the served
+    /// generated guest policy, cleanup executor, and both effect budgets have
+    /// resolved. It installs no caller-selected authority.
+    GuestCreationPolicy,
     PasswordCredentialBody,
     PasswordRecoveryCodeBody,
     CreationInvitationBody,
@@ -9926,6 +9930,7 @@ impl RouteSpec {
                 self.credential_resolution,
                 CredentialResolution::None
                     | CredentialResolution::ChallengeProof
+                    | CredentialResolution::GuestCreationPolicy
                     | CredentialResolution::PasswordCredentialBody
                     | CredentialResolution::PasswordRecoveryCodeBody
                     | CredentialResolution::CreationInvitationBody
@@ -9998,6 +10003,15 @@ impl RouteSpec {
         {
             return fail(
                 "challenge proof must be public, install no caller, and return only a credential-secret response",
+            );
+        }
+        if self.credential_resolution == CredentialResolution::GuestCreationPolicy
+            && (self.path_policy != RoutePolicy::Public
+                || self.invocation_authority != InvocationAuthority::None
+                || self.response_sensitivity != ResponseSensitivity::CredentialSecret)
+        {
+            return fail(
+                "guest creation policy must be public, install no caller, and return only a credential-secret response",
             );
         }
         if matches!(
@@ -10190,6 +10204,7 @@ impl RouteSpec {
                 sessions.credential_resolution,
                 CredentialResolution::None
                     | CredentialResolution::ChallengeProof
+                    | CredentialResolution::GuestCreationPolicy
                     | CredentialResolution::PasswordCredentialBody
                     | CredentialResolution::PasswordRecoveryCodeBody
                     | CredentialResolution::CreationInvitationBody
@@ -10652,6 +10667,33 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
                 ResponseSensitivity::CredentialSecret,
             ),
             post(auth_exchange).layer(DefaultBodyLimit::max(AUTH_EXCHANGE_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/guest",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::GuestCreationPolicy,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(auth_enter_as_guest).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/guest/claim/password",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::Rejected,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(auth_claim_guest_with_password)
+                .layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
         RegisteredRoute::new(
             RouteSpec::new(
@@ -12808,9 +12850,10 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         | "/watches/{id}/resume"
         | "/watches/{id}/renew" => Some(InvocationSource::WatchManagement),
         "/auth/session" => Some(InvocationSource::BootstrapHandshake),
-        "/auth/refresh" | "/auth/password/change" | "/auth/recovery/rotate" => {
-            Some(InvocationSource::AuthRefresh)
-        }
+        "/auth/refresh"
+        | "/auth/password/change"
+        | "/auth/guest/claim/password"
+        | "/auth/recovery/rotate" => Some(InvocationSource::AuthRefresh),
         "/auth/logout" => Some(InvocationSource::AuthLogout),
         "/push/tokens/register" | "/push/tokens/unregister" => {
             Some(InvocationSource::PushTokenRegistry)
@@ -18024,6 +18067,7 @@ async fn coordinated_mint_session(
             IssuanceFinish::CodeInvalid
             | IssuanceFinish::CodeLocked
             | IssuanceFinish::CredentialThrottled
+            | IssuanceFinish::GuestBudgetRefused { .. }
             | IssuanceFinish::SenderKeyBound
             | IssuanceFinish::RehearsalReplay(_) => {
                 return Err(auth_provider_unavailable_error());
@@ -18357,6 +18401,9 @@ async fn coordinated_exchange_session(
                         return Err(crate::auth::provider::credential_invalid());
                     }
                     IssuanceFinish::CredentialThrottled => {
+                        return Err(ProviderError::from(auth_provider_unavailable_error()));
+                    }
+                    IssuanceFinish::GuestBudgetRefused { .. } => {
                         return Err(ProviderError::from(auth_provider_unavailable_error()));
                     }
                     IssuanceFinish::RehearsalReplay(_) => {
@@ -18747,6 +18794,7 @@ fn password_issue_response(
         }
         IssuanceFinish::CredentialInvalid => Err(password_credential_invalid()),
         IssuanceFinish::CredentialThrottled => Err(password_throttled()),
+        IssuanceFinish::GuestBudgetRefused { .. } => Err(auth_provider_unavailable()),
         IssuanceFinish::PredecessorChanged => Err(predecessor_changed()),
         IssuanceFinish::CandidateCollision
         | IssuanceFinish::CodeInvalid
@@ -18755,6 +18803,268 @@ fn password_issue_response(
         | IssuanceFinish::RehearsalReplay(_)
         | IssuanceFinish::RehearsalDenied(_) => Err(auth_provider_unavailable()),
     }
+}
+
+async fn commit_guest_issuance_plan(
+    runtime: &AppState,
+    provider: &Arc<AuthProvider>,
+    plan: ProviderSessionIssuancePlan,
+    route_admission: &AdmissionLease,
+) -> Result<IssuanceFinish, SnapbackError> {
+    let coordinator = runtime.auth_coordinator.clone().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+            "auth",
+            "authentication projection is unavailable",
+        )
+    })?;
+    let carrier = coordinator.premark_issuance(plan).await?;
+    let commit_plan = carrier.plan().commit_plan();
+    let effect_admission = route_admission.clone();
+    let owned_state = runtime.clone();
+    let owned_provider = provider.clone();
+    let owned_coordinator = coordinator.clone();
+    let snapback = runtime.snapback.clone();
+    let transaction = spawn_owned_auth_transaction(async move {
+        let admission = owned_provider.admit().await;
+        let attempt = with_snapback(&snapback, move |snapback| {
+            match effect_admission.effect_guard("guest creation transaction") {
+                Ok(_effect) => {
+                    snapback.execute_auth_plan(admission.commit_guest_issuance_plan(&commit_plan))
+                }
+                Err(error) => AuthTransactionAttempt::RolledBack(error),
+            }
+        })
+        .await;
+        let finish = owned_coordinator.finish_issuance(
+            carrier,
+            attempt,
+            owned_provider.now_ms(),
+            owned_provider.monotonic_now(),
+        );
+        finish_auth_with_terminal_propagation(
+            &owned_state,
+            &owned_provider,
+            finish,
+            crate::live_wire::LiveAuthorityDisposition::Carrier,
+        )
+    });
+    await_owned_auth_transaction(transaction).await?
+}
+
+async fn auth_enter_as_guest(
+    State(runtime): State<AppState>,
+    Extension(route_admission): Extension<AdmissionLease>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
+    let policy = with_snapback(&runtime.snapback, |snapback| {
+        snapback.served_schema_manifest().auth_program.clone()
+    })
+    .await
+    .and_then(|program| {
+        (program.version == 1
+            && program.guest_policy.enabled
+            && program
+                .mechanisms
+                .values()
+                .any(|mechanism| mechanism.kind == "guest"))
+        .then_some(program.guest_policy)
+    })
+    .ok_or_else(|| {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_AUTH_GUEST_DISABLED",
+            "auth",
+            "guest entry is unavailable",
+        ))
+    })?;
+    let reaping = policy.reaping.ok_or_else(|| {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_AUTH_GUEST_POLICY_INVALID",
+            "auth",
+            "generated guest policy is invalid",
+        ))
+    })?;
+    // The floor runtime currently implements the default tombstone contract.
+    // A richer declarative table action or app handler must refuse before any
+    // identity effect until its atomic cleanup executor is installed.
+    // @ref LLP 0214#11-guest-first-template-posture — cleanup declarations are
+    // enforced behavior, never descriptive metadata.
+    if !matches!(
+        &reaping.cleanup,
+        crate::contract_types::GuestCleanupContractV1::Declarative {
+            default: crate::contract_types::GuestCleanupActionV1::Tombstone,
+            tables,
+        } if tables.is_empty()
+    ) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_GUEST_CLEANUP_UNSUPPORTED",
+            "auth",
+            "declared guest cleanup is unsupported by this runtime",
+        )
+        .into());
+    }
+    let provider = installed_auth_provider(&runtime)?;
+    let now_ms = provider.now_ms();
+    let expires_at_ms = now_ms
+        .checked_add(reaping.after_ms)
+        .filter(|value| *value <= crate::contract_types::AUTH_MAX_SAFE_TIMESTAMP)
+        .ok_or_else(|| {
+            ApiError::from(SnapbackError::error(
+                "SNAPBACK_AUTH_GUEST_POLICY_INVALID",
+                "auth",
+                "generated guest policy is invalid",
+            ))
+        })?;
+    for _ in 0..3 {
+        let admission = provider.admit().await;
+        let (admission, plan) = with_snapback(&runtime.snapback, move |snapback| {
+            let plan = snapback.execute_auth_plan(admission.plan_guest_session_plan(
+                now_ms,
+                expires_at_ms,
+                PasswordIssuanceCustody::Bearer,
+            ));
+            (admission, plan)
+        })
+        .await;
+        let plan = plan?;
+        drop(admission);
+        match commit_guest_issuance_plan(&runtime, &provider, plan, &route_admission).await? {
+            IssuanceFinish::Committed { issue, outcome } => {
+                let (response, _) = issue.into_parts();
+                let mut response = Json(response).into_response();
+                response.extensions_mut().insert(outcome);
+                return Ok(response);
+            }
+            IssuanceFinish::GuestBudgetRefused {
+                budget_name,
+                retry_after_ms,
+            } => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_RATE_BUDGET",
+                    "auth",
+                    "authentication request budget is exhausted",
+                )
+                .with_details(json!({
+                    "budgetName": budget_name,
+                    "retryAfter": { "kind": "duration", "milliseconds": retry_after_ms },
+                    "correlationId": uuid::Uuid::now_v7().to_string(),
+                }))
+                .into());
+            }
+            IssuanceFinish::CandidateCollision => continue,
+            _ => return Err(auth_provider_unavailable()),
+        }
+    }
+    Err(auth_provider_unavailable())
+}
+
+async fn auth_claim_guest_with_password(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    require_provider_session_authority(&authority, InvocationSource::AuthRefresh)?;
+    let program = with_snapback(&runtime.snapback, |snapback| {
+        snapback.served_schema_manifest().auth_program.clone()
+    })
+    .await
+    .ok_or_else(|| {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_AUTH_GUEST_DISABLED",
+            "auth",
+            "guest entry is unavailable",
+        ))
+    })?;
+    if program.version != 1
+        || !program.guest_policy.enabled
+        || !program
+            .mechanisms
+            .values()
+            .any(|mechanism| mechanism.kind == "guest")
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_GUEST_DISABLED",
+            "auth",
+            "guest entry is unavailable",
+        )
+        .into());
+    }
+    let password_claim_enabled = program.guest_policy.claiming.iter().any(|name| {
+        program
+            .mechanisms
+            .get(name)
+            .is_some_and(|mechanism| mechanism.kind == "password")
+    });
+    if !password_claim_enabled {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_GUEST_CLAIM_UNAVAILABLE",
+            "auth",
+            "guest claim is unavailable",
+        )
+        .into());
+    }
+    let request = parse_auth_json::<PasswordCredentialRequest>(&headers, body)?;
+    let bearer = SessionBearer::parse_any_version(auth_bearer(&headers).unwrap_or_default())
+        .map_err(|_| {
+            ApiError::from(SnapbackError::error(
+                "SNAPBACK_AUTH_GUEST_SESSION_INVALID",
+                "auth",
+                "guest session is invalid",
+            ))
+        })?;
+    let provider = installed_auth_provider(&runtime)?;
+    let now_ms = provider.now_ms();
+    let admission = provider.admit().await;
+    let email = request.email.clone();
+    let (admission, preparation) = with_snapback(&runtime.snapback, move |snapback| {
+        let preparation = snapback.execute_auth_plan(admission.prepare_guest_claim_password_plan(
+            &bearer,
+            &email,
+            now_ms,
+            PasswordIssuanceCustody::Bearer,
+        ));
+        (admission, preparation)
+    })
+    .await;
+    let preparation = preparation.map_err(|error| {
+        if error.diagnostic.code == "SNAPBACK_AUTH_GUEST_CLAIM_COLLISION" {
+            ApiError::from(error)
+        } else {
+            ApiError::from(SnapbackError::error(
+                "SNAPBACK_AUTH_GUEST_SESSION_INVALID",
+                "auth",
+                "guest session is invalid",
+            ))
+        }
+    })?;
+    let plan = provider
+        .finish_guest_claim_password_with_active_recovery_key(
+            preparation,
+            crate::auth::identity_core::PasswordSecret::new(request.password.as_str().to_owned()),
+            now_ms,
+            PasswordIssuanceCustody::Bearer,
+        )
+        .await?;
+    drop(admission);
+    let finish = commit_session_password_issuance_plan(
+        &runtime,
+        &provider,
+        plan,
+        &authority,
+        "guest claim transaction",
+    )
+    .await?;
+    password_issue_response(finish, || {
+        SnapbackError::error(
+            "SNAPBACK_AUTH_GUEST_CLAIM_COLLISION",
+            "auth",
+            "guest claim is unavailable",
+        )
+        .into()
+    })
 }
 
 async fn auth_password_signup(

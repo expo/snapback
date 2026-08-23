@@ -44,7 +44,7 @@ const authProgram = defineAuth({
   },
   guestPolicy: {
     enabled: true,
-    claiming: ['emailCode'],
+    claiming: ['emailCode', 'password'],
     reaping: {
       afterMs: AUTH_DEFAULT_UNCLAIMED_GUEST_RETENTION_MS,
       cleanup: { kind: 'declarative', default: 'tombstone', tables: {} },

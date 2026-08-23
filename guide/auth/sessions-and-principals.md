@@ -3,7 +3,7 @@ title: Sessions and principals
 id: auth.sessions-and-principals
 order: 1
 audience: agent-first
-capabilities: [auth.sessions, auth.browser-session-custody, auth.scoped-queries]
+capabilities: [auth.sessions, auth.guest-sessions, auth.browser-session-custody, auth.scoped-queries]
 authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, packages/snapback-codegen/index.mjs, crates/snapback-server/src/admin.rs, crates/snapback-types/src/auth/mode.rs, crates/snapback-auth/src/auth/provider.rs, crates/snapback-auth/src/dev_identity.rs, crates/snapback-engine/src/host_ops.rs, crates/snapback-server/src/server.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/expo-dev.mjs, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/unrecognized-authority-recovery.test.mjs, packages/snapback-contract/index.mjs, packages/snapback-vite/lifecycle.mjs, packages/snapback-vite/proxy.mjs, demos/_kit/as-user.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/browser-auth, demos/card-game, demos/party-wall, packages/snapback-client/auth-identity-types.fixture.ts]
 status: current
@@ -106,6 +106,37 @@ const server = await startServer({
 This is the form the acceptance suites use (`demos/_kit/server-process.mjs`);
 prefer it over provision-plus-restart whenever the suite owns the server
 process.
+
+## Enter as a claimable guest
+
+An enabled `guestPolicy` plus a declared guest mechanism generates the
+`guest-v1` entry row. From the ordinary framework-neutral application client,
+call `await auth.enterAsGuest()`. React and Expo obtain that exact facade from
+`useSnapbackAuth()`; they do not construct another coordinator or auth owner.
+The public `POST /auth/guest` request body is exactly `{}`. A caller never
+supplies the principal id, session id, expiry, or cleanup policy: the server
+derives policy and expiry from the generated program, uses its CSPRNG for
+authority identifiers and bearer material, charges both `auth.guest.create`
+and `auth.session.mint`, then atomically commits the guest principal, session,
+assurance, and security event.
+
+The returned credential follows the ordinary coordinator transition and its
+custody grade. Browser and Expo web restore it after a cold reload under
+`durable-required`; an explicitly volatile native app returns anonymous after
+process restart and may enter again. A native app may request durable custody
+only on an admitted platform tuple. Unsupported custody refuses before route
+I/O rather than falling back to memory.
+
+To keep the same principal and turn it into a password account, call
+`auth.claimGuestWithPassword({ email, password })`. Success returns one-time
+recovery codes and replaces guest-session authority through the same transition
+barrier. An existing password identity refuses with
+`SNAPBACK_AUTH_GUEST_CLAIM_COLLISION`; it never attaches the guest to that
+account. Disabled policy, budget exhaustion, unsupported cleanup, malformed
+input, and reaped or otherwise invalid guest authority likewise fail closed
+with stable `SNAPBACK_*` codes. Reaping and logout revoke guest sessions, and
+the currently shipped cleanup executor admits only the declarative all-table
+`tombstone` contract with no table overrides.
 
 ## Sign in: email code → session credential
 

@@ -2,6 +2,7 @@ export const APP_DESCRIPTOR_FORMAT: 'snapback.app.v1';
 export const APP_DESCRIPTOR_MAX_BYTES: number;
 export const APPLICATION_AUTH_BOOTSTRAP_FORMAT: 'snapback.application-auth-bootstrap.v1';
 export const APPLICATION_AUTH_BOOTSTRAP_ENTRY_MECHANISMS: readonly [
+  'guest-v1',
   'password-v1',
   'email-code-v1',
   'external-session-explicit-v1',
@@ -27,7 +28,7 @@ export interface PortableAppDescriptorV1 {
     appId: string;
     mode: 'sessions';
     custody: 'durable-required' | 'volatile-explicit';
-    entryMechanisms: readonly ('password-v1' | 'email-code-v1' | 'external-session-explicit-v1')[];
+    entryMechanisms: readonly ('guest-v1' | 'password-v1' | 'email-code-v1' | 'external-session-explicit-v1')[];
     anonymousPublic: 'allowed' | 'refused';
     lifecycleProtocol: 1;
   }>;

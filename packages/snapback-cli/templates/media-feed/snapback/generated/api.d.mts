@@ -199,12 +199,16 @@ export type GeneratedAssetsContext = AssetsContext<string, Readonly<{ upload?: s
 export interface GeneratedPermissions {
 }
 export interface AuthorityRosterPageV1<Row> { readonly rows: readonly Row[]; readonly cursor: string | null }
+export interface AuthorityHistoryHorizonV1 { readonly earliestCoveredCommit: number; readonly coverageClass: 'full' | 'authorization-facts-only' }
+export interface AuthorityHistoryPageV1<Row> { readonly rows: readonly Row[]; readonly cursor: string | null; readonly boundary: 'exact' | 'at-limit'; readonly horizon: AuthorityHistoryHorizonV1 }
 export interface GeneratedAuthority {
+}
+export interface GeneratedMutationAuthority {
 }
 export interface GeneratedMembership {
 }
 export type GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = QueryContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, any, GeneratedRuntimeContext> & { readonly authority: GeneratedAuthority };
-export type GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = MutationContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, GeneratedAssetsContext, GeneratedRuntimeContext, GeneratedMembership, JobsContext, SequenceContext, MutationIdentityContext> & { readonly authority: GeneratedAuthority };
+export type GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = MutationContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, GeneratedAssetsContext, GeneratedRuntimeContext, GeneratedMembership, JobsContext, SequenceContext, MutationIdentityContext> & { readonly authority: GeneratedMutationAuthority };
 export type GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = ActionContext<Auth, GeneratedRuntimeContext, any, SecretsContext<any>, unknown, never, RealtimeContext>;
 export interface GeneratedFunctionContexts {
   "createEntry": GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
@@ -222,7 +226,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `inline_handler_v1`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:347762da8bce30349550e211aacf647782e2f368dadbf0904993a26baea398a4`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:0787a7dcdf3c93eb0b02b8224e919aa5221aecb8123775259cf619246baf3e23`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "createEntry": FunctionReference<"createEntry", 'Mutation', { authorName: string; caption: string; photo: string }, Id<"entries">, "snapback-explicit-v1">;
   /**
@@ -231,7 +235,7 @@ export interface GeneratedApi {
    * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`, `single_table_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:347762da8bce30349550e211aacf647782e2f368dadbf0904993a26baea398a4`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:0787a7dcdf3c93eb0b02b8224e919aa5221aecb8123775259cf619246baf3e23`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "liveFeed": FunctionReference<"liveFeed", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"entries">; "_version": number; "_createdAt": number; "_updatedAt": number; "ownerId": Principal; "authorName": string; "caption": string; "photo": null | string; "pageKey": string; "createdAt": number }>, "snapback-explicit-v1">;
   /**
@@ -240,7 +244,7 @@ export interface GeneratedApi {
    * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`, `single_table_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:347762da8bce30349550e211aacf647782e2f368dadbf0904993a26baea398a4`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:0787a7dcdf3c93eb0b02b8224e919aa5221aecb8123775259cf619246baf3e23`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "olderFeedPage": FunctionReference<"olderFeedPage", 'LiveQuery', { before: string }, ReadonlyArray<{ "_id": Id<"entries">; "_version": number; "_createdAt": number; "_updatedAt": number; "ownerId": Principal; "authorName": string; "caption": string; "photo": null | string; "pageKey": string; "createdAt": number }>, "snapback-explicit-v1">;
   feedPhotoUpload: AssetUploadReference<"feedPhotoUpload", Record<string, never>>;

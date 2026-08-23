@@ -31,7 +31,7 @@ mod tests {
     use base64::Engine;
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
     use serde_json::Value;
-    use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 
     struct CountingConstantRandom {
         fills: AtomicUsize,
@@ -67,6 +67,73 @@ mod tests {
             destination[..partial].fill(0xa5);
             Err(super::super::crypto::CryptoError::RandomUnavailable)
         }
+    }
+
+    struct ToggleFailureRandom {
+        unavailable: AtomicBool,
+    }
+
+    impl RandomSource for ToggleFailureRandom {
+        fn fill(&self, destination: &mut [u8]) -> Result<(), super::super::crypto::CryptoError> {
+            if self.unavailable.load(Ordering::SeqCst) {
+                return Err(super::super::crypto::CryptoError::RandomUnavailable);
+            }
+            OsRandom.fill(destination)
+        }
+    }
+
+    #[test]
+    fn guest_creation_refuses_csprng_failure_before_planning_an_effect() {
+        let now_ms = 1_700_000_000_000;
+        let mut database = LocalDatabase::memory().expect("memory database");
+        database
+            .activate_current_auth_catalog()
+            .expect("auth catalog");
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        keyring
+            .load_or_mint_initial(now_ms, &OsRandom)
+            .expect("initial keyring");
+        let random = Arc::new(ToggleFailureRandom {
+            unavailable: AtomicBool::new(false),
+        });
+        let provider = AuthProvider::new_with_dependencies(
+            AuthProviderProfile::Test,
+            keyring,
+            random.clone(),
+            Arc::new(ManualClock::new(now_ms)),
+        )
+        .expect("provider initializes while randomness is available");
+        random.unavailable.store(true, Ordering::SeqCst);
+        let error = provider
+            .plan_guest_session(now_ms, now_ms + 60_000, PasswordIssuanceCustody::Bearer)
+            .expect_err("guest creation must fail closed without CSPRNG");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_RANDOM_UNAVAILABLE");
+    }
+
+    #[test]
+    fn guest_creation_charges_both_finite_effect_budgets_at_commit() {
+        let now_ms = 1_700_000_000_000;
+        let (provider, mut database) =
+            provider_database_for_profile(now_ms, AuthProviderProfile::Prod);
+        for _ in 0..10 {
+            let plan = provider
+                .plan_guest_session(now_ms, now_ms + 60_000, PasswordIssuanceCustody::Bearer)
+                .expect("admitted guest plan");
+            assert!(matches!(
+                provider.commit_guest_issuance(&mut database, &plan.commit_plan()),
+                AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed { .. })
+            ));
+        }
+        let denied = provider
+            .plan_guest_session(now_ms, now_ms + 60_000, PasswordIssuanceCustody::Bearer)
+            .expect("budget denial is decided at the atomic commit cut");
+        assert!(matches!(
+            provider.commit_guest_issuance(&mut database, &denied.commit_plan()),
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::GuestBudgetRefused {
+                budget_name: "auth.guest.create",
+                retry_after_ms: 1_000,
+            })
+        ));
     }
 
     #[test]

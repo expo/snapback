@@ -1564,15 +1564,24 @@ function deriveApplicationAuthBootstrapV1({
   }
   const admittedEntries = new Set();
   const mechanisms = authProgram?.mechanisms ?? {};
+  let hasGuestMechanism = false;
   if (!mechanisms || typeof mechanisms !== 'object' || Array.isArray(mechanisms)) {
     refuse('normalized auth mechanisms must be an object map', {});
   } else {
     for (const [name, mechanism] of Object.entries(mechanisms)) {
       if (mechanism?.kind === 'password') admittedEntries.add('password-v1');
       else if (mechanism?.kind === 'email-code') admittedEntries.add('email-code-v1');
-      else if (mechanism?.kind === 'guest' || mechanism?.kind === 'passkey') {
-        // Guest principals, recovery infrastructure, and the passkey slot are
-        // deliberately not application entry mechanisms in this policy.
+      else if (mechanism?.kind === 'guest') {
+        hasGuestMechanism = true;
+        if (authProgram?.guestPolicy?.enabled !== true) {
+          refuse('guest mechanisms require an enabled generated guest policy', {
+            mechanism: name,
+          });
+        }
+        admittedEntries.add('guest-v1');
+      } else if (mechanism?.kind === 'passkey') {
+        // The passkey slot is deliberately not an application entry mechanism
+        // until its end-to-end transition exists.
       } else {
         refuse('normalized auth mechanism cannot be represented by ApplicationAuthBootstrapV1', {
           mechanism: name,
@@ -1580,6 +1589,9 @@ function deriveApplicationAuthBootstrapV1({
         });
       }
     }
+  }
+  if (authProgram?.guestPolicy?.enabled === true && !hasGuestMechanism) {
+    refuse('enabled guest policy requires a declared guest mechanism', {});
   }
   if (authProgram?.externalSessionEntry === true) {
     admittedEntries.add('external-session-explicit-v1');
@@ -16626,7 +16638,7 @@ function renderAppTypes(
       '  readonly appId: string;',
       "  readonly mode: 'sessions';",
       "  readonly custody: 'durable-required' | 'volatile-explicit';",
-      "  readonly entryMechanisms: readonly ('password-v1' | 'email-code-v1' | 'external-session-explicit-v1')[];",
+      "  readonly entryMechanisms: readonly ('guest-v1' | 'password-v1' | 'email-code-v1' | 'external-session-explicit-v1')[];",
       "  readonly anonymousPublic: 'allowed' | 'refused';",
       '  readonly lifecycleProtocol: 1;',
       '}',

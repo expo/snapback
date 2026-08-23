@@ -145,7 +145,7 @@ test('optional-user operations and public-read table visibility independently al
   assert.equal(bootstrap(await generate(publicTableRoot)).anonymousPublic, 'allowed');
 });
 
-test('entry mechanisms are closed, canonical, and exclude guest, passkey, and recovery', async () => {
+test('entry mechanisms are closed, canonical, and admit enabled guest policy', async () => {
   const root = fixture();
   const mechanisms = `
     passkey: { kind: 'passkey', provider: 'deviceKeys' },
@@ -166,10 +166,24 @@ test('entry mechanisms are closed, canonical, and exclude guest, passkey, and re
     }),
   });
   assert.deepEqual(bootstrap(await generate(root)).entryMechanisms, [
+    'guest-v1',
     'password-v1',
     'email-code-v1',
     'external-session-explicit-v1',
   ]);
+  const generated = await generate(root);
+  const guestRow = generated.clientLifecycleManifest.rows.authEntryMechanisms.entries
+    .find(({ mechanism }) => mechanism === 'guest-v1');
+  assert.equal(guestRow.configured, true);
+  assert.equal(guestRow.applicationFacadeMethod, undefined);
+  assert.deepEqual(
+    guestRow.operations.map(({ clientMethod, applicationFacadeMethod }) => (
+      [clientMethod, applicationFacadeMethod]
+    )),
+    [['authEnterAsGuest', 'enterAsGuest']],
+  );
+  assert.equal(guestRow.reactHook, 'useSnapbackAuth');
+  assert.equal(guestRow.targetCapability, 'auth.guest-sessions');
 
   const guestOnly = fixture();
   writeExplicit(guestOnly, {
@@ -184,8 +198,24 @@ test('entry mechanisms are closed, canonical, and exclude guest, passkey, and re
     }),
   });
   const guestOnlyBootstrap = bootstrap(await generate(guestOnly));
-  assert.deepEqual(guestOnlyBootstrap.entryMechanisms, []);
+  assert.deepEqual(guestOnlyBootstrap.entryMechanisms, ['guest-v1']);
   assert.equal(guestOnlyBootstrap.anonymousPublic, 'refused');
+
+  const policyWithoutMechanism = fixture();
+  writeExplicit(policyWithoutMechanism, {
+    program: authProgram({
+      guestPolicy: `{ enabled: true, claiming: [], reaping: {
+        afterMs: 604800000,
+        cleanup: { kind: 'declarative', default: 'tombstone', tables: {} },
+      } }`,
+    }),
+  });
+  const refused = await generate(policyWithoutMechanism);
+  assert.equal(refused.ok, false);
+  assert(refused.diagnostics.some(({ code, message }) => (
+    code === 'CODEGEN_MODULE_EVALUATION_FAILED'
+      && message.endsWith('enabled defineAuth guestPolicy requires a declared guest mechanism')
+  )), JSON.stringify(refused.diagnostics));
 });
 
 test('external entry is opt-in and custody defaults without target inference', async () => {

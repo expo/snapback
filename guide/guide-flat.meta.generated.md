@@ -254,7 +254,7 @@ proof command, and honest nonclaims without opening every demo.
 
 ### Auth
 - [Sessions and principals](./auth/sessions-and-principals.md) — the server
-  derives who you are; scoped queries; logout barriers.
+  derives who you are; guest entry and claim; scoped queries; logout barriers.
 - [Email and password](./auth/passwords.md) — signup and signin end users can
   do themselves, with no mail adapter: server-side argon2id, declared lockout,
   one-time recovery codes, and the exact session shape you get back.
@@ -530,12 +530,13 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | sync.settlement-bounded-skew | `settlement.bounded_skew`: a mutation-declared, structurally direct `runtimeNow()` field may accept a lane-L captured time only within its declared bound; mixed sinks stay server-derived and lane Q remains unbounded replay-accept. The server path and receipt fact ship, while local capture/execution remains outside this slice. | bounded skew, local settlement, runtimeNow, claim ledger | local | partial | crates/snapback-engine/src/local.rs | llp/0133 | GAP (local capture/executor; owner: LLP 0155 Stage 2, review: 2026-08-28; issue: issues/20260802-0133-receipt-wire-coordination.md) |
 | api.external-exposure | Opt-in external API, OAuth, MCP, watches, effects, and budgeted `ask`; telemetry is not billing. | external api, remote mcp, approval, effects, watches, ask, near-data ai, api budgets | local | partial | route /api/v1/ask | llp/0204, llp/0031 | backend/external-api.md |
 | api.capability-links | Expiring links with bounded use and exact-session revoke; no granted/identity links. | capability links, invite link, capture link, claim link, single-use token, capability single-use token, deep link grant, account claim link, share-to-view | local | partial | route /capability-links | llp/0204, llp/0031, llp/0150 | recipes/capability-links.md |
-| auth.sessions | Server-minted sessions; email-code and email+password login; server-derived principals | login, signin, identity, session, principal binding, app user table, identityBinding, who am I, am I signed in, whoami, currentAuthorizationScope, settledView | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
-| auth.passwords | First-class session email+password: noninteractive signup/signin/change/set; server-side argon2id (19456/2/1) outside writer lock; bounded KDF concurrency; app-declared 8–128-byte password minimum (default 12, maximum 1024); declared testable lockout (10 failures→15 min); one-time self-serve recovery codes. Uniform refusal for wrong password/unknown identifier/locked; lock state never on wire. Catalog v4 required; v3 reports provider unready. Unready LLP 0045-prerequisite nonclaims: production blind-accept signup/mail reset. Local reset: capture-mailbox only. | password, email password, signup, password login, password auth, minimumLength, minimum password length, hash password, argon2, scrypt gateway, recovery codes, lockout, GoTrue, Supabase auth, password reset | local | shipped | route /auth/password/signin + `authPasswordSignIn` in packages/snapback-client/index.mjs | llp/0227, llp/0214, llp/0215, llp/0011 | auth/passwords.md |
+| auth.sessions | Server-minted sessions and server-derived principals | login, signin, identity, session, principal, identityBinding, whoami, currentAuthorizationScope, settledView | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
+| auth.guest-sessions | Policy/budget-gated `{}` guest entry and collision-safe password claim through one client owner | guest, guest entry, enterAsGuest, claimGuestWithPassword, guest claim, claim later | local | shipped | route /auth/guest + packages/snapback-react/guest-session-entry-packed.test.mjs | llp/0214, llp/0215, llp/0258 | auth/sessions-and-principals.md |
+| auth.passwords | Session email+password signup/signin/change; argon2id, bounded KDF concurrency, declared minimum, lockout, one-time recovery codes. Wrong/unknown/locked is uniform; production signup/mail reset remain unready. | password, email password, signup, password login, minimumLength, argon2, recovery codes, lockout, password reset | local | shipped | route /auth/password/signin + `authPasswordSignIn` | llp/0227, llp/0214, llp/0215 | auth/passwords.md |
 | auth.external-identity-broker | Local bridges: adopted bearer for headless/native, or trusted-server one-use exchange into browser coordinator custody; mint/capture remain dev/test/demo only | native login, external identity, broker, adopted bearer, browser external sign-in, signed assertion, issuer subject | local | partial | `createExternalSessionClient` in packages/snapback-client/index.mjs + demos/browser-auth/tests/acceptance/browser-auth.mjs | llp/0024, llp/0057, llp/0096, llp/0151 | recipes/browser-auth.md |
 | auth.first-party-social-providers | App-owned Apple and Google provider registrations, server-side token verification, provider installation identity, completion-code redemption, account lifecycle, and native/web client entry under LLP 0151 | Sign in with Apple, Google login, social login, OIDC provider, Clerk replacement | none | design-only | demos/knockoff/tests/acceptance/social-auth.mjs proves only the local app-owned broker fixture, not this capability | llp/0151, llp/0212 | GAP (owner: issues/20260808-wave4-identity-program.md, review: 2026-09-21); auth/native-apps.md |
 | auth.browser-session-custody | Browser/Expo-web durable auth custody; XSS-readable, not sender-bound | app auth bootstrap, createSnapbackAppClient, client.auth, useSnapbackAuth, useSnapbackCurrentPrincipal, persistent login, storagePartition, multi-persona, process-global in Node, multiple clients same session | local | shipped | packages/snapback-react/auth-bootstrap.test.mjs | llp/0258, llp/0238, llp/0059 | recipes/multi-persona-clients.md |
-| auth.application-bootstrap-native-custody | Source-current iOS and Android admit durable-required at `single-runtime`; UNPUBLISHED behind issues/20260816-custody-first-publish-gate.md. Simulator evidence only: physical-device (D), backup/migration, and cross-process fencing remain unclaimed; a share extension was exercised, while the built/embedded NSE is not invokable via `simctl push`. | native custody, Android force-stop, iOS share extension | ios + android | shipped | demos/native-custody-probes/evidence/20260816T214639Z-0a6c91ed-phase2-android + demos/native-custody-probes/evidence/20260817T023429Z-1c2624fb-phase2-ios + packages/snapback-expo/provider-native-custody.test.mjs | llp/0258, llp/0263 | auth/passwords.md |
+| auth.application-bootstrap-native-custody | Published iOS/Android `durable-required` at `single-runtime`; physical device, backup/migration, cross-process, and NSE remain unclaimed | native custody, Android force-stop, iOS share extension | ios + android | shipped | packages/snapback-expo/provider-native-custody.test.mjs + demos/native-custody-probes/evidence/20260817T023429Z-1c2624fb-phase2-ios | llp/0258, llp/0263 | auth/passwords.md |
 | auth.scoped-queries | Caller-bound filters enforce reads; `authScopeField` is invalidation/retention metadata | hidden data, per-user, row security, Supabase RLS | local | shipped | `authScopeField` in packages/snapback-codegen/define.mjs | llp/0039, llp/0053 | auth/sessions-and-principals.md |
 | auth.table-visibility | Table owner/membership policy composed into all shipped read plans and ordinary `ctx.db`; `anyOf`, resource `_id`, explicit `ctx.db.elevated` | table visibility, joins, bounded children, snapshot batch, elevated read | local | shipped | `compose_declared_table_visibility` in crates/snapback-kernel/src/storage.rs | llp/0231, llp/0056 | auth/protecting-data.md |
 | auth.field-masking | Conditional disclosure of one field while its row stays visible is not implemented; use a separately visible table when row-level absence is acceptable | maskField, mask a field, hide one field, mask phone number, private column, field level security, column visibility, field masking | none | design-only | llp/0235-field-masking-class-m.spec.md (Accepted design; no shipped witness) | llp/0235 | GAP (owner: LLP 0235, review: 2026-09-04; Accepted 2026-08-22; issue: issues/20260821-0235-field-masking-productization.md); recipes/split-sensitive-fields.md |
@@ -748,6 +749,8 @@ here (or listed here but gone from the code).
 | /auth/oauth/token | api.external-exposure |
 | /auth/exchange | auth.sessions |
 | /auth/family-alarm | auth.sessions |
+| /auth/guest | auth.guest-sessions |
+| /auth/guest/claim/password | auth.guest-sessions |
 | /auth/grant-requests | auth.agent-principals |
 | /auth/grant-requests/{id}/approve | auth.agent-principals |
 | /auth/grant-requests/{id}/deny | auth.agent-principals |
@@ -1976,17 +1979,20 @@ authority.
 
 82. **Capture link:** "Open a capture link, let the person continue as a guest,
     then claim the draft after signup." The run fails if it presents a
-    capability URL as guest-session authority or claims first-party guest entry
-    ships before owner review.
-    Expected pages: `recipes/capability-links.md`.
+    capability URL as guest-session authority, omits the separately generated
+    guest entry route, or lets the caller choose guest identity/lifetime facts.
+    Expected pages: `recipes/capability-links.md`, `auth/sessions-and-principals.md`.
     Route terms: "capture link".
+    Required guidance: "First-party guest entry is separate", "The public POST /auth/guest request body is exactly {}".
 
 83. **Claim link:** "Use a claim link to turn an anonymous draft into the
     signed-in user's account." The run fails if it treats capability-link
     possession as account or principal authority rather than routing to an
-    app-owned identity ceremony while guest/granted entry remains unshipped.
-    Expected pages: `recipes/capability-links.md`.
+    app-owned identity ceremony or the shipped guest-to-password transition;
+    either path must refuse identity collisions.
+    Expected pages: `recipes/capability-links.md`, `auth/sessions-and-principals.md`.
     Route terms: "claim link".
+    Required guidance: "A capability link cannot claim an account", "SNAPBACK_AUTH_GUEST_CLAIM_COLLISION".
 
 84. **Single-use token:** "Make a share-to-view URL a single-use token and
     explain what replay returns." The run must choose `uses: 1`, invoke only
@@ -2060,6 +2066,17 @@ derived manifest fact looked like a public schema option.
     Route terms: "unique index optional field".
     Required guidance: "Use the ordinary public index option { unique: true }",
     "A row participates in uniqueness only when all index components are present".
+
+Case 92 absorbs the first-party guest-session entry closure from LLP 0294 W6.1.
+
+92. **Guest entry and claim:** "Let someone enter as a guest, keep working
+    after a browser reload, then claim the same account with a password or log
+    out." The run fails if it invents an Expo-only auth owner, supplies ids,
+    expiry, or cleanup from the client, weakens custody, or merges into an
+    existing password identity.
+    Expected pages: `auth/sessions-and-principals.md`, `auth/passwords.md`.
+    Route terms: "enterAsGuest", "claimGuestWithPassword", "guest entry".
+    Required guidance: "A caller never supplies the principal id, session id, expiry, or cleanup policy", "An existing password identity refuses".
 
 ## Static routing check
 

@@ -3443,6 +3443,8 @@ export class SnapbackClient {
       authSession: (...args) => this.authSession(...args),
       authRequestCode: (...args) => this.authRequestCode(...args),
       authExchange: (...args) => this.authExchange(...args),
+      authEnterAsGuest: (...args) => this.authEnterAsGuest(...args),
+      authClaimGuestWithPassword: (...args) => this.authClaimGuestWithPassword(...args),
       authPasswordSignup: (...args) => this.authPasswordSignup(...args),
       authPasswordSignIn: (...args) => this.authPasswordSignIn(...args),
       authPasswordChange: (...args) => this.authPasswordChange(...args),
@@ -7122,16 +7124,25 @@ export class SnapbackClient {
     ), 'SNAPBACK_AUTH_PASSWORD_SENDER_CONSTRAINED_UNSUPPORTED');
   }
 
+  #requireGuestBearerCustody() {
+    if (!this.senderConstrained) return;
+    throw clientCodedError(new Error(
+      'SNAPBACK_AUTH_GUEST_CUSTODY_UNSUPPORTED: guest entry does not support sender-constrained custody',
+    ), 'SNAPBACK_AUTH_GUEST_CUSTODY_UNSUPPORTED');
+  }
+
   async #authPasswordAnonymousIssuance({
     path,
     body,
     forbiddenSecrets,
     recoveryCodes,
+    guest = false,
   }) {
     if (!this.authCoordinator) {
       throw new TypeError('password authentication requires AuthCoordinator custody');
     }
-    this.#requirePasswordBearerCustody();
+    if (guest) this.#requireGuestBearerCustody();
+    else this.#requirePasswordBearerCustody();
     await this.authSession();
     const capture = this.authCoordinator.capture();
     const predecessor = this.authCoordinator.credentialFor(capture);
@@ -7257,6 +7268,65 @@ export class SnapbackClient {
       forbiddenSecrets: [password],
       recoveryCodes: true,
     });
+  }
+
+  authEnterAsGuest() {
+    return this.#authPasswordAnonymousIssuance({
+      path: '/auth/guest',
+      body: {},
+      forbiddenSecrets: [],
+      recoveryCodes: false,
+      guest: true,
+    });
+  }
+
+  async authClaimGuestWithPassword({ email, password }) {
+    if (!this.authCoordinator) {
+      throw new TypeError('guest claiming requires AuthCoordinator custody');
+    }
+    this.#requireGuestBearerCustody();
+    await this.authSession();
+    const capture = this.authCoordinator.capture();
+    const predecessor = this.authCoordinator.credentialFor(capture);
+    if (predecessor.authority.kind !== 'session') throw staleAuthorityError();
+    const raw = await this.#trackedFetchJson(
+      'POST',
+      '/auth/guest/claim/password',
+      { email, password },
+      this.#authOfferHeaders(true, predecessor.bearer),
+      { forbiddenSecrets: [predecessor.bearer, password] },
+    );
+    const response = this.#validateCredentialResponseWithRecoveryCodes(
+      raw,
+      [predecessor.bearer, password],
+    );
+    const currentCapture = this.authCoordinator.capture();
+    const current = this.authCoordinator.credentialFor(currentCapture);
+    const authority = credentialAuthority(
+      response,
+      'sessions',
+      current.authority.authorizationStreamIncarnation,
+    );
+    if (sameClientAuthority(current.authority, authority)) {
+      const projected = credentialPublicProjectionWithRecoveryCodes(response);
+      this.#publishCredentialPrincipal(projected);
+      return projected;
+    }
+    if (
+      current.authority.kind !== 'session'
+      || current.authority.userId !== authority.userId
+      || !sameClientAuthority(current.authority, predecessor.authority)
+    ) {
+      throw staleAuthorityError();
+    }
+    await this.#transitionCredentialAuthority(currentCapture, {
+      authority,
+      bearer: response.token,
+      refreshAfterMs: response.refreshAfter,
+    });
+    const projected = credentialPublicProjectionWithRecoveryCodes(response);
+    this.#publishCredentialPrincipal(projected);
+    return projected;
   }
 
   authPasswordSignIn({ email, password }) {

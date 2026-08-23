@@ -647,6 +647,8 @@ export interface SnapbackClientAuthNamespace {
   readonly authSession: SnapbackClient['authSession'];
   readonly authRequestCode: SnapbackClient['authRequestCode'];
   readonly authExchange: SnapbackClient['authExchange'];
+  readonly authEnterAsGuest: SnapbackClient['authEnterAsGuest'];
+  readonly authClaimGuestWithPassword: SnapbackClient['authClaimGuestWithPassword'];
   readonly authPasswordSignup: SnapbackClient['authPasswordSignup'];
   readonly authPasswordSignIn: SnapbackClient['authPasswordSignIn'];
   readonly authPasswordChange: SnapbackClient['authPasswordChange'];
@@ -1675,6 +1677,11 @@ export class SnapbackClient {
     readonly challengeId: string;
     readonly code: string;
   }>): Promise<AuthCredentialPublicProjectionV1>;
+  authEnterAsGuest(): Promise<AuthCredentialPublicProjectionV1>;
+  authClaimGuestWithPassword(input: Readonly<{
+    readonly email: string;
+    readonly password: string;
+  }>): Promise<AuthRecoveryCredentialPublicProjectionV1>;
   authPasswordSignup(input: Readonly<{
     readonly email: string;
     readonly password: string;

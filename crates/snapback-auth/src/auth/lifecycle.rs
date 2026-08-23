@@ -91,6 +91,7 @@ pub enum KeyringGcResult {
 pub(crate) struct AuthGcPass {
     pub challenges_deleted: usize,
     pub sessions_deleted: usize,
+    pub guests_reaped: u64,
     pub mailbox_entries_deleted: usize,
     pub keyring: KeyringGcResult,
     pub immediate_retry: bool,
@@ -117,6 +118,12 @@ pub(crate) fn run_gc_pass(
     random: &dyn RandomSource,
 ) -> SnapbackResult<AuthGcPass> {
     let durable = database.auth_gc(now_ms)?;
+    // Guest sessions share their declared policy deadline with the principal.
+    // The expiry worker publishes their terminal generations before periodic
+    // GC enters this transaction; startup GC runs before a projection exists.
+    // @ref LLP 0214#11-guest-first-template-posture — default tombstone
+    // reaping is an idempotent durable transition, not a client cleanup hint.
+    let guests_reaped = database.identity_reap_guests_default_tombstone(now_ms)?;
     let mailbox_entries_deleted = mailbox.prune_expired();
 
     let mut storage_error = None;
@@ -141,6 +148,7 @@ pub(crate) fn run_gc_pass(
     Ok(AuthGcPass {
         challenges_deleted: durable.challenges_deleted,
         sessions_deleted: durable.sessions_deleted,
+        guests_reaped,
         mailbox_entries_deleted,
         keyring,
         immediate_retry: durable.immediate_retry,

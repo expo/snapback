@@ -98,6 +98,7 @@ pub enum AuthProviderReadiness {
 pub struct AuthGcPass {
     pub challenges_deleted: usize,
     pub sessions_deleted: usize,
+    pub guests_reaped: u64,
     pub mailbox_entries_pruned: usize,
     pub retired_keys_pruned: usize,
     pub immediate_retry: bool,
@@ -761,6 +762,14 @@ pub struct PasswordChangePreparation {
     revocations: Vec<ProviderRevocationPlan>,
 }
 
+pub struct GuestClaimPasswordPreparation {
+    address: CanonicalAddress,
+    canonical: String,
+    mode: crate::storage::auth::PasswordIdentifierMode,
+    predecessor: crate::storage::auth_identity::GuestClaimPredecessor,
+    revocations: Vec<ProviderRevocationPlan>,
+}
+
 pub enum PasswordResetPreparation {
     ChallengeRejected,
     PrincipalInvalid,
@@ -970,6 +979,7 @@ pub struct ProviderSessionIssuancePlan {
     challenge: Option<PlannedChallengeConsumption>,
     sender_issuance: Option<crate::auth::sender_proof::SenderIssuanceCommitment>,
     rehearsal_exercise: Option<crate::storage::auth_rehearsal::RehearsalExercisePlan>,
+    guest_effect_budget: Option<snapback_kernel::auth::throttle::RollingWindowBudgetTerms>,
 }
 
 impl fmt::Debug for ProviderSessionIssuancePlan {
@@ -993,6 +1003,7 @@ pub struct ProviderSessionIssuanceCommitPlan {
     challenge: Option<PlannedChallengeConsumption>,
     pub(crate) sender_issuance: Option<crate::auth::sender_proof::SenderIssuanceCommitment>,
     rehearsal_exercise: Option<crate::storage::auth_rehearsal::RehearsalExercisePlan>,
+    guest_effect_budget: Option<snapback_kernel::auth::throttle::RollingWindowBudgetTerms>,
 }
 
 impl fmt::Debug for ProviderSessionIssuanceCommitPlan {
@@ -1043,7 +1054,10 @@ impl ProviderSessionIssuancePlan {
     }
 
     pub fn creates_identity(&self) -> bool {
-        matches!(self.identity, PlannedIdentityState::Create { .. })
+        matches!(
+            self.identity,
+            PlannedIdentityState::Create { .. } | PlannedIdentityState::GuestCreate { .. }
+        )
     }
 
     pub fn planned_identity(&self) -> PlannedIdentityState {
@@ -1099,6 +1113,7 @@ impl ProviderSessionIssuancePlan {
             challenge: self.challenge.clone(),
             sender_issuance: self.sender_issuance.clone(),
             rehearsal_exercise: self.rehearsal_exercise.clone(),
+            guest_effect_budget: self.guest_effect_budget,
         }
     }
 
@@ -1136,6 +1151,7 @@ impl ProviderSessionIssuancePlan {
             challenge: None,
             sender_issuance: None,
             rehearsal_exercise: None,
+            guest_effect_budget: None,
         }
     }
 
@@ -1207,6 +1223,7 @@ impl ProviderSessionIssuanceCommitPlan {
                 }),
             sender_issuance: self.sender_issuance.as_ref(),
             rehearsal_exercise: self.rehearsal_exercise.as_ref(),
+            guest_effect_budget: self.guest_effect_budget,
             live_session_limit: AUTH_SESSION_LIVE_LIMIT as u64,
         }
     }
@@ -1224,6 +1241,10 @@ pub enum PlannedIssuanceCommit {
         committed_attempt: Option<crate::storage::auth_identity::PasswordAttemptState>,
     },
     CredentialThrottled,
+    GuestBudgetRefused {
+        budget_name: &'static str,
+        retry_after_ms: u64,
+    },
     // @ref LLP 0077#issuance-refresh-and-recovery — one live family per
     // thumbprint: a valid proof over an already-bound key consumes its proof
     // id and refuses without touching the challenge, session, or nonce state.
@@ -1416,6 +1437,79 @@ impl AuthProvider {
         self.profile
     }
 
+    /// Plan the policy-derived guest principal and its first session. The
+    /// caller contributes no identifiers or lifetime facts.
+    /// @ref LLP 0214#81-guest-principal-and-session-creation — CSPRNG minting
+    /// and policy expiry precede the atomic catalog transition.
+    pub fn plan_guest_session(
+        &self,
+        now_ms: u64,
+        guest_expires_at_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+        require_password_bearer_custody(custody)?;
+        validate_now(now_ms).map_err(ProviderError::into_snapback_error)?;
+        if guest_expires_at_ms <= now_ms || guest_expires_at_ms > MAX_SAFE_TIMESTAMP {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_GUEST_POLICY_INVALID",
+                "auth",
+                "generated guest policy is invalid",
+            ));
+        }
+        let candidate = SessionCandidate::generate(self, now_ms).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_RANDOM_UNAVAILABLE",
+                "auth",
+                "authentication randomness is unavailable",
+            )
+        })?;
+        let expires_at_ms = checked_time_add_snapback(now_ms, AUTH_SESSION_SLIDING_WINDOW_MS)?
+            .min(guest_expires_at_ms);
+        let absolute_expires_at_ms =
+            checked_time_add_snapback(now_ms, AUTH_SESSION_ABSOLUTE_WINDOW_MS)?
+                .min(guest_expires_at_ms);
+        let user_id = candidate.user_id.clone();
+        let projected = ProjectedSessionInsert {
+            session_id: candidate.session_id.clone(),
+            user_id: user_id.clone(),
+            provider: "guest".to_owned(),
+            authority_instance_id: candidate.authority_instance_id.clone(),
+            generation: 1,
+            token_digest: TokenDigest::from_token_hash(&candidate.token_hash),
+            created_at_ms: now_ms,
+            expires_at_ms,
+            absolute_expires_at_ms,
+            rehearsal_provenance: None,
+        };
+        let (limit, window_ms) = match self.profile {
+            AuthProviderProfile::Dev | AuthProviderProfile::Test => (100_000, 1_000),
+            AuthProviderProfile::Demo => (10_000, 10_000),
+            AuthProviderProfile::Prod => (10, 1_000),
+        };
+        Ok(ProviderSessionIssuancePlan {
+            address: CanonicalAddress::parse("guest@snapback.invalid")
+                .map_err(|_| provider_unavailable().into_snapback_error())?,
+            now_ms,
+            identity: PlannedIdentityState::GuestCreate {
+                user_id,
+                expires_at_ms: guest_expires_at_ms,
+            },
+            candidate,
+            projected,
+            revocations: Vec::new(),
+            password: None,
+            password_profile: None,
+            recovery_codes: None,
+            challenge: None,
+            sender_issuance: None,
+            rehearsal_exercise: None,
+            guest_effect_budget: Some(snapback_kernel::auth::throttle::RollingWindowBudgetTerms {
+                limit,
+                window_ms,
+            }),
+        })
+    }
+
     pub(crate) fn budget_policy(&self) -> ResolvedCompatibilityAuthBudgetPolicy {
         self.budgets
     }
@@ -1585,6 +1679,7 @@ impl AuthProvider {
             challenge: None,
             sender_issuance: None,
             rehearsal_exercise: None,
+            guest_effect_budget: None,
         })
     }
 
@@ -1724,6 +1819,9 @@ impl AuthProvider {
                 identity_id,
                 user_id,
             } => (user_id.clone(), identity_id.clone()),
+            PlannedIdentityState::GuestCreate { .. } => {
+                return Err(internal_state_snapback());
+            }
         };
         let projected = ProjectedSessionInsert {
             session_id: candidate.session_id.clone(),
@@ -1764,6 +1862,7 @@ impl AuthProvider {
             challenge: None,
             sender_issuance: None,
             rehearsal_exercise: None,
+            guest_effect_budget: None,
         })
     }
 
@@ -1828,6 +1927,22 @@ impl AuthProvider {
         plan: &ProviderSessionIssuanceCommitPlan,
     ) -> AuthTransactionAttempt<PlannedIssuanceCommit> {
         if plan.password.is_none() || plan.challenge.is_some() || plan.sender_issuance.is_some() {
+            return AuthTransactionAttempt::RolledBack(internal_state_snapback());
+        }
+        attempt_planned_session_issuance(database, plan, None)
+    }
+
+    pub fn commit_guest_issuance(
+        &self,
+        database: &mut LocalDatabase,
+        plan: &ProviderSessionIssuanceCommitPlan,
+    ) -> AuthTransactionAttempt<PlannedIssuanceCommit> {
+        if !matches!(plan.identity, PlannedIdentityState::GuestCreate { .. })
+            || plan.guest_effect_budget.is_none()
+            || plan.password.is_some()
+            || plan.challenge.is_some()
+            || plan.sender_issuance.is_some()
+        {
             return AuthTransactionAttempt::RolledBack(internal_state_snapback());
         }
         attempt_planned_session_issuance(database, plan, None)
@@ -1962,6 +2077,7 @@ impl AuthProvider {
             challenge: None,
             sender_issuance: None,
             rehearsal_exercise: None,
+            guest_effect_budget: None,
         })
     }
 
@@ -2133,6 +2249,28 @@ impl AuthProvider {
         custody: PasswordIssuanceCustody,
     ) -> SnapbackResult<ProviderSessionIssuancePlan> {
         require_password_bearer_custody(custody)?;
+        let preparation =
+            self.prepare_guest_claim_password(database, guest, identifier, now_ms, custody)?;
+        self.finish_guest_claim_password(
+            preparation,
+            password,
+            now_ms,
+            recovery_key_id,
+            recovery_key,
+            custody,
+        )
+        .await
+    }
+
+    pub fn prepare_guest_claim_password(
+        &self,
+        database: &LocalDatabase,
+        guest: &SessionBearer,
+        identifier: &str,
+        now_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<GuestClaimPasswordPreparation> {
+        require_password_bearer_custody(custody)?;
         let mode = database.auth_password_identifier_mode()?;
         let canonical =
             crate::storage::auth_identity::canonical_password_identifier_value(mode, identifier)?;
@@ -2143,7 +2281,45 @@ impl AuthProvider {
                 "password identifier does not satisfy the declared mode",
             )
         })?;
+        // Resolve the presented guest first. A non-guest or invalid bearer
+        // must not probe whether a password identifier already exists.
         let predecessor = database.guest_claim_predecessor(guest, now_ms)?;
+        if database.password_identity_subject_is_owned(&canonical, mode)? {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_GUEST_CLAIM_COLLISION",
+                "auth",
+                "guest claim is unavailable",
+            ));
+        }
+        let revocations =
+            plan_user_session_revocations(database, &predecessor.user_id, None, None, now_ms)?;
+        Ok(GuestClaimPasswordPreparation {
+            address,
+            canonical,
+            mode,
+            predecessor,
+            revocations,
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn finish_guest_claim_password(
+        &self,
+        preparation: GuestClaimPasswordPreparation,
+        password: crate::auth::identity_core::PasswordSecret,
+        now_ms: u64,
+        recovery_key_id: &str,
+        recovery_key: &[u8; 32],
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+        require_password_bearer_custody(custody)?;
+        let GuestClaimPasswordPreparation {
+            address,
+            canonical,
+            mode,
+            predecessor,
+            revocations,
+        } = preparation;
         let password = self.hash_password_bounded(password).await?;
         let (recovery_codes, recovery) = crate::storage::auth_identity::prepare_recovery_set(
             self.random.as_ref(),
@@ -2154,7 +2330,6 @@ impl AuthProvider {
             SessionCandidate::generate(self, now_ms).map_err(ProviderError::into_snapback_error)?;
         let user_id = predecessor.user_id.clone();
         let identity_id = candidate.identity_id.clone();
-        let revocations = plan_user_session_revocations(database, &user_id, None, None, now_ms)?;
         let projected = ProjectedSessionInsert {
             session_id: candidate.session_id.clone(),
             user_id: user_id.clone(),
@@ -2197,7 +2372,28 @@ impl AuthProvider {
             challenge: None,
             sender_issuance: None,
             rehearsal_exercise: None,
+            guest_effect_budget: None,
         })
+    }
+
+    pub async fn finish_guest_claim_password_with_active_recovery_key(
+        &self,
+        preparation: GuestClaimPasswordPreparation,
+        password: crate::auth::identity_core::PasswordSecret,
+        now_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+        let (key_id, key) = self
+            .keyring
+            .with_active_key(now_ms, self.random.as_ref(), |key_id, key| {
+                (
+                    key_id.as_str().to_owned(),
+                    Zeroizing::new(*key.expose_secret()),
+                )
+            })
+            .map_err(|_| provider_unavailable().into_snapback_error())?;
+        self.finish_guest_claim_password(preparation, password, now_ms, &key_id, &key, custody)
+            .await
     }
 
     #[allow(clippy::too_many_arguments)] // Recovery proof, replacement set, and custody cross one fence.
@@ -2278,6 +2474,7 @@ impl AuthProvider {
             challenge: None,
             sender_issuance: None,
             rehearsal_exercise: None,
+            guest_effect_budget: None,
         })
     }
 
@@ -2394,6 +2591,7 @@ impl AuthProvider {
             challenge: None,
             sender_issuance: None,
             rehearsal_exercise: None,
+            guest_effect_budget: None,
         })
     }
 
@@ -2618,6 +2816,46 @@ impl fmt::Debug for AuthAdmission {
 }
 
 impl AuthAdmission {
+    pub fn plan_guest_session_plan(
+        &self,
+        now_ms: u64,
+        guest_expires_at_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> impl super::database_plan::AuthDatabasePlan<
+        Output = SnapbackResult<ProviderSessionIssuancePlan>,
+    > + '_ {
+        super::database_plan::plan(move |_database| {
+            self.provider
+                .plan_guest_session(now_ms, guest_expires_at_ms, custody)
+        })
+    }
+
+    pub fn commit_guest_issuance_plan<'a>(
+        &'a self,
+        plan: &'a ProviderSessionIssuanceCommitPlan,
+    ) -> impl super::database_plan::AuthDatabasePlan<
+        Output = AuthTransactionAttempt<PlannedIssuanceCommit>,
+    > + 'a {
+        super::database_plan::plan(move |database| {
+            self.provider.commit_guest_issuance(database, plan)
+        })
+    }
+
+    pub fn prepare_guest_claim_password_plan<'a>(
+        &'a self,
+        guest: &'a SessionBearer,
+        identifier: &'a str,
+        now_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> impl super::database_plan::AuthDatabasePlan<
+        Output = SnapbackResult<GuestClaimPasswordPreparation>,
+    > + 'a {
+        super::database_plan::plan(move |database| {
+            self.provider
+                .prepare_guest_claim_password(database, guest, identifier, now_ms, custody)
+        })
+    }
+
     pub fn prepare_password_change_plan<'a>(
         &'a self,
         acting: &'a SessionBearer,
@@ -4248,6 +4486,7 @@ impl AuthMaintenanceGuard {
         Ok(AuthGcPass {
             challenges_deleted: lifecycle.challenges_deleted,
             sessions_deleted: lifecycle.sessions_deleted,
+            guests_reaped: lifecycle.guests_reaped,
             mailbox_entries_pruned: lifecycle.mailbox_entries_deleted,
             retired_keys_pruned,
             immediate_retry: lifecycle.immediate_retry,
@@ -4486,6 +4725,7 @@ fn build_session_issuance_plan(
     let user_id = match &identity {
         PlannedIdentityState::Existing { user_id, .. }
         | PlannedIdentityState::Create { user_id, .. } => user_id.clone(),
+        PlannedIdentityState::GuestCreate { .. } => return Err(internal_state_snapback()),
     };
     let expires_at_ms = checked_time_add_snapback(now_ms, AUTH_SESSION_SLIDING_WINDOW_MS)?;
     let absolute_expires_at_ms =
@@ -4515,6 +4755,7 @@ fn build_session_issuance_plan(
         challenge,
         sender_issuance: None,
         rehearsal_exercise: None,
+        guest_effect_budget: None,
     })
 }
 
@@ -4643,7 +4884,8 @@ fn attempt_planned_session_issuance(
     match body_outcome {
         PlannedIssuanceCommit::CandidateCollision
         | PlannedIssuanceCommit::PredecessorChanged
-        | PlannedIssuanceCommit::CredentialThrottled => {
+        | PlannedIssuanceCommit::CredentialThrottled
+        | PlannedIssuanceCommit::GuestBudgetRefused { .. } => {
             // The transaction performs no write before this outcome. Authority
             // therefore remained at the projection predecessor even if the
             // final COMMIT acknowledgement was lost.
@@ -4743,6 +4985,13 @@ fn planned_issuance_from_catalog(outcome: CatalogIssuanceCommit) -> PlannedIssua
             PlannedIssuanceCommit::CredentialInvalid { committed_attempt }
         }
         CatalogIssuanceCommit::CredentialThrottled => PlannedIssuanceCommit::CredentialThrottled,
+        CatalogIssuanceCommit::GuestBudgetRefused {
+            budget_name,
+            retry_after_ms,
+        } => PlannedIssuanceCommit::GuestBudgetRefused {
+            budget_name,
+            retry_after_ms,
+        },
         CatalogIssuanceCommit::SenderKeyBound => PlannedIssuanceCommit::SenderKeyBound,
         CatalogIssuanceCommit::CandidateCollision => PlannedIssuanceCommit::CandidateCollision,
         CatalogIssuanceCommit::PredecessorChanged => PlannedIssuanceCommit::PredecessorChanged,

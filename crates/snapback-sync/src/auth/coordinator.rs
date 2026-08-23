@@ -312,6 +312,10 @@ pub enum IssuanceFinish {
     CodeLocked,
     CredentialInvalid,
     CredentialThrottled,
+    GuestBudgetRefused {
+        budget_name: &'static str,
+        retry_after_ms: u64,
+    },
     SenderKeyBound,
     CandidateCollision,
     PredecessorChanged,
@@ -1263,6 +1267,16 @@ impl AuthCoordinator {
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CredentialThrottled) => {
                 exact_unmark_issuance(&mut topology, &carrier)?;
                 Ok(IssuanceFinish::CredentialThrottled)
+            }
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::GuestBudgetRefused {
+                budget_name,
+                retry_after_ms,
+            }) => {
+                exact_unmark_issuance(&mut topology, &carrier)?;
+                Ok(IssuanceFinish::GuestBudgetRefused {
+                    budget_name,
+                    retry_after_ms,
+                })
             }
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::SenderKeyBound) => {
                 exact_unmark_issuance(&mut topology, &carrier)?;

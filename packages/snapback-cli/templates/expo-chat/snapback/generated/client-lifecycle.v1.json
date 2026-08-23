@@ -1,7 +1,7 @@
 {
   "appId": "expo-chat",
   "artifactKind": "clientLifecycleManifest",
-  "authoredSourceHash": "sha256:87e360a4a16afb5728bcd12873ccd014523d483c7f6def167e3929a84ff1e913",
+  "authoredSourceHash": "sha256:fd5cdbbc583a96e7551d88cd59d6133e72fbfbb3d0108771f338d45de837fbe0",
   "commands": [
     {
       "authRequirement": "authenticated",
@@ -118,7 +118,7 @@
       ]
     }
   },
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:c6853b4951c2b276744c2966127ed69e810064718fe87497c5fba923c6d17c1d",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:18a3a7fc1e3737ea2a104f86900be3dff8854416040754b5e5a06de89d743104",
   "mutationSettlement": {
     "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
     "dispositions": [
@@ -835,6 +835,7 @@
           "field": "entryMechanisms",
           "semanticIdentityEffect": "rotates-semanticId",
           "value": [
+            "guest-v1",
             "password-v1",
             "email-code-v1"
           ]
@@ -908,8 +909,10 @@
           "semanticIdentityEffect": "included-in-normalized-auth-program"
         },
         {
-          "bootstrapProjection": [],
-          "disposition": "semantic-source-not-anonymous-public",
+          "bootstrapProjection": [
+            "entryMechanisms"
+          ],
+          "disposition": "guest-entry-policy-source",
           "familiarDisposition": {
             "disposition": 1,
             "route": "shared auth extension"
@@ -1377,6 +1380,26 @@
         {
           "configured": true,
           "familiarHook": "useAuth",
+          "mechanism": "guest-v1",
+          "operations": [
+            {
+              "applicationFacadeMethod": "enterAsGuest",
+              "clientMethod": "authEnterAsGuest",
+              "clientNamespaceMethod": "authEnterAsGuest",
+              "facadeMethod": "enterAsGuest",
+              "facadeOwner": "SnapbackAppClient.auth",
+              "operation": "enter",
+              "predecessor": "settled-anonymous-or-process-local-supervised-adopted",
+              "resultType": "Promise<AuthCredentialPublicProjectionV1>"
+            }
+          ],
+          "phase": "shipped",
+          "reactHook": "useSnapbackAuth",
+          "targetCapability": "auth.guest-sessions"
+        },
+        {
+          "configured": true,
+          "familiarHook": "useAuth",
           "mechanism": "password-v1",
           "operations": [
             {
@@ -1473,8 +1496,8 @@
       ],
       "sourceMechanisms": [
         {
-          "disposition": "excluded-guest-principal-is-not-entry",
-          "entryMechanism": null,
+          "disposition": "shipped-policy-gated-entry",
+          "entryMechanism": "guest-v1",
           "kind": "guest"
         },
         {

@@ -20,8 +20,10 @@ reviewed-authorities-digest: sha256:dc636112af1bf4c02640204a13226a5e75261f71c7ea
 > and only over local carriers. Use it from a same-host web app, iOS Simulator, or an
 > Android emulator whose supervised carrier can reach the loopback backend.
 > Public-recipient sharing, physical-device delivery, hosted capability links,
-> granted-operation links, identity-bearing links, and guest-session entry are
-> not shipped. Do not expose the local server through a public tunnel.
+> granted-operation links, and identity-bearing links are not shipped. The
+> shipped local guest-session entry is a separate auth route, never authority
+> conferred by an `sbl_` URL. Do not expose the local server through a public
+> tunnel.
 
 Use this recipe for an expiring **share-to-view** URL whose target query is
 already callable by an anonymous user. The exact minting session can revoke it
@@ -56,10 +58,10 @@ not make protected data or a protected operation anonymous.
 | App intent | Use today | Boundary |
 | --- | --- | --- |
 | **Invite link** | Shipped capability link only for an already-anonymous RSVP/capture function; otherwise an app-owned invitation-token row | Group membership, protected content, principal creation, and identity-bearing acceptance require the unshipped granted-operation/identity flow. |
-| **Capture link** | Shipped single-use or approval-per-use link when the capture mutation/action is deliberately anonymous and exposed | “Enter as guest, keep a draft, claim it later” is not this feature. First-party guest entry is unshipped and awaiting owner review. |
+| **Capture link** | Shipped single-use or approval-per-use link when the capture mutation/action is deliberately anonymous and exposed | First-party guest entry is separate: call `auth.enterAsGuest()` under an enabled generated guest policy, then store the draft as that principal; the link itself grants no session. |
 | **Share-to-view** | Shipped query link when the exact query is anonymous and exposed | A private row, owner query, or membership query needs the unshipped granted-operation link; do not weaken the function to make the link fit. |
 | **Upload request** | App-owned request row plus the normal authenticated [asset upload](../backend/assets.md) flow | A capability link is not upload custody or an asset-owner session. The implemented slice has no capability-link asset-upload ceremony. |
-| **Account claim** / **claim link** | App-owned one-time claim-token row and an authenticated app ceremony, if the app owns that protocol | Account/guest claim is identity authority. Granted-operation links and first-party guest entry remain unshipped; a capability link cannot claim an account. |
+| **Account claim** / **claim link** | Use `auth.claimGuestWithPassword(...)` only for the shipped guest→password transition; otherwise use an app-owned one-time claim-token row and authenticated ceremony | Account claim is identity authority. A capability link cannot claim an account, and guest claim refuses an existing password identity rather than taking it over. |
 
 An app-owned token row remains appropriate when the token represents durable
 product workflow state rather than one function invocation: named invite

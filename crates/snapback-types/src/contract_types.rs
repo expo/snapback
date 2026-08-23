@@ -55,6 +55,10 @@ pub enum PlannedIdentityState {
         identity_id: String,
         user_id: String,
     },
+    GuestCreate {
+        user_id: String,
+        expires_at_ms: u64,
+    },
 }
 
 /// Opaque, exact-width digest used to name current and superseded session
@@ -957,6 +961,74 @@ pub struct AuthManifest {
         max = AUTH_PASSWORD_MINIMUM_LENGTH_CEILING
     ))]
     pub password_minimum_length: Option<u16>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum GuestCleanupActionV1 {
+    Delete,
+    Tombstone,
+    RetainAnonymized,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GuestCleanupTableV1 {
+    pub principal_field: String,
+    pub on_reap: GuestCleanupActionV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(
+    tag = "kind",
+    rename_all = "kebab-case",
+    rename_all_fields = "camelCase"
+)]
+pub enum GuestCleanupContractV1 {
+    Declarative {
+        default: GuestCleanupActionV1,
+        tables: BTreeMap<String, GuestCleanupTableV1>,
+    },
+    Handler {
+        handler: String,
+        reads: Vec<String>,
+        writes: Vec<String>,
+    },
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GuestReapingPolicyV1 {
+    pub after_ms: u64,
+    pub cleanup: GuestCleanupContractV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GuestPolicyManifestV1 {
+    pub enabled: bool,
+    #[serde(default)]
+    pub claiming: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reaping: Option<GuestReapingPolicyV1>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthMechanismManifestV1 {
+    pub kind: String,
+}
+
+/// Runtime-readable projection of the generated auth program. The generator
+/// remains the sole policy author; this parser owns only the guest facts the
+/// server must enforce at the transition boundary.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthProgramManifestV1 {
+    pub version: u32,
+    #[serde(default)]
+    pub mechanisms: BTreeMap<String, AuthMechanismManifestV1>,
+    pub guest_policy: GuestPolicyManifestV1,
 }
 
 /// App-owned declaration of the outward-facing function surface. Absence (or

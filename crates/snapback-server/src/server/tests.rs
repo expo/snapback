@@ -459,7 +459,11 @@ use crate::auth::service_authority_contract::{
 use crate::auth::service_fence::{
     ServiceAuthorityFenceRegistry, with_service_authority_terminal_gate,
 };
-use crate::contract_types::{AuthProviderProfile, RevocationReason, ServerProfile};
+use crate::contract_types::{
+    AuthMechanismManifestV1, AuthProgramManifestV1, AuthProviderProfile, GuestCleanupActionV1,
+    GuestCleanupContractV1, GuestPolicyManifestV1, GuestReapingPolicyV1, RevocationReason,
+    ServerProfile,
+};
 use crate::cron::CronRunOutcome;
 use crate::diagnostic::SnapbackError;
 use crate::local::{
@@ -3584,6 +3588,7 @@ fn sessions_activation_server_fixture_with_api(
         agents,
         api,
         PasswordIdentifierMode::UsernameV1,
+        None,
     )
 }
 
@@ -3593,6 +3598,7 @@ fn sessions_activation_server_fixture_with_api_and_password_mode(
     agents: Option<AgentsManifest>,
     api: Option<ApiManifest>,
     password_identifier_mode: PasswordIdentifierMode,
+    auth_program: Option<AuthProgramManifestV1>,
 ) -> AppState {
     let snapback = LocalSnapback::memory().expect("memory activation server fixture");
     sessions_activation_server_fixture_with_api_and_password_mode_on_snapback(
@@ -3602,6 +3608,7 @@ fn sessions_activation_server_fixture_with_api_and_password_mode(
         agents,
         api,
         password_identifier_mode,
+        auth_program,
     )
 }
 
@@ -3612,6 +3619,7 @@ fn sessions_activation_server_fixture_with_api_and_password_mode_on_snapback(
     agents: Option<AgentsManifest>,
     api: Option<ApiManifest>,
     password_identifier_mode: PasswordIdentifierMode,
+    auth_program: Option<AuthProgramManifestV1>,
 ) -> AppState {
     let activation_now_ms = clock
         .as_ref()
@@ -3676,6 +3684,7 @@ fn sessions_activation_server_fixture_with_api_and_password_mode_on_snapback(
             password_identifier_mode: None,
             password_minimum_length: None,
         }),
+        auth_program,
         api,
         required_capabilities: vec![TargetCapabilityId::AuthSessionsV1.to_string()],
         schema_hash: Some(format!("{SCHEMA_V1_PREFIX}{}", "1".repeat(64))),
@@ -3819,10 +3828,58 @@ async fn password_sessions_activation_server_fixture_async() -> AppState {
             None,
             None,
             PasswordIdentifierMode::EmailV1,
+            None,
         )
     })
     .await
     .expect("construct email-password activation fixture off the async workers")
+}
+
+fn guest_auth_program(enabled: bool, cleanup: GuestCleanupContractV1) -> AuthProgramManifestV1 {
+    AuthProgramManifestV1 {
+        version: 1,
+        mechanisms: BTreeMap::from([
+            (
+                "guest".to_owned(),
+                AuthMechanismManifestV1 {
+                    kind: "guest".to_owned(),
+                },
+            ),
+            (
+                "password".to_owned(),
+                AuthMechanismManifestV1 {
+                    kind: "password".to_owned(),
+                },
+            ),
+        ]),
+        guest_policy: GuestPolicyManifestV1 {
+            enabled,
+            claiming: vec!["password".to_owned()],
+            reaping: Some(GuestReapingPolicyV1 {
+                after_ms: 60_000,
+                cleanup,
+            }),
+        },
+    }
+}
+
+async fn guest_sessions_activation_server_fixture_async(
+    enabled: bool,
+    cleanup: GuestCleanupContractV1,
+) -> AppState {
+    tokio::task::spawn_blocking(move || {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        sessions_activation_server_fixture_with_api_and_password_mode(
+            activation_functions('2', false),
+            None,
+            None,
+            None,
+            PasswordIdentifierMode::EmailV1,
+            Some(guest_auth_program(enabled, cleanup)),
+        )
+    })
+    .await
+    .expect("construct guest activation fixture off the async workers")
 }
 
 async fn sessions_activation_server_fixture_with_agents_async(agents: AgentsManifest) -> AppState {
@@ -9960,7 +10017,7 @@ fn password_auth_http_request(uri: &str, body: Value) -> Request<Body> {
     request
 }
 
-fn assert_password_credential_shape(credential: &Value, recovery_codes: bool) {
+fn assert_credential_shape(credential: &Value, recovery_codes: bool, provider: &str) {
     let mut expected = BTreeSet::from([
         "authorityDescriptor".to_owned(),
         "refreshAfter".to_owned(),
@@ -9982,7 +10039,7 @@ fn assert_password_credential_shape(credential: &Value, recovery_codes: bool) {
         "credential response shape: {credential}"
     );
     assert_eq!(credential["tokenType"], "Bearer");
-    assert_eq!(credential["session"]["provider"], "local-password");
+    assert_eq!(credential["session"]["provider"], provider);
     assert_eq!(credential["authorityDescriptor"]["descriptorVersion"], 1);
     assert!(
         credential["authorityDescriptor"]["authorityInstanceId"]
@@ -9996,6 +10053,10 @@ fn assert_password_credential_shape(credential: &Value, recovery_codes: bool) {
                 .is_some_and(|codes| !codes.is_empty())
         );
     }
+}
+
+fn assert_password_credential_shape(credential: &Value, recovery_codes: bool) {
+    assert_credential_shape(credential, recovery_codes, "local-password");
 }
 
 fn agent_registration_http_request(body: Value) -> Request<Body> {
@@ -18187,6 +18248,271 @@ async fn concurrent_auth_refresh_has_exactly_one_http_winner() {
 
 /// @ref LLP 0227#surface-routes-cli-verbs-client-methods — password signup/signin
 /// and recovery reuse the exact credential response and registered issuance path.
+/// @ref LLP 0214#81-guest-principal-and-session-creation — the public empty
+/// DTO mints policy-owned identity/session facts and the claim successor keeps
+/// the principal while collision and reaping stay non-oracular.
+#[tokio::test]
+async fn guest_entry_authorizes_claims_reaps_and_refuses_policy_or_input_failures() {
+    let tombstone = GuestCleanupContractV1::Declarative {
+        default: GuestCleanupActionV1::Tombstone,
+        tables: BTreeMap::new(),
+    };
+    let mut state = guest_sessions_activation_server_fixture_async(true, tombstone.clone()).await;
+    let router = app(state.clone());
+
+    let existing_email = "occupied-guest-claim@example.com";
+    let signup = router
+        .clone()
+        .oneshot(password_auth_http_request(
+            "/auth/password/signup",
+            json!({ "email": existing_email, "password": "occupied-password-123!" }),
+        ))
+        .await
+        .expect("collision predecessor signup");
+    assert_eq!(signup.status(), StatusCode::OK);
+
+    let disabled_email = "disabled-guest-claim@example.com";
+    let disabled_signup = router
+        .clone()
+        .oneshot(password_auth_http_request(
+            "/auth/password/signup",
+            json!({ "email": disabled_email, "password": "disabled-password-123!" }),
+        ))
+        .await
+        .expect("disabled collision predecessor signup");
+    assert_eq!(disabled_signup.status(), StatusCode::OK);
+    let disabled_at_ms = super::now_millis();
+    with_snapback(&state.snapback, move |snapback| {
+        snapback
+            .remainder_auth_database_mut()
+            .disable_identity_for_test("local-password", disabled_email, disabled_at_ms)
+    })
+    .await
+    .expect("disable collision predecessor identity");
+
+    let malformed = router
+        .clone()
+        .oneshot(password_auth_http_request(
+            "/auth/guest",
+            json!({
+                "principalId": "caller-must-not-select",
+                "sessionId": "caller-must-not-select",
+                "expiresAt": 9,
+                "cleanupPolicy": { "default": "retain" },
+            }),
+        ))
+        .await
+        .expect("malformed guest request");
+    assert_eq!(malformed.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        response_json(malformed).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_REQUEST_INVALID"
+    );
+
+    let entered = router
+        .clone()
+        .oneshot(password_auth_http_request("/auth/guest", json!({})))
+        .await
+        .expect("guest entry response");
+    assert_eq!(entered.status(), StatusCode::OK);
+    let entered = response_json(entered).await;
+    assert_credential_shape(&entered, false, "guest");
+    let guest_user = entered["session"]["userId"].as_str().unwrap().to_owned();
+    let guest_token = entered["token"].as_str().unwrap().to_owned();
+    assert_eq!(entered["session"]["provider"], "guest");
+
+    let app_call = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/query/listItems",
+            br#"{"args":{}}"#.to_vec(),
+            &guest_token,
+        ))
+        .await
+        .expect("guest-authenticated app call");
+    assert_eq!(app_call.status(), StatusCode::OK);
+
+    let collision = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/guest/claim/password",
+            serde_json::to_vec(&json!({
+                "email": existing_email,
+                "password": "guest-collision-password-456!",
+            }))
+            .unwrap(),
+            &guest_token,
+        ))
+        .await
+        .expect("guest claim collision");
+    assert_eq!(collision.status(), StatusCode::CONFLICT);
+    let collision = response_json(collision).await;
+    assert_eq!(
+        collision["diagnostic"]["code"],
+        "SNAPBACK_AUTH_GUEST_CLAIM_COLLISION"
+    );
+    assert!(!collision.to_string().contains(existing_email));
+
+    let disabled_collision = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/guest/claim/password",
+            serde_json::to_vec(&json!({
+                "email": disabled_email,
+                "password": "guest-disabled-collision-password-456!",
+            }))
+            .unwrap(),
+            &guest_token,
+        ))
+        .await
+        .expect("disabled guest claim collision");
+    assert_eq!(disabled_collision.status(), StatusCode::CONFLICT);
+    let disabled_collision = response_json(disabled_collision).await;
+    assert_eq!(
+        disabled_collision["diagnostic"]["code"],
+        "SNAPBACK_AUTH_GUEST_CLAIM_COLLISION"
+    );
+    assert!(!disabled_collision.to_string().contains(disabled_email));
+
+    let claimed = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/guest/claim/password",
+            serde_json::to_vec(&json!({
+                "email": "claimed-guest@example.com",
+                "password": "claimed-guest-password-789!",
+            }))
+            .unwrap(),
+            &guest_token,
+        ))
+        .await
+        .expect("guest password claim");
+    assert_eq!(claimed.status(), StatusCode::OK);
+    let claimed = response_json(claimed).await;
+    assert_password_credential_shape(&claimed, true);
+    assert_eq!(claimed["session"]["userId"], guest_user);
+
+    let reaped = router
+        .clone()
+        .oneshot(password_auth_http_request("/auth/guest", json!({})))
+        .await
+        .expect("second guest entry");
+    let reaped = response_json(reaped).await;
+    let reaped_token = reaped["token"].as_str().unwrap().to_owned();
+    let reap_at = reaped["session"]["absoluteExpiresAt"].as_u64().unwrap();
+    with_snapback(&state.snapback, move |snapback| {
+        snapback
+            .remainder_auth_database_mut()
+            .identity_reap_guests_default_tombstone(reap_at)
+    })
+    .await
+    .expect("reap expired guest");
+    let provider = state
+        .auth_provider
+        .clone()
+        .expect("installed auth provider");
+    let source = with_snapback(&state.snapback, |snapback| {
+        snapback
+            .remainder_auth_database_mut()
+            .session_projection_source()
+    })
+    .await
+    .expect("read projection source after guest reaping");
+    let rebuilt =
+        crate::auth::session_projection::SessionProjection::rebuild_with_fresh_startup_id(
+            source,
+            provider.now_ms(),
+            provider.monotonic_now(),
+        )
+        .expect("rebuild projection after guest reaping");
+    state.auth_coordinator = Some(Arc::new(
+        crate::auth::coordinator::AuthCoordinator::new(rebuilt)
+            .expect("install rebuilt auth coordinator"),
+    ));
+    let refused = app(state.clone())
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/guest/claim/password",
+            serde_json::to_vec(&json!({
+                "email": "reaped-guest@example.com",
+                "password": "reaped-guest-password-123!",
+            }))
+            .unwrap(),
+            &reaped_token,
+        ))
+        .await
+        .expect("reaped claim refusal");
+    let refused_status = refused.status();
+    let refused = response_json(refused).await;
+    assert_eq!(refused_status, StatusCode::UNAUTHORIZED, "{refused}");
+    assert_eq!(
+        refused["diagnostic"]["code"],
+        "SNAPBACK_AUTH_SESSION_EXPIRED"
+    );
+
+    let disabled = guest_sessions_activation_server_fixture_async(false, tombstone.clone()).await;
+    let disabled = app(disabled)
+        .oneshot(password_auth_http_request("/auth/guest", json!({})))
+        .await
+        .expect("disabled guest refusal");
+    assert_eq!(disabled.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        response_json(disabled).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_GUEST_DISABLED"
+    );
+
+    let unsupported = guest_sessions_activation_server_fixture_async(
+        true,
+        GuestCleanupContractV1::Handler {
+            handler: "cleanupGuest".to_owned(),
+            reads: Vec::new(),
+            writes: Vec::new(),
+        },
+    )
+    .await;
+    let unsupported = app(unsupported)
+        .oneshot(password_auth_http_request("/auth/guest", json!({})))
+        .await
+        .expect("unsupported cleanup refusal");
+    assert_eq!(unsupported.status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(
+        response_json(unsupported).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_GUEST_CLEANUP_UNSUPPORTED"
+    );
+
+    let budget_state = guest_sessions_activation_server_fixture_async(true, tombstone).await;
+    let keyring = Arc::new(AuthKeyringStore::in_memory());
+    keyring
+        .load_or_mint_initial(super::now_millis(), &OsRandom)
+        .expect("production guest budget keyring");
+    let provider = Arc::new(
+        AuthProvider::new(AuthProviderProfile::Prod, keyring)
+            .expect("production guest budget provider"),
+    );
+    let budget_router = app(budget_state
+        .try_with_auth_provider(provider)
+        .expect("production guest budget app state"));
+    for _ in 0..10 {
+        let admitted = budget_router
+            .clone()
+            .oneshot(password_auth_http_request("/auth/guest", json!({})))
+            .await
+            .expect("finite guest budget admission");
+        assert_eq!(admitted.status(), StatusCode::OK);
+    }
+    let exhausted = budget_router
+        .oneshot(password_auth_http_request("/auth/guest", json!({})))
+        .await
+        .expect("exhausted guest budget refusal");
+    assert_eq!(exhausted.status(), StatusCode::TOO_MANY_REQUESTS);
+    let exhausted = response_json(exhausted).await;
+    assert_eq!(exhausted["diagnostic"]["code"], "SNAPBACK_AUTH_RATE_BUDGET");
+    assert_eq!(
+        exhausted["diagnostic"]["details"]["budgetName"],
+        "auth.guest.create"
+    );
+}
+
 #[tokio::test]
 async fn password_routes_signup_authorize_signin_and_recover_end_to_end() {
     let state = password_sessions_activation_server_fixture_async().await;

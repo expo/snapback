@@ -84,7 +84,7 @@
       ]
     }
   },
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:bc9d83c6c224082c3c51928461773def44cb8c2c9e71031a2c68356bd51451c9",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:c631db541e39ae36724cba76f4bd37e8c18f731ef96a4297977f1a5c2697de39",
   "mutationSettlement": {
     "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
     "dispositions": [
@@ -513,8 +513,10 @@
           "semanticIdentityEffect": "included-in-normalized-auth-program"
         },
         {
-          "bootstrapProjection": [],
-          "disposition": "semantic-source-not-anonymous-public",
+          "bootstrapProjection": [
+            "entryMechanisms"
+          ],
+          "disposition": "guest-entry-policy-source",
           "familiarDisposition": {
             "disposition": 1,
             "route": "shared auth extension"
@@ -982,6 +984,26 @@
         {
           "configured": false,
           "familiarHook": "useAuth",
+          "mechanism": "guest-v1",
+          "operations": [
+            {
+              "applicationFacadeMethod": "enterAsGuest",
+              "clientMethod": "authEnterAsGuest",
+              "clientNamespaceMethod": "authEnterAsGuest",
+              "facadeMethod": "enterAsGuest",
+              "facadeOwner": "SnapbackAppClient.auth",
+              "operation": "enter",
+              "predecessor": "settled-anonymous-or-process-local-supervised-adopted",
+              "resultType": "Promise<AuthCredentialPublicProjectionV1>"
+            }
+          ],
+          "phase": "shipped",
+          "reactHook": "useSnapbackAuth",
+          "targetCapability": "auth.guest-sessions"
+        },
+        {
+          "configured": false,
+          "familiarHook": "useAuth",
           "mechanism": "password-v1",
           "operations": [
             {
@@ -1078,8 +1100,8 @@
       ],
       "sourceMechanisms": [
         {
-          "disposition": "excluded-guest-principal-is-not-entry",
-          "entryMechanism": null,
+          "disposition": "shipped-policy-gated-entry",
+          "entryMechanism": "guest-v1",
           "kind": "guest"
         },
         {

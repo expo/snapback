@@ -5,7 +5,7 @@
 //! it with an equivalent shared transaction.
 
 use hmac::{Hmac, Mac as _};
-use rusqlite::{Connection, OptionalExtension as _, TransactionBehavior, params};
+use rusqlite::{Connection, OptionalExtension as _, Transaction, TransactionBehavior, params};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
@@ -30,6 +30,8 @@ const MAX_VALUE_BYTES: usize = 512;
 /// accounting and diagnostic vocabulary; legacy diagnostics are aliases.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub enum AuthBudgetName {
+    #[serde(rename = "auth.guest.create")]
+    GuestCreate,
     #[serde(rename = "auth.guessing")]
     Guessing,
     #[serde(rename = "auth.enumeration")]
@@ -84,6 +86,7 @@ impl PasswordAuthEffect {
 impl AuthBudgetName {
     pub const fn as_str(self) -> &'static str {
         match self {
+            Self::GuestCreate => "auth.guest.create",
             Self::Guessing => "auth.guessing",
             Self::Enumeration => "auth.enumeration",
             Self::Delivery => "auth.delivery",
@@ -97,6 +100,7 @@ impl AuthBudgetName {
 
     fn parse(value: &str) -> Option<Self> {
         match value {
+            "auth.guest.create" => Some(Self::GuestCreate),
             "auth.guessing" => Some(Self::Guessing),
             "auth.enumeration" => Some(Self::Enumeration),
             "auth.delivery" => Some(Self::Delivery),
@@ -213,6 +217,8 @@ const PASSWORD_RESOURCE_AXES: &[AuthBudgetChargeAxis] = &[
     AuthBudgetChargeAxis::App,
     AuthBudgetChargeAxis::Deployment,
 ];
+const GUEST_EFFECT_AXES: &[AuthBudgetChargeAxis] =
+    &[AuthBudgetChargeAxis::App, AuthBudgetChargeAxis::Deployment];
 
 const DELIVERY_RULES: &[AuthBudgetRuleDefinition] = &[AuthBudgetRuleDefinition {
     id: "request-code-recipient",
@@ -267,13 +273,29 @@ const HASH_CPU_RULES: &[AuthBudgetRuleDefinition] = &[AuthBudgetRuleDefinition {
     charge_timing: AuthBudgetChargeTiming::KdfAdmission,
     missing_axis: MissingAxisPolicy::Refuse,
 }];
-const SESSION_MINT_RULES: &[AuthBudgetRuleDefinition] = &[AuthBudgetRuleDefinition {
-    id: "password-session-mint",
-    axes: PASSWORD_IDENTIFIER_AXES,
+const GUEST_CREATE_RULES: &[AuthBudgetRuleDefinition] = &[AuthBudgetRuleDefinition {
+    id: "guest-create-app-deployment",
+    axes: GUEST_EFFECT_AXES,
     strategy: AuthBudgetCounterStrategy::RollingWindow,
     charge_timing: AuthBudgetChargeTiming::SessionTransactionCommit,
     missing_axis: MissingAxisPolicy::Refuse,
 }];
+const SESSION_MINT_RULES: &[AuthBudgetRuleDefinition] = &[AuthBudgetRuleDefinition {
+    id: "session-mint-app-deployment",
+    axes: GUEST_EFFECT_AXES,
+    strategy: AuthBudgetCounterStrategy::RollingWindow,
+    charge_timing: AuthBudgetChargeTiming::SessionTransactionCommit,
+    missing_axis: MissingAxisPolicy::Refuse,
+}];
+
+pub const AUTH_GUEST_CREATE_BUDGET: AuthBudgetDefinition = AuthBudgetDefinition {
+    name: AuthBudgetName::GuestCreate,
+    harms: &[AuthBudgetHarm::ChallengeStateAllocation],
+    effects: &["auth.guest.create"],
+    counter_class: AuthBudgetCounterClass::SuccessfulEffect,
+    rules: GUEST_CREATE_RULES,
+    public_non_enumerating: true,
+};
 
 pub const AUTH_DELIVERY_BUDGET: AuthBudgetDefinition = AuthBudgetDefinition {
     name: AuthBudgetName::Delivery,
@@ -318,13 +340,18 @@ pub const AUTH_HASH_CPU_BUDGET: AuthBudgetDefinition = AuthBudgetDefinition {
 pub const AUTH_SESSION_MINT_BUDGET: AuthBudgetDefinition = AuthBudgetDefinition {
     name: AuthBudgetName::SessionMint,
     harms: &[AuthBudgetHarm::SessionMinting],
-    effects: &["auth.password.signup", "auth.password.signin"],
+    effects: &[
+        "auth.password.signup",
+        "auth.password.signin",
+        "auth.guest.create",
+    ],
     counter_class: AuthBudgetCounterClass::SuccessfulEffect,
     rules: SESSION_MINT_RULES,
     public_non_enumerating: true,
 };
 
 pub const AUTH_COMPATIBILITY_BUDGETS: &[AuthBudgetDefinition] = &[
+    AUTH_GUEST_CREATE_BUDGET,
     AUTH_DELIVERY_BUDGET,
     AUTH_CHALLENGE_ALLOCATION_BUDGET,
     AUTH_GUESSING_BUDGET,
@@ -334,7 +361,7 @@ pub const AUTH_COMPATIBILITY_BUDGETS: &[AuthBudgetDefinition] = &[
 ];
 
 fn compatibility_registry_is_closed() -> bool {
-    AUTH_COMPATIBILITY_BUDGETS.len() == 6
+    AUTH_COMPATIBILITY_BUDGETS.len() == 7
         && AUTH_COMPATIBILITY_BUDGETS.iter().all(|budget| {
             !budget.harms.is_empty()
                 && !budget.effects.is_empty()
@@ -369,6 +396,9 @@ fn compatibility_registry_is_closed() -> bool {
         })
         && AUTH_COMPATIBILITY_BUDGETS
             .iter()
+            .any(|budget| budget.name == AuthBudgetName::GuestCreate)
+        && AUTH_COMPATIBILITY_BUDGETS
+            .iter()
             .any(|budget| budget.name == AuthBudgetName::Delivery)
         && AUTH_COMPATIBILITY_BUDGETS
             .iter()
@@ -391,6 +421,137 @@ fn compatibility_registry_is_closed() -> bool {
 pub struct RollingWindowBudgetTerms {
     pub limit: u64,
     pub window_ms: u64,
+}
+
+/// Admit a complete set of local successful-effect budgets at the durable
+/// effect's transaction cut. Refusal writes no successful-effect charge; an
+/// admitted charge rolls back if the enclosing identity/session transition
+/// does not commit.
+///
+/// This is the single-instance realization of LLP 0215's successful-effect
+/// authority. Callers select canonical budget names, never endpoint-private
+/// counters or caller-derived charge axes.
+/// @ref LLP 0215#42-successful_effect — quota admission and the protected
+/// durable effect share one serialized transaction.
+pub(crate) fn admit_local_successful_auth_effects_in(
+    transaction: &Transaction<'_>,
+    now_ms: u64,
+    terms: RollingWindowBudgetTerms,
+    names: &[AuthBudgetName],
+    effect_identity: &str,
+) -> crate::diagnostic::SnapbackResult<Option<(AuthBudgetName, u64)>> {
+    if terms.limit == 0
+        || terms.window_ms == 0
+        || terms.limit > i64::MAX as u64
+        || now_ms > i64::MAX as u64
+        || effect_identity.is_empty()
+        || names.is_empty()
+    {
+        return Err(crate::diagnostic::SnapbackError::error(
+            "SNAPBACK_AUTH_BUDGET_POLICY_INVALID",
+            "auth",
+            "authentication budget policy is invalid",
+        ));
+    }
+    for (index, name) in names.iter().enumerate() {
+        if names[..index].contains(name)
+            || !AUTH_COMPATIBILITY_BUDGETS.iter().any(|definition| {
+                definition.name == *name
+                    && definition.counter_class == AuthBudgetCounterClass::SuccessfulEffect
+            })
+        {
+            return Err(crate::diagnostic::SnapbackError::error(
+                "SNAPBACK_AUTH_BUDGET_POLICY_INVALID",
+                "auth",
+                "authentication budget policy is invalid",
+            ));
+        }
+    }
+    transaction.execute_batch(
+        "CREATE TABLE IF NOT EXISTS _snapback_auth_successful_effect_charges (
+           budget_name TEXT NOT NULL,
+           effect_identity TEXT NOT NULL,
+           charged_at_ms INTEGER NOT NULL CHECK(charged_at_ms >= 0),
+           retention_until_ms INTEGER NOT NULL CHECK(retention_until_ms > charged_at_ms),
+           PRIMARY KEY(budget_name,effect_identity)
+         ) STRICT;
+         CREATE INDEX IF NOT EXISTS _snapback_auth_successful_effect_charges_window
+           ON _snapback_auth_successful_effect_charges(budget_name,charged_at_ms);",
+    )?;
+    transaction.execute(
+        "DELETE FROM _snapback_auth_successful_effect_charges
+         WHERE retention_until_ms <= ?1",
+        [now_ms as i64],
+    )?;
+    let first_included_ms = now_ms
+        .checked_sub(terms.window_ms)
+        .map_or(0, |floor| floor.saturating_add(1));
+    let mut first_refusal = None;
+    for &name in names {
+        let (count, earliest): (i64, Option<i64>) = transaction.query_row(
+            "SELECT COUNT(*),MIN(charged_at_ms)
+             FROM _snapback_auth_successful_effect_charges
+             WHERE budget_name=?1 AND charged_at_ms>=?2 AND charged_at_ms<=?3",
+            params![name.as_str(), first_included_ms as i64, now_ms as i64],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        let count = u64::try_from(count).map_err(|_| {
+            crate::diagnostic::SnapbackError::error(
+                "SNAPBACK_AUTH_BUDGET_STATE_INVALID",
+                "auth",
+                "authentication budget state is invalid",
+            )
+        })?;
+        if count >= terms.limit {
+            let earliest = earliest
+                .and_then(|value| u64::try_from(value).ok())
+                .ok_or_else(|| {
+                    crate::diagnostic::SnapbackError::error(
+                        "SNAPBACK_AUTH_BUDGET_STATE_INVALID",
+                        "auth",
+                        "authentication budget state is invalid",
+                    )
+                })?;
+            first_refusal.get_or_insert((
+                name,
+                earliest
+                    .saturating_add(terms.window_ms)
+                    .saturating_sub(now_ms)
+                    .max(1),
+            ));
+        }
+    }
+    if first_refusal.is_some() {
+        return Ok(first_refusal);
+    }
+    let retention_until_ms = now_ms.checked_add(terms.window_ms).ok_or_else(|| {
+        crate::diagnostic::SnapbackError::error(
+            "SNAPBACK_AUTH_BUDGET_POLICY_INVALID",
+            "auth",
+            "authentication budget policy is invalid",
+        )
+    })?;
+    if retention_until_ms > i64::MAX as u64 {
+        return Err(crate::diagnostic::SnapbackError::error(
+            "SNAPBACK_AUTH_BUDGET_POLICY_INVALID",
+            "auth",
+            "authentication budget policy is invalid",
+        ));
+    }
+    for &name in names {
+        transaction.execute(
+            "INSERT INTO _snapback_auth_successful_effect_charges(
+               budget_name,effect_identity,charged_at_ms,retention_until_ms
+             ) VALUES(?1,?2,?3,?4)",
+            params![
+                name.as_str(),
+                effect_identity,
+                now_ms as i64,
+                retention_until_ms as i64,
+            ],
+        )?;
+    }
+    Ok(None)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1726,6 +1887,7 @@ mod tests {
     #[test]
     fn compatibility_budget_vocabulary_pins_names_harms_axes_classes_and_timing() {
         let canonical_names = [
+            AuthBudgetName::GuestCreate,
             AuthBudgetName::Guessing,
             AuthBudgetName::Enumeration,
             AuthBudgetName::Delivery,
@@ -1738,6 +1900,7 @@ mod tests {
         assert_eq!(
             canonical_names.map(|name| serde_json::to_value(name).unwrap()),
             [
+                serde_json::json!("auth.guest.create"),
                 serde_json::json!("auth.guessing"),
                 serde_json::json!("auth.enumeration"),
                 serde_json::json!("auth.delivery"),
@@ -1748,7 +1911,14 @@ mod tests {
                 serde_json::json!("auth.oauth-callback"),
             ]
         );
-        assert_eq!(AUTH_COMPATIBILITY_BUDGETS.len(), 6);
+        assert_eq!(AUTH_COMPATIBILITY_BUDGETS.len(), 7);
+
+        assert_eq!(AUTH_GUEST_CREATE_BUDGET.name, AuthBudgetName::GuestCreate);
+        assert_eq!(
+            AUTH_GUEST_CREATE_BUDGET.counter_class,
+            AuthBudgetCounterClass::SuccessfulEffect
+        );
+        assert_eq!(GUEST_CREATE_RULES[0].axes, GUEST_EFFECT_AXES);
 
         assert_eq!(AUTH_DELIVERY_BUDGET.name, AuthBudgetName::Delivery);
         assert_eq!(AUTH_DELIVERY_BUDGET.harms, &[AuthBudgetHarm::DeliveryCost]);
@@ -1811,11 +1981,61 @@ mod tests {
             SESSION_MINT_RULES[0].charge_timing,
             AuthBudgetChargeTiming::SessionTransactionCommit
         );
+        assert_eq!(
+            AUTH_SESSION_MINT_BUDGET.effects,
+            &[
+                "auth.password.signup",
+                "auth.password.signin",
+                "auth.guest.create",
+            ]
+        );
         assert!(
             AUTH_COMPATIBILITY_BUDGETS
                 .iter()
                 .all(|budget| budget.public_non_enumerating && !budget.effects.is_empty())
         );
+    }
+
+    #[test]
+    fn successful_effect_budgets_are_atomic_and_recover_at_the_open_window_boundary() {
+        let mut db = Connection::open_in_memory().unwrap();
+        let terms = RollingWindowBudgetTerms {
+            limit: 2,
+            window_ms: 1_000,
+        };
+        let names = [AuthBudgetName::GuestCreate, AuthBudgetName::SessionMint];
+        for (now_ms, identity) in [(0, "guest-1"), (500, "guest-2")] {
+            let tx = db.transaction().unwrap();
+            assert_eq!(
+                admit_local_successful_auth_effects_in(&tx, now_ms, terms, &names, identity,)
+                    .unwrap(),
+                None,
+            );
+            tx.commit().unwrap();
+        }
+        let tx = db.transaction().unwrap();
+        assert_eq!(
+            admit_local_successful_auth_effects_in(&tx, 750, terms, &names, "guest-refused",)
+                .unwrap(),
+            Some((AuthBudgetName::GuestCreate, 250)),
+        );
+        let charged: i64 = tx
+            .query_row(
+                "SELECT COUNT(*) FROM _snapback_auth_successful_effect_charges",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(charged, 4, "a refused successful effect leaves no charge");
+        tx.commit().unwrap();
+
+        let tx = db.transaction().unwrap();
+        assert_eq!(
+            admit_local_successful_auth_effects_in(&tx, 1_000, terms, &names, "guest-3",).unwrap(),
+            None,
+            "an event exactly one full window old is excluded",
+        );
+        tx.commit().unwrap();
     }
 
     #[test]

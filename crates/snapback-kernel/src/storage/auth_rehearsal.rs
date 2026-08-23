@@ -402,7 +402,8 @@ impl LocalDatabase {
                     identity_id,
                     user_id,
                 } => (identity_id.clone(), user_id.clone()),
-                crate::contract_types::PlannedIdentityState::Existing { .. } => {
+                crate::contract_types::PlannedIdentityState::Existing { .. }
+                | crate::contract_types::PlannedIdentityState::GuestCreate { .. } => {
                     finish_rehearsal_atomic_effect_denial_in(
                         transaction,
                         &exercise,

@@ -304,7 +304,7 @@
   },
   "schemaVersion": "provider-binding-metadata.v1",
   "source": {
-    "inputsHash": "snapback.v1:sessions:inputs:sha256:c6853b4951c2b276744c2966127ed69e810064718fe87497c5fba923c6d17c1d",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:18a3a7fc1e3737ea2a104f86900be3dff8854416040754b5e5a06de89d743104",
     "introspectionSchemaVersion": "provider-introspection.v1"
   }
 }

@@ -147,6 +147,7 @@ pub struct CatalogSessionIssuancePlan<'a> {
     pub challenge: Option<CatalogChallengeConsumption<'a>>,
     pub sender_issuance: Option<&'a crate::auth::sender_proof::SenderIssuanceCommitment>,
     pub rehearsal_exercise: Option<&'a crate::storage::auth_rehearsal::RehearsalExercisePlan>,
+    pub guest_effect_budget: Option<crate::auth::throttle::RollingWindowBudgetTerms>,
     pub live_session_limit: u64,
 }
 
@@ -189,6 +190,10 @@ pub enum CatalogIssuanceCommit {
         committed_attempt: Option<crate::storage::auth_identity::PasswordAttemptState>,
     },
     CredentialThrottled,
+    GuestBudgetRefused {
+        budget_name: &'static str,
+        retry_after_ms: u64,
+    },
     // @ref LLP 0077#issuance-refresh-and-recovery — one live family per
     // thumbprint: a valid proof over an already-bound key consumes its proof
     // id and refuses without touching the challenge, session, or nonce state.
@@ -1293,11 +1298,38 @@ pub(crate) fn planned_session_issuance_transaction(
             .map_err(|_| internal_state_snapback())?;
         return Ok(CatalogIssuanceCommit::SenderKeyBound);
     }
-    let (identity_id, user_id, create_identity) = if let Some(password) = plan.password {
-        let Some(profile) = plan.password_profile else {
-            return Err(internal_state_snapback());
-        };
-        match crate::storage::auth_identity::admit_password_issuance_in(
+    let (identity_id, user_id, create_identity, guest_expires_at_ms) =
+        if let PlannedIdentityState::GuestCreate {
+            user_id,
+            expires_at_ms,
+        } = plan.identity
+        {
+            if plan.password.is_some()
+                || plan.challenge.is_some()
+                || plan.sender_issuance.is_some()
+                || plan.guest_effect_budget.is_none()
+            {
+                return Err(internal_state_snapback());
+            }
+            let collision: bool = transaction.query_row(
+                "SELECT EXISTS(SELECT 1 FROM _auth_users WHERE id=?1)",
+                [user_id],
+                |row| row.get(0),
+            )?;
+            if collision {
+                return Ok(CatalogIssuanceCommit::CandidateCollision);
+            }
+            (
+                plan.projected.session_id.to_owned(),
+                user_id.to_owned(),
+                false,
+                Some(*expires_at_ms),
+            )
+        } else if let Some(password) = plan.password {
+            let Some(profile) = plan.password_profile else {
+                return Err(internal_state_snapback());
+            };
+            match crate::storage::auth_identity::admit_password_issuance_in(
             transaction,
             password,
             plan.now_ms,
@@ -1309,6 +1341,7 @@ pub(crate) fn planned_session_issuance_transaction(
                 password.identity_id.clone(),
                 password.user_id.clone(),
                 create_principal,
+                None,
             ),
             crate::storage::auth_identity::PasswordIssuanceAdmission::Invalid {
                 committed_attempt,
@@ -1322,36 +1355,36 @@ pub(crate) fn planned_session_issuance_transaction(
                 return Ok(CatalogIssuanceCommit::PredecessorChanged);
             }
         }
-    } else {
-        let durable_identity: Option<(String, String)> = transaction
-            .query_row(
-                "SELECT id, user_id FROM _auth_identities
+        } else {
+            let durable_identity: Option<(String, String)> = transaction
+                .query_row(
+                    "SELECT id, user_id FROM _auth_identities
                  WHERE provider = 'email-code' AND subject = ?1",
-                params![plan.address.as_str()],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )
-            .optional()?;
-        match (&plan.identity, durable_identity) {
-            (
-                PlannedIdentityState::Existing {
-                    identity_id,
-                    user_id,
-                },
-                Some((durable_identity_id, durable_user_id)),
-            ) if identity_id == &durable_identity_id && user_id == &durable_user_id => {
-                (identity_id.clone(), user_id.clone(), false)
+                    params![plan.address.as_str()],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .optional()?;
+            match (&plan.identity, durable_identity) {
+                (
+                    PlannedIdentityState::Existing {
+                        identity_id,
+                        user_id,
+                    },
+                    Some((durable_identity_id, durable_user_id)),
+                ) if identity_id == &durable_identity_id && user_id == &durable_user_id => {
+                    (identity_id.clone(), user_id.clone(), false, None)
+                }
+                (
+                    PlannedIdentityState::Create {
+                        identity_id,
+                        user_id,
+                    },
+                    None,
+                ) => (identity_id.clone(), user_id.clone(), true, None),
+                _ => return Ok(CatalogIssuanceCommit::PredecessorChanged),
             }
-            (
-                PlannedIdentityState::Create {
-                    identity_id,
-                    user_id,
-                },
-                None,
-            ) => (identity_id.clone(), user_id.clone(), true),
-            _ => return Ok(CatalogIssuanceCommit::PredecessorChanged),
-        }
-    };
-    let derived_identity: bool = transaction.query_row(
+        };
+    let derived_identity: bool = guest_expires_at_ms.is_none() && transaction.query_row(
         "SELECT EXISTS(SELECT 1 FROM _snapback_auth_rehearsal_identities WHERE identity_id = ?1)",
         params![identity_id],
         |row| row.get(0),
@@ -1432,7 +1465,34 @@ pub(crate) fn planned_session_issuance_transaction(
         return Ok(CatalogIssuanceCommit::PredecessorChanged);
     }
 
-    if let Some(password) = plan.password {
+    if let Some(guest_expires_at_ms) = guest_expires_at_ms {
+        let Some(budget) = plan.guest_effect_budget else {
+            return Err(internal_state_snapback());
+        };
+        if let Some((budget_name, retry_after_ms)) =
+            crate::auth::throttle::admit_local_successful_auth_effects_in(
+                transaction,
+                plan.now_ms,
+                budget,
+                &[
+                    crate::auth::throttle::AuthBudgetName::GuestCreate,
+                    crate::auth::throttle::AuthBudgetName::SessionMint,
+                ],
+                plan.projected.session_id,
+            )?
+        {
+            return Ok(CatalogIssuanceCommit::GuestBudgetRefused {
+                budget_name: budget_name.as_str(),
+                retry_after_ms,
+            });
+        }
+        execute_candidate(
+            transaction,
+            "INSERT INTO _auth_users(id,created_at_ms,kind,guest_state,guest_expires_at_ms)
+             VALUES(?1,?2,'human','active',?3)",
+            params![user_id, plan.now_ms as i64, guest_expires_at_ms as i64],
+        )?;
+    } else if let Some(password) = plan.password {
         crate::storage::auth_identity::apply_password_issuance_in(
             transaction,
             password,
@@ -1456,17 +1516,48 @@ pub(crate) fn planned_session_issuance_transaction(
     let committed_revocations =
         commit_planned_revocation_set(transaction, &plan.revocations, plan.now_ms)?;
 
-    insert_identity_session(
-        transaction,
-        &plan.projected.session_id,
-        &user_id,
-        &identity_id,
-        &plan.projected.authority_instance_id,
-        plan.projected.token_digest.as_bytes(),
-        plan.now_ms,
-        plan.projected.expires_at_ms,
-        plan.projected.absolute_expires_at_ms,
-    )?;
+    if guest_expires_at_ms.is_some() {
+        insert_guest_session(transaction, plan)?;
+        transaction.execute(
+            "INSERT INTO _auth_assurances(
+               id,user_id,session_id,identity_id,credential_id,kind,provenance,
+               issued_at_ms,expires_at_ms,governing_authority,revoked_at_ms
+             ) VALUES(?1,?2,?3,NULL,NULL,'authenticated','session',?4,?5,NULL,NULL)",
+            params![
+                uuid::Uuid::now_v7().to_string(),
+                user_id,
+                plan.projected.session_id,
+                plan.now_ms as i64,
+                guest_expires_at_ms.map(|value| value as i64),
+            ],
+        )?;
+        transaction.execute(
+            "INSERT INTO _auth_security_events(
+               id,user_id,kind,cause_class,session_id,occurred_at_ms,
+               correlation_id,redacted_metadata
+             ) VALUES(?1,?2,'guest.created','public-transition',?3,?4,?5,?6)",
+            params![
+                uuid::Uuid::now_v7().to_string(),
+                user_id,
+                plan.projected.session_id,
+                plan.now_ms as i64,
+                uuid::Uuid::now_v7().to_string(),
+                crate::storage::auth_identity::DEFAULT_GUEST_TOMBSTONE_EVENT_METADATA,
+            ],
+        )?;
+    } else {
+        insert_identity_session(
+            transaction,
+            &plan.projected.session_id,
+            &user_id,
+            &identity_id,
+            &plan.projected.authority_instance_id,
+            plan.projected.token_digest.as_bytes(),
+            plan.now_ms,
+            plan.projected.expires_at_ms,
+            plan.projected.absolute_expires_at_ms,
+        )?;
+    }
     if let Some(password) = plan.password {
         crate::storage::auth_identity::finish_password_session_in(
             transaction,
@@ -1701,6 +1792,14 @@ fn issuance_identity_is_exact_predecessor(
             )?;
             !collisions
         }
+        PlannedIdentityState::GuestCreate { user_id, .. } => {
+            let collision: bool = connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM _auth_users WHERE id=?1)",
+                [user_id],
+                |row| row.get(0),
+            )?;
+            !collision
+        }
     })
 }
 
@@ -1708,6 +1807,33 @@ fn issuance_identity_is_exact_successor(
     connection: &Connection,
     plan: &CatalogSessionIssuancePlan,
 ) -> SnapbackResult<bool> {
+    if let PlannedIdentityState::GuestCreate {
+        user_id,
+        expires_at_ms,
+    } = &plan.identity
+    {
+        let durable = connection
+            .query_row(
+                "SELECT created_at_ms,kind,guest_state,guest_expires_at_ms
+                 FROM _auth_users WHERE id=?1",
+                [user_id],
+                |row| {
+                    Ok((
+                        row.get::<_, i64>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, Option<i64>>(3)?,
+                    ))
+                },
+            )
+            .optional()?;
+        return Ok(durable.is_some_and(|(created, kind, state, expires)| {
+            u64::try_from(created).ok() == Some(plan.now_ms)
+                && kind == "human"
+                && state == "active"
+                && expires.and_then(|value| u64::try_from(value).ok()) == Some(*expires_at_ms)
+        }));
+    }
     if let Some(password) = plan.password {
         return crate::storage::auth_identity::password_issuance_is_exact_successor_on(
             connection,
@@ -1755,6 +1881,7 @@ fn issuance_identity_is_exact_successor(
                 && u64::try_from(verified_at).ok() == Some(plan.now_ms)
                 && u64::try_from(user_created_at).ok() == Some(plan.now_ms)
         }
+        PlannedIdentityState::GuestCreate { .. } => return Ok(false),
     };
     Ok(ids_match && provider == "email-code" && subject == plan.address.as_str())
 }
@@ -1875,6 +2002,7 @@ pub(crate) fn reconcile_planned_issuance(
         let expected_identity_id = match &plan.identity {
             PlannedIdentityState::Existing { identity_id, .. }
             | PlannedIdentityState::Create { identity_id, .. } => identity_id,
+            PlannedIdentityState::GuestCreate { .. } => plan.projected.session_id,
         };
         let session = &snapshot.record.session;
         if session.session_id != plan.projected.session_id
@@ -2108,7 +2236,37 @@ fn insert_email_code_identity(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
+fn insert_guest_session(
+    transaction: &Transaction<'_>,
+    plan: &CatalogSessionIssuancePlan<'_>,
+) -> SnapbackResult<()> {
+    if !transaction_uses_identity_core_v3(transaction)? {
+        return Err(crate::diagnostic::SnapbackError::error(
+            "SNAPBACK_AUTH_GUEST_CATALOG_UNAVAILABLE",
+            "auth",
+            "guest sessions require the current identity catalog",
+        ));
+    }
+    execute_candidate(
+        transaction,
+        "INSERT INTO _auth_sessions(
+           id,user_id,identity_id,credential_id,authn_source,
+           authority_instance_id,token_hash,generation,created_at_ms,
+           last_used_at_ms,expires_at_ms,absolute_expires_at_ms,revoked_at_ms
+         ) VALUES(?1,?2,NULL,NULL,'guest',?3,?4,1,?5,?5,?6,?7,NULL)",
+        params![
+            plan.projected.session_id,
+            plan.projected.user_id,
+            plan.projected.authority_instance_id,
+            plan.projected.token_digest.as_bytes().as_slice(),
+            plan.now_ms as i64,
+            plan.projected.expires_at_ms as i64,
+            plan.projected.absolute_expires_at_ms as i64,
+        ],
+    )?;
+    Ok(())
+}
+
 fn insert_identity_session(
     transaction: &Transaction<'_>,
     session_id: &str,

@@ -602,6 +602,15 @@ pub struct SchemaManifest {
     pub app: Option<AppIdentity>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub auth: Option<AuthManifest>,
+    /// Generated identity-program facts consumed by first-party auth routes.
+    /// @ref LLP 0214#81-guest-principal-and-session-creation — guest entry is
+    /// gated by this generated policy, never by request input.
+    #[serde(
+        default,
+        rename = "authProgram",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub auth_program: Option<crate::contract_types::AuthProgramManifestV1>,
     /// External function exposure policy. This is public by construction: it
     /// is the declaration selecting the outward-facing projection, not a
     /// credential or implementation secret.
@@ -710,6 +719,7 @@ impl Default for SchemaManifest {
             app_id: local_app_id(),
             app: None,
             auth: None,
+            auth_program: None,
             api: None,
             assets: None,
             push_seam: None,
@@ -1014,6 +1024,7 @@ impl From<SchemaManifest> for PublicSchemaManifest {
             app_id,
             app,
             auth,
+            auth_program: _,
             api,
             assets,
             push_seam,

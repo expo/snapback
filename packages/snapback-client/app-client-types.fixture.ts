@@ -112,6 +112,13 @@ async function fixture() {
     principal.provider satisfies string | null;
   }
   void principal;
+  const guest = await appClient.auth.enterAsGuest();
+  guest.session.provider satisfies string;
+  const claimedGuest = await appClient.auth.claimGuestWithPassword({
+    email: 'guest@b.c',
+    password: 'password',
+  });
+  claimedGuest.recoveryCodes satisfies readonly string[];
   const signup = await appClient.auth.signUpWithPassword({ email: 'a@b.c', password: 'password' });
   signup.recoveryCodes satisfies readonly string[];
   const signin = await appClient.auth.signInWithPassword({ email: 'a@b.c', password: 'password' });
@@ -129,6 +136,8 @@ async function fixture() {
   });
   changed.authorityDescriptor.authorityInstanceId satisfies string;
   (await appClient.auth.signOut()) satisfies null;
+  appClient.client.auth.authEnterAsGuest satisfies typeof appClient.client.authEnterAsGuest;
+  appClient.client.auth.authClaimGuestWithPassword satisfies typeof appClient.client.authClaimGuestWithPassword;
   appClient.client.auth.authPasswordSignup satisfies typeof appClient.client.authPasswordSignup;
   const bootstrap = appClient.bootstrapState();
   if (bootstrap.status === 'ready') {

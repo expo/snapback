@@ -7,6 +7,8 @@ clients, Custody, Password auth, Code generation, Packaging, Diagnostics,
 Guide, Testing, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-15
+**Revised:** 2026-08-22 (the owner-approved LLP 0214 guest-creation transition
+adds `guest-v1` to generated entry policy and the ordinary shared auth owner)
 **Revised:** 2026-08-17 (`volatile-explicit` now couples the application
 queue's authority-transition epoch domain to the volatile custody lifetime;
 explicit injected RQS stores refuse before I/O rather than lose identity;
@@ -242,6 +244,7 @@ type ApplicationAuthBootstrapV1 = {
   readonly mode: "sessions"
   readonly custody: "durable-required" | "volatile-explicit"
   readonly entryMechanisms: readonly (
+    | "guest-v1"
     | "password-v1"
     | "email-code-v1"
     | "external-session-explicit-v1"
@@ -263,6 +266,8 @@ today. Each field has exactly one source:
 
 - `mode` — the settled schema/`defineAuth` auth mode;
 - `entryMechanisms` — the admitted mechanism/provider set;
+  `guest-v1` appears only when both the guest mechanism and an enabled
+  `guestPolicy` are present, and
   `external-session-explicit-v1` appears only when the program explicitly
   declares the advanced external-session seam (authoring seam below), never
   by default;
@@ -283,10 +288,11 @@ No bootstrap-policy field can be authored independently of the program or
 disagree with it; a program the policy schema cannot express is a codegen
 refusal, not a silent narrowing.
 
-Two program facts are deliberately excluded from `entryMechanisms`:
-LLP 0214's `guestPolicy` (a guest creates a claimable principal; it does not
-prove control) and the passkey slot (deferred to LLP 0151). Their presence
-in a program neither refuses generation nor appears in the allowlist.
+The passkey slot remains deliberately excluded from `entryMechanisms`
+(deferred to LLP 0151). An enabled LLP 0214 `guestPolicy`, paired with its
+declared guest mechanism, instead admits `guest-v1`: guest creation establishes
+a claimable principal without claiming proof of account control. A guest policy
+or mechanism that cannot form this complete pair is a generation refusal.
 Recovery codes are likewise not an entry mechanism: they are LLP 0151
 account-lifecycle infrastructure whose generated rows derive from LLP 0214's
 `recoveryPolicy` (D9), never from the mechanism/provider set.
@@ -803,6 +809,9 @@ The lifecycle manifest from LLP 0238 gains generated bootstrap rows for:
   return boundary); mechanism rows deferred to a later phase (for example
   `email-code-v1` before its facade method exists) gate at their own phase,
   not Phase 1;
+- the `guest-v1` row maps to `auth.enterAsGuest()` on the framework-neutral
+  owner and the same React/Expo `useSnapbackAuth()` projection; it never
+  creates a framework-specific coordinator or custody path;
 - recovery-lifecycle rows derived from LLP 0214's `recoveryPolicy` (not the
   mechanism set): consumption and rotation, their predecessor rules, target
   capabilities, facade methods, and exact return contracts;

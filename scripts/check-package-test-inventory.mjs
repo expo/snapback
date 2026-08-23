@@ -250,6 +250,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'dev-diagnostics.test.mjs',
       'familiar.test.mjs',
       'generated-optimistic-default.test.mjs',
+      'guest-session-entry-packed.test.mjs',
       'hmr-generation-handoff.test.mjs',
       'lifecycle.test.mjs',
       'offline.test.mjs',
@@ -575,7 +576,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 330,
+  expectedTotal = 331,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1069,6 +1070,8 @@ export function checkPackageTestInventories(options = {}) {
 // 329 -> 330 (2026-08-22, LLP 0275 D9): the public
 // @expo/snapback-acceptance package gains its packed runner, lifecycle,
 // cleanup, stale-registration, and verifier-drift isolation suite.
+// 330 -> 331 (2026-08-22, LLP 0214/0258/0294 W6): @expo/snapback-react gains
+// the isolated packed browser + Expo guest-entry, custody, claim, and logout proof.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

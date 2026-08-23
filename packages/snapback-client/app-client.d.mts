@@ -14,6 +14,7 @@ export type ApplicationAuthBootstrapV1 = Readonly<{
   mode: 'sessions';
   custody: 'durable-required' | 'volatile-explicit';
   entryMechanisms: readonly (
+    | 'guest-v1'
     | 'password-v1'
     | 'email-code-v1'
     | 'external-session-explicit-v1'
@@ -187,6 +188,8 @@ export type AuthBootstrapSnapshot =
 export interface SnapbackAuthFacade {
   currentPrincipal(): CurrentPrincipalSnapshot;
   subscribeCurrentPrincipal(listener: () => void): () => void;
+  readonly enterAsGuest: SnapbackClient['authEnterAsGuest'];
+  readonly claimGuestWithPassword: SnapbackClient['authClaimGuestWithPassword'];
   readonly signUpWithPassword: SnapbackClient['authPasswordSignup'];
   readonly signInWithPassword: SnapbackClient['authPasswordSignIn'];
   readonly signInWithExternalCode: SnapbackClient['authExchange'];

@@ -47,6 +47,9 @@ function bindingFromDescriptor({ descriptor, origin, routing, generation, now, t
   if (descriptor.authBootstrap?.entryMechanisms?.includes('password-v1')) {
     offeredCapabilities.add('auth.passwords');
   }
+  if (descriptor.authBootstrap?.entryMechanisms?.includes('guest-v1')) {
+    offeredCapabilities.add('auth.guest-sessions');
+  }
   return Object.freeze({
     format: 'snapback.app-binding.v1',
     source: 'supervised-dev',

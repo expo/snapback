@@ -16,8 +16,11 @@ const AUTHORITY = '018f0d90-7b24-7a22-8c33-445566778899';
 const OTHER_AUTHORITY = '018f0d90-7b25-7a22-8c33-445566778899';
 const OTHER_SESSION = '018f0d90-7b26-7a22-8c33-445566778899';
 const OTHER_USER = '018f0d90-7b27-7a22-8c33-445566778899';
+const CLAIM_AUTHORITY = '018f0d90-7b28-7a22-8c33-445566778899';
+const CLAIM_SESSION = '018f0d90-7b29-7a22-8c33-445566778899';
 const SIGNUP_BEARER = 'sbs_password_signup_secret';
 const CHANGE_BEARER = 'sbs_password_change_secret';
+const CLAIM_BEARER = 'sbs_guest_claim_secret';
 const PASSWORD = 'a-password-that-must-not-leak';
 const NEW_PASSWORD = 'another-password-that-must-not-leak';
 
@@ -100,6 +103,7 @@ const credential = ({
   token = SIGNUP_BEARER,
   authorityInstanceId = AUTHORITY,
   sessionId = SESSION,
+  provider = 'local-password',
   codes = null,
   extra = null,
 } = {}) => ({
@@ -109,7 +113,7 @@ const credential = ({
   session: {
     id: sessionId,
     userId: USER,
-    provider: 'local-password',
+    provider,
     createdAt: Date.now(),
     expiresAt: Date.now() + 120_000,
     absoluteExpiresAt: Date.now() + 240_000,
@@ -206,10 +210,68 @@ test('password signup adopts the server principal without exposing the bearer', 
   }
 });
 
+test('guest claim never overwrites a concurrent same-principal successor', async () => {
+  const fixture = makeFixture({
+    sessionHandshake: (bearer) => bearer === CHANGE_BEARER
+      ? handshake({
+          bearer,
+          sessionId: OTHER_SESSION,
+          authorityInstanceId: OTHER_AUTHORITY,
+        })
+      : handshake({ bearer }),
+  });
+  const claimStarted = deferred();
+  const claimResponse = deferred();
+  try {
+    fixture.respond('/auth/guest', () => Response.json(credential({
+      provider: 'guest',
+    })));
+    await fixture.client.authEnterAsGuest();
+    fixture.respond('/auth/guest/claim/password', async () => {
+      claimStarted.resolve();
+      return claimResponse.promise;
+    });
+    const claiming = fixture.client.authClaimGuestWithPassword({
+      email: 'claimed@example.com',
+      password: PASSWORD,
+    });
+    await claimStarted.promise;
+    await fixture.coordinator.transition(fixture.coordinator.capture(), {
+      authority: {
+        kind: 'session',
+        authMode: 'sessions',
+        authorizationStreamIncarnation: INCARNATION,
+        sessionId: OTHER_SESSION,
+        userId: USER,
+      },
+      bearer: CHANGE_BEARER,
+      refreshAfterMs: Date.now() + 60_000,
+    }, 'concurrent-same-principal-successor');
+    claimResponse.resolve(Response.json(credential({
+      token: CLAIM_BEARER,
+      authorityInstanceId: CLAIM_AUTHORITY,
+      sessionId: CLAIM_SESSION,
+      codes: recoveryCodes,
+    })));
+    await assert.rejects(
+      claiming,
+      (error) => error?.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE',
+    );
+    assert.equal(fixture.coordinator.authority.sessionId, OTHER_SESSION);
+    assert.equal(fixture.coordinator.credentialFor(
+      fixture.coordinator.capture(),
+    ).bearer, CHANGE_BEARER);
+  } finally {
+    await fixture.close();
+  }
+});
+
 test('client.auth is a vocabulary-only projection with exact flat-method contracts', async () => {
   const fixture = makeFixture();
   try {
     assert.deepEqual(Object.keys(fixture.client.auth).sort(), [
+      'authClaimGuestWithPassword',
+      'authEnterAsGuest',
       'authExchange',
       'authLogout',
       'authPasswordChange',
@@ -726,6 +788,22 @@ test('password methods refuse sender-constrained custody with a typed error', as
       }),
       (error) => (
         error?.code === 'SNAPBACK_AUTH_PASSWORD_SENDER_CONSTRAINED_UNSUPPORTED'
+        && error?.diagnostic?.code === error.code
+      ),
+    );
+    assert.equal(fixture.requests.length, 0);
+  } finally {
+    await fixture.close();
+  }
+});
+
+test('guest entry refuses unsupported custody before making a request', async () => {
+  const fixture = makeFixture({ senderConstrained: true });
+  try {
+    await assert.rejects(
+      fixture.client.authEnterAsGuest(),
+      (error) => (
+        error?.code === 'SNAPBACK_AUTH_GUEST_CUSTODY_UNSUPPORTED'
         && error?.diagnostic?.code === error.code
       ),
     );

@@ -118,7 +118,8 @@
           "custody": "volatile-explicit",
           "guestPolicy": {
             "claiming": [
-              "emailCode"
+              "emailCode",
+              "password"
             ],
             "enabled": true,
             "reaping": {
@@ -2448,7 +2449,7 @@
     "authoringProfile",
     "appId"
   ],
-  "normalizedContractId": "sha256:ab4dd1d065dc66b6d6e5937e0a9e03d924d8ceee4d56dc8a797dbf4850ffac64",
-  "normalizedSchemaId": "sha256:db173a7f28a820fab6bf5a634da3e794e3f88201a39a4a5a6bb1044febd0c780",
+  "normalizedContractId": "sha256:08971d6e66ae4071be9742eb7e58a345d2f4bf3480af689b28690d10abb52758",
+  "normalizedSchemaId": "sha256:7ee89d783eab2d0985b78227117e3ef7e5e744a06613b387d3c65e093ef09a8c",
   "schemaVersion": "snapback.normalized-application-definition.v1"
 }

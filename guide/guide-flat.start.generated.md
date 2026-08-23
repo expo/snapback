@@ -302,12 +302,14 @@ Metro must not inherit `CI=1` (it disables watching); prefer `bun run dev`.
 ## Posture
 
 - **Auth: sessions mode, guest-first plus ordinary password entry.** The
-  app reaches anonymous `ready`; recovery codes surface once after signup.
-  Supervised dev may provide a guest session for sends and image upload.
-- **Custody: `volatile-explicit`.** Native durable custody is still pending
-  Phase 2, so this disposable chat template says memory custody explicitly;
-  it does not claim durable native custody or silently weaken a durable
-  policy. Move to `durable-required` only after the native platform row ships.
+  app reaches anonymous `ready`; call `auth.enterAsGuest()` on the same
+  `useSnapbackAuth()` owner before sends or image upload, or use ordinary
+  password entry. Recovery codes surface once after signup or guest claim.
+- **Custody: `volatile-explicit`.** This disposable template deliberately says
+  memory custody, so a native process restart returns anonymous and must enter
+  again. It does not silently weaken a durable policy; select
+  `durable-required` only for a platform tuple admitted by the native custody
+  capability row.
 - **Security caveat — client-supplied `senderId` is a demo convenience,
   never a boundary.** The seeded **TEST PERSONA** control passes the active
   persona's id as `senderId`/`userId` so demos work. In a real app, derive

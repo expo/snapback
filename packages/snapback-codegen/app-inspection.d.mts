@@ -117,7 +117,7 @@ export interface AppDescriptorInspectionV1 {
     appId: string;
     mode: 'sessions';
     custody: 'durable-required' | 'volatile-explicit';
-    entryMechanisms: readonly ('password-v1' | 'email-code-v1' | 'external-session-explicit-v1')[];
+    entryMechanisms: readonly ('guest-v1' | 'password-v1' | 'email-code-v1' | 'external-session-explicit-v1')[];
     anonymousPublic: 'allowed' | 'refused';
     lifecycleProtocol: 1;
   }>;
