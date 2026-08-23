@@ -26398,6 +26398,10 @@ const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
 // diagnostics that never normally become an `ApiError`. If one does reach
 // that boundary, the fail-safe class is still 500 rather than a false 4xx.
 const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
+    // Internal stream-attempt persistence authority creation/verification
+    // failures are server invariants, not caller authentication refusals.
+    "SNAPBACK_ACTION_STREAM_PERSISTENCE_AUTHORITY_UNAVAILABLE",
+    "SNAPBACK_ACTION_STREAM_PERSISTENCE_UNAUTHORIZED",
     // Engine-side commit/invocation invariants that can cross ApiError only as
     // server faults; they are not caller-authored graph admission failures.
     "SNAPBACK_COMMIT_CAPSULE_DESTINATION_MISMATCH",

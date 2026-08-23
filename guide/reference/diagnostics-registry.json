@@ -11,7 +11,7 @@
     "codes": 3593,
     "sourceFiles": 594,
     "emittingSites": 12392,
-    "httpClassified": 1716,
+    "httpClassified": 1718,
     "guideAnchored": 449
   },
   "diagnostics": {
@@ -670,8 +670,8 @@
           "column": 30
         }
       ],
-      "httpStatus": null,
-      "httpStatusClass": null,
+      "httpStatus": 500,
+      "httpStatusClass": "5xx",
       "guideAnchor": null,
       "guideAnchors": []
     },
@@ -735,8 +735,8 @@
           "column": 14
         }
       ],
-      "httpStatus": null,
-      "httpStatusClass": null,
+      "httpStatus": 500,
+      "httpStatusClass": "5xx",
       "guideAnchor": null,
       "guideAnchors": []
     },

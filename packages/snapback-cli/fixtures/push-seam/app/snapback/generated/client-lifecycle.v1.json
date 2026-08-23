@@ -84,7 +84,7 @@
       ]
     }
   },
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:c631db541e39ae36724cba76f4bd37e8c18f731ef96a4297977f1a5c2697de39",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:a9ae31558ac1bdb3992ea014b751b6388b4183e2b96fc0edc7b461cb6a823db7",
   "mutationSettlement": {
     "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
     "dispositions": [
@@ -478,6 +478,16 @@
         }
       ],
       "sourceFields": [
+        {
+          "bootstrapProjection": [],
+          "disposition": "auth-abuse-policy-source",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared generated abuse-policy extension"
+          },
+          "field": "abuseBudgets",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
         {
           "bootstrapProjection": [],
           "disposition": "semantic-source-no-bootstrap-field",
@@ -994,7 +1004,21 @@
               "facadeOwner": "SnapbackAppClient.auth",
               "operation": "enter",
               "predecessor": "settled-anonymous-or-process-local-supervised-adopted",
+              "recoveryProjection": "none",
               "resultType": "Promise<AuthCredentialPublicProjectionV1>"
+            },
+            {
+              "applicationFacadeMethod": "claimGuestWithPassword",
+              "clientMethod": "authClaimGuestWithPassword",
+              "clientNamespaceMethod": "authClaimGuestWithPassword",
+              "collisionContract": "different-principal-refuses-without-link-merge-or-switch",
+              "facadeMethod": "claimGuestWithPassword",
+              "facadeOwner": "SnapbackAppClient.auth",
+              "operation": "claim-password",
+              "predecessor": "settled-active-guest-same-session-and-authority",
+              "recoveryProjection": "one-time-response",
+              "resultType": "Promise<AuthRecoveryCredentialPublicProjectionV1>",
+              "targetCapability": "auth.guest-sessions"
             }
           ],
           "phase": "shipped",

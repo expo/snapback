@@ -117,7 +117,7 @@
       ]
     }
   },
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:b49ed10755c2981388da414a5e93bf8c6cfa9b0422f586f1b5541c42387d2744",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:f89eefeb58a72b33d6ed3cde542bffba36ffac38fc47093ab3e1435eea06c8c0",
   "mutationSettlement": {
     "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
     "dispositions": [
@@ -833,6 +833,16 @@
       "sourceFields": [
         {
           "bootstrapProjection": [],
+          "disposition": "auth-abuse-policy-source",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared generated abuse-policy extension"
+          },
+          "field": "abuseBudgets",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
+        {
+          "bootstrapProjection": [],
           "disposition": "semantic-source-no-bootstrap-field",
           "familiarDisposition": {
             "disposition": 1,
@@ -1347,7 +1357,21 @@
               "facadeOwner": "SnapbackAppClient.auth",
               "operation": "enter",
               "predecessor": "settled-anonymous-or-process-local-supervised-adopted",
+              "recoveryProjection": "none",
               "resultType": "Promise<AuthCredentialPublicProjectionV1>"
+            },
+            {
+              "applicationFacadeMethod": "claimGuestWithPassword",
+              "clientMethod": "authClaimGuestWithPassword",
+              "clientNamespaceMethod": "authClaimGuestWithPassword",
+              "collisionContract": "different-principal-refuses-without-link-merge-or-switch",
+              "facadeMethod": "claimGuestWithPassword",
+              "facadeOwner": "SnapbackAppClient.auth",
+              "operation": "claim-password",
+              "predecessor": "settled-active-guest-same-session-and-authority",
+              "recoveryProjection": "one-time-response",
+              "resultType": "Promise<AuthRecoveryCredentialPublicProjectionV1>",
+              "targetCapability": "auth.guest-sessions"
             }
           ],
           "phase": "shipped",

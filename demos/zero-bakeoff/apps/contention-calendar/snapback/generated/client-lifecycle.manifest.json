@@ -84,7 +84,7 @@
       ]
     }
   },
-  "inputsHash": "0878e524d2a1131d83e1864b0cacef8f99b568f33c938e0a5c5677122634a43e",
+  "inputsHash": "f4f0749f84490e6278f3f8cbdbc54bc0e02a41735d869d1c49234894e3ec6f16",
   "mutationSettlement": {
     "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
     "dispositions": [
@@ -564,10 +564,8 @@
           "semanticIdentityEffect": "included-in-normalized-auth-program"
         },
         {
-          "bootstrapProjection": [
-            "entryMechanisms"
-          ],
-          "disposition": "guest-entry-policy-source",
+          "bootstrapProjection": [],
+          "disposition": "semantic-source-not-anonymous-public",
           "familiarDisposition": {
             "disposition": 1,
             "route": "shared auth extension"
@@ -1035,26 +1033,6 @@
         {
           "configured": false,
           "familiarHook": "useAuth",
-          "mechanism": "guest-v1",
-          "operations": [
-            {
-              "applicationFacadeMethod": "enterAsGuest",
-              "clientMethod": "authEnterAsGuest",
-              "clientNamespaceMethod": "authEnterAsGuest",
-              "facadeMethod": "enterAsGuest",
-              "facadeOwner": "SnapbackAppClient.auth",
-              "operation": "enter",
-              "predecessor": "settled-anonymous-or-process-local-supervised-adopted",
-              "resultType": "Promise<AuthCredentialPublicProjectionV1>"
-            }
-          ],
-          "phase": "shipped",
-          "reactHook": "useSnapbackAuth",
-          "targetCapability": "auth.guest-sessions"
-        },
-        {
-          "configured": false,
-          "familiarHook": "useAuth",
           "mechanism": "password-v1",
           "operations": [
             {
@@ -1151,8 +1129,8 @@
       ],
       "sourceMechanisms": [
         {
-          "disposition": "shipped-policy-gated-entry",
-          "entryMechanism": "guest-v1",
+          "disposition": "excluded-guest-principal-is-not-entry",
+          "entryMechanism": null,
           "kind": "guest"
         },
         {
