@@ -605,10 +605,10 @@ export const PUBLICATION_CYCLE_ALLOWLIST = new Set([
   'crates/snapback/src/local-agent-safe-storage-publication.carrier.json',
   'crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.anchor.json',
   'crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.carrier.json',
-  'src/local-agent-safe-storage-publication.anchor.json',
-  'src/local-agent-safe-storage-publication.carrier.json',
-  'src/local-agent-safe-derived-deployment-fork-publication.anchor.json',
-  'src/local-agent-safe-derived-deployment-fork-publication.carrier.json',
+  'src/local-agent-safe-storage-publication.anchor.json', // path-migration: historical
+  'src/local-agent-safe-storage-publication.carrier.json', // path-migration: historical
+  'src/local-agent-safe-derived-deployment-fork-publication.anchor.json', // path-migration: historical
+  'src/local-agent-safe-derived-deployment-fork-publication.carrier.json', // path-migration: historical
   'tests/acceptance/receipts/agent-safe-storage-publication.2026-08-04.v1.json',
   'tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json',
   'tests/acceptance/fixtures/agent-safe-storage/acceptance-corpus.2026-08-04.v1.json',
@@ -647,8 +647,8 @@ export const PUBLICATION_CYCLE_ALLOWLIST = new Set([
   'crates/snapback-engine/src/local-persistent-store-publication.v1.json',
   'crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
   'crates/snapback/src/local-persistent-store-publication.v1.json',
-  'src/local-persistent-store-publication.anchor.v1.json',
-  'src/local-persistent-store-publication.v1.json',
+  'src/local-persistent-store-publication.anchor.v1.json', // path-migration: historical
+  'src/local-persistent-store-publication.v1.json', // path-migration: historical
 ]);
 
 // The persistent-store carrier and anchor are publication-cycle exclusions

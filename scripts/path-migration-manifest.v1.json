@@ -288,6 +288,10 @@
         "prefix": "llp/reviews/"
       },
       {
+        "id": "digest-pinned-conformance-case-notes",
+        "file": "tests/conformance/data-tier/todo-v2-patch-missing-row-is-soft.case.json"
+      },
+      {
         "id": "target-review-artifacts",
         "prefix": "targets/cloudflare/spike-facets/reviews/"
       }
