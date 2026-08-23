@@ -1267,6 +1267,8 @@ pub struct AuthorizedEffectReservation {
     commit_guard_failure_for_test: std::sync::Mutex<Option<SnapbackError>>,
     #[cfg(any(test, feature = "test-support"))]
     test_identity: u64,
+    #[cfg(any(test, feature = "test-support"))]
+    scope_probe_for_test: std::sync::Mutex<Option<AuthorizedEffectScopeProbeForTest>>,
 }
 
 #[cfg(any(test, feature = "test-support"))]
@@ -1283,6 +1285,14 @@ impl Drop for AuthorizedEffectReservation {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .remove(&self.test_identity);
+            if let Some(probe) = self
+                .scope_probe_for_test
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .as_ref()
+            {
+                probe.release();
+            }
         }
     }
 }
@@ -1408,6 +1418,114 @@ impl AuthorizedEffectReservationError {
     }
 }
 
+/// Test-only observation of one exact reservation and its commit-guard scope.
+/// The marker distinguishes a freshly reserved effect from any predecessor,
+/// while the active effect identifies the particular durable cut it guards.
+/// The standard shipped binary excludes this API; `test-support` is internal
+/// verification plumbing and must not be enabled in a published build.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+#[derive(Clone)]
+pub struct AuthorizedEffectScopeProbeForTest {
+    marker: String,
+    reservation_held: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    active_effect: std::sync::Arc<std::sync::Mutex<Option<&'static str>>>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+impl AuthorizedEffectScopeProbeForTest {
+    #[doc(hidden)]
+    pub fn new(marker: impl Into<String>) -> Self {
+        Self {
+            marker: marker.into(),
+            reservation_held: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            active_effect: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        }
+    }
+
+    #[doc(hidden)]
+    pub fn marker(&self) -> &str {
+        &self.marker
+    }
+
+    #[doc(hidden)]
+    pub fn is_reservation_held(&self) -> bool {
+        self.reservation_held
+            .load(std::sync::atomic::Ordering::Acquire)
+    }
+
+    #[doc(hidden)]
+    pub fn is_active_for(&self, effect: &'static str) -> bool {
+        *self
+            .active_effect
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            == Some(effect)
+    }
+
+    #[doc(hidden)]
+    pub fn is_inactive(&self) -> bool {
+        !self.is_reservation_held()
+            && self
+                .active_effect
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .is_none()
+    }
+
+    fn reserve(&self) {
+        assert!(
+            !self
+                .reservation_held
+                .swap(true, std::sync::atomic::Ordering::AcqRel),
+            "authorized-effect scope probe {} is already reserved",
+            self.marker
+        );
+    }
+
+    fn release(&self) {
+        assert!(
+            self.reservation_held
+                .swap(false, std::sync::atomic::Ordering::AcqRel),
+            "authorized-effect scope probe {} was released without a reservation",
+            self.marker
+        );
+    }
+
+    fn enter(&self, effect: &'static str) -> AuthorizedEffectScopeProbeGuardForTest {
+        let mut active = self
+            .active_effect
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        assert!(
+            active.is_none(),
+            "authorized-effect scope probe {} is already active",
+            self.marker
+        );
+        *active = Some(effect);
+        drop(active);
+        AuthorizedEffectScopeProbeGuardForTest {
+            probe: self.clone(),
+        }
+    }
+}
+
+#[cfg(any(test, feature = "test-support"))]
+struct AuthorizedEffectScopeProbeGuardForTest {
+    probe: AuthorizedEffectScopeProbeForTest,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+impl Drop for AuthorizedEffectScopeProbeGuardForTest {
+    fn drop(&mut self) {
+        *self
+            .probe
+            .active_effect
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+    }
+}
+
 /// The inner synchronous commit guard for an authorized effect. Field order is
 /// release order: mode admission drops before the retained service witness,
 /// while the borrowed reservation keeps every authority-work permit alive.
@@ -1418,6 +1536,8 @@ pub struct AuthorizedEffectCommitGuard<'a> {
     _reservation: &'a AuthorizedEffectReservation,
     #[cfg(any(test, feature = "test-support"))]
     test_reservation_identity: u64,
+    #[cfg(any(test, feature = "test-support"))]
+    _scope_probe_for_test: Option<AuthorizedEffectScopeProbeGuardForTest>,
 }
 
 #[cfg(any(test, feature = "test-support"))]
@@ -1516,6 +1636,20 @@ impl AuthorizedEffectReservation {
             .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(error);
     }
 
+    /// Mark every guard acquired from this exact reservation so a transaction
+    /// post-COMMIT hook can observe its lifetime without widening production
+    /// authority carriers.
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn with_scope_probe_for_test(self, probe: AuthorizedEffectScopeProbeForTest) -> Self {
+        probe.reserve();
+        *self
+            .scope_probe_for_test
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(probe);
+        self
+    }
+
     /// Acquire the independent mode guard last and retain the complete
     /// authority bundle until the returned transaction guard is dropped.
     pub fn commit_guard(
@@ -1566,15 +1700,24 @@ impl AuthorizedEffectReservation {
             }
         };
         #[cfg(any(test, feature = "test-support"))]
-        LIVE_AUTHORIZED_EFFECT_COMMIT_GUARDS_FOR_TEST.with(|guards| {
-            *guards.borrow_mut().entry(self.test_identity).or_default() += 1;
-        });
+        let scope_probe_for_test = {
+            LIVE_AUTHORIZED_EFFECT_COMMIT_GUARDS_FOR_TEST.with(|guards| {
+                *guards.borrow_mut().entry(self.test_identity).or_default() += 1;
+            });
+            self.scope_probe_for_test
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .as_ref()
+                .map(|probe| probe.enter(effect))
+        };
         Ok(AuthorizedEffectCommitGuard {
             _mode: mode,
             _service: service,
             _reservation: self,
             #[cfg(any(test, feature = "test-support"))]
             test_reservation_identity: self.test_identity,
+            #[cfg(any(test, feature = "test-support"))]
+            _scope_probe_for_test: scope_probe_for_test,
         })
     }
 }
@@ -2138,6 +2281,8 @@ impl PreparedAuthority {
                 static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
                 NEXT.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
             },
+            #[cfg(any(test, feature = "test-support"))]
+            scope_probe_for_test: std::sync::Mutex::new(None),
         };
         #[cfg(any(test, feature = "test-support"))]
         ACTIVE_AUTHORIZED_EFFECT_RESERVATIONS_FOR_TEST
@@ -2146,6 +2291,57 @@ impl PreparedAuthority {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .insert(reservation.test_identity);
         Ok(reservation)
+    }
+
+    fn authorized_effect_stale(&self, epoch_now_ms: u64, monotonic_now: Instant) -> SnapbackError {
+        match &self.resolved {
+            ResolvedAppAuthority::Session { .. } => {
+                let disposition = self
+                    .session_terminal_reason(epoch_now_ms, monotonic_now)
+                    .ok()
+                    .flatten()
+                    .map(|reason| match reason.authority_disposition() {
+                        crate::contract_types::TerminalAuthorityDisposition::Carrier => "carrier",
+                        crate::contract_types::TerminalAuthorityDisposition::DurableDelete => {
+                            "durableDelete"
+                        }
+                    })
+                    .unwrap_or("carrier");
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_SESSION_EXPIRED",
+                    "auth",
+                    "authentication session is expired or revoked",
+                )
+                .with_details(serde_json::json!({
+                    "authorityDisposition": disposition,
+                }))
+            }
+            ResolvedAppAuthority::ServicePrincipal { .. } => {
+                let disposition =
+                    match self.service_terminal_disposition(epoch_now_ms, monotonic_now) {
+                        Some(ServiceAuthorityDisposition::DurableDelete) => "durableDelete",
+                        Some(ServiceAuthorityDisposition::Carrier) | None => "carrier",
+                    };
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+                    "auth",
+                    "scoped agent token authority is no longer current",
+                )
+                .with_details(serde_json::json!({
+                    "authorityDisposition": disposition,
+                }))
+            }
+            _ => SnapbackError::error(
+                "SNAPBACK_AUTH_STREAM_RESET",
+                "auth",
+                "the authorization stream is no longer current",
+            )
+            .with_details(serde_json::json!({
+                "authorityDisposition": "carrier",
+                "retryable": true,
+                "cause": "stream_replaced",
+            })),
+        }
     }
 
     /// Mode-only/terminal-carrier effect guard. This does not reserve

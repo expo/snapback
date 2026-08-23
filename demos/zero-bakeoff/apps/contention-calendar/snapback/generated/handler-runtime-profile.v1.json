@@ -209,12 +209,7 @@
       "code": "SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE",
       "guideAnchor": "/_snapback/guide/backend/familiar-profile.md#translate-the-familiar-handler-dialect",
       "id": "familiar.result.unlowerable",
-      "phase": "definition-evaluation",
-      "profileSwitchSuggestion": {
-        "from": "snapback-familiar-ts-v1",
-        "route": "result:",
-        "to": "snapback-explicit-js-v1"
-      }
+      "phase": "definition-evaluation"
     },
     {
       "alternative": "Use the operation kind and ctx capability named by the diagnostic.",
@@ -569,7 +564,7 @@
       ]
     }
   },
-  "inputsHash": "044f2aa1c14cf1ec945f1553d6cfdc4aaddf284fd3e13eadf7a41ace0689362a",
+  "inputsHash": "f4f0749f84490e6278f3f8cbdbc54bc0e02a41735d869d1c49234894e3ec6f16",
   "moduleGraph": {
     "admittedSpecifiers": [],
     "cycles": "forbidden",

@@ -12,6 +12,113 @@ use rusqlite::{OptionalExtension, TransactionBehavior};
 use serde_json::{Map, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[cfg(any(test, feature = "test-support"))]
+struct AssetAttemptsAfterCommitObserverEntryForTest {
+    predicate: std::sync::Arc<dyn Fn(bool) -> bool + Send + Sync + 'static>,
+    observed: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+static ASSET_ATTEMPTS_AFTER_COMMIT_OBSERVERS_FOR_TEST: std::sync::OnceLock<
+    std::sync::Mutex<
+        std::collections::HashMap<String, AssetAttemptsAfterCommitObserverEntryForTest>,
+    >,
+> = std::sync::OnceLock::new();
+
+#[cfg(any(test, feature = "test-support"))]
+fn asset_attempts_after_commit_observers_for_test() -> &'static std::sync::Mutex<
+    std::collections::HashMap<String, AssetAttemptsAfterCommitObserverEntryForTest>,
+> {
+    ASSET_ATTEMPTS_AFTER_COMMIT_OBSERVERS_FOR_TEST
+        .get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()))
+}
+
+/// One-shot test observer for the cut immediately after an asset transaction
+/// commits and before its caller-owned guard drops. The standard shipped
+/// binary excludes this API; `test-support` is internal verification plumbing
+/// and must not be enabled in a published build.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub struct AssetAttemptsAfterCommitObserverForTest {
+    id: String,
+    observed: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+impl AssetAttemptsAfterCommitObserverForTest {
+    #[doc(hidden)]
+    pub fn observed(&self) -> bool {
+        self.observed.load(std::sync::atomic::Ordering::Acquire)
+    }
+}
+
+#[cfg(any(test, feature = "test-support"))]
+impl Drop for AssetAttemptsAfterCommitObserverForTest {
+    fn drop(&mut self) {
+        asset_attempts_after_commit_observers_for_test()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .remove(&self.id);
+    }
+}
+
+/// Install a predicate that is sampled after each asset transaction COMMIT.
+/// It is consumed only when true, allowing a test to select the exact guarded
+/// cut and its transaction-local state transition without interfering with
+/// unrelated parallel transactions. The predicate argument is true only when
+/// this transaction changed a prepared publication from `Planned` to `Staged`.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub fn install_asset_attempts_after_commit_observer_for_test(
+    predicate: impl Fn(bool) -> bool + Send + Sync + 'static,
+) -> AssetAttemptsAfterCommitObserverForTest {
+    let id = format!("asset-after-commit-{}", uuid::Uuid::now_v7().simple());
+    let observed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let previous = asset_attempts_after_commit_observers_for_test()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .insert(
+            id.clone(),
+            AssetAttemptsAfterCommitObserverEntryForTest {
+                predicate: std::sync::Arc::new(predicate),
+                observed: observed.clone(),
+            },
+        );
+    assert!(
+        previous.is_none(),
+        "asset after-COMMIT observer id was reused"
+    );
+    AssetAttemptsAfterCommitObserverForTest { id, observed }
+}
+
+#[cfg(any(test, feature = "test-support"))]
+fn observe_asset_attempts_after_commit_for_test(publication_transitioned_from_planned: bool) {
+    let observers = asset_attempts_after_commit_observers_for_test()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .iter()
+        .map(|(id, entry)| (id.clone(), entry.predicate.clone(), entry.observed.clone()))
+        .collect::<Vec<_>>();
+    let matched = observers
+        .into_iter()
+        .filter_map(|(id, predicate, observed)| {
+            predicate(publication_transitioned_from_planned).then(|| {
+                observed.store(true, std::sync::atomic::Ordering::Release);
+                id
+            })
+        })
+        .collect::<Vec<_>>();
+    if matched.is_empty() {
+        return;
+    }
+    let mut observers = asset_attempts_after_commit_observers_for_test()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    for id in matched {
+        observers.remove(&id);
+    }
+}
+
 /// A rendered variant whose immutable object is staged and ready for a
 /// generation-checked storage commit.
 #[derive(Clone)]
@@ -358,12 +465,30 @@ impl LocalDatabase {
     where
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
+        self.asset_attempts_transaction_guarded_observed(f, before_commit, || false)
+    }
+
+    fn asset_attempts_transaction_guarded_observed<T, G, BeforeCommit, AfterCommit>(
+        &mut self,
+        f: impl FnOnce(&rusqlite::Transaction<'_>) -> SnapbackResult<T>,
+        before_commit: BeforeCommit,
+        after_commit: AfterCommit,
+    ) -> SnapbackResult<T>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+        AfterCommit: FnOnce() -> bool,
+    {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let value = f(&tx)?;
         let _commit_guard = before_commit()?;
         tx.commit()?;
+        let publication_transitioned_from_planned = after_commit();
+        #[cfg(any(test, feature = "test-support"))]
+        observe_asset_attempts_after_commit_for_test(publication_transitioned_from_planned);
+        #[cfg(not(any(test, feature = "test-support")))]
+        let _ = publication_transitioned_from_planned;
         Ok(value)
     }
 
@@ -934,7 +1059,9 @@ impl LocalDatabase {
     where
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
-        self.asset_attempts_transaction_guarded(
+        #[cfg(any(test, feature = "test-support"))]
+        let transitioned_from_planned = std::cell::Cell::new(false);
+        self.asset_attempts_transaction_guarded_observed(
             |tx| {
                 let mut current = assets::load_publication(tx, &publication.publication_id)?
                     .ok_or_else(|| {
@@ -965,6 +1092,8 @@ impl LocalDatabase {
                             assets::AssetPublicationState::Staged,
                             now_millis(),
                         )?;
+                        #[cfg(any(test, feature = "test-support"))]
+                        transitioned_from_planned.set(true);
                     }
                     assets::AssetPublicationState::Staged => {}
                     other => {
@@ -979,6 +1108,16 @@ impl LocalDatabase {
                 Ok(())
             },
             before_commit,
+            || {
+                #[cfg(any(test, feature = "test-support"))]
+                {
+                    transitioned_from_planned.get()
+                }
+                #[cfg(not(any(test, feature = "test-support")))]
+                {
+                    false
+                }
+            },
         )
     }
 

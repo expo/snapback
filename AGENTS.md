@@ -154,6 +154,13 @@ silent wedge trap (ENG-22659).
   the areas they cover.
 - Landings that add test files, metadata-declared demos, or generated
   publication leaves run `node scripts/check-inventories.mjs` before pushing.
+  So do landings that merely **move** Rust code: the diagnostics registry records
+  emitting *sites*, not just codes, so shifting line numbers invalidates
+  `guide/reference/diagnostics-registry.json` even when no new `SNAPBACK_` code is
+  introduced. The generated artifacts also chain — the guide manifest embeds the
+  registry — so regenerating one can leave the next stale. Grepping the diff for
+  new codes is **not** a sufficient check; run the generators and confirm
+  `check-inventories` passes, which is the only step that sees the whole chain.
 - **Publication posture (author ruling 2026-08-08, recorded in LLP
   0041):** publish to npm rapidly and often — whenever `main` carries
   meaningful surface changes and the qualified publication path passes.

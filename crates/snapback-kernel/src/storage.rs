@@ -97,6 +97,10 @@ pub use self::jobs::{JobsKernel, JobsReadKernel};
 pub use api_envelope_state::{
     ApiEnvelopeCurrentRecord, ApiEnvelopeKernel, ApiEnvelopeReadKernel, ApiEnvelopeStateRecord,
 };
+#[cfg(any(test, feature = "test-support"))]
+pub use asset_attempts::{
+    AssetAttemptsAfterCommitObserverForTest, install_asset_attempts_after_commit_observer_for_test,
+};
 pub use asset_attempts::{
     AssetAttemptsKernel, AssetPreparedVariant, AssetPublishOutcome,
     AssetWidthPublicationStageOutcome,

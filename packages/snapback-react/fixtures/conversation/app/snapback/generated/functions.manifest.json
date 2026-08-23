@@ -57,7 +57,7 @@
   ],
   "authoredSourceHash": "sha256:656c5cb3c7bc0a1e725adf7800d428aad4b2ca42b43d1727a47f34d4579e9a38",
   "authoringProfile": "snapback-explicit-v1",
-  "bundleHash": "snapback.v1:sessions:function:sha256:0745e6ae08c01076a8700b666e33d8c269f86bf87a52df1a77ddcf9139e0c63b",
+  "bundleHash": "snapback.v1:sessions:function:sha256:21b066efbb97f0f2e3064df52ae0492b00cbac90d1f3161d0fec760a4c0d25b3",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -1744,7 +1744,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:4b3d0a594a0985b3fde165a405de4c2959e2863d9a499223ba1b7088929678f7",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:74c54893f602fc85191ecbe1988203f91e8b609424b9f28ead6ba92773441b2d",
   "schemaVersion": "snapback.v1",
   "unsupportedDependencyDiagnostics": [
     {
@@ -1761,6 +1761,7 @@
         "resultContractHash": "sha256:ea0d0f469f0cbf9048fa8fd6b81259b9efe0dd13fe087a8d6df9785bdc267fde",
         "resultContractProvenance": "authored"
       },
+      "guideAnchor": "/_snapback/guide/backend/declarative-plans.md#return-bindings",
       "message": "addReaction: closed plan result/dependency facts resolved with provenance",
       "severity": "info",
       "subsystem": "function"
@@ -1781,6 +1782,7 @@
         "resultContractHash": "sha256:0049db6e709bdb59a11e258e49985b10e4f27b3ab92169ee256ec5b271f6a123",
         "resultContractProvenance": "authored"
       },
+      "guideAnchor": "/_snapback/guide/backend/declarative-plans.md#return-bindings",
       "message": "removeReaction: closed plan result/dependency facts resolved with provenance",
       "severity": "info",
       "subsystem": "function"
@@ -1799,6 +1801,7 @@
         "resultContractHash": "sha256:5d40a11d2dd3c7c273d1fd3dcb5e37d6150af9b70a47c703a7db7fd6f1d067c0",
         "resultContractProvenance": "authored"
       },
+      "guideAnchor": "/_snapback/guide/backend/declarative-plans.md#return-bindings",
       "message": "sendMessage: closed plan result/dependency facts resolved with provenance",
       "severity": "info",
       "subsystem": "function"
@@ -1820,6 +1823,7 @@
         "resultContractHash": "sha256:5d40a11d2dd3c7c273d1fd3dcb5e37d6150af9b70a47c703a7db7fd6f1d067c0",
         "resultContractProvenance": "authored"
       },
+      "guideAnchor": "/_snapback/guide/backend/declarative-plans.md#return-bindings",
       "message": "sendReply: closed plan result/dependency facts resolved with provenance",
       "severity": "info",
       "subsystem": "function"
@@ -1841,6 +1845,7 @@
         "resultContractHash": "sha256:5d40a11d2dd3c7c273d1fd3dcb5e37d6150af9b70a47c703a7db7fd6f1d067c0",
         "resultContractProvenance": "authored"
       },
+      "guideAnchor": "/_snapback/guide/backend/declarative-plans.md#return-bindings",
       "message": "sendText: closed plan result/dependency facts resolved with provenance",
       "severity": "info",
       "subsystem": "function"

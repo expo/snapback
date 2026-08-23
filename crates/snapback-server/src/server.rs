@@ -17,6 +17,8 @@ use crate::auth::handshake::{
     AUTH_PROTOCOL_V1, AuthClientProtocolOffers, AuthSessionAuthority, AuthSessionAuthorityKind,
     AuthSessionFacts, AuthSessionResponse,
 };
+#[cfg(test)]
+use crate::auth::invocation::AuthorizedEffectScopeProbeForTest;
 use crate::auth::invocation::{
     AuthorizedEffectCommitGuard, AuthorizedEffectReservation, AuthorizedEffectReservationError,
     FunctionAttribution, InvocationGate, InvocationSource, PreparedAuthority, ResolvedAppAuthority,
@@ -13857,6 +13859,118 @@ fn stale_prepared_authority(authority: &PreparedAuthority, epoch_now_ms: u64) ->
 
 #[cfg(test)]
 const TEST_FINITE_AUTHORITY_PAUSE_HEADER: &str = "x-snapback-test-finite-authority-pause";
+
+#[cfg(test)]
+const TEST_ASSET_RETRY_GUARD_HEADER: &str = "x-snapback-test-asset-retry-guard";
+
+#[cfg(test)]
+enum TestAssetRetryGuardAction {
+    Refuse,
+    Probe {
+        completion: AuthorizedEffectScopeProbeForTest,
+        retry: AuthorizedEffectScopeProbeForTest,
+    },
+}
+
+#[cfg(test)]
+enum TestAssetAppliedGuardAction {
+    Refuse,
+    Probe(AuthorizedEffectScopeProbeForTest),
+}
+
+#[cfg(test)]
+struct TestAssetRetryGuardConfiguration {
+    id: String,
+}
+
+#[cfg(test)]
+static TEST_ASSET_RETRY_GUARDS: OnceLock<
+    StdMutex<std::collections::HashMap<String, TestAssetRetryGuardAction>>,
+> = OnceLock::new();
+
+#[cfg(test)]
+fn test_asset_retry_guards()
+-> &'static StdMutex<std::collections::HashMap<String, TestAssetRetryGuardAction>> {
+    TEST_ASSET_RETRY_GUARDS.get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+}
+
+#[cfg(test)]
+fn install_test_asset_retry_guard(
+    action: TestAssetRetryGuardAction,
+) -> TestAssetRetryGuardConfiguration {
+    let id = format!("asset-retry-guard-{}", Uuid::now_v7().simple());
+    let previous = test_asset_retry_guards()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .insert(id.clone(), action);
+    assert!(previous.is_none(), "asset retry-guard id was reused");
+    TestAssetRetryGuardConfiguration { id }
+}
+
+#[cfg(test)]
+impl TestAssetRetryGuardConfiguration {
+    fn id(&self) -> &str {
+        &self.id
+    }
+}
+
+#[cfg(test)]
+impl Drop for TestAssetRetryGuardConfiguration {
+    fn drop(&mut self) {
+        test_asset_retry_guards()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .remove(&self.id);
+    }
+}
+
+#[cfg(test)]
+fn take_test_asset_retry_guard(
+    headers: &HeaderMap,
+    effect: &'static str,
+) -> Option<TestAssetAppliedGuardAction> {
+    if !matches!(
+        effect,
+        "asset finalize publication/quota reservation" | "asset finalize witness-retry reservation"
+    ) {
+        return None;
+    }
+    let id = headers
+        .get(TEST_ASSET_RETRY_GUARD_HEADER)
+        .and_then(|value| value.to_str().ok())?;
+    let mut guards = test_asset_retry_guards()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if effect == "asset finalize publication/quota reservation" {
+        return match guards.get(id) {
+            Some(TestAssetRetryGuardAction::Probe { completion, .. }) => {
+                Some(TestAssetAppliedGuardAction::Probe(completion.clone()))
+            }
+            Some(TestAssetRetryGuardAction::Refuse) | None => None,
+        };
+    }
+    match guards.remove(id)? {
+        TestAssetRetryGuardAction::Refuse => Some(TestAssetAppliedGuardAction::Refuse),
+        TestAssetRetryGuardAction::Probe { retry, .. } => {
+            Some(TestAssetAppliedGuardAction::Probe(retry))
+        }
+    }
+}
+
+#[cfg(test)]
+fn test_asset_retry_guard_scope(headers: &HeaderMap) -> Option<AuthorizedEffectScopeProbeForTest> {
+    let id = headers
+        .get(TEST_ASSET_RETRY_GUARD_HEADER)
+        .and_then(|value| value.to_str().ok())?;
+    let guards = test_asset_retry_guards()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    match guards.get(id) {
+        Some(TestAssetRetryGuardAction::Probe { retry, .. }) => Some(retry.clone()),
+        Some(TestAssetRetryGuardAction::Refuse) => None,
+        None => panic!("asset retry-guard registry entry was absent before observer lookup"),
+    }
+}
 
 /// Deterministic A/B reload seam for the coordinated `function.run` mutation
 /// regression. The pause is after the commit turn has returned and before the

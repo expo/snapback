@@ -45,6 +45,19 @@ async fn reserve_asset_authorized_effect(
         .reserve_authorized_effect(effect)
         .map_err(ApiError::from)?;
     #[cfg(test)]
+    let authorized_effect = match take_test_asset_retry_guard(_headers, effect) {
+        Some(TestAssetAppliedGuardAction::Refuse) => authorized_effect
+            .with_commit_guard_failure_for_test(SnapbackError::error(
+                "SNAPBACK_ACTION_TIMEOUT",
+                "runtime",
+                "injected asset finalize witness-retry guard refusal",
+            )),
+        Some(TestAssetAppliedGuardAction::Probe(probe)) => {
+            authorized_effect.with_scope_probe_for_test(probe)
+        }
+        None => authorized_effect,
+    };
+    #[cfg(test)]
     if pause_after_reservation {
         pause_test_finite_authority_request(
             _headers
@@ -305,8 +318,17 @@ pub(super) async fn asset_attempt_finalize_route(
                 return Ok(Json(response));
             }
             crate::assets::FinalizePhaseCDOutcomeV1::Revalidate(ticket) => {
+                #[cfg(test)]
+                let retry_scope = test_asset_retry_guard_scope(&headers);
                 let revalidate_authority = authority.clone();
                 let ticket = with_snapback(&state, move |snapback| {
+                    #[cfg(test)]
+                    if let Some(scope) = retry_scope {
+                        assert!(
+                            !scope.is_reservation_held(),
+                            "asset witness revalidation held the marked retry reservation",
+                        );
+                    }
                     snapback
                         .asset_attempt_finalize_revalidate_witness(&revalidate_authority, ticket)
                 })

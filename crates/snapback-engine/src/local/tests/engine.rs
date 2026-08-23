@@ -4534,6 +4534,93 @@ impl crate::assets_store::AssetStore for BlockFirstBlobHashStore {
     }
 }
 
+/// Test-only source substitution for a width prepare ticket. The wrapper
+/// replaces its primary blob read with caller-selected valid image bytes and
+/// delegates every later store operation. This lets a stale plan carry a
+/// genuinely different immutable rendition digest without widening the
+/// production ticket surface.
+struct ReplaceWidthSourceReadStore {
+    inner: Arc<dyn crate::assets_store::AssetStore>,
+    replacement: Vec<u8>,
+}
+
+impl crate::assets_store::AssetStore for ReplaceWidthSourceReadStore {
+    fn kind(&self) -> &'static str {
+        self.inner.kind()
+    }
+
+    fn append_staging(&self, key: &str, offset: u64, chunk: &[u8]) -> SnapbackResult<()> {
+        self.inner.append_staging(key, offset, chunk)
+    }
+
+    fn write_canonical(&self, key: &str, bytes: &[u8]) -> SnapbackResult<()> {
+        self.inner.write_canonical(key, bytes)
+    }
+
+    fn put_blob_idempotent(&self, key: &str, bytes: &[u8]) -> SnapbackResult<()> {
+        self.inner.put_blob_idempotent(key, bytes)
+    }
+
+    fn copy_from_staging(
+        &self,
+        source: crate::assets_store::AssetObjectRef<'_>,
+        blob_key: &str,
+    ) -> SnapbackResult<()> {
+        self.inner.copy_from_staging(source, blob_key)
+    }
+
+    fn read(&self, object: crate::assets_store::AssetObjectRef<'_>) -> SnapbackResult<Vec<u8>> {
+        if matches!(object, crate::assets_store::AssetObjectRef::Blob(_)) {
+            return Ok(self.replacement.clone());
+        }
+        self.inner.read(object)
+    }
+
+    fn read_chunk(
+        &self,
+        object: crate::assets_store::AssetObjectRef<'_>,
+        offset: u64,
+        max_len: usize,
+    ) -> SnapbackResult<Vec<u8>> {
+        self.inner.read_chunk(object, offset, max_len)
+    }
+
+    fn hash(
+        &self,
+        object: crate::assets_store::AssetObjectRef<'_>,
+    ) -> SnapbackResult<crate::assets_store::AssetObjectDigest> {
+        self.inner.hash(object)
+    }
+
+    fn exists(&self, object: crate::assets_store::AssetObjectRef<'_>) -> SnapbackResult<bool> {
+        self.inner.exists(object)
+    }
+
+    fn len(&self, object: crate::assets_store::AssetObjectRef<'_>) -> SnapbackResult<Option<u64>> {
+        self.inner.len(object)
+    }
+
+    fn delete_blob(&self, key: &str) -> SnapbackResult<()> {
+        self.inner.delete_blob(key)
+    }
+
+    fn delete_staging_pair(&self, key: &str) -> SnapbackResult<()> {
+        self.inner.delete_staging_pair(key)
+    }
+
+    fn list_staging_keys(&self) -> SnapbackResult<Vec<String>> {
+        self.inner.list_staging_keys()
+    }
+
+    fn copy_blob(&self, from: &str, to: &str) -> SnapbackResult<()> {
+        self.inner.copy_blob(from, to)
+    }
+
+    fn wipe_all(&self) -> SnapbackResult<()> {
+        self.inner.wipe_all()
+    }
+}
+
 /// Publication-store script used by the lease regressions. It can block the
 /// first width PUT before the remote effect serializes and can falsify one
 /// blob read-back without changing the stored bytes.
@@ -11760,7 +11847,7 @@ fn asset_runner_retains_active_width_put_then_bounded_expiry_reclaims_it() {
 }
 
 #[test]
-fn asset_stale_width_plan_converges_before_tight_quota_is_charged() {
+fn asset_stale_divergent_width_plan_cannot_converge_before_tight_quota() {
     let mut snapback =
         asset_variant_snapback(crate::manifest::AssetLocationPolicy::Strip, Vec::new());
     let fixture = crate::assets_image::fixtures::plain_jpeg(200, 150);
@@ -11786,15 +11873,25 @@ fn asset_stale_width_plan_converges_before_tight_quota_is_charged() {
         AssetWidthPreflightV1::Proceed(ticket) => ticket,
         AssetWidthPreflightV1::AlreadyReady(_) => panic!("width is not materialized yet"),
     };
-    let second_prepare = match snapback
+    let mut second_prepare = match snapback
         .asset_width_preflight(&asset_id, 100)
         .expect("second tight-quota preflight")
     {
         AssetWidthPreflightV1::Proceed(ticket) => ticket,
         AssetWidthPreflightV1::AlreadyReady(_) => panic!("width is not materialized yet"),
     };
+    let real_store = second_prepare.store_for_test();
+    second_prepare.replace_store_for_test(Arc::new(ReplaceWidthSourceReadStore {
+        inner: real_store,
+        replacement: crate::assets_image::fixtures::plain_jpeg_quality(200, 150, 35),
+    }));
     let first_plan = first_prepare.prepare().expect("render first width");
     let second_plan = second_prepare.prepare().expect("render second width");
+    assert_ne!(
+        first_plan.digest(),
+        second_plan.digest(),
+        "the competing stale plans must prepare different immutable rendition bytes",
+    );
 
     let first_effect = authority
         .reserve_authorized_effect("first tight-quota width plan")
@@ -11809,25 +11906,33 @@ fn asset_stale_width_plan_converges_before_tight_quota_is_charged() {
     let winner = snapback
         .asset_width_commit_with_authorized_effect(first_commit, first_commit_effect)
         .expect("first request consumes the remaining quota");
+    let winner_rendition =
+        asset_rendition_for(&mut snapback, &asset_id, &winner).expect("first rendition is ready");
+    let rendition_events_after_winner = asset_receipt_events(&mut snapback, &asset_id)
+        .iter()
+        .filter(|event| event.as_str() == "rendition-produced")
+        .count();
 
     // The stale second preflight plans only after the first publication is
-    // terminal. Serving the existing Ready rendition must not charge again.
+    // terminal. Its different bytes must not be substituted by the existing
+    // Ready rendition, even though refusing them now exceeds the tight quota.
     let second_effect = authority
         .reserve_authorized_effect("second tight-quota width plan")
         .expect("reserve second width plan");
     let second_put = snapback
         .asset_width_plan_with_authorized_effect(second_plan, second_effect)
         .expect("commit stale second width plan");
+    let second_publication_id = second_put.publication_for_test().publication_id.clone();
     let second_commit = second_put.put().expect("second width PUT succeeds");
     let second_commit_effect = authority
         .reserve_authorized_effect("second tight-quota width commit")
         .expect("reserve second width commit");
-    let converged = snapback
+    let error = snapback
         .asset_width_commit_with_authorized_effect(second_commit, second_commit_effect)
-        .expect("existing rendition converges before quota settlement");
+        .expect_err("different rendition bytes cannot converge on the quota winner");
 
     assert_eq!(winner, "w128");
-    assert_eq!(converged, winner);
+    assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_QUOTA_EXCEEDED");
     let accounting = snapback
         .db
         .asset_reads()
@@ -11835,7 +11940,31 @@ fn asset_stale_width_plan_converges_before_tight_quota_is_charged() {
         .expect("read tight-quota accounting");
     assert_eq!(
         accounting.settled_bytes, tight_quota,
-        "the converged request adds no logical quota charge",
+        "the refused divergent request adds no logical quota charge",
+    );
+    assert_eq!(
+        asset_rendition_for(&mut snapback, &asset_id, &winner),
+        Some(winner_rendition),
+        "the exact winning rendition and blob edge remain unchanged",
+    );
+    let events = asset_receipt_events(&mut snapback, &asset_id);
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| event.as_str() == "rendition-produced")
+            .count(),
+        rendition_events_after_winner,
+        "the divergent request cannot emit a second rendition receipt: {events:?}",
+    );
+    assert!(
+        snapback
+            .db
+            .asset_maintenance()
+            .publication_records_in_state(crate::assets::AssetPublicationState::Staged)
+            .expect("read divergent publication state")
+            .iter()
+            .any(|record| record.publication_id == second_publication_id),
+        "quota refusal must not record a successful convergence transition",
     );
 }
 

@@ -49,21 +49,26 @@ documents have since attached to it:
    0276's map assigns (`snapback-types` for the IR/wire/identity leaf;
    `snapback-sync` for matching vocabulary; admission/compile in
    `packages/snapback-codegen`) — no new crate.
-2. **Two-layer identity.** Content-addressed, host-recomputed **plan
+2. **Three-layer identity.** Content-addressed, host-recomputed **plan
    identity** (normalized shape, projection, declared bounds, authority
    classification, result-contract identity) and **instance identity**
-   (plan × canonical args × window/range identity), per §2 and LLP 0190
-   §4.1's axes. Identity must be strong enough to imply byte-equivalent
-   results (0268 G0-BCAST-IDENTITY).
+   (plan × canonical args × window/range identity), wrapped by a contextual
+   **materialization identity** (app/database/deployment/target/activation/
+   exported-function inputs), per §2 and LLP 0190 §4.1's axes. Identity must
+   be strong enough to imply byte-equivalent results
+   (0268 G0-BCAST-IDENTITY). (amended 2026-08-23, Stage A fix round 2)
 3. **Per-node authority classification, proved not trusted** (§3): every
    node declares class 1/2/3; the compiler checks it; the conformance
    corpus includes paired-world rows that falsify a wrong declaration at
-   admission. The roll-up to an authority-partition identity is specified
+   qualification, never at admission. The roll-up to an authority-partition
+   identity is specified
    (OQ-3 is taken conservatively at G0: principal-scoped = partition of
    one; widening is a later amendment).
+   (amended 2026-08-23, Stage A fix round 2)
 4. **Completeness vocabulary bound to the IR** (§4): `unknown` /
    `complete` / `prefix` / `window` / `refused`, each claimed at an
-   (instance identity, partition, version) tuple.
+   (materialization identity, partition, authorizationVersion, evaluationCut)
+   tuple.
 5. **Per-node dependency capture specified for every admitted node kind**
    (§5 "required now, with the IR"): root → predicate + boundary; to-one/
    to-many → parent-indexed edge dependencies; semi-join → membership
@@ -86,15 +91,17 @@ documents have since attached to it:
    declaration surface; no `g0Bounds` twin): `maxRootRowsPerPage`,
    `maxExaminedEntriesPerExecution`, `maxRelationshipLookupsPerExecution`,
    `maxChildrenPerParent`, `maxItems`/`maxArgumentItems`/
-   `maxArgumentExpansion`, `maxResultBytes`/`maxPageResultBytes`, the
-   summed-window tuple, `maxMaintainedWritesPerMutation`.
+   `maxArgumentExpansion`, `maxPageResultBytes`, the six per-node
+   `maxWindow*` fields plus the derived checked `windowRollup`, and
+   `maxMaintainedWritesPerMutation`; whole-query
+   `queryCost.maxResultBytes` remains outside `queryCost.graph`.
 8. **The LLP 0268 §7 named inputs**, each present in the exit record by
    its label (G0-BCAST-CLASS, -SEPARATION, -SCOPE, -SCOPE-BINDING,
    -AUDIENCE, -INVALIDATION, -IDENTITY, -CORPUS, -BOUNDS). An exit that
    omits any of them does not unblock 0268 B1 (0268 §0, binding).
 9. **The OQ-1 grammar-lineage ruling applied** — see below.
 
-**Exit record:** a dated note in LLP 0209 (v0.5, "G0 exit") listing each
+**Exit record:** a dated note in LLP 0209 (v0.6, "G0 exit") listing each
 of 1–9 with its evidence pointer, Status moving Draft → Review for the
 §2–§4 content G0 makes concrete; the corpus and its oracle digests
 committed under `demos/zerobugs/control/` (or the conformance crate) with
@@ -104,10 +111,12 @@ IR types and the admission path.
 **Non-deliverables (explicitly out of G0):** any server-side graph
 execution (G2), delta emission (G3), memo-key widening beyond G1's
 session-exact key (§6 partition sharing waits on this classification but
-is G1+/G2 work), matcher changes, the local evaluator (§8/D3), D6 search
+is G1+/G2 work), every matcher change except exactly one fail-closed
+`GraphQuery` arm that returns conservative-fallback/not-executed, the local
+evaluator (§8/D3), D6 search
 invalidation facts (OQ-4), hosted-profile memo placement (OQ-2), replica
 continuity (OQ-6), and any published capability claim (0183 §D2's gate is
-untouched).
+untouched). (amended 2026-08-23, Stage A fix round 2)
 
 ## Author input 1 — bounds: converted from a gate into a lane deliverable
 
@@ -131,31 +140,38 @@ handler collection limit (`SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED`,
 `issues/20260822-implicit-1024-row-limit.md`), and the 1,000-row observer
 windows the hot gate uses.
 
-Sizing method the lane follows, with the first-cut derivation so the
-author can ratify or override:
+Sizing method the lane follows, with the first-cut derivation for author
+ratification at the G0 exit (amended 2026-08-23, Stage A fix round 2):
 
 - **root:** the hot working set is exactly 1,000 issues and every measured
   observer uses 1,000-row windows → `maxRootRowsPerPage` = 1,024 is
   *justified*, not inherited (keeps the existing take ceiling as the
   page bound; a smaller page bound would change the hot gate's shape).
-- **fanout (to-many per parent):** large-fixture means are 3.0 comments
-  and 1.5 labels per issue, normal 1.8 / 1.17; maxima to be read off the
-  fixtures by the lane. Candidate: `maxChildrenPerParent` = 16 for label
+- **fanout (to-many per parent):** large-fixture context means are **2.53
+  comments** and **2.00 labels** per issue, normal 1.8 / 1.17; declarations
+  use maxima read from the fixtures, never those means. Candidate:
+  `maxChildrenPerParent` = 16 for label
   edges (bounded to-many on the list), comments on detail as a **window
   node** (paged), not a fanout node.
-- **summed-window / examined-entry:** this is where the current ceiling
-  is *falsified by the fixtures*: a 1,000-row list × 1.5 labels/issue is
-  ~1,500 child rows, already over the 1,024 summed-batch ceiling, so the
+  (amended 2026-08-23, Stage A fix round 2)
+- **per-node window / examined-entry:** this is where the current ceiling
+  is *falsified by the fixtures*: even the contextual mean, a 1,000-row
+  list × 2.00 labels/issue, is ~2,000 child rows, already over the 1,024
+  summed-batch ceiling; the declaration itself uses the fixture maximum,
+  not that mean, so the
   graph profile cannot reuse `SNAPSHOT_BATCH_SUMMED_TAKE_CEILING` as its
-  summed-window bound. The lane proposes the summed tuple from measured
-  `issueListV2` structural work on both fixtures (root rows +
-  relationship lookups + child rows + result bytes), with 0267's
-  `StructuralWorkV1` as the observation carrier; the oracle run that
-  freezes the corpus is the same run that produces these numbers.
+  graph-window bound. The lane derives logical row/fanout/result/window
+  values from fixture facts and oracle results. It declares physical examined,
+  relationship, window-scan, and index-range bounds analytically from the
+  normalized plan and marks them **[G2 measures]**; Stage B does not represent
+  a `StructuralWorkV1` value as graph-executor observation. The oracle run that
+  freezes the corpus supplies the logical evidence.
+  (amended 2026-08-23, Stage A fix round 2)
 - **relationship / argument:** counted from the compiled corpus (lookups
   per node per execution; `maxItems` per collection argument from the
   control's filter arguments — selected labels, assignees, projects).
-- **byte:** `maxResultBytes` from the measured full-window frame size
+- **byte:** whole-query `queryCost.maxResultBytes` from the measured
+  full-window frame size
   (six-observer arms delivered ~61–68 MB total ≈ ~10–11 MB per
   1,000-row window frame, LLP 0209 E-1) — the lane records the exact
   per-frame number and proposes the bound with headroom.
@@ -166,7 +182,7 @@ author can ratify or override:
 Every value is recorded with its fixture derivation beside it; "current
 ceiling" is never a derivation.
 
-## Author input 2 — OQ-1 grammar lineage: ruling proposed, applied unless overridden
+## Author input 2 — OQ-1 grammar lineage: ruling applied 2026-08-23 (resolved in LLP 0209)
 
 **Facts the ruling rests on** (surveyed 2026-08-23; pointers are to
 `crates/snapback-types/src/manifest/types.rs` unless noted):
@@ -214,7 +230,7 @@ ceiling" is never a derivation.
   corpus compiles" means the lane *declares* the list and detail graphs
   in the new profile and the existing JS handlers are the oracle.
 
-**Proposed ruling — extend the family with a sibling arm; freeze, do not
+**Ruling — extend the family with a sibling arm; freeze, do not
 mutate or migrate, the shipped carriers.**
 
 1. The graph IR lands as a **new `HandlerPlan` arm** (working name
@@ -279,10 +295,14 @@ orchestrator lands). Docs and corpus land together per repo policy.
   frozen against the opaque oracle on the normal fixture with a CI check
   (`node scripts/check-inventories.mjs` registration; paired-world rows
   via `policy-extension-v1`); large-fixture parity spot check and the
-  structural-work measurement that sizes the bounds. **No runtime path
+  fixture/oracle logical derivation plus normalized-plan analytical physical
+  declarations that size the bounds. **No runtime path
   consumes the IR yet** — the opaque handlers keep serving; the corpus
-  is the only executable deliverable.
-- **Exit:** the dated v0.5 note in LLP 0209 with the bound table for
+  is the only executable deliverable. Here “sizes the bounds” means logical
+  fixture/oracle derivation plus analytical physical declarations marked
+  **[G2 measures]**, not graph-executor `StructuralWorkV1` observation.
+  (amended 2026-08-23, Stage A fix round 2)
+- **Exit:** the dated v0.6 note in LLP 0209 with the bound table for
   author ratification; this ticket records the landed SHAs and moves to
   `issues/closed/`; the parent evidence anchor and
   `issues/20260808-d2-d4-owner-specs-commission.md` get a pointer.

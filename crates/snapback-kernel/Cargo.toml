@@ -12,7 +12,8 @@ path = "src/lib.rs"
 [features]
 default = []
 # Remainder unit tests retain their existing kernel fixture seams after the
-# crate boundary. Production dependencies never enable this feature.
+# crate boundary. The standard shipped binary does not enable this feature;
+# published builds must not enable it.
 test-support = []
 
 [dependencies]

@@ -5,11 +5,12 @@ use super::{
     ConnectionOpenAttempt, DetachedActionHost, DetachedActionWorkerCounters, HostOperationParentV1,
     ManagedWriterCancellation, NestedActionEffect, OpenConnectionRequest, PolicyAuthMode,
     PreparedAuthority, RealtimeEnvelope, SharedSnapback, SnapbackApp,
-    TEST_FINITE_AUTHORITY_PAUSE_HEADER, TestFiniteAuthorityPausePoint,
-    already_terminal_session_error, app, configured_action_worker_limit,
-    configured_cron_dispatch_concurrency, coordinated_app_reset, dispatch_cron_tick_background,
-    finish_registered_response, install_committed_reset_handoff_test_hook,
-    install_detached_nested_mutation_test_pause, install_test_finite_authority_pause,
+    TEST_ASSET_RETRY_GUARD_HEADER, TEST_FINITE_AUTHORITY_PAUSE_HEADER, TestAssetRetryGuardAction,
+    TestFiniteAuthorityPausePoint, already_terminal_session_error, app,
+    configured_action_worker_limit, configured_cron_dispatch_concurrency, coordinated_app_reset,
+    dispatch_cron_tick_background, finish_registered_response,
+    install_committed_reset_handoff_test_hook, install_detached_nested_mutation_test_pause,
+    install_test_asset_retry_guard, install_test_finite_authority_pause,
     linearize_detached_action_abandonment, parse_action_watchdog_timeout, parse_optional_json,
     reserve_detached_action_worker, reserve_detached_action_worker_with_counters,
     retain_realtime_authority_in, run_detached_ibex_action_with_admission_and_counters,
@@ -34071,6 +34072,9 @@ globalThis.__snapbackHandlers = {
   },
   async signedImageUpload(ctx) {
     return { owner: ctx.auth.userId };
+  },
+  async requiredImageUpload(ctx) {
+    return { owner: ctx.auth.userId };
   }
 };
 "#;
@@ -34080,6 +34084,15 @@ fn asset_authorized_effect_test_intent(
     delivery: crate::assets::AssetDeliveryProfile,
 ) -> crate::manifest::AssetUploadIntentDefinition {
     let image = name.contains("Image");
+    let variants = if name == "requiredImageUpload" {
+        vec![crate::manifest::AssetImageVariant {
+            key: "required-thumb".to_owned(),
+            width: 8,
+            required: true,
+        }]
+    } else {
+        Vec::new()
+    };
     crate::manifest::AssetUploadIntentDefinition {
         id: format!("app:{name}"),
         name: name.to_owned(),
@@ -34103,7 +34116,7 @@ fn asset_authorized_effect_test_intent(
         grants: false,
         image: image.then_some(crate::manifest::AssetImagePolicy {
             location: crate::manifest::AssetLocationPolicy::Retain,
-            variants: Vec::new(),
+            variants,
         }),
         video: None,
         on: None,
@@ -34137,6 +34150,10 @@ async fn asset_authorized_effect_server_fixture_async() -> AppState {
             asset_authorized_effect_test_intent(
                 "signedImageUpload",
                 crate::assets::AssetDeliveryProfile::PrivateSigned,
+            ),
+            asset_authorized_effect_test_intent(
+                "requiredImageUpload",
+                crate::assets::AssetDeliveryProfile::PrivateStrict,
             ),
         ];
         sessions_activation_server_fixture_with(functions, None)
@@ -34370,6 +34387,21 @@ async fn asset_test_finalize(
 async fn asset_authorized_effect_fixture(
     site: AssetAuthorizedEffectSite,
 ) -> AssetAuthorizedEffectFixture {
+    asset_authorized_effect_fixture_with_upload(
+        site,
+        site.intent_name(),
+        site.upload_bytes(),
+        site.upload_content_type(),
+    )
+    .await
+}
+
+async fn asset_authorized_effect_fixture_with_upload(
+    site: AssetAuthorizedEffectSite,
+    intent_name: &str,
+    upload_bytes: &[u8],
+    upload_content_type: &str,
+) -> AssetAuthorizedEffectFixture {
     let state = asset_authorized_effect_server_fixture_async().await;
     let credential =
         mint_test_credential(&state, &format!("asset-{}@example.test", site.label())).await;
@@ -34396,9 +34428,9 @@ async fn asset_authorized_effect_fixture(
         let target = asset_test_create(
             &router,
             &bearer,
-            site.intent_name(),
-            site.upload_bytes().len(),
-            site.upload_content_type(),
+            intent_name,
+            upload_bytes.len(),
+            upload_content_type,
         )
         .await;
         if site.needs_ready_asset() || site.needs_complete_transfer() {
@@ -34406,7 +34438,7 @@ async fn asset_authorized_effect_fixture(
                 &router,
                 &bearer,
                 target.attempt_id.as_deref().expect("ready attempt id"),
-                site.upload_bytes(),
+                upload_bytes,
             )
             .await;
         }
@@ -34461,6 +34493,7 @@ enum AssetDurableWitness {
         availability: String,
         rendition_count: usize,
         settled_bytes: u64,
+        receipt_count: usize,
     },
 }
 
@@ -34577,6 +34610,10 @@ async fn asset_durable_witness(
                 settled_bytes: inspected["accounting"]["settledBytes"]
                     .as_u64()
                     .expect("finalize settled-byte accounting"),
+                receipt_count: inspected["receipts"]
+                    .as_array()
+                    .expect("finalize receipts")
+                    .len(),
             }
         }
         AssetAuthorizedEffectSite::ExplicitDelete => AssetDurableWitness::Availability(
@@ -34796,6 +34833,7 @@ fn assert_asset_effect_committed(
                 availability: before_availability,
                 rendition_count: before_renditions,
                 settled_bytes: before_settled,
+                receipt_count: before_receipts,
             },
             AssetDurableWitness::Finalize {
                 publication_count: after_publications,
@@ -34803,6 +34841,7 @@ fn assert_asset_effect_committed(
                 availability: after_availability,
                 rendition_count: after_renditions,
                 settled_bytes: after_settled,
+                receipt_count: after_receipts,
             },
         ) => {
             assert_eq!(before_state, "transferring");
@@ -34814,6 +34853,10 @@ fn assert_asset_effect_committed(
             assert!(
                 after_settled > before_settled,
                 "finalize must settle canonical quota"
+            );
+            assert!(
+                after_receipts > before_receipts,
+                "finalize must emit Phase-D receipts"
             );
         }
         (
@@ -35105,6 +35148,193 @@ async fn asset_http_finalize_revalidates_moved_witness_and_retries_under_fresh_r
         "a still-authorized caller must not loop on admission conflict: {body}"
     );
     assert_eq!(body["task"]["availability"], "ready", "{body}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn asset_http_finalize_fresh_retry_guard_refusal_prevents_phase_d() {
+    let fixture = asset_authorized_effect_fixture(AssetAuthorizedEffectSite::Finalize).await;
+    let before = asset_durable_witness(&fixture, AssetAuthorizedEffectSite::Finalize).await;
+    let attempt_id = fixture
+        .target
+        .attempt_id
+        .as_deref()
+        .expect("finalize witness attempt")
+        .to_owned();
+    with_snapback(&fixture.state.snapback, {
+        let attempt_id = attempt_id.clone();
+        move |snapback| {
+            snapback_engine::test_support::asset_move_finalize_witness(snapback, &attempt_id)
+        }
+    })
+    .await
+    .expect("move finalize admission witness");
+
+    let retry_guard = install_test_asset_retry_guard(TestAssetRetryGuardAction::Refuse);
+    let mut request = asset_session_request(
+        "POST",
+        &format!("/assets/attempts/{attempt_id}/finalize"),
+        serde_json::to_vec(&json!({
+            "attemptId": attempt_id,
+            "lifecycleGeneration": fixture.target.lifecycle_generation,
+        }))
+        .expect("serialize moved-witness finalize"),
+        Some("application/json"),
+        &fixture.bearer,
+    );
+    request.headers_mut().insert(
+        HeaderName::from_static(TEST_ASSET_RETRY_GUARD_HEADER),
+        HeaderValue::from_str(retry_guard.id()).expect("retry-guard refusal header"),
+    );
+    let response = fixture
+        .router
+        .clone()
+        .oneshot(request)
+        .await
+        .expect("retry-guard refusal response");
+    let status = response.status();
+    let body = response_json(response).await;
+    assert_ne!(
+        status,
+        StatusCode::OK,
+        "retry guard refusal was bypassed: {body}"
+    );
+    assert_eq!(
+        body["diagnostic"]["code"], "SNAPBACK_ACTION_TIMEOUT",
+        "the exact retry reservation must surface its typed guard refusal: {body}",
+    );
+
+    let after = asset_durable_witness(&fixture, AssetAuthorizedEffectSite::Finalize).await;
+    match (before, after) {
+        (
+            AssetDurableWitness::Finalize {
+                publication_count: before_publications,
+                attempt_state: before_attempt,
+                availability: before_availability,
+                rendition_count: before_renditions,
+                settled_bytes: before_settled,
+                receipt_count: before_receipts,
+            },
+            AssetDurableWitness::Finalize {
+                publication_count: after_publications,
+                attempt_state: after_attempt,
+                availability: after_availability,
+                rendition_count: after_renditions,
+                settled_bytes: after_settled,
+                receipt_count: after_receipts,
+            },
+        ) => {
+            assert_eq!(before_attempt, "transferring");
+            assert_eq!(after_attempt, "finalizing");
+            assert_eq!(before_availability, "pending");
+            assert_eq!(after_availability, before_availability);
+            assert_eq!(after_publications, before_publications + 1);
+            assert_eq!(after_renditions, before_renditions);
+            assert_eq!(after_settled, before_settled);
+            assert_eq!(after_receipts, before_receipts);
+        }
+        witnesses => panic!("unexpected finalize refusal witnesses: {witnesses:?}"),
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn asset_http_finalize_completion_and_retry_guards_cover_required_stage_and_phase_d() {
+    let fixture = asset_authorized_effect_fixture_with_upload(
+        AssetAuthorizedEffectSite::Finalize,
+        "requiredImageUpload",
+        include_bytes!("../../../../brand/favicon-16.png"),
+        "image/png",
+    )
+    .await;
+    let attempt_id = fixture
+        .target
+        .attempt_id
+        .as_deref()
+        .expect("finalize witness attempt")
+        .to_owned();
+    with_snapback(&fixture.state.snapback, {
+        let attempt_id = attempt_id.clone();
+        move |snapback| {
+            snapback_engine::test_support::asset_move_finalize_witness(snapback, &attempt_id)
+        }
+    })
+    .await
+    .expect("move finalize admission witness");
+
+    let completion_marker = format!("finalize-completion-{}", uuid::Uuid::now_v7().simple());
+    let completion_scope =
+        crate::auth::invocation::AuthorizedEffectScopeProbeForTest::new(completion_marker.clone());
+    assert_eq!(completion_scope.marker(), completion_marker);
+    let retry_marker = format!("finalize-retry-{}", uuid::Uuid::now_v7().simple());
+    let retry_scope =
+        crate::auth::invocation::AuthorizedEffectScopeProbeForTest::new(retry_marker.clone());
+    assert_eq!(retry_scope.marker(), retry_marker);
+
+    // Required staging precedes witness revalidation. Bind its one real
+    // Planned -> Staged transition to the original completion reservation;
+    // the fresh retry's already-Staged no-op cannot satisfy this observer.
+    let required_phase_c_scope = completion_scope.clone();
+    let after_required_phase_c_commit =
+        snapback_kernel::storage::install_asset_attempts_after_commit_observer_for_test(
+            move |publication_transitioned_from_planned| {
+                publication_transitioned_from_planned
+                    && required_phase_c_scope
+                        .is_active_for("asset finalize required-rendition staged transaction")
+            },
+        );
+    let phase_d_scope = retry_scope.clone();
+    let after_phase_d_commit =
+        snapback_kernel::storage::install_asset_attempts_after_commit_observer_for_test(
+            move |_| phase_d_scope.is_active_for("asset finalize publication/quota transaction"),
+        );
+    let retry_guard = install_test_asset_retry_guard(TestAssetRetryGuardAction::Probe {
+        completion: completion_scope.clone(),
+        retry: retry_scope.clone(),
+    });
+    let mut request = asset_session_request(
+        "POST",
+        &format!("/assets/attempts/{attempt_id}/finalize"),
+        serde_json::to_vec(&json!({
+            "attemptId": attempt_id,
+            "lifecycleGeneration": fixture.target.lifecycle_generation,
+        }))
+        .expect("serialize moved-witness finalize"),
+        Some("application/json"),
+        &fixture.bearer,
+    );
+    request.headers_mut().insert(
+        HeaderName::from_static(TEST_ASSET_RETRY_GUARD_HEADER),
+        HeaderValue::from_str(retry_guard.id()).expect("retry-guard scope header"),
+    );
+    let response = fixture
+        .router
+        .clone()
+        .oneshot(request)
+        .await
+        .expect("retry-guard scope response");
+    let status = response.status();
+    let body = response_json(response).await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "moved-witness finalize failed: {body}"
+    );
+    assert_eq!(body["task"]["availability"], "ready", "{body}");
+    assert!(
+        after_required_phase_c_commit.observed(),
+        "the original completion guard was not active for the required-rendition Planned-to-Staged COMMIT",
+    );
+    assert!(
+        after_phase_d_commit.observed(),
+        "the marked fresh retry guard was not active after the Phase-D COMMIT",
+    );
+    assert!(
+        completion_scope.is_inactive(),
+        "the marked original completion guard remained active after Local returned",
+    );
+    assert!(
+        retry_scope.is_inactive(),
+        "the marked fresh retry guard remained active after Local returned",
+    );
 }
 
 macro_rules! asset_authorized_effect_race_tests {

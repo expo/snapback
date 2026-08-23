@@ -1959,6 +1959,74 @@ test('current HEAD policy passes C-bound wave and sibling custody validation', (
   ).length, 9);
 });
 
+test('the pinned derived-fork policy remains admitted after an exact live trigger expansion', () => {
+  const carrier = JSON.parse(readFileSync(join(root, derived.carrier), 'utf8'));
+  const receipt = JSON.parse(readFileSync(join(root, derived.receipt), 'utf8'));
+  assert.equal(carrier.qualifiedSourceCommit, receipt.qualifiedSourceCommit);
+  assert.equal(validateDerivedForkCoverageTransfers(
+    root,
+    carrier.qualifiedSourceCommit,
+    receipt.selectionPolicySha256,
+  ).length, 9);
+});
+
+test('historical derived-fork gate variants are refused outside their pinned commit', () => {
+  const source = JSON.parse(readFileSync(
+    join(root, DERIVED_FORK_SELECTION_POLICY_PATH),
+    'utf8',
+  ));
+  const cases = [
+    {
+      gate: 'sequence-allocation-publication',
+      path: 'crates/snapback-engine/src/local-sequence-allocation-publication.v1.json',
+      mutate(metadata) {
+        metadata.triggerRules.files = metadata.triggerRules.files.filter((path) => (
+          path !== 'crates/snapback-engine/src/local/auth_room_kick_acceptance.rs'
+        ));
+      },
+    },
+    {
+      gate: 'local-store-carrier-receipt',
+      path: 'crates/snapback-engine/src/local-persistent-store-publication.v1.json',
+      mutate(metadata) {
+        metadata.records = [
+          'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json',
+          'tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json',
+        ];
+        metadata.recordPaths = [...metadata.records];
+      },
+    },
+  ];
+  for (const { gate, path, mutate } of cases) {
+    const policy = structuredClone(source);
+    mutate(policy.driftProneGates[gate]);
+    assert.throws(
+      () => assertCoverageTransfers({
+        root,
+        recordCommit: 'HEAD',
+        scope: {
+          schemaVersion: IMPLEMENTATION_SCOPE_SCHEMA_VERSION,
+          roots: [],
+          files: ['Cargo.lock'],
+        },
+        departingPaths: [path],
+        transfers: [{ path, gate }],
+        driftProneGates: policy.driftProneGates,
+      }),
+      new RegExp(`is not covered by registered drift gate ${gate}`, 'u'),
+      gate,
+    );
+  }
+});
+
+test('the pinned derived-fork digest retains publication-cycle exclusions across path moves', () => {
+  const receipt = JSON.parse(readFileSync(join(root, derived.receipt), 'utf8'));
+  assert.equal(
+    implementationDigestAt(root, receipt.qualifiedSourceCommit, receipt.implementationScope),
+    receipt.implementationTreeSha256,
+  );
+});
+
 test('coverage transfer refuses any departing leaf without a registered frozen-record gate', () => {
   const policy = JSON.parse(readFileSync(
     join(root, DERIVED_FORK_SELECTION_POLICY_PATH),
@@ -2513,17 +2581,24 @@ test('v1-era implementation digests refuse explicitly under the v4 algorithm', (
 test('build and checker bind the shared generated-artifact policy', () => {
   assert.ok(IMPLEMENTATION_ROOTS.includes('scripts/check-agent-safe-publication.mjs'));
   assert.ok(IMPLEMENTATION_ROOTS.includes('scripts/generated-artifact-policy.mjs'));
-  const build = readFileSync(join(root, 'crates/snapback/build.rs'), 'utf8');
+  assert.ok(IMPLEMENTATION_ROOTS.includes('crates/snapback-tools/src'));
+  const digestProducer = readFileSync(
+    join(root, 'crates/snapback-tools/src/agent_safe_digest.rs'),
+    'utf8',
+  );
   for (const path of IMPLEMENTATION_ROOTS) {
-    assert.ok(build.includes(`"${path}"`), `build digest omits ${path}`);
+    assert.ok(digestProducer.includes(`"${path}"`), `Rust digest producer omits ${path}`);
   }
   for (const path of PUBLICATION_CYCLE_ALLOWLIST) {
     if (!IMPLEMENTATION_ROOTS.some((rootPath) => (
       path === rootPath || path.startsWith(`${rootPath}/`)
     ))) continue;
-    assert.ok(build.includes(`"${path}"`), `build cycle exclusions omit ${path}`);
+    assert.ok(
+      digestProducer.includes(`"${path}"`),
+      `Rust digest producer cycle exclusions omit ${path}`,
+    );
   }
-  const buildCycleMirror = build.match(
+  const buildCycleMirror = digestProducer.match(
     /fn agent_safe_publication_cycle_path\(path: &str\) -> bool \{([\s\S]*?)\n\}/u,
   );
   assert.ok(buildCycleMirror, 'build cycle-exclusion mirror is missing');
@@ -2533,11 +2608,8 @@ test('build and checker bind the shared generated-artifact policy', () => {
   assert.deepEqual(
     buildCyclePaths,
     [...PUBLICATION_CYCLE_ALLOWLIST].sort(),
-    'build/checker publication-cycle allowlists drifted in either direction',
+    'Rust producer/checker publication-cycle allowlists drifted in either direction',
   );
-  assert.ok(build.includes(
-    'cargo:rerun-if-changed=../../scripts/generated-artifact-policy.mjs',
-  ));
   assert.equal(allowedPublicationPath('scripts/generated-artifact-policy.mjs'), false);
   assert.equal(allowedPublicationPath('scripts/check-generated-artifacts'), false);
 });

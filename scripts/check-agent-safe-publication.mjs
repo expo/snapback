@@ -421,6 +421,58 @@ const DERIVED_FORK_ADMITTED_COVERAGE_GATES = Object.freeze({
   }),
 });
 
+// Qualification C remains authoritative after a live drift gate evolves. C
+// binds the governed 2026-08-04 local-store receipt pair; 3d8d89a83 later
+// replaced that pair with the 2026-08-06 records. Commit 444b52089 correctly
+// added auth_room_kick_acceptance.rs to the live sequence selector, but C also
+// predates that trigger. Admit only those reviewed historical definitions
+// alongside the current ones; the receipt digest, exact-definition comparison,
+// record existence, and transferred-path trigger checks below remain mandatory.
+const DERIVED_FORK_HISTORICAL_GATE_COMMIT =
+  '04332ab8b73799bd3279b3150dbd8598df275530';
+const DERIVED_FORK_ADMITTED_COVERAGE_GATE_VARIANTS = Object.freeze({
+  'local-store-carrier-receipt': Object.freeze([
+    Object.freeze({
+      definition: DERIVED_FORK_ADMITTED_COVERAGE_GATES['local-store-carrier-receipt'],
+    }),
+    Object.freeze({
+      recordCommit: DERIVED_FORK_HISTORICAL_GATE_COMMIT,
+      definition: Object.freeze({
+        ...DERIVED_FORK_ADMITTED_COVERAGE_GATES['local-store-carrier-receipt'],
+        records: Object.freeze([
+          'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json',
+          'tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json',
+        ]),
+        recordPaths: Object.freeze([
+          'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json',
+          'tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json',
+        ]),
+      }),
+    }),
+  ]),
+  'sequence-allocation-publication': Object.freeze([
+    Object.freeze({
+      definition: DERIVED_FORK_ADMITTED_COVERAGE_GATES['sequence-allocation-publication'],
+    }),
+    Object.freeze({
+      recordCommit: DERIVED_FORK_HISTORICAL_GATE_COMMIT,
+      definition: Object.freeze({
+        ...DERIVED_FORK_ADMITTED_COVERAGE_GATES['sequence-allocation-publication'],
+        triggerRules: Object.freeze({
+          ...DERIVED_FORK_ADMITTED_COVERAGE_GATES['sequence-allocation-publication'].triggerRules,
+          files: Object.freeze(
+            DERIVED_FORK_ADMITTED_COVERAGE_GATES[
+              'sequence-allocation-publication'
+            ].triggerRules.files.filter((path) => (
+              path !== 'crates/snapback-engine/src/local/auth_room_kick_acceptance.rs'
+            )),
+          ),
+        }),
+      }),
+    }),
+  ]),
+});
+
 // These are the exact nine leaves that rotated the 2026-08-07 withdrawn
 // publication between 7cada777b and a5465b4a2. Each transfer names the
 // canonical frozen-record gate that assumes custody when v3 narrows scope.
@@ -546,6 +598,17 @@ export const PUBLICATION_CYCLE_ALLOWLIST = new Set([
   'crates/snapback-activation/src/local-agent-safe-storage-publication.carrier.json',
   'crates/snapback-activation/src/local-agent-safe-derived-deployment-fork-publication.anchor.json',
   'crates/snapback-activation/src/local-agent-safe-derived-deployment-fork-publication.carrier.json',
+  // Path-epoch aliases remain exact cycle exclusions when a historical C is
+  // recomputed. Dropping the old spellings changes the digest of the frozen
+  // commit by accidentally hashing the carrier that the digest certifies.
+  'crates/snapback/src/local-agent-safe-storage-publication.anchor.json',
+  'crates/snapback/src/local-agent-safe-storage-publication.carrier.json',
+  'crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.anchor.json',
+  'crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.carrier.json',
+  'src/local-agent-safe-storage-publication.anchor.json',
+  'src/local-agent-safe-storage-publication.carrier.json',
+  'src/local-agent-safe-derived-deployment-fork-publication.anchor.json',
+  'src/local-agent-safe-derived-deployment-fork-publication.carrier.json',
   'tests/acceptance/receipts/agent-safe-storage-publication.2026-08-04.v1.json',
   'tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json',
   'tests/acceptance/fixtures/agent-safe-storage/acceptance-corpus.2026-08-04.v1.json',
@@ -582,6 +645,10 @@ export const PUBLICATION_CYCLE_ALLOWLIST = new Set([
   'tests/acceptance/local-store-carrier-exit-v1-evidence.md',
   'crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json',
   'crates/snapback-engine/src/local-persistent-store-publication.v1.json',
+  'crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
+  'crates/snapback/src/local-persistent-store-publication.v1.json',
+  'src/local-persistent-store-publication.anchor.v1.json',
+  'src/local-persistent-store-publication.v1.json',
 ]);
 
 // The persistent-store carrier and anchor are publication-cycle exclusions
@@ -1050,11 +1117,16 @@ function normalizeCoverageGatePathEpoch(root, commit, value) {
 function admittedCoverageGateAtCommit(root, recordCommit, driftProneGates, gate) {
   const metadata = driftProneGates?.[gate];
   const admitted = DERIVED_FORK_ADMITTED_COVERAGE_GATES[gate];
+  const admittedVariants = DERIVED_FORK_ADMITTED_COVERAGE_GATE_VARIANTS[gate]
+    ?? (admitted === undefined ? [] : [{ definition: admitted }]);
   const normalizedMetadata = metadata === undefined
     ? undefined
     : normalizeCoverageGatePathEpoch(root, recordCommit, metadata);
   if (metadata === undefined || admitted === undefined
-      || !canonicallyEqual(normalizedMetadata, admitted)
+      || !admittedVariants.some(({ recordCommit: requiredCommit, definition }) => (
+        (requiredCommit === undefined || recordCommit === requiredCommit)
+        && canonicallyEqual(normalizedMetadata, definition)
+      ))
       || !gateRecordsExistAtCommit(root, recordCommit, metadata)) {
     return null;
   }
@@ -1480,6 +1552,7 @@ export function assertQualifiedImplementationDigestAtPublication(root, {
   expectedDigest,
   expectedDigestVersion,
   implementationScope = undefined,
+  publicationImplementationScope = implementationScope,
   allowRequalificationDue = false,
   publicationCycleEvolutionPaths = [],
 }) {
@@ -1489,7 +1562,16 @@ export function assertQualifiedImplementationDigestAtPublication(root, {
     qualificationCommit,
     implementationScope,
   );
-  const publicationDigest = implementationDigestAt(root, publicationCommit, implementationScope);
+  // @ref LLP 0276#phases — C's digest remains bound to C's exact scope bytes,
+  // while P and the checked-out tree use the canonical scope for their path
+  // epoch. A crate relocation is still a scoped change and therefore remains
+  // explicitly requalification-due; it cannot make a deleted historical path
+  // impossible to inspect at P.
+  const publicationDigest = implementationDigestAt(
+    root,
+    publicationCommit,
+    publicationImplementationScope,
+  );
   const snapshot = evaluateClaimSnapshot(root, {
     qualificationCommit,
     publicationCommit,
@@ -2737,6 +2819,9 @@ export function validatePublicationRecord(root, record) {
   } catch {
     fail(`${record.id} qualification commit is not an ancestor of publication HEAD`);
   }
+  const publicationImplementationScope = record.id === 'agent_safe_derived_deployment_fork_v1'
+    ? derivedForkImplementationScopeAt(root, publication)
+    : implementationScope;
   const implementationDigest = assertQualifiedImplementationDigestAtPublication(root, {
     capabilityId: record.id,
     qualificationCommit: carrier.qualifiedSourceCommit,
@@ -2744,6 +2829,7 @@ export function validatePublicationRecord(root, record) {
     expectedDigest: receipt.implementationTreeSha256,
     expectedDigestVersion: receipt.implementationDigestVersion,
     implementationScope,
+    publicationImplementationScope,
     allowRequalificationDue: record.id === 'agent_safe_derived_deployment_fork_v1',
     publicationCycleEvolutionPaths: record.id === 'agent_safe_derived_deployment_fork_v1'
       ? DERIVED_FORK_SIBLING_CHAIN_PATHS
@@ -2765,7 +2851,7 @@ export function validatePublicationRecord(root, record) {
     commit: carrier.qualifiedSourceCommit,
     implementationDigest,
     implementationDigestVersion: receipt.implementationDigestVersion,
-    implementationScope,
+    implementationScope: publicationImplementationScope,
     snapshot,
     ...(snapshot.requalificationDue === undefined
       ? {}
