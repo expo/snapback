@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:da06feb97c91701b88330c62a256a06fdace7aaed307c60b46ba9b928e770782"
+    "sourceDigest": "sha256:fb4673a458d671cf292fef508264282435817371880495f0bfdd238ba915f7f6"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -2928,7 +2928,7 @@
       "examples": [],
       "reviewed": "2026-08-22",
       "reviewedAuthoritiesDigest": "sha256:d6eec55da534593e1752c945db0d2955d4a85dde8ad31c43bba75e4dc1c1f84f",
-      "sha256": "896bcb2f6192f679c4ddf233f0c4da6307d7b3f9c397c40ec5807ec47cd94f50",
+      "sha256": "2f32733839e12b27a15e8702d0d9d5ab1bc5af00da3d4650974e782c190d9d91",
       "snippets": []
     },
     "clients.app-cli": {
@@ -13149,7 +13149,7 @@
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
       "bytes": 2670950,
-      "sha256": "b1bd97745ef23b946c741d673325910e41ff637248888b290c5f7a1d9decb7fe",
+      "sha256": "36c095e571301403e4faa7f33893a88459640465162fdff887cbb1c7a40b301b",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -13158,7 +13158,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:945f3a73c6d449ed269b5edcb87504853b773e8fd3be44fa5a828a04155825e3",
+      "sourceDigest": "sha256:5481c71b530c218f2696ebaaf65f3bb56a7095a2f3257b3829b69b1985726247",
       "codes": 3541,
       "emittingSites": 12224
     }
@@ -13301,7 +13301,7 @@
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
       "bytes": 3800054,
-      "sha256": "39302a76494fc7b095abf0e63d42ffea0ba5844fbf997e7372d3e30fde947503"
+      "sha256": "5e6ce4470e7250c1fe46d04f487139874c95c9328bba9cd098c875d3ee11e83a"
     },
     "sections": {
       "meta": {
@@ -13309,7 +13309,7 @@
         "servedPath": "/_snapback/guide/guide-flat.meta.generated.md",
         "uri": "snapback-guide://flat/meta",
         "bytes": 172333,
-        "sha256": "418feabb03ac7a03b3f90d023354b85a72bfc2916267b06530ab5826c9e9fb0b"
+        "sha256": "32548f8025050374303aa0d74a6d28516044b7663c615045ef4dad053b7fb591"
       },
       "auth": {
         "path": "guide/guide-flat.auth.generated.md",
@@ -13404,5 +13404,5 @@
       }
     }
   },
-  "contentHash": "da06feb97c91701b88330c62a256a06fdace7aaed307c60b46ba9b928e770782"
+  "contentHash": "fb4673a458d671cf292fef508264282435817371880495f0bfdd238ba915f7f6"
 }
