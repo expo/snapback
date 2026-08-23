@@ -2252,10 +2252,19 @@ fn jcs_sort_key<T: Serialize>(value: &T) -> Option<String> {
         .and_then(|value| crate::rqs_contract::jcs(&value).ok())
 }
 
-fn jcs_cmp<T: Serialize>(left: &T, right: &T) -> Ordering {
-    jcs_sort_key(left)
-        .expect("JCS sort values are prevalidated")
-        .cmp(&jcs_sort_key(right).expect("JCS sort values are prevalidated"))
+fn sort_by_jcs_key<T: Serialize, E>(values: &mut Vec<T>, refusal: E) -> Result<(), E> {
+    let keys = values
+        .iter()
+        .map(jcs_sort_key)
+        .collect::<Option<Vec<_>>>()
+        .ok_or(refusal)?;
+    let mut keyed = keys
+        .into_iter()
+        .zip(std::mem::take(values))
+        .collect::<Vec<_>>();
+    keyed.sort_by(|(left, _), (right, _)| left.cmp(right));
+    values.extend(keyed.into_iter().map(|(_, value)| value));
+    Ok(())
 }
 
 fn checked_add(left: u64, right: u64) -> Result<u64, GraphAdmissionRefusalReasonV1> {
@@ -2292,10 +2301,7 @@ fn normalize_visibility(
                     sort_dedup_utf16(roles);
                 }
             }
-            if arms.iter().any(|arm| jcs_sort_key(arm).is_none()) {
-                return Err(GraphAdmissionRefusalReasonV1::ArgumentUnbound);
-            }
-            arms.sort_by(jcs_cmp);
+            sort_by_jcs_key(arms, GraphAdmissionRefusalReasonV1::ArgumentUnbound)?;
             arms.dedup();
         }
         TableVisibilityV1::PublicRead | TableVisibilityV1::Owner { .. } => {}
@@ -2495,10 +2501,7 @@ fn normalize_filters(
     for filter in filters.iter_mut() {
         rewrite_filter_arguments(filter, argument_names, argument_ids)?;
     }
-    if filters.iter().any(|filter| jcs_sort_key(filter).is_none()) {
-        return Err(GraphAdmissionRefusalReasonV1::ArgumentUnbound);
-    }
-    filters.sort_by(jcs_cmp);
+    sort_by_jcs_key(filters, GraphAdmissionRefusalReasonV1::ArgumentUnbound)?;
     Ok(())
 }
 
@@ -2861,14 +2864,10 @@ pub fn normalized_graph_plan(
         for selector in &mut input.event_selectors {
             normalize_authority_event_selector(selector);
         }
-        if input
-            .event_selectors
-            .iter()
-            .any(|selector| jcs_sort_key(selector).is_none())
-        {
-            return Err(GraphAdmissionRefusalReasonV1::ArgumentUnbound);
-        }
-        input.event_selectors.sort_by(jcs_cmp);
+        sort_by_jcs_key(
+            &mut input.event_selectors,
+            GraphAdmissionRefusalReasonV1::ArgumentUnbound,
+        )?;
     }
     normalized
         .authority_partition_rule
@@ -2952,18 +2951,22 @@ pub fn recompute_graph_partition_equivalence_proof_v1(
     {
         return Err(GraphAdmissionRefusalReasonV1::AuthorityUnprovable);
     }
-    let mut policy_inputs = proof.policy_inputs.clone();
-    if policy_inputs
+    let policy_inputs = proof.policy_inputs.clone();
+    let kind_keys = policy_inputs
         .iter()
-        .any(|input| jcs_sort_key(&input.kind).is_none())
-    {
-        return Err(GraphAdmissionRefusalReasonV1::AuthorityUnprovable);
-    }
-    policy_inputs.sort_by(|left, right| {
+        .map(|input| jcs_sort_key(&input.kind))
+        .collect::<Option<Vec<_>>>()
+        .ok_or(GraphAdmissionRefusalReasonV1::AuthorityUnprovable)?;
+    let mut keyed_inputs = kind_keys.into_iter().zip(policy_inputs).collect::<Vec<_>>();
+    keyed_inputs.sort_by(|(left_key, left), (right_key, right)| {
         utf16_cmp(&left.declaration_id, &right.declaration_id)
-            .then_with(|| jcs_cmp(&left.kind, &right.kind))
+            .then_with(|| left_key.cmp(right_key))
             .then_with(|| utf16_cmp(left.identity.as_str(), right.identity.as_str()))
     });
+    let policy_inputs = keyed_inputs
+        .into_iter()
+        .map(|(_, input)| input)
+        .collect::<Vec<_>>();
     if policy_inputs.windows(2).any(|pair| pair[0] == pair[1]) {
         return Err(GraphAdmissionRefusalReasonV1::AuthorityUnprovable);
     }
@@ -3291,6 +3294,34 @@ fn graph_node_multiplicative_argument_ids(
     Ok(arguments)
 }
 
+fn graph_cost_record_faults(plan: &GraphQueryPlanV1) -> BTreeSet<GraphAdmissionRefusalReasonV1> {
+    let data_node_ids = plan
+        .nodes
+        .iter()
+        .filter(|node| !matches!(node, GraphNodeV1::ClosedProjection { .. }))
+        .map(GraphNodeV1::node_id)
+        .collect::<BTreeSet<_>>();
+    let mut cost_counts = BTreeMap::<&str, usize>::new();
+    for cost in &plan.query_cost.graph.nodes {
+        *cost_counts.entry(&cost.node_id).or_default() += 1;
+    }
+
+    let mut faults = BTreeSet::new();
+    if data_node_ids
+        .iter()
+        .any(|node_id| !cost_counts.contains_key(node_id))
+    {
+        faults.insert(GraphAdmissionRefusalReasonV1::UnboundedExpansion);
+    }
+    if cost_counts
+        .iter()
+        .any(|(node_id, count)| *count != 1 || !data_node_ids.contains(node_id))
+    {
+        faults.insert(GraphAdmissionRefusalReasonV1::BoundInvalid);
+    }
+    faults
+}
+
 fn validate_graph_costs(plan: &GraphQueryPlanV1) -> Result<(), GraphAdmissionRefusalReasonV1> {
     let whole_query_limits = [
         plan.query_cost.max_scanned_rows,
@@ -3350,6 +3381,19 @@ fn validate_graph_costs(plan: &GraphQueryPlanV1) -> Result<(), GraphAdmissionRef
         .iter()
         .filter(|node| !matches!(node, GraphNodeV1::ClosedProjection { .. }))
         .collect::<Vec<_>>();
+    let cost_node_ids = plan
+        .query_cost
+        .graph
+        .nodes
+        .iter()
+        .map(|cost| cost.node_id.as_str())
+        .collect::<BTreeSet<_>>();
+    if data_nodes
+        .iter()
+        .any(|node| !cost_node_ids.contains(node.node_id()))
+    {
+        return Err(GraphAdmissionRefusalReasonV1::UnboundedExpansion);
+    }
     if data_nodes.len() != plan.query_cost.graph.nodes.len() {
         return Err(GraphAdmissionRefusalReasonV1::BoundInvalid);
     }
@@ -4410,6 +4454,7 @@ pub fn graph_query_plan_faults_v1(plan: &GraphQueryPlanV1) -> Vec<GraphAdmission
             faults.insert(GraphAdmissionRefusalReasonV1::BroadcastSeparationUnprovable);
         }
     }
+    faults.extend(graph_cost_record_faults(plan));
     if let Err(reason) = validate_graph_costs(plan) {
         faults.insert(reason);
     }
@@ -4631,19 +4676,19 @@ pub fn validate_graph_window_vector_v1(
                 .map(|interval| interval.parent_key.clone())
                 .collect::<Option<Vec<_>>>()
                 .ok_or(GraphDemandTimeRefusalReasonV1::WindowVectorInvalid)?;
-            if actual.iter().any(|key| jcs_sort_key(key).is_none()) {
-                return Err(GraphDemandTimeRefusalReasonV1::ArgumentInvalid);
-            }
             let mut canonical = actual.clone();
-            canonical.sort_by(jcs_cmp);
+            sort_by_jcs_key(
+                &mut canonical,
+                GraphDemandTimeRefusalReasonV1::ArgumentInvalid,
+            )?;
             if actual != canonical || actual.windows(2).any(|pair| pair[0] == pair[1]) {
                 return Err(GraphDemandTimeRefusalReasonV1::WindowVectorInvalid);
             }
             let mut expected = expected.clone();
-            if expected.iter().any(|key| jcs_sort_key(key).is_none()) {
-                return Err(GraphDemandTimeRefusalReasonV1::ArgumentInvalid);
-            }
-            expected.sort_by(jcs_cmp);
+            sort_by_jcs_key(
+                &mut expected,
+                GraphDemandTimeRefusalReasonV1::ArgumentInvalid,
+            )?;
             if actual != expected {
                 return Err(GraphDemandTimeRefusalReasonV1::WindowVectorInvalid);
             }
@@ -5690,6 +5735,28 @@ mod tests {
         ])).unwrap();
         assert_eq!(
             normalized_graph_plan(&collision),
+            Err(GraphAdmissionRefusalReasonV1::ArgumentUnbound)
+        );
+    }
+
+    #[test]
+    fn graph_jcs_sort_refuses_fallible_keys_without_panicking() {
+        struct SerializationRefusal;
+
+        impl Serialize for SerializationRefusal {
+            fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                Err(<S::Error as serde::ser::Error>::custom(
+                    "deliberate graph JCS refusal",
+                ))
+            }
+        }
+
+        let mut values = vec![SerializationRefusal];
+        assert_eq!(
+            sort_by_jcs_key(&mut values, GraphAdmissionRefusalReasonV1::ArgumentUnbound),
             Err(GraphAdmissionRefusalReasonV1::ArgumentUnbound)
         );
     }

@@ -160,11 +160,18 @@ fn graph_test_artifacts(function: FunctionDefinition) -> StartupArtifacts {
 fn graph_fault_reasons(
     function: &FunctionDefinition,
 ) -> Vec<crate::manifest::GraphAdmissionRefusalReasonV1> {
+    graph_fault_reasons_with_schema(function, &graph_test_schema())
+}
+
+fn graph_fault_reasons_with_schema(
+    function: &FunctionDefinition,
+    schema: &SchemaManifest,
+) -> Vec<crate::manifest::GraphAdmissionRefusalReasonV1> {
     let manifest = FunctionManifest {
         functions: vec![function.clone()],
         ..FunctionManifest::default()
     };
-    graph_query_admission_faults(&manifest, &graph_test_schema())
+    graph_query_admission_faults(&manifest, schema)
         .into_iter()
         .map(|fault| fault.reason)
         .collect()
@@ -184,6 +191,164 @@ fn public_graph_admission_error(function: FunctionDefinition) -> String {
         .expect_err("malformed graph must refuse before target admission")
         .diagnostic
         .code
+}
+
+fn graph_to_one_function(presence: crate::manifest::GraphToOnePresenceV1) -> FunctionDefinition {
+    let mut function = graph_test_function();
+    let plan = graph_plan_mut(&mut function);
+    let mut projection = plan.nodes.pop().expect("graph projection");
+    let crate::manifest::GraphNodeV1::ClosedProjection {
+        node_id, object, ..
+    } = &mut projection
+    else {
+        unreachable!()
+    };
+    *node_id = "n2".to_owned();
+    *object = serde_json::from_value(json!({
+        "scopeNodeId":"n0",
+        "fields":[{
+            "name":"related",
+            "value":{
+                "kind":"object",
+                "nodeId":"n1",
+                "object":{
+                    "scopeNodeId":"n0",
+                    "fields":[{
+                        "name":"title",
+                        "value":{"kind":"field","nodeId":"n1","field":"title"}
+                    }]
+                }
+            }
+        }]
+    }))
+    .unwrap();
+    let child = serde_json::from_value(json!({
+        "nodeId":"n1", "kind":"equality-to-one", "edgeName":"related",
+        "authority":{"declaredClass":1,"proof":null}, "parentNodeId":"n0",
+        "table":"issues", "visibility":{"kind":"public-read"},
+        "joinOn":[{"rootField":"_id","joinedField":"_id"}],
+        "accessIndex":"by_id", "presence":presence
+    }))
+    .unwrap();
+    plan.nodes.push(child);
+    plan.nodes.push(projection);
+    plan.query_cost.max_scanned_rows = 5;
+    plan.query_cost.max_index_ranges = 3;
+    plan.query_cost.graph.nodes[0].max_window_scanned_rows = Some(10);
+    plan.query_cost.graph.nodes[0].max_window_index_ranges = Some(6);
+    plan.query_cost
+        .graph
+        .nodes
+        .push(crate::manifest::GraphNodeCostV1 {
+            node_id: "n1".to_owned(),
+            max_root_rows_per_page: None,
+            max_examined_entries_per_execution: 2,
+            max_relationship_lookups_per_execution: Some(2),
+            max_children_per_parent: None,
+            max_argument_expansion: None,
+            max_window_pages: None,
+            max_window_root_rows: None,
+            max_window_scanned_rows: None,
+            max_window_result_rows: None,
+            max_window_result_bytes: None,
+            max_window_index_ranges: None,
+        });
+    plan.query_cost.graph.window_rollup.max_window_scanned_rows = 10;
+    plan.query_cost.graph.window_rollup.max_window_index_ranges = 6;
+
+    let nested = ResultValueContract::Object {
+        fields: vec![ResultObjectFieldContract {
+            name: "title".to_owned(),
+            required: true,
+            value: ResultValueContract::String {
+                max_bytes: 1024 * 1024,
+            },
+        }],
+        allow_extra: false,
+    };
+    let related = match presence {
+        crate::manifest::GraphToOnePresenceV1::Required => nested,
+        crate::manifest::GraphToOnePresenceV1::Optional => ResultValueContract::Union {
+            variants: vec![ResultValueContract::Null, nested],
+        },
+    };
+    let result_contract = FunctionResultContract::Records {
+        record: ResultValueContract::Object {
+            fields: vec![ResultObjectFieldContract {
+                name: "related".to_owned(),
+                required: true,
+                value: related,
+            }],
+            allow_extra: false,
+        },
+        rows: Some(crate::manifest::ResultRowsBound {
+            min_items: 0,
+            max_items: 2,
+        }),
+    };
+    let result_hash = crate::manifest::result_contract_hash(&result_contract).unwrap();
+    plan.result_contract_hash = crate::manifest::Sha256V1::new(result_hash.clone()).unwrap();
+    let carrier = crate::manifest::graph_plan_identity_v1(plan).expect("valid to-one graph");
+    function.result_contract = result_contract;
+    function.result_contract_hash = Some(result_hash);
+    let FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(actual)) = &mut function.runtime else {
+        unreachable!()
+    };
+    *actual = carrier;
+    function
+}
+
+fn graph_leaf_projection_function(
+    schema: &SchemaManifest,
+    field_names: &[&str],
+) -> FunctionDefinition {
+    let mut function = graph_test_function();
+    let table = schema.table("issues").expect("issues table");
+    let plan = graph_plan_mut(&mut function);
+    let crate::manifest::GraphNodeV1::ClosedProjection { object, .. } =
+        plan.nodes.last_mut().expect("graph projection")
+    else {
+        unreachable!()
+    };
+    object.fields = field_names
+        .iter()
+        .map(|field_name| crate::manifest::GraphProjectionFieldV1 {
+            name: field_name.trim_start_matches('_').to_owned(),
+            value: crate::manifest::GraphProjectionValueV1::Field {
+                node_id: "n0".to_owned(),
+                field: (*field_name).to_owned(),
+            },
+        })
+        .collect();
+    let record = ResultValueContract::Object {
+        fields: field_names
+            .iter()
+            .map(|field_name| ResultObjectFieldContract {
+                name: field_name.trim_start_matches('_').to_owned(),
+                required: true,
+                value: crate::manifest::table_document_field_result_contract(table, field_name)
+                    .expect("projected installed-schema field"),
+            })
+            .collect(),
+        allow_extra: false,
+    };
+    let result_contract = FunctionResultContract::Records {
+        record,
+        rows: Some(crate::manifest::ResultRowsBound {
+            min_items: 0,
+            max_items: 2,
+        }),
+    };
+    let result_hash = crate::manifest::result_contract_hash(&result_contract).unwrap();
+    plan.result_contract_hash = crate::manifest::Sha256V1::new(result_hash.clone()).unwrap();
+    let carrier = crate::manifest::graph_plan_identity_v1(plan).expect("valid leaf graph");
+    function.result_contract = result_contract;
+    function.result_contract_hash = Some(result_hash);
+    let FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(actual)) = &mut function.runtime else {
+        unreachable!()
+    };
+    *actual = carrier;
+    function
 }
 
 #[test]
@@ -256,6 +421,32 @@ fn graph_admission_unions_phase_faults_before_global_precedence() {
         public_graph_admission_error(schema_argument),
         Reason::SchemaReferenceInvalid.code()
     );
+
+    let mut missing_cost_argument = graph_test_function();
+    let plan = graph_plan_mut(&mut missing_cost_argument);
+    plan.query_cost.graph.nodes.clear();
+    plan.arguments = serde_json::from_value(json!([
+        {
+            "argumentId":"authored-A", "name":"A",
+            "contract":{"format":"snapback.argument-binding-contract.v1","required":true,"value":{"kind":"boolean"}},
+            "contractHash":"sha256:0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        {
+            "argumentId":"authored-a0", "name":"a0",
+            "contract":{"format":"snapback.argument-binding-contract.v1","required":true,"value":{"kind":"boolean"}},
+            "contractHash":"sha256:0000000000000000000000000000000000000000000000000000000000000000"
+        }
+    ]))
+    .unwrap();
+    plan.query_cost.graph.max_argument_items = 2;
+    let reasons = graph_fault_reasons(&missing_cost_argument);
+    assert!(reasons.contains(&Reason::UnboundedExpansion));
+    assert!(reasons.contains(&Reason::ArgumentUnbound));
+    assert!(!reasons.contains(&Reason::BoundInvalid));
+    assert_eq!(
+        public_graph_admission_error(missing_cost_argument),
+        Reason::UnboundedExpansion.code()
+    );
 }
 
 #[test]
@@ -275,6 +466,132 @@ fn graph_result_contract_is_reified_not_trusted_from_retained_hash() {
     assert_eq!(
         public_graph_admission_error(function),
         Reason::ResultContractMismatch.code()
+    );
+}
+
+#[test]
+fn graph_to_one_result_contract_tracks_required_and_optional_presence() {
+    use crate::manifest::{GraphAdmissionRefusalReasonV1 as Reason, GraphToOnePresenceV1};
+
+    for presence in [
+        GraphToOnePresenceV1::Required,
+        GraphToOnePresenceV1::Optional,
+    ] {
+        let function = graph_to_one_function(presence);
+        let reasons = graph_fault_reasons(&function);
+        assert!(
+            reasons.is_empty(),
+            "{presence:?} retained contract must exact-match: {reasons:?}"
+        );
+    }
+
+    let mut retained_required = graph_to_one_function(GraphToOnePresenceV1::Required);
+    let crate::manifest::GraphNodeV1::EqualityToOne { presence, .. } =
+        &mut graph_plan_mut(&mut retained_required).nodes[1]
+    else {
+        unreachable!()
+    };
+    *presence = GraphToOnePresenceV1::Optional;
+    assert!(
+        graph_fault_reasons(&retained_required).contains(&Reason::ResultContractMismatch),
+        "optionalizing a retained required object contract must rotate it"
+    );
+
+    let mut retained_optional = graph_to_one_function(GraphToOnePresenceV1::Optional);
+    let crate::manifest::GraphNodeV1::EqualityToOne { presence, .. } =
+        &mut graph_plan_mut(&mut retained_optional).nodes[1]
+    else {
+        unreachable!()
+    };
+    *presence = GraphToOnePresenceV1::Required;
+    assert!(
+        graph_fault_reasons(&retained_optional).contains(&Reason::ResultContractMismatch),
+        "requiring a retained nullable object contract must rotate it"
+    );
+}
+
+#[test]
+fn graph_leaf_result_contract_reuses_system_and_media_document_mapping() {
+    use crate::manifest::GraphAdmissionRefusalReasonV1 as Reason;
+
+    let mut schema = graph_test_schema();
+    schema.tables[0].fields.push(
+        serde_json::from_value(json!({
+            "name":"image",
+            "field_type":{"AssetRef":{
+                "upload":"profileImageUpload",
+                "media":{
+                    "intent":"profileImageUpload",
+                    "policy":"profile-image.v1",
+                    "kinds":["image"],
+                    "delivery":"primary",
+                    "variants":["primary"],
+                    "classificationProfile":"detected-content-type.v1",
+                    "retentionClass":"media-reference.v1",
+                    "targetCapability":"assets.media-ref-projection.v1"
+                }
+            }},
+            "optional":true
+        }))
+        .unwrap(),
+    );
+    let function = graph_leaf_projection_function(&schema, &["_version", "image"]);
+    let FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier)) = &function.runtime else {
+        unreachable!()
+    };
+    assert_eq!(
+        reify_graph_result_contract(&carrier.normalized_plan, &schema).unwrap(),
+        function.result_contract
+    );
+    let reasons = graph_fault_reasons_with_schema(&function, &schema);
+    assert!(
+        reasons.is_empty(),
+        "canonical leaves must admit: {reasons:?}"
+    );
+
+    let mut negative_version = function.clone();
+    let FunctionResultContract::Records {
+        record: ResultValueContract::Object { fields, .. },
+        ..
+    } = &mut negative_version.result_contract
+    else {
+        unreachable!()
+    };
+    fields
+        .iter_mut()
+        .find(|field| field.name == "version")
+        .unwrap()
+        .value = ResultValueContract::Integer {
+        min: -9_007_199_254_740_991,
+        max: 9_007_199_254_740_991,
+    };
+    negative_version.result_contract_hash =
+        Some(crate::manifest::result_contract_hash(&negative_version.result_contract).unwrap());
+    assert!(
+        graph_fault_reasons_with_schema(&negative_version, &schema)
+            .contains(&Reason::ResultContractMismatch)
+    );
+
+    let mut negative_media = function;
+    let FunctionResultContract::Records {
+        record: ResultValueContract::Object { fields, .. },
+        ..
+    } = &mut negative_media.result_contract
+    else {
+        unreachable!()
+    };
+    fields
+        .iter_mut()
+        .find(|field| field.name == "image")
+        .unwrap()
+        .value = ResultValueContract::Union {
+        variants: vec![ResultValueContract::Null, ResultValueContract::AssetRef],
+    };
+    negative_media.result_contract_hash =
+        Some(crate::manifest::result_contract_hash(&negative_media.result_contract).unwrap());
+    assert!(
+        graph_fault_reasons_with_schema(&negative_media, &schema)
+            .contains(&Reason::ResultContractMismatch)
     );
 }
 

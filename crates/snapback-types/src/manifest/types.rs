@@ -3807,95 +3807,102 @@ pub fn media_result_contract(
     }
 }
 
-pub fn table_document_value_contract(table: &TableManifest) -> ResultValueContract {
+/// Return the canonical installed-schema result contract for one stored
+/// document field, including Snapback's four system fields.
+///
+/// @ref LLP 0108#result-contract-vocabulary — complete stored documents use
+/// the installed table schema and exact system-field domains.
+/// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut — a
+/// media-qualified asset field reifies to the semantic media result node.
+pub fn table_document_field_result_contract(
+    table: &TableManifest,
+    field_name: &str,
+) -> Option<ResultValueContract> {
     let safe_integer = || ResultValueContract::Integer {
         min: 0,
         max: RESULT_CONTRACT_JS_SAFE_INTEGER,
     };
-    let mut fields = vec![
-        ResultObjectFieldContract {
-            name: "_id".to_owned(),
-            required: true,
-            value: ResultValueContract::Id {
-                table: table.name.clone(),
-            },
+    let value = match field_name {
+        "_id" => ResultValueContract::Id {
+            table: table.name.clone(),
         },
-        ResultObjectFieldContract {
-            name: "_version".to_owned(),
-            required: true,
-            value: safe_integer(),
-        },
-        ResultObjectFieldContract {
-            name: "_createdAt".to_owned(),
-            required: true,
-            value: safe_integer(),
-        },
-        ResultObjectFieldContract {
-            name: "_updatedAt".to_owned(),
-            required: true,
-            value: safe_integer(),
-        },
-    ];
-    fields.extend(table.fields.iter().map(|field| {
-        let value = match &field.field_type {
-            FieldType::String => ResultValueContract::String {
-                max_bytes: RESULT_CONTRACT_MAX_VALUE_BYTES,
-            },
-            FieldType::Enum { values } => ResultValueContract::Union {
-                variants: values
-                    .iter()
-                    .cloned()
-                    .map(|value| ResultValueContract::Literal {
-                        value: Value::String(value),
-                    })
-                    .collect(),
-            },
-            FieldType::Boolean => ResultValueContract::Boolean,
-            FieldType::Integer => ResultValueContract::Integer {
-                min: -RESULT_CONTRACT_JS_SAFE_INTEGER,
-                max: RESULT_CONTRACT_JS_SAFE_INTEGER,
-            },
-            FieldType::Real => ResultValueContract::FiniteReal {
-                min: -f64::MAX,
-                max: f64::MAX,
-            },
-            FieldType::Vector { dimensions } => ResultValueContract::Vector {
-                dimensions: *dimensions,
-            },
-            FieldType::Json => ResultValueContract::Json {
-                max_depth: RESULT_CONTRACT_MAX_DEPTH,
-                max_bytes: RESULT_CONTRACT_MAX_VALUE_BYTES,
-            },
-            FieldType::Structured { contract, .. } => contract.descriptor.clone(),
-            FieldType::Principal => ResultValueContract::Principal,
-            FieldType::Id { table } => ResultValueContract::Id {
-                table: table.clone(),
-            },
-            FieldType::RelationIncarnation { .. } => ResultValueContract::String { max_bytes: 64 },
-            FieldType::AssetRef {
-                media: Some(media), ..
-            } => media_result_contract(&table.name, field, media),
-            FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
-        };
-        let value = if field.optional && !matches!(value, ResultValueContract::Json { .. }) {
-            match value {
-                ResultValueContract::Union { mut variants } => {
-                    variants.insert(0, ResultValueContract::Null);
-                    ResultValueContract::Union { variants }
-                }
-                value => ResultValueContract::Union {
-                    variants: vec![ResultValueContract::Null, value],
+        "_version" | "_createdAt" | "_updatedAt" => safe_integer(),
+        _ => {
+            let field = table.field(field_name)?;
+            let value = match &field.field_type {
+                FieldType::String => ResultValueContract::String {
+                    max_bytes: RESULT_CONTRACT_MAX_VALUE_BYTES,
                 },
+                FieldType::Enum { values } => ResultValueContract::Union {
+                    variants: values
+                        .iter()
+                        .cloned()
+                        .map(|value| ResultValueContract::Literal {
+                            value: Value::String(value),
+                        })
+                        .collect(),
+                },
+                FieldType::Boolean => ResultValueContract::Boolean,
+                FieldType::Integer => ResultValueContract::Integer {
+                    min: -RESULT_CONTRACT_JS_SAFE_INTEGER,
+                    max: RESULT_CONTRACT_JS_SAFE_INTEGER,
+                },
+                FieldType::Real => ResultValueContract::FiniteReal {
+                    min: -f64::MAX,
+                    max: f64::MAX,
+                },
+                FieldType::Vector { dimensions } => ResultValueContract::Vector {
+                    dimensions: *dimensions,
+                },
+                FieldType::Json => ResultValueContract::Json {
+                    max_depth: RESULT_CONTRACT_MAX_DEPTH,
+                    max_bytes: RESULT_CONTRACT_MAX_VALUE_BYTES,
+                },
+                // @ref LLP 0211#declaration-closed-dispatch-closed-interior — the
+                // persisted descriptor is also the exact logical document shape.
+                FieldType::Structured { contract, .. } => contract.descriptor.clone(),
+                FieldType::Principal => ResultValueContract::Principal,
+                FieldType::Id { table } => ResultValueContract::Id {
+                    table: table.clone(),
+                },
+                FieldType::RelationIncarnation { .. } => {
+                    ResultValueContract::String { max_bytes: 64 }
+                }
+                FieldType::AssetRef {
+                    media: Some(media), ..
+                } => media_result_contract(&table.name, field, media),
+                FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
+            };
+            if field.optional && !matches!(value, ResultValueContract::Json { .. }) {
+                match value {
+                    ResultValueContract::Union { mut variants } => {
+                        variants.insert(0, ResultValueContract::Null);
+                        ResultValueContract::Union { variants }
+                    }
+                    value => ResultValueContract::Union {
+                        variants: vec![ResultValueContract::Null, value],
+                    },
+                }
+            } else {
+                value
             }
-        } else {
-            value
-        };
-        ResultObjectFieldContract {
-            name: field.name.clone(),
-            required: true,
-            value,
         }
-    }));
+    };
+    Some(value)
+}
+
+pub fn table_document_value_contract(table: &TableManifest) -> ResultValueContract {
+    let mut field_names = vec!["_id", "_version", "_createdAt", "_updatedAt"];
+    field_names.extend(table.fields.iter().map(|field| field.name.as_str()));
+    let fields = field_names
+        .into_iter()
+        .map(|name| ResultObjectFieldContract {
+            name: name.to_owned(),
+            required: true,
+            value: table_document_field_result_contract(table, name)
+                .unwrap_or_else(|| unreachable!("table field came from the installed schema")),
+        })
+        .collect();
     ResultValueContract::Object {
         fields,
         allow_extra: false,
@@ -7061,103 +7068,7 @@ pub fn single_table_delta_contract_matches_schema(
     let Some(table) = schema.table(table) else {
         return false;
     };
-
-    let safe_integer = || ResultValueContract::Integer {
-        min: 0,
-        max: 9_007_199_254_740_991,
-    };
-    let mut fields = vec![
-        ResultObjectFieldContract {
-            name: "_id".to_owned(),
-            required: true,
-            value: ResultValueContract::Id {
-                table: table.name.clone(),
-            },
-        },
-        ResultObjectFieldContract {
-            name: "_version".to_owned(),
-            required: true,
-            value: safe_integer(),
-        },
-        ResultObjectFieldContract {
-            name: "_createdAt".to_owned(),
-            required: true,
-            value: safe_integer(),
-        },
-        ResultObjectFieldContract {
-            name: "_updatedAt".to_owned(),
-            required: true,
-            value: safe_integer(),
-        },
-    ];
-    fields.extend(table.fields.iter().map(|field| {
-        let value = match &field.field_type {
-            FieldType::String => ResultValueContract::String {
-                max_bytes: 1024 * 1024,
-            },
-            FieldType::Enum { values } => ResultValueContract::Union {
-                variants: values
-                    .iter()
-                    .cloned()
-                    .map(|value| ResultValueContract::Literal {
-                        value: Value::String(value),
-                    })
-                    .collect(),
-            },
-            FieldType::Boolean => ResultValueContract::Boolean,
-            FieldType::Integer => ResultValueContract::Integer {
-                min: -9_007_199_254_740_991,
-                max: 9_007_199_254_740_991,
-            },
-            FieldType::Real => ResultValueContract::FiniteReal {
-                min: -f64::MAX,
-                max: f64::MAX,
-            },
-            FieldType::Vector { dimensions } => ResultValueContract::Vector {
-                dimensions: *dimensions,
-            },
-            FieldType::Json => ResultValueContract::Json {
-                max_depth: 16,
-                max_bytes: 1024 * 1024,
-            },
-            // @ref LLP 0211#declaration-closed-dispatch-closed-interior — the
-            // persisted descriptor is also the exact logical document shape.
-            FieldType::Structured { contract, .. } => contract.descriptor.clone(),
-            FieldType::Principal => ResultValueContract::Principal,
-            FieldType::Id { table } => ResultValueContract::Id {
-                table: table.clone(),
-            },
-            FieldType::RelationIncarnation { .. } => ResultValueContract::String { max_bytes: 64 },
-            FieldType::AssetRef {
-                media: Some(media), ..
-            } => media_result_contract(&table.name, field, media),
-            FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
-        };
-        let value = if field.optional && !matches!(value, ResultValueContract::Json { .. }) {
-            match value {
-                ResultValueContract::Union { mut variants } => {
-                    variants.insert(0, ResultValueContract::Null);
-                    ResultValueContract::Union { variants }
-                }
-                value => ResultValueContract::Union {
-                    variants: vec![ResultValueContract::Null, value],
-                },
-            }
-        } else {
-            value
-        };
-        ResultObjectFieldContract {
-            name: field.name.clone(),
-            required: true,
-            value,
-        }
-    }));
-
-    document
-        == &ResultValueContract::Object {
-            fields,
-            allow_extra: false,
-        }
+    document == &table_document_value_contract(table)
 }
 
 pub(super) fn domain_hash(domain: &[u8], value: &Value) -> SnapbackResult<String> {

@@ -34217,76 +34217,11 @@ fn graph_schema_field_result_contract(
     field_name: &str,
     schema: &SchemaManifest,
 ) -> Result<crate::manifest::ResultValueContract, crate::manifest::GraphAdmissionRefusalReasonV1> {
-    use crate::manifest::{FieldType, ResultValueContract};
-
-    let value = match field_name {
-        "_id" => ResultValueContract::Id {
-            table: table_name.to_owned(),
-        },
-        "_version" | "_createdAt" | "_updatedAt" => ResultValueContract::Integer {
-            min: -9_007_199_254_740_991,
-            max: 9_007_199_254_740_991,
-        },
-        _ => {
-            let field = schema
-                .table(table_name)
-                .and_then(|table| table.field(field_name))
-                .ok_or(crate::manifest::GraphAdmissionRefusalReasonV1::ProjectionOpen)?;
-            let value = match &field.field_type {
-                FieldType::String => ResultValueContract::String {
-                    max_bytes: 1024 * 1024,
-                },
-                FieldType::Enum { values } => ResultValueContract::Union {
-                    variants: values
-                        .iter()
-                        .cloned()
-                        .map(|value| ResultValueContract::Literal {
-                            value: Value::String(value),
-                        })
-                        .collect(),
-                },
-                FieldType::Boolean => ResultValueContract::Boolean,
-                FieldType::Integer => ResultValueContract::Integer {
-                    min: -9_007_199_254_740_991,
-                    max: 9_007_199_254_740_991,
-                },
-                FieldType::Real => ResultValueContract::FiniteReal {
-                    min: -f64::MAX,
-                    max: f64::MAX,
-                },
-                FieldType::Vector { dimensions } => ResultValueContract::Vector {
-                    dimensions: *dimensions,
-                },
-                FieldType::Json => ResultValueContract::Json {
-                    max_depth: 16,
-                    max_bytes: 1024 * 1024,
-                },
-                FieldType::Structured { contract, .. } => contract.descriptor.clone(),
-                FieldType::Principal => ResultValueContract::Principal,
-                FieldType::Id { table } => ResultValueContract::Id {
-                    table: table.clone(),
-                },
-                FieldType::RelationIncarnation { .. } => {
-                    ResultValueContract::String { max_bytes: 64 }
-                }
-                FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
-            };
-            if field.optional && !matches!(&field.field_type, FieldType::Json) {
-                match value {
-                    ResultValueContract::Union { mut variants } => {
-                        variants.insert(0, ResultValueContract::Null);
-                        ResultValueContract::Union { variants }
-                    }
-                    value => ResultValueContract::Union {
-                        variants: vec![ResultValueContract::Null, value],
-                    },
-                }
-            } else {
-                value
-            }
-        }
-    };
-    Ok(value)
+    let table = schema
+        .table(table_name)
+        .ok_or(crate::manifest::GraphAdmissionRefusalReasonV1::ProjectionOpen)?;
+    crate::manifest::table_document_field_result_contract(table, field_name)
+        .ok_or(crate::manifest::GraphAdmissionRefusalReasonV1::ProjectionOpen)
 }
 
 fn reify_graph_projection_object(
@@ -34322,10 +34257,25 @@ fn reify_graph_projection_object(
                     crate::manifest::GraphAdmissionRefusalReasonV1::ResultContractMismatch
                 })?,
             },
-            GraphProjectionValueV1::Object { object, .. } => {
+            GraphProjectionValueV1::Object { node_id, object } => {
                 let nested = reify_graph_projection_object(object, nodes, plan, schema)?;
-                ResultValueContract::Union {
-                    variants: vec![ResultValueContract::Null, nested],
+                match nodes.get(node_id.as_str()) {
+                    Some(GraphNodeV1::EqualityToOne {
+                        presence: crate::manifest::GraphToOnePresenceV1::Required,
+                        ..
+                    }) => nested,
+                    Some(GraphNodeV1::EqualityToOne {
+                        presence: crate::manifest::GraphToOnePresenceV1::Optional,
+                        ..
+                    })
+                    | Some(GraphNodeV1::PrincipalBound { .. }) => ResultValueContract::Union {
+                        variants: vec![ResultValueContract::Null, nested],
+                    },
+                    _ => {
+                        return Err(
+                            crate::manifest::GraphAdmissionRefusalReasonV1::ProjectionScopeInvalid,
+                        );
+                    }
                 }
             }
             GraphProjectionValueV1::Array {
