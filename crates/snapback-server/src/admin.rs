@@ -2576,14 +2576,20 @@ struct AuthModeRuntimeSnapshot {
     desired_policy: PolicyAuthMode,
 }
 
-/// Complete bounded-commit destination minted only while one AppState claims
-/// its Local graph. The separately visible AppState fields may be replaced by
-/// crate tests, but this bundle can only be copied whole from another real
-/// AppState.
+/// AppState-carried grouping of the bounded-commit Local graph, admission
+/// controller, and database authority. Once constructed, capsule binding uses
+/// this grouping rather than the separately visible AppState fields, so
+/// replacing only `AppState::snapback` cannot redirect a capsule.
+///
+/// This grouping is not a common-origin proof. Server startup accepts the
+/// `SharedSnapback` and preclaimed `EngineAppStateBindings` independently, so
+/// safe construction can still group Local B with admission/authority A. The
+/// construction-time seal is fix-forward work recorded in
+/// `issues/20260822-capsule-structural-residuals.md`.
 ///
 /// @ref LLP 0225#3-transaction-and-commit-boundaries--who-may-commit-what —
-/// Local, admission, and database authority cross into the capsule only as one
-/// AppState-owned destination.
+/// the current binding preserves the AppState-carried grouping after
+/// construction; it does not establish the grouping's origin.
 #[derive(Clone)]
 pub(crate) struct CommitCapsuleBinding {
     state: SharedSnapback,
@@ -2678,9 +2684,11 @@ pub struct AppState {
     /// runtime, cron, and staged-mode publication therefore count and retire
     /// roots in one process-local epoch domain.
     pub(crate) auth_admission: AuthAdmissionController,
-    /// Database-bound commit authority delegated only when this AppState
-    /// claimed its exact Local graph. The bounded capsule consumes it without
-    /// exposing it to transaction closures.
+    /// AppState-carried Local/admission/database grouping used by the bounded
+    /// capsule. It prevents later substitution through the separately visible
+    /// fields, but startup can currently combine independently supplied
+    /// `SharedSnapback` and engine bindings; see the structural residuals
+    /// ticket.
     pub(crate) commit_capsule_binding: CommitCapsuleBinding,
     /// Opaque exact-engine operator authority minted by the one-shot graph
     /// claim. Administrative engine commands require this in addition to the

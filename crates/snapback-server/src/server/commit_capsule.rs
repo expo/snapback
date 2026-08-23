@@ -8,11 +8,13 @@
 //!
 //! @ref LLP 0058#split-phase-authorized-effect-fence — caller authority is
 //!   reserved outside Local and the mode guard is acquired only at COMMIT.
-//! @ref LLP 0059#rollback-and-ambiguous-commit — only exact intended rows can
-//!   turn an ambiguous COMMIT into success; every other result stays closed.
+//! @ref LLP 0059#rollback-and-ambiguous-commit — production reconciliation
+//!   queries compare their supplied intended rows before returning a witness;
+//!   the remaining same-ID replay seam is tracked explicitly.
 //! @ref LLP 0225#3-transaction-and-commit-boundaries--who-may-commit-what —
-//!   the adapter owns orchestration while the kernel-supplied pending value
-//!   remains the only SQLite commit primitive.
+//!   the adapter owns orchestration while production adopters use a
+//!   kernel-supplied pending transaction. The open adapter trait and exposed
+//!   authorities are residual seams, not a structural COMMIT proof.
 
 use super::{SharedSnapback, writer_gate::lock_managed_snapback};
 use crate::admin::{AppState, CommitCapsuleBinding};
@@ -83,12 +85,18 @@ impl CommitCapsuleDestination {
                 "the prepared authority does not belong to the destination AppState",
             ));
         }
-        // PreparedAuthority can still carry a publication substituted through
-        // `PreparedAuthority::with_fenced_publication` or
-        // `with_service_publication`; its correspondence to the admission
-        // lease is the inherited Critical tracked in
-        // issues/20260822-authority-publication-binding-design.md. This
-        // destination binding closes AppState component splicing only.
+        // This rejects an authority that differs from the admission controller
+        // already stored in this binding and ignores later substitution of the
+        // separately visible `AppState::snapback` field. It does not prove the
+        // binding's own common origin: AppState startup currently accepts the
+        // SharedSnapback and preclaimed engine bindings independently, so
+        // {state B, admission A, authority A} remains constructible. That
+        // construction-time seal is tracked in
+        // issues/20260822-capsule-structural-residuals.md and assigned to the
+        // independent early slice in
+        // issues/20260822-authority-publication-binding-implementation-plan.md
+        // (the plan file is absent from this revision). PreparedAuthority
+        // publication substitution is a separate residual tracked there too.
         Ok(Self {
             state: binding.state().clone(),
             authority,
@@ -137,10 +145,16 @@ impl CommitTimeoutPhase {
     }
 }
 
-/// A staged kernel transaction whose only remaining operations are rollback,
-/// ambiguity preparation, and COMMIT. `prepare_commit` must only move/mark an
-/// already-prepared uncertainty carrier; `commit` must not validate admission
-/// or enter Local again.
+/// Adapter contract expected of the capsule's production pending
+/// transactions. `prepare_commit` should only move/mark an already-prepared
+/// uncertainty carrier; `commit` should not validate admission or enter Local
+/// again.
+///
+/// This is an open `pub(crate)` trait, not a seal. Another implementation can
+/// ignore the supplied authority, return a successful value without a durable
+/// write, or commit a captured pending transaction for another database. Such
+/// an implementation would violate the contract without being rejected by the
+/// type system; see `issues/20260822-capsule-structural-residuals.md`.
 pub(crate) trait PendingCommit: Sized {
     type Output;
     type Uncertain: Send + 'static;
@@ -159,14 +173,16 @@ pub(crate) trait PendingCommit: Sized {
     ) -> SnapbackResult<Self::Output>;
 }
 
-/// The only Local capabilities a capsule closure can reach. In particular,
-/// this type does not implement `Deref` and never exposes `LocalSnapback`, so
-/// legacy autocommitting operations cannot bypass `FinalCommitCut` and then be
-/// reported as rolled back.
+/// The Local capability passed as a capsule closure parameter. This type does
+/// not implement `Deref` and does not itself expose `LocalSnapback`, so the
+/// parameter no longer hands legacy autocommitting operations to the closure.
+/// Rust closures can still capture authorities exposed elsewhere, and the
+/// public staging/commit pair remains reachable without `FinalCommitCut`; this
+/// parameter narrowing is therefore not a structural commit seal.
 ///
 /// @ref LLP 0225#3-transaction-and-commit-boundaries--who-may-commit-what —
-/// capsule callers compose typed kernel staging operations and cannot own the
-/// canonical store's COMMIT primitive.
+/// capsule callers are expected to compose typed kernel staging operations;
+/// the remaining capture path is tracked as a structural residual.
 pub(crate) struct CommitCapsuleTransaction<'local> {
     local: &'local mut LocalSnapback,
 }
@@ -230,21 +246,6 @@ impl CommitCapsuleTransaction<'_> {
     > {
         self.local
             .remainder_reconcile_commit_capsule_prototype(intent)
-    }
-
-    /// Test the structural boundary with a closure that names a real direct
-    /// Local API. The closure is deliberately never invoked: production
-    /// capsule closures have no operation that can unwrap this context.
-    #[cfg(test)]
-    pub(crate) fn attempt_direct_local_operation_for_test<T>(
-        &mut self,
-        _operation: impl FnOnce(&mut LocalSnapback) -> SnapbackResult<T>,
-    ) -> SnapbackResult<T> {
-        Err(SnapbackError::error(
-            "SNAPBACK_COMMIT_CAPSULE_DIRECT_LOCAL_ACCESS_FORBIDDEN",
-            "server",
-            "bounded commit capsule closures cannot access unrestricted Local operations",
-        ))
     }
 }
 
@@ -570,7 +571,10 @@ impl<U> Drop for CommitUncertainRetention<U> {
 
 /// The final-cut token exposes no validation or Local-entry capability. It
 /// checks the one absolute deadline, acquires the non-reentrant admission
-/// guard, marks ambiguity, and invokes the kernel COMMIT primitive.
+/// guard, marks ambiguity, and invokes the supplied `PendingCommit` adapter.
+/// The ordering and one-shot disposition are enforced here; the open adapter
+/// contract does not itself prove that a durable commit occurred in the same
+/// database or operation.
 pub(crate) struct FinalCommitCut<I: crate::storage::CommitCapsuleIntent, U> {
     operation: &'static str,
     deadline: Instant,
@@ -658,8 +662,8 @@ impl<I: crate::storage::CommitCapsuleIntent, U: Send + 'static> FinalCommitCut<I
         let mut pending = pending;
         let carrier = pending.prepare_commit();
         self.panic_uncertain = Some(carrier);
-        // Nothing that can fail or unwind sits between CommitStarted and the
-        // COMMIT call. From this assignment onward a timeout is forbidden.
+        // Nothing sits between CommitStarted and the adapter call. From this
+        // assignment onward a timeout is forbidden.
         self.disposition = Some(FinalCutDisposition::CommitStarted);
         let result = pending.commit(&self.commit_authority);
         // Nothing below this explicit drop may hold or re-enter AdmissionState.
@@ -667,8 +671,9 @@ impl<I: crate::storage::CommitCapsuleIntent, U: Send + 'static> FinalCommitCut<I
 
         match result {
             Ok(value) => {
-                // COMMIT returned known success, so the ambiguity carrier no
-                // longer needs out-of-band retention.
+                // The adapter returned success, so the ambiguity carrier no
+                // longer needs out-of-band retention. PendingCommit's open
+                // contract is not itself proof that a durable COMMIT occurred.
                 drop(self.panic_uncertain.take());
                 CommitAttempt(CommitAttemptState::Committed(value))
             }
@@ -681,9 +686,10 @@ impl<I: crate::storage::CommitCapsuleIntent, U: Send + 'static> FinalCommitCut<I
         }
     }
 
-    /// Accept an idempotent predecessor only through the kernel's exact-row
-    /// witness for this database and operation. No caller value can mint a
-    /// committed attempt.
+    /// Accept an idempotent predecessor only through a kernel-minted witness
+    /// whose database and operation identifier match. This does not bind the
+    /// intent instance or reject a semantically different intent with the same
+    /// caller-constructed identifier.
     pub(crate) fn exact_existing<T>(
         &mut self,
         reservation: &AuthorizedEffectReservation,

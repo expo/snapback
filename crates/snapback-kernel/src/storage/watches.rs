@@ -152,10 +152,9 @@ pub struct WatchAnchorAuthority {
     pub integration_status: crate::storage::auth_integrations::IntegrationStatus,
 }
 
-/// Immutable operation identity and inputs for one caller-backed watch
-/// management commit. Generated successor ids are chosen before the capsule
-/// reserves authority, so COMMIT reconciliation never has to invent an
-/// identity after the durable cut.
+/// Caller-constructed operation identifier for one watch-management attempt.
+/// The newtype prevents accidental comparison with another intent type, but
+/// does not provide uniqueness or bind the rest of the intent fields.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WatchManagementOperationIdentity(String);
 
@@ -315,9 +314,11 @@ impl WatchManagementPending<'_> {
         Ok(())
     }
 
-    /// This cross-crate seam is unusable with the transaction closure's Local
-    /// access alone: COMMIT additionally requires the opaque database-bound
-    /// authority held inside the server capsule's private final cut.
+    /// Commit after checking that the supplied opaque authority identifies
+    /// this pending transaction's database. Current composition APIs expose a
+    /// clone of that authority, so callers can capture it and reach this method
+    /// without the capsule's `FinalCommitCut`; custody is not structurally
+    /// sealed.
     pub fn commit(
         self,
         authority: &CommitCapsuleAuthority,
@@ -2771,7 +2772,7 @@ mod tests {
     }
 
     #[test]
-    fn resume_commit_uncertainty_requires_the_exact_evaluation_job() {
+    fn resume_reconciliation_rejects_a_missing_evaluation_job() {
         let mut db = integration_watch_database();
         let active = db
             .create_watch(integration_watch_request(
@@ -2812,9 +2813,13 @@ mod tests {
             .expect("status, pending link, and exact job establish success");
         let committed = witness
             .into_value_for(&authority, &intent)
-            .expect("intent-bound resume witness");
+            .expect("database- and identifier-matched resume witness");
         assert!(committed.evaluation_enqueued);
 
+        // This removes the whole job after first observing an exact successor.
+        // It proves that a missing job rejects reconciliation. It does not
+        // prove that every individual job field, watch field, or renewal
+        // anchor comparison participates in the intended-row fingerprint.
         db.conn
             .execute(
                 "DELETE FROM _snapback_jobs_v1 WHERE job_id = ?1",

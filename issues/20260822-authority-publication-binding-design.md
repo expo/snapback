@@ -18,6 +18,13 @@ This design says how to close it. An independent read confirmed the gap is real 
 precise loss: **"The split-phase algorithm itself is sound for a correctly constructed authority.
 The structural defect is the loss of identity between resolution and reservation."**
 
+The substitution is endemic to `PreparedAuthority`, and checking another correlated field at an
+individual destination cannot establish correspondence. The bounded commit capsule's AppState
+grouping closes only literal substitution through the separately visible fields *after*
+construction; it does not prove the grouping itself has a common origin, because server startup
+can independently supply Local B with preclaimed admission/authority A. The capsule's complete
+residual register is `issues/20260822-capsule-structural-residuals.md`.
+
 ## The load-bearing result
 
 For sessions, a detached (resolved, carrier) pair **cannot be checked at all**. The carrier

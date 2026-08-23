@@ -80,6 +80,10 @@ database-bound final-cut authority and exact-row witness)
 **Revised:** 2026-08-22 (ac — §3 hardens the capsule's complete AppState
 destination, restricted Local capability, typed intent identity, and one-shot
 final cut; the inherited authority/publication seam remains open)
+**Revised:** 2026-08-22 (ad — §3 narrows the capsule claims to the literal
+same-AppState substitution and one-shot ordering actually enforced; independent
+construction origin, open pending adapters, captured commit authority, and
+same-ID intent replay are recorded as latent fix-forward residuals)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -289,20 +293,34 @@ incorporates 0199's OQ3 ruling and the implemented 2026-08-09 follow-up.
    (`CommitFunctionGeneration`, the classified mode-deployment commits, the
    `*_in_tx` families as they relocate into `crates/snapback/src/storage/`), never by opening
    its own transaction against the store.
-   A cross-crate bounded commit capsule may carry a typed pending transaction,
-   but its COMMIT primitive additionally requires opaque authority bound to
-   that exact database and held only by the capsule's private final cut. A
-   caller closure receives only a restricted transaction capability, cannot
-   reach legacy autocommitting Local operations, and cannot mint a committed
-   attempt. Ambiguous success likewise requires a kernel-minted exact-row
-   witness whose type and identity come from the original intent and whose
-   database matches the destination capability; mapping its value cannot
-   substitute either binding. Every final-cut exit records its one-shot
-   disposition. The capsule's AppState destination bundles Local, admission,
-   and database authority, but does not prove that a `PreparedAuthority`'s
-   replaceable publication carriers correspond to its admission lease; that
-   inherited Critical remains open in
-   `issues/20260822-authority-publication-binding-design.md`.
+   A cross-crate bounded commit capsule may carry a typed pending transaction.
+   Its production watch adapter compares an opaque authority with the pending
+   transaction's database before COMMIT, and its closure parameter no longer
+   exposes unrestricted `LocalSnapback`. Those are useful checks, not a sealed
+   capability boundary: `PendingCommit` is an open `pub(crate)` trait with no
+   database or operation identity, composition APIs expose cloneable commit
+   authority, and Rust closures may capture that authority and reach the public
+   watch staging/commit pair without `FinalCommitCut`. The exact-row witness is
+   kernel-minted, retains a typed operation identifier through `map`, and is
+   consumed only when its database and identifier equal the supplied
+   authority/intent. It does not bind the intent instance or intended-row
+   fingerprint, and caller-constructible identifiers have no uniqueness
+   ledger. Every final-cut exit does still record a one-shot disposition.
+
+   The AppState-carried destination closes one narrower substitution: after a
+   correctly constructed AppState exists, replacing only its separately
+   visible `snapback` field cannot redirect the capsule because binding uses
+   the stored destination grouping. It does **not** close construction origin.
+   `AppState::try_new_for_server_startup` accepts `SharedSnapback` B and
+   preclaimed engine bindings A independently, and the inner constructor can
+   therefore build `{state B, admission A, authority A}` in safe Rust. The
+   residuals and shortest paths are recorded in
+   `issues/20260822-capsule-structural-residuals.md`. The real construction-time
+   remedy belongs to the independent early slice assigned to
+   `issues/20260822-authority-publication-binding-implementation-plan.md`; that
+   plan file is not present in this revision, and no closure claim is made here.
+   `PreparedAuthority` publication substitution remains separately open as
+   well in `issues/20260822-authority-publication-binding-design.md`.
 2. **The generation-activation coordinator owns the atomic transition, not
    the transaction.** The minimum atomic set — the manifest/generation
    record, projection digest pins, sequence installs/enrollment, and auth
@@ -1423,18 +1441,26 @@ so slices can follow product priorities.
   dependency remains the allowed rank-2 → rank-1 edge; no rank or allowed-edge
   amendment was needed. This records only the mechanism move and makes no F-1
   or LLP 0285 defect-closure claim.
-- **2026-08-22 (ab).** The bounded commit capsule now receives durable Local,
-  prepared caller authority, and database identity only through one checked
-  AppState-bound destination. Its successful attempt variant is private;
-  kernel pending commits require the destination capability held by the final
-  cut; and exact reconciliation returns a kernel-minted witness bound to the
-  same database and operation identity. This hardens §3's existing ownership
-  rule without changing transaction ownership or the fencing order.
+- **2026-08-22 (ab).** The bounded commit capsule now takes prepared caller
+  authority at its bind step, compares that authority's admission lease with
+  the admission controller in one AppState-carried Local/database grouping,
+  and thereafter uses the stored grouping. Its successful attempt variant is
+  private; the production watch pending transaction compares the authority
+  supplied by the final cut with its database; and exact
+  reconciliation returns a kernel-minted witness carrying database identity
+  and a typed operation identifier. This hardens the ordinary production path
+  without sealing construction origin, adapter implementations, authority
+  custody, or semantic intent identity.
 - **2026-08-22 (ac).** The capsule destination now uses one immutable AppState
   bundle for managed Local, admission, and database authority; transaction
   closures receive a restricted capability rather than `LocalSnapback`;
   exact-row witnesses retain an intent-owned typed identity through mapping;
-  and every final-cut exit consumes the cut. This closes component splicing,
-  direct legacy Local COMMIT, string-identity replay, and final-cut reuse at
-  the capsule boundary. It does not close `PreparedAuthority` publication
-  substitution, which remains the separate open Critical linked from §3.
+  and every final-cut exit consumes the cut. The bundle closes only literal
+  same-AppState substitution through the separately visible `snapback` field;
+  it does not prove the independently supplied construction inputs share an
+  origin. The restricted parameter removes direct `LocalSnapback` access from
+  that parameter but does not constrain closure captures. The typed identity
+  survives `map` but does not prevent same-ID semantic replay. The one-shot
+  final-cut consumption remains a structural guarantee. The other residuals,
+  including the open `PendingCommit` adapter and `PreparedAuthority`
+  publication substitution, remain fix-forward work linked from §3.

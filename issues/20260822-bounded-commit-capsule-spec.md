@@ -231,25 +231,41 @@ where
 `CommitCapsuleTransaction` is a narrow capability, not a `Deref` wrapper. It exposes only the
 kernel staging, exact-reconciliation, and observation operations adopted by the capsule. It never
 exposes `LocalSnapback`, so caller transaction code cannot invoke a legacy autocommitting Local
-operation and then report `RolledBack` without passing `FinalCommitCut`.
+operation through that parameter. This narrows the ordinary closure surface; it does not constrain
+captured values. Current composition APIs expose the commit authority, and the public watch
+staging/commit pair remains reachable without `FinalCommitCut`.
 
 `CommitCapsuleIntent` owns an associated, typed operation identity. `ExactCommitRows<Intent, T>`
-copies that identity from the intent observed by the kernel, and `map` preserves it. The capsule
-consumes the witness only against its original typed intent; neither `CommitCapsuleSpec` nor the
-reconciliation closure supplies a second string that can be substituted. `FinalCommitCut` records
-a disposition on every exit, including exact-existing success or mismatch and rollback failures,
-so every final cut is one-shot.
+copies that identity from the intent supplied to the kernel reconciliation query, and `map`
+preserves it. Consumption checks database identity and operation-ID equality. The identifier is
+caller-constructible and has no uniqueness ledger, so this does not bind the intent instance or an
+intended-row fingerprint and does not reject a semantically different intent sharing the same ID.
+`FinalCommitCut` does record a disposition on every exit, including exact-existing success or
+mismatch and rollback failures, so every final cut is one-shot.
 
 `CommitCapsuleDestination` is assembled from one immutable AppState binding containing the managed
 Local graph, its admission controller, and its database commit authority. Binding checks the
 prepared authority against that bundled admission controller and later uses only the bundled Local
-and database capability. Replacing the separately visible AppState components therefore cannot
-splice admission A, Local B, and database B into an accepted destination.
+and database capability. This closes the literal same-AppState substitution where a test replaces
+only the separately visible `AppState::snapback` field. It does not prove common construction
+origin: server startup accepts `SharedSnapback` B and preclaimed engine bindings A independently,
+so `{state B, admission A, authority A}` remains constructible and binds successfully.
+
+`PendingCommit` is also an open `pub(crate)` adapter contract rather than a sealed database- and
+operation-bound capability. An implementation can ignore the authority passed to `commit`, return
+a successful value without a durable write, or commit captured state for another database. The
+capsule's final-cut ordering remains real, but a successful adapter result is not structurally a
+durable committed outcome.
 
 This is not a complete authority-publication binding proof. `PreparedAuthority` still has public
 carrier-replacement constructors that do not prove the attached publication corresponds to its
 admission lease. The inherited Critical and its separate remedy are tracked in
 `issues/20260822-authority-publication-binding-design.md`; the capsule must not claim to close it.
+All capsule structural residuals are collected in
+`issues/20260822-capsule-structural-residuals.md`. The construction-origin remedy belongs to the
+independent early slice assigned to
+`issues/20260822-authority-publication-binding-implementation-plan.md`; that plan file is absent
+from this revision.
 
 The capsule acquires the reservation from `PreparedAuthority` before queuing for Local. A capsule
 future that has not been polled owns no permit, and the API cannot accept an already-held
@@ -318,7 +334,11 @@ implementation:
 8. Calls `pending.commit()` with no further deadline check.
 9. Converts every commit error into `CommitUncertain` while retaining the stored carrier.
 
-All SQL staging and transaction-final bookkeeping must precede this method. That structurally leaves only the deadline check, `commit_guard`, and `tx.commit()` at the final cut.
+Production pending adapters must perform all SQL staging and transaction-final bookkeeping before
+this method. The final-cut implementation then orders the deadline check, `commit_guard`,
+ambiguity preparation, and the adapter's `commit` call. Because `PendingCommit` is open, that
+ordering does not structurally prove that the adapter call is `tx.commit()` or that its result is a
+database- and operation-bound committed outcome.
 
 `commit_guard` already installs retained service authority and then acquires mode last at [invocation.rs](crates/snapback-sync/src/auth/invocation.rs:1246). Its mode guard holds the non-reentrant `AdmissionState` mutex at [admission.rs](crates/snapback-auth/src/auth/admission.rs:1002); both validation and guard acquisition use that mutex at [admission.rs](crates/snapback-auth/src/auth/admission.rs:938). Nothing below `FinalCommitCut::commit` may call admission validation, `effect_guard`, `mode_effect_guard`, `commit_guard`, or any recursive Local entry.
 
@@ -541,7 +561,8 @@ The prototype is complete only if it demonstrates:
 - No admission call occurs while `commit_guard` is held.
 - Every effect-free exit releases both permit families and allows bounded logout completion.
 - Deadline expiry during COMMIT never becomes timeout.
-- Exact reconciliation returns committed only for the complete intended tuple.
+- The prototype reconciliation query returns committed only when the rows match its supplied
+  intended-row carrier. This is not a same-ID intent-substitution proof.
 - An unresolved result remains non-retryable and keeps the target terminal domain fail-closed.
 - For the prototype's test-only `operation_id`, response loss plus replay through its `Existing`
   path produces exactly one durable operation.

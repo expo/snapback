@@ -37262,7 +37262,6 @@ struct CommitCapsuleHooks {
     reconcile_as: Option<crate::storage::commit_capsule_prototype::PrototypeIntent>,
     reconcile_map_to: Option<crate::storage::commit_capsule_prototype::PrototypeIntent>,
     reuse_final_cut: bool,
-    direct_watch_transition: Option<(PreparedAuthority, String)>,
 }
 
 async fn run_commit_capsule_prototype<Gate: Send + 'static>(
@@ -37307,25 +37306,6 @@ async fn run_commit_capsule_prototype<Gate: Send + 'static>(
         move |local, intent, terminal_gate, reservation, final_cut| {
             if let Some(error) = hooks.commit_guard_failure {
                 reservation.set_commit_guard_failure_for_test(error);
-            }
-            if let Some((authority, watch_id)) = hooks.direct_watch_transition {
-                let direct = local.attempt_direct_local_operation_for_test(|local| {
-                    local.transition_watch(
-                        &authority,
-                        &watch_id,
-                        crate::watches::WatchStatus::Suspended,
-                        super::now_millis(),
-                    )
-                });
-                drop(terminal_gate);
-                return match direct {
-                    Ok(_) => super::CommitAttempt::rolled_back(SnapbackError::error(
-                        "SNAPBACK_COMMIT_CAPSULE_DIRECT_LOCAL_COMMIT_SUCCEEDED",
-                        "server",
-                        "a direct Local commit escaped the capsule final cut",
-                    )),
-                    Err(error) => super::CommitAttempt::rolled_back(error),
-                };
             }
             let include_consumed_proof =
                 injection != CommitCapsuleInjection::CommitErrorRowsPartial;
@@ -37457,18 +37437,23 @@ fn commit_capsule_intent(
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn bounded_commit_capsule_refuses_authority_from_another_destination() {
+async fn bounded_commit_capsule_rejects_authority_against_a_wholly_replaced_destination_bundle() {
     let _registry_test_guard = lock_commit_capsule_registry_tests().await;
     let authority_database = CommitCapsulePrototypeDatabase::new().await;
     let durable_database = CommitCapsulePrototypeDatabase::new().await;
     let caller =
         CommitCapsuleCallerFixture::new(&authority_database.app_state, "foreign-destination").await;
 
+    // This replaces both the state and its binding, producing destination
+    // {state B, admission B, authority B} against caller authority A. It
+    // proves the admission comparison rejects a wholly foreign destination.
+    // It does not exercise the live construction-origin splice
+    // {state B, admission A, authority A}, which binds successfully today.
     let mut hybrid = authority_database.app_state.clone();
     hybrid.snapback = durable_database.app_state.snapback.clone();
     hybrid.commit_capsule_binding = durable_database.app_state.commit_capsule_binding.clone();
     let Err(error) = super::CommitCapsuleDestination::bind(&hybrid, caller.authority()) else {
-        panic!("a spliced AppState must not form a cross-destination capsule")
+        panic!("an authority must not bind against a wholly foreign destination bundle")
     };
     assert_eq!(
         error.diagnostic.code,
@@ -37477,76 +37462,7 @@ async fn bounded_commit_capsule_refuses_authority_from_another_destination() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn bounded_commit_capsule_refuses_direct_commit_without_its_final_cut() {
-    let _registry_test_guard = lock_commit_capsule_registry_tests().await;
-    let fixture = watch_management_race_fixture(WatchManagementRaceSite::Suspend).await;
-    with_snapback(&fixture.state.snapback, |local| {
-        local
-            .remainder_initialize_commit_capsule_prototype()
-            .expect("initialize direct-commit prototype ledger")
-    })
-    .await;
-    let intent = commit_capsule_intent("direct-commit-bypass");
-    let caller = CommitCapsuleCallerFixture::new(&fixture.state, "direct-commit-bypass").await;
-    let direct_authority = prepared_test_session_route_authority(
-        &fixture.state,
-        InvocationSource::WatchManagement,
-        &fixture.bearer,
-    );
-    let watch_id = fixture.watch_id.clone();
-    let receipt = Arc::new(StdMutex::new(None));
-    let (retention, retained) =
-        commit_capsule_retention(&intent).expect("reserve direct-bypass uncertainty retention");
-
-    let outcome = run_commit_capsule_prototype(
-        caller.destination(),
-        tokio::time::Instant::now() + Duration::from_secs(3),
-        (),
-        intent.clone(),
-        CommitCapsuleInjection::Success,
-        CommitCapsuleHooks {
-            // The closure deliberately uses an unrelated, legacy direct
-            // Local commit API, then reports a known rollback without ever
-            // consuming FinalCommitCut.
-            direct_watch_transition: Some((direct_authority, watch_id.clone())),
-            ..CommitCapsuleHooks::default()
-        },
-        caller.expected_guard(),
-        receipt.clone(),
-        retention,
-    )
-    .await;
-
-    let super::CommitCapsuleOutcome::RolledBack(error) = outcome else {
-        panic!("a direct COMMIT without the capsule's final cut must be refused")
-    };
-    assert_eq!(
-        error.diagnostic.code,
-        "SNAPBACK_COMMIT_CAPSULE_DIRECT_LOCAL_ACCESS_FORBIDDEN"
-    );
-    assert_eq!(error.diagnostic.details["effectCommitted"], false);
-    assert!(receipt.lock().unwrap().is_none());
-    assert!(retained.is_empty());
-    let facts = with_snapback(&fixture.state.snapback, {
-        let intent = intent.clone();
-        move |local| {
-            local
-                .remainder_commit_capsule_prototype_facts(&intent)
-                .expect("read direct-commit prototype facts")
-        }
-    })
-    .await;
-    assert_eq!(facts.operation_rows, 0);
-    assert_eq!(facts.proof_rows, 0);
-    assert_eq!(
-        watch_management_facts(&fixture).await.watch.status,
-        crate::watches::WatchStatus::Active,
-        "a closure that reports RolledBack must not commit through another Local API"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn bounded_commit_capsule_refuses_a_lying_exact_reconciliation_closure() {
+async fn bounded_commit_capsule_map_preserves_unequal_operation_identity() {
     let _registry_test_guard = lock_commit_capsule_registry_tests().await;
     let database = CommitCapsulePrototypeDatabase::new().await;
     let decoy = commit_capsule_intent("lying-reconciliation-decoy");
@@ -37588,10 +37504,11 @@ async fn bounded_commit_capsule_refuses_a_lying_exact_reconciliation_closure() {
         intent.clone(),
         CommitCapsuleInjection::CommitErrorRowsAbsent,
         CommitCapsuleHooks {
-            // This is deliberately dishonest: query the decoy's exact rows,
-            // then map its witness to a target-shaped value even though the
-            // target rows are absent. The witness's intent-bound identity
-            // must survive `map` and refuse target consumption.
+            // This queries a decoy with a different operation identifier and
+            // maps its value to a target-shaped value. It proves only that an
+            // unequal identifier survives `map`. It does not prove rejection
+            // when semantically different intents share the same identifier;
+            // `into_value_for` accepts that replay today.
             reconcile_as: Some(decoy),
             reconcile_map_to: Some(intent.clone()),
             ..CommitCapsuleHooks::default()

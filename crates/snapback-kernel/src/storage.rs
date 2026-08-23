@@ -826,13 +826,15 @@ impl DatabaseBinding {
     }
 }
 
-/// Opaque commit authority delegated to the one server capsule graph that
-/// owns this database. The authority can be cloned inside that graph, but its
-/// private binding cannot be synthesized or redirected to another database.
+/// Opaque commit authority whose private binding identifies one database. The
+/// binding cannot be synthesized or redirected, and concrete kernel pending
+/// transactions can compare it before COMMIT. The value is nevertheless
+/// cloneable and exposed by current composition APIs; it is not held only by
+/// `FinalCommitCut`.
 ///
 /// @ref LLP 0225#3-transaction-and-commit-boundaries--who-may-commit-what —
-/// the cross-crate pending COMMIT requires database identity held only by the
-/// capsule's private final cut.
+/// concrete cross-crate pending COMMIT implementations can require matching
+/// database identity; custody remains an open structural residual.
 #[derive(Clone, Debug)]
 pub struct CommitCapsuleAuthority {
     binding: DatabaseBinding,
@@ -844,26 +846,30 @@ impl CommitCapsuleAuthority {
     }
 }
 
-/// An intent owns the only operation identity a bounded commit capsule may
-/// use. The identity type is part of the witness type, so a caller cannot
-/// independently select a string for the capsule and another for its intent.
+/// An intent supplies the typed operation identifier a bounded commit capsule
+/// compares at witness consumption. The associated type prevents accidental
+/// cross-intent-type comparison, and `map` preserves the identifier.
+///
+/// Identifiers remain caller-constructible, have no uniqueness ledger, and do
+/// not bind an intent instance or intended-row fingerprint. Equal identifiers
+/// can therefore describe semantically different intents.
 ///
 /// @ref LLP 0225#3-transaction-and-commit-boundaries--who-may-commit-what —
-/// exact reconciliation binds the original typed intent as well as the exact
-/// database.
+/// exact reconciliation currently compares database and typed operation
+/// identifier; the stronger intent-instance binding remains fix-forward.
 pub trait CommitCapsuleIntent {
     type OperationIdentity: AsRef<str> + Clone + Eq;
 
     fn operation_identity(&self) -> &Self::OperationIdentity;
 }
 
-/// Kernel-minted proof that an exact reconciliation query observed the
-/// complete intended successor for one typed intent in one database.
+/// Kernel-minted proof that one reconciliation query observed the successor
+/// described by its supplied intended-row carrier in one database.
 ///
 /// The server capsule may consume this proof, but cannot construct one from a
-/// caller-supplied value. Binding both identities prevents a truthful query
-/// for another database or operation from being replayed as this capsule's
-/// reconciliation evidence.
+/// caller-supplied value. Consumption rejects another database or an unequal
+/// operation identifier. It does not distinguish two semantically different
+/// intents that share a caller-constructed identifier.
 ///
 /// @ref LLP 0059#rollback-and-ambiguous-commit — ambiguous success requires
 /// kernel-observed exact intended rows, not a caller assertion.
