@@ -1,4 +1,4 @@
-# Refuse unsupported Familiar `.order()` before activation output
+# Revalidate Familiar `.order()` result serving in packed packages
 
 **Status:** Open
 **Opened:** 2026-08-23
@@ -16,9 +16,11 @@ On the unpublished candidate-0.1.26 pin, a Familiar JS query handler using
 field with `SNAPBACK_UNKNOWN_FIELD`. Removing `.order()` and sorting the
 collected rows in JavaScript restored serving.
 
-Current Familiar disposition policy says `.order()` is unsupported and should
-refuse with a route to Explicit. The candidate behavior therefore missed the
-intended pre-output refusal and surfaced a misleading downstream diagnostic.
+Current source and the Guide admit `.order(field, direction)` as a JS-handler
+query-builder verb and describe it as server-side ordering. The candidate
+behavior therefore conflicts with an advertised surface; the top-level
+declarative `order` field's Familiar disposition does not govern this builder
+method.
 
 ## Impact
 
@@ -27,13 +29,16 @@ may incorrectly rewrite result contracts or schema fields.
 
 ## Required change
 
-Reject unsupported `.order()` during Familiar generation, before activation
-artifacts are emitted, and name both the expression and the supported rewrite
-or Explicit-profile route.
+Reproduce the exact query shape through current packed packages. If it remains
+red, fix the builder/runtime/result-serving path so admitted server ordering
+returns the declared documents. If it is green, close this as candidate-pin
+evidence and record the fixing revision.
 
 ## Acceptance
 
-- A packed-external Familiar fixture containing `.order()` refuses before
-  activation output.
-- The diagnostic names `.order()` and routes to JS-side sorting or Explicit.
-- No variant reaches serving as downstream `SNAPBACK_UNKNOWN_FIELD` errors.
+- A packed-external Familiar fixture orders a bounded result server-side and
+  serves every declared field successfully.
+- The same fixture proves ascending/descending order and result-contract
+  decoding, not only generation.
+- No admitted variant reaches serving as downstream `SNAPBACK_UNKNOWN_FIELD`
+  errors.

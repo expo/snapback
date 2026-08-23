@@ -34,32 +34,38 @@ session — harness behavior, not human steering):
 - familiar: stopped text-only after essay.md but before final-report.md;
   finished via a 130-second logged finish nudge.
 
-## Framework findings (snapback-attributed)
+## Findings and run-environment observations
 
-1. **Scaffolded templates emit queries the packaged public runtime refuses.**
+1. **The unqualified dry-run closure refused scaffolded `single_table_v1`
+   queries.**
    Both lanes, both profiles: template `liveFeed`/`olderFeedPage` /
    homeFeed-style queries classify as authority-independent
    `single_table_v1` plan queries, which closure 0.1.26 refuses under dev
-   (`SNAPBACK_CAPABILITY_UNSUPPORTED`). Familiar's root cause: the runtime
-   tarball lacks `bin/packaged-store-qualification.receipt.json`. Workaround
-   (both lanes): author all live queries authenticated +
-   membership-scoped. Filed as
-   `issues/20260823-clique-single-table-v1-template-admission.md`.
-2. **`.order()` inside JS query handlers poisons result serving** — every
-   field then refuses with `SNAPBACK_UNKNOWN_FIELD`; JS-side sort required.
-   Familiar lane; filed as
-   `issues/20260823-js-query-order-poisons-result-serving.md` because current
-   Familiar policy intends to refuse and route `.order()` before output.
+   (`SNAPBACK_CAPABILITY_UNSUPPORTED`) because default dry-run staging did not
+   supply `bin/packaged-store-qualification.receipt.json`. That artifact was
+   not a publish-qualified closure; the real-publication path requires the
+   receipt. Both lanes worked around the calibration setup by making queries
+   authenticated and membership-scoped. The existing open
+   `issues/20260807-qualified-staging-missing-store-receipts.md` owns qualified
+   staging and its pending flip evidence; this run does not create a duplicate.
+2. **`.order()` inside an admitted JS query handler poisoned result serving.**
+   Every field then refused with `SNAPBACK_UNKNOWN_FIELD`; the lane used a
+   JS-side sort as a workaround. Current source and Guide support server-side
+   `.order()`, so the candidate behavior is filed for packed-current
+   revalidation in `issues/20260823-js-query-order-poisons-result-serving.md`.
 3. **Password floor mismatch (candidate-pin observation):** the lane saw a
    12-byte floor despite declaring `minimumLength: 8`. Current `main` tests the
    configured eight-byte floor; re-reproduce before treating this as open.
 4. **Live hooks reject one-shot Query-kind references (intended boundary).**
    Count-style queries had to become LiveQueries; the current React Guide
    documents that `useSnapbackQuery` accepts a `LiveQueryRef`.
-5. **Supervisor-minted demo session is revoked after backend restarts** and
-   `SNAPBACK_AUTH_SESSION_EXPIRED` hard-fails client boot. Explicit r2.
-6. **Dev-only empty LogBox toast intercepts all pointer events** (needs
-   two-client testing to matter). Explicit r2.
+5. **Supervisor-minted demo session expired after a candidate-pin backend
+   restart** and `SNAPBACK_AUTH_SESSION_EXPIRED` hard-failed client boot.
+   Current LLP 0295 successor/cold-reattach evidence preserves durable
+   sessions, so no current defect is asserted without re-reproduction.
+6. **A dev-only empty LogBox toast intercepted all pointer events.** This was
+   an Explicit lane-local app/harness observation that required two-client
+   testing; its Snapback attribution was not independently established.
 7. **Port budget (pre-fix observation):** after resume, the r2 backend re-bound
    outside its declared 48040–48059 range (56472/56473) and Metro auxiliaries
    stayed outside it. The fixed-origin lifecycle ticket is now closed.
@@ -68,7 +74,9 @@ Agent-error loops were ordinary and well-attributed by both lanes: codegen
 dialect refusals (take ceiling, `.then` in handlers, asset access policy),
 three-arg `ctx.db.patch/delete` dialect, required-field slips, quote unwrap.
 Familiar's verdict on dialect cliffs ("cost hours when hit blind") matches
-0104–0106.
+`0104-sol-high-clique-explicit-local-main`,
+`0105-sol-high-clique-familiar-local-main`, and
+`0106-sol-high-clique-local-main-0125`.
 
 ## Comparison notes
 
@@ -77,7 +85,7 @@ but the shape matches recent records: the strict authored→generated→admitted
 evidenced chain reads as reassurance once learned, and the recurring costs are
 the dev-supervisor lifecycle, capability/packaging surprises, and dialect
 cliffs — not query authoring. ox-alpha needed no Snapback source inspection in
-either lane beyond published package files, per prompt rule.
+either lane beyond staged package files, per prompt rule.
 
 ## Evidence pointers
 
@@ -89,6 +97,8 @@ essays retained outside git at `~/clique-oxalpha-20260822/` on the Durand host
 ## Current-main reconciliation — 2026-08-23
 
 The candidate pin `261e595ad` is evidence about that unpublished closure, not
-today's `main`. Current source contradicts or supersedes findings 3, 4, and 7;
-they remain disclosed here without new tickets. Findings 1 and 2 still need
-current qualification or a pre-output refusal and remain open.
+today's `main`. Finding 1 came from intentionally unqualified default dry-run
+staging and routes to the existing qualified-staging owner. Current source
+contradicts or supersedes findings 3, 4, 5, and 7; finding 6 remains
+app/harness-local and unverified. Only finding 2 remains newly open for current
+packed revalidation of a supported verb.

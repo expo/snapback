@@ -20,16 +20,19 @@ Pro mini) rather than the control plane.
 
 ## Staging experience (orchestrator's seat)
 
-- The publication-shaped delivery path from 0106 worked again, on a different
-  host, with one new requirement surfaced by the packer: the darwin runtime
+- The publication-shaped delivery path from
+  `0106-sol-high-clique-local-main-0125` worked again on a different host,
+  with one requirement surfaced by the packer: the darwin runtime
   must be built with `SNAPBACK_BUILD_DISTRIBUTION=public-package` or
   `snapback-publish.mjs` refuses with
   `SNAPBACK_PACKAGE_CAPABILITY_ATTESTATION_REQUIRED`. The contributor-source
   build that `assemble-runtime-package` produces is not what the packer wants;
-  the env-stamped rebuild is.
-- `53e7ac866` closed yesterday's skill-ceiling staging defect for real: the
+  the env-stamped rebuild is. Default dry-run staging is still not the
+  receipt-qualified real-publication path.
+- `53e7ac866` closed the skill-ceiling staging defect recorded in
+  `0106-sol-high-clique-local-main-0125`: the
   scaffold-emitted skill body is 10,165 B, lane-setup accepted it unmodified,
-  zero preflight warnings. The trim workaround from 0106 is obsolete.
+  zero preflight warnings. That diary's trim workaround is obsolete.
 - Provisioning the harness on a fresh fleet machine was ~15 minutes: npm
   install the renamed package, copy provider auth, one smoke prompt. The
   `@mariozechner` → `@earendil-works` package rename is a trap: npm `latest`
@@ -38,7 +41,7 @@ Pro mini) rather than the control plane.
   usage, which is a clean metering channel for this harness
   (`tokens.source: pi jsonl agent events`).
 
-(Lane experience sections appended below as lanes complete.)
+The completed lane experience follows.
 
 ## Explicit lane (r2, from the transcript)
 
@@ -47,13 +50,14 @@ were opinionated about contracts, capabilities, and deployments the way
 Firebase is opinionated about offline — more friction at the edges,
 considerably less doubt in the middle." Concretely:
 
-- The `single_table_v1` refusal hit at first dev boot and cost a real
-  redesign of the read layer into all-JS-handlers — but the refusal message
-  carried enough structure (`requiredCapabilities` in functions.manifest) for
-  the lane to self-diagnose the capability class without any source diving.
-- The deepest genuine bug found needed two browsers: an empty dev LogBox toast
-  intercepting every click on the page. Two-client choreography keeps earning
-  its place in this instrument.
+- The unqualified dry-run closure's `single_table_v1` refusal hit at first dev
+  boot and cost a real redesign of the read layer into all-JS-handlers. The
+  refusal message carried enough structure (`requiredCapabilities` in
+  functions.manifest) for the lane to self-diagnose without source diving;
+  this was not evidence against a receipt-qualified published closure.
+- The deepest lane-local app/harness bug found needed two browsers: an empty
+  dev LogBox toast intercepted every click. Its Snapback attribution remains
+  unverified, but two-client choreography still earned its place.
 - After the mid-run infrastructure kill, resuming the same session worked
   cleanly: the agent re-established its backend, re-ran all suites green, and
   finished the docs. State lived in the repo, not in the agent's head.
@@ -63,8 +67,11 @@ considerably less doubt in the middle." Concretely:
 Familiar's verdict: "handlers read like specifications... generation refusals
 catch real bugs (unbounded takes, cross-handler awaits). The costs are dialect
 cliffs — patch signatures, order(), intent triple-agreement — that cost hours
-when hit blind." That matches 0104–0106 exactly: after the foundation, M2/M3
-were product logic, not plumbing.
+when hit blind." That matches
+`0104-sol-high-clique-explicit-local-main`,
+`0105-sol-high-clique-familiar-local-main`, and
+`0106-sol-high-clique-local-main-0125`: after the foundation, M2/M3 were
+product logic, not plumbing.
 
 ## Harness findings (pi + ox-alpha as lane agent)
 
@@ -98,6 +105,8 @@ grows.
 
 This run used the unpublished `261e595ad` candidate. Current `main` already
 tests the configured password floor, documents the LiveQuery-only React hook,
-and has closed the fixed-origin lifecycle work. The package qualification and
-misleading `.order()` refusal observations remain open for current
-revalidation; the frozen-instrument write is tracked as a harness defect.
+preserves sessions through the qualified successor path, and has closed the
+fixed-origin lifecycle work. The dry-run package observation routes to the
+existing qualified-staging owner; only the admitted `.order()` serving failure
+is newly open for current packed revalidation. The frozen-instrument write is
+tracked as a harness defect.
