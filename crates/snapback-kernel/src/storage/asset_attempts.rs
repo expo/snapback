@@ -34,7 +34,9 @@ fn asset_attempts_after_commit_observers_for_test() -> &'static std::sync::Mutex
 }
 
 /// One-shot test observer for the cut immediately after an asset transaction
-/// commits and before its caller-owned guard drops.
+/// commits and before its caller-owned guard drops. The standard shipped
+/// binary excludes this API; `test-support` is internal verification plumbing
+/// and must not be enabled in a published build.
 #[cfg(any(test, feature = "test-support"))]
 #[doc(hidden)]
 pub struct AssetAttemptsAfterCommitObserverForTest {

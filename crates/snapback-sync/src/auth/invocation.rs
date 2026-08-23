@@ -1240,14 +1240,17 @@ pub struct AuthorizedEffectReservation {
     scope_probe_for_test: std::sync::Mutex<Option<AuthorizedEffectScopeProbeForTest>>,
 }
 
-/// Test-only observation of one exact reservation's commit-guard scope.
+/// Test-only observation of one exact reservation and its commit-guard scope.
 /// The marker distinguishes a freshly reserved effect from any predecessor,
 /// while the active effect identifies the particular durable cut it guards.
+/// The standard shipped binary excludes this API; `test-support` is internal
+/// verification plumbing and must not be enabled in a published build.
 #[cfg(any(test, feature = "test-support"))]
 #[doc(hidden)]
 #[derive(Clone)]
 pub struct AuthorizedEffectScopeProbeForTest {
     marker: String,
+    reservation_held: std::sync::Arc<std::sync::atomic::AtomicBool>,
     active_effect: std::sync::Arc<std::sync::Mutex<Option<&'static str>>>,
 }
 
@@ -1257,6 +1260,7 @@ impl AuthorizedEffectScopeProbeForTest {
     pub fn new(marker: impl Into<String>) -> Self {
         Self {
             marker: marker.into(),
+            reservation_held: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             active_effect: std::sync::Arc::new(std::sync::Mutex::new(None)),
         }
     }
@@ -1264,6 +1268,12 @@ impl AuthorizedEffectScopeProbeForTest {
     #[doc(hidden)]
     pub fn marker(&self) -> &str {
         &self.marker
+    }
+
+    #[doc(hidden)]
+    pub fn is_reservation_held(&self) -> bool {
+        self.reservation_held
+            .load(std::sync::atomic::Ordering::Acquire)
     }
 
     #[doc(hidden)]
@@ -1277,10 +1287,31 @@ impl AuthorizedEffectScopeProbeForTest {
 
     #[doc(hidden)]
     pub fn is_inactive(&self) -> bool {
-        self.active_effect
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .is_none()
+        !self.is_reservation_held()
+            && self
+                .active_effect
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .is_none()
+    }
+
+    fn reserve(&self) {
+        assert!(
+            !self
+                .reservation_held
+                .swap(true, std::sync::atomic::Ordering::AcqRel),
+            "authorized-effect scope probe {} is already reserved",
+            self.marker
+        );
+    }
+
+    fn release(&self) {
+        assert!(
+            self.reservation_held
+                .swap(false, std::sync::atomic::Ordering::AcqRel),
+            "authorized-effect scope probe {} was released without a reservation",
+            self.marker
+        );
     }
 
     fn enter(&self, effect: &'static str) -> AuthorizedEffectScopeProbeGuardForTest {
@@ -1375,6 +1406,7 @@ impl AuthorizedEffectReservation {
     #[cfg(any(test, feature = "test-support"))]
     #[doc(hidden)]
     pub fn with_scope_probe_for_test(self, probe: AuthorizedEffectScopeProbeForTest) -> Self {
+        probe.reserve();
         *self
             .scope_probe_for_test
             .lock()
@@ -1431,6 +1463,20 @@ impl AuthorizedEffectReservation {
             #[cfg(any(test, feature = "test-support"))]
             _scope_probe_for_test: scope_probe_for_test,
         })
+    }
+}
+
+#[cfg(any(test, feature = "test-support"))]
+impl Drop for AuthorizedEffectReservation {
+    fn drop(&mut self) {
+        if let Some(probe) = self
+            .scope_probe_for_test
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .as_ref()
+        {
+            probe.release();
+        }
     }
 }
 

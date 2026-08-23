@@ -32522,6 +32522,9 @@ globalThis.__snapbackHandlers = {
   },
   async signedImageUpload(ctx) {
     return { owner: ctx.auth.userId };
+  },
+  async requiredImageUpload(ctx) {
+    return { owner: ctx.auth.userId };
   }
 };
 "#;
@@ -32531,6 +32534,15 @@ fn asset_authorized_effect_test_intent(
     delivery: crate::assets::AssetDeliveryProfile,
 ) -> crate::manifest::AssetUploadIntentDefinition {
     let image = name.contains("Image");
+    let variants = if name == "requiredImageUpload" {
+        vec![crate::manifest::AssetImageVariant {
+            key: "required-thumb".to_owned(),
+            width: 8,
+            required: true,
+        }]
+    } else {
+        Vec::new()
+    };
     crate::manifest::AssetUploadIntentDefinition {
         id: format!("app:{name}"),
         name: name.to_owned(),
@@ -32554,7 +32566,7 @@ fn asset_authorized_effect_test_intent(
         grants: false,
         image: image.then_some(crate::manifest::AssetImagePolicy {
             location: crate::manifest::AssetLocationPolicy::Retain,
-            variants: Vec::new(),
+            variants,
         }),
         video: None,
         on: None,
@@ -32588,6 +32600,10 @@ async fn asset_authorized_effect_server_fixture_async() -> AppState {
             asset_authorized_effect_test_intent(
                 "signedImageUpload",
                 crate::assets::AssetDeliveryProfile::PrivateSigned,
+            ),
+            asset_authorized_effect_test_intent(
+                "requiredImageUpload",
+                crate::assets::AssetDeliveryProfile::PrivateStrict,
             ),
         ];
         sessions_activation_server_fixture_with(functions, None)
@@ -32821,6 +32837,21 @@ async fn asset_test_finalize(
 async fn asset_authorized_effect_fixture(
     site: AssetAuthorizedEffectSite,
 ) -> AssetAuthorizedEffectFixture {
+    asset_authorized_effect_fixture_with_upload(
+        site,
+        site.intent_name(),
+        site.upload_bytes(),
+        site.upload_content_type(),
+    )
+    .await
+}
+
+async fn asset_authorized_effect_fixture_with_upload(
+    site: AssetAuthorizedEffectSite,
+    intent_name: &str,
+    upload_bytes: &[u8],
+    upload_content_type: &str,
+) -> AssetAuthorizedEffectFixture {
     let state = asset_authorized_effect_server_fixture_async().await;
     let credential =
         mint_test_credential(&state, &format!("asset-{}@example.test", site.label())).await;
@@ -32847,9 +32878,9 @@ async fn asset_authorized_effect_fixture(
         let target = asset_test_create(
             &router,
             &bearer,
-            site.intent_name(),
-            site.upload_bytes().len(),
-            site.upload_content_type(),
+            intent_name,
+            upload_bytes.len(),
+            upload_content_type,
         )
         .await;
         if site.needs_ready_asset() || site.needs_complete_transfer() {
@@ -32857,7 +32888,7 @@ async fn asset_authorized_effect_fixture(
                 &router,
                 &bearer,
                 target.attempt_id.as_deref().expect("ready attempt id"),
-                site.upload_bytes(),
+                upload_bytes,
             )
             .await;
         }
@@ -33657,7 +33688,13 @@ async fn asset_http_finalize_fresh_retry_guard_refusal_prevents_phase_d() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn asset_http_finalize_fresh_retry_guard_lives_through_phase_d_commit() {
-    let fixture = asset_authorized_effect_fixture(AssetAuthorizedEffectSite::Finalize).await;
+    let fixture = asset_authorized_effect_fixture_with_upload(
+        AssetAuthorizedEffectSite::Finalize,
+        "requiredImageUpload",
+        include_bytes!("../../../../brand/favicon-16.png"),
+        "image/png",
+    )
+    .await;
     let attempt_id = fixture
         .target
         .attempt_id
@@ -33680,6 +33717,14 @@ async fn asset_http_finalize_fresh_retry_guard_lives_through_phase_d_commit() {
     let after_phase_c_commit =
         snapback_kernel::storage::install_asset_attempts_after_commit_observer_for_test(
             move || phase_c_scope.is_active_for("asset finalize publication-staged transaction"),
+        );
+    let required_phase_c_scope = scope.clone();
+    let after_required_phase_c_commit =
+        snapback_kernel::storage::install_asset_attempts_after_commit_observer_for_test(
+            move || {
+                required_phase_c_scope
+                    .is_active_for("asset finalize required-rendition staged transaction")
+            },
         );
     let phase_d_scope = scope.clone();
     let after_phase_d_commit =
@@ -33720,6 +33765,10 @@ async fn asset_http_finalize_fresh_retry_guard_lives_through_phase_d_commit() {
     assert!(
         after_phase_c_commit.observed(),
         "the marked fresh retry guard was not active after the Phase-C COMMIT",
+    );
+    assert!(
+        after_required_phase_c_commit.observed(),
+        "the marked fresh retry guard was not active after the required-rendition Phase-C COMMIT",
     );
     assert!(
         after_phase_d_commit.observed(),

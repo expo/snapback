@@ -318,8 +318,17 @@ pub(super) async fn asset_attempt_finalize_route(
                 return Ok(Json(response));
             }
             crate::assets::FinalizePhaseCDOutcomeV1::Revalidate(ticket) => {
+                #[cfg(test)]
+                let retry_scope = test_asset_retry_guard_scope(&headers);
                 let revalidate_authority = authority.clone();
                 let ticket = with_snapback(&state, move |snapback| {
+                    #[cfg(test)]
+                    if let Some(scope) = retry_scope {
+                        assert!(
+                            !scope.is_reservation_held(),
+                            "asset witness revalidation held the marked retry reservation",
+                        );
+                    }
                     snapback
                         .asset_attempt_finalize_revalidate_witness(&revalidate_authority, ticket)
                 })

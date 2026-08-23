@@ -12,6 +12,8 @@ path = "src/lib.rs"
 [features]
 default = ["sync-owner"]
 sync-owner = []
+# The standard shipped binary does not enable this internal verification
+# surface; published builds must not enable it.
 test-support = []
 
 [dependencies]

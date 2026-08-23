@@ -12112,6 +12112,20 @@ fn take_test_asset_retry_guard(
         .remove(id)
 }
 
+#[cfg(test)]
+fn test_asset_retry_guard_scope(headers: &HeaderMap) -> Option<AuthorizedEffectScopeProbeForTest> {
+    let id = headers
+        .get(TEST_ASSET_RETRY_GUARD_HEADER)
+        .and_then(|value| value.to_str().ok())?;
+    let guards = test_asset_retry_guards()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    match guards.get(id) {
+        Some(TestAssetRetryGuardAction::Probe(probe)) => Some(probe.clone()),
+        Some(TestAssetRetryGuardAction::Refuse) | None => None,
+    }
+}
+
 /// Deterministic A/B reload seam for the coordinated `function.run` mutation
 /// regression. The pause is after the commit turn has returned and before the
 /// envelope turn reacquires Local — exactly the window in which a later
