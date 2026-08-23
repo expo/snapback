@@ -85,7 +85,10 @@ when no template is selected.
   should then be declared explicitly.
 - **The loop.** Edit → `bun run generate` → `bun run dev` →
   `bun run prove`. A green verify receipt is "done"; anything else is a
-  claim. Here, “prove” means acceptance evidence, not formal proof.
+  claim. Here, “prove” means acceptance evidence, not formal proof. Before
+  extending or ejecting its runner, read
+  `node_modules/@expo/snapback-acceptance/README.md`, the compatibility and
+  ownership contract.
 - **When something refuses,** read the `SNAPBACK_*` code, then run
   `snapback guide <CODE>` for the exact rule and fix.
 
@@ -145,6 +148,9 @@ Vite; it prints the admin console URL) → `bun run prove`.
 `bun run prove` (`npm run prove` is equivalent) is the acceptance command:
 it runs the registered live profile through `snapback verify` and writes
 the receipt to `.snapback/verify-receipt.json`. Done = green receipt.
+Before extending or ejecting that runner, read
+`node_modules/@expo/snapback-acceptance/README.md`; it is the supported
+compatibility and ownership contract.
 
 <!-- script-glossary:begin -->
 ## Script glossary
@@ -256,6 +262,10 @@ Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
 → `bun run generate` → `bun run dev` (supervises the Expo client; it never
 launches a device or simulator — Expo Go, a dev client, or
 `expo run:ios|android` is your job) → `bun run prove`.
+
+Before extending or ejecting the proof runner, read
+`node_modules/@expo/snapback-acceptance/README.md`; it is the supported
+compatibility and ownership contract.
 
 <!-- script-glossary:begin -->
 ## Script glossary
