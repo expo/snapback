@@ -7610,7 +7610,7 @@
     },
     "GraphQueryShapedReasonV1": {
       "enum": [
-        "base-not-class1",
+        "base-not-class-1",
         "separation-unprovable",
         "scope-unbound",
         "audience-parity-failed",

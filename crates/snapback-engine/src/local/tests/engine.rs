@@ -39,6 +39,415 @@ fn visible_telemetry_events_for_test(
     )
 }
 
+fn graph_test_schema() -> SchemaManifest {
+    SchemaManifest {
+        tables: vec![TableManifest {
+            name: "issues".to_owned(),
+            fields: vec![
+                FieldManifest {
+                    name: "title".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "status".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "assigneeId".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "updatedAt".to_owned(),
+                    field_type: FieldType::Integer,
+                    optional: false,
+                },
+            ],
+            indexes: vec![
+                IndexManifest {
+                    name: "by_updated".to_owned(),
+                    fields: vec!["updatedAt".to_owned()],
+                    unique: false,
+                    where_applicable: false,
+                },
+                IndexManifest {
+                    name: "by_status_assignee_updated".to_owned(),
+                    fields: vec![
+                        "status".to_owned(),
+                        "assigneeId".to_owned(),
+                        "updatedAt".to_owned(),
+                    ],
+                    unique: false,
+                    where_applicable: false,
+                },
+                IndexManifest {
+                    name: "by_id".to_owned(),
+                    fields: vec!["_id".to_owned()],
+                    unique: true,
+                    where_applicable: false,
+                },
+            ],
+            search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
+            search_live_limits: None,
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            membership: None,
+            authority_profile: None,
+            asset_sharing: None,
+            visibility: Some(TableVisibilityV1::PublicRead),
+            history: None,
+        }],
+        ..SchemaManifest::default()
+    }
+}
+
+fn graph_test_function() -> FunctionDefinition {
+    let mut plan: crate::manifest::GraphQueryPlanV1 =
+        serde_json::from_str::<crate::manifest::GraphQueryCarrierV1>(include_str!(
+            "../../../../../tests/conformance/graph/minimal-carrier.v1.json"
+        ))
+        .expect("minimal graph carrier")
+        .normalized_plan;
+    let result_contract = FunctionResultContract::Records {
+        record: ResultValueContract::Object {
+            fields: vec![ResultObjectFieldContract {
+                name: "title".to_owned(),
+                required: true,
+                value: ResultValueContract::String {
+                    max_bytes: 1024 * 1024,
+                },
+            }],
+            allow_extra: false,
+        },
+        rows: Some(crate::manifest::ResultRowsBound {
+            min_items: 0,
+            max_items: 2,
+        }),
+    };
+    let result_hash = crate::manifest::result_contract_hash(&result_contract).unwrap();
+    plan.result_contract_hash = crate::manifest::Sha256V1::new(result_hash.clone()).unwrap();
+    let carrier = crate::manifest::graph_plan_identity_v1(&plan).expect("valid graph fixture");
+    let mut function = FunctionDefinition::new(
+        "graphIssues",
+        FunctionKind::LiveQuery,
+        FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier)),
+    );
+    function.result_contract = result_contract;
+    function.result_contract_hash = Some(result_hash);
+    function.required_capabilities =
+        vec!["graph_query_v1".to_owned(), "live_subscriptions".to_owned()];
+    function.authority_independent = true;
+    function
+}
+
+fn graph_test_artifacts(function: FunctionDefinition) -> StartupArtifacts {
+    StartupArtifacts {
+        format_version: STARTUP_ARTIFACT_FORMAT_VERSION,
+        schema: graph_test_schema(),
+        functions: FunctionManifest {
+            acknowledged_experimental_capabilities: vec!["graph_query_v1".to_owned()],
+            functions: vec![function],
+            ..FunctionManifest::default()
+        },
+        seed: None,
+    }
+}
+
+fn graph_fault_reasons(
+    function: &FunctionDefinition,
+) -> Vec<crate::manifest::GraphAdmissionRefusalReasonV1> {
+    let manifest = FunctionManifest {
+        functions: vec![function.clone()],
+        ..FunctionManifest::default()
+    };
+    graph_query_admission_faults(&manifest, &graph_test_schema())
+        .into_iter()
+        .map(|fault| fault.reason)
+        .collect()
+}
+
+fn graph_plan_mut(function: &mut FunctionDefinition) -> &mut crate::manifest::GraphQueryPlanV1 {
+    let FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier)) = &mut function.runtime else {
+        unreachable!("graph fixture runtime")
+    };
+    &mut carrier.normalized_plan
+}
+
+fn public_graph_admission_error(function: FunctionDefinition) -> String {
+    let mut snapback = LocalSnapback::memory().expect("graph public-admission fixture");
+    snapback
+        .preflight_auth_artifacts(&graph_test_artifacts(function), AuthMode::Dev)
+        .expect_err("malformed graph must refuse before target admission")
+        .diagnostic
+        .code
+}
+
+#[test]
+fn graph_admission_unions_phase_faults_before_global_precedence() {
+    use crate::manifest::GraphAdmissionRefusalReasonV1 as Reason;
+
+    let mut order_authority = graph_test_function();
+    let plan = graph_plan_mut(&mut order_authority);
+    let crate::manifest::GraphNodeV1::RootWindow {
+        authority,
+        order,
+        access_index,
+        ..
+    } = &mut plan.nodes[0]
+    else {
+        unreachable!()
+    };
+    order[0].field = "_id".to_owned();
+    *access_index = "by_id".to_owned();
+    authority.declared_class = crate::manifest::GraphAuthorityClassV1::PRINCIPAL_SCOPED;
+    let reasons = graph_fault_reasons(&order_authority);
+    assert!(reasons.contains(&Reason::OrderNotTotal));
+    assert!(reasons.contains(&Reason::AuthorityUnprovable));
+    assert_eq!(
+        public_graph_admission_error(order_authority),
+        Reason::OrderNotTotal.code()
+    );
+
+    let mut root_contract = graph_test_function();
+    let extra_root = graph_plan_mut(&mut root_contract).nodes[0].clone();
+    let plan = graph_plan_mut(&mut root_contract);
+    let mut extra_root = extra_root;
+    let crate::manifest::GraphNodeV1::RootWindow { node_id, .. } = &mut extra_root else {
+        unreachable!()
+    };
+    *node_id = "n2".to_owned();
+    plan.nodes.insert(1, extra_root);
+    root_contract.result_contract = FunctionResultContract::Unknown;
+    let reasons = graph_fault_reasons(&root_contract);
+    assert!(reasons.contains(&Reason::RootCountInvalid));
+    assert!(reasons.contains(&Reason::ResultContractMismatch));
+    assert_eq!(
+        public_graph_admission_error(root_contract),
+        Reason::RootCountInvalid.code()
+    );
+
+    let mut schema_argument = graph_test_function();
+    let plan = graph_plan_mut(&mut schema_argument);
+    let crate::manifest::GraphNodeV1::RootWindow { table, .. } = &mut plan.nodes[0] else {
+        unreachable!()
+    };
+    *table = "missingIssues".to_owned();
+    plan.arguments = serde_json::from_value(json!([
+        {
+            "argumentId":"authored-A", "name":"A",
+            "contract":{"format":"snapback.argument-binding-contract.v1","required":true,"value":{"kind":"boolean"}},
+            "contractHash":"sha256:0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        {
+            "argumentId":"authored-a0", "name":"a0",
+            "contract":{"format":"snapback.argument-binding-contract.v1","required":true,"value":{"kind":"boolean"}},
+            "contractHash":"sha256:0000000000000000000000000000000000000000000000000000000000000000"
+        }
+    ]))
+    .unwrap();
+    let reasons = graph_fault_reasons(&schema_argument);
+    assert!(reasons.contains(&Reason::SchemaReferenceInvalid));
+    assert!(reasons.contains(&Reason::ArgumentUnbound));
+    assert_eq!(
+        public_graph_admission_error(schema_argument),
+        Reason::SchemaReferenceInvalid.code()
+    );
+}
+
+#[test]
+fn graph_result_contract_is_reified_not_trusted_from_retained_hash() {
+    use crate::manifest::GraphAdmissionRefusalReasonV1 as Reason;
+
+    let mut function = graph_test_function();
+    let plan = graph_plan_mut(&mut function);
+    let crate::manifest::GraphNodeV1::ClosedProjection { object, .. } =
+        plan.nodes.last_mut().unwrap()
+    else {
+        unreachable!()
+    };
+    object.fields[0].name = "retainedHashCannotHideThisRename".to_owned();
+    let reasons = graph_fault_reasons(&function);
+    assert!(reasons.contains(&Reason::ResultContractMismatch));
+    assert_eq!(
+        public_graph_admission_error(function),
+        Reason::ResultContractMismatch.code()
+    );
+}
+
+#[test]
+fn graph_root_index_prefix_uses_declared_component_order() {
+    use crate::manifest::GraphAdmissionRefusalReasonV1 as Reason;
+
+    let mut function = graph_test_function();
+    let result_hash = function.result_contract_hash.clone().unwrap();
+    let plan = graph_plan_mut(&mut function);
+    let crate::manifest::GraphNodeV1::RootWindow {
+        filters,
+        access_index,
+        ..
+    } = &mut plan.nodes[0]
+    else {
+        unreachable!()
+    };
+    *filters = vec![
+        FilterExpr {
+            field: "status".to_owned(),
+            op: FilterOp::Eq,
+            value: ValueExpr::Literal(json!("open")),
+        },
+        FilterExpr {
+            field: "assigneeId".to_owned(),
+            op: FilterOp::Eq,
+            value: ValueExpr::Literal(json!("user-1")),
+        },
+    ];
+    *access_index = "by_status_assignee_updated".to_owned();
+    plan.result_contract_hash = crate::manifest::Sha256V1::new(result_hash).unwrap();
+    let rebuilt = crate::manifest::graph_plan_identity_v1(plan).unwrap();
+    let FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier)) = &mut function.runtime else {
+        unreachable!()
+    };
+    *carrier = rebuilt;
+    let reasons = graph_fault_reasons(&function);
+    assert!(!reasons.contains(&Reason::IndexPrefixUnsupported));
+    assert!(!reasons.contains(&Reason::IndexUnprovable));
+    assert!(reasons.is_empty(), "unexpected graph faults: {reasons:?}");
+}
+
+#[test]
+fn graph_query_v1_schema_round_trips_every_node_kind_through_public_engine_admission() {
+    use crate::manifest::GraphAdmissionRefusalReasonV1 as Reason;
+
+    let equality = |node_id: &str, parent_node_id: &str, edge_name: &str| {
+        serde_json::from_value::<crate::manifest::GraphNodeV1>(json!({
+            "nodeId":node_id, "kind":"equality-to-one", "edgeName":edge_name,
+            "authority":{"declaredClass":1,"proof":null}, "parentNodeId":parent_node_id,
+            "table":"issues", "visibility":{"kind":"public-read"},
+            "joinOn":[{"rootField":"_id","joinedField":"_id"}],
+            "accessIndex":"by_updated", "presence":"optional"
+        }))
+        .unwrap()
+    };
+    let mut cases = Vec::<(&str, FunctionDefinition, Reason)>::new();
+
+    let mut two_roots = graph_test_function();
+    let mut root = graph_plan_mut(&mut two_roots).nodes[0].clone();
+    let crate::manifest::GraphNodeV1::RootWindow { node_id, .. } = &mut root else {
+        unreachable!()
+    };
+    *node_id = "n2".to_owned();
+    graph_plan_mut(&mut two_roots).nodes.insert(1, root);
+    cases.push(("two roots", two_roots, Reason::RootCountInvalid));
+
+    let mut two_projections = graph_test_function();
+    let mut projection = graph_plan_mut(&mut two_projections).nodes[1].clone();
+    let crate::manifest::GraphNodeV1::ClosedProjection { node_id, .. } = &mut projection else {
+        unreachable!()
+    };
+    *node_id = "n2".to_owned();
+    graph_plan_mut(&mut two_projections).nodes.push(projection);
+    cases.push((
+        "two projections",
+        two_projections,
+        Reason::ProjectionCountInvalid,
+    ));
+
+    let mut orphan = graph_test_function();
+    graph_plan_mut(&mut orphan)
+        .nodes
+        .insert(1, equality("n2", "missing", "orphan"));
+    cases.push(("orphan", orphan, Reason::ParentInvalid));
+
+    let mut cycle = graph_test_function();
+    let plan = graph_plan_mut(&mut cycle);
+    plan.nodes.insert(1, equality("n2", "n3", "cycle-a"));
+    plan.nodes.insert(2, equality("n3", "n2", "cycle-b"));
+    cases.push(("cycle", cycle, Reason::Cycle));
+
+    let mut inert = graph_test_function();
+    graph_plan_mut(&mut inert)
+        .nodes
+        .insert(1, equality("n2", "n0", "inert"));
+    cases.push(("inert node", inert, Reason::NodeInert));
+
+    let mut code = graph_test_function();
+    let crate::manifest::GraphNodeV1::RootWindow { filters, .. } =
+        &mut graph_plan_mut(&mut code).nodes[0]
+    else {
+        unreachable!()
+    };
+    filters.push(FilterExpr {
+        field: "status".to_owned(),
+        op: FilterOp::Eq,
+        value: ValueExpr::RuntimeNow,
+    });
+    cases.push(("forbidden ValueExpr", code, Reason::CodeForbidden));
+
+    let mut reserved_id = graph_test_function();
+    let crate::manifest::GraphNodeV1::RootWindow { order, .. } =
+        &mut graph_plan_mut(&mut reserved_id).nodes[0]
+    else {
+        unreachable!()
+    };
+    order[0].field = "_id".to_owned();
+    cases.push(("reserved _id order", reserved_id, Reason::OrderNotTotal));
+
+    let mut through = graph_test_function();
+    let through_node = serde_json::from_value::<crate::manifest::GraphNodeV1>(json!({
+        "nodeId":"n2", "kind":"exists-semi-join", "edgeName":"undeclared-through",
+        "authority":{"declaredClass":1,"proof":null}, "parentNodeId":"n0", "mode":"exists",
+        "edge":{
+            "table":"", "visibility":{"kind":"public-read"}, "parentJoin":[],
+            "targetTable":"", "targetVisibility":{"kind":"public-read"}, "targetJoin":[],
+            "parentIndex":"", "targetIndex":""
+        }
+    }))
+    .unwrap();
+    graph_plan_mut(&mut through).nodes.insert(1, through_node);
+    cases.push((
+        "undeclared through table",
+        through,
+        Reason::ThroughTableUndeclared,
+    ));
+
+    for (name, function, required_fault) in cases {
+        let reasons = graph_fault_reasons(&function);
+        assert!(
+            reasons.contains(&required_fault),
+            "{name} did not expose {required_fault:?}: {reasons:?}"
+        );
+        let first = *reasons.first().expect("negative plan has a first row");
+        assert_eq!(
+            public_graph_admission_error(function),
+            first.code(),
+            "{name} must report the global minimum row"
+        );
+    }
+}
+
+#[test]
+fn graph_query_v1_forged_engine_invocation_has_no_executor() {
+    let mut snapback = LocalSnapback::memory().expect("forged graph fixture");
+    snapback.install_forged_function_for_test(graph_test_function());
+    let error = snapback
+        .invoke_query(
+            "graphIssues",
+            HandlerInput {
+                args: json!({}),
+                auth: AuthInput::default(),
+                read_set: Vec::new(),
+                correlation: None,
+                ctx_ledger: None,
+            },
+        )
+        .expect_err("Stage B1 has no graph executor");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_FUNCTION_KIND_MISMATCH");
+}
+
 #[test]
 fn unbound_local_snapback_defaults_governance_activation_to_prod() {
     let snapback = LocalSnapback::memory().expect("memory app");

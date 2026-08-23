@@ -9,5 +9,27 @@
     {"name": "wrong-field-order", "entries": [["updatedAt", 42], ["priority", null]], "id": "issue-7"},
     {"name": "wrong-tuple-arity", "entries": [["priority"]], "id": "issue-7"},
     {"name": "wrong-tuple-field-type", "entries": [[7, null]], "id": "issue-7"}
+  ],
+  "literalPageNegative": [
+    {
+      "name": "literal-lower-empty-id",
+      "order": [{"field": "priority", "direction": "Asc"}],
+      "end": {"kind": "inclusive", "key": {"entries": [["priority", 1]], "id": ""}}
+    },
+    {
+      "name": "literal-upper-short-arity",
+      "order": [{"field": "priority", "direction": "Asc"}, {"field": "updatedAt", "direction": "Desc"}],
+      "end": {"kind": "exclusive", "key": {"entries": [["priority", 1]], "id": "issue-7"}}
+    },
+    {
+      "name": "literal-lower-oversized-canonical-value",
+      "order": [{"field": "priority", "direction": "Asc"}],
+      "end": {"kind": "inclusive", "key": {"entries": [["priority", {"repeat": "x", "bytes": 65537}]], "id": "issue-7"}}
+    },
+    {
+      "name": "literal-order-reserves-id",
+      "order": [{"field": "_id", "direction": "Asc"}],
+      "end": {"kind": "unbounded"}
+    }
   ]
 }

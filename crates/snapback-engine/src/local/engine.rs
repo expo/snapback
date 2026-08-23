@@ -8384,6 +8384,7 @@ impl LocalSnapback {
                 "startup artifact carrier has an unsupported format",
             ));
         }
+        validate_graph_query_admission(&artifacts.functions, &artifacts.schema)?;
         artifacts.schema.validate_artifact()?;
         artifacts.functions.validate_artifact()?;
         artifacts
@@ -8844,6 +8845,11 @@ impl LocalSnapback {
         manifest: FunctionManifest,
         intent: crate::generation_activation::FunctionGenerationActivationIntent,
     ) -> Vec<Diagnostic> {
+        if let Err(error) = validate_graph_query_admission(&manifest, self.db.schema()) {
+            let diagnostic = error.diagnostic;
+            self.record_attached_diagnostics(vec![diagnostic.clone()]);
+            return vec![diagnostic];
+        }
         if let Err(error) = manifest.validate_artifact() {
             let diagnostic = error.diagnostic;
             self.record_attached_diagnostics(vec![diagnostic.clone()]);
@@ -11796,6 +11802,13 @@ impl LocalSnapback {
         Ok(self
             .invoke_query_with_dependencies_from_source(name, input, InvocationSource::LocalQuery)?
             .output)
+    }
+
+    /// Test-only bypass used to prove that even a forged, already-installed
+    /// graph function cannot reach an executor in Stage B1.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn install_forged_function_for_test(&mut self, function: FunctionDefinition) {
+        self.functions.functions = vec![function];
     }
 
     pub(crate) fn invoke_query_with_dependencies_from_source(
@@ -34199,6 +34212,189 @@ fn graph_admission_error(
     SnapbackError::error(reason.code(), "graph-query", message)
 }
 
+fn graph_schema_field_result_contract(
+    table_name: &str,
+    field_name: &str,
+    schema: &SchemaManifest,
+) -> Result<crate::manifest::ResultValueContract, crate::manifest::GraphAdmissionRefusalReasonV1> {
+    use crate::manifest::{FieldType, ResultValueContract};
+
+    let value = match field_name {
+        "_id" => ResultValueContract::Id {
+            table: table_name.to_owned(),
+        },
+        "_version" | "_createdAt" | "_updatedAt" => ResultValueContract::Integer {
+            min: -9_007_199_254_740_991,
+            max: 9_007_199_254_740_991,
+        },
+        _ => {
+            let field = schema
+                .table(table_name)
+                .and_then(|table| table.field(field_name))
+                .ok_or(crate::manifest::GraphAdmissionRefusalReasonV1::ProjectionOpen)?;
+            let value = match &field.field_type {
+                FieldType::String => ResultValueContract::String {
+                    max_bytes: 1024 * 1024,
+                },
+                FieldType::Enum { values } => ResultValueContract::Union {
+                    variants: values
+                        .iter()
+                        .cloned()
+                        .map(|value| ResultValueContract::Literal {
+                            value: Value::String(value),
+                        })
+                        .collect(),
+                },
+                FieldType::Boolean => ResultValueContract::Boolean,
+                FieldType::Integer => ResultValueContract::Integer {
+                    min: -9_007_199_254_740_991,
+                    max: 9_007_199_254_740_991,
+                },
+                FieldType::Real => ResultValueContract::FiniteReal {
+                    min: -f64::MAX,
+                    max: f64::MAX,
+                },
+                FieldType::Vector { dimensions } => ResultValueContract::Vector {
+                    dimensions: *dimensions,
+                },
+                FieldType::Json => ResultValueContract::Json {
+                    max_depth: 16,
+                    max_bytes: 1024 * 1024,
+                },
+                FieldType::Structured { contract, .. } => contract.descriptor.clone(),
+                FieldType::Principal => ResultValueContract::Principal,
+                FieldType::Id { table } => ResultValueContract::Id {
+                    table: table.clone(),
+                },
+                FieldType::RelationIncarnation { .. } => {
+                    ResultValueContract::String { max_bytes: 64 }
+                }
+                FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
+            };
+            if field.optional && !matches!(&field.field_type, FieldType::Json) {
+                match value {
+                    ResultValueContract::Union { mut variants } => {
+                        variants.insert(0, ResultValueContract::Null);
+                        ResultValueContract::Union { variants }
+                    }
+                    value => ResultValueContract::Union {
+                        variants: vec![ResultValueContract::Null, value],
+                    },
+                }
+            } else {
+                value
+            }
+        }
+    };
+    Ok(value)
+}
+
+fn reify_graph_projection_object(
+    object: &crate::manifest::GraphProjectionObjectV1,
+    nodes: &BTreeMap<&str, &crate::manifest::GraphNodeV1>,
+    plan: &crate::manifest::GraphQueryPlanV1,
+    schema: &SchemaManifest,
+) -> Result<crate::manifest::ResultValueContract, crate::manifest::GraphAdmissionRefusalReasonV1> {
+    use crate::manifest::{GraphNodeV1, GraphProjectionValueV1, ResultValueContract};
+
+    let node_table = |node_id: &str| {
+        nodes.get(node_id).and_then(|node| match node {
+            GraphNodeV1::RootWindow { table, .. }
+            | GraphNodeV1::EqualityToOne { table, .. }
+            | GraphNodeV1::BoundedToMany { table, .. }
+            | GraphNodeV1::PrincipalBound { table, .. } => Some(table.as_str()),
+            _ => None,
+        })
+    };
+    let mut fields = Vec::with_capacity(object.fields.len());
+    for field in &object.fields {
+        let value = match &field.value {
+            GraphProjectionValueV1::Field {
+                node_id,
+                field: field_name,
+            } => {
+                let table_name = node_table(node_id)
+                    .ok_or(crate::manifest::GraphAdmissionRefusalReasonV1::ProjectionOpen)?;
+                graph_schema_field_result_contract(table_name, field_name, schema)?
+            }
+            GraphProjectionValueV1::Literal { value } => ResultValueContract::Literal {
+                value: serde_json::to_value(value).map_err(|_| {
+                    crate::manifest::GraphAdmissionRefusalReasonV1::ResultContractMismatch
+                })?,
+            },
+            GraphProjectionValueV1::Object { object, .. } => {
+                let nested = reify_graph_projection_object(object, nodes, plan, schema)?;
+                ResultValueContract::Union {
+                    variants: vec![ResultValueContract::Null, nested],
+                }
+            }
+            GraphProjectionValueV1::Array {
+                scope_node_id,
+                item,
+            } => {
+                let maximum = plan
+                    .query_cost
+                    .graph
+                    .nodes
+                    .iter()
+                    .find(|cost| cost.node_id == *scope_node_id)
+                    .and_then(|cost| cost.max_children_per_parent)
+                    .and_then(|maximum| usize::try_from(maximum).ok())
+                    .ok_or(crate::manifest::GraphAdmissionRefusalReasonV1::BoundInvalid)?;
+                ResultValueContract::Array {
+                    element: Box::new(reify_graph_projection_object(item, nodes, plan, schema)?),
+                    max_items: maximum,
+                }
+            }
+            GraphProjectionValueV1::Exists { .. } => ResultValueContract::Boolean,
+        };
+        fields.push(crate::manifest::ResultObjectFieldContract {
+            name: field.name.clone(),
+            required: true,
+            value,
+        });
+    }
+    Ok(ResultValueContract::Object {
+        fields,
+        allow_extra: false,
+    })
+}
+
+/// Rank-4 reconstruction of the exact serialized graph result. This consumes
+/// installed schema types and plan cardinality bounds; an authored digest is
+/// never evidence for its own projection.
+///
+/// @ref LLP 0209#23-closure-admission-demand-time-evaluation-time-and-qualification-registers —
+/// row 29 compares the projection, exact Rust contract, and host hash.
+fn reify_graph_result_contract(
+    plan: &crate::manifest::GraphQueryPlanV1,
+    schema: &SchemaManifest,
+) -> Result<crate::manifest::FunctionResultContract, crate::manifest::GraphAdmissionRefusalReasonV1>
+{
+    let nodes = plan
+        .nodes
+        .iter()
+        .map(|node| (node.node_id(), node))
+        .collect::<BTreeMap<_, _>>();
+    let object = plan
+        .nodes
+        .iter()
+        .find_map(|node| match node {
+            crate::manifest::GraphNodeV1::ClosedProjection { object, .. } => Some(object),
+            _ => None,
+        })
+        .ok_or(crate::manifest::GraphAdmissionRefusalReasonV1::ProjectionCountInvalid)?;
+    let maximum = usize::try_from(plan.query_cost.max_result_rows)
+        .map_err(|_| crate::manifest::GraphAdmissionRefusalReasonV1::BoundInvalid)?;
+    Ok(crate::manifest::FunctionResultContract::Records {
+        record: reify_graph_projection_object(object, &nodes, plan, schema)?,
+        rows: Some(crate::manifest::ResultRowsBound {
+            min_items: 0,
+            max_items: maximum,
+        }),
+    })
+}
+
 fn validate_graph_projection_schema_references(
     object: &crate::manifest::GraphProjectionObjectV1,
     nodes: &BTreeMap<&str, &crate::manifest::GraphNodeV1>,
@@ -34364,10 +34560,36 @@ fn validate_graph_query_schema_references(
                 for ordered in order {
                     field(table_name, &ordered.field)?;
                 }
-                let mut prefix = filters
+                let declared_index = table(table_name)?
+                    .indexes
                     .iter()
-                    .map(|filter| filter.field.clone())
+                    .find(|candidate| candidate.name == *access_index)
+                    .ok_or_else(|| {
+                        graph_admission_error(
+                            crate::manifest::GraphAdmissionRefusalReasonV1::IndexUnprovable,
+                            format!(
+                                "graph query index {table_name}.{access_index} is not declared"
+                            ),
+                        )
+                    })?;
+                let filtered_fields = filters
+                    .iter()
+                    .map(|filter| filter.field.as_str())
+                    .collect::<BTreeSet<_>>();
+                let mut prefix = declared_index
+                    .fields
+                    .iter()
+                    .take_while(|component| filtered_fields.contains(component.as_str()))
+                    .cloned()
                     .collect::<Vec<_>>();
+                if prefix.len() != filtered_fields.len() {
+                    return Err(graph_admission_error(
+                        crate::manifest::GraphAdmissionRefusalReasonV1::IndexPrefixUnsupported,
+                        format!(
+                            "graph query filters for {table_name}.{access_index} do not form a declared-order prefix"
+                        ),
+                    ));
+                }
                 prefix.extend(order.iter().map(|ordered| ordered.field.clone()));
                 index(table_name, access_index, &prefix, false)?;
             }
@@ -34611,6 +34833,445 @@ fn validate_graph_query_schema_references(
         }
     }
     Ok(())
+}
+
+/// Return every distinct installed-owner admission fault, rather than letting
+/// the traversal order of schema checks choose the externally visible row.
+/// A fault is a normative `(row, reason)` pair, so repeated references that
+/// fail for the same reason collapse without losing precedence information.
+fn graph_query_schema_faults(
+    plan: &crate::manifest::GraphQueryPlanV1,
+    schema: &SchemaManifest,
+) -> Vec<crate::manifest::GraphAdmissionFaultV1> {
+    use crate::manifest::{
+        GraphAdmissionFaultV1, GraphAdmissionRefusalReasonV1 as Reason, GraphEdgeV1, GraphNodeV1,
+    };
+
+    #[derive(Default)]
+    struct FaultReasons(std::cell::RefCell<BTreeSet<Reason>>);
+    impl FaultReasons {
+        fn insert(&self, reason: Reason) -> bool {
+            self.0.borrow_mut().insert(reason)
+        }
+    }
+
+    let reasons = FaultReasons::default();
+    let nodes = plan
+        .nodes
+        .iter()
+        .map(|node| (node.node_id(), node))
+        .collect::<BTreeMap<_, _>>();
+    let node_table = |node_id: &str| {
+        nodes.get(node_id).and_then(|node| match node {
+            GraphNodeV1::RootWindow { table, .. }
+            | GraphNodeV1::EqualityToOne { table, .. }
+            | GraphNodeV1::BoundedToMany { table, .. }
+            | GraphNodeV1::PrincipalBound { table, .. } => Some(table.as_str()),
+            _ => None,
+        })
+    };
+    let field_exists = |table_name: &str, field_name: &str| {
+        schema.table(table_name).is_some_and(|table| {
+            matches!(field_name, "_id" | "_version" | "_createdAt" | "_updatedAt")
+                || table.field(field_name).is_some()
+        })
+    };
+    let check_table = |table_name: &str| {
+        if schema.table(table_name).is_none() {
+            reasons.insert(Reason::SchemaReferenceInvalid);
+            false
+        } else {
+            true
+        }
+    };
+    let check_field = |table_name: &str, field_name: &str| {
+        if !field_exists(table_name, field_name) {
+            reasons.insert(Reason::SchemaReferenceInvalid);
+            false
+        } else {
+            true
+        }
+    };
+    let check_visibility = |table_name: &str, actual: &crate::manifest::TableVisibilityV1| {
+        if let Some(table) = schema.table(table_name) {
+            let expected = table
+                .visibility
+                .clone()
+                .unwrap_or(crate::manifest::TableVisibilityV1::PublicRead);
+            if &expected != actual {
+                reasons.insert(Reason::AuthorityUnprovable);
+            }
+        }
+    };
+    let check_index = |table_name: &str, name: &str, prefix: &[String], unique: bool| {
+        let Some(index) = schema
+            .table(table_name)
+            .and_then(|table| table.indexes.iter().find(|index| index.name == name))
+        else {
+            reasons.insert(Reason::IndexUnprovable);
+            return None;
+        };
+        if unique && !index.unique {
+            reasons.insert(Reason::IndexUnprovable);
+        }
+        if !index.fields.starts_with(prefix) {
+            reasons.insert(Reason::IndexPrefixUnsupported);
+        }
+        Some(index.unique)
+    };
+
+    for node in &plan.nodes {
+        match node {
+            GraphNodeV1::RootWindow {
+                table,
+                visibility,
+                filters,
+                access_index,
+                order,
+                ..
+            } => {
+                check_table(table);
+                check_visibility(table, visibility);
+                for filter in filters {
+                    check_field(table, &filter.field);
+                }
+                for component in order {
+                    check_field(table, &component.field);
+                }
+                if let Some(index) = schema.table(table).and_then(|owner| {
+                    owner
+                        .indexes
+                        .iter()
+                        .find(|index| index.name == *access_index)
+                }) {
+                    let filtered = filters
+                        .iter()
+                        .map(|filter| filter.field.as_str())
+                        .collect::<BTreeSet<_>>();
+                    let mut prefix = index
+                        .fields
+                        .iter()
+                        .take_while(|field| filtered.contains(field.as_str()))
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    if prefix.len() != filtered.len() {
+                        reasons.insert(Reason::IndexPrefixUnsupported);
+                    }
+                    prefix.extend(order.iter().map(|component| component.field.clone()));
+                    check_index(table, access_index, &prefix, false);
+                } else {
+                    reasons.insert(Reason::IndexUnprovable);
+                }
+            }
+            GraphNodeV1::EqualityToOne {
+                parent_node_id,
+                table,
+                visibility,
+                join_on,
+                access_index,
+                filters,
+                ..
+            }
+            | GraphNodeV1::BoundedToMany {
+                parent_node_id,
+                table,
+                visibility,
+                join_on,
+                access_index,
+                filters,
+                ..
+            } => {
+                let parent = node_table(parent_node_id);
+                if parent.is_none() {
+                    reasons.insert(Reason::ParentInvalid);
+                }
+                check_table(table);
+                check_visibility(table, visibility);
+                for join in join_on {
+                    if let Some(parent) = parent {
+                        check_field(parent, &join.root_field);
+                    }
+                    check_field(table, &join.joined_field);
+                }
+                for filter in filters.as_deref().unwrap_or_default() {
+                    check_field(table, &filter.field);
+                }
+                let mut prefix = join_on
+                    .iter()
+                    .map(|join| join.joined_field.clone())
+                    .collect::<Vec<_>>();
+                if let GraphNodeV1::BoundedToMany { order, .. } = node {
+                    for component in order {
+                        check_field(table, &component.field);
+                    }
+                    prefix.extend(order.iter().map(|component| component.field.clone()));
+                }
+                check_index(
+                    table,
+                    access_index,
+                    &prefix,
+                    matches!(node, GraphNodeV1::EqualityToOne { .. }),
+                );
+            }
+            GraphNodeV1::ExistsSemiJoin {
+                parent_node_id,
+                edge,
+                filters,
+                ..
+            } => {
+                let parent = node_table(parent_node_id);
+                if parent.is_none() {
+                    reasons.insert(Reason::ParentInvalid);
+                }
+                match edge {
+                    GraphEdgeV1::Direct(edge) => {
+                        check_table(&edge.table);
+                        check_visibility(&edge.table, &edge.visibility);
+                        for join in &edge.join_on {
+                            if let Some(parent) = parent {
+                                check_field(parent, &join.root_field);
+                            }
+                            check_field(&edge.table, &join.joined_field);
+                        }
+                        let prefix = edge
+                            .join_on
+                            .iter()
+                            .map(|join| join.joined_field.clone())
+                            .collect::<Vec<_>>();
+                        let unique = check_index(&edge.table, &edge.access_index, &prefix, false);
+                        let cost = plan
+                            .query_cost
+                            .graph
+                            .nodes
+                            .iter()
+                            .find(|cost| cost.node_id == node.node_id());
+                        let installed_bound_matches = cost.and_then(|cost| {
+                            let attempts = cost.max_relationship_lookups_per_execution?;
+                            let children = cost.max_children_per_parent?;
+                            let examined = if unique == Some(true) {
+                                (children == 1).then_some(attempts)?
+                            } else {
+                                attempts.checked_mul(children.checked_add(1)?)?
+                            };
+                            (examined <= 9_007_199_254_740_991
+                                && examined == cost.max_examined_entries_per_execution)
+                                .then_some(())
+                        });
+                        if installed_bound_matches.is_none() {
+                            reasons.insert(Reason::BoundInvalid);
+                        }
+                        for filter in filters.as_deref().unwrap_or_default() {
+                            check_field(&edge.table, &filter.field);
+                        }
+                    }
+                    GraphEdgeV1::Through(edge) => {
+                        check_table(&edge.table);
+                        check_table(&edge.target_table);
+                        check_visibility(&edge.table, &edge.visibility);
+                        check_visibility(&edge.target_table, &edge.target_visibility);
+                        for join in &edge.parent_join {
+                            if let Some(parent) = parent {
+                                check_field(parent, &join.root_field);
+                            }
+                            check_field(&edge.table, &join.joined_field);
+                        }
+                        for join in &edge.target_join {
+                            check_field(&edge.table, &join.root_field);
+                            check_field(&edge.target_table, &join.joined_field);
+                        }
+                        check_index(
+                            &edge.table,
+                            &edge.parent_index,
+                            &edge
+                                .parent_join
+                                .iter()
+                                .map(|join| join.joined_field.clone())
+                                .collect::<Vec<_>>(),
+                            false,
+                        );
+                        check_index(
+                            &edge.target_table,
+                            &edge.target_index,
+                            &edge
+                                .target_join
+                                .iter()
+                                .map(|join| join.joined_field.clone())
+                                .collect::<Vec<_>>(),
+                            true,
+                        );
+                        for filter in filters.as_deref().unwrap_or_default() {
+                            check_field(&edge.target_table, &filter.field);
+                        }
+                    }
+                }
+            }
+            GraphNodeV1::PrincipalBound {
+                parent_node_id,
+                table,
+                visibility,
+                parent_join,
+                principal_field,
+                access_index,
+                binding,
+                filters,
+                ..
+            } => {
+                let parent = node_table(parent_node_id);
+                if parent.is_none() {
+                    reasons.insert(Reason::ParentInvalid);
+                }
+                check_table(table);
+                check_visibility(table, visibility);
+                let mut prefix = Vec::new();
+                for join in parent_join {
+                    if let Some(parent) = parent {
+                        check_field(parent, &join.root_field);
+                    }
+                    check_field(table, &join.joined_field);
+                    prefix.push(join.joined_field.clone());
+                }
+                check_field(table, principal_field);
+                prefix.push(principal_field.clone());
+                check_index(table, access_index, &prefix, true);
+                for filter in filters.as_deref().unwrap_or_default() {
+                    check_field(table, &filter.field);
+                }
+                if let Some(binding) = binding {
+                    check_table(&binding.table);
+                    check_visibility(&binding.table, &binding.visibility);
+                    check_field(&binding.table, &binding.principal_field);
+                    check_field(&binding.table, &binding.value_field);
+                    check_index(
+                        &binding.table,
+                        &binding.unique_index,
+                        std::slice::from_ref(&binding.principal_field),
+                        true,
+                    );
+                }
+            }
+            GraphNodeV1::SearchMembership {
+                parent_node_id,
+                member_field,
+                scope_bindings,
+                invalidation_tables,
+                ..
+            } => {
+                if let Some(parent) = node_table(parent_node_id) {
+                    check_field(parent, member_field);
+                } else {
+                    reasons.insert(Reason::ParentInvalid);
+                }
+                for binding in scope_bindings {
+                    if let crate::manifest::GraphSearchScopeSourceV1::ParentField {
+                        node_id,
+                        field,
+                    } = &binding.source
+                    {
+                        if let Some(table) = node_table(node_id) {
+                            check_field(table, field);
+                        } else {
+                            reasons.insert(Reason::SchemaReferenceInvalid);
+                        }
+                    }
+                }
+                for table in invalidation_tables {
+                    check_table(table);
+                }
+            }
+            GraphNodeV1::ClosedProjection { object, .. } => {
+                if validate_graph_projection_schema_references(object, &nodes, schema).is_err() {
+                    reasons.insert(Reason::ProjectionOpen);
+                }
+            }
+        }
+    }
+
+    // Keep the reviewed validator as a parity sentinel for any installed-owner
+    // rule added before its complete-set probe is split out above.
+    if let Err(error) = validate_graph_query_schema_references(plan, schema)
+        && let Some(reason) = Reason::from_code(&error.diagnostic.code)
+    {
+        reasons.insert(reason);
+    }
+    reasons
+        .0
+        .into_inner()
+        .into_iter()
+        .map(GraphAdmissionFaultV1::from)
+        .collect()
+}
+
+fn graph_query_admission_faults(
+    manifest: &FunctionManifest,
+    schema: &SchemaManifest,
+) -> Vec<crate::manifest::GraphAdmissionFaultV1> {
+    use crate::manifest::{
+        GraphAdmissionFaultV1, GraphAdmissionRefusalReasonV1, HandlerPlan, graph_plan_identity_v1,
+        graph_query_plan_faults_v1, result_contract_hash,
+    };
+
+    let mut reasons = BTreeSet::new();
+    for function in &manifest.functions {
+        let FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier)) = &function.runtime else {
+            continue;
+        };
+        reasons.extend(
+            graph_query_plan_faults_v1(&carrier.normalized_plan)
+                .into_iter()
+                .map(|fault| fault.reason),
+        );
+        reasons.extend(
+            graph_query_schema_faults(&carrier.normalized_plan, schema)
+                .into_iter()
+                .map(|fault| fault.reason),
+        );
+        match reify_graph_result_contract(&carrier.normalized_plan, schema) {
+            Ok(expected) => {
+                let expected_hash = result_contract_hash(&expected).ok();
+                let actual_hash = result_contract_hash(&function.result_contract).ok();
+                if expected != function.result_contract
+                    || expected_hash.as_deref()
+                        != Some(carrier.normalized_plan.result_contract_hash.as_str())
+                    || actual_hash.as_deref() != function.result_contract_hash.as_deref()
+                {
+                    reasons.insert(GraphAdmissionRefusalReasonV1::ResultContractMismatch);
+                }
+            }
+            Err(reason) => {
+                reasons.insert(reason);
+            }
+        }
+        match graph_plan_identity_v1(&carrier.normalized_plan) {
+            Ok(rebuilt) if rebuilt != *carrier => {
+                reasons.insert(GraphAdmissionRefusalReasonV1::PlanIdentityMismatch);
+            }
+            Err(reason) => {
+                reasons.insert(reason);
+            }
+            Ok(_) => {}
+        }
+    }
+    reasons
+        .into_iter()
+        .map(GraphAdmissionFaultV1::from)
+        .collect()
+}
+
+fn validate_graph_query_admission(
+    manifest: &FunctionManifest,
+    schema: &SchemaManifest,
+) -> SnapbackResult<()> {
+    if let Some(fault) = graph_query_admission_faults(manifest, schema).first() {
+        Err(graph_admission_error(
+            fault.reason,
+            format!(
+                "graph query admission refused at normative row {}: {}",
+                fault.row, fault.reason
+            ),
+        ))
+    } else {
+        Ok(())
+    }
 }
 
 /// Whole-manifest schema-reference preflight. Invocation-time checks remain as

@@ -23002,11 +23002,40 @@ fn production_snapback_literals() -> BTreeSet<String> {
     if cfg!(not(feature = "server-owner")) {
         rust_sources_below(&remainder.join("../snapback-server/src"), &mut sources);
     }
+    // The graph refusal ids are Rust-owned wire vocabulary in snapback-types,
+    // while their HTTP projection is owned here. Include that exact registry
+    // source so every new graph/query-cost id is forced into one reviewed HTTP
+    // family or this file's non-diagnostic exclusions.
+    sources.push(remainder.join("../snapback-types/src/manifest/graph.rs"));
     sources.sort();
 
     let mut visitor = SnapbackLiteralVisitor::default();
     for source in sources {
         let contents = fs::read_to_string(&source).expect("read Rust source");
+        let syntax = syn::parse_file(&contents)
+            .unwrap_or_else(|error| panic!("parse {}: {error}", source.display()));
+        visitor.visit_file(&syntax);
+    }
+    visitor.literals
+}
+
+fn workspace_production_snapback_literals() -> BTreeSet<String> {
+    let crates_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    let mut sources = Vec::new();
+    for entry in fs::read_dir(&crates_dir).expect("read workspace crates directory") {
+        let src = entry
+            .expect("read workspace crate entry")
+            .path()
+            .join("src");
+        if src.is_dir() {
+            rust_sources_below(&src, &mut sources);
+        }
+    }
+    sources.sort();
+
+    let mut visitor = SnapbackLiteralVisitor::default();
+    for source in sources {
+        let contents = fs::read_to_string(&source).expect("read workspace Rust source");
         let syntax = syn::parse_file(&contents)
             .unwrap_or_else(|error| panic!("parse {}: {error}", source.display()));
         visitor.visit_file(&syntax);
@@ -23020,28 +23049,32 @@ fn production_snapback_literals() -> BTreeSet<String> {
 // helper constructors, embedded runtime source, and macros.
 const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
     (
-        "SNAPBACK_GRAPH_ARGUMENT_INVALID",
-        "LLP 0209 demand-time refusal vocabulary reserved in the B1 Rust carrier; no graph request path emits it before G2",
-    ),
-    (
-        "SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID",
-        "LLP 0209 demand-time refusal vocabulary reserved in the B1 Rust carrier; no graph request path emits it before G2",
-    ),
-    (
-        "SNAPBACK_GRAPH_CURSOR_UNBOUND",
-        "LLP 0209 demand-time refusal vocabulary reserved in the B1 Rust carrier; no graph request path emits it before G2",
-    ),
-    (
-        "SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH",
-        "LLP 0209 demand-time refusal vocabulary reserved in the B1 Rust carrier; no graph request path emits it before G2",
-    ),
-    (
         "SNAPBACK_GRAPH_QUALIFICATION_DERIVATION_MISSING",
         "LLP 0209 qualification-runner failure vocabulary; it is not an HTTP diagnostic",
     ),
     (
         "SNAPBACK_GRAPH_QUALIFICATION_CORPUS_MISMATCH",
         "LLP 0209 qualification-runner failure vocabulary; it is not an HTTP diagnostic",
+    ),
+    (
+        "SNAPBACK_QUERY_COST_INDEX_REQUIRED",
+        "LLP 0209 evaluation-time materialized-result vocabulary; Stage B has no graph executor or HTTP producer",
+    ),
+    (
+        "SNAPBACK_QUERY_COST_PAGINATION_REQUIRED",
+        "LLP 0209 evaluation-time materialized-result vocabulary; Stage B has no graph executor or HTTP producer",
+    ),
+    (
+        "SNAPBACK_QUERY_COST_BOUND_EXCEEDED",
+        "LLP 0209 evaluation-time materialized-result vocabulary; Stage B has no graph executor or HTTP producer",
+    ),
+    (
+        "SNAPBACK_QUERY_COST_LIVE_TURN_REFUSED",
+        "LLP 0209 evaluation-time materialized-result vocabulary; Stage B has no graph executor or HTTP producer",
+    ),
+    (
+        "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+        "LLP 0209 evaluation-time materialized-result vocabulary; Stage B has no graph executor or HTTP producer",
     ),
     (
         "SNAPBACK_DEV_AUTH_ORIGINS",
@@ -23687,6 +23720,19 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_GRAPH_RESULT_CONTRACT_MISMATCH",
     "SNAPBACK_GRAPH_PLAN_IDENTITY_MISMATCH",
     "SNAPBACK_GRAPH_ARGUMENT_UNBOUND",
+    // Demand-time graph refusals are likewise client demand faults. Keeping
+    // them in the reviewed 400 family now prevents a later executor from
+    // accidentally inheriting the fail-safe 500 default.
+    "SNAPBACK_GRAPH_ARGUMENT_INVALID",
+    "SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID",
+    "SNAPBACK_GRAPH_CURSOR_UNBOUND",
+    "SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH",
+    "SNAPBACK_QUERY_COST_CLIENT_UNSUPPORTED",
+    // These closed terminal-protocol ids are produced by the mapper's
+    // dedicated registry rather than a match arm, but retain the same reviewed
+    // malformed/unsupported-client 400 posture.
+    "SNAPBACK_AUTHORIZED_LEASE_CLIENT_UNSUPPORTED",
+    "SNAPBACK_CLIENT_SEED_PROTOCOL_UNSUPPORTED",
     // Validated from the caller-supplied app.readiness.v1 request body
     // (src/operational_readiness.rs validate_expected_activation_target,
     // reached via EnsureAppInput::validate_artifacts). Carried in the
@@ -24927,6 +24973,15 @@ const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
 // diagnostics that never normally become an `ApiError`. If one does reach
 // that boundary, the fail-safe class is still 500 rather than a false 4xx.
 const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
+    // Engine-side commit/invocation invariants that can cross ApiError only as
+    // server faults; they are not caller-authored graph admission failures.
+    "SNAPBACK_COMMIT_CAPSULE_DESTINATION_MISMATCH",
+    "SNAPBACK_COMMIT_INTENDED_ROWS_ABSENT",
+    "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_ACTIVE",
+    "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_IDENTITY_MISMATCH",
+    "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_NOT_FOUND",
+    "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_TYPE_MISMATCH",
+    "SNAPBACK_INVOCATION_AUTHORITY_INVALID",
     "SNAPBACK_BATCH_READ_UNIQUE_INVARIANT_CORRUPT",
     // LLP 0224 host-operation refusals travel inside the HTTP-200 operation
     // envelope, so this row is a fail-safe rather than a live status. Only
@@ -25766,6 +25821,11 @@ async fn served_capability_and_client_profile_refusals_have_distinct_statuses() 
 #[test]
 fn s5_d10_production_diagnostic_inventory_cannot_drift() {
     let mut emitted = production_snapback_literals();
+    // LLP 0276 split former remainder modules into owner crates. HTTP
+    // exhaustiveness remains scoped to the server plus explicitly imported
+    // wire registries, while a non-diagnostic exclusion is stale only when it
+    // has disappeared from all authored production Rust.
+    let workspace_literals = workspace_production_snapback_literals();
     let mut exclusions = BTreeSet::new();
     for (literal, reason) in NON_DIAGNOSTIC_SNAPBACK_LITERALS {
         assert!(!reason.is_empty(), "{literal} exclusion needs a reason");
@@ -25773,12 +25833,15 @@ fn s5_d10_production_diagnostic_inventory_cannot_drift() {
             exclusions.insert(*literal),
             "duplicate non-diagnostic exclusion: {literal}"
         );
-        assert!(emitted.remove(*literal), "stale exclusion: {literal}");
+        assert!(
+            emitted.remove(*literal) || workspace_literals.contains(*literal),
+            "stale exclusion: {literal}"
+        );
     }
 
     for (template, expansions) in DYNAMIC_DIAGNOSTIC_TEMPLATES {
         assert!(
-            emitted.remove(*template),
+            emitted.remove(*template) || workspace_literals.contains(*template),
             "dynamic diagnostic template changed or disappeared: {template}"
         );
         assert!(
@@ -25799,7 +25862,7 @@ fn s5_d10_production_diagnostic_inventory_cannot_drift() {
 
     let expected = expected_http_diagnostic_codes();
     let unclassified = emitted.difference(&expected).collect::<Vec<_>>();
-    let stale = expected.difference(&emitted).collect::<Vec<_>>();
+    let stale = expected.difference(&workspace_literals).collect::<Vec<_>>();
     assert!(
         unclassified.is_empty() && stale.is_empty(),
         "production diagnostics and the reviewed HTTP table drifted; \

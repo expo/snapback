@@ -15,11 +15,12 @@ use super::{
     SearchIndexManifestV1, SearchQueryPlanV1, SearchTextFieldV1, SearchVisibilityV1, SnapbackError,
     SnapbackResult, StagedMutationExecution, StagedNestedMutation, StagedRecordedMutation,
     bounded_projection_result_contract, enforce_snapshot_batch_cursor_budget,
-    next_secret_read_reset_generation, now_millis, order_field_bounds_from_functions,
-    prepare_media_command_invocation, query_invocation_estimated_bytes, reserve_unique_generation,
-    settlement_id_map, snapshot_batch_max_boundary, snapshot_batch_max_plaintext_len,
-    telemetry_correlation, validate_bounded_children_node_schema_references,
-    validate_bounded_children_schema_plan, validate_function_schema_references,
+    graph_query_admission_faults, next_secret_read_reset_generation, now_millis,
+    order_field_bounds_from_functions, prepare_media_command_invocation,
+    query_invocation_estimated_bytes, reserve_unique_generation, settlement_id_map,
+    snapshot_batch_max_boundary, snapshot_batch_max_plaintext_len, telemetry_correlation,
+    validate_bounded_children_node_schema_references, validate_bounded_children_schema_plan,
+    validate_function_schema_references,
 };
 use crate::auth::admission::AdmissionController;
 use crate::auth::crypto::{CryptoError, RandomSource};

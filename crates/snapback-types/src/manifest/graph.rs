@@ -436,6 +436,10 @@ macro_rules! graph_reason_enum {
             pub const fn code(self) -> &'static str {
                 match self { $(Self::$variant => $code),+ }
             }
+
+            pub fn from_code(code: &str) -> Option<Self> {
+                match code { $($code => Some(Self::$variant),)+ _ => None }
+            }
         }
 
         impl fmt::Display for $name {
@@ -479,6 +483,60 @@ graph_reason_enum!(GraphAdmissionRefusalReasonV1 {
     PlanIdentityMismatch => "SNAPBACK_GRAPH_PLAN_IDENTITY_MISMATCH",
     ArgumentUnbound => "SNAPBACK_GRAPH_ARGUMENT_UNBOUND",
 });
+
+impl GraphAdmissionRefusalReasonV1 {
+    /// One-based row in LLP 0209 §2.3's normative admission register.
+    pub const fn row(self) -> u8 {
+        match self {
+            Self::ClientAstForbidden => 1,
+            Self::CodeForbidden => 2,
+            Self::RecursionForbidden => 3,
+            Self::DynamicConstruction => 4,
+            Self::RootCountInvalid => 5,
+            Self::ProjectionCountInvalid => 6,
+            Self::NodeKindUnsupported => 7,
+            Self::UnknownField => 8,
+            Self::ParentInvalid => 9,
+            Self::NodeInert => 10,
+            Self::Cycle => 11,
+            Self::UnboundedExpansion => 12,
+            Self::ThroughTableUndeclared => 13,
+            Self::SchemaReferenceInvalid => 14,
+            Self::IndexUnprovable => 15,
+            Self::IndexPrefixUnsupported => 16,
+            Self::OrderNotTotal => 17,
+            Self::ProjectionScopeInvalid => 18,
+            Self::ProjectionOpen => 19,
+            Self::PrincipalBindingUnprovable => 20,
+            Self::SearchUnadmitted => 21,
+            Self::AuthorityUnprovable => 22,
+            Self::BroadcastBaseClassInvalid => 23,
+            Self::BroadcastSeparationUnprovable => 24,
+            Self::BroadcastScopeUnbound => 25,
+            Self::BroadcastAudienceUnprovable => 26,
+            Self::BroadcastInvalidationIncomplete => 27,
+            Self::BoundInvalid => 28,
+            Self::ResultContractMismatch => 29,
+            Self::PlanIdentityMismatch => 30,
+            Self::ArgumentUnbound => 31,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct GraphAdmissionFaultV1 {
+    pub row: u8,
+    pub reason: GraphAdmissionRefusalReasonV1,
+}
+
+impl From<GraphAdmissionRefusalReasonV1> for GraphAdmissionFaultV1 {
+    fn from(reason: GraphAdmissionRefusalReasonV1) -> Self {
+        Self {
+            row: reason.row(),
+            reason,
+        }
+    }
+}
 
 graph_reason_enum!(GraphDemandTimeRefusalReasonV1 {
     ArgumentInvalid => "SNAPBACK_GRAPH_ARGUMENT_INVALID",
@@ -727,6 +785,7 @@ impl JsonSchema for GraphNodeAuthorityV1 {
 #[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum GraphQueryShapedReasonV1 {
+    #[serde(rename = "base-not-class-1")]
     BaseNotClass1,
     SeparationUnprovable,
     ScopeUnbound,
@@ -2187,14 +2246,16 @@ fn utf16_cmp(left: &str, right: &str) -> Ordering {
     left.encode_utf16().cmp(right.encode_utf16())
 }
 
+fn jcs_sort_key<T: Serialize>(value: &T) -> Option<String> {
+    serde_json::to_value(value)
+        .ok()
+        .and_then(|value| crate::rqs_contract::jcs(&value).ok())
+}
+
 fn jcs_cmp<T: Serialize>(left: &T, right: &T) -> Ordering {
-    let encode = |value: &T| {
-        serde_json::to_value(value)
-            .ok()
-            .and_then(|value| crate::rqs_contract::jcs(&value).ok())
-            .unwrap_or_default()
-    };
-    encode(left).cmp(&encode(right))
+    jcs_sort_key(left)
+        .expect("JCS sort values are prevalidated")
+        .cmp(&jcs_sort_key(right).expect("JCS sort values are prevalidated"))
 }
 
 fn checked_add(left: u64, right: u64) -> Result<u64, GraphAdmissionRefusalReasonV1> {
@@ -2214,7 +2275,9 @@ fn sort_dedup_utf16(values: &mut Vec<String>) {
     values.dedup();
 }
 
-fn normalize_visibility(visibility: &mut TableVisibilityV1) {
+fn normalize_visibility(
+    visibility: &mut TableVisibilityV1,
+) -> Result<(), GraphAdmissionRefusalReasonV1> {
     match visibility {
         TableVisibilityV1::Membership { roles, .. } => {
             if let Some(roles) = roles {
@@ -2229,11 +2292,15 @@ fn normalize_visibility(visibility: &mut TableVisibilityV1) {
                     sort_dedup_utf16(roles);
                 }
             }
+            if arms.iter().any(|arm| jcs_sort_key(arm).is_none()) {
+                return Err(GraphAdmissionRefusalReasonV1::ArgumentUnbound);
+            }
             arms.sort_by(jcs_cmp);
             arms.dedup();
         }
         TableVisibilityV1::PublicRead | TableVisibilityV1::Owner { .. } => {}
     }
+    Ok(())
 }
 
 fn normalize_authority_event_selector(selector: &mut GraphAuthorityEventSelectorV1) {
@@ -2399,12 +2466,14 @@ fn rewrite_projection_ids(
 
 fn rewrite_filter_arguments(
     filter: &mut FilterExpr,
-    arguments: &BTreeMap<String, String>,
+    argument_names: &BTreeMap<String, String>,
+    argument_ids: &BTreeMap<String, String>,
 ) -> Result<(), GraphAdmissionRefusalReasonV1> {
     match &mut filter.value {
         ValueExpr::Arg(argument) => {
-            *argument = arguments
+            *argument = argument_names
                 .get(argument)
+                .or_else(|| argument_ids.get(argument))
                 .cloned()
                 .ok_or(GraphAdmissionRefusalReasonV1::ArgumentUnbound)?;
             Ok(())
@@ -2420,10 +2489,14 @@ fn rewrite_filter_arguments(
 
 fn normalize_filters(
     filters: &mut Vec<FilterExpr>,
-    arguments: &BTreeMap<String, String>,
+    argument_names: &BTreeMap<String, String>,
+    argument_ids: &BTreeMap<String, String>,
 ) -> Result<(), GraphAdmissionRefusalReasonV1> {
     for filter in filters.iter_mut() {
-        rewrite_filter_arguments(filter, arguments)?;
+        rewrite_filter_arguments(filter, argument_names, argument_ids)?;
+    }
+    if filters.iter().any(|filter| jcs_sort_key(filter).is_none()) {
+        return Err(GraphAdmissionRefusalReasonV1::ArgumentUnbound);
     }
     filters.sort_by(jcs_cmp);
     Ok(())
@@ -2431,13 +2504,14 @@ fn normalize_filters(
 
 fn normalize_optional_filters(
     filters: &mut Option<Vec<FilterExpr>>,
-    arguments: &BTreeMap<String, String>,
+    argument_names: &BTreeMap<String, String>,
+    argument_ids: &BTreeMap<String, String>,
 ) -> Result<(), GraphAdmissionRefusalReasonV1> {
     if let Some(filters) = filters {
         if filters.is_empty() {
             return Err(GraphAdmissionRefusalReasonV1::UnknownField);
         }
-        normalize_filters(filters, arguments)?;
+        normalize_filters(filters, argument_names, argument_ids)?;
     }
     Ok(())
 }
@@ -2466,6 +2540,23 @@ fn preorder_visit(
     }
     state.insert(node_id.to_owned(), 2);
     Ok(())
+}
+
+fn graph_has_parent_cycle(nodes: &BTreeMap<String, GraphNodeV1>) -> bool {
+    for start in nodes.keys() {
+        let mut path = BTreeSet::new();
+        let mut cursor = Some(start.as_str());
+        while let Some(node_id) = cursor {
+            if !path.insert(node_id.to_owned()) {
+                return true;
+            }
+            cursor = nodes
+                .get(node_id)
+                .and_then(GraphNodeV1::parent_node_id)
+                .filter(|parent| nodes.contains_key(*parent));
+        }
+    }
+    false
 }
 
 /// Reconstruct the one canonical preorder-DFS plan. Children sort by UTF-16
@@ -2517,6 +2608,9 @@ pub fn normalized_graph_plan(
                 .push(node.node_id().to_owned());
         }
     }
+    if graph_has_parent_cycle(&data_nodes) {
+        return Err(GraphAdmissionRefusalReasonV1::Cycle);
+    }
     let mut ordered_old_ids = Vec::new();
     preorder_visit(
         &roots[0],
@@ -2542,14 +2636,24 @@ pub fn normalized_graph_plan(
     let mut arguments = plan.arguments.clone();
     arguments.sort_by(|left, right| utf16_cmp(&left.name, &right.name));
     let mut argument_ids = BTreeMap::new();
-    let mut argument_names = BTreeSet::new();
+    let mut argument_names = BTreeMap::new();
+    let generated_argument_ids = (0..arguments.len())
+        .map(|index| format!("a{index}"))
+        .collect::<BTreeSet<_>>();
     for (index, argument) in arguments.iter_mut().enumerate() {
-        if argument.name.is_empty() || !argument_names.insert(argument.name.clone()) {
-            return Err(GraphAdmissionRefusalReasonV1::UnknownField);
-        }
         let normalized_id = format!("a{index}");
-        argument_ids.insert(argument.argument_id.clone(), normalized_id.clone());
-        argument_ids.insert(argument.name.clone(), normalized_id.clone());
+        if argument.name.is_empty()
+            || generated_argument_ids.contains(&argument.name)
+            || argument_names
+                .insert(argument.name.clone(), normalized_id.clone())
+                .is_some()
+            || argument.argument_id.is_empty()
+            || argument_ids
+                .insert(argument.argument_id.clone(), normalized_id.clone())
+                .is_some()
+        {
+            return Err(GraphAdmissionRefusalReasonV1::ArgumentUnbound);
+        }
         argument.argument_id = normalized_id;
         argument.contract_hash = graph_domain_hash(
             b"snapback:argument-binding-contract:v1:",
@@ -2584,8 +2688,8 @@ pub fn normalized_graph_plan(
                 filters,
                 ..
             } => {
-                normalize_visibility(visibility);
-                normalize_filters(filters, &argument_ids)?;
+                normalize_visibility(visibility)?;
+                normalize_filters(filters, &argument_names, &argument_ids)?;
             }
             GraphNodeV1::EqualityToOne {
                 visibility,
@@ -2597,8 +2701,8 @@ pub fn normalized_graph_plan(
                 filters,
                 ..
             } => {
-                normalize_visibility(visibility);
-                normalize_optional_filters(filters, &argument_ids)?;
+                normalize_visibility(visibility)?;
+                normalize_optional_filters(filters, &argument_names, &argument_ids)?;
             }
             GraphNodeV1::PrincipalBound {
                 visibility,
@@ -2606,11 +2710,11 @@ pub fn normalized_graph_plan(
                 filters,
                 ..
             } => {
-                normalize_visibility(visibility);
+                normalize_visibility(visibility)?;
                 if let Some(binding) = binding {
-                    normalize_visibility(&mut binding.visibility);
+                    normalize_visibility(&mut binding.visibility)?;
                 }
-                normalize_optional_filters(filters, &argument_ids)?;
+                normalize_optional_filters(filters, &argument_names, &argument_ids)?;
             }
             GraphNodeV1::ExistsSemiJoin {
                 edge,
@@ -2619,13 +2723,13 @@ pub fn normalized_graph_plan(
                 ..
             } => {
                 match edge {
-                    GraphEdgeV1::Direct(edge) => normalize_visibility(&mut edge.visibility),
+                    GraphEdgeV1::Direct(edge) => normalize_visibility(&mut edge.visibility)?,
                     GraphEdgeV1::Through(edge) => {
-                        normalize_visibility(&mut edge.visibility);
-                        normalize_visibility(&mut edge.target_visibility);
+                        normalize_visibility(&mut edge.visibility)?;
+                        normalize_visibility(&mut edge.target_visibility)?;
                     }
                 }
-                normalize_optional_filters(filters, &argument_ids)?;
+                normalize_optional_filters(filters, &argument_names, &argument_ids)?;
                 if let Some(argument_id) = argument_id {
                     *argument_id = argument_ids
                         .get(argument_id)
@@ -2757,6 +2861,13 @@ pub fn normalized_graph_plan(
         for selector in &mut input.event_selectors {
             normalize_authority_event_selector(selector);
         }
+        if input
+            .event_selectors
+            .iter()
+            .any(|selector| jcs_sort_key(selector).is_none())
+        {
+            return Err(GraphAdmissionRefusalReasonV1::ArgumentUnbound);
+        }
         input.event_selectors.sort_by(jcs_cmp);
     }
     normalized
@@ -2768,7 +2879,18 @@ pub fn normalized_graph_plan(
         });
 
     match &mut normalized.broadcast {
-        GraphBroadcastAdmissionV1::QueryShaped { .. } => {}
+        GraphBroadcastAdmissionV1::QueryShaped { reason, .. } => {
+            *reason = if normalized
+                .nodes
+                .iter()
+                .filter(|node| !matches!(node, GraphNodeV1::ClosedProjection { .. }))
+                .any(|node| node.authority().declared_class != GraphAuthorityClassV1::INDEPENDENT)
+            {
+                GraphQueryShapedReasonV1::BaseNotClass1
+            } else {
+                GraphQueryShapedReasonV1::DeclaredQueryShaped
+            };
+        }
         GraphBroadcastAdmissionV1::Broadcast {
             base_node_ids,
             establishment,
@@ -2777,7 +2899,7 @@ pub fn normalized_graph_plan(
             *base_node_ids = (0..ordered_old_ids.len())
                 .map(|index| format!("n{index}"))
                 .collect();
-            normalize_visibility(&mut establishment.predicate);
+            normalize_visibility(&mut establishment.predicate)?;
             for argument_id in &mut establishment.scope.argument_ids {
                 *argument_id = argument_ids
                     .get(argument_id)
@@ -2831,6 +2953,12 @@ pub fn recompute_graph_partition_equivalence_proof_v1(
         return Err(GraphAdmissionRefusalReasonV1::AuthorityUnprovable);
     }
     let mut policy_inputs = proof.policy_inputs.clone();
+    if policy_inputs
+        .iter()
+        .any(|input| jcs_sort_key(&input.kind).is_none())
+    {
+        return Err(GraphAdmissionRefusalReasonV1::AuthorityUnprovable);
+    }
     policy_inputs.sort_by(|left, right| {
         utf16_cmp(&left.declaration_id, &right.declaration_id)
             .then_with(|| jcs_cmp(&left.kind, &right.kind))
@@ -3547,7 +3675,7 @@ fn validate_graph_costs(plan: &GraphQueryPlanV1) -> Result<(), GraphAdmissionRef
 ///
 /// @ref LLP 0209#23-closure-admission-demand-time-evaluation-time-and-qualification-registers —
 /// the ordered admission register is stable public behavior.
-pub fn validate_graph_query_plan_v1(
+fn validate_graph_query_plan_v1_first_fault(
     plan: &GraphQueryPlanV1,
 ) -> Result<(), GraphAdmissionRefusalReasonV1> {
     if plan.format != "snapback.graph-query-plan.v1"
@@ -3602,6 +3730,16 @@ pub fn validate_graph_query_plan_v1(
         if let Some(order) = node.order() {
             validate_order(order)?;
         }
+        if let GraphNodeV1::BoundedToMany {
+            order,
+            page: GraphChildPageV1::Literal(page),
+            ..
+        } = node
+            && (validate_interval_end(&page.lower, order).is_err()
+                || validate_interval_end(&page.upper, order).is_err())
+        {
+            return Err(GraphAdmissionRefusalReasonV1::BoundInvalid);
+        }
         match node {
             GraphNodeV1::RootWindow {
                 edge_name,
@@ -3612,25 +3750,52 @@ pub fn validate_graph_query_plan_v1(
                 return Err(GraphAdmissionRefusalReasonV1::UnknownField);
             }
             GraphNodeV1::EqualityToOne {
+                parent_node_id,
                 table,
                 join_on,
                 access_index,
                 ..
             }
             | GraphNodeV1::BoundedToMany {
+                parent_node_id,
                 table,
                 join_on,
                 access_index,
                 ..
-            } if table.is_empty() || join_on.is_empty() || access_index.is_empty() => {
-                return Err(GraphAdmissionRefusalReasonV1::SchemaReferenceInvalid);
+            } => {
+                if !matches!(
+                    nodes.get(parent_node_id),
+                    Some(
+                        GraphNodeV1::RootWindow { .. }
+                            | GraphNodeV1::EqualityToOne { .. }
+                            | GraphNodeV1::BoundedToMany { .. }
+                            | GraphNodeV1::PrincipalBound { .. }
+                    )
+                ) {
+                    return Err(GraphAdmissionRefusalReasonV1::ParentInvalid);
+                }
+                if table.is_empty() || join_on.is_empty() || access_index.is_empty() {
+                    return Err(GraphAdmissionRefusalReasonV1::SchemaReferenceInvalid);
+                }
             }
             GraphNodeV1::ExistsSemiJoin {
+                parent_node_id,
                 edge,
                 mode,
                 argument_id,
                 ..
             } => {
+                if !matches!(
+                    nodes.get(parent_node_id),
+                    Some(
+                        GraphNodeV1::RootWindow { .. }
+                            | GraphNodeV1::EqualityToOne { .. }
+                            | GraphNodeV1::BoundedToMany { .. }
+                            | GraphNodeV1::PrincipalBound { .. }
+                    )
+                ) {
+                    return Err(GraphAdmissionRefusalReasonV1::ParentInvalid);
+                }
                 let declared = match edge {
                     GraphEdgeV1::Direct(edge) => {
                         !edge.table.is_empty()
@@ -3716,18 +3881,20 @@ pub fn validate_graph_query_plan_v1(
                 ) {
                     return Err(GraphAdmissionRefusalReasonV1::ParentInvalid);
                 }
-                if provider_capability_id.is_empty()
-                    || member_field.is_empty()
-                    || membership_identity.format != "snapback.graph-search-membership-identity.v1"
-                    || authority.declared_class != membership_identity.authority_class
-                    || provider_completeness_class
-                        != &membership_identity.provider_completeness_class
-                    || scope_bindings.is_empty()
-                    || invalidation_tables.is_empty()
-                    || argument_ids.as_ref().is_some_and(Vec::is_empty)
-                {
-                    return Err(GraphAdmissionRefusalReasonV1::SearchUnadmitted);
-                }
+                let _format_only_preimage = (
+                    provider_capability_id,
+                    member_field,
+                    membership_identity,
+                    authority,
+                    provider_completeness_class,
+                    scope_bindings,
+                    invalidation_tables,
+                    argument_ids,
+                );
+                // Provider-owned preimages do not exist until D6. The wire
+                // shape is retained, but no authored search node is admitted
+                // during G0 Stage B1.
+                return Err(GraphAdmissionRefusalReasonV1::SearchUnadmitted);
             }
             _ => {}
         }
@@ -3825,12 +3992,452 @@ pub fn validate_graph_query_plan_v1(
             }) {
                 return Err(GraphAdmissionRefusalReasonV1::BroadcastBaseClassInvalid);
             }
-            if establishment.invalidation.is_empty() {
-                return Err(GraphAdmissionRefusalReasonV1::BroadcastInvalidationIncomplete);
-            }
+            let _b2_proof_carrier = establishment;
+            return Err(GraphAdmissionRefusalReasonV1::BroadcastSeparationUnprovable);
         }
     }
     validate_graph_costs(plan)
+}
+
+fn graph_filter_faults(
+    filters: &[FilterExpr],
+    argument_names: &BTreeSet<&str>,
+    argument_ids: &BTreeSet<&str>,
+    faults: &mut BTreeSet<GraphAdmissionRefusalReasonV1>,
+) {
+    for filter in filters {
+        match &filter.value {
+            ValueExpr::Arg(argument)
+                if argument_names.contains(argument.as_str())
+                    || argument_ids.contains(argument.as_str()) => {}
+            ValueExpr::Arg(_) => {
+                faults.insert(GraphAdmissionRefusalReasonV1::ArgumentUnbound);
+            }
+            ValueExpr::Literal(value) if canonical_client_value_is_valid(value) => {}
+            ValueExpr::Literal(_) => {
+                faults.insert(GraphAdmissionRefusalReasonV1::ArgumentUnbound);
+            }
+            _ => {
+                faults.insert(GraphAdmissionRefusalReasonV1::CodeForbidden);
+            }
+        }
+    }
+}
+
+/// Return every plan-local and normalization fault, ordered by the normative
+/// admission row. Callers must report only the first row, but later phases use
+/// this complete set when unioning installed-owner faults.
+///
+/// @ref LLP 0209#23-closure-admission-demand-time-evaluation-time-and-qualification-registers —
+/// first-miss precedence is global across admission phases, not call order.
+pub fn graph_query_plan_faults_v1(plan: &GraphQueryPlanV1) -> Vec<GraphAdmissionFaultV1> {
+    let mut faults = BTreeSet::new();
+    if plan.format != "snapback.graph-query-plan.v1"
+        || plan.capability_id != GRAPH_QUERY_CAPABILITY_ID
+        || plan.root_node_id != "n0"
+    {
+        faults.insert(GraphAdmissionRefusalReasonV1::UnknownField);
+    }
+
+    let roots = plan
+        .nodes
+        .iter()
+        .filter(|node| matches!(node, GraphNodeV1::RootWindow { .. }))
+        .count();
+    let projections = plan
+        .nodes
+        .iter()
+        .filter(|node| matches!(node, GraphNodeV1::ClosedProjection { .. }))
+        .count();
+    if roots != 1 {
+        faults.insert(GraphAdmissionRefusalReasonV1::RootCountInvalid);
+    }
+    if projections != 1
+        || !matches!(
+            plan.nodes.last(),
+            Some(GraphNodeV1::ClosedProjection { .. })
+        )
+    {
+        faults.insert(GraphAdmissionRefusalReasonV1::ProjectionCountInvalid);
+    }
+
+    let mut node_ids = BTreeSet::new();
+    let mut data_nodes = BTreeMap::new();
+    let mut sibling_names = BTreeSet::new();
+    for node in &plan.nodes {
+        if node.node_id().is_empty() || !node_ids.insert(node.node_id()) {
+            faults.insert(GraphAdmissionRefusalReasonV1::UnknownField);
+        }
+        if !matches!(node, GraphNodeV1::ClosedProjection { .. }) {
+            data_nodes.insert(node.node_id().to_owned(), node.clone());
+        }
+    }
+    for node in data_nodes.values() {
+        if let Some(parent) = node.parent_node_id() {
+            if !data_nodes.contains_key(parent) {
+                faults.insert(GraphAdmissionRefusalReasonV1::ParentInvalid);
+            }
+            if !sibling_names.insert((parent.to_owned(), node.edge_name().to_owned())) {
+                faults.insert(GraphAdmissionRefusalReasonV1::UnknownField);
+            }
+        }
+    }
+    if graph_has_parent_cycle(&data_nodes) {
+        faults.insert(GraphAdmissionRefusalReasonV1::Cycle);
+    }
+
+    let mut argument_names = BTreeSet::new();
+    let mut argument_ids = BTreeSet::new();
+    let generated_ids = (0..plan.arguments.len())
+        .map(|index| format!("a{index}"))
+        .collect::<BTreeSet<_>>();
+    for argument in &plan.arguments {
+        if argument.name.is_empty()
+            || generated_ids.contains(&argument.name)
+            || !argument_names.insert(argument.name.as_str())
+            || argument.argument_id.is_empty()
+            || !argument_ids.insert(argument.argument_id.as_str())
+        {
+            faults.insert(GraphAdmissionRefusalReasonV1::ArgumentUnbound);
+        }
+        if argument.contract.format != "snapback.argument-binding-contract.v1" {
+            faults.insert(GraphAdmissionRefusalReasonV1::SchemaReferenceInvalid);
+        }
+    }
+
+    let nodes = plan
+        .nodes
+        .iter()
+        .map(|node| (node.node_id().to_owned(), node))
+        .collect::<BTreeMap<_, _>>();
+    let mut projection_sources = BTreeSet::new();
+    if let Some(object) = plan.nodes.iter().find_map(|node| match node {
+        GraphNodeV1::ClosedProjection { object, .. } => Some(object),
+        _ => None,
+    }) {
+        projection_source_node_ids(object, &mut projection_sources);
+    }
+    for (index, node) in plan.nodes.iter().enumerate() {
+        if node.node_id() != format!("n{index}")
+            || node.edge_name().is_empty()
+            || node.edge_name().chars().any(char::is_control)
+        {
+            faults.insert(GraphAdmissionRefusalReasonV1::UnknownField);
+        }
+        if let Err(reason) = validate_authority(node, &nodes) {
+            faults.insert(reason);
+        }
+        if let Some(order) = node.order()
+            && let Err(reason) = validate_order(order)
+        {
+            faults.insert(reason);
+        }
+        match node {
+            GraphNodeV1::RootWindow {
+                edge_name,
+                table,
+                access_index,
+                filters,
+                ..
+            } => {
+                if edge_name != "$root" || table.is_empty() || access_index.is_empty() {
+                    faults.insert(GraphAdmissionRefusalReasonV1::UnknownField);
+                }
+                graph_filter_faults(filters, &argument_names, &argument_ids, &mut faults);
+            }
+            GraphNodeV1::EqualityToOne {
+                parent_node_id,
+                table,
+                join_on,
+                access_index,
+                filters,
+                ..
+            }
+            | GraphNodeV1::BoundedToMany {
+                parent_node_id,
+                table,
+                join_on,
+                access_index,
+                filters,
+                ..
+            } => {
+                if !matches!(
+                    nodes.get(parent_node_id),
+                    Some(
+                        GraphNodeV1::RootWindow { .. }
+                            | GraphNodeV1::EqualityToOne { .. }
+                            | GraphNodeV1::BoundedToMany { .. }
+                            | GraphNodeV1::PrincipalBound { .. }
+                    )
+                ) {
+                    faults.insert(GraphAdmissionRefusalReasonV1::ParentInvalid);
+                }
+                if table.is_empty() || join_on.is_empty() || access_index.is_empty() {
+                    faults.insert(GraphAdmissionRefusalReasonV1::SchemaReferenceInvalid);
+                }
+                graph_filter_faults(
+                    filters.as_deref().unwrap_or_default(),
+                    &argument_names,
+                    &argument_ids,
+                    &mut faults,
+                );
+                if let GraphNodeV1::BoundedToMany {
+                    order,
+                    page: GraphChildPageV1::Literal(page),
+                    ..
+                } = node
+                    && (validate_interval_end(&page.lower, order).is_err()
+                        || validate_interval_end(&page.upper, order).is_err())
+                {
+                    faults.insert(GraphAdmissionRefusalReasonV1::BoundInvalid);
+                }
+            }
+            GraphNodeV1::ExistsSemiJoin {
+                parent_node_id,
+                edge,
+                mode,
+                filters,
+                argument_id,
+                ..
+            } => {
+                if !matches!(
+                    nodes.get(parent_node_id),
+                    Some(
+                        GraphNodeV1::RootWindow { .. }
+                            | GraphNodeV1::EqualityToOne { .. }
+                            | GraphNodeV1::BoundedToMany { .. }
+                            | GraphNodeV1::PrincipalBound { .. }
+                    )
+                ) {
+                    faults.insert(GraphAdmissionRefusalReasonV1::ParentInvalid);
+                }
+                let declared = match edge {
+                    GraphEdgeV1::Direct(edge) => {
+                        !edge.table.is_empty()
+                            && !edge.join_on.is_empty()
+                            && !edge.access_index.is_empty()
+                    }
+                    GraphEdgeV1::Through(edge) => {
+                        !edge.table.is_empty()
+                            && !edge.target_table.is_empty()
+                            && !edge.parent_join.is_empty()
+                            && !edge.target_join.is_empty()
+                            && !edge.parent_index.is_empty()
+                            && !edge.target_index.is_empty()
+                    }
+                };
+                if !declared {
+                    faults.insert(GraphAdmissionRefusalReasonV1::ThroughTableUndeclared);
+                }
+                if matches!(mode, GraphExistsModeV1::Exists) != argument_id.is_none() {
+                    faults.insert(GraphAdmissionRefusalReasonV1::ArgumentUnbound);
+                }
+                graph_filter_faults(
+                    filters.as_deref().unwrap_or_default(),
+                    &argument_names,
+                    &argument_ids,
+                    &mut faults,
+                );
+            }
+            GraphNodeV1::PrincipalBound {
+                parent_node_id,
+                table,
+                parent_join,
+                principal_field,
+                access_index,
+                principal_source,
+                binding,
+                filters,
+                ..
+            } => {
+                if !matches!(
+                    nodes.get(parent_node_id),
+                    Some(
+                        GraphNodeV1::RootWindow { .. }
+                            | GraphNodeV1::EqualityToOne { .. }
+                            | GraphNodeV1::BoundedToMany { .. }
+                    )
+                ) {
+                    faults.insert(GraphAdmissionRefusalReasonV1::ParentInvalid);
+                }
+                if table.is_empty()
+                    || parent_join.is_empty()
+                    || principal_field.is_empty()
+                    || access_index.is_empty()
+                    || binding.as_ref().is_some_and(|binding| {
+                        binding.table.is_empty()
+                            || binding.principal_field.is_empty()
+                            || binding.value_field.is_empty()
+                            || binding.unique_index.is_empty()
+                    })
+                {
+                    faults.insert(GraphAdmissionRefusalReasonV1::SchemaReferenceInvalid);
+                }
+                if principal_source != "auth.userId" {
+                    faults.insert(GraphAdmissionRefusalReasonV1::PrincipalBindingUnprovable);
+                }
+                graph_filter_faults(
+                    filters.as_deref().unwrap_or_default(),
+                    &argument_names,
+                    &argument_ids,
+                    &mut faults,
+                );
+            }
+            GraphNodeV1::SearchMembership { parent_node_id, .. } => {
+                if !matches!(
+                    nodes.get(parent_node_id),
+                    Some(GraphNodeV1::RootWindow { .. })
+                ) {
+                    faults.insert(GraphAdmissionRefusalReasonV1::ParentInvalid);
+                }
+                faults.insert(GraphAdmissionRefusalReasonV1::SearchUnadmitted);
+            }
+            GraphNodeV1::ClosedProjection {
+                edge_name, object, ..
+            } => {
+                if edge_name != "$result" || object.scope_node_id != plan.root_node_id {
+                    faults.insert(GraphAdmissionRefusalReasonV1::ProjectionScopeInvalid);
+                }
+                if let Err(reason) = validate_projection_scope(object, &nodes) {
+                    faults.insert(reason);
+                }
+            }
+        }
+    }
+    if plan.nodes.iter().any(|node| {
+        matches!(
+            node,
+            GraphNodeV1::EqualityToOne { .. }
+                | GraphNodeV1::BoundedToMany { .. }
+                | GraphNodeV1::PrincipalBound { .. }
+        ) && !projection_sources.contains(node.node_id())
+    }) {
+        faults.insert(GraphAdmissionRefusalReasonV1::NodeInert);
+    }
+
+    if plan.authority_partition_rule.format != "snapback.graph-authority-partition-rule.v1" {
+        faults.insert(GraphAdmissionRefusalReasonV1::AuthorityUnprovable);
+    }
+    let has_class3 = plan
+        .nodes
+        .iter()
+        .any(|node| node.authority().declared_class == GraphAuthorityClassV1::PRINCIPAL_SCOPED);
+    if has_class3
+        != matches!(
+            plan.authority_partition_rule.class3,
+            GraphClass3PartitionV1::PartitionOfOne
+        )
+    {
+        faults.insert(GraphAdmissionRefusalReasonV1::AuthorityUnprovable);
+    }
+    let expected_class2 = plan
+        .nodes
+        .iter()
+        .filter(|node| node.authority().declared_class == GraphAuthorityClassV1::PARTITION_SCOPED)
+        .flat_map(|node| {
+            node.authority().proof.iter().flat_map(move |proof| {
+                proof.policy_inputs.iter().map(move |input| {
+                    (
+                        node.node_id(),
+                        input.declaration_id.as_str(),
+                        input.identity.as_str(),
+                    )
+                })
+            })
+        })
+        .collect::<Vec<_>>();
+    let actual_class2 = plan
+        .authority_partition_rule
+        .class2_inputs
+        .iter()
+        .map(|input| {
+            (
+                input.node_id.as_str(),
+                input.declaration_id.as_str(),
+                input.policy_identity.as_str(),
+            )
+        })
+        .collect::<Vec<_>>();
+    if actual_class2 != expected_class2 {
+        faults.insert(GraphAdmissionRefusalReasonV1::AuthorityUnprovable);
+    }
+    let expected_projection_class = plan
+        .nodes
+        .iter()
+        .filter(|node| !matches!(node, GraphNodeV1::ClosedProjection { .. }))
+        .map(|node| node.authority().declared_class)
+        .max()
+        .unwrap_or(GraphAuthorityClassV1::INDEPENDENT);
+    if plan
+        .nodes
+        .iter()
+        .find(|node| matches!(node, GraphNodeV1::ClosedProjection { .. }))
+        .is_some_and(|node| node.authority().declared_class != expected_projection_class)
+    {
+        faults.insert(GraphAdmissionRefusalReasonV1::AuthorityUnprovable);
+    }
+
+    let expected_base = plan
+        .nodes
+        .iter()
+        .filter(|node| !matches!(node, GraphNodeV1::ClosedProjection { .. }))
+        .map(|node| node.node_id().to_owned())
+        .collect::<Vec<_>>();
+    match &plan.broadcast {
+        GraphBroadcastAdmissionV1::QueryShaped { format, .. } => {
+            if format != "snapback.graph-broadcast-admission.v1" {
+                faults.insert(GraphAdmissionRefusalReasonV1::UnknownField);
+            }
+        }
+        GraphBroadcastAdmissionV1::Broadcast {
+            format,
+            base_node_ids,
+            ..
+        } => {
+            if format != "snapback.graph-broadcast-admission.v1" {
+                faults.insert(GraphAdmissionRefusalReasonV1::UnknownField);
+            }
+            if base_node_ids != &expected_base {
+                faults.insert(GraphAdmissionRefusalReasonV1::PlanIdentityMismatch);
+            }
+            if expected_base.iter().any(|node_id| {
+                nodes.get(node_id).is_some_and(|node| {
+                    node.authority().declared_class != GraphAuthorityClassV1::INDEPENDENT
+                })
+            }) {
+                faults.insert(GraphAdmissionRefusalReasonV1::BroadcastBaseClassInvalid);
+            }
+            faults.insert(GraphAdmissionRefusalReasonV1::BroadcastSeparationUnprovable);
+        }
+    }
+    if let Err(reason) = validate_graph_costs(plan) {
+        faults.insert(reason);
+    }
+    match normalized_graph_plan(plan) {
+        Ok(normalized) if normalized != *plan => {
+            faults.insert(GraphAdmissionRefusalReasonV1::PlanIdentityMismatch);
+        }
+        Err(reason) => {
+            faults.insert(reason);
+        }
+        Ok(_) => {}
+    }
+    if let Err(reason) = validate_graph_query_plan_v1_first_fault(plan) {
+        faults.insert(reason);
+    }
+
+    faults
+        .into_iter()
+        .map(GraphAdmissionFaultV1::from)
+        .collect()
+}
+
+pub fn validate_graph_query_plan_v1(
+    plan: &GraphQueryPlanV1,
+) -> Result<(), GraphAdmissionRefusalReasonV1> {
+    graph_query_plan_faults_v1(plan)
+        .first()
+        .map_or(Ok(()), |fault| Err(fault.reason))
 }
 
 /// Recompute and exact-match both graph carrier facts before admission.
@@ -3963,6 +4570,13 @@ fn validate_interval_end(
     }
 }
 
+fn parent_point_lookup_key_is_valid(lookup_key: &[Value], join_arity: usize) -> bool {
+    lookup_key.len() == join_arity
+        && lookup_key
+            .iter()
+            .all(|value| !value.is_null() && canonical_client_value_is_valid(value))
+}
+
 /// Validate the complete node-id keyed demand window vector. The caller
 /// supplies the evaluated parent set because child windows cannot be checked
 /// against storage rows at manifest admission.
@@ -4017,12 +4631,18 @@ pub fn validate_graph_window_vector_v1(
                 .map(|interval| interval.parent_key.clone())
                 .collect::<Option<Vec<_>>>()
                 .ok_or(GraphDemandTimeRefusalReasonV1::WindowVectorInvalid)?;
+            if actual.iter().any(|key| jcs_sort_key(key).is_none()) {
+                return Err(GraphDemandTimeRefusalReasonV1::ArgumentInvalid);
+            }
             let mut canonical = actual.clone();
             canonical.sort_by(jcs_cmp);
             if actual != canonical || actual.windows(2).any(|pair| pair[0] == pair[1]) {
                 return Err(GraphDemandTimeRefusalReasonV1::WindowVectorInvalid);
             }
             let mut expected = expected.clone();
+            if expected.iter().any(|key| jcs_sort_key(key).is_none()) {
+                return Err(GraphDemandTimeRefusalReasonV1::ArgumentInvalid);
+            }
             expected.sort_by(jcs_cmp);
             if actual != expected {
                 return Err(GraphDemandTimeRefusalReasonV1::WindowVectorInvalid);
@@ -4271,6 +4891,7 @@ pub fn validate_graph_captured_read_v1(
             GraphNodeV1::EqualityToOne {
                 table,
                 access_index,
+                join_on,
                 ..
             },
             GraphCapturedDependencyV1::ParentPoint {
@@ -4285,7 +4906,7 @@ pub fn validate_graph_captured_read_v1(
         ) => {
             captured_table == table
                 && index == access_index
-                && !lookup_key.is_empty()
+                && parent_point_lookup_key_is_valid(lookup_key, join_on.len())
                 && ((*found && child_key.is_some() && row_version.is_some_and(safe_count))
                     || (!*found && child_key.is_none() && row_version.is_none()))
         }
@@ -4994,6 +5615,156 @@ mod tests {
                     .is_err()
                 ),
             }
+        }
+        for vector in vectors["literalPageNegative"].as_array().unwrap() {
+            let order: Vec<OrderExpr> = serde_json::from_value(vector["order"].clone()).unwrap();
+            let mut end = vector["end"].clone();
+            if vector["name"] == "literal-lower-oversized-canonical-value" {
+                end["key"]["entries"][0][1] = json!("x".repeat(65_537));
+            }
+            let end: GraphIntervalEndV1 = serde_json::from_value(end).unwrap();
+            let page = GraphLiteralPageV1 {
+                kind: GraphLiteralPageKindV1::Literal,
+                direction: GraphDirectionV1::Forward,
+                lower: end,
+                upper: GraphIntervalEndV1::Unbounded,
+                take: 1,
+            };
+            let refused = validate_order(&order).is_err()
+                || validate_interval_end(&page.lower, &order).is_err()
+                || validate_interval_end(&page.upper, &order).is_err();
+            assert!(refused, "{} must refuse", vector["name"]);
+        }
+    }
+
+    #[test]
+    fn graph_query_shaped_reason_hyphenated_vector_round_trips() {
+        let vectors: Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../tests/conformance/graph/serde-vectors.v1.json"
+        )))
+        .unwrap();
+        let encoded = vectors["queryShapedReason"].clone();
+        let decoded: GraphQueryShapedReasonV1 = serde_json::from_value(encoded.clone()).unwrap();
+        assert_eq!(decoded, GraphQueryShapedReasonV1::BaseNotClass1);
+        assert_eq!(serde_json::to_value(decoded).unwrap(), encoded);
+    }
+
+    #[test]
+    fn graph_normalization_selects_query_reason_and_separates_argument_names_from_ids() {
+        let mut class3 = candidate_plan("root", "projection");
+        for node in &mut class3.nodes {
+            node.authority_mut().declared_class = GraphAuthorityClassV1::PRINCIPAL_SCOPED;
+        }
+        class3.authority_partition_rule.class3 = GraphClass3PartitionV1::PartitionOfOne;
+        let mut normalized = normalized_graph_plan(&class3).unwrap();
+        assert!(matches!(
+            normalized.broadcast,
+            GraphBroadcastAdmissionV1::QueryShaped {
+                reason: GraphQueryShapedReasonV1::BaseNotClass1,
+                ..
+            }
+        ));
+        let GraphBroadcastAdmissionV1::QueryShaped { reason, .. } = &mut normalized.broadcast
+        else {
+            unreachable!()
+        };
+        *reason = GraphQueryShapedReasonV1::DeclaredQueryShaped;
+        assert_eq!(
+            validate_graph_query_plan_v1(&normalized),
+            Err(GraphAdmissionRefusalReasonV1::PlanIdentityMismatch)
+        );
+
+        let mut collision = candidate_plan("root", "projection");
+        collision.arguments = serde_json::from_value(json!([
+            {
+                "argumentId":"authored-A", "name":"A",
+                "contract":{"format":"snapback.argument-binding-contract.v1","required":true,"value":{"kind":"boolean"}},
+                "contractHash":zero_hash()
+            },
+            {
+                "argumentId":"authored-a0", "name":"a0",
+                "contract":{"format":"snapback.argument-binding-contract.v1","required":true,"value":{"kind":"boolean"}},
+                "contractHash":zero_hash()
+            }
+        ])).unwrap();
+        assert_eq!(
+            normalized_graph_plan(&collision),
+            Err(GraphAdmissionRefusalReasonV1::ArgumentUnbound)
+        );
+    }
+
+    #[test]
+    fn graph_stage_b1_search_and_broadcast_are_fail_closed() {
+        let mut search = candidate_plan("root", "projection");
+        let search_node: GraphNodeV1 = serde_json::from_value(json!({
+            "nodeId":"search", "kind":"search-membership", "edgeName":"matches",
+            "authority":authority(1), "parentNodeId":"root", "providerCapabilityId":"search.v1",
+            "membershipIdentity":{
+                "format":"snapback.graph-search-membership-identity.v1",
+                "providerPlanHash":zero_hash(), "argumentContractHash":zero_hash(),
+                "scopeContractHash":zero_hash(), "authorityClass":1,
+                "providerVersion":"v1", "providerCompletenessClass":"complete-membership-v1",
+                "membershipHash":zero_hash()
+            },
+            "memberField":"id",
+            "scopeBindings":[{"providerScopeField":"projectId","source":{"kind":"parent-field","nodeId":"root","field":"projectId"}}],
+            "invalidationTables":["issues"],
+            "providerCompletenessClass":"complete-membership-v1"
+        })).unwrap();
+        search.nodes.insert(1, search_node);
+        assert!(
+            graph_query_plan_faults_v1(&search)
+                .iter()
+                .any(|fault| fault.reason == GraphAdmissionRefusalReasonV1::SearchUnadmitted)
+        );
+
+        let mut class1 = graph_plan_identity_v1(&candidate_plan("root", "projection"))
+            .unwrap()
+            .normalized_plan;
+        class1.broadcast = GraphBroadcastAdmissionV1::Broadcast {
+            format: "snapback.graph-broadcast-admission.v1".to_owned(),
+            base_node_ids: vec!["n0".to_owned()],
+            establishment: GraphBroadcastEstablishmentV1 {
+                effect: GraphBroadcastEffectV1::AdmitOnly,
+                predicate: TableVisibilityV1::PublicRead,
+                overlay_projection: (),
+                scope: GraphBroadcastScopeV1 {
+                    argument_ids: Vec::new(),
+                    policy_identity: Sha256V1::new(zero_hash()).unwrap(),
+                    resource_equalities: Vec::new(),
+                },
+                audience: GraphBroadcastAudienceV1 {
+                    strict_evaluator_identity: Sha256V1::new(zero_hash()).unwrap(),
+                },
+                invalidation: Vec::new(),
+            },
+        };
+        assert_eq!(
+            validate_graph_query_plan_v1(&class1),
+            Err(GraphAdmissionRefusalReasonV1::BroadcastSeparationUnprovable)
+        );
+
+        for node in &mut class1.nodes {
+            node.authority_mut().declared_class = GraphAuthorityClassV1::PRINCIPAL_SCOPED;
+        }
+        class1.authority_partition_rule.class3 = GraphClass3PartitionV1::PartitionOfOne;
+        assert_eq!(
+            validate_graph_query_plan_v1(&class1),
+            Err(GraphAdmissionRefusalReasonV1::BroadcastBaseClassInvalid)
+        );
+    }
+
+    #[test]
+    fn graph_parent_point_requires_complete_non_null_canonical_join_key() {
+        assert!(parent_point_lookup_key_is_valid(&[json!("owner-1")], 1));
+        for key in [
+            Vec::new(),
+            vec![Value::Null],
+            vec![json!("owner-1"), json!("extra")],
+            vec![json!("x".repeat(65_537))],
+        ] {
+            assert!(!parent_point_lookup_key_is_valid(&key, 1));
         }
     }
 
