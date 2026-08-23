@@ -321,6 +321,7 @@ fn catalog_corrupt() -> SnapbackError {
 mod tests {
     use super::*;
     use crate::manifest::{FunctionDefinition, FunctionRuntime, IbexModule};
+    use crate::storage::ServingDatabase;
     use crate::stream_attempt::{
         PersistedStreamCursor, StreamAttemptSettledBy, StreamAttemptTerminal, StreamInitiationState,
     };
@@ -433,18 +434,21 @@ mod tests {
             emitted_bytes: 12,
             chunk_count: 2,
         };
-        db.settlement()
-            .upsert_stream_attempts(&[attempt.to_row().unwrap()], 100)
+        db.upsert_stream_attempts(&[attempt.to_row().unwrap()], 100)
             .expect("persist live orphan");
+        let mut db = ServingDatabase::adopt(db).expect("serving adoption reconciles live orphan");
         let recovery = db
-            .settlement()
-            .reconcile_orphaned_stream_attempts(101)
-            .expect("storage reconciles live orphan");
+            .take_stream_attempt_startup_reconciliation()
+            .expect("serving adoption retains its startup result exactly once");
+        assert_eq!(recovery.recovered_count(), 1);
+        assert!(
+            db.take_stream_attempt_startup_reconciliation().is_none(),
+            "a live serving handle cannot obtain another startup recovery cut"
+        );
         let reconciled = recovery
-            .recovered()
+            .terminal_attempts()
             .first()
-            .expect("live orphan gains a committed recovery witness")
-            .persisted()
+            .expect("live orphan gains a committed terminal classification")
             .clone();
         assert_eq!(
             reconciled.terminal,
@@ -454,6 +458,12 @@ mod tests {
                 settled_by: StreamAttemptSettledBy::Terminalizer,
             })
         );
+        let durable = db
+            .settlement_read()
+            .durable_stream_attempt_by_client_key("output:orphan", ())
+            .expect("read reconciled durable row")
+            .expect("reconciled durable row exists");
+        assert_eq!(durable.persisted().terminal, reconciled.terminal);
         db.reconcile_stream_transcript_from_attempt(&reconciled)
             .expect("orphan transcript settles");
         let transcript = db

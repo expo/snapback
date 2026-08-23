@@ -26778,7 +26778,7 @@ fn stream_attempt_lease_fences_second_runner_progress_and_cursor_retry() {
 }
 
 #[test]
-fn provider_completion_with_an_authored_cause_stays_on_the_host_path() {
+fn detached_host_provider_settlement_method_differs_from_authored_settlement() {
     let mut snapback = LocalSnapback::memory().expect("provider settlement host state");
     snapback.load_functions(generation_test_manifest());
     let state = Arc::new(Mutex::new(snapback));
@@ -26823,57 +26823,63 @@ fn provider_completion_with_an_authored_cause_stays_on_the_host_path() {
     );
 }
 
-#[test]
-fn watchdog_abandonment_between_provider_compute_and_settle_wins_the_terminal_cas() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn watchdog_abandonment_between_provider_compute_and_settle_wins_the_terminal_cas() {
+    let mut function = FunctionDefinition::new(
+        "watchdogProviderRace",
+        FunctionKind::Action,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: r#"globalThis.__snapbackHandlers = {
+  watchdogProviderRace() { return "provider result"; }
+};"#
+            .to_owned(),
+            export: "watchdogProviderRace".to_owned(),
+        }),
+    );
+    function.stream = true;
     let mut snapback = LocalSnapback::memory().expect("provider race host state");
-    snapback.load_functions(generation_test_manifest());
+    snapback.load_functions(FunctionManifest {
+        functions: vec![function],
+        ..FunctionManifest::default()
+    });
     let state = Arc::new(Mutex::new(snapback));
-    let staged = stage_held_action(&state);
-    let mut host = held_action_host(state, &staged);
-    let client_key = format!("provider-watchdog-race:{}", Uuid::new_v4());
+    super::install_provider_settle_abandonment_test_hook(&state);
+    let staged = state
+        .try_lock()
+        .expect("stage provider race action")
+        .stage_cron_action_invocation("watchdogProviderRace")
+        .expect("provider race action");
+    let StagedAction::Detached(mut action) = staged else {
+        panic!("Ibex streaming action must detach")
+    };
+    action.stream_initiator = Some(crate::stream_attempt::StreamInitiator::SessionUser(
+        "watchdog-user".to_owned(),
+    ));
+    let (started, attempt_token) = tokio::sync::oneshot::channel();
+    action.stream_started = Some(started);
 
-    let started = host
-        .start_stream_attempt(&client_key)
-        .expect("provider attempt starts");
-    host.validate_live("provider.compute")
-        .expect("the provider result is computed while the worker is live");
-
-    // Exercise the production watchdog linearization after provider result
-    // computation but before automatic settlement attempts its terminal CAS.
-    linearize_detached_action_abandonment(
-        host.commit_gate.as_ref(),
-        host.abandoned.as_ref(),
-        host.active_reservation.as_ref(),
-    );
-    let refused = host
-        .settle_provider_stream_attempt_host(
-            &started.attempt_token,
-            crate::stream_attempt::StreamAttemptCause::Complete,
-        )
-        .expect_err("an abandoned provider worker cannot mutate the attempt");
+    let refused = super::run_detached_ibex_action(
+        &state,
+        action,
+        HandlerInput::default(),
+        crate::local::manual_action_metadata("test", "watchdogProviderRace"),
+    )
+    .await
+    .expect_err("the test hook abandons the worker before provider settlement");
     assert_eq!(refused.diagnostic.code, "SNAPBACK_ACTION_TIMEOUT");
-    let registry = crate::stream_attempt::global_stream_attempt_registry();
+    let attempt_token = attempt_token
+        .await
+        .expect("output attempt starts before provider settlement");
+    let terminal = crate::stream_attempt::global_stream_attempt_registry()
+        .terminal(&attempt_token)
+        .expect("the production worker backstop installs a durable winner");
     assert_eq!(
-        registry.terminal(&started.attempt_token),
-        None,
-        "the provider path must not install Complete after abandonment"
-    );
-
-    let watchdog = registry.terminalize_invocation_host(
-        &host.stream_runner_host,
-        crate::stream_attempt::StreamAttemptCause::TimedOut,
-    );
-    assert_eq!(watchdog.len(), 1);
-    assert_eq!(
-        watchdog[0].cause,
+        terminal.cause,
         crate::stream_attempt::StreamAttemptCause::TimedOut
     );
     assert_eq!(
-        registry
-            .terminal(&started.attempt_token)
-            .expect("watchdog installs the terminal winner")
-            .cause,
-        crate::stream_attempt::StreamAttemptCause::TimedOut
+        terminal.settled_by,
+        crate::stream_attempt::StreamAttemptSettledBy::Terminalizer
     );
 }
 
@@ -27582,7 +27588,7 @@ fn output_stream_transcripts_survive_process_death_and_cover_terminal_insert_gap
             chunk_count: 1,
         };
         snapback
-            .persist_stream_attempts(&[
+            .persist_stream_attempts_for_test(&[
                 orphan.to_row().expect("serialize orphan"),
                 terminal_gap.to_row().expect("serialize terminal gap"),
             ])
@@ -28145,6 +28151,18 @@ async fn streaming_action_emits_through_runtime_and_reserved_live_room() {
     let attempt_token = attempt_token
         .await
         .expect("attempt token published at start");
+    let terminal = crate::stream_attempt::global_stream_attempt_registry()
+        .terminal(&attempt_token)
+        .expect("production worker terminalizes the output attempt");
+    assert_eq!(
+        terminal.cause,
+        crate::stream_attempt::StreamAttemptCause::Complete
+    );
+    assert_eq!(
+        terminal.settled_by,
+        crate::stream_attempt::StreamAttemptSettledBy::Terminalizer,
+        "automatic output completion must use the worker's host settlement call site"
+    );
 
     let scope = Scope::from_pairs([("attemptToken", attempt_token.as_str())]);
     let message = state

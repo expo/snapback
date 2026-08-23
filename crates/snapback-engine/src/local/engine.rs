@@ -7363,14 +7363,14 @@ impl LocalSnapback {
     /// row — not the in-process registry — is what the startup reconciler
     /// reads after a crash, so the pre-mark must commit before the upstream
     /// send.
-    pub fn stream_attempt_record<Owner>(
+    pub fn stream_attempt_record<ReadContext>(
         &self,
         client_key: &str,
-        owner: Owner,
-    ) -> SnapbackResult<Option<crate::storage::DurableStreamAttempt<Owner>>> {
+        read_context: ReadContext,
+    ) -> SnapbackResult<Option<crate::storage::DurableStreamAttempt<ReadContext>>> {
         self.db
             .settlement_read()
-            .durable_stream_attempt_by_client_key(client_key, owner)
+            .durable_stream_attempt_by_client_key(client_key, read_context)
     }
 
     pub fn stream_attempt_namespace(&self) -> usize {
@@ -7436,11 +7436,21 @@ impl LocalSnapback {
 
     pub fn persist_stream_attempts(
         &mut self,
+        batch: &crate::stream_attempt::StreamAttemptPersistenceBatch,
+    ) -> SnapbackResult<()> {
+        self.db
+            .settlement()
+            .upsert_stream_attempts(batch, now_millis())
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn persist_stream_attempts_for_test(
+        &mut self,
         rows: &[(String, String, String)],
     ) -> SnapbackResult<()> {
         self.db
             .settlement()
-            .upsert_stream_attempts(rows, now_millis())
+            .upsert_stream_attempts_for_test(rows, now_millis())
     }
 
     pub fn settle_stream_transcript(
@@ -26290,8 +26300,13 @@ impl LocalSnapback {
         telemetry_store_identity: Option<crate::telemetry::TelemetryStoreIdentity>,
         asset_store_config: AssetStoreConfig,
     ) -> SnapbackResult<Self> {
+        let stream_attempt_verifier =
+            crate::stream_attempt::global_stream_attempt_registry().persistence_verifying_key()?;
         Self::from_database_in_commit_graph(
-            crate::storage::ServingDatabase::adopt(db)?,
+            crate::storage::ServingDatabase::adopt_with_stream_attempt_verifier(
+                db,
+                stream_attempt_verifier,
+            )?,
             telemetry_store_identity,
             asset_store_config,
         )
@@ -26321,12 +26336,8 @@ impl LocalSnapback {
         // new runner can start against the same client key.
         {
             let reconciled = db
-                .settlement()
-                .reconcile_orphaned_stream_attempts(now_millis())?;
-            for recovery in reconciled.recovered() {
-                crate::stream_attempt::global_stream_attempt_registry()
-                    .record_startup_recovery_host(recovery);
-            }
+                .take_stream_attempt_startup_reconciliation()
+                .expect("ServingDatabase adoption performs stream-attempt startup recovery");
             for attempt in reconciled.terminal_attempts() {
                 // A crash may land after the attempt terminal commits but
                 // before its transcript insert. Reconcile both newly

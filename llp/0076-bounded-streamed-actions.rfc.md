@@ -5,7 +5,14 @@
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-08-12 (the local upstream-response reader now consumes LLP
+**Revised:** 2026-08-22 (structural-boundary repair: durable attempt writes now
+accept only exact batches signed by the registered in-process attempt registry;
+the raw-row seam is test-only. Process-death reconciliation consumes a private
+one-use capability during serving-database adoption and writes its
+`Terminalizer` classification before a live serving handle exists. A durable
+read binds the supplied adoption context against later substitution, but the
+v1 row carries no historical runner identity and therefore makes no stronger
+storage-to-owner claim); 2026-08-12 (the local upstream-response reader now consumes LLP
 0251's shared destination floor and names its value-free SSRF refusal code);
 2026-08-09 (LLP 0204 S4 Landing A adds the distinct bounded
 private action-output stream described in the dated amendment below; the
@@ -765,6 +772,14 @@ a fix before gate 2:
   leaves the conservative on-disk reading). A startup reconciler settles any
   orphaned non-terminal row `failed` with the effect fact folded from the
   persisted cursor pre-marks, witnessed by a two-process-life recovery test.
+  The public kernel/engine persistence seam no longer accepts caller-authored
+  raw rows: storage verifies an exact signed registry batch against the issuer
+  registered when the serving graph is constructed, while the raw-row helper
+  exists only under test support. Reconciliation is likewise not a method on
+  a live settlement handle: serving adoption consumes a private one-use
+  process-death capability and commits the `Terminalizer` classification
+  before exposing the handle, leaving the returned summary usable only for
+  transcript repair.
   Residue: attempt-less streams (no `attemptToken`) have no durable
   settlement row by design — the authored pattern's adoption rides the
   prospective LLP 0075 amendment; the Workerd arm has no substrate.
@@ -775,7 +790,10 @@ a fix before gate 2:
   `ctx.streamAttempt.start`/`settle` and binding cursors through the
   request's `attemptToken` (decisions 2 and 3: certainty persists on the host
   record; parent attempt with per-cursor children whose certainty folds
-  pessimistically). Residue: the record is process-durable, not yet
+  pessimistically). A durable read may carry the current adoption context so
+  it cannot be swapped after that read; because the v1 row stores no
+  historical runner identity, this is deliberately not a claim that storage
+  proved the supplied context owned the former runner. Residue: the record is process-durable, not yet
   crash-durable — the durable write-ahead substrate rides the
   initiation-state ticket; the Workerd arm has no attempt record; and the
   reference authored pattern does not yet reference the token.

@@ -992,15 +992,11 @@ impl DetachedActionHost {
         let registry = crate::stream_attempt::global_stream_attempt_registry();
         let mut snapback = self.lock_live(op)?;
         let namespace = snapback.stream_attempt_namespace();
-        let snapshots = registry.dirty_snapshots(namespace);
+        let (snapshots, batch) = registry.persistence_batch(namespace)?;
         if snapshots.is_empty() {
             return Ok(());
         }
-        let mut rows = Vec::with_capacity(snapshots.len());
-        for snapshot in &snapshots {
-            rows.push(snapshot.to_row()?);
-        }
-        snapback.persist_stream_attempts(&rows)?;
+        snapback.persist_stream_attempts(&batch)?;
         drop(snapback);
         registry.clear_flushed(&snapshots);
         Ok(())
@@ -1025,16 +1021,13 @@ impl DetachedActionHost {
                         scope: Some(scope),
                     };
                     let namespace = guard.stream_attempt_namespace();
-                    let snapshots = registry.dirty_snapshots(namespace);
+                    let Ok((snapshots, batch)) = registry.persistence_batch(namespace) else {
+                        return;
+                    };
                     if snapshots.is_empty() {
                         return;
                     }
-                    let mut rows = Vec::with_capacity(snapshots.len());
-                    for snapshot in &snapshots {
-                        let Ok(row) = snapshot.to_row() else { return };
-                        rows.push(row);
-                    }
-                    if guard.persist_stream_attempts(&rows).is_ok() {
+                    if guard.persist_stream_attempts(&batch).is_ok() {
                         drop(guard);
                         registry.clear_flushed(&snapshots);
                     }
@@ -2648,6 +2641,40 @@ fn linearize_detached_action_abandonment(
     }
 }
 
+#[cfg(test)]
+static PROVIDER_SETTLE_ABANDONMENT_TEST_HOOKS: OnceLock<StdMutex<BTreeSet<usize>>> =
+    OnceLock::new();
+
+#[cfg(test)]
+fn install_provider_settle_abandonment_test_hook(state: &SharedSnapback) {
+    let identity = Arc::as_ptr(state) as usize;
+    let mut hooks = PROVIDER_SETTLE_ABANDONMENT_TEST_HOOKS
+        .get_or_init(|| StdMutex::new(BTreeSet::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    assert!(
+        hooks.insert(identity),
+        "provider-settle abandonment hook already installed for this instance"
+    );
+}
+
+#[cfg(test)]
+fn run_provider_settle_abandonment_test_hook(host: &DetachedActionHost) {
+    let identity = Arc::as_ptr(&host.state) as usize;
+    let armed = PROVIDER_SETTLE_ABANDONMENT_TEST_HOOKS
+        .get_or_init(|| StdMutex::new(BTreeSet::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .remove(&identity);
+    if armed {
+        linearize_detached_action_abandonment(
+            host.commit_gate.as_ref(),
+            host.abandoned.as_ref(),
+            host.active_reservation.as_ref(),
+        );
+    }
+}
+
 /// Run a staged Ibex action on a detached thread under a wall-clock watchdog.
 ///
 /// The action holds no instance lock while it runs; nested Ibex handlers also
@@ -2715,6 +2742,29 @@ async fn run_detached_ibex_action_with_admission_and_counters(
         action_watchdog_timeout_ms(),
     )
     .await
+}
+
+fn detached_action_stream_terminal_cause(
+    result: &SnapbackResult<Value>,
+    has_output_stream: bool,
+) -> crate::stream_attempt::StreamAttemptCause {
+    match result {
+        Err(error) if error.diagnostic.code == "SNAPBACK_ACTION_TIMEOUT" => {
+            crate::stream_attempt::StreamAttemptCause::TimedOut
+        }
+        Err(error)
+            if matches!(
+                error.diagnostic.code.as_str(),
+                "SNAPBACK_ACTION_GENERATION_CONFLICT"
+                    | "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
+                    | "SNAPBACK_AUTH_STREAM_RESET"
+            ) =>
+        {
+            crate::stream_attempt::StreamAttemptCause::Cancelled
+        }
+        Ok(_) if has_output_stream => crate::stream_attempt::StreamAttemptCause::Complete,
+        _ => crate::stream_attempt::StreamAttemptCause::Failed,
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2923,25 +2973,12 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                 // frozen causes (watchdog/deadline → timed_out, fence loss →
                 // cancelled, anything else — including an action that simply
                 // returned without settling — → failed).
-                let terminal_cause = match &fenced {
-                    Err(error) if error.diagnostic.code == "SNAPBACK_ACTION_TIMEOUT" => {
-                        crate::stream_attempt::StreamAttemptCause::TimedOut
-                    }
-                    Err(error)
-                        if matches!(
-                            error.diagnostic.code.as_str(),
-                            "SNAPBACK_ACTION_GENERATION_CONFLICT"
-                                | "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
-                                | "SNAPBACK_AUTH_STREAM_RESET"
-                        ) =>
-                    {
-                        crate::stream_attempt::StreamAttemptCause::Cancelled
-                    }
-                    Ok(_) if host.output_stream_attempt.is_some() => {
-                        crate::stream_attempt::StreamAttemptCause::Complete
-                    }
-                    _ => crate::stream_attempt::StreamAttemptCause::Failed,
-                };
+                let mut terminal_cause = detached_action_stream_terminal_cause(
+                    &fenced,
+                    host.output_stream_attempt.is_some(),
+                );
+                #[cfg(test)]
+                run_provider_settle_abandonment_test_hook(&host);
                 let attempt_registry = crate::stream_attempt::global_stream_attempt_registry();
                 if let Some(attempt_token) = host.output_stream_attempt.clone()
                     && let Err(error) =
@@ -2950,6 +2987,15 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                 {
                     fenced = Err(error);
                 }
+                // Provider settlement may lose the commit-gate race after
+                // `fenced` was computed while the worker was still live. The
+                // refusal then carries the post-abandonment timeout. Recompute
+                // before the invocation-wide backstop so a stale `Complete`
+                // cannot beat the watchdog's `TimedOut` CAS.
+                terminal_cause = detached_action_stream_terminal_cause(
+                    &fenced,
+                    host.output_stream_attempt.is_some(),
+                );
                 if host.output_stream_attempt.is_some()
                     && let Err(error) = host.persist_output_transcript_trusted(&fenced)
                     && fenced.is_ok()
@@ -25182,13 +25228,9 @@ async fn start_ask_stream(
             "the ask streaming attempt did not acquire its runner lease",
         ));
     }
-    let snapshots = registry.dirty_snapshots(namespace);
-    let rows = snapshots
-        .iter()
-        .map(|attempt| attempt.to_row().map_err(Into::into))
-        .collect::<SnapbackResult<Vec<_>>>()?;
+    let (snapshots, batch) = registry.persistence_batch(namespace)?;
     with_snapback(state, move |snapback| {
-        snapback.persist_stream_attempts(&rows)
+        snapback.persist_stream_attempts(&batch)
     })
     .await?;
     registry.clear_flushed(&snapshots);
@@ -25209,11 +25251,7 @@ async fn settle_ask_stream(
     let registry = crate::stream_attempt::global_stream_attempt_registry();
     let terminal = registry.settle_provider_outcome_host(&runner_host, &attempt_token, cause)?;
     let namespace = with_snapback(state, |snapback| snapback.stream_attempt_namespace()).await;
-    let snapshots = registry.dirty_snapshots(namespace);
-    let rows = snapshots
-        .iter()
-        .map(|attempt| attempt.to_row().map_err(Into::into))
-        .collect::<SnapbackResult<Vec<_>>>()?;
+    let (snapshots, batch) = registry.persistence_batch(namespace)?;
     let record = crate::storage::stream_transcripts::StreamTranscriptRecord {
         attempt_token,
         function_id: "snapback:ask".to_owned(),
@@ -25227,7 +25265,7 @@ async fn settle_ask_stream(
         completion_tokens: Some(tokens.completion_tokens),
     };
     with_snapback(state, move |snapback| {
-        snapback.persist_stream_attempts(&rows)?;
+        snapback.persist_stream_attempts(&batch)?;
         snapback.settle_stream_transcript(&record)
     })
     .await?;
@@ -28442,12 +28480,8 @@ async fn cancel_stream_attempt(
         let terminal =
             transition_origin.stage_initiator_cancel(registry, &attempt_token, &initiator)?;
         let namespace = snapback.stream_attempt_namespace();
-        let snapshots = registry.dirty_snapshots(namespace);
-        let rows = snapshots
-            .iter()
-            .map(|attempt| attempt.to_row().map_err(Into::into))
-            .collect::<SnapbackResult<Vec<_>>>()?;
-        snapback.persist_stream_attempts(&rows)?;
+        let (snapshots, batch) = registry.persistence_batch(namespace)?;
+        snapback.persist_stream_attempts(&batch)?;
         if let Some(snapshot) = registry.stream_output(&attempt_token) {
             snapback.settle_stream_transcript(
                 &crate::storage::stream_transcripts::StreamTranscriptRecord {

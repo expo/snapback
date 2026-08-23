@@ -1,10 +1,16 @@
 use super::*;
 
 /// A stream-attempt row observed through the canonical store, carrying the
-/// exact owner supplied for that read. The fields are private and the type is
-/// not deserializable: only a successful storage read can issue this witness.
+/// exact adoption context supplied for that read. The fields are private and
+/// the type is not deserializable: only a successful storage read can issue
+/// this witness.
 ///
-/// ```compile_fail
+/// This binding prevents replacing the context after the read. It does not
+/// claim that the context owned the historical runner recorded by the row;
+/// legacy rows do not retain an identity from which storage could prove that
+/// stronger correspondence.
+///
+/// ```compile_fail,E0451
 /// use snapback_kernel::storage::DurableStreamAttempt;
 /// use snapback_kernel::stream_attempt::PersistedStreamAttempt;
 ///
@@ -23,55 +29,34 @@ use super::*;
 ///     emitted_bytes: 0,
 ///     chunk_count: 0,
 /// };
-/// let _witness = DurableStreamAttempt { persisted: forged, owner: () };
+/// let _witness = DurableStreamAttempt { persisted: forged, read_context: () };
 /// ```
-pub struct DurableStreamAttempt<Owner> {
+pub struct DurableStreamAttempt<ReadContext> {
     persisted: crate::stream_attempt::PersistedStreamAttempt,
-    owner: Owner,
+    read_context: ReadContext,
 }
 
-impl<Owner> DurableStreamAttempt<Owner> {
+impl<ReadContext> DurableStreamAttempt<ReadContext> {
     pub fn persisted(&self) -> &crate::stream_attempt::PersistedStreamAttempt {
         &self.persisted
     }
 
-    pub fn owner(&self) -> &Owner {
-        &self.owner
-    }
-}
-
-/// Opaque proof that startup recovery committed this exact terminal row.
-/// Unlike `PersistedStreamAttempt`, callers cannot deserialize or construct
-/// this transition authority from JSON.
-///
-/// ```compile_fail
-/// use snapback_kernel::storage::DurableRecoveredStreamAttempt;
-/// use snapback_kernel::stream_attempt::PersistedStreamAttempt;
-/// let row: PersistedStreamAttempt = todo!();
-/// let _forged = DurableRecoveredStreamAttempt { persisted: row };
-/// ```
-pub struct DurableRecoveredStreamAttempt {
-    persisted: crate::stream_attempt::PersistedStreamAttempt,
-}
-
-impl DurableRecoveredStreamAttempt {
-    pub fn persisted(&self) -> &crate::stream_attempt::PersistedStreamAttempt {
-        &self.persisted
+    pub fn read_context(&self) -> &ReadContext {
+        &self.read_context
     }
 }
 
 /// Results of the storage-owned startup reconciliation pass. `recovered`
-/// contains only rows whose terminal CAS was committed by this pass;
-/// `terminal_attempts` also includes pre-existing winners for transcript
-/// repair.
+/// counts rows whose terminal CAS was committed by this pass, while
+/// `terminal_attempts` also includes pre-existing winners for transcript repair.
 pub struct StreamAttemptStartupReconciliation {
-    recovered: Vec<DurableRecoveredStreamAttempt>,
+    recovered: usize,
     terminal_attempts: Vec<crate::stream_attempt::PersistedStreamAttempt>,
 }
 
 impl StreamAttemptStartupReconciliation {
-    pub fn recovered(&self) -> &[DurableRecoveredStreamAttempt] {
-        &self.recovered
+    pub fn recovered_count(&self) -> usize {
+        self.recovered
     }
 
     pub fn terminal_attempts(&self) -> &[crate::stream_attempt::PersistedStreamAttempt] {
@@ -839,14 +824,60 @@ impl LocalDatabase {
 /// kernel through typed operations instead of the wide `LocalDatabase` surface.
 pub struct SettlementKernel<'a> {
     db: &'a mut LocalDatabase,
+    stream_attempt_persistence_verifier: Option<&'a [u8]>,
 }
 
 impl<'a> SettlementKernel<'a> {
     pub(super) fn new(db: &'a mut LocalDatabase) -> Self {
-        Self { db }
+        Self {
+            db,
+            stream_attempt_persistence_verifier: None,
+        }
+    }
+
+    pub(super) fn new_with_stream_attempt_verifier(
+        db: &'a mut LocalDatabase,
+        stream_attempt_persistence_verifier: Option<&'a [u8]>,
+    ) -> Self {
+        Self {
+            db,
+            stream_attempt_persistence_verifier,
+        }
     }
 
     pub fn upsert_stream_attempts(
+        &mut self,
+        batch: &crate::stream_attempt::StreamAttemptPersistenceBatch,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        let expected_issuer = self.stream_attempt_persistence_verifier.ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_ACTION_STREAM_PERSISTENCE_UNAUTHORIZED",
+                "storage",
+                "this serving database has no stream-attempt persistence authority",
+            )
+        })?;
+        if batch.issuer_public_key() != expected_issuer {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ACTION_STREAM_PERSISTENCE_UNAUTHORIZED",
+                "storage",
+                "the stream-attempt batch issuer does not own this serving database",
+            ));
+        }
+        ring::signature::UnparsedPublicKey::new(&ring::signature::ED25519, expected_issuer)
+            .verify(&batch.signing_message(), batch.signature())
+            .map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_ACTION_STREAM_PERSISTENCE_UNAUTHORIZED",
+                    "storage",
+                    "the stream-attempt persistence signature is invalid",
+                )
+            })?;
+        self.db.upsert_stream_attempts(batch.rows(), now_ms)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn upsert_stream_attempts_for_test(
         &mut self,
         rows: &[(String, String, String)],
         now_ms: u64,
@@ -855,13 +886,14 @@ impl<'a> SettlementKernel<'a> {
     }
 
     /// Settle every process-orphaned attempt inside the storage authority
-    /// boundary. Recovery witnesses are issued only after every returned row
-    /// has been durably upserted.
+    /// boundary. The one-use startup capability is consumed here, and the
+    /// Terminalizer classification is part of the same durable row update.
     // @ref LLP 0076#settlement-and-retry — the trusted startup terminalizer
     //   folds the write-ahead initiation states conservatively and commits a
     //   durable winner before another runner can adopt the client key.
-    pub fn reconcile_orphaned_stream_attempts(
+    pub(super) fn reconcile_orphaned_stream_attempts(
         &mut self,
+        _startup_recovery: StreamAttemptStartupRecoveryCapability,
         now_ms: u64,
     ) -> SnapbackResult<StreamAttemptStartupReconciliation> {
         let rows = self.db.load_stream_attempts()?;
@@ -891,10 +923,7 @@ impl<'a> SettlementKernel<'a> {
         }
         self.db.upsert_stream_attempts(&updates, now_ms)?;
         Ok(StreamAttemptStartupReconciliation {
-            recovered: recovered_attempts
-                .into_iter()
-                .map(|persisted| DurableRecoveredStreamAttempt { persisted })
-                .collect(),
+            recovered: recovered_attempts.len(),
             terminal_attempts,
         })
     }
@@ -986,16 +1015,19 @@ impl<'a> SettlementReadKernel<'a> {
         Self { db }
     }
 
-    pub fn durable_stream_attempt_by_client_key<Owner>(
+    pub fn durable_stream_attempt_by_client_key<ReadContext>(
         &self,
         client_key: &str,
-        owner: Owner,
-    ) -> SnapbackResult<Option<DurableStreamAttempt<Owner>>> {
+        read_context: ReadContext,
+    ) -> SnapbackResult<Option<DurableStreamAttempt<ReadContext>>> {
         let Some((token, record_json)) = self.db.stream_attempt_by_client_key(client_key)? else {
             return Ok(None);
         };
         let persisted = decode_stream_attempt(&token, client_key, &record_json)?;
-        Ok(Some(DurableStreamAttempt { persisted, owner }))
+        Ok(Some(DurableStreamAttempt {
+            persisted,
+            read_context,
+        }))
     }
 
     pub fn load_stream_attempts(&self) -> SnapbackResult<Vec<(String, String, String)>> {

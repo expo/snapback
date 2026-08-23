@@ -18,9 +18,11 @@
 
 use crate::auth::invocation::PreparedAuthority;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
+use ring::rand::SystemRandom;
+use ring::signature::{Ed25519KeyPair, KeyPair};
 use serde::Serialize;
 use serde_json::{Value, json};
-use snapback_kernel::storage::{DurableRecoveredStreamAttempt, DurableStreamAttempt};
+use snapback_kernel::storage::DurableStreamAttempt;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex, OnceLock};
@@ -39,7 +41,7 @@ const STREAM_LIVE_AUTH_RETENTION: std::time::Duration = std::time::Duration::fro
 /// capability but cannot manufacture or retag it. Only
 /// [`PreparedAuthority::stream_attempt_origin`] constructs it.
 ///
-/// ```compile_fail
+/// ```compile_fail,E0451
 /// use snapback_sync::stream_attempt::CallerAuthorized;
 /// let _forged = CallerAuthorized { _authority: todo!() };
 /// ```
@@ -53,7 +55,7 @@ pub struct CallerAuthorized {
 /// Like [`CallerAuthorized`], this cannot be constructed or selected from a
 /// boolean, cause, or caller-supplied enum.
 ///
-/// ```compile_fail
+/// ```compile_fail,E0451
 /// use snapback_sync::stream_attempt::ModeOnly;
 /// let _forged = ModeOnly { _authority: todo!() };
 /// ```
@@ -362,7 +364,7 @@ impl InvocationCommitGate {
 /// the opaque id, shared runner gate, and finished flag the lease consults.
 /// Host-settlement authority cannot be derived from this public identity.
 ///
-/// ```compile_fail
+/// ```compile_fail,E0624
 /// use snapback_sync::stream_attempt::StreamRunnerIdentity;
 /// use std::sync::{Arc, atomic::AtomicBool};
 ///
@@ -398,11 +400,13 @@ impl StreamRunnerIdentity {
 /// prepared invocation can mint this capability; there is no public
 /// constructor or conversion from a caller-held [`StreamRunnerIdentity`].
 ///
-/// ```compile_fail
+/// ```compile_fail,E0624
+/// use snapback_sync::auth::invocation::PreparedAuthority;
 /// use snapback_sync::stream_attempt::StreamRunnerHost;
 /// use std::sync::{Arc, atomic::AtomicBool};
 ///
-/// let _forged = StreamRunnerHost::new(Arc::new(AtomicBool::new(false)));
+/// let authority: PreparedAuthority = todo!();
+/// let _forged = StreamRunnerHost::new(authority, Arc::new(AtomicBool::new(false)));
 /// ```
 #[derive(Clone)]
 pub struct StreamRunnerHost {
@@ -443,21 +447,18 @@ impl StreamAttemptTransitionOrigin for HostSettlement<'_> {
     const PROVENANCE: &'static str = "HostSettlement";
 }
 
-/// Startup recovery has no surviving runner. Its host-settlement origin is
-/// therefore constructible only by borrowing the storage-issued proof that
-/// the recovered terminal row committed.
-struct RecoveryHostSettlement<'a> {
-    _durability: &'a DurableRecoveredStreamAttempt,
-}
-
-impl StreamAttemptTransitionOrigin for RecoveryHostSettlement<'_> {
-    #[cfg(any(test, feature = "test-support"))]
-    const PROVENANCE: &'static str = "HostSettlement";
-}
-
-#[derive(Default)]
 pub struct StreamAttemptRegistry {
     inner: StdMutex<RegistryInner>,
+    persistence_signer: StdMutex<Option<Ed25519KeyPair>>,
+}
+
+impl Default for StreamAttemptRegistry {
+    fn default() -> Self {
+        Self {
+            inner: StdMutex::new(RegistryInner::default()),
+            persistence_signer: StdMutex::new(None),
+        }
+    }
 }
 
 fn attempt_error(operation: &'static str, message: &'static str, details: Value) -> SnapbackError {
@@ -493,6 +494,70 @@ impl StreamAttemptRegistry {
         self.inner
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    fn with_persistence_signer<T>(
+        &self,
+        operation: impl FnOnce(&Ed25519KeyPair) -> T,
+    ) -> SnapbackResult<T> {
+        let mut signer = self
+            .persistence_signer
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if signer.is_none() {
+            let pkcs8 = Ed25519KeyPair::generate_pkcs8(&SystemRandom::new()).map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_ACTION_STREAM_PERSISTENCE_AUTHORITY_UNAVAILABLE",
+                    "runtime",
+                    "the stream-attempt registry could not create its persistence authority",
+                )
+            })?;
+            *signer = Some(Ed25519KeyPair::from_pkcs8(pkcs8.as_ref()).map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_ACTION_STREAM_PERSISTENCE_AUTHORITY_UNAVAILABLE",
+                    "runtime",
+                    "the stream-attempt registry could not load its persistence authority",
+                )
+            })?);
+        }
+        Ok(operation(
+            signer
+                .as_ref()
+                .expect("stream persistence signer was initialized"),
+        ))
+    }
+
+    /// Public verification half registered with the exact serving database.
+    /// The private signing half never leaves this registry.
+    pub fn persistence_verifying_key(&self) -> SnapbackResult<Vec<u8>> {
+        self.with_persistence_signer(|signer| signer.public_key().as_ref().to_vec())
+    }
+
+    /// Snapshot and sign the exact dirty rows for one instance namespace.
+    /// Callers cannot add or replace rows after this cut without invalidating
+    /// the storage-verified signature.
+    pub fn persistence_batch(
+        &self,
+        namespace: usize,
+    ) -> SnapbackResult<(
+        Vec<PersistedStreamAttempt>,
+        snapback_types::stream_attempt::StreamAttemptPersistenceBatch,
+    )> {
+        let snapshots = self.dirty_snapshots(namespace);
+        let rows = snapshots
+            .iter()
+            .map(|snapshot| snapshot.to_row().map_err(Into::into))
+            .collect::<SnapbackResult<Vec<_>>>()?;
+        let message =
+            snapback_types::stream_attempt::stream_attempt_persistence_signing_message(&rows);
+        let batch = self.with_persistence_signer(|signer| {
+            snapback_types::stream_attempt::StreamAttemptPersistenceBatch::from_signed_parts(
+                rows,
+                signer.public_key().as_ref().to_vec(),
+                signer.sign(&message).as_ref().to_vec(),
+            )
+        })?;
+        Ok((snapshots, batch))
     }
 
     /// Idempotent start by client key. The first caller creates the attempt
@@ -1209,13 +1274,21 @@ impl StreamAttemptRegistry {
     }
 
     /// Adopt a storage-issued terminal row as host settlement. The witness
-    /// owns the exact runner host used for the durable read, so callers cannot
-    /// substitute a deserialized row or an unrelated runner.
+    /// owns the exact current host supplied for the durable read, so callers
+    /// cannot substitute a deserialized row or swap that host after the read.
+    /// Storage does not claim this current adopter was the historical runner;
+    /// the durable v1 row carries no identity capable of proving that stronger
+    /// correspondence.
     ///
-    /// ```compile_fail
-    /// use snapback_sync::stream_attempt::{PersistedStreamAttempt, StreamAttemptRegistry};
+    /// ```compile_fail,E0451
+    /// use snapback_kernel::storage::DurableStreamAttempt;
+    /// use snapback_sync::stream_attempt::{
+    ///     PersistedStreamAttempt, StreamAttemptRegistry, StreamRunnerHost,
+    /// };
     /// let row: PersistedStreamAttempt = todo!();
-    /// StreamAttemptRegistry::default().adopt_terminal_host(1, row);
+    /// let forged: DurableStreamAttempt<StreamRunnerHost> =
+    ///     DurableStreamAttempt { persisted: row, read_context: todo!() };
+    /// let _ = StreamAttemptRegistry::default().adopt_terminal_host(1, forged);
     /// ```
     pub fn adopt_terminal_host(
         &self,
@@ -1230,7 +1303,7 @@ impl StreamAttemptRegistry {
                 json!({ "expected": "a terminal durable attempt", "received": "a nonterminal durable attempt" }),
             ));
         }
-        let host = durable.owner();
+        let host = durable.read_context();
         let origin = host.host_settlement();
         self.stage_start_from(
             &origin,
@@ -1239,21 +1312,6 @@ impl StreamAttemptRegistry {
             origin.runner,
             Some(persisted),
         )
-    }
-
-    /// Classify one startup terminalization only after storage returns its
-    /// opaque committed-recovery witness.
-    ///
-    /// ```compile_fail
-    /// use snapback_sync::stream_attempt::{PersistedStreamAttempt, StreamAttemptRegistry};
-    /// let row: PersistedStreamAttempt = todo!();
-    /// StreamAttemptRegistry::default().record_startup_recovery_host(&row);
-    /// ```
-    pub fn record_startup_recovery_host(&self, recovery: &DurableRecoveredStreamAttempt) {
-        let origin = RecoveryHostSettlement {
-            _durability: recovery,
-        };
-        self.lock().classify_transition(&origin, "startupRecovery");
     }
 
     /// The trusted terminalizer: settle every non-terminal attempt bound to
@@ -1606,9 +1664,17 @@ mod tests {
         source: crate::auth::invocation::InvocationSource,
         resolved: ResolvedAppAuthority,
     ) -> PreparedStreamAttemptOrigin {
+        caller_origin_in_mode(source, AuthMode::Sessions, resolved)
+    }
+
+    fn caller_origin_in_mode(
+        source: crate::auth::invocation::InvocationSource,
+        mode: AuthMode,
+        resolved: ResolvedAppAuthority,
+    ) -> PreparedStreamAttemptOrigin {
         let (_, publication) = crate::auth::session_projection::FencedPublication::
             anonymous_for_unmanaged_dev_connection();
-        prepared_authority(source, AuthMode::Sessions, resolved)
+        prepared_authority(source, mode, resolved)
             .with_fenced_publication(publication)
             .stream_attempt_origin()
     }
@@ -1715,11 +1781,20 @@ mod tests {
     #[test]
     fn r1_transition_entry_points_record_expected_origin_classifications() {
         let registry = registry();
-        let caller = caller_origin(
+        // These two fixtures intentionally cross the old mode-proxy rule:
+        // Dev + a retained carrier is caller-authorized, while Sessions + no
+        // carrier is mode-only. Replacing the carrier rule with the old
+        // `mode == Sessions` proxy reverses both classifications.
+        let caller = caller_origin_in_mode(
             crate::auth::invocation::InvocationSource::HttpAction,
+            AuthMode::Dev,
+            ResolvedAppAuthority::Anonymous,
+        );
+        let mode = prepared_origin(
+            crate::auth::invocation::InvocationSource::HttpAction,
+            AuthMode::Sessions,
             session_authority(),
         );
-        let mode = mode_origin();
 
         let first = runner();
         let started = mode
@@ -1809,56 +1884,32 @@ mod tests {
             .into_iter()
             .find(|snapshot| snapshot.token == caller_started.attempt_token)
             .expect("terminal snapshot to persist before adoption");
-        let mut storage = snapback_kernel::storage::LocalDatabase::memory()
+        let storage = snapback_kernel::storage::LocalDatabase::memory()
             .expect("durable transition test store");
+        let verifier = registry
+            .persistence_verifying_key()
+            .expect("registry persistence verifier");
+        let mut storage =
+            snapback_kernel::storage::ServingDatabase::adopt_with_stream_attempt_verifier(
+                storage, verifier,
+            )
+            .expect("adopt durable transition test store");
+        let (snapshots, batch) = registry
+            .persistence_batch(41)
+            .expect("authorize exact registry snapshots");
+        assert!(
+            snapshots.contains(&terminal_snapshot),
+            "authorized persistence batch contains the terminal adoption source"
+        );
         storage
             .settlement()
-            .upsert_stream_attempts(&[terminal_snapshot.to_row().unwrap()], 1)
+            .upsert_stream_attempts(&batch, 1)
             .expect("terminal adoption source commits");
 
-        let recovery_row = PersistedStreamAttempt {
-            token: "startup-recovery-token".to_owned(),
-            client_key: "startup-recovery-key".to_owned(),
-            runner_generation: 1,
-            progress_commits: 0,
-            cursors_opened: 1,
-            cursors: BTreeMap::from([(
-                "startup-recovery-cursor".to_owned(),
-                PersistedStreamCursor {
-                    initiation_state: StreamInitiationState::InitiationPossible,
-                    open: true,
-                },
-            )]),
-            terminal: None,
-            function_id: None,
-            initiator: None,
-            started_at_ms: 1,
-            settled_at_ms: None,
-            emitted_bytes: 0,
-            chunk_count: 0,
-        };
-        storage
-            .settlement()
-            .upsert_stream_attempts(&[recovery_row.to_row().unwrap()], 2)
-            .expect("orphan source commits before recovery");
-        let recovery = storage
-            .settlement()
-            .reconcile_orphaned_stream_attempts(3)
-            .expect("startup recovery commits");
-        assert_eq!(recovery.recovered().len(), 1);
-        let recovery_registry = StreamAttemptRegistry::default();
-        recovery_registry.record_startup_recovery_host(&recovery.recovered()[0]);
-
         let adoption_registry = StreamAttemptRegistry::default();
-        let adoption_host = prepared_authority(
-            crate::auth::invocation::InvocationSource::LocalAction,
-            AuthMode::Dev,
-            ResolvedAppAuthority::Anonymous,
-        )
-        .stream_runner_host(Arc::new(AtomicBool::new(false)));
         let durable_terminal = storage
             .settlement_read()
-            .durable_stream_attempt_by_client_key("caller", adoption_host)
+            .durable_stream_attempt_by_client_key("caller", caller_host.clone())
             .expect("read committed terminal")
             .expect("committed terminal exists");
         adoption_registry
@@ -1889,15 +1940,113 @@ mod tests {
             adoption_registry.transition_classifications_for_test(),
             vec![("terminalAdoption", "HostSettlement")]
         );
-        assert_eq!(
-            recovery_registry.transition_classifications_for_test(),
-            vec![("startupRecovery", "HostSettlement")]
-        );
         assert_eq!(started.attempt_token, takeover.attempt_token);
     }
 
     #[test]
-    fn provider_terminal_with_authored_cause_never_enters_authored_path() {
+    fn storage_rejects_fabricated_or_foreign_registry_persistence_batches() {
+        let primary_registry = registry();
+        let legitimate_runner = runner();
+        let legitimate = primary_registry
+            .start(71, "legitimate", &legitimate_runner, None)
+            .expect("legitimate registry start");
+        let (_, legitimate_batch) = primary_registry
+            .persistence_batch(71)
+            .expect("legitimate registry signs its dirty snapshot");
+        let verifier = primary_registry
+            .persistence_verifying_key()
+            .expect("legitimate registry verifier");
+        let mut unregistered_database = snapback_kernel::storage::LocalDatabase::memory()
+            .expect("unregistered persistence database");
+        let unregistered_error = unregistered_database
+            .settlement()
+            .upsert_stream_attempts(&legitimate_batch, 0)
+            .expect_err("raw kernel settlement access has no persistence authority");
+        assert_eq!(
+            unregistered_error.diagnostic.code,
+            "SNAPBACK_ACTION_STREAM_PERSISTENCE_UNAUTHORIZED"
+        );
+        let database =
+            snapback_kernel::storage::LocalDatabase::memory().expect("signed persistence database");
+        let mut storage =
+            snapback_kernel::storage::ServingDatabase::adopt_with_stream_attempt_verifier(
+                database, verifier,
+            )
+            .expect("register exact stream persistence issuer");
+
+        let fabricated = PersistedStreamAttempt {
+            token: "fabricated-terminal".to_owned(),
+            client_key: "fabricated-terminal".to_owned(),
+            runner_generation: 1,
+            progress_commits: 0,
+            cursors_opened: 0,
+            cursors: BTreeMap::new(),
+            terminal: Some(StreamAttemptTerminal {
+                cause: StreamAttemptCause::Complete,
+                effect_may_have_executed: false,
+                settled_by: StreamAttemptSettledBy::Terminalizer,
+            }),
+            function_id: None,
+            initiator: None,
+            started_at_ms: 0,
+            settled_at_ms: Some(1),
+            emitted_bytes: 0,
+            chunk_count: 0,
+        };
+        let tampered = StreamAttemptPersistenceBatch::from_signed_parts(
+            vec![fabricated.to_row().expect("serialize fabricated row")],
+            legitimate_batch.issuer_public_key().to_vec(),
+            legitimate_batch.signature().to_vec(),
+        );
+        let tampered_error = storage
+            .settlement()
+            .upsert_stream_attempts(&tampered, 1)
+            .expect_err("changing signed row bytes invalidates the batch");
+        assert_eq!(
+            tampered_error.diagnostic.code,
+            "SNAPBACK_ACTION_STREAM_PERSISTENCE_UNAUTHORIZED"
+        );
+
+        let foreign_registry = registry();
+        let foreign_runner = runner();
+        foreign_registry
+            .start(71, "foreign", &foreign_runner, None)
+            .expect("foreign registry start");
+        let (_, foreign_batch) = foreign_registry
+            .persistence_batch(71)
+            .expect("foreign registry signs its own snapshot");
+        let foreign_error = storage
+            .settlement()
+            .upsert_stream_attempts(&foreign_batch, 2)
+            .expect_err("a different registry cannot write this serving database");
+        assert_eq!(
+            foreign_error.diagnostic.code,
+            "SNAPBACK_ACTION_STREAM_PERSISTENCE_UNAUTHORIZED"
+        );
+
+        storage
+            .settlement()
+            .upsert_stream_attempts(&legitimate_batch, 3)
+            .expect("the registered registry batch persists");
+        assert!(
+            storage
+                .settlement_read()
+                .durable_stream_attempt_by_client_key("legitimate", ())
+                .expect("read legitimate row")
+                .is_some()
+        );
+        assert!(
+            storage
+                .settlement_read()
+                .durable_stream_attempt_by_client_key("fabricated-terminal", ())
+                .expect("check fabricated row absence")
+                .is_none()
+        );
+        assert_eq!(legitimate.attempt_token.len(), 36);
+    }
+
+    #[test]
+    fn registry_provider_settlement_method_classifies_complete_as_host_terminalizer() {
         let registry = registry();
         let caller = caller_origin(
             crate::auth::invocation::InvocationSource::HttpAction,
@@ -1953,15 +2102,30 @@ mod tests {
             ResolvedAppAuthority::Anonymous,
         )
         .stream_runner_host(Arc::new(AtomicBool::new(false)));
-        let other_host = prepared_authority(
-            crate::auth::invocation::InvocationSource::LocalAction,
-            AuthMode::Dev,
-            ResolvedAppAuthority::Anonymous,
-        )
-        .stream_runner_host(Arc::new(AtomicBool::new(false)));
         let holder = holder_host.runner();
+        // Keep the opaque invocation id equal while changing both Arc-backed
+        // lease identities. This reaches invocation-indexed methods such as
+        // progress commit, but it is still not the exact runner that owns the
+        // lease. An unrelated invocation id would return before exercising
+        // those per-record fences.
+        let other_runner = StreamRunnerIdentity {
+            invocation_id: holder.invocation_id.clone(),
+            commit_gate: Arc::new(InvocationCommitGate::new(Arc::new(AtomicBool::new(false)))),
+            finished: Arc::new(AtomicBool::new(false)),
+        };
+        let other_host = runner_host(&other_runner);
         let started = registry
-            .start(61, "runner-bound-cursor", holder, None)
+            .start_with_metadata(
+                61,
+                "runner-bound-cursor",
+                holder,
+                None,
+                StreamAttemptMetadata {
+                    function_id: Some("app:runner-bound".to_owned()),
+                    initiator: Some(StreamInitiator::SessionUser("user-a".to_owned())),
+                    started_at_ms: 1,
+                },
+            )
             .expect("holder starts attempt");
         registry
             .bind_cursor(&started.attempt_token, "runner-bound-cursor", holder)
@@ -1972,6 +2136,11 @@ mod tests {
             "runner-bound-cursor",
             StreamInitiationState::DefinitelyNotInitiated,
         );
+        registry.record_progress_commit_host(&other_host);
+        let wrong_emit = registry
+            .record_emit_counters_host(&other_host, &started.attempt_token, 1)
+            .expect_err("another runner cannot reserve output counters");
+        assert_eq!(wrong_emit.diagnostic.code, "SNAPBACK_STREAM_RUNNER_FENCED");
         registry.record_cursor_close_host(&other_host, "runner-bound-cursor");
         assert!(
             registry
@@ -2004,6 +2173,9 @@ mod tests {
             StreamInitiationState::InitiationPossible
         );
         assert!(cursor.open, "another runner cannot close this cursor");
+        assert_eq!(after_other.progress_commits, 0);
+        assert_eq!(after_other.chunk_count, 0);
+        assert_eq!(after_other.emitted_bytes, 0);
         assert_eq!(
             registry.transition_classifications_for_test(),
             vec![("freshStart", "ModeOnly"), ("cursorPremark", "ModeOnly"),],

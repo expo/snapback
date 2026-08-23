@@ -144,7 +144,7 @@ pub(crate) use schema_transition::{
     prove_retained_work_posture, record_schema_transition_event, schema_transition_events_on,
 };
 pub use settlement::{
-    DurableRecoveredStreamAttempt, DurableStreamAttempt, SettlementKernel, SettlementReadKernel,
+    DurableStreamAttempt, SettlementKernel, SettlementReadKernel,
     StreamAttemptStartupReconciliation,
 };
 pub use snapback_types::storage::*;
@@ -1606,10 +1606,36 @@ impl DetachedReadSnapshot {
 pub struct ServingDatabase {
     db: LocalDatabase,
     authority: KernelCommitAuthority,
+    stream_attempt_persistence_verifier: Option<Vec<u8>>,
+    stream_attempt_startup_reconciliation: Option<StreamAttemptStartupReconciliation>,
+}
+
+/// One-use authority for the process-death reconciliation cut. Its private
+/// field confines construction to this storage module, and consuming it in
+/// the reconciliation call makes the startup-only boundary explicit.
+struct StreamAttemptStartupRecoveryCapability {
+    _private: (),
 }
 
 impl ServingDatabase {
-    pub fn adopt(mut db: LocalDatabase) -> SnapbackResult<Self> {
+    pub fn adopt(db: LocalDatabase) -> SnapbackResult<Self> {
+        Self::adopt_with_optional_stream_attempt_verifier(db, None)
+    }
+
+    /// Construct the serving graph authorized to persist batches signed by
+    /// one exact stream-attempt registry. Supplying a verifier is the explicit
+    /// embedding authorization; later settlement access cannot replace it.
+    pub fn adopt_with_stream_attempt_verifier(
+        db: LocalDatabase,
+        verifier: Vec<u8>,
+    ) -> SnapbackResult<Self> {
+        Self::adopt_with_optional_stream_attempt_verifier(db, Some(verifier))
+    }
+
+    fn adopt_with_optional_stream_attempt_verifier(
+        mut db: LocalDatabase,
+        stream_attempt_persistence_verifier: Option<Vec<u8>>,
+    ) -> SnapbackResult<Self> {
         let authority = db.claim_commit_authority().ok_or_else(|| {
             SnapbackError::error(
                 "SNAPBACK_KERNEL_COMMIT_AUTHORITY_ALREADY_CLAIMED",
@@ -1617,7 +1643,37 @@ impl ServingDatabase {
                 "the database already belongs to a serving commit-authority graph",
             )
         })?;
-        Ok(Self { db, authority })
+        // @ref LLP 0076#settlement-and-retry — owner-free terminalization is
+        // confined to this construction cut. No live `ServingDatabase` can
+        // invoke it, and storage writes the Terminalizer classification in
+        // the same operation instead of returning a witness callers must
+        // remember to classify.
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis()
+            .try_into()
+            .unwrap_or(u64::MAX);
+        let startup_recovery = StreamAttemptStartupRecoveryCapability { _private: () };
+        let stream_attempt_startup_reconciliation = Some(
+            SettlementKernel::new(&mut db)
+                .reconcile_orphaned_stream_attempts(startup_recovery, now_ms)?,
+        );
+        Ok(Self {
+            db,
+            authority,
+            stream_attempt_persistence_verifier,
+            stream_attempt_startup_reconciliation,
+        })
+    }
+
+    /// Take the already-completed startup result for transcript repair. This
+    /// cannot trigger owner-free terminalization; [`Self::adopt`] performed
+    /// that operation before the serving database became observable.
+    pub fn take_stream_attempt_startup_reconciliation(
+        &mut self,
+    ) -> Option<StreamAttemptStartupReconciliation> {
+        self.stream_attempt_startup_reconciliation.take()
     }
 
     pub fn binding(&self) -> DatabaseBinding {
@@ -1764,7 +1820,10 @@ impl ServingDatabase {
     }
 
     pub fn settlement(&mut self) -> SettlementKernel<'_> {
-        SettlementKernel::new(&mut self.db)
+        SettlementKernel::new_with_stream_attempt_verifier(
+            &mut self.db,
+            self.stream_attempt_persistence_verifier.as_deref(),
+        )
     }
 
     pub fn push_registry(&mut self) -> PushRegistryKernel<'_> {

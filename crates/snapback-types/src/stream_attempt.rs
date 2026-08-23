@@ -145,3 +145,84 @@ impl PersistedStreamAttempt {
         Ok((self.token.clone(), self.client_key.clone(), json))
     }
 }
+
+const STREAM_ATTEMPT_PERSISTENCE_SIGNATURE_DOMAIN: &[u8] =
+    b"snapback.stream-attempt-persistence.v1\0";
+
+/// An exact registry snapshot authorized for one storage write. The row bytes
+/// remain inspectable for persistence, but altering any byte invalidates the
+/// signature. Storage additionally requires the issuer key registered when
+/// its serving graph was constructed.
+pub struct StreamAttemptPersistenceBatch {
+    rows: Vec<(String, String, String)>,
+    issuer_public_key: Vec<u8>,
+    signature: Vec<u8>,
+}
+
+impl StreamAttemptPersistenceBatch {
+    #[doc(hidden)]
+    pub fn from_signed_parts(
+        rows: Vec<(String, String, String)>,
+        issuer_public_key: Vec<u8>,
+        signature: Vec<u8>,
+    ) -> Self {
+        Self {
+            rows,
+            issuer_public_key,
+            signature,
+        }
+    }
+
+    pub fn rows(&self) -> &[(String, String, String)] {
+        &self.rows
+    }
+
+    #[doc(hidden)]
+    pub fn issuer_public_key(&self) -> &[u8] {
+        &self.issuer_public_key
+    }
+
+    #[doc(hidden)]
+    pub fn signature(&self) -> &[u8] {
+        &self.signature
+    }
+
+    #[doc(hidden)]
+    pub fn signing_message(&self) -> Vec<u8> {
+        stream_attempt_persistence_signing_message(&self.rows)
+    }
+}
+
+/// Canonical, length-delimited bytes signed by the stream-attempt registry.
+/// Length prefixes prevent tuple or field-boundary ambiguity.
+#[doc(hidden)]
+pub fn stream_attempt_persistence_signing_message(rows: &[(String, String, String)]) -> Vec<u8> {
+    let payload_len = rows.iter().fold(0usize, |total, row| {
+        total
+            .saturating_add(8)
+            .saturating_add(row.0.len())
+            .saturating_add(8)
+            .saturating_add(row.1.len())
+            .saturating_add(8)
+            .saturating_add(row.2.len())
+    });
+    let mut message = Vec::with_capacity(
+        STREAM_ATTEMPT_PERSISTENCE_SIGNATURE_DOMAIN
+            .len()
+            .saturating_add(8)
+            .saturating_add(payload_len),
+    );
+    message.extend_from_slice(STREAM_ATTEMPT_PERSISTENCE_SIGNATURE_DOMAIN);
+    message.extend_from_slice(&(rows.len() as u64).to_be_bytes());
+    for (token, client_key, record_json) in rows {
+        for field in [
+            token.as_bytes(),
+            client_key.as_bytes(),
+            record_json.as_bytes(),
+        ] {
+            message.extend_from_slice(&(field.len() as u64).to_be_bytes());
+            message.extend_from_slice(field);
+        }
+    }
+    message
+}
