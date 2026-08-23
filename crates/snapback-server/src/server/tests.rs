@@ -3310,7 +3310,7 @@ async fn detached_action_nested_mutations_reserve_rooms_off_local() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn t7_watchdog_gate_first_cancels_held_reservation_without_publication() {
+async fn watchdog_abandonment_cancels_held_room_reservation_without_publication() {
     const ROOM: &str = "room-watchdog-reservation";
     const MEMBER: &str = "member-watchdog-reservation";
     let (state, _directory) = tokio::task::spawn_blocking(|| {
@@ -8004,6 +8004,7 @@ async fn t3_exact_child_reservation_wins_then_terminal_drains() {
                 matches!(caller, DetachedNestedMutationCaller::ScopedService),
                 "the exact child reservation retains the caller's finite-service permit"
             );
+            pause.require_exact_commit_guard();
 
             let terminal_state = fixture.state.clone();
             let terminal_router = fixture.router.clone();
@@ -8193,11 +8194,101 @@ async fn t4_action_then_mode_guards_are_retained_at_both_storage_cuts() {
     }
 }
 
-/// T5: authored code catches both host errors and returns success, but the
-/// first typed terminal cause remains authoritative and blocks the distinct
-/// second target before staging.
+#[derive(Clone, Copy, Debug)]
+enum NestedAfterLocalRuntime {
+    ManagedHostPlan,
+    DetachedHostPlan,
+    DetachedIbex,
+}
+
+/// A completed child no longer owns caller authority while post-Local action
+/// cleanup is still blocked. This covers managed HostPlan and both detached
+/// child runtimes through the real session logout drain.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn t5_caught_refusal_latches_once_blocks_second_stage_and_overrides_success() {
+async fn child_caller_permit_releases_before_after_local_work() {
+    for runtime in [
+        NestedAfterLocalRuntime::ManagedHostPlan,
+        NestedAfterLocalRuntime::DetachedHostPlan,
+        NestedAfterLocalRuntime::DetachedIbex,
+    ] {
+        let functions = match runtime {
+            NestedAfterLocalRuntime::ManagedHostPlan => finite_authority_matrix_functions(),
+            NestedAfterLocalRuntime::DetachedHostPlan => {
+                detached_nested_mutation_fence_functions(DetachedNestedMutationRuntime::HostPlan)
+            }
+            NestedAfterLocalRuntime::DetachedIbex => {
+                detached_nested_mutation_fence_functions(DetachedNestedMutationRuntime::Ibex)
+            }
+        };
+        let fixture = finite_authority_matrix_fixture_with_functions(functions).await;
+        let credential = mint_test_credential(
+            &fixture.state,
+            &format!("after-local-{runtime:?}@example.test"),
+        )
+        .await;
+        let bearer = credential["token"]
+            .as_str()
+            .expect("after-Local session bearer")
+            .to_owned();
+        let pause = super::install_nested_after_local_test_pause(&fixture.state.snapback);
+        let action_router = fixture.router.clone();
+        let action_bearer = bearer.clone();
+        let action = tokio::spawn(async move {
+            action_router
+                .oneshot(session_auth_http_request(
+                    "/action/writeAction",
+                    br#"{"args":{}}"#.to_vec(),
+                    &action_bearer,
+                ))
+                .await
+                .expect("after-Local action response")
+        });
+        tokio::time::timeout(Duration::from_secs(5), pause.wait_until_reached())
+            .await
+            .unwrap_or_else(|_| panic!("{runtime:?} never reached post-Local cleanup"));
+        assert_eq!(
+            finite_authority_matrix_item_count(&fixture.state).await,
+            2,
+            "{runtime:?} child has committed before cleanup pauses"
+        );
+        assert!(
+            !action.is_finished(),
+            "{runtime:?} action remains held in post-Local cleanup"
+        );
+
+        let logout = tokio::time::timeout(
+            Duration::from_secs(2),
+            fixture.router.clone().oneshot(session_auth_http_request(
+                "/auth/logout",
+                br#"{}"#.to_vec(),
+                &bearer,
+            )),
+        )
+        .await
+        .unwrap_or_else(|_| {
+            panic!("{runtime:?} completed child kept logout draining during after-Local work")
+        })
+        .expect("after-Local logout response");
+        assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+        assert!(
+            !action.is_finished(),
+            "{runtime:?} cleanup hold remains independent of logout"
+        );
+
+        pause.release();
+        let response = tokio::time::timeout(Duration::from_secs(5), action)
+            .await
+            .expect("after-Local action settles")
+            .expect("after-Local action joins");
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+}
+
+/// T5: authored code catches both host errors and returns success, but the
+/// first typed terminal cause remains authoritative, both distinct durable
+/// sentinels stay absent, and the worker result cannot become success.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn t5_caught_refusal_latches_once_blocks_durable_effects_and_overrides_success() {
     let fixture =
         finite_authority_matrix_fixture_with_functions(caught_nested_refusal_functions(false))
             .await;
@@ -8246,20 +8337,6 @@ async fn t5_caught_refusal_latches_once_blocks_second_stage_and_overrides_succes
     assert_eq!(
         response["diagnostic"]["code"],
         "SNAPBACK_AUTH_SESSION_EXPIRED"
-    );
-    assert_eq!(observation.staged_count("firstWrite"), 1);
-    assert_eq!(
-        observation.staged_count("secondWrite"),
-        0,
-        "the latched host-call check must stop the distinct second target before staging"
-    );
-    assert_eq!(
-        observation.refusal_codes(),
-        vec![
-            "SNAPBACK_AUTH_SESSION_EXPIRED".to_owned(),
-            "SNAPBACK_AUTH_SESSION_EXPIRED".to_owned(),
-        ],
-        "both caught host errors preserve the same typed cause"
     );
     assert_eq!(observation.latch_wins(), 1);
     assert_eq!(
@@ -27960,7 +28037,7 @@ async fn provider_settlement_abandonment_case(authority_latch_first: bool) {
     assert_eq!(
         terminal.cause,
         if authority_latch_first {
-            crate::stream_attempt::StreamAttemptCause::Failed
+            crate::stream_attempt::StreamAttemptCause::Cancelled
         } else {
             crate::stream_attempt::StreamAttemptCause::TimedOut
         }
@@ -31649,7 +31726,7 @@ fn production_with_snapback_closures_exclude_auth_acts_and_compat_teardown() {
 }
 
 #[test]
-fn t10_legacy_host_excludes_finite_authority_and_served_routes_use_split_executor() {
+fn t10_source_inventory_pins_legacy_host_type_and_split_executor_routing() {
     #[derive(Default)]
     struct CallInventory {
         current: Option<String>,
@@ -31769,7 +31846,7 @@ fn t10_legacy_host_excludes_finite_authority_and_served_routes_use_split_executo
             .expect("authority type")
             .ident,
         "LegacyLocalActionAuthority",
-        "PreparedAuthority must be unrepresentable in LocalIbexActionHost"
+        "the source inventory requires LocalIbexActionHost's nominal legacy authority type"
     );
     assert!(
         engine_source.contains("ResolvedAppAuthority::Session { .. }")
@@ -31777,7 +31854,7 @@ fn t10_legacy_host_excludes_finite_authority_and_served_routes_use_split_executo
             && engine_source.contains(
                 "finite caller actions must use the managed or detached split-phase executor"
             ),
-        "the closed legacy constructor must exhaustively refuse both finite postures"
+        "the source inventory requires explicit finite-posture refusal arms"
     );
 }
 

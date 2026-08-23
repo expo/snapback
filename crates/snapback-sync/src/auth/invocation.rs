@@ -1361,6 +1361,45 @@ pub struct AuthorizedEffectCommitGuard<'a> {
     _mode: AdmissionEffectGuard<'a>,
     _service: Option<RetainedServiceAuthorityGuard<'a>>,
     _reservation: &'a AuthorizedEffectReservation,
+    #[cfg(any(test, feature = "test-support"))]
+    test_reservation_identity: u64,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+thread_local! {
+    static LIVE_AUTHORIZED_EFFECT_COMMIT_GUARDS_FOR_TEST:
+        std::cell::RefCell<std::collections::BTreeMap<u64, usize>> =
+        const { std::cell::RefCell::new(std::collections::BTreeMap::new()) };
+}
+
+/// Whether this thread owns the commit guard minted from the exact
+/// authorized-effect reservation. This observes guard identity only; it is
+/// not an authorization API and never consults an authority mutex.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub fn current_thread_holds_authorized_effect_commit_guard_for_test(identity: u64) -> bool {
+    LIVE_AUTHORIZED_EFFECT_COMMIT_GUARDS_FOR_TEST.with(|guards| {
+        guards
+            .borrow()
+            .get(&identity)
+            .is_some_and(|count| *count > 0)
+    })
+}
+
+impl Drop for AuthorizedEffectCommitGuard<'_> {
+    fn drop(&mut self) {
+        #[cfg(any(test, feature = "test-support"))]
+        LIVE_AUTHORIZED_EFFECT_COMMIT_GUARDS_FOR_TEST.with(|guards| {
+            let mut guards = guards.borrow_mut();
+            let count = guards
+                .get_mut(&self.test_reservation_identity)
+                .expect("authorized-effect commit guard identity remains registered");
+            *count -= 1;
+            if *count == 0 {
+                guards.remove(&self.test_reservation_identity);
+            }
+        });
+    }
 }
 
 impl AuthorizedEffectReservation {
@@ -1471,10 +1510,16 @@ impl AuthorizedEffectReservation {
                 ));
             }
         };
+        #[cfg(any(test, feature = "test-support"))]
+        LIVE_AUTHORIZED_EFFECT_COMMIT_GUARDS_FOR_TEST.with(|guards| {
+            *guards.borrow_mut().entry(self.test_identity).or_default() += 1;
+        });
         Ok(AuthorizedEffectCommitGuard {
             _mode: mode,
             _service: service,
             _reservation: self,
+            #[cfg(any(test, feature = "test-support"))]
+            test_reservation_identity: self.test_identity,
         })
     }
 }

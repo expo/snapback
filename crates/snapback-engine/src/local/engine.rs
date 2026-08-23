@@ -1994,6 +1994,10 @@ impl ActionTerminalLatch {
         self.cause.get().map(|cause| cause.error().clone())
     }
 
+    pub fn cause(&self) -> Option<&ActionTerminalCause> {
+        self.cause.get()
+    }
+
     pub fn latch_caller(&self, cause: CallerAuthorityTerminalCause) -> SnapbackError {
         self.latch(ActionTerminalCause::CallerAuthority(cause))
             .error()
