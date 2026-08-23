@@ -40,6 +40,9 @@ fn oauth_snapback_error_response(error: SnapbackError) -> Response {
         "SNAPBACK_AUTH_OAUTH_UNAVAILABLE" => {
             ("temporarily_unavailable", StatusCode::SERVICE_UNAVAILABLE)
         }
+        "SNAPBACK_AUTH_PAIRING_REQUEST_CAP" => {
+            ("temporarily_unavailable", StatusCode::TOO_MANY_REQUESTS)
+        }
         _ => ("invalid_request", StatusCode::BAD_REQUEST),
     };
     (
@@ -777,4 +780,20 @@ pub(super) async fn oauth_revoke(
         });
     }
     StatusCode::OK.into_response()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pairing_request_capacity_is_an_http_quota_refusal() {
+        let response = oauth_snapback_error_response(SnapbackError::error(
+            "SNAPBACK_AUTH_PAIRING_REQUEST_CAP",
+            "auth",
+            "pending pairing-request capacity is exhausted",
+        ));
+
+        assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+    }
 }

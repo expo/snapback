@@ -3,7 +3,14 @@
 Status: Open — findings 4 and 5 are implementable now; 7, 8 and the 9 remainder are ACCEPT
 Created: 2026-08-22
 Related: issues/20260821-residual-caller-terminal-write-exposure.md,
-issues/20260822-critical-direct-route-fence-design.md, LLP 0058
+issues/20260822-critical-direct-route-fence-design.md,
+issues/20260823-oauth-pairing-fk-wedge-deferred.md, LLP 0058
+
+> **Correction (2026-08-23):** the Finding 7 acceptance remains about terminal
+> fencing only; its claim that OAuth/pairing debris had bounded storage cost was
+> false when written. OAuth proposal creation is now covered by the shared
+> unresolved-ceremony cap, closing unbounded per-user growth. The child FK wedge
+> remains open: expiry cleanup and destructive parent purges can still fail.
 
 ## Summary
 
@@ -269,7 +276,11 @@ The session route is [server.rs](crates/snapback-server/src/server.rs:14873). St
 
 The route is [server.rs](crates/snapback-server/src/server.rs:27168), with the storage commit at [settlement.rs](crates/snapback-kernel/src/storage/settlement.rs:86). Lost ranges can be re-served only to the same authority/audience while unused at [operation_ledger.rs](crates/snapback-kernel/src/storage/operation_ledger.rs:1333). A fresh session authority cannot claim the terminated authority’s range.
 
-**INFERRED:** these artifacts have bounded storage/clutter cost but no terminal caller benefit, authority gain, spend, or disclosure once response publication is suppressed. The characterization tests below confirm that consequence boundary.
+**CORRECTED:** the terminal-fencing conclusion is limited to caller benefit,
+authority gain, spend, and disclosure after response suppression. OAuth
+proposal growth is now bounded by shared durable admission, but the FK cleanup
+wedge is deferred and is not an accepted lifecycle remainder. The
+characterization tests below address the terminal consequence boundary only.
 
 Permit lifetime: none. Multi-transaction shapes remain unchanged; OAuth and pairing may retain their accepted clock sibling.
 
@@ -327,7 +338,9 @@ The remaining clock debris has no authority, spend, exposure, or caller benefit.
 
 I recommend explicitly accepting:
 
-1. Finding 7: OAuth proposal rows, pairing hashes, and inaccessible identity ranges.
+1. Finding 7's terminal-fencing remainder only: OAuth proposal rows, pairing
+   hashes, and inaccessible identity ranges. Proposal growth is separately
+   bounded; the pairing-parent FK wedge remains an open defect.
 2. Finding 8: pending-effect expiry and grant-inbox pruning only; no asset callers.
 3. Finding 9: clock writes associated with accepted Findings 7/8.
 

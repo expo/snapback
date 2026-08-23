@@ -5,7 +5,9 @@
 **Systems:** Auth, API, Security, Agent tooling, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-08-10 (LLP 0204 commissioned the full granted-operation
+**Revised:** 2026-08-23 (ordinary pairing and OAuth proposal creation now share
+one transactional unresolved-consent cap; the OAuth child-FK wedge remains
+open and its schema migration is deferred). 2026-08-10 (LLP 0204 commissioned the full granted-operation
 capability-link authority carrier for reads and writes; design only, with no
 implementation or capability claim — see the dated amendment.) 2026-08-10 (the first-class `snapback auth export` / `auth import`
 logical-transfer surface now carries closed v1 principal, ownership, identity,
@@ -921,7 +923,10 @@ secrets are presented only in their dedicated routes' bodies.
 grants per effective user (50) — at either cap, grant creation fails
 `SNAPBACK_AUTH_GRANT_CAP`; **consent is never silently evicted**. Live tokens
 per grant: 10 (minting the 11th revokes the oldest, projecting onto its
-connections). Pending pairing requests per agent: 10. Live unconsumed
+connections). Unresolved, unexpired consent ceremonies per minting human: 10
+across ordinary pairing and OAuth proposals; approval releases a slot and
+capacity refusal never evicts an existing ceremony. Pending pairing requests
+per agent: 10. Live unconsumed
 invitations per minting user: 10. Scope entries and bytes per grant: bounded.
 `last_used_at` advancement (credentials and grants alike) is coalesced — UX
 surface, never an authorization input.
@@ -1030,6 +1035,26 @@ both problems structurally:
 
 Bearer-only transport means approval is a session-authenticated `POST` with no
 cookie-CSRF surface in v1.
+
+## Dated amendment: shared consent cap and OAuth proposal lifetime (2026-08-23)
+
+Ordinary pairing codes and OAuth authorization proposals occupy one durable
+per-human budget of ten unresolved, unexpired consent ceremonies. Both runtime
+producers use the same serialized count-and-insert operation, whose admission
+predicate is `minted_by_user_id = ? AND expires_at_ms > ? AND grant_id IS
+NULL`. Pairing-secret consumption is deliberately not part of this predicate:
+OAuth parents are born consumed while their consent remains unresolved.
+Approval attaches a grant and releases the slot. Pending and denied proposals
+remain bounded until their ten-minute ceremony expiry. Capacity refusal
+preserves every existing ceremony.
+
+This amendment closes unbounded per-user proposal creation; it does **not**
+repair the existing `ON DELETE RESTRICT` child relationship. The global pairing
+sweep still runs before admission, so one expired OAuth proposal can still
+wedge pairing mint, presentation, and inbox access across the database, and any
+OAuth child can still block destructive parent teardown. The rebuild required
+to change that ownership action is deferred in
+`issues/20260823-oauth-pairing-fk-wedge-deferred.md`.
 
 **Grant lifetime.** Delegated grants **must** carry `expires_at`: default 30
 days, hard maximum 90, chosen within those bounds at consent and displayed

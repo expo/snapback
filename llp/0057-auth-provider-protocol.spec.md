@@ -5,7 +5,9 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-08-15 (password issuance releases its planning
+**Revised:** 2026-08-23 (pairing-parent admission counts every unexpired row
+without a grant, including deliberately consumed OAuth parents; the existing
+OAuth child-FK cleanup wedge remains deferred). 2026-08-15 (password issuance releases its planning
 maintenance/address-stripe admission before projection Begin, then the owned
 durable commit reacquires one fresh shared admission after Begin; a fair
 maintenance gate can no longer self-join behind periodic GC).
@@ -621,6 +623,11 @@ limit.
   consuming a code. It is then deletable.
 - A session, revoked or not, and all its tombstones remain until
   `now >= absolute_expires_at_ms`; deletion cascades to tombstones.
+- An ungranted pairing request occupies its minting human's shared consent
+  budget while `now < expires_at_ms`, regardless of pairing-secret
+  consumption; attaching a grant releases the slot. The existing global
+  expiry sweep remains subject to the OAuth child's `ON DELETE RESTRICT` wedge
+  until the deferred companion-table migration is safely redesigned.
 - An orphan tombstone is corrupt catalog state, not silently collectible.
 - Mailbox expiry uses the challenge expiry and is pruned on every mailbox
   operation plus the maintenance pass.

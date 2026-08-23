@@ -5541,6 +5541,123 @@ async fn oauth_facade_is_wholesale_absent_on_hosted_targets() {
 }
 
 #[tokio::test]
+async fn oauth_authorization_http_enforces_session_class_and_durable_shared_capacity() {
+    let state = sessions_activation_server_fixture_with_oauth_async().await;
+    let router = app(state.clone());
+    let registered = router
+        .clone()
+        .oneshot(oauth_protocol_request(
+            "POST",
+            "/auth/oauth/register",
+            Some("application/json"),
+            serde_json::to_vec(&json!({
+                "redirect_uris": ["http://127.0.0.1:4321/callback"],
+                "client_name": "OAuth Capacity",
+                "token_endpoint_auth_method": "none"
+            }))
+            .unwrap(),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(registered.status(), StatusCode::OK);
+    let client_id = response_json(registered).await["client_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let user = mint_test_credential(&state, "oauth-capacity@example.com").await;
+    let user_id = user["session"]["userId"].as_str().unwrap().to_owned();
+    let bearer = user["token"].as_str().unwrap().to_owned();
+    let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest("v".repeat(43).as_bytes()));
+    let authorize_uri = format!(
+        "/auth/oauth/authorize?response_type=code&client_id={client_id}&redirect_uri=http%3A%2F%2F127.0.0.1%3A4321%2Fcallback&scope=items.read&code_challenge={challenge}&code_challenge_method=S256"
+    );
+
+    let unauthenticated = router
+        .clone()
+        .oneshot(oauth_protocol_request(
+            "GET",
+            &authorize_uri,
+            None,
+            Body::empty(),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(unauthenticated.status(), StatusCode::UNAUTHORIZED);
+    let wrong_class = AgentCredential::generate(&OsRandom)
+        .unwrap()
+        .expose_secret()
+        .to_owned();
+    let wrong_class_response = router
+        .clone()
+        .oneshot(oauth_protocol_request(
+            "GET",
+            &authorize_uri,
+            None,
+            Body::empty(),
+            Some(&wrong_class),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(
+        response_json(wrong_class_response).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_CREDENTIAL_CLASS_MISMATCH"
+    );
+    let zero_user_id = user_id.clone();
+    let zero = with_snapback(&state.snapback, move |snapback| {
+        snapback
+            .remainder_auth_database_mut()
+            .oauth_proposal_counts_for_test(&zero_user_id)
+    })
+    .await
+    .unwrap();
+    assert_eq!(zero, (0, 0));
+
+    for _ in 0..10 {
+        let consent = router
+            .clone()
+            .oneshot(oauth_protocol_request(
+                "GET",
+                &authorize_uri,
+                None,
+                Body::empty(),
+                Some(&bearer),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(consent.status(), StatusCode::OK);
+    }
+    let refused = router
+        .clone()
+        .oneshot(oauth_protocol_request(
+            "GET",
+            &authorize_uri,
+            None,
+            Body::empty(),
+            Some(&bearer),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(refused.status(), StatusCode::TOO_MANY_REQUESTS);
+    let refused = response_json(refused).await;
+    assert_eq!(refused["error"], "temporarily_unavailable");
+    assert_eq!(
+        refused["details"]["code"],
+        "SNAPBACK_AUTH_PAIRING_REQUEST_CAP"
+    );
+    let counted_user_id = user_id.clone();
+    let counts = with_snapback(&state.snapback, move |snapback| {
+        snapback
+            .remainder_auth_database_mut()
+            .oauth_proposal_counts_for_test(&counted_user_id)
+    })
+    .await
+    .unwrap();
+    assert_eq!(counts, (10, 10));
+}
+
+#[tokio::test]
 async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and_no_store() {
     let absent = app(sessions_activation_server_fixture_async().await)
         .oneshot(
@@ -24850,6 +24967,8 @@ const NOT_IMPLEMENTED_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_AUTH_PASSWORD_SENDER_CONSTRAINED_UNSUPPORTED",
 ];
 
+const OAUTH_503_DIAGNOSTICS: &[&str] = &["SNAPBACK_AUTH_OAUTH_UNAVAILABLE"];
+
 const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_FUNCTION_GENERATION_AWAITING_RELOAD",
     "SNAPBACK_WRITER_ACQUIRE_TIMEOUT",
@@ -24867,7 +24986,6 @@ const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_AUTH_REHEARSAL_PROVENANCE_INVALID",
     "SNAPBACK_API_ASK_EGRESS_DISABLED",
     "SNAPBACK_API_ASK_MODEL_NOT_CONFIGURED",
-    "SNAPBACK_AUTH_OAUTH_UNAVAILABLE",
     "SNAPBACK_BRANCH_CUSTODY_RECOVERY_REQUIRED",
     "SNAPBACK_BRANCH_EXPIRY_REAP_REQUIRED",
     "SNAPBACK_CHECKPOINT_SOURCE_UNSUPPORTED",
@@ -25554,6 +25672,7 @@ const HTTP_STATUS_FAMILIES: &[(StatusCode, &[&str])] = &[
         MISDIRECTED_REQUEST_DIAGNOSTICS,
     ),
     (StatusCode::NOT_IMPLEMENTED, NOT_IMPLEMENTED_DIAGNOSTICS),
+    (StatusCode::SERVICE_UNAVAILABLE, OAUTH_503_DIAGNOSTICS),
     (
         StatusCode::SERVICE_UNAVAILABLE,
         SERVICE_UNAVAILABLE_DIAGNOSTICS,

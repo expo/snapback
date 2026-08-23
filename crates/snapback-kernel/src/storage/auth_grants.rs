@@ -21,7 +21,7 @@ use std::collections::BTreeSet;
 use subtle::ConstantTimeEq as _;
 
 pub const PAIRING_CODE_TTL_MS: u64 = 10 * 60 * 1_000;
-pub const PAIRING_CODE_LIVE_CAP_PER_USER: u64 = 10;
+pub const PAIRING_CEREMONY_LIVE_CAP_PER_USER: u64 = 10;
 pub const PAIRING_CODE_ATTEMPT_LIMIT: u64 = 5;
 pub const PAIRING_REQUEST_LIVE_CAP_PER_AGENT: u64 = 10;
 pub const GRANT_LIVE_CAP_PER_ACTOR: u64 = 50;
@@ -164,6 +164,23 @@ enum PairingAttemptOutcome {
     Invalid,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum PairingRequestCreation {
+    Created,
+    AtCapacity,
+}
+
+pub(super) struct PairingRequestDraft<'a> {
+    pub request_id: &'a str,
+    pub code_hash: &'a [u8],
+    pub minted_by_user_id: &'a str,
+    pub agent_user_id: Option<&'a str>,
+    pub requested_scopes: Option<&'a str>,
+    pub created_at_ms: u64,
+    pub expires_at_ms: u64,
+    pub consumed_at_ms: Option<u64>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApprovedGrant {
@@ -222,36 +239,27 @@ impl LocalDatabase {
         let secret = PairingCode::generate(random).map_err(|_| provider_unavailable())?;
         let hash = secret.token_hash();
         let request_id = crate::ids::mint_time_ordered(crate::ids::Kind::GrantRequest);
-        self.with_auth_transaction(|tx| {
+        let creation = self.with_auth_transaction(|tx| {
             require_agent_clock_on(tx, now_ms)?;
             require_human_user_on(tx, user_id)?;
-            sweep_pairing_requests_on(tx, now_ms)?;
-            let live = count_on(
+            create_pairing_request_on(
                 tx,
-                "SELECT COUNT(*) FROM _auth_pairing_requests
-                 WHERE minted_by_user_id = ?1 AND consumed_at_ms IS NULL
-                   AND expires_at_ms > ?2",
-                params![user_id, now_ms as i64],
-            )?;
-            if live >= PAIRING_CODE_LIVE_CAP_PER_USER {
-                return Err(pairing_code_cap());
-            }
-            tx.execute(
-                "INSERT INTO _auth_pairing_requests(
-                   id, code_hash, minted_by_user_id, agent_user_id,
-                   requested_scopes, state, attempts, created_at_ms,
-                   expires_at_ms, consumed_at_ms, grant_id
-                 ) VALUES(?1, ?2, ?3, NULL, NULL, 'pending', 0, ?4, ?5, NULL, NULL)",
-                params![
-                    request_id,
-                    hash.as_bytes(),
-                    user_id,
-                    now_ms as i64,
-                    expires_at_ms as i64,
-                ],
-            )?;
-            Ok(())
+                PairingRequestDraft {
+                    request_id: &request_id,
+                    code_hash: hash.as_bytes(),
+                    minted_by_user_id: user_id,
+                    agent_user_id: None,
+                    requested_scopes: None,
+                    created_at_ms: now_ms,
+                    expires_at_ms,
+                    consumed_at_ms: None,
+                },
+                now_ms,
+            )
         })?;
+        if creation == PairingRequestCreation::AtCapacity {
+            return Err(pairing_code_cap());
+        }
         Ok(MintedPairingCode {
             request_id,
             expires_at_ms,
@@ -1422,6 +1430,43 @@ fn load_approved_grant_on(
             })
         },
     )
+}
+
+pub(super) fn create_pairing_request_on(
+    tx: &Transaction<'_>,
+    draft: PairingRequestDraft<'_>,
+    now_ms: u64,
+) -> SnapbackResult<PairingRequestCreation> {
+    // @ref LLP 0055#dated-amendment-shared-consent-cap-and-oauth-proposal-lifetime-2026-08-23 — both runtime parent producers share one unresolved-ceremony admission point.
+    sweep_pairing_requests_on(tx, now_ms)?;
+    let live = count_on(
+        tx,
+        "SELECT COUNT(*) FROM _auth_pairing_requests
+         WHERE minted_by_user_id = ?1 AND expires_at_ms > ?2
+           AND grant_id IS NULL",
+        params![draft.minted_by_user_id, now_ms as i64],
+    )?;
+    if live >= PAIRING_CEREMONY_LIVE_CAP_PER_USER {
+        return Ok(PairingRequestCreation::AtCapacity);
+    }
+    tx.execute(
+        "INSERT INTO _auth_pairing_requests(
+           id, code_hash, minted_by_user_id, agent_user_id,
+           requested_scopes, state, attempts, created_at_ms,
+           expires_at_ms, consumed_at_ms, grant_id
+         ) VALUES(?1, ?2, ?3, ?4, ?5, 'pending', 0, ?6, ?7, ?8, NULL)",
+        params![
+            draft.request_id,
+            draft.code_hash,
+            draft.minted_by_user_id,
+            draft.agent_user_id,
+            draft.requested_scopes,
+            draft.created_at_ms as i64,
+            draft.expires_at_ms as i64,
+            draft.consumed_at_ms.map(|value| value as i64),
+        ],
+    )?;
+    Ok(PairingRequestCreation::Created)
 }
 
 fn sweep_pairing_requests_on(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<()> {

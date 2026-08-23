@@ -1,9 +1,15 @@
 # Design: bound OAuth proposals and remove the pairing-parent FK wedge
 
-Status: Proposed — design complete, implementation not dispatched
+Status: Partially implemented — cap landed; cascade and rebuild deferred
 Created: 2026-08-23
 Related: issues/20260822-oauth-proposal-pairing-sweep-fk-wedge.md (the defect),
-issues/20260822-residual-findings-4-9-disposition.md (which wrongly accepted it)
+issues/20260822-residual-findings-4-9-disposition.md (which wrongly accepted it),
+issues/20260823-oauth-pairing-fk-wedge-deferred.md
+
+> **Author ruling (2026-08-23):** land part A, the shared cap, alone. Defer
+> parts B/C and the legacy table rebuild. The recommendation below is the
+> design record that preceded this split, not a claim that the FK wedge is
+> fixed.
 
 ## Why this needed a design rather than a patch
 
@@ -209,3 +215,16 @@ Do not substitute source-text tests that search for a helper name. Removing the 
 - **Clock anomalies:** live rows whose expiry is implausibly far in the future will not drain naturally. Treat that as catalog corruption or an explicit operator-repair case; do not silently evict consent.
 
 The approach should be reshaped only if OAuth rows have independent retention semantics, shared ten-slot capacity is product-incompatible, or existing table size makes the exact-schema rebuild operationally unsafe.
+
+## 7. Implementation disposition (2026-08-23)
+
+Part A is implemented: both production pairing-parent producers use one
+transaction-local admission primitive counting unexpired rows with
+`grant_id IS NULL`, and OAuth capacity maps to HTTP 429. The schema and sweep
+are unchanged.
+
+Parts B/C and the complete migration path are deferred. Two independent
+reviews reproduced silent data loss in the proposed rebuild, first through an
+uninventoried inbound foreign key and then through TEMP-first resolution in the
+inbound-FK guard. The remaining blast radius and both reproductions are
+recorded in `issues/20260823-oauth-pairing-fk-wedge-deferred.md`.

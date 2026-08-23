@@ -6,7 +6,9 @@
 Hosted platform, Developer experience, Docs
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-08
-**Revised:** 2026-08-10 (author sitting: the commissioned remainders were
+**Revised:** 2026-08-23 (OAuth proposal creation now shares ordinary pairing's
+ten-slot unresolved-consent budget; the child-FK wedge and table rebuild remain
+deferred). 2026-08-10 (author sitting: the commissioned remainders were
 ruled. (1) Untrusted-code execution: commission an investigation into what
 confident launch requires on BOTH the Ibex restricted worker and
 workerd/v8 before any promotion. (2) Capability links: commission the FULL
@@ -697,6 +699,16 @@ independent authority. Facade routes — including the origin-root
 land via a dated LLP 0031 amendment extending the root `/auth/*`
 precedent. Standards for the ecosystem, the better ceremony
 for everyone who talks to us directly (P5).
+
+**Operational admission amendment (2026-08-23):** an OAuth authorization
+proposal and its pairing request consume one slot in LLP 0055's durable
+per-human budget of ten unresolved, unexpired consent ceremonies. OAuth and
+ordinary pairing creation use the same transactional admission primitive;
+pairing-secret consumption does not release the slot, while grant approval
+does. The existing OAuth request foreign key remains `ON DELETE RESTRICT`.
+Consequently, this admission bound does not fix the global expiry-sweep or
+destructive-parent teardown wedge; the companion-table rebuild is deferred in
+`issues/20260823-oauth-pairing-fk-wedge-deferred.md`.
 
 **Implementation note (S2 Landing C, 2026-08-09):** the first local facade is
 bearer-only behind the explicit `api.oauth.bearer: true` opt-in. It issues

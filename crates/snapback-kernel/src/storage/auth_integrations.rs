@@ -871,22 +871,23 @@ impl LocalDatabase {
             let scopes_json = super::auth_grants::canonical_scopes_json(&scopes)?;
             let bundle_names_json =
                 serde_json::to_string(bundle_names).map_err(|_| oauth_state_corrupt())?;
-            tx.execute(
-                "INSERT INTO _auth_pairing_requests(
-                   id, code_hash, minted_by_user_id, agent_user_id,
-                   requested_scopes, state, attempts, created_at_ms,
-                   expires_at_ms, consumed_at_ms, grant_id
-                 ) VALUES(?1, ?2, ?3, ?4, ?5, 'pending', 0, ?6, ?7, ?6, NULL)",
-                params![
-                    request_id,
-                    inert_pairing_hash.as_slice(),
-                    consenting_user_id,
-                    client.principal_user_id,
-                    scopes_json,
-                    now_ms as i64,
-                    expires_at_ms as i64,
-                ],
+            let creation = super::auth_grants::create_pairing_request_on(
+                tx,
+                super::auth_grants::PairingRequestDraft {
+                    request_id: &request_id,
+                    code_hash: inert_pairing_hash.as_slice(),
+                    minted_by_user_id: consenting_user_id,
+                    agent_user_id: Some(&client.principal_user_id),
+                    requested_scopes: Some(&scopes_json),
+                    created_at_ms: now_ms,
+                    expires_at_ms,
+                    consumed_at_ms: Some(now_ms),
+                },
+                now_ms,
             )?;
+            if creation == super::auth_grants::PairingRequestCreation::AtCapacity {
+                return Ok(None);
+            }
             tx.execute(
                 "INSERT INTO _snapback_oauth_authorizations(
                    request_id, client_id, principal_user_id, consenting_user_id,
@@ -908,15 +909,15 @@ impl LocalDatabase {
                     expires_at_ms as i64,
                 ],
             )?;
-            Ok(BegunOAuthAuthorization {
+            Ok(Some(BegunOAuthAuthorization {
                 request_id: request_id.clone(),
                 client,
                 bundle_names: bundle_names.to_vec(),
                 scopes,
-            })
+            }))
         });
         inert_pairing_hash.fill(0);
-        outcome
+        outcome?.ok_or_else(oauth_pairing_request_cap)
     }
 
     /// Seal one already-approved ordinary grant behind a 60-second,
@@ -1104,6 +1105,29 @@ impl LocalDatabase {
                 |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
             )
             .map_err(Into::into)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn oauth_proposal_counts_for_test(
+        &self,
+        consenting_user_id: &str,
+    ) -> SnapbackResult<(u64, u64)> {
+        let parents: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM _auth_pairing_requests
+             WHERE minted_by_user_id = ?1",
+            params![consenting_user_id],
+            |row| row.get(0),
+        )?;
+        let children: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM _snapback_oauth_authorizations
+             WHERE consenting_user_id = ?1",
+            params![consenting_user_id],
+            |row| row.get(0),
+        )?;
+        Ok((
+            u64::try_from(parents).map_err(|_| oauth_state_corrupt())?,
+            u64::try_from(children).map_err(|_| oauth_state_corrupt())?,
+        ))
     }
 }
 
@@ -1372,6 +1396,14 @@ pub fn oauth_server_error() -> SnapbackError {
     )
 }
 
+fn oauth_pairing_request_cap() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_PAIRING_REQUEST_CAP",
+        "auth",
+        "pending pairing-request capacity is exhausted",
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1379,6 +1411,7 @@ mod tests {
     use crate::contract_types::ServerProfile;
     use crate::manifest::AgentsMode;
     use crate::storage::auth_agents::AgentRegistration;
+    use crate::storage::auth_grants::PAIRING_CEREMONY_LIVE_CAP_PER_USER;
     use serde_json::json;
     use std::sync::atomic::{AtomicU8, Ordering};
 
@@ -1558,6 +1591,32 @@ mod tests {
         }
     }
 
+    fn pairing_rows_for_user(
+        db: &LocalDatabase,
+        user_id: &str,
+    ) -> Vec<Vec<rusqlite::types::Value>> {
+        let mut statement = db
+            .conn
+            .prepare(
+                "SELECT id, code_hash, minted_by_user_id, agent_user_id,
+                        requested_scopes, state, attempts, created_at_ms,
+                        expires_at_ms, consumed_at_ms, grant_id
+                 FROM _auth_pairing_requests
+                 WHERE minted_by_user_id = ?1
+                 ORDER BY id",
+            )
+            .unwrap();
+        statement
+            .query_map(params![user_id], |row| {
+                (0..11)
+                    .map(|column| row.get::<_, rusqlite::types::Value>(column))
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap()
+    }
+
     #[test]
     fn manifest_activation_installs_and_removes_exact_catalog() {
         let mut db = LocalDatabase::memory().unwrap();
@@ -1574,6 +1633,194 @@ mod tests {
         db.with_auth_transaction(|tx| activate_manifest_in(tx, &manifest))
             .unwrap();
         assert!(!table_exists(&db.conn, INTEGRATION_RECORD_TABLE).unwrap());
+    }
+
+    #[test]
+    fn eleventh_oauth_proposal_refuses_capacity_without_eviction() {
+        let random = CounterRandom::new();
+        let mut db = oauth_ready_database();
+        seed_human(&db, "user-oauth");
+        let integration = register_integration(&mut db, &random);
+        let client_id = db
+            .integration_record_for_test(&integration.user_id)
+            .unwrap()
+            .unwrap()
+            .integration_id;
+        let mut accepted_ids = Vec::new();
+        for offset in 0..PAIRING_CEREMONY_LIVE_CAP_PER_USER {
+            accepted_ids.push(
+                db.begin_oauth_authorization(
+                    "user-oauth",
+                    &client_id,
+                    "https://example.test/callback",
+                    &["read".to_owned()],
+                    "abcdefghijklmnopqrstuvwxyzABCDEFGH012345678",
+                    None,
+                    1_001 + offset,
+                    &random,
+                )
+                .expect("the first ten OAuth proposals fit the shared budget")
+                .request_id,
+            );
+        }
+        let before: Vec<(String, String, i64, Option<i64>)> = db
+            .conn
+            .prepare(
+                "SELECT id, state, expires_at_ms, grant_id
+                 FROM _auth_pairing_requests
+                 WHERE minted_by_user_id = 'user-oauth'
+                 ORDER BY id",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+            })
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert_eq!(before.len(), PAIRING_CEREMONY_LIVE_CAP_PER_USER as usize);
+
+        let error = db
+            .begin_oauth_authorization(
+                "user-oauth",
+                &client_id,
+                "https://example.test/callback",
+                &["read".to_owned()],
+                "abcdefghijklmnopqrstuvwxyzABCDEFGH012345678",
+                None,
+                1_100,
+                &random,
+            )
+            .expect_err("the eleventh OAuth proposal must refuse capacity");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_PAIRING_REQUEST_CAP");
+
+        let after: Vec<(String, String, i64, Option<i64>)> = db
+            .conn
+            .prepare(
+                "SELECT id, state, expires_at_ms, grant_id
+                 FROM _auth_pairing_requests
+                 WHERE minted_by_user_id = 'user-oauth'
+                 ORDER BY id",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+            })
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert_eq!(after, before, "capacity refusal cannot evict consent");
+        assert_eq!(
+            accepted_ids,
+            after.iter().map(|row| row.0.clone()).collect::<Vec<_>>()
+        );
+        let child_count: i64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM _snapback_oauth_authorizations",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(child_count, PAIRING_CEREMONY_LIVE_CAP_PER_USER as i64);
+
+        db.approve_grant_request(
+            "user-oauth",
+            "session-oauth",
+            &accepted_ids[0],
+            None,
+            None,
+            1_101,
+        )
+        .expect("approved consent leaves the unresolved ceremony budget");
+        db.begin_oauth_authorization(
+            "user-oauth",
+            &client_id,
+            "https://example.test/callback",
+            &["read".to_owned()],
+            "abcdefghijklmnopqrstuvwxyzABCDEFGH012345678",
+            None,
+            1_102,
+            &random,
+        )
+        .expect("one approval reopens one shared capacity slot");
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT COUNT(*) FROM _auth_pairing_requests
+                     WHERE minted_by_user_id = 'user-oauth'
+                       AND expires_at_ms > 1102 AND grant_id IS NULL",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap(),
+            PAIRING_CEREMONY_LIVE_CAP_PER_USER as i64
+        );
+    }
+
+    #[test]
+    fn shared_pairing_budget_spans_normal_and_oauth_producers_without_eviction() {
+        let random = CounterRandom::new();
+        let mut db = oauth_ready_database();
+        seed_human(&db, "user-oauth");
+        let integration = register_integration(&mut db, &random);
+        let client_id = db
+            .integration_record_for_test(&integration.user_id)
+            .unwrap()
+            .unwrap()
+            .integration_id;
+        for offset in 0..9 {
+            db.mint_pairing_code("user-oauth", 1_001 + offset, &random)
+                .unwrap();
+        }
+        db.begin_oauth_authorization(
+            "user-oauth",
+            &client_id,
+            "https://example.test/callback",
+            &["read".to_owned()],
+            "abcdefghijklmnopqrstuvwxyzABCDEFGH012345678",
+            None,
+            1_010,
+            &random,
+        )
+        .unwrap();
+        let before = pairing_rows_for_user(&db, "user-oauth");
+        assert_eq!(before.len(), PAIRING_CEREMONY_LIVE_CAP_PER_USER as usize);
+
+        let pairing_error = db
+            .mint_pairing_code("user-oauth", 1_011, &random)
+            .expect_err("the normal producer shares the unresolved ceremony budget");
+        assert_eq!(
+            pairing_error.diagnostic.code,
+            "SNAPBACK_AUTH_PAIRING_CODE_CAP"
+        );
+        let oauth_error = db
+            .begin_oauth_authorization(
+                "user-oauth",
+                &client_id,
+                "https://example.test/callback",
+                &["read".to_owned()],
+                "abcdefghijklmnopqrstuvwxyzABCDEFGH012345678",
+                None,
+                1_012,
+                &random,
+            )
+            .expect_err("the OAuth producer shares the unresolved ceremony budget");
+        assert_eq!(
+            oauth_error.diagnostic.code,
+            "SNAPBACK_AUTH_PAIRING_REQUEST_CAP"
+        );
+        assert_eq!(pairing_rows_for_user(&db, "user-oauth"), before);
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_oauth_authorizations",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap(),
+            1
+        );
     }
 
     #[test]

@@ -1,8 +1,14 @@
-# OAuth proposals are uncapped and their child FK can wedge the pairing sweep
+# OAuth proposals were uncapped; their child FK still wedges the pairing sweep
 
-Status: Open — live defect, independent of the fence program
+Status: Open — proposal cap implemented; FK wedge deferred
 Created: 2026-08-22
-Related: issues/20260822-residual-findings-4-9-disposition.md (which wrongly accepted this)
+Related: issues/20260822-residual-findings-4-9-disposition.md (which wrongly accepted this),
+issues/20260823-oauth-pairing-fk-wedge-deferred.md
+
+> **Partial mitigation (2026-08-23):** OAuth and ordinary pairing creation now
+> share a ten-slot unresolved-consent cap. This closes unbounded per-user
+> growth and denial-of-service amplification. The `ON DELETE RESTRICT` wedge
+> described below is unchanged and remains open in the related deferred issue.
 
 Found while adversarially reviewing a design that had **accepted** OAuth authorization proposals as
 harmless bounded debris. That acceptance was based on a code misread. The reality is worse than
@@ -10,15 +16,14 @@ debris.
 
 ## Two facts
 
-**1. OAuth proposal creation is uncapped.**
+**1. OAuth proposal creation was uncapped (fixed 2026-08-23).**
 
 Normal pairing mint sweeps stale rows, counts live rows where `consumed_at_ms IS NULL`, and caps
 them at ten per minting user (`crates/snapback-kernel/src/storage/auth_grants.rs:208`).
 
-OAuth proposal creation does **not** go through that path. It directly inserts a pairing row with
-`consumed_at_ms = now`, performing neither the sweep nor the cap
-(`crates/snapback-kernel/src/storage/auth_integrations.rs:821`). Because the row is born
-"consumed", the live-row cap never sees it. Each request creates another row.
+OAuth proposal creation used to insert a pairing row directly with
+`consumed_at_ms = now`, so the old live-row cap never saw it. It now shares the
+transactional `grant_id IS NULL` admission predicate with ordinary pairing.
 
 **2. The child FK can fail the whole sweep.**
 
@@ -32,17 +37,17 @@ delete with an FK violation.
 
 ## Consequence
 
-This is not clutter. A failing sweep can wedge pairing mint and grant-inbox operations — an
-availability defect in the auth subsystem, reachable by ordinary use of the OAuth authorization
-route.
+This is not clutter. A failing sweep still wedges pairing mint, pairing
+presentation, and grant-inbox operations for the whole database, and any OAuth
+child can still block destructive pairing-parent teardown.
 
-INFERRED: whether a caller can drive this deliberately depends on how easily unapproved proposals
-accumulate and expire. The uncapped insert makes accumulation cheap. Confirming needs a test that
-creates proposals, expires them, and then exercises pairing mint and the grant inbox.
+The cap now limits one human to ten unresolved proposals, so that caller can no
+longer amplify the defect without bound. One expired proposal remains enough
+to trigger the global wedge.
 
 ## Fix directions
 
-1. Give OAuth proposals their own cap and sweep, or route them through the capped path.
+1. **Done:** route OAuth and ordinary pairing through one shared cap.
 2. Add an OAuth-child sweep, or change the FK so the parent delete cascades appropriately.
 3. Make the generic sweep resilient: a single undeletable row should not fail the batch.
 
