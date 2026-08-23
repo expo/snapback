@@ -1376,12 +1376,18 @@ impl DetachedActionHost {
                     ServiceAuthorityDisposition::Carrier => "carrier",
                     ServiceAuthorityDisposition::DurableDelete => "durableDelete",
                 };
-                return Err(SnapbackError::error(
+                let error = SnapbackError::error(
                     "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
                     "auth",
                     "scoped agent token authority is no longer current",
                 )
-                .with_details(json!({ "authorityDisposition": wire, "operation": op })));
+                .with_details(json!({ "authorityDisposition": wire, "operation": op }));
+                return Err(self.terminal_latch.latch_caller(
+                    crate::auth::invocation::CallerAuthorityTerminalCause::ScopedServiceRetired {
+                        disposition,
+                        error,
+                    },
+                ));
             }
             Some(ServiceAuthorityActResolution::Unavailable) => {
                 return Err(SnapbackError::error(
@@ -1770,7 +1776,20 @@ impl IbexActionHost for DetachedActionHost {
                         return Err(error);
                     }
                 };
-                if snapback.authorization_reservation_snapshot()? != snapshot {
+                let current_snapshot = match snapback.authorization_reservation_snapshot() {
+                    Ok(snapshot) => snapshot,
+                    Err(error) => {
+                        // A scoped guard drains queued after-Local work on
+                        // drop. Release caller authority before that cleanup
+                        // even though this child never reached COMMIT.
+                        drop(effect);
+                        drop(snapback);
+                        reservation.cancel();
+                        return Err(error);
+                    }
+                };
+                if current_snapshot != snapshot {
+                    drop(effect);
                     drop(snapback);
                     reservation.cancel();
                     return Err(action_authorization_reservation_stale(name));
@@ -1789,11 +1808,16 @@ impl IbexActionHost for DetachedActionHost {
                 // The caller permit fences only this child's durable commit.
                 // Receipt/fan-out cleanup and progress bookkeeping must not
                 // pin logout or finite-service retirement after COMMIT.
+                #[cfg(test)]
+                let effect_identity = effect.identity_for_test();
+                #[cfg(test)]
+                let after_local_pause =
+                    install_nested_after_local_work_pause_for_test(&self.state, effect_identity);
                 drop(effect);
                 let unused = reservation_scope.take_unused();
                 let after_local = snapback.complete_after_local();
                 #[cfg(test)]
-                pause_nested_after_local_work_for_test(&self.state);
+                pause_nested_after_local_cleanup_for_test(after_local_pause.as_ref());
                 if let Some(unused) = unused {
                     unused.cancel();
                 }
@@ -1915,7 +1939,20 @@ impl IbexActionHost for DetachedActionHost {
                                 return Err(error);
                             }
                         };
-                    if snapback.authorization_reservation_snapshot()? != snapshot {
+                    let current_snapshot = match snapback.authorization_reservation_snapshot() {
+                        Ok(snapshot) => snapshot,
+                        Err(error) => {
+                            // Do not let the scoped guard's implicit
+                            // after-Local drain run under caller authority on
+                            // a pre-COMMIT abort.
+                            drop(effect);
+                            drop(snapback);
+                            reservation.cancel();
+                            return Err(error);
+                        }
+                    };
+                    if current_snapshot != snapshot {
+                        drop(effect);
                         drop(snapback);
                         reservation.cancel();
                         return Err(action_authorization_reservation_stale(name));
@@ -1935,11 +1972,18 @@ impl IbexActionHost for DetachedActionHost {
                     // The exact caller reservation is commit-scoped. Native
                     // teardown and after-Local publication are not durable
                     // effects owned by this completed child.
+                    #[cfg(test)]
+                    let effect_identity = effect.identity_for_test();
+                    #[cfg(test)]
+                    let after_local_pause = install_nested_after_local_work_pause_for_test(
+                        &self.state,
+                        effect_identity,
+                    );
                     drop(effect);
                     let unused = reservation_scope.take_unused();
                     let after_local = snapback.complete_after_local();
                     #[cfg(test)]
-                    pause_nested_after_local_work_for_test(&self.state);
+                    pause_nested_after_local_cleanup_for_test(after_local_pause.as_ref());
                     if let Some(unused) = unused {
                         unused.cancel();
                     }
@@ -3991,6 +4035,9 @@ fn pause_nested_effect_reservation_for_test(
 struct NestedAfterLocalTestPauseState {
     reached: AtomicBool,
     released: AtomicBool,
+    after_batch_reached: AtomicBool,
+    after_batch_released: AtomicBool,
+    caller_permit_released: AtomicBool,
     lock: StdMutex<()>,
     changed: std::sync::Condvar,
 }
@@ -4033,9 +4080,36 @@ impl NestedAfterLocalTestPause {
         }
     }
 
+    async fn wait_until_after_batch_reached(&self) {
+        while !self.state.after_batch_reached.load(Ordering::Acquire) {
+            tokio::task::yield_now().await;
+        }
+    }
+
     fn release(&self) {
+        let _lock = self
+            .state
+            .lock
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         self.state.released.store(true, Ordering::Release);
         self.state.changed.notify_all();
+    }
+
+    fn release_after_batch(&self) {
+        let _lock = self
+            .state
+            .lock
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        self.state
+            .after_batch_released
+            .store(true, Ordering::Release);
+        self.state.changed.notify_all();
+    }
+
+    fn caller_permit_released(&self) -> bool {
+        self.state.caller_permit_released.load(Ordering::Acquire)
     }
 }
 
@@ -4043,6 +4117,7 @@ impl NestedAfterLocalTestPause {
 impl Drop for NestedAfterLocalTestPause {
     fn drop(&mut self) {
         self.release();
+        self.release_after_batch();
         let mut pauses = NESTED_AFTER_LOCAL_TEST_PAUSES
             .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
             .lock()
@@ -4057,24 +4132,60 @@ impl Drop for NestedAfterLocalTestPause {
 }
 
 #[cfg(test)]
-fn pause_nested_after_local_work_for_test(state: &SharedSnapback) {
+fn install_nested_after_local_work_pause_for_test(
+    state: &SharedSnapback,
+    reservation_identity: u64,
+) -> Option<Arc<NestedAfterLocalTestPauseState>> {
     let pause = NESTED_AFTER_LOCAL_TEST_PAUSES
         .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .remove(&(Arc::as_ptr(state) as usize));
-    let Some(pause) = pause else { return };
-    pause.reached.store(true, Ordering::Release);
-    pause.changed.notify_all();
-    let mut lock = pause
-        .lock
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    while !pause.released.load(Ordering::Acquire) {
-        lock = pause
-            .changed
-            .wait(lock)
+    let pause = pause?;
+    assert!(
+        crate::exec_guard::local_write_scope_active(),
+        "nested after-Local pause must join the real Local batch"
+    );
+    let effect_pause = pause.clone();
+    crate::exec_guard::run_or_defer_after_local(move || {
+        effect_pause.caller_permit_released.store(
+            reservation_identity != 0
+                && !crate::auth::invocation::authorized_effect_reservation_active_for_test(
+                    reservation_identity,
+                ),
+            Ordering::Release,
+        );
+        effect_pause.reached.store(true, Ordering::Release);
+        effect_pause.changed.notify_all();
+        let mut lock = effect_pause
+            .lock
+            .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        while !effect_pause.released.load(Ordering::Acquire) {
+            lock = effect_pause
+                .changed
+                .wait(lock)
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+        }
+    });
+    Some(pause)
+}
+
+#[cfg(test)]
+fn pause_nested_after_local_cleanup_for_test(pause: Option<&Arc<NestedAfterLocalTestPauseState>>) {
+    if let Some(pause) = pause {
+        pause.after_batch_reached.store(true, Ordering::Release);
+        pause.changed.notify_all();
+        let mut lock = pause
+            .lock
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        while !pause.after_batch_released.load(Ordering::Acquire) {
+            lock = pause
+                .changed
+                .wait(lock)
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+        }
     }
 }
 
@@ -4785,6 +4896,13 @@ async fn run_managed_host_plan_action(
                     // Per-child caller authority ends at the durable cut. The
                     // after-Local batch may block or fail without keeping an
                     // already-completed child in terminalization's drain set.
+                    #[cfg(test)]
+                    let effect_identity = effect.identity_for_test();
+                    #[cfg(test)]
+                    let after_local_pause = install_nested_after_local_work_pause_for_test(
+                        &after_local_state,
+                        effect_identity,
+                    );
                     drop(effect);
                     let unused = reservation_scope.take_unused();
                     let batch = local_scope.take_after_local_batch();
@@ -4803,7 +4921,7 @@ async fn run_managed_host_plan_action(
                         handoff.reopen();
                     }
                     #[cfg(test)]
-                    pause_nested_after_local_work_for_test(&after_local_state);
+                    pause_nested_after_local_cleanup_for_test(after_local_pause.as_ref());
                     after_local.map_err(SnapbackError::from)?;
                     match output {
                         Ok(output) => output,

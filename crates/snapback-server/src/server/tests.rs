@@ -8201,9 +8201,9 @@ enum NestedAfterLocalRuntime {
     DetachedIbex,
 }
 
-/// A completed child no longer owns caller authority while post-Local action
-/// cleanup is still blocked. This covers managed HostPlan and both detached
-/// child runtimes through the real session logout drain.
+/// A completed child no longer owns caller authority once its real after-Local
+/// phase starts. This covers managed HostPlan and both detached child runtimes
+/// and observes the exact reservation identity, not action completion.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn child_caller_permit_releases_before_after_local_work() {
     for runtime in [
@@ -8245,17 +8245,28 @@ async fn child_caller_permit_releases_before_after_local_work() {
         });
         tokio::time::timeout(Duration::from_secs(5), pause.wait_until_reached())
             .await
-            .unwrap_or_else(|_| panic!("{runtime:?} never reached post-Local cleanup"));
-        assert_eq!(
-            finite_authority_matrix_item_count(&fixture.state).await,
-            2,
-            "{runtime:?} child has committed before cleanup pauses"
+            .unwrap_or_else(|_| panic!("{runtime:?} never reached its after-Local effect"));
+        assert!(
+            pause.caller_permit_released(),
+            "{runtime:?} entered after-Local work while retaining the child caller permit"
         );
         assert!(
             !action.is_finished(),
-            "{runtime:?} action remains held in post-Local cleanup"
+            "{runtime:?} action remains held during real after-Local work"
         );
 
+        pause.release();
+        tokio::time::timeout(
+            Duration::from_secs(5),
+            pause.wait_until_after_batch_reached(),
+        )
+        .await
+        .unwrap_or_else(|_| panic!("{runtime:?} did not complete its after-Local batch"));
+        assert_eq!(
+            finite_authority_matrix_item_count(&fixture.state).await,
+            2,
+            "{runtime:?} child commit survived the real after-Local batch"
+        );
         let logout = tokio::time::timeout(
             Duration::from_secs(2),
             fixture.router.clone().oneshot(session_auth_http_request(
@@ -8265,20 +8276,18 @@ async fn child_caller_permit_releases_before_after_local_work() {
             )),
         )
         .await
-        .unwrap_or_else(|_| {
-            panic!("{runtime:?} completed child kept logout draining during after-Local work")
-        })
+        .unwrap_or_else(|_| panic!("{runtime:?} completed child kept logout draining"))
         .expect("after-Local logout response");
         assert_eq!(logout.status(), StatusCode::NO_CONTENT);
         assert!(
             !action.is_finished(),
-            "{runtime:?} cleanup hold remains independent of logout"
+            "{runtime:?} post-batch hold remains independent of logout"
         );
 
-        pause.release();
+        pause.release_after_batch();
         let response = tokio::time::timeout(Duration::from_secs(5), action)
             .await
-            .expect("after-Local action settles")
+            .unwrap_or_else(|_| panic!("{runtime:?} after-Local action did not settle"))
             .expect("after-Local action joins");
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
@@ -28160,6 +28169,20 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
     let mut host = held_action_host(state, &staged);
     host.deadline = Instant::now() + Duration::from_secs(10);
     host.authority = authority;
+    let stream_runner_host = host.authority.stream_runner_host(host.abandoned.clone());
+    host.commit_gate = stream_runner_host.runner().commit_gate();
+    host.stream_runner = stream_runner_host.runner().clone();
+    host.stream_runner_host = stream_runner_host;
+    host.output_stream_function_id = Some("heldAction".to_owned());
+    host.output_stream_initiator = Some(crate::stream_attempt::StreamInitiator::ServiceCredential(
+        "credential-a".to_owned(),
+    ));
+    host.initialize_output_stream()
+        .expect("scoped-service streaming action opens its durable attempt");
+    let attempt_token = host
+        .output_stream_attempt
+        .clone()
+        .expect("output attempt token");
 
     let (opened, discarded) = tokio::task::block_in_place(|| {
         let opened = host
@@ -28215,8 +28238,57 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
         "the service tier's exact authority refusal must surface"
     );
     assert!(
+        matches!(
+            host.terminal_latch.cause(),
+            Some(crate::local::ActionTerminalCause::CallerAuthority(
+                crate::auth::invocation::CallerAuthorityTerminalCause::ScopedServiceRetired {
+                    disposition: ServiceAuthorityDisposition::DurableDelete,
+                    ..
+                }
+            ))
+        ),
+        "the real per-read service fence must latch its typed caller subtype"
+    );
+    assert!(
         host.closed_response_streams.contains(&opened.stream_id),
         "the discarding read must close the cursor"
+    );
+
+    // Exercise the same provider-settlement/fallback sequence as the worker.
+    // The typed scoped-service latch must survive both layers as `cancelled`;
+    // a subtype-specific mapping that recognizes only admission retirement is
+    // intentionally insufficient.
+    let terminal_cause = super::detached_action_stream_terminal_cause(
+        &Err(discarded.clone()),
+        true,
+        &host.terminal_latch,
+    );
+    assert_eq!(
+        terminal_cause,
+        crate::stream_attempt::StreamAttemptCause::Cancelled
+    );
+    let provider_refusal = host
+        .settle_provider_stream_attempt_host(&attempt_token, terminal_cause)
+        .expect_err("the latched authority loss refuses the ordinary provider settle");
+    assert_eq!(
+        provider_refusal.diagnostic.code,
+        "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
+    );
+    let registry = crate::stream_attempt::global_stream_attempt_registry();
+    let terminalized =
+        registry.terminalize_invocation_host(&host.stream_runner_host, terminal_cause);
+    assert_eq!(terminalized.len(), 1, "the trusted fallback wins once");
+    host.flush_stream_attempts_trusted();
+    let terminal = registry
+        .terminal(&attempt_token)
+        .expect("scoped-service output attempt has a durable winner");
+    assert_eq!(
+        terminal.cause,
+        crate::stream_attempt::StreamAttemptCause::Cancelled
+    );
+    assert_eq!(
+        terminal.settled_by,
+        crate::stream_attempt::StreamAttemptSettledBy::Terminalizer
     );
 
     // A new open under the terminalized authority is refused at the
@@ -28237,6 +28309,7 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
         refused.diagnostic.code,
         "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
     );
+    registry.release_invocation(&host.stream_runner);
     upstream.join().expect("service fence fixture joins");
 }
 
