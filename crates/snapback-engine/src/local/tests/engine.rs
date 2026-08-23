@@ -24969,6 +24969,144 @@ fn guarded_snapback() -> LocalSnapback {
 }
 
 #[test]
+fn managed_action_staging_preserves_terminal_service_loss_after_repeated_policy_check() {
+    let mut snapback = guarded_snapback();
+    let step = ActionStep::RunMutation {
+        name: "hostInsert".to_owned(),
+        args: BTreeMap::new(),
+        bind_result_as: None,
+    };
+    let mut manifest = guarded_functions();
+    manifest.functions.push(FunctionDefinition::new(
+        "writeAction",
+        FunctionKind::Action,
+        FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+            steps: vec![step.clone()],
+            return_value: None,
+        })),
+    ));
+    let diagnostics = snapback.load_functions(manifest);
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
+        "managed classified staging fixture must load: {diagnostics:?}"
+    );
+
+    let action_input = input();
+    let authority = InvocationGate::prepare_admitted_dev_input(
+        InvocationSource::LocalAction,
+        ServerProfile::Test,
+        &action_input,
+        snapback
+            .admission
+            .admit_dev()
+            .expect("admit managed classified action"),
+    )
+    .expect("prepare managed classified action authority");
+    let function = snapback
+        .function("writeAction")
+        .expect("managed classified action function")
+        .clone();
+    let prepared = InvocationGate::prepare_function(authority, &function)
+        .expect("prepare managed classified action");
+    let mut action = snapback
+        .stage_managed_host_plan_action(
+            "writeAction",
+            action_input,
+            super::manual_action_metadata("test", "writeAction"),
+            prepared,
+        )
+        .expect("stage managed classified action");
+
+    let registry = crate::auth::service_fence::ServiceAuthorityFenceRegistry::default();
+    let token_id = "managed-classified-staging-token";
+    let now_ms = now_millis();
+    let publication = registry
+        .synthetic_publication_for_test(token_id, now_ms, now_ms + 60_000, Instant::now())
+        .expect("register managed classified service publication");
+    let sessions = AdmissionController::from_mode_state(&settled_sessions_state())
+        .expect("sessions admission controller");
+    let service_authority = InvocationGate::prepare_admitted_authority(
+        InvocationSource::HttpAction,
+        AuthMode::Sessions,
+        ServerProfile::Test,
+        sessions
+            .admit_for_mode(AuthMode::Sessions)
+            .expect("admit managed classified service action"),
+        &WireAuthorityFields::default(),
+        ResolvedAppAuthority::ServicePrincipal {
+            actor_user_id: "agent-a".to_owned(),
+            credential_id: "credential-a".to_owned(),
+            credential_generation: 1,
+            grant_id: "durable-grant-a".to_owned(),
+            token_id: token_id.to_owned(),
+            effective_user_id: Some("user-a".to_owned()),
+            scopes: vec![
+                crate::auth::invocation::ResolvedGrantScope::from_exact(
+                    crate::storage::auth_grants::ExactGrantScope {
+                        function_id: function.id.clone(),
+                        kind: crate::storage::auth_grants::ScopedFunctionKind::Action,
+                        basis: 0,
+                        authority_creating: false,
+                    },
+                ),
+                crate::auth::invocation::ResolvedGrantScope::from_exact(
+                    crate::storage::auth_grants::ExactGrantScope {
+                        function_id: snapback
+                            .function("hostInsert")
+                            .expect("managed classified child function")
+                            .id
+                            .clone(),
+                        kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
+                        basis: 0,
+                        authority_creating: false,
+                    },
+                ),
+            ],
+            token_expires_at_ms: now_ms + 60_000,
+            integration_status: None,
+        },
+        None,
+    )
+    .expect("prepare managed classified service authority")
+    .with_service_publication(publication);
+    action.invocation = InvocationGate::prepare_function(service_authority, &function)
+        .expect("prepare managed classified service action");
+
+    // The covered-identity lane returns Ok(None) in this fixture. Retire the
+    // scoped service after action staging plus the child's two function-policy
+    // checks; the next observer is the classified persistence check inside the
+    // legacy recorded-mutation staging pipeline.
+    let retire = registry.clone();
+    install_classified_admission_hook_for_test(2, move || {
+        retire
+            .commit_terminal_for_test(
+                &[token_id.to_owned()],
+                ServiceAuthorityDisposition::DurableDelete,
+            )
+            .expect("retire scoped service before classified persistence");
+    });
+    let error = match snapback.stage_managed_host_plan_action_step_classified(
+        &action,
+        &step,
+        &BTreeMap::new(),
+    ) {
+        Ok(_) => panic!("classified persistence must observe the retired scoped service"),
+        Err(error) => error,
+    };
+    assert!(matches!(
+        error,
+        AuthorizedEffectReservationError::Terminal(
+            CallerAuthorityTerminalCause::ScopedServiceRetired {
+                disposition: ServiceAuthorityDisposition::DurableDelete,
+                ..
+            }
+        )
+    ));
+}
+
+#[test]
 fn served_staging_and_managed_action_emit_function_and_runtime_log_observations() {
     fn stage_and_commit(snapback: &mut LocalSnapback, name: &str, input: HandlerInput) {
         let correlation =

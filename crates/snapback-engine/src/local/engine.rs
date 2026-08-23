@@ -11,6 +11,8 @@ use crate::auth::invalidation::{
     RetryEpisode, RetryEpisodeKey, RetryReservation, RetryReservationKind, ScopeId,
     ScopeRetirement, ScopeRetirementCandidate,
 };
+#[cfg(test)]
+use crate::auth::invocation::install_classified_admission_hook_for_test;
 use crate::auth::invocation::{
     AuthorizedEffectCommitGuard, AuthorizedEffectReservation, AuthorizedEffectReservationError,
     CallerAuthorityTerminalCause, FunctionAttribution, HandlerAuthProjection, InvocationGate,
@@ -1394,6 +1396,12 @@ pub enum StagedAction {
 pub enum StagedRecordedMutation {
     Done(Box<(SnapbackResult<MutationOutput>, Receipt)>),
     Ready(Box<StagedRecordedMutationCommit>),
+}
+
+#[derive(Clone, Copy)]
+enum MutationStageAuthorityPosture {
+    Compatibility,
+    CallerClassified,
 }
 
 /// Commit posture is an explicit site choice. `ModeOnlyOrTerminalCarrier`
@@ -7409,26 +7417,29 @@ impl LocalSnapback {
                 ..
             } = authority.resolved()
             else {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
-                    "auth",
-                    "asset-callbacks authority lost its service-principal identity",
-                )
-                .into());
+                return Err(AuthorizedEffectReservationError::NonTerminal(
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                        "auth",
+                        "asset-callbacks authority lost its service-principal identity",
+                    ),
+                ));
             };
             if actor_user_id != &principal.actor_user_id
                 || grant_id != &principal.grant_id
                 || !self
                     .db
-                    .asset_callbacks_service_principal_is_live(principal)?
+                    .asset_callbacks_service_principal_is_live(principal)
+                    .map_err(AuthorizedEffectReservationError::NonTerminal)?
             {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
-                    "auth",
-                    "the asset-callbacks service-principal grant is no longer current",
-                )
-                .with_details(json!({ "reason": "terminally_invalid_entry" }))
-                .into());
+                return Err(AuthorizedEffectReservationError::NonTerminal(
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
+                        "auth",
+                        "the asset-callbacks service-principal grant is no longer current",
+                    )
+                    .with_details(json!({ "reason": "terminally_invalid_entry" })),
+                ));
             }
             return Ok(());
         }
@@ -7446,7 +7457,10 @@ impl LocalSnapback {
             return Ok(());
         };
         let (now_ms, monotonic_now) = authority.service_clock_sample(now_millis(), Instant::now());
-        let witness = match authority.resolve_service_authority_act(now_ms, monotonic_now)? {
+        let witness = match authority
+            .resolve_service_authority_act(now_ms, monotonic_now)
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?
+        {
             Some(ServiceAuthorityActResolution::Current(witness)) => witness,
             Some(ServiceAuthorityActResolution::Terminal(disposition)) => {
                 let wire = match disposition {
@@ -7464,20 +7478,22 @@ impl LocalSnapback {
                 ));
             }
             Some(ServiceAuthorityActResolution::Unavailable) => {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
-                    "auth",
-                    "finite service authority termination is unresolved",
-                )
-                .into());
+                return Err(AuthorizedEffectReservationError::NonTerminal(
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                        "auth",
+                        "finite service authority termination is unresolved",
+                    ),
+                ));
             }
             None => {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
-                    "auth",
-                    "finite service authority has no exact process fence",
-                )
-                .into());
+                return Err(AuthorizedEffectReservationError::NonTerminal(
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                        "auth",
+                        "finite service authority has no exact process fence",
+                    ),
+                ));
             }
         };
         if witness.actor_user_id() != actor_user_id
@@ -7488,27 +7504,33 @@ impl LocalSnapback {
             || witness.credential_generation() != *credential_generation
             || witness.expires_at_ms() != *token_expires_at_ms
         {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
-                "auth",
-                "finite service authority disagrees with its exact process fence",
-            )
-            .into());
+            return Err(AuthorizedEffectReservationError::NonTerminal(
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                    "auth",
+                    "finite service authority disagrees with its exact process fence",
+                ),
+            ));
         }
         // @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — re-read reversible integration admission under the app lock so suspension is named rather than collapsed into revocation/carrier churn.
         self.db
-            .require_active_integration_if_present(actor_user_id)?;
-        if !self.db.retained_service_authority_is_live_readonly(
-            crate::storage::auth_agent_credentials::RetainedServiceAuthority {
-                actor_user_id,
-                credential_id,
-                credential_generation: *credential_generation,
-                grant_id,
-                token_id,
-                effective_user_id: effective_user_id.as_deref(),
-            },
-            now_ms,
-        )? {
+            .require_active_integration_if_present(actor_user_id)
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?;
+        if !self
+            .db
+            .retained_service_authority_is_live_readonly(
+                crate::storage::auth_agent_credentials::RetainedServiceAuthority {
+                    actor_user_id,
+                    credential_id,
+                    credential_generation: *credential_generation,
+                    grant_id,
+                    token_id,
+                    effective_user_id: effective_user_id.as_deref(),
+                },
+                now_ms,
+            )
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?
+        {
             let disposition = ServiceAuthorityDisposition::Carrier;
             let error = SnapbackError::error(
                 "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
@@ -7535,7 +7557,8 @@ impl LocalSnapback {
         &mut self,
         authority: &PreparedAuthority,
     ) -> Result<(), AuthorizedEffectReservationError> {
-        self.persist_service_deadline_if_due(authority)?;
+        self.persist_service_deadline_if_due(authority)
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?;
         self.validate_prepared_service_authority_classified(authority)
     }
 
@@ -16905,7 +16928,9 @@ impl LocalSnapback {
             None,
             None,
             false,
+            MutationStageAuthorityPosture::Compatibility,
         )
+        .map_err(AuthorizedEffectReservationError::into_error)
     }
 
     /// The finite HTTP mutation carrier has no connection lineage from which
@@ -16945,7 +16970,9 @@ impl LocalSnapback {
             media_command,
             wire_version,
             false,
+            MutationStageAuthorityPosture::Compatibility,
         )
+        .map_err(AuthorizedEffectReservationError::into_error)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -16964,10 +16991,14 @@ impl LocalSnapback {
         media_invocation: Option<crate::manifest::MediaCommandInvocationV1>,
         wire_version: Option<&str>,
         allow_host_issuance: bool,
-    ) -> SnapbackResult<(
-        crate::storage::AuthorizationCommitPreflight,
-        StagedRecordedMutation,
-    )> {
+        authority_posture: MutationStageAuthorityPosture,
+    ) -> Result<
+        (
+            crate::storage::AuthorizationCommitPreflight,
+            StagedRecordedMutation,
+        ),
+        AuthorizedEffectReservationError,
+    > {
         let negotiated_wire_version = match crate::wire_version::classify_open_offer(
             wire_version,
             crate::wire_version::SUPPORTED_WIRE_VERSIONS,
@@ -16975,19 +17006,23 @@ impl LocalSnapback {
             crate::wire_version::OpenWireVersionOffer::Absent => None,
             crate::wire_version::OpenWireVersionOffer::Known(token) => Some(token),
             crate::wire_version::OpenWireVersionOffer::Unknown => {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_WIRE_VERSION_UNSUPPORTED",
-                    "protocol",
-                    "the offered mutation wireVersion is not supported by this server; \
-                     supported versions: snapback.v1",
+                return Err(AuthorizedEffectReservationError::NonTerminal(
+                    SnapbackError::error(
+                        "SNAPBACK_WIRE_VERSION_UNSUPPORTED",
+                        "protocol",
+                        "the offered mutation wireVersion is not supported by this server; \
+                         supported versions: snapback.v1",
+                    ),
                 ));
             }
         };
         if operation_issuance.is_some() && client_mutation_id.is_none() {
-            return Err(SnapbackError::error(
-                "SNAPBACK_OPERATION_IDENTITY_REQUIRES_CLIENT_MUTATION_ID",
-                "protocol",
-                "operationIssuance extends clientMutationId and cannot be sent alone",
+            return Err(AuthorizedEffectReservationError::NonTerminal(
+                SnapbackError::error(
+                    "SNAPBACK_OPERATION_IDENTITY_REQUIRES_CLIENT_MUTATION_ID",
+                    "protocol",
+                    "operationIssuance extends clientMutationId and cannot be sent alone",
+                ),
             ));
         }
         if !allow_host_issuance
@@ -16996,10 +17031,12 @@ impl LocalSnapback {
                 Some(crate::commit_envelope::OperationIssuanceV1::HostIncarnation { .. })
             )
         {
-            return Err(SnapbackError::error(
-                "SNAPBACK_OPERATION_HOST_IDENTITY_FORBIDDEN",
-                "protocol",
-                "client mutation transport cannot mint the host operation namespace",
+            return Err(AuthorizedEffectReservationError::NonTerminal(
+                SnapbackError::error(
+                    "SNAPBACK_OPERATION_HOST_IDENTITY_FORBIDDEN",
+                    "protocol",
+                    "client mutation transport cannot mint the host operation namespace",
+                ),
             ));
         }
         let artifact_generation = if operation_issuance.is_some() {
@@ -17017,10 +17054,12 @@ impl LocalSnapback {
                     bundle_hash: identity.bundle_hash,
                     inputs_hash: identity.inputs_hash,
                 })
-            }).ok_or_else(|| SnapbackError::error(
-                "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH",
-                "runtime",
-                "issuance-bearing mutation requires a derivable selected artifact generation",
+            }).ok_or_else(|| AuthorizedEffectReservationError::NonTerminal(
+                SnapbackError::error(
+                    "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH",
+                    "runtime",
+                    "issuance-bearing mutation requires a derivable selected artifact generation",
+                )
             ))?.into()
         } else {
             None
@@ -17048,12 +17087,30 @@ impl LocalSnapback {
         // durable identity first; only a cache miss proceeds to active
         // function selection. This path never dispatches a handler.
         if let Some(id) = client_mutation_id.as_ref() {
-            authority.validate_admission("client mutation settlement recovery")?;
-            self.persist_and_validate_prepared_service_authority(&authority)?;
-            let incarnation = self.db.ensure_authorization_stream_incarnation()?;
-            let expected = descriptor_for_authority(&authority, incarnation.as_str())?;
+            match authority_posture {
+                MutationStageAuthorityPosture::Compatibility => authority
+                    .validate_admission("client mutation settlement recovery")
+                    .map_err(AuthorizedEffectReservationError::NonTerminal)?,
+                MutationStageAuthorityPosture::CallerClassified => authority
+                    .validate_admission_classified("client mutation settlement recovery")?,
+            }
+            match authority_posture {
+                MutationStageAuthorityPosture::Compatibility => self
+                    .persist_and_validate_prepared_service_authority(&authority)
+                    .map_err(AuthorizedEffectReservationError::NonTerminal)?,
+                MutationStageAuthorityPosture::CallerClassified => {
+                    self.persist_and_validate_prepared_service_authority_classified(&authority)?
+                }
+            }
+            let incarnation = self
+                .db
+                .ensure_authorization_stream_incarnation()
+                .map_err(AuthorizedEffectReservationError::NonTerminal)?;
+            let expected = descriptor_for_authority(&authority, incarnation.as_str())
+                .map_err(AuthorizedEffectReservationError::NonTerminal)?;
             if authority.active_mode() == AuthMode::Sessions || authority_descriptor.is_some() {
-                require_current_descriptor(authority_descriptor.as_ref(), &expected)?;
+                require_current_descriptor(authority_descriptor.as_ref(), &expected)
+                    .map_err(|error| AuthorizedEffectReservationError::NonTerminal(error.into()))?;
             }
             let mut canonical_input = input.clone();
             canonical_input.auth = authority.canonical_auth_input();
@@ -17067,13 +17124,15 @@ impl LocalSnapback {
             if let Some(output) = self
                 .db
                 .settlement_read()
-                .client_mutation_result(&identity)?
+                .client_mutation_result(&identity)
+                .map_err(AuthorizedEffectReservationError::NonTerminal)?
             {
                 if !acknowledged_client_mutation_ids.is_empty() {
                     self.acknowledge_client_mutations_with_authority(
                         &authority,
                         acknowledged_client_mutation_ids,
-                    )?;
+                    )
+                    .map_err(AuthorizedEffectReservationError::NonTerminal)?;
                 }
                 let admission = authority.admission_lease().clone();
                 let correlation = capped_correlation(input.correlation.clone());
@@ -17116,38 +17175,65 @@ impl LocalSnapback {
             &input,
             expected_generation,
             negotiated_wire_version,
-        )?;
-        let function = self.function(name)?.clone();
+        )
+        .map_err(AuthorizedEffectReservationError::NonTerminal)?;
+        let function = self
+            .function(name)
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?
+            .clone();
         let input = input;
         let media_command = prepare_media_command_invocation(
             &function,
             &input,
             media_invocation.clone(),
             client_mutation_id.as_deref(),
-        )?;
+        )
+        .map_err(AuthorizedEffectReservationError::NonTerminal)?;
         let settlement_time = admitted_settlement_time_policy(&function, &settlement);
-        self.validate_expected_generation(&authority, expected_generation)?;
-        let prepared = InvocationGate::prepare_function(authority.clone(), &function)?;
+        self.validate_expected_generation(&authority, expected_generation)
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?;
+        let prepared = match authority_posture {
+            MutationStageAuthorityPosture::Compatibility => {
+                InvocationGate::prepare_function(authority.clone(), &function)
+                    .map_err(AuthorizedEffectReservationError::NonTerminal)?
+            }
+            MutationStageAuthorityPosture::CallerClassified => {
+                InvocationGate::prepare_function_classified(authority.clone(), &function)?
+            }
+        };
         // The live credential/grant is authorizing; the queued descriptor is
         // only a non-authorizing replay axis. Preserve the ordinary mutation
         // gate order so credential-generation drift cannot be disguised as a
         // descriptor mismatch.
-        self.persist_and_validate_prepared_service_authority(prepared.authority())?;
-        preflight_host_plan_authority_writes(&prepared, &function, self.db.schema())?;
+        match authority_posture {
+            MutationStageAuthorityPosture::Compatibility => self
+                .persist_and_validate_prepared_service_authority(prepared.authority())
+                .map_err(AuthorizedEffectReservationError::NonTerminal)?,
+            MutationStageAuthorityPosture::CallerClassified => self
+                .persist_and_validate_prepared_service_authority_classified(prepared.authority())?,
+        }
+        preflight_host_plan_authority_writes(&prepared, &function, self.db.schema())
+            .map_err(|error| AuthorizedEffectReservationError::NonTerminal(error.into()))?;
         if client_mutation_id.is_some() {
-            let incarnation = self.db.ensure_authorization_stream_incarnation()?;
-            let expected = descriptor_for_authority(prepared.authority(), incarnation.as_str())?;
+            let incarnation = self
+                .db
+                .ensure_authorization_stream_incarnation()
+                .map_err(AuthorizedEffectReservationError::NonTerminal)?;
+            let expected = descriptor_for_authority(prepared.authority(), incarnation.as_str())
+                .map_err(AuthorizedEffectReservationError::NonTerminal)?;
             if prepared.authority().active_mode() == AuthMode::Sessions
                 || authority_descriptor.is_some()
             {
-                require_current_descriptor(authority_descriptor.as_ref(), &expected)?;
+                require_current_descriptor(authority_descriptor.as_ref(), &expected)
+                    .map_err(|error| AuthorizedEffectReservationError::NonTerminal(error.into()))?;
             }
         }
         if !acknowledged_client_mutation_ids.is_empty() {
             self.acknowledge_client_mutations_with_authority(
                 prepared.authority(),
                 acknowledged_client_mutation_ids,
-            )?;
+            )
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?;
         }
 
         let admission = prepared.admission_lease().clone();
@@ -23127,7 +23213,10 @@ impl LocalSnapback {
         authority: PreparedAuthority,
         identity: Option<&ClientMutationIdentity>,
     ) -> Result<StagedNestedMutation, AuthorizedEffectReservationError> {
-        let function = self.function(name)?.clone();
+        let function = self
+            .function(name)
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?
+            .clone();
         let invocation = InvocationGate::prepare_function_classified(authority, &function)?;
         self.persist_and_validate_prepared_service_authority_classified(invocation.authority())?;
         let mut canonical_input = invocation.canonicalize_input(input.clone());
@@ -23142,12 +23231,15 @@ impl LocalSnapback {
             | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
                 crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
             )) => {
-                preflight_host_plan_authority_writes(&invocation, &function, self.db.schema())?;
-                let _epoch_scopes = evaluate_permission_epoch_scopes(&function, &canonical_input)?;
+                preflight_host_plan_authority_writes(&invocation, &function, self.db.schema())
+                    .map_err(AuthorizedEffectReservationError::NonTerminal)?;
+                let _epoch_scopes = evaluate_permission_epoch_scopes(&function, &canonical_input)
+                    .map_err(AuthorizedEffectReservationError::NonTerminal)?;
                 let preview = self
                     .db
                     .mutation_writes()
-                    .dry_run_mutation(plan, &canonical_input)?;
+                    .dry_run_mutation(plan, &canonical_input)
+                    .map_err(AuthorizedEffectReservationError::NonTerminal)?;
                 let staged_effect_count = preview.commit.changes.len();
                 let mut replay_input = canonical_input;
                 replay_input.ctx_ledger = Some(CtxAnswerLedger {
@@ -23169,11 +23261,16 @@ impl LocalSnapback {
                 // validate permission-epoch scopes before any handler code
                 // executes. The resolved set rides the detached effect to its
                 // bounded commit window.
-                let epoch_scopes = evaluate_permission_epoch_scopes(&function, &canonical_input)?;
+                let epoch_scopes = evaluate_permission_epoch_scopes(&function, &canonical_input)
+                    .map_err(AuthorizedEffectReservationError::NonTerminal)?;
                 let read = if self.db.reader_pool().is_some() {
                     DetachedMutationRead::Lane(self.read_lane())
                 } else {
-                    DetachedMutationRead::Snapshot(Box::new(self.db.detached_read_snapshot()?))
+                    DetachedMutationRead::Snapshot(Box::new(
+                        self.db
+                            .detached_read_snapshot()
+                            .map_err(AuthorizedEffectReservationError::NonTerminal)?,
+                    ))
                 };
                 Ok(StagedNestedMutation::Detached(Box::new(
                     DetachedIbexMutation {
@@ -23188,12 +23285,13 @@ impl LocalSnapback {
                     },
                 )))
             }
-            _ => Err(SnapbackError::error(
-                "SNAPBACK_FUNCTION_KIND_MISMATCH",
-                "runtime",
-                format!("{name} is not a mutation"),
-            )
-            .into()),
+            _ => Err(AuthorizedEffectReservationError::NonTerminal(
+                SnapbackError::error(
+                    "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                    "runtime",
+                    format!("{name} is not a mutation"),
+                ),
+            )),
         }
     }
 
@@ -23231,19 +23329,23 @@ impl LocalSnapback {
         self.persist_and_validate_prepared_service_authority_classified(
             binding.invocation.authority(),
         )?;
-        let function = self.function(name)?.clone();
+        let function = self
+            .function(name)
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?
+            .clone();
         if function != binding.function
             || self.db.schema() != &binding.schema
             || self.app_generation != binding.app_generation
         {
-            return Err(SnapbackError::error(
-                "SNAPBACK_MUTATION_CONFLICT",
-                "runtime",
-                format!(
-                    "app code or schema changed while action-hosted mutation {name} was running"
+            return Err(AuthorizedEffectReservationError::NonTerminal(
+                SnapbackError::error(
+                    "SNAPBACK_MUTATION_CONFLICT",
+                    "runtime",
+                    format!(
+                        "app code or schema changed while action-hosted mutation {name} was running"
+                    ),
                 ),
-            )
-            .into());
+            ));
         }
         let mut canonical_input = binding.invocation.canonicalize_input(input.clone());
         bind_authoritative_client_mutation_identity(&mut canonical_input, identity);
@@ -23252,8 +23354,11 @@ impl LocalSnapback {
             &canonical_input,
             executed,
             identity,
-        )?;
-        let membership_plans = executed.preview_membership_commands(&mut self.db)?;
+        )
+        .map_err(AuthorizedEffectReservationError::NonTerminal)?;
+        let membership_plans = executed
+            .preview_membership_commands(&mut self.db)
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?;
         let preview = self
             .db
             .mutation_writes()
@@ -23276,7 +23381,8 @@ impl LocalSnapback {
                 executed.asset_grant_ops.clone(),
                 executed.media_projection_proof.as_ref(),
                 expected_media_projection_binding.as_ref(),
-            )?;
+            )
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?;
         let staged_effect_count = preview.changes.len();
         Ok(DetachedNestedMutationPreview {
             preflight: self.authorization_commit_preflight_for_changes(preview.changes),
@@ -28070,21 +28176,32 @@ impl LocalSnapback {
         //   mint nor consume host identity ordinals.
         if !self
             .db
-            .operation_lane_covered(crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1)?
+            .operation_lane_covered(crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1)
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?
         {
             return Ok(None);
         }
-        let (upstream_identity, commit_ordinal) = parent.next_child()?;
+        let (upstream_identity, commit_ordinal) = parent
+            .next_child()
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?;
         authority.validate_admission_classified("host child operation identity")?;
         self.persist_and_validate_prepared_service_authority_classified(authority)?;
-        let incarnation = self.db.ensure_authorization_stream_incarnation()?;
-        let descriptor = descriptor_for_authority(authority, incarnation.as_str())?;
-        let issuance = self.db.settlement().host_operation_issuance(
-            &descriptor.authority_instance_id,
-            upstream_identity,
-            commit_ordinal,
-            now_millis(),
-        )?;
+        let incarnation = self
+            .db
+            .ensure_authorization_stream_incarnation()
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?;
+        let descriptor = descriptor_for_authority(authority, incarnation.as_str())
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?;
+        let issuance = self
+            .db
+            .settlement()
+            .host_operation_issuance(
+                &descriptor.authority_instance_id,
+                upstream_identity,
+                commit_ordinal,
+                now_millis(),
+            )
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?;
         let operation_id =
             crate::commit_envelope::derive_host_operation_id(upstream_identity, commit_ordinal);
         let mut canonical_input = input.clone();
@@ -28102,11 +28219,11 @@ impl LocalSnapback {
             inputs_hash: identity.inputs_hash,
         })
         .map_err(|_| {
-            SnapbackError::error(
+            AuthorizedEffectReservationError::NonTerminal(SnapbackError::error(
                 "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH",
                 "runtime",
                 "covered host operation requires a derivable selected artifact generation",
-            )
+            ))
         })?;
         Ok(Some(
             ClientMutationIdentity::for_authority(
@@ -28209,23 +28326,24 @@ impl LocalSnapback {
         ),
         AuthorizedEffectReservationError,
     > {
-        action.validate_generation()?;
+        action
+            .validate_generation()
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?;
         if self.app_generation != action.app_generation {
-            return Err(managed_action_generation_conflict(
-                action.app_generation,
-                self.app_generation,
-            )
-            .into());
+            return Err(AuthorizedEffectReservationError::NonTerminal(
+                managed_action_generation_conflict(action.app_generation, self.app_generation),
+            ));
         }
         action
             .invocation
             .validate_admission_classified("action step staging")?;
         let ActionStep::RunMutation { name, args, .. } = step;
-        let mutation_args =
-            eval_action_args(args, &action.input, bindings, &action.metadata, self)?;
+        let mutation_args = eval_action_args(args, &action.input, bindings, &action.metadata, self)
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?;
         let authority = action
             .invocation
-            .inherit_authority_for(InvocationSource::NestedMutation)?;
+            .inherit_authority_for(InvocationSource::NestedMutation)
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?;
         let child_input = HandlerInput {
             args: Value::Object(mutation_args),
             auth: action.input.auth.clone(),
@@ -28254,9 +28372,9 @@ impl LocalSnapback {
             None,
             None,
             true,
+            MutationStageAuthorityPosture::CallerClassified,
         )
         .map(|(preflight, staged)| (preflight, child_authority, staged))
-        .map_err(AuthorizedEffectReservationError::NonTerminal)
     }
 
     pub(crate) fn invoke_action_prepared(

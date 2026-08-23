@@ -1297,6 +1297,61 @@ pub fn authorized_effect_reservation_active_for_test(identity: u64) -> bool {
         .contains(&identity)
 }
 
+#[cfg(any(test, feature = "test-support"))]
+struct ClassifiedAdmissionHookForTest {
+    successful_checks_before_hook: usize,
+    hook: Box<dyn FnOnce()>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+thread_local! {
+    static CLASSIFIED_ADMISSION_HOOK_FOR_TEST:
+        std::cell::RefCell<Option<ClassifiedAdmissionHookForTest>> = const {
+            std::cell::RefCell::new(None)
+        };
+}
+
+/// Install a one-shot callback after the requested number of successful
+/// classified admission checks on this thread. This exposes an epoch change
+/// between repeated production checks without weakening their ordinary API.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub fn install_classified_admission_hook_for_test(
+    successful_checks_before_hook: usize,
+    hook: impl FnOnce() + 'static,
+) {
+    CLASSIFIED_ADMISSION_HOOK_FOR_TEST.with(|slot| {
+        let previous = slot.borrow_mut().replace(ClassifiedAdmissionHookForTest {
+            successful_checks_before_hook,
+            hook: Box::new(hook),
+        });
+        assert!(
+            previous.is_none(),
+            "classified admission hook already installed"
+        );
+    });
+}
+
+#[cfg(any(test, feature = "test-support"))]
+fn run_classified_admission_hook_for_test() {
+    CLASSIFIED_ADMISSION_HOOK_FOR_TEST.with(|slot| {
+        let hook = {
+            let mut slot = slot.borrow_mut();
+            let Some(installed) = slot.as_mut() else {
+                return;
+            };
+            if installed.successful_checks_before_hook > 0 {
+                installed.successful_checks_before_hook -= 1;
+                return;
+            }
+            slot.take().map(|installed| installed.hook)
+        };
+        if let Some(hook) = hook {
+            hook();
+        }
+    });
+}
+
 /// A terminal caller cause is distinct from an operational reservation
 /// failure and retains its exact authority/disposition axis for later action
 /// calls and final settlement.
@@ -1350,12 +1405,6 @@ impl AuthorizedEffectReservationError {
             Self::Terminal(cause) => cause.into_error(),
             Self::NonTerminal(error) => error,
         }
-    }
-}
-
-impl From<SnapbackError> for AuthorizedEffectReservationError {
-    fn from(error: SnapbackError) -> Self {
-        Self::NonTerminal(error)
     }
 }
 
@@ -1975,7 +2024,10 @@ impl PreparedAuthority {
             )
         })?;
         self.validate_rehearsal_authority()
-            .map_err(AuthorizedEffectReservationError::NonTerminal)
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?;
+        #[cfg(any(test, feature = "test-support"))]
+        run_classified_admission_hook_for_test();
+        Ok(())
     }
 
     fn validate_rehearsal_authority(&self) -> SnapbackResult<()> {
@@ -2675,27 +2727,29 @@ impl InvocationGate {
     ) -> Result<PreparedInvocation, AuthorizedEffectReservationError> {
         authority.validate_admission_classified("function invocation preparation")?;
         let InvocationTarget::Function(constraint) = authority.source.target() else {
-            return Err(SnapbackError::error(
-                "SNAPBACK_INVOCATION_SOURCE_INVALID",
-                "auth",
-                "an authority-only source cannot invoke an application function",
-            )
-            .into());
+            return Err(AuthorizedEffectReservationError::NonTerminal(
+                SnapbackError::error(
+                    "SNAPBACK_INVOCATION_SOURCE_INVALID",
+                    "auth",
+                    "an authority-only source cannot invoke an application function",
+                ),
+            ));
         };
         if !function_kind_matches(constraint, &function.kind) {
-            return Err(SnapbackError::error(
-                "SNAPBACK_FUNCTION_KIND_MISMATCH",
-                "runtime",
-                format!(
-                    "invocation source {:?} cannot run function kind {:?}",
-                    authority.source, function.kind
+            return Err(AuthorizedEffectReservationError::NonTerminal(
+                SnapbackError::error(
+                    "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                    "runtime",
+                    format!(
+                        "invocation source {:?} cannot run function kind {:?}",
+                        authority.source, function.kind
+                    ),
                 ),
-            )
-            .into());
+            ));
         }
         authority.bind_elevation_root(&function.kind);
         let (requirement, authority_creating_consent, matched_grant_scope) =
-            evaluate_function_policy(&authority, function)?;
+            evaluate_function_policy_classified(&authority, function)?;
         Ok(PreparedInvocation {
             authority,
             function_id: function.id.clone(),
@@ -2743,6 +2797,22 @@ fn evaluate_function_policy(
     function: &FunctionDefinition,
 ) -> SnapbackResult<(AuthRequirement, bool, Option<ResolvedGrantScope>)> {
     authority.validate_admission("current function policy evaluation")?;
+    evaluate_function_policy_after_admission(authority, function)
+}
+
+fn evaluate_function_policy_classified(
+    authority: &PreparedAuthority,
+    function: &FunctionDefinition,
+) -> Result<(AuthRequirement, bool, Option<ResolvedGrantScope>), AuthorizedEffectReservationError> {
+    authority.validate_admission_classified("current function policy evaluation")?;
+    evaluate_function_policy_after_admission(authority, function)
+        .map_err(AuthorizedEffectReservationError::NonTerminal)
+}
+
+fn evaluate_function_policy_after_admission(
+    authority: &PreparedAuthority,
+    function: &FunctionDefinition,
+) -> SnapbackResult<(AuthRequirement, bool, Option<ResolvedGrantScope>)> {
     let requirement = function.effective_auth_requirement();
     if requirement == AuthRequirement::Authenticated && !authority.resolved.carries_user() {
         return Err(SnapbackError::error(
@@ -3243,6 +3313,38 @@ mod tests {
             &function,
         )
         .expect("active integration reaches the ordinary function checks");
+    }
+
+    #[test]
+    fn classified_function_policy_preserves_intervening_epoch_retirement() {
+        let controller = AdmissionController::new(1, true).expect("dev admission controller");
+        let authority = InvocationGate::prepare_admitted_authority(
+            InvocationSource::LocalQuery,
+            AuthMode::Dev,
+            ServerProfile::Test,
+            controller.admit_dev().expect("admit classified query"),
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::Anonymous,
+            None,
+        )
+        .expect("prepare classified query authority");
+        let retire = controller.clone();
+        install_classified_admission_hook_for_test(0, move || {
+            retire
+                .fail_closed_after_uncertain_commit()
+                .expect("retire admission between classified policy checks");
+        });
+
+        let error = match InvocationGate::prepare_function_classified(authority, &function(None)) {
+            Ok(_) => panic!("the repeated policy check must observe the retired epoch"),
+            Err(error) => error,
+        };
+        assert!(matches!(
+            error,
+            AuthorizedEffectReservationError::Terminal(
+                CallerAuthorityTerminalCause::AdmissionEpochRetired { .. }
+            )
+        ));
     }
 
     #[test]

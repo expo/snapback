@@ -1837,8 +1837,11 @@ impl IbexActionHost for DetachedActionHost {
                 #[cfg(test)]
                 let effect_identity = effect.identity_for_test();
                 #[cfg(test)]
-                let after_local_pause =
-                    install_nested_after_local_work_pause_for_test(&self.state, effect_identity);
+                let after_local_pause = install_nested_after_local_work_pause_for_test(
+                    &self.state,
+                    &snapback.delivery_notifier(),
+                    effect_identity,
+                );
                 drop(effect);
                 let unused = reservation_scope.take_unused();
                 let after_local = snapback.complete_after_local();
@@ -2006,6 +2009,7 @@ impl IbexActionHost for DetachedActionHost {
                     #[cfg(test)]
                     let after_local_pause = install_nested_after_local_work_pause_for_test(
                         &self.state,
+                        &snapback.delivery_notifier(),
                         effect_identity,
                     );
                     drop(effect);
@@ -4067,6 +4071,8 @@ struct NestedAfterLocalTestPauseState {
     after_batch_reached: AtomicBool,
     after_batch_released: AtomicBool,
     caller_permit_released: AtomicBool,
+    production_notifier_reached: Arc<AtomicBool>,
+    production_notifier_caller_permit_released: Arc<AtomicBool>,
     production_effects_before_hook: AtomicUsize,
     lock: StdMutex<()>,
     changed: std::sync::Condvar,
@@ -4142,6 +4148,18 @@ impl NestedAfterLocalTestPause {
         self.state.caller_permit_released.load(Ordering::Acquire)
     }
 
+    fn production_notifier_reached(&self) -> bool {
+        self.state
+            .production_notifier_reached
+            .load(Ordering::Acquire)
+    }
+
+    fn production_notifier_caller_permit_released(&self) -> bool {
+        self.state
+            .production_notifier_caller_permit_released
+            .load(Ordering::Acquire)
+    }
+
     fn production_effects_before_hook(&self) -> usize {
         self.state
             .production_effects_before_hook
@@ -4170,6 +4188,7 @@ impl Drop for NestedAfterLocalTestPause {
 #[cfg(test)]
 fn install_nested_after_local_work_pause_for_test(
     state: &SharedSnapback,
+    delivery_notifier: &Arc<crate::ephemeral::DeliveryNotifier>,
     reservation_identity: u64,
 ) -> Option<Arc<NestedAfterLocalTestPauseState>> {
     let pause = NESTED_AFTER_LOCAL_TEST_PAUSES
@@ -4185,6 +4204,11 @@ fn install_nested_after_local_work_pause_for_test(
     pause.production_effects_before_hook.store(
         crate::exec_guard::deferred_after_local_effect_count_for_test(),
         Ordering::Release,
+    );
+    delivery_notifier.observe_next_wake_authorized_effect_for_test(
+        reservation_identity,
+        pause.production_notifier_reached.clone(),
+        pause.production_notifier_caller_permit_released.clone(),
     );
     let effect_pause = pause.clone();
     crate::exec_guard::run_or_defer_after_local(move || {
@@ -4943,6 +4967,7 @@ async fn run_managed_host_plan_action(
                     #[cfg(test)]
                     let after_local_pause = install_nested_after_local_work_pause_for_test(
                         &after_local_state,
+                        &guard.delivery_notifier(),
                         effect_identity,
                     );
                     drop(effect);

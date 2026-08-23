@@ -342,6 +342,16 @@ Required mutation checks before acceptance:
 - Guard the trusted terminalizer with `validate_live`: T8 must fail.
 - Move timeout before reservation: T9 must fail.
 
+### 2026-08-23 final-gate coverage note
+
+The scoped-service pre-reservation regression proves only the classified process-fence observer in
+`stage_nested_mutation_classified`. Its operation-coverage lane returns `Ok(None)`, so it does not
+execute `covered_host_child_identity_classified`; because the process fence is already terminal,
+it also does not reach the `live_readonly` Carrier branch. Those two branches remain supported by
+typed call-graph inspection rather than that regression. Separate focused regressions exercise the
+repeated classified function-policy check and the classified persistence check reached through
+managed HostPlan's legacy recorded-mutation staging pipeline.
+
 ## 7. Risks and reshape triggers
 
 - If session/service layers cannot return a typed pending-terminal cause without parsing diagnostics, implement that source classification first. Do not latch every `*_UNAVAILABLE` error as terminal.

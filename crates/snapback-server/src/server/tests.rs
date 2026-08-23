@@ -8317,6 +8317,14 @@ async fn child_caller_permit_releases_before_after_local_work() {
             .await
             .unwrap_or_else(|_| panic!("{runtime:?} never reached its after-Local effect"));
         assert!(
+            pause.production_notifier_reached(),
+            "{runtime:?} production notifier did not inspect the child caller permit"
+        );
+        assert!(
+            pause.production_notifier_caller_permit_released(),
+            "{runtime:?} production notifier ran while retaining the child caller permit"
+        );
+        assert!(
             pause.caller_permit_released(),
             "{runtime:?} entered after-Local work while retaining the child caller permit"
         );
@@ -28392,10 +28400,13 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
 }
 
 #[test]
-fn scoped_service_terminalization_before_child_reservation_latches_cancelled() {
-    // This host never reaches a per-read fence. The scoped service retires
-    // after output-attempt initialization, and the first observer is the
-    // child-staging path that precedes reserve_nested_effect.
+fn scoped_service_process_fence_before_child_reservation_latches_cancelled() {
+    // This fixture proves the classified process-fence check in
+    // stage_nested_mutation_classified. Its operation-coverage lane returns
+    // Ok(None), so covered_host_child_identity_classified is not reached; the
+    // already-terminal process fence also means the live_readonly Carrier
+    // branch is inspection-only here. The scoped service retires after output
+    // initialization, before reserve_nested_effect.
     let digest = |prefix: &str, marker: char| format!("{prefix}{}", marker.to_string().repeat(64));
     let deployment = DeploymentIdentity {
         schema_version: "snapback.v1".to_owned(),

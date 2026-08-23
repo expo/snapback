@@ -97,6 +97,14 @@ pub struct DeliveryNotifier {
     state: StdMutex<DeliveryNotifierState>,
     deadlines: StdMutex<DeliveryDeadlineState>,
     deadline_changed: Notify,
+    #[cfg(any(test, feature = "test-support"))]
+    authorized_effect_observer_for_test: StdMutex<
+        Option<(
+            u64,
+            Arc<std::sync::atomic::AtomicBool>,
+            Arc<std::sync::atomic::AtomicBool>,
+        )>,
+    >,
     #[cfg(test)]
     deadline_task_spawns: AtomicU64,
     #[cfg(test)]
@@ -109,6 +117,8 @@ impl Default for DeliveryNotifier {
             state: StdMutex::new(DeliveryNotifierState::default()),
             deadlines: StdMutex::new(DeliveryDeadlineState::default()),
             deadline_changed: Notify::new(),
+            #[cfg(any(test, feature = "test-support"))]
+            authorized_effect_observer_for_test: StdMutex::new(None),
             #[cfg(test)]
             deadline_task_spawns: AtomicU64::new(0),
             #[cfg(test)]
@@ -163,6 +173,42 @@ impl DeliveryNotifier {
             "DeliveryNotifier state lock",
         );
         lock(&self.state)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn observe_next_wake_authorized_effect_for_test(
+        &self,
+        reservation_identity: u64,
+        reached: Arc<std::sync::atomic::AtomicBool>,
+        inactive: Arc<std::sync::atomic::AtomicBool>,
+    ) {
+        let replaced = lock(&self.authorized_effect_observer_for_test).replace((
+            reservation_identity,
+            reached,
+            inactive,
+        ));
+        assert!(
+            replaced.is_none(),
+            "delivery notifier authorized-effect observer already installed"
+        );
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    fn observe_authorized_effect_for_test(&self) {
+        let Some((reservation_identity, reached, inactive)) =
+            lock(&self.authorized_effect_observer_for_test).take()
+        else {
+            return;
+        };
+        inactive.store(
+            reservation_identity != 0
+                && !crate::auth::invocation::authorized_effect_reservation_active_for_test(
+                    reservation_identity,
+                ),
+            Ordering::Release,
+        );
+        reached.store(true, Ordering::Release);
     }
 
     /// Register interest in a connection's deliveries. Returns this
@@ -487,6 +533,8 @@ impl DeliveryNotifier {
     }
 
     fn wake_now(&self, connection_id: &str) {
+        #[cfg(any(test, feature = "test-support"))]
+        self.observe_authorized_effect_for_test();
         if let Some(registration) = self.lock_state().waiters.get(connection_id) {
             registration.notify.notify_one();
         }
@@ -504,6 +552,8 @@ impl DeliveryNotifier {
     }
 
     fn wake_many_now(&self, connection_ids: &[ConnectionId]) {
+        #[cfg(any(test, feature = "test-support"))]
+        self.observe_authorized_effect_for_test();
         let state = self.lock_state();
         for connection_id in connection_ids {
             if let Some(registration) = state.waiters.get(connection_id) {
