@@ -9,7 +9,7 @@ use crate::auth::sender_proof::sender_constraint_for_presented_token;
 use crate::auth::throttle::{
     AuthBudgetDeploymentProfile, AuthBudgetIdempotencyIdentity, AuthBudgetName,
     AuthenticationThrottleDecision, AuthenticationThrottleDimensions, AuthenticationThrottleError,
-    RollingWindowBudgetTerms, charge_local_authentication_attempts,
+    LocalAuthenticationAttempt, RollingWindowBudgetTerms, charge_local_authentication_attempts,
     charge_shared_authentication_attempt, charge_shared_authentication_attempt_idempotent,
     initialize_shared_authentication_throttle, password_budget_config,
 };
@@ -30,11 +30,32 @@ impl LocalDatabase {
         let identifier = canonical_identifier
             .map(CanonicalAddress::as_str)
             .unwrap_or("<invalid-password-identifier>");
-        let axis = match source {
-            Some(source) => format!("hosted\n{deployment_id}\n{source}\n{identifier}"),
-            None => format!("local\n{deployment_id}\n{identifier}"),
+        // @ref LLP 0215#32-charge-axes — enumeration admits recipient while
+        // hash-CPU intentionally does not. Keeping one recipient-bearing axis
+        // for both lets a source rotate addresses into fresh KDF buckets.
+        let enumeration_axis = match source {
+            Some(source) => {
+                format!("hosted\nenumeration\n{deployment_id}\n{source}\n{identifier}")
+            }
+            None => format!("local\nenumeration\n{deployment_id}\n{identifier}"),
         };
-        charge_local_authentication_attempts(&mut self.conn, now_ms, attempts, axis.as_bytes())
+        let hash_cpu_axis = match source {
+            Some(source) => format!("hosted\nhash-cpu\n{deployment_id}\n{source}"),
+            None => format!("local\nhash-cpu\n{deployment_id}"),
+        };
+        let attempts = attempts
+            .iter()
+            .map(|(name, terms)| LocalAuthenticationAttempt {
+                name: *name,
+                terms: *terms,
+                axis_identity: match name {
+                    AuthBudgetName::Enumeration => enumeration_axis.as_bytes(),
+                    AuthBudgetName::HashCpu => hash_cpu_axis.as_bytes(),
+                    _ => &[],
+                },
+            })
+            .collect::<Vec<_>>();
+        charge_local_authentication_attempts(&mut self.conn, now_ms, &attempts)
     }
 
     /// @ref LLP 0285#8-open-risks — hosted DDL cannot be inherited through
@@ -51,6 +72,34 @@ impl LocalDatabase {
     ) -> Result<(), rusqlite::Error> {
         self.conn
             .execute_batch("DROP TABLE _snapback_auth_throttle;")
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn authentication_attempt_charge_counts_for_test(
+        &self,
+    ) -> Result<Vec<(String, String, i64)>, rusqlite::Error> {
+        let mut statement = self.conn.prepare(
+            "SELECT budget_name,hex(axis_digest),COUNT(*)
+               FROM _snapback_auth_attempt_charges
+              GROUP BY budget_name,axis_digest
+              ORDER BY budget_name,axis_digest",
+        )?;
+        statement
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+            .collect()
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn password_identity_subject_count_for_test(
+        &self,
+        subject: &str,
+    ) -> Result<i64, rusqlite::Error> {
+        self.conn.query_row(
+            "SELECT COUNT(*) FROM _auth_identities
+              WHERE provider='local-password' AND subject=?1",
+            [subject],
+            |row| row.get(0),
+        )
     }
 
     /// Charge global/source and, when the bounded pre-proof family lookup
@@ -209,7 +258,7 @@ mod tests {
         assert!(
             database
                 .charge_declared_authentication_attempts(
-                    "deployment-v1",
+                    "deployment-v2",
                     &attempts,
                     None,
                     None,
@@ -222,7 +271,7 @@ mod tests {
         assert!(
             !database
                 .charge_declared_authentication_attempts(
-                    "deployment-v1",
+                    "deployment-v2",
                     &attempts,
                     None,
                     None,
@@ -232,6 +281,50 @@ mod tests {
                 .admitted,
             "missing or malformed identifiers must not bypass attempt accounting"
         );
+    }
+
+    #[test]
+    fn rotating_recipients_share_hash_cpu_resource_axis_on_local_and_hosted_targets() {
+        let attempts = [
+            (
+                AuthBudgetName::Enumeration,
+                RollingWindowBudgetTerms {
+                    limit: 2,
+                    window_ms: 60_000,
+                },
+            ),
+            (
+                AuthBudgetName::HashCpu,
+                RollingWindowBudgetTerms {
+                    limit: 2,
+                    window_ms: 60_000,
+                },
+            ),
+        ];
+        for source in [None, Some("192.0.2.10".parse().unwrap())] {
+            let mut database = LocalDatabase::memory().expect("database");
+            for index in 0..3 {
+                let identifier =
+                    CanonicalAddress::parse(&format!("rotating-{index}@example.com")).unwrap();
+                let decision = database
+                    .charge_declared_authentication_attempts(
+                        "rotating-recipient-deployment",
+                        &attempts,
+                        source,
+                        Some(&identifier),
+                        100 + index,
+                    )
+                    .unwrap();
+                assert_eq!(
+                    decision.admitted,
+                    index < 2,
+                    "source={source:?} index={index}"
+                );
+                if index == 2 {
+                    assert_eq!(decision.budget_name, AuthBudgetName::HashCpu);
+                }
+            }
+        }
     }
 
     #[test]

@@ -18619,12 +18619,61 @@ async fn guest_entry_authorizes_claims_reaps_and_refuses_policy_or_input_failure
         "SNAPBACK_AUTH_GUEST_DISABLED"
     );
     let disabled = disabled_router
+        .clone()
         .oneshot(password_auth_http_request("/auth/guest", json!({})))
         .await
         .expect("disabled guest refusal");
     assert_eq!(disabled.status(), StatusCode::NOT_FOUND);
     assert_eq!(
         response_json(disabled).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_GUEST_DISABLED"
+    );
+
+    let mut malformed_disabled_request =
+        auth_http_request("POST", "/auth/guest", br#"{"#.to_vec(), true, None, None);
+    malformed_disabled_request
+        .headers_mut()
+        .insert("idempotency-key", "disabled-malformed".parse().unwrap());
+    offer_auth_client_protocol(&mut malformed_disabled_request);
+    let malformed_disabled = disabled_router
+        .clone()
+        .oneshot(malformed_disabled_request)
+        .await
+        .expect("disabled guest malformed-body refusal");
+    assert_eq!(malformed_disabled.status(), StatusCode::NOT_FOUND);
+    assert_eq!(
+        response_json(malformed_disabled).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_GUEST_DISABLED"
+    );
+
+    let missing_key_disabled = disabled_router
+        .oneshot(password_auth_http_request_with_idempotency(
+            "/auth/guest",
+            json!({}),
+            None,
+        ))
+        .await
+        .expect("disabled guest missing-idempotency refusal");
+    assert_eq!(missing_key_disabled.status(), StatusCode::NOT_FOUND);
+    assert_eq!(
+        response_json(missing_key_disabled).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_GUEST_DISABLED"
+    );
+
+    let mut hosted_disabled =
+        guest_sessions_activation_server_fixture_async(false, tombstone.clone()).await;
+    Arc::make_mut(&mut hosted_disabled.server).auth_deployment =
+        crate::auth::deployment::AuthDeploymentTarget::Hosted;
+    let hosted_disabled = hosted_disabled
+        .with_hosted_serving_authority(hosted_serving_authority(super::now_millis()))
+        .expect("hosted disabled guest authority fixture");
+    let missing_source_disabled = app(hosted_disabled)
+        .oneshot(password_auth_http_request("/auth/guest", json!({})))
+        .await
+        .expect("disabled guest missing-hosted-source refusal");
+    assert_eq!(missing_source_disabled.status(), StatusCode::NOT_FOUND);
+    assert_eq!(
+        response_json(missing_source_disabled).await["diagnostic"]["code"],
         "SNAPBACK_AUTH_GUEST_DISABLED"
     );
 
@@ -19052,6 +19101,103 @@ async fn guest_claim_http_denial_matrix_is_fail_closed_and_non_linking() {
         response_json(tampered_budget).await["diagnostic"]["code"],
         "SNAPBACK_AUTH_BUDGET_POLICY_INVALID"
     );
+}
+
+#[tokio::test]
+async fn guest_claim_prod_availability_preempts_real_preexhausted_and_occupied_state() {
+    let tombstone = GuestCleanupContractV1::Declarative {
+        default: GuestCleanupActionV1::Tombstone,
+        tables: BTreeMap::new(),
+    };
+    let mut program = guest_auth_program(true, tombstone);
+    for budget_name in ["auth.enumeration", "auth.hash-cpu"] {
+        let budget = program
+            .abuse_budgets
+            .as_mut()
+            .expect("guest budget policy")
+            .budgets
+            .get_mut(budget_name)
+            .unwrap_or_else(|| panic!("{budget_name} budget"));
+        for profile in ["test", "prod"] {
+            budget
+                .profiles
+                .get_mut(profile)
+                .unwrap_or_else(|| panic!("{profile} {budget_name} terms"))
+                .window_ms = 60_000;
+        }
+    }
+    resign_guest_auth_budget_policy(&mut program);
+    let state = guest_sessions_custom_activation_server_fixture_async(program).await;
+    let router = app(state.clone());
+    let occupied_email = "preexhausted-occupied@example.com";
+    let unoccupied_email = "preexhausted-unoccupied@example.com";
+    let signup = router
+        .clone()
+        .oneshot(password_auth_http_request(
+            "/auth/password/signup",
+            json!({
+                "email": occupied_email,
+                "password": "preexhausted-occupied-password-123!",
+            }),
+        ))
+        .await
+        .expect("occupied predecessor signup");
+    assert_eq!(signup.status(), StatusCode::OK);
+    let guest = router
+        .oneshot(password_auth_http_request("/auth/guest", json!({})))
+        .await
+        .expect("production-refusal guest predecessor");
+    assert_eq!(guest.status(), StatusCode::OK);
+    let guest_token = response_json(guest).await["token"]
+        .as_str()
+        .expect("guest token")
+        .to_owned();
+
+    let claim_spec = super::core_route_registrations()
+        .into_iter()
+        .find(|route| route.spec.path == "/auth/guest/claim/password")
+        .expect("guest claim registration")
+        .spec;
+    for _ in 0..12 {
+        for email in [occupied_email, unoccupied_email] {
+            super::charge_hosted_body_auth_attempt(
+                claim_spec,
+                &state,
+                None,
+                Some(&json!({
+                    "email": email,
+                    "password": "preexhausted-claim-password-123!",
+                })),
+            )
+            .await
+            .expect("enabled Test profile charges the durable attempt set");
+        }
+    }
+    let before = with_snapback(&state.snapback, |snapback| {
+        let database = snapback.remainder_auth_database_mut();
+        Ok::<_, crate::diagnostic::SnapbackError>((
+            database.authentication_attempt_charge_counts_for_test()?,
+            database.password_identity_subject_count_for_test(occupied_email)?,
+        ))
+    })
+    .await
+    .expect("preexhausted ledger and occupied identity facts");
+    let mut enumeration_counts = before
+        .0
+        .iter()
+        .filter(|(budget, _, _)| budget == "auth.enumeration")
+        .map(|(_, _, count)| *count)
+        .collect::<Vec<_>>();
+    enumeration_counts.sort_unstable();
+    let hash_cpu_counts = before
+        .0
+        .iter()
+        .filter(|(budget, _, _)| budget == "auth.hash-cpu")
+        .map(|(_, _, count)| *count)
+        .collect::<Vec<_>>();
+    assert_eq!(enumeration_counts, vec![12, 13]);
+    assert_eq!(hash_cpu_counts, vec![25]);
+    assert_eq!(before.1, 1, "the occupied predecessor is real");
 
     let prod_keyring = Arc::new(AuthKeyringStore::in_memory());
     prod_keyring
@@ -19062,28 +19208,49 @@ async fn guest_claim_http_denial_matrix_is_fail_closed_and_non_linking() {
             .expect("production claim provider"),
     );
     let prod_router = app(state
+        .clone()
         .try_with_auth_provider(prod_provider)
         .expect("production claim state"));
-    for _ in 0..12 {
-        let prod_refusal = prod_router
+    let mut fixed_refusal = None;
+    for email in [occupied_email, unoccupied_email] {
+        let response = prod_router
             .clone()
             .oneshot(session_auth_http_request(
                 "/auth/guest/claim/password",
                 serde_json::to_vec(&json!({
-                    "email": "must-not-be-looked-up@example.com",
-                    "password": "production-claim-must-refuse-123!",
+                    "email": email,
+                    "password": "production-must-not-inspect-password-123!",
                 }))
                 .unwrap(),
                 &guest_token,
             ))
             .await
-            .expect("production claim refusal through budget exhaustion");
-        assert_eq!(prod_refusal.status(), StatusCode::SERVICE_UNAVAILABLE);
+            .expect("production claim refusal over preexhausted ledger");
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let response = response_json(response).await;
         assert_eq!(
-            response_json(prod_refusal).await["diagnostic"]["code"],
+            response["diagnostic"]["code"],
             "SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE"
         );
+        if let Some(expected) = fixed_refusal.as_ref() {
+            assert_eq!(&response, expected);
+        } else {
+            fixed_refusal = Some(response);
+        }
     }
+    let after = with_snapback(&state.snapback, |snapback| {
+        let database = snapback.remainder_auth_database_mut();
+        Ok::<_, crate::diagnostic::SnapbackError>((
+            database.authentication_attempt_charge_counts_for_test()?,
+            database.password_identity_subject_count_for_test(occupied_email)?,
+        ))
+    })
+    .await
+    .expect("post-refusal ledger and occupied identity facts");
+    assert_eq!(
+        after, before,
+        "Prod availability mutates no subject or budget state"
+    );
 }
 
 #[tokio::test]
@@ -19115,6 +19282,75 @@ async fn hosted_guest_claim_attempt_requires_a_real_effective_source() {
         response_json(response).await["diagnostic"]["code"],
         "SNAPBACK_AUTH_EFFECTIVE_SOURCE_UNAVAILABLE",
     );
+}
+
+/// @ref LLP 0215#32-charge-axes — enumeration may partition by recipient,
+/// while hash-CPU must remain on the source/resource axis so rotating valid
+/// addresses cannot obtain fresh KDF headroom.
+#[tokio::test]
+async fn rotating_recipients_exhaust_signup_and_claim_hash_cpu_on_local_and_hosted_targets() {
+    let tombstone = GuestCleanupContractV1::Declarative {
+        default: GuestCleanupActionV1::Tombstone,
+        tables: BTreeMap::new(),
+    };
+    let source: std::net::IpAddr = "192.0.2.91".parse().unwrap();
+    for (hosted, path) in [
+        (false, "/auth/password/signup"),
+        (false, "/auth/guest/claim/password"),
+        (true, "/auth/password/signup"),
+        (true, "/auth/guest/claim/password"),
+    ] {
+        let mut program = guest_auth_program(true, tombstone.clone());
+        let hash_cpu = program
+            .abuse_budgets
+            .as_mut()
+            .expect("guest budget policy")
+            .budgets
+            .get_mut("auth.hash-cpu")
+            .expect("hash-CPU budget")
+            .profiles
+            .get_mut("test")
+            .expect("test hash-CPU terms");
+        hash_cpu.limit = 2;
+        hash_cpu.window_ms = 60_000;
+        resign_guest_auth_budget_policy(&mut program);
+
+        let mut state = guest_sessions_custom_activation_server_fixture_async(program).await;
+        if hosted {
+            Arc::make_mut(&mut state.server).auth_deployment =
+                crate::auth::deployment::AuthDeploymentTarget::Hosted;
+        }
+        let spec = super::core_route_registrations()
+            .into_iter()
+            .find(|route| route.spec.path == path)
+            .unwrap_or_else(|| panic!("registered route {path}"))
+            .spec;
+        for index in 0..3 {
+            let body = json!({
+                "email": format!("rotating-{hosted}-{index}@example.com"),
+                "password": "rotating-recipient-password-123!",
+            });
+            let result = super::charge_hosted_body_auth_attempt(
+                spec,
+                &state,
+                hosted.then_some(source),
+                Some(&body),
+            )
+            .await;
+            if index < 2 {
+                assert!(result.is_ok(), "hosted={hosted} path={path} index={index}");
+            } else {
+                let refusal = result.expect_err("rotating recipient must exhaust hash CPU");
+                assert_eq!(refusal.status(), StatusCode::TOO_MANY_REQUESTS);
+                let refusal = response_json(refusal).await;
+                assert_eq!(refusal["diagnostic"]["code"], "SNAPBACK_AUTH_THROTTLED");
+                assert_eq!(
+                    refusal["diagnostic"]["details"]["budgetName"], "auth.hash-cpu",
+                    "hosted={hosted} path={path}"
+                );
+            }
+        }
+    }
 }
 
 #[tokio::test]
@@ -23963,7 +24199,7 @@ fn connection_credential_debug_is_redacted() {
     assert!(open_debug.contains("[REDACTED]"), "{open_debug}");
 }
 
-fn has_cfg_test(attributes: &[syn::Attribute]) -> bool {
+fn has_test_only_cfg(attributes: &[syn::Attribute]) -> bool {
     attributes.iter().any(|attribute| {
         if !attribute.path().is_ident("cfg") {
             return false;
@@ -23971,11 +24207,15 @@ fn has_cfg_test(attributes: &[syn::Attribute]) -> bool {
         let syn::Meta::List(arguments) = &attribute.meta else {
             return false;
         };
-        // Skip only the exact test-only form. A future `cfg(not(test))` or
-        // mixed feature predicate must remain in the conservative source
-        // inventory rather than disappearing merely because it mentions
-        // the token `test`.
-        arguments.tokens.to_string() == "test"
+        // Skip exact test-only and repository test-support seams. A future
+        // `cfg(not(test))` or mixed production feature predicate remains in
+        // the conservative inventory merely because it mentions `test`.
+        let predicate = arguments.tokens.to_string();
+        predicate == "test"
+            || predicate == "feature = \"test-support\""
+            || predicate == "feature = \"remainder-tests\""
+            || predicate == "any (test , feature = \"test-support\")"
+            || predicate == "any (test , feature = \"remainder-tests\")"
     })
 }
 
@@ -24027,19 +24267,19 @@ impl SnapbackLiteralVisitor {
 
 impl<'ast> Visit<'ast> for SnapbackLiteralVisitor {
     fn visit_item(&mut self, item: &'ast syn::Item) {
-        if !has_cfg_test(item_attributes(item)) {
+        if !has_test_only_cfg(item_attributes(item)) {
             syn::visit::visit_item(self, item);
         }
     }
 
     fn visit_impl_item_fn(&mut self, function: &'ast syn::ImplItemFn) {
-        if !has_cfg_test(&function.attrs) {
+        if !has_test_only_cfg(&function.attrs) {
             syn::visit::visit_impl_item_fn(self, function);
         }
     }
 
     fn visit_stmt_macro(&mut self, invocation: &'ast syn::StmtMacro) {
-        if !has_cfg_test(&invocation.attrs) {
+        if !has_test_only_cfg(&invocation.attrs) {
             syn::visit::visit_stmt_macro(self, invocation);
         }
     }
@@ -24067,14 +24307,11 @@ fn rust_sources_below(path: &Path, sources: &mut Vec<PathBuf>) {
             // cosmetic hub splits preserve `#[cfg(test)]` on each parent
             // module, but a standalone AST parse cannot see that parent
             // cfg and must exclude the four extracted test bodies.
-            if [
-                "src/cli/tests.rs",
-                "src/local/tests.rs",
-                "src/server/tests.rs",
-                "src/storage/tests.rs",
-            ]
-            .iter()
-            .any(|suffix| path.ends_with(suffix))
+            if path.file_name().is_some_and(|name| {
+                name == "tests.rs" || name.to_string_lossy().ends_with("_tests.rs")
+            }) || path
+                .components()
+                .any(|component| component.as_os_str() == "tests")
             {
                 continue;
             }
@@ -24086,9 +24323,26 @@ fn rust_sources_below(path: &Path, sources: &mut Vec<PathBuf>) {
 fn production_snapback_literals() -> BTreeSet<String> {
     let mut sources = Vec::new();
     let remainder = Path::new(env!("CARGO_MANIFEST_DIR"));
-    rust_sources_below(&remainder.join("src"), &mut sources);
-    if cfg!(not(feature = "server-owner")) {
-        rust_sources_below(&remainder.join("../snapback-server/src"), &mut sources);
+    // Follow the server crate's production path dependencies rather than only
+    // its local source tree. Kernel/auth failures can cross the HTTP boundary
+    // through `?` without repeating their diagnostic literals in this crate.
+    // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — the status
+    // completeness gate must cover the actual HTTP emission graph.
+    for crate_name in [
+        "snapback-activation",
+        "snapback-auth",
+        "snapback-engine",
+        "snapback-kernel",
+        "snapback-runtime",
+        "snapback-server",
+        "snapback-services",
+        "snapback-sync",
+        "snapback-types",
+    ] {
+        rust_sources_below(
+            &remainder.join("../").join(crate_name).join("src"),
+            &mut sources,
+        );
     }
     // The graph refusal ids are Rust-owned wire vocabulary in snapback-types,
     // while their HTTP projection is owned here. Include that exact registry
@@ -24163,6 +24417,18 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
     (
         "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
         "LLP 0209 evaluation-time materialized-result vocabulary; Stage B has no graph executor or HTTP producer",
+    ),
+    (
+        "SNAPBACK_DEV_IDENTITY_CAPABILITY_MISSING",
+        "operator-stderr migration warning for an unwitnessed legacy developer assertion; never an HTTP diagnostic",
+    ),
+    (
+        "SNAPBACK_ELEVATED_READ_TRACE",
+        "environment variable enabling elevated-read trace capture; never an HTTP diagnostic",
+    ),
+    (
+        "SNAPBACK_VISIBILITY_GOVERNANCE_TARGET_CONFIG",
+        "environment variable locating visibility-governance target configuration; never an HTTP diagnostic",
     ),
     (
         "SNAPBACK_DEV_AUTH_ORIGINS",
@@ -26083,8 +26349,8 @@ const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
     // app-readiness refusals validate the caller's own app.readiness.v1 body
     // and are classified 400 below.
     "SNAPBACK_APP_READINESS_FACTS_UNAVAILABLE",
-    "SNAPBACK_AUTH_BUDGET_STATE_INVALID",
     "SNAPBACK_AUTH_BUDGET_POLICY_INVALID",
+    "SNAPBACK_AUTH_BUDGET_STATE_INVALID",
     "SNAPBACK_AUTH_LOGICAL_EXPORT_INVALID",
     "SNAPBACK_EFFECT_CATALOG_CORRUPT",
     "SNAPBACK_WATCH_CATALOG_CORRUPT",
@@ -26630,6 +26896,86 @@ const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_ASSET_WORK_UNKNOWN",
 ];
 
+// The server's path dependencies can propagate `SnapbackError` through `?`
+// without restating a code in the HTTP crate. These production-graph codes
+// retain the mapper's fail-safe 500 posture explicitly until an endpoint owns
+// and reviews a more specific recovery contract; making that default explicit
+// prevents them from remaining registry-null or escaping future completeness
+// checks merely because their emitting source lives across a crate boundary.
+const CROSS_CRATE_FAIL_SAFE_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_AUTHORITY_BACKFILL_LEDGER_INVALID",
+    "SNAPBACK_AUTHORITY_BACKFILL_PROFILE_INVALID",
+    "SNAPBACK_AUTHORITY_BACKFILL_PROFILE_MISSING",
+    "SNAPBACK_AUTHORITY_BACKFILL_PROJECTION_REQUIRED",
+    "SNAPBACK_AUTHORITY_HISTORY_PAGE_INVALID",
+    "SNAPBACK_AUTHORITY_INVITE_ALREADY_ACTIVE",
+    "SNAPBACK_AUTHORITY_INVITE_ALREADY_PRESENT",
+    "SNAPBACK_AUTHORITY_PLAN_MIRROR_DUPLICATE",
+    "SNAPBACK_AUTHORITY_PLAN_MIRROR_MISSING",
+    "SNAPBACK_AUTHORITY_PLAN_MIRROR_SHAPE_MISMATCH",
+    "SNAPBACK_AUTHORITY_PLAN_PROFILE_INVALID",
+    "SNAPBACK_AUTHORITY_PLAN_PROFILE_MISSING",
+    "SNAPBACK_AUTHORITY_PLAN_PROJECTION_REQUIRED",
+    "SNAPBACK_AUTHORITY_PLAN_SERIALIZATION_FAILED",
+    "SNAPBACK_AUTHORITY_PROFILE_INDEX_REQUIRED",
+    "SNAPBACK_AUTHORITY_PROFILE_ROLE_LATTICE_INVALID",
+    "SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_COMPOSITION_CLASS",
+    "SNAPBACK_AUTHORITY_PROJECTION_CORRUPT",
+    "SNAPBACK_AUTHORITY_PROJECTION_FULL_PROVENANCE_REQUIRED",
+    "SNAPBACK_AUTHORITY_PROJECTION_REQUIRED",
+    "SNAPBACK_AUTHORITY_PROJECTION_ROW_INVALID",
+    "SNAPBACK_AUTHORITY_PROJECTION_SERIALIZATION_FAILED",
+    "SNAPBACK_AUTHORITY_RECIPIENT_CEILING_EXCEEDED",
+    "SNAPBACK_AUTHORITY_RECIPIENT_SINK_FROZEN",
+    "SNAPBACK_AUTHORITY_RECIPIENT_SINK_INVALID",
+    "SNAPBACK_AUTHORITY_RECIPIENT_SNAPSHOT_INVALID",
+    "SNAPBACK_AUTHORITY_RECIPIENT_SNAPSHOT_MUTATION_REQUIRED",
+    "SNAPBACK_AUTH_CLAIMS_AUTHORITY_INVALID",
+    "SNAPBACK_AUTH_CLAIMS_CORRUPT",
+    "SNAPBACK_AUTH_INTERLOCK_RETIRED",
+    "SNAPBACK_AUTH_PARTICIPANT_ALREADY_TAKEN",
+    "SNAPBACK_AUTH_PARTICIPANT_DATABASE_MISMATCH",
+    "SNAPBACK_AUTH_PARTICIPANT_DEPENDENCY_PENDING",
+    "SNAPBACK_AUTH_PARTICIPANT_DROPPED",
+    "SNAPBACK_AUTH_PARTICIPANT_GENERATION_MISMATCH",
+    "SNAPBACK_AUTH_PARTICIPANT_NOT_PENDING",
+    "SNAPBACK_AUTH_PARTICIPANT_REGISTRY_MISMATCH",
+    "SNAPBACK_AUTH_PASSWORD_MINIMUM_LENGTH_INVALID",
+    "SNAPBACK_BENCH_READ_FAILED",
+    "SNAPBACK_BENCH_SETUP_FAILED",
+    "SNAPBACK_BENCH_WRITER_POISONED",
+    "SNAPBACK_CLIENT_MUTATION_RESULT_INTEGRITY",
+    "SNAPBACK_DEV_IDENTITY_CONFIG_FORBIDDEN",
+    "SNAPBACK_DEV_IDENTITY_FILE_INVALID",
+    "SNAPBACK_EFFECT_AUTHORITY_INVALID",
+    "SNAPBACK_ELEVATED_READ_CAPABILITY_UNDECLARED",
+    "SNAPBACK_FAMILIAR_RUNMUTATION_REF_REQUIRED",
+    "SNAPBACK_FORK_READ_HANDLE_REQUIRED",
+    "SNAPBACK_FORK_STAGING_INVALID",
+    "SNAPBACK_KERNEL_COMMIT_AUTHORITY_ALREADY_CLAIMED",
+    "SNAPBACK_KERNEL_COMMIT_AUTHORITY_INVALID",
+    "SNAPBACK_MEDIA_ASSET_NOT_FINALIZED",
+    "SNAPBACK_MEDIA_KIND_NOT_ADMITTED",
+    "SNAPBACK_MEDIA_PROJECTION_INTEGRITY",
+    "SNAPBACK_MEDIA_PROJECTION_SNAPSHOT_UNAVAILABLE",
+    "SNAPBACK_MEDIA_PROJECTION_TOKEN_EXHAUSTED",
+    "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED",
+    "SNAPBACK_MEDIA_WRITE_FORGED_KIND",
+    "SNAPBACK_PUSH_AUTHORITY_INVALID",
+    "SNAPBACK_SEMIJOIN_ACTOR_CEILING_EXCEEDED",
+    "SNAPBACK_SERVICE_AUTHORITY_UNAVAILABLE",
+    "SNAPBACK_SET_AGGREGATE_ROW_CEILING_EXCEEDED",
+    "SNAPBACK_STANDARD_PATTERN_COMPOSITION_INVALID",
+    "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_DEPLOYMENT_IDENTITY_MISMATCH",
+    "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_PUSH_VIOLATION",
+    "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_REMOTE_CUSTODY_UNAVAILABLE",
+    "SNAPBACK_TABLE_VISIBILITY_OVERRIDE_APPROVAL_TIME_INVALID",
+    "SNAPBACK_TABLE_VISIBILITY_OVERRIDE_EXPIRED",
+    "SNAPBACK_TABLE_VISIBILITY_OVERRIDE_EXPIRING",
+    "SNAPBACK_TABLE_VISIBILITY_OVERRIDE_FIXTURE_ONLY",
+    "SNAPBACK_TABLE_VISIBILITY_OVERRIDE_NOT_YET_VALID",
+];
+
 const HTTP_STATUS_FAMILIES: &[(StatusCode, &[&str])] = &[
     (StatusCode::ACCEPTED, &["SNAPBACK_EFFECT_APPROVAL_PENDING"]),
     (StatusCode::BAD_REQUEST, BAD_REQUEST_DIAGNOSTICS),
@@ -26656,6 +27002,10 @@ const HTTP_STATUS_FAMILIES: &[(StatusCode, &[&str])] = &[
     (
         StatusCode::INTERNAL_SERVER_ERROR,
         INTERNAL_SERVER_ERROR_DIAGNOSTICS,
+    ),
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        CROSS_CRATE_FAIL_SAFE_DIAGNOSTICS,
     ),
     (StatusCode::GONE, GONE_DIAGNOSTICS),
     (StatusCode::GONE, ASSET_GONE_DIAGNOSTICS),
@@ -26826,6 +27176,14 @@ fn effect_budget_diagnostics_pin_http_recovery_classes() {
     assert_eq!(
         status_for_diagnostic_code("SNAPBACK_AUTH_BUDGET_POLICY_INVALID"),
         StatusCode::INTERNAL_SERVER_ERROR
+    );
+    assert_eq!(
+        status_for_diagnostic_code("SNAPBACK_AUTH_BUDGET_STATE_INVALID"),
+        StatusCode::INTERNAL_SERVER_ERROR
+    );
+    assert_eq!(
+        status_for_diagnostic_code("SNAPBACK_AUTH_GUEST_CATALOG_UNAVAILABLE"),
+        StatusCode::SERVICE_UNAVAILABLE
     );
 }
 

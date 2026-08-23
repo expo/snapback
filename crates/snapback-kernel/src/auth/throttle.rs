@@ -466,6 +466,13 @@ pub struct RollingWindowBudgetTerms {
     pub window_ms: u64,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct LocalAuthenticationAttempt<'a> {
+    pub name: AuthBudgetName,
+    pub terms: RollingWindowBudgetTerms,
+    pub axis_identity: &'a [u8],
+}
+
 /// Admit a complete set of local successful-effect budgets at the durable
 /// effect's transaction cut. Refusal writes no successful-effect charge; an
 /// admitted charge rolls back if the enclosing identity/session transition
@@ -606,24 +613,26 @@ pub(crate) fn admit_local_successful_auth_effects_in(
 pub fn charge_local_authentication_attempts(
     connection: &mut Connection,
     now_ms: u64,
-    attempts: &[(AuthBudgetName, RollingWindowBudgetTerms)],
-    axis_identity: &[u8],
+    attempts: &[LocalAuthenticationAttempt<'_>],
 ) -> crate::diagnostic::SnapbackResult<AuthenticationThrottleDecision> {
     if attempts.len() != 2
         || ![AuthBudgetName::Enumeration, AuthBudgetName::HashCpu]
             .iter()
-            .all(|required| attempts.iter().any(|(name, _)| name == required))
-        || attempts.iter().enumerate().any(|(index, (name, terms))| {
-            terms.limit == 0
-                || terms.window_ms == 0
-                || terms.limit > i64::MAX as u64
-                || !matches!(name, AuthBudgetName::Enumeration | AuthBudgetName::HashCpu)
+            .all(|required| attempts.iter().any(|attempt| attempt.name == *required))
+        || attempts.iter().enumerate().any(|(index, attempt)| {
+            attempt.terms.limit == 0
+                || attempt.terms.window_ms == 0
+                || attempt.terms.limit > i64::MAX as u64
+                || !matches!(
+                    attempt.name,
+                    AuthBudgetName::Enumeration | AuthBudgetName::HashCpu
+                )
                 || attempts[..index]
                     .iter()
-                    .any(|(prior_name, _)| prior_name == name)
+                    .any(|prior| prior.name == attempt.name)
+                || attempt.axis_identity.is_empty()
         })
         || now_ms > i64::MAX as u64
-        || axis_identity.is_empty()
     {
         return Err(crate::diagnostic::SnapbackError::error(
             "SNAPBACK_AUTH_BUDGET_POLICY_INVALID",
@@ -641,10 +650,12 @@ pub fn charge_local_authentication_attempts(
          CREATE INDEX IF NOT EXISTS {LOCAL_ATTEMPT_TABLE}_window
            ON {LOCAL_ATTEMPT_TABLE}(budget_name,axis_digest,charged_at_ms);"
     ))?;
-    let axis_digest = Sha256::digest(axis_identity);
     let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
     let mut refusal: Option<(AuthBudgetName, u64)> = None;
-    for &(name, terms) in attempts {
+    for attempt in attempts {
+        let name = attempt.name;
+        let terms = attempt.terms;
+        let axis_digest = Sha256::digest(attempt.axis_identity);
         let cutoff = now_ms.saturating_sub(terms.window_ms);
         transaction.execute(
             &format!(
@@ -704,7 +715,7 @@ pub fn charge_local_authentication_attempts(
         }
     }
     transaction.commit()?;
-    let (budget_name, retry_after_ms) = refusal.unwrap_or((attempts[0].0, 0));
+    let (budget_name, retry_after_ms) = refusal.unwrap_or((attempts[0].name, 0));
     let admitted = refusal.is_none();
     Ok(AuthenticationThrottleDecision {
         admitted,
@@ -2177,39 +2188,33 @@ mod tests {
     fn complete_password_attempt_set_charges_atomically_including_denials() {
         let mut db = Connection::open_in_memory().unwrap();
         let attempts = [
-            (
-                AuthBudgetName::Enumeration,
-                RollingWindowBudgetTerms {
+            LocalAuthenticationAttempt {
+                name: AuthBudgetName::Enumeration,
+                terms: RollingWindowBudgetTerms {
                     limit: 2,
                     window_ms: 1_000,
                 },
-            ),
-            (
-                AuthBudgetName::HashCpu,
-                RollingWindowBudgetTerms {
+                axis_identity: b"enumeration-one-attempt-axis",
+            },
+            LocalAuthenticationAttempt {
+                name: AuthBudgetName::HashCpu,
+                terms: RollingWindowBudgetTerms {
                     limit: 1,
                     window_ms: 1_000,
                 },
-            ),
+                axis_identity: b"hash-cpu-one-attempt-axis",
+            },
         ];
         assert!(
-            charge_local_authentication_attempts(
-                &mut db,
-                99,
-                &attempts[..1],
-                b"incomplete-attempt-axis",
-            )
-            .is_err(),
+            charge_local_authentication_attempts(&mut db, 99, &attempts[..1]).is_err(),
             "an incomplete password-attempt set must fail closed",
         );
         assert!(
-            charge_local_authentication_attempts(&mut db, 100, &attempts, b"one-attempt-axis")
+            charge_local_authentication_attempts(&mut db, 100, &attempts)
                 .unwrap()
                 .admitted
         );
-        let refused =
-            charge_local_authentication_attempts(&mut db, 101, &attempts, b"one-attempt-axis")
-                .unwrap();
+        let refused = charge_local_authentication_attempts(&mut db, 101, &attempts).unwrap();
         assert!(!refused.admitted);
         assert_eq!(refused.budget_name, AuthBudgetName::HashCpu);
         for name in [AuthBudgetName::Enumeration, AuthBudgetName::HashCpu] {
@@ -2223,9 +2228,7 @@ mod tests {
             assert_eq!(charged, 2);
         }
 
-        let refused_again =
-            charge_local_authentication_attempts(&mut db, 102, &attempts, b"one-attempt-axis")
-                .unwrap();
+        let refused_again = charge_local_authentication_attempts(&mut db, 102, &attempts).unwrap();
         assert!(!refused_again.admitted);
         for name in [AuthBudgetName::Enumeration, AuthBudgetName::HashCpu] {
             let charged: i64 = db

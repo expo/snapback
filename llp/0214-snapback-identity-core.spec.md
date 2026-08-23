@@ -6,6 +6,9 @@
 Security, Delivery, Testing
 **Author:** Charlie Cheever / Codex (gpt-5.6-sol) via Claude orchestration
 **Date:** 2026-08-09
+**Revised:** 2026-08-22 (v0.8 — third guest-entry security review separates
+recipient enumeration from resource-only hash-CPU accounting, extends fixed
+availability ordering to guest entry, and closes proof/registry drift)
 **Revised:** 2026-08-22 (v0.7 — second guest-entry security review closes
 availability ordering, canonical atomic attempt accounting, and dormant-claim
 wiring hazards)
@@ -2272,6 +2275,12 @@ Typed refusals:
 - malformed nonempty request DTO.
 
 Failure creates no principal or session.
+
+The served entry route resolves generated guest availability and its provider
+profile before hosted-source derivation, request admission, body polling, or
+`Idempotency-Key` and DTO validation. Disabled or undeclared guest entry
+therefore returns the same fixed `SNAPBACK_AUTH_GUEST_DISABLED` absent-route
+result for every request shape; the handler repeats that check as a backstop.
 
 ### 8.2 Guest claim
 

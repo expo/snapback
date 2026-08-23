@@ -2,12 +2,14 @@
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 
+import { jcsCanonical } from '../packages/snapback-codegen/api-envelope-members.mjs';
 import { startServer } from '../demos/_kit/server-process.mjs';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -24,6 +26,22 @@ const carrier = join(scratch, 'startup-artifacts.json');
 const persistentDatabase = join(scratch, 'guest-entry-occupied.sqlite');
 const schema = JSON.parse(await readFile(join(generatedRoot, 'schema.manifest.json'), 'utf8'));
 const functions = JSON.parse(await readFile(join(generatedRoot, 'functions.manifest.json'), 'utf8'));
+const abuseBudgets = schema.authProgram.abuseBudgets;
+for (const budgetName of ['auth.enumeration', 'auth.hash-cpu']) {
+  for (const profile of ['test', 'prod']) {
+    abuseBudgets.budgets[budgetName].profiles[profile].windowMs = 60_000;
+  }
+}
+const abuseBudgetPolicy = {
+  version: abuseBudgets.version,
+  preset: abuseBudgets.preset,
+  budgets: abuseBudgets.budgets,
+  effectBindings: abuseBudgets.effectBindings,
+};
+abuseBudgets.policyDigest = `sha256:${createHash('sha256')
+  .update('snapback.auth-abuse-budget-policy.v1')
+  .update(jcsCanonical(abuseBudgetPolicy))
+  .digest('hex')}`;
 await writeFile(carrier, `${JSON.stringify({ formatVersion: 1, schema, functions })}\n`, {
   mode: 0o600,
 });
@@ -49,6 +67,23 @@ const sessionIdentity = ({ payload }) => ({
   sessionId: payload.session.id,
   authorityInstanceId: payload.authorityDescriptor.authorityInstanceId,
 });
+const attemptLedger = () => {
+  const database = new DatabaseSync(persistentDatabase, { readOnly: true });
+  const rows = database
+    .prepare(
+      `SELECT budget_name AS budgetName, hex(axis_digest) AS axisDigest, COUNT(*) AS count
+         FROM _snapback_auth_attempt_charges
+        GROUP BY budget_name, axis_digest
+        ORDER BY budget_name, axis_digest`,
+    )
+    .all()
+    .map((row) => ({ ...row, count: Number(row.count) }));
+  database.close();
+  return rows;
+};
+const budgetChargeCount = (ledger, budgetName) => ledger
+  .filter((row) => row.budgetName === budgetName)
+  .reduce((total, row) => total + row.count, 0);
 
 let server = null;
 try {
@@ -124,6 +159,35 @@ try {
     },
   });
   assert.equal(currentBearer.status, 200);
+
+  const unoccupiedEmail = 'guest-entry-unoccupied-prod@example.com';
+  const beforePreexhaustion = attemptLedger();
+  const preexhaustions = [];
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    for (const email of [occupiedEmail, unoccupiedEmail]) {
+      preexhaustions.push(request(server, '/auth/guest/claim/password', {
+        bearer: passwordSession.payload.token,
+        body: { email, password: 'test-profile-preexhaustion-password-123!' },
+      }));
+    }
+  }
+  for (const refusal of await Promise.all(preexhaustions)) {
+    assert.equal(refusal.response.status, 401, JSON.stringify(refusal.payload));
+    assert.equal(code(refusal), 'SNAPBACK_AUTH_GUEST_SESSION_INVALID');
+  }
+  const preexhaustedLedger = attemptLedger();
+  for (const budgetName of ['auth.enumeration', 'auth.hash-cpu']) {
+    assert.equal(
+      budgetChargeCount(preexhaustedLedger, budgetName),
+      budgetChargeCount(beforePreexhaustion, budgetName) + 24,
+      `${budgetName} must record every enabled-Test pre-exhaustion request`,
+    );
+  }
+  assert.equal(
+    preexhaustedLedger.filter((row) => row.budgetName === 'auth.hash-cpu').length,
+    1,
+    'all rotating recipients on one local deployment share one hash-CPU resource axis',
+  );
   await server.stop();
   server = null;
 
@@ -151,15 +215,19 @@ try {
     1,
     'the production server database must contain the occupied password subject',
   );
+  assert.deepEqual(
+    attemptLedger(),
+    preexhaustedLedger,
+    'reopening the same database and deployment in Prod preserves the exhausted ledger',
+  );
   const prodGuest = await request(server, '/auth/guest', {
     idempotencyKey: 'guest-entry-production-refusal-v1',
   });
   assert.equal(prodGuest.response.status, 200, JSON.stringify(prodGuest.payload));
-  const unoccupiedEmail = 'guest-entry-unoccupied-prod@example.com';
   let canonicalProductionRefusal = null;
-  // The generated production attempt budget is ten per window. Exceed it for
-  // both an actually occupied and an unoccupied subject: availability must
-  // remain the same fixed refusal and must never be preempted by accounting.
+  // The exact durable attempt buckets are already beyond the production limit.
+  // Occupied and unoccupied subjects must still converge on availability
+  // before either the ledger or identity catalog can preempt that fixed result.
   for (let attempt = 0; attempt < 12; attempt += 1) {
     for (const email of [occupiedEmail, unoccupiedEmail]) {
       const prodClaim = await request(server, '/auth/guest/claim/password', {
@@ -176,6 +244,23 @@ try {
       );
     }
   }
+  assert.deepEqual(
+    attemptLedger(),
+    preexhaustedLedger,
+    'fixed production availability refusals must not charge the exhausted ledger',
+  );
+  const preservedStore = new DatabaseSync(persistentDatabase, { readOnly: true });
+  const preservedOccupiedRow = preservedStore
+    .prepare(
+      "SELECT COUNT(*) AS count FROM _auth_identities WHERE provider='local-password' AND subject=?",
+    )
+    .get(occupiedEmail);
+  preservedStore.close();
+  assert.equal(
+    Number(preservedOccupiedRow?.count),
+    1,
+    'the occupied password identity must remain unchanged after fixed production refusals',
+  );
   await server.stop();
   server = null;
 
@@ -229,6 +314,7 @@ try {
       passwordDowngradeRefused: true,
       productionClaimRefusedBeforeOccupancy: true,
       productionOccupiedRowPreserved: true,
+      productionAttemptBucketsPreexhausted: true,
       productionOccupiedAndUnoccupiedConvergePastBudgetLimit: true,
     },
     injectedHttpFixtures: {

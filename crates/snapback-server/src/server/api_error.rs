@@ -460,7 +460,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_PASSWORD_RESET_UNAVAILABLE"
         | "SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE"
         | "SNAPBACK_AUTH_RANDOM_UNAVAILABLE" => StatusCode::SERVICE_UNAVAILABLE,
-        "SNAPBACK_AUTH_LOGICAL_EXPORT_INVALID" => StatusCode::INTERNAL_SERVER_ERROR,
+        "SNAPBACK_AUTH_BUDGET_STATE_INVALID" | "SNAPBACK_AUTH_LOGICAL_EXPORT_INVALID" => {
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
         // These are operator-only shutdown controls/failures rather than
         // served request outcomes. Inventory still classifies them explicitly
         // so an accidental HTTP projection remains fail-safe.
@@ -1811,9 +1813,7 @@ fn auth_budget_status(code: &str) -> Option<StatusCode> {
         }
         "SNAPBACK_AUTH_IDEMPOTENCY_CONFLICT" => Some(StatusCode::CONFLICT),
         "SNAPBACK_AUTH_BUDGET_AUTHORITY_UNAVAILABLE" => Some(StatusCode::SERVICE_UNAVAILABLE),
-        "SNAPBACK_AUTH_BUDGET_POLICY_INVALID" | "SNAPBACK_AUTH_BUDGET_STATE_INVALID" => {
-            Some(StatusCode::INTERNAL_SERVER_ERROR)
-        }
+        "SNAPBACK_AUTH_BUDGET_POLICY_INVALID" => Some(StatusCode::INTERNAL_SERVER_ERROR),
         _ => None,
     }
 }

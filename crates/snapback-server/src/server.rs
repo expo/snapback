@@ -14692,25 +14692,7 @@ async fn guest_password_claim_availability(
     ),
     ApiError,
 > {
-    let program = with_snapback(&runtime.snapback, |snapback| {
-        snapback.served_schema_manifest().auth_program.clone()
-    })
-    .await
-    .filter(|program| {
-        program.version == 1
-            && program.guest_policy.enabled
-            && program
-                .mechanisms
-                .values()
-                .any(|mechanism| mechanism.kind == "guest")
-    })
-    .ok_or_else(|| {
-        ApiError::from(SnapbackError::error(
-            "SNAPBACK_AUTH_GUEST_DISABLED",
-            "auth",
-            "guest entry is unavailable",
-        ))
-    })?;
+    let program = enabled_guest_program(runtime).await?;
     if !program.guest_policy.claiming.iter().any(|name| {
         program
             .mechanisms
@@ -14733,6 +14715,46 @@ async fn guest_password_claim_availability(
     // absent-route 404 and production-unavailable routes on their fixed 503.
     let _ = guest_auth_budget_terms(&program, "auth.guest.claim.password", provider.profile())?;
     Ok((program, provider))
+}
+
+async fn enabled_guest_program(
+    runtime: &AppState,
+) -> Result<crate::contract_types::AuthProgramManifestV1, ApiError> {
+    with_snapback(&runtime.snapback, |snapback| {
+        snapback.served_schema_manifest().auth_program.clone()
+    })
+    .await
+    .filter(|program| {
+        program.version == 1
+            && program.guest_policy.enabled
+            && program
+                .mechanisms
+                .values()
+                .any(|mechanism| mechanism.kind == "guest")
+    })
+    .ok_or_else(|| {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_AUTH_GUEST_DISABLED",
+            "auth",
+            "guest entry is unavailable",
+        ))
+    })
+}
+
+async fn guest_entry_availability(
+    runtime: &AppState,
+) -> Result<
+    (
+        crate::contract_types::AuthProgramManifestV1,
+        Arc<AuthProvider>,
+        crate::auth::throttle::RollingWindowBudgetTerms,
+    ),
+    ApiError,
+> {
+    let program = enabled_guest_program(runtime).await?;
+    let provider = installed_auth_provider(runtime)?;
+    let effect_budget = guest_auth_budget_terms(&program, "auth.guest.create", provider.profile())?;
+    Ok((program, provider, effect_budget))
 }
 
 async fn charge_hosted_body_auth_attempt(
@@ -15268,6 +15290,14 @@ async fn enforce_registered_route_policy_inner(
     // precedes source derivation, admission, body polling, normalization, and
     // attempt charging so disabled guest entry and unavailable production
     // signup cannot become budget-state or route-presence oracles.
+    // @ref LLP 0214#81-guest-principal-and-session-creation — disabled guest
+    // entry is the fixed absent-route result before request-shape or source
+    // facts can become an oracle.
+    if spec.path == "/auth/guest"
+        && let Err(error) = guest_entry_availability(&runtime).await
+    {
+        return apply_registered_response_controls(effective, error.into_response());
+    }
     // @ref LLP 0214#82-guest-claim — claim availability is resolved before
     // any credential candidate or target identifier is inspected.
     if spec.path == "/auth/guest/claim/password"
@@ -19251,38 +19281,14 @@ async fn auth_enter_as_guest(
             ))
         })?
         .to_owned();
-    let (program, app_id) = with_snapback(&runtime.snapback, |snapback| {
-        (
-            snapback.served_schema_manifest().auth_program.clone(),
-            snapback.loaded_app_id(),
-        )
-    })
-    .await;
+    let app_id = with_snapback(&runtime.snapback, |snapback| snapback.loaded_app_id()).await;
     // The idempotency scope follows the complete served deployment, not just
     // its schema leaf: bundle- or inputs-only changes must never replay an old
     // deployment's guest credential or durable refusal.
     let deployment_id = active_deployment_digest(&runtime)?;
-    let program = program
-        .filter(|program| {
-            program.version == 1
-                && program.guest_policy.enabled
-                && program
-                    .mechanisms
-                    .values()
-                    .any(|mechanism| mechanism.kind == "guest")
-        })
-        .ok_or_else(|| {
-            ApiError::from(SnapbackError::error(
-                "SNAPBACK_AUTH_GUEST_DISABLED",
-                "auth",
-                "guest entry is unavailable",
-            ))
-        })?;
-    let effect_budget = guest_auth_budget_terms(
-        &program,
-        "auth.guest.create",
-        installed_auth_provider(&runtime)?.profile(),
-    )?;
+    // The registered-route preflight owns the externally observable ordering;
+    // repeat the same check here as a handler-local backstop.
+    let (program, provider, effect_budget) = guest_entry_availability(&runtime).await?;
     let reaping = program.guest_policy.reaping.ok_or_else(|| {
         ApiError::from(SnapbackError::error(
             "SNAPBACK_AUTH_GUEST_POLICY_INVALID",
@@ -19309,7 +19315,6 @@ async fn auth_enter_as_guest(
         )
         .into());
     }
-    let provider = installed_auth_provider(&runtime)?;
     let now_ms = provider.now_ms();
     let policy_digest = program
         .abuse_budgets
