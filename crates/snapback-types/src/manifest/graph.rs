@@ -3467,22 +3467,6 @@ fn validate_graph_costs(plan: &GraphQueryPlanV1) -> Result<(), GraphAdmissionRef
         .iter()
         .filter(|node| !matches!(node, GraphNodeV1::ClosedProjection { .. }))
         .collect::<Vec<_>>();
-    let cost_node_ids = plan
-        .query_cost
-        .graph
-        .nodes
-        .iter()
-        .map(|cost| cost.node_id.as_str())
-        .collect::<BTreeSet<_>>();
-    if data_nodes
-        .iter()
-        .any(|node| !cost_node_ids.contains(node.node_id()))
-    {
-        return Err(GraphAdmissionRefusalReasonV1::UnboundedExpansion);
-    }
-    if data_nodes.len() != plan.query_cost.graph.nodes.len() {
-        return Err(GraphAdmissionRefusalReasonV1::BoundInvalid);
-    }
     let node_by_id = data_nodes
         .iter()
         .map(|node| (node.node_id(), *node))
@@ -3494,7 +3478,28 @@ fn validate_graph_costs(plan: &GraphQueryPlanV1) -> Result<(), GraphAdmissionRef
         .iter()
         .map(|cost| (cost.node_id.as_str(), cost))
         .collect::<BTreeMap<_, _>>();
-    if cost_by_id.len() != data_nodes.len() {
+    let missing_cost = data_nodes
+        .iter()
+        .any(|node| !cost_by_id.contains_key(node.node_id()));
+    let expected_present_order = data_nodes
+        .iter()
+        .filter(|node| cost_by_id.contains_key(node.node_id()))
+        .map(|node| node.node_id())
+        .collect::<Vec<_>>();
+    let actual_present_order = plan
+        .query_cost
+        .graph
+        .nodes
+        .iter()
+        .filter(|cost| node_by_id.contains_key(cost.node_id.as_str()))
+        .map(|cost| cost.node_id.as_str())
+        .collect::<Vec<_>>();
+    if cost_by_id.len() != plan.query_cost.graph.nodes.len()
+        || cost_by_id
+            .keys()
+            .any(|node_id| !node_by_id.contains_key(node_id))
+        || actual_present_order != expected_present_order
+    {
         return Err(GraphAdmissionRefusalReasonV1::BoundInvalid);
     }
 
@@ -3528,7 +3533,7 @@ fn validate_graph_costs(plan: &GraphQueryPlanV1) -> Result<(), GraphAdmissionRef
     let root_cost = cost_by_id
         .get(root.node_id())
         .copied()
-        .ok_or(GraphAdmissionRefusalReasonV1::BoundInvalid)?;
+        .ok_or(GraphAdmissionRefusalReasonV1::UnboundedExpansion)?;
     let root_rows = root_cost
         .max_root_rows_per_page
         .filter(|value| (1..=GRAPH_MAX_SAFE_INTEGER).contains(value))
@@ -3578,10 +3583,15 @@ fn validate_graph_costs(plan: &GraphQueryPlanV1) -> Result<(), GraphAdmissionRef
         population = checked_mul(population, literal_factor)?;
         if !matches!(node, GraphNodeV1::RootWindow { .. }) {
             for ancestor in path.iter().take(path.len().saturating_sub(1)) {
-                if matches!(ancestor, GraphNodeV1::BoundedToMany { .. }) {
-                    let children = cost_by_id[ancestor.node_id()]
-                        .max_children_per_parent
-                        .ok_or(GraphAdmissionRefusalReasonV1::BoundInvalid)?;
+                if let GraphNodeV1::BoundedToMany { page, .. } = ancestor {
+                    let children = cost_by_id
+                        .get(ancestor.node_id())
+                        .and_then(|cost| cost.max_children_per_parent)
+                        .or_else(|| match page {
+                            GraphChildPageV1::Literal(page) => Some(page.take),
+                            GraphChildPageV1::Demand(_) => None,
+                        })
+                        .ok_or(GraphAdmissionRefusalReasonV1::UnboundedExpansion)?;
                     population = checked_mul(population, children)?;
                 }
             }
@@ -3593,10 +3603,11 @@ fn validate_graph_costs(plan: &GraphQueryPlanV1) -> Result<(), GraphAdmissionRef
     let mut index_ranges = 0_u64;
     let mut examined_by_id = BTreeMap::<&str, u64>::new();
     let mut ranges_by_id = BTreeMap::<&str, u64>::new();
-    for (node, cost) in data_nodes.iter().zip(&plan.query_cost.graph.nodes) {
-        if cost.node_id != node.node_id()
-            || !require_positive(Some(cost.max_examined_entries_per_execution))
-        {
+    for node in &data_nodes {
+        let Some(cost) = cost_by_id.get(node.node_id()).copied() else {
+            continue;
+        };
+        if !require_positive(Some(cost.max_examined_entries_per_execution)) {
             return Err(GraphAdmissionRefusalReasonV1::BoundInvalid);
         }
         let (local_arguments, local_factor, _) = local_factor_by_id[node.node_id()];
@@ -3728,11 +3739,53 @@ fn validate_graph_costs(plan: &GraphQueryPlanV1) -> Result<(), GraphAdmissionRef
         ranges_by_id.insert(node.node_id(), expected_ranges);
     }
 
+    for node in data_nodes
+        .iter()
+        .filter(|node| !cost_by_id.contains_key(node.node_id()))
+    {
+        let population = parent_population(node)?;
+        let (expected_examined, expected_ranges) = match node {
+            GraphNodeV1::EqualityToOne { .. } | GraphNodeV1::SearchMembership { .. } => {
+                (population, population)
+            }
+            GraphNodeV1::BoundedToMany {
+                page: GraphChildPageV1::Literal(page),
+                ..
+            } => (
+                checked_mul(population, checked_add(page.take, 1)?)?,
+                population,
+            ),
+            GraphNodeV1::PrincipalBound { binding, .. } => {
+                let consultations = checked_mul(population, 1 + u64::from(binding.is_some()))?;
+                (consultations, consultations)
+            }
+            GraphNodeV1::RootWindow { .. }
+            | GraphNodeV1::BoundedToMany {
+                page: GraphChildPageV1::Demand(_),
+                ..
+            }
+            | GraphNodeV1::ExistsSemiJoin { .. }
+            | GraphNodeV1::ClosedProjection { .. } => {
+                return Err(GraphAdmissionRefusalReasonV1::UnboundedExpansion);
+            }
+        };
+        scanned = checked_add(scanned, expected_examined)?;
+        index_ranges = checked_add(index_ranges, expected_ranges)?;
+        examined_by_id.insert(node.node_id(), expected_examined);
+        ranges_by_id.insert(node.node_id(), expected_ranges);
+    }
+
+    // @ref LLP 0209#26-bounds-and-fixture-derivation — a missing record is
+    // row 12, but it must not mask an analytically conflicting present record.
     let mut rollup = GraphWindowRollupV1::default();
-    for (node, cost) in data_nodes.iter().zip(&plan.query_cost.graph.nodes) {
+    for node in &data_nodes {
         if !node.demand_paged() {
             continue;
         }
+        let cost = cost_by_id
+            .get(node.node_id())
+            .copied()
+            .ok_or(GraphAdmissionRefusalReasonV1::UnboundedExpansion)?;
         let pages = cost
             .max_window_pages
             .filter(|value| (1..=GRAPH_MAX_SAFE_INTEGER).contains(value))
@@ -3795,6 +3848,9 @@ fn validate_graph_costs(plan: &GraphQueryPlanV1) -> Result<(), GraphAdmissionRef
         || plan.query_cost.max_index_ranges != index_ranges
     {
         return Err(GraphAdmissionRefusalReasonV1::BoundInvalid);
+    }
+    if missing_cost {
+        return Err(GraphAdmissionRefusalReasonV1::UnboundedExpansion);
     }
     Ok(())
 }
@@ -6077,7 +6133,7 @@ mod tests {
         assert_eq!(validate_graph_query_plan_v1(&plan), Ok(()));
 
         plan.query_cost.graph.nodes.remove(1);
-        plan.query_cost.graph.nodes[0].max_examined_entries_per_execution = 0;
+        plan.query_cost.graph.nodes[0].max_examined_entries_per_execution = 4;
         let faults = graph_query_plan_faults_v1(&plan);
         assert!(faults.contains(&GraphAdmissionFaultV1::from(
             GraphAdmissionRefusalReasonV1::UnboundedExpansion
