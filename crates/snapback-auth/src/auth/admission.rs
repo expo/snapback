@@ -892,6 +892,19 @@ impl AdmissionLease {
         self.token.admission_epoch
     }
 
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn effect_guard_identity_for_test(
+        &self,
+    ) -> Option<snapback_kernel::storage::AdmissionEffectGuardIdentityForTest> {
+        self.token.controller.as_ref().map(|controller| {
+            snapback_kernel::storage::admission_effect_guard_identity_for_test(
+                Arc::as_ptr(controller) as usize,
+                self.token.admission_epoch,
+            )
+        })
+    }
+
     /// Exact durable active mode bound to a managed root. Compatibility-only
     /// unmanaged leases return `None` and must not enter production paths.
     pub fn active_mode(&self) -> Option<AuthMode> {

@@ -16,7 +16,7 @@
 //!   kernel-supplied pending transaction. The open adapter trait and exposed
 //!   authorities are residual seams, not a structural COMMIT proof.
 
-use super::writer_gate::lock_managed_snapback;
+use super::writer_gate::lock_managed_snapback_until;
 use crate::admin::{AppState, CommitCapsuleRuntimeBinding};
 use crate::auth::invocation::{AuthorizedEffectReservation, PreparedAuthority};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
@@ -30,7 +30,7 @@ use std::marker::PhantomData;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
-use tokio::time::{Instant, timeout_at};
+use tokio::time::Instant;
 
 pub(crate) const COMMIT_OUTCOME_UNCERTAIN_CODE: &str = "SNAPBACK_COMMIT_OUTCOME_UNCERTAIN";
 
@@ -816,32 +816,10 @@ where
     )
     .await;
 
-    // The entire queued future owns the reservation, gate, immutable intent,
-    // and both closures. Timeout cancellation therefore removes only this
-    // FIFO mutex waiter and drops every permit/gate carrier it captured.
-    let queued = async move {
-        let guard = lock_managed_snapback(&state).await;
-        (
-            guard,
-            reservation,
-            terminal_gate,
-            intent,
-            transact,
-            reconcile,
-            runtime,
-            uncertain_retention,
-        )
-    };
-    let Ok((
-        mut guard,
-        reservation,
-        terminal_gate,
-        intent,
-        transact,
-        reconcile,
-        runtime,
-        uncertain_retention,
-    )) = timeout_at(spec.deadline, queued).await
+    // The shared bounded FIFO primitive owns the selected mutex future. On
+    // timeout this stack frame drops the reservation, gate, immutable intent,
+    // and both closures together with that one waiter.
+    let Some(mut guard) = lock_managed_snapback_until(&state, spec.deadline.into_std(), None).await
     else {
         return CommitCapsuleOutcome::TimedOut {
             phase: CommitTimeoutPhase::WriterAcquire,

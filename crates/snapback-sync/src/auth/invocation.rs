@@ -19,9 +19,12 @@ use crate::auth::service_authority_contract::{
 };
 use crate::auth::service_fence::{
     RetainedServiceAuthorityGuard, ServiceAuthorityExternalEffectPermit,
-    ServiceAuthorityPublication, ServiceAuthorityWorkPermit,
+    ServiceAuthorityPublication, ServiceAuthorityWorkPermit, ServiceAuthorityWorkReservationError,
 };
-use crate::auth::session_projection::{FencedAuthorityWorkPermit, FencedPublication};
+use crate::auth::session_projection::{
+    FencedAuthorityWorkPermit, FencedAuthorityWorkReservationError, FencedPublication,
+    TerminalAuthorityDisposition,
+};
 use crate::contract_types::ServerProfile;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
@@ -47,6 +50,32 @@ fn rehearsal_now_ms() -> u64 {
         .unwrap_or_default()
         .as_millis()
         .min(9_007_199_254_740_991_u128) as u64
+}
+
+fn session_retired_error(disposition: TerminalAuthorityDisposition) -> SnapbackError {
+    let disposition = match disposition {
+        TerminalAuthorityDisposition::Carrier => "carrier",
+        TerminalAuthorityDisposition::DurableDelete => "durableDelete",
+    };
+    SnapbackError::error(
+        "SNAPBACK_AUTH_SESSION_EXPIRED",
+        "auth",
+        "authentication session is expired or revoked",
+    )
+    .with_details(serde_json::json!({ "authorityDisposition": disposition }))
+}
+
+fn authorization_stream_retired_error() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_STREAM_RESET",
+        "auth",
+        "the authorization stream is no longer current",
+    )
+    .with_details(serde_json::json!({
+        "authorityDisposition": "carrier",
+        "retryable": true,
+        "cause": "stream_replaced",
+    }))
 }
 
 /// Presence of one authority-bearing wire location.
@@ -1236,6 +1265,92 @@ pub struct AuthorizedEffectReservation {
         std::sync::Mutex<Option<Box<dyn FnOnce(&'static str) + Send + 'static>>>,
     #[cfg(any(test, feature = "test-support"))]
     commit_guard_failure_for_test: std::sync::Mutex<Option<SnapbackError>>,
+    #[cfg(any(test, feature = "test-support"))]
+    test_identity: u64,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+static ACTIVE_AUTHORIZED_EFFECT_RESERVATIONS_FOR_TEST: std::sync::OnceLock<
+    std::sync::Mutex<std::collections::BTreeSet<u64>>,
+> = std::sync::OnceLock::new();
+
+impl Drop for AuthorizedEffectReservation {
+    fn drop(&mut self) {
+        #[cfg(any(test, feature = "test-support"))]
+        {
+            ACTIVE_AUTHORIZED_EFFECT_RESERVATIONS_FOR_TEST
+                .get_or_init(|| std::sync::Mutex::new(std::collections::BTreeSet::new()))
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .remove(&self.test_identity);
+        }
+    }
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub fn authorized_effect_reservation_active_for_test(identity: u64) -> bool {
+    ACTIVE_AUTHORIZED_EFFECT_RESERVATIONS_FOR_TEST
+        .get_or_init(|| std::sync::Mutex::new(std::collections::BTreeSet::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .contains(&identity)
+}
+
+/// A terminal caller cause is distinct from an operational reservation
+/// failure and retains its exact authority/disposition axis for later action
+/// calls and final settlement.
+#[derive(Clone, Debug)]
+pub enum CallerAuthorityTerminalCause {
+    AdmissionEpochRetired {
+        error: SnapbackError,
+    },
+    AuthorizationStreamRetired {
+        error: SnapbackError,
+    },
+    SessionRetired {
+        disposition: TerminalAuthorityDisposition,
+        error: SnapbackError,
+    },
+    ScopedServiceRetired {
+        disposition: ServiceAuthorityDisposition,
+        error: SnapbackError,
+    },
+}
+
+impl CallerAuthorityTerminalCause {
+    pub fn error(&self) -> &SnapbackError {
+        match self {
+            Self::AdmissionEpochRetired { error }
+            | Self::AuthorizationStreamRetired { error }
+            | Self::SessionRetired { error, .. }
+            | Self::ScopedServiceRetired { error, .. } => error,
+        }
+    }
+
+    pub fn into_error(self) -> SnapbackError {
+        match self {
+            Self::AdmissionEpochRetired { error }
+            | Self::AuthorizationStreamRetired { error }
+            | Self::SessionRetired { error, .. }
+            | Self::ScopedServiceRetired { error, .. } => error,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum AuthorizedEffectReservationError {
+    Terminal(CallerAuthorityTerminalCause),
+    NonTerminal(SnapbackError),
+}
+
+impl AuthorizedEffectReservationError {
+    pub fn into_error(self) -> SnapbackError {
+        match self {
+            Self::Terminal(cause) => cause.into_error(),
+            Self::NonTerminal(error) => error,
+        }
+    }
 }
 
 /// The inner synchronous commit guard for an authorized effect. Field order is
@@ -1249,6 +1364,25 @@ pub struct AuthorizedEffectCommitGuard<'a> {
 }
 
 impl AuthorizedEffectReservation {
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn identity_for_test(&self) -> u64 {
+        self.test_identity
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn has_service_permit_for_test(&self) -> bool {
+        self.service.is_some()
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn mode_guard_identity_for_test(
+        &self,
+    ) -> Option<snapback_kernel::storage::AdmissionEffectGuardIdentityForTest> {
+        self.authority.admission.effect_guard_identity_for_test()
+    }
     /// Install one exact-reservation callback immediately before the mode
     /// commit guard is acquired. This test-only seam can retire the captured
     /// epoch at the historical pre-guard cut without affecting another
@@ -1294,6 +1428,14 @@ impl AuthorizedEffectReservation {
         &self,
         effect: &'static str,
     ) -> SnapbackResult<AuthorizedEffectCommitGuard<'_>> {
+        self.commit_guard_classified(effect)
+            .map_err(AuthorizedEffectReservationError::into_error)
+    }
+
+    pub fn commit_guard_classified(
+        &self,
+        effect: &'static str,
+    ) -> Result<AuthorizedEffectCommitGuard<'_>, AuthorizedEffectReservationError> {
         #[cfg(any(test, feature = "test-support"))]
         if let Some(hook) = self
             .before_commit_guard_for_test
@@ -1310,17 +1452,23 @@ impl AuthorizedEffectReservation {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .take()
         {
-            return Err(error);
+            return Err(AuthorizedEffectReservationError::NonTerminal(error));
         }
         let service = self
             .service
             .as_ref()
             .map(ServiceAuthorityWorkPermit::retain_authority);
-        let mode = match self.authority.mode_effect_guard(effect) {
+        if let Err(error) = self.authority.validate_rehearsal_authority() {
+            drop(service);
+            return Err(AuthorizedEffectReservationError::NonTerminal(error));
+        }
+        let mode = match self.authority.admission.effect_guard(effect) {
             Ok(mode) => mode,
             Err(error) => {
                 drop(service);
-                return Err(error);
+                return Err(AuthorizedEffectReservationError::Terminal(
+                    CallerAuthorityTerminalCause::AdmissionEpochRetired { error },
+                ));
             }
         };
         Ok(AuthorizedEffectCommitGuard {
@@ -1654,10 +1802,30 @@ impl PreparedAuthority {
         epoch_now_ms: u64,
         monotonic_now: Instant,
     ) -> SnapbackResult<Option<ServiceAuthorityExternalEffectPermit>> {
-        self.service_publication
-            .as_ref()
-            .map(|publication| publication.begin_external_effect(epoch_now_ms, monotonic_now))
-            .transpose()
+        self.begin_service_external_effect_classified(epoch_now_ms, monotonic_now)
+            .map_err(AuthorizedEffectReservationError::into_error)
+    }
+
+    pub fn begin_service_external_effect_classified(
+        &self,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> Result<Option<ServiceAuthorityExternalEffectPermit>, AuthorizedEffectReservationError>
+    {
+        let Some(publication) = self.service_publication.as_ref() else {
+            return Ok(None);
+        };
+        match publication.begin_authority_work_classified(epoch_now_ms, monotonic_now) {
+            Ok(permit) => Ok(Some(permit)),
+            Err(ServiceAuthorityWorkReservationError::Terminal { disposition, error }) => {
+                Err(AuthorizedEffectReservationError::Terminal(
+                    CallerAuthorityTerminalCause::ScopedServiceRetired { disposition, error },
+                ))
+            }
+            Err(ServiceAuthorityWorkReservationError::NonTerminal(error)) => {
+                Err(AuthorizedEffectReservationError::NonTerminal(error))
+            }
+        }
     }
 
     pub fn session_terminal_reason(
@@ -1743,6 +1911,10 @@ impl PreparedAuthority {
 
     pub fn validate_admission(&self, effect: &'static str) -> SnapbackResult<()> {
         self.admission.validate(effect)?;
+        self.validate_rehearsal_authority()
+    }
+
+    fn validate_rehearsal_authority(&self) -> SnapbackResult<()> {
         match (&self.rehearsal_provenance, &self.rehearsal_fence) {
             (Some(_), Some(fence)) => fence.validate_at(rehearsal_now_ms()).map_err(Into::into),
             (Some(_), None) => Err(crate::auth::rehearsal::authority_ended()),
@@ -1764,36 +1936,80 @@ impl PreparedAuthority {
         &self,
         effect: &'static str,
     ) -> SnapbackResult<AuthorizedEffectReservation> {
-        self.validate_admission(effect)?;
+        self.reserve_authorized_effect_classified(effect)
+            .map_err(AuthorizedEffectReservationError::into_error)
+    }
+
+    pub fn reserve_authorized_effect_classified(
+        &self,
+        effect: &'static str,
+    ) -> Result<AuthorizedEffectReservation, AuthorizedEffectReservationError> {
+        self.admission.validate(effect).map_err(|error| {
+            AuthorizedEffectReservationError::Terminal(
+                CallerAuthorityTerminalCause::AdmissionEpochRetired { error },
+            )
+        })?;
+        self.validate_rehearsal_authority()
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?;
         let (epoch_now_ms, monotonic_now) =
             self.service_clock_sample(rehearsal_now_ms(), Instant::now());
         let publication = match &self.publication {
-            Some(publication) => publication
-                .try_reserve_work(epoch_now_ms, monotonic_now)?
-                .map(|permit| AuthorizedPublicationReservation::Fenced { _permit: permit })
-                .ok_or_else(|| self.authorized_effect_stale(epoch_now_ms, monotonic_now))?,
+            Some(publication) => {
+                match publication.try_reserve_work_classified(epoch_now_ms, monotonic_now) {
+                    Ok(permit) => AuthorizedPublicationReservation::Fenced { _permit: permit },
+                    Err(FencedAuthorityWorkReservationError::AuthorizationStreamRetired) => {
+                        return Err(AuthorizedEffectReservationError::Terminal(
+                            CallerAuthorityTerminalCause::AuthorizationStreamRetired {
+                                error: authorization_stream_retired_error(),
+                            },
+                        ));
+                    }
+                    Err(FencedAuthorityWorkReservationError::SessionRetired { disposition }) => {
+                        return Err(AuthorizedEffectReservationError::Terminal(
+                            CallerAuthorityTerminalCause::SessionRetired {
+                                disposition,
+                                error: session_retired_error(disposition),
+                            },
+                        ));
+                    }
+                    Err(FencedAuthorityWorkReservationError::SessionMutationPending(error)) => {
+                        return Err(AuthorizedEffectReservationError::NonTerminal(error));
+                    }
+                    Err(FencedAuthorityWorkReservationError::NonTerminal(error)) => {
+                        return Err(AuthorizedEffectReservationError::NonTerminal(error));
+                    }
+                }
+            }
             None if self.active_mode == AuthMode::Dev => AuthorizedPublicationReservation::DevMode,
             None => {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
-                    "auth",
-                    "authorized effect requires an installed authorization publication",
+                return Err(AuthorizedEffectReservationError::NonTerminal(
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                        "auth",
+                        "authorized effect requires an installed authorization publication",
+                    ),
                 ));
             }
         };
-        let service = match self
-            .service_publication
-            .as_ref()
-            .map(|service| service.begin_authority_work(epoch_now_ms, monotonic_now))
-            .transpose()
-        {
-            Ok(service) => service,
-            Err(error) => {
-                drop(publication);
-                return Err(error);
-            }
+        let service = match self.service_publication.as_ref() {
+            Some(service) => match service
+                .begin_authority_work_classified(epoch_now_ms, monotonic_now)
+            {
+                Ok(permit) => Some(permit),
+                Err(ServiceAuthorityWorkReservationError::Terminal { disposition, error }) => {
+                    drop(publication);
+                    return Err(AuthorizedEffectReservationError::Terminal(
+                        CallerAuthorityTerminalCause::ScopedServiceRetired { disposition, error },
+                    ));
+                }
+                Err(ServiceAuthorityWorkReservationError::NonTerminal(error)) => {
+                    drop(publication);
+                    return Err(AuthorizedEffectReservationError::NonTerminal(error));
+                }
+            },
+            None => None,
         };
-        Ok(AuthorizedEffectReservation {
+        let reservation = AuthorizedEffectReservation {
             authority: self.clone(),
             _publication: publication,
             service,
@@ -1801,58 +2017,19 @@ impl PreparedAuthority {
             before_commit_guard_for_test: std::sync::Mutex::new(None),
             #[cfg(any(test, feature = "test-support"))]
             commit_guard_failure_for_test: std::sync::Mutex::new(None),
-        })
-    }
-
-    fn authorized_effect_stale(&self, epoch_now_ms: u64, monotonic_now: Instant) -> SnapbackError {
-        match &self.resolved {
-            ResolvedAppAuthority::Session { .. } => {
-                let disposition = self
-                    .session_terminal_reason(epoch_now_ms, monotonic_now)
-                    .ok()
-                    .flatten()
-                    .map(|reason| match reason.authority_disposition() {
-                        crate::contract_types::TerminalAuthorityDisposition::Carrier => "carrier",
-                        crate::contract_types::TerminalAuthorityDisposition::DurableDelete => {
-                            "durableDelete"
-                        }
-                    })
-                    .unwrap_or("carrier");
-                SnapbackError::error(
-                    "SNAPBACK_AUTH_SESSION_EXPIRED",
-                    "auth",
-                    "authentication session is expired or revoked",
-                )
-                .with_details(serde_json::json!({
-                    "authorityDisposition": disposition,
-                }))
-            }
-            ResolvedAppAuthority::ServicePrincipal { .. } => {
-                let disposition =
-                    match self.service_terminal_disposition(epoch_now_ms, monotonic_now) {
-                        Some(ServiceAuthorityDisposition::DurableDelete) => "durableDelete",
-                        Some(ServiceAuthorityDisposition::Carrier) | None => "carrier",
-                    };
-                SnapbackError::error(
-                    "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
-                    "auth",
-                    "scoped agent token authority is no longer current",
-                )
-                .with_details(serde_json::json!({
-                    "authorityDisposition": disposition,
-                }))
-            }
-            _ => SnapbackError::error(
-                "SNAPBACK_AUTH_STREAM_RESET",
-                "auth",
-                "the authorization stream is no longer current",
-            )
-            .with_details(serde_json::json!({
-                "authorityDisposition": "carrier",
-                "retryable": true,
-                "cause": "stream_replaced",
-            })),
-        }
+            #[cfg(any(test, feature = "test-support"))]
+            test_identity: {
+                static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+                NEXT.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+            },
+        };
+        #[cfg(any(test, feature = "test-support"))]
+        ACTIVE_AUTHORIZED_EFFECT_RESERVATIONS_FOR_TEST
+            .get_or_init(|| std::sync::Mutex::new(std::collections::BTreeSet::new()))
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(reservation.test_identity);
+        Ok(reservation)
     }
 
     /// Mode-only/terminal-carrier effect guard. This does not reserve

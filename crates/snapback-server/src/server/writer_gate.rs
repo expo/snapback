@@ -12,8 +12,10 @@ use crate::local::LocalSnapback;
 #[cfg(test)]
 use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 #[cfg(test)]
 use std::sync::{Mutex as StdMutex, OnceLock};
+use std::time::Instant;
 
 #[cfg(test)]
 struct ManagedHandoffWaiterTestHook {
@@ -24,6 +26,46 @@ struct ManagedHandoffWaiterTestHook {
 #[cfg(test)]
 static MANAGED_HANDOFF_WAITER_TEST_HOOKS: OnceLock<StdMutex<Vec<ManagedHandoffWaiterTestHook>>> =
     OnceLock::new();
+
+#[cfg(test)]
+struct ManagedWriterQueueTestHook {
+    state_identity: usize,
+    reached: Arc<tokio::sync::Notify>,
+}
+
+#[cfg(test)]
+static MANAGED_WRITER_QUEUE_TEST_HOOKS: OnceLock<StdMutex<Vec<ManagedWriterQueueTestHook>>> =
+    OnceLock::new();
+
+#[cfg(test)]
+pub(super) fn install_managed_writer_queue_test_hook(
+    state: &SharedSnapback,
+) -> Arc<tokio::sync::Notify> {
+    let reached = Arc::new(tokio::sync::Notify::new());
+    MANAGED_WRITER_QUEUE_TEST_HOOKS
+        .get_or_init(|| StdMutex::new(Vec::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .push(ManagedWriterQueueTestHook {
+            state_identity: Arc::as_ptr(state) as usize,
+            reached: reached.clone(),
+        });
+    reached
+}
+
+#[cfg(test)]
+fn notify_managed_writer_queued_for_test(state: &SharedSnapback) {
+    let mut hooks = MANAGED_WRITER_QUEUE_TEST_HOOKS
+        .get_or_init(|| StdMutex::new(Vec::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if let Some(position) = hooks
+        .iter()
+        .position(|hook| hook.state_identity == Arc::as_ptr(state) as usize)
+    {
+        hooks.swap_remove(position).reached.notify_one();
+    }
+}
 
 #[cfg(test)]
 pub(super) fn install_managed_handoff_waiter_test_hook(
@@ -86,7 +128,10 @@ pub(super) async fn lock_managed_snapback(
     state: &SharedSnapback,
 ) -> tokio::sync::OwnedMutexGuard<LocalSnapback> {
     loop {
-        let guard = state.clone().lock_owned().await;
+        let lock = state.clone().lock_owned();
+        #[cfg(test)]
+        notify_managed_writer_queued_for_test(state);
+        let guard = lock.await;
         let handoff = guard.managed_local_handoff();
         if !handoff.is_closed() {
             return guard;
@@ -95,6 +140,91 @@ pub(super) async fn lock_managed_snapback(
         #[cfg(test)]
         notify_managed_handoff_waiter_for_test(&handoff);
         handoff.wait_until_open().await;
+    }
+}
+
+/// Watchdog-only cancellation for a detached action queued on the FIFO Local
+/// writer. Dropping the selected `lock_owned` future removes only this waiter;
+/// it never polls `try_lock` and cannot overtake earlier writers.
+#[derive(Debug, Default)]
+pub(super) struct ManagedWriterCancellation {
+    cancelled: AtomicBool,
+    changed: tokio::sync::Notify,
+}
+
+impl ManagedWriterCancellation {
+    pub(super) fn cancel(&self) {
+        self.cancelled.store(true, Ordering::Release);
+        self.changed.notify_waiters();
+    }
+
+    fn is_cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::Acquire)
+    }
+}
+
+/// Acquire the normal FIFO managed writer before an absolute deadline. The
+/// optional cancellation carrier belongs only to the action watchdog.
+pub(super) async fn lock_managed_snapback_until(
+    state: &SharedSnapback,
+    deadline: Instant,
+    cancellation: Option<&ManagedWriterCancellation>,
+) -> Option<tokio::sync::OwnedMutexGuard<LocalSnapback>> {
+    loop {
+        if cancellation.is_some_and(ManagedWriterCancellation::is_cancelled)
+            || Instant::now() >= deadline
+        {
+            return None;
+        }
+        let lock = state.clone().lock_owned();
+        tokio::pin!(lock);
+        #[cfg(test)]
+        notify_managed_writer_queued_for_test(state);
+        let guard = if let Some(cancellation) = cancellation {
+            let changed = cancellation.changed.notified();
+            tokio::pin!(changed);
+            changed.as_mut().enable();
+            if cancellation.is_cancelled() {
+                return None;
+            }
+            tokio::select! {
+                guard = &mut lock => guard,
+                _ = &mut changed => return None,
+                _ = tokio::time::sleep_until(tokio::time::Instant::from_std(deadline)) => return None,
+            }
+        } else {
+            tokio::select! {
+                guard = &mut lock => guard,
+                _ = tokio::time::sleep_until(tokio::time::Instant::from_std(deadline)) => return None,
+            }
+        };
+        let handoff = guard.managed_local_handoff();
+        if !handoff.is_closed() {
+            return Some(guard);
+        }
+        drop(guard);
+        #[cfg(test)]
+        notify_managed_handoff_waiter_for_test(&handoff);
+        let opened = handoff.wait_until_open();
+        tokio::pin!(opened);
+        if let Some(cancellation) = cancellation {
+            let changed = cancellation.changed.notified();
+            tokio::pin!(changed);
+            changed.as_mut().enable();
+            if cancellation.is_cancelled() {
+                return None;
+            }
+            tokio::select! {
+                _ = &mut opened => {}
+                _ = &mut changed => return None,
+                _ = tokio::time::sleep_until(tokio::time::Instant::from_std(deadline)) => return None,
+            }
+        } else {
+            tokio::select! {
+                _ = &mut opened => {}
+                _ = tokio::time::sleep_until(tokio::time::Instant::from_std(deadline)) => return None,
+            }
+        }
     }
 }
 

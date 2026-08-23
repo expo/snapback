@@ -12,9 +12,10 @@ use crate::auth::invalidation::{
     ScopeRetirement, ScopeRetirementCandidate,
 };
 use crate::auth::invocation::{
-    AuthorizedEffectCommitGuard, AuthorizedEffectReservation, FunctionAttribution,
-    HandlerAuthProjection, InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation,
-    ResolvedAppAuthority, RetainedLiveAuthority, WireAuthorityFields, descriptor_for_authority,
+    AuthorizedEffectCommitGuard, AuthorizedEffectReservation, AuthorizedEffectReservationError,
+    CallerAuthorityTerminalCause, FunctionAttribution, HandlerAuthProjection, InvocationGate,
+    InvocationSource, PreparedAuthority, PreparedInvocation, ResolvedAppAuthority,
+    RetainedLiveAuthority, WireAuthorityFields, descriptor_for_authority,
 };
 use crate::auth::lease::{
     AuthorizedLease, AuthorizedLeaseConfig, AuthorizedLeaseData, AuthorizedLeaseIssue,
@@ -97,7 +98,7 @@ use std::ops::Deref;
 use std::path::Path;
 use std::sync::Mutex as StdMutex;
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
-use std::sync::{Arc, PoisonError, RwLock, Weak};
+use std::sync::{Arc, OnceLock, PoisonError, RwLock, Weak};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 #[path = "generation_host.rs"]
@@ -1401,11 +1402,13 @@ pub enum StagedRecordedMutation {
 /// No absent optional carrier is interpreted as permission to weaken the cut.
 enum MutationEffectPosture<'a> {
     Authorized(&'a AuthorizedEffectReservation),
+    AuthorizedAction(&'a AuthorizedEffectReservation, &'a ActionTerminalLatch),
     ModeOnlyOrTerminalCarrier,
 }
 
 enum BoundMutationEffectPosture<'a> {
     Authorized(&'a AuthorizedEffectReservation),
+    AuthorizedAction(&'a AuthorizedEffectReservation, &'a ActionTerminalLatch),
     ModeOnlyOrTerminalCarrier(&'a PreparedInvocation),
 }
 
@@ -1415,6 +1418,7 @@ enum BoundMutationEffectPosture<'a> {
 )]
 enum MutationEffectCommitGuard<'a> {
     Authorized(AuthorizedEffectCommitGuard<'a>),
+    AuthorizedAction(AuthorizedEffectCommitGuard<'a>),
     ModeOnlyOrTerminalCarrier(AdmissionEffectGuard<'a>),
 }
 
@@ -1425,6 +1429,9 @@ impl<'a> MutationEffectPosture<'a> {
     {
         match self {
             Self::Authorized(reservation) => BoundMutationEffectPosture::Authorized(reservation),
+            Self::AuthorizedAction(reservation, latch) => {
+                BoundMutationEffectPosture::AuthorizedAction(reservation, latch)
+            }
             Self::ModeOnlyOrTerminalCarrier => {
                 BoundMutationEffectPosture::ModeOnlyOrTerminalCarrier(prepared)
             }
@@ -1438,6 +1445,13 @@ impl BoundMutationEffectPosture<'_> {
             Self::Authorized(reservation) => reservation
                 .commit_guard(effect)
                 .map(MutationEffectCommitGuard::Authorized),
+            Self::AuthorizedAction(reservation, latch) => reservation
+                .commit_guard_classified(effect)
+                .map(MutationEffectCommitGuard::AuthorizedAction)
+                .map_err(|error| match error {
+                    AuthorizedEffectReservationError::Terminal(cause) => latch.latch_caller(cause),
+                    AuthorizedEffectReservationError::NonTerminal(error) => error,
+                }),
             Self::ModeOnlyOrTerminalCarrier(prepared) => prepared
                 .mode_effect_guard(effect)
                 .map(MutationEffectCommitGuard::ModeOnlyOrTerminalCarrier),
@@ -1939,6 +1953,64 @@ pub struct DetachedIbexAction {
     /// Host-only authority captured by the mutation that enqueued this exact
     /// job. Ordinary actions and cron runs always carry `None`.
     pub deferred_push_grant: Option<crate::push::PushDeferredGrantV1>,
+    pub terminal_latch: ActionTerminalLatch,
+}
+
+#[derive(Clone, Debug)]
+pub enum ActionTerminalCause {
+    CallerAuthority(CallerAuthorityTerminalCause),
+    WatchdogTimeout(SnapbackError),
+}
+
+impl ActionTerminalCause {
+    pub fn error(&self) -> &SnapbackError {
+        match self {
+            Self::CallerAuthority(cause) => cause.error(),
+            Self::WatchdogTimeout(error) => error,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct ActionTerminalLatch {
+    cause: Arc<OnceLock<ActionTerminalCause>>,
+    #[cfg(any(test, feature = "test-support"))]
+    latch_wins: Arc<std::sync::atomic::AtomicUsize>,
+}
+
+impl ActionTerminalLatch {
+    pub fn latch(&self, cause: ActionTerminalCause) -> &ActionTerminalCause {
+        if self.cause.set(cause).is_ok() {
+            #[cfg(any(test, feature = "test-support"))]
+            self.latch_wins
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        }
+        self.cause
+            .get()
+            .expect("terminal cause is installed by this or a racing caller")
+    }
+
+    pub fn error(&self) -> Option<SnapbackError> {
+        self.cause.get().map(|cause| cause.error().clone())
+    }
+
+    pub fn latch_caller(&self, cause: CallerAuthorityTerminalCause) -> SnapbackError {
+        self.latch(ActionTerminalCause::CallerAuthority(cause))
+            .error()
+            .clone()
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn latch_wins_for_test(&self) -> usize {
+        self.latch_wins.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn identity_for_test(&self) -> usize {
+        Arc::as_ptr(&self.cause) as usize
+    }
 }
 
 // As above, the prepared arm is the ordinary in-lock path; keep its stable
@@ -1951,6 +2023,10 @@ pub enum StagedNestedMutation {
 
 pub struct StagedHostPlanNestedMutation {
     pub preflight: crate::storage::AuthorizationCommitPreflight,
+    /// Exact number of changed rows observed by the production dry run. The
+    /// detached-action fence tests carry this witness to the reservation seam
+    /// so skipping the nested closure cannot manufacture a passing refusal.
+    pub staged_effect_count: usize,
     pub input: HandlerInput,
     pub invocation: PreparedInvocation,
 }
@@ -1958,6 +2034,12 @@ pub struct StagedHostPlanNestedMutation {
 pub struct DetachedIbexMutation {
     pub binding: DetachedMutationBinding,
     pub read: DetachedMutationRead,
+}
+
+pub struct DetachedNestedMutationPreview {
+    pub preflight: crate::storage::AuthorizationCommitPreflight,
+    /// Exact number of changed rows in the already-executed buffered effect.
+    pub staged_effect_count: usize,
 }
 
 pub struct DetachedMutationBinding {
@@ -2097,6 +2179,7 @@ pub struct ManagedHostPlanAction {
     pub(crate) app_generation_fence: Arc<AtomicU64>,
     redactor: crate::config::SecretRedactor,
     observation: Arc<StdMutex<Option<crate::telemetry::ObservationSpan>>>,
+    terminal_latch: ActionTerminalLatch,
 }
 
 /// Staging outcome for a config-verify probe run (ENG-23493): entry checks
@@ -4405,6 +4488,41 @@ enum DeltaFanout {
     Failed(SnapbackError),
 }
 
+/// Authority admitted to the legacy in-Local action host. Finite caller
+/// variants deliberately have no constructor into this type: they must use
+/// the managed/detached split-phase executor.
+///
+/// ```compile_fail
+/// # use snapback_engine::auth::invocation::PreparedAuthority;
+/// # fn reject_finite(prepared: PreparedAuthority) {
+/// let _legacy: LegacyLocalActionAuthority = prepared;
+/// # }
+/// ```
+#[doc(hidden)]
+pub struct LegacyLocalActionAuthority(PreparedAuthority);
+
+impl LegacyLocalActionAuthority {
+    fn try_new(authority: PreparedAuthority) -> SnapbackResult<Self> {
+        match authority.resolved() {
+            ResolvedAppAuthority::Session { .. }
+            | ResolvedAppAuthority::ServicePrincipal { .. } => Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_SOURCE_INVALID",
+                "auth",
+                "finite caller actions must use the managed or detached split-phase executor",
+            )),
+            ResolvedAppAuthority::Anonymous
+            | ResolvedAppAuthority::RevalidatedPrincipal { .. }
+            | ResolvedAppAuthority::DevImpersonation { .. }
+            | ResolvedAppAuthority::AdminBypass { .. }
+            | ResolvedAppAuthority::System => Ok(Self(authority)),
+        }
+    }
+
+    fn prepared(&self) -> &PreparedAuthority {
+        &self.0
+    }
+}
+
 struct LocalIbexActionHost<'a> {
     // SAFETY invariant for the raw action host bridge:
     // - constructed only inside `LocalSnapback::invoke_action` from `&'a mut self`;
@@ -4417,7 +4535,7 @@ struct LocalIbexActionHost<'a> {
     // a JS action can call back into an Ibex mutation and then make a second host
     // call after the nested invocation returns without losing or aliasing context.
     snapback: *mut LocalSnapback,
-    authority: PreparedAuthority,
+    authority: LegacyLocalActionAuthority,
     connected_clients: crate::connected_clients::ConnectedClientRegistry,
     connected_client_predicate_available: bool,
     _marker: PhantomData<&'a mut LocalSnapback>,
@@ -4429,7 +4547,7 @@ impl IbexActionHost for LocalIbexActionHost<'_> {
         // host callback below; no borrow escapes this call.
         unsafe {
             (&*self.snapback).deny_derived_fork_host_op_admitted(
-                &self.authority,
+                self.authority.prepared(),
                 op,
                 now_millis(),
             )?;
@@ -4437,6 +4555,7 @@ impl IbexActionHost for LocalIbexActionHost<'_> {
         // In-process action invocation retains the instance borrow for the
         // whole run, so no schema/function/reset drift can interleave.
         self.authority
+            .prepared()
             .validate_admission("action host call or nested entry")
     }
 
@@ -4449,6 +4568,7 @@ impl IbexActionHost for LocalIbexActionHost<'_> {
         // thread; this pointer is valid only for the duration of one action run.
         let authority = self
             .authority
+            .prepared()
             .inherit_for(InvocationSource::NestedMutation)?;
         unsafe { (&mut *self.snapback).invoke_mutation_with_authority(name, input, authority) }
     }
@@ -4484,7 +4604,14 @@ impl ManagedHostPlanAction {
         &self.plan
     }
 
+    pub fn authority(&self) -> &PreparedAuthority {
+        self.invocation.authority()
+    }
+
     pub fn validate_generation(&self) -> SnapbackResult<()> {
+        if let Some(error) = self.terminal_latch.error() {
+            return Err(error);
+        }
         let current = self.app_generation_fence.load(Ordering::SeqCst);
         if current != self.app_generation {
             return Err(managed_action_generation_conflict(
@@ -4495,10 +4622,17 @@ impl ManagedHostPlanAction {
         Ok(())
     }
 
+    pub fn terminal_latch(&self) -> ActionTerminalLatch {
+        self.terminal_latch.clone()
+    }
+
     pub fn finish(&self, result: SnapbackResult<Value>) -> SnapbackResult<Value> {
-        let result = result
+        let mut result = result
             .and_then(|value| self.validate_generation().map(|()| value))
             .map_err(|error| self.redactor.redact_error(error));
+        if let Some(error) = self.terminal_latch.error() {
+            result = Err(self.redactor.redact_error(error));
+        }
         #[cfg(test)]
         BEFORE_ACTION_RESULT_HANDOFF_HOOK.with(|slot| {
             if let Some(hook) = slot.borrow_mut().take() {
@@ -4509,6 +4643,9 @@ impl ManagedHostPlanAction {
             Ok(_publication) => result,
             Err(error) => Err(error),
         };
+        if let Some(error) = self.terminal_latch.error() {
+            result = Err(self.redactor.redact_error(error));
+        }
         if let Some(observation) = self
             .observation
             .lock()
@@ -5698,6 +5835,16 @@ impl LocalSnapback {
             token_ids,
             disposition,
         }
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn service_authority_terminal_plan_for_test(
+        &self,
+        token_ids: Vec<String>,
+        disposition: ServiceAuthorityDisposition,
+    ) -> ServiceAuthorityTerminalPlan {
+        self.service_authority_terminal_plan(token_ids, disposition)
     }
 
     pub fn plan_grant_revocation_service_terminal(
@@ -17348,6 +17495,26 @@ impl LocalSnapback {
         )
     }
 
+    /// Managed action child sink. The typed latch is updated at the exact
+    /// storage pre-COMMIT guard so a caught JS/HostPlan refusal cannot hide
+    /// terminal caller-authority loss from the action's final result.
+    pub fn commit_staged_recorded_authorization_mutation_with_action_effect(
+        &mut self,
+        staged: StagedRecordedMutation,
+        authorized_effect: &AuthorizedEffectReservation,
+        terminal_latch: &ActionTerminalLatch,
+    ) -> SnapbackResult<(
+        SnapbackResult<MutationOutput>,
+        Receipt,
+        crate::network_profile::MutationEgressBasis,
+        MutationDependencyCapture,
+    )> {
+        self.commit_staged_recorded_authorization_mutation_inner(
+            staged,
+            MutationEffectPosture::AuthorizedAction(authorized_effect, terminal_latch),
+        )
+    }
+
     fn commit_staged_recorded_authorization_mutation_inner(
         &mut self,
         staged: StagedRecordedMutation,
@@ -17710,7 +17877,6 @@ impl LocalSnapback {
         Check: Fn() -> SnapbackResult<()>,
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
-        prepared.validate_admission("nested host-plan mutation")?;
         let admission = prepared.admission_lease().clone();
         let input = prepared.canonicalize_input(input);
         let correlation = capped_correlation(input.correlation.clone());
@@ -18061,8 +18227,14 @@ impl LocalSnapback {
         Check: Fn() -> SnapbackResult<()>,
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
-        prepared.validate_admission("nested host-plan mutation execution")?;
-        self.persist_and_validate_prepared_service_authority(prepared.authority())?;
+        // @ref LLP 0059#finite-service-authority-fence — the detached host
+        // staged and durably revalidated this exact child before releasing
+        // Local, then reserved its stream/session/service
+        // authority outside Local. Re-resolving the ambient service fence here
+        // would incorrectly reject a predecessor reservation while its
+        // terminal transaction is pending behind that same permit. The
+        // retained service witness is installed by `before_commit` at the
+        // final cut instead.
         check_live()?;
         let function = self.function(name)?.clone();
         if function.kind != FunctionKind::Mutation {
@@ -18106,13 +18278,7 @@ impl LocalSnapback {
                     &input,
                     identity,
                     &check_live,
-                    || {
-                        let admission_guard = prepared
-                            .admission_lease()
-                            .effect_guard("nested host-plan transaction")?;
-                        let caller_guard = before_commit()?;
-                        Ok((admission_guard, caller_guard))
-                    },
+                    before_commit,
                 )?;
                 self.finish_mutation_commit(
                     name,
@@ -18342,8 +18508,12 @@ impl LocalSnapback {
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
         let admission = binding.invocation.admission_lease().clone();
-        admission.validate("detached nested mutation commit")?;
-        self.persist_and_validate_prepared_service_authority(binding.invocation.authority())?;
+        // @ref LLP 0059#finite-service-authority-fence — this exact child was
+        // validated at detached staging and is carried under the caller
+        // reservation acquired outside Local. An ambient
+        // service re-resolution would turn the legal reservation-wins race
+        // into a refusal; the final callback retains the reserved witness
+        // through COMMIT.
         check_live()?;
         let mut input = binding.invocation.canonicalize_input(input);
         bind_authoritative_client_mutation_identity(&mut input, identity.as_ref());
@@ -18410,12 +18580,7 @@ impl LocalSnapback {
                 },
                 identity.as_ref(),
                 check_live,
-                || {
-                    let admission_guard =
-                        admission.effect_guard("detached nested mutation transaction")?;
-                    let caller_guard = before_commit()?;
-                    Ok((admission_guard, caller_guard))
-                },
+                before_commit,
             )?;
         Ok(self
             .finish_mutation_commit(
@@ -22905,6 +23070,7 @@ impl LocalSnapback {
                     app_generation: self.app_generation,
                     app_generation_fence: self.app_generation_fence.clone(),
                     deferred_push_grant,
+                    terminal_latch: ActionTerminalLatch::default(),
                 }))
             }
             _ => StagedAction::HostPlan(invocation),
@@ -22938,6 +23104,7 @@ impl LocalSnapback {
                     .db
                     .mutation_writes()
                     .dry_run_mutation(plan, &canonical_input)?;
+                let staged_effect_count = preview.commit.changes.len();
                 let mut replay_input = canonical_input;
                 replay_input.ctx_ledger = Some(CtxAnswerLedger {
                     version: ctx_ledger_version(),
@@ -22948,6 +23115,7 @@ impl LocalSnapback {
                 Ok(StagedNestedMutation::InLock(StagedHostPlanNestedMutation {
                     preflight: self
                         .authorization_commit_preflight_for_changes(preview.commit.changes),
+                    staged_effect_count,
                     input: replay_input,
                     invocation,
                 }))
@@ -22997,7 +23165,7 @@ impl LocalSnapback {
         binding: &DetachedMutationBinding,
         executed: &mut ExecutedIbexMutation,
         identity: Option<&ClientMutationIdentity>,
-    ) -> SnapbackResult<crate::storage::AuthorizationCommitPreflight> {
+    ) -> SnapbackResult<DetachedNestedMutationPreview> {
         binding
             .invocation
             .validate_admission("detached nested mutation preview")?;
@@ -23047,7 +23215,11 @@ impl LocalSnapback {
                 executed.media_projection_proof.as_ref(),
                 expected_media_projection_binding.as_ref(),
             )?;
-        Ok(self.authorization_commit_preflight_for_changes(preview.changes))
+        let staged_effect_count = preview.changes.len();
+        Ok(DetachedNestedMutationPreview {
+            preflight: self.authorization_commit_preflight_for_changes(preview.changes),
+            staged_effect_count,
+        })
     }
     /// Validate declared config entries fail-closed, validate per-function
     /// `uses` grants, and run the one-time deprecated env-blob import.
@@ -27927,6 +28099,7 @@ impl LocalSnapback {
             app_generation_fence: self.app_generation_fence.clone(),
             redactor: self.config.secret_redactor_for(&function.uses),
             observation: Arc::new(StdMutex::new(Some(observation))),
+            terminal_latch: ActionTerminalLatch::default(),
         })
     }
 
@@ -27943,6 +28116,7 @@ impl LocalSnapback {
         bindings: &BTreeMap<String, Value>,
     ) -> SnapbackResult<(
         crate::storage::AuthorizationCommitPreflight,
+        PreparedAuthority,
         StagedRecordedMutation,
     )> {
         action.validate_generation()?;
@@ -27974,6 +28148,7 @@ impl LocalSnapback {
             &child_input,
             &authority,
         )?;
+        let child_authority = authority.clone();
         self.stage_recorded_authorization_mutation_with_generation_and_settlement_inner(
             name,
             child_input,
@@ -27989,6 +28164,7 @@ impl LocalSnapback {
             None,
             true,
         )
+        .map(|(preflight, staged)| (preflight, child_authority, staged))
     }
 
     pub(crate) fn invoke_action_prepared(
@@ -28056,9 +28232,11 @@ impl LocalSnapback {
                     // raw-read defense) derives a reference from this *mut for one
                     // synchronous call, so no borrow outlives a later write.
                     let snapback = self as *mut LocalSnapback;
+                    let authority =
+                        LegacyLocalActionAuthority::try_new(prepared.authority().clone())?;
                     let mut host = LocalIbexActionHost {
                         snapback,
-                        authority: prepared.authority().clone(),
+                        authority,
                         connected_clients: self.connected_clients.clone(),
                         connected_client_predicate_available: self
                             .db

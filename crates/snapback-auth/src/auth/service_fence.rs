@@ -17,7 +17,7 @@ use crate::auth::service_authority_contract::{
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use std::cell::{Cell, RefCell};
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, Weak};
@@ -60,7 +60,7 @@ struct ServiceAuthorityFenceState {
 
 #[derive(Debug, Default)]
 struct ServiceAuthorityDomainState {
-    pending_tickets: BTreeSet<u64>,
+    pending_tickets: BTreeMap<u64, ServiceAuthorityDisposition>,
 }
 
 #[derive(Debug, Default)]
@@ -79,6 +79,26 @@ pub struct ServiceAuthorityPublication {
     /// publication so later server/local cuts cannot accidentally sample a
     /// different clock domain.
     clock: Option<Arc<AuthProvider>>,
+}
+
+/// Typed result of trying to retain one finite-service authority unit. A
+/// terminal result is safe to latch for an action; a non-terminal refusal is
+/// an operational failure which must not permanently rewrite its cause.
+#[derive(Debug)]
+pub enum ServiceAuthorityWorkReservationError {
+    Terminal {
+        disposition: ServiceAuthorityDisposition,
+        error: SnapbackError,
+    },
+    NonTerminal(SnapbackError),
+}
+
+impl ServiceAuthorityWorkReservationError {
+    pub fn into_error(self) -> SnapbackError {
+        match self {
+            Self::Terminal { error, .. } | Self::NonTerminal(error) => error,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -535,18 +555,32 @@ impl ServiceAuthorityPublication {
         now_ms: u64,
         monotonic_now: Instant,
     ) -> SnapbackResult<ServiceAuthorityWorkPermit> {
+        self.begin_authority_work_classified(now_ms, monotonic_now)
+            .map_err(ServiceAuthorityWorkReservationError::into_error)
+    }
+
+    pub fn begin_authority_work_classified(
+        &self,
+        now_ms: u64,
+        monotonic_now: Instant,
+    ) -> Result<ServiceAuthorityWorkPermit, ServiceAuthorityWorkReservationError> {
         let domain_state = self.domain.state.lock().map_err(|_| {
-            service_authority_unavailable("the service authority domain gate is poisoned")
+            ServiceAuthorityWorkReservationError::NonTerminal(service_authority_unavailable(
+                "the service authority domain gate is poisoned",
+            ))
         })?;
+        if let Some(disposition) = domain_state.pending_tickets.values().copied().next() {
+            return Err(ServiceAuthorityWorkReservationError::Terminal {
+                disposition,
+                error: service_authority_terminal(disposition),
+            });
+        }
         if let Some(witness) = self.active_witness() {
-            if !domain_state.pending_tickets.is_empty() {
-                return Err(service_authority_unavailable(
-                    "finite service authority termination is pending",
-                ));
-            }
             if !try_acquire_service_domain_work(&self.domain) {
-                return Err(service_authority_unavailable(
-                    "finite service authority has too much in-flight work",
+                return Err(ServiceAuthorityWorkReservationError::NonTerminal(
+                    service_authority_unavailable(
+                        "finite service authority has too much in-flight work",
+                    ),
                 ));
             }
             drop(domain_state);
@@ -558,31 +592,36 @@ impl ServiceAuthorityPublication {
             });
         }
         let (now_ms, monotonic_now) = self.sample_clock(now_ms, monotonic_now);
-        let state = self
-            .fence
-            .lock()
-            .map_err(|_| service_authority_unavailable("a service authority fence is poisoned"))?;
+        let state = self.fence.lock().map_err(|_| {
+            ServiceAuthorityWorkReservationError::NonTerminal(service_authority_unavailable(
+                "a service authority fence is poisoned",
+            ))
+        })?;
         if let Some(disposition) = state.terminal {
-            return Err(service_authority_terminal(disposition));
-        }
-        if !domain_state.pending_tickets.is_empty() {
-            return Err(service_authority_unavailable(
-                "finite service authority termination is pending",
-            ));
+            return Err(ServiceAuthorityWorkReservationError::Terminal {
+                disposition,
+                error: service_authority_terminal(disposition),
+            });
         }
         if now_ms < state.validated_at_ms {
-            return Err(service_authority_unavailable(
-                "the service authority clock is behind its validation sample",
+            return Err(ServiceAuthorityWorkReservationError::NonTerminal(
+                service_authority_unavailable(
+                    "the service authority clock is behind its validation sample",
+                ),
             ));
         }
         if Self::deadline_expired_locked(&state, now_ms, monotonic_now) {
-            return Err(service_authority_unavailable(
-                "finite service authority expiry is not yet durably terminal",
+            return Err(ServiceAuthorityWorkReservationError::NonTerminal(
+                service_authority_unavailable(
+                    "finite service authority expiry is not yet durably terminal",
+                ),
             ));
         }
         if !try_acquire_service_domain_work(&self.domain) {
-            return Err(service_authority_unavailable(
-                "finite service authority has too much in-flight work",
+            return Err(ServiceAuthorityWorkReservationError::NonTerminal(
+                service_authority_unavailable(
+                    "finite service authority has too much in-flight work",
+                ),
             ));
         }
         let witness = state.witness.clone();
@@ -699,7 +738,7 @@ impl ServiceAuthorityFenceRegistry {
             let mut state = domain.state.lock().map_err(|_| {
                 service_authority_unavailable("a service authority domain gate is poisoned")
             })?;
-            if !state.pending_tickets.insert(ticket) {
+            if state.pending_tickets.insert(ticket, disposition).is_some() {
                 return Err(service_authority_unavailable(
                     "a service authority terminal ticket was reused",
                 ));

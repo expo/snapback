@@ -18,9 +18,9 @@ use crate::auth::handshake::{
     AuthSessionFacts, AuthSessionResponse,
 };
 use crate::auth::invocation::{
-    AuthorizedEffectReservation, FunctionAttribution, InvocationGate, InvocationSource,
-    PreparedAuthority, ResolvedAppAuthority, WireAuthorityFields,
-    descriptor_for_resolved_authority,
+    AuthorizedEffectCommitGuard, AuthorizedEffectReservation, AuthorizedEffectReservationError,
+    FunctionAttribution, InvocationGate, InvocationSource, PreparedAuthority, ResolvedAppAuthority,
+    WireAuthorityFields, descriptor_for_resolved_authority,
 };
 use crate::auth::lease::{
     AUTHORIZED_LEASE_PROTOCOL_VERSION, AuthorizedLease, AuthorizedLeaseRequestIdentity,
@@ -68,14 +68,14 @@ use crate::live_wire::{
     LiveEnvelope, LiveSocketClientMessage, LiveSocketServerFrame, Receipt, SubscriptionReceiptEvent,
 };
 use crate::local::{
-    AdmittedCronClaim, AppActionStage, AuthProvisionPlan, AuthProvisionResult,
-    AuthorizationInvalidationAckInput, AuthorizationInvalidationManualRetryInput,
-    ConfigVerifyStage, DetachedMutationRead, EnsureAppExplicitInput, EnsureAppMode,
-    EnsureAppRequest, EnsureAppResponse, EphemeralApi, FunctionRunResult, HostOperationParentV1,
-    InspectState, LiveInvalidationAdmission, LiveResumeInput, LiveSubscribeRequest,
-    LiveUnsubscribeInput, LocalSnapback, MaintenanceOperation, StagedAction, StagedAppAction,
-    StagedConfigVerify, StagedNestedMutation, live_stream_text,
-    live_stream_text_with_server_observed,
+    ActionTerminalCause, ActionTerminalLatch, AdmittedCronClaim, AppActionStage, AuthProvisionPlan,
+    AuthProvisionResult, AuthorizationInvalidationAckInput,
+    AuthorizationInvalidationManualRetryInput, ConfigVerifyStage, DetachedMutationRead,
+    EnsureAppExplicitInput, EnsureAppMode, EnsureAppRequest, EnsureAppResponse, EphemeralApi,
+    FunctionRunResult, HostOperationParentV1, InspectState, LiveInvalidationAdmission,
+    LiveResumeInput, LiveSubscribeRequest, LiveUnsubscribeInput, LocalSnapback,
+    MaintenanceOperation, StagedAction, StagedAppAction, StagedConfigVerify, StagedNestedMutation,
+    live_stream_text, live_stream_text_with_server_observed,
 };
 use crate::manifest::{
     ActionReturnValue, ActionStep, AgentsManifest, AgentsMode, ArtifactGeneration, AuthInput,
@@ -163,7 +163,7 @@ use effects::*;
 use instance_home::*;
 use oauth::*;
 pub use response_types::*;
-use writer_gate::lock_managed_snapback;
+use writer_gate::{ManagedWriterCancellation, lock_managed_snapback, lock_managed_snapback_until};
 pub(crate) use writer_gate::{
     with_read_lane, with_snapback_authorization_write, with_snapback_staged_authorization_write,
     with_snapback_then,
@@ -577,6 +577,132 @@ fn parse_action_watchdog_timeout(raw: Option<&str>) -> u64 {
         .unwrap_or(ACTION_WATCHDOG_DEFAULT_MS)
 }
 
+#[cfg(test)]
+#[derive(Default)]
+struct DetachedWatchdogTestCounters {
+    linearizer: std::sync::atomic::AtomicUsize,
+    worker_completed: std::sync::atomic::AtomicUsize,
+    worker_active: std::sync::atomic::AtomicUsize,
+}
+
+#[cfg(test)]
+struct DetachedWatchdogTestConfig {
+    timeout_ms: u64,
+    execution_interrupt_after_watchdog_ms: u64,
+    counters: Arc<DetachedWatchdogTestCounters>,
+}
+
+#[cfg(test)]
+struct DetachedWatchdogTestHandle {
+    state_identity: usize,
+    counters: Arc<DetachedWatchdogTestCounters>,
+}
+
+#[cfg(test)]
+static DETACHED_WATCHDOG_TEST_CONFIGS: OnceLock<
+    StdMutex<std::collections::HashMap<usize, Arc<DetachedWatchdogTestConfig>>>,
+> = OnceLock::new();
+
+#[cfg(test)]
+fn install_detached_watchdog_test_config(
+    state: &SharedSnapback,
+    timeout_ms: u64,
+) -> DetachedWatchdogTestHandle {
+    let state_identity = Arc::as_ptr(state) as usize;
+    let counters = Arc::new(DetachedWatchdogTestCounters::default());
+    let config = Arc::new(DetachedWatchdogTestConfig {
+        timeout_ms,
+        // Production gives the evaluator a small head start so ordinary
+        // async interruption completes before the outer watchdog. This seam
+        // deliberately reverses that order to exercise the real watchdog
+        // linearizer and its bounded worker-drain path.
+        execution_interrupt_after_watchdog_ms: 50,
+        counters: counters.clone(),
+    });
+    let replaced = DETACHED_WATCHDOG_TEST_CONFIGS
+        .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .insert(state_identity, config);
+    assert!(
+        replaced.is_none(),
+        "detached watchdog test config already installed"
+    );
+    DetachedWatchdogTestHandle {
+        state_identity,
+        counters,
+    }
+}
+
+#[cfg(test)]
+impl DetachedWatchdogTestHandle {
+    fn linearizer_count(&self) -> usize {
+        self.counters.linearizer.load(Ordering::Acquire)
+    }
+
+    fn worker_completed_count(&self) -> usize {
+        self.counters.worker_completed.load(Ordering::Acquire)
+    }
+
+    fn worker_active_count(&self) -> usize {
+        self.counters.worker_active.load(Ordering::Acquire)
+    }
+}
+
+#[cfg(test)]
+impl Drop for DetachedWatchdogTestHandle {
+    fn drop(&mut self) {
+        DETACHED_WATCHDOG_TEST_CONFIGS
+            .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .remove(&self.state_identity);
+    }
+}
+
+fn action_watchdog_timeout_for_state(state: &SharedSnapback) -> u64 {
+    #[cfg(test)]
+    if let Some(config) = DETACHED_WATCHDOG_TEST_CONFIGS
+        .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get(&(Arc::as_ptr(state) as usize))
+    {
+        return config.timeout_ms;
+    }
+    let _ = state;
+    action_watchdog_timeout_ms()
+}
+
+#[cfg(test)]
+fn detached_watchdog_test_counters_for_state(
+    state: &SharedSnapback,
+) -> Option<Arc<DetachedWatchdogTestCounters>> {
+    DETACHED_WATCHDOG_TEST_CONFIGS
+        .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get(&(Arc::as_ptr(state) as usize))
+        .map(|config| config.counters.clone())
+}
+
+#[cfg(test)]
+fn detached_watchdog_test_execution_deadline(
+    state: &SharedSnapback,
+    watchdog_deadline: Instant,
+) -> Option<Instant> {
+    DETACHED_WATCHDOG_TEST_CONFIGS
+        .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get(&(Arc::as_ptr(state) as usize))
+        .and_then(|config| {
+            watchdog_deadline.checked_add(Duration::from_millis(
+                config.execution_interrupt_after_watchdog_ms,
+            ))
+        })
+}
+
 const EXPO_PUSH_PRODUCTION_BASE_URL: &str = "https://exp.host";
 // Static v1 pacing: one send attempt owns the provider lane at a time while
 // its <=100-message batches run serially. This is deliberately conservative;
@@ -654,6 +780,154 @@ pub(crate) fn expo_push_fixture_clock_allowed(profile: ServerProfile) -> bool {
             .is_some_and(|value| loopback_provider_base_url(&value))
 }
 
+/// Closed ownership choice for every mutation nested beneath an action.
+/// Caller-backed variants must mint one fresh authorized-effect reservation
+/// per child; only enumerated credential-free system sources use mode-only.
+#[derive(Clone)]
+enum NestedActionEffect {
+    CallerBound(PreparedAuthority),
+    ModeOnlySystem(PreparedAuthority),
+}
+
+impl NestedActionEffect {
+    fn classify(authority: PreparedAuthority) -> Self {
+        match authority.source() {
+            InvocationSource::Cron
+            | InvocationSource::WatchEvaluation
+            | InvocationSource::WatchReaction
+            | InvocationSource::ConfigVerify => Self::ModeOnlySystem(authority),
+            InvocationSource::BootstrapHandshake
+            | InvocationSource::AuthRefresh
+            | InvocationSource::AuthLogout
+            | InvocationSource::PushTokenRegistry
+            | InvocationSource::AgentGrantManagement
+            | InvocationSource::HttpQuery
+            | InvocationSource::HttpMutation
+            | InvocationSource::HttpAction
+            | InvocationSource::HttpRun
+            | InvocationSource::HttpAsk
+            | InvocationSource::HttpMcp
+            | InvocationSource::HttpCapabilityLink
+            | InvocationSource::CapabilityLinkManagement
+            | InvocationSource::EffectManagement
+            | InvocationSource::EffectExecution
+            | InvocationSource::WatchManagement
+            | InvocationSource::LocalQuery
+            | InvocationSource::LocalMutation
+            | InvocationSource::LocalAction
+            | InvocationSource::AssetCallback
+            | InvocationSource::DirectAdminRunner
+            | InvocationSource::OperatorCommand
+            | InvocationSource::HostOperationFunctionRun
+            | InvocationSource::HostOperationMutationDryRun
+            | InvocationSource::ProtectedRecordErasure
+            | InvocationSource::OperationCoverageActivation
+            | InvocationSource::BranchOperation
+            | InvocationSource::NestedMutation
+            | InvocationSource::LiveInitialQuery
+            | InvocationSource::LiveRerun
+            | InvocationSource::MutationSettlementAcknowledgement
+            | InvocationSource::InvalidationAcknowledgement
+            | InvocationSource::AssetTransfer
+            | InvocationSource::ConnectionOpen
+            | InvocationSource::ConnectionClose
+            | InvocationSource::EphemeralRegister
+            | InvocationSource::EphemeralPublish
+            | InvocationSource::EphemeralDelete
+            | InvocationSource::EphemeralSubscribe
+            | InvocationSource::EphemeralUnsubscribe
+            | InvocationSource::LiveResume
+            | InvocationSource::LiveUnsubscribe
+            | InvocationSource::LiveSupersede
+            | InvocationSource::LiveStream
+            | InvocationSource::OutboxDrain => Self::CallerBound(authority),
+        }
+    }
+
+    /// Preserve the outer action's ownership class while replacing the
+    /// retained outer carrier with the exact authority prepared for this
+    /// child mutation.
+    fn bind_child(&self, authority: PreparedAuthority) -> Self {
+        match self {
+            Self::CallerBound(_) => Self::CallerBound(authority),
+            Self::ModeOnlySystem(_) => Self::ModeOnlySystem(authority),
+        }
+    }
+
+    fn reserve(
+        &self,
+        latch: &ActionTerminalLatch,
+    ) -> SnapbackResult<NestedActionEffectReservation> {
+        match self {
+            Self::CallerBound(authority) => authority
+                .reserve_authorized_effect_classified("detached action child mutation")
+                .map(NestedActionEffectReservation::CallerBound)
+                .map_err(|error| match error {
+                    AuthorizedEffectReservationError::Terminal(cause) => latch.latch_caller(cause),
+                    AuthorizedEffectReservationError::NonTerminal(error) => error,
+                }),
+            Self::ModeOnlySystem(authority) => Ok(NestedActionEffectReservation::ModeOnlySystem(
+                authority.clone(),
+            )),
+        }
+    }
+}
+
+enum NestedActionEffectReservation {
+    CallerBound(AuthorizedEffectReservation),
+    ModeOnlySystem(PreparedAuthority),
+}
+
+#[cfg(test)]
+impl NestedActionEffectReservation {
+    fn identity_for_test(&self) -> u64 {
+        match self {
+            Self::CallerBound(reservation) => reservation.identity_for_test(),
+            Self::ModeOnlySystem(_) => 0,
+        }
+    }
+
+    fn has_service_permit_for_test(&self) -> bool {
+        match self {
+            Self::CallerBound(reservation) => reservation.has_service_permit_for_test(),
+            Self::ModeOnlySystem(_) => false,
+        }
+    }
+}
+
+#[allow(dead_code)]
+enum NestedActionEffectCommitGuard<'a> {
+    CallerBound(AuthorizedEffectCommitGuard<'a>),
+    ModeOnlySystem(crate::auth::admission::AdmissionEffectGuard<'a>),
+}
+
+struct NestedActionCommitGateGuard<'a> {
+    #[allow(dead_code)]
+    guard: std::sync::MutexGuard<'a, ()>,
+    #[cfg(test)]
+    _proof: Option<NestedActionGateProofForTest>,
+}
+
+impl NestedActionEffectReservation {
+    fn commit_guard<'a>(
+        &'a self,
+        latch: &ActionTerminalLatch,
+    ) -> SnapbackResult<NestedActionEffectCommitGuard<'a>> {
+        match self {
+            Self::CallerBound(reservation) => reservation
+                .commit_guard_classified("detached action child mutation commit")
+                .map(NestedActionEffectCommitGuard::CallerBound)
+                .map_err(|error| match error {
+                    AuthorizedEffectReservationError::Terminal(cause) => latch.latch_caller(cause),
+                    AuthorizedEffectReservationError::NonTerminal(error) => error,
+                }),
+            Self::ModeOnlySystem(authority) => authority
+                .mode_effect_guard("detached system action child mutation commit")
+                .map(NestedActionEffectCommitGuard::ModeOnlySystem),
+        }
+    }
+}
+
 /// The action host for detached (off-mutex) Ibex action runs. Raw action
 /// `ctx.db` operations are rejected before host dispatch; the trait's read
 /// methods retain a short-lock defense in depth. Ibex mutations execute into
@@ -677,10 +951,15 @@ struct DetachedActionHost {
     /// room permit cannot strand the worker past the public timeout.
     active_reservation:
         Arc<StdMutex<Option<Arc<crate::storage::AuthorizationReservationCancellation>>>>,
+    writer_cancellation: Arc<ManagedWriterCancellation>,
+    writer_runtime: tokio::runtime::Handle,
+    nested_writer_timed_out: AtomicBool,
+    terminal_latch: ActionTerminalLatch,
     deadline: Instant,
     app_generation: u64,
     app_generation_fence: Arc<AtomicU64>,
     authority: PreparedAuthority,
+    nested_effect: NestedActionEffect,
     /// The exact per-function config grant staged with this invocation. Push
     /// may consume only seam-declared entries that the action also named in
     /// `uses`; no app argument can widen this set.
@@ -832,11 +1111,24 @@ impl DetachedActionHost {
         attempt_token: &str,
         cause: crate::stream_attempt::StreamAttemptCause,
     ) -> SnapbackResult<crate::stream_attempt::StreamAttemptTerminal> {
+        #[cfg(test)]
+        if let Some(counters) = provider_settle_test_counters_for_state(&self.state) {
+            counters.provider_invoked.fetch_add(1, Ordering::SeqCst);
+        }
         // Linearize the final liveness recheck and terminal CAS against
         // watchdog abandonment. The watchdog cannot publish `abandoned`
         // while this guard is held, and this worker cannot mutate after the
         // watchdog has acquired it and published abandonment.
-        let commit = self.lock_commit_live("streamAttempt.providerSettle")?;
+        let commit = match self.lock_commit_live("streamAttempt.providerSettle") {
+            Ok(commit) => commit,
+            Err(error) => {
+                #[cfg(test)]
+                if let Some(counters) = provider_settle_test_counters_for_state(&self.state) {
+                    counters.provider_refused.fetch_add(1, Ordering::SeqCst);
+                }
+                return Err(error);
+            }
+        };
         let terminal = crate::stream_attempt::global_stream_attempt_registry()
             .settle_provider_outcome_host(&self.stream_runner_host, attempt_token, cause)?;
         drop(commit);
@@ -1030,6 +1322,11 @@ impl DetachedActionHost {
                     if guard.persist_stream_attempts(&batch).is_ok() {
                         drop(guard);
                         registry.clear_flushed(&snapshots);
+                        #[cfg(test)]
+                        if let Some(counters) = provider_settle_test_counters_for_state(&self.state)
+                        {
+                            counters.flush_completed.fetch_add(1, Ordering::SeqCst);
+                        }
                     }
                     return;
                 }
@@ -1119,6 +1416,13 @@ impl DetachedActionHost {
     }
 
     fn validate_live(&self, op: &str) -> SnapbackResult<()> {
+        if let Some(error) = self.terminal_latch.error() {
+            return Err(error);
+        }
+        self.validate_runtime_live(op)
+    }
+
+    fn validate_runtime_live(&self, op: &str) -> SnapbackResult<()> {
         if self.abandoned.load(Ordering::SeqCst) {
             return Err(action_abandoned(op));
         }
@@ -1134,6 +1438,87 @@ impl DetachedActionHost {
             return Err(action_deadline_elapsed(op));
         }
         Ok(())
+    }
+
+    fn reserve_nested_effect(
+        &self,
+        child_authority: PreparedAuthority,
+    ) -> SnapbackResult<NestedActionEffectReservation> {
+        let reservation = match self
+            .nested_effect
+            .bind_child(child_authority)
+            .reserve(&self.terminal_latch)
+        {
+            Ok(reservation) => reservation,
+            Err(error) => {
+                #[cfg(test)]
+                record_nested_latch_refusal_for_test(&self.state, &error, &self.terminal_latch);
+                return Err(error);
+            }
+        };
+        #[cfg(test)]
+        let reservation =
+            configure_nested_commit_order_reservation_for_test(&self.state, reservation);
+        Ok(reservation)
+    }
+
+    fn lock_nested_writer(
+        &self,
+        reservation_started: Instant,
+        op: &str,
+    ) -> SnapbackResult<ScopedLocalSnapbackGuard> {
+        self.validate_live(op)?;
+        let reservation_deadline = reservation_started
+            .checked_add(Duration::from_secs(5))
+            .unwrap_or(self.deadline);
+        let deadline = self.deadline.min(reservation_deadline);
+        let guard = self.writer_runtime.block_on(lock_managed_snapback_until(
+            &self.state,
+            deadline,
+            Some(self.writer_cancellation.as_ref()),
+        ));
+        let Some(guard) = guard else {
+            self.validate_live(op)?;
+            self.nested_writer_timed_out.store(true, Ordering::Release);
+            return Err(action_deadline_elapsed(op));
+        };
+        let scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        self.validate_live(op)?;
+        let current_generation = guard.app_generation();
+        if current_generation != self.app_generation {
+            return Err(action_generation_conflict(
+                op,
+                self.app_generation,
+                current_generation,
+            ));
+        }
+        Ok(ScopedLocalSnapbackGuard {
+            guard: Some(guard),
+            scope: Some(scope),
+        })
+    }
+
+    fn lock_nested_commit<'a>(
+        &'a self,
+        reservation: &'a NestedActionEffectReservation,
+    ) -> SnapbackResult<(
+        NestedActionCommitGateGuard<'a>,
+        NestedActionEffectCommitGuard<'a>,
+    )> {
+        let action = self.lock_commit_live("runMutation")?;
+        #[cfg(test)]
+        let (proof, order_probe) = begin_nested_action_gate_proof_for_test(&self.state);
+        let action = NestedActionCommitGateGuard {
+            guard: action,
+            #[cfg(test)]
+            _proof: proof,
+        };
+        let authority = reservation.commit_guard(&self.terminal_latch)?;
+        #[cfg(test)]
+        if let Some(probe) = order_probe {
+            install_nested_storage_precommit_proof_for_test(probe, reservation);
+        }
+        Ok((action, authority))
     }
 
     fn lock_live(&self, op: &str) -> SnapbackResult<ScopedLocalSnapbackGuard> {
@@ -1259,6 +1644,11 @@ impl DetachedActionHost {
 
 impl IbexActionHost for DetachedActionHost {
     fn validate_host_call(&mut self, op: &str) -> SnapbackResult<()> {
+        if let Some(error) = self.terminal_latch.error() {
+            #[cfg(test)]
+            record_nested_latch_refusal_for_test(&self.state, &error, &self.terminal_latch);
+            return Err(error);
+        }
         if crate::instance_fork::EgressFamily::for_derived_host_op(op).is_some() {
             let snapback = self.lock_live(op)?;
             snapback.deny_derived_fork_host_op_admitted(&self.authority, op, now_millis())?;
@@ -1280,9 +1670,18 @@ impl IbexActionHost for DetachedActionHost {
                     let mut snapback = self.lock_live(op)?;
                     snapback.persist_service_deadline_if_due(&self.authority)?;
                 }
-                self.external_effect_permit = self
+                self.external_effect_permit = match self
                     .authority
-                    .begin_service_external_effect(now_millis(), Instant::now())?;
+                    .begin_service_external_effect_classified(now_millis(), Instant::now())
+                {
+                    Ok(permit) => permit,
+                    Err(AuthorizedEffectReservationError::Terminal(cause)) => {
+                        return Err(self.terminal_latch.latch_caller(cause));
+                    }
+                    Err(AuthorizedEffectReservationError::NonTerminal(error)) => {
+                        return Err(error);
+                    }
+                };
                 self.external_effect_open = true;
                 Ok(())
             }
@@ -1338,14 +1737,41 @@ impl IbexActionHost for DetachedActionHost {
             .inherit_for(InvocationSource::NestedMutation)?;
         let host_identity =
             snapback.covered_host_child_identity(&self.host_operation, name, &input, &authority)?;
+        #[cfg(test)]
+        record_nested_mutation_stage_for_test(&self.state, name);
         match snapback.stage_nested_mutation(name, &input, authority, host_identity.as_ref())? {
             StagedNestedMutation::InLock(staged) => {
+                let child_authority = staged.invocation.authority().clone();
                 let snapshot = snapback.authorization_reservation_snapshot()?;
                 let ephemeral = snapback.ephemeral_api();
                 drop(snapback);
                 let reservation = self.reserve_authorization_commit(ephemeral, staged.preflight)?;
-
-                let mut snapback = self.lock_live("runMutation")?;
+                #[cfg(test)]
+                pause_detached_nested_mutation_for_test(
+                    &self.state,
+                    "hostPlan",
+                    staged.staged_effect_count,
+                );
+                let effect = match self.reserve_nested_effect(child_authority) {
+                    Ok(effect) => effect,
+                    Err(error) => {
+                        reservation.cancel();
+                        return Err(error);
+                    }
+                };
+                #[cfg(test)]
+                pause_nested_effect_reservation_for_test(&self.state, "hostPlan", &effect);
+                let reservation_started = Instant::now();
+                #[cfg(test)]
+                record_nested_writer_budget_start_for_test(&self.state, Some(&effect));
+                let mut snapback = match self.lock_nested_writer(reservation_started, "runMutation")
+                {
+                    Ok(snapback) => snapback,
+                    Err(error) => {
+                        reservation.cancel();
+                        return Err(error);
+                    }
+                };
                 if snapback.authorization_reservation_snapshot()? != snapshot {
                     drop(snapback);
                     reservation.cancel();
@@ -1359,7 +1785,7 @@ impl IbexActionHost for DetachedActionHost {
                         staged.invocation,
                         host_identity,
                         || self.validate_live("runMutation"),
-                        || self.lock_commit_live("runMutation"),
+                        || self.lock_nested_commit(&effect),
                     )
                 }));
                 let unused = reservation_scope.take_unused();
@@ -1385,6 +1811,7 @@ impl IbexActionHost for DetachedActionHost {
             }
             StagedNestedMutation::Detached(staged) => {
                 let crate::local::DetachedIbexMutation { binding, read } = *staged;
+                let child_authority = binding.invocation.authority().clone();
                 let mut input = binding.invocation.canonicalize_input(input);
                 crate::local::bind_authoritative_client_mutation_identity(
                     &mut input,
@@ -1437,7 +1864,7 @@ impl IbexActionHost for DetachedActionHost {
                     // preview its immutable buffered effects, then release Local
                     // before the potentially blocking room reservation.
                     let mut snapback = self.lock_live("runMutation")?;
-                    let preflight = snapback.preview_detached_nested_authorization_mutation(
+                    let preview = snapback.preview_detached_nested_authorization_mutation(
                         name,
                         &input,
                         &binding,
@@ -1447,14 +1874,43 @@ impl IbexActionHost for DetachedActionHost {
                     let snapshot = snapback.authorization_reservation_snapshot()?;
                     let ephemeral = snapback.ephemeral_api();
                     drop(snapback);
-                    let reservation = self.reserve_authorization_commit(ephemeral, preflight)?;
+                    let reservation =
+                        self.reserve_authorization_commit(ephemeral, preview.preflight)?;
+                    #[cfg(test)]
+                    pause_detached_nested_mutation_for_test(
+                        &self.state,
+                        "ibex",
+                        preview.staged_effect_count,
+                    );
+                    let effect = match self.reserve_nested_effect(child_authority) {
+                        Ok(effect) => effect,
+                        Err(error) => {
+                            reservation.cancel();
+                            return Err(error);
+                        }
+                    };
+                    #[cfg(test)]
+                    pause_nested_effect_reservation_for_test(&self.state, "ibex", &effect);
+                    // The bounded writer wait begins only after the exact
+                    // caller reservation exists (and after its proof seam
+                    // releases).
+                    let reservation_started = Instant::now();
+                    #[cfg(test)]
+                    record_nested_writer_budget_start_for_test(&self.state, Some(&effect));
 
                     // Acquire the instance before the independent commit gate. A
                     // wedged writer cannot strand this action worker: lock_live
                     // polls abandonment/deadline without holding either lock. If
                     // this call gets the gate first, the watchdog waits only for
                     // the bounded validation/SQLite commit (ENG-24340).
-                    let mut snapback = self.lock_live("runMutation")?;
+                    let mut snapback =
+                        match self.lock_nested_writer(reservation_started, "runMutation") {
+                            Ok(snapback) => snapback,
+                            Err(error) => {
+                                reservation.cancel();
+                                return Err(error);
+                            }
+                        };
                     if snapback.authorization_reservation_snapshot()? != snapshot {
                         drop(snapback);
                         reservation.cancel();
@@ -1469,7 +1925,7 @@ impl IbexActionHost for DetachedActionHost {
                             executed,
                             host_identity,
                             || self.validate_live("runMutation"),
-                            || self.lock_commit_live("runMutation"),
+                            || self.lock_nested_commit(&effect),
                         )
                     }));
                     let unused = reservation_scope.take_unused();
@@ -2586,6 +3042,7 @@ fn action_abandoned(op: &str) -> SnapbackError {
         "runtime",
         format!("ctx.{op} rejected: the action exceeded its wall-clock watchdog and was abandoned"),
     )
+    .with_details(json!({ "effectCommitted": false }))
 }
 
 fn action_deadline_elapsed(op: &str) -> SnapbackError {
@@ -2596,6 +3053,20 @@ fn action_deadline_elapsed(op: &str) -> SnapbackError {
             "ctx.{op} rejected: the action exceeded its wall-clock execution deadline before the host operation could complete"
         ),
     )
+    .with_details(json!({ "effectCommitted": false }))
+}
+
+fn retain_nested_writer_timeout_facts(mut error: SnapbackError) -> SnapbackError {
+    if !error.diagnostic.details.is_object() {
+        error.diagnostic.details = Value::Object(serde_json::Map::new());
+    }
+    error
+        .diagnostic
+        .details
+        .as_object_mut()
+        .expect("nested writer timeout details were normalized")
+        .insert("effectCommitted".to_owned(), Value::Bool(false));
+    error
 }
 
 fn action_generation_conflict(op: &str, staged: u64, current: u64) -> SnapbackError {
@@ -2627,11 +3098,17 @@ fn linearize_detached_action_abandonment(
     active_reservation: &StdMutex<
         Option<Arc<crate::storage::AuthorizationReservationCancellation>>,
     >,
+    writer_cancellation: &ManagedWriterCancellation,
+    terminal_latch: &ActionTerminalLatch,
 ) {
     let _gate = commit_gate
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
+    terminal_latch.latch(ActionTerminalCause::WatchdogTimeout(action_abandoned(
+        "watchdog",
+    )));
     abandoned.store(true, Ordering::SeqCst);
+    writer_cancellation.cancel();
     if let Some(cancellation) = active_reservation
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -2642,37 +3119,907 @@ fn linearize_detached_action_abandonment(
 }
 
 #[cfg(test)]
-static PROVIDER_SETTLE_ABANDONMENT_TEST_HOOKS: OnceLock<StdMutex<BTreeSet<usize>>> =
-    OnceLock::new();
+#[derive(Default)]
+struct ProviderSettleTestCounters {
+    hook_fired: AtomicBool,
+    authority_latch_first: AtomicBool,
+    provider_invoked: std::sync::atomic::AtomicUsize,
+    provider_refused: std::sync::atomic::AtomicUsize,
+    trusted_fallback_invoked: std::sync::atomic::AtomicUsize,
+    terminal_cas_won: std::sync::atomic::AtomicUsize,
+    flush_completed: std::sync::atomic::AtomicUsize,
+}
 
 #[cfg(test)]
-fn install_provider_settle_abandonment_test_hook(state: &SharedSnapback) {
+struct ProviderSettleTestHandle {
+    state_identity: usize,
+    counters: Arc<ProviderSettleTestCounters>,
+}
+
+#[cfg(test)]
+static PROVIDER_SETTLE_ABANDONMENT_TEST_HOOKS: OnceLock<
+    StdMutex<std::collections::HashMap<usize, Arc<ProviderSettleTestCounters>>>,
+> = OnceLock::new();
+
+#[cfg(test)]
+fn install_provider_settle_abandonment_test_hook_with_cause(
+    state: &SharedSnapback,
+    authority_latch_first: bool,
+) -> ProviderSettleTestHandle {
     let identity = Arc::as_ptr(state) as usize;
+    let counters = Arc::new(ProviderSettleTestCounters::default());
+    counters
+        .authority_latch_first
+        .store(authority_latch_first, Ordering::Release);
     let mut hooks = PROVIDER_SETTLE_ABANDONMENT_TEST_HOOKS
-        .get_or_init(|| StdMutex::new(BTreeSet::new()))
+        .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     assert!(
-        hooks.insert(identity),
+        hooks.insert(identity, counters.clone()).is_none(),
         "provider-settle abandonment hook already installed for this instance"
     );
+    ProviderSettleTestHandle {
+        state_identity: identity,
+        counters,
+    }
+}
+
+#[cfg(test)]
+impl ProviderSettleTestHandle {
+    fn counts(&self) -> (usize, usize, usize, usize, usize) {
+        (
+            self.counters.provider_invoked.load(Ordering::Acquire),
+            self.counters.provider_refused.load(Ordering::Acquire),
+            self.counters
+                .trusted_fallback_invoked
+                .load(Ordering::Acquire),
+            self.counters.terminal_cas_won.load(Ordering::Acquire),
+            self.counters.flush_completed.load(Ordering::Acquire),
+        )
+    }
+}
+
+#[cfg(test)]
+impl Drop for ProviderSettleTestHandle {
+    fn drop(&mut self) {
+        PROVIDER_SETTLE_ABANDONMENT_TEST_HOOKS
+            .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .remove(&self.state_identity);
+    }
+}
+
+#[cfg(test)]
+fn provider_settle_test_counters_for_state(
+    state: &SharedSnapback,
+) -> Option<Arc<ProviderSettleTestCounters>> {
+    PROVIDER_SETTLE_ABANDONMENT_TEST_HOOKS
+        .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get(&(Arc::as_ptr(state) as usize))
+        .cloned()
 }
 
 #[cfg(test)]
 fn run_provider_settle_abandonment_test_hook(host: &DetachedActionHost) {
     let identity = Arc::as_ptr(&host.state) as usize;
-    let armed = PROVIDER_SETTLE_ABANDONMENT_TEST_HOOKS
-        .get_or_init(|| StdMutex::new(BTreeSet::new()))
+    let counters = PROVIDER_SETTLE_ABANDONMENT_TEST_HOOKS
+        .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .remove(&identity);
-    if armed {
+        .get(&identity)
+        .cloned();
+    if let Some(counters) = counters
+        && !counters.hook_fired.swap(true, Ordering::AcqRel)
+    {
+        if counters.authority_latch_first.load(Ordering::Acquire) {
+            host.terminal_latch
+                .latch(ActionTerminalCause::CallerAuthority(
+                    crate::auth::invocation::CallerAuthorityTerminalCause::AdmissionEpochRetired {
+                        error: SnapbackError::error(
+                            "SNAPBACK_AUTH_SESSION_EXPIRED",
+                            "auth",
+                            "the caller session ended before provider settlement",
+                        ),
+                    },
+                ));
+        }
         linearize_detached_action_abandonment(
             host.commit_gate.as_ref(),
             host.abandoned.as_ref(),
             host.active_reservation.as_ref(),
+            host.writer_cancellation.as_ref(),
+            &host.terminal_latch,
         );
     }
+}
+
+#[cfg(test)]
+thread_local! {
+    static NESTED_ACTION_GATE_DEPTH_FOR_TEST: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+struct NestedActionGateProofForTest;
+
+#[cfg(test)]
+impl NestedActionGateProofForTest {
+    fn enter() -> Self {
+        NESTED_ACTION_GATE_DEPTH_FOR_TEST.with(|depth| depth.set(depth.get() + 1));
+        Self
+    }
+
+    fn held() -> bool {
+        NESTED_ACTION_GATE_DEPTH_FOR_TEST.with(|depth| depth.get() > 0)
+    }
+}
+
+#[cfg(test)]
+impl Drop for NestedActionGateProofForTest {
+    fn drop(&mut self) {
+        NESTED_ACTION_GATE_DEPTH_FOR_TEST.with(|depth| {
+            depth.set(
+                depth
+                    .get()
+                    .checked_sub(1)
+                    .expect("action gate proof underflow"),
+            );
+        });
+    }
+}
+
+#[cfg(test)]
+#[derive(Default)]
+struct NestedCommitOrderTestState {
+    sequence: std::sync::atomic::AtomicUsize,
+    action_gate_count: std::sync::atomic::AtomicUsize,
+    authorized_preguard_count: std::sync::atomic::AtomicUsize,
+    storage_precommit_count: std::sync::atomic::AtomicUsize,
+    action_order: std::sync::atomic::AtomicUsize,
+    authorized_order: std::sync::atomic::AtomicUsize,
+    storage_order: std::sync::atomic::AtomicUsize,
+    pause_storage: AtomicBool,
+    storage_reached: AtomicBool,
+    storage_released: AtomicBool,
+    storage_lock: StdMutex<()>,
+    storage_changed: std::sync::Condvar,
+}
+
+#[cfg(test)]
+impl NestedCommitOrderTestState {
+    fn next(&self) -> usize {
+        self.sequence.fetch_add(1, Ordering::SeqCst) + 1
+    }
+}
+
+#[cfg(test)]
+struct NestedCommitOrderTestProbe {
+    state_identity: usize,
+    state: Arc<NestedCommitOrderTestState>,
+}
+
+#[cfg(test)]
+static NESTED_COMMIT_ORDER_TEST_PROBES: OnceLock<
+    StdMutex<std::collections::HashMap<usize, Arc<NestedCommitOrderTestState>>>,
+> = OnceLock::new();
+
+#[cfg(test)]
+fn install_nested_commit_order_test_probe(
+    state: &SharedSnapback,
+    pause_storage: bool,
+) -> NestedCommitOrderTestProbe {
+    let state_identity = Arc::as_ptr(state) as usize;
+    let probe = Arc::new(NestedCommitOrderTestState::default());
+    probe.pause_storage.store(pause_storage, Ordering::Release);
+    let replaced = NESTED_COMMIT_ORDER_TEST_PROBES
+        .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .insert(state_identity, probe.clone());
+    assert!(
+        replaced.is_none(),
+        "nested commit-order probe already installed"
+    );
+    NestedCommitOrderTestProbe {
+        state_identity,
+        state: probe,
+    }
+}
+
+#[cfg(test)]
+impl NestedCommitOrderTestProbe {
+    async fn wait_for_storage(&self) {
+        while !self.state.storage_reached.load(Ordering::Acquire) {
+            tokio::task::yield_now().await;
+        }
+    }
+
+    fn release_storage(&self) {
+        self.state.storage_released.store(true, Ordering::Release);
+        self.state.storage_changed.notify_all();
+    }
+
+    fn counts(&self) -> (usize, usize, usize) {
+        (
+            self.state.action_gate_count.load(Ordering::Acquire),
+            self.state.authorized_preguard_count.load(Ordering::Acquire),
+            self.state.storage_precommit_count.load(Ordering::Acquire),
+        )
+    }
+
+    fn orders(&self) -> (usize, usize, usize) {
+        (
+            self.state.action_order.load(Ordering::Acquire),
+            self.state.authorized_order.load(Ordering::Acquire),
+            self.state.storage_order.load(Ordering::Acquire),
+        )
+    }
+}
+
+#[cfg(test)]
+impl Drop for NestedCommitOrderTestProbe {
+    fn drop(&mut self) {
+        self.release_storage();
+        let mut probes = NESTED_COMMIT_ORDER_TEST_PROBES
+            .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if probes
+            .get(&self.state_identity)
+            .is_some_and(|current| Arc::ptr_eq(current, &self.state))
+        {
+            probes.remove(&self.state_identity);
+        }
+    }
+}
+
+#[cfg(test)]
+fn configure_nested_commit_order_reservation_for_test(
+    state: &SharedSnapback,
+    reservation: NestedActionEffectReservation,
+) -> NestedActionEffectReservation {
+    let identity = Arc::as_ptr(state) as usize;
+    let probe = NESTED_COMMIT_ORDER_TEST_PROBES
+        .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get(&identity)
+        .cloned();
+    match (reservation, probe) {
+        (NestedActionEffectReservation::CallerBound(reservation), Some(probe)) => {
+            NestedActionEffectReservation::CallerBound(
+                reservation.with_before_commit_guard_for_test(move |_| {
+                    assert!(
+                        NestedActionGateProofForTest::held(),
+                        "authorized guard must follow the action gate"
+                    );
+                    probe
+                        .authorized_preguard_count
+                        .fetch_add(1, Ordering::SeqCst);
+                    probe.authorized_order.store(probe.next(), Ordering::SeqCst);
+                }),
+            )
+        }
+        (reservation, _) => reservation,
+    }
+}
+
+#[cfg(test)]
+fn begin_nested_action_gate_proof_for_test(
+    state: &SharedSnapback,
+) -> (
+    Option<NestedActionGateProofForTest>,
+    Option<Arc<NestedCommitOrderTestState>>,
+) {
+    let identity = Arc::as_ptr(state) as usize;
+    let probe = NESTED_COMMIT_ORDER_TEST_PROBES
+        .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .remove(&identity);
+    let Some(probe) = probe else {
+        return (None, None);
+    };
+    let proof = NestedActionGateProofForTest::enter();
+    probe.action_gate_count.fetch_add(1, Ordering::SeqCst);
+    probe.action_order.store(probe.next(), Ordering::SeqCst);
+    (Some(proof), Some(probe))
+}
+
+#[cfg(test)]
+fn install_nested_storage_precommit_proof_for_test(
+    probe: Arc<NestedCommitOrderTestState>,
+    reservation: &NestedActionEffectReservation,
+) {
+    let NestedActionEffectReservation::CallerBound(reservation) = reservation else {
+        panic!("caller-bound commit-order probe reached a mode-only reservation");
+    };
+    let mode_identity = reservation
+        .mode_guard_identity_for_test()
+        .expect("served finite action has a managed mode guard identity");
+    crate::storage::install_app_storage_precommit_for_test(move || {
+        assert!(
+            NestedActionGateProofForTest::held(),
+            "storage COMMIT must retain the action gate"
+        );
+        assert!(
+            crate::storage::current_thread_holds_admission_effect_guard_for_test(mode_identity),
+            "storage COMMIT must retain the exact mode guard"
+        );
+        probe.storage_precommit_count.fetch_add(1, Ordering::SeqCst);
+        probe.storage_order.store(probe.next(), Ordering::SeqCst);
+        probe.storage_reached.store(true, Ordering::Release);
+        probe.storage_changed.notify_all();
+        if probe.pause_storage.load(Ordering::Acquire) {
+            let mut lock = probe
+                .storage_lock
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            while !probe.storage_released.load(Ordering::Acquire) {
+                lock = probe
+                    .storage_changed
+                    .wait(lock)
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+            }
+        }
+    });
+}
+
+#[cfg(test)]
+#[derive(Default)]
+struct NestedLatchTestObservationState {
+    staged_targets: StdMutex<BTreeMap<String, usize>>,
+    refusal_codes: StdMutex<Vec<String>>,
+    worker_outcomes: StdMutex<Vec<Option<String>>>,
+    latch_wins: std::sync::atomic::AtomicUsize,
+}
+
+#[cfg(test)]
+struct NestedLatchTestObservation {
+    state_identity: usize,
+    state: Arc<NestedLatchTestObservationState>,
+}
+
+#[cfg(test)]
+static NESTED_LATCH_TEST_OBSERVATIONS: OnceLock<
+    StdMutex<std::collections::HashMap<usize, Arc<NestedLatchTestObservationState>>>,
+> = OnceLock::new();
+
+#[cfg(test)]
+fn install_nested_latch_test_observation(state: &SharedSnapback) -> NestedLatchTestObservation {
+    let state_identity = Arc::as_ptr(state) as usize;
+    let observation = Arc::new(NestedLatchTestObservationState::default());
+    let replaced = NESTED_LATCH_TEST_OBSERVATIONS
+        .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .insert(state_identity, observation.clone());
+    assert!(
+        replaced.is_none(),
+        "nested latch observation already installed"
+    );
+    NestedLatchTestObservation {
+        state_identity,
+        state: observation,
+    }
+}
+
+#[cfg(test)]
+impl NestedLatchTestObservation {
+    fn staged_count(&self, name: &str) -> usize {
+        self.state
+            .staged_targets
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(name)
+            .copied()
+            .unwrap_or(0)
+    }
+
+    fn refusal_codes(&self) -> Vec<String> {
+        self.state
+            .refusal_codes
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+    }
+
+    fn worker_outcomes(&self) -> Vec<Option<String>> {
+        self.state
+            .worker_outcomes
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+    }
+
+    fn latch_wins(&self) -> usize {
+        self.state.latch_wins.load(Ordering::Acquire)
+    }
+}
+
+#[cfg(test)]
+impl Drop for NestedLatchTestObservation {
+    fn drop(&mut self) {
+        let mut observations = NESTED_LATCH_TEST_OBSERVATIONS
+            .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if observations
+            .get(&self.state_identity)
+            .is_some_and(|current| Arc::ptr_eq(current, &self.state))
+        {
+            observations.remove(&self.state_identity);
+        }
+    }
+}
+
+#[cfg(test)]
+fn nested_latch_observation_for_test(
+    state: &SharedSnapback,
+) -> Option<Arc<NestedLatchTestObservationState>> {
+    NESTED_LATCH_TEST_OBSERVATIONS
+        .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get(&(Arc::as_ptr(state) as usize))
+        .cloned()
+}
+
+#[cfg(test)]
+fn record_nested_mutation_stage_for_test(state: &SharedSnapback, name: &str) {
+    let Some(observation) = nested_latch_observation_for_test(state) else {
+        return;
+    };
+    *observation
+        .staged_targets
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .entry(name.to_owned())
+        .or_default() += 1;
+}
+
+#[cfg(test)]
+fn record_nested_latch_refusal_for_test(
+    state: &SharedSnapback,
+    error: &SnapbackError,
+    latch: &ActionTerminalLatch,
+) {
+    let Some(observation) = nested_latch_observation_for_test(state) else {
+        return;
+    };
+    observation
+        .refusal_codes
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .push(error.diagnostic.code.clone());
+    observation
+        .latch_wins
+        .store(latch.latch_wins_for_test(), Ordering::Release);
+}
+
+#[cfg(test)]
+fn record_nested_worker_outcome_for_test(state: &SharedSnapback, result: &SnapbackResult<Value>) {
+    let Some(observation) = nested_latch_observation_for_test(state) else {
+        return;
+    };
+    observation
+        .worker_outcomes
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .push(
+            result
+                .as_ref()
+                .err()
+                .map(|error| error.diagnostic.code.clone()),
+        );
+}
+
+#[cfg(test)]
+struct DetachedNestedMutationTestPauseState {
+    reached_count: std::sync::atomic::AtomicUsize,
+    staged_effect_count: std::sync::atomic::AtomicUsize,
+    child_runtime: StdMutex<Option<&'static str>>,
+    released: AtomicBool,
+    changed: std::sync::Condvar,
+}
+
+#[cfg(test)]
+impl Default for DetachedNestedMutationTestPauseState {
+    fn default() -> Self {
+        Self {
+            reached_count: std::sync::atomic::AtomicUsize::new(0),
+            staged_effect_count: std::sync::atomic::AtomicUsize::new(0),
+            child_runtime: StdMutex::new(None),
+            released: AtomicBool::new(false),
+            changed: std::sync::Condvar::new(),
+        }
+    }
+}
+
+#[cfg(test)]
+struct DetachedNestedMutationTestPause {
+    state_identity: usize,
+    state: Arc<DetachedNestedMutationTestPauseState>,
+}
+
+#[cfg(test)]
+static DETACHED_NESTED_MUTATION_TEST_PAUSES: OnceLock<
+    StdMutex<std::collections::HashMap<usize, Arc<DetachedNestedMutationTestPauseState>>>,
+> = OnceLock::new();
+
+#[cfg(test)]
+fn install_detached_nested_mutation_test_pause(
+    state: &SharedSnapback,
+) -> DetachedNestedMutationTestPause {
+    let state_identity = Arc::as_ptr(state) as usize;
+    let pause = Arc::new(DetachedNestedMutationTestPauseState::default());
+    let replaced = DETACHED_NESTED_MUTATION_TEST_PAUSES
+        .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .insert(state_identity, pause.clone());
+    assert!(
+        replaced.is_none(),
+        "detached nested-mutation test pause already installed for this instance"
+    );
+    DetachedNestedMutationTestPause {
+        state_identity,
+        state: pause,
+    }
+}
+
+#[cfg(test)]
+impl DetachedNestedMutationTestPause {
+    async fn wait_until_reached(&self) {
+        while self.state.reached_count.load(Ordering::Acquire) == 0 {
+            tokio::task::yield_now().await;
+        }
+    }
+
+    fn release(&self) {
+        self.state.released.store(true, Ordering::Release);
+        self.state.changed.notify_all();
+    }
+
+    fn reached_count(&self) -> usize {
+        self.state.reached_count.load(Ordering::Acquire)
+    }
+
+    fn staged_effect_count(&self) -> usize {
+        self.state.staged_effect_count.load(Ordering::Acquire)
+    }
+
+    fn child_runtime(&self) -> Option<&'static str> {
+        *self
+            .state
+            .child_runtime
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+}
+
+#[cfg(test)]
+impl Drop for DetachedNestedMutationTestPause {
+    fn drop(&mut self) {
+        if !self.state.released.load(Ordering::Acquire) {
+            self.release();
+        }
+        let mut pauses = DETACHED_NESTED_MUTATION_TEST_PAUSES
+            .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if pauses
+            .get(&self.state_identity)
+            .is_some_and(|current| Arc::ptr_eq(current, &self.state))
+        {
+            pauses.remove(&self.state_identity);
+        }
+    }
+}
+
+#[cfg(test)]
+fn pause_detached_nested_mutation_for_test(
+    state: &SharedSnapback,
+    child_runtime: &'static str,
+    staged_effect_count: usize,
+) {
+    let identity = Arc::as_ptr(state) as usize;
+    let pause = DETACHED_NESTED_MUTATION_TEST_PAUSES
+        .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .remove(&identity);
+    let Some(pause) = pause else {
+        return;
+    };
+    pause
+        .staged_effect_count
+        .store(staged_effect_count, Ordering::Release);
+    *pause
+        .child_runtime
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(child_runtime);
+    pause.reached_count.fetch_add(1, Ordering::AcqRel);
+    pause.changed.notify_all();
+    let mut runtime = pause
+        .child_runtime
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    while !pause.released.load(Ordering::Acquire) {
+        runtime = pause
+            .changed
+            .wait(runtime)
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+    }
+}
+
+#[cfg(test)]
+#[derive(Default)]
+struct ManagedNestedMutationTestPauseState {
+    reached: AtomicBool,
+    no_authorization_event: AtomicBool,
+    released: AtomicBool,
+    lock: StdMutex<()>,
+    changed: std::sync::Condvar,
+}
+
+#[cfg(test)]
+struct ManagedNestedMutationTestPause {
+    state_identity: usize,
+    state: Arc<ManagedNestedMutationTestPauseState>,
+}
+
+#[cfg(test)]
+static MANAGED_NESTED_MUTATION_TEST_PAUSES: OnceLock<
+    StdMutex<std::collections::HashMap<usize, Arc<ManagedNestedMutationTestPauseState>>>,
+> = OnceLock::new();
+
+#[cfg(test)]
+fn install_managed_nested_mutation_test_pause(
+    state: &SharedSnapback,
+) -> ManagedNestedMutationTestPause {
+    let state_identity = Arc::as_ptr(state) as usize;
+    let pause = Arc::new(ManagedNestedMutationTestPauseState::default());
+    let replaced = MANAGED_NESTED_MUTATION_TEST_PAUSES
+        .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .insert(state_identity, pause.clone());
+    assert!(
+        replaced.is_none(),
+        "managed nested-mutation pause already installed"
+    );
+    ManagedNestedMutationTestPause {
+        state_identity,
+        state: pause,
+    }
+}
+
+#[cfg(test)]
+impl ManagedNestedMutationTestPause {
+    async fn wait_until_reached(&self) {
+        while !self.state.reached.load(Ordering::Acquire) {
+            tokio::task::yield_now().await;
+        }
+    }
+
+    fn no_authorization_event(&self) -> bool {
+        self.state.no_authorization_event.load(Ordering::Acquire)
+    }
+
+    fn release(&self) {
+        self.state.released.store(true, Ordering::Release);
+        self.state.changed.notify_all();
+    }
+}
+
+#[cfg(test)]
+impl Drop for ManagedNestedMutationTestPause {
+    fn drop(&mut self) {
+        self.release();
+        let mut pauses = MANAGED_NESTED_MUTATION_TEST_PAUSES
+            .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if pauses
+            .get(&self.state_identity)
+            .is_some_and(|current| Arc::ptr_eq(current, &self.state))
+        {
+            pauses.remove(&self.state_identity);
+        }
+    }
+}
+
+#[cfg(test)]
+fn pause_managed_nested_mutation_for_test(state: &SharedSnapback, no_authorization_event: bool) {
+    let identity = Arc::as_ptr(state) as usize;
+    let pause = MANAGED_NESTED_MUTATION_TEST_PAUSES
+        .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .remove(&identity);
+    let Some(pause) = pause else { return };
+    pause
+        .no_authorization_event
+        .store(no_authorization_event, Ordering::Release);
+    pause.reached.store(true, Ordering::Release);
+    pause.changed.notify_all();
+    let mut lock = pause
+        .lock
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    while !pause.released.load(Ordering::Acquire) {
+        lock = pause
+            .changed
+            .wait(lock)
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+    }
+}
+
+#[cfg(test)]
+#[derive(Default)]
+struct NestedEffectReservationTestPauseState {
+    reservation_identity: std::sync::atomic::AtomicU64,
+    has_service_permit: AtomicBool,
+    child_runtime: StdMutex<Option<&'static str>>,
+    writer_budget_started: std::sync::atomic::AtomicUsize,
+    writer_budget_started_with_active_reservation: AtomicBool,
+    reached: AtomicBool,
+    released: AtomicBool,
+    changed: std::sync::Condvar,
+}
+
+#[cfg(test)]
+struct NestedEffectReservationTestPause {
+    state_identity: usize,
+    state: Arc<NestedEffectReservationTestPauseState>,
+}
+
+#[cfg(test)]
+static NESTED_EFFECT_RESERVATION_TEST_PAUSES: OnceLock<
+    StdMutex<std::collections::HashMap<usize, Arc<NestedEffectReservationTestPauseState>>>,
+> = OnceLock::new();
+
+#[cfg(test)]
+fn install_nested_effect_reservation_test_pause(
+    state: &SharedSnapback,
+) -> NestedEffectReservationTestPause {
+    let state_identity = Arc::as_ptr(state) as usize;
+    let pause = Arc::new(NestedEffectReservationTestPauseState::default());
+    let replaced = NESTED_EFFECT_RESERVATION_TEST_PAUSES
+        .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .insert(state_identity, pause.clone());
+    assert!(
+        replaced.is_none(),
+        "nested effect-reservation pause already installed"
+    );
+    NestedEffectReservationTestPause {
+        state_identity,
+        state: pause,
+    }
+}
+
+#[cfg(test)]
+impl NestedEffectReservationTestPause {
+    async fn wait_until_reached(&self) {
+        while !self.state.reached.load(Ordering::Acquire) {
+            tokio::task::yield_now().await;
+        }
+    }
+
+    fn reservation_identity(&self) -> u64 {
+        self.state.reservation_identity.load(Ordering::Acquire)
+    }
+
+    fn child_runtime(&self) -> Option<&'static str> {
+        *self
+            .state
+            .child_runtime
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    fn has_service_permit(&self) -> bool {
+        self.state.has_service_permit.load(Ordering::Acquire)
+    }
+
+    fn writer_budget_started(&self) -> usize {
+        self.state.writer_budget_started.load(Ordering::Acquire)
+    }
+
+    fn writer_budget_started_with_active_reservation(&self) -> bool {
+        self.state
+            .writer_budget_started_with_active_reservation
+            .load(Ordering::Acquire)
+    }
+
+    fn release(&self) {
+        self.state.released.store(true, Ordering::Release);
+        self.state.changed.notify_all();
+    }
+}
+
+#[cfg(test)]
+impl Drop for NestedEffectReservationTestPause {
+    fn drop(&mut self) {
+        self.release();
+        let mut pauses = NESTED_EFFECT_RESERVATION_TEST_PAUSES
+            .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if pauses
+            .get(&self.state_identity)
+            .is_some_and(|current| Arc::ptr_eq(current, &self.state))
+        {
+            pauses.remove(&self.state_identity);
+        }
+    }
+}
+
+#[cfg(test)]
+fn pause_nested_effect_reservation_for_test(
+    state: &SharedSnapback,
+    child_runtime: &'static str,
+    reservation: &NestedActionEffectReservation,
+) {
+    let identity = Arc::as_ptr(state) as usize;
+    let pause = NESTED_EFFECT_RESERVATION_TEST_PAUSES
+        .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get(&identity)
+        .cloned();
+    let Some(pause) = pause else { return };
+    pause
+        .reservation_identity
+        .store(reservation.identity_for_test(), Ordering::Release);
+    pause
+        .has_service_permit
+        .store(reservation.has_service_permit_for_test(), Ordering::Release);
+    *pause
+        .child_runtime
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(child_runtime);
+    pause.reached.store(true, Ordering::Release);
+    pause.changed.notify_all();
+    let mut runtime = pause
+        .child_runtime
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    while !pause.released.load(Ordering::Acquire) {
+        runtime = pause
+            .changed
+            .wait(runtime)
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+    }
+}
+
+#[cfg(test)]
+fn record_nested_writer_budget_start_for_test(
+    state: &SharedSnapback,
+    reservation: Option<&NestedActionEffectReservation>,
+) {
+    let pause = NESTED_EFFECT_RESERVATION_TEST_PAUSES
+        .get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get(&(Arc::as_ptr(state) as usize))
+        .cloned();
+    let Some(pause) = pause else { return };
+    let active = reservation.is_some_and(|reservation| {
+        let identity = reservation.identity_for_test();
+        identity != 0
+            && crate::auth::invocation::authorized_effect_reservation_active_for_test(identity)
+    });
+    pause
+        .writer_budget_started_with_active_reservation
+        .store(active, Ordering::Release);
+    pause.writer_budget_started.fetch_add(1, Ordering::SeqCst);
 }
 
 /// Run a staged Ibex action on a detached thread under a wall-clock watchdog.
@@ -2739,7 +4086,7 @@ async fn run_detached_ibex_action_with_admission_and_counters(
         admission,
         worker_limit,
         counters,
-        action_watchdog_timeout_ms(),
+        action_watchdog_timeout_for_state(state),
     )
     .await
 }
@@ -2799,11 +4146,27 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
     // after the runtime and its OS worker have been destroyed; the outer
     // timer remains the fail-safe for a native host call that cannot unwind.
     let interrupt_cushion_ms = (timeout_ms / 10).clamp(1, 50);
-    let execution_deadline = deadline
-        .checked_sub(Duration::from_millis(interrupt_cushion_ms))
-        .unwrap_or(deadline);
+    let execution_deadline = {
+        #[cfg(test)]
+        if let Some(deadline) = detached_watchdog_test_execution_deadline(state, deadline) {
+            deadline
+        } else {
+            deadline
+                .checked_sub(Duration::from_millis(interrupt_cushion_ms))
+                .unwrap_or(deadline)
+        }
+        #[cfg(not(test))]
+        {
+            deadline
+                .checked_sub(Duration::from_millis(interrupt_cushion_ms))
+                .unwrap_or(deadline)
+        }
+    };
     let abandoned = Arc::new(AtomicBool::new(false));
     let active_reservation = Arc::new(StdMutex::new(None));
+    let writer_cancellation = Arc::new(ManagedWriterCancellation::default());
+    let terminal_latch = action.terminal_latch.clone();
+    let writer_runtime = tokio::runtime::Handle::current();
     // @ref LLP 0076#settlement-and-retry — one control-plane identity per
     // invocation: the StreamAttemptV1 lease binds to it, and the trusted
     // terminalizer settles its attempts when it can no longer commit.
@@ -2816,6 +4179,12 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
     let automatic_retry_invocation =
         metadata.attempt > 1 || matches!(metadata.trigger, crate::cron::CronRunTrigger::Recovery);
     let host_operation = HostOperationParentV1::from_action_run(&metadata);
+    #[cfg(test)]
+    let watchdog_test_counters_for_worker = detached_watchdog_test_counters_for_state(state);
+    #[cfg(test)]
+    if let Some(counters) = &watchdog_test_counters_for_worker {
+        counters.worker_active.fetch_add(1, Ordering::SeqCst);
+    }
     let (sender, mut receiver) = tokio::sync::oneshot::channel();
     let spawned = spawn_detached_action_worker(
         worker_permit,
@@ -2825,6 +4194,8 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
             let abandoned = abandoned.clone();
             let commit_gate = commit_gate.clone();
             let active_reservation = active_reservation.clone();
+            let writer_cancellation = writer_cancellation.clone();
+            let writer_runtime = writer_runtime.clone();
             let stream_runner = stream_runner.clone();
             let stream_runner_host = stream_runner_host.clone();
             move || {
@@ -2846,6 +4217,7 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     app_generation,
                     app_generation_fence,
                     deferred_push_grant,
+                    terminal_latch: action_terminal_latch,
                 } = *action;
                 let push_grants = grants.clone();
                 let correlation = input
@@ -2859,6 +4231,7 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     correlation.as_deref(),
                     None,
                 );
+                let authority = invocation.authority().clone();
                 let mut host = DetachedActionHost {
                     state,
                     connected_clients,
@@ -2866,10 +4239,15 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     abandoned,
                     commit_gate,
                     active_reservation,
+                    writer_cancellation,
+                    writer_runtime,
+                    nested_writer_timed_out: AtomicBool::new(false),
+                    terminal_latch: action_terminal_latch,
                     deadline: execution_deadline,
                     app_generation,
                     app_generation_fence,
-                    authority: invocation.authority().clone(),
+                    nested_effect: NestedActionEffect::classify(authority.clone()),
+                    authority,
                     push_grants,
                     deferred_push_grant,
                     external_effect_open: false,
@@ -2922,6 +4300,15 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     }
                     other => other,
                 };
+                let result = result.map_err(|error| {
+                    if host.nested_writer_timed_out.load(Ordering::Acquire)
+                        && error.diagnostic.code == "SNAPBACK_ACTION_TIMEOUT"
+                    {
+                        retain_nested_writer_timeout_facts(error)
+                    } else {
+                        error
+                    }
+                });
                 // @ref LLP 0028#execution-the-action-class — an action may
                 // await native fetch/timer work and return without making
                 // another Snapback host call. Linearize completion against the
@@ -2939,15 +4326,20 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                 // out and a truly unsettled handler with no generation drift
                 // keeps its SNAPBACK_HANDLER_DID_NOT_SETTLE.
                 let mut fenced = match result {
-                    Ok(value) => host.validate_live("action.complete").map(|()| value),
+                    Ok(value) => host
+                        .validate_runtime_live("action.complete")
+                        .map(|()| value),
                     Err(error) if error.diagnostic.code == "SNAPBACK_HANDLER_DID_NOT_SETTLE" => {
-                        match host.validate_live("action.complete") {
+                        match host.validate_runtime_live("action.complete") {
                             Ok(()) => Err(error),
                             Err(fence) => Err(fence),
                         }
                     }
                     Err(error) => Err(error),
                 };
+                if let Some(error) = host.terminal_latch.error() {
+                    fenced = Err(error);
+                }
                 if host.output_stream_attempt.is_some()
                     && let Ok(value) = &fenced
                 {
@@ -2987,6 +4379,11 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                 {
                     fenced = Err(error);
                 }
+                if let Some(error) = host.terminal_latch.error() {
+                    fenced = Err(error);
+                }
+                #[cfg(test)]
+                record_nested_worker_outcome_for_test(&host.state, &fenced);
                 // Provider settlement may lose the commit-gate race after
                 // `fenced` was computed while the worker was still live. The
                 // refusal then carries the post-abandonment timeout. Recompute
@@ -3002,7 +4399,21 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                 {
                     fenced = Err(error);
                 }
-                attempt_registry.terminalize_invocation_host(&stream_runner_host, terminal_cause);
+                #[cfg(test)]
+                if let Some(counters) = provider_settle_test_counters_for_state(&host.state) {
+                    counters
+                        .trusted_fallback_invoked
+                        .fetch_add(1, Ordering::SeqCst);
+                }
+                let terminalized = attempt_registry
+                    .terminalize_invocation_host(&stream_runner_host, terminal_cause);
+                #[cfg(test)]
+                if let Some(counters) = provider_settle_test_counters_for_state(&host.state) {
+                    counters
+                        .terminal_cas_won
+                        .fetch_add(terminalized.len(), Ordering::SeqCst);
+                }
+                drop(terminalized);
                 // The worker itself is done: release its attempt references
                 // so durably flushed terminals can be reaped (registry
                 // retention). Anything terminalize just dirtied is reaped by
@@ -3027,6 +4438,11 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
         move |result| {
             // Runtime/host/worker guards are gone before publishing the
             // result, so a returned timeout proves no CPU worker leaked.
+            #[cfg(test)]
+            if let Some(counters) = watchdog_test_counters_for_worker {
+                counters.worker_active.fetch_sub(1, Ordering::SeqCst);
+                counters.worker_completed.fetch_add(1, Ordering::SeqCst);
+            }
             let _ = sender.send(result);
         },
     );
@@ -3063,6 +4479,12 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
             let gate = commit_gate.clone();
             let abandoned_for_timeout = abandoned.clone();
             let active_reservation_for_timeout = active_reservation.clone();
+            let writer_cancellation_for_timeout = writer_cancellation.clone();
+            let terminal_latch_for_timeout = terminal_latch.clone();
+            #[cfg(test)]
+            if let Some(counters) = detached_watchdog_test_counters_for_state(state) {
+                counters.linearizer.fetch_add(1, Ordering::SeqCst);
+            }
             tokio::task::spawn_blocking(move || {
                 // Detached workers return this gate only from their final
                 // precommit callback, so the sole possible owner spans an
@@ -3073,6 +4495,8 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     gate.as_ref(),
                     abandoned_for_timeout.as_ref(),
                     active_reservation_for_timeout.as_ref(),
+                    writer_cancellation_for_timeout.as_ref(),
+                    &terminal_latch_for_timeout,
                 );
             })
             .await
@@ -3109,7 +4533,7 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
             )
             .await
             .is_ok();
-            Err(SnapbackError::error(
+            let timeout = SnapbackError::error(
                 "SNAPBACK_ACTION_TIMEOUT",
                 "runtime",
                 format!(
@@ -3120,7 +4544,8 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
             .with_details(json!({
                 "timeoutMs": timeout_ms,
                 "workerTerminated": worker_terminated,
-            })))
+            }));
+            Err(terminal_latch.error().unwrap_or(timeout))
         }
     }
 }
@@ -3153,33 +4578,142 @@ async fn run_managed_host_plan_action(
         let mut last_result = Value::Null;
         let mut changed_count = 0usize;
         let steps = action.plan().steps.clone();
+        let nested_effect = NestedActionEffect::classify(action.authority().clone());
+        let terminal_latch = action.terminal_latch();
         let execution = async {
             for step in steps {
                 action.validate_generation()?;
                 let stage_action = action.clone();
                 let stage_step = step.clone();
                 let stage_bindings = bindings.clone();
-                let committed = with_snapback_staged_authorization_write(
-                    &state,
-                    None,
-                    move |snapback| {
-                        snapback.stage_managed_host_plan_action_step(
+                let staged = with_snapback(&state, move |snapback| {
+                    let (preflight, child_authority, staged) = snapback
+                        .stage_managed_host_plan_action_step(
                             &stage_action,
                             &stage_step,
                             &stage_bindings,
-                        )
-                    },
-                    move |snapback, staged| {
-                        snapback.commit_staged_recorded_authorization_mutation(staged)
-                    },
-                )
-                .await;
-                let (mutation, _receipt) = match committed {
-                    Ok(committed) => committed?,
+                        )?;
+                    Ok::<_, SnapbackError>((
+                        preflight,
+                        child_authority,
+                        staged,
+                        snapback.app_generation(),
+                        snapback.authorization_reservation_snapshot()?,
+                        snapback.ephemeral_api(),
+                    ))
+                })
+                .await?;
+                let (preflight, child_authority, staged, generation, snapshot, ephemeral) = staged;
+
+                #[cfg(test)]
+                pause_managed_nested_mutation_for_test(
+                    &state,
+                    matches!(
+                        preflight,
+                        crate::storage::AuthorizationCommitPreflight::NoAuthorizationEvent
+                    ),
+                );
+
+                // Managed actions always split, including a neutral preview.
+                // The room reservation comes first and the exact caller
+                // reservation is minted once for this child only.
+                let cancellation =
+                    Arc::new(crate::storage::AuthorizationReservationCancellation::new());
+                let reservation_cancellation = cancellation.clone();
+                let reservation = tokio::task::spawn_blocking(move || {
+                    ephemeral.reserve_authorization_commit(preflight, reservation_cancellation)
+                })
+                .await
+                .expect("managed action room-reservation task panicked")?;
+                let effect = match nested_effect
+                    .bind_child(child_authority)
+                    .reserve(&terminal_latch)
+                {
+                    Ok(effect) => effect,
                     Err(error) => {
-                        // A reload/reset may race the stage-to-commit window.
-                        // Preserve the action-level generation diagnostic over
-                        // the reservation protocol's generic stale carrier.
+                        reservation.cancel();
+                        return Err(error);
+                    }
+                };
+                let reservation_started = Instant::now();
+
+                let writer_deadline = reservation_started
+                    .checked_add(Duration::from_secs(5))
+                    .unwrap_or(reservation_started);
+                let Some(mut guard) =
+                    lock_managed_snapback_until(&state, writer_deadline, None).await
+                else {
+                    reservation.cancel();
+                    return Err(action_deadline_elapsed("managed action child mutation"));
+                };
+                let commit_action = action.clone();
+                let commit_latch = terminal_latch.clone();
+                let step_name = match &step {
+                    ActionStep::RunMutation { name, .. } => name.clone(),
+                };
+                let committed = tokio::task::spawn_blocking(move || {
+                    let _sanction = crate::exec_guard::BlockingSanction::acquire();
+                    if let Err(error) = commit_action.validate_generation() {
+                        drop(guard);
+                        reservation.cancel();
+                        return Err(error);
+                    }
+                    let current_snapshot = match guard.authorization_reservation_snapshot() {
+                        Ok(snapshot) => snapshot,
+                        Err(error) => {
+                            drop(guard);
+                            reservation.cancel();
+                            return Err(error);
+                        }
+                    };
+                    if guard.app_generation() != generation || current_snapshot != snapshot {
+                        drop(guard);
+                        reservation.cancel();
+                        return Err(action_authorization_reservation_stale(&step_name));
+                    }
+
+                    let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+                    let reservation_scope = reservation.install();
+                    let output =
+                        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match &effect {
+                            NestedActionEffectReservation::CallerBound(effect) => guard
+                                .commit_staged_recorded_authorization_mutation_with_action_effect(
+                                    staged,
+                                    effect,
+                                    &commit_latch,
+                                )
+                                .map(|(mutation, receipt, _, _)| (mutation, receipt)),
+                            NestedActionEffectReservation::ModeOnlySystem(_authority) => {
+                                guard.commit_staged_recorded_authorization_mutation(staged)
+                            }
+                        }));
+                    let unused = reservation_scope.take_unused();
+                    let batch = local_scope.take_after_local_batch();
+                    let handoff = (batch.has_effects() || unused.is_some()).then(|| {
+                        let handoff = guard.managed_local_handoff();
+                        handoff.close();
+                        handoff
+                    });
+                    drop(guard);
+                    drop(local_scope);
+                    if let Some(unused) = unused {
+                        unused.cancel();
+                    }
+                    let after_local = crate::exec_guard::run_after_local_batch(batch);
+                    if let Some(handoff) = handoff {
+                        handoff.reopen();
+                    }
+                    after_local.map_err(SnapbackError::from)?;
+                    match output {
+                        Ok(output) => output,
+                        Err(payload) => std::panic::resume_unwind(payload),
+                    }
+                })
+                .await
+                .expect("managed action child-commit task panicked");
+                let (mutation, _receipt) = match committed {
+                    Ok(committed) => committed,
+                    Err(error) => {
                         action.validate_generation()?;
                         return Err(error);
                     }

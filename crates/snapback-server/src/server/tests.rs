@@ -1,18 +1,20 @@
 use super::{
     ACTION_WATCHDOG_DEFAULT_MS, ACTION_WATCHDOG_MAX_MS, ACTION_WORKER_LIMIT_DEFAULT,
-    ACTION_WORKER_LIMIT_MAX, ADMITTED_BODY_INGEST_DEADLINE_MS, AdmissionLease,
+    ACTION_WORKER_LIMIT_MAX, ADMITTED_BODY_INGEST_DEADLINE_MS, ActionTerminalLatch, AdmissionLease,
     CRON_DISPATCH_CONCURRENCY_DEFAULT, CRON_DISPATCH_CONCURRENCY_MAX, ConnectionGrant,
     ConnectionOpenAttempt, DetachedActionHost, DetachedActionWorkerCounters, HostOperationParentV1,
-    OpenConnectionRequest, PolicyAuthMode, PreparedAuthority, RealtimeEnvelope, SharedSnapback,
-    SnapbackApp, TEST_FINITE_AUTHORITY_PAUSE_HEADER, TestFiniteAuthorityPausePoint,
+    ManagedWriterCancellation, NestedActionEffect, OpenConnectionRequest, PolicyAuthMode,
+    PreparedAuthority, RealtimeEnvelope, SharedSnapback, SnapbackApp,
+    TEST_FINITE_AUTHORITY_PAUSE_HEADER, TestFiniteAuthorityPausePoint,
     already_terminal_session_error, app, configured_action_worker_limit,
     configured_cron_dispatch_concurrency, coordinated_app_reset, dispatch_cron_tick_background,
     finish_registered_response, install_committed_reset_handoff_test_hook,
-    install_test_finite_authority_pause, linearize_detached_action_abandonment,
-    parse_action_watchdog_timeout, parse_optional_json, reserve_detached_action_worker,
-    reserve_detached_action_worker_with_counters, retain_realtime_authority_in,
-    run_detached_ibex_action_with_admission_and_counters, spawn_detached_action_worker,
-    status_for_diagnostic_code, with_snapback, with_snapback_staged_authorization_write,
+    install_detached_nested_mutation_test_pause, install_test_finite_authority_pause,
+    linearize_detached_action_abandonment, parse_action_watchdog_timeout, parse_optional_json,
+    reserve_detached_action_worker, reserve_detached_action_worker_with_counters,
+    retain_realtime_authority_in, run_detached_ibex_action_with_admission_and_counters,
+    spawn_detached_action_worker, status_for_diagnostic_code, with_snapback,
+    with_snapback_staged_authorization_write,
 };
 use crate::manifest::SchemaManifestValidationExt as _;
 use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
@@ -3308,7 +3310,7 @@ async fn detached_action_nested_mutations_reserve_rooms_off_local() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn detached_action_watchdog_cancels_held_room_reservation_without_publication() {
+async fn t7_watchdog_gate_first_cancels_held_reservation_without_publication() {
     const ROOM: &str = "room-watchdog-reservation";
     const MEMBER: &str = "member-watchdog-reservation";
     let (state, _directory) = tokio::task::spawn_blocking(|| {
@@ -3425,10 +3427,14 @@ async fn detached_action_watchdog_cancels_held_room_reservation_without_publicat
     assert!(state.snapback.try_lock().is_ok());
 
     tokio::task::spawn_blocking(move || {
+        let writer_cancellation = ManagedWriterCancellation::default();
+        let terminal_latch = ActionTerminalLatch::default();
         linearize_detached_action_abandonment(
             commit_gate.as_ref(),
             abandoned.as_ref(),
             active_reservation.as_ref(),
+            &writer_cancellation,
+            &terminal_latch,
         );
     })
     .await
@@ -7107,6 +7113,117 @@ fn finite_authority_matrix_functions() -> FunctionManifest {
     functions
 }
 
+#[derive(Clone, Copy, Debug)]
+enum DetachedNestedMutationRuntime {
+    HostPlan,
+    Ibex,
+}
+
+impl DetachedNestedMutationRuntime {
+    fn label(self) -> &'static str {
+        match self {
+            Self::HostPlan => "hostPlan",
+            Self::Ibex => "ibex",
+        }
+    }
+}
+
+fn detached_nested_mutation_fence_functions(
+    child_runtime: DetachedNestedMutationRuntime,
+) -> FunctionManifest {
+    const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async writeAction(ctx) {
+    return await ctx.runMutation('queuedWrite', { value: 'caller-terminal-child-effect' });
+  },
+  async queuedWrite(ctx, args) {
+    await ctx.db.insert('items', { value: args.value });
+    return 1;
+  }
+};
+"#;
+    let mut functions = activation_functions('9', false);
+    if matches!(child_runtime, DetachedNestedMutationRuntime::Ibex) {
+        let child = functions
+            .functions
+            .iter_mut()
+            .find(|function| function.name == "queuedWrite")
+            .expect("detached nested-mutation child");
+        child.runtime = FunctionRuntime::IbexModule(IbexModule {
+            source: SOURCE.to_owned(),
+            export: "queuedWrite".to_owned(),
+        });
+        child.required_capabilities = vec![
+            "ibex_ctx_db_host_bridge".to_owned(),
+            "mutation_read_set_validation".to_owned(),
+        ];
+        child.write_set_summary.mode = Some("handlerDeclared".to_owned());
+    }
+    let mut action = FunctionDefinition::new(
+        "writeAction",
+        FunctionKind::Action,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: SOURCE.to_owned(),
+            export: "writeAction".to_owned(),
+        }),
+    );
+    action.required_capabilities = vec!["cron_action_run_mutation".to_owned()];
+    action.write_set_summary.tables = vec!["items".to_owned()];
+    functions.functions.push(action);
+    functions
+}
+
+fn caught_nested_refusal_functions(busy_loop_after_refusal: bool) -> FunctionManifest {
+    let mut functions = activation_functions('9', false);
+    let template = functions
+        .functions
+        .iter()
+        .find(|function| function.name == "queuedWrite")
+        .expect("caught-refusal mutation template")
+        .clone();
+    for name in ["firstWrite", "secondWrite"] {
+        let mut child = template.clone();
+        child.name = name.to_owned();
+        child.id = format!("fn:{name}");
+        functions.functions.push(child);
+    }
+    let tail = if busy_loop_after_refusal {
+        "for (;;) { Math.imul(17, 19); }"
+    } else {
+        r#"
+  let pure = [1, 2, 3].map((value) => value * 2).join(',');
+  try { await ctx.runMutation('secondWrite', { value: 'second-caught-sentinel' }); }
+  catch (error) { second = String(error?.code ?? error?.message ?? error); }
+  return pure.length > 0 ? 'success' : first + second;
+"#
+    };
+    let source = format!(
+        r#"
+globalThis.__snapbackHandlers = {{
+  async caughtRefusalAction(ctx) {{
+    let first = '';
+    let second = '';
+    try {{ await ctx.runMutation('firstWrite', {{ value: 'first-caught-sentinel' }}); }}
+    catch (error) {{ first = String(error?.code ?? error?.message ?? error); }}
+    {tail}
+  }}
+}};
+"#
+    );
+    let mut action = FunctionDefinition::new(
+        "caughtRefusalAction",
+        FunctionKind::Action,
+        FunctionRuntime::IbexModule(IbexModule {
+            source,
+            export: "caughtRefusalAction".to_owned(),
+        }),
+    );
+    action.required_capabilities = vec!["cron_action_run_mutation".to_owned()];
+    action.write_set_summary.tables = vec!["items".to_owned()];
+    functions.functions.push(action);
+    functions
+}
+
 struct FiniteAuthorityMatrixFixture {
     state: AppState,
     router: SnapbackApp,
@@ -7122,6 +7239,12 @@ struct FiniteAuthorityMatrixFixture {
 }
 
 async fn finite_authority_matrix_fixture() -> FiniteAuthorityMatrixFixture {
+    finite_authority_matrix_fixture_with_functions(finite_authority_matrix_functions()).await
+}
+
+async fn finite_authority_matrix_fixture_with_functions(
+    functions: FunctionManifest,
+) -> FiniteAuthorityMatrixFixture {
     // Retained live reruns deliberately consult the host wall clock rather
     // than the injected provider clock. Keep the deterministic provider a
     // minute behind that wall clock: far enough to avoid millisecond
@@ -7129,12 +7252,10 @@ async fn finite_authority_matrix_fixture() -> FiniteAuthorityMatrixFixture {
     let start_ms = super::now_millis().saturating_sub(60_000);
     let clock = Arc::new(ManualServerAuthClock::new(start_ms));
     let fixture_clock = clock.clone();
+    let fixture_functions = functions.clone();
     let state = tokio::task::spawn_blocking(move || {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
-        sessions_activation_server_fixture_with(
-            finite_authority_matrix_functions(),
-            Some(fixture_clock),
-        )
+        sessions_activation_server_fixture_with(fixture_functions, Some(fixture_clock))
     })
     .await
     .expect("construct finite-authority matrix fixture off async workers");
@@ -7148,7 +7269,7 @@ async fn finite_authority_matrix_fixture() -> FiniteAuthorityMatrixFixture {
     let (credential, token, token_id, token_expires_at_ms) =
         with_snapback(&state.snapback, move |snapback| {
             let db = snapback.remainder_auth_database_mut();
-            db.reconcile_auth_scope_bases(&finite_authority_matrix_functions())?;
+            db.reconcile_auth_scope_bases(&functions)?;
             db.auth_catalog()
                 .insert_human_user_for_test(&setup_effective_user_id, start_ms)?;
             db.create_agent_principal(
@@ -7557,6 +7678,927 @@ async fn finite_authority_matrix_request(
         pending_connection_id,
         queued_connection_id,
     }
+}
+
+#[derive(Debug, PartialEq)]
+struct DetachedNestedMutationDurableEvidence {
+    database_image: Vec<u8>,
+    rows: Vec<Value>,
+    durable_version: u64,
+    change_journal_len: u64,
+    jobs: Value,
+}
+
+async fn detached_nested_mutation_durable_evidence(
+    state: &AppState,
+) -> DetachedNestedMutationDurableEvidence {
+    with_snapback(&state.snapback, |snapback| {
+        let mut image = tempfile::tempfile().expect("detached fence database image");
+        snapback
+            .backup_database_image_into(&image)
+            .expect("capture detached fence database image");
+        image
+            .seek(SeekFrom::Start(0))
+            .expect("rewind detached fence database image");
+        let mut database_image = Vec::new();
+        image
+            .read_to_end(&mut database_image)
+            .expect("read detached fence database image");
+        Ok::<_, SnapbackError>(DetachedNestedMutationDurableEvidence {
+            database_image,
+            rows: snapback.scan_table("items", 100, 0)?.rows,
+            durable_version: snapback.durable_version()?,
+            change_journal_len: snapback.change_journal_len()?,
+            jobs: snapback.jobs_inspect(100)?,
+        })
+    })
+    .await
+    .expect("capture detached nested-mutation durable evidence")
+}
+
+#[derive(Clone, Copy, Debug)]
+enum DetachedNestedMutationCaller {
+    Session,
+    ScopedService,
+}
+
+/// T1: the real HTTP action route must bind every detached child mutation to
+/// the finite caller that launched the action. The pause is after a non-empty
+/// child preview and before its durable commit. Terminalize the real caller,
+/// snapshot every durable surface, then prove neither child runtime can move
+/// any surface after the terminal cut.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn t1_detached_nested_mutation_terminal_wins_real_http_route() {
+    const CALLERS: [DetachedNestedMutationCaller; 2] = [
+        DetachedNestedMutationCaller::Session,
+        DetachedNestedMutationCaller::ScopedService,
+    ];
+    const CHILDREN: [DetachedNestedMutationRuntime; 2] = [
+        DetachedNestedMutationRuntime::HostPlan,
+        DetachedNestedMutationRuntime::Ibex,
+    ];
+
+    for caller in CALLERS {
+        for child in CHILDREN {
+            let fixture = finite_authority_matrix_fixture_with_functions(
+                detached_nested_mutation_fence_functions(child),
+            )
+            .await;
+            let (request, session_bearer) = match caller {
+                DetachedNestedMutationCaller::Session => {
+                    let credential = mint_test_credential(
+                        &fixture.state,
+                        &format!("detached-fence-{}@example.test", child.label()),
+                    )
+                    .await;
+                    let bearer = credential["token"]
+                        .as_str()
+                        .expect("detached fence session bearer")
+                        .to_owned();
+                    (
+                        session_auth_http_request(
+                            "/action/writeAction",
+                            br#"{"args":{}}"#.to_vec(),
+                            &bearer,
+                        ),
+                        Some(bearer),
+                    )
+                }
+                DetachedNestedMutationCaller::ScopedService => {
+                    let FiniteAuthorityMatrixRequest { request, .. } =
+                        finite_authority_matrix_request(
+                            &fixture,
+                            FiniteAuthorityMatrixRoute::Action,
+                        )
+                        .await;
+                    (request, None)
+                }
+            };
+            let pause = install_detached_nested_mutation_test_pause(&fixture.state.snapback);
+            let action_router = fixture.router.clone();
+            let action = tokio::spawn(async move {
+                action_router
+                    .oneshot(request)
+                    .await
+                    .expect("detached fence action response")
+            });
+            tokio::time::timeout(Duration::from_secs(5), pause.wait_until_reached())
+                .await
+                .unwrap_or_else(|_| panic!("{caller:?} x {child:?} did not stage its child"));
+            assert_eq!(
+                pause.reached_count(),
+                1,
+                "{caller:?} x {child:?} reaches the exact child barrier once"
+            );
+            assert!(
+                pause.staged_effect_count() > 0,
+                "{caller:?} x {child:?} must stage a non-empty durable effect"
+            );
+            assert_eq!(
+                pause.child_runtime(),
+                Some(child.label()),
+                "{caller:?} x {child:?} must exercise the requested production runtime"
+            );
+
+            match (caller, session_bearer.as_deref()) {
+                (DetachedNestedMutationCaller::Session, Some(bearer)) => {
+                    let logout = fixture
+                        .router
+                        .clone()
+                        .oneshot(session_auth_http_request(
+                            "/auth/logout",
+                            br#"{}"#.to_vec(),
+                            bearer,
+                        ))
+                        .await
+                        .expect("detached fence logout response");
+                    assert_eq!(
+                        logout.status(),
+                        StatusCode::NO_CONTENT,
+                        "the real session terminal commits before child release"
+                    );
+                }
+                (DetachedNestedMutationCaller::ScopedService, None) => {
+                    commit_finite_authority_matrix_ending(
+                        &fixture,
+                        FiniteAuthorityMatrixEnding::GrantRevoke,
+                    )
+                    .await;
+                }
+                _ => unreachable!("caller and bearer fixture agree"),
+            }
+            let terminal = detached_nested_mutation_durable_evidence(&fixture.state).await;
+            pause.release();
+            let response = tokio::time::timeout(Duration::from_secs(5), action)
+                .await
+                .unwrap_or_else(|_| panic!("{caller:?} x {child:?} action did not settle"))
+                .expect("detached fence action task");
+            let after = detached_nested_mutation_durable_evidence(&fixture.state).await;
+
+            assert_eq!(
+                after, terminal,
+                "{caller:?} x {child:?} committed a durable child effect after caller terminalization"
+            );
+            assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+            let response = response_json(response).await;
+            let expected = match caller {
+                DetachedNestedMutationCaller::Session => "SNAPBACK_AUTH_SESSION_EXPIRED",
+                DetachedNestedMutationCaller::ScopedService => "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+            };
+            assert_eq!(response["diagnostic"]["code"], expected);
+        }
+    }
+}
+
+/// T2: an ordinary app-table insert has `NoAuthorizationEvent`, but a managed
+/// HostPlan action must still release Local and reserve its exact caller before
+/// the durable child turn.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn t2_managed_host_plan_neutral_child_forces_caller_bound_split() {
+    let fixture = finite_authority_matrix_fixture().await;
+    let credential = mint_test_credential(&fixture.state, "managed-neutral@example.test").await;
+    let bearer = credential["token"]
+        .as_str()
+        .expect("managed neutral session bearer")
+        .to_owned();
+    let pause = super::install_managed_nested_mutation_test_pause(&fixture.state.snapback);
+    let router = fixture.router.clone();
+    let action_bearer = bearer.clone();
+    let action = tokio::spawn(async move {
+        router
+            .oneshot(session_auth_http_request(
+                "/action/writeAction",
+                br#"{"args":{}}"#.to_vec(),
+                &action_bearer,
+            ))
+            .await
+            .expect("managed neutral action response")
+    });
+    tokio::time::timeout(Duration::from_secs(5), pause.wait_until_reached())
+        .await
+        .expect("managed neutral child reaches the forced split");
+    assert!(
+        pause.no_authorization_event(),
+        "the fixture must stay on the neutral preflight path"
+    );
+    assert!(
+        fixture.state.snapback.try_lock().is_ok(),
+        "managed staging must release Local before caller reservation"
+    );
+
+    let logout = fixture
+        .router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/logout",
+            br#"{}"#.to_vec(),
+            &bearer,
+        ))
+        .await
+        .expect("managed neutral logout response");
+    assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+    let terminal = detached_nested_mutation_durable_evidence(&fixture.state).await;
+    pause.release();
+    let response = tokio::time::timeout(Duration::from_secs(5), action)
+        .await
+        .expect("managed neutral action settles")
+        .expect("managed neutral action joins");
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    let response = response_json(response).await;
+    assert_eq!(
+        response["diagnostic"]["code"],
+        "SNAPBACK_AUTH_SESSION_EXPIRED"
+    );
+    assert_eq!(
+        detached_nested_mutation_durable_evidence(&fixture.state).await,
+        terminal,
+        "the neutral ordinary insert must not commit after logout"
+    );
+}
+
+/// T3: once the exact child reservation exists, terminalization must drain
+/// behind that reservation while new work refuses. Releasing the uniquely
+/// identified child lets its commit win before the terminal transaction.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn t3_exact_child_reservation_wins_then_terminal_drains() {
+    for caller in [
+        DetachedNestedMutationCaller::Session,
+        DetachedNestedMutationCaller::ScopedService,
+    ] {
+        for child in [
+            DetachedNestedMutationRuntime::HostPlan,
+            DetachedNestedMutationRuntime::Ibex,
+        ] {
+            let fixture = finite_authority_matrix_fixture_with_functions(
+                detached_nested_mutation_fence_functions(child),
+            )
+            .await;
+            let (request, bearer) = match caller {
+                DetachedNestedMutationCaller::Session => {
+                    let credential = mint_test_credential(
+                        &fixture.state,
+                        &format!("reservation-wins-{}@example.test", child.label()),
+                    )
+                    .await;
+                    let bearer = credential["token"]
+                        .as_str()
+                        .expect("reservation-wins session bearer")
+                        .to_owned();
+                    (
+                        session_auth_http_request(
+                            "/action/writeAction",
+                            br#"{"args":{}}"#.to_vec(),
+                            &bearer,
+                        ),
+                        bearer,
+                    )
+                }
+                DetachedNestedMutationCaller::ScopedService => {
+                    let FiniteAuthorityMatrixRequest { request, .. } =
+                        finite_authority_matrix_request(
+                            &fixture,
+                            FiniteAuthorityMatrixRoute::Action,
+                        )
+                        .await;
+                    (request, fixture.token.clone())
+                }
+            };
+            let pause =
+                super::install_nested_effect_reservation_test_pause(&fixture.state.snapback);
+            let service_terminal_plan = match caller {
+                DetachedNestedMutationCaller::Session => None,
+                DetachedNestedMutationCaller::ScopedService => {
+                    let token_id = fixture.token_id.clone();
+                    Some(
+                        with_snapback(&fixture.state.snapback, move |snapback| {
+                            Ok::<_, SnapbackError>(
+                                snapback.service_authority_terminal_plan_for_test(
+                                    vec![token_id],
+                                    ServiceAuthorityDisposition::DurableDelete,
+                                ),
+                            )
+                        })
+                        .await
+                        .expect("prepare reservation-wins service terminal plan"),
+                    )
+                }
+            };
+            let action_router = fixture.router.clone();
+            let action = tokio::spawn(async move {
+                action_router
+                    .oneshot(request)
+                    .await
+                    .expect("reservation-wins action response")
+            });
+            tokio::time::timeout(Duration::from_secs(5), pause.wait_until_reached())
+                .await
+                .unwrap_or_else(|_| panic!("{caller:?} x {child:?} did not reserve its child"));
+            assert_ne!(
+                pause.reservation_identity(),
+                0,
+                "the pause identifies the exact caller reservation"
+            );
+            assert_eq!(pause.child_runtime(), Some(child.label()));
+            assert_eq!(
+                pause.has_service_permit(),
+                matches!(caller, DetachedNestedMutationCaller::ScopedService),
+                "the exact child reservation retains the caller's finite-service permit"
+            );
+
+            let terminal_state = fixture.state.clone();
+            let terminal_router = fixture.router.clone();
+            let terminal_bearer = bearer.clone();
+            let terminal = match caller {
+                DetachedNestedMutationCaller::Session => tokio::spawn(async move {
+                    let response = terminal_router
+                        .oneshot(session_auth_http_request(
+                            "/auth/logout",
+                            br#"{}"#.to_vec(),
+                            &terminal_bearer,
+                        ))
+                        .await
+                        .expect("reservation-wins logout response");
+                    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+                }),
+                DetachedNestedMutationCaller::ScopedService => {
+                    let effective_user_id = fixture.effective_user_id.clone();
+                    let grant_id = fixture.grant_id.clone();
+                    let token_id = fixture.token_id.clone();
+                    let now_ms = fixture.start_ms + 1;
+                    fixture.clock.set(now_ms);
+                    let service_terminal_plan = service_terminal_plan
+                        .expect("scoped-service caller has an exact terminal plan");
+                    tokio::spawn(async move {
+                        let service_terminal_gate = service_terminal_plan
+                            .acquire_gate()
+                            .await
+                            .expect("reservation-wins exact service terminal gate");
+                        let revoked = with_snapback(&terminal_state.snapback, move |snapback| {
+                            with_service_authority_terminal_gate(service_terminal_gate, || {
+                                snapback
+                                    .remainder_auth_database_mut()
+                                    .revoke_grant_for_user(&effective_user_id, &grant_id, now_ms)
+                            })
+                        })
+                        .await
+                        .expect("reservation-wins grant revocation");
+                        assert_eq!(revoked.token_ids, vec![token_id]);
+                    })
+                }
+            };
+
+            // Give the real terminal writer enough turns to install its
+            // pending intent; it must remain in drain behind this child.
+            for _ in 0..20 {
+                tokio::task::yield_now().await;
+            }
+            assert!(
+                !terminal.is_finished(),
+                "{caller:?} x {child:?} terminalization must drain behind the child permit"
+            );
+            let fresh = match caller {
+                DetachedNestedMutationCaller::Session => session_auth_http_request(
+                    "/action/writeAction",
+                    br#"{"args":{}}"#.to_vec(),
+                    &bearer,
+                ),
+                DetachedNestedMutationCaller::ScopedService => Request::builder()
+                    .method("POST")
+                    .uri("/action/writeAction")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
+                    .header("x-snapback-auth-client-protocol", "1")
+                    .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+                    .body(Body::from(r#"{"args":{}}"#))
+                    .expect("reservation-wins fresh service request"),
+            };
+            let fresh = tokio::time::timeout(
+                Duration::from_secs(2),
+                fixture.router.clone().oneshot(fresh),
+            )
+            .await
+            .expect("new reservation refuses without waiting for drain")
+            .expect("fresh reservation response");
+            assert_ne!(
+                fresh.status(),
+                StatusCode::OK,
+                "the pending terminal intent closes every fresh reservation"
+            );
+
+            pause.release();
+            let response = tokio::time::timeout(Duration::from_secs(5), action)
+                .await
+                .expect("reserved child action settles")
+                .expect("reserved child action joins");
+            let response_status = response.status();
+            let response = response_json(response).await;
+            assert_eq!(
+                response_status,
+                StatusCode::UNAUTHORIZED,
+                "final result publication observes the terminal caller even though the already-reserved child won its commit: {response:#}"
+            );
+            tokio::time::timeout(Duration::from_secs(5), terminal)
+                .await
+                .expect("terminal drain completes after child commit")
+                .expect("terminal task joins");
+            assert_eq!(
+                finite_authority_matrix_item_count(&fixture.state).await,
+                2,
+                "{caller:?} x {child:?} reserved child commits before terminal completion: {response:#}"
+            );
+        }
+    }
+}
+
+/// T4: observe the production action-gate callback, authorized pre-guard, and
+/// the kernel's actual app-storage pre-COMMIT cut for both child runtimes.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn t4_action_then_mode_guards_are_retained_at_both_storage_cuts() {
+    for child in [
+        DetachedNestedMutationRuntime::HostPlan,
+        DetachedNestedMutationRuntime::Ibex,
+    ] {
+        let fixture = finite_authority_matrix_fixture_with_functions(
+            detached_nested_mutation_fence_functions(child),
+        )
+        .await;
+        let credential = mint_test_credential(
+            &fixture.state,
+            &format!("commit-order-{}@example.test", child.label()),
+        )
+        .await;
+        let bearer = credential["token"]
+            .as_str()
+            .expect("commit-order session bearer")
+            .to_owned();
+        let probe = super::install_nested_commit_order_test_probe(&fixture.state.snapback, true);
+        let router = fixture.router.clone();
+        let action_bearer = bearer.clone();
+        let action = tokio::spawn(async move {
+            router
+                .oneshot(session_auth_http_request(
+                    "/action/writeAction",
+                    br#"{"args":{}}"#.to_vec(),
+                    &action_bearer,
+                ))
+                .await
+                .expect("commit-order action response")
+        });
+        tokio::time::timeout(Duration::from_secs(5), probe.wait_for_storage())
+            .await
+            .unwrap_or_else(|_| panic!("{child:?} never reached actual storage pre-COMMIT"));
+        assert_eq!(probe.counts(), (1, 1, 1), "{child:?} production callbacks");
+        assert_eq!(probe.orders(), (1, 2, 3), "{child:?} guard order");
+
+        let logout_router = fixture.router.clone();
+        let logout_bearer = bearer.clone();
+        let logout = tokio::spawn(async move {
+            logout_router
+                .oneshot(session_auth_http_request(
+                    "/auth/logout",
+                    br#"{}"#.to_vec(),
+                    &logout_bearer,
+                ))
+                .await
+                .expect("commit-order logout response")
+        });
+        for _ in 0..20 {
+            tokio::task::yield_now().await;
+        }
+        assert!(
+            !logout.is_finished(),
+            "{child:?} logout must drain while storage retains both guards"
+        );
+        probe.release_storage();
+        let response = tokio::time::timeout(Duration::from_secs(5), action)
+            .await
+            .expect("commit-order action settles")
+            .expect("commit-order action joins");
+        assert_eq!(
+            response.status(),
+            StatusCode::UNAUTHORIZED,
+            "the final result fence observes the queued terminal caller after the already-reserved commit"
+        );
+        let logout = tokio::time::timeout(Duration::from_secs(5), logout)
+            .await
+            .expect("commit-order logout drains")
+            .expect("commit-order logout joins");
+        assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+        assert_eq!(probe.counts(), (1, 1, 1));
+        assert_eq!(
+            finite_authority_matrix_item_count(&fixture.state).await,
+            2,
+            "{child:?} child commits while both guards are retained"
+        );
+    }
+}
+
+/// T5: authored code catches both host errors and returns success, but the
+/// first typed terminal cause remains authoritative and blocks the distinct
+/// second target before staging.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn t5_caught_refusal_latches_once_blocks_second_stage_and_overrides_success() {
+    let fixture =
+        finite_authority_matrix_fixture_with_functions(caught_nested_refusal_functions(false))
+            .await;
+    let credential = mint_test_credential(&fixture.state, "caught-refusal@example.test").await;
+    let bearer = credential["token"]
+        .as_str()
+        .expect("caught-refusal session bearer")
+        .to_owned();
+    let pause = install_detached_nested_mutation_test_pause(&fixture.state.snapback);
+    let observation = super::install_nested_latch_test_observation(&fixture.state.snapback);
+    let router = fixture.router.clone();
+    let action_bearer = bearer.clone();
+    let action = tokio::spawn(async move {
+        router
+            .oneshot(session_auth_http_request(
+                "/action/caughtRefusalAction",
+                br#"{"args":{}}"#.to_vec(),
+                &action_bearer,
+            ))
+            .await
+            .expect("caught-refusal action response")
+    });
+    tokio::time::timeout(Duration::from_secs(5), pause.wait_until_reached())
+        .await
+        .expect("first non-empty mutation reaches pre-reservation pause");
+    assert!(pause.staged_effect_count() > 0);
+    let logout = fixture
+        .router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/logout",
+            br#"{}"#.to_vec(),
+            &bearer,
+        ))
+        .await
+        .expect("caught-refusal logout response");
+    assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+    let terminal = detached_nested_mutation_durable_evidence(&fixture.state).await;
+    pause.release();
+    let response = tokio::time::timeout(Duration::from_secs(5), action)
+        .await
+        .expect("caught-refusal action settles")
+        .expect("caught-refusal action joins");
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    let response = response_json(response).await;
+    assert_eq!(
+        response["diagnostic"]["code"],
+        "SNAPBACK_AUTH_SESSION_EXPIRED"
+    );
+    assert_eq!(observation.staged_count("firstWrite"), 1);
+    assert_eq!(
+        observation.staged_count("secondWrite"),
+        0,
+        "the latched host-call check must stop the distinct second target before staging"
+    );
+    assert_eq!(
+        observation.refusal_codes(),
+        vec![
+            "SNAPBACK_AUTH_SESSION_EXPIRED".to_owned(),
+            "SNAPBACK_AUTH_SESSION_EXPIRED".to_owned(),
+        ],
+        "both caught host errors preserve the same typed cause"
+    );
+    assert_eq!(observation.latch_wins(), 1);
+    assert_eq!(
+        observation.worker_outcomes(),
+        vec![Some("SNAPBACK_AUTH_SESSION_EXPIRED".to_owned())],
+        "the production worker result, before the outer HTTP fence, is the latched caller cause"
+    );
+    let after = detached_nested_mutation_durable_evidence(&fixture.state).await;
+    assert_eq!(after, terminal);
+    assert!(
+        after.rows.iter().all(|row| {
+            !row.to_string().contains("first-caught-sentinel")
+                && !row.to_string().contains("second-caught-sentinel")
+        }),
+        "both distinct durable sentinels remain absent"
+    );
+}
+
+/// T6: a Hermes loop after the first caught refusal forces the real watchdog
+/// linearizer and async interruption path, while the earlier caller cause
+/// remains the final outcome.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn t6_authority_cause_survives_watchdog_and_worker_teardown() {
+    let fixture =
+        finite_authority_matrix_fixture_with_functions(caught_nested_refusal_functions(true)).await;
+    let credential = mint_test_credential(&fixture.state, "caught-watchdog@example.test").await;
+    let bearer = credential["token"]
+        .as_str()
+        .expect("caught-watchdog session bearer")
+        .to_owned();
+    let watchdog = super::install_detached_watchdog_test_config(&fixture.state.snapback, 1_500);
+    assert_eq!(watchdog.worker_active_count(), 0);
+    let pause = install_detached_nested_mutation_test_pause(&fixture.state.snapback);
+    let observation = super::install_nested_latch_test_observation(&fixture.state.snapback);
+    let router = fixture.router.clone();
+    let action_bearer = bearer.clone();
+    let action = tokio::spawn(async move {
+        router
+            .oneshot(session_auth_http_request(
+                "/action/caughtRefusalAction",
+                br#"{"args":{}}"#.to_vec(),
+                &action_bearer,
+            ))
+            .await
+            .expect("caught-watchdog action response")
+    });
+    tokio::time::timeout(Duration::from_secs(5), pause.wait_until_reached())
+        .await
+        .expect("caught-watchdog first mutation stages");
+    let logout = fixture
+        .router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/logout",
+            br#"{}"#.to_vec(),
+            &bearer,
+        ))
+        .await
+        .expect("caught-watchdog logout response");
+    assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+    let terminal = detached_nested_mutation_durable_evidence(&fixture.state).await;
+    pause.release();
+    let response = tokio::time::timeout(Duration::from_secs(6), action)
+        .await
+        .expect("watchdog interrupts the known-busy Hermes loop")
+        .expect("caught-watchdog action joins");
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    let response = response_json(response).await;
+    assert_eq!(
+        response["diagnostic"]["code"], "SNAPBACK_AUTH_SESSION_EXPIRED",
+        "the typed caller cause must win over ACTION_TIMEOUT"
+    );
+    assert_eq!(watchdog.linearizer_count(), 1);
+    assert_eq!(watchdog.worker_completed_count(), 1);
+    assert_eq!(
+        watchdog.worker_active_count(),
+        0,
+        "the action worker counter returns to its exact baseline before response"
+    );
+    assert_eq!(observation.latch_wins(), 1);
+    assert_eq!(
+        observation.worker_outcomes(),
+        vec![Some("SNAPBACK_AUTH_SESSION_EXPIRED".to_owned())],
+        "the production worker result, before the outer HTTP fence, is the latched caller cause"
+    );
+    assert_eq!(
+        detached_nested_mutation_durable_evidence(&fixture.state).await,
+        terminal
+    );
+}
+
+/// T9: the five-second writer budget starts only after the exact caller
+/// reservation. A timed-out FIFO waiter drops that permit and its room binder,
+/// allowing logout to drain; surviving writers keep FIFO order.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn t9_reserved_child_writer_timeout_drains_permit_and_preserves_fifo() {
+    const ROOM: &str = "writer-timeout-room";
+    const MEMBER: &str = "writer-timeout-member";
+    let (state, _directory) = tokio::task::spawn_blocking(|| {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        protected_room_server_fixture()
+    })
+    .await
+    .expect("construct writer-timeout protected-room fixture");
+    let credential = mint_test_credential(&state, "writer-timeout@example.test").await;
+    let bearer = credential["token"]
+        .as_str()
+        .expect("writer-timeout session bearer")
+        .to_owned();
+    let user_id = credential["session"]["userId"]
+        .as_str()
+        .expect("writer-timeout session user")
+        .to_owned();
+    let seed = SeedData {
+        tables: BTreeMap::from([(
+            "roomMembers".to_owned(),
+            vec![Map::from_iter([
+                ("_id".to_owned(), json!(MEMBER)),
+                ("roomId".to_owned(), json!(ROOM)),
+                ("userId".to_owned(), json!(user_id)),
+            ])],
+        )]),
+    };
+    with_snapback_staged_authorization_write(
+        &state.snapback,
+        None,
+        move |snapback| {
+            Ok((
+                snapback_engine::test_support::authorization_commit_preflight_for_seed(
+                    snapback, &seed,
+                )?,
+                seed.clone(),
+            ))
+        },
+        move |snapback, seed| snapback.seed(seed),
+    )
+    .await
+    .expect("reserve writer-timeout seed impact")
+    .expect("seed writer-timeout room membership");
+    let before = with_snapback(&state.snapback, |snapback| {
+        Ok::<_, SnapbackError>((
+            snapback.scan_table("roomMembers", 100, 0)?.rows,
+            snapback.durable_version()?,
+            snapback.change_journal_len()?,
+            snapback.jobs_inspect(100)?,
+        ))
+    })
+    .await
+    .expect("capture writer-timeout durable evidence");
+
+    let router = app(state.clone());
+    let pause = super::install_nested_effect_reservation_test_pause(&state.snapback);
+    let action_bearer = bearer.clone();
+    let action_router = router.clone();
+    let action = tokio::spawn(async move {
+        action_router
+            .oneshot(session_auth_http_request(
+                "/action/heldRoomAction",
+                serde_json::to_vec(&json!({
+                    "args": { "target": "kickRoomMember", "id": MEMBER }
+                }))
+                .expect("serialize writer-timeout action"),
+                &action_bearer,
+            ))
+            .await
+            .expect("writer-timeout action response")
+    });
+    tokio::time::timeout(Duration::from_secs(5), pause.wait_until_reached())
+        .await
+        .expect("writer-timeout child reserves before queueing");
+    let reservation_identity = pause.reservation_identity();
+    assert_ne!(reservation_identity, 0);
+    assert!(
+        crate::auth::invocation::authorized_effect_reservation_active_for_test(
+            reservation_identity
+        ),
+        "the exact authority-work permit is nonzero before queueing"
+    );
+    assert_eq!(
+        pause.writer_budget_started(),
+        0,
+        "the writer budget must not be armed before the exact reservation proof seam releases"
+    );
+
+    // Keep the production after-reservation seam open longer than the full
+    // writer budget. A mutant that arms the deadline before this seam will
+    // expire as soon as it is released; the correct path has not started its
+    // five-second Local-acquisition clock yet.
+    tokio::time::sleep(Duration::from_millis(5_100)).await;
+    assert!(
+        !action.is_finished(),
+        "writer budget armed before reservation proof"
+    );
+
+    let held_local = state.snapback.clone().lock_owned().await;
+    pause.release();
+    tokio::time::timeout(Duration::from_secs(1), async {
+        while pause.writer_budget_started() == 0 {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("writer budget arms after exact reservation proof");
+    assert_eq!(pause.writer_budget_started(), 1);
+    assert!(
+        pause.writer_budget_started_with_active_reservation(),
+        "writer budget starts while the exact authority-work permit remains active"
+    );
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    assert!(
+        !action.is_finished(),
+        "a fresh post-reservation writer budget cannot expire immediately"
+    );
+
+    tokio::time::timeout(Duration::from_secs(7), async {
+        while crate::auth::invocation::authorized_effect_reservation_active_for_test(
+            reservation_identity,
+        ) {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("writer timeout drops the exact authority-work permit");
+    drop(held_local);
+    let response = tokio::time::timeout(Duration::from_secs(5), action)
+        .await
+        .expect("timed-out action publishes after Local is released")
+        .expect("writer-timeout action joins");
+    let response = response_json(response).await;
+    assert_eq!(response["diagnostic"]["code"], "SNAPBACK_ACTION_TIMEOUT");
+    assert_eq!(response["diagnostic"]["details"]["effectCommitted"], false);
+
+    let scope = Scope::from_pairs([("roomId", ROOM)]);
+    let room = tokio::time::timeout(Duration::from_secs(2), async {
+        loop {
+            match state
+                .ephemeral
+                .begin_server_authorized_room_act("protectedPresence", &scope)
+            {
+                Ok(Some(permit)) => break permit,
+                Ok(None) => panic!("protected writer-timeout room must return a permit"),
+                Err(error) if error.code == EphemeralErrorCode::AuthorityPending => {
+                    tokio::task::yield_now().await;
+                }
+                Err(error) => panic!("unexpected writer-timeout room state: {error:?}"),
+            }
+        }
+    })
+    .await
+    .expect("room reservation cancellation removes the exact dependency ticket");
+    drop(room);
+
+    let held_local = state.snapback.clone().lock_owned().await;
+    let logout_router = router.clone();
+    let logout_bearer = bearer.clone();
+    let logout = tokio::spawn(async move {
+        logout_router
+            .oneshot(session_auth_http_request(
+                "/auth/logout",
+                br#"{}"#.to_vec(),
+                &logout_bearer,
+            ))
+            .await
+            .expect("writer-timeout logout response")
+    });
+    let fifo = Arc::new(StdMutex::new(Vec::new()));
+    let first_queued = super::writer_gate::install_managed_writer_queue_test_hook(&state.snapback);
+    let first_state = state.snapback.clone();
+    let first_fifo = fifo.clone();
+    let first = tokio::spawn(async move {
+        with_snapback(&first_state, move |_| {
+            first_fifo
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .push("first");
+        })
+        .await;
+    });
+    tokio::time::timeout(Duration::from_secs(2), first_queued.notified())
+        .await
+        .expect("first surviving writer enters the production FIFO queue");
+    let second_queued = super::writer_gate::install_managed_writer_queue_test_hook(&state.snapback);
+    let second_state = state.snapback.clone();
+    let second_fifo = fifo.clone();
+    let second = tokio::spawn(async move {
+        with_snapback(&second_state, move |_| {
+            second_fifo
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .push("second");
+        })
+        .await;
+    });
+    tokio::time::timeout(Duration::from_secs(2), second_queued.notified())
+        .await
+        .expect("second surviving writer enters behind the first");
+    for _ in 0..20 {
+        tokio::task::yield_now().await;
+    }
+    assert!(
+        !logout.is_finished(),
+        "Local still holds the terminal writer"
+    );
+    assert!(!first.is_finished() && !second.is_finished());
+    drop(held_local);
+
+    let logout = tokio::time::timeout(Duration::from_secs(5), logout)
+        .await
+        .expect("logout drain completes after Local and permit release")
+        .expect("writer-timeout logout joins");
+    assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+    tokio::time::timeout(Duration::from_secs(5), first)
+        .await
+        .expect("first surviving writer completes")
+        .expect("first surviving writer joins");
+    tokio::time::timeout(Duration::from_secs(5), second)
+        .await
+        .expect("second surviving writer completes")
+        .expect("second surviving writer joins");
+    assert_eq!(
+        *fifo
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner),
+        vec!["first", "second"]
+    );
+    let after = with_snapback(&state.snapback, |snapback| {
+        Ok::<_, SnapbackError>((
+            snapback.scan_table("roomMembers", 100, 0)?.rows,
+            snapback.durable_version()?,
+            snapback.change_journal_len()?,
+            snapback.jobs_inspect(100)?,
+        ))
+    })
+    .await
+    .expect("capture post-timeout durable evidence");
+    assert_eq!(
+        after, before,
+        "the timed-out child leaves every durable app surface unchanged"
+    );
 }
 
 #[tokio::test]
@@ -25615,6 +26657,22 @@ fn held_action_host(
     state: SharedSnapback,
     action: &crate::local::DetachedIbexAction,
 ) -> DetachedActionHost {
+    fn writer_runtime() -> tokio::runtime::Handle {
+        static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
+        tokio::runtime::Handle::try_current().unwrap_or_else(|_| {
+            RUNTIME
+                .get_or_init(|| {
+                    tokio::runtime::Builder::new_multi_thread()
+                        .worker_threads(1)
+                        .enable_time()
+                        .build()
+                        .expect("construct held-action writer runtime")
+                })
+                .handle()
+                .clone()
+        })
+    }
+
     let abandoned = Arc::new(AtomicBool::new(false));
     let stream_runner_host = action
         .invocation
@@ -25622,6 +26680,7 @@ fn held_action_host(
         .stream_runner_host(abandoned.clone());
     let stream_runner = stream_runner_host.runner().clone();
     let commit_gate = stream_runner.commit_gate();
+    let authority = action.invocation.authority().clone();
     DetachedActionHost {
         state,
         connected_clients: action.connected_clients.clone(),
@@ -25629,10 +26688,15 @@ fn held_action_host(
         abandoned,
         commit_gate,
         active_reservation: Arc::new(StdMutex::new(None)),
+        writer_cancellation: Arc::new(ManagedWriterCancellation::default()),
+        writer_runtime: writer_runtime(),
+        nested_writer_timed_out: AtomicBool::new(false),
+        terminal_latch: ActionTerminalLatch::default(),
         deadline: Instant::now() + Duration::from_secs(5),
         app_generation: action.app_generation,
         app_generation_fence: action.app_generation_fence.clone(),
-        authority: action.invocation.authority().clone(),
+        nested_effect: NestedActionEffect::classify(authority.clone()),
+        authority,
         push_grants: action.grants.clone(),
         deferred_push_grant: action.deferred_push_grant.clone(),
         external_effect_open: false,
@@ -26828,7 +27892,13 @@ fn detached_host_provider_settlement_method_differs_from_authored_settlement() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn watchdog_abandonment_between_provider_compute_and_settle_wins_the_terminal_cas() {
+async fn t8_terminalization_after_abandonment_invokes_refusal_fallback_cas_and_flush() {
+    for authority_latch_first in [false, true] {
+        provider_settlement_abandonment_case(authority_latch_first).await;
+    }
+}
+
+async fn provider_settlement_abandonment_case(authority_latch_first: bool) {
     let mut function = FunctionDefinition::new(
         "watchdogProviderRace",
         FunctionKind::Action,
@@ -26847,7 +27917,10 @@ async fn watchdog_abandonment_between_provider_compute_and_settle_wins_the_termi
         ..FunctionManifest::default()
     });
     let state = Arc::new(Mutex::new(snapback));
-    super::install_provider_settle_abandonment_test_hook(&state);
+    let counters = super::install_provider_settle_abandonment_test_hook_with_cause(
+        &state,
+        authority_latch_first,
+    );
     let staged = state
         .try_lock()
         .expect("stage provider race action")
@@ -26870,7 +27943,14 @@ async fn watchdog_abandonment_between_provider_compute_and_settle_wins_the_termi
     )
     .await
     .expect_err("the test hook abandons the worker before provider settlement");
-    assert_eq!(refused.diagnostic.code, "SNAPBACK_ACTION_TIMEOUT");
+    assert_eq!(
+        refused.diagnostic.code,
+        if authority_latch_first {
+            "SNAPBACK_AUTH_SESSION_EXPIRED"
+        } else {
+            "SNAPBACK_ACTION_TIMEOUT"
+        }
+    );
     let attempt_token = attempt_token
         .await
         .expect("output attempt starts before provider settlement");
@@ -26879,11 +27959,31 @@ async fn watchdog_abandonment_between_provider_compute_and_settle_wins_the_termi
         .expect("the production worker backstop installs a durable winner");
     assert_eq!(
         terminal.cause,
-        crate::stream_attempt::StreamAttemptCause::TimedOut
+        if authority_latch_first {
+            crate::stream_attempt::StreamAttemptCause::Failed
+        } else {
+            crate::stream_attempt::StreamAttemptCause::TimedOut
+        }
     );
     assert_eq!(
         terminal.settled_by,
         crate::stream_attempt::StreamAttemptSettledBy::Terminalizer
+    );
+    let (provider_invoked, provider_refused, fallback_invoked, cas_won, flush_completed) =
+        counters.counts();
+    assert_eq!(provider_invoked, 1, "provider settlement closure must run");
+    assert_eq!(
+        provider_refused, 1,
+        "provider settlement must refuse after abandonment"
+    );
+    assert_eq!(
+        fallback_invoked, 1,
+        "trusted fallback must run unconditionally"
+    );
+    assert_eq!(cas_won, 1, "the trusted terminal CAS wins exactly once");
+    assert_eq!(
+        flush_completed, 1,
+        "the trusted terminal is durably flushed once"
     );
 }
 
@@ -30549,7 +31649,7 @@ fn production_with_snapback_closures_exclude_auth_acts_and_compat_teardown() {
 }
 
 #[test]
-fn managed_host_plan_action_route_inventory_uses_reserved_step_executor() {
+fn t10_legacy_host_excludes_finite_authority_and_served_routes_use_split_executor() {
     #[derive(Default)]
     struct CallInventory {
         current: Option<String>,
@@ -30599,6 +31699,8 @@ fn managed_host_plan_action_route_inventory_uses_reserved_step_executor() {
         fs::read_to_string(root.join("src/server.rs")).expect("read production server source");
     let admin_source =
         fs::read_to_string(root.join("src/admin.rs")).expect("read production admin source");
+    let engine_source = fs::read_to_string(root.join("../snapback-engine/src/local/engine.rs"))
+        .expect("read production engine source");
     let mut inventory = CallInventory::default();
     inventory.visit_file(&syn::parse_file(&server_source).expect("parse production server source"));
     inventory.visit_file(&syn::parse_file(&admin_source).expect("parse production admin source"));
@@ -30636,6 +31738,46 @@ fn managed_host_plan_action_route_inventory_uses_reserved_step_executor() {
             .values()
             .all(|calls| !calls.contains("invoke_action_prepared")),
         "managed server/admin source must not invoke a nested-writing action while holding Local"
+    );
+    let engine = syn::parse_file(&engine_source).expect("parse production engine source");
+    let local_host = engine
+        .items
+        .iter()
+        .find_map(|item| match item {
+            syn::Item::Struct(item) if item.ident == "LocalIbexActionHost" => Some(item),
+            _ => None,
+        })
+        .expect("legacy local action host remains explicit");
+    let authority = local_host
+        .fields
+        .iter()
+        .find(|field| {
+            field
+                .ident
+                .as_ref()
+                .is_some_and(|ident| ident == "authority")
+        })
+        .expect("legacy host authority field");
+    let syn::Type::Path(authority) = &authority.ty else {
+        panic!("legacy host authority must be a closed nominal type")
+    };
+    assert_eq!(
+        authority
+            .path
+            .segments
+            .last()
+            .expect("authority type")
+            .ident,
+        "LegacyLocalActionAuthority",
+        "PreparedAuthority must be unrepresentable in LocalIbexActionHost"
+    );
+    assert!(
+        engine_source.contains("ResolvedAppAuthority::Session { .. }")
+            && engine_source.contains("ResolvedAppAuthority::ServicePrincipal { .. }")
+            && engine_source.contains(
+                "finite caller actions must use the managed or detached split-phase executor"
+            ),
+        "the closed legacy constructor must exhaustively refuse both finite postures"
     );
 }
 

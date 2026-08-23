@@ -1082,12 +1082,16 @@ fn commit_with_prepared_authorization_interlock(
     prepared: Option<PreparedAuthorizationCommit>,
 ) -> SnapbackResult<()> {
     let Some(prepared) = prepared else {
+        #[cfg(any(test, feature = "test-support"))]
+        notify_app_storage_precommit_for_test();
         return tx.commit().map_err(Into::into);
     };
 
     // Keep the Transaction handle so a COMMIT error can be reconciled on the
     // same serialized connection before another supported writer can advance
     // the durable authorization pair. No room/registry lock is held here.
+    #[cfg(any(test, feature = "test-support"))]
+    notify_app_storage_precommit_for_test();
     let commit = commit_authorization_transaction(&tx);
     if commit.is_ok() {
         return prepared.finalize_committed(min_commit_version);
@@ -1120,6 +1124,34 @@ fn commit_with_prepared_authorization_interlock(
     // publication did not complete. No timeout path may reopen it.
     prepared.finalize_ambiguous();
     Err(commit_error)
+}
+
+#[cfg(any(test, feature = "test-support"))]
+thread_local! {
+    static APP_STORAGE_PRECOMMIT_FOR_TEST: std::cell::RefCell<
+        Option<Box<dyn FnOnce() + 'static>>
+    > = std::cell::RefCell::new(None);
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub fn install_app_storage_precommit_for_test(hook: impl FnOnce() + 'static) {
+    APP_STORAGE_PRECOMMIT_FOR_TEST.with(|slot| {
+        assert!(
+            slot.borrow().is_none(),
+            "app storage pre-COMMIT hook already installed"
+        );
+        *slot.borrow_mut() = Some(Box::new(hook));
+    });
+}
+
+#[cfg(any(test, feature = "test-support"))]
+fn notify_app_storage_precommit_for_test() {
+    APP_STORAGE_PRECOMMIT_FOR_TEST.with(|slot| {
+        if let Some(hook) = slot.borrow_mut().take() {
+            hook();
+        }
+    });
 }
 
 fn commit_authorization_transaction(tx: &Transaction<'_>) -> SnapbackResult<()> {

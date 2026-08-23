@@ -113,6 +113,16 @@ pub enum PendingMutationKind {
     },
 }
 
+fn pending_terminal_disposition(
+    kind: &PendingMutationKind,
+) -> Option<TerminalAuthorityDisposition> {
+    match kind {
+        PendingMutationKind::Revoke { reason } => Some(reason.authority_disposition()),
+        PendingMutationKind::Expire { .. } => Some(TerminalAuthorityDisposition::Carrier),
+        PendingMutationKind::TokenSupersede { .. } => None,
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct PendingMutation {
     expected_generation: u64,
@@ -316,6 +326,7 @@ struct SessionFenceState {
     deadline: DeadlinePair,
     terminal: Option<RevocationReason>,
     pending_tickets: BTreeSet<MutationTicket>,
+    pending_terminal_dispositions: BTreeMap<MutationTicket, TerminalAuthorityDisposition>,
 }
 
 impl SessionFence {
@@ -332,6 +343,7 @@ impl SessionFence {
                 deadline,
                 terminal,
                 pending_tickets: BTreeSet::new(),
+                pending_terminal_dispositions: BTreeMap::new(),
             }),
             in_flight_authority_work: Arc::new(AuthorityWorkCounter::default()),
         }
@@ -448,6 +460,19 @@ pub struct FencedPublication {
 pub struct FencedAuthorityWorkPermit {
     stream: Arc<StreamFence>,
     session: Option<Arc<SessionFence>>,
+}
+
+/// Typed classification for one failed authority-work reservation. Terminal
+/// variants may be retained by a detached action; operational failures must
+/// remain ordinary call-local errors.
+#[derive(Debug)]
+pub enum FencedAuthorityWorkReservationError {
+    AuthorizationStreamRetired,
+    SessionRetired {
+        disposition: TerminalAuthorityDisposition,
+    },
+    SessionMutationPending(SnapbackError),
+    NonTerminal(SnapbackError),
 }
 
 #[derive(Debug, Default)]
@@ -660,50 +685,105 @@ impl FencedPublication {
         epoch_now_ms: u64,
         monotonic_now: Instant,
     ) -> SnapbackResult<Option<FencedAuthorityWorkPermit>> {
-        validate_timestamp_u64(epoch_now_ms)?;
-        let stream_state = self.stream.lock()?;
+        match self.try_reserve_work_classified(epoch_now_ms, monotonic_now) {
+            Ok(permit) => Ok(Some(permit)),
+            Err(FencedAuthorityWorkReservationError::AuthorizationStreamRetired)
+            | Err(FencedAuthorityWorkReservationError::SessionRetired { .. })
+            | Err(FencedAuthorityWorkReservationError::SessionMutationPending(_)) => Ok(None),
+            Err(FencedAuthorityWorkReservationError::NonTerminal(error)) => Err(error),
+        }
+    }
+
+    pub fn try_reserve_work_classified(
+        &self,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> Result<FencedAuthorityWorkPermit, FencedAuthorityWorkReservationError> {
+        validate_timestamp_u64(epoch_now_ms)
+            .map_err(FencedAuthorityWorkReservationError::NonTerminal)?;
+        let stream_state = self
+            .stream
+            .lock()
+            .map_err(FencedAuthorityWorkReservationError::NonTerminal)?;
         if !StreamFence::admits_locked(&stream_state, &self.expected_incarnation) {
-            return Ok(None);
+            return Err(FencedAuthorityWorkReservationError::AuthorizationStreamRetired);
         }
 
         let session = match &self.session {
             Some(session) => {
-                let session_state = session.session.lock()?;
-                if !SessionFence::admits_locked(
-                    &session_state,
-                    session.expected_generation,
-                    epoch_now_ms,
-                    monotonic_now,
-                ) {
-                    return Ok(None);
+                let session_state = session
+                    .session
+                    .lock()
+                    .map_err(FencedAuthorityWorkReservationError::NonTerminal)?;
+                if session_state.generation != session.expected_generation
+                    || session_state.terminal.is_some()
+                    || !session_state.deadline.live_at(epoch_now_ms, monotonic_now)
+                {
+                    let disposition = session_state
+                        .terminal
+                        .map(RevocationReason::authority_disposition)
+                        .unwrap_or(TerminalAuthorityDisposition::Carrier);
+                    return Err(FencedAuthorityWorkReservationError::SessionRetired {
+                        disposition,
+                    });
+                }
+                if !session_state.pending_tickets.is_empty() {
+                    if let Some(disposition) = session_state
+                        .pending_terminal_dispositions
+                        .values()
+                        .copied()
+                        .find(|disposition| {
+                            *disposition == TerminalAuthorityDisposition::DurableDelete
+                        })
+                        .or_else(|| {
+                            session_state
+                                .pending_terminal_dispositions
+                                .values()
+                                .copied()
+                                .next()
+                        })
+                    {
+                        return Err(FencedAuthorityWorkReservationError::SessionRetired {
+                            disposition,
+                        });
+                    }
+                    return Err(FencedAuthorityWorkReservationError::SessionMutationPending(
+                        projection_unavailable(
+                            "the session has a non-terminal authority mutation pending",
+                        ),
+                    ));
                 }
                 if !try_acquire_authority_work(&self.stream.in_flight_authority_work) {
-                    return Err(projection_unavailable(
-                        "the authorization stream has too much in-flight authority work",
+                    return Err(FencedAuthorityWorkReservationError::NonTerminal(
+                        projection_unavailable(
+                            "the authorization stream has too much in-flight authority work",
+                        ),
                     ));
                 }
                 if !try_acquire_authority_work(&session.session.in_flight_authority_work) {
                     release_authority_work(&self.stream.in_flight_authority_work);
-                    return Err(projection_unavailable(
-                        "the session has too much in-flight authority work",
+                    return Err(FencedAuthorityWorkReservationError::NonTerminal(
+                        projection_unavailable("the session has too much in-flight authority work"),
                     ));
                 }
                 Some(Arc::clone(&session.session))
             }
             None => {
                 if !try_acquire_authority_work(&self.stream.in_flight_authority_work) {
-                    return Err(projection_unavailable(
-                        "the authorization stream has too much in-flight authority work",
+                    return Err(FencedAuthorityWorkReservationError::NonTerminal(
+                        projection_unavailable(
+                            "the authorization stream has too much in-flight authority work",
+                        ),
                     ));
                 }
                 None
             }
         };
 
-        Ok(Some(FencedAuthorityWorkPermit {
+        Ok(FencedAuthorityWorkPermit {
             stream: Arc::clone(&self.stream),
             session,
-        }))
+        })
     }
 
     /// Return the exact committed session cause that made this publication
@@ -1721,6 +1801,7 @@ impl SessionProjection {
         fence_state.current_token = None;
         fence_state.terminal = Some(RevocationReason::Uncertain);
         fence_state.pending_tickets.remove(ticket);
+        fence_state.pending_terminal_dispositions.remove(ticket);
         Ok(())
     }
 
@@ -1941,6 +2022,7 @@ impl SessionProjection {
             ));
         }
         let ticket = self.allocate_ticket()?;
+        let terminal_disposition = pending_terminal_disposition(&kind);
         let session = self
             .by_session
             .get_mut(session_id)
@@ -1955,6 +2037,11 @@ impl SessionProjection {
         self.ticket_index
             .insert(ticket.clone(), TicketOwner::Session(session_id.to_owned()));
         fence_state.pending_tickets.insert(ticket.clone());
+        if let Some(disposition) = terminal_disposition {
+            fence_state
+                .pending_terminal_dispositions
+                .insert(ticket.clone(), disposition);
+        }
         Ok(PremarkedAuthorityMutation {
             ticket,
             drain: AuthorityWorkDrain {
@@ -2021,6 +2108,9 @@ impl SessionProjection {
         self.ticket_index
             .insert(ticket.clone(), TicketOwner::Session(session_id.to_owned()));
         fence_state.pending_tickets.insert(ticket.clone());
+        fence_state
+            .pending_terminal_dispositions
+            .insert(ticket.clone(), TerminalAuthorityDisposition::Carrier);
         Ok(PremarkedAuthorityMutation {
             ticket,
             drain: AuthorityWorkDrain {
@@ -2066,6 +2156,7 @@ impl SessionProjection {
             .remove(ticket);
         self.ticket_index.remove(ticket);
         fence_state.pending_tickets.remove(ticket);
+        fence_state.pending_terminal_dispositions.remove(ticket);
         Ok(true)
     }
 
@@ -2148,6 +2239,7 @@ impl SessionProjection {
         fence_state.current_token = None;
         fence_state.terminal = Some(reason);
         fence_state.pending_tickets.remove(ticket);
+        fence_state.pending_terminal_dispositions.remove(ticket);
         Ok(())
     }
 
@@ -2214,6 +2306,7 @@ impl SessionProjection {
         fence_state.current_token = None;
         fence_state.terminal = Some(RevocationReason::Expired);
         fence_state.pending_tickets.remove(ticket);
+        fence_state.pending_terminal_dispositions.remove(ticket);
         Ok(())
     }
 
@@ -2295,6 +2388,7 @@ impl SessionProjection {
         self.ticket_index.remove(ticket);
         fence_state.current_token = Some(successor);
         fence_state.pending_tickets.remove(ticket);
+        fence_state.pending_terminal_dispositions.remove(ticket);
         Ok(FinalizedRotationPublicationCut {
             generation: pending.expected_generation,
             successor_digest: successor,
@@ -2431,6 +2525,15 @@ impl SessionProjection {
                 || fence.current_token != session.current_token
                 || fence.deadline != session.deadline
                 || fence.pending_tickets != session.pending.keys().cloned().collect()
+                || fence.pending_terminal_dispositions
+                    != session
+                        .pending
+                        .iter()
+                        .filter_map(|(ticket, pending)| {
+                            pending_terminal_disposition(&pending.kind)
+                                .map(|disposition| (ticket.clone(), disposition))
+                        })
+                        .collect()
             {
                 return Err(projection_corrupt(
                     "projected session and leaf fence differ",
