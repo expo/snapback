@@ -5,8 +5,9 @@ use super::{
     ConnectionOpenAttempt, DetachedActionHost, DetachedActionWorkerCounters, HostOperationParentV1,
     ManagedWriterCancellation, NestedActionEffect, OpenConnectionRequest, PolicyAuthMode,
     PreparedAuthority, RealtimeEnvelope, SharedSnapback, SnapbackApp,
-    TEST_ASSET_RETRY_GUARD_HEADER, TEST_FINITE_AUTHORITY_PAUSE_HEADER, TestAssetRetryGuardAction,
-    TestFiniteAuthorityPausePoint, already_terminal_session_error, app,
+    TEST_ASSET_RETRY_GUARD_HEADER, TEST_FINITE_AUTHORITY_PAUSE_HEADER,
+    TEST_PAIRING_COMMIT_GUARD_RETIRE_HEADER, TEST_PAIRING_WRITER_BUDGET_HEADER,
+    TestAssetRetryGuardAction, TestFiniteAuthorityPausePoint, already_terminal_session_error, app,
     configured_action_worker_limit, configured_cron_dispatch_concurrency, coordinated_app_reset,
     dispatch_cron_tick_background, finish_registered_response,
     install_committed_reset_handoff_test_hook, install_detached_nested_mutation_test_pause,
@@ -34577,6 +34578,7 @@ enum ModeOnlyMigrationAuthorizedEffectSite {
     CapabilityLinkRevoke,
     ClientMutationAcknowledgement,
     AgentInvitationMint,
+    PairingCodeMint,
     AskSpendReservation,
 }
 
@@ -34587,6 +34589,7 @@ impl ModeOnlyMigrationAuthorizedEffectSite {
             Self::CapabilityLinkRevoke => "capability-link-revoke",
             Self::ClientMutationAcknowledgement => "client-mutation-acknowledgement",
             Self::AgentInvitationMint => "agent-invitation-mint",
+            Self::PairingCodeMint => "pairing-code-mint",
             Self::AskSpendReservation => "ask-spend-reservation",
         }
     }
@@ -34742,6 +34745,9 @@ async fn mode_only_migration_authorized_effect_fixture(
             ))
             .await
         }
+        ModeOnlyMigrationAuthorizedEffectSite::PairingCodeMint => {
+            sessions_activation_server_fixture_async().await
+        }
         ModeOnlyMigrationAuthorizedEffectSite::AskSpendReservation => {
             sessions_activation_server_fixture_with_ask_async(
                 "http://127.0.0.1:9".to_owned(),
@@ -34877,6 +34883,9 @@ async fn mode_only_migration_authorized_effect_fixture(
         }
         ModeOnlyMigrationAuthorizedEffectSite::AgentInvitationMint => {
             prepared_user_agent_invitation_request(&state, &router, &bearer).await
+        }
+        ModeOnlyMigrationAuthorizedEffectSite::PairingCodeMint => {
+            session_auth_http_request("/auth/pairing-codes", br#"{}"#.to_vec(), &bearer)
         }
         ModeOnlyMigrationAuthorizedEffectSite::AskSpendReservation => {
             let mut request = session_auth_http_request(
@@ -35155,6 +35164,219 @@ mode_only_migration_authorized_effect_race_tests!(
     agent_invitation_mint_authorized_effect_reservation_wins_before_logout,
     ModeOnlyMigrationAuthorizedEffectSite::AgentInvitationMint
 );
+mode_only_migration_authorized_effect_race_tests!(
+    pairing_code_mint_logout_wins_before_authorized_effect_reservation,
+    pairing_code_mint_authorized_effect_reservation_wins_before_logout,
+    ModeOnlyMigrationAuthorizedEffectSite::PairingCodeMint
+);
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn pairing_code_mint_final_mode_guard_refusal_rolls_back_complete_auth_transaction() {
+    let control = mode_only_migration_authorized_effect_fixture(
+        ModeOnlyMigrationAuthorizedEffectSite::PairingCodeMint,
+    )
+    .await;
+    let control_before = mode_only_migration_durable_marker(
+        &control.state,
+        ModeOnlyMigrationAuthorizedEffectSite::PairingCodeMint,
+        &control.principal_id,
+    )
+    .await;
+    let control_response = control
+        .router
+        .clone()
+        .oneshot(control.request)
+        .await
+        .expect("pairing-code nonempty control response");
+    assert_eq!(control_response.status(), StatusCode::OK);
+    assert!(
+        mode_only_migration_durable_marker(
+            &control.state,
+            ModeOnlyMigrationAuthorizedEffectSite::PairingCodeMint,
+            &control.principal_id,
+        )
+        .await
+            != control_before,
+        "the final-guard fixture must exercise a nonempty pairing transaction"
+    );
+
+    let fixture = mode_only_migration_authorized_effect_fixture(
+        ModeOnlyMigrationAuthorizedEffectSite::PairingCodeMint,
+    )
+    .await;
+    let marker_before = mode_only_migration_durable_marker(
+        &fixture.state,
+        ModeOnlyMigrationAuthorizedEffectSite::PairingCodeMint,
+        &fixture.principal_id,
+    )
+    .await;
+    let authority = prepared_test_session_route_authority(
+        &fixture.state,
+        InvocationSource::AgentGrantManagement,
+        &fixture.bearer,
+    );
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json"),
+    );
+    headers.insert(
+        HeaderName::from_static(TEST_PAIRING_COMMIT_GUARD_RETIRE_HEADER),
+        HeaderValue::from_static("1"),
+    );
+    let error = match super::auth_pairing_code(
+        State(fixture.state.clone()),
+        Extension(authority),
+        headers,
+        Ok(Bytes::from_static(br#"{}"#)),
+    )
+    .await
+    {
+        Ok(_) => panic!("retired final pairing guard must refuse"),
+        Err(error) => error,
+    };
+    let response = error.into_response();
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    let response = response_json(response).await;
+    assert_eq!(response["diagnostic"]["code"], "SNAPBACK_AUTH_MODE_PENDING");
+    assert!(
+        mode_only_migration_durable_marker(
+            &fixture.state,
+            ModeOnlyMigrationAuthorizedEffectSite::PairingCodeMint,
+            &fixture.principal_id,
+        )
+        .await
+            == marker_before,
+        "final mode-guard refusal must roll back both the clock and pairing row"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn pairing_code_mint_releases_caller_permit_at_commit_before_response_work() {
+    let mut fixture = mode_only_migration_authorized_effect_fixture(
+        ModeOnlyMigrationAuthorizedEffectSite::PairingCodeMint,
+    )
+    .await;
+    let marker_before = mode_only_migration_durable_marker(
+        &fixture.state,
+        ModeOnlyMigrationAuthorizedEffectSite::PairingCodeMint,
+        &fixture.principal_id,
+    )
+    .await;
+    let pause = install_test_finite_authority_pause(
+        TestFiniteAuthorityPausePoint::AfterAuthorizedEffectCommit,
+    );
+    fixture.request.headers_mut().insert(
+        HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
+        HeaderValue::from_str(pause.id()).expect("post-commit response pause header"),
+    );
+    let target_router = fixture.router.clone();
+    let target = tokio::spawn(async move {
+        target_router
+            .oneshot(fixture.request)
+            .await
+            .expect("post-commit paused pairing response")
+    });
+    tokio::time::timeout(Duration::from_secs(5), pause.wait_until_reached())
+        .await
+        .expect("pairing route reaches post-commit response work");
+    assert!(
+        mode_only_migration_durable_marker(
+            &fixture.state,
+            ModeOnlyMigrationAuthorizedEffectSite::PairingCodeMint,
+            &fixture.principal_id,
+        )
+        .await
+            != marker_before,
+        "the observed participant must be the nonempty pairing commit"
+    );
+
+    let logout = tokio::time::timeout(
+        Duration::from_secs(5),
+        fixture.router.clone().oneshot(session_auth_http_request(
+            "/auth/logout",
+            br#"{}"#.to_vec(),
+            &fixture.bearer,
+        )),
+    )
+    .await
+    .expect("post-commit response work does not pin logout")
+    .expect("post-commit logout response");
+    assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+
+    pause.release().await;
+    let response = tokio::time::timeout(Duration::from_secs(5), target)
+        .await
+        .expect("post-commit pairing response does not hang")
+        .expect("post-commit pairing task");
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn pairing_code_mint_bounds_fifo_local_wait_and_releases_caller_permit() {
+    let fixture = mode_only_migration_authorized_effect_fixture(
+        ModeOnlyMigrationAuthorizedEffectSite::PairingCodeMint,
+    )
+    .await;
+    let authority = prepared_test_session_route_authority(
+        &fixture.state,
+        InvocationSource::AgentGrantManagement,
+        &fixture.bearer,
+    );
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json"),
+    );
+    headers.insert(
+        HeaderName::from_static(TEST_PAIRING_WRITER_BUDGET_HEADER),
+        HeaderValue::from_static("50"),
+    );
+    let local = fixture.state.snapback.clone().lock_owned().await;
+    let queued =
+        super::writer_gate::install_managed_writer_queue_test_hook(&fixture.state.snapback);
+    let target_state = fixture.state.clone();
+    let target = tokio::spawn(async move {
+        match super::auth_pairing_code(
+            State(target_state),
+            Extension(authority),
+            headers,
+            Ok(Bytes::from_static(br#"{}"#)),
+        )
+        .await
+        {
+            Ok(response) => response.into_response(),
+            Err(error) => error.into_response(),
+        }
+    });
+    tokio::time::timeout(Duration::from_secs(5), queued.notified())
+        .await
+        .expect("pairing request enters the real managed FIFO queue");
+    let response = tokio::time::timeout(Duration::from_secs(2), target)
+        .await
+        .expect("pairing writer wait obeys its test-shortened absolute deadline")
+        .expect("bounded pairing writer task");
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    let response = response_json(response).await;
+    assert_eq!(
+        response["diagnostic"]["code"],
+        "SNAPBACK_WRITER_ACQUIRE_TIMEOUT"
+    );
+
+    drop(local);
+    let logout = tokio::time::timeout(
+        Duration::from_secs(5),
+        fixture.router.clone().oneshot(session_auth_http_request(
+            "/auth/logout",
+            br#"{}"#.to_vec(),
+            &fixture.bearer,
+        )),
+    )
+    .await
+    .expect("bounded-wait reservation does not pin logout after Local release")
+    .expect("bounded-wait logout response");
+    assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+}
 mode_only_migration_authorized_effect_race_tests!(
     ask_spend_reservation_logout_wins_before_authorized_effect_reservation,
     ask_spend_reservation_authorized_effect_reservation_wins_before_logout,

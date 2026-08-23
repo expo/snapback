@@ -1403,6 +1403,38 @@ impl CallerAuthorityTerminalCause {
     }
 }
 
+/// First-wins carrier for one caller-backed durable decision. Reservation and
+/// final-guard refusal both enter through the typed cause; operational errors
+/// never populate this latch.
+#[derive(Clone, Debug, Default)]
+pub struct CallerAuthorityTerminalLatch {
+    cause: std::sync::Arc<std::sync::OnceLock<CallerAuthorityTerminalCause>>,
+}
+
+impl CallerAuthorityTerminalLatch {
+    pub fn latch(&self, cause: CallerAuthorityTerminalCause) -> SnapbackError {
+        let _ = self.cause.set(cause);
+        self.cause
+            .get()
+            .expect("caller-authority terminal latch is populated")
+            .error()
+            .clone()
+    }
+
+    pub fn map_reservation_error(&self, error: AuthorizedEffectReservationError) -> SnapbackError {
+        match error {
+            AuthorizedEffectReservationError::Terminal(cause) => self.latch(cause),
+            AuthorizedEffectReservationError::NonTerminal(error) => error,
+        }
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn cause_for_test(&self) -> Option<CallerAuthorityTerminalCause> {
+        self.cause.get().cloned()
+    }
+}
+
 #[derive(Debug)]
 pub enum AuthorizedEffectReservationError {
     Terminal(CallerAuthorityTerminalCause),
@@ -3540,6 +3572,46 @@ mod tests {
             AuthorizedEffectReservationError::Terminal(
                 CallerAuthorityTerminalCause::AdmissionEpochRetired { .. }
             )
+        ));
+    }
+
+    #[test]
+    fn caller_authority_terminal_latch_preserves_typed_first_cause() {
+        let latch = CallerAuthorityTerminalLatch::default();
+        let first_error = SnapbackError::error(
+            "SNAPBACK_AUTH_SESSION_EXPIRED",
+            "auth",
+            "the exact pairing-code caller was durably retired",
+        );
+        assert_eq!(
+            latch
+                .latch(CallerAuthorityTerminalCause::SessionRetired {
+                    disposition: TerminalAuthorityDisposition::DurableDelete,
+                    error: first_error,
+                })
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_SESSION_EXPIRED"
+        );
+
+        let later_error = SnapbackError::error(
+            "SNAPBACK_AUTH_MODE_PENDING",
+            "auth",
+            "a later mode retirement must not replace the exact caller cause",
+        );
+        assert_eq!(
+            latch
+                .latch(CallerAuthorityTerminalCause::AdmissionEpochRetired { error: later_error })
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_SESSION_EXPIRED"
+        );
+        assert!(matches!(
+            latch.cause_for_test(),
+            Some(CallerAuthorityTerminalCause::SessionRetired {
+                disposition: TerminalAuthorityDisposition::DurableDelete,
+                ..
+            })
         ));
     }
 

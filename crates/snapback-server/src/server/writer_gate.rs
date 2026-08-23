@@ -124,6 +124,27 @@ where
     with_snapback_then(state, work, |output| output).await
 }
 
+/// Run one ordinary managed-writer turn only if the existing FIFO queue grants
+/// Local before `deadline`. Dropping the selected lock future removes exactly
+/// this waiter; callers remain responsible for dropping any outside-Local
+/// authority reservation when `None` is returned.
+///
+/// @ref LLP 0058#split-phase-authorized-effect-fence — finite caller permits
+/// use an absolute deadline while waiting for Local, so terminalization cannot
+/// be pinned indefinitely by writer contention.
+pub(crate) async fn with_snapback_until<T, F>(
+    state: &SharedSnapback,
+    deadline: Instant,
+    work: F,
+) -> Option<T>
+where
+    F: FnOnce(&mut LocalSnapback) -> T + Send + 'static,
+    T: Send + 'static,
+{
+    let guard = lock_managed_snapback_until(state, deadline, None).await?;
+    Some(with_locked_snapback_then(guard, work, |output| output).await)
+}
+
 pub(super) async fn lock_managed_snapback(
     state: &SharedSnapback,
 ) -> tokio::sync::OwnedMutexGuard<LocalSnapback> {

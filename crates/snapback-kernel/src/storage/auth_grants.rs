@@ -6,8 +6,8 @@
 
 use super::LocalDatabase;
 use super::auth_agent_credentials::{
-    coalesce_credential_use, live_credential_by_hash, require_agent_active_on,
-    require_agent_clock_on,
+    advance_agent_clock_on, coalesce_credential_use, live_credential_by_hash,
+    require_agent_active_on, require_agent_clock_on,
 };
 use crate::auth::crypto::{AgentCredential, PairingCode, RandomSource};
 use crate::auth::crypto::{StepUpConsumption, StepUpProof, step_up_required_error};
@@ -170,6 +170,24 @@ pub(super) enum PairingRequestCreation {
     AtCapacity,
 }
 
+/// Exact result of the pairing-code SQLite commit before caller-independent
+/// response mapping. Keeping this boundary explicit lets the engine release
+/// its finite caller permit as soon as the guarded transaction returns.
+#[doc(hidden)]
+pub struct PairingCodeMintCommit {
+    creation: PairingRequestCreation,
+    minted: MintedPairingCode,
+}
+
+impl PairingCodeMintCommit {
+    pub fn into_result(self) -> SnapbackResult<MintedPairingCode> {
+        if self.creation == PairingRequestCreation::AtCapacity {
+            return Err(pairing_code_cap());
+        }
+        Ok(self.minted)
+    }
+}
+
 pub(super) struct PairingRequestDraft<'a> {
     pub request_id: &'a str,
     pub code_hash: &'a [u8],
@@ -231,7 +249,26 @@ impl LocalDatabase {
         now_ms: u64,
         random: &dyn RandomSource,
     ) -> SnapbackResult<MintedPairingCode> {
-        self.observe_agent_authorization_clock(now_ms)?;
+        self.mint_pairing_code_guarded_commit(user_id, now_ms, random, || Ok(()))?
+            .into_result()
+    }
+
+    /// Mint one pairing secret with its authorization-clock advancement and
+    /// consent row in the same guarded transaction.
+    ///
+    /// @ref LLP 0058#split-phase-authorized-effect-fence — caller authority is
+    /// reserved outside Local; mode admission is acquired only at this final
+    /// durable cut and retained through SQLite COMMIT.
+    pub fn mint_pairing_code_guarded_commit<G, BeforeCommit>(
+        &mut self,
+        user_id: &str,
+        now_ms: u64,
+        random: &dyn RandomSource,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<PairingCodeMintCommit>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
         let expires_at_ms = now_ms
             .checked_add(PAIRING_CODE_TTL_MS)
             .filter(|expires_at_ms| *expires_at_ms <= super::MAX_AUTHORIZATION_EPOCH)
@@ -239,31 +276,34 @@ impl LocalDatabase {
         let secret = PairingCode::generate(random).map_err(|_| provider_unavailable())?;
         let hash = secret.token_hash();
         let request_id = crate::ids::mint_time_ordered(crate::ids::Kind::GrantRequest);
-        let creation = self.with_auth_transaction(|tx| {
-            require_agent_clock_on(tx, now_ms)?;
-            require_human_user_on(tx, user_id)?;
-            create_pairing_request_on(
-                tx,
-                PairingRequestDraft {
-                    request_id: &request_id,
-                    code_hash: hash.as_bytes(),
-                    minted_by_user_id: user_id,
-                    agent_user_id: None,
-                    requested_scopes: None,
-                    created_at_ms: now_ms,
-                    expires_at_ms,
-                    consumed_at_ms: None,
-                },
-                now_ms,
-            )
-        })?;
-        if creation == PairingRequestCreation::AtCapacity {
-            return Err(pairing_code_cap());
-        }
-        Ok(MintedPairingCode {
-            request_id,
-            expires_at_ms,
-            secret,
+        let creation = self.with_auth_transaction_guarded(
+            |tx| {
+                advance_agent_clock_on(tx, now_ms)?;
+                require_human_user_on(tx, user_id)?;
+                create_pairing_request_on(
+                    tx,
+                    PairingRequestDraft {
+                        request_id: &request_id,
+                        code_hash: hash.as_bytes(),
+                        minted_by_user_id: user_id,
+                        agent_user_id: None,
+                        requested_scopes: None,
+                        created_at_ms: now_ms,
+                        expires_at_ms,
+                        consumed_at_ms: None,
+                    },
+                    now_ms,
+                )
+            },
+            before_commit,
+        )?;
+        Ok(PairingCodeMintCommit {
+            creation,
+            minted: MintedPairingCode {
+                request_id,
+                expires_at_ms,
+                secret,
+            },
         })
     }
 
@@ -2737,6 +2777,19 @@ impl super::ServingDatabase {
         random: &dyn RandomSource,
     ) -> SnapbackResult<MintedPairingCode> {
         self.db.mint_pairing_code(user_id, now_ms, random)
+    }
+    pub fn mint_pairing_code_guarded_commit<G, BeforeCommit>(
+        &mut self,
+        user_id: &str,
+        now_ms: u64,
+        random: &dyn RandomSource,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<PairingCodeMintCommit>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.db
+            .mint_pairing_code_guarded_commit(user_id, now_ms, random, before_commit)
     }
     pub fn present_pairing_code(
         &mut self,

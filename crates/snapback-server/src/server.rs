@@ -21,8 +21,9 @@ use crate::auth::handshake::{
 use crate::auth::invocation::AuthorizedEffectScopeProbeForTest;
 use crate::auth::invocation::{
     AuthorizedEffectCommitGuard, AuthorizedEffectReservation, AuthorizedEffectReservationError,
-    FunctionAttribution, InvocationGate, InvocationSource, PreparedAuthority, ResolvedAppAuthority,
-    WireAuthorityFields, descriptor_for_resolved_authority,
+    CallerAuthorityTerminalLatch, FunctionAttribution, InvocationGate, InvocationSource,
+    PreparedAuthority, ResolvedAppAuthority, WireAuthorityFields,
+    descriptor_for_resolved_authority,
 };
 use crate::auth::lease::{
     AUTHORIZED_LEASE_PROTOCOL_VERSION, AuthorizedLease, AuthorizedLeaseRequestIdentity,
@@ -168,7 +169,7 @@ pub use response_types::*;
 use writer_gate::{ManagedWriterCancellation, lock_managed_snapback, lock_managed_snapback_until};
 pub(crate) use writer_gate::{
     with_read_lane, with_snapback_authorization_write, with_snapback_staged_authorization_write,
-    with_snapback_then,
+    with_snapback_then, with_snapback_until,
 };
 
 /// Delegates to the writer gate. Kept as a `server.rs` item (not a re-export)
@@ -13904,6 +13905,12 @@ fn stale_prepared_authority(authority: &PreparedAuthority, epoch_now_ms: u64) ->
 const TEST_FINITE_AUTHORITY_PAUSE_HEADER: &str = "x-snapback-test-finite-authority-pause";
 
 #[cfg(test)]
+const TEST_PAIRING_COMMIT_GUARD_RETIRE_HEADER: &str = "x-snapback-test-pairing-commit-guard-retire";
+
+#[cfg(test)]
+const TEST_PAIRING_WRITER_BUDGET_HEADER: &str = "x-snapback-test-pairing-writer-budget-ms";
+
+#[cfg(test)]
 const TEST_ASSET_RETRY_GUARD_HEADER: &str = "x-snapback-test-asset-retry-guard";
 
 #[cfg(test)]
@@ -14123,6 +14130,7 @@ enum TestFiniteAuthorityPausePoint {
     BeforeHandler,
     BeforeAuthorizedEffectReservation,
     AfterAuthorizedEffectReservation,
+    AfterAuthorizedEffectCommit,
     BeforeResponsePublication,
     AfterRefreshPremark,
     AfterSessionTerminalPremark,
@@ -14344,9 +14352,20 @@ async fn pause_test_finite_authority_request(
 /// without changing production lock scope.
 async fn reserve_route_authorized_effect(
     authority: &PreparedAuthority,
-    _headers: &HeaderMap,
+    headers: &HeaderMap,
     effect: &'static str,
 ) -> Result<AuthorizedEffectReservation, ApiError> {
+    reserve_route_authorized_effect_classified(authority, headers, effect)
+        .await
+        .map_err(AuthorizedEffectReservationError::into_error)
+        .map_err(ApiError::from)
+}
+
+async fn reserve_route_authorized_effect_classified(
+    authority: &PreparedAuthority,
+    _headers: &HeaderMap,
+    effect: &'static str,
+) -> Result<AuthorizedEffectReservation, AuthorizedEffectReservationError> {
     #[cfg(test)]
     pause_test_finite_authority_request(
         _headers
@@ -14356,9 +14375,7 @@ async fn reserve_route_authorized_effect(
         None,
     )
     .await;
-    let reservation = authority
-        .reserve_authorized_effect(effect)
-        .map_err(ApiError::from)?;
+    let reservation = authority.reserve_authorized_effect_classified(effect)?;
     #[cfg(test)]
     pause_test_finite_authority_request(
         _headers
@@ -17168,6 +17185,11 @@ async fn auth_agent_invitation(
     }))
 }
 
+// Pairing mint is a short, already-prepared auth transaction. Its exact
+// caller reservation begins before Local, so cap the FIFO wait at the common
+// five-second caller-authorized commit budget rather than pinning logout.
+const PAIRING_CODE_MINT_COMMIT_BUDGET: Duration = Duration::from_secs(5);
+
 async fn auth_pairing_code(
     State(runtime): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
@@ -17178,12 +17200,67 @@ async fn auth_pairing_code(
     let provider = require_agent_routes_available(&runtime)?;
     let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
     let now_ms = provider.now_ms();
+    let terminal_latch = CallerAuthorityTerminalLatch::default();
+    let authorized_effect = reserve_route_authorized_effect_classified(
+        &authority,
+        &headers,
+        "pairing-code mint transaction",
+    )
+    .await
+    .map_err(|error| ApiError::from(terminal_latch.map_reservation_error(error)))?;
+    #[cfg(test)]
+    let authorized_effect = if headers.contains_key(TEST_PAIRING_COMMIT_GUARD_RETIRE_HEADER) {
+        let controller = runtime.auth_admission_controller();
+        authorized_effect.with_before_commit_guard_for_test(move |_| {
+            controller
+                .fail_closed_after_uncertain_commit()
+                .expect("retire pairing-code admission epoch before the final guard");
+        })
+    } else {
+        authorized_effect
+    };
+    let writer_budget = {
+        #[cfg(test)]
+        {
+            headers
+                .get(TEST_PAIRING_WRITER_BUDGET_HEADER)
+                .and_then(|value| value.to_str().ok())
+                .and_then(|value| value.parse::<u64>().ok())
+                .map(Duration::from_millis)
+                .unwrap_or(PAIRING_CODE_MINT_COMMIT_BUDGET)
+        }
+        #[cfg(not(test))]
+        {
+            PAIRING_CODE_MINT_COMMIT_BUDGET
+        }
+    };
+    let writer_deadline = Instant::now()
+        .checked_add(writer_budget)
+        .unwrap_or_else(Instant::now);
     let effect_authority = authority.clone();
-    let minted = with_snapback(&runtime.snapback, move |snapback| {
-        let _effect = effect_authority.effect_guard("pairing-code mint transaction")?;
-        snapback.mint_pairing_code(&_effect, &user_id, now_ms, provider.agent_random_source())
+    let commit_terminal_latch = terminal_latch.clone();
+    let minted = with_snapback_until(&runtime.snapback, writer_deadline, move |snapback| {
+        snapback.mint_pairing_code_with_authorized_effect(
+            &effect_authority,
+            &user_id,
+            now_ms,
+            provider.agent_random_source(),
+            authorized_effect,
+            &commit_terminal_latch,
+        )
     })
-    .await?;
+    .await
+    .ok_or_else(|| ApiError::from(CommitTimeoutPhase::WriterAcquire.diagnostic()))?;
+    #[cfg(test)]
+    pause_test_finite_authority_request(
+        headers
+            .get(TEST_FINITE_AUTHORITY_PAUSE_HEADER)
+            .and_then(|value| value.to_str().ok()),
+        TestFiniteAuthorityPausePoint::AfterAuthorizedEffectCommit,
+        None,
+    )
+    .await;
+    let minted = minted?;
     Ok(Json(PairingCodeSecretResponse {
         pairing_request_id: minted.request_id,
         expires_at_ms: minted.expires_at_ms,
