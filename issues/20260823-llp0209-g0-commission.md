@@ -333,4 +333,7 @@ artifacts regenerate on the merged tree, never hand-merged; the
 
 ## Status
 
+- 2026-08-23 — **Stage A LANDED** `77ed8394d` (LLP 0209 v0.5; seven-round dual-family loop, records in `llp/reviews/0209-g0-stage-a.*`).
+- 2026-08-23 — **Stage B1 LANDED** (series ending `73232029d`): graph IR types, six identities, admission + demand-time registers, `HandlerPlan::GraphQuery` + `graph_query_v1` reserved support-false, `CapturedReadKind::GraphNode`, fail-closed matcher arm; search nodes and authored broadcast certificates fail closed pending B2/D6 owner proofs; records in `llp/reviews/0209-g0-stage-b1.*`. Remaining: B2 (codegen `defineGraphQuery` + lowering + source-stage refusals), B3 (Zerobugs declarations, corpus, bounds, exit note v0.6).
+
 - 2026-08-23 — commissioned; packet landed; lane not yet dispatched.
