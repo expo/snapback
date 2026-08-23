@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:de523fa37164a06137fc63cd1adf085981f64144eecc
 # @expo/snapback-client/lease-convergence
 
 Build-bound public API projection for `@expo/snapback-client/lease-convergence`. Canonical registry identity:
-`sha256:10174812ae483f7fcd166febb53a8fecc75aec574297f2bc926a4edf6d1e9fc4`.
+`sha256:15e205a17371d193a74565fba2c8e01c3b4467f9ab278fe512f1ce1175feb070`.
 Runtime parity condition:
 `import` → `packages/snapback-client/lease-convergence.mjs`.
 

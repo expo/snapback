@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:91428925f0c6914c55dbf7fddefac05eccc7a2fd1090
 # @expo/snapback-client/vector-search
 
 Build-bound public API projection for `@expo/snapback-client/vector-search`. Canonical registry identity:
-`sha256:10174812ae483f7fcd166febb53a8fecc75aec574297f2bc926a4edf6d1e9fc4`.
+`sha256:15e205a17371d193a74565fba2c8e01c3b4467f9ab278fe512f1ce1175feb070`.
 Runtime parity condition:
 `import` → `packages/snapback-client/vector-search.mjs`.
 
@@ -39,7 +39,7 @@ Symbols: 5 total; 1 runtime values; 4 type-only.
 
 Stable identity: `npm:@expo/snapback-client/vector-search#SnapbackClient`
 Kind: `runtime-class`
-Source: `packages/snapback-client/index.d.mts:1658`
+Source: `packages/snapback-client/index.d.mts:1656`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export class SnapbackClient {
@@ -64,11 +64,6 @@ export class SnapbackClient {
     readonly challengeId: string;
     readonly code: string;
   }>): Promise<AuthCredentialPublicProjectionV1>;
-  authEnterAsGuest(): Promise<AuthCredentialPublicProjectionV1>;
-  authClaimGuestWithPassword(input: Readonly<{
-    readonly email: string;
-    readonly password: string;
-  }>): Promise<AuthRecoveryCredentialPublicProjectionV1>;
   authPasswordSignup(input: Readonly<{
     readonly email: string;
     readonly password: string;
@@ -560,8 +555,6 @@ Members and overload groups:
 - `authSession` — method; 1 signature
 - `authRequestCode` — method; 1 signature
 - `authExchange` — method; 1 signature
-- `authEnterAsGuest` — method; 1 signature
-- `authClaimGuestWithPassword` — method; 1 signature
 - `authPasswordSignup` — method; 1 signature
 - `authPasswordSignIn` — method; 1 signature
 - `authPasswordChange` — method; 1 signature
@@ -641,7 +634,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/vector-search#VectorFilterV1`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:777`
+Source: `packages/snapback-client/index.d.mts:775`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface VectorFilterV1 {
@@ -662,7 +655,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/vector-search#VectorItemV1`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:787`
+Source: `packages/snapback-client/index.d.mts:785`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface VectorItemV1<
@@ -686,7 +679,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/vector-search#VectorPageV1`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:796`
+Source: `packages/snapback-client/index.d.mts:794`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface VectorPageV1<
@@ -709,7 +702,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/vector-search#VectorRequestV1`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:782`
+Source: `packages/snapback-client/index.d.mts:780`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface VectorRequestV1 {

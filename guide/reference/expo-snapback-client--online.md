@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:d36af46626c7cf6004ba1c504264924ede56ec673dc3
 # @expo/snapback-client/online
 
 Build-bound public API projection for `@expo/snapback-client/online`. Canonical registry identity:
-`sha256:10174812ae483f7fcd166febb53a8fecc75aec574297f2bc926a4edf6d1e9fc4`.
+`sha256:15e205a17371d193a74565fba2c8e01c3b4467f9ab278fe512f1ce1175feb070`.
 Runtime parity condition:
 `import` → `packages/snapback-client/online.mjs`.
 
@@ -38,7 +38,7 @@ Symbols: 4 total; 3 runtime values; 1 type-only.
 
 Stable identity: `npm:@expo/snapback-client/online#bindSnapbackAppLifecycle`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2167`
+Source: `packages/snapback-client/index.d.mts:2160`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function bindSnapbackAppLifecycle(
@@ -59,7 +59,7 @@ export function bindSnapbackAppLifecycle(
 
 Stable identity: `npm:@expo/snapback-client/online#createExternalSessionClient`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2163`
+Source: `packages/snapback-client/index.d.mts:2156`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function createExternalSessionClient(
@@ -73,7 +73,7 @@ export function createExternalSessionClient(
 
 Stable identity: `npm:@expo/snapback-client/online#SnapbackClient`
 Kind: `runtime-class`
-Source: `packages/snapback-client/index.d.mts:1658`
+Source: `packages/snapback-client/index.d.mts:1656`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export class SnapbackClient {
@@ -98,11 +98,6 @@ export class SnapbackClient {
     readonly challengeId: string;
     readonly code: string;
   }>): Promise<AuthCredentialPublicProjectionV1>;
-  authEnterAsGuest(): Promise<AuthCredentialPublicProjectionV1>;
-  authClaimGuestWithPassword(input: Readonly<{
-    readonly email: string;
-    readonly password: string;
-  }>): Promise<AuthRecoveryCredentialPublicProjectionV1>;
   authPasswordSignup(input: Readonly<{
     readonly email: string;
     readonly password: string;
@@ -594,8 +589,6 @@ Members and overload groups:
 - `authSession` — method; 1 signature
 - `authRequestCode` — method; 1 signature
 - `authExchange` — method; 1 signature
-- `authEnterAsGuest` — method; 1 signature
-- `authClaimGuestWithPassword` — method; 1 signature
 - `authPasswordSignup` — method; 1 signature
 - `authPasswordSignIn` — method; 1 signature
 - `authPasswordChange` — method; 1 signature
@@ -675,7 +668,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/online#SnapbackClientOptions`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:1188`
+Source: `packages/snapback-client/index.d.mts:1186`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface SnapbackClientOptions {

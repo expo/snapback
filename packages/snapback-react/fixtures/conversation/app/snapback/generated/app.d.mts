@@ -38,7 +38,7 @@ export interface GeneratedAppCommands {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: task snapshot is process-local; mutation settlement remains durable Retention: command task is process-local; constituent mutation follows outbox retention.
    * Dispatch/task states: `preparing`, `transferring`, `committing`, `succeeded`, `failed`, `cancelled`, `ambiguous`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:f89eefeb58a72b33d6ed3cde542bffba36ffac38fc47093ab3e1435eea06c8c0`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:562214bf3982bd00e859014f347d8c7f9894c072ea1186d335bc419199f49fc3`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   readonly "send": CommandDescriptor<GeneratedApi["sendMessage"], "image", "image", true, GeneratedApi["messageImageUpload"]>;
 }
@@ -70,7 +70,7 @@ export interface ApplicationAuthBootstrapV1 {
   readonly appId: string;
   readonly mode: 'sessions';
   readonly custody: 'durable-required' | 'volatile-explicit';
-  readonly entryMechanisms: readonly ('guest-v1' | 'password-v1' | 'email-code-v1' | 'external-session-explicit-v1')[];
+  readonly entryMechanisms: readonly ('password-v1' | 'email-code-v1' | 'external-session-explicit-v1')[];
   readonly anonymousPublic: 'allowed' | 'refused';
   readonly lifecycleProtocol: 1;
 }

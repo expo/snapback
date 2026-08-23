@@ -5,7 +5,7 @@
   "authorizationTables": [],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:f4d1e72f0f35da04e2f65236974ed458312cc3c3ae5efd728d6afa607c7c58ca",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:f56780075bd89819d195a19e135d007f80f81dd2347a64b74c102ad3c935864b",
   "operations": [
     {
       "authRequirement": {
