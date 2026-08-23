@@ -2637,6 +2637,10 @@ pub struct AppState {
     /// runtime, cron, and staged-mode publication therefore count and retire
     /// roots in one process-local epoch domain.
     pub(crate) auth_admission: AuthAdmissionController,
+    /// Database-bound commit authority delegated only when this AppState
+    /// claimed its exact Local graph. The bounded capsule consumes it without
+    /// exposing it to transaction closures.
+    pub(crate) commit_capsule_binding: crate::server::CommitCapsuleBinding,
     /// Opaque exact-engine operator authority minted by the one-shot graph
     /// claim. Administrative engine commands require this in addition to the
     /// request's admitted invocation.
@@ -2822,6 +2826,7 @@ impl AppState {
         let mut preclaimed_bindings = preclaimed;
         let (
             auth_admission,
+            commit_capsule_authority,
             telemetry,
             derived_instance_identity,
             connected_clients,
@@ -2842,10 +2847,18 @@ impl AppState {
             };
             let coordinator = instance.build_stream_auth_coordinator()?;
             instance.bind_auth_coordinator(coordinator.as_ref())?;
-            let (admission, telemetry, derived, clients, profiles, operator) =
-                bindings.into_parts();
+            let (
+                admission,
+                commit_capsule_authority,
+                telemetry,
+                derived,
+                clients,
+                profiles,
+                operator,
+            ) = bindings.into_parts();
             (
                 admission,
+                commit_capsule_authority,
                 telemetry,
                 derived,
                 clients,
@@ -2882,6 +2895,9 @@ impl AppState {
                 })),
                 auth_program_readiness: Arc::new(AuthProgramReadiness::item4(false)),
                 auth_admission,
+                commit_capsule_binding: crate::server::CommitCapsuleBinding::new(
+                    commit_capsule_authority,
+                ),
                 operator_authority,
                 server_startup_nonce: Arc::from(
                     crate::identity::binary_identity()

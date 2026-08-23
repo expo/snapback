@@ -15,6 +15,7 @@
 //!   remains the only SQLite commit primitive.
 
 use super::{SharedSnapback, writer_gate::lock_managed_snapback};
+use crate::admin::AppState;
 use crate::auth::invocation::{AuthorizedEffectReservation, PreparedAuthority};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::local::LocalSnapback;
@@ -32,6 +33,7 @@ pub(crate) const COMMIT_OUTCOME_UNCERTAIN_CODE: &str = "SNAPBACK_COMMIT_OUTCOME_
 #[derive(Clone, Debug)]
 pub(crate) struct CommitCapsuleSpec {
     pub operation: &'static str,
+    pub operation_identity: String,
     pub deadline: Instant,
     pub uncertain_diagnostic: &'static str,
     #[cfg(test)]
@@ -39,16 +41,75 @@ pub(crate) struct CommitCapsuleSpec {
 }
 
 #[derive(Debug)]
-pub(crate) enum CommitAttempt<T> {
+enum CommitAttemptState<T> {
     Committed(T),
     RolledBack(SnapbackError),
     CommitUncertain { cause: SnapbackError },
 }
 
 #[derive(Debug)]
-pub(crate) enum ExactReconciliation<T> {
-    IntendedRows(T),
-    Uncertain { cause: SnapbackError },
+pub(crate) struct CommitAttempt<T>(CommitAttemptState<T>);
+
+impl<T> CommitAttempt<T> {
+    pub(crate) fn rolled_back(error: SnapbackError) -> Self {
+        Self(CommitAttemptState::RolledBack(error))
+    }
+
+    pub(crate) fn map_committed<U>(self, map: impl FnOnce(T) -> U) -> CommitAttempt<U> {
+        CommitAttempt(match self.0 {
+            CommitAttemptState::Committed(value) => CommitAttemptState::Committed(map(value)),
+            CommitAttemptState::RolledBack(error) => CommitAttemptState::RolledBack(error),
+            CommitAttemptState::CommitUncertain { cause } => {
+                CommitAttemptState::CommitUncertain { cause }
+            }
+        })
+    }
+}
+
+/// The durable destination, caller authority, and database commit authority
+/// are minted as one checked capsule input rather than accepted independently.
+#[derive(Clone, Debug)]
+pub(crate) struct CommitCapsuleBinding(crate::storage::CommitCapsuleAuthority);
+
+impl CommitCapsuleBinding {
+    pub(crate) fn new(authority: crate::storage::CommitCapsuleAuthority) -> Self {
+        Self(authority)
+    }
+
+    fn authority(&self) -> &crate::storage::CommitCapsuleAuthority {
+        &self.0
+    }
+}
+
+pub(crate) struct CommitCapsuleDestination {
+    state: SharedSnapback,
+    authority: PreparedAuthority,
+    binding: CommitCapsuleBinding,
+}
+
+impl CommitCapsuleDestination {
+    pub(crate) fn bind(runtime: &AppState, authority: PreparedAuthority) -> SnapbackResult<Self> {
+        if !runtime
+            .auth_admission_controller()
+            .owns_lease(authority.admission_lease())
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_COMMIT_CAPSULE_DESTINATION_MISMATCH",
+                "server",
+                "the prepared authority does not belong to the destination AppState",
+            ));
+        }
+        Ok(Self {
+            state: runtime.snapback.clone(),
+            authority,
+            binding: runtime.commit_capsule_binding.clone(),
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn commit_authority_for_test(&self) -> crate::storage::CommitCapsuleAuthority {
+        self.binding.0.clone()
+    }
 }
 
 #[derive(Debug)]
@@ -107,7 +168,10 @@ pub(crate) trait PendingCommit: Sized {
     /// COMMIT the already-staged transaction. A known-success adapter must
     /// settle any terminal carrier it shares with `prepare_commit`; the
     /// capsule alone owns the ambiguity carrier across this call.
-    fn commit(self) -> SnapbackResult<Self::Output>;
+    fn commit(
+        self,
+        authority: &crate::storage::CommitCapsuleAuthority,
+    ) -> SnapbackResult<Self::Output>;
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -434,7 +498,9 @@ impl<U> Drop for CommitUncertainRetention<U> {
 /// guard, marks ambiguity, and invokes the kernel COMMIT primitive.
 pub(crate) struct FinalCommitCut<U> {
     operation: &'static str,
+    operation_identity: String,
     deadline: Instant,
+    commit_authority: crate::storage::CommitCapsuleAuthority,
     disposition: Option<FinalCutDisposition>,
     panic_uncertain: Option<U>,
     uncertain_retention: CommitUncertainRetention<U>,
@@ -445,12 +511,16 @@ pub(crate) struct FinalCommitCut<U> {
 impl<U: Send + 'static> FinalCommitCut<U> {
     fn new(
         operation: &'static str,
+        operation_identity: String,
         deadline: Instant,
+        commit_authority: crate::storage::CommitCapsuleAuthority,
         uncertain_retention: CommitUncertainRetention<U>,
     ) -> Self {
         Self {
             operation,
+            operation_identity,
             deadline,
+            commit_authority,
             disposition: None,
             panic_uncertain: None,
             uncertain_retention,
@@ -488,9 +558,13 @@ impl<U: Send + 'static> FinalCommitCut<U> {
             return match pending.rollback() {
                 Ok(()) => {
                     self.disposition = Some(FinalCutDisposition::TimedOut);
-                    CommitAttempt::RolledBack(CommitTimeoutPhase::FinalCut.diagnostic())
+                    CommitAttempt(CommitAttemptState::RolledBack(
+                        CommitTimeoutPhase::FinalCut.diagnostic(),
+                    ))
                 }
-                Err(error) => CommitAttempt::RolledBack(with_effect_false(error)),
+                Err(error) => {
+                    CommitAttempt(CommitAttemptState::RolledBack(with_effect_false(error)))
+                }
             };
         }
 
@@ -500,11 +574,11 @@ impl<U: Send + 'static> FinalCommitCut<U> {
                 return match pending.rollback() {
                     Ok(()) => {
                         self.disposition = Some(FinalCutDisposition::Refused);
-                        CommitAttempt::RolledBack(with_refusal_facts(error))
+                        CommitAttempt(CommitAttemptState::RolledBack(with_refusal_facts(error)))
                     }
-                    Err(rollback_error) => {
-                        CommitAttempt::RolledBack(with_effect_false(rollback_error))
-                    }
+                    Err(rollback_error) => CommitAttempt(CommitAttemptState::RolledBack(
+                        with_effect_false(rollback_error),
+                    )),
                 };
             }
         };
@@ -515,7 +589,7 @@ impl<U: Send + 'static> FinalCommitCut<U> {
         // Nothing that can fail or unwind sits between CommitStarted and the
         // COMMIT call. From this assignment onward a timeout is forbidden.
         self.disposition = Some(FinalCutDisposition::CommitStarted);
-        let result = pending.commit();
+        let result = pending.commit(&self.commit_authority);
         // Nothing below this explicit drop may hold or re-enter AdmissionState.
         drop(commit_guard);
 
@@ -524,14 +598,47 @@ impl<U: Send + 'static> FinalCommitCut<U> {
                 // COMMIT returned known success, so the ambiguity carrier no
                 // longer needs out-of-band retention.
                 drop(self.panic_uncertain.take());
-                CommitAttempt::Committed(value)
+                CommitAttempt(CommitAttemptState::Committed(value))
             }
             Err(cause) => {
                 // Keep the carrier capsule-owned across the return into the
                 // caller-supplied transaction closure. Caller unwind between
                 // this point and reconciliation therefore cannot reopen it.
-                CommitAttempt::CommitUncertain { cause }
+                CommitAttempt(CommitAttemptState::CommitUncertain { cause })
             }
+        }
+    }
+
+    /// Accept an idempotent predecessor only through the kernel's exact-row
+    /// witness for this database and operation. No caller value can mint a
+    /// committed attempt.
+    pub(crate) fn exact_existing<T>(
+        &mut self,
+        reservation: &AuthorizedEffectReservation,
+        witness: crate::storage::ExactCommitRows<T>,
+    ) -> CommitAttempt<T> {
+        assert!(
+            self.disposition.is_none(),
+            "a final commit cut can be consumed only once"
+        );
+        if Instant::now() >= self.deadline {
+            self.disposition = Some(FinalCutDisposition::TimedOut);
+            return CommitAttempt(CommitAttemptState::RolledBack(
+                CommitTimeoutPhase::FinalCut.diagnostic(),
+            ));
+        }
+        let commit_guard = match reservation.commit_guard(self.operation) {
+            Ok(guard) => guard,
+            Err(error) => {
+                self.disposition = Some(FinalCutDisposition::Refused);
+                return CommitAttempt(CommitAttemptState::RolledBack(with_refusal_facts(error)));
+            }
+        };
+        let result = witness.into_value_for(&self.commit_authority, &self.operation_identity);
+        drop(commit_guard);
+        match result {
+            Ok(value) => CommitAttempt(CommitAttemptState::Committed(value)),
+            Err(error) => CommitAttempt(CommitAttemptState::RolledBack(with_effect_false(error))),
         }
     }
 
@@ -559,9 +666,8 @@ enum BlockingCapsuleResult<T> {
 }
 
 pub(crate) async fn with_bounded_commit_capsule<T, Intent, Gate, Uncertain>(
-    state: &SharedSnapback,
+    destination: CommitCapsuleDestination,
     spec: CommitCapsuleSpec,
-    authority: PreparedAuthority,
     terminal_gate: Gate,
     intent: Intent,
     transact: impl FnOnce(
@@ -573,7 +679,11 @@ pub(crate) async fn with_bounded_commit_capsule<T, Intent, Gate, Uncertain>(
     ) -> CommitAttempt<T>
     + Send
     + 'static,
-    reconcile: impl FnOnce(&mut LocalSnapback, &Intent, &Uncertain) -> ExactReconciliation<T>
+    reconcile: impl FnOnce(
+        &mut LocalSnapback,
+        &Intent,
+        &Uncertain,
+    ) -> SnapbackResult<Option<crate::storage::ExactCommitRows<T>>>
     + Send
     + 'static,
     uncertain_retention: CommitUncertainRetention<Uncertain>,
@@ -584,6 +694,11 @@ where
     Gate: Send + 'static,
     Uncertain: Send + 'static,
 {
+    let CommitCapsuleDestination {
+        state,
+        authority,
+        binding,
+    } = destination;
     // Reservation acquisition is part of the capsule API rather than caller
     // setup. A capsule future that has not been polled therefore owns no
     // authority permit, and every successfully created reservation is born
@@ -616,7 +731,7 @@ where
     // and both closures. Timeout cancellation therefore removes only this
     // FIFO mutex waiter and drops every permit/gate carrier it captured.
     let queued = async move {
-        let guard = lock_managed_snapback(state).await;
+        let guard = lock_managed_snapback(&state).await;
         (
             guard,
             reservation,
@@ -624,6 +739,7 @@ where
             intent,
             transact,
             reconcile,
+            binding,
             uncertain_retention,
         )
     };
@@ -634,6 +750,7 @@ where
         intent,
         transact,
         reconcile,
+        binding,
         uncertain_retention,
     )) = timeout_at(spec.deadline, queued).await
     else {
@@ -645,7 +762,13 @@ where
     tokio::task::spawn_blocking(move || {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
         let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
-        let mut final_cut = FinalCommitCut::new(spec.operation, spec.deadline, uncertain_retention);
+        let mut final_cut = FinalCommitCut::new(
+            spec.operation,
+            spec.operation_identity.clone(),
+            spec.deadline,
+            binding.authority().clone(),
+            uncertain_retention,
+        );
         let attempt = catch_unwind(AssertUnwindSafe(|| {
             transact(
                 &mut guard,
@@ -666,15 +789,15 @@ where
                 BlockingCapsuleResult::Panicked(payload)
             }
             Ok(attempt) => {
-                match attempt {
-                    CommitAttempt::Committed(value) => {
+                match attempt.0 {
+                    CommitAttemptState::Committed(value) => {
                         drop(reservation);
                         BlockingCapsuleResult::Complete(CommitCapsuleOutcome::Committed {
                             value,
                             reconciled: false,
                         })
                     }
-                    CommitAttempt::RolledBack(error) => {
+                    CommitAttemptState::RolledBack(error) => {
                         drop(reservation);
                         BlockingCapsuleResult::Complete(match final_cut.disposition {
                             Some(FinalCutDisposition::TimedOut) => CommitCapsuleOutcome::TimedOut {
@@ -686,7 +809,7 @@ where
                             _ => CommitCapsuleOutcome::RolledBack(with_effect_false(error)),
                         })
                     }
-                    CommitAttempt::CommitUncertain {
+                    CommitAttemptState::CommitUncertain {
                         cause: _commit_cause,
                     } => {
                         // The reservation now owns only caller-effect permits;
@@ -702,14 +825,43 @@ where
                                 final_cut.retain_panic_uncertain();
                                 BlockingCapsuleResult::Panicked(payload)
                             }
-                            Ok(ExactReconciliation::IntendedRows(value)) => {
-                                final_cut.discard_reconciled_carrier();
-                                BlockingCapsuleResult::Complete(CommitCapsuleOutcome::Committed {
-                                    value,
-                                    reconciled: true,
-                                })
+                            Ok(Ok(Some(witness))) => match witness.into_value_for(
+                                &final_cut.commit_authority,
+                                &final_cut.operation_identity,
+                            ) {
+                                Ok(value) => {
+                                    final_cut.discard_reconciled_carrier();
+                                    BlockingCapsuleResult::Complete(
+                                        CommitCapsuleOutcome::Committed {
+                                            value,
+                                            reconciled: true,
+                                        },
+                                    )
+                                }
+                                Err(cause) => {
+                                    final_cut.retain_panic_uncertain();
+                                    BlockingCapsuleResult::Complete(
+                                        CommitCapsuleOutcome::Uncertain(commit_uncertain(
+                                            spec.uncertain_diagnostic,
+                                            cause,
+                                        )),
+                                    )
+                                }
+                            },
+                            Ok(Ok(None)) => {
+                                final_cut.retain_panic_uncertain();
+                                BlockingCapsuleResult::Complete(CommitCapsuleOutcome::Uncertain(
+                                    commit_uncertain(
+                                        spec.uncertain_diagnostic,
+                                        SnapbackError::error(
+                                            "SNAPBACK_COMMIT_INTENDED_ROWS_ABSENT",
+                                            "storage",
+                                            "the exact intended successor rows were absent or partial",
+                                        ),
+                                    ),
+                                ))
                             }
-                            Ok(ExactReconciliation::Uncertain { cause }) => {
+                            Ok(Err(cause)) => {
                                 final_cut.retain_panic_uncertain();
                                 BlockingCapsuleResult::Complete(CommitCapsuleOutcome::Uncertain(
                                     commit_uncertain(spec.uncertain_diagnostic, cause),

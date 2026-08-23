@@ -1,7 +1,9 @@
 //! Manifest-activated protected storage for LLP 0204 durable watches.
 
 use super::jobs::{BufferedJobEnqueue, JobProducer};
-use super::{LocalDatabase, SnapbackResult};
+use super::{
+    CommitCapsuleAuthority, DatabaseBinding, ExactCommitRows, LocalDatabase, SnapbackResult,
+};
 use crate::diagnostic::SnapbackError;
 use crate::manifest::SchemaManifest;
 use crate::storage::CapturedReadDependency;
@@ -158,14 +160,12 @@ pub enum WatchManagementIntent {
         operation_identity: String,
         watch_id: String,
         target: WatchStatus,
-        now_ms: u64,
         resume_job_id: Option<String>,
     },
     Renewal {
         operation_identity: String,
         watch_id: String,
         ttl_ms: u64,
-        now_ms: u64,
         replacement_grant_id: String,
     },
 }
@@ -221,6 +221,7 @@ enum WatchManagementIntendedEffect {
 /// those sibling rows are inseparable members of this carrier.
 #[derive(Clone, Debug)]
 pub struct WatchManagementIntendedRows {
+    operation_identity: String,
     watch: WatchRecord,
     durable_watch: WatchDurableRow,
     effect: WatchManagementIntendedEffect,
@@ -260,6 +261,7 @@ impl PartialEq for WatchManagementFactsForTest {
 
 pub struct WatchManagementPending<'connection> {
     tx: Transaction<'connection>,
+    binding: DatabaseBinding,
     intended: WatchManagementIntendedRows,
     value: WatchManagementCommit,
 }
@@ -274,7 +276,21 @@ impl WatchManagementPending<'_> {
         Ok(())
     }
 
-    pub fn commit(self) -> SnapbackResult<WatchManagementCommit> {
+    /// This cross-crate seam is unusable with the transaction closure's Local
+    /// access alone: COMMIT additionally requires the opaque database-bound
+    /// authority held inside the server capsule's private final cut.
+    pub fn commit(
+        self,
+        authority: &CommitCapsuleAuthority,
+    ) -> SnapbackResult<WatchManagementCommit> {
+        if !authority.matches(&self.binding) {
+            self.tx.rollback()?;
+            return Err(SnapbackError::error(
+                "SNAPBACK_COMMIT_CAPSULE_DESTINATION_MISMATCH",
+                "storage",
+                "the commit capsule authority does not govern this watch database",
+            ));
+        }
         #[cfg(any(test, feature = "test-support"))]
         super::observe_durable_commit_for_test();
         self.tx.commit()?;
@@ -630,13 +646,14 @@ impl LocalDatabase {
         &'connection mut self,
         intent: &WatchManagementIntent,
         management_principal_id: &str,
+        now_ms: u64,
     ) -> SnapbackResult<WatchManagementPending<'connection>> {
+        let binding = self.binding();
         match intent {
             WatchManagementIntent::Transition {
-                operation_identity: _,
+                operation_identity,
                 watch_id,
                 target,
-                now_ms,
                 resume_job_id,
             } => {
                 if (*target == WatchStatus::Active) != resume_job_id.is_some() {
@@ -672,8 +689,8 @@ impl LocalDatabase {
                         params![watch_id],
                         |row| row.get::<_, u64>(0),
                     )?;
-                    let available_at_ms = (*now_ms).max(next_at);
-                    enqueue_on_with_job_id(&tx, watch_id, job_id, *now_ms, available_at_ms)?;
+                    let available_at_ms = now_ms.max(next_at);
+                    enqueue_on_with_job_id(&tx, watch_id, job_id, now_ms, available_at_ms)?;
                     Some(available_at_ms)
                 } else {
                     None
@@ -682,16 +699,18 @@ impl LocalDatabase {
                 let durable_watch =
                     durable_watch_row_on(&tx, watch_id)?.ok_or_else(catalog_corrupt)?;
                 let intended = WatchManagementIntendedRows {
+                    operation_identity: operation_identity.clone(),
                     watch: watch.clone(),
                     durable_watch,
                     effect: WatchManagementIntendedEffect::Transition {
                         resume_job_id: resume_job_id.clone(),
-                        now_ms: *now_ms,
+                        now_ms,
                         available_at_ms,
                     },
                 };
                 Ok(WatchManagementPending {
                     tx,
+                    binding,
                     intended,
                     value: WatchManagementCommit {
                         record: watch,
@@ -700,10 +719,9 @@ impl LocalDatabase {
                 })
             }
             WatchManagementIntent::Renewal {
-                operation_identity: _,
+                operation_identity,
                 watch_id,
                 ttl_ms,
-                now_ms,
                 replacement_grant_id,
             } => {
                 if *ttl_ms == 0 || *ttl_ms > crate::watches::RENEWAL_CEILING_MS {
@@ -727,7 +745,7 @@ impl LocalDatabase {
                     ));
                 }
                 let anchor =
-                    revalidate_watch_anchor_on(&tx, &record, *now_ms)?.ok_or_else(|| {
+                    revalidate_watch_anchor_on(&tx, &record, now_ms)?.ok_or_else(|| {
                         SnapbackError::error(
                             "SNAPBACK_WATCH_AUTHORITY_DEAD",
                             "watches",
@@ -784,7 +802,7 @@ impl LocalDatabase {
                         "watchAnchor ended during renewal",
                     ));
                 }
-                old_anchor.revoked_at_ms = Some(*now_ms);
+                old_anchor.revoked_at_ms = Some(now_ms);
                 tx.execute(
                     "INSERT INTO _auth_grants(
                        id, actor_user_id, effective_user_id, scopes, created_at_ms,
@@ -823,6 +841,7 @@ impl LocalDatabase {
                 let replacement_anchor =
                     anchor_grant_row_on(&tx, replacement_grant_id)?.ok_or_else(catalog_corrupt)?;
                 let intended = WatchManagementIntendedRows {
+                    operation_identity: operation_identity.clone(),
                     watch: watch.clone(),
                     durable_watch,
                     effect: WatchManagementIntendedEffect::Renewal {
@@ -832,6 +851,7 @@ impl LocalDatabase {
                 };
                 Ok(WatchManagementPending {
                     tx,
+                    binding,
                     intended,
                     value: WatchManagementCommit {
                         record: watch,
@@ -847,7 +867,7 @@ impl LocalDatabase {
     pub fn reconcile_watch_management(
         &mut self,
         intended: &WatchManagementIntendedRows,
-    ) -> SnapbackResult<Option<WatchManagementCommit>> {
+    ) -> SnapbackResult<Option<ExactCommitRows<WatchManagementCommit>>> {
         if durable_watch_row_on(&self.conn, &intended.watch.id)?.as_ref()
             != Some(&intended.durable_watch)
         {
@@ -890,10 +910,14 @@ impl LocalDatabase {
                 false
             }
         };
-        Ok(Some(WatchManagementCommit {
-            record: watch,
-            evaluation_enqueued,
-        }))
+        Ok(Some(ExactCommitRows::new(
+            self.binding(),
+            &intended.operation_identity,
+            WatchManagementCommit {
+                record: watch,
+                evaluation_enqueued,
+            },
+        )))
     }
 
     #[cfg(any(test, feature = "test-support"))]
@@ -2686,11 +2710,10 @@ mod tests {
             operation_identity: "watch-resume-atomic:rollback".to_owned(),
             watch_id: active.id.clone(),
             target: WatchStatus::Active,
-            now_ms: TEST_NOW_MS + 20,
             resume_job_id: Some("watch-resume-atomic-job".to_owned()),
         };
         let pending = db
-            .stage_watch_management(&intent, "integration-principal")
+            .stage_watch_management(&intent, "integration-principal", TEST_NOW_MS + 20)
             .expect("stage combined resume transaction");
         pending
             .rollback()
@@ -2731,14 +2754,15 @@ impl super::ServingDatabase {
         &'connection mut self,
         intent: &WatchManagementIntent,
         management_principal_id: &str,
+        now_ms: u64,
     ) -> SnapbackResult<WatchManagementPending<'connection>> {
         self.db
-            .stage_watch_management(intent, management_principal_id)
+            .stage_watch_management(intent, management_principal_id, now_ms)
     }
     pub fn reconcile_watch_management(
         &mut self,
         intended: &WatchManagementIntendedRows,
-    ) -> SnapbackResult<Option<WatchManagementCommit>> {
+    ) -> SnapbackResult<Option<ExactCommitRows<WatchManagementCommit>>> {
         self.db.reconcile_watch_management(intended)
     }
     pub fn transition_watch(

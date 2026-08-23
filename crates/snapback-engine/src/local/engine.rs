@@ -3049,10 +3049,12 @@ impl AssetStoreConfig {
 
 /// One-shot result of claiming a LocalSnapback graph for the old public
 /// `AppState::try_new` composition seam. Authority-bearing registries remain
-/// inside the engine; this carrier exposes only the pre-existing admission
-/// controller plus read-only process facts needed to assemble AppState.
+/// inside the engine; besides the pre-existing admission controller, the only
+/// delegated write capability is opaque database identity for the bounded
+/// commit capsule. The kernel commit root never leaves storage.
 pub struct EngineAppStateBindings {
     admission: AdmissionController,
+    commit_capsule_authority: crate::storage::CommitCapsuleAuthority,
     telemetry: crate::telemetry::Telemetry,
     derived_instance_identity: Option<crate::instance_fork::DerivedForkLineageV1>,
     connected_clients: ConnectedClientObserver,
@@ -3314,6 +3316,7 @@ impl EngineAppStateBindings {
         self,
     ) -> (
         AdmissionController,
+        crate::storage::CommitCapsuleAuthority,
         crate::telemetry::Telemetry,
         Option<crate::instance_fork::DerivedForkLineageV1>,
         ConnectedClientObserver,
@@ -3322,6 +3325,7 @@ impl EngineAppStateBindings {
     ) {
         (
             self.admission,
+            self.commit_capsule_authority,
             self.telemetry,
             self.derived_instance_identity,
             self.connected_clients,
@@ -6617,6 +6621,7 @@ impl LocalSnapback {
         self.auth_deployment = auth_deployment;
         Ok(EngineAppStateBindings {
             admission: self.admission.clone(),
+            commit_capsule_authority: self.db.commit_capsule_authority(),
             telemetry: self.telemetry.clone(),
             derived_instance_identity: self.derived_fork_identity().cloned(),
             connected_clients: ConnectedClientObserver {
@@ -24479,6 +24484,7 @@ impl LocalSnapback {
         &'connection mut self,
         authority: &PreparedAuthority,
         intent: &crate::storage::watches::WatchManagementIntent,
+        now_ms: u64,
     ) -> SnapbackResult<crate::storage::watches::WatchManagementPending<'connection>> {
         authority.validate_admission("watch management transaction")?;
         if authority.source() != InvocationSource::WatchManagement {
@@ -24504,13 +24510,15 @@ impl LocalSnapback {
             }
         };
         self.db
-            .stage_watch_management(intent, &management_principal_id)
+            .stage_watch_management(intent, &management_principal_id, now_ms)
     }
 
     pub fn reconcile_watch_management(
         &mut self,
         intended: &crate::storage::watches::WatchManagementIntendedRows,
-    ) -> SnapbackResult<Option<crate::storage::watches::WatchManagementCommit>> {
+    ) -> SnapbackResult<
+        Option<crate::storage::ExactCommitRows<crate::storage::watches::WatchManagementCommit>>,
+    > {
         self.db.reconcile_watch_management(intended)
     }
 

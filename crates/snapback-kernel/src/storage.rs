@@ -826,6 +826,77 @@ impl DatabaseBinding {
     }
 }
 
+/// Opaque commit authority delegated to the one server capsule graph that
+/// owns this database. The authority can be cloned inside that graph, but its
+/// private binding cannot be synthesized or redirected to another database.
+///
+/// @ref LLP 0225#3-transaction-and-commit-boundaries--who-may-commit-what —
+/// the cross-crate pending COMMIT requires database identity held only by the
+/// capsule's private final cut.
+#[derive(Clone, Debug)]
+pub struct CommitCapsuleAuthority {
+    binding: DatabaseBinding,
+}
+
+impl CommitCapsuleAuthority {
+    fn matches(&self, binding: &DatabaseBinding) -> bool {
+        self.binding.matches(binding)
+    }
+}
+
+/// Kernel-minted proof that an exact reconciliation query observed the
+/// complete intended successor for one operation in one database.
+///
+/// The server capsule may consume this proof, but cannot construct one from a
+/// caller-supplied value. Binding both identities prevents a truthful query
+/// for another database or operation from being replayed as this capsule's
+/// reconciliation evidence.
+///
+/// @ref LLP 0059#rollback-and-ambiguous-commit — ambiguous success requires
+/// kernel-observed exact intended rows, not a caller assertion.
+pub struct ExactCommitRows<T> {
+    binding: DatabaseBinding,
+    operation_identity: String,
+    value: T,
+}
+
+impl<T> ExactCommitRows<T> {
+    pub(crate) fn new(
+        binding: DatabaseBinding,
+        operation_identity: impl Into<String>,
+        value: T,
+    ) -> Self {
+        Self {
+            binding,
+            operation_identity: operation_identity.into(),
+            value,
+        }
+    }
+
+    pub fn into_value_for(
+        self,
+        authority: &CommitCapsuleAuthority,
+        operation_identity: &str,
+    ) -> SnapbackResult<T> {
+        if !authority.matches(&self.binding) || self.operation_identity != operation_identity {
+            return Err(SnapbackError::error(
+                "SNAPBACK_COMMIT_RECONCILIATION_WITNESS_MISMATCH",
+                "storage",
+                "the exact-row witness belongs to another database or operation",
+            ));
+        }
+        Ok(self.value)
+    }
+
+    pub fn map<U>(self, map: impl FnOnce(T) -> U) -> ExactCommitRows<U> {
+        ExactCommitRows {
+            binding: self.binding,
+            operation_identity: self.operation_identity,
+            value: map(self.value),
+        }
+    }
+}
+
 /// Take-once kernel authority for asserting commit facts for one database.
 ///
 /// The root never crosses the kernel boundary. Higher crates operate through
@@ -1527,6 +1598,14 @@ impl ServingDatabase {
 
     pub fn binding(&self) -> DatabaseBinding {
         self.authority.binding()
+    }
+
+    /// Delegate only database identity, never the kernel's root commit
+    /// authority, to the server-owned bounded capsule.
+    pub fn commit_capsule_authority(&self) -> CommitCapsuleAuthority {
+        CommitCapsuleAuthority {
+            binding: self.authority.binding(),
+        }
     }
 
     /// Whether an authorization-changing serving write must install the exact

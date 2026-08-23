@@ -75,6 +75,8 @@ compile-time source-identity contract)
 ownership move: the kernel owns database-bound authorization settlement and
 finite permits; sync retains queues, subscriber policy, resync materialization,
 and transport handoff)
+**Revised:** 2026-08-22 (ab — §3 records the bounded commit capsule's
+database-bound final-cut authority and exact-row witness)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -284,6 +286,13 @@ incorporates 0199's OQ3 ruling and the implemented 2026-08-09 follow-up.
    (`CommitFunctionGeneration`, the classified mode-deployment commits, the
    `*_in_tx` families as they relocate into `crates/snapback/src/storage/`), never by opening
    its own transaction against the store.
+   A cross-crate bounded commit capsule may carry a typed pending transaction,
+   but its COMMIT primitive additionally requires opaque authority bound to
+   that exact database and held only by the capsule's private final cut. A
+   caller closure cannot mint a committed attempt. Ambiguous success likewise
+   requires a kernel-minted exact-row witness bound to both the database and
+   operation identity; an arbitrary value or a truthful query for another
+   operation is not reconciliation evidence.
 2. **The generation-activation coordinator owns the atomic transition, not
    the transaction.** The minimum atomic set — the manifest/generation
    record, projection digest pins, sequence installs/enrollment, and auth
@@ -1404,3 +1413,10 @@ so slices can follow product priorities.
   dependency remains the allowed rank-2 → rank-1 edge; no rank or allowed-edge
   amendment was needed. This records only the mechanism move and makes no F-1
   or LLP 0285 defect-closure claim.
+- **2026-08-22 (ab).** The bounded commit capsule now receives durable Local,
+  prepared caller authority, and database identity only through one checked
+  AppState-bound destination. Its successful attempt variant is private;
+  kernel pending commits require the destination capability held by the final
+  cut; and exact reconciliation returns a kernel-minted witness bound to the
+  same database and operation identity. This hardens §3's existing ownership
+  rule without changing transaction ownership or the fencing order.

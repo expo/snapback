@@ -32,7 +32,11 @@ pub(crate) trait RemainderLocalSnapbackExt {
         &mut self,
         intent: &snapback_kernel::storage::commit_capsule_prototype::PrototypeIntent,
     ) -> crate::diagnostic::SnapbackResult<
-        Option<snapback_kernel::storage::commit_capsule_prototype::PrototypeValue>,
+        Option<
+            snapback_kernel::storage::ExactCommitRows<
+                snapback_kernel::storage::commit_capsule_prototype::PrototypeValue,
+            >,
+        >,
     >;
 
     fn remainder_commit_capsule_prototype_facts(
@@ -92,7 +96,11 @@ impl RemainderLocalSnapbackExt for crate::local::LocalSnapback {
         &mut self,
         intent: &snapback_kernel::storage::commit_capsule_prototype::PrototypeIntent,
     ) -> crate::diagnostic::SnapbackResult<
-        Option<snapback_kernel::storage::commit_capsule_prototype::PrototypeValue>,
+        Option<
+            snapback_kernel::storage::ExactCommitRows<
+                snapback_kernel::storage::commit_capsule_prototype::PrototypeValue,
+            >,
+        >,
     > {
         snapback_kernel::storage::commit_capsule_prototype::exact_reconciliation(
             snapback_engine::test_support::auth_database_mut(self),

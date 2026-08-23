@@ -5,7 +5,10 @@
 //!   even the prototype exposes a typed pending operation; SQLite ownership
 //!   stays in the storage kernel.
 
-use super::{LocalDatabase, observe_durable_commit_for_test};
+use super::{
+    CommitCapsuleAuthority, DatabaseBinding, ExactCommitRows, LocalDatabase,
+    observe_durable_commit_for_test,
+};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use rusqlite::{Connection, OptionalExtension as _, Transaction, TransactionBehavior, params};
 use std::path::Path;
@@ -35,12 +38,13 @@ pub struct PrototypeFacts {
 }
 
 pub enum PrototypeStage<'connection> {
-    Existing(PrototypeValue),
+    Existing(ExactCommitRows<PrototypeValue>),
     Pending(PrototypePending<'connection>),
 }
 
 pub struct PrototypePending<'connection> {
     tx: Transaction<'connection>,
+    binding: DatabaseBinding,
     value: PrototypeValue,
 }
 
@@ -66,6 +70,7 @@ pub fn stage<'connection>(
     intent: &PrototypeIntent,
     include_consumed_proof: bool,
 ) -> SnapbackResult<PrototypeStage<'connection>> {
+    let binding = db.binding();
     let tx = db
         .conn
         .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -104,10 +109,14 @@ pub fn stage<'connection>(
                 });
         tx.rollback()?;
         if exact {
-            return Ok(PrototypeStage::Existing(PrototypeValue {
-                operation_id: intent.operation_id.clone(),
-                response,
-            }));
+            return Ok(PrototypeStage::Existing(ExactCommitRows::new(
+                binding,
+                &intent.operation_id,
+                PrototypeValue {
+                    operation_id: intent.operation_id.clone(),
+                    response,
+                },
+            )));
         }
         return Err(SnapbackError::error(
             "SNAPBACK_AUTH_IDEMPOTENCY_CONFLICT",
@@ -141,6 +150,7 @@ pub fn stage<'connection>(
     }
     Ok(PrototypeStage::Pending(PrototypePending {
         tx,
+        binding,
         value: PrototypeValue {
             operation_id: intent.operation_id.clone(),
             response: intent.response.clone(),
@@ -154,7 +164,15 @@ impl PrototypePending<'_> {
         Ok(())
     }
 
-    pub fn commit(self) -> SnapbackResult<PrototypeValue> {
+    pub fn commit(self, authority: &CommitCapsuleAuthority) -> SnapbackResult<PrototypeValue> {
+        if !authority.matches(&self.binding) {
+            self.tx.rollback()?;
+            return Err(SnapbackError::error(
+                "SNAPBACK_COMMIT_CAPSULE_DESTINATION_MISMATCH",
+                "storage",
+                "the commit capsule authority does not govern this database",
+            ));
+        }
         observe_durable_commit_for_test();
         self.tx.commit()?;
         Ok(self.value)
@@ -163,7 +181,19 @@ impl PrototypePending<'_> {
     /// Model a storage COMMIT error whose durable predecessor is still exact.
     /// The observer still records a COMMIT attempt, while explicit rollback
     /// makes the absent-row reconciliation deterministic.
-    pub fn commit_error_without_rows(self, error: SnapbackError) -> SnapbackResult<PrototypeValue> {
+    pub fn commit_error_without_rows(
+        self,
+        authority: &CommitCapsuleAuthority,
+        error: SnapbackError,
+    ) -> SnapbackResult<PrototypeValue> {
+        if !authority.matches(&self.binding) {
+            self.tx.rollback()?;
+            return Err(SnapbackError::error(
+                "SNAPBACK_COMMIT_CAPSULE_DESTINATION_MISMATCH",
+                "storage",
+                "the commit capsule authority does not govern this database",
+            ));
+        }
         observe_durable_commit_for_test();
         self.tx.rollback()?;
         Err(error)
@@ -181,7 +211,7 @@ impl PrototypePending<'_> {
 pub fn exact_reconciliation(
     db: &mut LocalDatabase,
     intent: &PrototypeIntent,
-) -> SnapbackResult<Option<PrototypeValue>> {
+) -> SnapbackResult<Option<ExactCommitRows<PrototypeValue>>> {
     let tx = db
         .conn
         .transaction_with_behavior(TransactionBehavior::Deferred)?;
@@ -219,9 +249,15 @@ pub fn exact_reconciliation(
                 && expected_payload == intent.payload
                 && consumed == 1
         });
-    Ok(exact.then(|| PrototypeValue {
-        operation_id: intent.operation_id.clone(),
-        response,
+    Ok(exact.then(|| {
+        ExactCommitRows::new(
+            db.binding(),
+            &intent.operation_id,
+            PrototypeValue {
+                operation_id: intent.operation_id.clone(),
+                response,
+            },
+        )
     }))
 }
 

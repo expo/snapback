@@ -154,10 +154,10 @@ mod writer_gate;
 pub use api_error::*;
 use asset_routes::*;
 pub(crate) use commit_capsule::{
-    CommitAttempt, CommitCapsuleOutcome, CommitCapsuleSpec, CommitTimeoutPhase,
-    CommitUncertainRetention, CommitUncertainRetentionHandle, CommitUncertainRetentionId,
-    CommitUncertainRetentionSnapshot, CommitUncertainRetentionState, ExactReconciliation,
-    FinalCommitCut, PendingCommit, with_bounded_commit_capsule,
+    CommitAttempt, CommitCapsuleBinding, CommitCapsuleDestination, CommitCapsuleOutcome,
+    CommitCapsuleSpec, CommitTimeoutPhase, CommitUncertainRetention,
+    CommitUncertainRetentionHandle, CommitUncertainRetentionId, CommitUncertainRetentionSnapshot,
+    CommitUncertainRetentionState, FinalCommitCut, PendingCommit, with_bounded_commit_capsule,
 };
 use effects::*;
 use instance_home::*;
@@ -26260,8 +26260,11 @@ impl PendingCommit for crate::storage::watches::WatchManagementPending<'_> {
         self.intended_rows().clone()
     }
 
-    fn commit(self) -> SnapbackResult<Self::Output> {
-        crate::storage::watches::WatchManagementPending::commit(self)
+    fn commit(
+        self,
+        authority: &crate::storage::CommitCapsuleAuthority,
+    ) -> SnapbackResult<Self::Output> {
+        crate::storage::watches::WatchManagementPending::commit(self, authority)
     }
 }
 
@@ -26269,18 +26272,14 @@ fn finish_watch_management_attempt(
     snapback: &mut LocalSnapback,
     attempt: CommitAttempt<crate::storage::watches::WatchManagementCommit>,
 ) -> CommitAttempt<crate::storage::watches::WatchRecord> {
-    match attempt {
-        CommitAttempt::Committed(committed) => {
-            snapback.observe_watch_management_commit(&committed);
-            CommitAttempt::Committed(committed.record)
-        }
-        CommitAttempt::RolledBack(error) => CommitAttempt::RolledBack(error),
-        CommitAttempt::CommitUncertain { cause } => CommitAttempt::CommitUncertain { cause },
-    }
+    attempt.map_committed(|committed| {
+        snapback.observe_watch_management_commit(&committed);
+        committed.record
+    })
 }
 
 async fn commit_watch_management_capsule(
-    state: &SharedSnapback,
+    runtime: &AppState,
     authority: PreparedAuthority,
     _headers: &HeaderMap,
     operation: &'static str,
@@ -26289,12 +26288,14 @@ async fn commit_watch_management_capsule(
 ) -> Result<crate::storage::watches::WatchRecord, ApiError> {
     let operation_identity = intent.operation_identity().to_owned();
     let (uncertain_retention, recovery_handle) =
-        CommitUncertainRetention::new(operation_identity).map_err(ApiError::from)?;
+        CommitUncertainRetention::new(&operation_identity).map_err(ApiError::from)?;
     let transaction_authority = authority.clone();
+    let destination = CommitCapsuleDestination::bind(runtime, authority).map_err(ApiError::from)?;
     let outcome = with_bounded_commit_capsule(
-        state,
+        destination,
         CommitCapsuleSpec {
             operation,
+            operation_identity,
             deadline: tokio::time::Instant::now() + budget,
             uncertain_diagnostic: "SNAPBACK_COMMIT_OUTCOME_UNCERTAIN",
             #[cfg(test)]
@@ -26303,30 +26304,31 @@ async fn commit_watch_management_capsule(
                 .and_then(|value| value.to_str().ok())
                 .map(str::to_owned),
         },
-        authority,
         (),
         intent,
         move |snapback, intent, (), reservation, final_cut| {
-            let pending = match snapback.stage_watch_management(&transaction_authority, intent) {
-                Ok(pending) => pending,
-                Err(error) => return CommitAttempt::RolledBack(error),
-            };
+            // Durable clocks are sampled only after the reservation and FIFO
+            // Local wait, immediately before the transaction is staged.
+            let now_ms = now_millis();
+            let pending =
+                match snapback.stage_watch_management(&transaction_authority, intent, now_ms) {
+                    Ok(pending) => pending,
+                    Err(error) => return CommitAttempt::rolled_back(error),
+                };
             let attempt = final_cut.commit(reservation, pending);
             finish_watch_management_attempt(snapback, attempt)
         },
-        |snapback, _intent, intended| match snapback.reconcile_watch_management(intended) {
-            Ok(Some(committed)) => {
-                snapback.observe_watch_management_commit(&committed);
-                ExactReconciliation::IntendedRows(committed.record)
-            }
-            Ok(None) => ExactReconciliation::Uncertain {
-                cause: SnapbackError::error(
-                    "SNAPBACK_COMMIT_OUTCOME_UNCERTAIN",
-                    "watches",
-                    "the exact watch management successor rows were not present",
-                ),
-            },
-            Err(cause) => ExactReconciliation::Uncertain { cause },
+        |snapback, _intent, intended| {
+            snapback
+                .reconcile_watch_management(intended)
+                .map(|witness| {
+                    witness.map(|witness| {
+                        witness.map(|committed| {
+                            snapback.observe_watch_management_commit(&committed);
+                            committed.record
+                        })
+                    })
+                })
         },
         uncertain_retention,
     )
@@ -26447,13 +26449,13 @@ async fn watch_list(
 }
 
 async fn watch_delete(
-    State(state): State<SharedSnapback>,
+    State(runtime): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
     headers: HeaderMap,
     Path(id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
     watch_transition_record(
-        state,
+        runtime,
         authority,
         &headers,
         id,
@@ -26464,13 +26466,13 @@ async fn watch_delete(
 }
 
 async fn watch_suspend(
-    State(state): State<SharedSnapback>,
+    State(runtime): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
     headers: HeaderMap,
     Path(id): Path<String>,
 ) -> Result<Json<crate::storage::watches::WatchRecord>, ApiError> {
     watch_transition(
-        state,
+        runtime,
         authority,
         headers,
         id,
@@ -26480,13 +26482,13 @@ async fn watch_suspend(
 }
 
 async fn watch_resume(
-    State(state): State<SharedSnapback>,
+    State(runtime): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
     headers: HeaderMap,
     Path(id): Path<String>,
 ) -> Result<Json<crate::storage::watches::WatchRecord>, ApiError> {
     watch_transition(
-        state,
+        runtime,
         authority,
         headers,
         id,
@@ -26496,7 +26498,7 @@ async fn watch_resume(
 }
 
 async fn watch_renew(
-    State(state): State<SharedSnapback>,
+    State(runtime): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
     headers: HeaderMap,
     Path(id): Path<String>,
@@ -26504,17 +26506,15 @@ async fn watch_renew(
 ) -> Result<Json<crate::storage::watches::WatchRecord>, ApiError> {
     require_provider_session_authority(&authority, InvocationSource::WatchManagement)?;
     let Json(request) = input.map_err(ApiError::from_json_rejection)?;
-    let now_ms = now_millis();
     let replacement_grant_id = crate::ids::mint_time_ordered(crate::ids::Kind::Grant);
     let intent = crate::storage::watches::WatchManagementIntent::Renewal {
-        operation_identity: format!("watch-renew:{id}:{replacement_grant_id}:{now_ms}"),
+        operation_identity: format!("watch-renew:{id}:{replacement_grant_id}"),
         watch_id: id,
         ttl_ms: request.ttl_ms,
-        now_ms,
         replacement_grant_id,
     };
     let record = commit_watch_management_capsule(
-        &state,
+        &runtime,
         authority,
         &headers,
         "watchAnchor renewal",
@@ -26526,18 +26526,18 @@ async fn watch_renew(
 }
 
 async fn watch_transition(
-    state: SharedSnapback,
+    runtime: AppState,
     authority: PreparedAuthority,
     headers: HeaderMap,
     id: String,
     target: crate::watches::WatchStatus,
 ) -> Result<Json<crate::storage::watches::WatchRecord>, ApiError> {
-    let record = watch_transition_record(state, authority, &headers, id, target).await?;
+    let record = watch_transition_record(runtime, authority, &headers, id, target).await?;
     Ok(Json(record))
 }
 
 async fn watch_transition_record(
-    state: SharedSnapback,
+    runtime: AppState,
     authority: PreparedAuthority,
     headers: &HeaderMap,
     id: String,
@@ -26547,7 +26547,7 @@ async fn watch_transition_record(
     // authorities carry neither terminal publication and retain the existing
     // mode-only cut. Do not infer this from mode or invocation-source enums.
     if !authority.has_fenced_publication() && !authority.has_service_publication() {
-        return with_snapback(&state, move |snapback| {
+        return with_snapback(&runtime.snapback, move |snapback| {
             snapback.transition_watch(&authority, &id, target, now_millis())
         })
         .await
@@ -26558,11 +26558,11 @@ async fn watch_transition_record(
         crate::watches::WatchStatus::Suspended => ("watch suspend", WATCH_SUSPEND_COMMIT_BUDGET),
         crate::watches::WatchStatus::Active => ("watch resume", WATCH_RESUME_COMMIT_BUDGET),
     };
-    let now_ms = now_millis();
     let resume_job_id = (target == crate::watches::WatchStatus::Active)
         .then(|| crate::ids::mint_time_ordered(crate::ids::Kind::Job));
+    let attempt_id = crate::ids::mint_time_ordered(crate::ids::Kind::Opaque);
     let operation_identity = format!(
-        "watch-transition:{id}:{}:{now_ms}:{}",
+        "watch-transition:{id}:{}:{attempt_id}:{}",
         target.as_str(),
         resume_job_id.as_deref().unwrap_or("none")
     );
@@ -26570,10 +26570,9 @@ async fn watch_transition_record(
         operation_identity,
         watch_id: id,
         target,
-        now_ms,
         resume_job_id,
     };
-    commit_watch_management_capsule(&state, authority, headers, operation, budget, intent).await
+    commit_watch_management_capsule(&runtime, authority, headers, operation, budget, intent).await
 }
 
 /// `/query/{name}` runs on the lock-free read lane when the instance is

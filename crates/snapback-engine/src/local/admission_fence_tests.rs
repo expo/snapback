@@ -1298,7 +1298,11 @@ fn partial_multi_commit_failure_drops_its_commit_observer_before_later_work() {
 }
 
 #[test]
-fn watch_creation_refuses_retired_epoch_and_holds_the_guard_through_commit() {
+fn watch_creation_refuses_retired_mode_epoch_and_holds_mode_guard_through_commit() {
+    // This proves only the correlated mode-admission epoch and its COMMIT
+    // span. It is not a caller-publication fence proof: watch creation
+    // deliberately remains mode-only for the reasons recorded in
+    // issues/20260822-watch-creation-fence-design-decision.md.
     let (mut snapback, controller) = watch_creation_fixture();
     let authority = session_authority_for_source(&controller, InvocationSource::WatchManagement);
     let before = durable_database_image(&snapback);
