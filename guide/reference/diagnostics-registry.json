@@ -2,15 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-<<<<<<< HEAD
-<<<<<<< HEAD
-    "sourceDigest": "sha256:e14ac56f35a275c2b7a7523ce4e8aaf70f38185781c80e78bd36f2d6840deac8"
-=======
-    "sourceDigest": "sha256:a8f87e583087c23f674be4c25a27694cfb8133ed3fa8fb8cb14c4e14c3eaccd8"
->>>>>>> d012cb5cb (fix(graph): B1 fix round 1 — global admission precedence, result-contract reifier, fail-closed search/broadcast, keyset + parent-point validation, declared-order index prefix)
-=======
-    "sourceDigest": "sha256:b156502dbd9e6e21dae73935ebdb9f4c8f2cc5d4a9b39f43004503a5f0456e7c"
->>>>>>> b8d519d26 (chore(generated): refresh diagnostics registry and guide projections after B1 fix round 2)
+    "sourceDigest": "sha256:3b0c00899f367fd8b6ed2b7bf7ab9ef57e735ece5fd32a7ee0cfea8387176328"
   },
   "limits": {
     "lookupBytes": 16384
@@ -18,13 +10,8 @@
   "counts": {
     "codes": 3584,
     "sourceFiles": 594,
-<<<<<<< HEAD
-    "emittingSites": 12293,
-    "httpClassified": 1061,
-=======
-    "emittingSites": 12324,
+    "emittingSites": 12329,
     "httpClassified": 1068,
->>>>>>> d012cb5cb (fix(graph): B1 fix round 1 — global admission precedence, result-contract reifier, fail-closed search/broadcast, keyset + parent-point validation, declared-order index prefix)
     "guideAnchored": 445
   },
   "diagnostics": {
