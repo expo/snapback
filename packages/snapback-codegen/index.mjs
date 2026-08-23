@@ -19641,6 +19641,17 @@ function graphAuthoringBindingResolver(modules) {
   const ownExport = (descriptor, exportName) => descriptor?.kind === 'own-export'
     && descriptor.modulePath === ownDefine
     && descriptor.exportName === exportName;
+  const unwrapAlias = (node) => {
+    let current = node;
+    while (current && (
+      ts.isParenthesizedExpression(current)
+      || ts.isAsExpression(current)
+      || ts.isTypeAssertionExpression(current)
+      || ts.isSatisfiesExpression(current)
+      || ts.isNonNullExpression(current)
+    )) current = current.expression;
+    return current;
+  };
   const propertyName = (node) => {
     if (ts.isPropertyAccessExpression(node)) return node.name.text;
     if (ts.isElementAccessExpression(node)
@@ -19655,6 +19666,105 @@ function graphAuthoringBindingResolver(modules) {
       ? node.expression
       : null
   );
+  const constantString = (node) => {
+    const current = unwrapAlias(node);
+    if (ts.isStringLiteral(current) || ts.isNoSubstitutionTemplateLiteral(current)) {
+      return current.text;
+    }
+    if (ts.isBinaryExpression(current)
+      && current.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+      const left = constantString(current.left);
+      const right = constantString(current.right);
+      return left === null || right === null ? null : `${left}${right}`;
+    }
+    return null;
+  };
+  const variableDeclarationIsConst = (declaration) => (
+    ts.isVariableDeclaration(declaration)
+    && ts.isVariableDeclarationList(declaration.parent)
+    && (declaration.parent.flags & ts.NodeFlags.Const) !== 0
+  );
+  const resolveImmutableDescriptor = (descriptor, seen = new Set()) => {
+    if (!descriptor) return null;
+    if (descriptor.kind === 'own-export' || descriptor.kind === 'namespace') return descriptor;
+    if (descriptor.kind === 'expression') {
+      return resolveImmutableExpression(descriptor.modulePath, descriptor.expression, seen);
+    }
+    if (descriptor.kind !== 'local'
+      || !variableDeclarationIsConst(descriptor.declaration)
+      || !ts.isIdentifier(descriptor.declaration.name)
+      || !descriptor.declaration.initializer) return null;
+    const key = `immutable:${descriptor.modulePath}:${descriptor.localName}`;
+    if (seen.has(key)) return null;
+    seen.add(key);
+    return resolveImmutableExpression(
+      descriptor.modulePath,
+      descriptor.declaration.initializer,
+      seen,
+    );
+  };
+  const resolveImmutableExpression = (modulePath, expression, seen = new Set()) => {
+    const target = unwrapAlias(expression);
+    if (ts.isIdentifier(target)) {
+      return resolveImmutableDescriptor(resolveLocal(modulePath, target.text), seen);
+    }
+    const name = propertyName(target);
+    if (name === null) return null;
+    const receiver = resolveImmutableExpression(modulePath, propertyReceiver(target), seen);
+    return receiver?.kind === 'namespace'
+      ? resolveExport(receiver.modulePath, name)
+      : null;
+  };
+  const descriptorContainsBuilder = (descriptor, seen = new Set()) => {
+    if (!descriptor) return false;
+    if (ownExport(descriptor, 'defineGraphQuery')) return true;
+    if (descriptor.kind === 'expression') {
+      return expressionContainsBuilder(descriptor.modulePath, descriptor.expression, seen);
+    }
+    if (descriptor.kind !== 'local') return false;
+    if (descriptor.localName === 'defineGraphQuery') return true;
+    if (!ts.isVariableDeclaration(descriptor.declaration)
+      || !descriptor.declaration.initializer) return false;
+    const key = `builder:${descriptor.modulePath}:${descriptor.localName}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return expressionContainsBuilder(
+      descriptor.modulePath,
+      descriptor.declaration.initializer,
+      seen,
+    );
+  };
+  const identifierIsValueReference = (identifier) => {
+    const parent = identifier.parent;
+    if (ts.isPropertyAccessExpression(parent) && parent.name === identifier) return false;
+    if ((ts.isPropertyAssignment(parent)
+        || ts.isMethodDeclaration(parent)
+        || ts.isGetAccessorDeclaration(parent)
+        || ts.isSetAccessorDeclaration(parent))
+      && parent.name === identifier) return false;
+    return true;
+  };
+  const expressionContainsBuilder = (modulePath, expression, seen = new Set()) => {
+    const target = unwrapAlias(expression);
+    if (ts.isIdentifier(target)) {
+      if (!identifierIsValueReference(target)) return false;
+      if (target.text === 'defineGraphQuery') return true;
+      const descriptor = resolveLocal(modulePath, target.text);
+      return ownExport(resolveImmutableDescriptor(descriptor), 'defineGraphQuery')
+        || descriptorContainsBuilder(descriptor, seen);
+    }
+    if ((ts.isPropertyAccessExpression(target) || ts.isElementAccessExpression(target))
+      && (propertyName(target) === 'defineGraphQuery'
+        || (ts.isElementAccessExpression(target)
+          && constantString(target.argumentExpression) === 'defineGraphQuery'))) {
+      return true;
+    }
+    let contains = false;
+    ts.forEachChild(target, (child) => {
+      if (!contains && expressionContainsBuilder(modulePath, child, new Set(seen))) contains = true;
+    });
+    return contains;
+  };
   const calleeOwnExport = (node, sourcePath, sourceFile, exportName, unwrap) => {
     const target = unwrap(node);
     const modulePath = graphResolveImportPath(sourcePath, sourcePath) ?? resolve(sourcePath);
@@ -19678,14 +19788,19 @@ function graphAuthoringBindingResolver(modules) {
       return base ? { ...base, invocation } : null;
     }
     if (ts.isIdentifier(target)) {
+      const modulePath = graphResolveImportPath(sourcePath, sourcePath) ?? resolve(sourcePath);
       const descriptor = graphModuleBindingIsUnshadowed(
         target, target.text, sourceFile,
-      ) ? resolveLocal(
-          graphResolveImportPath(sourcePath, sourcePath) ?? resolve(sourcePath),
-          target.text,
-        ) : null;
-      if (target.text === 'defineGraphQuery' || ownExport(descriptor, 'defineGraphQuery')) {
-        return { kind: 'builder', owned: ownExport(descriptor, 'defineGraphQuery'), invocation: null };
+      ) ? resolveLocal(modulePath, target.text) : null;
+      const immutable = resolveImmutableDescriptor(descriptor);
+      if (target.text === 'defineGraphQuery'
+        || ownExport(immutable, 'defineGraphQuery')
+        || descriptorContainsBuilder(descriptor)) {
+        return {
+          kind: 'builder',
+          owned: ownExport(immutable, 'defineGraphQuery'),
+          invocation: null,
+        };
       }
       return null;
     }
@@ -19698,8 +19813,9 @@ function graphAuthoringBindingResolver(modules) {
         graphResolveImportPath(sourcePath, sourcePath) ?? resolve(sourcePath),
         receiver.text,
       );
-      owned = namespace?.kind === 'namespace'
-        && ownExport(resolveExport(namespace.modulePath, 'defineGraphQuery'), 'defineGraphQuery');
+      const immutable = resolveImmutableDescriptor(namespace);
+      owned = immutable?.kind === 'namespace'
+        && ownExport(resolveExport(immutable.modulePath, 'defineGraphQuery'), 'defineGraphQuery');
     }
     return { kind: 'builder', owned, invocation: null };
   };
@@ -19751,6 +19867,12 @@ function graphAuthoringBindingResolver(modules) {
 
   return {
     builderTarget,
+    containsBuilderReference(node, sourcePath) {
+      return expressionContainsBuilder(
+        graphResolveImportPath(sourcePath, sourcePath) ?? resolve(sourcePath),
+        node,
+      );
+    },
     isDeclaredTableBinding(identifier, sourcePath, sourceFile) {
       if (!graphModuleBindingIsUnshadowed(identifier, identifier.text, sourceFile)) return false;
       const descriptor = resolveLocal(
@@ -19856,7 +19978,17 @@ function validateGraphAuthoringSource(source, path, bindings) {
     if (!node) return;
     if (ts.isCallExpression(node)) {
       const binding = ownCallee(node.expression);
-      if (binding?.kind === 'builder') calls.push({ call: node, binding });
+      if (binding?.kind === 'builder') {
+        calls.push({ call: node, binding });
+      } else if (bindings.containsBuilderReference(node.expression, path)
+        || node.arguments.some((argument) => (
+          bindings.containsBuilderReference(argument, path)
+        ))) {
+        calls.push({
+          call: node,
+          binding: { kind: 'builder', owned: false, invocation: null },
+        });
+      }
     }
     ts.forEachChild(node, collect);
   };

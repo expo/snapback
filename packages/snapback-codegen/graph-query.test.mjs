@@ -27,6 +27,21 @@ const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const zeroHash = `sha256:${'0'.repeat(64)}`;
 const oneHash = `sha256:${'1'.repeat(64)}`;
+const codegenParityCorpus = readJson(join(graphCorpus, 'codegen-parity-corpus.v1.json'));
+
+function setPath(root, path, value) {
+  let parent = root;
+  for (const segment of path.slice(0, -1)) parent = parent[segment];
+  parent[path.at(-1)] = clone(value);
+}
+
+function removePath(root, path) {
+  let parent = root;
+  for (const segment of path.slice(0, -1)) parent = parent[segment];
+  const key = path.at(-1);
+  if (Array.isArray(parent)) parent.splice(key, 1);
+  else delete parent[key];
+}
 
 // The dependency-local graph canonicalizer stays byte-equal to the shipped
 // client JCS on both the shared RQS corpus and the Rust-owned graph boundary
@@ -548,6 +563,69 @@ const oneHash = `sha256:${'1'.repeat(64)}`;
   assert.equal(lit('ok').Literal, 'ok');
 }
 
+// One frozen corpus drives defineGraphQuery plus lowering and Rust manifest
+// admission. The sole jsOnly row exercises syntax that cannot survive runtime
+// expression evaluation and is replayed through the source collector below.
+{
+  const carrier = readJson(join(graphCorpus, codegenParityCorpus.base));
+  const basePlan = carrier.normalizedPlan;
+  const issues = defineTable({ title: v.string(), updatedAt: v.integer() })
+    .index('by_updated', ['updatedAt'])
+    .visibility({ kind: 'public-read' });
+  defineSchema({ issues });
+  const baseSpec = () => {
+    const root = clone(basePlan.nodes[0]);
+    root.table = issues;
+    root.authorityClass = root.authority.declaredClass;
+    delete root.authority;
+    delete root.page;
+    delete root.visibility;
+    const projection = clone(basePlan.nodes[1]);
+    projection.authorityClass = projection.authority.declaredClass;
+    delete projection.authority;
+    delete projection.kind;
+    const { graph, ...bounds } = clone(basePlan.queryCost);
+    return {
+      nodes: [root],
+      projection,
+      args: {},
+      bounds,
+      queryCost: { graph },
+      broadcast: { classification: 'query-shaped' },
+    };
+  };
+  const authoringPath = (path) => (
+    path[0] === 'queryCost' && path[1] !== 'graph'
+      ? ['bounds', ...path.slice(1)]
+      : path
+  );
+  for (const parityCase of codegenParityCorpus.cases.filter(({ jsOnly }) => !jsOnly)) {
+    const spec = baseSpec();
+    for (const mutation of parityCase.set ?? []) {
+      setPath(spec, authoringPath(mutation.path), mutation.value);
+    }
+    for (const path of parityCase.remove ?? []) removePath(spec, authoringPath(path));
+    let actual = { outcome: 'accept', reason: null };
+    try {
+      const definition = defineGraphQuery(spec);
+      compileGraphQueryV1({
+        source: definition.graphQuerySource,
+        argsContract: { fields: [] },
+        resultContractHash: zeroHash,
+        tables: {
+          issues: {
+            name: 'issues', fields: [], indexes: [],
+            visibility: { kind: 'public-read' },
+          },
+        },
+      });
+    } catch (error) {
+      actual = { outcome: 'refuse', reason: error.code ?? null };
+    }
+    assert.deepEqual(actual, parityCase.expected, parityCase.name);
+  }
+}
+
 // End-to-end: regenerate the committed authored fixture and byte-compare the
 // exact FunctionManifest with the vector consumed by the engine admission
 // test. The entry module deliberately only re-exports a helper-module graph;
@@ -582,11 +660,23 @@ try {
   const generated = await generateInProcess(fixture, {}, { capabilityManifest: localCapability });
   assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
   const manifestPath = join(fixture, 'generated', 'functions.manifest.json');
+  const emittedManifestLines = readFileSync(manifestPath, 'utf8').split('\n');
+  const frozenManifestLines = readFileSync(
+    join(graphCorpus, 'codegen-emitted-manifest.v1.json'),
+    'utf8',
+  ).split('\n');
   assert.equal(
-    readFileSync(manifestPath, 'utf8'),
-    readFileSync(join(graphCorpus, 'codegen-emitted-manifest.v1.json'), 'utf8'),
-    'codegen output must stay byte-equal to the engine admission vector',
+    emittedManifestLines.length,
+    frozenManifestLines.length,
+    'codegen output line count must stay byte-equal to the engine admission vector',
   );
+  for (const [index, line] of emittedManifestLines.entries()) {
+    assert.equal(
+      line,
+      frozenManifestLines[index],
+      `codegen output line ${index + 1} must stay byte-equal to the engine admission vector`,
+    );
+  }
   const manifest = readJson(manifestPath);
   const fn = manifest.functions.find(({ name }) => name === 'issueGraph');
   assert(fn, 'defineGraphQuery must emit one function');
@@ -644,6 +734,13 @@ try {
   const withConditionalNodes = (source) => source
     .replace('  nodes: [{', '  nodes: true ? [{')
     .replace('  }],\n  projection:', '  }] : [],\n  projection:');
+  for (const parityCase of codegenParityCorpus.cases.filter(({ jsOnly }) => jsOnly)) {
+    assert.equal(parityCase.sourceStage, 'conditional-nodes', parityCase.name);
+    await assertGeneratedRefusal(
+      withConditionalNodes(literalFunctions),
+      parityCase.expected.reason,
+    );
+  }
   const projectionOffset = literalFunctions.indexOf('  projection:');
   const authoredSearch = `${literalFunctions.slice(0, literalFunctions.indexOf('  nodes: [{'))}  nodes: [{
     nodeId: 'search', kind: 'search-membership', edgeName: '$root', authorityClass: 1,
@@ -707,6 +804,72 @@ ${literalFunctions.slice(projectionOffset)}`;
       'graphDsl.defineGraphQuery(',
       'dsl.defineGraphQuery(',
     )),
+    'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+  );
+
+  const importLine = "import * as graphDsl from '@expo/snapback-codegen/define';";
+  const withBuilderAlias = (declarations, callee) => literalFunctions
+    .replace(importLine, `${importLine}\n${declarations}`)
+    .replace('graphDsl.defineGraphQuery(', `${callee}(`);
+  const propertyAlias = withBuilderAlias(
+    'const dgq = graphDsl.defineGraphQuery;',
+    'dgq',
+  );
+  await assertGeneratedAcceptance(
+    propertyAlias,
+    'a const property alias retains own-package builder provenance',
+  );
+  await assertGeneratedRefusal(
+    withConditionalNodes(propertyAlias),
+    'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+  );
+  await assertGeneratedAcceptance(
+    withBuilderAlias("const dgq = graphDsl['defineGraphQuery'];", 'dgq'),
+    'a const literal-element alias retains own-package builder provenance',
+  );
+  await assertGeneratedAcceptance(
+    withBuilderAlias(
+      'const firstBuilder = graphDsl.defineGraphQuery;\nconst dgq = firstBuilder;',
+      'dgq',
+    ),
+    'multi-hop const identifier aliases retain own-package builder provenance',
+  );
+  const aliasCall = propertyAlias.replace('dgq({', 'dgq.call(null, {');
+  await assertGeneratedAcceptance(
+    aliasCall,
+    'call on a proven const builder alias is collected like the direct spelling',
+  );
+  await assertGeneratedRefusal(
+    withConditionalNodes(aliasCall),
+    'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+  );
+  await assertGeneratedRefusal(
+    withBuilderAlias('let dgq = graphDsl.defineGraphQuery;', 'dgq'),
+    'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+  );
+  await assertGeneratedRefusal(
+    literalFunctions.replace(
+      'graphDsl.defineGraphQuery(',
+      "graphDsl['define' + 'GraphQuery'](",
+    ),
+    'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+  );
+  const withNamedBuilder = literalFunctions.replace(
+    importLine,
+    `${importLine}\nimport { defineGraphQuery } from '@expo/snapback-codegen/define';`,
+  );
+  await assertGeneratedRefusal(
+    withNamedBuilder.replace(
+      'graphDsl.defineGraphQuery(',
+      '(0, defineGraphQuery)(',
+    ),
+    'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+  );
+  await assertGeneratedRefusal(
+    withNamedBuilder.replace(
+      'graphDsl.defineGraphQuery(',
+      'Function.prototype.call.call(defineGraphQuery, null, ',
+    ),
     'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
   );
 

@@ -5,6 +5,27 @@ const ARGUMENT_CONTRACT_DOMAIN = 'snapback:argument-binding-contract:v1:';
 const PARTITION_FUNCTION_DOMAIN = 'snapback:graph-partition-function:v1:';
 const ZERO_HASH = `sha256:${'0'.repeat(64)}`;
 const GRAPH_MAX_SAFE_INTEGER = 9_007_199_254_740_991;
+const GRAPH_QUERY_COST_FIELDS = new Set([
+  'maxScannedRows', 'maxIndexRanges', 'maxResultRows', 'maxResultBytes',
+  'maxEvaluationTurnMs', 'maxObservers', 'maxDistinctEvaluationGroups',
+  'maxEstimatedLiveFanoutMs', 'graph',
+]);
+const GRAPH_COST_FIELDS = new Set([
+  'nodes', 'arguments', 'maxArgumentItems', 'maxPageResultBytes',
+  'windowRollup', 'maxMaintainedWritesPerMutation',
+]);
+const GRAPH_NODE_COST_FIELDS = new Set([
+  'nodeId', 'maxRootRowsPerPage', 'maxExaminedEntriesPerExecution',
+  'maxRelationshipLookupsPerExecution', 'maxChildrenPerParent',
+  'maxArgumentExpansion', 'maxWindowPages', 'maxWindowRootRows',
+  'maxWindowScannedRows', 'maxWindowResultRows', 'maxWindowResultBytes',
+  'maxWindowIndexRanges',
+]);
+const GRAPH_ARGUMENT_COST_FIELDS = new Set(['argumentId', 'maxItems']);
+const GRAPH_WINDOW_ROLLUP_FIELDS = new Set([
+  'maxWindowPages', 'maxWindowRootRows', 'maxWindowScannedRows',
+  'maxWindowResultRows', 'maxWindowResultBytes', 'maxWindowIndexRanges',
+]);
 
 export const GRAPH_IDENTITY_DOMAINS = Object.freeze({
   plan: GRAPH_PLAN_DOMAIN,
@@ -20,6 +41,48 @@ const graphError = (code, message) => {
   error.code = code;
   throw error;
 };
+
+function graphAssertKnownFields(value, fields, path) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    graphError('SNAPBACK_GRAPH_UNKNOWN_FIELD', `${path} must be a closed record`);
+  }
+  for (const field of Object.keys(value)) {
+    if (!fields.has(field)) {
+      graphError('SNAPBACK_GRAPH_UNKNOWN_FIELD', `${path} has unknown field ${field}`);
+    }
+  }
+}
+
+function validateGraphCostWireV1(queryCost) {
+  graphAssertKnownFields(queryCost, GRAPH_QUERY_COST_FIELDS, 'queryCost');
+  for (const field of GRAPH_QUERY_COST_FIELDS) {
+    if (field === 'graph') continue;
+    const value = queryCost[field];
+    if (typeof value === 'number'
+      && (!Number.isFinite(value) || !Number.isSafeInteger(value))) {
+      graphError('SNAPBACK_GRAPH_BOUND_INVALID', `queryCost.${field} must be a safe integer`);
+    }
+  }
+  graphAssertKnownFields(queryCost.graph, GRAPH_COST_FIELDS, 'queryCost.graph');
+  if (!Array.isArray(queryCost.graph.nodes) || !Array.isArray(queryCost.graph.arguments)) {
+    graphError('SNAPBACK_GRAPH_UNKNOWN_FIELD', 'queryCost.graph nodes and arguments must be arrays');
+  }
+  for (const [index, cost] of queryCost.graph.nodes.entries()) {
+    graphAssertKnownFields(cost, GRAPH_NODE_COST_FIELDS, `queryCost.graph.nodes[${index}]`);
+  }
+  for (const [index, cost] of queryCost.graph.arguments.entries()) {
+    graphAssertKnownFields(
+      cost,
+      GRAPH_ARGUMENT_COST_FIELDS,
+      `queryCost.graph.arguments[${index}]`,
+    );
+  }
+  graphAssertKnownFields(
+    queryCost.graph.windowRollup,
+    GRAPH_WINDOW_ROLLUP_FIELDS,
+    'queryCost.graph.windowRollup',
+  );
+}
 
 // This is a dependency-local mirror of packages/snapback-client/rqs.mjs's
 // shipped RFC 8785 implementation. snapback-codegen and snapback-client are
@@ -339,6 +402,7 @@ function normalizeNode(node, nodeIds, argumentNames, argumentIds, argumentOrder)
 
 /** JS mirror of B1's `normalized_graph_plan`. */
 export function normalizeGraphPlanV1(candidate) {
+  validateGraphCostWireV1(candidate?.queryCost);
   const plan = copy(candidate);
   const projections = plan.nodes.filter((node) => node.kind === 'closed-projection');
   const dataNodes = plan.nodes.filter((node) => node.kind !== 'closed-projection');

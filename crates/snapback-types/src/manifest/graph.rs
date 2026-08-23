@@ -6237,6 +6237,131 @@ mod tests {
     }
 
     #[test]
+    fn graph_codegen_parity_corpus_v1_matches_rank_zero_admission() {
+        fn descend_mut<'a>(mut value: &'a mut Value, path: &[Value]) -> &'a mut Value {
+            for segment in path {
+                value = if let Some(field) = segment.as_str() {
+                    value
+                        .get_mut(field)
+                        .unwrap_or_else(|| panic!("missing object path segment {field}"))
+                } else {
+                    let index = segment
+                        .as_u64()
+                        .and_then(|index| usize::try_from(index).ok())
+                        .expect("array path segment is a non-negative index");
+                    value
+                        .get_mut(index)
+                        .unwrap_or_else(|| panic!("missing array path segment {index}"))
+                };
+            }
+            value
+        }
+
+        fn set_path(root: &mut Value, path: &[Value], value: Value) {
+            let (last, parent_path) = path.split_last().expect("set path is non-empty");
+            let parent = descend_mut(root, parent_path);
+            if let Some(field) = last.as_str() {
+                parent
+                    .as_object_mut()
+                    .expect("set parent is an object")
+                    .insert(field.to_owned(), value);
+            } else {
+                let index = last
+                    .as_u64()
+                    .and_then(|index| usize::try_from(index).ok())
+                    .expect("set array path segment is a non-negative index");
+                parent.as_array_mut().expect("set parent is an array")[index] = value;
+            }
+        }
+
+        fn remove_path(root: &mut Value, path: &[Value]) {
+            let (last, parent_path) = path.split_last().expect("remove path is non-empty");
+            let parent = descend_mut(root, parent_path);
+            if let Some(field) = last.as_str() {
+                parent
+                    .as_object_mut()
+                    .expect("remove parent is an object")
+                    .remove(field);
+            } else {
+                let index = last
+                    .as_u64()
+                    .and_then(|index| usize::try_from(index).ok())
+                    .expect("remove array path segment is a non-negative index");
+                parent
+                    .as_array_mut()
+                    .expect("remove parent is an array")
+                    .remove(index);
+            }
+        }
+
+        let corpus: Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../tests/conformance/graph/codegen-parity-corpus.v1.json"
+        )))
+        .expect("graph codegen parity corpus decodes");
+        let base: Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../tests/conformance/graph/minimal-carrier.v1.json"
+        )))
+        .expect("minimal graph carrier decodes");
+        for case in corpus["cases"]
+            .as_array()
+            .expect("parity cases are an array")
+        {
+            if case["jsOnly"].as_bool() == Some(true) {
+                continue;
+            }
+            let name = case["name"].as_str().expect("parity case has a name");
+            let mut plan = base["normalizedPlan"].clone();
+            for mutation in case["set"].as_array().into_iter().flatten() {
+                set_path(
+                    &mut plan,
+                    mutation["path"]
+                        .as_array()
+                        .expect("set mutation has a path"),
+                    mutation["value"].clone(),
+                );
+            }
+            for path in case["remove"].as_array().into_iter().flatten() {
+                remove_path(
+                    &mut plan,
+                    path.as_array().expect("remove mutation has a path"),
+                );
+            }
+
+            let (actual_outcome, actual_reason) =
+                match serde_json::from_value::<GraphQueryPlanV1>(plan) {
+                    Ok(plan) => match validate_graph_query_plan_v1(&plan) {
+                        Ok(()) => ("accept", None),
+                        Err(reason) => ("refuse", Some(reason.code())),
+                    },
+                    Err(error) => {
+                        assert!(
+                            error.to_string().contains("unknown field"),
+                            "{name}: unexpected manifest-deserialization error: {error}"
+                        );
+                        (
+                            "refuse",
+                            Some(GraphAdmissionRefusalReasonV1::UnknownField.code()),
+                        )
+                    }
+                };
+            assert_eq!(
+                actual_outcome,
+                case["expected"]["outcome"]
+                    .as_str()
+                    .expect("expected outcome is a string"),
+                "{name}: outcome"
+            );
+            assert_eq!(
+                actual_reason,
+                case["expected"]["reason"].as_str(),
+                "{name}: reason"
+            );
+        }
+    }
+
+    #[test]
     fn graph_admission_refusal_register_is_closed_and_ordered() {
         let codes = [
             GraphAdmissionRefusalReasonV1::ClientAstForbidden,

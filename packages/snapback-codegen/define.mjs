@@ -3568,6 +3568,18 @@ const GRAPH_COST_FIELDS = new Set([
   'nodes', 'arguments', 'maxArgumentItems', 'maxPageResultBytes',
   'windowRollup', 'maxMaintainedWritesPerMutation',
 ]);
+const GRAPH_NODE_COST_FIELDS = new Set([
+  'nodeId', 'maxRootRowsPerPage', 'maxExaminedEntriesPerExecution',
+  'maxRelationshipLookupsPerExecution', 'maxChildrenPerParent',
+  'maxArgumentExpansion', 'maxWindowPages', 'maxWindowRootRows',
+  'maxWindowScannedRows', 'maxWindowResultRows', 'maxWindowResultBytes',
+  'maxWindowIndexRanges',
+]);
+const GRAPH_ARGUMENT_COST_FIELDS = new Set(['argumentId', 'maxItems']);
+const GRAPH_WINDOW_ROLLUP_FIELDS = new Set([
+  'maxWindowPages', 'maxWindowRootRows', 'maxWindowScannedRows',
+  'maxWindowResultRows', 'maxWindowResultBytes', 'maxWindowIndexRanges',
+]);
 
 function graphRefuse(code, message) {
   assert(false, message, code);
@@ -3589,14 +3601,17 @@ function freezeGraphCarrier(value, seen = new Set()) {
 }
 
 function graphCanonicalPrimitivePreflight(value, path) {
+  const numberCode = /^defineGraphQuery\.(?:bounds|queryCost)(?:\.|$)/u.test(path)
+    ? 'SNAPBACK_GRAPH_BOUND_INVALID'
+    : 'SNAPBACK_GRAPH_ARGUMENT_UNBOUND';
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) {
-      graphRefuse('SNAPBACK_GRAPH_ARGUMENT_UNBOUND', `${path} contains a non-finite canonical value`);
+      graphRefuse(numberCode, `${path} contains a non-finite canonical value`);
     }
     if (Number.isInteger(value)
       && Math.abs(value) > Number.MAX_SAFE_INTEGER
       && Math.abs(value) < 1e21) {
-      graphRefuse('SNAPBACK_GRAPH_ARGUMENT_UNBOUND', `${path} contains an unsafe-integer canonical value`);
+      graphRefuse(numberCode, `${path} contains an unsafe-integer canonical value`);
     }
   }
   if (typeof value === 'string' && (typeof value.isWellFormed === 'function'
@@ -3969,6 +3984,30 @@ export function defineGraphQuery(spec) {
   assertKnownSpecFields(spec.bounds, 'defineGraphQuery.bounds', GRAPH_BOUND_FIELDS, 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
   assertKnownSpecFields(spec.queryCost, 'defineGraphQuery.queryCost', new Set(['graph']), 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
   assertKnownSpecFields(spec.queryCost.graph, 'defineGraphQuery.queryCost.graph', GRAPH_COST_FIELDS, 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
+  assert(Array.isArray(spec.queryCost.graph.nodes), 'defineGraphQuery.queryCost.graph.nodes must be an array', 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
+  for (const [index, cost] of spec.queryCost.graph.nodes.entries()) {
+    assertKnownSpecFields(
+      cost,
+      `defineGraphQuery.queryCost.graph.nodes[${index}]`,
+      GRAPH_NODE_COST_FIELDS,
+      'SNAPBACK_GRAPH_UNKNOWN_FIELD',
+    );
+  }
+  assert(Array.isArray(spec.queryCost.graph.arguments), 'defineGraphQuery.queryCost.graph.arguments must be an array', 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
+  for (const [index, cost] of spec.queryCost.graph.arguments.entries()) {
+    assertKnownSpecFields(
+      cost,
+      `defineGraphQuery.queryCost.graph.arguments[${index}]`,
+      GRAPH_ARGUMENT_COST_FIELDS,
+      'SNAPBACK_GRAPH_UNKNOWN_FIELD',
+    );
+  }
+  assertKnownSpecFields(
+    spec.queryCost.graph.windowRollup,
+    'defineGraphQuery.queryCost.graph.windowRollup',
+    GRAPH_WINDOW_ROLLUP_FIELDS,
+    'SNAPBACK_GRAPH_UNKNOWN_FIELD',
+  );
   assertKnownSpecFields(spec.broadcast, 'defineGraphQuery.broadcast', new Set(['classification']), 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
   assertKnownSpecFields(
     spec.projection,

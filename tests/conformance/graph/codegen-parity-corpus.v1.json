@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "description": "Frozen acceptance/refusal parity cases for defineGraphQuery lowering and the Rust graph manifest rank-0 validator. Mutations use normalized-plan paths; the JS replay maps queryCost whole-query fields to the authored bounds record. Source-stage-only cases carry jsOnly and are skipped by Rust.",
+  "base": "minimal-carrier.v1.json",
+  "cases": [
+    {
+      "name": "valid-minimal",
+      "expected": { "outcome": "accept", "reason": null }
+    },
+    {
+      "name": "max-safe-whole-query-bound",
+      "set": [
+        { "path": ["queryCost", "maxEvaluationTurnMs"], "value": 9007199254740991 }
+      ],
+      "expected": { "outcome": "accept", "reason": null }
+    },
+    {
+      "name": "unknown-node-cost-field",
+      "set": [
+        { "path": ["queryCost", "graph", "nodes", 0, "unexpectedNodeCost"], "value": 1 }
+      ],
+      "expected": { "outcome": "refuse", "reason": "SNAPBACK_GRAPH_UNKNOWN_FIELD" }
+    },
+    {
+      "name": "unknown-argument-cost-field",
+      "set": [
+        {
+          "path": ["queryCost", "graph", "arguments"],
+          "value": [
+            { "argumentId": "ghost", "maxItems": 1, "unexpectedArgumentCost": 1 }
+          ]
+        }
+      ],
+      "expected": { "outcome": "refuse", "reason": "SNAPBACK_GRAPH_UNKNOWN_FIELD" }
+    },
+    {
+      "name": "unknown-window-rollup-field",
+      "set": [
+        { "path": ["queryCost", "graph", "windowRollup", "unexpectedWindowCost"], "value": 1 }
+      ],
+      "expected": { "outcome": "refuse", "reason": "SNAPBACK_GRAPH_UNKNOWN_FIELD" }
+    },
+    {
+      "name": "unsafe-whole-query-bound",
+      "set": [
+        { "path": ["queryCost", "maxScannedRows"], "value": 9007199254740992 }
+      ],
+      "expected": { "outcome": "refuse", "reason": "SNAPBACK_GRAPH_BOUND_INVALID" }
+    },
+    {
+      "name": "wrong-scanned-rows-aggregate",
+      "set": [
+        { "path": ["queryCost", "maxScannedRows"], "value": 4 }
+      ],
+      "expected": { "outcome": "refuse", "reason": "SNAPBACK_GRAPH_BOUND_INVALID" }
+    },
+    {
+      "name": "wrong-window-rollup-aggregate",
+      "set": [
+        { "path": ["queryCost", "graph", "windowRollup", "maxWindowPages"], "value": 3 }
+      ],
+      "expected": { "outcome": "refuse", "reason": "SNAPBACK_GRAPH_BOUND_INVALID" }
+    },
+    {
+      "name": "zero-whole-query-bound",
+      "set": [
+        { "path": ["queryCost", "maxResultRows"], "value": 0 }
+      ],
+      "expected": { "outcome": "refuse", "reason": "SNAPBACK_GRAPH_BOUND_INVALID" }
+    },
+    {
+      "name": "missing-root-cost-record",
+      "remove": [
+        ["queryCost", "graph", "nodes", 0]
+      ],
+      "expected": { "outcome": "refuse", "reason": "SNAPBACK_GRAPH_UNBOUNDED_EXPANSION" }
+    },
+    {
+      "name": "dynamic-source-conditional-nodes",
+      "jsOnly": true,
+      "sourceStage": "conditional-nodes",
+      "expected": { "outcome": "refuse", "reason": "SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION" }
+    }
+  ]
+}
