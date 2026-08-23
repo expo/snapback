@@ -129,3 +129,56 @@ Not claimed: a fresh green run of the live gate. The analysis ran read-only and 
 build needs to write under `target/`, so this rests on static inspection plus the direct file
 checks above. Separately, `issues/20260819-security-gates-expected-red-until-f1.md` still expects
 the product gate red for unrelated F-1 reasons.
+
+---
+
+## 2026-08-23 — both fence lanes landed; what the review rounds actually cost and bought
+
+Landed on `main`: watch-management fencing (6 commits, ending `ff8885a49`) and the R1
+stream-attempt authorization stack (7 commits, ending `783928858`). Main verified green
+afterwards: sync 251+6, kernel 820+6, engine 513, server 553, `check-inventories` PASS. The sole
+remaining failure is `s5_d10_production_diagnostic_inventory_cannot_drift`, which predates this
+work and is under diagnosis.
+
+### The rounds were not overhead
+
+Each lane needed several review rounds, and **every round found something real**:
+
+- R1 round 3 found terminal adoption accepted any public, deserializable row and checked only that
+  a terminal field was present — a doc comment asserting durability that nothing enforced.
+- R1 round 3 also found **storage was a signing oracle**: private witness fields prevent direct
+  construction but not *laundering through the issuer*. I had verified the fields were private and
+  concluded unforgeable; that inference was wrong, and it took an independent read to catch.
+- R1 round 4 found the previous round's watchdog "fix" still lost the race, because the worker's
+  backstop terminalized with the pre-abandonment cause.
+- Watch-management rounds 2 and 3 found **six tests that were false proofs**, including one
+  sentinel that never invoked the closure it claimed to test, and one that could not reach the
+  defect it was named for.
+
+### What actually changed the outcome
+
+Two practices did nearly all the work, and both are cheap:
+
+1. **Demand a green-mutation.** For every test claiming a structural property, construct the
+   shortest production mutation that violates the property while leaving the test green. This
+   turned "that test looks weak" into a checkable claim, and it found thirteen non-discriminating
+   tests already on `main` (see
+   `issues/20260822-landed-fence-tests-do-not-prove-non-substitutability.md`).
+2. **Require the fix to be watched failing.** "A test you have not watched fail is not evidence."
+   The final R1 round confirmed its new tamper test by omitting `record_json` from the MAC framing
+   and observing `expect_err` receive `Ok(())`.
+
+### What was narrowed rather than claimed
+
+Several guarantees could not be made structural and were **narrowed instead of restated**: the
+durable-read claim became post-read context non-substitution; the witness claim became downstream
+non-forgeability; LLP 0225's assertion that AppState component splicing was closed was corrected,
+because it was not. Narrowing is the correct outcome when the code cannot support the claim, and
+it is strictly better than a fix that overstates.
+
+### Next
+
+The critical path is the binding implementation plan's Step 5 — the first step that makes carrier
+substitution inexpressible. Its independent early slice (sealing the capsule destination at
+construction) is in flight now and closes the Critical in
+`issues/20260822-capsule-structural-residuals.md`.
