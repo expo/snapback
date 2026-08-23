@@ -3541,8 +3541,12 @@ fn validate_graph_costs(plan: &GraphQueryPlanV1) -> Result<(), GraphAdmissionRef
 
     let parent_population = |node: &GraphNodeV1| {
         let mut path = Vec::new();
+        let mut visited = BTreeSet::new();
         let mut cursor = Some(node);
         while let Some(current) = cursor {
+            if !visited.insert(current.node_id()) {
+                return Err(GraphAdmissionRefusalReasonV1::Cycle);
+            }
             path.push(current);
             cursor = current
                 .parent_node_id()
@@ -3791,21 +3795,25 @@ fn validate_graph_costs(plan: &GraphQueryPlanV1) -> Result<(), GraphAdmissionRef
             .filter(|value| (1..=GRAPH_MAX_SAFE_INTEGER).contains(value))
             .ok_or(GraphAdmissionRefusalReasonV1::BoundInvalid)?;
         let is_in_subtree = |candidate: &GraphNodeV1| {
+            let mut visited = BTreeSet::new();
             let mut cursor = Some(candidate);
             while let Some(current) = cursor {
                 if current.node_id() == node.node_id() {
-                    return true;
+                    return Ok(true);
+                }
+                if !visited.insert(current.node_id()) {
+                    return Err(GraphAdmissionRefusalReasonV1::Cycle);
                 }
                 cursor = current
                     .parent_node_id()
                     .and_then(|parent_id| node_by_id.get(parent_id).copied());
             }
-            false
+            Ok(false)
         };
         let mut subtree_scanned = 0_u64;
         let mut subtree_ranges = 0_u64;
         for candidate in &data_nodes {
-            if is_in_subtree(candidate) {
+            if is_in_subtree(candidate)? {
                 subtree_scanned =
                     checked_add(subtree_scanned, examined_by_id[candidate.node_id()])?;
                 subtree_ranges = checked_add(subtree_ranges, ranges_by_id[candidate.node_id()])?;
