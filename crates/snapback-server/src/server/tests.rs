@@ -35273,6 +35273,7 @@ async fn pairing_code_mint_stages_clock_and_row_under_exact_guard_before_one_com
         )
     });
     let receipt = probe.receipt();
+    let _probe_registration = probe.register_production_entry_for_test(reservation_identity);
     let effect_authority = authority.clone();
     let user_id = fixture.principal_id.clone();
     let provider = fixture
@@ -35285,13 +35286,12 @@ async fn pairing_code_mint_stages_clock_and_row_under_exact_guard_before_one_com
         &fixture.state.snapback,
         Instant::now() + Duration::from_secs(5),
         move |snapback| {
-            snapback.mint_pairing_code_with_authorized_effect_and_probe_for_test(
+            snapback.mint_pairing_code_with_authorized_effect(
                 &effect_authority,
                 &user_id,
                 now_ms,
                 provider.agent_random_source(),
                 authorized_effect,
-                probe,
             )
         },
     )
@@ -35457,6 +35457,11 @@ async fn pairing_code_mint_bounds_fifo_local_wait() {
 /// is part of the absolute pairing deadline: saturation must drop the already
 /// reserved caller permit so logout's exact terminal premark can drain without
 /// waiting for a queued worker to start.
+///
+/// Evidence limit: this fixture observes the timeout and permit drain while the
+/// pool stays saturated, but it does not directly observe the pairing worker
+/// enter Tokio's blocking queue. That causal admission fact is established by
+/// static tracing of `with_snapback_until`.
 #[test]
 fn pairing_code_mint_saturated_blocking_pool_times_out_and_logout_premark_drains() {
     let runtime = tokio::runtime::Builder::new_multi_thread()

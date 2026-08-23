@@ -254,7 +254,7 @@ function parseHttpStatuses() {
     if (!status) continue;
     for (const code of families.get(match[2]) ?? []) statuses.set(code, status);
   }
-  for (const match of source.matchAll(/\(\s*(\d{3})\s*,\s*&\[\s*"(SNAPBACK_[A-Z0-9_]+)"\s*\]\s*\)/gu)) {
+  for (const match of source.matchAll(/\(\s*(\d{3})\s*,\s*&\[\s*"(SNAPBACK_[A-Z0-9_]+)"\s*\]\s*,?\s*\)/gu)) {
     statuses.set(match[2], Number(match[1]));
   }
   return statuses;

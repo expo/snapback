@@ -251,7 +251,20 @@ thread_local! {
 }
 
 #[cfg(any(test, feature = "test-support"))]
-struct PairingCodeMintCommitProbeScopeForTest {
+static REGISTERED_PAIRING_CODE_MINT_COMMIT_PROBES_FOR_TEST: std::sync::OnceLock<
+    std::sync::Mutex<std::collections::BTreeMap<u64, PairingCodeMintCommitProbeForTest>>,
+> = std::sync::OnceLock::new();
+
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub struct PairingCodeMintCommitProbeRegistrationForTest {
+    reservation_identity: u64,
+    state: std::sync::Arc<PairingCodeMintCommitProbeStateForTest>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub struct PairingCodeMintCommitProbeScopeForTest {
     state: std::sync::Arc<PairingCodeMintCommitProbeStateForTest>,
 }
 
@@ -268,6 +281,29 @@ impl PairingCodeMintCommitProbeForTest {
     #[doc(hidden)]
     pub fn receipt(&self) -> PairingCodeMintCommitProbeReceiptForTest {
         PairingCodeMintCommitProbeReceiptForTest {
+            state: self.state.clone(),
+        }
+    }
+
+    /// Register this probe for the exact production entry that consumes the
+    /// authorized-effect reservation. The production method transfers it to
+    /// its blocking writer thread; there is no instrumented sibling method.
+    #[doc(hidden)]
+    pub fn register_production_entry_for_test(
+        &self,
+        reservation_identity: u64,
+    ) -> PairingCodeMintCommitProbeRegistrationForTest {
+        let previous = REGISTERED_PAIRING_CODE_MINT_COMMIT_PROBES_FOR_TEST
+            .get_or_init(|| std::sync::Mutex::new(std::collections::BTreeMap::new()))
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(reservation_identity, self.clone());
+        assert!(
+            previous.is_none(),
+            "a pairing-code commit probe is already registered for authorized effect {reservation_identity}"
+        );
+        PairingCodeMintCommitProbeRegistrationForTest {
+            reservation_identity,
             state: self.state.clone(),
         }
     }
@@ -319,6 +355,39 @@ impl PairingCodeMintCommitProbeForTest {
             });
         Ok(())
     }
+}
+
+#[cfg(any(test, feature = "test-support"))]
+impl Drop for PairingCodeMintCommitProbeRegistrationForTest {
+    fn drop(&mut self) {
+        let mut probes = REGISTERED_PAIRING_CODE_MINT_COMMIT_PROBES_FOR_TEST
+            .get_or_init(|| std::sync::Mutex::new(std::collections::BTreeMap::new()))
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if probes
+            .get(&self.reservation_identity)
+            .is_some_and(|probe| std::sync::Arc::ptr_eq(&probe.state, &self.state))
+        {
+            probes.remove(&self.reservation_identity);
+        }
+    }
+}
+
+/// Transfer a registered probe onto the worker that executes the exact
+/// production pairing-code entry. The returned scope observes every durable
+/// commit attempted by that entry, including commits added before the typed
+/// pairing transaction.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub fn install_registered_pairing_code_mint_commit_probe_for_test(
+    reservation_identity: u64,
+) -> Option<PairingCodeMintCommitProbeScopeForTest> {
+    let probe = REGISTERED_PAIRING_CODE_MINT_COMMIT_PROBES_FOR_TEST
+        .get_or_init(|| std::sync::Mutex::new(std::collections::BTreeMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .remove(&reservation_identity)?;
+    Some(probe.install())
 }
 
 #[cfg(any(test, feature = "test-support"))]
@@ -446,51 +515,6 @@ impl LocalDatabase {
     where
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
-        self.mint_pairing_code_guarded_commit_inner(
-            user_id,
-            now_ms,
-            random,
-            before_commit,
-            #[cfg(any(test, feature = "test-support"))]
-            None,
-        )
-    }
-
-    #[cfg(any(test, feature = "test-support"))]
-    #[doc(hidden)]
-    pub fn mint_pairing_code_guarded_commit_with_probe_for_test<G, BeforeCommit>(
-        &mut self,
-        user_id: &str,
-        now_ms: u64,
-        random: &dyn RandomSource,
-        before_commit: BeforeCommit,
-        probe: PairingCodeMintCommitProbeForTest,
-    ) -> SnapbackResult<PairingCodeMintCommit>
-    where
-        BeforeCommit: FnOnce() -> SnapbackResult<G>,
-    {
-        self.mint_pairing_code_guarded_commit_inner(
-            user_id,
-            now_ms,
-            random,
-            before_commit,
-            Some(probe),
-        )
-    }
-
-    fn mint_pairing_code_guarded_commit_inner<G, BeforeCommit>(
-        &mut self,
-        user_id: &str,
-        now_ms: u64,
-        random: &dyn RandomSource,
-        before_commit: BeforeCommit,
-        #[cfg(any(test, feature = "test-support"))] probe: Option<
-            PairingCodeMintCommitProbeForTest,
-        >,
-    ) -> SnapbackResult<PairingCodeMintCommit>
-    where
-        BeforeCommit: FnOnce() -> SnapbackResult<G>,
-    {
         let expires_at_ms = now_ms
             .checked_add(PAIRING_CODE_TTL_MS)
             .filter(|expires_at_ms| *expires_at_ms <= super::MAX_AUTHORIZATION_EPOCH)
@@ -499,11 +523,8 @@ impl LocalDatabase {
         let hash = secret.token_hash();
         let request_id = crate::ids::mint_time_ordered(crate::ids::Kind::GrantRequest);
         #[cfg(any(test, feature = "test-support"))]
-        let _probe_scope = probe
-            .as_ref()
-            .map(PairingCodeMintCommitProbeForTest::install);
-        #[cfg(any(test, feature = "test-support"))]
-        let staged_probe = probe.clone();
+        let staged_probe =
+            PAIRING_CODE_MINT_COMMIT_PROBE_FOR_TEST.with(|slot| slot.borrow().clone());
         let output = self.with_auth_transaction_guarded_observed(
             |tx| {
                 let before_clock = sqlite_total_changes(tx)?;
@@ -3040,28 +3061,6 @@ impl super::ServingDatabase {
     {
         self.db
             .mint_pairing_code_guarded_commit(user_id, now_ms, random, before_commit)
-    }
-    #[cfg(any(test, feature = "test-support"))]
-    #[doc(hidden)]
-    pub fn mint_pairing_code_guarded_commit_with_probe_for_test<G, BeforeCommit>(
-        &mut self,
-        user_id: &str,
-        now_ms: u64,
-        random: &dyn RandomSource,
-        before_commit: BeforeCommit,
-        probe: PairingCodeMintCommitProbeForTest,
-    ) -> SnapbackResult<PairingCodeMintCommit>
-    where
-        BeforeCommit: FnOnce() -> SnapbackResult<G>,
-    {
-        self.db
-            .mint_pairing_code_guarded_commit_with_probe_for_test(
-                user_id,
-                now_ms,
-                random,
-                before_commit,
-                probe,
-            )
     }
     pub fn present_pairing_code(
         &mut self,
