@@ -6,22 +6,60 @@
 //!   stays in the storage kernel.
 
 use super::{
-    CommitCapsuleAuthority, DatabaseBinding, ExactCommitRows, LocalDatabase,
+    CommitCapsuleAuthority, CommitCapsuleIntent, DatabaseBinding, ExactCommitRows, LocalDatabase,
     observe_durable_commit_for_test,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use rusqlite::{Connection, OptionalExtension as _, Transaction, TransactionBehavior, params};
+use std::fmt;
 use std::path::Path;
 
 const OPERATION_TABLE: &str = "_test_bounded_commit_capsule_operations";
 const PROOF_TABLE: &str = "_test_bounded_commit_capsule_proofs";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PrototypeOperationIdentity(String);
+
+impl PrototypeOperationIdentity {
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+}
+
+impl AsRef<str> for PrototypeOperationIdentity {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::ops::Deref for PrototypeOperationIdentity {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_ref()
+    }
+}
+
+impl fmt::Display for PrototypeOperationIdentity {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.0)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PrototypeIntent {
-    pub operation_id: String,
+    pub operation_id: PrototypeOperationIdentity,
     pub payload: String,
     pub proof_id: String,
     pub response: String,
+}
+
+impl CommitCapsuleIntent for PrototypeIntent {
+    type OperationIdentity = PrototypeOperationIdentity;
+
+    fn operation_identity(&self) -> &Self::OperationIdentity {
+        &self.operation_id
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -38,7 +76,7 @@ pub struct PrototypeFacts {
 }
 
 pub enum PrototypeStage<'connection> {
-    Existing(ExactCommitRows<PrototypeValue>),
+    Existing(ExactCommitRows<PrototypeIntent, PrototypeValue>),
     Pending(PrototypePending<'connection>),
 }
 
@@ -77,7 +115,7 @@ pub fn stage<'connection>(
     let existing_operation = tx
         .query_row(
             &format!("SELECT payload, response FROM {OPERATION_TABLE} WHERE operation_id = ?1"),
-            params![intent.operation_id],
+            params![intent.operation_id.as_ref()],
             |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
         )
         .optional()?;
@@ -103,7 +141,7 @@ pub fn stage<'connection>(
             && existing_proof
                 .as_ref()
                 .is_some_and(|(operation_id, expected_payload, consumed)| {
-                    operation_id == &intent.operation_id
+                    operation_id == intent.operation_id.as_ref()
                         && expected_payload == &intent.payload
                         && *consumed == 1
                 });
@@ -111,9 +149,9 @@ pub fn stage<'connection>(
         if exact {
             return Ok(PrototypeStage::Existing(ExactCommitRows::new(
                 binding,
-                &intent.operation_id,
+                intent.operation_id.clone(),
                 PrototypeValue {
-                    operation_id: intent.operation_id.clone(),
+                    operation_id: intent.operation_id.as_ref().to_owned(),
                     response,
                 },
             )));
@@ -137,7 +175,11 @@ pub fn stage<'connection>(
         &format!(
             "INSERT INTO {OPERATION_TABLE} (operation_id, payload, response) VALUES (?1, ?2, ?3)"
         ),
-        params![intent.operation_id, intent.payload, intent.response],
+        params![
+            intent.operation_id.as_ref(),
+            intent.payload,
+            intent.response
+        ],
     )?;
     if include_consumed_proof {
         tx.execute(
@@ -145,14 +187,18 @@ pub fn stage<'connection>(
                 "INSERT INTO {PROOF_TABLE} (proof_id, operation_id, expected_payload, consumed) \
                  VALUES (?1, ?2, ?3, 1)"
             ),
-            params![intent.proof_id, intent.operation_id, intent.payload],
+            params![
+                intent.proof_id,
+                intent.operation_id.as_ref(),
+                intent.payload
+            ],
         )?;
     }
     Ok(PrototypeStage::Pending(PrototypePending {
         tx,
         binding,
         value: PrototypeValue {
-            operation_id: intent.operation_id.clone(),
+            operation_id: intent.operation_id.as_ref().to_owned(),
             response: intent.response.clone(),
         },
     }))
@@ -211,14 +257,14 @@ impl PrototypePending<'_> {
 pub fn exact_reconciliation(
     db: &mut LocalDatabase,
     intent: &PrototypeIntent,
-) -> SnapbackResult<Option<ExactCommitRows<PrototypeValue>>> {
+) -> SnapbackResult<Option<ExactCommitRows<PrototypeIntent, PrototypeValue>>> {
     let tx = db
         .conn
         .transaction_with_behavior(TransactionBehavior::Deferred)?;
     let operation = tx
         .query_row(
             &format!("SELECT payload, response FROM {OPERATION_TABLE} WHERE operation_id = ?1"),
-            params![intent.operation_id],
+            params![intent.operation_id.as_ref()],
             |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
         )
         .optional()?;
@@ -245,16 +291,16 @@ pub fn exact_reconciliation(
     let exact = payload == intent.payload
         && response == intent.response
         && proof.is_some_and(|(operation_id, expected_payload, consumed)| {
-            operation_id == intent.operation_id
+            operation_id == intent.operation_id.as_ref()
                 && expected_payload == intent.payload
                 && consumed == 1
         });
     Ok(exact.then(|| {
         ExactCommitRows::new(
             db.binding(),
-            &intent.operation_id,
+            intent.operation_id.clone(),
             PrototypeValue {
-                operation_id: intent.operation_id.clone(),
+                operation_id: intent.operation_id.as_ref().to_owned(),
                 response,
             },
         )
@@ -296,7 +342,7 @@ pub fn facts_from_path(path: &Path, intent: &PrototypeIntent) -> SnapbackResult<
     let operation = conn
         .query_row(
             &format!("SELECT payload, response FROM {OPERATION_TABLE} WHERE operation_id = ?1"),
-            params![intent.operation_id],
+            params![intent.operation_id.as_ref()],
             |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
         )
         .optional()?;
@@ -319,7 +365,7 @@ pub fn facts_from_path(path: &Path, intent: &PrototypeIntent) -> SnapbackResult<
         payload == intent.payload
             && response == intent.response
             && proof.is_some_and(|(operation_id, expected_payload, consumed)| {
-                operation_id == intent.operation_id
+                operation_id == intent.operation_id.as_ref()
                     && expected_payload == intent.payload
                     && consumed == 1
             })

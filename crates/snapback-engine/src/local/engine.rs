@@ -24517,7 +24517,12 @@ impl LocalSnapback {
         &mut self,
         intended: &crate::storage::watches::WatchManagementIntendedRows,
     ) -> SnapbackResult<
-        Option<crate::storage::ExactCommitRows<crate::storage::watches::WatchManagementCommit>>,
+        Option<
+            crate::storage::ExactCommitRows<
+                crate::storage::watches::WatchManagementIntent,
+                crate::storage::watches::WatchManagementCommit,
+            >,
+        >,
     > {
         self.db.reconcile_watch_management(intended)
     }

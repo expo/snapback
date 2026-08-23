@@ -34,6 +34,7 @@ pub(crate) trait RemainderLocalSnapbackExt {
     ) -> crate::diagnostic::SnapbackResult<
         Option<
             snapback_kernel::storage::ExactCommitRows<
+                snapback_kernel::storage::commit_capsule_prototype::PrototypeIntent,
                 snapback_kernel::storage::commit_capsule_prototype::PrototypeValue,
             >,
         >,
@@ -98,6 +99,7 @@ impl RemainderLocalSnapbackExt for crate::local::LocalSnapback {
     ) -> crate::diagnostic::SnapbackResult<
         Option<
             snapback_kernel::storage::ExactCommitRows<
+                snapback_kernel::storage::commit_capsule_prototype::PrototypeIntent,
                 snapback_kernel::storage::commit_capsule_prototype::PrototypeValue,
             >,
         >,

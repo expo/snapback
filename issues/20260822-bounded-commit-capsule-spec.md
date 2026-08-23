@@ -5,7 +5,8 @@ Created: 2026-08-22
 Related: issues/20260822-permits-pin-logout-on-unbounded-local-wait.md,
 issues/20260822-critical-direct-route-fence-design.md,
 issues/20260822-residual-findings-4-9-disposition.md,
-issues/20260822-watch-preflight-dns-holds-the-managed-writer.md, LLP 0058
+issues/20260822-watch-preflight-dns-holds-the-managed-writer.md,
+issues/20260822-authority-publication-binding-design.md, LLP 0058
 
 ## Why this is the pivotal primitive
 
@@ -205,26 +206,50 @@ pub(crate) enum CommitTimeoutPhase {
 }
 
 pub(crate) async fn with_bounded_commit_capsule<T, Intent, Gate, Uncertain>(
-    state: &SharedSnapback,
+    destination: CommitCapsuleDestination,
     spec: CommitCapsuleSpec,
-    authority: PreparedAuthority,
     terminal_gate: Gate, // `()` when none
     intent: Intent,
     transact: impl FnOnce(
-        &mut LocalSnapback,
+        &mut CommitCapsuleTransaction<'_>,
         &Intent,
         Gate,
         &AuthorizedEffectReservation,
-        &mut FinalCommitCut<Uncertain>,
+        &mut FinalCommitCut<Intent, Uncertain>,
     ) -> CommitAttempt<T> + Send + 'static,
     reconcile: impl FnOnce(
-        &mut LocalSnapback,
+        &mut CommitCapsuleTransaction<'_>,
         &Intent,
         &Uncertain,
     ) -> ExactReconciliation<T> + Send + 'static,
     uncertain_retention: CommitUncertainRetention<Uncertain>,
-) -> CommitCapsuleOutcome<T>;
+) -> CommitCapsuleOutcome<T>
+where
+    Intent: CommitCapsuleIntent;
 ```
+
+`CommitCapsuleTransaction` is a narrow capability, not a `Deref` wrapper. It exposes only the
+kernel staging, exact-reconciliation, and observation operations adopted by the capsule. It never
+exposes `LocalSnapback`, so caller transaction code cannot invoke a legacy autocommitting Local
+operation and then report `RolledBack` without passing `FinalCommitCut`.
+
+`CommitCapsuleIntent` owns an associated, typed operation identity. `ExactCommitRows<Intent, T>`
+copies that identity from the intent observed by the kernel, and `map` preserves it. The capsule
+consumes the witness only against its original typed intent; neither `CommitCapsuleSpec` nor the
+reconciliation closure supplies a second string that can be substituted. `FinalCommitCut` records
+a disposition on every exit, including exact-existing success or mismatch and rollback failures,
+so every final cut is one-shot.
+
+`CommitCapsuleDestination` is assembled from one immutable AppState binding containing the managed
+Local graph, its admission controller, and its database commit authority. Binding checks the
+prepared authority against that bundled admission controller and later uses only the bundled Local
+and database capability. Replacing the separately visible AppState components therefore cannot
+splice admission A, Local B, and database B into an accepted destination.
+
+This is not a complete authority-publication binding proof. `PreparedAuthority` still has public
+carrier-replacement constructors that do not prove the attached publication corresponds to its
+admission lease. The inherited Critical and its separate remedy are tracked in
+`issues/20260822-authority-publication-binding-design.md`; the capsule must not claim to close it.
 
 The capsule acquires the reservation from `PreparedAuthority` before queuing for Local. A capsule
 future that has not been polled owns no permit, and the API cannot accept an already-held

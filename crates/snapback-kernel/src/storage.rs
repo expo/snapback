@@ -844,8 +844,21 @@ impl CommitCapsuleAuthority {
     }
 }
 
+/// An intent owns the only operation identity a bounded commit capsule may
+/// use. The identity type is part of the witness type, so a caller cannot
+/// independently select a string for the capsule and another for its intent.
+///
+/// @ref LLP 0225#3-transaction-and-commit-boundaries--who-may-commit-what —
+/// exact reconciliation binds the original typed intent as well as the exact
+/// database.
+pub trait CommitCapsuleIntent {
+    type OperationIdentity: AsRef<str> + Clone + Eq;
+
+    fn operation_identity(&self) -> &Self::OperationIdentity;
+}
+
 /// Kernel-minted proof that an exact reconciliation query observed the
-/// complete intended successor for one operation in one database.
+/// complete intended successor for one typed intent in one database.
 ///
 /// The server capsule may consume this proof, but cannot construct one from a
 /// caller-supplied value. Binding both identities prevents a truthful query
@@ -854,21 +867,21 @@ impl CommitCapsuleAuthority {
 ///
 /// @ref LLP 0059#rollback-and-ambiguous-commit — ambiguous success requires
 /// kernel-observed exact intended rows, not a caller assertion.
-pub struct ExactCommitRows<T> {
+pub struct ExactCommitRows<I: CommitCapsuleIntent, T> {
     binding: DatabaseBinding,
-    operation_identity: String,
+    operation_identity: I::OperationIdentity,
     value: T,
 }
 
-impl<T> ExactCommitRows<T> {
+impl<I: CommitCapsuleIntent, T> ExactCommitRows<I, T> {
     pub(crate) fn new(
         binding: DatabaseBinding,
-        operation_identity: impl Into<String>,
+        operation_identity: I::OperationIdentity,
         value: T,
     ) -> Self {
         Self {
             binding,
-            operation_identity: operation_identity.into(),
+            operation_identity,
             value,
         }
     }
@@ -876,9 +889,11 @@ impl<T> ExactCommitRows<T> {
     pub fn into_value_for(
         self,
         authority: &CommitCapsuleAuthority,
-        operation_identity: &str,
+        intent: &I,
     ) -> SnapbackResult<T> {
-        if !authority.matches(&self.binding) || self.operation_identity != operation_identity {
+        if !authority.matches(&self.binding)
+            || &self.operation_identity != intent.operation_identity()
+        {
             return Err(SnapbackError::error(
                 "SNAPBACK_COMMIT_RECONCILIATION_WITNESS_MISMATCH",
                 "storage",
@@ -888,7 +903,7 @@ impl<T> ExactCommitRows<T> {
         Ok(self.value)
     }
 
-    pub fn map<U>(self, map: impl FnOnce(T) -> U) -> ExactCommitRows<U> {
+    pub fn map<U>(self, map: impl FnOnce(T) -> U) -> ExactCommitRows<I, U> {
         ExactCommitRows {
             binding: self.binding,
             operation_identity: self.operation_identity,

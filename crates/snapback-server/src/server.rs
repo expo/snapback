@@ -154,8 +154,8 @@ mod writer_gate;
 pub use api_error::*;
 use asset_routes::*;
 pub(crate) use commit_capsule::{
-    CommitAttempt, CommitCapsuleBinding, CommitCapsuleDestination, CommitCapsuleOutcome,
-    CommitCapsuleSpec, CommitTimeoutPhase, CommitUncertainRetention,
+    CommitAttempt, CommitCapsuleDestination, CommitCapsuleOutcome, CommitCapsuleSpec,
+    CommitCapsuleTransaction, CommitTimeoutPhase, CommitUncertainRetention,
     CommitUncertainRetentionHandle, CommitUncertainRetentionId, CommitUncertainRetentionSnapshot,
     CommitUncertainRetentionState, FinalCommitCut, PendingCommit, with_bounded_commit_capsule,
 };
@@ -26269,7 +26269,7 @@ impl PendingCommit for crate::storage::watches::WatchManagementPending<'_> {
 }
 
 fn finish_watch_management_attempt(
-    snapback: &mut LocalSnapback,
+    snapback: &mut CommitCapsuleTransaction<'_>,
     attempt: CommitAttempt<crate::storage::watches::WatchManagementCommit>,
 ) -> CommitAttempt<crate::storage::watches::WatchRecord> {
     attempt.map_committed(|committed| {
@@ -26286,7 +26286,7 @@ async fn commit_watch_management_capsule(
     budget: Duration,
     intent: crate::storage::watches::WatchManagementIntent,
 ) -> Result<crate::storage::watches::WatchRecord, ApiError> {
-    let operation_identity = intent.operation_identity().to_owned();
+    let operation_identity = intent.operation_identity().as_ref().to_owned();
     let (uncertain_retention, recovery_handle) =
         CommitUncertainRetention::new(&operation_identity).map_err(ApiError::from)?;
     let transaction_authority = authority.clone();
@@ -26295,7 +26295,6 @@ async fn commit_watch_management_capsule(
         destination,
         CommitCapsuleSpec {
             operation,
-            operation_identity,
             deadline: tokio::time::Instant::now() + budget,
             uncertain_diagnostic: "SNAPBACK_COMMIT_OUTCOME_UNCERTAIN",
             #[cfg(test)]
@@ -26508,7 +26507,9 @@ async fn watch_renew(
     let Json(request) = input.map_err(ApiError::from_json_rejection)?;
     let replacement_grant_id = crate::ids::mint_time_ordered(crate::ids::Kind::Grant);
     let intent = crate::storage::watches::WatchManagementIntent::Renewal {
-        operation_identity: format!("watch-renew:{id}:{replacement_grant_id}"),
+        operation_identity: crate::storage::watches::WatchManagementOperationIdentity::new(
+            format!("watch-renew:{id}:{replacement_grant_id}"),
+        ),
         watch_id: id,
         ttl_ms: request.ttl_ms,
         replacement_grant_id,
@@ -26567,7 +26568,9 @@ async fn watch_transition_record(
         resume_job_id.as_deref().unwrap_or("none")
     );
     let intent = crate::storage::watches::WatchManagementIntent::Transition {
-        operation_identity,
+        operation_identity: crate::storage::watches::WatchManagementOperationIdentity::new(
+            operation_identity,
+        ),
         watch_id: id,
         target,
         resume_job_id,

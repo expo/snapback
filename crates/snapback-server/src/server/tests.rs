@@ -37151,6 +37151,33 @@ struct CommitCapsulePending<'connection, Gate> {
     during_commit: Option<Arc<CommitCapsuleBarrier>>,
 }
 
+struct FinalCutReuseProbe<Gate> {
+    value: crate::storage::commit_capsule_prototype::PrototypeValue,
+    gate: Arc<StdMutex<Option<Gate>>>,
+}
+
+impl<Gate: Send + 'static> super::PendingCommit for FinalCutReuseProbe<Gate> {
+    type Output = crate::storage::commit_capsule_prototype::PrototypeValue;
+    type Uncertain = CommitCapsuleUncertain<Gate>;
+
+    fn rollback(self) -> crate::diagnostic::SnapbackResult<()> {
+        Ok(())
+    }
+
+    fn prepare_commit(&mut self) -> Self::Uncertain {
+        CommitCapsuleUncertain {
+            _gate: self.gate.clone(),
+        }
+    }
+
+    fn commit(
+        self,
+        _authority: &crate::storage::CommitCapsuleAuthority,
+    ) -> crate::diagnostic::SnapbackResult<Self::Output> {
+        Ok(self.value)
+    }
+}
+
 fn commit_capsule_injected_storage_error() -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_SQLITE_ERROR",
@@ -37233,7 +37260,9 @@ struct CommitCapsuleHooks {
     panic_retain: bool,
     commit_guard_failure: Option<SnapbackError>,
     reconcile_as: Option<crate::storage::commit_capsule_prototype::PrototypeIntent>,
-    bypass_with_authority: Option<crate::storage::CommitCapsuleAuthority>,
+    reconcile_map_to: Option<crate::storage::commit_capsule_prototype::PrototypeIntent>,
+    reuse_final_cut: bool,
+    direct_watch_transition: Option<(PreparedAuthority, String)>,
 }
 
 async fn run_commit_capsule_prototype<Gate: Send + 'static>(
@@ -37247,11 +37276,11 @@ async fn run_commit_capsule_prototype<Gate: Send + 'static>(
     commit_receipt: Arc<StdMutex<Option<crate::storage::DurableCommitObservationReceiptForTest>>>,
     mut uncertain_retention: super::CommitUncertainRetention<CommitCapsuleUncertain<Gate>>,
 ) -> super::CommitCapsuleOutcome<crate::storage::commit_capsule_prototype::PrototypeValue> {
-    let operation_identity = intent.operation_id.clone();
     let transact_receipt = commit_receipt.clone();
     let reconcile_barrier = hooks.reconcile.clone();
     let panic_reconcile = hooks.panic_reconcile;
     let reconcile_as = hooks.reconcile_as.clone();
+    let reconcile_map_to = hooks.reconcile_map_to.clone();
     let retain_barrier = hooks.retain.clone();
     let panic_retain = hooks.panic_retain;
     let reservation_pause_id = hooks.reservation_pause_id.clone();
@@ -37269,7 +37298,6 @@ async fn run_commit_capsule_prototype<Gate: Send + 'static>(
         destination,
         super::CommitCapsuleSpec {
             operation: "bounded commit capsule prototype",
-            operation_identity,
             deadline,
             uncertain_diagnostic: super::commit_capsule::COMMIT_OUTCOME_UNCERTAIN_CODE,
             test_pause_id: reservation_pause_id,
@@ -37280,30 +37308,54 @@ async fn run_commit_capsule_prototype<Gate: Send + 'static>(
             if let Some(error) = hooks.commit_guard_failure {
                 reservation.set_commit_guard_failure_for_test(error);
             }
+            if let Some((authority, watch_id)) = hooks.direct_watch_transition {
+                let direct = local.attempt_direct_local_operation_for_test(|local| {
+                    local.transition_watch(
+                        &authority,
+                        &watch_id,
+                        crate::watches::WatchStatus::Suspended,
+                        super::now_millis(),
+                    )
+                });
+                drop(terminal_gate);
+                return match direct {
+                    Ok(_) => super::CommitAttempt::rolled_back(SnapbackError::error(
+                        "SNAPBACK_COMMIT_CAPSULE_DIRECT_LOCAL_COMMIT_SUCCEEDED",
+                        "server",
+                        "a direct Local commit escaped the capsule final cut",
+                    )),
+                    Err(error) => super::CommitAttempt::rolled_back(error),
+                };
+            }
             let include_consumed_proof =
                 injection != CommitCapsuleInjection::CommitErrorRowsPartial;
-            let staged = match local
-                .remainder_stage_commit_capsule_prototype(intent, include_consumed_proof)
-            {
+            let staged = match local.stage_prototype(intent, include_consumed_proof) {
                 Ok(staged) => staged,
                 Err(error) => return super::CommitAttempt::rolled_back(error),
             };
             let pending = match staged {
                 crate::storage::commit_capsule_prototype::PrototypeStage::Existing(witness) => {
                     drop(terminal_gate);
-                    return final_cut.exact_existing(reservation, witness);
+                    let exact = final_cut.exact_existing(reservation, intent, witness);
+                    if hooks.reuse_final_cut {
+                        return final_cut.commit(
+                            reservation,
+                            FinalCutReuseProbe {
+                                value: crate::storage::commit_capsule_prototype::PrototypeValue {
+                                    operation_id: "second-operation-after-exact-existing"
+                                        .to_owned(),
+                                    response: "must-not-commit".to_owned(),
+                                },
+                                gate: Arc::new(StdMutex::new(None)),
+                            },
+                        );
+                    }
+                    return exact;
                 }
                 crate::storage::commit_capsule_prototype::PrototypeStage::Pending(pending) => {
                     pending
                 }
             };
-            if let Some(authority) = hooks.bypass_with_authority {
-                let error = pending
-                    .commit(&authority)
-                    .expect_err("a foreign destination authority must refuse direct COMMIT");
-                drop(terminal_gate);
-                return super::CommitAttempt::rolled_back(error);
-            }
             if let Some(barrier) = &hooks.post_staging {
                 barrier.block();
             }
@@ -37360,9 +37412,22 @@ async fn run_commit_capsule_prototype<Gate: Send + 'static>(
             if panic_reconcile {
                 panic!("injected bounded commit capsule panic during reconciliation")
             }
-            local.remainder_reconcile_commit_capsule_prototype(
-                reconcile_as.as_ref().unwrap_or(intent),
-            )
+            local
+                .reconcile_prototype(reconcile_as.as_ref().unwrap_or(intent))
+                .map(|witness| {
+                    witness.map(|witness| {
+                        if let Some(target) = reconcile_map_to {
+                            witness.map(|_| {
+                                crate::storage::commit_capsule_prototype::PrototypeValue {
+                                    operation_id: target.operation_id.as_ref().to_owned(),
+                                    response: target.response,
+                                }
+                            })
+                        } else {
+                            witness
+                        }
+                    })
+                })
         },
         uncertain_retention,
     )
@@ -37375,14 +37440,16 @@ fn commit_capsule_retention<Gate: Send + 'static>(
     super::CommitUncertainRetention<CommitCapsuleUncertain<Gate>>,
     super::CommitUncertainRetentionHandle<CommitCapsuleUncertain<Gate>>,
 )> {
-    super::CommitUncertainRetention::new(intent.operation_id.clone())
+    super::CommitUncertainRetention::new(intent.operation_id.as_ref())
 }
 
 fn commit_capsule_intent(
     operation_id: &str,
 ) -> crate::storage::commit_capsule_prototype::PrototypeIntent {
     crate::storage::commit_capsule_prototype::PrototypeIntent {
-        operation_id: operation_id.to_owned(),
+        operation_id: crate::storage::commit_capsule_prototype::PrototypeOperationIdentity::new(
+            operation_id,
+        ),
         payload: "exact-payload-v1".to_owned(),
         proof_id: format!("proof-{operation_id}"),
         response: "exact-response-v1".to_owned(),
@@ -37397,10 +37464,11 @@ async fn bounded_commit_capsule_refuses_authority_from_another_destination() {
     let caller =
         CommitCapsuleCallerFixture::new(&authority_database.app_state, "foreign-destination").await;
 
-    let Err(error) =
-        super::CommitCapsuleDestination::bind(&durable_database.app_state, caller.authority())
-    else {
-        panic!("an authority and Local from independent AppState graphs must not form a capsule")
+    let mut hybrid = authority_database.app_state.clone();
+    hybrid.snapback = durable_database.app_state.snapback.clone();
+    hybrid.commit_capsule_binding = durable_database.app_state.commit_capsule_binding.clone();
+    let Err(error) = super::CommitCapsuleDestination::bind(&hybrid, caller.authority()) else {
+        panic!("a spliced AppState must not form a cross-destination capsule")
     };
     assert_eq!(
         error.diagnostic.code,
@@ -37411,13 +37479,21 @@ async fn bounded_commit_capsule_refuses_authority_from_another_destination() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn bounded_commit_capsule_refuses_direct_commit_without_its_final_cut() {
     let _registry_test_guard = lock_commit_capsule_registry_tests().await;
-    let database = CommitCapsulePrototypeDatabase::new().await;
-    let foreign_database = CommitCapsulePrototypeDatabase::new().await;
+    let fixture = watch_management_race_fixture(WatchManagementRaceSite::Suspend).await;
+    with_snapback(&fixture.state.snapback, |local| {
+        local
+            .remainder_initialize_commit_capsule_prototype()
+            .expect("initialize direct-commit prototype ledger")
+    })
+    .await;
     let intent = commit_capsule_intent("direct-commit-bypass");
-    let caller = CommitCapsuleCallerFixture::new(&database.app_state, "direct-commit-bypass").await;
-    let foreign_caller =
-        CommitCapsuleCallerFixture::new(&foreign_database.app_state, "foreign-commit-cut").await;
-    let foreign_authority = foreign_caller.destination().commit_authority_for_test();
+    let caller = CommitCapsuleCallerFixture::new(&fixture.state, "direct-commit-bypass").await;
+    let direct_authority = prepared_test_session_route_authority(
+        &fixture.state,
+        InvocationSource::WatchManagement,
+        &fixture.bearer,
+    );
+    let watch_id = fixture.watch_id.clone();
     let receipt = Arc::new(StdMutex::new(None));
     let (retention, retained) =
         commit_capsule_retention(&intent).expect("reserve direct-bypass uncertainty retention");
@@ -37429,11 +37505,10 @@ async fn bounded_commit_capsule_refuses_direct_commit_without_its_final_cut() {
         intent.clone(),
         CommitCapsuleInjection::Success,
         CommitCapsuleHooks {
-            // The transaction closure deliberately calls the kernel COMMIT
-            // primitive without FinalCommitCut, but possesses only a foreign
-            // database capability. The production capsule never exposes its
-            // own database-bound capability to this closure.
-            bypass_with_authority: Some(foreign_authority),
+            // The closure deliberately uses an unrelated, legacy direct
+            // Local commit API, then reports a known rollback without ever
+            // consuming FinalCommitCut.
+            direct_watch_transition: Some((direct_authority, watch_id.clone())),
             ..CommitCapsuleHooks::default()
         },
         caller.expected_guard(),
@@ -37447,14 +37522,27 @@ async fn bounded_commit_capsule_refuses_direct_commit_without_its_final_cut() {
     };
     assert_eq!(
         error.diagnostic.code,
-        "SNAPBACK_COMMIT_CAPSULE_DESTINATION_MISMATCH"
+        "SNAPBACK_COMMIT_CAPSULE_DIRECT_LOCAL_ACCESS_FORBIDDEN"
     );
     assert_eq!(error.diagnostic.details["effectCommitted"], false);
     assert!(receipt.lock().unwrap().is_none());
     assert!(retained.is_empty());
-    let facts = database.facts(&intent).await;
+    let facts = with_snapback(&fixture.state.snapback, {
+        let intent = intent.clone();
+        move |local| {
+            local
+                .remainder_commit_capsule_prototype_facts(&intent)
+                .expect("read direct-commit prototype facts")
+        }
+    })
+    .await;
     assert_eq!(facts.operation_rows, 0);
     assert_eq!(facts.proof_rows, 0);
+    assert_eq!(
+        watch_management_facts(&fixture).await.watch.status,
+        crate::watches::WatchStatus::Active,
+        "a closure that reports RolledBack must not commit through another Local API"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -37498,12 +37586,14 @@ async fn bounded_commit_capsule_refuses_a_lying_exact_reconciliation_closure() {
         tokio::time::Instant::now() + Duration::from_secs(3),
         gate,
         intent.clone(),
-        CommitCapsuleInjection::CommitErrorRowsPresent,
+        CommitCapsuleInjection::CommitErrorRowsAbsent,
         CommitCapsuleHooks {
-            // This is deliberately dishonest: the closure performs a real
-            // exact-row query, but for a different operation. The sealed
-            // witness must not be replayable as proof for this capsule.
+            // This is deliberately dishonest: query the decoy's exact rows,
+            // then map its witness to a target-shaped value even though the
+            // target rows are absent. The witness's intent-bound identity
+            // must survive `map` and refuse target consumption.
             reconcile_as: Some(decoy),
+            reconcile_map_to: Some(intent.clone()),
             ..CommitCapsuleHooks::default()
         },
         caller.expected_guard(),
@@ -37520,7 +37610,7 @@ async fn bounded_commit_capsule_refuses_a_lying_exact_reconciliation_closure() {
         "SNAPBACK_COMMIT_RECONCILIATION_WITNESS_MISMATCH"
     );
     assert_eq!(error.diagnostic.details["effectMayHaveCommitted"], true);
-    assert!(database.facts(&intent).await.exact_intended_rows);
+    assert!(!database.facts(&intent).await.exact_intended_rows);
     assert_eq!(
         retained.snapshot().unwrap().state,
         super::CommitUncertainRetentionState::Recoverable
@@ -37532,6 +37622,77 @@ async fn bounded_commit_capsule_refuses_a_lying_exact_reconciliation_closure() {
             .expect("remove lying-reconciliation uncertainty after exact recovery"),
     );
     terminal.assert_reopened();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn bounded_commit_capsule_final_cut_is_one_shot_after_exact_existing() {
+    let _registry_test_guard = lock_commit_capsule_registry_tests().await;
+    let database = CommitCapsulePrototypeDatabase::new().await;
+    let intent = commit_capsule_intent("exact-existing-consumes-final-cut");
+    let caller =
+        CommitCapsuleCallerFixture::new(&database.app_state, "exact-existing-consumes-final-cut")
+            .await;
+    let first = run_commit_capsule_prototype(
+        caller.destination(),
+        tokio::time::Instant::now() + Duration::from_secs(3),
+        (),
+        intent.clone(),
+        CommitCapsuleInjection::Success,
+        CommitCapsuleHooks::default(),
+        caller.expected_guard(),
+        Arc::new(StdMutex::new(None)),
+        commit_capsule_retention(&intent)
+            .expect("reserve first exact-existing retention")
+            .0,
+    )
+    .await;
+    assert!(matches!(
+        first,
+        super::CommitCapsuleOutcome::Committed {
+            reconciled: false,
+            ..
+        }
+    ));
+
+    let destination = caller.destination();
+    let expected_guard = caller.expected_guard();
+    let retry_intent = intent.clone();
+    let task = tokio::spawn(async move {
+        run_commit_capsule_prototype(
+            destination,
+            tokio::time::Instant::now() + Duration::from_secs(3),
+            (),
+            retry_intent.clone(),
+            CommitCapsuleInjection::Success,
+            CommitCapsuleHooks {
+                reuse_final_cut: true,
+                ..CommitCapsuleHooks::default()
+            },
+            expected_guard,
+            Arc::new(StdMutex::new(None)),
+            commit_capsule_retention(&retry_intent)
+                .expect("reserve exact-existing retry retention")
+                .0,
+        )
+        .await
+    });
+    let panic = task
+        .await
+        .expect_err("a second use of FinalCommitCut must panic before COMMIT");
+    assert!(panic.is_panic());
+    let second_facts = database
+        .facts(&commit_capsule_intent(
+            "second-operation-after-exact-existing",
+        ))
+        .await;
+    assert_eq!(
+        second_facts.operation_rows, 1,
+        "only the predecessor exists"
+    );
+    assert_eq!(
+        second_facts.proof_rows, 1,
+        "only the predecessor proof exists"
+    );
 }
 
 #[test]
@@ -37585,7 +37746,7 @@ async fn bounded_commit_capsule_retention_exhaustion_is_typed_and_effect_free() 
         super::commit_capsule::MAX_COMMIT_UNCERTAIN_RETENTIONS
     );
     assert!(snapshots.iter().all(|snapshot| {
-        snapshot.operation_identity == intent.operation_id
+        snapshot.operation_identity == intent.operation_id.as_ref()
             && snapshot.state == super::CommitUncertainRetentionState::Reserved
     }));
 
@@ -38538,7 +38699,7 @@ async fn bounded_commit_capsule_retain_panic_is_safe_without_caller_storage_owne
         .snapshot()
         .expect("process-owned retention is visible by identity");
     assert_eq!(retaining.id, retained.id());
-    assert_eq!(retaining.operation_identity, intent.operation_id);
+    assert_eq!(retaining.operation_identity, intent.operation_id.as_ref());
     assert_eq!(
         retaining.state,
         super::CommitUncertainRetentionState::Retaining
@@ -38592,7 +38753,7 @@ async fn bounded_commit_capsule_cancelled_request_is_recoverable_by_operation_id
     let _registry_test_guard = lock_commit_capsule_registry_tests().await;
     let database = CommitCapsulePrototypeDatabase::new().await;
     let intent = commit_capsule_intent("cancelled-request-recovery");
-    let operation_identity = intent.operation_id.clone();
+    let operation_identity = intent.operation_id.as_ref().to_owned();
     let caller =
         CommitCapsuleCallerFixture::new(&database.app_state, "cancelled-request-recovery").await;
     let expected_guard = caller.expected_guard();
@@ -38612,7 +38773,7 @@ async fn bounded_commit_capsule_cancelled_request_is_recoverable_by_operation_id
                     .snapshot()
                     .expect("cancelled request retention is registered")
                     .operation_identity,
-                intent.operation_id
+                intent.operation_id.as_ref()
             );
             run_commit_capsule_prototype(
                 destination,
@@ -38901,7 +39062,7 @@ async fn bounded_commit_capsule_post_commit_response_loss_and_retry_cannot_dupli
     else {
         panic!("exact operation replay must return the existing committed result")
     };
-    assert_eq!(value.operation_id, intent.operation_id);
+    assert_eq!(value.operation_id, intent.operation_id.as_ref());
     assert_eq!(value.response, intent.response);
     assert!(
         retry_receipt.lock().unwrap().is_none(),

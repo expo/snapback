@@ -15,10 +15,12 @@
 //!   remains the only SQLite commit primitive.
 
 use super::{SharedSnapback, writer_gate::lock_managed_snapback};
-use crate::admin::AppState;
+use crate::admin::{AppState, CommitCapsuleBinding};
 use crate::auth::invocation::{AuthorizedEffectReservation, PreparedAuthority};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::local::LocalSnapback;
+#[cfg(test)]
+use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use serde_json::{Map, Value, json};
 use std::any::Any;
 use std::collections::BTreeMap;
@@ -33,7 +35,6 @@ pub(crate) const COMMIT_OUTCOME_UNCERTAIN_CODE: &str = "SNAPBACK_COMMIT_OUTCOME_
 #[derive(Clone, Debug)]
 pub(crate) struct CommitCapsuleSpec {
     pub operation: &'static str,
-    pub operation_identity: String,
     pub deadline: Instant,
     pub uncertain_diagnostic: &'static str,
     #[cfg(test)]
@@ -66,21 +67,6 @@ impl<T> CommitAttempt<T> {
     }
 }
 
-/// The durable destination, caller authority, and database commit authority
-/// are minted as one checked capsule input rather than accepted independently.
-#[derive(Clone, Debug)]
-pub(crate) struct CommitCapsuleBinding(crate::storage::CommitCapsuleAuthority);
-
-impl CommitCapsuleBinding {
-    pub(crate) fn new(authority: crate::storage::CommitCapsuleAuthority) -> Self {
-        Self(authority)
-    }
-
-    fn authority(&self) -> &crate::storage::CommitCapsuleAuthority {
-        &self.0
-    }
-}
-
 pub(crate) struct CommitCapsuleDestination {
     state: SharedSnapback,
     authority: PreparedAuthority,
@@ -89,26 +75,25 @@ pub(crate) struct CommitCapsuleDestination {
 
 impl CommitCapsuleDestination {
     pub(crate) fn bind(runtime: &AppState, authority: PreparedAuthority) -> SnapbackResult<Self> {
-        if !runtime
-            .auth_admission_controller()
-            .owns_lease(authority.admission_lease())
-        {
+        let binding = runtime.commit_capsule_binding.clone();
+        if !binding.admission().owns_lease(authority.admission_lease()) {
             return Err(SnapbackError::error(
                 "SNAPBACK_COMMIT_CAPSULE_DESTINATION_MISMATCH",
                 "server",
                 "the prepared authority does not belong to the destination AppState",
             ));
         }
+        // PreparedAuthority can still carry a publication substituted through
+        // `PreparedAuthority::with_fenced_publication` or
+        // `with_service_publication`; its correspondence to the admission
+        // lease is the inherited Critical tracked in
+        // issues/20260822-authority-publication-binding-design.md. This
+        // destination binding closes AppState component splicing only.
         Ok(Self {
-            state: runtime.snapback.clone(),
+            state: binding.state().clone(),
             authority,
-            binding: runtime.commit_capsule_binding.clone(),
+            binding,
         })
-    }
-
-    #[cfg(test)]
-    pub(crate) fn commit_authority_for_test(&self) -> crate::storage::CommitCapsuleAuthority {
-        self.binding.0.clone()
     }
 }
 
@@ -174,10 +159,100 @@ pub(crate) trait PendingCommit: Sized {
     ) -> SnapbackResult<Self::Output>;
 }
 
+/// The only Local capabilities a capsule closure can reach. In particular,
+/// this type does not implement `Deref` and never exposes `LocalSnapback`, so
+/// legacy autocommitting operations cannot bypass `FinalCommitCut` and then be
+/// reported as rolled back.
+///
+/// @ref LLP 0225#3-transaction-and-commit-boundaries--who-may-commit-what —
+/// capsule callers compose typed kernel staging operations and cannot own the
+/// canonical store's COMMIT primitive.
+pub(crate) struct CommitCapsuleTransaction<'local> {
+    local: &'local mut LocalSnapback,
+}
+
+impl CommitCapsuleTransaction<'_> {
+    fn new(local: &mut LocalSnapback) -> CommitCapsuleTransaction<'_> {
+        CommitCapsuleTransaction { local }
+    }
+
+    pub(crate) fn stage_watch_management<'connection>(
+        &'connection mut self,
+        authority: &PreparedAuthority,
+        intent: &crate::storage::watches::WatchManagementIntent,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::watches::WatchManagementPending<'connection>> {
+        self.local.stage_watch_management(authority, intent, now_ms)
+    }
+
+    pub(crate) fn reconcile_watch_management(
+        &mut self,
+        intended: &crate::storage::watches::WatchManagementIntendedRows,
+    ) -> SnapbackResult<
+        Option<
+            crate::storage::ExactCommitRows<
+                crate::storage::watches::WatchManagementIntent,
+                crate::storage::watches::WatchManagementCommit,
+            >,
+        >,
+    > {
+        self.local.reconcile_watch_management(intended)
+    }
+
+    pub(crate) fn observe_watch_management_commit(
+        &self,
+        committed: &crate::storage::watches::WatchManagementCommit,
+    ) {
+        self.local.observe_watch_management_commit(committed);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn stage_prototype<'connection>(
+        &'connection mut self,
+        intent: &crate::storage::commit_capsule_prototype::PrototypeIntent,
+        include_consumed_proof: bool,
+    ) -> SnapbackResult<crate::storage::commit_capsule_prototype::PrototypeStage<'connection>> {
+        self.local
+            .remainder_stage_commit_capsule_prototype(intent, include_consumed_proof)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn reconcile_prototype(
+        &mut self,
+        intent: &crate::storage::commit_capsule_prototype::PrototypeIntent,
+    ) -> SnapbackResult<
+        Option<
+            crate::storage::ExactCommitRows<
+                crate::storage::commit_capsule_prototype::PrototypeIntent,
+                crate::storage::commit_capsule_prototype::PrototypeValue,
+            >,
+        >,
+    > {
+        self.local
+            .remainder_reconcile_commit_capsule_prototype(intent)
+    }
+
+    /// Test the structural boundary with a closure that names a real direct
+    /// Local API. The closure is deliberately never invoked: production
+    /// capsule closures have no operation that can unwrap this context.
+    #[cfg(test)]
+    pub(crate) fn attempt_direct_local_operation_for_test<T>(
+        &mut self,
+        _operation: impl FnOnce(&mut LocalSnapback) -> SnapbackResult<T>,
+    ) -> SnapbackResult<T> {
+        Err(SnapbackError::error(
+            "SNAPBACK_COMMIT_CAPSULE_DIRECT_LOCAL_ACCESS_FORBIDDEN",
+            "server",
+            "bounded commit capsule closures cannot access unrestricted Local operations",
+        ))
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum FinalCutDisposition {
     TimedOut,
     Refused,
+    ExactExisting,
     CommitStarted,
 }
 
@@ -496,34 +571,33 @@ impl<U> Drop for CommitUncertainRetention<U> {
 /// The final-cut token exposes no validation or Local-entry capability. It
 /// checks the one absolute deadline, acquires the non-reentrant admission
 /// guard, marks ambiguity, and invokes the kernel COMMIT primitive.
-pub(crate) struct FinalCommitCut<U> {
+pub(crate) struct FinalCommitCut<I: crate::storage::CommitCapsuleIntent, U> {
     operation: &'static str,
-    operation_identity: String,
     deadline: Instant,
     commit_authority: crate::storage::CommitCapsuleAuthority,
     disposition: Option<FinalCutDisposition>,
     panic_uncertain: Option<U>,
     uncertain_retention: CommitUncertainRetention<U>,
+    intent: PhantomData<fn(&I)>,
     #[cfg(test)]
     before_guard_for_test: Option<Box<dyn FnOnce() + Send>>,
 }
 
-impl<U: Send + 'static> FinalCommitCut<U> {
+impl<I: crate::storage::CommitCapsuleIntent, U: Send + 'static> FinalCommitCut<I, U> {
     fn new(
         operation: &'static str,
-        operation_identity: String,
         deadline: Instant,
         commit_authority: crate::storage::CommitCapsuleAuthority,
         uncertain_retention: CommitUncertainRetention<U>,
     ) -> Self {
         Self {
             operation,
-            operation_identity,
             deadline,
             commit_authority,
             disposition: None,
             panic_uncertain: None,
             uncertain_retention,
+            intent: PhantomData,
             #[cfg(test)]
             before_guard_for_test: None,
         }
@@ -555,13 +629,11 @@ impl<U: Send + 'static> FinalCommitCut<U> {
         }
 
         if Instant::now() >= self.deadline {
+            self.disposition = Some(FinalCutDisposition::TimedOut);
             return match pending.rollback() {
-                Ok(()) => {
-                    self.disposition = Some(FinalCutDisposition::TimedOut);
-                    CommitAttempt(CommitAttemptState::RolledBack(
-                        CommitTimeoutPhase::FinalCut.diagnostic(),
-                    ))
-                }
+                Ok(()) => CommitAttempt(CommitAttemptState::RolledBack(
+                    CommitTimeoutPhase::FinalCut.diagnostic(),
+                )),
                 Err(error) => {
                     CommitAttempt(CommitAttemptState::RolledBack(with_effect_false(error)))
                 }
@@ -571,9 +643,9 @@ impl<U: Send + 'static> FinalCommitCut<U> {
         let commit_guard = match reservation.commit_guard(self.operation) {
             Ok(guard) => guard,
             Err(error) => {
+                self.disposition = Some(FinalCutDisposition::Refused);
                 return match pending.rollback() {
                     Ok(()) => {
-                        self.disposition = Some(FinalCutDisposition::Refused);
                         CommitAttempt(CommitAttemptState::RolledBack(with_refusal_facts(error)))
                     }
                     Err(rollback_error) => CommitAttempt(CommitAttemptState::RolledBack(
@@ -615,7 +687,8 @@ impl<U: Send + 'static> FinalCommitCut<U> {
     pub(crate) fn exact_existing<T>(
         &mut self,
         reservation: &AuthorizedEffectReservation,
-        witness: crate::storage::ExactCommitRows<T>,
+        intent: &I,
+        witness: crate::storage::ExactCommitRows<I, T>,
     ) -> CommitAttempt<T> {
         assert!(
             self.disposition.is_none(),
@@ -634,7 +707,8 @@ impl<U: Send + 'static> FinalCommitCut<U> {
                 return CommitAttempt(CommitAttemptState::RolledBack(with_refusal_facts(error)));
             }
         };
-        let result = witness.into_value_for(&self.commit_authority, &self.operation_identity);
+        self.disposition = Some(FinalCutDisposition::ExactExisting);
+        let result = witness.into_value_for(&self.commit_authority, intent);
         drop(commit_guard);
         match result {
             Ok(value) => CommitAttempt(CommitAttemptState::Committed(value)),
@@ -671,26 +745,26 @@ pub(crate) async fn with_bounded_commit_capsule<T, Intent, Gate, Uncertain>(
     terminal_gate: Gate,
     intent: Intent,
     transact: impl FnOnce(
-        &mut LocalSnapback,
+        &mut CommitCapsuleTransaction<'_>,
         &Intent,
         Gate,
         &AuthorizedEffectReservation,
-        &mut FinalCommitCut<Uncertain>,
+        &mut FinalCommitCut<Intent, Uncertain>,
     ) -> CommitAttempt<T>
     + Send
     + 'static,
     reconcile: impl FnOnce(
-        &mut LocalSnapback,
+        &mut CommitCapsuleTransaction<'_>,
         &Intent,
         &Uncertain,
-    ) -> SnapbackResult<Option<crate::storage::ExactCommitRows<T>>>
+    ) -> SnapbackResult<Option<crate::storage::ExactCommitRows<Intent, T>>>
     + Send
     + 'static,
     uncertain_retention: CommitUncertainRetention<Uncertain>,
 ) -> CommitCapsuleOutcome<T>
 where
     T: Send + 'static,
-    Intent: Send + 'static,
+    Intent: crate::storage::CommitCapsuleIntent + Send + 'static,
     Gate: Send + 'static,
     Uncertain: Send + 'static,
 {
@@ -764,14 +838,14 @@ where
         let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
         let mut final_cut = FinalCommitCut::new(
             spec.operation,
-            spec.operation_identity.clone(),
             spec.deadline,
             binding.authority().clone(),
             uncertain_retention,
         );
+        let mut transaction = CommitCapsuleTransaction::new(&mut guard);
         let attempt = catch_unwind(AssertUnwindSafe(|| {
             transact(
-                &mut guard,
+                &mut transaction,
                 &intent,
                 terminal_gate,
                 &reservation,
@@ -818,17 +892,20 @@ where
                         // and cannot settle or drop the ambiguity carrier.
                         drop(reservation);
                         let reconciliation = catch_unwind(AssertUnwindSafe(|| {
-                            reconcile(&mut guard, &intent, final_cut.reconciliation_carrier())
+                            reconcile(
+                                &mut transaction,
+                                &intent,
+                                final_cut.reconciliation_carrier(),
+                            )
                         }));
                         match reconciliation {
                             Err(payload) => {
                                 final_cut.retain_panic_uncertain();
                                 BlockingCapsuleResult::Panicked(payload)
                             }
-                            Ok(Ok(Some(witness))) => match witness.into_value_for(
-                                &final_cut.commit_authority,
-                                &final_cut.operation_identity,
-                            ) {
+                            Ok(Ok(Some(witness))) => match witness
+                                .into_value_for(&final_cut.commit_authority, &intent)
+                            {
                                 Ok(value) => {
                                     final_cut.discard_reconciled_carrier();
                                     BlockingCapsuleResult::Complete(
@@ -872,6 +949,7 @@ where
                 }
             }
         };
+        drop(transaction);
 
         let batch = local_scope.take_after_local_batch();
         let handoff = batch.has_effects().then(|| {

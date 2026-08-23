@@ -2576,6 +2576,47 @@ struct AuthModeRuntimeSnapshot {
     desired_policy: PolicyAuthMode,
 }
 
+/// Complete bounded-commit destination minted only while one AppState claims
+/// its Local graph. The separately visible AppState fields may be replaced by
+/// crate tests, but this bundle can only be copied whole from another real
+/// AppState.
+///
+/// @ref LLP 0225#3-transaction-and-commit-boundaries--who-may-commit-what —
+/// Local, admission, and database authority cross into the capsule only as one
+/// AppState-owned destination.
+#[derive(Clone)]
+pub(crate) struct CommitCapsuleBinding {
+    state: SharedSnapback,
+    admission: AuthAdmissionController,
+    authority: crate::storage::CommitCapsuleAuthority,
+}
+
+impl CommitCapsuleBinding {
+    fn new(
+        state: SharedSnapback,
+        admission: AuthAdmissionController,
+        authority: crate::storage::CommitCapsuleAuthority,
+    ) -> Self {
+        Self {
+            state,
+            admission,
+            authority,
+        }
+    }
+
+    pub(crate) fn state(&self) -> &SharedSnapback {
+        &self.state
+    }
+
+    pub(crate) fn admission(&self) -> &AuthAdmissionController {
+        &self.admission
+    }
+
+    pub(crate) fn authority(&self) -> &crate::storage::CommitCapsuleAuthority {
+        &self.authority
+    }
+}
+
 /// Whether a hosted authority installed through the public adapter has been
 /// coupled to the concrete loopback listener that will serve it. The
 /// `NotRequired` state is reserved for crate-internal authority fixtures; no
@@ -2640,7 +2681,7 @@ pub struct AppState {
     /// Database-bound commit authority delegated only when this AppState
     /// claimed its exact Local graph. The bounded capsule consumes it without
     /// exposing it to transaction closures.
-    pub(crate) commit_capsule_binding: crate::server::CommitCapsuleBinding,
+    pub(crate) commit_capsule_binding: CommitCapsuleBinding,
     /// Opaque exact-engine operator authority minted by the one-shot graph
     /// claim. Administrative engine commands require this in addition to the
     /// request's admitted invocation.
@@ -2873,6 +2914,11 @@ impl AppState {
             &ephemeral,
             snapback.clone(),
         );
+        let commit_capsule_binding = CommitCapsuleBinding::new(
+            snapback.clone(),
+            auth_admission.clone(),
+            commit_capsule_authority,
+        );
         Ok((
             Self {
                 snapback,
@@ -2895,9 +2941,7 @@ impl AppState {
                 })),
                 auth_program_readiness: Arc::new(AuthProgramReadiness::item4(false)),
                 auth_admission,
-                commit_capsule_binding: crate::server::CommitCapsuleBinding::new(
-                    commit_capsule_authority,
-                ),
+                commit_capsule_binding,
                 operator_authority,
                 server_startup_nonce: Arc::from(
                     crate::identity::binary_identity()

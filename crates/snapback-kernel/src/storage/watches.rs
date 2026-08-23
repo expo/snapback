@@ -2,7 +2,8 @@
 
 use super::jobs::{BufferedJobEnqueue, JobProducer};
 use super::{
-    CommitCapsuleAuthority, DatabaseBinding, ExactCommitRows, LocalDatabase, SnapbackResult,
+    CommitCapsuleAuthority, CommitCapsuleIntent, DatabaseBinding, ExactCommitRows, LocalDatabase,
+    SnapbackResult,
 };
 use crate::diagnostic::SnapbackError;
 use crate::manifest::SchemaManifest;
@@ -15,6 +16,7 @@ use rusqlite::types::Value as SqlValue;
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
+use std::fmt;
 
 pub use snapback_types::storage::watches::{WatchFiringRecord, WatchRecord};
 
@@ -154,16 +156,45 @@ pub struct WatchAnchorAuthority {
 /// management commit. Generated successor ids are chosen before the capsule
 /// reserves authority, so COMMIT reconciliation never has to invent an
 /// identity after the durable cut.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct WatchManagementOperationIdentity(String);
+
+impl WatchManagementOperationIdentity {
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+}
+
+impl AsRef<str> for WatchManagementOperationIdentity {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::ops::Deref for WatchManagementOperationIdentity {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_ref()
+    }
+}
+
+impl fmt::Display for WatchManagementOperationIdentity {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.0)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum WatchManagementIntent {
     Transition {
-        operation_identity: String,
+        operation_identity: WatchManagementOperationIdentity,
         watch_id: String,
         target: WatchStatus,
         resume_job_id: Option<String>,
     },
     Renewal {
-        operation_identity: String,
+        operation_identity: WatchManagementOperationIdentity,
         watch_id: String,
         ttl_ms: u64,
         replacement_grant_id: String,
@@ -171,7 +202,7 @@ pub enum WatchManagementIntent {
 }
 
 impl WatchManagementIntent {
-    pub fn operation_identity(&self) -> &str {
+    pub fn operation_identity(&self) -> &WatchManagementOperationIdentity {
         match self {
             Self::Transition {
                 operation_identity, ..
@@ -180,6 +211,14 @@ impl WatchManagementIntent {
                 operation_identity, ..
             } => operation_identity,
         }
+    }
+}
+
+impl CommitCapsuleIntent for WatchManagementIntent {
+    type OperationIdentity = WatchManagementOperationIdentity;
+
+    fn operation_identity(&self) -> &Self::OperationIdentity {
+        self.operation_identity()
     }
 }
 
@@ -221,7 +260,7 @@ enum WatchManagementIntendedEffect {
 /// those sibling rows are inseparable members of this carrier.
 #[derive(Clone, Debug)]
 pub struct WatchManagementIntendedRows {
-    operation_identity: String,
+    operation_identity: WatchManagementOperationIdentity,
     watch: WatchRecord,
     durable_watch: WatchDurableRow,
     effect: WatchManagementIntendedEffect,
@@ -867,7 +906,7 @@ impl LocalDatabase {
     pub fn reconcile_watch_management(
         &mut self,
         intended: &WatchManagementIntendedRows,
-    ) -> SnapbackResult<Option<ExactCommitRows<WatchManagementCommit>>> {
+    ) -> SnapbackResult<Option<ExactCommitRows<WatchManagementIntent, WatchManagementCommit>>> {
         if durable_watch_row_on(&self.conn, &intended.watch.id)?.as_ref()
             != Some(&intended.durable_watch)
         {
@@ -912,7 +951,7 @@ impl LocalDatabase {
         };
         Ok(Some(ExactCommitRows::new(
             self.binding(),
-            &intended.operation_identity,
+            intended.operation_identity.clone(),
             WatchManagementCommit {
                 record: watch,
                 evaluation_enqueued,
@@ -2707,7 +2746,9 @@ mod tests {
         assert_eq!(before.evaluation_job_count, 0);
 
         let intent = WatchManagementIntent::Transition {
-            operation_identity: "watch-resume-atomic:rollback".to_owned(),
+            operation_identity: WatchManagementOperationIdentity::new(
+                "watch-resume-atomic:rollback",
+            ),
             watch_id: active.id.clone(),
             target: WatchStatus::Active,
             resume_job_id: Some("watch-resume-atomic-job".to_owned()),
@@ -2727,6 +2768,65 @@ mod tests {
         assert!(!after.watch.pending);
         assert_eq!(after.evaluation_job_count, 0);
         assert_eq!(after.linked_pending_job_count, 0);
+    }
+
+    #[test]
+    fn resume_commit_uncertainty_requires_the_exact_evaluation_job() {
+        let mut db = integration_watch_database();
+        let active = db
+            .create_watch(integration_watch_request(
+                "watch-resume-reconciliation",
+                "watch-resume-reconciliation-anchor",
+            ))
+            .expect("create resume reconciliation fixture");
+        db.transition_watch(
+            &active.id,
+            "integration-principal",
+            WatchStatus::Suspended,
+            TEST_NOW_MS + 10,
+        )
+        .expect("suspend resume reconciliation fixture");
+        let job_id = "watch-resume-reconciliation-job";
+        let intent = WatchManagementIntent::Transition {
+            operation_identity: WatchManagementOperationIdentity::new(
+                "watch-resume-reconciliation:commit-uncertain",
+            ),
+            watch_id: active.id.clone(),
+            target: WatchStatus::Active,
+            resume_job_id: Some(job_id.to_owned()),
+        };
+        let authority = CommitCapsuleAuthority {
+            binding: db.binding(),
+        };
+        let pending = db
+            .stage_watch_management(&intent, "integration-principal", TEST_NOW_MS + 20)
+            .expect("stage exact resume successor");
+        let intended = pending.intended_rows().clone();
+        pending
+            .commit(&authority)
+            .expect("simulate COMMIT whose acknowledgement was lost");
+
+        let witness = db
+            .reconcile_watch_management(&intended)
+            .expect("reconcile exact resume successor")
+            .expect("status, pending link, and exact job establish success");
+        let committed = witness
+            .into_value_for(&authority, &intent)
+            .expect("intent-bound resume witness");
+        assert!(committed.evaluation_enqueued);
+
+        db.conn
+            .execute(
+                "DELETE FROM _snapback_jobs_v1 WHERE job_id = ?1",
+                params![job_id],
+            )
+            .expect("remove the exact resume job counterexample");
+        assert!(
+            db.reconcile_watch_management(&intended)
+                .expect("reconcile partial resume successor")
+                .is_none(),
+            "a status-only resume successor must remain commit-uncertain"
+        );
     }
 }
 impl super::ServingDatabase {
@@ -2762,7 +2862,7 @@ impl super::ServingDatabase {
     pub fn reconcile_watch_management(
         &mut self,
         intended: &WatchManagementIntendedRows,
-    ) -> SnapbackResult<Option<ExactCommitRows<WatchManagementCommit>>> {
+    ) -> SnapbackResult<Option<ExactCommitRows<WatchManagementIntent, WatchManagementCommit>>> {
         self.db.reconcile_watch_management(intended)
     }
     pub fn transition_watch(

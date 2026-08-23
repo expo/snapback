@@ -77,6 +77,9 @@ finite permits; sync retains queues, subscriber policy, resync materialization,
 and transport handoff)
 **Revised:** 2026-08-22 (ab — §3 records the bounded commit capsule's
 database-bound final-cut authority and exact-row witness)
+**Revised:** 2026-08-22 (ac — §3 hardens the capsule's complete AppState
+destination, restricted Local capability, typed intent identity, and one-shot
+final cut; the inherited authority/publication seam remains open)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -289,10 +292,17 @@ incorporates 0199's OQ3 ruling and the implemented 2026-08-09 follow-up.
    A cross-crate bounded commit capsule may carry a typed pending transaction,
    but its COMMIT primitive additionally requires opaque authority bound to
    that exact database and held only by the capsule's private final cut. A
-   caller closure cannot mint a committed attempt. Ambiguous success likewise
-   requires a kernel-minted exact-row witness bound to both the database and
-   operation identity; an arbitrary value or a truthful query for another
-   operation is not reconciliation evidence.
+   caller closure receives only a restricted transaction capability, cannot
+   reach legacy autocommitting Local operations, and cannot mint a committed
+   attempt. Ambiguous success likewise requires a kernel-minted exact-row
+   witness whose type and identity come from the original intent and whose
+   database matches the destination capability; mapping its value cannot
+   substitute either binding. Every final-cut exit records its one-shot
+   disposition. The capsule's AppState destination bundles Local, admission,
+   and database authority, but does not prove that a `PreparedAuthority`'s
+   replaceable publication carriers correspond to its admission lease; that
+   inherited Critical remains open in
+   `issues/20260822-authority-publication-binding-design.md`.
 2. **The generation-activation coordinator owns the atomic transition, not
    the transaction.** The minimum atomic set — the manifest/generation
    record, projection digest pins, sequence installs/enrollment, and auth
@@ -1420,3 +1430,11 @@ so slices can follow product priorities.
   cut; and exact reconciliation returns a kernel-minted witness bound to the
   same database and operation identity. This hardens §3's existing ownership
   rule without changing transaction ownership or the fencing order.
+- **2026-08-22 (ac).** The capsule destination now uses one immutable AppState
+  bundle for managed Local, admission, and database authority; transaction
+  closures receive a restricted capability rather than `LocalSnapback`;
+  exact-row witnesses retain an intent-owned typed identity through mapping;
+  and every final-cut exit consumes the cut. This closes component splicing,
+  direct legacy Local COMMIT, string-identity replay, and final-cut reuse at
+  the capsule boundary. It does not close `PreparedAuthority` publication
+  substitution, which remains the separate open Critical linked from §3.
