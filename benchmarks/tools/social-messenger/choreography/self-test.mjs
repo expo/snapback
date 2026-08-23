@@ -671,6 +671,7 @@ try {
         pass: true,
         startedAt: null,
         durationMs: 1,
+        settlementWaitMs: 0,
         metrics: {},
       },
     ],
@@ -716,6 +717,7 @@ try {
         pass: false,
         startedAt: null,
         durationMs: 1,
+        settlementWaitMs: 0,
         metrics: {},
       },
     ],
@@ -800,11 +802,32 @@ try {
       !events.some((event) => (
         event.type === "block-claim"
         && event.block === "browserAssertionWait"
+        && event.owner === "choreography"
         && event.claimed === true
       ))
       || !events.some((event) => event.type === "assertion-wait")
     ) {
       throw new Error(`${milestone} did not retain claimed typed assertion-wait observations`);
+    }
+    const waits = events.filter((event) => event.type === "assertion-wait");
+    const assertionReceipts = records.filter(
+      (record) => record.type === "assertion" && record.segment.toUpperCase() === milestone,
+    );
+    if (
+      waits.some((event) => event.owner !== "choreography")
+      || assertionReceipts.some((record) => record.timings.some(
+        (timing) => timing.settlementWaitMs > timing.durationMs,
+      ))
+      || waits.reduce((sum, event) => sum + event.durationMs, 0)
+        !== assertionReceipts.reduce(
+          (sum, record) => sum + record.timings.reduce(
+            (attemptSum, timing) => attemptSum + timing.settlementWaitMs,
+            0,
+          ),
+          0,
+        )
+    ) {
+      throw new Error(`${milestone} assertion waits are not exact settlement projections`);
     }
   }
 

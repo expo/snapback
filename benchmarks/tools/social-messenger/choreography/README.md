@@ -52,7 +52,9 @@ Every implemented CLI flag is:
   `choreography.mjs`. The file is truncated at the beginning of each run.
 - `--observations <path>` — typed D0.6 assertion-attempt/wait stream; defaults
   to `<receipts>.observations.jsonl`. The metering manifest hash-binds this
-  stream before it projects browser-wait counts.
+  stream before it projects the choreography-owned browser-wait counts. Each
+  attempt records only actual locator, predicate, or page-event settlement
+  intervals; setup/action and other attempt wall are excluded.
 - `--lane-run-id <id>` — required stable lane identity, shared with the
   metering manifest (`CHOREO_LANE_RUN_ID` is the environment form).
 - `--suite-status <path>` — required JSON object keyed by milestone. Every
@@ -194,7 +196,11 @@ The same instrument pin adds additive, hash-linked D0.6 milestone fields for
 semantic actions, failure-to-recovery episodes, restart/reseed counts, browser
 assertion waits, host load, and API interruptions. The run-record extension
 stays at version `2` for old-record compatibility; current records must carry
-each block as either claimed or explicitly non-claimed. The W2 five-counter
+`instrumentVersion: "social-messenger@0.3.3-m8"` and must carry each block as
+either claimed or explicitly non-claimed. Browser waits have independent
+`suite` and `choreography` owners: this executable claims only choreography,
+while the production lane controller records actual suite settlement waits.
+The W2 five-counter
 native-usage channel is unchanged, while its meter now verifies and joins the
 typed observation sidecars.
 

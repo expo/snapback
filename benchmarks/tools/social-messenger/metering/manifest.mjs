@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { lstat, readFile, realpath, stat } from "node:fs/promises";
 import { dirname, isAbsolute, normalize, relative, resolve, sep } from "node:path";
 
@@ -16,10 +17,16 @@ import {
 import { parseJsonLines, timestampMillis } from "./jsonl.mjs";
 import { parseObservationJsonLines } from "./observations.mjs";
 import { assertCapFamily } from "./sources.mjs";
+import { validateJsonSchema } from "../../lib/json-schema.mjs";
 
 const MANIFEST_VERSION = "social-messenger-metering-manifest.v1";
 const SHA256 = /^sha256:[a-f0-9]{64}$/u;
 const MILESTONE = /^M[1-8]$/u;
+const CURRENT_CHOREOGRAPHY_VERSION = "0.3.3-m8";
+const RECEIPT_SCHEMA = JSON.parse(readFileSync(
+  new URL("../choreography/receipts.schema.json", import.meta.url),
+  "utf8",
+));
 
 function requiredString(value, label) {
   if (typeof value !== "string" || value.length === 0) {
@@ -220,6 +227,21 @@ async function loadReceipts(manifestDirectory, receipts) {
     const records = parseJsonLines(artifact.text, artifact.path);
     if (records.length === 0) throw new Error(`${label} is empty`);
     for (const [recordIndex, record] of records.entries()) {
+      if (record?.version === CURRENT_CHOREOGRAPHY_VERSION) {
+        const schemaErrors = validateJsonSchema(RECEIPT_SCHEMA, record);
+        if (schemaErrors.length > 0) {
+          throw new Error(
+            `${label}:${recordIndex + 1} does not satisfy receipts.schema.json: ${schemaErrors.join("; ")}`,
+          );
+        }
+        for (const [timingIndex, timing] of record.timings.entries()) {
+          if (timing.settlementWaitMs > timing.durationMs) {
+            throw new Error(
+              `${label}:${recordIndex + 1}/timings/${timingIndex}: settlement wait exceeds complete attempt duration`,
+            );
+          }
+        }
+      }
       if (record?.runId !== runId) {
         throw new Error(`${label}:${recordIndex + 1} does not belong to runId ${runId}`);
       }
@@ -274,6 +296,7 @@ async function loadSuiteStatusLinkage(
   manifestDirectory,
   suiteStatus,
   receiptResult,
+  boundaries,
 ) {
   if (suiteStatus === undefined || suiteStatus === null) return null;
   const artifact = await readArtifact(
@@ -286,7 +309,7 @@ async function loadSuiteStatusLinkage(
     throw new TypeError("manifest.suiteStatus must contain an object keyed by milestone");
   }
   const milestones = [];
-  for (const milestone of [...receiptResult.milestones].sort()) {
+  for (const milestone of Object.keys(boundaries).filter((value) => value !== "M7")) {
     const segment = milestone.toLowerCase();
     const status = parsed[segment];
     if (!status || typeof status !== "object" || typeof status.pass !== "boolean") {
@@ -325,17 +348,27 @@ async function loadSuiteStatusLinkage(
     }
 
     const attestations = receiptResult.greenAttestations.get(milestone) ?? [];
-    const current = attestations.find((candidate) => candidate.version === "0.3.3-m8") ?? null;
-    if (current === null) {
+    const currentAttestations = attestations.filter(
+      (candidate) => candidate.version === CURRENT_CHOREOGRAPHY_VERSION,
+    );
+    if (currentAttestations.length > 1) {
+      throw new Error(`suite-status ${segment} has duplicate 0.3.3-m8 attestations`);
+    }
+    const current = currentAttestations[0] ?? null;
+    if (current === null && boundaries[milestone].status === "green") {
       throw new Error(`suite-status ${segment} lacks a 0.3.3-m8 refusal-time attestation`);
     }
-    if (current.suitePass !== status.pass) {
+    if (current !== null && current.suitePass !== status.pass) {
       throw new Error(`suite-status ${segment}.pass changed after choreography refusal-check time`);
     }
-    if ((current.suiteReceipt ?? null) !== (status.receipt ?? null)) {
+    if (current !== null && (current.suiteReceipt ?? null) !== (status.receipt ?? null)) {
       throw new Error(`suite-status ${segment}.receipt path changed after choreography refusal-check time`);
     }
-    if (receiptArtifact !== null && current.suiteReceiptSha256 !== receiptArtifact.sha256) {
+    if (
+      current !== null
+      && receiptArtifact !== null
+      && current.suiteReceiptSha256 !== receiptArtifact.sha256
+    ) {
       throw new Error(`suite-status ${segment}.receipt changed after choreography refusal-check time`);
     }
     milestones.push({ milestone, pass: status.pass, receipt: receiptArtifact });
@@ -459,6 +492,7 @@ export async function loadMeteringManifest(manifestPath) {
     manifestDirectory,
     manifest.suiteStatus,
     receiptResult,
+    boundaries,
   );
 
   let firstProductEdit = null;

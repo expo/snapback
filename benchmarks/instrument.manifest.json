@@ -50,7 +50,7 @@
     "choreographyRoot": {
       "kind": "directory",
       "path": "tools/social-messenger/choreography",
-      "sha256": "901b66f02110c384739d53d51d3bf9e6c0ef9baf45b5510b2db0a40ccb4321dd"
+      "sha256": "71c74ddbb47e426f98e4d07cea36aff6d6a209426224d72dc97da7781700cedf"
     },
     "choreographyVersion": {
       "kind": "file",
@@ -75,17 +75,17 @@
     "runRecordExtensionSchema": {
       "kind": "file",
       "path": "schema/social-messenger/run-record-extension.schema.json",
-      "sha256": "088c2af1c492eb8217d1f58641a210d4770be6c7ccac763aa5a9e4de03eb0e48"
+      "sha256": "87f61c2ef9abbd1c51e23598009806ca59bc40f5f388d125fc2c85bd6b282ad1"
     },
     "recordValidator": {
       "kind": "file",
       "path": "tools/social-messenger/record-validator.mjs",
-      "sha256": "bb60e1de2ad05d375bc518b7ef3c892af42d70344960e7f86f2a3696fc678141"
+      "sha256": "095295a720027be20d1e2e093b18924a45d4c8572af4f8099973798ea34aec92"
     },
     "meteringRoot": {
       "kind": "directory",
       "path": "tools/social-messenger/metering",
-      "sha256": "b8e6144daec7197b5b4f2b76375a83350e24c8a954ef5813c7de051a9a081a96"
+      "sha256": "ad5005e502ab0423f2497e68524cc0d314660b6b77ac30403f57e0df27257b03"
     }
   }
 }

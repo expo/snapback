@@ -6,6 +6,7 @@ import { loadavg } from "node:os";
 // retained events are the authority for every claimed observability aggregate;
 // unavailable native streams become explicit scorecard-affecting non-claims.
 export const OBSERVATION_VERSION = "social-messenger-observation.v1";
+export const CURRENT_INSTRUMENT_PIN = "social-messenger@0.3.3-m8";
 export const COSTLY_EPISODE_THRESHOLD_ACTIONS = 2;
 
 export const OBSERVABILITY_BLOCKS = Object.freeze([
@@ -51,7 +52,7 @@ const OUTCOMES = new Set(["recovered", "unresolved"]);
 const MILESTONE = /^M[1-8]$/u;
 const BASE_FIELDS = ["version", "laneRunId", "milestone", "sequence", "at", "type"];
 const EVENT_FIELDS = Object.freeze({
-  "block-claim": [...BASE_FIELDS, "block", "claimed", "reason"],
+  "block-claim": [...BASE_FIELDS, "block", "owner", "claimed", "reason"],
   "semantic-action": [
     ...BASE_FIELDS,
     "actionId",
@@ -198,6 +199,18 @@ export function normalizeObservationEvent(event, label = "observation") {
       if (!OBSERVABILITY_BLOCKS.includes(event.block)) {
         throw new TypeError(`${label}.block is not a D0.6 observability block`);
       }
+      const owner = event.owner ?? null;
+      if (
+        event.block === "browserAssertionWait"
+        && !["suite", "choreography"].includes(owner)
+      ) {
+        throw new TypeError(
+          `${label}.owner must be suite or choreography for browserAssertionWait`,
+        );
+      }
+      if (event.block !== "browserAssertionWait" && owner !== null) {
+        throw new TypeError(`${label}.owner is only valid for browserAssertionWait`);
+      }
       if (typeof event.claimed !== "boolean") {
         throw new TypeError(`${label}.claimed must be boolean`);
       }
@@ -206,7 +219,13 @@ export function normalizeObservationEvent(event, label = "observation") {
         throw new TypeError(`${label}.reason must be null when claimed is true`);
       }
       if (!event.claimed) requiredString(reason, `${label}.reason`);
-      return { ...base, block: event.block, claimed: event.claimed, reason };
+      return {
+        ...base,
+        block: event.block,
+        owner,
+        claimed: event.claimed,
+        reason,
+      };
     }
     case "semantic-action": {
       const actionClass = requiredEnum(
@@ -366,11 +385,12 @@ function zeroMap(keys) {
   return Object.fromEntries(keys.map((key) => [key, 0]));
 }
 
-function blockClaim(events, milestone, block) {
+function blockClaim(events, milestone, block, owner = null) {
   const claims = events.filter((event) => (
     event.type === "block-claim"
     && event.milestone === milestone
     && event.block === block
+    && event.owner === owner
   ));
   if (claims.length > 1) {
     throw new Error(`${milestone}.${block} has duplicate claim events`);
@@ -485,18 +505,46 @@ function lifecycleProjection(events, milestone, evidence) {
   };
 }
 
-function assertionProjection(events, milestone, evidence) {
-  const waits = milestoneEvents(events, milestone, "assertion-wait");
-  const projection = {
-    ...claimedBase(evidence),
-    suite: { attempts: 0, waitMillis: 0 },
-    choreography: { attempts: 0, waitMillis: 0 },
-  };
-  for (const wait of waits) {
-    projection[wait.owner].attempts += 1;
-    projection[wait.owner].waitMillis += wait.durationMs;
+function assertionOwnerProjection(events, milestone, evidence, owner) {
+  const claim = blockClaim(events, milestone, "browserAssertionWait", owner);
+  const waits = milestoneEvents(events, milestone, "assertion-wait")
+    .filter((event) => event.owner === owner);
+  if (claim === null) {
+    if (waits.length > 0) {
+      throw new Error(
+        `${milestone}.browserAssertionWait.${owner} has observations but no explicit coverage claim`,
+      );
+    }
+    return nonClaim(
+      "browserAssertionWait",
+      `${owner}-assertion-settlement-waits-unavailable`,
+    );
   }
-  return projection;
+  if (!claim.claimed) {
+    if (waits.length > 0) {
+      throw new Error(
+        `${milestone}.browserAssertionWait.${owner} is non-claimed but contains observations`,
+      );
+    }
+    return nonClaim("browserAssertionWait", claim.reason);
+  }
+  return {
+    ...claimedBase(evidence),
+    attempts: waits.length,
+    waitMillis: waits.reduce((sum, wait) => sum + wait.durationMs, 0),
+  };
+}
+
+function assertionProjection(events, milestone, evidence) {
+  return {
+    suite: assertionOwnerProjection(events, milestone, evidence, "suite"),
+    choreography: assertionOwnerProjection(
+      events,
+      milestone,
+      evidence,
+      "choreography",
+    ),
+  };
 }
 
 function hostLoadProjection(events, milestone, evidence) {
@@ -591,6 +639,10 @@ const PROJECTORS = Object.freeze({
 export function projectMilestoneObservability({ events = [], evidence = [], milestone }) {
   const result = {};
   for (const block of OBSERVABILITY_BLOCKS) {
+    if (block === "browserAssertionWait") {
+      result[block] = assertionProjection(events, milestone, evidence);
+      continue;
+    }
     const claim = blockClaim(events, milestone, block);
     const observed = events.filter((event) => (
       event.milestone === milestone && BLOCK_EVENT_TYPES[block].includes(event.type)
@@ -622,7 +674,12 @@ export function scorecardEligibility({ milestones, phaseUsageAvailable }) {
     if (value?.semanticActions?.claimed !== true) reasons.push("semantic-actions-non-claimed");
     if (value?.failureToRecoveryEpisodes?.claimed !== true) reasons.push("recovery-episodes-non-claimed");
     if (value?.restartReseed?.claimed !== true) reasons.push("restart-reseed-non-claimed");
-    if (value?.browserAssertionWait?.claimed !== true) reasons.push("assertion-waits-non-claimed");
+    if (
+      value?.browserAssertionWait?.suite?.claimed !== true
+      || value?.browserAssertionWait?.choreography?.claimed !== true
+    ) {
+      reasons.push("assertion-waits-non-claimed");
+    }
     if (value?.hostLoad?.claimed !== true) reasons.push("host-load-non-claimed");
     else if (value.hostLoad.contamination) reasons.push("host-load-contamination");
     if (value?.apiInterruptions?.claimed !== true) reasons.push("api-interruptions-non-claimed");
@@ -668,12 +725,27 @@ export class ObservationWriter {
     return event;
   }
 
-  claim(milestone, block) {
-    return this.record(milestone, "block-claim", { block, claimed: true, reason: null });
+  claim(milestone, block, { owner = null } = {}) {
+    return this.record(milestone, "block-claim", {
+      block,
+      owner,
+      claimed: true,
+      reason: null,
+    });
   }
 
-  nonClaim(milestone, block, reason = NON_CLAIM_REASONS[block]) {
-    return this.record(milestone, "block-claim", { block, claimed: false, reason });
+  nonClaim(
+    milestone,
+    block,
+    reason = NON_CLAIM_REASONS[block],
+    { owner = null } = {},
+  ) {
+    return this.record(milestone, "block-claim", {
+      block,
+      owner,
+      claimed: false,
+      reason,
+    });
   }
 
   restart(milestone) {
@@ -780,6 +852,7 @@ export class LaneObservationHarness {
     if (this.samplers.has(milestone)) throw new Error(`${milestone} is already being observed`);
     await this.writer.claim(milestone, "restartReseed");
     await this.writer.claim(milestone, "apiInterruptions");
+    await this.writer.claim(milestone, "browserAssertionWait", { owner: "suite" });
     if (semanticActionsClaimed) await this.writer.claim(milestone, "semanticActions");
     else await this.writer.nonClaim(milestone, "semanticActions", semanticActionsReason);
     if (recoveryEpisodesClaimed) {
@@ -816,6 +889,28 @@ export class LaneObservationHarness {
 
   recoveryEpisode(milestone, event) {
     return this.writer.recoveryEpisode(milestone, event);
+  }
+
+  async suiteAssertionWait(milestone, fields, waitForSettlement) {
+    if (typeof waitForSettlement !== "function") {
+      throw new TypeError(
+        "LaneObservationHarness.suiteAssertionWait requires a settlement-wait function",
+      );
+    }
+    const started = performance.now();
+    let pass = false;
+    try {
+      const result = await waitForSettlement();
+      pass = result?.pass !== false;
+      return result;
+    } finally {
+      await this.writer.assertionWait(milestone, {
+        ...fields,
+        owner: "suite",
+        durationMs: performance.now() - started,
+        pass,
+      });
+    }
   }
 
   async apiRequest(milestone, fields, operation) {

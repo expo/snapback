@@ -48,12 +48,115 @@
           }
         }
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "instrumentVersion": {
+            "const": "social-messenger@0.3.3-m8"
+          }
+        },
+        "required": [
+          "instrumentVersion"
+        ]
+      },
+      "then": {
+        "required": [
+          "instrumentVersion",
+          "orientation",
+          "observabilityProtocol",
+          "efficiencyScorecardEligibility",
+          "suiteStatusLinkage"
+        ],
+        "properties": {
+          "orientation": {
+            "properties": {
+              "instrument": {
+                "properties": {
+                  "pin": {
+                    "const": "social-messenger@0.3.3-m8"
+                  },
+                  "versions": {
+                    "properties": {
+                      "choreography": {
+                        "const": "0.3.3-m8"
+                      }
+                    },
+                    "required": [
+                      "choreography"
+                    ]
+                  }
+                },
+                "required": [
+                  "pin",
+                  "versions"
+                ]
+              }
+            },
+            "required": [
+              "instrument"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "observabilityProtocol": {
+            "const": "social-messenger-observation.v1"
+          }
+        },
+        "required": [
+          "observabilityProtocol"
+        ]
+      },
+      "then": {
+        "required": [
+          "instrumentVersion"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "orientation": {
+            "properties": {
+              "instrument": {
+                "properties": {
+                  "pin": {
+                    "const": "social-messenger@0.3.3-m8"
+                  }
+                },
+                "required": [
+                  "pin"
+                ]
+              }
+            },
+            "required": [
+              "instrument"
+            ]
+          }
+        },
+        "required": [
+          "orientation"
+        ]
+      },
+      "then": {
+        "required": [
+          "instrumentVersion"
+        ]
+      }
     }
   ],
   "properties": {
     "extensionVersion": {
       "const": 2,
       "description": "Version 2 requires an execution-ordered terminal boundary for every attempted milestone."
+    },
+    "instrumentVersion": {
+      "const": "social-messenger@0.3.3-m8",
+      "description": "Required identity binding for records produced by the current R2 instrument. It is independent of the orientation carrier, so deleting or downgrading orientation cannot silently select legacy validation."
     },
     "observabilityProtocol": {
       "const": "social-messenger-observation.v1",
@@ -1586,19 +1689,36 @@
       }
     },
     "browserAssertionWait": {
+      "type": "object",
+      "description": "Owner-scoped assertion settlement coverage. Suite and choreography claim only the waits each producer actually observes; either owner may be an explicit non-claim.",
+      "required": [
+        "suite",
+        "choreography"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "suite": {
+          "$ref": "#/$defs/assertionWaitOwner"
+        },
+        "choreography": {
+          "$ref": "#/$defs/assertionWaitOwner"
+        }
+      }
+    },
+    "assertionWaitOwner": {
       "oneOf": [
         { "$ref": "#/$defs/observabilityNonClaim" },
-        { "$ref": "#/$defs/browserAssertionWaitClaim" }
+        { "$ref": "#/$defs/assertionWaitOwnerClaim" }
       ]
     },
-    "browserAssertionWaitClaim": {
+    "assertionWaitOwnerClaim": {
       "type": "object",
-      "description": "Hash-linked assertion attempt and settlement-wait accounting, split between the acceptance suite and browser choreography.",
+      "description": "Hash-linked attempts and actual settlement-wait wall for exactly one assertion owner.",
       "required": [
         "claimed",
         "evidence",
-        "suite",
-        "choreography"
+        "attempts",
+        "waitMillis"
       ],
       "additionalProperties": false,
       "properties": {
@@ -1606,22 +1726,6 @@
         "evidence": {
           "$ref": "#/$defs/hashedArtifacts"
         },
-        "suite": {
-          "$ref": "#/$defs/assertionWaitCounts"
-        },
-        "choreography": {
-          "$ref": "#/$defs/assertionWaitCounts"
-        }
-      }
-    },
-    "assertionWaitCounts": {
-      "type": "object",
-      "required": [
-        "attempts",
-        "waitMillis"
-      ],
-      "additionalProperties": false,
-      "properties": {
         "attempts": { "type": "integer", "minimum": 0 },
         "waitMillis": { "type": "number", "minimum": 0 }
       }

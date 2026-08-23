@@ -32,6 +32,10 @@ import { joinUsageToMilestones } from "../joiner.mjs";
 import { parseJsonLines } from "../jsonl.mjs";
 import { loadMeteringManifest } from "../manifest.mjs";
 import {
+  loadLaneControllerConfig,
+  R2LaneController,
+} from "../lane-controller.mjs";
+import {
   OBSERVABILITY_BLOCKS,
   OBSERVATION_VERSION,
   ObservationWriter,
@@ -153,6 +157,13 @@ test("Claude native usage joins exact terminal prefixes into milestone phases", 
   for (const milestone of Object.values(result.milestones)) {
     assertExtensionDefinition("tokenCounts", milestone.authoring.tokens);
     for (const block of OBSERVABILITY_BLOCKS) {
+      if (block === "browserAssertionWait") {
+        for (const owner of ["suite", "choreography"]) {
+          assert.equal(milestone[block][owner].claimed, false);
+          assert.match(milestone[block][owner].reason, /unavailable/u);
+        }
+        continue;
+      }
       assert.equal(milestone[block].claimed, false, `${block} must be an explicit non-claim`);
       assert.match(milestone[block].reason, /unavailable/u);
     }
@@ -358,6 +369,39 @@ test("lane manifest rejects source-hash and receipt-identity mismatches", async 
 test("meter binds suite-status bytes to receipts at record-write time", async (t) => {
   const directory = await mkdtemp(join(tmpdir(), "snapback-suite-binding-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
+
+  const r2HarnessPath = join(directory, "harness-config.json");
+  const r2Harness = {
+    schemaVersion: "snapback.r2-harness-config.v1",
+    runId: "r2-fixture",
+    pins: { instrument: { instrumentPin: "social-messenger@0.3.3-m8" } },
+    paths: { privateExecutionRoot: directory },
+    execution: {
+      milestones: ["M1", "M2"],
+      loadIsolation: {
+        sampleEverySeconds: 60,
+        ceilingInclusive: { loadavg1: 10, loadavg5: 10, loadavg15: 10 },
+      },
+    },
+    cells: [{ id: "fixture-cell" }],
+  };
+  await writeFile(r2HarnessPath, `${JSON.stringify(r2Harness)}\n`);
+  const loadedControllerConfig = await loadLaneControllerConfig({
+    harnessConfigPath: r2HarnessPath,
+    cellId: "fixture-cell",
+  });
+  assert.equal(loadedControllerConfig.config.laneRunId, "r2-fixture/fixture-cell");
+  assert.equal(loadedControllerConfig.config.loadIntervalMs, 60_000);
+  r2Harness.pins.instrument.instrumentPin = "social-messenger@0.3.2-m8";
+  await writeFile(r2HarnessPath, `${JSON.stringify(r2Harness)}\n`);
+  await assert.rejects(
+    loadLaneControllerConfig({
+      harnessConfigPath: r2HarnessPath,
+      cellId: "fixture-cell",
+    }),
+    /must pin social-messenger@0\.3\.3-m8/u,
+  );
+
   for (const name of ["boundaries.json", "first-product-edit.json"]) {
     await copyFile(new URL(name, FIXTURES), join(directory, name));
   }
@@ -375,6 +419,7 @@ test("meter binds suite-status bytes to receipts at record-write time", async (t
     const records = parseJsonLines(await fixtureText(receiptName));
     const summary = records.find((record) => record.type === "segment-summary");
     summary.version = "0.3.3-m8";
+    summary.timings[0].settlementWaitMs = 0;
     summary.suite = {
       pass: true,
       receipt: suitePath,
@@ -395,51 +440,51 @@ test("meter binds suite-status bytes to receipts at record-write time", async (t
 
   const observationsPath = join(directory, "driver-observations.jsonl");
   let observationAt = Date.parse("2026-08-21T10:00:40.000Z");
-  const observationWriter = new ObservationWriter({
-    path: observationsPath,
+  const laneController = new R2LaneController({
     laneRunId: "fixture-lane-run",
+    observationPath: observationsPath,
+    loadCeilings: { loadavg1: 10, loadavg5: 10, loadavg15: 10 },
+    loadIntervalMs: 60_000,
+    loadSample: () => [1, 2, 3],
     now: () => {
       const at = new Date(observationAt).toISOString();
       observationAt += 1000;
       return at;
     },
   });
-  await observationWriter.initialize();
-  const observationHarness = new LaneObservationHarness({
-    writer: observationWriter,
-    loadCeilings: { loadavg1: 10, loadavg5: 10, loadavg15: 10 },
-    loadIntervalMs: 60_000,
-    loadSample: () => [1, 2, 3],
-  });
+  await laneController.initialize();
   for (const milestone of ["M1", "M2"]) {
     if (milestone === "M2") observationAt = Date.parse("2026-08-21T10:01:40.000Z");
-    await observationHarness.startMilestone(milestone);
-    if (milestone === "M1") {
-      await observationHarness.restart(milestone);
-      await observationHarness.apiRequest(milestone, {
-        provider: "fixture",
-        operation: "stream-turn",
-        requestId: "m1-request",
-        retryOf: null,
-      }, async () => "ok");
-    }
-    await observationHarness.finishMilestone(milestone);
-    await observationWriter.assertionWait(milestone, {
-      owner: "choreography",
-      assertion: `${milestone.toLowerCase()}-fixture`,
-      attempt: 1,
-      durationMs: 5,
-      pass: true,
+    await laneController.runMilestone(milestone, async (controls) => {
+      if (milestone === "M1") {
+        await controls.restart(async () => "restarted");
+        await controls.apiRequest({
+          provider: "fixture",
+          operation: "stream-turn",
+          requestId: "m1-request",
+          retryOf: null,
+        }, async () => "ok");
+      }
+      await controls.suiteAssertionWait({
+        assertion: `${milestone.toLowerCase()}-suite-fixture`,
+        attempt: 1,
+      }, async () => ({ pass: true }));
+      await laneController.writer.assertionWait(milestone, {
+        owner: "choreography",
+        assertion: `${milestone.toLowerCase()}-fixture`,
+        attempt: 1,
+        durationMs: 5,
+        pass: true,
+      });
+      await laneController.writer.claim(milestone, "browserAssertionWait", {
+        owner: "choreography",
+      });
     });
-    await observationWriter.claim(milestone, "browserAssertionWait");
   }
 
   const manifest = await fixtureJson("unavailable-manifest.json");
   manifest.receipts = receiptArtifacts;
-  manifest.observations = [{
-    sourceId: "driver-observations",
-    ...await retainedArtifact(directory, "driver-observations.jsonl"),
-  }];
+  manifest.observations = [];
   manifest.suiteStatus = {
     path: "suite-status.json",
     sha256: sha256(suiteStatusText),
@@ -447,17 +492,22 @@ test("meter binds suite-status bytes to receipts at record-write time", async (t
   const manifestPath = join(directory, "manifest.json");
   await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
 
+  const joined = await laneController.writeRecordPatch({
+    manifestPath,
+    outPath: join(directory, "metering.json"),
+  });
   const loaded = await loadMeteringManifest(manifestPath);
   assert.equal(loaded.suiteStatusLinkage.milestones.length, 2);
   assert.equal(
     loaded.suiteStatusLinkage.milestones[0].receipt.sha256,
     sha256(`${JSON.stringify({ milestone: "M1", pass: true })}\n`),
   );
-  const joined = joinUsageToMilestones(loaded);
   assert.equal(joined.suiteStatusLinkage.milestones[0].pass, true);
+  assert.equal(joined.instrumentVersion, "social-messenger@0.3.3-m8");
   assert.equal(joined.milestones.M1.hostLoad.claimed, true);
   assert.equal(joined.milestones.M1.restartReseed.restarts, 1);
   assert.equal(joined.milestones.M1.browserAssertionWait.choreography.attempts, 1);
+  assert.equal(joined.milestones.M1.browserAssertionWait.suite.attempts, 1);
   assert.equal(joined.milestones.M1.semanticActions.claimed, false);
   assert.equal(joined.efficiencyScorecardEligibility.correctionActionTargetEligible, false);
 
@@ -534,6 +584,13 @@ test("lane observation harness samples load and records lifecycle and API retrie
     requestId: "request-2",
     retryOf: "request-1",
   }, async () => "recovered"), "recovered");
+  await harness.suiteAssertionWait("M1", {
+    assertion: "suite-settlement",
+    attempt: 1,
+  }, async () => {
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 2));
+    return { pass: true };
+  });
   await new Promise((resolvePromise) => setTimeout(resolvePromise, 8));
   await harness.finishMilestone("M1");
 
@@ -558,6 +615,49 @@ test("lane observation harness samples load and records lifecycle and API retrie
   assert.ok(projection.apiInterruptions.windows[0].recoveredAt);
   assert.equal(projection.semanticActions.claimed, false);
   assert.equal(projection.failureToRecoveryEpisodes.claimed, false);
+  assert.equal(projection.browserAssertionWait.suite.claimed, true);
+  assert.equal(projection.browserAssertionWait.suite.attempts, 1);
+  assert.ok(projection.browserAssertionWait.suite.waitMillis > 0);
+  assert.equal(projection.browserAssertionWait.choreography.claimed, false);
+
+  const productionPath = join(root, "production-controller.jsonl");
+  const controller = new R2LaneController({
+    laneRunId: "production-lane",
+    observationPath: productionPath,
+    loadCeilings: { loadavg1: 10, loadavg5: 10, loadavg15: 10 },
+    loadIntervalMs: 2,
+    loadSample: () => [1, 2, 3],
+  });
+  await controller.initialize();
+  await controller.runMilestone("M2", async (controls) => {
+    await controls.restart(async () => "restarted");
+    await controls.reseed({ destructive: false }, async () => "reseeded");
+    await controls.apiRequest({
+      provider: "fixture",
+      operation: "stream-turn",
+      requestId: "production-request",
+      retryOf: null,
+    }, async () => "ok");
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 4));
+    await controls.suiteAssertionWait({
+      assertion: "production-suite-settlement",
+      attempt: 1,
+    }, async () => {
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 2));
+      return { pass: true };
+    });
+  });
+  const productionEvents = parseObservationJsonLines(await readFile(productionPath, "utf8"));
+  const productionProjection = projectMilestoneObservability({
+    events: productionEvents,
+    evidence: [await retainedArtifact(root, "production-controller.jsonl")],
+    milestone: "M2",
+  });
+  assert.ok(productionProjection.hostLoad.sampleCount >= 2);
+  assert.equal(productionProjection.restartReseed.restarts, 1);
+  assert.equal(productionProjection.restartReseed.reseeds, 1);
+  assert.equal(productionProjection.apiInterruptions.interrupted, false);
+  assert.equal(productionProjection.browserAssertionWait.suite.attempts, 1);
 });
 
 test("Claude message identity de-duplicates globally across declared sources", () => {
@@ -955,6 +1055,11 @@ async function writeObservationFixture(root, { allClaimed = true } = {}) {
       M3: "2026-08-21T16:02:05.000Z",
     }[milestone]);
     for (const block of OBSERVABILITY_BLOCKS) {
+      if (block === "browserAssertionWait") {
+        await writer.claim(milestone, block, { owner: "suite" });
+        await writer.claim(milestone, block, { owner: "choreography" });
+        continue;
+      }
       if (!allClaimed && ["semanticActions", "failureToRecoveryEpisodes"].includes(block)) {
         await writer.nonClaim(milestone, block, `${block}-not-emitted-by-fixture-harness`);
       } else {
@@ -1063,20 +1168,56 @@ async function writeSuiteFixture(root) {
       receipt: receiptArtifact,
     });
     const choreographyPath = `${milestone.toLowerCase()}-choreography.jsonl`;
-    const runId = `fixture-choreography-${milestone.toLowerCase()}`;
+    const runId = `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`;
     const choreographyText = `${JSON.stringify({
       version: "0.3.3-m8",
       runId,
       recordedAt: `2026-08-21T16:0${index + 1}:00.000Z`,
       type: "segment-summary",
       segment: milestone.toLowerCase(),
+      assertion: "__segment__",
+      implemented: true,
+      required: true,
+      status: "passed",
+      pass: true,
+      timings: [{
+        attempt: 1,
+        pass: true,
+        startedAt: null,
+        durationMs: 1,
+        settlementWaitMs: 1,
+        metrics: {},
+      }],
+      bestOf: 1,
+      details: {
+        selection: "segment aggregate",
+        selectedAttempt: 1,
+        reason: null,
+      },
+      assertions: {
+        total: 1,
+        required: 1,
+        implemented: 1,
+        passed: 1,
+        failed: 0,
+        skipped: 0,
+        notImplemented: 0,
+        requiredUnimplemented: 0,
+      },
       suite: {
         pass: true,
         receipt: receiptPath,
         receiptSha256: receiptArtifact.sha256,
       },
-      choreography: { pass: true },
+      choreography: {
+        browserPass: true,
+        requiredExternal: [],
+        externalPass: true,
+        supplementalExternal: [],
+        pass: true,
+      },
       green: true,
+      nonGreenCause: null,
     })}\n`;
     await writeFile(join(root, choreographyPath), choreographyText);
     provenance.push({
@@ -1101,6 +1242,7 @@ async function addD06Observability(record, root, { allClaimed = true } = {}) {
   const evidence = [observations.artifact];
   record.socialMessenger.orientation.instrument.pin = "social-messenger@0.3.3-m8";
   record.socialMessenger.orientation.instrument.versions.choreography = "0.3.3-m8";
+  record.socialMessenger.instrumentVersion = "social-messenger@0.3.3-m8";
   record.socialMessenger.observabilityProtocol = OBSERVATION_VERSION;
   record.socialMessenger.meteringProvenance.observations = [{
     sourceId: "fixture-observations",
@@ -1218,6 +1360,27 @@ test("D0.6 observability is produced from real sidecars and tampering fails clos
   );
   await writeFile(choreographyReceiptPath, choreographyReceiptText);
 
+  const fabricatedReceipt = `${JSON.stringify({
+    version: "0.3.3-m8",
+    runId: "00000000-0000-4000-8000-000000000001",
+    recordedAt: "2026-08-21T16:01:00.000Z",
+    type: "segment-summary",
+    segment: "m1",
+    suite: { pass: true },
+    choreography: { pass: true },
+    green: true,
+  })}\n`;
+  await writeFile(choreographyReceiptPath, fabricatedReceipt);
+  const fabricatedBytes = structuredClone(record);
+  fabricatedBytes.socialMessenger.meteringProvenance.receipts[0].sha256 =
+    sha256(fabricatedReceipt);
+  assert.match(
+    composedErrors(fabricatedBytes, root).join("\n"),
+    /does not satisfy receipts\.schema\.json/u,
+    "fabricated choreography bytes with their recomputed digest must fail receipt-schema validation",
+  );
+  await writeFile(choreographyReceiptPath, choreographyReceiptText);
+
   const suiteReceiptPath = join(root, "m1-suite.json");
   const suiteReceiptText = await readFile(suiteReceiptPath, "utf8");
   await writeFile(suiteReceiptPath, "{\"tampered\":true}\n");
@@ -1228,11 +1391,56 @@ test("D0.6 observability is produced from real sidecars and tampering fails clos
   );
   await writeFile(suiteReceiptPath, suiteReceiptText);
 
-  await writeFile(join(root, "observations.jsonl"), `${await readFile(join(root, "observations.jsonl"), "utf8")} `);
+  const observationText = await readFile(join(root, "observations.jsonl"), "utf8");
+  await writeFile(join(root, "observations.jsonl"), `${observationText} `);
   assert.match(
     composedErrors(record, root).join("\n"),
     /digest mismatch/u,
     "changing retained bytes after record creation must invalidate the record",
+  );
+  await writeFile(join(root, "observations.jsonl"), observationText);
+
+  const downgradedOrientation = structuredClone(record);
+  downgradedOrientation.socialMessenger.orientation.instrument.pin =
+    "social-messenger@0.3.2-m8";
+  downgradedOrientation.socialMessenger.orientation.instrument.versions.choreography =
+    "0.3.2-m8";
+  assert.match(
+    composedErrors(downgradedOrientation, root).join("\n"),
+    /expected constant "social-messenger@0\.3\.3-m8"|expected constant "0\.3\.3-m8"/u,
+  );
+
+  const absentOrientation = structuredClone(record);
+  delete absentOrientation.socialMessenger.orientation;
+  assert.match(
+    composedErrors(absentOrientation, root).join("\n"),
+    /orientation.*required field is missing/u,
+  );
+
+  const absentInstrumentVersion = structuredClone(record);
+  delete absentInstrumentVersion.socialMessenger.instrumentVersion;
+  assert.match(
+    composedErrors(absentInstrumentVersion, root).join("\n"),
+    /instrumentVersion.*required field is missing/u,
+  );
+
+  const preChoreographyAbort = structuredClone(record);
+  const abortedM3 = preChoreographyAbort.socialMessenger.milestones.M3;
+  abortedM3.status = "aborted";
+  abortedM3.nonGreenCause = "instrument";
+  abortedM3.authoring.firstGreenAt = null;
+  abortedM3.authoring.choreoPassAt = null;
+  abortedM3.authoring.terminalReason = "abort";
+  abortedM3.charging.chargedWallSeconds = abortedM3.caps.wallCapSeconds;
+  abortedM3.charging.flags = ["aborted"];
+  preChoreographyAbort.socialMessenger.meteringProvenance.receipts =
+    preChoreographyAbort.socialMessenger.meteringProvenance.receipts.filter(
+      (receipt) => receipt.milestone !== "M3",
+    );
+  assert.deepEqual(
+    composedErrors(preChoreographyAbort, root),
+    [],
+    "an abort before choreography starts must remain a valid all-attempts record",
   );
 
   const oldRecord = composedRecord({

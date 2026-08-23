@@ -40,9 +40,15 @@ for `runRecordSchema` and `runRecordExtensionSchema` in the frozen
   API-interruption windows. The sibling optional `suiteStatusLinkage` block
   retains the startup-validated input and suite receipts. They remain optional
   in the version-2 JSON shape for old-record compatibility, while the semantic
-  validator requires all six as claimed-or-explicitly-non-claimed plus suite
-  linkage for the `0.3.3-m8` instrument. The extension stays at version `2`,
-  so completed records are never rewritten.
+  validator requires `instrumentVersion: "social-messenger@0.3.3-m8"`, the
+  exact matching orientation pin/protocol, all six as
+  claimed-or-explicitly-non-claimed, and suite linkage for the current
+  instrument. Browser-wait evidence is independently scoped to `suite` and
+  `choreography`; complete coverage requires both. Current receipt JSONL is
+  validated record-by-record against `receipts.schema.json`, while failed or
+  aborted attempts may honestly end before a choreography segment summary is
+  produced. The extension stays at version `2`, so completed legacy records
+  are never rewritten.
 - `run-record.schema.json` — the complete composed record schema. It restricts
   `tokens.source` by `capFamily`; requires native lane totals and attempted
   milestone phases; and requires advisory or explicitly unavailable metering

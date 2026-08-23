@@ -84,6 +84,35 @@ twelve-cell R2 `validate-plan.mjs` is green from its preregistered
 `sbs/0295-r2-rerun` worktree. `./ref-check --verbose` is green with 0 errors
 and 0 unchecked references.
 
+### Round 3 review closure — 2026-08-23
+
+The first implementation review exposed four fail-closed gaps; this follow-up
+closes them without claiming the broader LLP 0281 scope:
+
+- The production R2 lane controller now consumes the frozen harness config,
+  refuses any plan pin other than `social-messenger@0.3.3-m8`, constructs the
+  observation harness, samples host load for every attempted milestone, wraps
+  lifecycle/API operations at their execution points, records actual suite
+  settlement waits, hash-registers all producer streams, and invokes the
+  record writer.
+- Browser-wait custody is owner-scoped. Suite and choreography have independent
+  claims/non-claims; choreography reports only locator/predicate/page-event
+  settlement intervals and can no longer turn whole assertion-attempt wall
+  into a complete browser-wait claim.
+- Current records require an explicit `instrumentVersion` binding plus the
+  exact orientation/protocol markers. Omitting or downgrading the marker fails
+  the current/R2 path instead of selecting legacy validation.
+- Every retained `0.3.3-m8` receipt line is validated against
+  `receipts.schema.json` both when the meter writes and when the final record
+  is validated. A recomputed outer digest cannot bless fabricated receipt
+  JSON. Failed or aborted attempts may retain zero or one segment summary;
+  green still requires exactly one bound, matching summary.
+
+Round 3 verification: the exact tooling battery is green `39/39`; the real
+Playwright choreography calibration passes; the preregistered twelve-cell R2
+`validate-plan.mjs` remains green and prepared-blocked with no cell started;
+and `./ref-check --verbose` reports 0 errors and 0 unchecked references.
+
 This ticket remains open: the broader LLP 0281 media/receipt/avatar/membership,
 selector-isolation/layout, setup-identity, and generated-report acceptance is
 outside this R2 start-blocking slice and is not claimed complete here.

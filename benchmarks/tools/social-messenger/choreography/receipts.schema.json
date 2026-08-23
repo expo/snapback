@@ -17,7 +17,14 @@
     },
     "timing": {
       "type": "object",
-      "required": ["attempt", "pass", "startedAt", "durationMs", "metrics"],
+      "required": [
+        "attempt",
+        "pass",
+        "startedAt",
+        "durationMs",
+        "settlementWaitMs",
+        "metrics"
+      ],
       "properties": {
         "attempt": { "type": "integer", "minimum": 1, "maximum": 3 },
         "pass": { "type": "boolean" },
@@ -26,6 +33,11 @@
           "format": "date-time"
         },
         "durationMs": { "type": "number", "minimum": 0 },
+        "settlementWaitMs": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Union wall time spent inside instrumented assertion-settlement waits; excludes setup and action execution."
+        },
         "metrics": { "$ref": "#/$defs/metrics" },
         "note": { "type": "string" },
         "error": { "type": "string" }

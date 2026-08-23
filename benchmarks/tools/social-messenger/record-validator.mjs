@@ -4,6 +4,7 @@ import { dirname, isAbsolute, normalize, relative, resolve, sep } from "node:pat
 
 import { validateJsonSchema } from "../lib/json-schema.mjs";
 import {
+  CURRENT_INSTRUMENT_PIN,
   OBSERVABILITY_BLOCKS,
   parseObservationJsonLines,
   projectMilestoneObservability,
@@ -18,6 +19,10 @@ const ATTEMPTED_STATUSES = new Set([
 ]);
 const SHA256 = /^sha256:[a-f0-9]{64}$/u;
 const CURRENT_CHOREOGRAPHY_VERSION = "0.3.3-m8";
+const RECEIPT_SCHEMA = JSON.parse(readFileSync(
+  new URL("./choreography/receipts.schema.json", import.meta.url),
+  "utf8",
+));
 
 function sha256(value) {
   return `sha256:${createHash("sha256").update(value).digest("hex")}`;
@@ -392,6 +397,21 @@ function loadSuiteReceiptAttestations(errors, extension, artifactRoot, currentIn
       continue;
     }
     for (const [recordIndex, record] of records.entries()) {
+      const receiptPath = `${path}/records/${recordIndex}`;
+      const schemaErrors = validateJsonSchema(RECEIPT_SCHEMA, record);
+      if (schemaErrors.length > 0) {
+        errors.push(
+          `${receiptPath}: receipt does not satisfy receipts.schema.json: ${schemaErrors.join("; ")}`,
+        );
+        continue;
+      }
+      for (const [timingIndex, timing] of (record.timings ?? []).entries()) {
+        if (timing.settlementWaitMs > timing.durationMs) {
+          errors.push(
+            `${receiptPath}/timings/${timingIndex}/settlementWaitMs: settlement wait exceeds the complete attempt duration`,
+          );
+        }
+      }
       if (record?.runId !== descriptor.runId) {
         errors.push(`${path}: receipt ${recordIndex + 1} does not match retained runId`);
       }
@@ -476,11 +496,17 @@ function validateSuiteStatusLinkage(errors, extension, artifactRoot, currentInst
     }
     if (currentInstrument) {
       const attestations = receiptAttestations.get(entry.milestone) ?? [];
-      if (attestations.length !== 1) {
-        errors.push(`${path}: expected exactly one hash-verified 0.3.3-m8 segment-summary, received ${attestations.length}`);
-      } else {
+      const milestoneRecord = extension.milestones?.[entry.milestone];
+      const requiredAttestations = milestoneRecord?.status === "green" ? 1 : 0;
+      if (
+        attestations.length > 1
+        || (requiredAttestations === 1 && attestations.length !== 1)
+      ) {
+        errors.push(
+          `${path}: expected ${requiredAttestations === 1 ? "exactly one" : "at most one"} hash-verified 0.3.3-m8 segment-summary, received ${attestations.length}`,
+        );
+      } else if (attestations.length === 1) {
         const attestation = attestations[0];
-        const milestoneRecord = extension.milestones?.[entry.milestone];
         if (attestation.suite?.pass !== entry.pass) {
           errors.push(`${path}/pass: value differs from the refusal-time segment-summary`);
         }
@@ -577,11 +603,7 @@ export function validateSocialMessengerRecordSemantics(record, { artifactRoot = 
   const errors = [];
   const extension = record?.socialMessenger;
   if (extension === null || typeof extension !== "object") return errors;
-  const currentInstrument = (
-    extension.orientation?.instrument?.pin === "social-messenger@0.3.3-m8"
-    || extension.orientation?.instrument?.versions?.choreography
-      === CURRENT_CHOREOGRAPHY_VERSION
-  );
+  const currentInstrument = extension.instrumentVersion === CURRENT_INSTRUMENT_PIN;
 
   for (const [milestone, value] of Object.entries(extension.milestones ?? {})) {
     if (value === null || typeof value !== "object") continue;

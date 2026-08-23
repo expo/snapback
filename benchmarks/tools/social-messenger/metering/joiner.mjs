@@ -8,6 +8,7 @@ import {
 import { milestoneBoundaryAt, normalizeBoundaryMap } from "./boundaries.mjs";
 import { timestampMillis } from "./jsonl.mjs";
 import {
+  CURRENT_INSTRUMENT_PIN,
   OBSERVATION_VERSION,
   projectMilestoneObservability,
   scorecardEligibility,
@@ -262,6 +263,7 @@ export function joinUsageToMilestones({
     throw new Error("first-product-edit boundary predates the lane wall-clock origin");
   }
   return {
+    instrumentVersion: CURRENT_INSTRUMENT_PIN,
     observabilityProtocol: OBSERVATION_VERSION,
     source: channel.source ?? null,
     available: turns !== null,

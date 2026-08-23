@@ -19,6 +19,14 @@ is `(segment, assertion)`. The required proof fields are:
 - `timings`: every attempt, including errors and all three timing attempts.
 - `bestOf`: `1` for ordinary checks and `3` for timing-sensitive checks.
 
+Every timing has both `durationMs` (complete check-attempt wall) and
+`settlementWaitMs` (the union of actual locator, predicate, and page-event
+wait intervals during that attempt). The latter excludes setup, browser
+actions, and computation, and therefore never exceeds `durationMs`. D0.6
+choreography wait observations are derived from `settlementWaitMs`, not from
+whole-attempt duration. The suite producer records its own settlement waits in
+the production lane-controller stream; choreography does not claim them.
+
 An unsupported check is not omitted and never passes. It has
 `implemented:false`, `status:"skipped"`, `pass:null`, an empty `timings` array,
 and a non-empty `details.reason`. A required skip blocks choreography green; an
@@ -55,6 +63,7 @@ outer run harness:
       "pass": false,
       "startedAt": null,
       "durationMs": 18234.5,
+      "settlementWaitMs": 18001.2,
       "metrics": {}
     }
   ],
@@ -149,5 +158,7 @@ scoped fallback.
 startup-refusing. It coordinates the additive LLP 0295 D0.6 run-record
 observability fields without changing `extensionVersion: 2`; the W2 token
 meter now joins typed, hash-verified observation sidecars beside its native
-usage stream. A missing-linkage `0.3.2-m8` receipt remains governed by its matching
-schema and may carry `suite.pass:null`; `0.3.3-m8` never emits that state.
+usage stream. Its timing records distinguish complete attempt wall from actual
+settlement wait. A missing-linkage `0.3.2-m8` receipt remains governed by its
+matching schema and may carry `suite.pass:null`; `0.3.3-m8` never emits that
+state.

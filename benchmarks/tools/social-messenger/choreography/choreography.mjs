@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash, randomUUID } from "node:crypto";
 import {
   appendFile,
@@ -17,6 +18,7 @@ import { performance } from "node:perf_hooks";
 import { ObservationWriter } from "../metering/observations.mjs";
 
 const VERSION = "0.3.3-m8";
+const SETTLEMENT_WAITS = new AsyncLocalStorage();
 const SEGMENTS = ["m1", "m2", "m3", "m4", "m5", "m6", "m8"];
 const SIMULATOR_IDS = {
   m6: "ios-simulator-m6",
@@ -579,14 +581,18 @@ function createCheckRunner(emit, observations) {
       for (let attempt = 1; attempt <= bestOf; attempt += 1) {
         const startedAt = new Date().toISOString();
         const started = performance.now();
+        const settlementIntervals = [];
         try {
-          const result = (await attemptFn(attempt)) ?? {};
+          const result = (
+            await SETTLEMENT_WAITS.run(settlementIntervals, () => attemptFn(attempt))
+          ) ?? {};
           const pass = result.pass !== false;
           const timing = {
             attempt,
             pass,
             startedAt,
             durationMs: rounded(performance.now() - started),
+            settlementWaitMs: mergedIntervalDuration(settlementIntervals),
             metrics: result.metrics ?? {},
           };
           if (result.note) timing.note = result.note;
@@ -598,6 +604,7 @@ function createCheckRunner(emit, observations) {
             pass: false,
             startedAt,
             durationMs: rounded(performance.now() - started),
+            settlementWaitMs: mergedIntervalDuration(settlementIntervals),
             metrics: {},
             error: errorText(error),
           });
@@ -629,7 +636,7 @@ function createCheckRunner(emit, observations) {
         owner: "choreography",
         assertion,
         attempt: timing.attempt,
-        durationMs: timing.durationMs,
+        durationMs: timing.settlementWaitMs,
         pass: timing.pass,
       });
     }
@@ -642,16 +649,60 @@ function createCheckRunner(emit, observations) {
   return { check, bySegment };
 }
 
-async function waitForValue(locator, predicate, timeoutMs, description) {
-  const started = performance.now();
-  while (performance.now() - started <= timeoutMs) {
-    const observed = await predicate(locator);
-    if (observed?.matched) {
-      return { value: observed.value, elapsedMs: rounded(performance.now() - started) };
+function mergedIntervalDuration(intervals) {
+  const sorted = intervals
+    .filter(({ started, ended }) => Number.isFinite(started) && Number.isFinite(ended))
+    .sort((left, right) => left.started - right.started);
+  let duration = 0;
+  let lower = null;
+  let upper = null;
+  for (const interval of sorted) {
+    if (lower === null) {
+      lower = interval.started;
+      upper = interval.ended;
+    } else if (interval.started <= upper) {
+      upper = Math.max(upper, interval.ended);
+    } else {
+      duration += upper - lower;
+      lower = interval.started;
+      upper = interval.ended;
     }
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 50));
   }
-  throw new Error(`${description} did not become observable within ${timeoutMs}ms`);
+  if (lower !== null) duration += upper - lower;
+  return rounded(duration);
+}
+
+async function settlementWait(operation) {
+  const intervals = SETTLEMENT_WAITS.getStore();
+  const interval = { started: performance.now(), ended: null };
+  try {
+    return await operation();
+  } finally {
+    interval.ended = performance.now();
+    if (intervals) intervals.push(interval);
+  }
+}
+
+function waitForLocator(locator, options) {
+  return settlementWait(() => locator.waitFor(options));
+}
+
+function waitForPageEvent(page, event, options) {
+  return settlementWait(() => page.waitForEvent(event, options));
+}
+
+async function waitForValue(locator, predicate, timeoutMs, description) {
+  return settlementWait(async () => {
+    const started = performance.now();
+    while (performance.now() - started <= timeoutMs) {
+      const observed = await predicate(locator);
+      if (observed?.matched) {
+        return { value: observed.value, elapsedMs: rounded(performance.now() - started) };
+      }
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 50));
+    }
+    throw new Error(`${description} did not become observable within ${timeoutMs}ms`);
+  });
 }
 
 async function observableState(locator) {
@@ -742,7 +793,7 @@ async function expectExactlyOnceInOrder(page, first, second) {
 
 async function clickVisible(locator, timeoutMs) {
   const target = locator.first();
-  await target.waitFor({ state: "visible", timeout: timeoutMs });
+  await waitForLocator(target, { state: "visible", timeout: timeoutMs });
   await target.click();
   return target;
 }
@@ -759,18 +810,18 @@ async function login(page, baseUrl, persona, timeoutMs) {
     .or(testId(page, "sm-chats-item"))
     .or(testId(page, "sm-convo-input"))
     .or(testId(page, "sm-search-input"));
-  await authenticatedSurface.first().waitFor({ state: "visible", timeout: timeoutMs });
+  await waitForLocator(authenticatedSurface.first(), { state: "visible", timeout: timeoutMs });
 }
 
 async function openGlobalFeed(page, timeoutMs) {
   await clickVisible(testId(page, "sm-feed-tab-global"), timeoutMs);
-  await testId(page, "sm-feed-item").first().waitFor({ state: "visible", timeout: timeoutMs });
+  await waitForLocator(testId(page, "sm-feed-item").first(), { state: "visible", timeout: timeoutMs });
 }
 
 async function openFollowingFeed(page, timeoutMs, { requireItem = true } = {}) {
   await clickVisible(testId(page, "sm-feed-tab-following"), timeoutMs);
   if (requireItem) {
-    await testId(page, "sm-feed-item").first().waitFor({ state: "visible", timeout: timeoutMs });
+    await waitForLocator(testId(page, "sm-feed-item").first(), { state: "visible", timeout: timeoutMs });
   }
 }
 
@@ -813,7 +864,7 @@ async function composeTextPost(page, text, timeoutMs) {
   await testId(page, "sm-compose-input").fill(text);
   await testId(page, "sm-compose-submit").click();
   const card = testId(page, "sm-feed-item").filter({ hasText: text }).first();
-  await card.waitFor({ state: "visible", timeout: timeoutMs });
+  await waitForLocator(card, { state: "visible", timeout: timeoutMs });
   return card;
 }
 
@@ -821,9 +872,9 @@ async function openConversation(page, counterpart, timeoutMs) {
   const chat = testId(page, "sm-chats-item")
     .filter({ hasText: new RegExp(counterpart, "i") })
     .first();
-  await chat.waitFor({ state: "visible", timeout: timeoutMs });
+  await waitForLocator(chat, { state: "visible", timeout: timeoutMs });
   await chat.click();
-  await testId(page, "sm-convo-input").waitFor({ state: "visible", timeout: timeoutMs });
+  await waitForLocator(testId(page, "sm-convo-input"), { state: "visible", timeout: timeoutMs });
 }
 
 async function openConversationFromAnySurface(ctx, page, counterpart) {
@@ -846,11 +897,11 @@ async function openAliceBobConversation(ctx) {
 
 async function sendConversationText(page, text, timeoutMs) {
   const input = testId(page, "sm-convo-input");
-  await input.waitFor({ state: "visible", timeout: timeoutMs });
+  await waitForLocator(input, { state: "visible", timeout: timeoutMs });
   await input.fill(text);
   await testId(page, "sm-convo-send").click();
   const bubble = testId(page, "sm-convo-bubble").filter({ hasText: text }).last();
-  await bubble.waitFor({ state: "visible", timeout: timeoutMs });
+  await waitForLocator(bubble, { state: "visible", timeout: timeoutMs });
   return bubble;
 }
 
@@ -874,7 +925,7 @@ async function openProfile(ctx, page, handle) {
     waitUntil: "domcontentloaded",
     timeout: ctx.timeoutMs,
   });
-  await testId(page, "sm-profile").waitFor({ state: "visible", timeout: ctx.timeoutMs });
+  await waitForLocator(testId(page, "sm-profile"), { state: "visible", timeout: ctx.timeoutMs });
 }
 
 async function setFileThroughControl(page, directId, triggerId, path, timeoutMs) {
@@ -889,7 +940,7 @@ async function setFileThroughControl(page, directId, triggerId, path, timeoutMs)
       return;
     }
   }
-  const chooserPromise = page.waitForEvent("filechooser", { timeout: timeoutMs });
+  const chooserPromise = waitForPageEvent(page, "filechooser", { timeout: timeoutMs });
   await clickVisible(
     (await direct.count()) > 0 ? direct : testId(page, triggerId),
     timeoutMs,
@@ -907,7 +958,7 @@ async function waitForLoadedMedia(root, kind, timeoutMs) {
       .evaluate((element, expected) => element.tagName.toLowerCase() === expected, selector);
     if (rootIsMedia) media = root.first();
   }
-  await media.waitFor({ state: "visible", timeout: timeoutMs });
+  await waitForLocator(media, { state: "visible", timeout: timeoutMs });
   await waitForValue(
     media,
     async (target) => {
@@ -949,7 +1000,7 @@ async function openAction(page, bubble, actionId, timeoutMs) {
     return;
   }
   await bubble.click({ delay: 700 });
-  await testId(page, actionId).first().waitFor({ state: "visible", timeout: timeoutMs });
+  await waitForLocator(testId(page, actionId).first(), { state: "visible", timeout: timeoutMs });
   await testId(page, actionId).first().click();
 }
 
@@ -964,10 +1015,12 @@ async function reopenPersona(ctx, key) {
     await testId(page, "sm-auth-password").fill(persona.password);
     await testId(page, "sm-auth-submit").click();
   }
-  await testId(page, "sm-feed-tab-following")
-    .or(testId(page, "sm-chats-item"))
-    .first()
-    .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+  await waitForLocator(
+    testId(page, "sm-feed-tab-following")
+      .or(testId(page, "sm-chats-item"))
+      .first(),
+    { state: "visible", timeout: ctx.timeoutMs },
+  );
   return page;
 }
 
@@ -1010,10 +1063,12 @@ async function m1(ctx) {
       timeout: ctx.timeoutMs,
     });
     await ctx.alicePage.reload({ waitUntil: "domcontentloaded", timeout: ctx.timeoutMs });
-    await testId(ctx.alicePage, "sm-feed-tab-following")
-      .or(testId(ctx.alicePage, "sm-chats-item"))
-      .first()
-      .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+    await waitForLocator(
+      testId(ctx.alicePage, "sm-feed-tab-following")
+        .or(testId(ctx.alicePage, "sm-chats-item"))
+        .first(),
+      { state: "visible", timeout: ctx.timeoutMs },
+    );
     if ((await testId(ctx.alicePage, "sm-auth-email").count()) > 0) {
       throw new Error("Alice returned to the auth screen after relaunch");
     }
@@ -1026,22 +1081,24 @@ async function m1(ctx) {
       timeout: ctx.timeoutMs,
     });
     await clickVisible(testId(ctx.alicePage, "sm-settings-logout"), ctx.timeoutMs);
-    await testId(ctx.alicePage, "sm-auth-email").waitFor({
+    await waitForLocator(testId(ctx.alicePage, "sm-auth-email"), {
       state: "visible",
       timeout: ctx.timeoutMs,
     });
     await ctx.alicePage.reload({ waitUntil: "domcontentloaded", timeout: ctx.timeoutMs });
-    await testId(ctx.alicePage, "sm-auth-email").waitFor({
+    await waitForLocator(testId(ctx.alicePage, "sm-auth-email"), {
       state: "visible",
       timeout: ctx.timeoutMs,
     });
     await testId(ctx.alicePage, "sm-auth-email").fill(ctx.personas.alice.email);
     await testId(ctx.alicePage, "sm-auth-password").fill(ctx.personas.alice.password);
     await testId(ctx.alicePage, "sm-auth-submit").click();
-    await testId(ctx.alicePage, "sm-feed-tab-following")
-      .or(testId(ctx.alicePage, "sm-chats-item"))
-      .first()
-      .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+    await waitForLocator(
+      testId(ctx.alicePage, "sm-feed-tab-following")
+        .or(testId(ctx.alicePage, "sm-chats-item"))
+        .first(),
+      { state: "visible", timeout: ctx.timeoutMs },
+    );
     return {};
   });
 }
@@ -1061,7 +1118,7 @@ async function m2(ctx) {
       const started = performance.now();
       await testId(ctx.alicePage, "sm-compose-submit").click();
       const bobCard = testId(ctx.bobPage, "sm-feed-item").filter({ hasText: postText }).first();
-      await bobCard.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      await waitForLocator(bobCard, { state: "visible", timeout: ctx.timeoutMs });
       return {
         metrics: { visibleMs: rounded(performance.now() - started) },
         data: { postText },
@@ -1080,10 +1137,12 @@ async function m2(ctx) {
       const postText = `choreo-${ctx.runId}-m2-follow-${attempt}`;
       await composeTextPost(ctx.alicePage, postText, ctx.timeoutMs);
       await openGlobalFeed(ctx.bobPage, ctx.timeoutMs);
-      await testId(ctx.bobPage, "sm-feed-item")
-        .filter({ hasText: postText })
-        .first()
-        .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      await waitForLocator(
+        testId(ctx.bobPage, "sm-feed-item")
+          .filter({ hasText: postText })
+          .first(),
+        { state: "visible", timeout: ctx.timeoutMs },
+      );
 
       const before = await waitForFeedPredicate(
         ctx.bobPage,
@@ -1152,7 +1211,7 @@ async function m2(ctx) {
     const card = testId(ctx.bobPage, "sm-feed-item")
       .filter({ hasText: livePost.data.postText })
       .first();
-    await card.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+    await waitForLocator(card, { state: "visible", timeout: ctx.timeoutMs });
     const cardText = (await card.innerText()).trim();
     if (!cardText.includes(displayName)) {
       throw new Error(
@@ -1354,7 +1413,7 @@ async function m2(ctx) {
           "Alice's live reply count",
         );
         const threadItems = testId(ctx.bobPage, "sm-feed-item");
-        await threadItems.filter({ hasText: replyText }).first().waitFor({
+        await waitForLocator(threadItems.filter({ hasText: replyText }).first(), {
           state: "visible",
           timeout: ctx.timeoutMs,
         });
@@ -1397,17 +1456,21 @@ async function m3(ctx) {
       const outbound = `choreo-${ctx.runId}-m3-live-${attempt}`;
       const started = performance.now();
       await sendConversationText(ctx.alicePage, outbound, ctx.timeoutMs);
-      await testId(ctx.bobPage, "sm-convo-bubble")
-        .filter({ hasText: outbound })
-        .last()
-        .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      await waitForLocator(
+        testId(ctx.bobPage, "sm-convo-bubble")
+          .filter({ hasText: outbound })
+          .last(),
+        { state: "visible", timeout: ctx.timeoutMs },
+      );
       const visibleMs = rounded(performance.now() - started);
       const reply = `choreo-${ctx.runId}-m3-live-reply-${attempt}`;
       await sendConversationText(ctx.bobPage, reply, ctx.timeoutMs);
-      await testId(ctx.alicePage, "sm-convo-bubble")
-        .filter({ hasText: reply })
-        .last()
-        .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      await waitForLocator(
+        testId(ctx.alicePage, "sm-convo-bubble")
+          .filter({ hasText: reply })
+          .last(),
+        { state: "visible", timeout: ctx.timeoutMs },
+      );
       return {
         metrics: { visibleMs },
         note: "live DM text via sm-convo-bubble; sender avatar is not asserted",
@@ -1424,17 +1487,17 @@ async function m3(ctx) {
       const bobInput = testId(ctx.bobPage, "sm-convo-input");
       const aliceIndicator = testId(ctx.alicePage, "sm-convo-typing");
       await bobInput.fill("");
-      await aliceIndicator.waitFor({ state: "hidden", timeout: 5_000 });
+      await waitForLocator(aliceIndicator, { state: "hidden", timeout: 5_000 });
       const typingStartedAt = performance.now();
       await bobInput.pressSequentially(`typing-${ctx.runId}-${attempt}`, { delay: 25 });
       const lastKeystrokeAt = performance.now();
-      await aliceIndicator.waitFor({ state: "visible", timeout: 2_000 });
+      await waitForLocator(aliceIndicator, { state: "visible", timeout: 2_000 });
       const visibleMs = rounded(performance.now() - typingStartedAt);
       const remainingExpiryMs = Math.max(
         1,
         Math.floor(5_000 - (performance.now() - lastKeystrokeAt)),
       );
-      await aliceIndicator.waitFor({ state: "hidden", timeout: remainingExpiryMs });
+      await waitForLocator(aliceIndicator, { state: "hidden", timeout: remainingExpiryMs });
       const expiresMs = rounded(performance.now() - lastKeystrokeAt);
       if (visibleMs > 2_000 || expiresMs > 5_000) {
         throw new Error(`typing timing missed ceiling: visible=${visibleMs}ms expires=${expiresMs}ms`);
@@ -1457,11 +1520,11 @@ async function m3(ctx) {
       const reply = `choreo-${ctx.runId}-m3-quote-${attempt}`;
       await sendConversationText(ctx.alicePage, original, ctx.timeoutMs);
       const bobOriginal = testId(ctx.bobPage, "sm-convo-bubble").filter({ hasText: original }).last();
-      await bobOriginal.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      await waitForLocator(bobOriginal, { state: "visible", timeout: ctx.timeoutMs });
       await testId(bobOriginal, "sm-convo-quote").click();
       await sendConversationText(ctx.bobPage, reply, ctx.timeoutMs);
       const aliceReply = testId(ctx.alicePage, "sm-convo-bubble").filter({ hasText: reply }).last();
-      await aliceReply.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      await waitForLocator(aliceReply, { state: "visible", timeout: ctx.timeoutMs });
       if (!(await aliceReply.innerText()).includes(original)) {
         throw new Error("quoted reply bubble did not render the original excerpt");
       }
@@ -1469,7 +1532,7 @@ async function m3(ctx) {
       const aliceOriginal = testId(ctx.alicePage, "sm-convo-bubble")
         .filter({ hasText: original })
         .last();
-      await aliceOriginal.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      await waitForLocator(aliceOriginal, { state: "visible", timeout: ctx.timeoutMs });
       const inViewport = await aliceOriginal.evaluate((element) => {
         const rect = element.getBoundingClientRect();
         return rect.top >= 0 && rect.bottom <= window.innerHeight;
@@ -1499,7 +1562,7 @@ async function m4(ctx) {
       const started = performance.now();
       await testId(ctx.alicePage, "sm-convo-send").click();
       const bubble = testId(ctx.bobPage, "sm-convo-bubble").filter({ hasText: caption }).last();
-      await bubble.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      await waitForLocator(bubble, { state: "visible", timeout: ctx.timeoutMs });
       await waitForLoadedMedia(testId(bubble, "sm-convo-media"), "image", ctx.timeoutMs);
       return {
         metrics: { visibleMs: rounded(performance.now() - started) },
@@ -1521,7 +1584,7 @@ async function m4(ctx) {
     await testId(ctx.alicePage, "sm-convo-input").fill(caption);
     await testId(ctx.alicePage, "sm-convo-send").click();
     const bubble = testId(ctx.bobPage, "sm-convo-bubble").filter({ hasText: caption }).last();
-    await bubble.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+    await waitForLocator(bubble, { state: "visible", timeout: ctx.timeoutMs });
     const inline = testId(bubble, "sm-convo-media");
     const hasInlineVideo =
       (await inline.count()) > 0 &&
@@ -1554,8 +1617,8 @@ async function m4(ctx) {
         .filter({ hasText: photo.data.caption })
         .last();
       await Promise.all([
-        bobBubble.waitFor({ state: "visible", timeout: ctx.timeoutMs }),
-        aliceBubble.waitFor({ state: "visible", timeout: ctx.timeoutMs }),
+        waitForLocator(bobBubble, { state: "visible", timeout: ctx.timeoutMs }),
+        waitForLocator(aliceBubble, { state: "visible", timeout: ctx.timeoutMs }),
       ]);
 
       const started = performance.now();
@@ -1565,7 +1628,7 @@ async function m4(ctx) {
         ctx.timeoutMs,
       );
       const aliceThumb = testId(aliceBubble, "sm-convo-reaction-chip").filter({ hasText: "👍" });
-      await aliceThumb.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      await waitForLocator(aliceThumb, { state: "visible", timeout: ctx.timeoutMs });
       const setVisibleMs = rounded(performance.now() - started);
 
       await openAction(ctx.bobPage, bobBubble, "sm-convo-react", ctx.timeoutMs);
@@ -1573,9 +1636,9 @@ async function m4(ctx) {
         testId(ctx.bobPage, "sm-convo-reaction").filter({ hasText: "❤️" }),
         ctx.timeoutMs,
       );
-      await aliceThumb.waitFor({ state: "hidden", timeout: ctx.timeoutMs });
+      await waitForLocator(aliceThumb, { state: "hidden", timeout: ctx.timeoutMs });
       const aliceHeart = testId(aliceBubble, "sm-convo-reaction-chip").filter({ hasText: "❤️" });
-      await aliceHeart.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      await waitForLocator(aliceHeart, { state: "visible", timeout: ctx.timeoutMs });
       if ((await testId(aliceBubble, "sm-convo-reaction-chip").count()) !== 1) {
         throw new Error("reaction replacement left more than one reaction chip");
       }
@@ -1585,7 +1648,7 @@ async function m4(ctx) {
         testId(ctx.bobPage, "sm-convo-reaction").filter({ hasText: "❤️" }),
         ctx.timeoutMs,
       );
-      await aliceHeart.waitFor({ state: "hidden", timeout: ctx.timeoutMs });
+      await waitForLocator(aliceHeart, { state: "hidden", timeout: ctx.timeoutMs });
       return { metrics: { visibleMs: setVisibleMs } };
     },
   );
@@ -1599,16 +1662,18 @@ async function m4(ctx) {
       const original = `choreo-${ctx.runId}-m4-edit-${attempt}`;
       const edited = `${original}-edited`;
       const aliceBubble = await sendConversationText(ctx.alicePage, original, ctx.timeoutMs);
-      await testId(ctx.bobPage, "sm-convo-bubble")
-        .filter({ hasText: original })
-        .last()
-        .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      await waitForLocator(
+        testId(ctx.bobPage, "sm-convo-bubble")
+          .filter({ hasText: original })
+          .last(),
+        { state: "visible", timeout: ctx.timeoutMs },
+      );
       await openAction(ctx.alicePage, aliceBubble, "sm-convo-edit", ctx.timeoutMs);
       await testId(ctx.alicePage, "sm-convo-input").fill(edited);
       const started = performance.now();
       await testId(ctx.alicePage, "sm-convo-send").click();
       const bobEdited = testId(ctx.bobPage, "sm-convo-bubble").filter({ hasText: edited }).last();
-      await bobEdited.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      await waitForLocator(bobEdited, { state: "visible", timeout: ctx.timeoutMs });
       if (!/edited/i.test(await bobEdited.innerText())) {
         throw new Error("recipient bubble did not expose the edited label");
       }
@@ -1621,7 +1686,7 @@ async function m4(ctx) {
     const text = `choreo-${ctx.runId}-m4-delete`;
     const aliceBubble = await sendConversationText(ctx.alicePage, text, ctx.timeoutMs);
     const bobBubble = testId(ctx.bobPage, "sm-convo-bubble").filter({ hasText: text }).last();
-    await bobBubble.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+    await waitForLocator(bobBubble, { state: "visible", timeout: ctx.timeoutMs });
     const tombstones = testId(ctx.bobPage, "sm-convo-tombstone");
     const before = await tombstones.count();
     await openAction(ctx.alicePage, aliceBubble, "sm-convo-delete", ctx.timeoutMs);
@@ -1665,7 +1730,7 @@ async function selectedControl(locator, value) {
 }
 
 async function selectControlOption(locator, value, timeoutMs) {
-  await locator.first().waitFor({ state: "visible", timeout: timeoutMs });
+  await waitForLocator(locator.first(), { state: "visible", timeout: timeoutMs });
   const firstTag = await locator.first().evaluate((element) => element.tagName.toLowerCase());
   if (firstTag === "select") {
     await locator.first().selectOption(value);
@@ -1696,8 +1761,8 @@ async function m5(ctx) {
     const aliceColors = testId(ctx.alicePage, "sm-chatsettings-color");
     const carolColors = testId(ctx.carolPage, "sm-chatsettings-color");
     await Promise.all([
-      aliceColors.first().waitFor({ state: "visible", timeout: ctx.timeoutMs }),
-      carolColors.first().waitFor({ state: "visible", timeout: ctx.timeoutMs }),
+      waitForLocator(aliceColors.first(), { state: "visible", timeout: ctx.timeoutMs }),
+      waitForLocator(carolColors.first(), { state: "visible", timeout: ctx.timeoutMs }),
     ]);
     if ((await aliceColors.count()) < 2) {
       throw new Error("chat settings must expose at least two color choices");
@@ -1764,7 +1829,7 @@ async function m5(ctx) {
         .filter({ hasText: caption })
         .last();
       const affordance = testId(bubble, "sm-convo-viewonce");
-      await affordance.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      await waitForLocator(affordance, { state: "visible", timeout: ctx.timeoutMs });
       await affordance.click();
       const viewer = testId(ctx.bobPage, "sm-media-viewer-image");
       await waitForLoadedMedia(viewer, "image", ctx.timeoutMs);
@@ -1773,10 +1838,12 @@ async function m5(ctx) {
       const denied = testId(ctx.bobPage, "sm-convo-error");
       const state = await observableState(affordance).catch(() => "");
       if (!/opened|viewed|denied|consumed/i.test(state)) {
-        await denied
-          .filter({ hasText: /opened|viewed|denied|consumed/i })
-          .first()
-          .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+        await waitForLocator(
+          denied
+            .filter({ hasText: /opened|viewed|denied|consumed/i })
+            .first(),
+          { state: "visible", timeout: ctx.timeoutMs },
+        );
       }
       if ((await viewer.count()) > 0 && (await viewer.isVisible())) {
         throw new Error("view-once media rendered on the second open");
@@ -1787,7 +1854,7 @@ async function m5(ctx) {
 
   await ctx.check("m5", "warm-offline-search-over-synced-messages", {}, async () => {
     await openAliceBobConversation(ctx);
-    await testId(ctx.alicePage, "sm-convo-bubble").first().waitFor({
+    await waitForLocator(testId(ctx.alicePage, "sm-convo-bubble").first(), {
       state: "visible",
       timeout: ctx.timeoutMs,
     });
@@ -1795,18 +1862,20 @@ async function m5(ctx) {
       waitUntil: "domcontentloaded",
       timeout: ctx.timeoutMs,
     });
-    await testId(ctx.alicePage, "sm-search-input").waitFor({
+    await waitForLocator(testId(ctx.alicePage, "sm-search-input"), {
       state: "visible",
       timeout: ctx.timeoutMs,
     });
     await setContextsOffline([ctx.aliceContext], true);
     try {
       await testId(ctx.alicePage, "sm-search-input").fill(ctx.adapter.fixtures.searchToken);
-      await testId(ctx.alicePage, "sm-search-result")
-        .filter({ hasText: ctx.adapter.fixtures.searchExpected })
-        .first()
-        .waitFor({ state: "visible", timeout: ctx.timeoutMs });
-      await testId(ctx.alicePage, "sm-search-offline").waitFor({
+      await waitForLocator(
+        testId(ctx.alicePage, "sm-search-result")
+          .filter({ hasText: ctx.adapter.fixtures.searchExpected })
+          .first(),
+        { state: "visible", timeout: ctx.timeoutMs },
+      );
+      await waitForLocator(testId(ctx.alicePage, "sm-search-offline"), {
         state: "visible",
         timeout: ctx.timeoutMs,
       });
@@ -1836,10 +1905,12 @@ async function m5(ctx) {
       await openAliceBobConversation(ctx);
       const text = `choreo-${ctx.runId}-m5-expiring`;
       await sendConversationText(ctx.alicePage, text, ctx.timeoutMs);
-      await testId(ctx.bobPage, "sm-convo-bubble")
-        .filter({ hasText: text })
-        .last()
-        .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      await waitForLocator(
+        testId(ctx.bobPage, "sm-convo-bubble")
+          .filter({ hasText: text })
+          .last(),
+        { state: "visible", timeout: ctx.timeoutMs },
+      );
       await Promise.all([ctx.alicePage.close(), ctx.bobPage.close()]);
       await new Promise((resolvePromise) =>
         setTimeout(resolvePromise, ctx.adapter.disappearing.waitMs),
@@ -1878,7 +1949,7 @@ async function m6(ctx) {
         secondBubble = await sendConversationText(ctx.alicePage, second, ctx.timeoutMs);
         for (const bubble of [firstBubble, secondBubble]) {
           const receipt = testId(bubble, "sm-convo-receipt");
-          await receipt.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+          await waitForLocator(receipt, { state: "visible", timeout: ctx.timeoutMs });
           const state = await observableState(receipt);
           if (!/\bpending\b/i.test(state)) {
             throw new Error(`offline message did not expose a pending state: ${state}`);
@@ -1891,8 +1962,8 @@ async function m6(ctx) {
       const flushStarted = performance.now();
       const bobFirst = testId(ctx.bobPage, "sm-convo-bubble").filter({ hasText: first }).last();
       const bobSecond = testId(ctx.bobPage, "sm-convo-bubble").filter({ hasText: second }).last();
-      await bobFirst.waitFor({ state: "visible", timeout: ctx.timeoutMs });
-      await bobSecond.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      await waitForLocator(bobFirst, { state: "visible", timeout: ctx.timeoutMs });
+      await waitForLocator(bobSecond, { state: "visible", timeout: ctx.timeoutMs });
       const flushMs = rounded(performance.now() - flushStarted);
       const texts = await visibleTexts(testId(ctx.bobPage, "sm-convo-bubble"));
       const firstIndex = texts.findIndex((text) => text.includes(first));
@@ -1920,7 +1991,7 @@ async function m6(ctx) {
 
 async function findLikesReceivedStat(page, timeoutMs) {
   const stat = testId(page, "sm-insights-total-likes-received");
-  await stat.waitFor({ state: "visible", timeout: timeoutMs });
+  await waitForLocator(stat, { state: "visible", timeout: timeoutMs });
   return stat;
 }
 
@@ -1958,7 +2029,7 @@ async function toggleSelection(locator) {
 
 async function findUnlikedAlicePost(page, timeoutMs) {
   const cards = testId(page, "sm-feed-item");
-  await cards.first().waitFor({ state: "visible", timeout: timeoutMs });
+  await waitForLocator(cards.first(), { state: "visible", timeout: timeoutMs });
   for (let index = 0; index < (await cards.count()); index += 1) {
     const card = cards.nth(index);
     if (!(await card.isVisible()) || !/alice/iu.test(await card.innerText())) continue;
@@ -2020,10 +2091,12 @@ async function m8(ctx) {
     const text = `choreo-${ctx.runId}-m8-live`;
     const started = performance.now();
     await sendConversationText(ctx.alicePage, text, ctx.timeoutMs);
-    await testId(ctx.alice2Page, "sm-convo-bubble")
-      .filter({ hasText: text })
-      .last()
-      .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+    await waitForLocator(
+      testId(ctx.alice2Page, "sm-convo-bubble")
+        .filter({ hasText: text })
+        .last(),
+      { state: "visible", timeout: ctx.timeoutMs },
+    );
     return {
       metrics: { visibleMs: rounded(performance.now() - started) },
     };
@@ -2049,21 +2122,21 @@ async function m8(ctx) {
       .filter({ hasText: /bob/iu })
       .first();
     await Promise.all([
-      alice1Chat.waitFor({ state: "visible", timeout: ctx.timeoutMs }),
-      alice2Chat.waitFor({ state: "visible", timeout: ctx.timeoutMs }),
+      waitForLocator(alice1Chat, { state: "visible", timeout: ctx.timeoutMs }),
+      waitForLocator(alice2Chat, { state: "visible", timeout: ctx.timeoutMs }),
     ]);
 
     const text = `choreo-${ctx.runId}-m8-unread`;
     await sendConversationText(ctx.bobPage, text, ctx.timeoutMs);
     const alice2Unread = testId(alice2Chat, "sm-chats-unread");
-    await alice2Unread.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+    await waitForLocator(alice2Unread, { state: "visible", timeout: ctx.timeoutMs });
     const clearStarted = performance.now();
     await alice1Chat.click();
-    await testId(ctx.alicePage, "sm-convo-input").waitFor({
+    await waitForLocator(testId(ctx.alicePage, "sm-convo-input"), {
       state: "visible",
       timeout: ctx.timeoutMs,
     });
-    await alice2Unread.waitFor({ state: "hidden", timeout: ctx.timeoutMs });
+    await waitForLocator(alice2Unread, { state: "hidden", timeout: ctx.timeoutMs });
     return {
       metrics: { clearVisibleMs: rounded(performance.now() - clearStarted) },
     };
@@ -2094,7 +2167,7 @@ async function m8(ctx) {
         ]);
         for (const bubble of [firstBubble, secondBubble]) {
           const receipt = testId(bubble, "sm-convo-receipt");
-          await receipt.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+          await waitForLocator(receipt, { state: "visible", timeout: ctx.timeoutMs });
           const state = await observableState(receipt);
           if (!/\bpending\b/iu.test(state)) {
             throw new Error(`warm-offline message did not expose pending state: ${state}`);
@@ -2103,29 +2176,37 @@ async function m8(ctx) {
 
         const firstFlushStarted = performance.now();
         await setContextsOffline([ctx.aliceContext], false);
-        await testId(ctx.bobPage, "sm-convo-bubble")
-          .filter({ hasText: first })
-          .last()
-          .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+        await waitForLocator(
+          testId(ctx.bobPage, "sm-convo-bubble")
+            .filter({ hasText: first })
+            .last(),
+          { state: "visible", timeout: ctx.timeoutMs },
+        );
         const firstFlushMs = rounded(performance.now() - firstFlushStarted);
 
         const secondFlushStarted = performance.now();
         await setContextsOffline([ctx.alice2Context], false);
-        await testId(ctx.bobPage, "sm-convo-bubble")
-          .filter({ hasText: second })
-          .last()
-          .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+        await waitForLocator(
+          testId(ctx.bobPage, "sm-convo-bubble")
+            .filter({ hasText: second })
+            .last(),
+          { state: "visible", timeout: ctx.timeoutMs },
+        );
         const secondFlushMs = rounded(performance.now() - secondFlushStarted);
 
         for (const page of [ctx.alicePage, ctx.alice2Page, ctx.bobPage]) {
-          await testId(page, "sm-convo-bubble")
-            .filter({ hasText: first })
-            .last()
-            .waitFor({ state: "visible", timeout: ctx.timeoutMs });
-          await testId(page, "sm-convo-bubble")
-            .filter({ hasText: second })
-            .last()
-            .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+          await waitForLocator(
+            testId(page, "sm-convo-bubble")
+              .filter({ hasText: first })
+              .last(),
+            { state: "visible", timeout: ctx.timeoutMs },
+          );
+          await waitForLocator(
+            testId(page, "sm-convo-bubble")
+              .filter({ hasText: second })
+              .last(),
+            { state: "visible", timeout: ctx.timeoutMs },
+          );
           await expectExactlyOnceInOrder(page, first, second);
         }
         return {
@@ -2265,6 +2346,13 @@ async function emitSegmentSummary({
         pass: choreographyPass,
         startedAt: null,
         durationMs: rounded(durationMs),
+        settlementWaitMs: rounded(assertionReceipts.reduce(
+          (sum, receipt) => sum + receipt.timings.reduce(
+            (attemptSum, timing) => attemptSum + timing.settlementWaitMs,
+            0,
+          ),
+          0,
+        )),
         metrics: {},
       },
     ],
@@ -2418,7 +2506,9 @@ async function main() {
     for (const segment of options.segments) {
       const started = performance.now();
       await SEGMENT_FUNCTIONS[segment](context);
-      await observations.claim(segment.toUpperCase(), "browserAssertionWait");
+      await observations.claim(segment.toUpperCase(), "browserAssertionWait", {
+        owner: "choreography",
+      });
       const summary = await emitSegmentSummary({
         emit,
         segment,
