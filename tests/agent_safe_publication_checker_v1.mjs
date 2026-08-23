@@ -2957,6 +2957,7 @@ const REVIEWED_GENERATED_PUBLICATION_PATHS = new Set([
   'demos/signal-desk/snapback/generated/visibility-override-baseline.json',
   'demos/signal-desk/snapback/generated/visibility-override-owner-baseline.json',
   'demos/team-chat/snapback/generated/api.d.mts',
+  'demos/competitive-checkpoint/snapback/generated/api.d.mts',
   'demos/team-chat/snapback/generated/api.d.ts',
   'demos/team-chat/snapback/generated/artifacts.json',
   'demos/team-chat/snapback/generated/authorization-review.json',
