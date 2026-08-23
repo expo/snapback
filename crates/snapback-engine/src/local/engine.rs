@@ -15,9 +15,9 @@ use crate::auth::invalidation::{
 use crate::auth::invocation::install_classified_admission_hook_for_test;
 use crate::auth::invocation::{
     AuthorizedEffectCommitGuard, AuthorizedEffectReservation, AuthorizedEffectReservationError,
-    CallerAuthorityTerminalCause, CallerAuthorityTerminalLatch, FunctionAttribution,
-    HandlerAuthProjection, InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation,
-    ResolvedAppAuthority, RetainedLiveAuthority, WireAuthorityFields, descriptor_for_authority,
+    CallerAuthorityTerminalCause, FunctionAttribution, HandlerAuthProjection, InvocationGate,
+    InvocationSource, PreparedAuthority, PreparedInvocation, ResolvedAppAuthority,
+    RetainedLiveAuthority, WireAuthorityFields, descriptor_for_authority,
 };
 use crate::auth::lease::{
     AuthorizedLease, AuthorizedLeaseConfig, AuthorizedLeaseData, AuthorizedLeaseIssue,
@@ -5795,8 +5795,55 @@ impl LocalSnapback {
         now_ms: u64,
         random: &dyn crate::auth::crypto::RandomSource,
         authorized_effect: AuthorizedEffectReservation,
-        terminal_latch: &CallerAuthorityTerminalLatch,
     ) -> SnapbackResult<crate::storage::auth_grants::MintedPairingCode> {
+        Self::require_pairing_code_mint_authority(authority, user_id)?;
+        let committed = self
+            .db
+            .mint_pairing_code_guarded_commit(user_id, now_ms, random, || {
+                authorized_effect
+                    .commit_guard_classified("pairing-code mint transaction")
+                    .map_err(AuthorizedEffectReservationError::into_error)
+            });
+        // The reservation protects only this durable decision. Release it as
+        // soon as the guarded COMMIT returns, before capacity/error mapping or
+        // response work can extend logout's unbounded drain.
+        drop(authorized_effect);
+        committed?.into_result()
+    }
+
+    #[cfg(feature = "test-support")]
+    #[doc(hidden)]
+    pub fn mint_pairing_code_with_authorized_effect_and_probe_for_test(
+        &mut self,
+        authority: &PreparedAuthority,
+        user_id: &str,
+        now_ms: u64,
+        random: &dyn crate::auth::crypto::RandomSource,
+        authorized_effect: AuthorizedEffectReservation,
+        probe: crate::storage::auth_grants::PairingCodeMintCommitProbeForTest,
+    ) -> SnapbackResult<crate::storage::auth_grants::MintedPairingCode> {
+        Self::require_pairing_code_mint_authority(authority, user_id)?;
+        let committed = self
+            .db
+            .mint_pairing_code_guarded_commit_with_probe_for_test(
+                user_id,
+                now_ms,
+                random,
+                || {
+                    authorized_effect
+                        .commit_guard_classified("pairing-code mint transaction")
+                        .map_err(AuthorizedEffectReservationError::into_error)
+                },
+                probe,
+            );
+        drop(authorized_effect);
+        committed?.into_result()
+    }
+
+    fn require_pairing_code_mint_authority(
+        authority: &PreparedAuthority,
+        user_id: &str,
+    ) -> SnapbackResult<()> {
         let ResolvedAppAuthority::Session {
             user_id: authority_user_id,
             ..
@@ -5817,18 +5864,7 @@ impl LocalSnapback {
                 "pairing-code minting facts do not match exact caller authority",
             ));
         }
-        let committed = self
-            .db
-            .mint_pairing_code_guarded_commit(user_id, now_ms, random, || {
-                authorized_effect
-                    .commit_guard_classified("pairing-code mint transaction")
-                    .map_err(|error| terminal_latch.map_reservation_error(error))
-            });
-        // The reservation protects only this durable decision. Release it as
-        // soon as the guarded COMMIT returns, before capacity/error mapping or
-        // response work can extend logout's unbounded drain.
-        drop(authorized_effect);
-        committed?.into_result()
+        Ok(())
     }
 
     pub fn present_pairing_code(

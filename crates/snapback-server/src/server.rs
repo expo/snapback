@@ -21,9 +21,8 @@ use crate::auth::handshake::{
 use crate::auth::invocation::AuthorizedEffectScopeProbeForTest;
 use crate::auth::invocation::{
     AuthorizedEffectCommitGuard, AuthorizedEffectReservation, AuthorizedEffectReservationError,
-    CallerAuthorityTerminalLatch, FunctionAttribution, InvocationGate, InvocationSource,
-    PreparedAuthority, ResolvedAppAuthority, WireAuthorityFields,
-    descriptor_for_resolved_authority,
+    FunctionAttribution, InvocationGate, InvocationSource, PreparedAuthority, ResolvedAppAuthority,
+    WireAuthorityFields, descriptor_for_resolved_authority,
 };
 use crate::auth::lease::{
     AUTHORIZED_LEASE_PROTOCOL_VERSION, AuthorizedLease, AuthorizedLeaseRequestIdentity,
@@ -367,7 +366,7 @@ where
         })
 }
 
-async fn with_locked_snapback_then<T, U, F, A>(
+pub(super) fn run_locked_snapback_then<T, U, F, A>(
     mut guard: tokio::sync::OwnedMutexGuard<LocalSnapback>,
     work: F,
     after: A,
@@ -378,40 +377,52 @@ where
     T: Send + 'static,
     U: Send + 'static,
 {
-    tokio::task::spawn_blocking(move || {
-        let _sanction = crate::exec_guard::BlockingSanction::acquire();
-        let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
-        let output = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| work(&mut guard)));
-        let batch = local_scope.take_after_local_batch();
-        let handoff = batch.has_effects().then(|| {
-            let handoff = guard.managed_local_handoff();
-            handoff.close();
-            handoff
-        });
-        drop(guard);
-        drop(local_scope);
-        let after_local = crate::exec_guard::run_after_local_batch(batch);
-        if let Some(handoff) = handoff {
-            handoff.reopen();
+    let _sanction = crate::exec_guard::BlockingSanction::acquire();
+    let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+    let output = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| work(&mut guard)));
+    let batch = local_scope.take_after_local_batch();
+    let handoff = batch.has_effects().then(|| {
+        let handoff = guard.managed_local_handoff();
+        handoff.close();
+        handoff
+    });
+    drop(guard);
+    drop(local_scope);
+    let after_local = crate::exec_guard::run_after_local_batch(batch);
+    if let Some(handoff) = handoff {
+        handoff.reopen();
+    }
+    match output {
+        Ok(output) => {
+            // This generic lane cannot reach an authorization commit: it
+            // installs no reservation, so a ready participant refuses at
+            // transaction bind before any checked callback is queued.
+            // Authorization-capable writes use writer_gate's fallible
+            // boundary below. Other after-Local work remains infallible.
+            debug_assert!(
+                after_local.is_ok(),
+                "fallible authorization finalization requires the authorization writer boundary"
+            );
+            after(output)
         }
-        match output {
-            Ok(output) => {
-                // This generic lane cannot reach an authorization commit: it
-                // installs no reservation, so a ready participant refuses at
-                // transaction bind before any checked callback is queued.
-                // Authorization-capable writes use writer_gate's fallible
-                // boundary below. Other after-Local work remains infallible.
-                debug_assert!(
-                    after_local.is_ok(),
-                    "fallible authorization finalization requires the authorization writer boundary"
-                );
-                after(output)
-            }
-            Err(payload) => std::panic::resume_unwind(payload),
-        }
-    })
-    .await
-    .expect("snapback blocking task panicked")
+        Err(payload) => std::panic::resume_unwind(payload),
+    }
+}
+
+async fn with_locked_snapback_then<T, U, F, A>(
+    guard: tokio::sync::OwnedMutexGuard<LocalSnapback>,
+    work: F,
+    after: A,
+) -> U
+where
+    F: FnOnce(&mut LocalSnapback) -> T + Send + 'static,
+    A: FnOnce(T) -> U + Send + 'static,
+    T: Send + 'static,
+    U: Send + 'static,
+{
+    tokio::task::spawn_blocking(move || run_locked_snapback_then(guard, work, after))
+        .await
+        .expect("snapback blocking task panicked")
 }
 
 /// Compose one inspect artifact in two blocking phases: SQLite/Local facts,
@@ -17190,6 +17201,21 @@ async fn auth_agent_invitation(
 // five-second caller-authorized commit budget rather than pinning logout.
 const PAIRING_CODE_MINT_COMMIT_BUDGET: Duration = Duration::from_secs(5);
 
+fn pairing_code_mint_commit_timeout() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_PAIRING_COMMIT_TIMEOUT",
+        "auth",
+        "pairing-code minting expired before its bounded durable cut began",
+    )
+    .with_details(json!({
+        "phase": "writerAdmission",
+        "retryable": true,
+        "retryStrategy": "short-jitter",
+        "effectCommitted": false,
+        "effectMayHaveCommitted": false,
+    }))
+}
+
 async fn auth_pairing_code(
     State(runtime): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
@@ -17200,14 +17226,14 @@ async fn auth_pairing_code(
     let provider = require_agent_routes_available(&runtime)?;
     let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
     let now_ms = provider.now_ms();
-    let terminal_latch = CallerAuthorityTerminalLatch::default();
     let authorized_effect = reserve_route_authorized_effect_classified(
         &authority,
         &headers,
         "pairing-code mint transaction",
     )
     .await
-    .map_err(|error| ApiError::from(terminal_latch.map_reservation_error(error)))?;
+    .map_err(AuthorizedEffectReservationError::into_error)
+    .map_err(ApiError::from)?;
     #[cfg(test)]
     let authorized_effect = if headers.contains_key(TEST_PAIRING_COMMIT_GUARD_RETIRE_HEADER) {
         let controller = runtime.auth_admission_controller();
@@ -17238,7 +17264,6 @@ async fn auth_pairing_code(
         .checked_add(writer_budget)
         .unwrap_or_else(Instant::now);
     let effect_authority = authority.clone();
-    let commit_terminal_latch = terminal_latch.clone();
     let minted = with_snapback_until(&runtime.snapback, writer_deadline, move |snapback| {
         snapback.mint_pairing_code_with_authorized_effect(
             &effect_authority,
@@ -17246,11 +17271,10 @@ async fn auth_pairing_code(
             now_ms,
             provider.agent_random_source(),
             authorized_effect,
-            &commit_terminal_latch,
         )
     })
     .await
-    .ok_or_else(|| ApiError::from(CommitTimeoutPhase::WriterAcquire.diagnostic()))?;
+    .ok_or_else(|| ApiError::from(pairing_code_mint_commit_timeout()))?;
     #[cfg(test)]
     pause_test_finite_authority_request(
         headers

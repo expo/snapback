@@ -1712,14 +1712,35 @@ impl LocalDatabase {
     where
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
+        self.with_auth_transaction_guarded_observed(
+            operation,
+            before_commit,
+            |_tx, _output, _guard| Ok(()),
+        )
+    }
+
+    /// Test-observable form of the direct auth transaction. The observation
+    /// runs after the exact caller guard is installed and while all staged
+    /// rows are still visible through the one pending SQLite transaction.
+    pub(super) fn with_auth_transaction_guarded_observed<T, G, BeforeCommit, BeforeSqliteCommit>(
+        &mut self,
+        operation: impl FnOnce(&Transaction<'_>) -> SnapbackResult<T>,
+        before_commit: BeforeCommit,
+        before_sqlite_commit: BeforeSqliteCommit,
+    ) -> SnapbackResult<T>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+        BeforeSqliteCommit: FnOnce(&Transaction<'_>, &T, &G) -> SnapbackResult<()>,
+    {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         require_ready_on(&tx)?;
         let output = operation(&tx)?;
+        let commit_guard = before_commit()?;
+        before_sqlite_commit(&tx, &output, &commit_guard)?;
         #[cfg(any(test, feature = "test-support"))]
         super::observe_durable_commit_for_test();
-        let _commit_guard = before_commit()?;
         tx.commit()?;
         Ok(output)
     }

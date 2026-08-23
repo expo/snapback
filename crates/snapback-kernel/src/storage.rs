@@ -483,6 +483,7 @@ pub fn observe_next_durable_commits_for_test(
 #[cfg(any(test, feature = "test-support"))]
 #[inline]
 fn observe_durable_commit_for_test() {
+    auth_grants::observe_pairing_code_mint_durable_commit_for_test();
     DURABLE_COMMIT_OBSERVER_FOR_TEST.with(|slot| {
         let Some(mut observer) = slot.borrow_mut().take() else {
             return;

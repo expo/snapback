@@ -26276,6 +26276,7 @@ const OAUTH_503_DIAGNOSTICS: &[&str] = &["SNAPBACK_AUTH_OAUTH_UNAVAILABLE"];
 
 const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_FUNCTION_GENERATION_AWAITING_RELOAD",
+    "SNAPBACK_AUTH_PAIRING_COMMIT_TIMEOUT",
     "SNAPBACK_WRITER_ACQUIRE_TIMEOUT",
     "SNAPBACK_COMMIT_DEADLINE_EXCEEDED",
     "SNAPBACK_COMMIT_OUTCOME_UNCERTAIN",
@@ -35252,6 +35253,71 @@ async fn pairing_code_mint_final_mode_guard_refusal_rolls_back_complete_auth_tra
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn pairing_code_mint_stages_clock_and_row_under_exact_guard_before_one_commit() {
+    let fixture = mode_only_migration_authorized_effect_fixture(
+        ModeOnlyMigrationAuthorizedEffectSite::PairingCodeMint,
+    )
+    .await;
+    let authority = prepared_test_session_route_authority(
+        &fixture.state,
+        InvocationSource::AgentGrantManagement,
+        &fixture.bearer,
+    );
+    let authorized_effect = authority
+        .reserve_authorized_effect("pairing-code mint transaction")
+        .expect("reserve exact pairing-code authority");
+    let reservation_identity = authorized_effect.identity_for_test();
+    let probe = crate::storage::auth_grants::PairingCodeMintCommitProbeForTest::new(move || {
+        crate::auth::invocation::current_thread_holds_authorized_effect_commit_guard_for_test(
+            reservation_identity,
+        )
+    });
+    let receipt = probe.receipt();
+    let effect_authority = authority.clone();
+    let user_id = fixture.principal_id.clone();
+    let provider = fixture
+        .state
+        .auth_provider
+        .clone()
+        .expect("pairing-code probe provider");
+    let now_ms = provider.now_ms();
+    let minted = super::with_snapback_until(
+        &fixture.state.snapback,
+        Instant::now() + Duration::from_secs(5),
+        move |snapback| {
+            snapback.mint_pairing_code_with_authorized_effect_and_probe_for_test(
+                &effect_authority,
+                &user_id,
+                now_ms,
+                provider.agent_random_source(),
+                authorized_effect,
+                probe,
+            )
+        },
+    )
+    .await
+    .expect("pairing-code probe enters its bounded writer")
+    .expect("pairing-code probe commits");
+    assert!(!minted.request_id.is_empty());
+    assert_eq!(
+        receipt.events(),
+        vec![
+            crate::storage::auth_grants::PairingCodeMintCommitEventForTest::Staged {
+                clock_value_matches: true,
+                pairing_row_matches: true,
+                clock_writes: 1,
+                pairing_writes: 1,
+                exact_guard_held: true,
+            },
+            crate::storage::auth_grants::PairingCodeMintCommitEventForTest::Commit {
+                exact_guard_held: true,
+            },
+        ],
+        "the exact guarded transaction must stage both durable facts before its sole real commit"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn pairing_code_mint_releases_caller_permit_at_commit_before_response_work() {
     let mut fixture = mode_only_migration_authorized_effect_fixture(
         ModeOnlyMigrationAuthorizedEffectSite::PairingCodeMint,
@@ -35313,7 +35379,7 @@ async fn pairing_code_mint_releases_caller_permit_at_commit_before_response_work
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn pairing_code_mint_bounds_fifo_local_wait_and_releases_caller_permit() {
+async fn pairing_code_mint_bounds_fifo_local_wait() {
     let fixture = mode_only_migration_authorized_effect_fixture(
         ModeOnlyMigrationAuthorizedEffectSite::PairingCodeMint,
     )
@@ -35360,7 +35426,16 @@ async fn pairing_code_mint_bounds_fifo_local_wait_and_releases_caller_permit() {
     let response = response_json(response).await;
     assert_eq!(
         response["diagnostic"]["code"],
-        "SNAPBACK_WRITER_ACQUIRE_TIMEOUT"
+        "SNAPBACK_AUTH_PAIRING_COMMIT_TIMEOUT"
+    );
+    assert_eq!(
+        response["diagnostic"]["details"]["phase"],
+        "writerAdmission"
+    );
+    assert!(
+        response["diagnostic"]["details"]
+            .get("capsuleOutcome")
+            .is_none()
     );
 
     drop(local);
@@ -35373,9 +35448,156 @@ async fn pairing_code_mint_bounds_fifo_local_wait_and_releases_caller_permit() {
         )),
     )
     .await
-    .expect("bounded-wait reservation does not pin logout after Local release")
+    .expect("bounded FIFO wait does not pin logout after Local release")
     .expect("bounded-wait logout response");
     assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+}
+
+/// @ref LLP 0058#split-phase-authorized-effect-fence — blocking-pool admission
+/// is part of the absolute pairing deadline: saturation must drop the already
+/// reserved caller permit so logout's exact terminal premark can drain without
+/// waiting for a queued worker to start.
+#[test]
+fn pairing_code_mint_saturated_blocking_pool_times_out_and_logout_premark_drains() {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .max_blocking_threads(1)
+        .enable_all()
+        .build()
+        .expect("single-blocking-worker pairing runtime");
+    runtime.block_on(async {
+        let fixture = mode_only_migration_authorized_effect_fixture(
+            ModeOnlyMigrationAuthorizedEffectSite::PairingCodeMint,
+        )
+        .await;
+        let provider = fixture
+            .state
+            .auth_provider
+            .clone()
+            .expect("saturated pairing provider");
+        let coordinator = fixture
+            .state
+            .auth_coordinator
+            .clone()
+            .expect("saturated pairing coordinator");
+        let admission = provider.admit().await;
+        let plan_bearer = fixture.bearer.clone();
+        let plan_now_ms = provider.now_ms();
+        let planned = with_snapback(&fixture.state.snapback, move |snapback| {
+            snapback.execute_auth_plan(admission.plan_logout_plan(&plan_bearer, plan_now_ms))
+        })
+        .await
+        .expect("plan saturated-pool logout");
+        let crate::auth::provider::PlannedLogout::Revoke(logout_plan) = planned else {
+            panic!("saturated-pool logout must plan exact revocation");
+        };
+
+        let (blocking_started_sender, blocking_started_receiver) = tokio::sync::oneshot::channel();
+        let (blocking_release_sender, blocking_release_receiver) = std::sync::mpsc::sync_channel(1);
+        let saturator = tokio::task::spawn_blocking(move || {
+            let _ = blocking_started_sender.send(());
+            let _ = blocking_release_receiver.recv();
+        });
+        blocking_started_receiver
+            .await
+            .expect("blocking-pool saturator starts");
+
+        let authority = prepared_test_session_route_authority(
+            &fixture.state,
+            InvocationSource::AgentGrantManagement,
+            &fixture.bearer,
+        );
+        let reservation_pause = install_test_finite_authority_pause(
+            TestFiniteAuthorityPausePoint::AfterAuthorizedEffectReservation,
+        );
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        );
+        headers.insert(
+            HeaderName::from_static(TEST_PAIRING_WRITER_BUDGET_HEADER),
+            HeaderValue::from_static("100"),
+        );
+        headers.insert(
+            HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
+            HeaderValue::from_str(reservation_pause.id())
+                .expect("saturated-pool reservation pause header"),
+        );
+        let target_state = fixture.state.clone();
+        let target = tokio::spawn(async move {
+            match super::auth_pairing_code(
+                State(target_state),
+                Extension(authority),
+                headers,
+                Ok(Bytes::from_static(br#"{}"#)),
+            )
+            .await
+            {
+                Ok(response) => response.into_response(),
+                Err(error) => error.into_response(),
+            }
+        });
+        tokio::time::timeout(
+            Duration::from_secs(5),
+            reservation_pause.wait_until_reached(),
+        )
+        .await
+        .expect("pairing reserves caller authority before blocking admission");
+
+        let premark_coordinator = coordinator.clone();
+        let mut premark =
+            tokio::spawn(async move { premark_coordinator.premark_revocation(logout_plan).await });
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        assert!(
+            !premark.is_finished(),
+            "logout premark must initially drain behind the reserved pairing caller"
+        );
+        reservation_pause.release().await;
+
+        let response = tokio::time::timeout(Duration::from_secs(2), target)
+            .await
+            .expect("saturated pairing obeys its blocking-admission deadline")
+            .expect("saturated pairing task");
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let response = response_json(response).await;
+        assert_eq!(
+            response["diagnostic"]["code"],
+            "SNAPBACK_AUTH_PAIRING_COMMIT_TIMEOUT"
+        );
+        assert!(
+            response["diagnostic"]["details"]
+                .get("capsuleOutcome")
+                .is_none()
+        );
+
+        let carrier = tokio::time::timeout(Duration::from_secs(1), &mut premark)
+            .await
+            .expect("logout premark drains while the blocking pool remains saturated")
+            .expect("logout premark task")
+            .expect("logout premark succeeds after pairing timeout");
+        let cleanup_error = SnapbackError::error(
+            "SNAPBACK_TEST_ROLLBACK",
+            "test",
+            "clean up saturated-pool logout premark",
+        );
+        let (cleanup, committed_revocations) = coordinator
+            .finish_revocation(carrier, AuthTransactionAttempt::RolledBack(cleanup_error))
+            .into_parts();
+        assert_eq!(
+            cleanup
+                .expect_err("test rollback reopens the premarked session")
+                .diagnostic
+                .code,
+            "SNAPBACK_TEST_ROLLBACK"
+        );
+        assert!(committed_revocations.is_empty());
+
+        blocking_release_sender
+            .send(())
+            .expect("release saturated blocking pool");
+        saturator.await.expect("blocking-pool saturator exits");
+    });
 }
 mode_only_migration_authorized_effect_race_tests!(
     ask_spend_reservation_logout_wins_before_authorized_effect_reservation,

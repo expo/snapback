@@ -6,7 +6,10 @@
 //!   guard (§3.6), which is what makes the deferred asset-prepare
 //!   choreography implementable in one place.
 
-use super::{SharedSnapback, authorization_reservation_stale, with_locked_snapback_then};
+use super::{
+    SharedSnapback, authorization_reservation_stale, run_locked_snapback_then,
+    with_locked_snapback_then,
+};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::local::LocalSnapback;
 #[cfg(test)]
@@ -124,10 +127,49 @@ where
     with_snapback_then(state, work, |output| output).await
 }
 
+struct BoundedSnapbackHandoff<F> {
+    shared: Arc<std::sync::Mutex<Option<(tokio::sync::OwnedMutexGuard<LocalSnapback>, F)>>>,
+}
+
+impl<F> BoundedSnapbackHandoff<F> {
+    fn new(guard: tokio::sync::OwnedMutexGuard<LocalSnapback>, work: F) -> Self {
+        Self {
+            shared: Arc::new(std::sync::Mutex::new(Some((guard, work)))),
+        }
+    }
+
+    fn worker_cell(
+        &self,
+    ) -> Arc<std::sync::Mutex<Option<(tokio::sync::OwnedMutexGuard<LocalSnapback>, F)>>> {
+        self.shared.clone()
+    }
+
+    fn take_unclaimed(&self) -> Option<(tokio::sync::OwnedMutexGuard<LocalSnapback>, F)> {
+        self.shared
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take()
+    }
+}
+
+impl<F> Drop for BoundedSnapbackHandoff<F> {
+    fn drop(&mut self) {
+        // Cancellation of the async caller must release an unclaimed Local
+        // guard and any reservation captured by `work`; the queued worker's
+        // Arc alone must never extend their lifetime.
+        drop(self.take_unclaimed());
+    }
+}
+
 /// Run one ordinary managed-writer turn only if the existing FIFO queue grants
-/// Local before `deadline`. Dropping the selected lock future removes exactly
-/// this waiter; callers remain responsible for dropping any outside-Local
-/// authority reservation when `None` is returned.
+/// Local and a blocking worker claims the handoff before `deadline`.
+///
+/// After FIFO acquisition, Local and `work` remain in a shared handoff cell;
+/// the queued blocking closure owns only that cell. Deadline expiry atomically
+/// takes and drops an unclaimed handoff, so a saturated blocking pool cannot
+/// retain either Local or an outside-Local authority reservation. The async
+/// owner does the same if its request future is cancelled. Dropping the selected
+/// lock future before acquisition removes exactly this FIFO waiter.
 ///
 /// @ref LLP 0058#split-phase-authorized-effect-fence — finite caller permits
 /// use an absolute deadline while waiting for Local, so terminalization cannot
@@ -142,7 +184,38 @@ where
     T: Send + 'static,
 {
     let guard = lock_managed_snapback_until(state, deadline, None).await?;
-    Some(with_locked_snapback_then(guard, work, |output| output).await)
+    if Instant::now() >= deadline {
+        drop(guard);
+        drop(work);
+        return None;
+    }
+    let handoff = BoundedSnapbackHandoff::new(guard, work);
+    let worker_handoff = handoff.worker_cell();
+    let mut worker = tokio::task::spawn_blocking(move || {
+        let Some((guard, work)) = worker_handoff
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take()
+        else {
+            return None;
+        };
+        if Instant::now() >= deadline {
+            return None;
+        }
+        Some(run_locked_snapback_then(guard, work, |output| output))
+    });
+
+    tokio::select! {
+        result = &mut worker => result.expect("snapback blocking task panicked"),
+        _ = tokio::time::sleep_until(tokio::time::Instant::from_std(deadline)) => {
+            let unclaimed = handoff.take_unclaimed();
+            if unclaimed.is_some() {
+                drop(unclaimed);
+                return None;
+            }
+            worker.await.expect("snapback blocking task panicked")
+        }
+    }
 }
 
 pub(super) async fn lock_managed_snapback(
