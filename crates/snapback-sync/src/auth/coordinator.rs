@@ -316,6 +316,7 @@ pub enum IssuanceFinish {
         budget_name: &'static str,
         retry_after_ms: u64,
     },
+    GuestIdempotencyConflict,
     SenderKeyBound,
     CandidateCollision,
     PredecessorChanged,
@@ -329,6 +330,12 @@ pub enum PasswordChangeFinish {
     Committed(CredentialIssue),
     CredentialInvalid,
     CredentialThrottled,
+    GuestClaimCollision,
+    GuestAlreadyClaimed,
+    GuestBudgetRefused {
+        budget_name: &'static str,
+        retry_after_ms: u64,
+    },
     CandidateCollision,
     PredecessorChanged,
 }
@@ -1172,7 +1179,7 @@ impl AuthCoordinator {
                 } else {
                     topology
                         .projection
-                        .finalize_token_rotation(&carrier.ticket, carrier.plan.session_id())
+                        .finalize_token_rotation(&carrier.ticket, carrier.plan.session_id(), None)
                         .ok()
                 };
                 let Some(finalized_rotation_cut) = finalized_rotation_cut else {
@@ -1277,6 +1284,10 @@ impl AuthCoordinator {
                     budget_name,
                     retry_after_ms,
                 })
+            }
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::GuestIdempotencyConflict) => {
+                exact_unmark_issuance(&mut topology, &carrier)?;
+                Ok(IssuanceFinish::GuestIdempotencyConflict)
             }
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::SenderKeyBound) => {
                 exact_unmark_issuance(&mut topology, &carrier)?;
@@ -1404,6 +1415,26 @@ impl AuthCoordinator {
                 exact_unmark_password_change(&mut topology, &carrier)?;
                 Ok(PasswordChangeFinish::CredentialThrottled)
             }
+            AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::GuestClaimCollision) => {
+                exact_unmark_password_change(&mut topology, &carrier)?;
+                Ok(PasswordChangeFinish::GuestClaimCollision)
+            }
+            AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::GuestAlreadyClaimed) => {
+                exact_unmark_password_change(&mut topology, &carrier)?;
+                Ok(PasswordChangeFinish::GuestAlreadyClaimed)
+            }
+            AuthTransactionAttempt::Committed(
+                PlannedPasswordChangeCommit::GuestBudgetRefused {
+                    budget_name,
+                    retry_after_ms,
+                },
+            ) => {
+                exact_unmark_password_change(&mut topology, &carrier)?;
+                Ok(PasswordChangeFinish::GuestBudgetRefused {
+                    budget_name,
+                    retry_after_ms,
+                })
+            }
             AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::Committed {
                 session,
                 committed_revocations,
@@ -1442,6 +1473,7 @@ impl AuthCoordinator {
                         .finalize_token_rotation(
                             &carrier.rotation_ticket,
                             carrier.plan.rotation().session_id(),
+                            carrier.plan.successor_provider(),
                         )
                         .is_err()
                 {

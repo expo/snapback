@@ -27,6 +27,7 @@ export const FAMILIAR_DISPOSITIONS = Object.freeze({
     assuranceRequirements: entry(1, 'shared auth extension'),
     recoveryPolicy: entry(1, 'shared auth extension'),
     guestPolicy: entry(1, 'shared auth extension'),
+    abuseBudgets: entry(1, 'shared generated abuse-policy extension'),
     secretReferences: entry(1, 'shared auth extension'),
     verifiedProvisioning: entry(1, 'shared auth extension'),
     custody: entry(2, 'defaults to durable-required; volatile-explicit is refused in the familiar profile'),

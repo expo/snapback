@@ -195,13 +195,8 @@ export const auth = defineAuth({
   },
 
   abuseBudgets: {
-    guestCreate: 'auth.guest.create',
-    accountCreate: 'auth.account.create',
-    passwordGuess: 'auth.password.guess',
-    passwordHashCpu: 'auth.password.hash-cpu',
-    recoveryCodeGuess: 'auth.recovery-code.guess',
-    identityEnumeration: 'auth.identity.enumeration',
-    sessionMint: 'auth.session.mint',
+    version: 1,
+    preset: 'guest-entry-v1',
   },
 
   secretReferences: {
@@ -481,11 +476,10 @@ This document consumes, and does not redefine, these names:
 
 - `auth.guest.create`;
 - `auth.account.create`;
-- `auth.password.guess`;
-- `auth.password.hash-cpu`;
-- `auth.recovery-code.guess`;
-- `auth.identity.enumeration`; and
-- `auth.session.mint`.
+- `auth.guessing`;
+- `auth.hash-cpu`;
+- `auth.enumeration`; and
+- `auth.session-mint`.
 
 Limits, charge axes, trust tiers, retry-after calculation, idempotency
 accounting, and charge-on-denial semantics belong exclusively to the
@@ -2241,7 +2235,7 @@ Proof requirements:
 
 - guest policy enabled;
 - admitted `auth.guest.create` budget;
-- admitted `auth.session.mint` budget;
+- admitted `auth.session-mint` budget;
 - CSPRNG availability; and
 - no caller-supplied principal or session identity.
 
@@ -2893,6 +2887,11 @@ A cleanup failure leaves the guest active and retryable.
 
 The default tombstone posture prevents silent orphaning.
 
+Guest entry uses the effect-budgets idempotency protocol. The generated
+unclaimed-guest retention deadline is also the minimum replay-retention
+deadline for pending, committed, and refused entry outcomes; the referenced
+derivation key remains retained until bounded auth GC reclaims that outcome.
+
 General collision quarantine, `switch_existing`, and merge cleanup remain with
 the account-lifecycle Spec.
 
@@ -2902,13 +2901,13 @@ The floor references the effect-budgets vocabulary without redefining it.
 
 | Transition | Required budget names |
 | --- | --- |
-| Guest create | `auth.guest.create`, `auth.session.mint` |
-| Guest claim request/proof | existing challenge budgets, `auth.identity.enumeration` |
-| Password account creation | `auth.account.create`, `auth.identity.enumeration`, `auth.password.hash-cpu`, `auth.session.mint` |
-| Password authentication | `auth.password.guess`, `auth.identity.enumeration`, `auth.password.hash-cpu`, `auth.session.mint` |
-| Password set/change | `auth.password.guess` when reproof occurs, `auth.password.hash-cpu` |
-| Recovery-code issue/rotate | `auth.password.hash-cpu` only if accompanying password proof requires it |
-| Recovery-code consumption | `auth.recovery-code.guess`, `auth.identity.enumeration`, `auth.session.mint` |
+| Guest create | `auth.guest.create`, `auth.session-mint` |
+| Guest password claim | `auth.enumeration`, `auth.hash-cpu`, `auth.account.create`, `auth.session-mint` |
+| Password account creation | `auth.account.create`, `auth.enumeration`, `auth.hash-cpu`, `auth.session-mint` |
+| Password authentication | `auth.guessing`, `auth.enumeration`, `auth.hash-cpu`, `auth.session-mint` |
+| Password set/change | `auth.guessing` when reproof occurs, `auth.hash-cpu` |
+| Recovery-code issue/rotate | `auth.hash-cpu` only if accompanying password proof requires it |
+| Recovery-code consumption | `auth.guessing`, `auth.enumeration`, `auth.session-mint` |
 
 The effect-budgets Spec determines which attempts charge, which axes compose,
 how denial is charged, and how retries use normalized idempotency identity.

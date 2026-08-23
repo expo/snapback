@@ -81,6 +81,7 @@ function authProgram({
     lastAuthenticator: 'enforce',
   },
   guestPolicy: ${guestPolicy},
+  ${guestPolicy.includes('enabled: true') ? "abuseBudgets: { version: 1, preset: 'guest-entry-v1' }," : ''}
   secretReferences: {},
 }`;
 }
@@ -180,8 +181,17 @@ test('entry mechanisms are closed, canonical, and admit enabled guest policy', a
     guestRow.operations.map(({ clientMethod, applicationFacadeMethod }) => (
       [clientMethod, applicationFacadeMethod]
     )),
-    [['authEnterAsGuest', 'enterAsGuest']],
+    [
+      ['authEnterAsGuest', 'enterAsGuest'],
+      ['authClaimGuestWithPassword', 'claimGuestWithPassword'],
+    ],
   );
+  assert.equal(guestRow.operations[1].predecessor, 'settled-active-guest-same-session-and-authority');
+  assert.equal(
+    guestRow.operations[1].collisionContract,
+    'different-principal-refuses-without-link-merge-or-switch',
+  );
+  assert.equal(guestRow.operations[1].recoveryProjection, 'one-time-response');
   assert.equal(guestRow.reactHook, 'useSnapbackAuth');
   assert.equal(guestRow.targetCapability, 'auth.guest-sessions');
 

@@ -174,6 +174,7 @@ assert.throws(
           cleanup: { kind: 'declarative', default: 'tombstone', tables: {} },
         },
       },
+      abuseBudgets: { version: 1, preset: 'guest-entry-v1' },
       secretReferences: {},
     }),
   }),
@@ -1020,6 +1021,7 @@ const authProgram = defineAuth({
   assuranceRequirements: { sensitive: { allOf: ['email_verified', 'recent_auth'] } },
   ${recoveryPolicySource}
   guestPolicy: { enabled: true, claiming: ['emailCode'], reaping: { afterMs: 604800000, cleanup: { kind: 'declarative', default: 'tombstone', tables: {} } } },
+  abuseBudgets: { version: 1, preset: 'guest-entry-v1' },
   secretReferences: {},
 });
 export default defineSchema({ ${tables} }, { auth: { mode: 'sessions' }, authProgram });

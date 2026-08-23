@@ -250,11 +250,17 @@ When the generated policy includes `guest-v1`, the same facade can first run
 `await auth.enterAsGuest()` and later call
 `auth.claimGuestWithPassword({ email, password })`. Claim preserves the guest
 principal, revokes its guest-era sessions, and adopts the password successor
-through the ordinary coordinator barrier. Its recovery codes are a one-time
+through an in-place credential rotation: the acting session id and authority
+instance are retained, its bearer rotates, and other guest-era sessions are
+revoked. Its recovery codes are a one-time
 return boundary with the same handling as signup. If the email already belongs
 to another principal, `SNAPBACK_AUTH_GUEST_CLAIM_COLLISION` refuses without
-revealing that account or taking it over. A reaped, expired, logged-out, or
-non-guest predecessor fails as the uniform invalid-guest-session class.
+revealing that account or taking it over. The route refuses in production with
+`SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE`. A reaped or expired predecessor
+is rejected by session middleware as `SNAPBACK_AUTH_SESSION_EXPIRED`; a
+logged-out bearer is rejected by that same middleware with
+`SNAPBACK_AUTH_SESSION_EXPIRED`; a still-live non-guest session reaches the transition and returns
+`SNAPBACK_AUTH_GUEST_SESSION_INVALID`.
 
 The browser restoration path is package-tested against a fresh application
 client over the same durable custody record:

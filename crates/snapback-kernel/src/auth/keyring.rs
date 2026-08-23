@@ -253,7 +253,7 @@ impl AuthKeyringStore {
     }
 
     /// Prune keys only after their 24-hour floor and after the storage layer
-    /// proves no retained verification challenge references the id.
+    /// proves no retained keyed auth record references the id.
     pub fn prune_retired(
         &self,
         now_ms: u64,

@@ -1029,6 +1029,31 @@ pub struct AuthProgramManifestV1 {
     #[serde(default)]
     pub mechanisms: BTreeMap<String, AuthMechanismManifestV1>,
     pub guest_policy: GuestPolicyManifestV1,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub abuse_budgets: Option<AuthAbuseBudgetPolicyManifestV1>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthBudgetTermsManifestV1 {
+    pub limit: u64,
+    pub window_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthBudgetProfilesManifestV1 {
+    pub profiles: BTreeMap<String, AuthBudgetTermsManifestV1>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthAbuseBudgetPolicyManifestV1 {
+    pub version: u32,
+    pub preset: String,
+    pub budgets: BTreeMap<String, AuthBudgetProfilesManifestV1>,
+    pub effect_bindings: BTreeMap<String, Vec<String>>,
+    pub policy_digest: String,
 }
 
 /// App-owned declaration of the outward-facing function surface. Absence (or

@@ -809,9 +809,13 @@ The lifecycle manifest from LLP 0238 gains generated bootstrap rows for:
   return boundary); mechanism rows deferred to a later phase (for example
   `email-code-v1` before its facade method exists) gate at their own phase,
   not Phase 1;
-- the `guest-v1` row maps to `auth.enterAsGuest()` on the framework-neutral
-  owner and the same React/Expo `useSnapbackAuth()` projection; it never
-  creates a framework-specific coordinator or custody path;
+- the `guest-v1` row maps both `auth.enterAsGuest()` and
+  `auth.claimGuestWithPassword(...)` on the framework-neutral owner into the
+  same React/Expo `useSnapbackAuth()` projection. The claim row names its
+  active-guest predecessor, same-session/same-authority rotation, collision
+  refusal, capability, recovery-credential result type, and one-time recovery
+  projection; neither operation creates a framework-specific coordinator or
+  custody path;
 - recovery-lifecycle rows derived from LLP 0214's `recoveryPolicy` (not the
   mechanism set): consumption and rotation, their predecessor rules, target
   capabilities, facade methods, and exact return contracts;

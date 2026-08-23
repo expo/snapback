@@ -25,8 +25,6 @@ const INCARNATION = '018f0d90-ab21-7a22-8c33-445566778899';
 const USER = '018f0d90-ab22-7a22-8c33-445566778899';
 const GUEST_SESSION = '018f0d90-ab23-7a22-8c33-445566778899';
 const GUEST_AUTHORITY = '018f0d90-ab24-7a22-8c33-445566778899';
-const CLAIM_SESSION = '018f0d90-ab25-7a22-8c33-445566778899';
-const CLAIM_AUTHORITY = '018f0d90-ab26-7a22-8c33-445566778899';
 const GUEST_BEARER = 'sbs_packed_guest_entry_secret';
 const CLAIM_BEARER = 'sbs_packed_guest_claim_secret';
 const PASSWORD = 'packed-guest-claim-password-123!';
@@ -219,6 +217,11 @@ globalThis.fetch = async (url, init = {}) => {
   if (path === '/auth/guest') {
     assert.equal(bearer, null);
     assert.deepEqual(body, {});
+    assert.match(
+      headers.get('idempotency-key') ?? '',
+      /^[A-Za-z0-9_-]{32}$/u,
+      'packed client supplies the guest-entry idempotency identity',
+    );
     return Response.json(credential(
       GUEST_BEARER,
       GUEST_SESSION,
@@ -235,8 +238,8 @@ globalThis.fetch = async (url, init = {}) => {
     assert.deepEqual(body, { email: 'guest@example.com', password: PASSWORD });
     return Response.json(credential(
       CLAIM_BEARER,
-      CLAIM_SESSION,
-      CLAIM_AUTHORITY,
+      GUEST_SESSION,
+      GUEST_AUTHORITY,
       'local-password',
       recoveryCodes,
     ));
@@ -396,7 +399,7 @@ try {
     3,
     'browser and both Expo process lifetimes use the same guest transition route',
   );
-  console.log('packed guest-session entry: browser durable restart/claim/logout and Expo volatile restart pass');
+  console.log('packed guest-session client shape: browser durable restart/claim/logout and Expo volatile restart pass');
 } finally {
   if (renderer !== undefined && renderer !== null) {
     try { await act(async () => renderer.unmount()); } catch { /* cleanup only */ }

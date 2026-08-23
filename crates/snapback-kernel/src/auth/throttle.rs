@@ -15,6 +15,7 @@ use zeroize::Zeroizing;
 
 const TABLE: &str = "_snapback_auth_throttle";
 const IDEMPOTENCY_TABLE: &str = "_snapback_auth_budget_idempotency";
+const LOCAL_ATTEMPT_TABLE: &str = "_snapback_auth_attempt_charges";
 const KEY_DOMAIN: &[u8] = b"snapback.auth-throttle.bucket.v1";
 #[allow(dead_code)] // Request-bound effect consumers enter through the staged idempotency seam.
 const IDEMPOTENCY_KEY_DOMAIN: &[u8] = b"snapback.auth-budget.idempotency-key.v1";
@@ -30,6 +31,8 @@ const MAX_VALUE_BYTES: usize = 512;
 /// accounting and diagnostic vocabulary; legacy diagnostics are aliases.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub enum AuthBudgetName {
+    #[serde(rename = "auth.account.create")]
+    AccountCreate,
     #[serde(rename = "auth.guest.create")]
     GuestCreate,
     #[serde(rename = "auth.guessing")]
@@ -55,6 +58,7 @@ pub enum AuthBudgetName {
 pub enum PasswordAuthEffect {
     Signup,
     Signin,
+    GuestClaim,
 }
 
 #[allow(dead_code)]
@@ -63,6 +67,7 @@ impl PasswordAuthEffect {
         match self {
             Self::Signup => "auth.password.signup",
             Self::Signin => "auth.password.signin",
+            Self::GuestClaim => "auth.guest.claim.password",
         }
     }
 
@@ -71,12 +76,19 @@ impl PasswordAuthEffect {
             Self::Signup => &[
                 AuthBudgetName::Enumeration,
                 AuthBudgetName::HashCpu,
+                AuthBudgetName::AccountCreate,
                 AuthBudgetName::SessionMint,
             ],
             Self::Signin => &[
                 AuthBudgetName::Guessing,
                 AuthBudgetName::Enumeration,
                 AuthBudgetName::HashCpu,
+                AuthBudgetName::SessionMint,
+            ],
+            Self::GuestClaim => &[
+                AuthBudgetName::Enumeration,
+                AuthBudgetName::HashCpu,
+                AuthBudgetName::AccountCreate,
                 AuthBudgetName::SessionMint,
             ],
         }
@@ -86,6 +98,7 @@ impl PasswordAuthEffect {
 impl AuthBudgetName {
     pub const fn as_str(self) -> &'static str {
         match self {
+            Self::AccountCreate => "auth.account.create",
             Self::GuestCreate => "auth.guest.create",
             Self::Guessing => "auth.guessing",
             Self::Enumeration => "auth.enumeration",
@@ -98,8 +111,9 @@ impl AuthBudgetName {
         }
     }
 
-    fn parse(value: &str) -> Option<Self> {
+    pub(crate) fn parse(value: &str) -> Option<Self> {
         match value {
+            "auth.account.create" => Some(Self::AccountCreate),
             "auth.guest.create" => Some(Self::GuestCreate),
             "auth.guessing" => Some(Self::Guessing),
             "auth.enumeration" => Some(Self::Enumeration),
@@ -287,6 +301,22 @@ const SESSION_MINT_RULES: &[AuthBudgetRuleDefinition] = &[AuthBudgetRuleDefiniti
     charge_timing: AuthBudgetChargeTiming::SessionTransactionCommit,
     missing_axis: MissingAxisPolicy::Refuse,
 }];
+const ACCOUNT_CREATE_RULES: &[AuthBudgetRuleDefinition] = &[AuthBudgetRuleDefinition {
+    id: "account-create-app-deployment",
+    axes: GUEST_EFFECT_AXES,
+    strategy: AuthBudgetCounterStrategy::RollingWindow,
+    charge_timing: AuthBudgetChargeTiming::SessionTransactionCommit,
+    missing_axis: MissingAxisPolicy::Refuse,
+}];
+
+pub const AUTH_ACCOUNT_CREATE_BUDGET: AuthBudgetDefinition = AuthBudgetDefinition {
+    name: AuthBudgetName::AccountCreate,
+    harms: &[AuthBudgetHarm::ChallengeStateAllocation],
+    effects: &["auth.password.signup", "auth.guest.claim.password"],
+    counter_class: AuthBudgetCounterClass::SuccessfulEffect,
+    rules: ACCOUNT_CREATE_RULES,
+    public_non_enumerating: true,
+};
 
 pub const AUTH_GUEST_CREATE_BUDGET: AuthBudgetDefinition = AuthBudgetDefinition {
     name: AuthBudgetName::GuestCreate,
@@ -324,7 +354,11 @@ pub const AUTH_GUESSING_BUDGET: AuthBudgetDefinition = AuthBudgetDefinition {
 pub const AUTH_ENUMERATION_BUDGET: AuthBudgetDefinition = AuthBudgetDefinition {
     name: AuthBudgetName::Enumeration,
     harms: &[AuthBudgetHarm::Enumeration],
-    effects: &["auth.password.signup", "auth.password.signin"],
+    effects: &[
+        "auth.password.signup",
+        "auth.password.signin",
+        "auth.guest.claim.password",
+    ],
     counter_class: AuthBudgetCounterClass::Attempt,
     rules: ENUMERATION_RULES,
     public_non_enumerating: true,
@@ -332,7 +366,11 @@ pub const AUTH_ENUMERATION_BUDGET: AuthBudgetDefinition = AuthBudgetDefinition {
 pub const AUTH_HASH_CPU_BUDGET: AuthBudgetDefinition = AuthBudgetDefinition {
     name: AuthBudgetName::HashCpu,
     harms: &[AuthBudgetHarm::HashCpu],
-    effects: &["auth.password.signup", "auth.password.signin"],
+    effects: &[
+        "auth.password.signup",
+        "auth.password.signin",
+        "auth.guest.claim.password",
+    ],
     counter_class: AuthBudgetCounterClass::Attempt,
     rules: HASH_CPU_RULES,
     public_non_enumerating: true,
@@ -344,6 +382,7 @@ pub const AUTH_SESSION_MINT_BUDGET: AuthBudgetDefinition = AuthBudgetDefinition 
         "auth.password.signup",
         "auth.password.signin",
         "auth.guest.create",
+        "auth.guest.claim.password",
     ],
     counter_class: AuthBudgetCounterClass::SuccessfulEffect,
     rules: SESSION_MINT_RULES,
@@ -351,6 +390,7 @@ pub const AUTH_SESSION_MINT_BUDGET: AuthBudgetDefinition = AuthBudgetDefinition 
 };
 
 pub const AUTH_COMPATIBILITY_BUDGETS: &[AuthBudgetDefinition] = &[
+    AUTH_ACCOUNT_CREATE_BUDGET,
     AUTH_GUEST_CREATE_BUDGET,
     AUTH_DELIVERY_BUDGET,
     AUTH_CHALLENGE_ALLOCATION_BUDGET,
@@ -361,7 +401,7 @@ pub const AUTH_COMPATIBILITY_BUDGETS: &[AuthBudgetDefinition] = &[
 ];
 
 fn compatibility_registry_is_closed() -> bool {
-    AUTH_COMPATIBILITY_BUDGETS.len() == 7
+    AUTH_COMPATIBILITY_BUDGETS.len() == 8
         && AUTH_COMPATIBILITY_BUDGETS.iter().all(|budget| {
             !budget.harms.is_empty()
                 && !budget.effects.is_empty()
@@ -394,6 +434,9 @@ fn compatibility_registry_is_closed() -> bool {
                         )
                 })
         })
+        && AUTH_COMPATIBILITY_BUDGETS
+            .iter()
+            .any(|budget| budget.name == AuthBudgetName::AccountCreate)
         && AUTH_COMPATIBILITY_BUDGETS
             .iter()
             .any(|budget| budget.name == AuthBudgetName::GuestCreate)
@@ -552,6 +595,90 @@ pub(crate) fn admit_local_successful_auth_effects_in(
         )?;
     }
     Ok(None)
+}
+
+/// Charge one declared attempt budget at the observation/KDF-admission cut.
+/// The row commits even when admission is refused; that is the intentional
+/// charge-on-denial difference from successful-effect accounting.
+pub fn charge_local_authentication_attempt(
+    connection: &mut Connection,
+    now_ms: u64,
+    terms: RollingWindowBudgetTerms,
+    name: AuthBudgetName,
+    axis_identity: &[u8],
+) -> crate::diagnostic::SnapbackResult<AuthenticationThrottleDecision> {
+    if terms.limit == 0
+        || terms.window_ms == 0
+        || terms.limit > i64::MAX as u64
+        || now_ms > i64::MAX as u64
+        || axis_identity.is_empty()
+        || !matches!(name, AuthBudgetName::Enumeration | AuthBudgetName::HashCpu)
+    {
+        return Err(crate::diagnostic::SnapbackError::error(
+            "SNAPBACK_AUTH_BUDGET_POLICY_INVALID",
+            "auth",
+            "authentication budget policy is invalid",
+        ));
+    }
+    connection.execute_batch(&format!(
+        "CREATE TABLE IF NOT EXISTS {LOCAL_ATTEMPT_TABLE}(
+           id INTEGER PRIMARY KEY AUTOINCREMENT,
+           budget_name TEXT NOT NULL,
+           axis_digest BLOB NOT NULL,
+           charged_at_ms INTEGER NOT NULL
+         );
+         CREATE INDEX IF NOT EXISTS {LOCAL_ATTEMPT_TABLE}_window
+           ON {LOCAL_ATTEMPT_TABLE}(budget_name,axis_digest,charged_at_ms);"
+    ))?;
+    let axis_digest = Sha256::digest(axis_identity);
+    let cutoff = now_ms.saturating_sub(terms.window_ms);
+    let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    transaction.execute(
+        &format!("DELETE FROM {LOCAL_ATTEMPT_TABLE} WHERE charged_at_ms<=?1"),
+        params![cutoff as i64],
+    )?;
+    let count: i64 = transaction.query_row(
+        &format!(
+            "SELECT COUNT(*) FROM {LOCAL_ATTEMPT_TABLE}
+             WHERE budget_name=?1 AND axis_digest=?2 AND charged_at_ms>?3"
+        ),
+        params![name.as_str(), axis_digest.as_slice(), cutoff as i64],
+        |row| row.get(0),
+    )?;
+    let admitted = u64::try_from(count)
+        .ok()
+        .is_some_and(|count| count < terms.limit);
+    let retry_after_ms = if admitted {
+        transaction.execute(
+            &format!(
+                "INSERT INTO {LOCAL_ATTEMPT_TABLE}(budget_name,axis_digest,charged_at_ms)
+                 VALUES(?1,?2,?3)"
+            ),
+            params![name.as_str(), axis_digest.as_slice(), now_ms as i64],
+        )?;
+        0
+    } else {
+        let oldest: i64 = transaction.query_row(
+            &format!(
+                "SELECT MIN(charged_at_ms) FROM {LOCAL_ATTEMPT_TABLE}
+                 WHERE budget_name=?1 AND axis_digest=?2 AND charged_at_ms>?3"
+            ),
+            params![name.as_str(), axis_digest.as_slice(), cutoff as i64],
+            |row| row.get(0),
+        )?;
+        u64::try_from(oldest)
+            .unwrap_or(now_ms)
+            .saturating_add(terms.window_ms)
+            .saturating_sub(now_ms)
+            .max(1)
+    };
+    transaction.commit()?;
+    Ok(AuthenticationThrottleDecision {
+        admitted,
+        retry_after_ms,
+        budget_name: name,
+        refusal: (!admitted).then(|| AuthBudgetRefusal::rate_duration(name, retry_after_ms)),
+    })
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

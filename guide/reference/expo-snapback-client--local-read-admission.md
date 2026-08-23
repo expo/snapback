@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:eadd0fe0108ed3e199206efc18a356ebb9cb42406982
 # @expo/snapback-client/local-read-admission
 
 Build-bound public API projection for `@expo/snapback-client/local-read-admission`. Canonical registry identity:
-`sha256:30f2ef6ed6f3c5b8bcefbbddd247cac33226da38c65446ae9c83df5dc1e90d9b`.
+`sha256:10174812ae483f7fcd166febb53a8fecc75aec574297f2bc926a4edf6d1e9fc4`.
 Runtime parity condition:
 `import` → `packages/snapback-client/local-read-admission.mjs`.
 

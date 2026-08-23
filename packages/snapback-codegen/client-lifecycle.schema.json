@@ -247,6 +247,7 @@
         "predecessor": { "type": "string", "minLength": 1 },
         "resultType": { "type": "string", "minLength": 1 },
         "recoveryProjection": { "enum": ["none", "one-time-response"] },
+        "collisionContract": { "type": "string", "minLength": 1 },
         "facadeDisposition": { "type": "string", "minLength": 1 },
         "targetCapability": { "type": "string", "minLength": 1 }
       }

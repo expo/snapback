@@ -3204,6 +3204,10 @@ export class SnapbackClient {
     this.__ephemeralRepublisherGeneration = 0;
     this.__ephemeralAuthorityByCollection = new Map();
     this.__authControllers = new Set();
+    // Retained across transport/response failures so retrying guest entry
+    // presents the same durable effect identity instead of minting a second
+    // principal after an unknown commit.
+    this.__guestEntryIdempotencyKey = null;
     this.__rawLiveStreams = new Set();
     this.__closeAuthPromise = null;
     this.__authTransportGeneration = 0;
@@ -7137,6 +7141,7 @@ export class SnapbackClient {
     forbiddenSecrets,
     recoveryCodes,
     guest = false,
+    headers = {},
   }) {
     if (!this.authCoordinator) {
       throw new TypeError('password authentication requires AuthCoordinator custody');
@@ -7153,7 +7158,7 @@ export class SnapbackClient {
       'POST',
       path,
       body,
-      this.#authOfferHeaders(true, null),
+      { ...this.#authOfferHeaders(true, null), ...headers },
       { forbiddenSecrets },
     );
     const response = recoveryCodes
@@ -7270,63 +7275,47 @@ export class SnapbackClient {
     });
   }
 
-  authEnterAsGuest() {
-    return this.#authPasswordAnonymousIssuance({
-      path: '/auth/guest',
-      body: {},
-      forbiddenSecrets: [],
-      recoveryCodes: false,
-      guest: true,
-    });
+  async authEnterAsGuest() {
+    const idempotencyKey = this.__guestEntryIdempotencyKey
+      ?? SnapbackClient.mintGuestEntryIdempotencyKey();
+    this.__guestEntryIdempotencyKey = idempotencyKey;
+    try {
+      const result = await this.#authPasswordAnonymousIssuance({
+        path: '/auth/guest',
+        body: {},
+        forbiddenSecrets: [],
+        recoveryCodes: false,
+        guest: true,
+        headers: { 'Idempotency-Key': idempotencyKey },
+      });
+      if (this.__guestEntryIdempotencyKey === idempotencyKey) {
+        this.__guestEntryIdempotencyKey = null;
+      }
+      return result;
+    } catch (error) {
+      // @ref LLP 0215#6-idempotency-and-retry-identity — retain the identity across an
+      // unknown transport outcome so the retry converges on the first effect.
+      // A server refusal may release it only when the response explicitly
+      // proves that no guest/session effect committed or may have committed.
+      if (
+        error?.effectCommitted === false
+        && error?.effectMayHaveCommitted === false
+        && this.__guestEntryIdempotencyKey === idempotencyKey
+      ) {
+        this.__guestEntryIdempotencyKey = null;
+      }
+      throw error;
+    }
   }
 
   async authClaimGuestWithPassword({ email, password }) {
-    if (!this.authCoordinator) {
-      throw new TypeError('guest claiming requires AuthCoordinator custody');
-    }
     this.#requireGuestBearerCustody();
-    await this.authSession();
-    const capture = this.authCoordinator.capture();
-    const predecessor = this.authCoordinator.credentialFor(capture);
-    if (predecessor.authority.kind !== 'session') throw staleAuthorityError();
-    const raw = await this.#trackedFetchJson(
-      'POST',
-      '/auth/guest/claim/password',
-      { email, password },
-      this.#authOfferHeaders(true, predecessor.bearer),
-      { forbiddenSecrets: [predecessor.bearer, password] },
-    );
-    const response = this.#validateCredentialResponseWithRecoveryCodes(
-      raw,
-      [predecessor.bearer, password],
-    );
-    const currentCapture = this.authCoordinator.capture();
-    const current = this.authCoordinator.credentialFor(currentCapture);
-    const authority = credentialAuthority(
-      response,
-      'sessions',
-      current.authority.authorizationStreamIncarnation,
-    );
-    if (sameClientAuthority(current.authority, authority)) {
-      const projected = credentialPublicProjectionWithRecoveryCodes(response);
-      this.#publishCredentialPrincipal(projected);
-      return projected;
-    }
-    if (
-      current.authority.kind !== 'session'
-      || current.authority.userId !== authority.userId
-      || !sameClientAuthority(current.authority, predecessor.authority)
-    ) {
-      throw staleAuthorityError();
-    }
-    await this.#transitionCredentialAuthority(currentCapture, {
-      authority,
-      bearer: response.token,
-      refreshAfterMs: response.refreshAfter,
+    return this.#authPasswordCredentialRotation({
+      path: '/auth/guest/claim/password',
+      body: { email, password },
+      forbiddenSecrets: [password],
+      recoveryCodes: true,
     });
-    const projected = credentialPublicProjectionWithRecoveryCodes(response);
-    this.#publishCredentialPrincipal(projected);
-    return projected;
   }
 
   authPasswordSignIn({ email, password }) {
@@ -8129,6 +8118,16 @@ export class SnapbackClient {
   static mintBundleBootKey() {
     const bytes = new Uint8Array(16);
     cryptoRandomSource('bundle boot idempotency key').getRandomValues(bytes);
+    let binary = '';
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/u, '');
+  }
+
+  /// Mint a retry-stable guest-entry effect identity. The instance retains it
+  /// until the complete authority transition succeeds.
+  static mintGuestEntryIdempotencyKey() {
+    const bytes = new Uint8Array(24);
+    cryptoRandomSource('guest-entry idempotency key').getRandomValues(bytes);
     let binary = '';
     for (const byte of bytes) binary += String.fromCharCode(byte);
     return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/u, '');

@@ -14633,12 +14633,16 @@ fn hosted_body_auth_throttle_subject(path: &str, body: Option<&Value>) -> Option
     let field = match path {
         "/auth/request-code" => "email",
         "/auth/exchange" => "challengeId",
+        "/auth/guest/claim/password" | "/auth/password/signup" => "email",
         _ => return None,
     };
     let value = body?.get(field)?.as_str()?.trim();
     if value.is_empty() || value.len() > 512 {
         None
-    } else if path == "/auth/request-code" {
+    } else if matches!(
+        path,
+        "/auth/request-code" | "/auth/guest/claim/password" | "/auth/password/signup"
+    ) {
         Some(value.to_lowercase())
     } else {
         Some(value.to_owned())
@@ -14651,6 +14655,57 @@ async fn charge_hosted_body_auth_attempt(
     effective_source: Option<std::net::IpAddr>,
     subject: Option<String>,
 ) -> Result<(), Response> {
+    if spec.path == "/auth/guest/claim/password" {
+        let Some(subject) = subject else {
+            return Ok(());
+        };
+        let provider = installed_auth_provider(runtime)
+            .map_err(|error| ApiError::from(error).into_response())?;
+        let (program, deployment_id) = with_snapback(&runtime.snapback, |snapback| {
+            let manifest = snapback.served_schema_manifest();
+            (manifest.auth_program.clone(), manifest.app_id.clone())
+        })
+        .await;
+        let Some(program) = program else {
+            return Err(ApiError::from(SnapbackError::error(
+                "SNAPBACK_AUTH_BUDGET_POLICY_INVALID",
+                "auth",
+                "generated authentication budget policy is invalid",
+            ))
+            .into_response());
+        };
+        let source = effective_source.unwrap_or_else(|| {
+            "127.0.0.1"
+                .parse()
+                .expect("loopback authentication budget source is canonical")
+        });
+        let now_ms = provider.now_ms();
+        for name in [
+            crate::auth::throttle::AuthBudgetName::Enumeration,
+            crate::auth::throttle::AuthBudgetName::HashCpu,
+        ] {
+            let terms = guest_auth_named_budget_terms(&program, name.as_str(), provider.profile())
+                .map_err(|error| error.into_response())?;
+            let deployment_id = deployment_id.clone();
+            let subject = subject.clone();
+            let decision = with_snapback(&runtime.snapback, move |snapback| {
+                snapback.charge_declared_authentication_attempt(
+                    &deployment_id,
+                    name,
+                    terms,
+                    source,
+                    &subject,
+                    now_ms,
+                )
+            })
+            .await
+            .map_err(|error| ApiError::from(error).into_response())?;
+            if !decision.admitted {
+                return Err(ApiError::auth_budget_throttled(decision).into_response());
+            }
+        }
+        return Ok(());
+    }
     if !matches!(spec.path, "/auth/request-code" | "/auth/exchange") {
         return Ok(());
     }
@@ -17587,11 +17642,25 @@ async fn auth_session(
     let state = runtime.auth_mode_state();
     let resolved_authority = authority.resolved().clone();
     let projection = authority.projection().clone();
+    let generated_budget_policy_ready = if let Some(provider) = runtime.auth_provider.as_ref() {
+        let profile = provider.profile();
+        let program = with_snapback(&runtime.snapback, |snapback| {
+            snapback.served_schema_manifest().auth_program.clone()
+        })
+        .await;
+        program.is_none_or(|program| {
+            !program.guest_policy.enabled
+                || guest_auth_budget_terms(&program, "auth.guest.create", profile).is_ok()
+        })
+    } else {
+        false
+    };
     let provider_ready = runtime.auth_catalog_ready
         && runtime
             .auth_provider
             .as_ref()
-            .is_some_and(|provider| provider.readiness() == AuthProviderReadiness::Available);
+            .is_some_and(|provider| provider.readiness() == AuthProviderReadiness::Available)
+        && generated_budget_policy_ready;
     let authorization_stream_incarnation = authority
         .authorization_stream_incarnation()
         .ok_or_else(|| stale_prepared_authority(&authority, now_millis()))?
@@ -18068,6 +18137,7 @@ async fn coordinated_mint_session(
             | IssuanceFinish::CodeLocked
             | IssuanceFinish::CredentialThrottled
             | IssuanceFinish::GuestBudgetRefused { .. }
+            | IssuanceFinish::GuestIdempotencyConflict
             | IssuanceFinish::SenderKeyBound
             | IssuanceFinish::RehearsalReplay(_) => {
                 return Err(auth_provider_unavailable_error());
@@ -18404,6 +18474,9 @@ async fn coordinated_exchange_session(
                         return Err(ProviderError::from(auth_provider_unavailable_error()));
                     }
                     IssuanceFinish::GuestBudgetRefused { .. } => {
+                        return Err(ProviderError::from(auth_provider_unavailable_error()));
+                    }
+                    IssuanceFinish::GuestIdempotencyConflict => {
                         return Err(ProviderError::from(auth_provider_unavailable_error()));
                     }
                     IssuanceFinish::RehearsalReplay(_) => {
@@ -18795,6 +18868,7 @@ fn password_issue_response(
         IssuanceFinish::CredentialInvalid => Err(password_credential_invalid()),
         IssuanceFinish::CredentialThrottled => Err(password_throttled()),
         IssuanceFinish::GuestBudgetRefused { .. } => Err(auth_provider_unavailable()),
+        IssuanceFinish::GuestIdempotencyConflict => Err(auth_provider_unavailable()),
         IssuanceFinish::PredecessorChanged => Err(predecessor_changed()),
         IssuanceFinish::CandidateCollision
         | IssuanceFinish::CodeInvalid
@@ -18852,6 +18926,162 @@ async fn commit_guest_issuance_plan(
     await_owned_auth_transaction(transaction).await?
 }
 
+fn guest_auth_budget_terms(
+    program: &crate::contract_types::AuthProgramManifestV1,
+    effect: &str,
+    profile: crate::contract_types::AuthProviderProfile,
+) -> Result<crate::auth::throttle::RollingWindowBudgetTerms, ApiError> {
+    let invalid = || {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_AUTH_BUDGET_POLICY_INVALID",
+            "auth",
+            "generated authentication budget policy is invalid",
+        ))
+    };
+    let policy = program.abuse_budgets.as_ref().ok_or_else(invalid)?;
+    let policy_preimage = json!({
+        "version": policy.version,
+        "preset": policy.preset,
+        "budgets": policy.budgets,
+        "effectBindings": policy.effect_bindings,
+    });
+    let canonical_policy = crate::rqs_contract::jcs(&policy_preimage).map_err(|_| invalid())?;
+    use sha2::Digest as _;
+    let mut policy_hasher = sha2::Sha256::new();
+    policy_hasher.update(b"snapback.auth-abuse-budget-policy.v1");
+    policy_hasher.update(canonical_policy.as_bytes());
+    let reproduced_policy_digest = format!("sha256:{:x}", policy_hasher.finalize());
+    if policy.version != 1
+        || policy.preset != "guest-entry-v1"
+        || !policy.policy_digest.starts_with("sha256:")
+        || policy.policy_digest.len() != 71
+        || !policy.policy_digest[7..]
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+        || policy.policy_digest != reproduced_policy_digest
+    {
+        return Err(invalid());
+    }
+    let expected_budgets = [
+        "auth.account.create",
+        "auth.enumeration",
+        "auth.guest.create",
+        "auth.hash-cpu",
+        "auth.session-mint",
+    ];
+    if policy.budgets.len() != expected_budgets.len()
+        || expected_budgets
+            .iter()
+            .any(|name| !policy.budgets.contains_key(*name))
+        || policy.effect_bindings.len() != 2
+        || policy
+            .effect_bindings
+            .get("auth.guest.create")
+            .map(Vec::as_slice)
+            != Some(
+                [
+                    "auth.guest.create".to_owned(),
+                    "auth.session-mint".to_owned(),
+                ]
+                .as_slice(),
+            )
+        || policy
+            .effect_bindings
+            .get("auth.guest.claim.password")
+            .map(Vec::as_slice)
+            != Some(
+                [
+                    "auth.enumeration".to_owned(),
+                    "auth.hash-cpu".to_owned(),
+                    "auth.account.create".to_owned(),
+                    "auth.session-mint".to_owned(),
+                ]
+                .as_slice(),
+            )
+    {
+        return Err(invalid());
+    }
+    let profile_name = match profile {
+        crate::contract_types::AuthProviderProfile::Dev => "dev",
+        crate::contract_types::AuthProviderProfile::Test => "test",
+        crate::contract_types::AuthProviderProfile::Demo => "demo",
+        crate::contract_types::AuthProviderProfile::Prod => "prod",
+    };
+    let names = policy.effect_bindings.get(effect).ok_or_else(invalid)?;
+    let successful_names: &[&str] = match effect {
+        "auth.guest.create" => &["auth.guest.create", "auth.session-mint"],
+        "auth.guest.claim.password" => &["auth.account.create", "auth.session-mint"],
+        _ => return Err(invalid()),
+    };
+    if successful_names
+        .iter()
+        .any(|name| !names.iter().any(|candidate| candidate == name))
+    {
+        return Err(invalid());
+    }
+    let mut selected = None;
+    for budget in policy.budgets.values() {
+        if budget.profiles.len() != 4
+            || ["dev", "test", "demo", "prod"]
+                .iter()
+                .any(|name| !budget.profiles.contains_key(*name))
+        {
+            return Err(invalid());
+        }
+        for terms in budget.profiles.values() {
+            if terms.limit == 0 || terms.window_ms == 0 {
+                return Err(invalid());
+            }
+        }
+    }
+    for name in successful_names {
+        let terms = policy
+            .budgets
+            .get(*name)
+            .and_then(|budget| budget.profiles.get(profile_name))
+            .ok_or_else(invalid)?;
+        let terms = crate::auth::throttle::RollingWindowBudgetTerms {
+            limit: terms.limit,
+            window_ms: terms.window_ms,
+        };
+        if selected.is_some_and(|prior| prior != terms) {
+            return Err(invalid());
+        }
+        selected = Some(terms);
+    }
+    selected.ok_or_else(invalid)
+}
+
+fn guest_auth_named_budget_terms(
+    program: &crate::contract_types::AuthProgramManifestV1,
+    budget_name: &str,
+    profile: crate::contract_types::AuthProviderProfile,
+) -> Result<crate::auth::throttle::RollingWindowBudgetTerms, ApiError> {
+    let _ = guest_auth_budget_terms(program, "auth.guest.claim.password", profile)?;
+    let profile_name = match profile {
+        crate::contract_types::AuthProviderProfile::Dev => "dev",
+        crate::contract_types::AuthProviderProfile::Test => "test",
+        crate::contract_types::AuthProviderProfile::Demo => "demo",
+        crate::contract_types::AuthProviderProfile::Prod => "prod",
+    };
+    let terms = program
+        .abuse_budgets
+        .as_ref()
+        .and_then(|policy| policy.budgets.get(budget_name))
+        .and_then(|budget| budget.profiles.get(profile_name))
+        .ok_or_else(|| {
+            ApiError::from(SnapbackError::error(
+                "SNAPBACK_AUTH_BUDGET_POLICY_INVALID",
+                "auth",
+                "generated authentication budget policy is invalid",
+            ))
+        })?;
+    Ok(crate::auth::throttle::RollingWindowBudgetTerms {
+        limit: terms.limit,
+        window_ms: terms.window_ms,
+    })
+}
+
 async fn auth_enter_as_guest(
     State(runtime): State<AppState>,
     Extension(route_admission): Extension<AdmissionLease>,
@@ -18859,27 +19089,59 @@ async fn auth_enter_as_guest(
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
     let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
-    let policy = with_snapback(&runtime.snapback, |snapback| {
-        snapback.served_schema_manifest().auth_program.clone()
-    })
-    .await
-    .and_then(|program| {
-        (program.version == 1
-            && program.guest_policy.enabled
-            && program
-                .mechanisms
-                .values()
-                .any(|mechanism| mechanism.kind == "guest"))
-        .then_some(program.guest_policy)
-    })
-    .ok_or_else(|| {
-        ApiError::from(SnapbackError::error(
-            "SNAPBACK_AUTH_GUEST_DISABLED",
-            "auth",
-            "guest entry is unavailable",
+    let idempotency_key = headers
+        .get(axum::http::header::HeaderName::from_static(
+            "idempotency-key",
         ))
-    })?;
-    let reaping = policy.reaping.ok_or_else(|| {
+        .and_then(|value| value.to_str().ok())
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            ApiError::from(SnapbackError::error(
+                "SNAPBACK_AUTH_IDEMPOTENCY_INVALID",
+                "auth",
+                "guest entry requires an Idempotency-Key header",
+            ))
+        })?
+        .to_owned();
+    let (program, app_id, deployment_id) = with_snapback(&runtime.snapback, |snapback| {
+        (
+            snapback.served_schema_manifest().auth_program.clone(),
+            snapback.loaded_app_id(),
+            snapback.loaded_schema_hash(),
+        )
+    })
+    .await;
+    let deployment_id = deployment_id
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            ApiError::from(SnapbackError::error(
+                "SNAPBACK_AUTH_IDEMPOTENCY_INVALID",
+                "auth",
+                "guest-entry deployment identity is unavailable",
+            ))
+        })?;
+    let program = program
+        .filter(|program| {
+            program.version == 1
+                && program.guest_policy.enabled
+                && program
+                    .mechanisms
+                    .values()
+                    .any(|mechanism| mechanism.kind == "guest")
+        })
+        .ok_or_else(|| {
+            ApiError::from(SnapbackError::error(
+                "SNAPBACK_AUTH_GUEST_DISABLED",
+                "auth",
+                "guest entry is unavailable",
+            ))
+        })?;
+    let effect_budget = guest_auth_budget_terms(
+        &program,
+        "auth.guest.create",
+        installed_auth_provider(&runtime)?.profile(),
+    )?;
+    let reaping = program.guest_policy.reaping.ok_or_else(|| {
         ApiError::from(SnapbackError::error(
             "SNAPBACK_AUTH_GUEST_POLICY_INVALID",
             "auth",
@@ -18907,41 +19169,76 @@ async fn auth_enter_as_guest(
     }
     let provider = installed_auth_provider(&runtime)?;
     let now_ms = provider.now_ms();
-    let expires_at_ms = now_ms
-        .checked_add(reaping.after_ms)
-        .filter(|value| *value <= crate::contract_types::AUTH_MAX_SAFE_TIMESTAMP)
+    let policy_digest = program
+        .abuse_budgets
+        .as_ref()
+        .map(|policy| policy.policy_digest.clone())
         .ok_or_else(|| {
             ApiError::from(SnapbackError::error(
-                "SNAPBACK_AUTH_GUEST_POLICY_INVALID",
+                "SNAPBACK_AUTH_BUDGET_POLICY_INVALID",
                 "auth",
-                "generated guest policy is invalid",
+                "generated authentication budget policy is invalid",
             ))
         })?;
-    for _ in 0..3 {
-        let admission = provider.admit().await;
-        let (admission, plan) = with_snapback(&runtime.snapback, move |snapback| {
-            let plan = snapback.execute_auth_plan(admission.plan_guest_session_plan(
-                now_ms,
-                expires_at_ms,
-                PasswordIssuanceCustody::Bearer,
-            ));
-            (admission, plan)
-        })
+    let _idempotency_guard = provider
+        .guest_entry_idempotency_guard(&idempotency_key)
         .await;
-        let plan = plan?;
-        drop(admission);
-        match commit_guest_issuance_plan(&runtime, &provider, plan, &route_admission).await? {
-            IssuanceFinish::Committed { issue, outcome } => {
-                let (response, _) = issue.into_parts();
-                let mut response = Json(response).into_response();
-                response.extensions_mut().insert(outcome);
-                return Ok(response);
-            }
-            IssuanceFinish::GuestBudgetRefused {
-                budget_name,
-                retry_after_ms,
-            } => {
-                return Err(SnapbackError::error(
+    let admission = provider.admit().await;
+    let (admission, plan) = with_snapback(&runtime.snapback, move |snapback| {
+        let plan = snapback.execute_auth_plan(admission.plan_guest_session_plan(
+            now_ms,
+            reaping.after_ms,
+            effect_budget,
+            &idempotency_key,
+            &app_id,
+            &deployment_id,
+            &policy_digest,
+            PasswordIssuanceCustody::Bearer,
+        ));
+        (admission, plan)
+    })
+    .await;
+    let plan = plan?;
+    drop(admission);
+    match plan {
+        crate::auth::provider::ProviderGuestSessionPlan::Replay(issue) => {
+            let (response, _) = issue.into_parts();
+            Ok(Json(response).into_response())
+        }
+        crate::auth::provider::ProviderGuestSessionPlan::Refused {
+            budget_name,
+            retry_after_ms,
+        } => Err(SnapbackError::error(
+            "SNAPBACK_AUTH_RATE_BUDGET",
+            "auth",
+            "authentication request budget is exhausted",
+        )
+        .with_details(json!({
+            "budgetName": budget_name,
+            "retryAfter": { "kind": "duration", "milliseconds": retry_after_ms },
+            "correlationId": uuid::Uuid::now_v7().to_string(),
+            "effectCommitted": false,
+            "effectMayHaveCommitted": false,
+        }))
+        .into()),
+        crate::auth::provider::ProviderGuestSessionPlan::Conflict => Err(SnapbackError::error(
+            "SNAPBACK_AUTH_IDEMPOTENCY_CONFLICT",
+            "auth",
+            "guest-entry idempotency key conflicts with another request",
+        )
+        .into()),
+        crate::auth::provider::ProviderGuestSessionPlan::Planned(plan) => {
+            match commit_guest_issuance_plan(&runtime, &provider, plan, &route_admission).await? {
+                IssuanceFinish::Committed { issue, outcome } => {
+                    let (response, _) = issue.into_parts();
+                    let mut response = Json(response).into_response();
+                    response.extensions_mut().insert(outcome);
+                    Ok(response)
+                }
+                IssuanceFinish::GuestBudgetRefused {
+                    budget_name,
+                    retry_after_ms,
+                } => Err(SnapbackError::error(
                     "SNAPBACK_AUTH_RATE_BUDGET",
                     "auth",
                     "authentication request budget is exhausted",
@@ -18950,14 +19247,21 @@ async fn auth_enter_as_guest(
                     "budgetName": budget_name,
                     "retryAfter": { "kind": "duration", "milliseconds": retry_after_ms },
                     "correlationId": uuid::Uuid::now_v7().to_string(),
+                    "effectCommitted": false,
+                    "effectMayHaveCommitted": false,
                 }))
-                .into());
+                .into()),
+                IssuanceFinish::GuestIdempotencyConflict => Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_IDEMPOTENCY_CONFLICT",
+                    "auth",
+                    "guest-entry idempotency key conflicts with another request",
+                )
+                .into()),
+                IssuanceFinish::CandidateCollision => Err(auth_provider_unavailable()),
+                _ => Err(auth_provider_unavailable()),
             }
-            IssuanceFinish::CandidateCollision => continue,
-            _ => return Err(auth_provider_unavailable()),
         }
     }
-    Err(auth_provider_unavailable())
 }
 
 async fn auth_claim_guest_with_password(
@@ -18967,6 +19271,13 @@ async fn auth_claim_guest_with_password(
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
     require_provider_session_authority(&authority, InvocationSource::AuthRefresh)?;
+    let provider = installed_auth_provider(&runtime)?;
+    // @ref LLP 0227#threat-notes — password
+    // signup is not production-ready until proof-backed delivery exists;
+    // guest claim cannot be a second, less protected signup route.
+    if provider.profile() == crate::contract_types::AuthProviderProfile::Prod {
+        return Err(password_signup_unavailable());
+    }
     let program = with_snapback(&runtime.snapback, |snapback| {
         snapback.served_schema_manifest().auth_program.clone()
     })
@@ -19006,6 +19317,8 @@ async fn auth_claim_guest_with_password(
         )
         .into());
     }
+    let successful_effect_budget =
+        guest_auth_budget_terms(&program, "auth.guest.claim.password", provider.profile())?;
     let request = parse_auth_json::<PasswordCredentialRequest>(&headers, body)?;
     let bearer = SessionBearer::parse_any_version(auth_bearer(&headers).unwrap_or_default())
         .map_err(|_| {
@@ -19015,18 +19328,19 @@ async fn auth_claim_guest_with_password(
                 "guest session is invalid",
             ))
         })?;
-    let provider = installed_auth_provider(&runtime)?;
     let now_ms = provider.now_ms();
-    let admission = provider.admit().await;
-    let email = request.email.clone();
-    let (admission, preparation) = with_snapback(&runtime.snapback, move |snapback| {
-        let preparation = snapback.execute_auth_plan(admission.prepare_guest_claim_password_plan(
-            &bearer,
-            &email,
-            now_ms,
-            PasswordIssuanceCustody::Bearer,
-        ));
-        (admission, preparation)
+    let address_admission = provider
+        .admit_email(&request.email)
+        .await
+        .map_err(map_provider_error)?;
+    let (address_admission, preparation) = with_snapback(&runtime.snapback, move |snapback| {
+        let preparation =
+            snapback.execute_auth_plan(address_admission.prepare_guest_claim_password_plan(
+                &bearer,
+                now_ms,
+                PasswordIssuanceCustody::Bearer,
+            ));
+        (address_admission, preparation)
     })
     .await;
     let preparation = preparation.map_err(|error| {
@@ -19045,26 +19359,54 @@ async fn auth_claim_guest_with_password(
             preparation,
             crate::auth::identity_core::PasswordSecret::new(request.password.as_str().to_owned()),
             now_ms,
+            successful_effect_budget,
             PasswordIssuanceCustody::Bearer,
         )
         .await?;
-    drop(admission);
-    let finish = commit_session_password_issuance_plan(
-        &runtime,
-        &provider,
-        plan,
-        &authority,
-        "guest claim transaction",
-    )
-    .await?;
-    password_issue_response(finish, || {
-        SnapbackError::error(
+    drop(address_admission);
+    let finish = commit_password_change_plan(&runtime, &provider, plan, &authority).await?;
+    match finish {
+        PasswordChangeFinish::Committed(issue) => {
+            let (response, _) = issue.into_parts();
+            Ok(Json(response).into_response())
+        }
+        PasswordChangeFinish::GuestClaimCollision => Err(SnapbackError::error(
             "SNAPBACK_AUTH_GUEST_CLAIM_COLLISION",
             "auth",
             "guest claim is unavailable",
         )
-        .into()
-    })
+        .into()),
+        PasswordChangeFinish::GuestAlreadyClaimed => Err(SnapbackError::error(
+            "SNAPBACK_AUTH_GUEST_ALREADY_CLAIMED",
+            "auth",
+            "guest claim has already completed",
+        )
+        .into()),
+        PasswordChangeFinish::GuestBudgetRefused {
+            budget_name,
+            retry_after_ms,
+        } => Err(SnapbackError::error(
+            "SNAPBACK_AUTH_RATE_BUDGET",
+            "auth",
+            "authentication request budget is exhausted",
+        )
+        .with_details(json!({
+            "budgetName": budget_name,
+            "retryAfter": { "kind": "duration", "milliseconds": retry_after_ms },
+            "correlationId": uuid::Uuid::now_v7().to_string(),
+        }))
+        .into()),
+        PasswordChangeFinish::PredecessorChanged => Err(SnapbackError::error(
+            "SNAPBACK_AUTH_GUEST_SESSION_INVALID",
+            "auth",
+            "guest session is invalid",
+        )
+        .into()),
+        PasswordChangeFinish::CandidateCollision => Err(auth_provider_unavailable()),
+        PasswordChangeFinish::CredentialInvalid | PasswordChangeFinish::CredentialThrottled => {
+            Err(auth_provider_unavailable())
+        }
+    }
 }
 
 async fn auth_password_signup(
@@ -19377,6 +19719,11 @@ async fn auth_password_change(
                 | PasswordChangeFinish::PredecessorChanged => Err(password_credential_invalid()),
                 PasswordChangeFinish::CredentialThrottled => Err(password_throttled()),
                 PasswordChangeFinish::CandidateCollision => Err(auth_provider_unavailable()),
+                PasswordChangeFinish::GuestClaimCollision
+                | PasswordChangeFinish::GuestAlreadyClaimed
+                | PasswordChangeFinish::GuestBudgetRefused { .. } => {
+                    Err(auth_provider_unavailable())
+                }
             }
         }
         PasswordChangeRequest::Set(request) => {

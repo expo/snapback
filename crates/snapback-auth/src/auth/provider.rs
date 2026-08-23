@@ -18,6 +18,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use hmac::{Hmac, Mac as _};
+use sha2::{Digest as _, Sha256};
 use tokio::sync::{
     Mutex as AsyncMutex, OwnedMutexGuard, OwnedRwLockReadGuard, OwnedRwLockWriteGuard,
     RwLock as AsyncRwLock, Semaphore,
@@ -26,8 +28,8 @@ use uuid::Uuid;
 use zeroize::{Zeroize as _, Zeroizing};
 
 use super::crypto::{
-    AuthKeyId, AuthKeyMaterial, CanonicalAddress, ChallengeId, CodeDigest, OsRandom, RandomSource,
-    SessionBearer, StepUpDigest, StepUpProof, TokenHash, VerificationCode,
+    AuthKeyId, AuthKeyMaterial, CanonicalAddress, ChallengeId, CodeDigest, CryptoError, OsRandom,
+    RandomSource, SessionBearer, StepUpDigest, StepUpProof, TokenHash, VerificationCode,
 };
 use super::keyring::AuthKeyringStore;
 use super::lease::{
@@ -61,11 +63,11 @@ use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::storage::LocalDatabase;
 use crate::storage::auth::AuthTransactionAttempt;
 use crate::storage::auth_catalog_ops::{
-    CatalogChallengeConsumption, CatalogFamilyAlarmPlan, CatalogIssuanceCommit,
-    CatalogPasswordChangeCommit, CatalogPasswordChangePlan, CatalogPasswordChangeReconcile,
-    CatalogProjectedSession, CatalogRejectedExchangePlan, CatalogRevocationPlan,
-    CatalogRotationPlan, CatalogSessionIssuancePlan, CatalogStepUpBinding, INTERNAL_AUTH_COLLISION,
-    internal_state_snapback,
+    CatalogChallengeConsumption, CatalogFamilyAlarmPlan, CatalogGuestEntryIdempotencyPlan,
+    CatalogIssuanceCommit, CatalogPasswordChangeCommit, CatalogPasswordChangePlan,
+    CatalogPasswordChangeReconcile, CatalogProjectedSession, CatalogRejectedExchangePlan,
+    CatalogRevocationPlan, CatalogRotationPlan, CatalogSessionIssuancePlan, CatalogStepUpBinding,
+    GuestEntryIdempotencyLookup, INTERNAL_AUTH_COLLISION, internal_state_snapback,
 };
 
 pub const AUTH_ADDRESS_STRIPES: usize = 256;
@@ -723,10 +725,13 @@ impl fmt::Debug for ProviderTokenRotationPlan {
 
 #[allow(dead_code)] // Staged first-class password change route consumes this carrier next.
 pub struct ProviderPasswordChangePlan {
-    mutation: crate::storage::auth_identity::PasswordChangeCommitPlan,
+    mutation: crate::storage::auth_identity::CredentialRotationMutation,
     rotation: ProviderTokenRotationPlan,
     revocations: Vec<ProviderRevocationPlan>,
     password_profile: crate::storage::auth_identity::PasswordSecurityProfile,
+    recovery_codes: Option<crate::auth::identity_core::RecoveryCodes>,
+    successor_provider: Option<&'static str>,
+    successful_effect_budget: Option<snapback_kernel::auth::throttle::RollingWindowBudgetTerms>,
 }
 
 /// Read-only password planning facts captured under the managed Local lane.
@@ -829,10 +834,12 @@ impl fmt::Debug for PasswordResetPreparation {
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProviderPasswordChangeCommitPlan {
-    mutation: crate::storage::auth_identity::PasswordChangeCommitPlan,
+    mutation: crate::storage::auth_identity::CredentialRotationMutation,
     rotation: ProviderTokenRotationCommitPlan,
     revocations: Vec<ProviderRevocationPlan>,
     password_profile: crate::storage::auth_identity::PasswordSecurityProfile,
+    successor_provider: Option<&'static str>,
+    successful_effect_budget: Option<snapback_kernel::auth::throttle::RollingWindowBudgetTerms>,
 }
 
 impl fmt::Debug for ProviderPasswordChangePlan {
@@ -857,11 +864,19 @@ impl ProviderPasswordChangePlan {
             rotation: self.rotation.commit_plan(),
             revocations: self.revocations.clone(),
             password_profile: self.password_profile,
+            successor_provider: self.successor_provider,
+            successful_effect_budget: self.successful_effect_budget,
         }
     }
 
-    pub fn into_issue(self, session: SessionResponse) -> CredentialIssue {
-        self.rotation.into_issue(session)
+    pub fn successor_provider(&self) -> Option<&'static str> {
+        self.successor_provider
+    }
+
+    pub fn into_issue(mut self, session: SessionResponse) -> CredentialIssue {
+        self.rotation
+            .into_issue(session)
+            .with_recovery_codes(self.recovery_codes.take())
     }
 }
 
@@ -876,6 +891,8 @@ impl ProviderPasswordChangeCommitPlan {
                 .map(ProviderRevocationPlan::catalog_plan)
                 .collect(),
             password_profile: self.password_profile,
+            successor_provider: self.successor_provider,
+            successful_effect_budget: self.successful_effect_budget,
         }
     }
 }
@@ -891,6 +908,12 @@ pub enum PlannedPasswordChangeCommit {
         committed_attempt: Option<crate::storage::auth_identity::PasswordAttemptState>,
     },
     CredentialThrottled,
+    GuestClaimCollision,
+    GuestAlreadyClaimed,
+    GuestBudgetRefused {
+        budget_name: &'static str,
+        retry_after_ms: u64,
+    },
     CandidateCollision,
     PredecessorChanged,
 }
@@ -980,6 +1003,7 @@ pub struct ProviderSessionIssuancePlan {
     sender_issuance: Option<crate::auth::sender_proof::SenderIssuanceCommitment>,
     rehearsal_exercise: Option<crate::storage::auth_rehearsal::RehearsalExercisePlan>,
     guest_effect_budget: Option<snapback_kernel::auth::throttle::RollingWindowBudgetTerms>,
+    guest_idempotency: Option<CatalogGuestEntryIdempotencyPlan>,
 }
 
 impl fmt::Debug for ProviderSessionIssuancePlan {
@@ -1004,6 +1028,7 @@ pub struct ProviderSessionIssuanceCommitPlan {
     pub(crate) sender_issuance: Option<crate::auth::sender_proof::SenderIssuanceCommitment>,
     rehearsal_exercise: Option<crate::storage::auth_rehearsal::RehearsalExercisePlan>,
     guest_effect_budget: Option<snapback_kernel::auth::throttle::RollingWindowBudgetTerms>,
+    guest_idempotency: Option<CatalogGuestEntryIdempotencyPlan>,
 }
 
 impl fmt::Debug for ProviderSessionIssuanceCommitPlan {
@@ -1114,6 +1139,7 @@ impl ProviderSessionIssuancePlan {
             sender_issuance: self.sender_issuance.clone(),
             rehearsal_exercise: self.rehearsal_exercise.clone(),
             guest_effect_budget: self.guest_effect_budget,
+            guest_idempotency: self.guest_idempotency.clone(),
         }
     }
 
@@ -1152,6 +1178,7 @@ impl ProviderSessionIssuancePlan {
             sender_issuance: None,
             rehearsal_exercise: None,
             guest_effect_budget: None,
+            guest_idempotency: None,
         }
     }
 
@@ -1224,6 +1251,7 @@ impl ProviderSessionIssuanceCommitPlan {
             sender_issuance: self.sender_issuance.as_ref(),
             rehearsal_exercise: self.rehearsal_exercise.as_ref(),
             guest_effect_budget: self.guest_effect_budget,
+            guest_idempotency: self.guest_idempotency.as_ref(),
             live_session_limit: AUTH_SESSION_LIVE_LIMIT as u64,
         }
     }
@@ -1245,6 +1273,7 @@ pub enum PlannedIssuanceCommit {
         budget_name: &'static str,
         retry_after_ms: u64,
     },
+    GuestIdempotencyConflict,
     // @ref LLP 0077#issuance-refresh-and-recovery — one live family per
     // thumbprint: a valid proof over an already-bound key consumes its proof
     // id and refuses without touching the challenge, session, or nonce state.
@@ -1284,6 +1313,84 @@ impl fmt::Debug for PlannedChallengeConsumption {
 pub enum PlannedExchange {
     Reject,
     Issue(ProviderSessionIssuancePlan),
+}
+
+/// Durable outcomes for the idempotent guest-entry effect. A committed replay
+/// reconstructs the original bearer from a keyring-derived PRF seed; the
+/// plaintext credential is never written to SQLite.
+pub enum ProviderGuestSessionPlan {
+    Planned(ProviderSessionIssuancePlan),
+    Replay(CredentialIssue),
+    Refused {
+        budget_name: String,
+        retry_after_ms: u64,
+    },
+    Conflict,
+}
+
+impl fmt::Debug for ProviderGuestSessionPlan {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Planned(_) => {
+                formatter.write_str("ProviderGuestSessionPlan::Planned([REDACTED])")
+            }
+            Self::Replay(_) => formatter.write_str("ProviderGuestSessionPlan::Replay([REDACTED])"),
+            Self::Refused { .. } => formatter.write_str("ProviderGuestSessionPlan::Refused"),
+            Self::Conflict => formatter.write_str("ProviderGuestSessionPlan::Conflict"),
+        }
+    }
+}
+
+struct DeterministicGuestRandom {
+    seed: Zeroizing<[u8; 32]>,
+    counter: AtomicU64,
+}
+
+impl DeterministicGuestRandom {
+    fn new(seed: [u8; 32]) -> Self {
+        Self {
+            seed: Zeroizing::new(seed),
+            counter: AtomicU64::new(0),
+        }
+    }
+}
+
+impl RandomSource for DeterministicGuestRandom {
+    fn fill(&self, destination: &mut [u8]) -> Result<(), CryptoError> {
+        for chunk in destination.chunks_mut(32) {
+            let counter = self
+                .counter
+                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
+                    value.checked_add(1)
+                })
+                .map_err(|_| CryptoError::RandomUnavailable)?;
+            let mut mac = Hmac::<Sha256>::new_from_slice(self.seed.as_slice())
+                .map_err(|_| CryptoError::RandomUnavailable)?;
+            mac.update(b"snapback.auth.guest-entry.random.v1\0");
+            mac.update(&counter.to_be_bytes());
+            let block = mac.finalize().into_bytes();
+            chunk.copy_from_slice(&block[..chunk.len()]);
+        }
+        Ok(())
+    }
+}
+
+fn guest_entry_digest(domain: &[u8], values: &[&[u8]]) -> [u8; 32] {
+    let mut digest = Sha256::new();
+    digest.update(domain);
+    for value in values {
+        digest.update((value.len() as u64).to_be_bytes());
+        digest.update(value);
+    }
+    digest.finalize().into()
+}
+
+fn guest_entry_seed(key: &AuthKeyMaterial, key_digest: &[u8; 32]) -> [u8; 32] {
+    let mut mac = Hmac::<Sha256>::new_from_slice(key.expose_secret())
+        .expect("fixed-size auth key is a valid HMAC key");
+    mac.update(b"snapback.auth.guest-entry.seed.v1\0");
+    mac.update(key_digest);
+    mac.finalize().into_bytes().into()
 }
 
 pub struct AuthProvider {
@@ -1443,12 +1550,120 @@ impl AuthProvider {
     /// and policy expiry precede the atomic catalog transition.
     pub fn plan_guest_session(
         &self,
-        now_ms: u64,
-        guest_expires_at_ms: u64,
+        database: &mut LocalDatabase,
+        observed_now_ms: u64,
+        guest_retention_ms: u64,
+        effect_budget: snapback_kernel::auth::throttle::RollingWindowBudgetTerms,
+        idempotency_key: &str,
+        app_id: &str,
+        deployment_id: &str,
+        policy_digest: &str,
         custody: PasswordIssuanceCustody,
-    ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+    ) -> SnapbackResult<ProviderGuestSessionPlan> {
         require_password_bearer_custody(custody)?;
+        validate_now(observed_now_ms).map_err(ProviderError::into_snapback_error)?;
+        if idempotency_key.len() < 16
+            || idempotency_key.len() > 256
+            || idempotency_key
+                .bytes()
+                .any(|byte| !(0x21..=0x7e).contains(&byte))
+            || app_id.is_empty()
+            || deployment_id.is_empty()
+            || policy_digest.len() != 71
+            || !policy_digest.starts_with("sha256:")
+            || !policy_digest[7..]
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_IDEMPOTENCY_INVALID",
+                "auth",
+                "guest-entry idempotency identity is invalid",
+            ));
+        }
+        let profile = match self.profile {
+            AuthProviderProfile::Dev => b"dev".as_slice(),
+            AuthProviderProfile::Test => b"test".as_slice(),
+            AuthProviderProfile::Demo => b"demo".as_slice(),
+            AuthProviderProfile::Prod => b"prod".as_slice(),
+        };
+        let key_digest = guest_entry_digest(
+            b"snapback.auth.guest-entry.key.v1\0",
+            &[
+                app_id.as_bytes(),
+                deployment_id.as_bytes(),
+                profile,
+                idempotency_key.as_bytes(),
+            ],
+        );
+        let request_digest = guest_entry_digest(
+            b"snapback.auth.guest-entry.request.v1\0",
+            &[policy_digest.as_bytes(), b"{}"],
+        );
+        let lookup = database.guest_entry_idempotency_lookup(
+            &key_digest,
+            &request_digest,
+            observed_now_ms,
+        )?;
+        let was_committed = matches!(lookup, GuestEntryIdempotencyLookup::Committed { .. });
+        if matches!(lookup, GuestEntryIdempotencyLookup::Conflict) {
+            return Ok(ProviderGuestSessionPlan::Conflict);
+        }
+        if let GuestEntryIdempotencyLookup::Refused {
+            budget_name,
+            retry_after_ms,
+            ..
+        } = &lookup
+        {
+            return Ok(ProviderGuestSessionPlan::Refused {
+                budget_name: budget_name.clone(),
+                retry_after_ms: *retry_after_ms,
+            });
+        }
+        let (key_id, now_ms, seed) = match lookup {
+            GuestEntryIdempotencyLookup::Missing => {
+                // A first attempt must still cross the injected production
+                // CSPRNG boundary. Replays use only the durable key id.
+                let mut probe = [0_u8; 1];
+                self.random.fill(&mut probe).map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_RANDOM_UNAVAILABLE",
+                        "auth",
+                        "authentication randomness is unavailable",
+                    )
+                })?;
+                self.keyring
+                    .with_active_key(observed_now_ms, self.random.as_ref(), |key_id, key| {
+                        (
+                            key_id.as_str().to_owned(),
+                            observed_now_ms,
+                            guest_entry_seed(key, &key_digest),
+                        )
+                    })
+                    .map_err(|_| provider_unavailable().into_snapback_error())?
+            }
+            GuestEntryIdempotencyLookup::Pending {
+                key_id,
+                created_at_ms,
+            }
+            | GuestEntryIdempotencyLookup::Committed {
+                key_id,
+                created_at_ms,
+            } => {
+                let parsed = AuthKeyId::parse(&key_id)
+                    .map_err(|_| provider_unavailable().into_snapback_error())?;
+                let seed = self
+                    .keyring
+                    .with_key(&parsed, |key| guest_entry_seed(key, &key_digest))
+                    .map_err(|_| provider_unavailable().into_snapback_error())?;
+                (key_id, created_at_ms, seed)
+            }
+            GuestEntryIdempotencyLookup::Refused { .. } | GuestEntryIdempotencyLookup::Conflict => {
+                unreachable!("handled above")
+            }
+        };
         validate_now(now_ms).map_err(ProviderError::into_snapback_error)?;
+        let guest_expires_at_ms = checked_time_add_snapback(now_ms, guest_retention_ms)?;
         if guest_expires_at_ms <= now_ms || guest_expires_at_ms > MAX_SAFE_TIMESTAMP {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_GUEST_POLICY_INVALID",
@@ -1456,13 +1671,15 @@ impl AuthProvider {
                 "generated guest policy is invalid",
             ));
         }
-        let candidate = SessionCandidate::generate(self, now_ms).map_err(|_| {
-            SnapbackError::error(
-                "SNAPBACK_AUTH_RANDOM_UNAVAILABLE",
-                "auth",
-                "authentication randomness is unavailable",
-            )
-        })?;
+        let deterministic = DeterministicGuestRandom::new(seed);
+        let candidate =
+            SessionCandidate::generate_with_random(&deterministic, now_ms).map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_RANDOM_UNAVAILABLE",
+                    "auth",
+                    "authentication randomness is unavailable",
+                )
+            })?;
         let expires_at_ms = checked_time_add_snapback(now_ms, AUTH_SESSION_SLIDING_WINDOW_MS)?
             .min(guest_expires_at_ms);
         let absolute_expires_at_ms =
@@ -1481,12 +1698,14 @@ impl AuthProvider {
             absolute_expires_at_ms,
             rehearsal_provenance: None,
         };
-        let (limit, window_ms) = match self.profile {
-            AuthProviderProfile::Dev | AuthProviderProfile::Test => (100_000, 1_000),
-            AuthProviderProfile::Demo => (10_000, 10_000),
-            AuthProviderProfile::Prod => (10, 1_000),
+        let idempotency = CatalogGuestEntryIdempotencyPlan {
+            key_digest,
+            request_digest,
+            key_id,
+            created_at_ms: now_ms,
+            retain_until_ms: guest_expires_at_ms,
         };
-        Ok(ProviderSessionIssuancePlan {
+        let plan = ProviderSessionIssuancePlan {
             address: CanonicalAddress::parse("guest@snapback.invalid")
                 .map_err(|_| provider_unavailable().into_snapback_error())?,
             now_ms,
@@ -1503,11 +1722,38 @@ impl AuthProvider {
             challenge: None,
             sender_issuance: None,
             rehearsal_exercise: None,
-            guest_effect_budget: Some(snapback_kernel::auth::throttle::RollingWindowBudgetTerms {
-                limit,
-                window_ms,
-            }),
-        })
+            guest_effect_budget: Some(effect_budget),
+            guest_idempotency: Some(idempotency),
+        };
+        if was_committed {
+            let durable = database
+                .auth_catalog_read()
+                .lookup_presented_session(&plan.candidate.token_hash)?;
+            let PresentedSessionLookup::Current(durable) = durable else {
+                return Err(provider_unavailable().into_snapback_error());
+            };
+            if durable.session.session_id != plan.projected.session_id
+                || durable.session.user_id != plan.projected.user_id
+                || durable.session.authority_instance_id != plan.projected.authority_instance_id
+                || durable.session.generation != plan.projected.generation
+            {
+                return Err(provider_unavailable().into_snapback_error());
+            }
+            let session = SessionResponse {
+                id: durable.session.session_id,
+                user_id: durable.session.user_id,
+                provider: durable.session.provider,
+                created_at: durable.session.created_at_ms,
+                expires_at: durable.session.expires_at_ms,
+                absolute_expires_at: durable.session.absolute_expires_at_ms,
+                authority_instance_id: durable.session.authority_instance_id,
+                generation: durable.session.generation,
+            };
+            return Ok(ProviderGuestSessionPlan::Replay(
+                plan.into_issue(session, Vec::new()),
+            ));
+        }
+        Ok(ProviderGuestSessionPlan::Planned(plan))
     }
 
     pub(crate) fn budget_policy(&self) -> ResolvedCompatibilityAuthBudgetPolicy {
@@ -1680,6 +1926,7 @@ impl AuthProvider {
             sender_issuance: None,
             rehearsal_exercise: None,
             guest_effect_budget: None,
+            guest_idempotency: None,
         })
     }
 
@@ -1863,6 +2110,7 @@ impl AuthProvider {
             sender_issuance: None,
             rehearsal_exercise: None,
             guest_effect_budget: None,
+            guest_idempotency: None,
         })
     }
 
@@ -2078,6 +2326,7 @@ impl AuthProvider {
             sender_issuance: None,
             rehearsal_exercise: None,
             guest_effect_budget: None,
+            guest_idempotency: None,
         })
     }
 
@@ -2202,15 +2451,20 @@ impl AuthProvider {
             successor,
         };
         Ok(ProviderPasswordChangePlan {
-            mutation: crate::storage::auth_identity::PasswordChangeCommitPlan {
-                credential: planning.credential,
-                canonical_identifier: planning.canonical_identifier,
-                verified: verification.verified,
-                replacement,
-            },
+            mutation: crate::storage::auth_identity::CredentialRotationMutation::PasswordChange(
+                crate::storage::auth_identity::PasswordChangeCommitPlan {
+                    credential: planning.credential,
+                    canonical_identifier: planning.canonical_identifier,
+                    verified: verification.verified,
+                    replacement,
+                },
+            ),
             rotation,
             revocations,
             password_profile: self.password_security,
+            recovery_codes: None,
+            successor_provider: None,
+            successful_effect_budget: None,
         })
     }
 
@@ -2246,8 +2500,9 @@ impl AuthProvider {
         now_ms: u64,
         recovery_key_id: &str,
         recovery_key: &[u8; 32],
+        successful_effect_budget: snapback_kernel::auth::throttle::RollingWindowBudgetTerms,
         custody: PasswordIssuanceCustody,
-    ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+    ) -> SnapbackResult<ProviderPasswordChangePlan> {
         require_password_bearer_custody(custody)?;
         let preparation =
             self.prepare_guest_claim_password(database, guest, identifier, now_ms, custody)?;
@@ -2257,6 +2512,7 @@ impl AuthProvider {
             now_ms,
             recovery_key_id,
             recovery_key,
+            successful_effect_budget,
             custody,
         )
         .await
@@ -2284,15 +2540,17 @@ impl AuthProvider {
         // Resolve the presented guest first. A non-guest or invalid bearer
         // must not probe whether a password identifier already exists.
         let predecessor = database.guest_claim_predecessor(guest, now_ms)?;
-        if database.password_identity_subject_is_owned(&canonical, mode)? {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_GUEST_CLAIM_COLLISION",
-                "auth",
-                "guest claim is unavailable",
-            ));
-        }
-        let revocations =
-            plan_user_session_revocations(database, &predecessor.user_id, None, None, now_ms)?;
+        // Sample occupancy only after resolving the exact guest, then carry
+        // both occupied and available subjects through the same KDF. The
+        // writer transaction rechecks the all-provider predicate.
+        let _collision_observed = database.password_identity_subject_is_owned(&canonical, mode)?;
+        let revocations = plan_user_session_revocations(
+            database,
+            &predecessor.user_id,
+            Some(&predecessor.session_id),
+            None,
+            now_ms,
+        )?;
         Ok(GuestClaimPasswordPreparation {
             address,
             canonical,
@@ -2310,8 +2568,9 @@ impl AuthProvider {
         now_ms: u64,
         recovery_key_id: &str,
         recovery_key: &[u8; 32],
+        successful_effect_budget: snapback_kernel::auth::throttle::RollingWindowBudgetTerms,
         custody: PasswordIssuanceCustody,
-    ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+    ) -> SnapbackResult<ProviderPasswordChangePlan> {
         require_password_bearer_custody(custody)?;
         let GuestClaimPasswordPreparation {
             address,
@@ -2326,53 +2585,42 @@ impl AuthProvider {
             recovery_key_id,
             recovery_key,
         )?;
-        let candidate =
-            SessionCandidate::generate(self, now_ms).map_err(ProviderError::into_snapback_error)?;
+        let successor =
+            BearerCandidate::generate(self).map_err(ProviderError::into_snapback_error)?;
         let user_id = predecessor.user_id.clone();
-        let identity_id = candidate.identity_id.clone();
-        let projected = ProjectedSessionInsert {
-            session_id: candidate.session_id.clone(),
-            user_id: user_id.clone(),
-            provider: "local-password".to_owned(),
-            authority_instance_id: candidate.authority_instance_id.clone(),
-            generation: 1,
-            token_digest: TokenDigest::from_token_hash(&candidate.token_hash),
-            created_at_ms: now_ms,
-            expires_at_ms: checked_time_add_snapback(now_ms, AUTH_SESSION_SLIDING_WINDOW_MS)?,
-            absolute_expires_at_ms: checked_time_add_snapback(
-                now_ms,
-                AUTH_SESSION_ABSOLUTE_WINDOW_MS,
-            )?,
-            rehearsal_provenance: None,
+        let identity_id = mint_catalog_id(crate::ids::Kind::Identity, self.random.as_ref(), now_ms)
+            .map_err(ProviderError::into_snapback_error)?;
+        let rotation = ProviderTokenRotationPlan {
+            session_id: predecessor.session_id.clone(),
+            expected_generation: predecessor.generation,
+            predecessor_digest: predecessor.token_digest,
+            successor_digest: TokenDigest::from_token_hash(&successor.token_hash),
+            superseded_at_ms: now_ms,
+            successor,
         };
-        Ok(ProviderSessionIssuancePlan {
-            address,
-            now_ms,
-            identity: PlannedIdentityState::Create {
-                identity_id: identity_id.clone(),
-                user_id: user_id.clone(),
-            },
-            candidate,
-            projected,
-            revocations,
-            password: Some(crate::storage::auth_identity::PasswordIssuanceCommitPlan {
-                canonical_identifier: canonical,
-                identifier_mode: mode,
-                identity_id,
-                user_id,
-                operation: crate::storage::auth_identity::PasswordIssuanceOperation::GuestClaim {
-                    predecessor,
-                    credential_id: opaque_catalog_component("credential"),
-                    password,
-                    recovery,
+        let _ = address;
+        Ok(ProviderPasswordChangePlan {
+            mutation: crate::storage::auth_identity::CredentialRotationMutation::GuestClaim(
+                crate::storage::auth_identity::PasswordIssuanceCommitPlan {
+                    canonical_identifier: canonical,
+                    identifier_mode: mode,
+                    identity_id,
+                    user_id,
+                    operation:
+                        crate::storage::auth_identity::PasswordIssuanceOperation::GuestClaim {
+                            predecessor,
+                            credential_id: opaque_catalog_component("credential"),
+                            password,
+                            recovery,
+                        },
                 },
-            }),
-            password_profile: Some(self.password_security),
+            ),
+            rotation,
+            revocations,
+            password_profile: self.password_security,
             recovery_codes: Some(recovery_codes),
-            challenge: None,
-            sender_issuance: None,
-            rehearsal_exercise: None,
-            guest_effect_budget: None,
+            successor_provider: Some("local-password"),
+            successful_effect_budget: Some(successful_effect_budget),
         })
     }
 
@@ -2381,8 +2629,9 @@ impl AuthProvider {
         preparation: GuestClaimPasswordPreparation,
         password: crate::auth::identity_core::PasswordSecret,
         now_ms: u64,
+        successful_effect_budget: snapback_kernel::auth::throttle::RollingWindowBudgetTerms,
         custody: PasswordIssuanceCustody,
-    ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+    ) -> SnapbackResult<ProviderPasswordChangePlan> {
         let (key_id, key) = self
             .keyring
             .with_active_key(now_ms, self.random.as_ref(), |key_id, key| {
@@ -2392,8 +2641,16 @@ impl AuthProvider {
                 )
             })
             .map_err(|_| provider_unavailable().into_snapback_error())?;
-        self.finish_guest_claim_password(preparation, password, now_ms, &key_id, &key, custody)
-            .await
+        self.finish_guest_claim_password(
+            preparation,
+            password,
+            now_ms,
+            &key_id,
+            &key,
+            successful_effect_budget,
+            custody,
+        )
+        .await
     }
 
     #[allow(clippy::too_many_arguments)] // Recovery proof, replacement set, and custody cross one fence.
@@ -2475,6 +2732,7 @@ impl AuthProvider {
             sender_issuance: None,
             rehearsal_exercise: None,
             guest_effect_budget: None,
+            guest_idempotency: None,
         })
     }
 
@@ -2592,6 +2850,7 @@ impl AuthProvider {
             sender_issuance: None,
             rehearsal_exercise: None,
             guest_effect_budget: None,
+            guest_idempotency: None,
         })
     }
 
@@ -2757,6 +3016,20 @@ impl AuthProvider {
         self.admit().await.for_address(address).await
     }
 
+    /// Serialize identical guest-entry idempotency identities before the
+    /// durable pending/committed/refused transaction. Hash collisions only
+    /// reduce concurrency; durable digests still decide request equality.
+    pub async fn guest_entry_idempotency_guard(
+        &self,
+        idempotency_key: &str,
+    ) -> OwnedMutexGuard<()> {
+        let mut hasher = self.address_hasher.build_hasher();
+        hasher.write(b"guest-entry\0");
+        hasher.write(idempotency_key.as_bytes());
+        let index = (hasher.finish() as usize) & (AUTH_ADDRESS_STRIPES - 1);
+        self.address_stripes[index].clone().lock_owned().await
+    }
+
     pub async fn exclusive_maintenance(self: &Arc<Self>) -> AuthMaintenanceGuard {
         let maintenance = self.maintenance.clone().write_owned().await;
         AuthMaintenanceGuard {
@@ -2819,14 +3092,32 @@ impl AuthAdmission {
     pub fn plan_guest_session_plan(
         &self,
         now_ms: u64,
-        guest_expires_at_ms: u64,
+        guest_retention_ms: u64,
+        effect_budget: snapback_kernel::auth::throttle::RollingWindowBudgetTerms,
+        idempotency_key: &str,
+        app_id: &str,
+        deployment_id: &str,
+        policy_digest: &str,
         custody: PasswordIssuanceCustody,
     ) -> impl super::database_plan::AuthDatabasePlan<
-        Output = SnapbackResult<ProviderSessionIssuancePlan>,
+        Output = SnapbackResult<ProviderGuestSessionPlan>,
     > + '_ {
-        super::database_plan::plan(move |_database| {
-            self.provider
-                .plan_guest_session(now_ms, guest_expires_at_ms, custody)
+        let idempotency_key = idempotency_key.to_owned();
+        let app_id = app_id.to_owned();
+        let deployment_id = deployment_id.to_owned();
+        let policy_digest = policy_digest.to_owned();
+        super::database_plan::plan(move |database| {
+            self.provider.plan_guest_session(
+                database,
+                now_ms,
+                guest_retention_ms,
+                effect_budget,
+                &idempotency_key,
+                &app_id,
+                &deployment_id,
+                &policy_digest,
+                custody,
+            )
         })
     }
 
@@ -3963,6 +4254,25 @@ impl fmt::Debug for AddressAdmission {
 }
 
 impl AddressAdmission {
+    pub fn prepare_guest_claim_password_plan<'a>(
+        &'a self,
+        guest: &'a SessionBearer,
+        now_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> impl super::database_plan::AuthDatabasePlan<
+        Output = SnapbackResult<GuestClaimPasswordPreparation>,
+    > + 'a {
+        super::database_plan::plan(move |database| {
+            self.provider().prepare_guest_claim_password(
+                database,
+                guest,
+                self.address.as_str(),
+                now_ms,
+                custody,
+            )
+        })
+    }
+
     pub fn prepare_password_registration_plan(
         &self,
         custody: PasswordIssuanceCustody,
@@ -4496,14 +4806,16 @@ impl AuthMaintenanceGuard {
 
 impl SessionCandidate {
     fn generate(provider: &AuthProvider, now_ms: u64) -> ProviderResult<Self> {
+        Self::generate_with_random(provider.random.as_ref(), now_ms)
+    }
+
+    fn generate_with_random(random: &dyn RandomSource, now_ms: u64) -> ProviderResult<Self> {
         use crate::ids::Kind;
-        let user_id = mint_random_catalog_id(Kind::User, provider.random.as_ref())?;
-        let identity_id = mint_catalog_id(Kind::Identity, provider.random.as_ref(), now_ms)?;
-        let session_id = mint_catalog_id(Kind::Session, provider.random.as_ref(), now_ms)?;
-        let authority_instance_id =
-            mint_catalog_id(Kind::AuthorityInstance, provider.random.as_ref(), now_ms)?;
-        let bearer = SessionBearer::generate(provider.random.as_ref())
-            .map_err(|_| provider_unavailable())?;
+        let user_id = mint_random_catalog_id(Kind::User, random)?;
+        let identity_id = mint_catalog_id(Kind::Identity, random, now_ms)?;
+        let session_id = mint_catalog_id(Kind::Session, random, now_ms)?;
+        let authority_instance_id = mint_catalog_id(Kind::AuthorityInstance, random, now_ms)?;
+        let bearer = SessionBearer::generate(random).map_err(|_| provider_unavailable())?;
         let token_hash = bearer.token_hash();
         Ok(Self {
             user_id,
@@ -4756,6 +5068,7 @@ fn build_session_issuance_plan(
         sender_issuance: None,
         rehearsal_exercise: None,
         guest_effect_budget: None,
+        guest_idempotency: None,
     })
 }
 
@@ -4776,6 +5089,19 @@ fn planned_password_change_from_catalog(
         CatalogPasswordChangeCommit::CredentialThrottled => {
             PlannedPasswordChangeCommit::CredentialThrottled
         }
+        CatalogPasswordChangeCommit::GuestClaimCollision => {
+            PlannedPasswordChangeCommit::GuestClaimCollision
+        }
+        CatalogPasswordChangeCommit::GuestAlreadyClaimed => {
+            PlannedPasswordChangeCommit::GuestAlreadyClaimed
+        }
+        CatalogPasswordChangeCommit::GuestBudgetRefused {
+            budget_name,
+            retry_after_ms,
+        } => PlannedPasswordChangeCommit::GuestBudgetRefused {
+            budget_name,
+            retry_after_ms,
+        },
         CatalogPasswordChangeCommit::CandidateCollision => {
             PlannedPasswordChangeCommit::CandidateCollision
         }
@@ -4813,13 +5139,24 @@ fn attempt_planned_password_change(
     match body_outcome {
         PlannedPasswordChangeCommit::CandidateCollision
         | PlannedPasswordChangeCommit::PredecessorChanged
-        | PlannedPasswordChangeCommit::CredentialThrottled => {
+        | PlannedPasswordChangeCommit::CredentialThrottled
+        | PlannedPasswordChangeCommit::GuestClaimCollision
+        | PlannedPasswordChangeCommit::GuestAlreadyClaimed
+        | PlannedPasswordChangeCommit::GuestBudgetRefused { .. } => {
             AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::PredecessorChanged)
         }
         PlannedPasswordChangeCommit::CredentialInvalid { committed_attempt } => {
+            let canonical_identifier = match &plan.mutation {
+                crate::storage::auth_identity::CredentialRotationMutation::PasswordChange(
+                    mutation,
+                ) => &mutation.canonical_identifier,
+                crate::storage::auth_identity::CredentialRotationMutation::GuestClaim(mutation) => {
+                    &mutation.canonical_identifier
+                }
+            };
             let committed = committed_attempt.as_ref().is_none_or(|expected| {
                 database
-                    .password_attempt_matches(&plan.mutation.canonical_identifier, expected)
+                    .password_attempt_matches(canonical_identifier, expected)
                     .unwrap_or(false)
             });
             if committed {
@@ -4884,12 +5221,38 @@ fn attempt_planned_session_issuance(
     match body_outcome {
         PlannedIssuanceCommit::CandidateCollision
         | PlannedIssuanceCommit::PredecessorChanged
-        | PlannedIssuanceCommit::CredentialThrottled
-        | PlannedIssuanceCommit::GuestBudgetRefused { .. } => {
+        | PlannedIssuanceCommit::CredentialThrottled => {
             // The transaction performs no write before this outcome. Authority
             // therefore remained at the projection predecessor even if the
             // final COMMIT acknowledgement was lost.
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::PredecessorChanged)
+        }
+        PlannedIssuanceCommit::GuestIdempotencyConflict => {
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::GuestIdempotencyConflict)
+        }
+        refused @ PlannedIssuanceCommit::GuestBudgetRefused { .. } => {
+            let Some(idempotency) = &plan.guest_idempotency else {
+                return AuthTransactionAttempt::Committed(
+                    PlannedIssuanceCommit::PredecessorChanged,
+                );
+            };
+            match database.guest_entry_idempotency_lookup(
+                &idempotency.key_digest,
+                &idempotency.request_digest,
+                plan.now_ms,
+            ) {
+                Ok(GuestEntryIdempotencyLookup::Refused { .. }) => {
+                    AuthTransactionAttempt::Committed(refused)
+                }
+                Ok(GuestEntryIdempotencyLookup::Pending { .. })
+                | Ok(GuestEntryIdempotencyLookup::Missing) => {
+                    AuthTransactionAttempt::RolledBack(commit_error)
+                }
+                Ok(_) => {
+                    AuthTransactionAttempt::Committed(PlannedIssuanceCommit::PredecessorChanged)
+                }
+                Err(_) => AuthTransactionAttempt::CommitUncertain(commit_error),
+            }
         }
         rejected @ (PlannedIssuanceCommit::CodeInvalid | PlannedIssuanceCommit::CodeLocked) => {
             match database
@@ -4992,6 +5355,9 @@ fn planned_issuance_from_catalog(outcome: CatalogIssuanceCommit) -> PlannedIssua
             budget_name,
             retry_after_ms,
         },
+        CatalogIssuanceCommit::GuestIdempotencyConflict => {
+            PlannedIssuanceCommit::GuestIdempotencyConflict
+        }
         CatalogIssuanceCommit::SenderKeyBound => PlannedIssuanceCommit::SenderKeyBound,
         CatalogIssuanceCommit::CandidateCollision => PlannedIssuanceCommit::CandidateCollision,
         CatalogIssuanceCommit::PredecessorChanged => PlannedIssuanceCommit::PredecessorChanged,

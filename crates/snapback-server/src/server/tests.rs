@@ -429,7 +429,7 @@ use crate::admin::{AppState, ServerContext};
 use crate::admin_impersonation::{
     IMPERSONATION_CAPABILITY_HEADER, ImpersonationCapabilityRegistry,
 };
-use crate::auth::crypto::{AgentCredential, OsRandom, SessionBearer};
+use crate::auth::crypto::{AgentCredential, CryptoError, OsRandom, RandomSource, SessionBearer};
 use crate::auth::deployment::{
     AuthenticationBucketPolicy, AuthenticationThrottle, BrowserCredentialPosture,
     BrowserDirectBearerSeam, EffectiveSource, ExternalTls, HostedAdmission, HostedAuthCapabilities,
@@ -460,6 +460,7 @@ use crate::auth::service_fence::{
     ServiceAuthorityFenceRegistry, with_service_authority_terminal_gate,
 };
 use crate::contract_types::{
+    AuthAbuseBudgetPolicyManifestV1, AuthBudgetProfilesManifestV1, AuthBudgetTermsManifestV1,
     AuthMechanismManifestV1, AuthProgramManifestV1, AuthProviderProfile, GuestCleanupActionV1,
     GuestCleanupContractV1, GuestPolicyManifestV1, GuestReapingPolicyV1, RevocationReason,
     ServerProfile,
@@ -663,6 +664,20 @@ struct ManualServerAuthClock {
     base_epoch_ms: u64,
     epoch_ms: AtomicU64,
     monotonic_origin: Instant,
+}
+
+struct ToggleServerRandom {
+    unavailable: AtomicBool,
+}
+
+impl RandomSource for ToggleServerRandom {
+    fn fill(&self, destination: &mut [u8]) -> Result<(), CryptoError> {
+        if self.unavailable.load(Ordering::SeqCst) {
+            Err(CryptoError::RandomUnavailable)
+        } else {
+            OsRandom.fill(destination)
+        }
+    }
 }
 
 impl ManualServerAuthClock {
@@ -3836,7 +3851,48 @@ async fn password_sessions_activation_server_fixture_async() -> AppState {
 }
 
 fn guest_auth_program(enabled: bool, cleanup: GuestCleanupContractV1) -> AuthProgramManifestV1 {
-    AuthProgramManifestV1 {
+    guest_auth_program_with_claiming(enabled, cleanup, vec!["password".to_owned()], true)
+}
+
+fn guest_auth_program_with_claiming(
+    enabled: bool,
+    cleanup: GuestCleanupContractV1,
+    claiming: Vec<String>,
+    include_budgets: bool,
+) -> AuthProgramManifestV1 {
+    let profiles = || AuthBudgetProfilesManifestV1 {
+        profiles: BTreeMap::from([
+            (
+                "dev".to_owned(),
+                AuthBudgetTermsManifestV1 {
+                    limit: 100_000,
+                    window_ms: 1_000,
+                },
+            ),
+            (
+                "test".to_owned(),
+                AuthBudgetTermsManifestV1 {
+                    limit: 100_000,
+                    window_ms: 1_000,
+                },
+            ),
+            (
+                "demo".to_owned(),
+                AuthBudgetTermsManifestV1 {
+                    limit: 10_000,
+                    window_ms: 10_000,
+                },
+            ),
+            (
+                "prod".to_owned(),
+                AuthBudgetTermsManifestV1 {
+                    limit: 10,
+                    window_ms: 1_000,
+                },
+            ),
+        ]),
+    };
+    let mut program = AuthProgramManifestV1 {
         version: 1,
         mechanisms: BTreeMap::from([
             (
@@ -3854,13 +3910,65 @@ fn guest_auth_program(enabled: bool, cleanup: GuestCleanupContractV1) -> AuthPro
         ]),
         guest_policy: GuestPolicyManifestV1 {
             enabled,
-            claiming: vec!["password".to_owned()],
+            claiming,
             reaping: Some(GuestReapingPolicyV1 {
                 after_ms: 60_000,
                 cleanup,
             }),
         },
-    }
+        abuse_budgets: (enabled && include_budgets).then(|| AuthAbuseBudgetPolicyManifestV1 {
+            version: 1,
+            preset: "guest-entry-v1".to_owned(),
+            budgets: [
+                "auth.account.create",
+                "auth.enumeration",
+                "auth.guest.create",
+                "auth.hash-cpu",
+                "auth.session-mint",
+            ]
+            .into_iter()
+            .map(|name| (name.to_owned(), profiles()))
+            .collect(),
+            effect_bindings: BTreeMap::from([
+                (
+                    "auth.guest.create".to_owned(),
+                    vec![
+                        "auth.guest.create".to_owned(),
+                        "auth.session-mint".to_owned(),
+                    ],
+                ),
+                (
+                    "auth.guest.claim.password".to_owned(),
+                    vec![
+                        "auth.enumeration".to_owned(),
+                        "auth.hash-cpu".to_owned(),
+                        "auth.account.create".to_owned(),
+                        "auth.session-mint".to_owned(),
+                    ],
+                ),
+            ]),
+            policy_digest: String::new(),
+        }),
+    };
+    resign_guest_auth_budget_policy(&mut program);
+    program
+}
+
+fn resign_guest_auth_budget_policy(program: &mut AuthProgramManifestV1) {
+    let Some(policy) = program.abuse_budgets.as_mut() else {
+        return;
+    };
+    let preimage = json!({
+        "version": policy.version,
+        "preset": policy.preset,
+        "budgets": policy.budgets,
+        "effectBindings": policy.effect_bindings,
+    });
+    let canonical = crate::rqs_contract::jcs(&preimage).expect("guest budget policy JCS");
+    let mut hasher = Sha256::new();
+    hasher.update(b"snapback.auth-abuse-budget-policy.v1");
+    hasher.update(canonical.as_bytes());
+    policy.policy_digest = format!("sha256:{:x}", hasher.finalize());
 }
 
 async fn guest_sessions_activation_server_fixture_async(
@@ -3880,6 +3988,24 @@ async fn guest_sessions_activation_server_fixture_async(
     })
     .await
     .expect("construct guest activation fixture off the async workers")
+}
+
+async fn guest_sessions_custom_activation_server_fixture_async(
+    program: AuthProgramManifestV1,
+) -> AppState {
+    tokio::task::spawn_blocking(move || {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        sessions_activation_server_fixture_with_api_and_password_mode(
+            activation_functions('2', false),
+            None,
+            None,
+            None,
+            PasswordIdentifierMode::EmailV1,
+            Some(program),
+        )
+    })
+    .await
+    .expect("construct custom guest activation fixture off the async workers")
 }
 
 async fn sessions_activation_server_fixture_with_agents_async(agents: AgentsManifest) -> AppState {
@@ -10005,6 +10131,15 @@ async fn bounded_oneshot_for_deadlock_regression(
 }
 
 fn password_auth_http_request(uri: &str, body: Value) -> Request<Body> {
+    let key = (uri == "/auth/guest").then(|| format!("guest-test-{}", uuid::Uuid::now_v7()));
+    password_auth_http_request_with_idempotency(uri, body, key.as_deref())
+}
+
+fn password_auth_http_request_with_idempotency(
+    uri: &str,
+    body: Value,
+    idempotency_key: Option<&str>,
+) -> Request<Body> {
     let mut request = auth_http_request(
         "POST",
         uri,
@@ -10013,6 +10148,12 @@ fn password_auth_http_request(uri: &str, body: Value) -> Request<Body> {
         None,
         None,
     );
+    if let Some(idempotency_key) = idempotency_key {
+        request.headers_mut().insert(
+            "idempotency-key",
+            idempotency_key.parse().expect("guest idempotency header"),
+        );
+    }
     offer_auth_client_protocol(&mut request);
     request
 }
@@ -18319,6 +18460,8 @@ async fn guest_entry_authorizes_claims_reaps_and_refuses_policy_or_input_failure
     assert_credential_shape(&entered, false, "guest");
     let guest_user = entered["session"]["userId"].as_str().unwrap().to_owned();
     let guest_token = entered["token"].as_str().unwrap().to_owned();
+    let guest_session_id = entered["session"]["id"].clone();
+    let guest_authority_id = entered["authorityDescriptor"]["authorityInstanceId"].clone();
     assert_eq!(entered["session"]["provider"], "guest");
 
     let app_call = router
@@ -18387,10 +18530,17 @@ async fn guest_entry_authorizes_claims_reaps_and_refuses_policy_or_input_failure
         ))
         .await
         .expect("guest password claim");
-    assert_eq!(claimed.status(), StatusCode::OK);
+    let claimed_status = claimed.status();
     let claimed = response_json(claimed).await;
+    assert_eq!(claimed_status, StatusCode::OK, "{claimed}");
     assert_password_credential_shape(&claimed, true);
     assert_eq!(claimed["session"]["userId"], guest_user);
+    assert_eq!(claimed["session"]["id"], guest_session_id);
+    assert_eq!(
+        claimed["authorityDescriptor"]["authorityInstanceId"],
+        guest_authority_id
+    );
+    assert_ne!(claimed["token"], guest_token);
 
     let reaped = router
         .clone()
@@ -18455,7 +18605,7 @@ async fn guest_entry_authorizes_claims_reaps_and_refuses_policy_or_input_failure
         .oneshot(password_auth_http_request("/auth/guest", json!({})))
         .await
         .expect("disabled guest refusal");
-    assert_eq!(disabled.status(), StatusCode::FORBIDDEN);
+    assert_eq!(disabled.status(), StatusCode::NOT_FOUND);
     assert_eq!(
         response_json(disabled).await["diagnostic"]["code"],
         "SNAPBACK_AUTH_GUEST_DISABLED"
@@ -18510,6 +18660,436 @@ async fn guest_entry_authorizes_claims_reaps_and_refuses_policy_or_input_failure
     assert_eq!(
         exhausted["diagnostic"]["details"]["budgetName"],
         "auth.guest.create"
+    );
+}
+
+/// @ref LLP 0215#6-idempotency-and-retry-identity — guest creation is an effect: a
+/// lost response and concurrent identical retries converge on one durable
+/// principal/session, while a last-slot race admits at most one fresh key and
+/// durably replays the refusal for the loser.
+#[tokio::test]
+async fn guest_entry_http_replay_and_concurrent_last_budget_slot_are_exact() {
+    let tombstone = GuestCleanupContractV1::Declarative {
+        default: GuestCleanupActionV1::Tombstone,
+        tables: BTreeMap::new(),
+    };
+    let mut program = guest_auth_program(true, tombstone);
+    for budget in program
+        .abuse_budgets
+        .as_mut()
+        .expect("guest budget policy")
+        .budgets
+        .values_mut()
+    {
+        budget
+            .profiles
+            .get_mut("prod")
+            .expect("production budget terms")
+            .window_ms = 60_000;
+    }
+    resign_guest_auth_budget_policy(&mut program);
+    let state = guest_sessions_custom_activation_server_fixture_async(program).await;
+    let keyring = Arc::new(AuthKeyringStore::in_memory());
+    keyring
+        .load_or_mint_initial(super::now_millis(), &OsRandom)
+        .expect("production guest replay keyring");
+    let provider = Arc::new(
+        AuthProvider::new(AuthProviderProfile::Prod, keyring)
+            .expect("production guest replay provider"),
+    );
+    let router = app(state
+        .try_with_auth_provider(provider)
+        .expect("production guest replay state"));
+
+    let lost_response_key = "guest-entry-lost-response-0001";
+    let first = router
+        .clone()
+        .oneshot(password_auth_http_request_with_idempotency(
+            "/auth/guest",
+            json!({}),
+            Some(lost_response_key),
+        ))
+        .await
+        .expect("first guest response");
+    let first_status = first.status();
+    let first = response_json(first).await;
+    assert_eq!(first_status, StatusCode::OK, "{first}");
+    let replay = router
+        .clone()
+        .oneshot(password_auth_http_request_with_idempotency(
+            "/auth/guest",
+            json!({}),
+            Some(lost_response_key),
+        ))
+        .await
+        .expect("lost-response replay");
+    let replay_status = replay.status();
+    let replay = response_json(replay).await;
+    assert_eq!(replay_status, StatusCode::OK, "{replay}");
+    assert_eq!(
+        replay, first,
+        "committed replay returns the exact credential"
+    );
+
+    let concurrent_key = "guest-entry-concurrent-identical-0001";
+    let concurrent_a = router
+        .clone()
+        .oneshot(password_auth_http_request_with_idempotency(
+            "/auth/guest",
+            json!({}),
+            Some(concurrent_key),
+        ));
+    let concurrent_b = router
+        .clone()
+        .oneshot(password_auth_http_request_with_idempotency(
+            "/auth/guest",
+            json!({}),
+            Some(concurrent_key),
+        ));
+    let (concurrent_a, concurrent_b) = tokio::join!(concurrent_a, concurrent_b);
+    let concurrent_a = concurrent_a.expect("first concurrent identical response");
+    let concurrent_b = concurrent_b.expect("second concurrent identical response");
+    assert_eq!(concurrent_a.status(), StatusCode::OK);
+    assert_eq!(concurrent_b.status(), StatusCode::OK);
+    assert_eq!(
+        response_json(concurrent_a).await,
+        response_json(concurrent_b).await
+    );
+
+    // Two distinct credentials have consumed two of the ten production
+    // slots. Bring the registry to one remaining slot, then race two fresh
+    // identities at the actual commit cut.
+    for index in 0..7 {
+        let response = router
+            .clone()
+            .oneshot(password_auth_http_request_with_idempotency(
+                "/auth/guest",
+                json!({}),
+                Some(&format!("guest-entry-prefill-{index:04}")),
+            ))
+            .await
+            .expect("guest budget prefill response");
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+    let last_a_key = "guest-entry-last-slot-race-a-0001";
+    let last_b_key = "guest-entry-last-slot-race-b-0001";
+    let last_a = router
+        .clone()
+        .oneshot(password_auth_http_request_with_idempotency(
+            "/auth/guest",
+            json!({}),
+            Some(last_a_key),
+        ));
+    let last_b = router
+        .clone()
+        .oneshot(password_auth_http_request_with_idempotency(
+            "/auth/guest",
+            json!({}),
+            Some(last_b_key),
+        ));
+    let (last_a, last_b) = tokio::join!(last_a, last_b);
+    let last_a = last_a.expect("last-slot response A");
+    let last_b = last_b.expect("last-slot response B");
+    let (refused_key, refused) = match (last_a.status(), last_b.status()) {
+        (StatusCode::OK, StatusCode::TOO_MANY_REQUESTS) => (last_b_key, last_b),
+        (StatusCode::TOO_MANY_REQUESTS, StatusCode::OK) => (last_a_key, last_a),
+        statuses => panic!("last-slot race must admit exactly one request: {statuses:?}"),
+    };
+    let refused = response_json(refused).await;
+    assert_eq!(refused["diagnostic"]["code"], "SNAPBACK_AUTH_RATE_BUDGET");
+    let refused_replay = router
+        .oneshot(password_auth_http_request_with_idempotency(
+            "/auth/guest",
+            json!({}),
+            Some(refused_key),
+        ))
+        .await
+        .expect("durable refusal replay");
+    assert_eq!(refused_replay.status(), StatusCode::TOO_MANY_REQUESTS);
+    let refused_replay = response_json(refused_replay).await;
+    assert_eq!(
+        refused_replay["diagnostic"]["details"]["budgetName"],
+        refused["diagnostic"]["details"]["budgetName"]
+    );
+    assert_eq!(
+        refused_replay["diagnostic"]["details"]["retryAfter"],
+        refused["diagnostic"]["details"]["retryAfter"]
+    );
+}
+
+/// @ref LLP 0214#82-guest-claim — subject ownership is global
+/// across identity providers, claims never link/switch principals, and only a
+/// current guest bearer in a program that declares password claim may enter.
+/// @ref LLP 0227#threat-notes — production
+/// refuses this password-creation path before consulting local occupancy.
+#[tokio::test]
+async fn guest_claim_http_denial_matrix_is_fail_closed_and_non_linking() {
+    let tombstone = GuestCleanupContractV1::Declarative {
+        default: GuestCleanupActionV1::Tombstone,
+        tables: BTreeMap::new(),
+    };
+    let state = guest_sessions_activation_server_fixture_async(true, tombstone.clone()).await;
+    let provider = state.auth_provider.clone().expect("guest provider");
+    let router = app(state.clone());
+
+    let proven_email = "proven-email-owner@example.com";
+    let proven = password_test_email_exchange(&router, &provider, proven_email).await;
+    assert_eq!(proven["session"]["provider"], "email-code");
+    let guest = router
+        .clone()
+        .oneshot(password_auth_http_request("/auth/guest", json!({})))
+        .await
+        .expect("guest for email-code collision");
+    let guest = response_json(guest).await;
+    let guest_token = guest["token"].as_str().expect("guest token").to_owned();
+    let collision = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/guest/claim/password",
+            serde_json::to_vec(&json!({
+                "email": proven_email,
+                "password": "non-linking-guest-password-123!",
+            }))
+            .unwrap(),
+            &guest_token,
+        ))
+        .await
+        .expect("cross-provider claim collision");
+    assert_eq!(collision.status(), StatusCode::CONFLICT);
+    let collision = response_json(collision).await;
+    assert_eq!(
+        collision["diagnostic"]["code"],
+        "SNAPBACK_AUTH_GUEST_CLAIM_COLLISION"
+    );
+    let still_guest = router
+        .clone()
+        .oneshot(session_auth_get_request("/auth/session", &guest_token))
+        .await
+        .expect("guest remains usable after collision");
+    assert_eq!(still_guest.status(), StatusCode::OK);
+    let still_guest = response_json(still_guest).await;
+    assert_eq!(
+        still_guest["authority"]["sessionId"],
+        guest["session"]["id"]
+    );
+    assert_eq!(
+        still_guest["authority"]["userId"],
+        guest["session"]["userId"]
+    );
+
+    let password = router
+        .clone()
+        .oneshot(password_auth_http_request(
+            "/auth/password/signup",
+            json!({
+                "email": "password-session-cannot-claim@example.com",
+                "password": "password-session-claim-downgrade-123!",
+            }),
+        ))
+        .await
+        .expect("password predecessor");
+    assert_eq!(password.status(), StatusCode::OK);
+    let password = response_json(password).await;
+    let password_token = password["token"].as_str().expect("password token");
+    let downgrade = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/guest/claim/password",
+            serde_json::to_vec(&json!({
+                "email": "downgrade-target@example.com",
+                "password": "password-session-claim-downgrade-456!",
+            }))
+            .unwrap(),
+            password_token,
+        ))
+        .await
+        .expect("password session claim refusal");
+    let downgrade_status = downgrade.status();
+    let downgrade = response_json(downgrade).await;
+    assert_eq!(downgrade_status, StatusCode::UNAUTHORIZED, "{downgrade}");
+    assert_eq!(
+        downgrade["diagnostic"]["code"],
+        "SNAPBACK_AUTH_GUEST_SESSION_INVALID"
+    );
+
+    let foreign_state =
+        guest_sessions_activation_server_fixture_async(true, tombstone.clone()).await;
+    let foreign_router = app(foreign_state);
+    let foreign = foreign_router
+        .oneshot(password_auth_http_request("/auth/guest", json!({})))
+        .await
+        .expect("foreign guest entry");
+    let foreign = response_json(foreign).await;
+    let foreign_token = foreign["token"].as_str().expect("foreign guest token");
+    let foreign_claim = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/guest/claim/password",
+            serde_json::to_vec(&json!({
+                "email": "foreign-guest@example.com",
+                "password": "foreign-guest-password-123!",
+            }))
+            .unwrap(),
+            foreign_token,
+        ))
+        .await
+        .expect("foreign guest refusal");
+    assert_eq!(foreign_claim.status(), StatusCode::UNAUTHORIZED);
+
+    let unavailable_program =
+        guest_auth_program_with_claiming(true, tombstone.clone(), Vec::new(), true);
+    let unavailable_state =
+        guest_sessions_custom_activation_server_fixture_async(unavailable_program).await;
+    let unavailable_router = app(unavailable_state);
+    let unavailable_guest = unavailable_router
+        .clone()
+        .oneshot(password_auth_http_request("/auth/guest", json!({})))
+        .await
+        .expect("guest without claim transition");
+    let unavailable_guest = response_json(unavailable_guest).await;
+    let unavailable_claim = unavailable_router
+        .oneshot(session_auth_http_request(
+            "/auth/guest/claim/password",
+            serde_json::to_vec(&json!({
+                "email": "unavailable-claim@example.com",
+                "password": "unavailable-claim-password-123!",
+            }))
+            .unwrap(),
+            unavailable_guest["token"].as_str().unwrap(),
+        ))
+        .await
+        .expect("undeclared claim refusal");
+    assert_eq!(unavailable_claim.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        response_json(unavailable_claim).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_GUEST_CLAIM_UNAVAILABLE"
+    );
+
+    let missing_budget_program = guest_auth_program_with_claiming(
+        true,
+        tombstone.clone(),
+        vec!["password".to_owned()],
+        false,
+    );
+    let missing_budget_router =
+        app(guest_sessions_custom_activation_server_fixture_async(missing_budget_program).await);
+    let mut missing_budget_handshake =
+        auth_http_request("GET", "/auth/session", Vec::new(), false, None, None);
+    offer_auth_client_protocol(&mut missing_budget_handshake);
+    let missing_budget_handshake = missing_budget_router
+        .clone()
+        .oneshot(missing_budget_handshake)
+        .await
+        .expect("missing budget readiness handshake");
+    assert_eq!(missing_budget_handshake.status(), StatusCode::OK);
+    assert_eq!(
+        response_json(missing_budget_handshake).await["provider"]["available"],
+        false,
+        "an enabled guest program without generated budget policy is not ready"
+    );
+    let missing_budget = missing_budget_router
+        .oneshot(password_auth_http_request("/auth/guest", json!({})))
+        .await
+        .expect("missing generated budget refusal");
+    assert_ne!(missing_budget.status(), StatusCode::OK);
+    assert_eq!(
+        response_json(missing_budget).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_BUDGET_POLICY_INVALID"
+    );
+
+    let mut tampered_budget_program =
+        guest_auth_program_with_claiming(true, tombstone, vec!["password".to_owned()], true);
+    tampered_budget_program
+        .abuse_budgets
+        .as_mut()
+        .expect("compiled guest budget policy")
+        .budgets
+        .get_mut("auth.guest.create")
+        .expect("guest-create budget")
+        .profiles
+        .get_mut("test")
+        .expect("test budget terms")
+        .limit += 1;
+    let tampered_budget_router =
+        app(guest_sessions_custom_activation_server_fixture_async(tampered_budget_program).await);
+    let tampered_budget = tampered_budget_router
+        .oneshot(password_auth_http_request("/auth/guest", json!({})))
+        .await
+        .expect("tampered generated budget refusal");
+    assert_ne!(tampered_budget.status(), StatusCode::OK);
+    assert_eq!(
+        response_json(tampered_budget).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_BUDGET_POLICY_INVALID"
+    );
+
+    let prod_keyring = Arc::new(AuthKeyringStore::in_memory());
+    prod_keyring
+        .load_or_mint_initial(super::now_millis(), &OsRandom)
+        .expect("production claim keyring");
+    let prod_provider = Arc::new(
+        AuthProvider::new(AuthProviderProfile::Prod, prod_keyring)
+            .expect("production claim provider"),
+    );
+    let prod_router = app(state
+        .try_with_auth_provider(prod_provider)
+        .expect("production claim state"));
+    let prod_refusal = prod_router
+        .oneshot(session_auth_http_request(
+            "/auth/guest/claim/password",
+            serde_json::to_vec(&json!({
+                "email": "must-not-be-looked-up@example.com",
+                "password": "production-claim-must-refuse-123!",
+            }))
+            .unwrap(),
+            &guest_token,
+        ))
+        .await
+        .expect("production claim refusal");
+    assert_eq!(prod_refusal.status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(
+        response_json(prod_refusal).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE"
+    );
+}
+
+#[tokio::test]
+async fn guest_entry_http_refuses_csprng_failure_before_identity_effect() {
+    let state = guest_sessions_activation_server_fixture_async(
+        true,
+        GuestCleanupContractV1::Declarative {
+            default: GuestCleanupActionV1::Tombstone,
+            tables: BTreeMap::new(),
+        },
+    )
+    .await;
+    let now_ms = super::now_millis();
+    let keyring = Arc::new(AuthKeyringStore::in_memory());
+    keyring
+        .load_or_mint_initial(now_ms, &OsRandom)
+        .expect("CSPRNG failure keyring");
+    let random = Arc::new(ToggleServerRandom {
+        unavailable: AtomicBool::new(false),
+    });
+    let provider = Arc::new(
+        AuthProvider::new_with_dependencies(
+            AuthProviderProfile::Test,
+            keyring,
+            random.clone(),
+            Arc::new(ManualServerAuthClock::new(now_ms)),
+        )
+        .expect("provider initializes before injected failure"),
+    );
+    random.unavailable.store(true, Ordering::SeqCst);
+    let response = app(state
+        .try_with_auth_provider(provider)
+        .expect("CSPRNG failure guest state"))
+    .oneshot(password_auth_http_request("/auth/guest", json!({})))
+    .await
+    .expect("CSPRNG failure response");
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(
+        response_json(response).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_RANDOM_UNAVAILABLE"
     );
 }
 

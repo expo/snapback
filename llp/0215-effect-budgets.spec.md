@@ -413,6 +413,8 @@ These names are owned by this Spec.
 
 | Budget name | Class | Harm bounded | Typical effects | Permitted axes |
 | --- | --- | --- | --- | --- |
+| `auth.guest.create` | `SUCCESSFUL_EFFECT` | Principal/session allocation | Guest principal entry | `app`, `deployment` |
+| `auth.account.create` | `SUCCESSFUL_EFFECT` | Account allocation | Password signup or guest password claim | `app`, `deployment` |
 | `auth.guessing` | `ATTEMPT` | Guessing | Challenge code, password, recovery code, credential proof verification | `source`, `recipient`, `principal`, `credential`, `provider`, `app`, `deployment` |
 | `auth.enumeration` | `ATTEMPT` | Enumeration | Challenge request, challenge exchange, password lookup, refresh, connection admission | `source`, `recipient`, `principal`, `credential`, `provider`, `app`, `deployment` |
 | `auth.delivery` | `SUCCESSFUL_EFFECT` | Delivery cost | Email, SMS, or other provider handoff; compatibility challenge issuance | `recipient`, `principal`, `provider`, `app`, `deployment` |
@@ -432,6 +434,12 @@ requires a separate amendment.
 A provider may charge multiple names. For example, password authentication may
 charge `auth.enumeration`, `auth.guessing`, and `auth.hash-cpu`; successful
 authentication may additionally charge `auth.session-mint`.
+
+Guest password claim charges `auth.enumeration` and `auth.hash-cpu` at the
+attempt cut, then charges `auth.account.create` and `auth.session-mint` in the
+same transaction as the credential rotation. `auth.session-mint` names the
+authority-granting effect class even when claim rotates the acting session in
+place rather than allocating a new session id.
 
 ### 5.2 Rehearsal budget names
 
@@ -537,6 +545,15 @@ attempt accounting.
 An implementation must retain idempotency state long enough to cover the
 effect's ambiguity and retry interval. Expiry of an idempotency record does not
 replenish a fixed-total budget or erase a durable successful effect.
+
+The generated `guest-v1` entry effect retains its pending, committed, or
+refused record through the declared unclaimed-guest retention deadline. Its
+derivation key is a durable reference for that same interval. Periodic auth GC
+reclaims expired records in ordered bounded batches before retired-key pruning;
+an exact retry inside the interval therefore cannot be stranded by key
+rotation, while abandoned entry keys cannot grow storage or key custody without
+bound. Destructive app reset and restore clear guest-entry replay state in the
+same transaction that destroys or terminates the receipt's session authority.
 
 ## 7. Server-derived trust tiers
 
@@ -1193,8 +1210,9 @@ separation, and hosted composition are closed by this Spec.
 
 Only numeric policy remains open:
 
-- **OQ1:** What finite base terms should `auth.enumeration`,
-  `auth.guessing`, `auth.hash-cpu`, and `auth.session-mint` use for the new
+- **OQ1:** What finite base terms should `auth.guest.create`,
+  `auth.account.create`, `auth.enumeration`, `auth.guessing`, `auth.hash-cpu`,
+  and `auth.session-mint` use for the new
   password and guest floor outside the LLP 0057 compatibility path?
 - **OQ2:** What finite per-tier scaling should each ordinary budget use?
   Scaling must be decided per harm; one global trust multiplier is not assumed.

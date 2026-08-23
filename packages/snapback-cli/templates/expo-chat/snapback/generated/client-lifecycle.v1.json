@@ -1,7 +1,7 @@
 {
   "appId": "expo-chat",
   "artifactKind": "clientLifecycleManifest",
-  "authoredSourceHash": "sha256:fd5cdbbc583a96e7551d88cd59d6133e72fbfbb3d0108771f338d45de837fbe0",
+  "authoredSourceHash": "sha256:72e390376b0316cf57af99ef8894d178b02e03e566768787a79832d89d55cadc",
   "commands": [
     {
       "authRequirement": "authenticated",
@@ -118,7 +118,7 @@
       ]
     }
   },
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:18a3a7fc1e3737ea2a104f86900be3dff8854416040754b5e5a06de89d743104",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:59224dbaab2745fd8890d45a8f8d26a5886565843dd675d86ae65524320df3d5",
   "mutationSettlement": {
     "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
     "dispositions": [
@@ -876,6 +876,16 @@
       "sourceFields": [
         {
           "bootstrapProjection": [],
+          "disposition": "auth-abuse-policy-source",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared generated abuse-policy extension"
+          },
+          "field": "abuseBudgets",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
+        {
+          "bootstrapProjection": [],
           "disposition": "semantic-source-no-bootstrap-field",
           "familiarDisposition": {
             "disposition": 1,
@@ -1390,7 +1400,21 @@
               "facadeOwner": "SnapbackAppClient.auth",
               "operation": "enter",
               "predecessor": "settled-anonymous-or-process-local-supervised-adopted",
+              "recoveryProjection": "none",
               "resultType": "Promise<AuthCredentialPublicProjectionV1>"
+            },
+            {
+              "applicationFacadeMethod": "claimGuestWithPassword",
+              "clientMethod": "authClaimGuestWithPassword",
+              "clientNamespaceMethod": "authClaimGuestWithPassword",
+              "collisionContract": "different-principal-refuses-without-link-merge-or-switch",
+              "facadeMethod": "claimGuestWithPassword",
+              "facadeOwner": "SnapbackAppClient.auth",
+              "operation": "claim-password",
+              "predecessor": "settled-active-guest-same-session-and-authority",
+              "recoveryProjection": "one-time-response",
+              "resultType": "Promise<AuthRecoveryCredentialPublicProjectionV1>",
+              "targetCapability": "auth.guest-sessions"
             }
           ],
           "phase": "shipped",

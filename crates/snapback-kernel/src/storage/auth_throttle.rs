@@ -9,11 +9,31 @@ use crate::auth::sender_proof::sender_constraint_for_presented_token;
 use crate::auth::throttle::{
     AuthBudgetDeploymentProfile, AuthBudgetIdempotencyIdentity, AuthBudgetName,
     AuthenticationThrottleDecision, AuthenticationThrottleDimensions, AuthenticationThrottleError,
+    RollingWindowBudgetTerms, charge_local_authentication_attempt,
     charge_shared_authentication_attempt, charge_shared_authentication_attempt_idempotent,
     initialize_shared_authentication_throttle, password_budget_config,
 };
 
 impl LocalDatabase {
+    pub fn charge_declared_authentication_attempt(
+        &mut self,
+        deployment_id: &str,
+        budget_name: AuthBudgetName,
+        terms: RollingWindowBudgetTerms,
+        source: IpAddr,
+        canonical_identifier: &str,
+        now_ms: u64,
+    ) -> crate::diagnostic::SnapbackResult<AuthenticationThrottleDecision> {
+        let axis = format!("{}\n{}\n{}", deployment_id, source, canonical_identifier);
+        charge_local_authentication_attempt(
+            &mut self.conn,
+            now_ms,
+            terms,
+            budget_name,
+            axis.as_bytes(),
+        )
+    }
+
     /// @ref LLP 0285#8-open-risks — hosted DDL cannot be inherited through
     /// `ServingDatabase`'s `Deref`.
     pub(crate) fn initialize_authentication_throttle_after_hosted_preflight(

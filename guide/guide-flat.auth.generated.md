@@ -122,8 +122,10 @@ The public `POST /auth/guest` request body is exactly `{}`. A caller never
 supplies the principal id, session id, expiry, or cleanup policy: the server
 derives policy and expiry from the generated program, uses its CSPRNG for
 authority identifiers and bearer material, charges both `auth.guest.create`
-and `auth.session.mint`, then atomically commits the guest principal, session,
-assurance, and security event.
+and `auth.session-mint`, then atomically commits the guest principal, session,
+assurance, and security event. The client reuses one entry idempotency key
+across an ambiguous retry; exact committed and refused replays converge without
+another principal or charge, while reuse with different policy bytes refuses.
 
 The returned credential follows the ordinary coordinator transition and its
 custody grade. Browser and Expo web restore it after a cold reload under
@@ -135,9 +137,17 @@ I/O rather than falling back to memory.
 To keep the same principal and turn it into a password account, call
 `auth.claimGuestWithPassword({ email, password })`. Success returns one-time
 recovery codes and replaces guest-session authority through the same transition
-barrier. An existing password identity refuses with
-`SNAPBACK_AUTH_GUEST_CLAIM_COLLISION`; it never attaches the guest to that
-account. Disabled policy, budget exhaustion, unsupported cleanup, malformed
+barrier. The bearer family rotates in place: session id and authority instance
+are retained, while every other guest-era session is revoked. An existing
+password identity refuses with `SNAPBACK_AUTH_GUEST_CLAIM_COLLISION`; any other
+identity with the same canonical subject, including email-code and disabled
+password identities, refuses with the same code. It
+never attaches the guest to that account. Production refuses with
+`SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE`
+until password signup has proof-backed delivery. Every valid claim attempt
+charges `auth.enumeration` and `auth.hash-cpu`; its successful transaction also
+charges `auth.account.create` and `auth.session-mint`. Disabled policy, budget
+exhaustion, unsupported cleanup, malformed
 input, and reaped or otherwise invalid guest authority likewise fail closed
 with stable `SNAPBACK_*` codes. Reaping and logout revoke guest sessions, and
 the currently shipped cleanup executor admits only the declarative all-table
@@ -1250,11 +1260,17 @@ When the generated policy includes `guest-v1`, the same facade can first run
 `await auth.enterAsGuest()` and later call
 `auth.claimGuestWithPassword({ email, password })`. Claim preserves the guest
 principal, revokes its guest-era sessions, and adopts the password successor
-through the ordinary coordinator barrier. Its recovery codes are a one-time
+through an in-place credential rotation: the acting session id and authority
+instance are retained, its bearer rotates, and other guest-era sessions are
+revoked. Its recovery codes are a one-time
 return boundary with the same handling as signup. If the email already belongs
 to another principal, `SNAPBACK_AUTH_GUEST_CLAIM_COLLISION` refuses without
-revealing that account or taking it over. A reaped, expired, logged-out, or
-non-guest predecessor fails as the uniform invalid-guest-session class.
+revealing that account or taking it over. The route refuses in production with
+`SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE`. A reaped or expired predecessor
+is rejected by session middleware as `SNAPBACK_AUTH_SESSION_EXPIRED`; a
+logged-out bearer is rejected by that same middleware with
+`SNAPBACK_AUTH_SESSION_EXPIRED`; a still-live non-guest session reaches the transition and returns
+`SNAPBACK_AUTH_GUEST_SESSION_INVALID`.
 
 The browser restoration path is package-tested against a fresh application
 client over the same durable custody record:

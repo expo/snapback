@@ -123,7 +123,7 @@ pub(crate) fn run_gc_pass(
     // GC enters this transaction; startup GC runs before a projection exists.
     // @ref LLP 0214#11-guest-first-template-posture — default tombstone
     // reaping is an idempotent durable transition, not a client cleanup hint.
-    let guests_reaped = database.identity_reap_guests_default_tombstone(now_ms)?;
+    let guest_reap = database.identity_reap_guests_default_tombstone(now_ms)?;
     let mailbox_entries_deleted = mailbox.prune_expired();
 
     let mut storage_error = None;
@@ -148,10 +148,10 @@ pub(crate) fn run_gc_pass(
     Ok(AuthGcPass {
         challenges_deleted: durable.challenges_deleted,
         sessions_deleted: durable.sessions_deleted,
-        guests_reaped,
+        guests_reaped: guest_reap.reaped,
         mailbox_entries_deleted,
         keyring,
-        immediate_retry: durable.immediate_retry,
+        immediate_retry: durable.immediate_retry || guest_reap.immediate_retry,
     })
 }
 

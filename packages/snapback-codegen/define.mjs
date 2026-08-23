@@ -69,8 +69,27 @@ export const AUTH_PROGRAM_MECHANISM_KINDS = Object.freeze([
 export const AUTH_PROGRAM_FIELDS = new Set([
   'version', 'mechanisms', 'providers', 'assuranceRequirements', 'guestPolicy',
   'secretReferences', 'verifiedProvisioning', 'custody', 'externalSessionEntry',
-  'recoveryPolicy',
+  'recoveryPolicy', 'abuseBudgets',
 ]);
+const AUTH_GUEST_BUDGET_NAMES = Object.freeze([
+  'auth.account.create',
+  'auth.enumeration',
+  'auth.guest.create',
+  'auth.hash-cpu',
+  'auth.session-mint',
+]);
+const AUTH_GUEST_EFFECT_BINDINGS = Object.freeze({
+  'auth.guest.create': Object.freeze(['auth.guest.create', 'auth.session-mint']),
+  'auth.guest.claim.password': Object.freeze([
+    'auth.enumeration', 'auth.hash-cpu', 'auth.account.create', 'auth.session-mint',
+  ]),
+});
+const AUTH_GUEST_BUDGET_PROFILE_LIMITS = Object.freeze({
+  dev: Object.freeze({ limit: 100000, windowMs: 1000 }),
+  test: Object.freeze({ limit: 100000, windowMs: 1000 }),
+  demo: Object.freeze({ limit: 10000, windowMs: 10000 }),
+  prod: Object.freeze({ limit: 10, windowMs: 1000 }),
+});
 const AUTH_ASSURANCE_KINDS = new Set([
   'authenticated', 'email_verified', 'phone_verified', 'recent_auth', 'phishing_resistant',
 ]);
@@ -2171,6 +2190,34 @@ export function defineAuth(program) {
     }
   }
 
+  let abuseBudgets;
+  if (program.abuseBudgets !== undefined) {
+    exactObject(program.abuseBudgets, 'defineAuth abuseBudgets', new Set(['version', 'preset']));
+    assert(
+      program.abuseBudgets.version === 1 && program.abuseBudgets.preset === 'guest-entry-v1',
+      'defineAuth abuseBudgets must select the closed guest-entry-v1 policy',
+      'SNAPBACK_AUTH_BUDGET_POLICY_INVALID',
+    );
+    abuseBudgets = {
+      version: 1,
+      preset: 'guest-entry-v1',
+      budgets: Object.fromEntries(AUTH_GUEST_BUDGET_NAMES.map((name) => [
+        name,
+        { profiles: Object.fromEntries(Object.entries(AUTH_GUEST_BUDGET_PROFILE_LIMITS).map(
+          ([profile, terms]) => [profile, { ...terms }],
+        )) },
+      ])),
+      effectBindings: Object.fromEntries(Object.entries(AUTH_GUEST_EFFECT_BINDINGS).map(
+        ([effect, names]) => [effect, [...names]],
+      )),
+    };
+  }
+  assert(
+    !guestPolicy.enabled || abuseBudgets !== undefined,
+    'enabled defineAuth guestPolicy requires the closed abuseBudgets guest-entry-v1 policy',
+    'SNAPBACK_AUTH_BUDGET_POLICY_INVALID',
+  );
+
   let verifiedProvisioning;
   if (program.verifiedProvisioning !== undefined) {
     const hook = program.verifiedProvisioning;
@@ -2200,6 +2247,7 @@ export function defineAuth(program) {
     assuranceRequirements,
     recoveryPolicy: normalizedRecoveryPolicy,
     guestPolicy: { enabled: guestPolicy.enabled, claiming: [...claiming], ...(reaping ? { reaping } : {}) },
+    ...(abuseBudgets ? { abuseBudgets } : {}),
     secretReferences,
     ...(verifiedProvisioning ? { verifiedProvisioning } : {}),
   };

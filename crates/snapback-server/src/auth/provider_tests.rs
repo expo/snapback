@@ -1,7 +1,9 @@
 pub use snapback_auth::auth::provider::*;
 
 use crate::auth::crypto::*;
-use crate::auth::keyring::AuthKeyringStore;
+use crate::auth::keyring::{
+    AUTH_KEY_ROTATION_AGE_MS, AUTH_RETIRED_KEY_MINIMUM_AGE_MS, AuthKeyringStore,
+};
 use crate::auth::lease::*;
 use crate::auth::lifecycle::KeyringGcResult;
 use crate::auth::mailbox::{CaptureMailbox, CaptureMailboxEntry};
@@ -105,7 +107,20 @@ mod tests {
         .expect("provider initializes while randomness is available");
         random.unavailable.store(true, Ordering::SeqCst);
         let error = provider
-            .plan_guest_session(now_ms, now_ms + 60_000, PasswordIssuanceCustody::Bearer)
+            .plan_guest_session(
+                &mut database,
+                now_ms,
+                60_000,
+                snapback_kernel::auth::throttle::RollingWindowBudgetTerms {
+                    limit: 10,
+                    window_ms: 1_000,
+                },
+                "guest-csprng-failure-key",
+                "guest-test-app",
+                "guest-test-deployment",
+                &format!("sha256:{}", "a".repeat(64)),
+                PasswordIssuanceCustody::Bearer,
+            )
             .expect_err("guest creation must fail closed without CSPRNG");
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_RANDOM_UNAVAILABLE");
     }
@@ -115,18 +130,50 @@ mod tests {
         let now_ms = 1_700_000_000_000;
         let (provider, mut database) =
             provider_database_for_profile(now_ms, AuthProviderProfile::Prod);
-        for _ in 0..10 {
-            let plan = provider
-                .plan_guest_session(now_ms, now_ms + 60_000, PasswordIssuanceCustody::Bearer)
+        for index in 0..10 {
+            let planned = provider
+                .plan_guest_session(
+                    &mut database,
+                    now_ms,
+                    60_000,
+                    snapback_kernel::auth::throttle::RollingWindowBudgetTerms {
+                        limit: 10,
+                        window_ms: 1_000,
+                    },
+                    &format!("guest-budget-admitted-{index:04}"),
+                    "guest-test-app",
+                    "guest-test-deployment",
+                    &format!("sha256:{}", "a".repeat(64)),
+                    PasswordIssuanceCustody::Bearer,
+                )
                 .expect("admitted guest plan");
+            let ProviderGuestSessionPlan::Planned(plan) = planned else {
+                panic!("fresh guest key must produce a plan");
+            };
             assert!(matches!(
                 provider.commit_guest_issuance(&mut database, &plan.commit_plan()),
                 AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed { .. })
             ));
         }
         let denied = provider
-            .plan_guest_session(now_ms, now_ms + 60_000, PasswordIssuanceCustody::Bearer)
+            .plan_guest_session(
+                &mut database,
+                now_ms,
+                60_000,
+                snapback_kernel::auth::throttle::RollingWindowBudgetTerms {
+                    limit: 10,
+                    window_ms: 1_000,
+                },
+                "guest-budget-denied-001",
+                "guest-test-app",
+                "guest-test-deployment",
+                &format!("sha256:{}", "a".repeat(64)),
+                PasswordIssuanceCustody::Bearer,
+            )
             .expect("budget denial is decided at the atomic commit cut");
+        let ProviderGuestSessionPlan::Planned(denied) = denied else {
+            panic!("fresh denied guest key must reach the commit cut");
+        };
         assert!(matches!(
             provider.commit_guest_issuance(&mut database, &denied.commit_plan()),
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::GuestBudgetRefused {
@@ -134,6 +181,198 @@ mod tests {
                 retry_after_ms: 1_000,
             })
         ));
+    }
+
+    #[test]
+    fn guest_creation_committed_replay_is_exact_and_same_key_conflict_refuses() {
+        let now_ms = 1_700_000_000_000;
+        let (provider, mut database) =
+            provider_database_for_profile(now_ms, AuthProviderProfile::Test);
+        let policy_a = format!("sha256:{}", "a".repeat(64));
+        let policy_b = format!("sha256:{}", "b".repeat(64));
+        let key = "guest-entry-provider-replay-0001";
+        let planned = provider
+            .plan_guest_session(
+                &mut database,
+                now_ms,
+                60_000,
+                snapback_kernel::auth::throttle::RollingWindowBudgetTerms {
+                    limit: 10,
+                    window_ms: 1_000,
+                },
+                key,
+                "guest-test-app",
+                "guest-test-deployment",
+                &policy_a,
+                PasswordIssuanceCustody::Bearer,
+            )
+            .expect("initial guest plan");
+        let ProviderGuestSessionPlan::Planned(plan) = planned else {
+            panic!("fresh key must plan");
+        };
+        let committed = provider.commit_guest_issuance(&mut database, &plan.commit_plan());
+        let AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
+            session,
+            committed_revocations,
+        }) = committed
+        else {
+            panic!("initial guest must commit");
+        };
+        let initial = plan.into_issue(session, committed_revocations);
+        let replay = provider
+            .plan_guest_session(
+                &mut database,
+                now_ms + 1,
+                60_000,
+                snapback_kernel::auth::throttle::RollingWindowBudgetTerms {
+                    limit: 10,
+                    window_ms: 1_000,
+                },
+                key,
+                "guest-test-app",
+                "guest-test-deployment",
+                &policy_a,
+                PasswordIssuanceCustody::Bearer,
+            )
+            .expect("committed guest replay");
+        let ProviderGuestSessionPlan::Replay(replay) = replay else {
+            panic!("same request must replay");
+        };
+        assert_eq!(
+            replay.response().token().expose_secret(),
+            initial.response().token().expose_secret()
+        );
+        assert_eq!(replay.response().session, initial.response().session);
+
+        let conflict = provider
+            .plan_guest_session(
+                &mut database,
+                now_ms + 2,
+                60_000,
+                snapback_kernel::auth::throttle::RollingWindowBudgetTerms {
+                    limit: 10,
+                    window_ms: 1_000,
+                },
+                key,
+                "guest-test-app",
+                "guest-test-deployment",
+                &policy_b,
+                PasswordIssuanceCustody::Bearer,
+            )
+            .expect("same-key request conflict");
+        assert!(matches!(conflict, ProviderGuestSessionPlan::Conflict));
+    }
+
+    #[test]
+    fn guest_entry_replay_key_is_retained_then_bounded_gc_reclaims_it() {
+        let mut database = LocalDatabase::memory().expect("memory database");
+        database
+            .activate_current_auth_catalog()
+            .expect("auth catalog");
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        keyring
+            .load_or_mint_initial(0, &OsRandom)
+            .expect("initial keyring");
+        let guest_now = AUTH_KEY_ROTATION_AGE_MS - 1;
+        let guest_retention_ms = 7 * 24 * 60 * 60 * 1_000;
+        let provider = AuthProvider::new_with_dependencies(
+            AuthProviderProfile::Test,
+            keyring.clone(),
+            Arc::new(OsRandom),
+            Arc::new(ManualClock::new(guest_now)),
+        )
+        .expect("provider");
+        let retired_key = keyring
+            .with_active_key(guest_now, &OsRandom, |key_id, _| key_id.as_str().to_owned())
+            .expect("entry derivation key");
+        let policy = format!("sha256:{}", "a".repeat(64));
+        let planned = provider
+            .plan_guest_session(
+                &mut database,
+                guest_now,
+                guest_retention_ms,
+                RollingWindowBudgetTerms {
+                    limit: 10,
+                    window_ms: 1_000,
+                },
+                "guest-entry-retained-key-0001",
+                "guest-test-app",
+                "guest-test-deployment",
+                &policy,
+                PasswordIssuanceCustody::Bearer,
+            )
+            .expect("guest plan");
+        let ProviderGuestSessionPlan::Planned(plan) = planned else {
+            panic!("fresh key must plan");
+        };
+        let AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed { .. }) =
+            provider.commit_guest_issuance(&mut database, &plan.commit_plan())
+        else {
+            panic!("guest must commit");
+        };
+
+        assert!(
+            keyring
+                .rotate_if_due(AUTH_KEY_ROTATION_AGE_MS, &OsRandom)
+                .expect("rotate entry key")
+        );
+        let first_prune = AUTH_KEY_ROTATION_AGE_MS + AUTH_RETIRED_KEY_MINIMUM_AGE_MS;
+        assert_eq!(
+            keyring
+                .prune_retired(first_prune, &OsRandom, |key_id| {
+                    database
+                        .auth_key_is_referenced(key_id.as_str())
+                        .map_err(|_| crate::auth::keyring::KeyringError::Unavailable)
+                })
+                .expect("referenced prune"),
+            0
+        );
+        assert!(
+            database
+                .auth_retained_key_ids()
+                .expect("retained keys")
+                .contains(&retired_key)
+        );
+        assert!(matches!(
+            provider
+                .plan_guest_session(
+                    &mut database,
+                    first_prune,
+                    guest_retention_ms,
+                    RollingWindowBudgetTerms {
+                        limit: 10,
+                        window_ms: 1_000,
+                    },
+                    "guest-entry-retained-key-0001",
+                    "guest-test-app",
+                    "guest-test-deployment",
+                    &policy,
+                    PasswordIssuanceCustody::Bearer,
+                )
+                .expect("replay after key rotation"),
+            ProviderGuestSessionPlan::Replay(_)
+        ));
+
+        let retention_deadline = guest_now + guest_retention_ms;
+        database
+            .auth_gc(retention_deadline)
+            .expect("bounded replay GC");
+        assert_eq!(
+            keyring
+                .prune_retired(retention_deadline, &OsRandom, |key_id| {
+                    database
+                        .auth_key_is_referenced(key_id.as_str())
+                        .map_err(|_| crate::auth::keyring::KeyringError::Unavailable)
+                })
+                .expect("expired replay key prune"),
+            1
+        );
+        assert!(
+            !database
+                .auth_retained_key_ids()
+                .expect("retained keys after GC")
+                .contains(&retired_key)
+        );
     }
 
     #[test]
@@ -3386,29 +3625,49 @@ mod tests {
                 now_ms + 1,
                 "recovery-key-1",
                 &[7; 32],
+                snapback_kernel::auth::throttle::RollingWindowBudgetTerms {
+                    limit: 10,
+                    window_ms: 1_000,
+                },
                 PasswordIssuanceCustody::Bearer,
             )
             .await
             .expect("guest password claim plan");
-        let (claim_finish, claim_targets) = commit_password_issuance_for_test(
-            &provider,
-            &mut database,
-            &coordinator,
-            claim,
-            now_ms + 1,
-        )
-        .await;
+        let original_session_id = guest.session_id.clone();
+        let original_authority_id = match database
+            .auth_catalog_read()
+            .lookup_presented_session(&guest.bearer.token_hash())
+            .expect("guest session lookup")
+        {
+            PresentedSessionLookup::Current(session) => session.session.authority_instance_id,
+            other => panic!("guest bearer must be current, got {other:?}"),
+        };
+        let commit_plan = claim.commit_plan();
+        let carrier = coordinator
+            .premark_password_change(claim)
+            .await
+            .expect("premark guest claim");
+        let attempt = provider.commit_password_change(&mut database, &commit_plan);
+        let (claim_finish, claim_targets) = coordinator
+            .finish_password_change(carrier, attempt)
+            .into_parts();
+        let claim_finish = claim_finish.expect("finish guest claim");
         let claimed = match claim_finish {
-            IssuanceFinish::Committed { issue: claimed, .. } => claimed,
+            PasswordChangeFinish::Committed(claimed) => claimed,
             other => panic!("guest claim must commit, got {other:?}"),
         };
-        assert_eq!(claim_targets.len(), 1);
+        assert!(claim_targets.is_empty());
         assert_eq!(claimed.response().session.user_id, guest.user_id);
+        assert_eq!(claimed.response().session.id, original_session_id);
+        assert_eq!(
+            claimed.response().session.authority_instance_id,
+            original_authority_id
+        );
         assert!(
             coordinator
                 .resolve_required_bearer(
                     guest.bearer.expose_secret(),
-                    now_ms + 1,
+                    now_ms + 1 + AUTH_SESSION_SUPERSESSION_GRACE_MS + 1,
                     provider.monotonic_now(),
                 )
                 .is_err()
@@ -3460,5 +3719,46 @@ mod tests {
                 )
                 .is_ok()
         );
+    }
+
+    #[tokio::test]
+    async fn guest_claim_reaped_during_kdf_window_is_predecessor_changed_not_collision() {
+        let now_ms = 10_000_000;
+        let (provider, mut database, _) = password_provider_database_coordinator(now_ms);
+        let guest = database
+            .identity_guest_create(now_ms + 60_000, now_ms, provider.random.as_ref())
+            .expect("guest race fixture");
+        let preparation = provider
+            .prepare_guest_claim_password(
+                &database,
+                &guest.bearer,
+                "race-reaped-guest@example.com",
+                now_ms + 1,
+                PasswordIssuanceCustody::Bearer,
+            )
+            .expect("claim preparation before KDF");
+        let reaped = database
+            .identity_reap_guests_default_tombstone(now_ms + 60_000)
+            .expect("reap during claim KDF window");
+        assert_eq!(reaped.reaped, 1);
+        let plan = provider
+            .finish_guest_claim_password(
+                preparation,
+                PasswordSecret::new("race-reaped-password-123!".to_owned()),
+                now_ms + 2,
+                "recovery-key-1",
+                &[7; 32],
+                snapback_kernel::auth::throttle::RollingWindowBudgetTerms {
+                    limit: 10,
+                    window_ms: 1_000,
+                },
+                PasswordIssuanceCustody::Bearer,
+            )
+            .await
+            .expect("KDF still completes uniformly");
+        assert!(matches!(
+            provider.commit_password_change(&mut database, &plan.commit_plan()),
+            AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::PredecessorChanged)
+        ));
     }
 }

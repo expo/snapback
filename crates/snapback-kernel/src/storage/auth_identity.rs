@@ -37,6 +37,12 @@ const COMMON_PASSWORDS: &[&str] = &[
 const RECOVERY_DOMAIN: &[u8] = b"snapback.auth.recovery-code.v1";
 const DUMMY_PASSWORD_PHC: &str = "$argon2id$v=19$m=19456,t=2,p=1$HyAhIiMkJSYnKCkqKywtLg$Kwc47BIKhIV7UTbl8eAZf0EL/mFlTXkkO6rPuplXNLc";
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct GuestReapBatch {
+    pub reaped: u64,
+    pub immediate_retry: bool,
+}
+
 pub const fn dummy_password_phc() -> &'static str {
     DUMMY_PASSWORD_PHC
 }
@@ -534,7 +540,18 @@ pub enum PasswordIssuanceAdmission {
         committed_attempt: Option<PasswordAttemptState>,
     },
     LedgerCapacityExhausted,
+    GuestClaimCollision,
+    GuestAlreadyClaimed,
     PredecessorChanged,
+}
+
+/// Credential mutation carried beside an in-place token-family rotation.
+/// Guest claim deliberately shares the password-change coordinator path so
+/// the acting session and authority instance survive the transition.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum CredentialRotationMutation {
+    PasswordChange(PasswordChangeCommitPlan),
+    GuestClaim(PasswordIssuanceCommitPlan),
 }
 
 struct PasswordIdentifier {
@@ -981,7 +998,7 @@ fn mint_session(random: &dyn RandomSource) -> SnapbackResult<(String, String, Se
     // registry. First-class password request paths bypass this helper and use
     // the projection-coordinated provider issuance kernel.
     Ok((
-        opaque_id("session"),
+        crate::ids::mint_time_ordered(crate::ids::Kind::Session),
         crate::ids::mint_time_ordered(crate::ids::Kind::AuthorityInstance),
         bearer,
     ))
@@ -1280,7 +1297,7 @@ pub(crate) fn admit_password_issuance_in(
             let collision: bool = transaction.query_row(
                 "SELECT EXISTS(
                    SELECT 1 FROM _auth_identities
-                   WHERE subject=?1 AND disabled_at_ms IS NULL
+                   WHERE subject=?1
                  )",
                 [&plan.canonical_identifier],
                 |row| row.get(0),
@@ -1450,18 +1467,48 @@ pub(crate) fn admit_password_issuance_in(
                     && u64::try_from(generation).ok() == Some(predecessor.generation)
                     && digest.as_slice() == predecessor.token_digest.as_bytes().as_slice()
             });
+            if !exact {
+                let guest_state: Option<String> = transaction
+                    .query_row(
+                        "SELECT guest_state FROM _auth_users WHERE id=?1",
+                        [&predecessor.user_id],
+                        |row| row.get(0),
+                    )
+                    .optional()?;
+                return Ok(if guest_state.as_deref() == Some("claimed") {
+                    PasswordIssuanceAdmission::GuestAlreadyClaimed
+                } else {
+                    PasswordIssuanceAdmission::PredecessorChanged
+                });
+            }
             let collision: bool = transaction.query_row(
                 "SELECT EXISTS(SELECT 1 FROM _auth_identities
-                 WHERE provider='local-password' AND subject=?1)",
+                 WHERE subject=?1)",
                 [&plan.canonical_identifier],
                 |row| row.get(0),
             )?;
-            Ok(if exact && !collision {
+            if collision {
+                return Ok(PasswordIssuanceAdmission::GuestClaimCollision);
+            }
+            let candidate_collision: bool = transaction.query_row(
+                "SELECT EXISTS(SELECT 1 FROM _auth_identities WHERE id=?1)
+                     OR EXISTS(SELECT 1 FROM _auth_credentials WHERE id=?2)",
+                params![
+                    plan.identity_id,
+                    match &plan.operation {
+                        PasswordIssuanceOperation::GuestClaim { credential_id, .. } =>
+                            credential_id,
+                        _ => unreachable!(),
+                    }
+                ],
+                |row| row.get(0),
+            )?;
+            Ok(if candidate_collision {
+                PasswordIssuanceAdmission::PredecessorChanged
+            } else {
                 PasswordIssuanceAdmission::Proceed {
                     create_principal: false,
                 }
-            } else {
-                PasswordIssuanceAdmission::PredecessorChanged
             })
         }
         PasswordIssuanceOperation::RecoveryConsume { predecessor, .. } => {
@@ -1997,6 +2044,47 @@ pub(crate) fn finish_password_session_in(
     Ok(())
 }
 
+/// Turn the acting guest session into the credential-backed successor without
+/// changing its session id or authority instance. All guest-era assurances on
+/// the acting session are retired before the credential assurances are added.
+/// @ref LLP 0214#76-session-rules — guest claim rotates the acting family in
+/// place and revokes only the other guest-era sessions.
+pub(crate) fn finish_guest_claim_rotation_in(
+    transaction: &Transaction<'_>,
+    plan: &PasswordIssuanceCommitPlan,
+    session_id: &str,
+    now_ms: u64,
+) -> SnapbackResult<()> {
+    let PasswordIssuanceOperation::GuestClaim { .. } = &plan.operation else {
+        return Err(auth_error(
+            "INTERNAL_AUTH_STATE",
+            "authentication state invariant failed",
+        ));
+    };
+    // Password issuance projects ordinary password sessions through their
+    // identity provenance; the credential id remains attached to assurances
+    // and recovery state. Preserve that catalog invariant during in-place
+    // guest credentialization.
+    let changed = transaction.execute(
+        "UPDATE _auth_sessions
+         SET identity_id=?2,credential_id=NULL,authn_source='identity'
+         WHERE id=?1 AND user_id=?3 AND revoked_at_ms IS NULL",
+        params![session_id, plan.identity_id, plan.user_id],
+    )?;
+    if changed != 1 {
+        return Err(auth_error(
+            "INTERNAL_AUTH_STATE",
+            "authentication state invariant failed",
+        ));
+    }
+    transaction.execute(
+        "UPDATE _auth_assurances SET revoked_at_ms=?2
+         WHERE session_id=?1 AND revoked_at_ms IS NULL",
+        params![session_id, now_ms],
+    )?;
+    finish_password_session_in(transaction, plan, session_id, now_ms)
+}
+
 pub(crate) fn password_attempt_matches_on(
     connection: &rusqlite::Connection,
     canonical_identifier: &str,
@@ -2014,7 +2102,7 @@ pub(crate) fn password_issuance_is_exact_predecessor_on(
             let collisions: bool = connection.query_row(
                 "SELECT EXISTS(
                    SELECT 1 FROM _auth_identities
-                   WHERE subject=?1 AND disabled_at_ms IS NULL
+                   WHERE subject=?1
                  ) OR EXISTS(SELECT 1 FROM _auth_users WHERE id=?2)
                    OR EXISTS(SELECT 1 FROM _auth_identities WHERE id=?3)
                    OR EXISTS(SELECT 1 FROM _auth_credentials WHERE id=?4)",
@@ -3001,26 +3089,125 @@ impl LocalDatabase {
         })
     }
 
-    pub fn identity_reap_guests_default_tombstone(&mut self, now: u64) -> SnapbackResult<u64> {
-        self.with_auth_transaction(|tx|{
-            super::auth::require_identity_core_v3_on(tx)?;
-            let mut stmt=tx.prepare(
-                "SELECT u.id
+    pub fn identity_reap_guests_default_tombstone(
+        &mut self,
+        now: u64,
+    ) -> SnapbackResult<GuestReapBatch> {
+        const BATCH: usize = 128;
+        let candidates = self.with_auth_read(|connection| {
+            super::auth::require_identity_core_v3_on(connection)?;
+            let mut statement = connection.prepare(
+                "SELECT u.id,u.guest_expires_at_ms
                    FROM _auth_users u
                   WHERE u.guest_state='active'
                     AND u.guest_expires_at_ms<=?1
                     AND EXISTS (
-                      SELECT 1
-                        FROM _auth_security_events e
-                       WHERE e.user_id=u.id
-                         AND e.kind='guest.created'
+                      SELECT 1 FROM _auth_security_events e
+                       WHERE e.user_id=u.id AND e.kind='guest.created'
                          AND e.redacted_metadata=?2
                     )
-                  ORDER BY u.id",
+                  ORDER BY u.guest_expires_at_ms,u.id
+                  LIMIT ?3",
             )?;
-            let users=stmt.query_map(params![now, DEFAULT_GUEST_TOMBSTONE_EVENT_METADATA],|row|row.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?; drop(stmt);
-            for user in &users { tx.execute("UPDATE _auth_sessions SET revoked_at_ms=?2,generation=generation+1 WHERE user_id=?1 AND revoked_at_ms IS NULL",params![user,now])?; tx.execute("UPDATE _auth_users SET guest_state='reaped',guest_expires_at_ms=NULL WHERE id=?1 AND guest_state='active'",[user])?; journal(tx,user,"guest.reaped",now)?; }
-            Ok(users.len() as u64)
+            let rows = statement
+                .query_map(
+                    params![
+                        now,
+                        DEFAULT_GUEST_TOMBSTONE_EVENT_METADATA,
+                        (BATCH + 1) as i64
+                    ],
+                    |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)),
+                )?
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(rows)
+        })?;
+        let immediate_retry = candidates.len() > BATCH;
+        let mut reaped = 0_u64;
+        for (user, expires_at_ms) in candidates.into_iter().take(BATCH) {
+            let committed = self.with_auth_transaction(|transaction| {
+                super::auth::require_identity_core_v3_on(transaction)?;
+                let exact: bool = transaction.query_row(
+                    "SELECT EXISTS(
+                       SELECT 1 FROM _auth_users u
+                        WHERE u.id=?1 AND u.guest_state='active'
+                          AND u.guest_expires_at_ms=?2 AND u.guest_expires_at_ms<=?3
+                          AND EXISTS (
+                            SELECT 1 FROM _auth_security_events e
+                             WHERE e.user_id=u.id AND e.kind='guest.created'
+                               AND e.redacted_metadata=?4
+                          )
+                     )",
+                    params![
+                        user,
+                        expires_at_ms,
+                        now,
+                        DEFAULT_GUEST_TOMBSTONE_EVENT_METADATA
+                    ],
+                    |row| row.get(0),
+                )?;
+                if !exact {
+                    return Ok(false);
+                }
+                let sessions = {
+                    let mut statement = transaction.prepare(
+                        "SELECT id,generation FROM _auth_sessions
+                          WHERE user_id=?1 AND revoked_at_ms IS NULL
+                          ORDER BY id",
+                    )?;
+                    statement
+                        .query_map([&user], |row| {
+                            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+                        })?
+                        .collect::<Result<Vec<_>, _>>()?
+                };
+                for (session_id, generation) in sessions {
+                    let successor_generation = generation
+                        .checked_add(1)
+                        .ok_or_else(super::auth_catalog_ops::internal_state_snapback)?;
+                    if transaction.execute(
+                        "UPDATE _auth_sessions
+                            SET revoked_at_ms=?1,generation=?2
+                          WHERE id=?3 AND generation=?4 AND revoked_at_ms IS NULL",
+                        params![now, successor_generation, session_id, generation],
+                    )? != 1
+                    {
+                        return Err(super::auth_catalog_ops::internal_state_snapback());
+                    }
+                    super::auth::write_session_terminal_cause_in(
+                        transaction,
+                        &session_id,
+                        u64::try_from(successor_generation)
+                            .map_err(|_| super::auth_catalog_ops::internal_state_snapback())?,
+                        now,
+                        // Reaping deactivates the principal and is therefore a
+                        // durable authority deletion, not the carrier-only
+                        // observation that a sliding deadline elapsed.
+                        crate::contract_types::RevocationReason::DurableRevocation,
+                    )?;
+                }
+                transaction.execute(
+                    "UPDATE _auth_assurances SET revoked_at_ms=?2
+                      WHERE user_id=?1 AND revoked_at_ms IS NULL",
+                    params![user, now],
+                )?;
+                if transaction.execute(
+                    "UPDATE _auth_users
+                        SET guest_state='reaped',guest_expires_at_ms=NULL
+                      WHERE id=?1 AND guest_state='active' AND guest_expires_at_ms=?2",
+                    params![user, expires_at_ms],
+                )? != 1
+                {
+                    return Err(super::auth_catalog_ops::internal_state_snapback());
+                }
+                journal(transaction, &user, "guest.reaped", now)?;
+                super::auth_stream::advance_authorization_epoch_in(transaction)?;
+                Ok(true)
+            })?;
+            reaped += u64::from(committed);
+        }
+        Ok(GuestReapBatch {
+            reaped,
+            immediate_retry,
         })
     }
 
@@ -3067,8 +3254,7 @@ impl LocalDatabase {
             require_same_password_identifier_mode(connection, identifier_mode)?;
             connection
                 .query_row(
-                    "SELECT EXISTS(SELECT 1 FROM _auth_identities
-                     WHERE provider='local-password' AND subject=?1)",
+                    "SELECT EXISTS(SELECT 1 FROM _auth_identities WHERE subject=?1)",
                     [canonical_identifier],
                     |row| row.get(0),
                 )
@@ -3927,7 +4113,13 @@ mod tests {
             Ok(())
         })
         .unwrap();
-        assert_eq!(db.identity_reap_guests_default_tombstone(9).unwrap(), 1);
+        assert_eq!(
+            db.identity_reap_guests_default_tombstone(9).unwrap(),
+            GuestReapBatch {
+                reaped: 1,
+                immediate_retry: false,
+            }
+        );
         assert_eq!(
             db.with_auth_read(|conn| Ok(conn.query_row(
                 "SELECT guest_state FROM _auth_users WHERE id=?1",
@@ -3950,6 +4142,87 @@ mod tests {
             .diagnostic
             .code,
             "SNAPBACK_AUTH_GUEST_SESSION_INVALID"
+        );
+    }
+
+    #[test]
+    fn guest_reaper_commits_bounded_ordered_batches_with_full_invalidation() {
+        let random = CounterRandom::new();
+        let mut db = ready();
+        for _ in 0..129 {
+            db.identity_guest_create(8, 7, &random)
+                .expect("reap batch guest");
+        }
+        let initial_epoch = db
+            .with_auth_read(|connection| {
+                Ok(connection.query_row(
+                    "SELECT value FROM _snapback_meta WHERE key='authorization_epoch_v1'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )?)
+            })
+            .expect("read pre-reap authorization epoch")
+            .parse::<u64>()
+            .expect("numeric pre-reap authorization epoch");
+        let first = db
+            .identity_reap_guests_default_tombstone(9)
+            .expect("first bounded reap batch");
+        assert_eq!(
+            first,
+            GuestReapBatch {
+                reaped: 128,
+                immediate_retry: true,
+            }
+        );
+        db.with_auth_read(|connection| {
+            let states: (u64, u64) = connection.query_row(
+                "SELECT
+                   SUM(CASE WHEN guest_state='reaped' THEN 1 ELSE 0 END),
+                   SUM(CASE WHEN guest_state='active' THEN 1 ELSE 0 END)
+                 FROM _auth_users",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )?;
+            assert_eq!(states, (128, 1));
+            let live_sessions: u64 = connection.query_row(
+                "SELECT COUNT(*) FROM _auth_sessions WHERE revoked_at_ms IS NULL",
+                [],
+                |row| row.get(0),
+            )?;
+            assert_eq!(live_sessions, 1);
+            let terminal_causes: u64 = connection.query_row(
+                "SELECT COUNT(*) FROM _snapback_meta
+                  WHERE key LIKE 'auth_session_terminal_cause_v1/%'
+                    AND value LIKE '%\"reason\":\"durableRevocation\"%'",
+                [],
+                |row| row.get(0),
+            )?;
+            assert_eq!(terminal_causes, 128);
+            let journals: u64 = connection.query_row(
+                "SELECT COUNT(*) FROM _auth_security_events WHERE kind='guest.reaped'",
+                [],
+                |row| row.get(0),
+            )?;
+            assert_eq!(journals, 128);
+            let epoch: String = connection.query_row(
+                "SELECT value FROM _snapback_meta WHERE key='authorization_epoch_v1'",
+                [],
+                |row| row.get(0),
+            )?;
+            assert_eq!(
+                epoch.parse::<u64>().expect("numeric authorization epoch"),
+                initial_epoch + 128
+            );
+            Ok(())
+        })
+        .expect("inspect first reap batch");
+        assert_eq!(
+            db.identity_reap_guests_default_tombstone(9)
+                .expect("immediate retry batch"),
+            GuestReapBatch {
+                reaped: 1,
+                immediate_retry: false,
+            }
         );
     }
 

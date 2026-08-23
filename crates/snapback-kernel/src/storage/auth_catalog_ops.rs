@@ -20,6 +20,36 @@ use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use zeroize::Zeroizing;
 
 pub const INTERNAL_AUTH_COLLISION: &str = "INTERNAL_AUTH_COLLISION";
+pub(super) const GUEST_IDEMPOTENCY_TABLE: &str = "_snapback_auth_guest_idempotency";
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CatalogGuestEntryIdempotencyPlan {
+    pub key_digest: [u8; 32],
+    pub request_digest: [u8; 32],
+    pub key_id: String,
+    pub created_at_ms: u64,
+    pub retain_until_ms: u64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum GuestEntryIdempotencyLookup {
+    Missing,
+    Pending {
+        key_id: String,
+        created_at_ms: u64,
+    },
+    Committed {
+        key_id: String,
+        created_at_ms: u64,
+    },
+    Refused {
+        key_id: String,
+        created_at_ms: u64,
+        budget_name: String,
+        retry_after_ms: u64,
+    },
+    Conflict,
+}
 
 pub fn internal_collision_snapback() -> crate::diagnostic::SnapbackError {
     crate::diagnostic::SnapbackError::error(
@@ -82,10 +112,12 @@ pub struct CatalogRotationPlan<'a> {
 /// replacement hashing, lockout policy, and revocation selection happen in
 /// sync policy before the kernel receives this carrier.
 pub struct CatalogPasswordChangePlan<'a> {
-    pub mutation: &'a crate::storage::auth_identity::PasswordChangeCommitPlan,
+    pub mutation: &'a crate::storage::auth_identity::CredentialRotationMutation,
     pub rotation: CatalogRotationPlan<'a>,
     pub revocations: Vec<CatalogRevocationPlan<'a>>,
     pub password_profile: crate::storage::auth_identity::PasswordSecurityProfile,
+    pub successor_provider: Option<&'static str>,
+    pub successful_effect_budget: Option<crate::auth::throttle::RollingWindowBudgetTerms>,
 }
 
 #[derive(Clone, Debug)]
@@ -98,6 +130,12 @@ pub enum CatalogPasswordChangeCommit {
         committed_attempt: Option<crate::storage::auth_identity::PasswordAttemptState>,
     },
     CredentialThrottled,
+    GuestClaimCollision,
+    GuestAlreadyClaimed,
+    GuestBudgetRefused {
+        budget_name: &'static str,
+        retry_after_ms: u64,
+    },
     CandidateCollision,
     PredecessorChanged,
 }
@@ -148,6 +186,7 @@ pub struct CatalogSessionIssuancePlan<'a> {
     pub sender_issuance: Option<&'a crate::auth::sender_proof::SenderIssuanceCommitment>,
     pub rehearsal_exercise: Option<&'a crate::storage::auth_rehearsal::RehearsalExercisePlan>,
     pub guest_effect_budget: Option<crate::auth::throttle::RollingWindowBudgetTerms>,
+    pub guest_idempotency: Option<&'a CatalogGuestEntryIdempotencyPlan>,
     pub live_session_limit: u64,
 }
 
@@ -194,6 +233,7 @@ pub enum CatalogIssuanceCommit {
         budget_name: &'static str,
         retry_after_ms: u64,
     },
+    GuestIdempotencyConflict,
     // @ref LLP 0077#issuance-refresh-and-recovery — one live family per
     // thumbprint: a valid proof over an already-bound key consumes its proof
     // id and refuses without touching the challenge, session, or nonce state.
@@ -218,6 +258,103 @@ fn session_response_fact(session: &SessionRecord) -> AuthSessionResponseFact {
         absolute_expires_at: session.session.absolute_expires_at_ms,
         authority_instance_id: session.session.authority_instance_id.clone(),
         generation: session.session.generation,
+    }
+}
+
+fn ensure_guest_idempotency_table(connection: &Connection) -> SnapbackResult<()> {
+    connection.execute_batch(&format!(
+        "CREATE TABLE IF NOT EXISTS {GUEST_IDEMPOTENCY_TABLE}(
+           key_digest BLOB PRIMARY KEY,
+           request_digest BLOB NOT NULL,
+           key_id TEXT NOT NULL,
+           created_at_ms INTEGER NOT NULL,
+           retain_until_ms INTEGER NOT NULL,
+           state TEXT NOT NULL CHECK(state IN ('pending','committed','refused')),
+           budget_name TEXT,
+           retry_after_ms INTEGER,
+           CHECK((state='refused')=(budget_name IS NOT NULL)),
+           CHECK((state='refused')=(retry_after_ms IS NOT NULL)),
+           CHECK(created_at_ms BETWEEN 0 AND 9007199254740991),
+           CHECK(retain_until_ms BETWEEN created_at_ms AND 9007199254740991)
+         );"
+    ))?;
+    connection.execute_batch(&format!(
+        "CREATE INDEX IF NOT EXISTS _snapback_auth_guest_idempotency_retention
+           ON {GUEST_IDEMPOTENCY_TABLE}(retain_until_ms,key_digest);"
+    ))?;
+    Ok(())
+}
+
+impl LocalDatabase {
+    pub fn guest_entry_idempotency_lookup(
+        &mut self,
+        key_digest: &[u8; 32],
+        request_digest: &[u8; 32],
+        now_ms: u64,
+    ) -> SnapbackResult<GuestEntryIdempotencyLookup> {
+        self.with_auth_transaction(|transaction| {
+            ensure_guest_idempotency_table(transaction)?;
+            transaction.execute(
+                &format!(
+                    "DELETE FROM {GUEST_IDEMPOTENCY_TABLE}
+                       WHERE key_digest=?1 AND retain_until_ms<=?2"
+                ),
+                params![key_digest.as_slice(), now_ms as i64],
+            )?;
+            let row: Option<(Vec<u8>, String, i64, i64, String, Option<String>, Option<i64>)> =
+                transaction
+                    .query_row(
+                        &format!(
+                            "SELECT request_digest,key_id,created_at_ms,retain_until_ms,state,budget_name,retry_after_ms
+                               FROM {GUEST_IDEMPOTENCY_TABLE} WHERE key_digest=?1"
+                        ),
+                        params![key_digest.as_slice()],
+                        |row| {
+                            Ok((
+                                row.get(0)?,
+                                row.get(1)?,
+                                row.get(2)?,
+                                row.get(3)?,
+                                row.get(4)?,
+                                row.get(5)?,
+                                row.get(6)?,
+                            ))
+                        },
+                    )
+                    .optional()?;
+            let Some((durable_request, key_id, created_at_ms, retain_until_ms, state, budget, retry)) = row
+            else {
+                return Ok(GuestEntryIdempotencyLookup::Missing);
+            };
+            if durable_request.as_slice() != request_digest.as_slice() {
+                return Ok(GuestEntryIdempotencyLookup::Conflict);
+            }
+            let created_at_ms =
+                u64::try_from(created_at_ms).map_err(|_| internal_state_snapback())?;
+            let retain_until_ms =
+                u64::try_from(retain_until_ms).map_err(|_| internal_state_snapback())?;
+            if retain_until_ms <= created_at_ms || now_ms >= retain_until_ms {
+                return Err(internal_state_snapback());
+            }
+            Ok(match state.as_str() {
+                "pending" => GuestEntryIdempotencyLookup::Pending {
+                    key_id,
+                    created_at_ms,
+                },
+                "committed" => GuestEntryIdempotencyLookup::Committed {
+                    key_id,
+                    created_at_ms,
+                },
+                "refused" => GuestEntryIdempotencyLookup::Refused {
+                    key_id,
+                    created_at_ms,
+                    budget_name: budget.ok_or_else(internal_state_snapback)?,
+                    retry_after_ms: u64::try_from(retry.ok_or_else(internal_state_snapback)?)
+                        .map_err(|_| internal_state_snapback())?,
+                },
+                _ => return Err(internal_state_snapback()),
+            })
+        })
     }
 }
 
@@ -1044,18 +1181,37 @@ pub(crate) fn planned_password_change_transaction(
     transaction: &Transaction<'_>,
     plan: &CatalogPasswordChangePlan<'_>,
 ) -> SnapbackResult<CatalogPasswordChangeCommit> {
-    match crate::storage::auth_identity::admit_password_change_in(
-        transaction,
-        plan.mutation,
-        plan.rotation.superseded_at_ms,
-        plan.password_profile,
-    )? {
+    let admission = match plan.mutation {
+        crate::storage::auth_identity::CredentialRotationMutation::PasswordChange(mutation) => {
+            crate::storage::auth_identity::admit_password_change_in(
+                transaction,
+                mutation,
+                plan.rotation.superseded_at_ms,
+                plan.password_profile,
+            )?
+        }
+        crate::storage::auth_identity::CredentialRotationMutation::GuestClaim(mutation) => {
+            crate::storage::auth_identity::admit_password_issuance_in(
+                transaction,
+                mutation,
+                plan.rotation.superseded_at_ms,
+                plan.password_profile,
+            )?
+        }
+    };
+    match admission {
         crate::storage::auth_identity::PasswordIssuanceAdmission::Proceed { .. } => {}
         crate::storage::auth_identity::PasswordIssuanceAdmission::Invalid { committed_attempt } => {
             return Ok(CatalogPasswordChangeCommit::CredentialInvalid { committed_attempt });
         }
         crate::storage::auth_identity::PasswordIssuanceAdmission::LedgerCapacityExhausted => {
             return Ok(CatalogPasswordChangeCommit::CredentialThrottled);
+        }
+        crate::storage::auth_identity::PasswordIssuanceAdmission::GuestClaimCollision => {
+            return Ok(CatalogPasswordChangeCommit::GuestClaimCollision);
+        }
+        crate::storage::auth_identity::PasswordIssuanceAdmission::GuestAlreadyClaimed => {
+            return Ok(CatalogPasswordChangeCommit::GuestAlreadyClaimed);
         }
         crate::storage::auth_identity::PasswordIssuanceAdmission::PredecessorChanged => {
             return Ok(CatalogPasswordChangeCommit::PredecessorChanged);
@@ -1068,6 +1224,34 @@ pub(crate) fn planned_password_change_transaction(
     )? {
         return Ok(CatalogPasswordChangeCommit::PredecessorChanged);
     }
+    if let crate::storage::auth_identity::CredentialRotationMutation::GuestClaim(mutation) =
+        plan.mutation
+    {
+        let Some(terms) = plan.successful_effect_budget else {
+            return Err(crate::diagnostic::SnapbackError::error(
+                "SNAPBACK_AUTH_BUDGET_POLICY_INVALID",
+                "auth",
+                "authentication budget policy is invalid",
+            ));
+        };
+        if let Some((budget_name, retry_after_ms)) =
+            crate::auth::throttle::admit_local_successful_auth_effects_in(
+                transaction,
+                plan.rotation.superseded_at_ms,
+                terms,
+                &[
+                    crate::auth::throttle::AuthBudgetName::AccountCreate,
+                    crate::auth::throttle::AuthBudgetName::SessionMint,
+                ],
+                &mutation.identity_id,
+            )?
+        {
+            return Ok(CatalogPasswordChangeCommit::GuestBudgetRefused {
+                budget_name: budget_name.as_str(),
+                retry_after_ms,
+            });
+        }
+    }
     let session = match planned_rotation_transaction(transaction, &plan.rotation)? {
         PlannedRotationTransaction::Refreshed(session) => session,
         PlannedRotationTransaction::CandidateCollision => {
@@ -1077,11 +1261,34 @@ pub(crate) fn planned_password_change_transaction(
             return Ok(CatalogPasswordChangeCommit::PredecessorChanged);
         }
     };
-    crate::storage::auth_identity::apply_password_change_in(
-        transaction,
-        plan.mutation,
-        plan.rotation.superseded_at_ms,
-    )?;
+    let session = match plan.mutation {
+        crate::storage::auth_identity::CredentialRotationMutation::PasswordChange(mutation) => {
+            crate::storage::auth_identity::apply_password_change_in(
+                transaction,
+                mutation,
+                plan.rotation.superseded_at_ms,
+            )?;
+            session
+        }
+        crate::storage::auth_identity::CredentialRotationMutation::GuestClaim(mutation) => {
+            crate::storage::auth_identity::apply_password_issuance_in(
+                transaction,
+                mutation,
+                plan.rotation.superseded_at_ms,
+            )?;
+            crate::storage::auth_identity::finish_guest_claim_rotation_in(
+                transaction,
+                mutation,
+                plan.rotation.session_id,
+                plan.rotation.superseded_at_ms,
+            )?;
+            super::auth_stream::advance_authorization_epoch_in(transaction)?;
+            let token_hash = TokenHash::from_bytes(*plan.rotation.successor_digest.as_bytes());
+            let refreshed = lookup_current_session(transaction, &token_hash)?
+                .ok_or_else(internal_state_snapback)?;
+            session_response_fact(&refreshed)
+        }
+    };
     let committed_revocations = commit_planned_revocation_set(
         transaction,
         &plan.revocations,
@@ -1098,16 +1305,28 @@ pub(crate) fn reconcile_password_change(
     plan: &CatalogPasswordChangePlan<'_>,
 ) -> SnapbackResult<CatalogPasswordChangeReconcile> {
     let rotation = reconcile_planned_rotation(connection, &plan.rotation)?;
-    let mutation_successor = crate::storage::auth_identity::password_change_is_exact_successor_on(
-        connection,
-        plan.mutation,
-        plan.rotation.superseded_at_ms,
-    )?;
-    let mutation_predecessor =
-        crate::storage::auth_identity::password_change_is_exact_predecessor_on(
-            connection,
-            plan.mutation,
-        )?;
+    let (mutation_successor, mutation_predecessor) = match plan.mutation {
+        crate::storage::auth_identity::CredentialRotationMutation::PasswordChange(mutation) => (
+            crate::storage::auth_identity::password_change_is_exact_successor_on(
+                connection,
+                mutation,
+                plan.rotation.superseded_at_ms,
+            )?,
+            crate::storage::auth_identity::password_change_is_exact_predecessor_on(
+                connection, mutation,
+            )?,
+        ),
+        crate::storage::auth_identity::CredentialRotationMutation::GuestClaim(mutation) => (
+            crate::storage::auth_identity::password_issuance_is_exact_successor_on(
+                connection,
+                mutation,
+                plan.rotation.superseded_at_ms,
+            )?,
+            crate::storage::auth_identity::password_issuance_is_exact_predecessor_on(
+                connection, mutation,
+            )?,
+        ),
+    };
     let mut revocation_successors = Vec::with_capacity(plan.revocations.len());
     let mut all_revocation_successors = true;
     let mut all_revocation_predecessors = true;
@@ -1150,6 +1369,102 @@ pub(crate) fn planned_session_issuance_transaction(
     plan: &CatalogSessionIssuancePlan,
     exchange_proof: Option<(&AuthKeyMaterial, &VerificationCode)>,
 ) -> SnapbackResult<CatalogIssuanceCommit> {
+    if let Some(idempotency) = plan.guest_idempotency {
+        if !matches!(plan.identity, PlannedIdentityState::GuestCreate { .. }) {
+            return Err(internal_state_snapback());
+        }
+        ensure_guest_idempotency_table(transaction)?;
+        let durable: Option<(Vec<u8>, String, i64, i64, String, Option<String>, Option<i64>)> =
+            transaction
+                .query_row(
+                    &format!(
+                        "SELECT request_digest,key_id,created_at_ms,retain_until_ms,state,budget_name,retry_after_ms
+                           FROM {GUEST_IDEMPOTENCY_TABLE} WHERE key_digest=?1"
+                    ),
+                    params![idempotency.key_digest.as_slice()],
+                    |row| {
+                        Ok((
+                            row.get(0)?,
+                            row.get(1)?,
+                            row.get(2)?,
+                            row.get(3)?,
+                            row.get(4)?,
+                            row.get(5)?,
+                            row.get(6)?,
+                        ))
+                    },
+                )
+                .optional()?;
+        match durable {
+            Some((request_digest, _, _, _, _, _, _))
+                if request_digest.as_slice() != idempotency.request_digest.as_slice() =>
+            {
+                return Ok(CatalogIssuanceCommit::GuestIdempotencyConflict);
+            }
+            Some((
+                _,
+                key_id,
+                created_at_ms,
+                retain_until_ms,
+                state,
+                budget_name,
+                retry_after_ms,
+            )) => {
+                if key_id != idempotency.key_id
+                    || u64::try_from(created_at_ms).ok() != Some(idempotency.created_at_ms)
+                    || u64::try_from(retain_until_ms).ok() != Some(idempotency.retain_until_ms)
+                {
+                    return Err(internal_state_snapback());
+                }
+                if state == "refused" {
+                    let budget_name = budget_name
+                        .as_deref()
+                        .and_then(AuthBudgetName::parse)
+                        .ok_or_else(internal_state_snapback)?;
+                    return Ok(CatalogIssuanceCommit::GuestBudgetRefused {
+                        budget_name: budget_name.as_str(),
+                        retry_after_ms: u64::try_from(
+                            retry_after_ms.ok_or_else(internal_state_snapback)?,
+                        )
+                        .map_err(|_| internal_state_snapback())?,
+                    });
+                }
+                if state == "committed" {
+                    let token_hash = TokenHash::from_bytes(*plan.projected.token_digest.as_bytes());
+                    let session = lookup_current_session(transaction, &token_hash)?
+                        .ok_or_else(internal_state_snapback)?;
+                    if session.session.session_id != plan.projected.session_id
+                        || session.session.user_id != plan.projected.user_id
+                    {
+                        return Err(internal_state_snapback());
+                    }
+                    return Ok(CatalogIssuanceCommit::Committed {
+                        session: session_response_fact(&session),
+                        committed_revocations: Vec::new(),
+                    });
+                }
+                if state != "pending" {
+                    return Err(internal_state_snapback());
+                }
+            }
+            None => {
+                transaction.execute(
+                    &format!(
+                        "INSERT INTO {GUEST_IDEMPOTENCY_TABLE}(
+                           key_digest,request_digest,key_id,created_at_ms,retain_until_ms,state
+                         ) VALUES(?1,?2,?3,?4,?5,'pending')"
+                    ),
+                    params![
+                        idempotency.key_digest.as_slice(),
+                        idempotency.request_digest.as_slice(),
+                        idempotency.key_id,
+                        idempotency.created_at_ms as i64,
+                        idempotency.retain_until_ms as i64,
+                    ],
+                )?;
+            }
+        }
+    }
     let mut prepared_rehearsal = None;
     if let Some(challenge) = &plan.challenge {
         let Some((key, submitted_code)) = exchange_proof else {
@@ -1354,6 +1669,10 @@ pub(crate) fn planned_session_issuance_transaction(
             crate::storage::auth_identity::PasswordIssuanceAdmission::PredecessorChanged => {
                 return Ok(CatalogIssuanceCommit::PredecessorChanged);
             }
+            crate::storage::auth_identity::PasswordIssuanceAdmission::GuestClaimCollision
+            | crate::storage::auth_identity::PasswordIssuanceAdmission::GuestAlreadyClaimed => {
+                return Ok(CatalogIssuanceCommit::PredecessorChanged);
+            }
         }
         } else {
             let durable_identity: Option<(String, String)> = transaction
@@ -1481,6 +1800,21 @@ pub(crate) fn planned_session_issuance_transaction(
                 plan.projected.session_id,
             )?
         {
+            if let Some(idempotency) = plan.guest_idempotency {
+                transaction.execute(
+                    &format!(
+                        "UPDATE {GUEST_IDEMPOTENCY_TABLE}
+                            SET state='refused',budget_name=?1,retry_after_ms=?2
+                          WHERE key_digest=?3 AND request_digest=?4 AND state='pending'"
+                    ),
+                    params![
+                        budget_name.as_str(),
+                        retry_after_ms as i64,
+                        idempotency.key_digest.as_slice(),
+                        idempotency.request_digest.as_slice(),
+                    ],
+                )?;
+            }
             return Ok(CatalogIssuanceCommit::GuestBudgetRefused {
                 budget_name: budget_name.as_str(),
                 retry_after_ms,
@@ -1629,6 +1963,21 @@ pub(crate) fn planned_session_issuance_transaction(
             prepared,
             exercise.outcome.clone(),
         )?;
+    }
+    if let Some(idempotency) = plan.guest_idempotency
+        && transaction.execute(
+            &format!(
+                "UPDATE {GUEST_IDEMPOTENCY_TABLE}
+                    SET state='committed'
+                  WHERE key_digest=?1 AND request_digest=?2 AND state='pending'"
+            ),
+            params![
+                idempotency.key_digest.as_slice(),
+                idempotency.request_digest.as_slice(),
+            ],
+        )? != 1
+    {
+        return Err(internal_state_snapback());
     }
     Ok(CatalogIssuanceCommit::Committed {
         session: AuthSessionResponseFact {

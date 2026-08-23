@@ -2314,6 +2314,7 @@ impl SessionProjection {
         &mut self,
         ticket: &MutationTicket,
         session_id: &str,
+        successor_provider: Option<&str>,
     ) -> SnapbackResult<FinalizedRotationPublicationCut> {
         let (fence, pending, predecessor, successor, superseded_at_ms) = {
             let session = self.session_for_ticket(ticket, session_id)?;
@@ -2384,6 +2385,9 @@ impl SessionProjection {
         );
         let session = self.by_session.get_mut(session_id).expect("checked above");
         session.current_token = Some(successor);
+        if let Some(provider) = successor_provider {
+            session.provider = provider.to_owned();
+        }
         session.pending.remove(ticket);
         self.ticket_index.remove(ticket);
         fence_state.current_token = Some(successor);
@@ -3696,7 +3700,7 @@ mod tests {
             )
             .unwrap();
         projection
-            .finalize_token_rotation(&commit, &session_id)
+            .finalize_token_rotation(&commit, &session_id, None)
             .unwrap();
         assert!(matches!(
             projection.token_index.get(&predecessor),

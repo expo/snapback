@@ -1958,11 +1958,34 @@ impl LocalDatabase {
                  )",
                 params![now_ms as i64, AUTH_GC_BATCH as i64],
             )?;
+            // @ref LLP 0215#6-idempotency-and-retry-identity — retain replay
+            // state for the declared ambiguity window, then reclaim it in the
+            // same bounded maintenance lane as the keyed auth state it owns.
+            let guest_idempotency_deleted =
+                if table_exists_on(tx, super::auth_catalog_ops::GUEST_IDEMPOTENCY_TABLE)? {
+                    tx.execute(
+                        &format!(
+                            "DELETE FROM {}
+                         WHERE key_digest IN (
+                           SELECT key_digest FROM {}
+                           WHERE retain_until_ms <= ?1
+                           ORDER BY retain_until_ms, key_digest
+                           LIMIT ?2
+                         )",
+                            super::auth_catalog_ops::GUEST_IDEMPOTENCY_TABLE,
+                            super::auth_catalog_ops::GUEST_IDEMPOTENCY_TABLE,
+                        ),
+                        params![now_ms as i64, AUTH_GC_BATCH as i64],
+                    )?
+                } else {
+                    0
+                };
             Ok(AuthGcResult {
                 challenges_deleted,
                 sessions_deleted,
                 immediate_retry: challenges_deleted == AUTH_GC_BATCH
-                    || sessions_deleted == AUTH_GC_BATCH,
+                    || sessions_deleted == AUTH_GC_BATCH
+                    || guest_idempotency_deleted == AUTH_GC_BATCH,
             })
         })
     }
@@ -2045,6 +2068,17 @@ impl LocalDatabase {
             revoke_all_sessions_in(&tx, restore_now_ms, RevocationReason::Restore)?;
         restore_transaction_step_completed(0)?;
         let challenges_deleted = tx.execute("DELETE FROM _auth_verification_codes", [])?;
+        // Restore terminates the pre-restore session authority. Its guest-entry
+        // receipts therefore cease to be replayable at the same commit cut.
+        if table_exists_on(&tx, super::auth_catalog_ops::GUEST_IDEMPOTENCY_TABLE)? {
+            tx.execute(
+                &format!(
+                    "DELETE FROM {}",
+                    super::auth_catalog_ops::GUEST_IDEMPOTENCY_TABLE,
+                ),
+                [],
+            )?;
+        }
         if matches!(
             catalog,
             AuthCatalogState::ReadyV2 | AuthCatalogState::ReadyV3 | AuthCatalogState::ReadyV4
@@ -2730,9 +2764,29 @@ fn retained_key_ids_on(conn: &Connection) -> SnapbackResult<Vec<String>> {
         }
     };
     let mut statement = conn.prepare(sql)?;
-    Ok(statement
+    let mut retained = statement
         .query_map([], |row| row.get(0))?
-        .collect::<Result<Vec<_>, _>>()?)
+        .collect::<Result<BTreeSet<String>, _>>()?;
+    if table_exists_on(conn, super::auth_catalog_ops::GUEST_IDEMPOTENCY_TABLE)? {
+        let mut idempotency = conn.prepare(&format!(
+            "SELECT DISTINCT key_id FROM {} ORDER BY key_id",
+            super::auth_catalog_ops::GUEST_IDEMPOTENCY_TABLE,
+        ))?;
+        retained.extend(
+            idempotency
+                .query_map([], |row| row.get(0))?
+                .collect::<Result<Vec<String>, _>>()?,
+        );
+    }
+    Ok(retained.into_iter().collect())
+}
+
+fn table_exists_on(conn: &Connection, table: &str) -> SnapbackResult<bool> {
+    Ok(conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name=?1)",
+        params![table],
+        |row| row.get(0),
+    )?)
 }
 
 fn validate_restore_declaration(declaration_id: &str) -> SnapbackResult<()> {
@@ -2951,6 +3005,18 @@ pub(super) fn reset_auth_catalog_in(tx: &Transaction<'_>) -> SnapbackResult<()> 
     };
     require_ready_on(tx)?;
     super::auth_rehearsal::terminalize_rehearsal_authority_for_reset_in(tx)?;
+    // Reset destroys the session named by a committed guest-entry receipt.
+    // Clear that replay authority in the same transaction so a later reuse
+    // cannot be stranded against a deleted effect.
+    if table_exists_on(tx, super::auth_catalog_ops::GUEST_IDEMPOTENCY_TABLE)? {
+        tx.execute(
+            &format!(
+                "DELETE FROM {}",
+                super::auth_catalog_ops::GUEST_IDEMPOTENCY_TABLE,
+            ),
+            [],
+        )?;
+    }
     tx.execute(
         "DELETE FROM _snapback_meta WHERE substr(key, 1, ?1) = ?2",
         params![
@@ -4801,6 +4867,22 @@ mod tests {
             0
         );
 
+        let idempotency_key = [1_u8; 32];
+        let request_digest = [2_u8; 32];
+        assert!(matches!(
+            db.guest_entry_idempotency_lookup(&idempotency_key, &request_digest, 1)
+                .expect("create replay table"),
+            crate::storage::auth_catalog_ops::GuestEntryIdempotencyLookup::Missing
+        ));
+        db.conn
+            .execute(
+                "INSERT INTO _snapback_auth_guest_idempotency(
+                   key_digest,request_digest,key_id,created_at_ms,retain_until_ms,state
+                 ) VALUES(?1,?2,'key-1',1,100,'pending')",
+                params![idempotency_key.as_slice(), request_digest.as_slice()],
+            )
+            .expect("seed reset replay row");
+
         db.with_auth_transaction(|tx| {
             tx.execute(
                 "INSERT INTO _auth_users(id, created_at_ms) VALUES('user-2', 0)",
@@ -4811,6 +4893,7 @@ mod tests {
         .expect("seed reset row");
         db.schema_seed().reset().expect("reset app and auth");
         assert_eq!(row_count(&db, "_auth_users"), 0);
+        assert_eq!(row_count(&db, "_snapback_auth_guest_idempotency"), 0);
         assert_eq!(
             db.inspect_auth_catalog().expect("catalog survives reset"),
             AuthCatalogState::ReadyV4

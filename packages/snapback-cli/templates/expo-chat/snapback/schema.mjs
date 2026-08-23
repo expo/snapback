@@ -50,6 +50,7 @@ const authProgram = defineAuth({
       cleanup: { kind: 'declarative', default: 'tombstone', tables: {} },
     },
   },
+  abuseBudgets: { version: 1, preset: 'guest-entry-v1' },
   secretReferences: {},
 });
 

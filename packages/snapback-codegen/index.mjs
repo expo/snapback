@@ -7684,6 +7684,25 @@ async function generateInProcessLocked({
       return { ok: false, diagnostics };
     }
   }
+  const compiledAuthProgram = schemaDef.authProgram === undefined
+    ? undefined
+    : (() => {
+      const program = schemaDef.authProgram;
+      if (program.abuseBudgets === undefined) return program;
+      const policy = {
+        version: program.abuseBudgets.version,
+        preset: program.abuseBudgets.preset,
+        budgets: program.abuseBudgets.budgets,
+        effectBindings: program.abuseBudgets.effectBindings,
+      };
+      return {
+        ...program,
+        abuseBudgets: {
+          ...policy,
+          policyDigest: compositionDomainHash('snapback.auth-abuse-budget-policy.v1', policy),
+        },
+      };
+    })();
   const schemaManifest = {
     artifactKind: 'schemaManifest',
     schemaVersion: artifactVersion,
@@ -7694,7 +7713,7 @@ async function generateInProcessLocked({
     authoringProfile,
     ...(appIdentity ? { app: appIdentity } : {}),
     ...(schemaDef.auth !== undefined ? { auth: schemaDef.auth } : {}),
-    ...(schemaDef.authProgram !== undefined ? { authProgram: schemaDef.authProgram } : {}),
+    ...(compiledAuthProgram !== undefined ? { authProgram: compiledAuthProgram } : {}),
     ...(authProgramReadiness ? { authProgramReadiness } : {}),
     ...(apiManifest ? { api: apiManifest } : {}),
     ...(schemaAssetsPolicy ? { assets: schemaAssetsPolicy } : {}),

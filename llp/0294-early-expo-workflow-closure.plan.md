@@ -292,10 +292,13 @@ Three defects compose into the native first-use boundary:
    `expiresAt` change absent another governing event. The app does not extend
    timestamps locally and neither side owns a background refresh timer.
 
-The guest route's security-bearing owner review resolved on 2026-08-22 with
-approval to implement, and the shared server/client transition plus packed
-browser/Expo witness are complete. The crypto and binding-refresh defects
-remain straight repairs with packed native witnesses. Tracked by
+The guest route's initial security reviews on 2026-08-22 were not clean. The
+resulting repair closes production password creation, cross-provider subject
+collision, enumeration/KDF budgeting, guest-entry replay, in-place claim
+rotation, and bounded reaping. The packed browser/Expo test is a client-shape
+witness only; route acceptance launches the qualified server and includes the
+HTTP denial/race fixtures. The crypto and binding-refresh defects remain
+straight repairs with packed native witnesses. Tracked by
 `issues/closed/20260821-guest-session-client-entry.md`,
 `issues/closed/20260821-expo-native-auth-crypto-adapter.md`, and
 `issues/closed/20260821-expo-supervised-binding-refresh.md`.

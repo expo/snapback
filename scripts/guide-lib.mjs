@@ -67,7 +67,10 @@ const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
 // Bumped 60416 -> 61440 on 2026-08-21 for the required auth.field-masking GAP
 // row owned by LLP 0235 while it was Draft; the index had no room for the classification,
 // exact diary vocabulary, owner, review date, filing pointer, and workaround.
-const CAPABILITIES_SIZE_BUDGET_BYTES = 61440;
+// Bumped 61440 -> 63488 on 2026-08-22 because LLP 0061 requires the shipped
+// guest-session row and restoring unrelated prose dishonestly truncated to
+// make room; see issues/20260822-capability-index-guest-session-row-budget.md.
+const CAPABILITIES_SIZE_BUDGET_BYTES = 63488;
 const SURFACE_MAP_SIZE_BUDGET_BYTES = 16384;
 // Vacuous-pass guards for the source scans: extraction returning fewer
 // entries than these floors means the scan broke, not that surface shrank.

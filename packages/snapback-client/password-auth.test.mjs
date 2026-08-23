@@ -16,8 +16,6 @@ const AUTHORITY = '018f0d90-7b24-7a22-8c33-445566778899';
 const OTHER_AUTHORITY = '018f0d90-7b25-7a22-8c33-445566778899';
 const OTHER_SESSION = '018f0d90-7b26-7a22-8c33-445566778899';
 const OTHER_USER = '018f0d90-7b27-7a22-8c33-445566778899';
-const CLAIM_AUTHORITY = '018f0d90-7b28-7a22-8c33-445566778899';
-const CLAIM_SESSION = '018f0d90-7b29-7a22-8c33-445566778899';
 const SIGNUP_BEARER = 'sbs_password_signup_secret';
 const CHANGE_BEARER = 'sbs_password_change_secret';
 const CLAIM_BEARER = 'sbs_guest_claim_secret';
@@ -140,9 +138,10 @@ const makeFixture = ({
     const path = new URL(url).pathname;
     const headers = new Headers(init.headers);
     const authorization = headers.get('authorization');
+    const idempotencyKey = headers.get('idempotency-key');
     const bearer = authorization?.replace(/^Bearer /u, '') ?? null;
     const body = init.body === undefined ? undefined : JSON.parse(init.body);
-    requests.push({ path, authorization, body });
+    requests.push({ path, authorization, idempotencyKey, body });
     if (path === '/auth/session') {
       const authenticatedBearer = knownBearers.has(bearer) ? bearer : null;
       return Response.json(sessionHandshake?.(authenticatedBearer)
@@ -249,8 +248,8 @@ test('guest claim never overwrites a concurrent same-principal successor', async
     }, 'concurrent-same-principal-successor');
     claimResponse.resolve(Response.json(credential({
       token: CLAIM_BEARER,
-      authorityInstanceId: CLAIM_AUTHORITY,
-      sessionId: CLAIM_SESSION,
+      authorityInstanceId: AUTHORITY,
+      sessionId: SESSION,
       codes: recoveryCodes,
     })));
     await assert.rejects(
@@ -810,6 +809,56 @@ test('guest entry refuses unsupported custody before making a request', async ()
     assert.equal(fixture.requests.length, 0);
   } finally {
     await fixture.close();
+  }
+});
+
+test('guest entry retains its idempotency key only across an unknown outcome', async () => {
+  const fixture = makeFixture();
+  let attempt = 0;
+  try {
+    fixture.respond('/auth/guest', () => {
+      attempt += 1;
+      if (attempt === 1) throw new TypeError('simulated lost response');
+      return Response.json(credential({ provider: 'guest' }));
+    });
+    await assert.rejects(fixture.client.authEnterAsGuest(), /simulated lost response/u);
+    await fixture.client.authEnterAsGuest();
+    const lostResponseKeys = fixture.requests
+      .filter(({ path }) => path === '/auth/guest')
+      .map(({ idempotencyKey }) => idempotencyKey);
+    assert.equal(lostResponseKeys.length, 2);
+    assert.equal(lostResponseKeys[0], lostResponseKeys[1]);
+  } finally {
+    await fixture.close();
+  }
+
+  const refused = makeFixture();
+  let refusalAttempt = 0;
+  try {
+    refused.respond('/auth/guest', () => {
+      refusalAttempt += 1;
+      if (refusalAttempt === 1) {
+        return Response.json({
+          diagnostic: {
+            code: 'SNAPBACK_AUTH_RATE_BUDGET',
+            message: 'authentication request budget is exhausted',
+            details: { effectCommitted: false, effectMayHaveCommitted: false },
+          },
+        }, { status: 429 });
+      }
+      return Response.json(credential({ provider: 'guest' }));
+    });
+    await assert.rejects(refused.client.authEnterAsGuest(), (error) => (
+      error?.effectCommitted === false && error?.effectMayHaveCommitted === false
+    ));
+    await refused.client.authEnterAsGuest();
+    const refusalKeys = refused.requests
+      .filter(({ path }) => path === '/auth/guest')
+      .map(({ idempotencyKey }) => idempotencyKey);
+    assert.equal(refusalKeys.length, 2);
+    assert.notEqual(refusalKeys[0], refusalKeys[1]);
+  } finally {
+    await refused.close();
   }
 });
 

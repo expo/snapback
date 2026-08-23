@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:56e97fef71ebfe5a72a8c1038541c3c93ddf3584e01e
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Canonical registry identity:
-`sha256:30f2ef6ed6f3c5b8bcefbbddd247cac33226da38c65446ae9c83df5dc1e90d9b`.
+`sha256:10174812ae483f7fcd166febb53a8fecc75aec574297f2bc926a4edf6d1e9fc4`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -7981,6 +7981,7 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_AUTH_GRANT_SCOPE_INVALID'
   | 'SNAPBACK_AUTH_GRANT_SCOPE_STALE'
   | 'SNAPBACK_AUTH_GRANT_STATE_CORRUPT'
+  | 'SNAPBACK_AUTH_GUEST_ALREADY_CLAIMED'
   | 'SNAPBACK_AUTH_GUEST_CATALOG_UNAVAILABLE'
   | 'SNAPBACK_AUTH_GUEST_CLAIM_COLLISION'
   | 'SNAPBACK_AUTH_GUEST_CLAIM_UNAVAILABLE'
@@ -8003,6 +8004,7 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_AUTH_HOSTED_ADMISSION_UNAUTHENTICATED'
   | 'SNAPBACK_AUTH_HOSTED_TOPOLOGY_INVALID'
   | 'SNAPBACK_AUTH_IDEMPOTENCY_CONFLICT'
+  | 'SNAPBACK_AUTH_IDEMPOTENCY_INVALID'
   | 'SNAPBACK_AUTH_IDENTITY_COLLISION'
   | 'SNAPBACK_AUTH_IDENTITY_CORE_REQUIRES_V3'
   | 'SNAPBACK_AUTH_IDENTITY_INVALID'

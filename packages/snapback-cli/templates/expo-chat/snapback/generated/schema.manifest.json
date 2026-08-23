@@ -7,6 +7,125 @@
     "passwordIdentifierMode": "email-v1"
   },
   "authProgram": {
+    "abuseBudgets": {
+      "budgets": {
+        "auth.account.create": {
+          "profiles": {
+            "demo": {
+              "limit": 10000,
+              "windowMs": 10000
+            },
+            "dev": {
+              "limit": 100000,
+              "windowMs": 1000
+            },
+            "prod": {
+              "limit": 10,
+              "windowMs": 1000
+            },
+            "test": {
+              "limit": 100000,
+              "windowMs": 1000
+            }
+          }
+        },
+        "auth.enumeration": {
+          "profiles": {
+            "demo": {
+              "limit": 10000,
+              "windowMs": 10000
+            },
+            "dev": {
+              "limit": 100000,
+              "windowMs": 1000
+            },
+            "prod": {
+              "limit": 10,
+              "windowMs": 1000
+            },
+            "test": {
+              "limit": 100000,
+              "windowMs": 1000
+            }
+          }
+        },
+        "auth.guest.create": {
+          "profiles": {
+            "demo": {
+              "limit": 10000,
+              "windowMs": 10000
+            },
+            "dev": {
+              "limit": 100000,
+              "windowMs": 1000
+            },
+            "prod": {
+              "limit": 10,
+              "windowMs": 1000
+            },
+            "test": {
+              "limit": 100000,
+              "windowMs": 1000
+            }
+          }
+        },
+        "auth.hash-cpu": {
+          "profiles": {
+            "demo": {
+              "limit": 10000,
+              "windowMs": 10000
+            },
+            "dev": {
+              "limit": 100000,
+              "windowMs": 1000
+            },
+            "prod": {
+              "limit": 10,
+              "windowMs": 1000
+            },
+            "test": {
+              "limit": 100000,
+              "windowMs": 1000
+            }
+          }
+        },
+        "auth.session-mint": {
+          "profiles": {
+            "demo": {
+              "limit": 10000,
+              "windowMs": 10000
+            },
+            "dev": {
+              "limit": 100000,
+              "windowMs": 1000
+            },
+            "prod": {
+              "limit": 10,
+              "windowMs": 1000
+            },
+            "test": {
+              "limit": 100000,
+              "windowMs": 1000
+            }
+          }
+        }
+      },
+      "effectBindings": {
+        "auth.guest.claim.password": [
+          "auth.enumeration",
+          "auth.hash-cpu",
+          "auth.account.create",
+          "auth.session-mint"
+        ],
+        "auth.guest.create": [
+          "auth.guest.create",
+          "auth.session-mint"
+        ]
+      },
+      "policyDigest": "sha256:7477a0d86458f3522475523dc498c0372de771912996e111aaff48c8def9e2d7",
+      "preset": "guest-entry-v1",
+      "version": 1
+    },
     "assuranceRequirements": {},
     "custody": "volatile-explicit",
     "guestPolicy": {
@@ -77,7 +196,7 @@
     "verifiedProvisioningCompiled": false,
     "verifiedProvisioningDeclared": false
   },
-  "authoredSourceHash": "sha256:fd5cdbbc583a96e7551d88cd59d6133e72fbfbb3d0108771f338d45de837fbe0",
+  "authoredSourceHash": "sha256:72e390376b0316cf57af99ef8894d178b02e03e566768787a79832d89d55cadc",
   "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [
     {
@@ -131,12 +250,12 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:18a3a7fc1e3737ea2a104f86900be3dff8854416040754b5e5a06de89d743104",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:59224dbaab2745fd8890d45a8f8d26a5886565843dd675d86ae65524320df3d5",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "auth.sessions.v1"
   ],
-  "schemaHash": "snapback.v1:sessions:schema:sha256:c64a9e987ceaea30ae2b1b9a88eae5c176f1867d2a7f1350afe822bb0ec74165",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:f7cdc00750383457913cf4cf40da696e13dd6c869f9f6b414432de1a61028249",
   "schemaVersion": "snapback.v1",
   "tables": [
     {

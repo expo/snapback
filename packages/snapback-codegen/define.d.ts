@@ -892,6 +892,11 @@ export interface AuthProgramV1 {
         | { readonly kind: 'handler'; readonly handler: string; readonly reads: readonly string[]; readonly writes: readonly string[] };
     };
   };
+  /** Closed generated abuse policy. Required whenever guest entry is enabled. */
+  readonly abuseBudgets?: {
+    readonly version: 1;
+    readonly preset: 'guest-entry-v1';
+  };
   readonly secretReferences: Readonly<Record<string, { readonly config: string }>>;
   readonly verifiedProvisioning?: {
     readonly handler: string;
