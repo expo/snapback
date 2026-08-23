@@ -185,6 +185,7 @@ import {
   vectorPageResultType,
   validatorResultValue,
 } from './result-contracts.mjs';
+import { compileGraphQueryV1 } from './graph-query.mjs';
 import {
   SEARCH_QUERY_AST_SCHEMA_REF,
   searchArgsSchemaProblems,
@@ -1062,6 +1063,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'cron',
   'cron_action_run_mutation',
   'full_text_search_v1',
+  'graph_query_v1',
   'live_full_text_search_v1',
   'host_plan_runtime',
   'ibex_ctx_db_host_bridge',
@@ -1117,6 +1119,7 @@ const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'asset_video_finalization_v1',
   'bounded_children_v1',
   'bounded_batch_reads_v1',
+  'graph_query_v1',
   'inline_handler_v1',
   'jobs_one_off_v1',
   'live_full_text_search_v1',
@@ -2357,6 +2360,15 @@ async function generateInProcessLocked({
       },
     );
   }
+  // Graph shape refusals must run before definition evaluation: a nested
+  // defineGraphQuery call or other dynamic constructor can otherwise throw
+  // from an inner expression before the source-stage precedence register has
+  // a chance to classify it.
+  validateGraphAuthoringSource(
+    functionsSource,
+    relative(backendRoot, functionsPath).split(sep).join('/'),
+    err,
+  );
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
@@ -5645,6 +5657,52 @@ async function generateInProcessLocked({
       
         ...contractQueryLivenessFields(def),
       };
+    } else if (def.__kind === 'LiveQuery' && def.graphQuerySource) {
+      // @ref LLP 0209#21-the-normalized-carrier — extraction retains only a
+      // placeholder here. The common contract pass below supplies the exact
+      // result-contract hash and then replaces it with the normalized,
+      // host-reconstructible GraphQuery carrier.
+      const source = def.graphQuerySource;
+      const reads = new Set();
+      const visibilities = [];
+      const addTable = (table, visibility) => {
+        if (typeof table === 'string') reads.add(table);
+        if (visibility) visibilities.push(visibility);
+      };
+      for (const node of source.nodes) {
+        addTable(node.table, node.visibility);
+        addTable(node.edge?.table, node.edge?.visibility);
+        addTable(node.edge?.targetTable, node.edge?.targetVisibility);
+        addTable(node.binding?.table, node.binding?.visibility);
+      }
+      for (const table of tableVisibilityMembershipReadTables(visibilities, membershipDeclarations)) {
+        reads.add(table);
+      }
+      const readList = [...reads].sort(compareCodeUnits);
+      const runtime = { HostPlan: { GraphQuery: null } };
+      functions.push({
+        name,
+        kind: def.__kind,
+        ...authoredFunctionManifestFields(def),
+        runtime,
+        declaredReads: readList,
+        declaredWrites: [],
+        authScopeField: null,
+        authorizationDependence: source.nodes.some((node) => node.authorityClass !== 1)
+          ? ['userId']
+          : [],
+        syncabilityClass: 'syncable-live',
+      });
+      contractQueries[name] = {
+        name,
+        args: argDescriptors(def.args),
+        argOrder: Object.keys(def.args),
+        reads: readList,
+        result: { kind: 'list', row: { shape: 'unknown' } },
+        serverRunnable: true,
+        localRunnable: false,
+        ...contractQueryLivenessFields(def),
+      };
     } else if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.snapshotBatchPlan) {
       const plan = def.snapshotBatchPlan;
       const v2 = plan.profile === 'snapshot-batch.v2';
@@ -6711,6 +6769,14 @@ async function generateInProcessLocked({
       });
       fn.resultContract = resultFacts.contract;
       fn.resultContractHash = resultContractHash(fn.resultContract);
+      if (def?.graphQuerySource) {
+        fn.runtime.HostPlan.GraphQuery = compileGraphQueryV1({
+          source: def.graphQuerySource,
+          argsContract: fn.argsContract,
+          resultContractHash: fn.resultContractHash,
+          tables,
+        });
+      }
       if (fn.runtime?.HostPlan?.Mutation) {
         // @ref LLP 0275#d8-explicit-profile-classification-under-llp-0295-d03-2026-08-21
         // — result/dependency facts proven by a closed plan are emitted once
@@ -6759,7 +6825,7 @@ async function generateInProcessLocked({
       }
     } catch (error) {
       err(
-        'SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID',
+        error.code ?? 'SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID',
         'function',
         `${fn.name}: ${error.message}`,
         { function: fn.name },
@@ -6845,7 +6911,13 @@ async function generateInProcessLocked({
   } catch (error) {
     err(error.codegenCode ?? 'CODEGEN_CONTRACT_CAPABILITY_SOURCE_UNREADABLE', 'codegen', error.message, error.details ?? {});
   }
-  const canonicalCapability = loadCanonicalCapabilityManifest(err, targetProfile, targetConfig);
+  const loadedCanonicalCapability = loadCanonicalCapabilityManifest(err, targetProfile, targetConfig);
+  const canonicalCapability = testHooks?.capabilityManifest === undefined
+    ? loadedCanonicalCapability
+    : {
+        manifest: structuredClone(testHooks.capabilityManifest),
+        source: Buffer.from(`${stableJson(testHooks.capabilityManifest)}\n`),
+      };
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
@@ -12965,6 +13037,17 @@ function requiredCapabilities(fn) {
     return fn.kind === 'LiveQuery'
       ? ['live_subscriptions', ...relational, ...contractCapabilities]
       : [...relational, ...contractCapabilities];
+  }
+  // @ref LLP 0209#2-the-graph-ir — GraphQuery is a distinct explicit
+  // profile. Its G0 carrier is admitted even though B intentionally ships no
+  // evaluator; target capability negotiation remains fail closed.
+  if (fn.runtime?.HostPlan?.GraphQuery) {
+    return [
+      'live_subscriptions',
+      runtimeCapability,
+      'graph_query_v1',
+      ...contractCapabilities,
+    ];
   }
   // @ref LLP 0157#d1--the-node-algebra — this capability is selected
   // only from the host-derived normalized single-table node class. Authors
@@ -19366,12 +19449,154 @@ function exportedDefinitionSourceSpans(source) {
   return spans;
 }
 
+function validateGraphAuthoringSource(source, path, err) {
+  if (typeof source !== 'string' || !source.includes('defineGraphQuery')) return;
+  const sourceFile = ts.createSourceFile(
+    path,
+    source,
+    ts.ScriptTarget.ES2022,
+    true,
+    /\.tsx?$/iu.test(path) ? ts.ScriptKind.TS : ts.ScriptKind.JS,
+  );
+  const graphBuilders = new Set(['defineGraphQuery']);
+  const graphLiteralHelpers = new Set([
+    'arg', 'lit', 'literal',
+    'eq', 'ltFilter', 'lteFilter', 'gtFilter', 'gteFilter',
+    'asc', 'desc',
+  ]);
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement)
+      || !statement.importClause?.namedBindings
+      || !ts.isNamedImports(statement.importClause.namedBindings)) continue;
+    for (const specifier of statement.importClause.namedBindings.elements) {
+      if ((specifier.propertyName?.text ?? specifier.name.text) === 'defineGraphQuery') {
+        graphBuilders.add(specifier.name.text);
+      }
+      if (graphLiteralHelpers.has(specifier.propertyName?.text ?? specifier.name.text)) {
+        graphLiteralHelpers.add(specifier.name.text);
+      }
+    }
+  }
+  const unwrap = (node) => {
+    let current = node;
+    while (current && (
+      ts.isParenthesizedExpression(current)
+      || ts.isAsExpression(current)
+      || ts.isTypeAssertionExpression(current)
+      || ts.isSatisfiesExpression(current)
+      || ts.isNonNullExpression(current)
+    )) current = current.expression;
+    return current;
+  };
+  const propertyName = (property) => {
+    const name = property?.name;
+    if (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) return name.text;
+    return null;
+  };
+  const span = (node) => {
+    const point = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+    return { file: path, line: point.line + 1, column: point.character + 1 };
+  };
+  const report = (code, node, message) => err(code, 'graph', message, {
+    sourceSpan: span(node),
+    path,
+  });
+  const calls = [];
+  const collect = (node) => {
+    if (!node) return;
+    if (ts.isCallExpression(node)) {
+      const callee = unwrap(node.expression);
+      if (ts.isIdentifier(callee) && graphBuilders.has(callee.text)) calls.push(node);
+    }
+    ts.forEachChild(node, collect);
+  };
+  collect(sourceFile);
+  for (const call of calls) {
+    const spec = unwrap(call.arguments[0]);
+    if (!spec || !ts.isObjectLiteralExpression(spec)) {
+      report('SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', call, 'defineGraphQuery requires an unconditional object-literal source carrier');
+      continue;
+    }
+    let fault = null;
+    const inspect = (node, context = 'shape') => {
+      if (fault || !node) return;
+      const current = unwrap(node);
+      if (ts.isArrowFunction(current) || ts.isFunctionExpression(current)) {
+        fault = ['SNAPBACK_GRAPH_CODE_FORBIDDEN', current, 'defineGraphQuery contains a callback or JavaScript body'];
+        return;
+      }
+      if (ts.isConditionalExpression(current)
+        || ts.isBinaryExpression(current) && [
+          ts.SyntaxKind.AmpersandAmpersandToken,
+          ts.SyntaxKind.BarBarToken,
+          ts.SyntaxKind.QuestionQuestionToken,
+        ].includes(current.operatorToken.kind)) {
+        fault = ['SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', current, 'defineGraphQuery shape is data-dependent'];
+        return;
+      }
+      if (ts.isSpreadAssignment(current) || ts.isSpreadElement(current)) {
+        fault = ['SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', current, 'defineGraphQuery shape may not be spread or data-dependent'];
+        return;
+      }
+      if (ts.isCallExpression(current)) {
+        const callee = unwrap(current.expression);
+        if (ts.isIdentifier(callee) && graphBuilders.has(callee.text) && current !== call) {
+          fault = ['SNAPBACK_GRAPH_RECURSION_FORBIDDEN', current, 'a graph declaration may not invoke another graph declaration recursively'];
+          return;
+        }
+        const graphLiteralHelper = context === 'node'
+          && ts.isIdentifier(callee)
+          && graphLiteralHelpers.has(callee.text);
+        if (context === 'shape' || context === 'literal' || (context === 'node' && !graphLiteralHelper)) {
+          fault = ['SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', current, 'graph nodes, projection, bounds, and broadcast must be literal plan data'];
+          return;
+        }
+      }
+      ts.forEachChild(current, (child) => inspect(child, context));
+    };
+    const requiredLiteral = new Set(['nodes', 'projection', 'bounds', 'queryCost', 'broadcast']);
+    for (const property of spec.properties) {
+      if (fault) break;
+      if (ts.isSpreadAssignment(property)) {
+        fault = ['SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', property, 'defineGraphQuery source carrier may not use object spread'];
+        break;
+      }
+      if (!ts.isPropertyAssignment(property)) continue;
+      const name = propertyName(property);
+      const value = unwrap(property.initializer);
+      if (name === 'nodes') {
+        if (!ts.isArrayLiteralExpression(value)) {
+          fault = ['SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', value, 'defineGraphQuery nodes must be an unconditional array of object literals'];
+          break;
+        }
+        inspect(value, 'node');
+        if (!fault && value.elements.some((element) => !ts.isObjectLiteralExpression(unwrap(element)))) {
+          fault = ['SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', value, 'defineGraphQuery nodes must be an unconditional array of object literals'];
+        }
+      } else if (requiredLiteral.has(name)) {
+        if (!ts.isObjectLiteralExpression(value)) {
+          fault = ['SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', value, `defineGraphQuery ${name} must be object-literal plan data`];
+          break;
+        }
+        inspect(value, 'literal');
+      } else if (name === 'args' || name === 'authorityScopes') {
+        if (!ts.isObjectLiteralExpression(value)) {
+          fault = ['SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION', value, `defineGraphQuery ${name} must be an object literal`];
+          break;
+        }
+        inspect(value, 'helper');
+      }
+    }
+    if (fault) report(...fault);
+  }
+}
+
 const TOP_LEVEL_DEFINITION_BUILDERS = new Set([
   'defineSearchQuery', 'defineVectorQuery', 'defineLiveSearchQuery',
   'defineEphemeral', 'defineCommand', 'defineMediaCommand', 'defineSurface', 'defineLiveQuery',
   'defineQuery', 'defineJobStatusQuery', 'definePushLedgerQuery',
   'defineBoundedChildrenQuery', 'defineSnapshotBatchQuery',
-  'defineRelationalQuery', 'defineMaintainedProjection', 'defineJsLiveQuery',
+  'defineRelationalQuery', 'defineGraphQuery', 'defineMaintainedProjection', 'defineJsLiveQuery',
   'defineJsQuery', 'defineWriteWithActivity', 'defineMutation',
   'defineJsMutation', 'defineAction', 'defineCron', 'defineRoutes',
   'defineConfig', 'defineAssetUpload', 'assetCollection',
@@ -19776,6 +20001,25 @@ const DEFINITION_EVALUATION_DIAGNOSTIC_CODES = new Set([
   'SNAPBACK_FIELD_BOUNDARY_FIELDS_INVALID',
   'SNAPBACK_FIELD_BOUNDARY_SPEC_INVALID',
   'SNAPBACK_FUNCTION_SPEC_FIELD_UNKNOWN',
+  // LLP 0209 source-carrier refusals originate inside the capability-denied
+  // definition evaluator. Preserve only the closed ids that defineGraphQuery
+  // itself can mint so the CLI receives the same stable refusal vocabulary.
+  'SNAPBACK_GRAPH_AUTHORITY_UNPROVABLE',
+  'SNAPBACK_GRAPH_BOUND_INVALID',
+  'SNAPBACK_GRAPH_CLIENT_AST_FORBIDDEN',
+  'SNAPBACK_GRAPH_CODE_FORBIDDEN',
+  'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+  'SNAPBACK_GRAPH_INDEX_UNPROVABLE',
+  'SNAPBACK_GRAPH_NODE_KIND_UNSUPPORTED',
+  'SNAPBACK_GRAPH_ORDER_NOT_TOTAL',
+  'SNAPBACK_GRAPH_PROJECTION_COUNT_INVALID',
+  'SNAPBACK_GRAPH_PROJECTION_OPEN',
+  'SNAPBACK_GRAPH_RECURSION_FORBIDDEN',
+  'SNAPBACK_GRAPH_ROOT_COUNT_INVALID',
+  'SNAPBACK_GRAPH_SCHEMA_REFERENCE_INVALID',
+  'SNAPBACK_GRAPH_THROUGH_TABLE_UNDECLARED',
+  'SNAPBACK_GRAPH_UNBOUNDED_EXPANSION',
+  'SNAPBACK_GRAPH_UNKNOWN_FIELD',
   'SNAPBACK_SEARCH_INDEX_VISIBILITY_REQUIRED',
   'SNAPBACK_TABLE_VISIBILITY_ALREADY_DECLARED',
   'SNAPBACK_TABLE_VISIBILITY_ANY_OF_ARMS_INVALID',

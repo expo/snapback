@@ -92,6 +92,7 @@ export const FAMILIAR_DISPOSITIONS = Object.freeze({
     defineBoundedChildrenQuery: entry(4, 'use the explicit profile bounded-child vocabulary'),
     defineSnapshotBatchQuery: entry(4, 'use the explicit profile snapshot-batch vocabulary'),
     defineRelationalQuery: entry(4, 'use the explicit profile relational vocabulary'),
+    defineGraphQuery: entry(4, 'use the explicit profile graph vocabulary'),
     defineJobStatusQuery: entry(4, 'use the explicit profile jobs vocabulary'),
     definePushLedgerQuery: entry(4, 'use the explicit profile push vocabulary'),
     defineWriteWithActivity: entry(4, 'use the explicit profile write/activity vocabulary'),

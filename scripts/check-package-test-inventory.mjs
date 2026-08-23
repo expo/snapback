@@ -372,6 +372,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'function-id.test.mjs',
       'generated-mutation-ir.test.mjs',
       'generation-lock.test.mjs',
+      'graph-query.test.mjs',
       'guide-pointer.test.mjs',
       'handler-graph-parity.test.mjs',
       'handler-runtime-profile.test.mjs',
@@ -576,7 +577,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 331,
+  expectedTotal = 332,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1072,6 +1073,9 @@ export function checkPackageTestInventories(options = {}) {
 // cleanup, stale-registration, and verifier-drift isolation suite.
 // 330 -> 331 (2026-08-22, LLP 0214/0258/0294 W6): @expo/snapback-react gains
 // the isolated packed browser + Expo guest-entry, custody, claim, and logout proof.
+// 331 -> 332 (2026-08-23, LLP 0209 G0 Stage B2):
+// @expo/snapback-codegen gains the graph identity, source-refusal, authority,
+// and Rust-host admission conformance suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

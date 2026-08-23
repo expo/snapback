@@ -538,7 +538,7 @@ function authoredFunctionAuth(spec, kind) {
 }
 
 function assertKnownSpecFields(spec, kind, allowed, code = undefined) {
-  assert(spec && typeof spec === 'object' && !Array.isArray(spec), `${kind} expects a spec object`);
+  assert(spec && typeof spec === 'object' && !Array.isArray(spec), `${kind} expects a spec object`, code);
   const fields = Object.keys(spec);
   for (let index = 0; index < fields.length; index += 1) {
     const field = fields[index];
@@ -3518,6 +3518,455 @@ export function defineSnapshotBatchQuery(spec) {
     snapshotBatchPlan: relational
       ? { profile: 'snapshot-batch.v2', nodes }
       : { profile: 'snapshot-batch.v1', nodes: nodes.map((node) => node.plan) },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Live graph queries (LLP 0209 G0 — closed pre-lowering source carrier)
+// ---------------------------------------------------------------------------
+
+const GRAPH_QUERY_SPEC_FIELDS = new Set([
+  'nodes', 'projection', 'args', 'bounds', 'authorityScopes', 'queryCost', 'broadcast',
+]);
+const GRAPH_DATA_NODE_KINDS = new Set([
+  'root-window', 'equality-to-one', 'bounded-to-many', 'exists-semi-join',
+  'principal-bound', 'search-membership',
+]);
+const GRAPH_NODE_SOURCE_FIELDS = {
+  'root-window': new Set([
+    'kind', 'nodeId', 'edgeName', 'authorityClass', 'table', 'filters',
+    'accessIndex', 'order',
+  ]),
+  'equality-to-one': new Set([
+    'kind', 'nodeId', 'edgeName', 'authorityClass', 'parentNodeId', 'table',
+    'joinOn', 'accessIndex', 'presence', 'filters',
+  ]),
+  'bounded-to-many': new Set([
+    'kind', 'nodeId', 'edgeName', 'authorityClass', 'parentNodeId', 'table',
+    'joinOn', 'accessIndex', 'order', 'page', 'filters',
+  ]),
+  'exists-semi-join': new Set([
+    'kind', 'nodeId', 'edgeName', 'authorityClass', 'parentNodeId', 'mode',
+    'edge', 'filters', 'argumentId',
+  ]),
+  'principal-bound': new Set([
+    'kind', 'nodeId', 'edgeName', 'authorityClass', 'parentNodeId', 'table',
+    'parentJoin', 'principalField', 'accessIndex', 'binding', 'filters',
+  ]),
+  'search-membership': new Set([
+    'kind', 'nodeId', 'edgeName', 'authorityClass', 'parentNodeId',
+    'providerCapabilityId', 'membershipIdentity', 'memberField', 'scopeBindings',
+    'invalidationTables', 'providerCompletenessClass', 'argumentIds',
+  ]),
+};
+const GRAPH_BOUND_FIELDS = new Set([
+  'maxScannedRows', 'maxIndexRanges', 'maxResultRows', 'maxResultBytes',
+  'maxEvaluationTurnMs', 'maxObservers', 'maxDistinctEvaluationGroups',
+  'maxEstimatedLiveFanoutMs',
+]);
+const GRAPH_COST_FIELDS = new Set([
+  'nodes', 'arguments', 'maxArgumentItems', 'maxPageResultBytes',
+  'windowRollup', 'maxMaintainedWritesPerMutation',
+]);
+
+function graphRefuse(code, message) {
+  assert(false, message, code);
+}
+
+function graphSourcePreflight(spec) {
+  const stack = new Set();
+  const visited = new Set();
+  const visit = (value, path) => {
+    if (value === null || typeof value !== 'object') {
+      if (typeof value === 'function') {
+        graphRefuse('SNAPBACK_GRAPH_CODE_FORBIDDEN', `${path} contains executable code`);
+      }
+      return;
+    }
+    if (value.__table === true || value.fieldType !== undefined || value.resultKind !== undefined) return;
+    if (value.__expr === true && !/\.filters\[\d+\]\.value$/u.test(path)) {
+      graphRefuse(
+        'SNAPBACK_GRAPH_CLIENT_AST_FORBIDDEN',
+        `${path} makes graph shape argument-bindable instead of closing it as plan data`,
+      );
+    }
+    if (stack.has(value)) {
+      graphRefuse('SNAPBACK_GRAPH_RECURSION_FORBIDDEN', `${path} recursively contains the graph declaration`);
+    }
+    if (visited.has(value)) return;
+    stack.add(value);
+    for (const key of Reflect.ownKeys(value)) {
+      if (typeof key === 'symbol') continue;
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (descriptor?.get || descriptor?.set) {
+        graphRefuse('SNAPBACK_GRAPH_CODE_FORBIDDEN', `${path}.${key} uses executable property access`);
+      }
+      visit(value[key], Array.isArray(value) ? `${path}[${key}]` : `${path}.${key}`);
+    }
+    stack.delete(value);
+    visited.add(value);
+  };
+  visit(spec, 'defineGraphQuery');
+}
+
+function graphTableFacts(table, where) {
+  assert(
+    table?.__table === true && typeof table.__tableName === 'string' && table.__tableName.length > 0,
+    `defineGraphQuery ${where} must be a defineTable(...) installed in defineSchema(...)`,
+    'SNAPBACK_GRAPH_SCHEMA_REFERENCE_INVALID',
+  );
+  assert(
+    table.visibilityDeclaration && typeof table.visibilityDeclaration === 'object',
+    `defineGraphQuery ${where} requires the table's explicit visibility declaration`,
+    'SNAPBACK_GRAPH_SCHEMA_REFERENCE_INVALID',
+  );
+  return {
+    name: table.__tableName,
+    fields: table.fields,
+    visibility: table.visibilityDeclaration,
+  };
+}
+
+function graphFilter(filter, where) {
+  assert(
+    filter && typeof filter === 'object' && !Array.isArray(filter),
+    `${where} must be a closed filter record`,
+    'SNAPBACK_GRAPH_UNKNOWN_FIELD',
+  );
+  assert(
+    Object.keys(filter).sort().join(',') === 'field,op,value'
+      && typeof filter.field === 'string'
+      && ['Eq', 'In', 'Lt', 'Lte', 'Gt', 'Gte'].includes(filter.op),
+    `${where} must contain exactly field, op, and value from the closed filter vocabulary`,
+    'SNAPBACK_GRAPH_UNKNOWN_FIELD',
+  );
+  const value = filter.value;
+  if (!value?.__expr || !(Object.hasOwn(value, 'Arg') || Object.hasOwn(value, 'Literal'))) {
+    graphRefuse(
+      'SNAPBACK_GRAPH_CODE_FORBIDDEN',
+      `${where}.value admits only arg(...) or literal(...)`,
+    );
+  }
+  if (Object.hasOwn(value, 'Arg')) return { field: filter.field, op: filter.op, value: { Arg: value.Arg } };
+  return { field: filter.field, op: filter.op, value: { Literal: value.Literal } };
+}
+
+function graphFilters(filters, where, required) {
+  if (filters === undefined && !required) return undefined;
+  assert(Array.isArray(filters), `${where} must be an array`, 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
+  if (!required && filters.length === 0) {
+    graphRefuse('SNAPBACK_GRAPH_UNKNOWN_FIELD', `${where} must be omitted when its conjunction is empty`);
+  }
+  return filters.map((filter, index) => graphFilter(filter, `${where}[${index}]`));
+}
+
+function graphOrder(order, where) {
+  assert(Array.isArray(order) && order.length > 0, `${where} must be non-empty`, 'SNAPBACK_GRAPH_ORDER_NOT_TOTAL');
+  const seen = new Set();
+  return order.map((entry, index) => {
+    assertKnownSpecFields(
+      entry,
+      `${where}[${index}]`,
+      new Set(['field', 'direction', 'maxEncodedBytes']),
+      'SNAPBACK_GRAPH_UNKNOWN_FIELD',
+    );
+    assert(
+      entry && typeof entry === 'object' && !Array.isArray(entry)
+        && typeof entry.field === 'string'
+        && (entry.direction === 'Asc' || entry.direction === 'Desc'),
+      `${where}[${index}] must be a portable order expression`,
+      'SNAPBACK_GRAPH_ORDER_NOT_TOTAL',
+    );
+    assert(entry.field !== '_id' && !seen.has(entry.field), `${where} keeps _id implicit and forbids duplicates`, 'SNAPBACK_GRAPH_ORDER_NOT_TOTAL');
+    seen.add(entry.field);
+    return {
+      field: entry.field,
+      direction: entry.direction,
+      ...(entry.maxEncodedBytes === undefined ? {} : { maxEncodedBytes: entry.maxEncodedBytes }),
+    };
+  });
+}
+
+function graphJoin(joinOn, where) {
+  assert(Array.isArray(joinOn) && joinOn.length > 0, `${where} must be non-empty`, 'SNAPBACK_GRAPH_INDEX_UNPROVABLE');
+  return joinOn.map((join, index) => {
+    assert(
+      join && typeof join === 'object' && Object.keys(join).sort().join(',') === 'joinedField,rootField'
+        && typeof join.rootField === 'string' && typeof join.joinedField === 'string',
+      `${where}[${index}] must be { rootField, joinedField }`,
+      'SNAPBACK_GRAPH_SCHEMA_REFERENCE_INVALID',
+    );
+    return { rootField: join.rootField, joinedField: join.joinedField };
+  });
+}
+
+function graphEdge(edge, where) {
+  assert(edge && typeof edge === 'object' && !Array.isArray(edge), `${where} must be an edge`, 'SNAPBACK_GRAPH_THROUGH_TABLE_UNDECLARED');
+  if (edge.kind === 'direct') {
+    assertKnownSpecFields(
+      edge,
+      where,
+      new Set(['kind', 'table', 'joinOn', 'accessIndex']),
+      'SNAPBACK_GRAPH_UNKNOWN_FIELD',
+    );
+    const table = graphTableFacts(edge.table, `${where}.table`);
+    return {
+      table: table.name,
+      visibility: { ...table.visibility },
+      joinOn: graphJoin(edge.joinOn, `${where}.joinOn`),
+      accessIndex: edge.accessIndex,
+    };
+  }
+  if (edge.kind === 'through') {
+    assertKnownSpecFields(
+      edge,
+      where,
+      new Set([
+        'kind', 'table', 'parentJoin', 'targetTable', 'targetJoin',
+        'parentIndex', 'targetIndex',
+      ]),
+      'SNAPBACK_GRAPH_UNKNOWN_FIELD',
+    );
+    const table = graphTableFacts(edge.table, `${where}.table`);
+    const target = graphTableFacts(edge.targetTable, `${where}.targetTable`);
+    return {
+      table: table.name,
+      visibility: { ...table.visibility },
+      parentJoin: graphJoin(edge.parentJoin, `${where}.parentJoin`),
+      targetTable: target.name,
+      targetVisibility: { ...target.visibility },
+      targetJoin: graphJoin(edge.targetJoin, `${where}.targetJoin`),
+      parentIndex: edge.parentIndex,
+      targetIndex: edge.targetIndex,
+    };
+  }
+  graphRefuse('SNAPBACK_GRAPH_THROUGH_TABLE_UNDECLARED', `${where} must be direct or through`);
+}
+
+function graphNode(node, index, projectionFacts) {
+  const where = `defineGraphQuery.nodes[${index}]`;
+  assert(node && typeof node === 'object' && !Array.isArray(node), `${where} must be a node`, 'SNAPBACK_GRAPH_NODE_KIND_UNSUPPORTED');
+  assert(GRAPH_DATA_NODE_KINDS.has(node.kind), `${where} has unsupported kind ${String(node.kind)}`, 'SNAPBACK_GRAPH_NODE_KIND_UNSUPPORTED');
+  assertKnownSpecFields(
+    node,
+    where,
+    GRAPH_NODE_SOURCE_FIELDS[node.kind],
+    'SNAPBACK_GRAPH_UNKNOWN_FIELD',
+  );
+  assert(typeof node.nodeId === 'string' && typeof node.edgeName === 'string', `${where} requires nodeId and edgeName`, 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
+  assert([1, 2, 3].includes(node.authorityClass), `${where}.authorityClass must be 1, 2, or 3`, 'SNAPBACK_GRAPH_AUTHORITY_UNPROVABLE');
+  const base = {
+    nodeId: node.nodeId,
+    kind: node.kind,
+    edgeName: node.edgeName,
+    authorityClass: node.authorityClass,
+    ...(node.parentNodeId === undefined ? {} : { parentNodeId: node.parentNodeId }),
+  };
+  if (node.kind === 'search-membership') {
+    projectionFacts.set(node.nodeId, { kind: node.kind, table: null });
+    return {
+      ...base,
+      providerCapabilityId: node.providerCapabilityId,
+      membershipIdentity: { ...node.membershipIdentity },
+      memberField: node.memberField,
+      scopeBindings: node.scopeBindings.map((binding) => ({ ...binding, source: { ...binding.source } })),
+      invalidationTables: [...node.invalidationTables],
+      providerCompletenessClass: node.providerCompletenessClass,
+      ...(node.argumentIds === undefined ? {} : { argumentIds: [...node.argumentIds] }),
+    };
+  }
+  if (node.kind === 'exists-semi-join') {
+    projectionFacts.set(node.nodeId, { kind: node.kind, table: null });
+    const filters = graphFilters(node.filters, `${where}.filters`, false);
+    return {
+      ...base,
+      mode: node.mode,
+      edge: graphEdge(node.edge, `${where}.edge`),
+      ...(filters === undefined ? {} : { filters }),
+      ...(node.argumentId === undefined ? {} : { argumentId: node.argumentId }),
+    };
+  }
+  const table = graphTableFacts(node.table, `${where}.table`);
+  projectionFacts.set(node.nodeId, { kind: node.kind, table });
+  const filters = graphFilters(node.filters, `${where}.filters`, node.kind === 'root-window');
+  if (node.kind === 'root-window') {
+    return {
+      ...base,
+      table: table.name,
+      visibility: { ...table.visibility },
+      filters,
+      accessIndex: node.accessIndex,
+      order: graphOrder(node.order, `${where}.order`),
+      page: { kind: 'demand' },
+    };
+  }
+  if (node.kind === 'equality-to-one') {
+    return {
+      ...base,
+      table: table.name,
+      visibility: { ...table.visibility },
+      joinOn: graphJoin(node.joinOn, `${where}.joinOn`),
+      accessIndex: node.accessIndex,
+      presence: node.presence,
+      ...(filters === undefined ? {} : { filters }),
+    };
+  }
+  if (node.kind === 'bounded-to-many') {
+    return {
+      ...base,
+      table: table.name,
+      visibility: { ...table.visibility },
+      joinOn: graphJoin(node.joinOn, `${where}.joinOn`),
+      accessIndex: node.accessIndex,
+      order: graphOrder(node.order, `${where}.order`),
+      page: { ...node.page },
+      ...(filters === undefined ? {} : { filters }),
+    };
+  }
+  const binding = node.binding === undefined
+    ? undefined
+    : (() => {
+        assertKnownSpecFields(
+          node.binding,
+          `${where}.binding`,
+          new Set(['table', 'principalField', 'valueField', 'uniqueIndex']),
+          'SNAPBACK_GRAPH_UNKNOWN_FIELD',
+        );
+        const bindingTable = graphTableFacts(node.binding.table, `${where}.binding.table`);
+        return {
+          table: bindingTable.name,
+          visibility: { ...bindingTable.visibility },
+          principalField: node.binding.principalField,
+          valueField: node.binding.valueField,
+          uniqueIndex: node.binding.uniqueIndex,
+        };
+      })();
+  return {
+    ...base,
+    table: table.name,
+    visibility: { ...table.visibility },
+    parentJoin: graphJoin(node.parentJoin, `${where}.parentJoin`),
+    principalField: node.principalField,
+    accessIndex: node.accessIndex,
+    principalSource: 'auth.userId',
+    ...(binding === undefined ? {} : { binding }),
+    ...(filters === undefined ? {} : { filters }),
+  };
+}
+
+function graphProjectionValidator(object, projectionFacts, queryCost, where) {
+  assertKnownSpecFields(
+    object,
+    where,
+    new Set(['scopeNodeId', 'fields']),
+    'SNAPBACK_GRAPH_UNKNOWN_FIELD',
+  );
+  assert(Array.isArray(object.fields), `${where}.fields must be an array`, 'SNAPBACK_GRAPH_PROJECTION_OPEN');
+  const fields = {};
+  for (const [index, leaf] of object.fields.entries()) {
+    const leafWhere = `${where}.fields[${index}]`;
+    assertKnownSpecFields(
+      leaf,
+      leafWhere,
+      new Set(['name', 'value']),
+      'SNAPBACK_GRAPH_UNKNOWN_FIELD',
+    );
+    assert(typeof leaf.name === 'string' && leaf.name.length > 0, `${leafWhere}.name is required`, 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
+    const value = leaf.value;
+    assert(value && typeof value === 'object', `${leafWhere}.value is required`, 'SNAPBACK_GRAPH_PROJECTION_OPEN');
+    if (value.kind === 'literal') {
+      assertKnownSpecFields(value, `${leafWhere}.value`, new Set(['kind', 'value']), 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
+      fields[leaf.name] = v.literal(value.value);
+    } else if (value.kind === 'exists') {
+      assertKnownSpecFields(value, `${leafWhere}.value`, new Set(['kind', 'nodeId']), 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
+      fields[leaf.name] = v.boolean();
+    } else if (value.kind === 'field') {
+      assertKnownSpecFields(value, `${leafWhere}.value`, new Set(['kind', 'nodeId', 'field']), 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
+      const facts = projectionFacts.get(value.nodeId)?.table;
+      assert(facts, `${leafWhere} references a node without projectable table fields`, 'SNAPBACK_GRAPH_PROJECTION_OPEN');
+      fields[leaf.name] = boundedProjectionValidator(facts, { field: value.field }, leafWhere);
+    } else if (value.kind === 'object') {
+      assertKnownSpecFields(value, `${leafWhere}.value`, new Set(['kind', 'nodeId', 'object']), 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
+      const nested = graphProjectionValidator(value.object, projectionFacts, queryCost, leafWhere);
+      const node = projectionFacts.get(value.nodeId);
+      fields[leaf.name] = node?.kind === 'equality-to-one' ? v.union([v.null(), nested]) : nested;
+    } else if (value.kind === 'array') {
+      assertKnownSpecFields(value, `${leafWhere}.value`, new Set(['kind', 'scopeNodeId', 'item']), 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
+      const nested = graphProjectionValidator(value.item, projectionFacts, queryCost, leafWhere);
+      const cost = queryCost.graph.nodes.find((candidate) => candidate.nodeId === value.scopeNodeId);
+      assert(Number.isSafeInteger(cost?.maxChildrenPerParent), `${leafWhere} lacks maxChildrenPerParent`, 'SNAPBACK_GRAPH_UNBOUNDED_EXPANSION');
+      fields[leaf.name] = v.array(nested, { maxItems: cost.maxChildrenPerParent });
+    } else {
+      graphRefuse('SNAPBACK_GRAPH_PROJECTION_OPEN', `${leafWhere} uses unsupported projection kind ${String(value.kind)}`);
+    }
+  }
+  return v.object(fields);
+}
+
+/**
+ * Author one finite, closed G0 graph. This is deliberately a source carrier:
+ * extraction derives schema/policy authority facts and assigns canonical ids.
+ *
+ * @ref LLP 0209#21-the-normalized-carrier — source ids and names are rewritten
+ *   by codegen; the emitted carrier contains only the Rust-owned closed wire.
+ * @ref LLP 0209#31-class-enum-and-compiler-proofs — requested authority
+ *   classes are compiler-checked against installed declarations.
+ */
+export function defineGraphQuery(spec) {
+  graphSourcePreflight(spec);
+  assertKnownSpecFields(spec, 'GraphQuery', GRAPH_QUERY_SPEC_FIELDS, 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
+  assert(Array.isArray(spec.nodes), 'defineGraphQuery nodes must be an array', 'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION');
+  assert(spec.projection && typeof spec.projection === 'object', 'defineGraphQuery projection is required', 'SNAPBACK_GRAPH_PROJECTION_COUNT_INVALID');
+  assert(spec.args && typeof spec.args === 'object' && !Array.isArray(spec.args), 'defineGraphQuery args must be an object', 'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION');
+  assert(spec.bounds && typeof spec.bounds === 'object' && !Array.isArray(spec.bounds), 'defineGraphQuery bounds must be an object', 'SNAPBACK_GRAPH_BOUND_INVALID');
+  assert(spec.queryCost?.graph && typeof spec.queryCost.graph === 'object', 'defineGraphQuery queryCost.graph is required', 'SNAPBACK_GRAPH_BOUND_INVALID');
+  assert(spec.broadcast && typeof spec.broadcast === 'object', 'defineGraphQuery broadcast declaration is required', 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
+  assertKnownSpecFields(spec.bounds, 'defineGraphQuery.bounds', GRAPH_BOUND_FIELDS, 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
+  assertKnownSpecFields(spec.queryCost, 'defineGraphQuery.queryCost', new Set(['graph']), 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
+  assertKnownSpecFields(spec.queryCost.graph, 'defineGraphQuery.queryCost.graph', GRAPH_COST_FIELDS, 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
+  assertKnownSpecFields(spec.broadcast, 'defineGraphQuery.broadcast', new Set(['classification']), 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
+  assertKnownSpecFields(
+    spec.projection,
+    'defineGraphQuery.projection',
+    new Set(['nodeId', 'edgeName', 'authorityClass', 'object']),
+    'SNAPBACK_GRAPH_UNKNOWN_FIELD',
+  );
+  const projectionFacts = new Map();
+  const nodes = spec.nodes.map((node, index) => graphNode(node, index, projectionFacts));
+  const rootNodes = nodes.filter((node) => node.kind === 'root-window');
+  assert(rootNodes.length === 1, 'defineGraphQuery requires exactly one root-window', 'SNAPBACK_GRAPH_ROOT_COUNT_INVALID');
+  const projection = {
+    nodeId: spec.projection.nodeId,
+    kind: 'closed-projection',
+    edgeName: spec.projection.edgeName,
+    authorityClass: spec.projection.authorityClass,
+    object: spec.projection.object,
+  };
+  const queryCost = { ...spec.bounds, graph: spec.queryCost.graph };
+  const resultValidator = graphProjectionValidator(
+    projection.object,
+    projectionFacts,
+    queryCost,
+    'defineGraphQuery.projection.object',
+  );
+  const rootCost = queryCost.graph.nodes.find((cost) => cost.nodeId === rootNodes[0].nodeId);
+  assert(Number.isSafeInteger(rootCost?.maxRootRowsPerPage), 'root cost requires maxRootRowsPerPage', 'SNAPBACK_GRAPH_UNBOUNDED_EXPANSION');
+  return {
+    [FN]: true,
+    __kind: 'LiveQuery',
+    auth: nodes.some((node) => node.authorityClass !== 1) ? 'authenticated' : 'public',
+    args: { ...spec.args },
+    resultContract: results.records(resultValidator, {
+      minItems: 0,
+      maxItems: rootCost.maxRootRowsPerPage,
+    }),
+    graphQuerySource: {
+      nodes,
+      projection,
+      queryCost,
+      authorityScopes: spec.authorityScopes ?? {},
+      broadcast: { ...spec.broadcast },
+    },
   };
 }
 

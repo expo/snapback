@@ -1014,6 +1014,196 @@ export declare function defineLiveSearchQuery(spec: {
   auth?: AuthRequirement;
 }): unknown;
 
+export type GraphAuthorityClassV1 = 1 | 2 | 3;
+export interface GraphJoinEqualitySourceV1 {
+  readonly rootField: string;
+  readonly joinedField: string;
+}
+export interface GraphDirectEdgeSourceV1 {
+  readonly kind: 'direct';
+  readonly table: TableBuilder;
+  readonly joinOn: readonly GraphJoinEqualitySourceV1[];
+  readonly accessIndex: string;
+}
+export interface GraphThroughEdgeSourceV1 {
+  readonly kind: 'through';
+  readonly table: TableBuilder;
+  readonly parentJoin: readonly GraphJoinEqualitySourceV1[];
+  readonly targetTable: TableBuilder;
+  readonly targetJoin: readonly GraphJoinEqualitySourceV1[];
+  readonly parentIndex: string;
+  readonly targetIndex: string;
+}
+export type GraphEdgeSourceV1 = GraphDirectEdgeSourceV1 | GraphThroughEdgeSourceV1;
+export type GraphIntervalEndSourceV1 =
+  | { readonly kind: 'unbounded' }
+  | { readonly kind: 'inclusive' | 'exclusive'; readonly key: { readonly entries: readonly (readonly [string, unknown])[]; readonly id: string } };
+export type GraphChildPageSourceV1 =
+  | { readonly kind: 'demand' }
+  | {
+      readonly kind: 'literal';
+      readonly direction: 'forward' | 'backward';
+      readonly lower: GraphIntervalEndSourceV1;
+      readonly upper: GraphIntervalEndSourceV1;
+      readonly take: number;
+    };
+
+interface GraphNodeSourceBaseV1 {
+  readonly nodeId: string;
+  readonly edgeName: string;
+  readonly authorityClass: GraphAuthorityClassV1;
+}
+export interface GraphRootWindowSourceV1 extends GraphNodeSourceBaseV1 {
+  readonly kind: 'root-window';
+  readonly table: TableBuilder;
+  readonly filters: readonly FilterSpec[];
+  readonly accessIndex: string;
+  readonly order: readonly OrderSpec[];
+}
+export interface GraphEqualityToOneSourceV1 extends GraphNodeSourceBaseV1 {
+  readonly kind: 'equality-to-one';
+  readonly parentNodeId: string;
+  readonly table: TableBuilder;
+  readonly joinOn: readonly GraphJoinEqualitySourceV1[];
+  readonly accessIndex: string;
+  readonly presence: 'required' | 'optional';
+  readonly filters?: readonly FilterSpec[];
+}
+export interface GraphBoundedToManySourceV1 extends GraphNodeSourceBaseV1 {
+  readonly kind: 'bounded-to-many';
+  readonly parentNodeId: string;
+  readonly table: TableBuilder;
+  readonly joinOn: readonly GraphJoinEqualitySourceV1[];
+  readonly accessIndex: string;
+  readonly order: readonly OrderSpec[];
+  readonly page: GraphChildPageSourceV1;
+  readonly filters?: readonly FilterSpec[];
+}
+export interface GraphExistsSemiJoinSourceV1 extends GraphNodeSourceBaseV1 {
+  readonly kind: 'exists-semi-join';
+  readonly parentNodeId: string;
+  readonly mode: 'exists' | 'all';
+  readonly edge: GraphEdgeSourceV1;
+  readonly filters?: readonly FilterSpec[];
+  readonly argumentId?: string;
+}
+export interface GraphPrincipalBoundSourceV1 extends GraphNodeSourceBaseV1 {
+  readonly kind: 'principal-bound';
+  readonly parentNodeId: string;
+  readonly table: TableBuilder;
+  readonly parentJoin: readonly GraphJoinEqualitySourceV1[];
+  readonly principalField: string;
+  readonly accessIndex: string;
+  readonly binding?: {
+    readonly table: TableBuilder;
+    readonly principalField: string;
+    readonly valueField: string;
+    readonly uniqueIndex: string;
+  };
+  readonly filters?: readonly FilterSpec[];
+}
+export interface GraphSearchMembershipSourceV1 extends GraphNodeSourceBaseV1 {
+  readonly kind: 'search-membership';
+  readonly parentNodeId: string;
+  readonly providerCapabilityId: string;
+  readonly membershipIdentity: {
+    readonly format: 'snapback.graph-search-membership-identity.v1';
+    readonly providerPlanHash: `sha256:${string}`;
+    readonly argumentContractHash: `sha256:${string}`;
+    readonly scopeContractHash: `sha256:${string}`;
+    readonly authorityClass: GraphAuthorityClassV1;
+    readonly providerVersion: string;
+    readonly providerCompletenessClass: 'complete-membership-v1';
+    readonly membershipHash: `sha256:${string}`;
+  };
+  readonly memberField: string;
+  readonly scopeBindings: readonly {
+    readonly providerScopeField: string;
+    readonly source:
+      | { readonly kind: 'argument'; readonly argumentId: string }
+      | { readonly kind: 'parent-field'; readonly nodeId: string; readonly field: string };
+  }[];
+  readonly invalidationTables: readonly string[];
+  readonly providerCompletenessClass: 'complete-membership-v1';
+  readonly argumentIds?: readonly string[];
+}
+export type GraphDataNodeSourceV1 =
+  | GraphRootWindowSourceV1
+  | GraphEqualityToOneSourceV1
+  | GraphBoundedToManySourceV1
+  | GraphExistsSemiJoinSourceV1
+  | GraphPrincipalBoundSourceV1
+  | GraphSearchMembershipSourceV1;
+
+export interface GraphProjectionObjectSourceV1 {
+  readonly scopeNodeId: string;
+  readonly fields: readonly {
+    readonly name: string;
+    readonly value:
+      | { readonly kind: 'field'; readonly nodeId: string; readonly field: string }
+      | { readonly kind: 'literal'; readonly value: null | boolean | string | number }
+      | { readonly kind: 'object'; readonly nodeId: string; readonly object: GraphProjectionObjectSourceV1 }
+      | { readonly kind: 'array'; readonly scopeNodeId: string; readonly item: GraphProjectionObjectSourceV1 }
+      | { readonly kind: 'exists'; readonly nodeId: string };
+  }[];
+}
+export interface GraphNodeCostSourceV1 {
+  readonly nodeId: string;
+  readonly maxRootRowsPerPage?: number;
+  readonly maxExaminedEntriesPerExecution: number;
+  readonly maxRelationshipLookupsPerExecution?: number;
+  readonly maxChildrenPerParent?: number;
+  readonly maxArgumentExpansion?: number;
+  readonly maxWindowPages?: number;
+  readonly maxWindowRootRows?: number;
+  readonly maxWindowScannedRows?: number;
+  readonly maxWindowResultRows?: number;
+  readonly maxWindowResultBytes?: number;
+  readonly maxWindowIndexRanges?: number;
+}
+export interface GraphQuerySpec<Args extends Record<string, Validator> = Record<string, Validator>> {
+  readonly nodes: readonly GraphDataNodeSourceV1[];
+  readonly projection: {
+    readonly nodeId: string;
+    readonly edgeName: string;
+    readonly authorityClass: GraphAuthorityClassV1;
+    readonly object: GraphProjectionObjectSourceV1;
+  };
+  readonly args: Args;
+  readonly bounds: {
+    readonly maxScannedRows: number;
+    readonly maxIndexRanges: number;
+    readonly maxResultRows: number;
+    readonly maxResultBytes: number;
+    readonly maxEvaluationTurnMs: number;
+    readonly maxObservers: number;
+    readonly maxDistinctEvaluationGroups: number;
+    readonly maxEstimatedLiveFanoutMs: number;
+  };
+  readonly authorityScopes?: Readonly<Record<string, readonly (keyof Args & string)[]>>;
+  readonly queryCost: {
+    readonly graph: {
+      readonly nodes: readonly GraphNodeCostSourceV1[];
+      readonly arguments: readonly { readonly argumentId: keyof Args & string; readonly maxItems: number }[];
+      readonly maxArgumentItems: number;
+      readonly maxPageResultBytes: number;
+      readonly windowRollup: {
+        readonly maxWindowPages: number;
+        readonly maxWindowRootRows: number;
+        readonly maxWindowScannedRows: number;
+        readonly maxWindowResultRows: number;
+        readonly maxWindowResultBytes: number;
+        readonly maxWindowIndexRanges: number;
+      };
+      readonly maxMaintainedWritesPerMutation: 0;
+    };
+  };
+  readonly broadcast: { readonly classification: 'query-shaped' };
+}
+export declare function defineGraphQuery<const Args extends Record<string, Validator>>(
+  spec: GraphQuerySpec<Args>,
+): unknown;
+
 export interface RelationalVisibilitySpec {
   root: { kind: 'owner'; field: string } | { kind: 'public-read' };
   joined: { kind: 'owner'; field: string } | { kind: 'public-read' };

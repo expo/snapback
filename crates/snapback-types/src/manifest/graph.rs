@@ -3430,7 +3430,7 @@ fn validate_graph_costs(plan: &GraphQueryPlanV1) -> Result<(), GraphAdmissionRef
     let mut expected_argument_items = 0_u64;
     let mut argument_cost_index = 0_usize;
     for argument in &plan.arguments {
-        match &argument.contract.value {
+        let argument_items = match &argument.contract.value {
             ResultValueContract::Array { max_items, .. } => {
                 let contract_max = u64::try_from(*max_items)
                     .map_err(|_| GraphAdmissionRefusalReasonV1::BoundInvalid)?;
@@ -3447,11 +3447,12 @@ fn validate_graph_costs(plan: &GraphQueryPlanV1) -> Result<(), GraphAdmissionRef
                     return Err(GraphAdmissionRefusalReasonV1::BoundInvalid);
                 }
                 collection_bounds.insert(argument.argument_id.clone(), cost.max_items);
-                expected_argument_items = checked_add(expected_argument_items, cost.max_items)?;
                 argument_cost_index += 1;
+                cost.max_items
             }
-            _ => expected_argument_items = checked_add(expected_argument_items, 1)?,
-        }
+            _ => 1,
+        };
+        expected_argument_items = checked_add(expected_argument_items, argument_items)?;
     }
     if argument_cost_index != plan.query_cost.graph.arguments.len()
         || plan.query_cost.graph.max_argument_items != expected_argument_items
@@ -5883,6 +5884,51 @@ mod tests {
         assert_eq!(
             normalized_graph_plan(&collision),
             Err(GraphAdmissionRefusalReasonV1::ArgumentUnbound)
+        );
+    }
+
+    #[test]
+    fn graph_collection_arguments_contribute_to_max_argument_items_once() {
+        let mut candidate = candidate_plan("root", "projection");
+        candidate.arguments = serde_json::from_value(json!([
+            {
+                "argumentId":"authored-labels", "name":"labels",
+                "contract":{
+                    "format":"snapback.argument-binding-contract.v1",
+                    "required":true,
+                    "value":{"kind":"array","element":{"kind":"string","maxBytes":32},"maxItems":3}
+                },
+                "contractHash":zero_hash()
+            },
+            {
+                "argumentId":"authored-assignees", "name":"assignees",
+                "contract":{
+                    "format":"snapback.argument-binding-contract.v1",
+                    "required":true,
+                    "value":{"kind":"array","element":{"kind":"string","maxBytes":32},"maxItems":5}
+                },
+                "contractHash":zero_hash()
+            }
+        ]))
+        .unwrap();
+        candidate.query_cost.graph.arguments = serde_json::from_value(json!([
+            {"argumentId":"authored-labels","maxItems":3},
+            {"argumentId":"authored-assignees","maxItems":5}
+        ]))
+        .unwrap();
+        candidate.query_cost.graph.max_argument_items = 8;
+
+        let admitted = graph_plan_identity_v1(&candidate).expect("3 + 5 admits at eight");
+        assert_eq!(
+            validate_graph_query_plan_v1(&admitted.normalized_plan),
+            Ok(())
+        );
+
+        let mut refused = admitted.normalized_plan;
+        refused.query_cost.graph.max_argument_items = 7;
+        assert_eq!(
+            validate_graph_query_plan_v1(&refused),
+            Err(GraphAdmissionRefusalReasonV1::BoundInvalid)
         );
     }
 
