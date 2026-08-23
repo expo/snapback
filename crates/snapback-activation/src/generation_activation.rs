@@ -600,6 +600,20 @@ pub fn order_field_bounds_from_functions(
                     }
                 }
             }
+            FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier)) => {
+                // @ref LLP 0209#22-node-kinds — graph order components use
+                // the same schema-level, write-enforced portable byte ceiling
+                // as the frozen ordered query families.
+                for node in &carrier.normalized_plan.nodes {
+                    match node {
+                        crate::manifest::GraphNodeV1::RootWindow { table, order, .. }
+                        | crate::manifest::GraphNodeV1::BoundedToMany { table, order, .. } => {
+                            register(table, order)?
+                        }
+                        _ => {}
+                    }
+                }
+            }
             _ => {}
         }
     }

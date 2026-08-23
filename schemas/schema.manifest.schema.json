@@ -835,11 +835,51 @@
       ],
       "type": "string"
     },
+    "AuthorityProfileHistoryHorizonCarrierV1": {
+      "additionalProperties": false,
+      "properties": {
+        "carrier": {
+          "type": "string"
+        },
+        "coverage": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "carrier",
+        "coverage"
+      ],
+      "type": "object"
+    },
+    "AuthorityProfileHistoryProjectionV1": {
+      "additionalProperties": false,
+      "properties": {
+        "incarnationSemantics": {
+          "type": "string"
+        },
+        "visibleFields": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "visibleFields",
+        "incarnationSemantics"
+      ],
+      "type": "object"
+    },
     "AuthorityProfileHookV1": {
       "enum": [
         "useSnapbackQuery",
         "useSnapbackAuthorityRoster",
         "useSnapbackAuthorityMyRole",
+        "useSnapbackAuthorityHistory",
+        "useSnapbackAuthorityIncarnations",
         "useSnapbackMutation",
         "useSnapbackAuthorityMutation",
         "useSnapbackOutbox.mutationStatus",
@@ -872,6 +912,8 @@
       "enum": [
         "list",
         "myRole",
+        "history",
+        "incarnations",
         "invite",
         "join",
         "leave",
@@ -880,6 +922,22 @@
         "remove"
       ],
       "type": "string"
+    },
+    "AuthorityProfileOperationOutcomeV1": {
+      "additionalProperties": false,
+      "properties": {
+        "branch": {
+          "type": "string"
+        },
+        "outcome": {
+          "$ref": "#/$defs/AuthorityProfileOutcomeClassV1"
+        }
+      },
+      "required": [
+        "branch",
+        "outcome"
+      ],
+      "type": "object"
     },
     "AuthorityProfileOperationV1": {
       "additionalProperties": false,
@@ -899,6 +957,12 @@
         "name": {
           "$ref": "#/$defs/AuthorityProfileOperationNameV1"
         },
+        "outcomes": {
+          "items": {
+            "$ref": "#/$defs/AuthorityProfileOperationOutcomeV1"
+          },
+          "type": "array"
+        },
         "transitionOps": {
           "items": {
             "$ref": "#/$defs/AuthorityProfileTransitionOpV1"
@@ -914,6 +978,14 @@
         "transitionOps"
       ],
       "type": "object"
+    },
+    "AuthorityProfileOutcomeClassV1": {
+      "enum": [
+        "idempotent-success-unchanged",
+        "typed-precondition-refusal",
+        "non-enumerating-denial"
+      ],
+      "type": "string"
     },
     "AuthorityProfileOwnerBootstrapInvariantV1": {
       "additionalProperties": false,
@@ -932,6 +1004,95 @@
         "role",
         "bootstrapRole",
         "protectedLastHolderRole"
+      ],
+      "type": "object"
+    },
+    "AuthorityProfileProjectionV1": {
+      "additionalProperties": false,
+      "properties": {
+        "history": {
+          "$ref": "#/$defs/AuthorityProfileHistoryProjectionV1"
+        },
+        "historyHorizon": {
+          "$ref": "#/$defs/AuthorityProfileHistoryHorizonCarrierV1"
+        },
+        "offlineRetention": {
+          "type": "string"
+        },
+        "recipients": {
+          "$ref": "#/$defs/AuthorityProfileRecipientProjectionV1"
+        },
+        "source": {
+          "type": "string"
+        },
+        "version": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "source",
+        "history",
+        "recipients",
+        "historyHorizon",
+        "offlineRetention"
+      ],
+      "type": "object"
+    },
+    "AuthorityProfileRecipientProjectionV1": {
+      "additionalProperties": false,
+      "properties": {
+        "ceiling": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "freeze": {
+          "type": "string"
+        },
+        "overflow": {
+          "type": "string"
+        },
+        "sinks": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/AuthorityProfileRecipientSinkV1"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "ceiling",
+        "overflow",
+        "freeze"
+      ],
+      "type": "object"
+    },
+    "AuthorityProfileRecipientSinkV1": {
+      "additionalProperties": false,
+      "properties": {
+        "operation": {
+          "type": "string"
+        },
+        "recipientsField": {
+          "type": "string"
+        },
+        "scopeField": {
+          "type": "string"
+        },
+        "table": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "operation",
+        "table",
+        "scopeField",
+        "recipientsField"
       ],
       "type": "object"
     },
@@ -1180,6 +1341,16 @@
             "type": "string"
           },
           "type": "array"
+        },
+        "projection": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthorityProfileProjectionV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "requiredIndexes": {
           "items": {

@@ -63,7 +63,7 @@ impl AuthProtocols {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 44] = [
+    pub const ALL: [Self; 45] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -86,6 +86,7 @@ impl TargetCapabilityId {
         Self::SequenceAllocationV1,
         Self::SnapshotBatchV1,
         Self::SnapshotBatchV2,
+        Self::GraphQueryV1,
         Self::SingleTableV1,
         Self::MigrationKeysetScanV1,
         Self::FullTextSearchV1,
@@ -134,6 +135,7 @@ impl TargetCapabilityId {
             Self::SequenceAllocationV1 => "sequence_allocation_v1",
             Self::SnapshotBatchV1 => "snapshot_batch_v1",
             Self::SnapshotBatchV2 => "snapshot_batch_v2",
+            Self::GraphQueryV1 => "graph_query_v1",
             Self::SingleTableV1 => "single_table_v1",
             Self::MigrationKeysetScanV1 => "migration_keyset_scan_v1",
             Self::FullTextSearchV1 => "full_text_search_v1",
@@ -197,6 +199,7 @@ impl TargetCapabilityId {
             | Self::SequenceAllocationV1
             | Self::SnapshotBatchV1
             | Self::SnapshotBatchV2
+            | Self::GraphQueryV1
             | Self::SingleTableV1
             | Self::LiveFullTextSearchV1
             | Self::VectorSearchV1
@@ -438,6 +441,10 @@ impl TargetCapabilityId {
                     && Self::LiveSubscriptions.is_supported_by(manifest, facts)
                     && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
             }
+            // @ref LLP 0209#25-additive-sibling-carrier-stage-b-plan-not-shipped-surface —
+            // G0 reserves and validates the carrier but intentionally has no
+            // target executor or positive support fact.
+            Self::GraphQueryV1 => false,
             // @ref LLP 0110#local-persistent-store-publication-authority-amendment--2026-08-04
             // — the host-derived class is supportable only on the exact
             // contributor-source target whose embedded carrier binds the

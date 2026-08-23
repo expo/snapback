@@ -5433,6 +5433,7 @@ fn l3_retention_floor_boundary_still_allows_precise_query_validation() {
     );
 
     let dependency = CapturedReadDependency {
+        graph: None,
         kind: CapturedReadKind::Query,
         table: Some("notes".to_owned()),
         id: None,
@@ -5487,6 +5488,7 @@ fn l3_retention_floor_boundary_still_allows_precise_query_validation() {
 #[test]
 fn e4_query_validation_is_predicate_granular() {
     let filtered_query = || CapturedReadDependency {
+        graph: None,
         kind: CapturedReadKind::Query,
         table: Some("todos".to_owned()),
         id: None,

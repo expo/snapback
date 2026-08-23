@@ -57,6 +57,7 @@ impl LocalDatabase {
                 let resource: Option<String> = row.get(3)?;
                 let role: String = row.get(4)?;
                 dependencies.push(CapturedReadDependency {
+                    graph: None,
                     kind: CapturedReadKind::Row,
                     table: Some(table_name.clone()),
                     id: Some(id.clone()),
@@ -82,6 +83,7 @@ impl LocalDatabase {
             // fact (the LLP 0056 pinned-empty-capture idiom) and a grant or
             // removal moves the vector even before its row dependency exists.
             dependencies.push(CapturedReadDependency {
+                graph: None,
                 kind: CapturedReadKind::Query,
                 table: Some(table_name.clone()),
                 id: None,

@@ -199,6 +199,7 @@ pub fn membership_capture_dependency(
         .with_details(json!({ "error": error.to_string() }))
     })?;
     Ok(CapturedReadDependency {
+        graph: None,
         // ORDINARY Query kind, NOT Permission — the whole point of this module.
         // @ref LLP 0056#what-exists-what-this-adds
         kind: CapturedReadKind::Query,
@@ -1608,6 +1609,7 @@ mod tests {
             indexed_by: None,
         };
         CapturedReadDependency {
+            graph: None,
             kind: CapturedReadKind::Query,
             table: Some("events".to_owned()),
             id: None,

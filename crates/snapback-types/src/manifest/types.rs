@@ -2752,6 +2752,23 @@ impl FunctionManifest {
                     validate_snapshot_batch_v2_argument_bindings(function, plan)?;
                 }
                 (
+                    FunctionKind::Query | FunctionKind::LiveQuery,
+                    FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier)),
+                ) => validate_graph_query_carrier_v1(
+                    carrier,
+                    function.result_contract_hash.as_deref(),
+                )
+                .map_err(|reason| {
+                    SnapbackError::error(
+                        reason.code(),
+                        "query",
+                        format!(
+                            "graph query {} failed host reconstruction: {reason}",
+                            function.name
+                        ),
+                    )
+                })?,
+                (
                     FunctionKind::Mutation,
                     FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)),
                 ) => crate::value_expr::validate_mutation_plan(plan)?,
@@ -2852,6 +2869,13 @@ impl FunctionManifest {
                         (false, false) => &["snapshot_batch_v2", "relational_query_v1"],
                     }
                 }
+                FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(_)) => {
+                    if function.kind == FunctionKind::LiveQuery {
+                        &["graph_query_v1", "live_subscriptions"]
+                    } else {
+                        &["graph_query_v1"]
+                    }
+                }
                 FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(_)) => {
                     &["write_activity_v1"]
                 }
@@ -2916,6 +2940,22 @@ impl FunctionManifest {
                         "snapshot batch v2 emitted identity does not match the host reconstruction",
                     ));
                 }
+            }
+            if let FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier)) = &function.runtime {
+                validate_graph_query_carrier_v1(
+                    carrier,
+                    function.result_contract_hash.as_deref(),
+                )
+                .map_err(|reason| {
+                    SnapbackError::error(
+                        reason.code(),
+                        "query",
+                        format!(
+                            "graph query {} emitted identity does not match host reconstruction",
+                            function.name
+                        ),
+                    )
+                })?;
             }
             for declaration in &function.sequences {
                 match sequence_declarations.get(&declaration.name) {
@@ -5681,6 +5721,71 @@ impl ObservedEffects {
                     self.authorization_inputs.insert("parentVisibility");
                 }
             }
+            HandlerPlan::GraphQuery(carrier) => {
+                for node in &carrier.normalized_plan.nodes {
+                    match node {
+                        GraphNodeV1::RootWindow {
+                            table,
+                            access_index,
+                            filters,
+                            ..
+                        } => {
+                            self.read(table, "query", Some(access_index));
+                            self.filters(filters);
+                        }
+                        GraphNodeV1::EqualityToOne {
+                            table,
+                            access_index,
+                            filters,
+                            ..
+                        }
+                        | GraphNodeV1::BoundedToMany {
+                            table,
+                            access_index,
+                            filters,
+                            ..
+                        }
+                        | GraphNodeV1::PrincipalBound {
+                            table,
+                            access_index,
+                            filters,
+                            ..
+                        } => {
+                            self.read(table, "query", Some(access_index));
+                            if let Some(filters) = filters {
+                                self.filters(filters);
+                            }
+                        }
+                        GraphNodeV1::ExistsSemiJoin { edge, filters, .. } => {
+                            match edge {
+                                GraphEdgeV1::Direct(edge) => {
+                                    self.read(&edge.table, "query", Some(&edge.access_index));
+                                }
+                                GraphEdgeV1::Through(edge) => {
+                                    self.read(&edge.table, "query", Some(&edge.parent_index));
+                                    self.read(
+                                        &edge.target_table,
+                                        "point",
+                                        Some(&edge.target_index),
+                                    );
+                                }
+                            }
+                            if let Some(filters) = filters {
+                                self.filters(filters);
+                            }
+                        }
+                        GraphNodeV1::SearchMembership {
+                            invalidation_tables,
+                            ..
+                        } => {
+                            for table in invalidation_tables {
+                                self.read(table, "search-membership", None);
+                            }
+                        }
+                        GraphNodeV1::ClosedProjection { .. } => {}
+                    }
+                }
+            }
             HandlerPlan::Mutation(plan) => {
                 for step in &plan.steps {
                     match step {
@@ -7055,7 +7160,7 @@ pub fn single_table_delta_contract_matches_schema(
         }
 }
 
-fn domain_hash(domain: &[u8], value: &Value) -> SnapbackResult<String> {
+pub(super) fn domain_hash(domain: &[u8], value: &Value) -> SnapbackResult<String> {
     let canonical = crate::rqs_contract::jcs(value).map_err(|_| {
         SnapbackError::error(
             "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
@@ -9450,6 +9555,7 @@ pub enum PublicHostPlanKind {
     BoundedChildrenQuery,
     SnapshotBatch,
     SnapshotBatchV2,
+    GraphQuery,
     WriteWithActivity,
 }
 
@@ -9706,6 +9812,7 @@ impl From<FunctionRuntime> for PublicFunctionRuntime {
                 HandlerPlan::BoundedChildrenQuery(_) => PublicHostPlanKind::BoundedChildrenQuery,
                 HandlerPlan::SnapshotBatch(_) => PublicHostPlanKind::SnapshotBatch,
                 HandlerPlan::SnapshotBatchV2(_) => PublicHostPlanKind::SnapshotBatchV2,
+                HandlerPlan::GraphQuery(_) => PublicHostPlanKind::GraphQuery,
                 HandlerPlan::WriteWithActivity(_) => PublicHostPlanKind::WriteWithActivity,
             }),
             // `source: _` is the redaction this projection exists for.
@@ -9761,6 +9868,12 @@ pub enum HandlerPlan {
     /// Class-tagged bounded-child/relational tuple using one `sbsb2`
     /// continuation and LLP 0157's unchanged two-arm outer envelope.
     SnapshotBatchV2(SnapshotBatchPlanV2),
+    /// Additive graph carrier. Stage B validates and identities this arm but
+    /// deliberately registers no executor.
+    ///
+    /// @ref LLP 0209#25-additive-sibling-carrier-stage-b-plan-not-shipped-surface —
+    /// graph_query_v1 is a sibling and does not reinterpret frozen carriers.
+    GraphQuery(GraphQueryCarrierV1),
     /// Closed source/scope/activity transaction.
     WriteWithActivity(WriteWithActivityPlan),
 }
@@ -11704,6 +11817,10 @@ pub enum TargetCapabilityId {
     /// retain explicit gaps until their own executors and evidence land.
     #[serde(rename = "snapshot_batch_v2")]
     SnapshotBatchV2,
+    /// LLP 0209 G0 graph-query carrier. The id is reserved while every target
+    /// remains unsupported until a later executor stage qualifies it.
+    #[serde(rename = "graph_query_v1")]
+    GraphQueryV1,
     #[serde(rename = "single_table_v1")]
     SingleTableV1,
     #[serde(rename = "migration_keyset_scan_v1")]

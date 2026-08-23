@@ -34,6 +34,24 @@
       ],
       "type": "object"
     },
+    "BinaryOp": {
+      "enum": [
+        "Add",
+        "Sub",
+        "Mul",
+        "Div",
+        "Mod",
+        "Eq",
+        "Ne",
+        "Lt",
+        "Lte",
+        "Gt",
+        "Gte",
+        "And",
+        "Or"
+      ],
+      "type": "string"
+    },
     "CapturedReadDependency": {
       "properties": {
         "boundary": true,
@@ -42,6 +60,10 @@
             "string",
             "null"
           ]
+        },
+        "graph": {
+          "$ref": "#/$defs/GraphCapturedReadV1",
+          "description": "Additive graph-specific dependency detail. Required exactly for\n`GraphNode` and absent for every shipped read kind.\n\n@ref LLP 0209#51-captured-vocabulary-by-normalized-node — graph reads\ncarry one closed node-specific payload beside the shared top-level kind."
         },
         "id": {
           "type": [
@@ -103,7 +125,8 @@
         "missingRow",
         "query",
         "auth",
-        "permission"
+        "permission",
+        "graphNode"
       ],
       "type": "string"
     },
@@ -225,6 +248,36 @@
       ],
       "type": "string"
     },
+    "FilterExpr": {
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "op": {
+          "$ref": "#/$defs/FilterOp"
+        },
+        "value": {
+          "$ref": "#/$defs/ValueExpr"
+        }
+      },
+      "required": [
+        "field",
+        "op",
+        "value"
+      ],
+      "type": "object"
+    },
+    "FilterOp": {
+      "enum": [
+        "Eq",
+        "In",
+        "Lt",
+        "Lte",
+        "Gt",
+        "Gte"
+      ],
+      "type": "string"
+    },
     "FunctionAttribution": {
       "description": "Server-derived, bearer-free attribution for one app-data function\nresponse. Wrappers may copy this value, but cannot synthesize attribution\nauthority when the invocation gate did not produce it.\n\n@ref LLP 0055#audit — every resolved service-principal function response\ncarries the same actor/effective/grant attribution and v1 has no agent\ndry-run surface.",
       "properties": {
@@ -272,6 +325,920 @@
         "Action"
       ],
       "type": "string"
+    },
+    "GraphAuthorityClassV1": {
+      "description": "The closed numerical authority classes: independent, partition-scoped,\nand principal-scoped.",
+      "format": "uint8",
+      "maximum": 3,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "GraphCapturedDependencyV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "boundary": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/KeysetKeyV1"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "complete": {
+              "type": "boolean"
+            },
+            "index": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "root-range",
+              "type": "string"
+            },
+            "limit": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "order": {
+              "items": {
+                "$ref": "#/$defs/OrderExpr"
+              },
+              "type": "array"
+            },
+            "predicate": {
+              "items": {
+                "$ref": "#/$defs/FilterExpr"
+              },
+              "type": "array"
+            },
+            "resultCount": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "table": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "table",
+            "index",
+            "predicate",
+            "order",
+            "limit",
+            "resultCount",
+            "boundary",
+            "complete"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "childKey": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/GraphRowKeyV1"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "found": {
+              "type": "boolean"
+            },
+            "index": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "parent-point",
+              "type": "string"
+            },
+            "lookupKey": {
+              "items": true,
+              "type": "array"
+            },
+            "parentKey": {
+              "$ref": "#/$defs/GraphRowKeyV1"
+            },
+            "rowVersion": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "table": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "table",
+            "index",
+            "parentKey",
+            "lookupKey",
+            "childKey",
+            "found",
+            "rowVersion"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "index": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "parent-lookup-skipped",
+              "type": "string"
+            },
+            "parentKey": {
+              "$ref": "#/$defs/GraphRowKeyV1"
+            },
+            "reason": {
+              "$ref": "#/$defs/GraphParentLookupSkippedReasonV1"
+            },
+            "table": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "table",
+            "index",
+            "parentKey",
+            "reason"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "boundary": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/KeysetKeyV1"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "complete": {
+              "type": "boolean"
+            },
+            "index": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "parent-range",
+              "type": "string"
+            },
+            "limit": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "order": {
+              "items": {
+                "$ref": "#/$defs/OrderExpr"
+              },
+              "type": "array"
+            },
+            "parentKey": {
+              "$ref": "#/$defs/GraphRowKeyV1"
+            },
+            "predicate": {
+              "items": {
+                "$ref": "#/$defs/FilterExpr"
+              },
+              "type": "array"
+            },
+            "resultCount": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "table": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "table",
+            "index",
+            "parentKey",
+            "predicate",
+            "order",
+            "limit",
+            "resultCount",
+            "boundary",
+            "complete"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "else": {
+                "required": [
+                  "argumentDigest"
+                ]
+              },
+              "if": {
+                "properties": {
+                  "argumentId": {
+                    "type": "null"
+                  }
+                },
+                "required": [
+                  "argumentId"
+                ]
+              },
+              "then": {
+                "not": {
+                  "required": [
+                    "argumentDigest"
+                  ]
+                }
+              }
+            }
+          ],
+          "properties": {
+            "argumentDigest": {
+              "$ref": "#/$defs/Sha256V1"
+            },
+            "argumentId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "complete": {
+              "type": "boolean"
+            },
+            "indexes": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "const": "membership",
+              "type": "string"
+            },
+            "matchedCount": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "parentKey": {
+              "$ref": "#/$defs/GraphRowKeyV1"
+            },
+            "tables": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "tables",
+            "indexes",
+            "parentKey",
+            "argumentId",
+            "matchedCount",
+            "complete"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "type": "string"
+            },
+            "found": {
+              "type": "boolean"
+            },
+            "index": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "principal-field",
+              "type": "string"
+            },
+            "partitionHash": {
+              "$ref": "#/$defs/Sha256V1"
+            },
+            "table": {
+              "type": "string"
+            },
+            "valueDigest": {
+              "$ref": "#/$defs/Sha256V1"
+            }
+          },
+          "required": [
+            "kind",
+            "table",
+            "index",
+            "partitionHash",
+            "field",
+            "valueDigest",
+            "found"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "search-table",
+              "type": "string"
+            },
+            "membershipIdentity": {
+              "$ref": "#/$defs/GraphSearchMembershipIdentityV1"
+            },
+            "providerVersion": {
+              "type": "string"
+            },
+            "table": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "table",
+            "membershipIdentity",
+            "providerVersion"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "projection",
+              "type": "string"
+            },
+            "sourceNodeIds": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "sourceNodeIds"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "GraphCapturedReadV1": {
+      "additionalProperties": false,
+      "description": "Additive graph-specific captured-read payload. It is carried only beside\n`CapturedReadKind::GraphNode`; G0 registers and validates the vocabulary\nbut does not consume it in matching.\n\n@ref LLP 0209#51-captured-vocabulary-by-normalized-node — one top-level\ngraph read kind contains the closed per-node dependency union.",
+      "properties": {
+        "authorityClass": {
+          "$ref": "#/$defs/GraphAuthorityClassV1"
+        },
+        "dependency": {
+          "$ref": "#/$defs/GraphCapturedDependencyV1"
+        },
+        "format": {
+          "const": "snapback.graph-captured-read.v1",
+          "type": "string"
+        },
+        "graphPlanHash": {
+          "$ref": "#/$defs/Sha256V1"
+        },
+        "instanceHash": {
+          "$ref": "#/$defs/Sha256V1"
+        },
+        "nodeId": {
+          "type": "string"
+        },
+        "nodeKind": {
+          "$ref": "#/$defs/GraphNodeKindV1"
+        }
+      },
+      "required": [
+        "format",
+        "graphPlanHash",
+        "instanceHash",
+        "nodeId",
+        "nodeKind",
+        "authorityClass",
+        "dependency"
+      ],
+      "type": "object"
+    },
+    "GraphNodeKindV1": {
+      "enum": [
+        "root-window",
+        "equality-to-one",
+        "bounded-to-many",
+        "exists-semi-join",
+        "principal-bound",
+        "search-membership",
+        "closed-projection"
+      ],
+      "type": "string"
+    },
+    "GraphParentLookupSkippedReasonV1": {
+      "enum": [
+        "null-or-omitted-key"
+      ],
+      "type": "string"
+    },
+    "GraphProviderCompletenessClassV1": {
+      "enum": [
+        "complete-membership-v1"
+      ],
+      "type": "string"
+    },
+    "GraphRowKeyV1": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "table": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "table",
+        "id"
+      ],
+      "type": "object"
+    },
+    "GraphSearchMembershipIdentityV1": {
+      "additionalProperties": false,
+      "properties": {
+        "argumentContractHash": {
+          "$ref": "#/$defs/Sha256V1"
+        },
+        "authorityClass": {
+          "$ref": "#/$defs/GraphAuthorityClassV1"
+        },
+        "format": {
+          "const": "snapback.graph-search-membership-identity.v1",
+          "type": "string"
+        },
+        "membershipHash": {
+          "$ref": "#/$defs/Sha256V1"
+        },
+        "providerCompletenessClass": {
+          "$ref": "#/$defs/GraphProviderCompletenessClassV1"
+        },
+        "providerPlanHash": {
+          "$ref": "#/$defs/Sha256V1"
+        },
+        "providerVersion": {
+          "type": "string"
+        },
+        "scopeContractHash": {
+          "$ref": "#/$defs/Sha256V1"
+        }
+      },
+      "required": [
+        "format",
+        "providerPlanHash",
+        "argumentContractHash",
+        "scopeContractHash",
+        "authorityClass",
+        "providerVersion",
+        "providerCompletenessClass",
+        "membershipHash"
+      ],
+      "type": "object"
+    },
+    "KeysetKeyV1": {
+      "additionalProperties": false,
+      "description": "Wire-identical counterpart of the kernel's storage-native `KeysetAfter`.\n`_id` is always carried separately in `id`.",
+      "properties": {
+        "entries": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              true
+            ],
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "entries",
+        "id"
+      ],
+      "type": "object"
+    },
+    "MembershipPredicate": {
+      "additionalProperties": false,
+      "description": "A declaration-bound membership semi-join: the structured-filter IR node the\n`eventMembers.memberOf(resourceRef)` / `eventMembers.hasRole(resourceRef,\n…)` rule helpers lower to. There is deliberately **no** global\n`memberOf`/`hasRole` resolver — two declarations can target the same\nresource type, and that ambiguity is an authorization bug factory\n(LLP 0056 §Rule helpers), so every predicate names its declaration.\n\nSemantics: the predicate holds for the effective principal iff a membership\nrow exists in the bound declaration whose `principal` axis is that\nprincipal, whose `resource` axis equals the resolved `resource` reference,\nand whose `role` is one of the effective roles. A null effective principal\n(unauthenticated) matches no rows — fail-closed.\n\nThe node is **authoritative-only**: it is evaluated by a non-recursive\nstorage semi-join that deliberately bypasses the membership table's own\nrow-visibility rules (a locked-down roster must not break role evaluation\nfor guests), never by the pure/optimistic `ValueExpr` evaluator — which has\nno storage and no business consulting membership facts.\n\n@ref LLP 0056#rule-helpers — declaration-bound; `memberOf` excludes\n  `pendingRoles`; `hasRole` names roles explicitly; `resourceRef` is a row\n  field of the queried table or a query argument of the declared resource\n  type.\n@ref LLP 0053#agent-auth-protected-query-inputs-amended-2026-07-14-eng-24906 —\n  admitted `DatabaseCaptured` declarative expression kind, snapshot-bound,\n  with the pinned empty-result capture.",
+      "properties": {
+        "declaration": {
+          "description": "The stable declaration id this predicate binds to\n(`MembershipManifest::effective_id`).",
+          "type": "string"
+        },
+        "resource": {
+          "$ref": "#/$defs/MembershipResourceRef",
+          "description": "Where the `resource` axis value is read from."
+        },
+        "roles": {
+          "description": "The satisfying roles. `None` is `memberOf` — every **non-pending** role\nof the declaration. `Some(list)` is `hasRole` with exactly the named\nroles (which may name pending roles explicitly).",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "declaration",
+        "resource"
+      ],
+      "type": "object"
+    },
+    "MembershipResourceRef": {
+      "description": "Where a [`MembershipPredicate`] reads its `resource` axis value from. Both\nforms are analyzable at subscribe time; anything else — a computed\nexpression, a different resource type, a join through a third table — is a\nload-time error (LLP 0056 §Rule helpers).\n\n@ref LLP 0056#rule-helpers — the two analyzable resource-reference forms.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "A column of the queried (primary) table whose type is the declared\nresource reference. The per-row semi-join; v1 captures a **conservative\ntable-level** dependency for it (coarse wake = re-query cost; the\nreverse choice would be a correctness loss).",
+          "properties": {
+            "rowField": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "rowField"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A query argument (dotted path) of the declared resource type. The\nresource is fixed for the whole query, so v1 captures the fine-grained\n`(principal, resource)` index-range dependency, including the\nempty-result form.",
+          "properties": {
+            "arg": {
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "description": "Dotted query-argument path evaluated at invocation time.",
+                  "type": "string"
+                },
+                "resourceTable": {
+                  "description": "Nominal resource type proven by codegen. Resource-scoped\ndeclarations require their exact `resourceTable`; app-scoped\ndeclarations require `null` and the closed synthetic path. Carrying\nthis provenance in the installed artifact keeps a hand-written\nmanifest from silently degrading an `Id<table>` to a bare string.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "arg"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "OrderDirection": {
+      "enum": [
+        "Asc",
+        "Desc"
+      ],
+      "type": "string"
+    },
+    "OrderExpr": {
+      "properties": {
+        "direction": {
+          "$ref": "#/$defs/OrderDirection"
+        },
+        "field": {
+          "type": "string"
+        },
+        "maxEncodedBytes": {
+          "description": "Optional UTF-8 ceiling for a string or application-id order field. The\nloader reconciles every occurrence to one value per `(table, field)`\nbefore storage installs it as a central-writer constraint.\n\n@ref LLP 0157#d8--coordinated-cursor-family-grammar-and-the-llp-0135-seam —\n  the snapshot-batch family applies the same schema-level,\n  write-enforced bound to string and application-id order values.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "field",
+        "direction"
+      ],
+      "type": "object"
+    },
+    "Sha256V1": {
+      "description": "A lowercase, prefixed SHA-256 digest. Deserialization enforces the same\nshape emitted into JSON Schema, so a malformed digest never becomes an\nadmitted graph fact.",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "UnaryOp": {
+      "enum": [
+        "Not",
+        "Neg"
+      ],
+      "type": "string"
+    },
+    "ValueExpr": {
+      "description": "The data-tier v1 expression profile: a closed set — no arrows, no\nclosures, no free calls, no JS method binding — so every evaluator in\nevery language is finite work. Evaluation semantics live in one shared\nevaluator (`crate::value_expr`) and are pinned by the data-tier corpus.",
+      "oneOf": [
+        {
+          "enum": [
+            "AuthUserId",
+            "AuthActorUserId",
+            "AuthGrantId",
+            "RuntimeId",
+            "RuntimeNow"
+          ],
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Strict arg lookup by dotted path; a missing arg is a typed error.",
+          "properties": {
+            "Arg": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Arg"
+          ],
+          "type": "object"
+        },
+        {
+          "const": "Args",
+          "description": "The whole args object — the null-safe base for optional-arg access\nvia `Field` (missing keys propagate null instead of failing).",
+          "type": "string"
+        },
+        {
+          "const": "AuthKind",
+          "description": "Effective principal kind in the sealed authorization projection.",
+          "type": "string"
+        },
+        {
+          "const": "AuthActorKind",
+          "description": "Actor kind for delegated authority; null for direct and autonomous use.",
+          "type": "string"
+        },
+        {
+          "const": "AuthActivityActorKind",
+          "description": "Total activity-provenance projection: `human` for sessions and `agent`\nfor delegated service authority. Unsupported authority classes leave\nit absent and the write-with-activity profile refuses.",
+          "type": "string"
+        },
+        {
+          "const": "ClientMutationDigest",
+          "description": "Digest of the server-constructed canonical client-mutation identity.",
+          "type": "string"
+        },
+        {
+          "const": "AuthIsDelegated",
+          "description": "True only when an actor is exercising authority for another principal.",
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Binding": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Binding"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Literal": true
+          },
+          "required": [
+            "Literal"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Null-propagating access by arbitrary string key (hyphenated JSON keys\nare first-class; settles the IR half of Exact LLP 0329 EQ8).",
+          "properties": {
+            "Field": {
+              "properties": {
+                "base": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "key": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "base",
+                "key"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Field"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Binary": {
+              "properties": {
+                "left": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "op": {
+                  "$ref": "#/$defs/BinaryOp"
+                },
+                "right": {
+                  "$ref": "#/$defs/ValueExpr"
+                }
+              },
+              "required": [
+                "op",
+                "left",
+                "right"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Binary"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "Unary": {
+              "properties": {
+                "expr": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "op": {
+                  "$ref": "#/$defs/UnaryOp"
+                }
+              },
+              "required": [
+                "op",
+                "expr"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Unary"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "If": {
+              "properties": {
+                "cond": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "else": {
+                  "$ref": "#/$defs/ValueExpr"
+                },
+                "then": {
+                  "$ref": "#/$defs/ValueExpr"
+                }
+              },
+              "required": [
+                "cond",
+                "then",
+                "else"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "If"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "String-template lowering: concatenation of stringified parts.",
+          "properties": {
+            "Concat": {
+              "items": {
+                "$ref": "#/$defs/ValueExpr"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "Concat"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Call into the pinned function library (`value_expr::PINNED_FUNCTIONS`);\nanything else fails closed with a typed rejection.",
+          "properties": {
+            "Call": {
+              "properties": {
+                "args": {
+                  "items": {
+                    "$ref": "#/$defs/ValueExpr"
+                  },
+                  "type": "array"
+                },
+                "func": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "func",
+                "args"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Call"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Closed record constructor — the same shape as `Insert`'s values map,\nevaluated by the same machinery.",
+          "properties": {
+            "Record": {
+              "properties": {
+                "fields": {
+                  "additionalProperties": {
+                    "$ref": "#/$defs/ValueExpr"
+                  },
+                  "type": "object"
+                }
+              },
+              "required": [
+                "fields"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Record"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A declaration-bound membership semi-join as a composable boolean\nexpression kind — the form the `eventMembers.memberOf(...)` /\n`hasRole(...)` rule helpers and the `ctx.permissions.<decl>.requireRole`\ntwin lower to (LLP 0053 §Agent-auth item 1 admits it as a new\ndeclarative IR expression kind).\n\nIt is **authoritative-only**: unlike every other variant it cannot be\nanswered by the pure `ValueExpr` evaluator, because deciding it requires\na non-recursive storage semi-join over the membership table (bypassing\nthat table's row-visibility rules). The pure evaluator therefore refuses\nit (`SNAPBACK_VALUE_EXPR_AUTHORITATIVE_ONLY`), the query path answers it\nthrough `QueryPlan::membership_filters` / the `ctx.permissions` read, and\nthe derived optimistic overlay refuses rather than mirrors it — so a\nrole check is server-decided, never optimistically forged client-side.\n\n@ref LLP 0056#rule-helpers — the declaration-bound membership predicate.",
+          "properties": {
+            "MembershipExists": {
+              "$ref": "#/$defs/MembershipPredicate"
+            }
+          },
+          "required": [
+            "MembershipExists"
+          ],
+          "type": "object"
+        }
+      ]
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/action.output.schema.json",

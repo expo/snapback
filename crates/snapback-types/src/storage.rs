@@ -8,6 +8,18 @@ use crate::manifest::{
     auth_fingerprint,
 };
 
+fn deserialize_optional_non_null<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    T::deserialize(deserializer).map(Some)
+}
+
+fn graph_captured_read_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    generator.subschema_for::<crate::manifest::GraphCapturedReadV1>()
+}
+
 pub const SEQUENCE_MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 
 /// The one durable authorization-stream witness. The incarnation closes reset
@@ -278,6 +290,18 @@ fn canonical_json(value: Value) -> Value {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct CapturedReadDependency {
     pub kind: CapturedReadKind,
+    /// Additive graph-specific dependency detail. Required exactly for
+    /// `GraphNode` and absent for every shipped read kind.
+    ///
+    /// @ref LLP 0209#51-captured-vocabulary-by-normalized-node — graph reads
+    /// carry one closed node-specific payload beside the shared top-level kind.
+    #[serde(
+        default,
+        deserialize_with = "deserialize_optional_non_null",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[schemars(schema_with = "graph_captured_read_schema")]
+    pub graph: Option<crate::manifest::GraphCapturedReadV1>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub table: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -310,6 +334,7 @@ pub enum CapturedReadKind {
     Query,
     Auth,
     Permission,
+    GraphNode,
 }
 
 /// One tentative sequence value. It is returned during handler execution but

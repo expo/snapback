@@ -5586,6 +5586,7 @@ impl LocalDatabase {
                         };
                     let dependency = match &document {
                         Some(_) => CapturedReadDependency {
+                            graph: None,
                             kind: CapturedReadKind::Row,
                             table: Some(table.name.clone()),
                             id: Some(id.clone()),
@@ -5600,6 +5601,7 @@ impl LocalDatabase {
                             boundary: None,
                         },
                         None => CapturedReadDependency {
+                            graph: None,
                             kind: CapturedReadKind::MissingRow,
                             table: Some(table.name.clone()),
                             id: Some(id.clone()),
@@ -8040,6 +8042,45 @@ pub(crate) fn query_on(
 pub struct KeysetAfter {
     pub entries: Vec<(String, Value)>,
     pub id: String,
+}
+
+/// @ref LLP 0209#21-the-normalized-carrier — graph keysets retain the exact
+/// storage-native tuple-array JSON shape and separate `_id` tie-break.
+impl From<KeysetAfter> for snapback_types::manifest::KeysetKeyV1 {
+    fn from(value: KeysetAfter) -> Self {
+        Self {
+            entries: value.entries,
+            id: value.id,
+        }
+    }
+}
+
+impl From<snapback_types::manifest::KeysetKeyV1> for KeysetAfter {
+    fn from(value: snapback_types::manifest::KeysetKeyV1) -> Self {
+        Self {
+            entries: value.entries,
+            id: value.id,
+        }
+    }
+}
+
+#[cfg(test)]
+mod graph_keyset_round_trip_tests {
+    use super::*;
+    use snapback_types::manifest::KeysetKeyV1;
+
+    #[test]
+    fn graph_keyset_kernel_round_trip_preserves_tuple_array_bytes() {
+        let vectors: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../tests/conformance/graph/keyset-vectors.v1.json"
+        ))
+        .unwrap();
+        let graph: KeysetKeyV1 = serde_json::from_value(vectors["positive"].clone()).unwrap();
+        let native: KeysetAfter = graph.clone().into();
+        assert_eq!(serde_json::to_value(&native).unwrap(), vectors["positive"]);
+        let returned: KeysetKeyV1 = native.into();
+        assert_eq!(returned, graph);
+    }
 }
 
 /// Lower a keyset boundary to one WHERE clause selecting rows strictly after
@@ -14976,6 +15017,13 @@ pub(super) fn validate_captured_read_set(
                 }
             }
             CapturedReadKind::Auth => {}
+            CapturedReadKind::GraphNode => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_CAPTURED_READ_INVALID",
+                    "storage",
+                    "graph captured reads have no mutation-read-set consumer in G0",
+                ));
+            }
             CapturedReadKind::Permission if is_media_projection_dependency(dependency) => {
                 // @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
                 // — system asset/rendition facts observed while projecting a
@@ -17327,6 +17375,7 @@ fn member_id_transition_denied(op: MembershipOp) -> SnapbackError {
 
 fn target_row_dependency(table: &str, row: &MembershipTargetRow) -> CapturedReadDependency {
     CapturedReadDependency {
+        graph: None,
         kind: CapturedReadKind::Row,
         table: Some(table.to_owned()),
         id: Some(row.id.clone()),
@@ -17344,6 +17393,7 @@ fn target_row_dependency(table: &str, row: &MembershipTargetRow) -> CapturedRead
 
 fn resource_row_dependency(table: &str, id: &str, version: u64) -> CapturedReadDependency {
     CapturedReadDependency {
+        graph: None,
         kind: CapturedReadKind::Row,
         table: Some(table.to_owned()),
         id: Some(id.to_owned()),
@@ -17361,6 +17411,7 @@ fn resource_row_dependency(table: &str, id: &str, version: u64) -> CapturedReadD
 
 fn resource_missing_dependency(table: &str, id: &str) -> CapturedReadDependency {
     CapturedReadDependency {
+        graph: None,
         kind: CapturedReadKind::MissingRow,
         table: Some(table.to_owned()),
         id: Some(id.to_owned()),
@@ -17839,6 +17890,7 @@ pub(crate) fn asset_read_authorized(
 ) -> SnapbackResult<AssetReadDecision> {
     use crate::assets::AssetReadAccessPolicy;
     let mut dependencies = vec![CapturedReadDependency {
+        graph: None,
         kind: CapturedReadKind::Auth,
         table: None,
         id: None,
@@ -17881,6 +17933,7 @@ pub(crate) fn asset_read_authorized(
         })?
         .collect::<Result<Vec<_>, _>>()?;
     dependencies.push(CapturedReadDependency {
+        graph: None,
         kind: CapturedReadKind::Query,
         table: Some("_snapback_asset_grants_v1".to_owned()),
         id: None,
@@ -17919,6 +17972,7 @@ pub(crate) fn asset_read_authorized(
     // so the decision that saw zero edges is invalidated by the first
     // attachment (LLP 0053 §Asset read-authorization inputs).
     dependencies.push(CapturedReadDependency {
+        graph: None,
         kind: CapturedReadKind::Query,
         table: Some("_snapback_asset_reference_edges_v1".to_owned()),
         id: None,
@@ -17962,6 +18016,7 @@ pub(crate) fn asset_read_authorized(
                     .and_then(Value::as_str)
                     == Some(principal);
                 dependencies.push(CapturedReadDependency {
+                    graph: None,
                     kind: if row.is_some() {
                         CapturedReadKind::Row
                     } else {

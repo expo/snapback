@@ -17,6 +17,7 @@ pub mod auth;
 pub mod bounded_children_cursor;
 pub mod connected_clients;
 pub mod ephemeral;
+pub mod graph_captured_read;
 pub mod live_coalesce;
 pub mod local;
 pub mod realtime;

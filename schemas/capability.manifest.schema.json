@@ -1478,6 +1478,11 @@
           "type": "string"
         },
         {
+          "const": "graph_query_v1",
+          "description": "LLP 0209 G0 graph-query carrier. The id is reserved while every target\nremains unsupported until a later executor stage qualifies it.",
+          "type": "string"
+        },
+        {
           "const": "live_full_text_search_v1",
           "description": "First-page-only live search by bounded coarse re-execution. The id is\nregistered at experimental maturity but remains unsupported until the\ncomplete LLP 0136 evidence/publication train lands.",
           "type": "string"

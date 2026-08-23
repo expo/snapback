@@ -3666,7 +3666,8 @@ fn public_fact_policy_projection(
                 }
             }
             crate::storage::CapturedReadKind::MissingRow
-            | crate::storage::CapturedReadKind::Query => {
+            | crate::storage::CapturedReadKind::Query
+            | crate::storage::CapturedReadKind::GraphNode => {
                 // A missing-row or predicate/result-membership fact has no
                 // retained owner post-image in v1. Do not infer its policy
                 // from the caller or enclosing operation.
@@ -5464,6 +5465,7 @@ mod tests {
         identity.bound_facts.function_or_command = "todos.update".to_owned();
         let artifact_digest = sha('f');
         let read_value = serde_json::to_value(vec![crate::storage::CapturedReadDependency {
+            graph: None,
             kind: crate::storage::CapturedReadKind::Row,
             table: Some("todos".to_owned()),
             id: Some("todo-1".to_owned()),

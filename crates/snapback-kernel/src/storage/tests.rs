@@ -21384,6 +21384,7 @@ mod media_ref_projection_acceptance_tests {
         let digest = media_projection_fact_digest_on(&db.conn, "asset-ready")
             .expect("captured related facts");
         let dependency = CapturedReadDependency {
+            graph: None,
             kind: CapturedReadKind::Permission,
             table: Some(crate::assets::ASSET_RECORDS_TABLE.to_owned()),
             id: Some("asset-ready".to_owned()),

@@ -342,6 +342,7 @@ impl LocalDatabase {
             let mut dependencies = Vec::new();
             let Some(asset) = assets::load_asset(tx, asset_id)? else {
                 dependencies.push(CapturedReadDependency {
+                    graph: None,
                     kind: CapturedReadKind::MissingRow,
                     table: Some("_snapback_asset_records_v1".to_owned()),
                     id: Some(asset_id.to_owned()),
@@ -359,6 +360,7 @@ impl LocalDatabase {
             };
             let view = assets::asset_record_client_view(tx, &asset)?;
             dependencies.push(CapturedReadDependency {
+                graph: None,
                 kind: CapturedReadKind::Row,
                 table: Some("_snapback_asset_records_v1".to_owned()),
                 id: Some(asset_id.to_owned()),

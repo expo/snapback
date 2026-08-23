@@ -1843,6 +1843,7 @@ impl<'a> IbexHostContext<'a> {
                 },
             );
             let dependency = CapturedReadDependency {
+                graph: None,
                 kind: CapturedReadKind::Permission,
                 table: Some(crate::assets::ASSET_RECORDS_TABLE.to_owned()),
                 id: Some(asset_id),
@@ -2289,6 +2290,7 @@ impl<'a> IbexHostContext<'a> {
     ) -> SnapbackResult<CapturedReadDependency> {
         if let Some(row) = row {
             Ok(CapturedReadDependency {
+                graph: None,
                 kind: CapturedReadKind::Row,
                 table: Some(table.to_owned()),
                 id: Some(id.to_owned()),
@@ -2304,6 +2306,7 @@ impl<'a> IbexHostContext<'a> {
             })
         } else {
             Ok(CapturedReadDependency {
+                graph: None,
                 kind: CapturedReadKind::MissingRow,
                 table: Some(table.to_owned()),
                 id: Some(id.to_owned()),
@@ -5401,6 +5404,7 @@ impl<'a> IbexHostContext<'a> {
     ) -> SnapbackResult<()> {
         let dependency = if let Some(row) = row {
             CapturedReadDependency {
+                graph: None,
                 kind: CapturedReadKind::Row,
                 table: Some(table.to_owned()),
                 id: Some(id.to_owned()),
@@ -5416,6 +5420,7 @@ impl<'a> IbexHostContext<'a> {
             }
         } else {
             CapturedReadDependency {
+                graph: None,
                 kind: CapturedReadKind::MissingRow,
                 table: Some(table.to_owned()),
                 id: Some(id.to_owned()),
@@ -7043,6 +7048,7 @@ fn auth_dependencies(input: &HandlerInput) -> Vec<CapturedReadDependency> {
     let mut reads = Vec::new();
     if let Some(user_id) = &input.auth.user_id {
         reads.push(CapturedReadDependency {
+            graph: None,
             kind: CapturedReadKind::Auth,
             table: None,
             id: None,

@@ -1718,6 +1718,7 @@ fn live_evaluation_memo_estimator_matches_serialized_lengths() {
             cursor: Some("cursor/with spaces".to_owned()),
         },
         read_dependencies: vec![CapturedReadDependency {
+            graph: None,
             kind: CapturedReadKind::Query,
             table: Some("items".to_owned()),
             id: None,

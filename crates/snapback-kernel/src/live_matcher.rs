@@ -32,6 +32,7 @@ pub fn query_dependencies_from_plan(
     let mut dependencies = Vec::new();
     if let Some(user_id) = input.auth.user_id.as_deref() {
         dependencies.push(CapturedReadDependency {
+            graph: None,
             kind: CapturedReadKind::Auth,
             table: None,
             id: None,
@@ -53,6 +54,7 @@ pub fn query_dependencies_from_plan(
             rows.push(id.to_owned());
             if let Some(version) = row.get("_version").and_then(Value::as_u64) {
                 dependencies.push(CapturedReadDependency {
+                    graph: None,
                     kind: CapturedReadKind::Row,
                     table: Some(plan.table.clone()),
                     id: Some(id.to_owned()),
@@ -80,6 +82,7 @@ pub fn query_dependencies_from_plan(
         .with_details(json!({ "error": error.to_string() }))
     })?;
     dependencies.push(CapturedReadDependency {
+        graph: None,
         kind: CapturedReadKind::Query,
         table: Some(plan.table.clone()),
         id: None,
@@ -175,6 +178,16 @@ pub fn live_subscription_match_outcome(
     // context and generation activation travel their existing invalidation
     // lanes. Never consult the declared inputs as a precision claim.
     if definition.custom_authorization.is_some() {
+        return LiveMatchOutcome::ConservativeFallback;
+    }
+    // @ref LLP 0209#25-additive-sibling-carrier-stage-b-plan-not-shipped-surface —
+    // Stage B installs no graph executor or dependency consumer. Keep this
+    // ahead of the generic dependency gate so even forged captured facts can
+    // never turn the reserved sibling into a false `Skip`.
+    if matches!(
+        definition.runtime,
+        FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(_))
+    ) {
         return LiveMatchOutcome::ConservativeFallback;
     }
     // @ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model
@@ -329,7 +342,8 @@ pub fn live_subscription_match_outcome(
         // Push-ledger reads are query-only in v1, so this arm is exhaustive
         // defense rather than a live-subscription claim.
         FunctionRuntime::HostPlan(HandlerPlan::PushLedgerQuery(_)) => LiveMatchOutcome::Skip,
-        FunctionRuntime::HostPlan(HandlerPlan::Mutation(_))
+        FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(_))
+        | FunctionRuntime::HostPlan(HandlerPlan::Mutation(_))
         | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(_))
         | FunctionRuntime::HostPlan(HandlerPlan::Action(_)) => {
             LiveMatchOutcome::ConservativeFallback
@@ -377,7 +391,8 @@ fn live_subscription_may_be_affected_by_dependencies(
                 }
             }
             CapturedReadKind::Query => saw_query_dependency = true,
-            CapturedReadKind::Auth | CapturedReadKind::Permission => {}
+            CapturedReadKind::Auth | CapturedReadKind::Permission | CapturedReadKind::GraphNode => {
+            }
         }
     }
     if !saw_query_dependency {
@@ -1058,6 +1073,7 @@ mod dependency_gate_tests {
 
     fn empty_dependency(kind: CapturedReadKind) -> CapturedReadDependency {
         CapturedReadDependency {
+            graph: None,
             kind,
             table: None,
             id: None,
@@ -1073,8 +1089,57 @@ mod dependency_gate_tests {
         }
     }
 
+    #[test]
+    fn graph_query_v1_no_executor_matcher_is_fail_closed_before_dependencies() {
+        let carrier: crate::manifest::GraphQueryCarrierV1 = serde_json::from_str(include_str!(
+            "../../../tests/conformance/graph/minimal-carrier.v1.json"
+        ))
+        .unwrap();
+        let definition = FunctionDefinition::new(
+            "graphIssues",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier)),
+        );
+        let forged_query_dependency = CapturedReadDependency {
+            graph: None,
+            kind: CapturedReadKind::Query,
+            table: Some("unrelated".to_owned()),
+            id: None,
+            version: Some(1),
+            predicate: Some(
+                serde_json::to_value(QueryPlan {
+                    table_visibility: None,
+                    table: "unrelated".to_owned(),
+                    filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    membership_filters: Vec::new(),
+                    indexed_by: None,
+                })
+                .unwrap(),
+            ),
+            rows: Vec::new(),
+            field: None,
+            value: None,
+            order: None,
+            limit: None,
+            result_count: None,
+            boundary: None,
+        };
+        assert_eq!(
+            live_subscription_match_outcome(
+                &definition,
+                &input(),
+                &[forged_query_dependency],
+                &[update("other", "1", json!({"_id":"1"}), &["value"])],
+            ),
+            LiveMatchOutcome::ConservativeFallback
+        );
+    }
+
     fn point_dependency(kind: CapturedReadKind, table: &str, id: &str) -> CapturedReadDependency {
         CapturedReadDependency {
+            graph: None,
             table: Some(table.to_owned()),
             id: Some(id.to_owned()),
             version: Some(1),
@@ -1098,6 +1163,7 @@ mod dependency_gate_tests {
             indexed_by: None,
         };
         CapturedReadDependency {
+            graph: None,
             table: Some("todos".to_owned()),
             version: Some(1),
             predicate: Some(serde_json::to_value(&plan).expect("serialize plan")),
@@ -1262,6 +1328,7 @@ mod dependency_gate_tests {
     fn captured_query_member_visibility_exit_is_not_skipped() {
         let plan = owner_visible_plan();
         let dependency = CapturedReadDependency {
+            graph: None,
             kind: CapturedReadKind::Query,
             table: Some("documents".to_owned()),
             version: Some(1),
@@ -1287,6 +1354,7 @@ mod dependency_gate_tests {
     fn owner_visibility_field_update_falls_back_when_prior_membership_is_unknown() {
         let plan = owner_visible_plan();
         let dependency = CapturedReadDependency {
+            graph: None,
             kind: CapturedReadKind::Query,
             table: Some("documents".to_owned()),
             version: Some(1),
@@ -1644,6 +1712,7 @@ mod delta_tests {
         assert_eq!(boundary["last"], json!([1, "b"]));
 
         let dependency = CapturedReadDependency {
+            graph: None,
             kind: CapturedReadKind::Query,
             table: Some("todos".to_owned()),
             id: None,

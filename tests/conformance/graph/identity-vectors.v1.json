@@ -1,0 +1,39 @@
+{
+  "format": "snapback.graph-identity-vectors.v1",
+  "plan": {
+    "domain": "snapback:graph-plan:v1:",
+    "hash": "sha256:568efc828e03e4b56d4d09cc3d3dee804fc977d9e6c50f1f2d5b18709f8f1e1e",
+    "oneAxisRotation": "nodes[n0].table",
+    "rotatedHash": "sha256:f4573184144198d81a2c3a32e9513fcb8b4db989bf94494eb8bfc688a64e054e"
+  },
+  "instance": {
+    "domain": "snapback:graph-instance:v1:",
+    "hash": "sha256:de637cfca1bf3e94a18cf47b9e1cd30ba3b4e4399e34e7d7d337aee67f492b51",
+    "oneAxisRotation": "windows[0].intervals[0].window.take",
+    "rotatedHash": "sha256:714cf247778866c61f3eb37d953c22e008e115fa9157cc226f064788aac63a9f"
+  },
+  "materialization": {
+    "domain": "snapback:graph-materialization:v1:",
+    "hash": "sha256:b8f7b1f64f87c49d95952f041e50e05368b65dab77565451fc8c2ce4c983af48",
+    "oneAxisRotation": "preimage.deploymentId",
+    "rotatedHash": "sha256:c03b8d33b4263b976b9336caefb5bedb4224af3b543c8b599f8f053dbc2fa2dd"
+  },
+  "partitionFunction": {
+    "domain": "snapback:graph-partition-function:v1:",
+    "hash": "sha256:d4ebbd31c08f1f85773968fd247eae3df30e8911aea3a0805de3e7dca00cb2b9",
+    "oneAxisRotation": "policyInputs[0].identity",
+    "rotatedHash": "sha256:4b248937606af783a96aa705881dc9c3d8abdb6dad7456c7f1c76c8111186234"
+  },
+  "authorityPartition": {
+    "domain": "snapback:graph-authority-partition:v1:",
+    "hash": "sha256:c479be0fc38b0d51507bc931b5432fd83755ce3b1c5bfe934663a8364df963cc",
+    "oneAxisRotation": "class2[0].scopeIdentity",
+    "rotatedHash": "sha256:da446dc36edada376c60a6b2c67e9b4a5f5a0d8c040093fb9356188a8c6bceb7"
+  },
+  "broadcastScope": {
+    "domain": "snapback:graph-broadcast-scope:v1:",
+    "hash": "sha256:15e3b213278b94bf15831373ec1fc251754c2f0dc37096e896349d4562a08e52",
+    "oneAxisRotation": "policyIdentity",
+    "rotatedHash": "sha256:28c9ed5b8628491d7b8c9aa5d93b79ce596b17d19e2d910ffaa2b8fe6bb0ba39"
+  }
+}

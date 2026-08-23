@@ -1,0 +1,13 @@
+{
+  "format": "snapback.graph-keyset-vectors.v1",
+  "positive": {
+    "entries": [["priority", null], ["updatedAt", 42]],
+    "id": "issue-7"
+  },
+  "negative": [
+    {"name": "reserved-id-entry", "entries": [["_id", "issue-7"]], "id": "issue-7"},
+    {"name": "wrong-field-order", "entries": [["updatedAt", 42], ["priority", null]], "id": "issue-7"},
+    {"name": "wrong-tuple-arity", "entries": [["priority"]], "id": "issue-7"},
+    {"name": "wrong-tuple-field-type", "entries": [[7, null]], "id": "issue-7"}
+  ]
+}

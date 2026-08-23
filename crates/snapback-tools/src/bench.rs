@@ -1070,6 +1070,7 @@ fn measure_spurious_conflict(config: &BenchConfig) -> crate::diagnostic::Snapbac
 
         let captured_version = db.versions().table_change_version("todos")?;
         let query_read = CapturedReadDependency {
+            graph: None,
             kind: CapturedReadKind::Query,
             table: Some("todos".to_owned()),
             id: None,

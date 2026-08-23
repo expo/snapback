@@ -13,19 +13,20 @@ pub use crate::contract_types::{
     AgentsManifest, AgentsMode, ApiAskBilling, ApiAskBudgets, ApiAskManifest, ApiAskModelManifest,
     ApiAskPerPrincipalDayBudget, ApiAskPerRequestBudget, ApiAskResultVolumeBudget,
     ApiAskTokenBudget, ApiBudgetsManifest, ApiDisclosure, ApiFunctionApproval, ApiFunctionExposure,
-    ApiManifest, ApiOAuthBundle, ApiOAuthManifest, AppIdentity, AssetCollectionMutationPlanV1,
-    AssetCollectionOperationV1, AuthManifest, AuthMode, AuthPasswordIdentifierMode,
-    AuthRequirement, BoundedParentVisibility, BoundedProjectionField, DependencySummary,
-    EffectCeiling, EffectCeilingRead, EffectCeilingWrite, FieldManifest, FieldType,
-    FunctionArgsContract, FunctionKind, FunctionResultContract, IbexModule, IndexManifest,
-    InvitedBy, JoinEquality, JoinKind, MediaKindV1, PermissionScopeExpr, ProjectionLeaf,
-    ProjectionOutputKey, ProjectionSource, ProjectionVisibility, ResultObjectFieldContract,
-    ResultRowsBound, ResultValueContract, STORED_STRUCTURED_CONTRACT_VERSION_V1,
-    STORED_STRUCTURED_ENCODING_V1, SchemaRefAuthority, SequenceDeclaration,
-    SequenceExistingOwnerAccess, SequenceScopeAccess, SourceSpan, StandardPatternIdentity,
-    StandardPatternMembershipIdentity, StoredStructuredContractV1, WriteActivityProvenanceFields,
-    WriteActivityRelation, WriteWithActivityEffectFormula, WriteWithActivityMode,
-    WriteWithActivitySourceOperation,
+    ApiManifest, ApiOAuthBundle, ApiOAuthManifest, AppIdentity, ArgumentBindingContractV1,
+    AssetCollectionMutationPlanV1, AssetCollectionOperationV1, AuthManifest, AuthMode,
+    AuthPasswordIdentifierMode, AuthRequirement, AuthorityPartitionAuthModeV1,
+    AuthorityPartitionDelegationV1, AuthorityPartitionPrincipalDataScopeV1, AuthorityPartitionV1,
+    BoundedParentVisibility, BoundedProjectionField, DependencySummary, EffectCeiling,
+    EffectCeilingRead, EffectCeilingWrite, FieldManifest, FieldType, FunctionArgsContract,
+    FunctionKind, FunctionResultContract, IbexModule, IndexManifest, InvitedBy, JoinEquality,
+    JoinKind, MediaKindV1, PermissionScopeExpr, ProjectionLeaf, ProjectionOutputKey,
+    ProjectionSource, ProjectionVisibility, ResultObjectFieldContract, ResultRowsBound,
+    ResultValueContract, STORED_STRUCTURED_CONTRACT_VERSION_V1, STORED_STRUCTURED_ENCODING_V1,
+    SchemaRefAuthority, SequenceDeclaration, SequenceExistingOwnerAccess, SequenceScopeAccess,
+    SourceSpan, StandardPatternIdentity, StandardPatternMembershipIdentity,
+    StoredStructuredContractV1, WriteActivityProvenanceFields, WriteActivityRelation,
+    WriteWithActivityEffectFormula, WriteWithActivityMode, WriteWithActivitySourceOperation,
 };
 pub use crate::search::types::{
     FullTextSearchFactsV1, SearchClauseV1, SearchCursorLimitsV1, SearchCursorV1,
@@ -41,11 +42,13 @@ pub use crate::vector::types::{
 };
 
 mod capability_registry;
+mod graph;
 mod identity;
 mod types;
 mod vector;
 
 pub use capability_registry::*;
+pub use graph::*;
 pub use identity::*;
 pub use types::*;
 pub use vector::*;

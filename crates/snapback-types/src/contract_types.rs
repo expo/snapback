@@ -19,6 +19,14 @@ fn is_false(value: &bool) -> bool {
     !*value
 }
 
+fn deserialize_required_option<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer)
+}
+
 pub const AUTH_MAX_SAFE_TIMESTAMP: u64 = 9_007_199_254_740_991;
 
 /// Reserved pseudo-table used by the declared job-status read contract and
@@ -1616,6 +1624,71 @@ pub struct ResultObjectFieldContract {
     pub name: String,
     pub required: bool,
     pub value: ResultValueContract,
+}
+
+/// The shipped LLP 0157 argument-binding contract projected from one
+/// `FunctionArgsContract` field. The argument name belongs to its containing
+/// binding and is deliberately outside this semantic contract.
+///
+/// @ref LLP 0157#d2--plan-identity
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ArgumentBindingContractV1 {
+    #[schemars(extend("const" = "snapback.argument-binding-contract.v1"))]
+    pub format: String,
+    pub required: bool,
+    pub value: ResultValueContract,
+}
+
+/// LLP 0157's complete owner-issued data and invocation partition. Nullable
+/// axes are required on the wire so an owner assertion of absence cannot be
+/// confused with an omitted field.
+///
+/// @ref LLP 0157#d2--plan-identity
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityPartitionV1 {
+    #[schemars(extend("const" = "snapback.authority-partition.v1"))]
+    pub format: String,
+    pub principal_data_scope: AuthorityPartitionPrincipalDataScopeV1,
+    pub authority_instance_id: String,
+    #[serde(deserialize_with = "deserialize_required_option")]
+    #[schemars(required)]
+    pub auth_fingerprint: Option<String>,
+    #[serde(deserialize_with = "deserialize_required_option")]
+    #[schemars(required)]
+    pub tenant_id: Option<String>,
+    #[serde(deserialize_with = "deserialize_required_option")]
+    #[schemars(required)]
+    pub provider_id: Option<String>,
+    #[serde(deserialize_with = "deserialize_required_option")]
+    #[schemars(required)]
+    pub delegation: Option<AuthorityPartitionDelegationV1>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityPartitionPrincipalDataScopeV1 {
+    pub auth_mode: AuthorityPartitionAuthModeV1,
+    #[serde(deserialize_with = "deserialize_required_option")]
+    #[schemars(required)]
+    pub user_id: Option<String>,
+    pub authorization_stream_incarnation: String,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum AuthorityPartitionAuthModeV1 {
+    Dev,
+    Sessions,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityPartitionDelegationV1 {
+    pub grant_id: String,
+    pub actor_principal_id: String,
+    pub effective_principal_id: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]

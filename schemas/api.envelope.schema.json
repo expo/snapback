@@ -106,6 +106,30 @@
       ],
       "type": "object"
     },
+    "AuthorityProfileRecipientSinkV1": {
+      "additionalProperties": false,
+      "properties": {
+        "operation": {
+          "type": "string"
+        },
+        "recipientsField": {
+          "type": "string"
+        },
+        "scopeField": {
+          "type": "string"
+        },
+        "table": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "operation",
+        "table",
+        "scopeField",
+        "recipientsField"
+      ],
+      "type": "object"
+    },
     "AuthorizationInputDimension": {
       "description": "Closed caller-authority dimensions that a query result may depend on.\nRetention v1 accepts `userId` plus the effective principal `kind`, which is\nan immutable function of that identity; spelling the rejected dimensions\nis still important because a manifest must describe why it is online-only\nrather than silently erasing actor/session/provider/opaque dependence.\n\n@ref LLP 0053#retained-and-offline-authorization — retained rows survive a\n  same-user session replacement, so every other authority dimension is\n  deliberately ineligible.",
       "enum": [
@@ -444,6 +468,9 @@
       "enum": [
         "list",
         "myRole",
+        "history",
+        "incarnations",
+        "snapshotRecipients",
         "invite",
         "join",
         "leave",
@@ -464,6 +491,16 @@
         },
         "operation": {
           "$ref": "#/$defs/GeneratedAuthorityOperationKindV1"
+        },
+        "recipientSink": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthorityProfileRecipientSinkV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -970,6 +1007,7 @@
         "BoundedChildrenQuery",
         "SnapshotBatch",
         "SnapshotBatchV2",
+        "GraphQuery",
         "WriteWithActivity"
       ],
       "type": "string"

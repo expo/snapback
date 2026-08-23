@@ -1,0 +1,15 @@
+{
+  "format": "snapback.graph-normalized-preorder.v1",
+  "authored": [
+    ["root", "$root"],
+    ["labels", "labels"],
+    ["comments", "comments"],
+    ["result", "$result"]
+  ],
+  "normalized": [
+    ["n0", "$root"],
+    ["n1", "comments"],
+    ["n2", "labels"],
+    ["n3", "$result"]
+  ]
+}

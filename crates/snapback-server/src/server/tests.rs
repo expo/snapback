@@ -23020,6 +23020,30 @@ fn production_snapback_literals() -> BTreeSet<String> {
 // helper constructors, embedded runtime source, and macros.
 const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
     (
+        "SNAPBACK_GRAPH_ARGUMENT_INVALID",
+        "LLP 0209 demand-time refusal vocabulary reserved in the B1 Rust carrier; no graph request path emits it before G2",
+    ),
+    (
+        "SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID",
+        "LLP 0209 demand-time refusal vocabulary reserved in the B1 Rust carrier; no graph request path emits it before G2",
+    ),
+    (
+        "SNAPBACK_GRAPH_CURSOR_UNBOUND",
+        "LLP 0209 demand-time refusal vocabulary reserved in the B1 Rust carrier; no graph request path emits it before G2",
+    ),
+    (
+        "SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH",
+        "LLP 0209 demand-time refusal vocabulary reserved in the B1 Rust carrier; no graph request path emits it before G2",
+    ),
+    (
+        "SNAPBACK_GRAPH_QUALIFICATION_DERIVATION_MISSING",
+        "LLP 0209 qualification-runner failure vocabulary; it is not an HTTP diagnostic",
+    ),
+    (
+        "SNAPBACK_GRAPH_QUALIFICATION_CORPUS_MISMATCH",
+        "LLP 0209 qualification-runner failure vocabulary; it is not an HTTP diagnostic",
+    ),
+    (
         "SNAPBACK_DEV_AUTH_ORIGINS",
         "comma-separated exact loopback-origin configuration for Dev browser body authority; never an HTTP diagnostic",
     ),
@@ -23629,6 +23653,40 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
 ];
 
 const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
+    // @ref LLP 0209#23-closure-admission-demand-time-evaluation-time-and-qualification-registers
+    // The Stage-B graph carrier's admission register is manifest/schema/policy
+    // author input and therefore uses the reviewed 400 family.
+    "SNAPBACK_GRAPH_CLIENT_AST_FORBIDDEN",
+    "SNAPBACK_GRAPH_CODE_FORBIDDEN",
+    "SNAPBACK_GRAPH_RECURSION_FORBIDDEN",
+    "SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION",
+    "SNAPBACK_GRAPH_ROOT_COUNT_INVALID",
+    "SNAPBACK_GRAPH_PROJECTION_COUNT_INVALID",
+    "SNAPBACK_GRAPH_NODE_KIND_UNSUPPORTED",
+    "SNAPBACK_GRAPH_UNKNOWN_FIELD",
+    "SNAPBACK_GRAPH_PARENT_INVALID",
+    "SNAPBACK_GRAPH_NODE_INERT",
+    "SNAPBACK_GRAPH_CYCLE",
+    "SNAPBACK_GRAPH_UNBOUNDED_EXPANSION",
+    "SNAPBACK_GRAPH_THROUGH_TABLE_UNDECLARED",
+    "SNAPBACK_GRAPH_SCHEMA_REFERENCE_INVALID",
+    "SNAPBACK_GRAPH_INDEX_UNPROVABLE",
+    "SNAPBACK_GRAPH_INDEX_PREFIX_UNSUPPORTED",
+    "SNAPBACK_GRAPH_ORDER_NOT_TOTAL",
+    "SNAPBACK_GRAPH_PROJECTION_SCOPE_INVALID",
+    "SNAPBACK_GRAPH_PROJECTION_OPEN",
+    "SNAPBACK_GRAPH_PRINCIPAL_BINDING_UNPROVABLE",
+    "SNAPBACK_GRAPH_SEARCH_UNADMITTED",
+    "SNAPBACK_GRAPH_AUTHORITY_UNPROVABLE",
+    "SNAPBACK_GRAPH_BROADCAST_BASE_CLASS_INVALID",
+    "SNAPBACK_GRAPH_BROADCAST_SEPARATION_UNPROVABLE",
+    "SNAPBACK_GRAPH_BROADCAST_SCOPE_UNBOUND",
+    "SNAPBACK_GRAPH_BROADCAST_AUDIENCE_UNPROVABLE",
+    "SNAPBACK_GRAPH_BROADCAST_INVALIDATION_INCOMPLETE",
+    "SNAPBACK_GRAPH_BOUND_INVALID",
+    "SNAPBACK_GRAPH_RESULT_CONTRACT_MISMATCH",
+    "SNAPBACK_GRAPH_PLAN_IDENTITY_MISMATCH",
+    "SNAPBACK_GRAPH_ARGUMENT_UNBOUND",
     // Validated from the caller-supplied app.readiness.v1 request body
     // (src/operational_readiness.rs validate_expected_activation_target,
     // reached via EnsureAppInput::validate_artifacts). Carried in the

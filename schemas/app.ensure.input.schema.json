@@ -563,6 +563,28 @@
       },
       "type": "object"
     },
+    "ArgumentBindingContractV1": {
+      "additionalProperties": false,
+      "description": "The shipped LLP 0157 argument-binding contract projected from one\n`FunctionArgsContract` field. The argument name belongs to its containing\nbinding and is deliberately outside this semantic contract.\n\n@ref LLP 0157#d2--plan-identity",
+      "properties": {
+        "format": {
+          "const": "snapback.argument-binding-contract.v1",
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "value": {
+          "$ref": "#/$defs/ResultValueContract"
+        }
+      },
+      "required": [
+        "format",
+        "required",
+        "value"
+      ],
+      "type": "object"
+    },
     "AssetAcceptPolicy": {
       "additionalProperties": false,
       "properties": {
@@ -1358,11 +1380,51 @@
       ],
       "type": "string"
     },
+    "AuthorityProfileHistoryHorizonCarrierV1": {
+      "additionalProperties": false,
+      "properties": {
+        "carrier": {
+          "type": "string"
+        },
+        "coverage": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "carrier",
+        "coverage"
+      ],
+      "type": "object"
+    },
+    "AuthorityProfileHistoryProjectionV1": {
+      "additionalProperties": false,
+      "properties": {
+        "incarnationSemantics": {
+          "type": "string"
+        },
+        "visibleFields": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "visibleFields",
+        "incarnationSemantics"
+      ],
+      "type": "object"
+    },
     "AuthorityProfileHookV1": {
       "enum": [
         "useSnapbackQuery",
         "useSnapbackAuthorityRoster",
         "useSnapbackAuthorityMyRole",
+        "useSnapbackAuthorityHistory",
+        "useSnapbackAuthorityIncarnations",
         "useSnapbackMutation",
         "useSnapbackAuthorityMutation",
         "useSnapbackOutbox.mutationStatus",
@@ -1412,6 +1474,8 @@
       "enum": [
         "list",
         "myRole",
+        "history",
+        "incarnations",
         "invite",
         "join",
         "leave",
@@ -1420,6 +1484,22 @@
         "remove"
       ],
       "type": "string"
+    },
+    "AuthorityProfileOperationOutcomeV1": {
+      "additionalProperties": false,
+      "properties": {
+        "branch": {
+          "type": "string"
+        },
+        "outcome": {
+          "$ref": "#/$defs/AuthorityProfileOutcomeClassV1"
+        }
+      },
+      "required": [
+        "branch",
+        "outcome"
+      ],
+      "type": "object"
     },
     "AuthorityProfileOperationV1": {
       "additionalProperties": false,
@@ -1439,6 +1519,12 @@
         "name": {
           "$ref": "#/$defs/AuthorityProfileOperationNameV1"
         },
+        "outcomes": {
+          "items": {
+            "$ref": "#/$defs/AuthorityProfileOperationOutcomeV1"
+          },
+          "type": "array"
+        },
         "transitionOps": {
           "items": {
             "$ref": "#/$defs/AuthorityProfileTransitionOpV1"
@@ -1454,6 +1540,14 @@
         "transitionOps"
       ],
       "type": "object"
+    },
+    "AuthorityProfileOutcomeClassV1": {
+      "enum": [
+        "idempotent-success-unchanged",
+        "typed-precondition-refusal",
+        "non-enumerating-denial"
+      ],
+      "type": "string"
     },
     "AuthorityProfileOwnerBootstrapInvariantV1": {
       "additionalProperties": false,
@@ -1472,6 +1566,95 @@
         "role",
         "bootstrapRole",
         "protectedLastHolderRole"
+      ],
+      "type": "object"
+    },
+    "AuthorityProfileProjectionV1": {
+      "additionalProperties": false,
+      "properties": {
+        "history": {
+          "$ref": "#/$defs/AuthorityProfileHistoryProjectionV1"
+        },
+        "historyHorizon": {
+          "$ref": "#/$defs/AuthorityProfileHistoryHorizonCarrierV1"
+        },
+        "offlineRetention": {
+          "type": "string"
+        },
+        "recipients": {
+          "$ref": "#/$defs/AuthorityProfileRecipientProjectionV1"
+        },
+        "source": {
+          "type": "string"
+        },
+        "version": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "source",
+        "history",
+        "recipients",
+        "historyHorizon",
+        "offlineRetention"
+      ],
+      "type": "object"
+    },
+    "AuthorityProfileRecipientProjectionV1": {
+      "additionalProperties": false,
+      "properties": {
+        "ceiling": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "freeze": {
+          "type": "string"
+        },
+        "overflow": {
+          "type": "string"
+        },
+        "sinks": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/AuthorityProfileRecipientSinkV1"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "ceiling",
+        "overflow",
+        "freeze"
+      ],
+      "type": "object"
+    },
+    "AuthorityProfileRecipientSinkV1": {
+      "additionalProperties": false,
+      "properties": {
+        "operation": {
+          "type": "string"
+        },
+        "recipientsField": {
+          "type": "string"
+        },
+        "scopeField": {
+          "type": "string"
+        },
+        "table": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "operation",
+        "table",
+        "scopeField",
+        "recipientsField"
       ],
       "type": "object"
     },
@@ -1720,6 +1903,16 @@
             "type": "string"
           },
           "type": "array"
+        },
+        "projection": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthorityProfileProjectionV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "requiredIndexes": {
           "items": {
@@ -2442,6 +2635,33 @@
         "fatal"
       ],
       "type": "string"
+    },
+    "DirectEdgeV1": {
+      "additionalProperties": false,
+      "properties": {
+        "accessIndex": {
+          "type": "string"
+        },
+        "joinOn": {
+          "items": {
+            "$ref": "#/$defs/JoinEquality"
+          },
+          "type": "array"
+        },
+        "table": {
+          "type": "string"
+        },
+        "visibility": {
+          "$ref": "#/$defs/TableVisibilityV1"
+        }
+      },
+      "required": [
+        "table",
+        "visibility",
+        "joinOn",
+        "accessIndex"
+      ],
+      "type": "object"
     },
     "EffectCeiling": {
       "additionalProperties": false,
@@ -3766,6 +3986,9 @@
       "enum": [
         "list",
         "myRole",
+        "history",
+        "incarnations",
+        "snapshotRecipients",
         "invite",
         "join",
         "leave",
@@ -3786,12 +4009,1738 @@
         },
         "operation": {
           "$ref": "#/$defs/GeneratedAuthorityOperationKindV1"
+        },
+        "recipientSink": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthorityProfileRecipientSinkV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
         "id",
         "generation",
         "operation"
+      ],
+      "type": "object"
+    },
+    "GraphArgumentCostV1": {
+      "additionalProperties": false,
+      "properties": {
+        "argumentId": {
+          "type": "string"
+        },
+        "maxItems": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "argumentId",
+        "maxItems"
+      ],
+      "type": "object"
+    },
+    "GraphArgumentV1": {
+      "additionalProperties": false,
+      "properties": {
+        "argumentId": {
+          "type": "string"
+        },
+        "contract": {
+          "$ref": "#/$defs/ArgumentBindingContractV1"
+        },
+        "contractHash": {
+          "$ref": "#/$defs/Sha256V1"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "argumentId",
+        "name",
+        "contract",
+        "contractHash"
+      ],
+      "type": "object"
+    },
+    "GraphAuthorityClass2InputV1": {
+      "additionalProperties": false,
+      "properties": {
+        "declarationId": {
+          "type": "string"
+        },
+        "eventSelectors": {
+          "items": {
+            "$ref": "#/$defs/GraphAuthorityEventSelectorV1"
+          },
+          "type": "array"
+        },
+        "nodeId": {
+          "type": "string"
+        },
+        "policyIdentity": {
+          "$ref": "#/$defs/Sha256V1"
+        },
+        "scopeArgumentIds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "nodeId",
+        "declarationId",
+        "scopeArgumentIds",
+        "policyIdentity",
+        "eventSelectors"
+      ],
+      "type": "object"
+    },
+    "GraphAuthorityClassV1": {
+      "description": "The closed numerical authority classes: independent, partition-scoped,\nand principal-scoped.",
+      "format": "uint8",
+      "maximum": 3,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "GraphAuthorityEventScopeV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "bindings": {
+              "items": {
+                "$ref": "#/$defs/GraphAuthorityScopeBindingV1"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "const": "bindings",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "bindings"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "all-declaration-scopes",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "GraphAuthorityEventSelectorV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "permission-backing-write",
+              "type": "string"
+            },
+            "permissionFields": {
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "scope": {
+              "$ref": "#/$defs/GraphAuthorityEventScopeV1"
+            },
+            "table": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "table",
+            "permissionFields",
+            "scope"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "declarationId": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "authorization-metadata-activation",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "declarationId"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "cause": {
+              "$ref": "#/$defs/GraphAuthorizationIncarnationCauseV1"
+            },
+            "kind": {
+              "const": "authorization-incarnation-change",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "cause"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "declarationId": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "out-of-band-permission-revocation",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "declarationId"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "cause": {
+              "$ref": "#/$defs/GraphAuthorityTransitionCauseV1"
+            },
+            "kind": {
+              "const": "authority-transition",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "cause"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "GraphAuthorityPartitionRuleV1": {
+      "additionalProperties": false,
+      "properties": {
+        "class2Inputs": {
+          "items": {
+            "$ref": "#/$defs/GraphAuthorityClass2InputV1"
+          },
+          "type": "array"
+        },
+        "class3": {
+          "$ref": "#/$defs/GraphClass3PartitionV1"
+        },
+        "format": {
+          "const": "snapback.graph-authority-partition-rule.v1",
+          "type": "string"
+        }
+      },
+      "required": [
+        "format",
+        "class2Inputs",
+        "class3"
+      ],
+      "type": "object"
+    },
+    "GraphAuthorityScopeBindingV1": {
+      "additionalProperties": false,
+      "properties": {
+        "rowField": {
+          "type": "string"
+        },
+        "scopeArgumentId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "rowField",
+        "scopeArgumentId"
+      ],
+      "type": "object"
+    },
+    "GraphAuthorityTransitionCauseV1": {
+      "enum": [
+        "login",
+        "logout",
+        "user-switch",
+        "session-expiry",
+        "admin-session-revocation",
+        "lease-expiry",
+        "grant-issued",
+        "grant-ended",
+        "credential-issued",
+        "credential-ended",
+        "token-issued",
+        "token-ended"
+      ],
+      "type": "string"
+    },
+    "GraphAuthorizationIncarnationCauseV1": {
+      "enum": [
+        "app-reset",
+        "logical-import",
+        "declared-physical-restore"
+      ],
+      "type": "string"
+    },
+    "GraphBroadcastAdmissionV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "classification": {
+              "const": "query-shaped",
+              "type": "string"
+            },
+            "format": {
+              "const": "snapback.graph-broadcast-admission.v1",
+              "type": "string"
+            },
+            "reason": {
+              "$ref": "#/$defs/GraphQueryShapedReasonV1"
+            }
+          },
+          "required": [
+            "classification",
+            "format",
+            "reason"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "baseNodeIds": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "classification": {
+              "const": "broadcast",
+              "type": "string"
+            },
+            "establishment": {
+              "$ref": "#/$defs/GraphBroadcastEstablishmentV1"
+            },
+            "format": {
+              "const": "snapback.graph-broadcast-admission.v1",
+              "type": "string"
+            }
+          },
+          "required": [
+            "classification",
+            "format",
+            "baseNodeIds",
+            "establishment"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "GraphBroadcastAudienceV1": {
+      "additionalProperties": false,
+      "properties": {
+        "strictEvaluatorIdentity": {
+          "$ref": "#/$defs/Sha256V1"
+        }
+      },
+      "required": [
+        "strictEvaluatorIdentity"
+      ],
+      "type": "object"
+    },
+    "GraphBroadcastEffectV1": {
+      "enum": [
+        "admit-only"
+      ],
+      "type": "string"
+    },
+    "GraphBroadcastEstablishmentV1": {
+      "additionalProperties": false,
+      "properties": {
+        "audience": {
+          "$ref": "#/$defs/GraphBroadcastAudienceV1"
+        },
+        "effect": {
+          "$ref": "#/$defs/GraphBroadcastEffectV1"
+        },
+        "invalidation": {
+          "items": {
+            "$ref": "#/$defs/GraphBroadcastInvalidationV1"
+          },
+          "type": "array"
+        },
+        "overlayProjection": {
+          "type": "null"
+        },
+        "predicate": {
+          "$ref": "#/$defs/TableVisibilityV1"
+        },
+        "scope": {
+          "$ref": "#/$defs/GraphBroadcastScopeV1"
+        }
+      },
+      "required": [
+        "effect",
+        "predicate",
+        "overlayProjection",
+        "scope",
+        "audience",
+        "invalidation"
+      ],
+      "type": "object"
+    },
+    "GraphBroadcastInvalidationV1": {
+      "additionalProperties": false,
+      "properties": {
+        "affectedScopeArgumentIds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "declarationId": {
+          "type": "string"
+        },
+        "event": {
+          "$ref": "#/$defs/GraphAuthorityEventSelectorV1"
+        }
+      },
+      "required": [
+        "declarationId",
+        "event",
+        "affectedScopeArgumentIds"
+      ],
+      "type": "object"
+    },
+    "GraphBroadcastResourceEqualityV1": {
+      "additionalProperties": false,
+      "properties": {
+        "argumentId": {
+          "type": "string"
+        },
+        "field": {
+          "type": "string"
+        },
+        "nodeId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "nodeId",
+        "field",
+        "argumentId"
+      ],
+      "type": "object"
+    },
+    "GraphBroadcastScopeV1": {
+      "additionalProperties": false,
+      "properties": {
+        "argumentIds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "policyIdentity": {
+          "$ref": "#/$defs/Sha256V1"
+        },
+        "resourceEqualities": {
+          "items": {
+            "$ref": "#/$defs/GraphBroadcastResourceEqualityV1"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "argumentIds",
+        "policyIdentity",
+        "resourceEqualities"
+      ],
+      "type": "object"
+    },
+    "GraphChildPageV1": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GraphDemandPageV1"
+        },
+        {
+          "$ref": "#/$defs/GraphLiteralPageV1"
+        }
+      ]
+    },
+    "GraphClass3PartitionV1": {
+      "enum": [
+        "none",
+        "partition-of-one"
+      ],
+      "type": "string"
+    },
+    "GraphDemandPageV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "demand",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "GraphDirectionV1": {
+      "enum": [
+        "forward",
+        "backward"
+      ],
+      "type": "string"
+    },
+    "GraphEdgeV1": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DirectEdgeV1"
+        },
+        {
+          "$ref": "#/$defs/ThroughEdgeV1"
+        }
+      ]
+    },
+    "GraphEquivalenceWitnessV1": {
+      "enum": [
+        "declared-inputs-only"
+      ],
+      "type": "string"
+    },
+    "GraphExistsModeV1": {
+      "enum": [
+        "exists",
+        "all"
+      ],
+      "type": "string"
+    },
+    "GraphIntervalEndV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "unbounded",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "key": {
+              "$ref": "#/$defs/KeysetKeyV1"
+            },
+            "kind": {
+              "const": "inclusive",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "key"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "key": {
+              "$ref": "#/$defs/KeysetKeyV1"
+            },
+            "kind": {
+              "const": "exclusive",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "key"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "GraphLiteralPageKindV1": {
+      "enum": [
+        "literal"
+      ],
+      "type": "string"
+    },
+    "GraphLiteralPageV1": {
+      "additionalProperties": false,
+      "properties": {
+        "direction": {
+          "$ref": "#/$defs/GraphDirectionV1"
+        },
+        "kind": {
+          "$ref": "#/$defs/GraphLiteralPageKindV1"
+        },
+        "lower": {
+          "$ref": "#/$defs/GraphIntervalEndV1"
+        },
+        "take": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "upper": {
+          "$ref": "#/$defs/GraphIntervalEndV1"
+        }
+      },
+      "required": [
+        "kind",
+        "direction",
+        "lower",
+        "upper",
+        "take"
+      ],
+      "type": "object"
+    },
+    "GraphNodeAuthorityV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "declaredClass": {
+              "enum": [
+                1,
+                3
+              ],
+              "type": "integer"
+            },
+            "proof": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "declaredClass",
+            "proof"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "declaredClass": {
+              "const": 2,
+              "type": "integer"
+            },
+            "proof": {
+              "$ref": "#/$defs/GraphPartitionEquivalenceProofV1"
+            }
+          },
+          "required": [
+            "declaredClass",
+            "proof"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "GraphNodeCostV1": {
+      "additionalProperties": false,
+      "properties": {
+        "maxArgumentExpansion": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxChildrenPerParent": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxExaminedEntriesPerExecution": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxRelationshipLookupsPerExecution": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxRootRowsPerPage": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxWindowIndexRanges": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxWindowPages": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxWindowResultBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxWindowResultRows": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxWindowRootRows": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxWindowScannedRows": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "nodeId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "nodeId",
+        "maxExaminedEntriesPerExecution"
+      ],
+      "type": "object"
+    },
+    "GraphNodeV1": {
+      "description": "The seven closed graph node kinds. Optional fields use omission on the\nwire; validation below enforces the kind-conditional grammar.\n\n@ref LLP 0209#2-the-graph-ir — G0 admits a finite closed data graph, never\ncallbacks or data-dependent construction.\n@ref LLP 0209#21-the-normalized-carrier — exact G0 node union and wire\nspellings.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "accessIndex": {
+              "type": "string"
+            },
+            "authority": {
+              "$ref": "#/$defs/GraphNodeAuthorityV1"
+            },
+            "edgeName": {
+              "type": "string"
+            },
+            "filters": {
+              "items": {
+                "$ref": "#/$defs/FilterExpr"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "const": "root-window",
+              "type": "string"
+            },
+            "nodeId": {
+              "type": "string"
+            },
+            "order": {
+              "items": {
+                "$ref": "#/$defs/OrderExpr"
+              },
+              "type": "array"
+            },
+            "page": {
+              "$ref": "#/$defs/GraphDemandPageV1"
+            },
+            "table": {
+              "type": "string"
+            },
+            "visibility": {
+              "$ref": "#/$defs/TableVisibilityV1"
+            }
+          },
+          "required": [
+            "kind",
+            "nodeId",
+            "edgeName",
+            "authority",
+            "table",
+            "visibility",
+            "filters",
+            "accessIndex",
+            "order",
+            "page"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "accessIndex": {
+              "type": "string"
+            },
+            "authority": {
+              "$ref": "#/$defs/GraphNodeAuthorityV1"
+            },
+            "edgeName": {
+              "type": "string"
+            },
+            "filters": {
+              "items": {
+                "$ref": "#/$defs/FilterExpr"
+              },
+              "type": "array"
+            },
+            "joinOn": {
+              "items": {
+                "$ref": "#/$defs/JoinEquality"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "const": "equality-to-one",
+              "type": "string"
+            },
+            "nodeId": {
+              "type": "string"
+            },
+            "parentNodeId": {
+              "type": "string"
+            },
+            "presence": {
+              "$ref": "#/$defs/GraphToOnePresenceV1"
+            },
+            "table": {
+              "type": "string"
+            },
+            "visibility": {
+              "$ref": "#/$defs/TableVisibilityV1"
+            }
+          },
+          "required": [
+            "kind",
+            "nodeId",
+            "edgeName",
+            "authority",
+            "parentNodeId",
+            "table",
+            "visibility",
+            "joinOn",
+            "accessIndex",
+            "presence"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "accessIndex": {
+              "type": "string"
+            },
+            "authority": {
+              "$ref": "#/$defs/GraphNodeAuthorityV1"
+            },
+            "edgeName": {
+              "type": "string"
+            },
+            "filters": {
+              "items": {
+                "$ref": "#/$defs/FilterExpr"
+              },
+              "type": "array"
+            },
+            "joinOn": {
+              "items": {
+                "$ref": "#/$defs/JoinEquality"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "const": "bounded-to-many",
+              "type": "string"
+            },
+            "nodeId": {
+              "type": "string"
+            },
+            "order": {
+              "items": {
+                "$ref": "#/$defs/OrderExpr"
+              },
+              "type": "array"
+            },
+            "page": {
+              "$ref": "#/$defs/GraphChildPageV1"
+            },
+            "parentNodeId": {
+              "type": "string"
+            },
+            "table": {
+              "type": "string"
+            },
+            "visibility": {
+              "$ref": "#/$defs/TableVisibilityV1"
+            }
+          },
+          "required": [
+            "kind",
+            "nodeId",
+            "edgeName",
+            "authority",
+            "parentNodeId",
+            "table",
+            "visibility",
+            "joinOn",
+            "accessIndex",
+            "order",
+            "page"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "argumentId": {
+              "type": "string"
+            },
+            "authority": {
+              "$ref": "#/$defs/GraphNodeAuthorityV1"
+            },
+            "edge": {
+              "$ref": "#/$defs/GraphEdgeV1"
+            },
+            "edgeName": {
+              "type": "string"
+            },
+            "filters": {
+              "items": {
+                "$ref": "#/$defs/FilterExpr"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "const": "exists-semi-join",
+              "type": "string"
+            },
+            "mode": {
+              "$ref": "#/$defs/GraphExistsModeV1"
+            },
+            "nodeId": {
+              "type": "string"
+            },
+            "parentNodeId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "nodeId",
+            "edgeName",
+            "authority",
+            "parentNodeId",
+            "mode",
+            "edge"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "accessIndex": {
+              "type": "string"
+            },
+            "authority": {
+              "additionalProperties": false,
+              "properties": {
+                "declaredClass": {
+                  "const": 3,
+                  "type": "integer"
+                },
+                "proof": {
+                  "type": "null"
+                }
+              },
+              "required": [
+                "declaredClass",
+                "proof"
+              ],
+              "type": "object"
+            },
+            "binding": {
+              "$ref": "#/$defs/GraphPrincipalBindingV1"
+            },
+            "edgeName": {
+              "type": "string"
+            },
+            "filters": {
+              "items": {
+                "$ref": "#/$defs/FilterExpr"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "const": "principal-bound",
+              "type": "string"
+            },
+            "nodeId": {
+              "type": "string"
+            },
+            "parentJoin": {
+              "items": {
+                "$ref": "#/$defs/JoinEquality"
+              },
+              "type": "array"
+            },
+            "parentNodeId": {
+              "type": "string"
+            },
+            "principalField": {
+              "type": "string"
+            },
+            "principalSource": {
+              "const": "auth.userId",
+              "type": "string"
+            },
+            "table": {
+              "type": "string"
+            },
+            "visibility": {
+              "$ref": "#/$defs/TableVisibilityV1"
+            }
+          },
+          "required": [
+            "kind",
+            "nodeId",
+            "edgeName",
+            "authority",
+            "parentNodeId",
+            "table",
+            "visibility",
+            "parentJoin",
+            "principalField",
+            "accessIndex",
+            "principalSource"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "argumentIds": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "authority": {
+              "$ref": "#/$defs/GraphNodeAuthorityV1"
+            },
+            "edgeName": {
+              "type": "string"
+            },
+            "invalidationTables": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "const": "search-membership",
+              "type": "string"
+            },
+            "memberField": {
+              "type": "string"
+            },
+            "membershipIdentity": {
+              "$ref": "#/$defs/GraphSearchMembershipIdentityV1"
+            },
+            "nodeId": {
+              "type": "string"
+            },
+            "parentNodeId": {
+              "type": "string"
+            },
+            "providerCapabilityId": {
+              "type": "string"
+            },
+            "providerCompletenessClass": {
+              "$ref": "#/$defs/GraphProviderCompletenessClassV1"
+            },
+            "scopeBindings": {
+              "items": {
+                "$ref": "#/$defs/GraphSearchScopeBindingV1"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "nodeId",
+            "edgeName",
+            "authority",
+            "parentNodeId",
+            "providerCapabilityId",
+            "membershipIdentity",
+            "memberField",
+            "scopeBindings",
+            "invalidationTables",
+            "providerCompletenessClass"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "authority": {
+              "$ref": "#/$defs/GraphNodeAuthorityV1"
+            },
+            "edgeName": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "closed-projection",
+              "type": "string"
+            },
+            "nodeId": {
+              "type": "string"
+            },
+            "object": {
+              "$ref": "#/$defs/GraphProjectionObjectV1"
+            }
+          },
+          "required": [
+            "kind",
+            "nodeId",
+            "edgeName",
+            "authority",
+            "object"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "GraphPartitionEquivalenceProofV1": {
+      "additionalProperties": false,
+      "properties": {
+        "declaredClass": {
+          "const": 2,
+          "type": "integer"
+        },
+        "equivalenceWitness": {
+          "$ref": "#/$defs/GraphEquivalenceWitnessV1"
+        },
+        "format": {
+          "const": "snapback.graph-partition-equivalence-proof.v1",
+          "type": "string"
+        },
+        "nodeId": {
+          "type": "string"
+        },
+        "partitionFunction": {
+          "$ref": "#/$defs/Sha256V1"
+        },
+        "policyInputs": {
+          "items": {
+            "$ref": "#/$defs/GraphPolicyInputV1"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "format",
+        "nodeId",
+        "declaredClass",
+        "policyInputs",
+        "partitionFunction",
+        "equivalenceWitness"
+      ],
+      "type": "object"
+    },
+    "GraphPolicyInputKindV1": {
+      "enum": [
+        "permissionBacking",
+        "membership",
+        "role"
+      ],
+      "type": "string"
+    },
+    "GraphPolicyInputV1": {
+      "additionalProperties": false,
+      "properties": {
+        "declarationId": {
+          "type": "string"
+        },
+        "identity": {
+          "$ref": "#/$defs/Sha256V1"
+        },
+        "kind": {
+          "$ref": "#/$defs/GraphPolicyInputKindV1"
+        }
+      },
+      "required": [
+        "declarationId",
+        "kind",
+        "identity"
+      ],
+      "type": "object"
+    },
+    "GraphPrincipalBindingV1": {
+      "additionalProperties": false,
+      "properties": {
+        "principalField": {
+          "type": "string"
+        },
+        "table": {
+          "type": "string"
+        },
+        "uniqueIndex": {
+          "type": "string"
+        },
+        "valueField": {
+          "type": "string"
+        },
+        "visibility": {
+          "$ref": "#/$defs/TableVisibilityV1"
+        }
+      },
+      "required": [
+        "table",
+        "visibility",
+        "principalField",
+        "valueField",
+        "uniqueIndex"
+      ],
+      "type": "object"
+    },
+    "GraphProjectionFieldV1": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/GraphProjectionValueV1"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "type": "object"
+    },
+    "GraphProjectionLiteralV1": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "format": "double",
+          "type": "number"
+        }
+      ]
+    },
+    "GraphProjectionObjectV1": {
+      "additionalProperties": false,
+      "properties": {
+        "fields": {
+          "items": {
+            "$ref": "#/$defs/GraphProjectionFieldV1"
+          },
+          "type": "array"
+        },
+        "scopeNodeId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scopeNodeId",
+        "fields"
+      ],
+      "type": "object"
+    },
+    "GraphProjectionValueV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "field",
+              "type": "string"
+            },
+            "nodeId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "nodeId",
+            "field"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "literal",
+              "type": "string"
+            },
+            "value": {
+              "$ref": "#/$defs/GraphProjectionLiteralV1"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "object",
+              "type": "string"
+            },
+            "nodeId": {
+              "type": "string"
+            },
+            "object": {
+              "$ref": "#/$defs/GraphProjectionObjectV1"
+            }
+          },
+          "required": [
+            "kind",
+            "nodeId",
+            "object"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "item": {
+              "$ref": "#/$defs/GraphProjectionObjectV1"
+            },
+            "kind": {
+              "const": "array",
+              "type": "string"
+            },
+            "scopeNodeId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "scopeNodeId",
+            "item"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "exists",
+              "type": "string"
+            },
+            "nodeId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "nodeId"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "GraphProviderCompletenessClassV1": {
+      "enum": [
+        "complete-membership-v1"
+      ],
+      "type": "string"
+    },
+    "GraphQueryCarrierV1": {
+      "additionalProperties": false,
+      "description": "Exact payload of `HandlerPlan::GraphQuery`.",
+      "properties": {
+        "normalizedPlan": {
+          "$ref": "#/$defs/GraphQueryPlanV1"
+        },
+        "planHash": {
+          "$ref": "#/$defs/Sha256V1"
+        }
+      },
+      "required": [
+        "normalizedPlan",
+        "planHash"
+      ],
+      "type": "object"
+    },
+    "GraphQueryCostEnvelopeV1": {
+      "additionalProperties": false,
+      "properties": {
+        "graph": {
+          "$ref": "#/$defs/GraphQueryCostV1"
+        },
+        "maxDistinctEvaluationGroups": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxEstimatedLiveFanoutMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxEvaluationTurnMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxIndexRanges": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxObservers": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxResultBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxResultRows": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxScannedRows": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "maxScannedRows",
+        "maxIndexRanges",
+        "maxResultRows",
+        "maxResultBytes",
+        "maxEvaluationTurnMs",
+        "maxObservers",
+        "maxDistinctEvaluationGroups",
+        "maxEstimatedLiveFanoutMs",
+        "graph"
+      ],
+      "type": "object"
+    },
+    "GraphQueryCostV1": {
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "items": {
+            "$ref": "#/$defs/GraphArgumentCostV1"
+          },
+          "type": "array"
+        },
+        "maxArgumentItems": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxMaintainedWritesPerMutation": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxPageResultBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/GraphNodeCostV1"
+          },
+          "type": "array"
+        },
+        "windowRollup": {
+          "$ref": "#/$defs/GraphWindowRollupV1"
+        }
+      },
+      "required": [
+        "nodes",
+        "arguments",
+        "maxArgumentItems",
+        "maxPageResultBytes",
+        "windowRollup",
+        "maxMaintainedWritesPerMutation"
+      ],
+      "type": "object"
+    },
+    "GraphQueryPlanV1": {
+      "additionalProperties": false,
+      "description": "Complete normalized graph plan and all plan-hashed policy/bound facts.\n\n@ref LLP 0209#2-the-graph-ir — this is the closed non-executable G0 IR.\n@ref LLP 0209#21-the-normalized-carrier — the plan is finite, closed, and\nuses preorder node ids plus canonical argument ids.",
+      "properties": {
+        "arguments": {
+          "items": {
+            "$ref": "#/$defs/GraphArgumentV1"
+          },
+          "type": "array"
+        },
+        "authorityPartitionRule": {
+          "$ref": "#/$defs/GraphAuthorityPartitionRuleV1"
+        },
+        "broadcast": {
+          "$ref": "#/$defs/GraphBroadcastAdmissionV1"
+        },
+        "capabilityId": {
+          "const": "graph_query_v1",
+          "type": "string"
+        },
+        "format": {
+          "const": "snapback.graph-query-plan.v1",
+          "type": "string"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/GraphNodeV1"
+          },
+          "type": "array"
+        },
+        "queryCost": {
+          "$ref": "#/$defs/GraphQueryCostEnvelopeV1"
+        },
+        "resultContractHash": {
+          "$ref": "#/$defs/Sha256V1"
+        },
+        "rootNodeId": {
+          "const": "n0",
+          "type": "string"
+        }
+      },
+      "required": [
+        "format",
+        "capabilityId",
+        "rootNodeId",
+        "nodes",
+        "arguments",
+        "queryCost",
+        "authorityPartitionRule",
+        "broadcast",
+        "resultContractHash"
+      ],
+      "type": "object"
+    },
+    "GraphQueryShapedReasonV1": {
+      "enum": [
+        "base-not-class1",
+        "separation-unprovable",
+        "scope-unbound",
+        "audience-parity-failed",
+        "invalidation-incomplete",
+        "declared-query-shaped"
+      ],
+      "type": "string"
+    },
+    "GraphSearchMembershipIdentityV1": {
+      "additionalProperties": false,
+      "properties": {
+        "argumentContractHash": {
+          "$ref": "#/$defs/Sha256V1"
+        },
+        "authorityClass": {
+          "$ref": "#/$defs/GraphAuthorityClassV1"
+        },
+        "format": {
+          "const": "snapback.graph-search-membership-identity.v1",
+          "type": "string"
+        },
+        "membershipHash": {
+          "$ref": "#/$defs/Sha256V1"
+        },
+        "providerCompletenessClass": {
+          "$ref": "#/$defs/GraphProviderCompletenessClassV1"
+        },
+        "providerPlanHash": {
+          "$ref": "#/$defs/Sha256V1"
+        },
+        "providerVersion": {
+          "type": "string"
+        },
+        "scopeContractHash": {
+          "$ref": "#/$defs/Sha256V1"
+        }
+      },
+      "required": [
+        "format",
+        "providerPlanHash",
+        "argumentContractHash",
+        "scopeContractHash",
+        "authorityClass",
+        "providerVersion",
+        "providerCompletenessClass",
+        "membershipHash"
+      ],
+      "type": "object"
+    },
+    "GraphSearchScopeBindingV1": {
+      "additionalProperties": false,
+      "properties": {
+        "providerScopeField": {
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/GraphSearchScopeSourceV1"
+        }
+      },
+      "required": [
+        "providerScopeField",
+        "source"
+      ],
+      "type": "object"
+    },
+    "GraphSearchScopeSourceV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "argumentId": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "argument",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "argumentId"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "parent-field",
+              "type": "string"
+            },
+            "nodeId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "nodeId",
+            "field"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "GraphToOnePresenceV1": {
+      "enum": [
+        "required",
+        "optional"
+      ],
+      "type": "string"
+    },
+    "GraphWindowRollupV1": {
+      "additionalProperties": false,
+      "properties": {
+        "maxWindowIndexRanges": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxWindowPages": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxWindowResultBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxWindowResultRows": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxWindowRootRows": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxWindowScannedRows": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "maxWindowPages",
+        "maxWindowRootRows",
+        "maxWindowScannedRows",
+        "maxWindowResultRows",
+        "maxWindowResultBytes",
+        "maxWindowIndexRanges"
       ],
       "type": "object"
     },
@@ -3939,6 +5888,19 @@
         },
         {
           "additionalProperties": false,
+          "description": "Additive graph carrier. Stage B validates and identities this arm but\ndeliberately registers no executor.\n\n@ref LLP 0209#25-additive-sibling-carrier-stage-b-plan-not-shipped-surface —\ngraph_query_v1 is a sibling and does not reinterpret frozen carriers.",
+          "properties": {
+            "GraphQuery": {
+              "$ref": "#/$defs/GraphQueryCarrierV1"
+            }
+          },
+          "required": [
+            "GraphQuery"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Closed source/scope/activity transaction.",
           "properties": {
             "WriteWithActivity": {
@@ -4079,6 +6041,34 @@
         "Custom"
       ],
       "type": "string"
+    },
+    "KeysetKeyV1": {
+      "additionalProperties": false,
+      "description": "Wire-identical counterpart of the kernel's storage-native `KeysetAfter`.\n`_id` is always carried separately in `id`.",
+      "properties": {
+        "entries": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              true
+            ],
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "entries",
+        "id"
+      ],
+      "type": "object"
     },
     "MaintainedProjectionPlan": {
       "additionalProperties": false,
@@ -7106,6 +9096,11 @@
       ],
       "description": "One declared sequence counter and the structural proof that an invocation\nmay observe its allocation count. `public.v1` is deliberately a string on\nthe wire because it is the reviewed disclosure spelling pinned by LLP\n0135; non-public access names the membership declaration and exact roles\nthe host evaluates against the supplied scope row."
     },
+    "Sha256V1": {
+      "description": "A lowercase, prefixed SHA-256 digest. Deserialization enforces the same\nshape emitted into JSON Schema, so a malformed digest never becomes an\nadmitted graph fact.",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
     "SnapshotBatchNodeV2": {
       "description": "One class-explicit node in `snapshot-batch.v2`. The adjacent tag keeps\nclass membership host-visible while leaving `plan` as the owner's exact\nnormalized record for LLP 0157 node identity.",
       "oneOf": [
@@ -7584,6 +9579,52 @@
         "writeForm",
         "constraint",
         "operations"
+      ],
+      "type": "object"
+    },
+    "ThroughEdgeV1": {
+      "additionalProperties": false,
+      "properties": {
+        "parentIndex": {
+          "type": "string"
+        },
+        "parentJoin": {
+          "items": {
+            "$ref": "#/$defs/JoinEquality"
+          },
+          "type": "array"
+        },
+        "table": {
+          "type": "string"
+        },
+        "targetIndex": {
+          "type": "string"
+        },
+        "targetJoin": {
+          "items": {
+            "$ref": "#/$defs/JoinEquality"
+          },
+          "type": "array"
+        },
+        "targetTable": {
+          "type": "string"
+        },
+        "targetVisibility": {
+          "$ref": "#/$defs/TableVisibilityV1"
+        },
+        "visibility": {
+          "$ref": "#/$defs/TableVisibilityV1"
+        }
+      },
+      "required": [
+        "table",
+        "visibility",
+        "parentJoin",
+        "targetTable",
+        "targetVisibility",
+        "targetJoin",
+        "parentIndex",
+        "targetIndex"
       ],
       "type": "object"
     },

@@ -1534,6 +1534,7 @@ impl LocalDatabase {
                 // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
                 //   the roster-emptiness read is captured, the third aggregate.
                 read_dependencies.push(CapturedReadDependency {
+                    graph: None,
                     kind: CapturedReadKind::Query,
                     table: Some(table.name.clone()),
                     id: None,
@@ -1657,6 +1658,7 @@ impl LocalDatabase {
                 // bumps the row version and invalidates the stale plan.
                 // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default
                 read_dependencies.push(CapturedReadDependency {
+                    graph: None,
                     kind: CapturedReadKind::Row,
                     table: Some(table_manifest.name.clone()),
                     id: Some(id.clone()),
@@ -1813,6 +1815,7 @@ impl LocalDatabase {
         // Rely on THIS survivor remaining: a concurrent removal of it fails
         // commit-time read-set validation, so exactly one final removal commits.
         read_dependencies.push(CapturedReadDependency {
+            graph: None,
             kind: CapturedReadKind::Row,
             table: Some(table.name.clone()),
             id: Some(survivor_id),

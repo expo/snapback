@@ -1,0 +1,71 @@
+{
+  "normalizedPlan": {
+    "format": "snapback.graph-query-plan.v1",
+    "capabilityId": "graph_query_v1",
+    "rootNodeId": "n0",
+    "nodes": [
+      {
+        "nodeId": "n0",
+        "kind": "root-window",
+        "edgeName": "$root",
+        "authority": {"declaredClass": 1, "proof": null},
+        "table": "issues",
+        "visibility": {"kind": "public-read"},
+        "filters": [],
+        "accessIndex": "by_updated",
+        "order": [{"field": "updatedAt", "direction": "Desc"}],
+        "page": {"kind": "demand"}
+      },
+      {
+        "nodeId": "n1",
+        "kind": "closed-projection",
+        "edgeName": "$result",
+        "authority": {"declaredClass": 1, "proof": null},
+        "object": {
+          "scopeNodeId": "n0",
+          "fields": [{"name": "title", "value": {"kind": "field", "nodeId": "n0", "field": "title"}}]
+        }
+      }
+    ],
+    "arguments": [],
+    "queryCost": {
+      "maxScannedRows": 3,
+      "maxIndexRanges": 1,
+      "maxResultRows": 2,
+      "maxResultBytes": 100,
+      "maxEvaluationTurnMs": 10,
+      "maxObservers": 1,
+      "maxDistinctEvaluationGroups": 1,
+      "maxEstimatedLiveFanoutMs": 10,
+      "graph": {
+        "nodes": [{
+          "nodeId": "n0",
+          "maxRootRowsPerPage": 2,
+          "maxExaminedEntriesPerExecution": 3,
+          "maxWindowPages": 2,
+          "maxWindowRootRows": 4,
+          "maxWindowScannedRows": 6,
+          "maxWindowResultRows": 4,
+          "maxWindowResultBytes": 200,
+          "maxWindowIndexRanges": 2
+        }],
+        "arguments": [],
+        "maxArgumentItems": 0,
+        "maxPageResultBytes": 100,
+        "windowRollup": {
+          "maxWindowPages": 2,
+          "maxWindowRootRows": 4,
+          "maxWindowScannedRows": 6,
+          "maxWindowResultRows": 4,
+          "maxWindowResultBytes": 200,
+          "maxWindowIndexRanges": 2
+        },
+        "maxMaintainedWritesPerMutation": 0
+      }
+    },
+    "authorityPartitionRule": {"format": "snapback.graph-authority-partition-rule.v1", "class2Inputs": [], "class3": "none"},
+    "broadcast": {"format": "snapback.graph-broadcast-admission.v1", "classification": "query-shaped", "reason": "declared-query-shaped"},
+    "resultContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "planHash": "sha256:568efc828e03e4b56d4d09cc3d3dee804fc977d9e6c50f1f2d5b18709f8f1e1e"
+}
