@@ -14,6 +14,18 @@ registration-beside-carrier and downward assembly in `snapback-tools`)
 **Revised:** 2026-08-19 (f — F-5 complete: telemetry and fork-promotion proof
 composition moved to `snapback-tools` with one exact build-identity port; all
 five assignment paths across the three named exceptions are gone)
+**Revised:** 2026-08-22 (g — author ruling: the F-1 publication hold is
+LIFTED until further notice. Waiting multiple engineer-weeks to publish is
+not acceptable for a pre-public-release surface with no stability-dependent
+users; npm publication may proceed without F-1 being complete. The security
+posture is unchanged and must be stated honestly: the four F-1 defect
+families remain OPEN, the LLP 0284 gates remain RED by design, and per the
+2026-08-21 ruling recorded in
+`issues/20260820-handler-sandbox-triage-and-scheduling.md`, pre-public-release
+npm publications claim NO adversarial-handler containment and NO F-1 closure —
+each publication's closure record must carry those disclaimers explicitly.
+This ruling expires when the author says so or when F-1 closes, whichever
+comes first.)
 **Related:** LLP 0276, LLP 0225, LLP 0189, LLP 0232, LLP 0041, LLP 0214, LLP 0264, LLP 0010,
 LLP 0284 (F-2 threat model), LLP 0285 (F-1 closure design)
 
@@ -44,9 +56,14 @@ meant to constrain.
 Rollback point: tag `pre-0276-rearchitecture` at `c66d8ea6f`. History was never
 rewritten; rollback is ordinary forward `revert` commits per LLP 0276.
 
-**npm publication was deliberately NOT performed.** Published packages are
-immutable (LLP 0041) and the runtime packages carry the sealed binary, so
-publication must wait until F-1 below is closed.
+**npm publication was deliberately NOT performed** at this plan's writing.
+Published packages are immutable (LLP 0041) and the runtime packages carry
+the sealed binary, so publication was originally held until F-1 closed.
+**Author ruling 2026-08-22 (Revised g): the hold is lifted until further
+notice** — publication may proceed while F-1 remains open, provided each
+closure record explicitly states that the four F-1 defect families are open,
+the LLP 0284 gates are red by design, and no adversarial-handler containment
+is claimed.
 
 ## Status of this plan (revised 2026-08-19b)
 

@@ -1,6 +1,12 @@
 # Security gates are expected red until LLP 0283 F-1
 
 **Status:** Open
+
+> **Publication note (2026-08-22, author ruling — LLP 0283 Revised g):** the
+> npm publication hold is lifted until further notice. This ticket's gates
+> remain RED by design and nothing here is allowlisted or waived; publications
+> proceeding under the ruling must disclaim F-1 closure and
+> adversarial-handler containment in their closure records.
 **Owner:** LLP 0283 F-1
 **Date:** 2026-08-19
 **Related:** LLP 0283 F-1/F-2, LLP 0284 §§1, 7–8
