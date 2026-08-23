@@ -990,6 +990,18 @@ pub enum PlannedRotationCommit {
     PredecessorChanged,
 }
 
+// Guest entry is the only issuance path that needs the successful-effect
+// budget and durable idempotency plan. Keep that comparatively large state
+// behind one allocation so every ordinary provider/session issuance—and the
+// shared host-op dispatcher future that carries it—does not inherit its size.
+// @ref LLP 0215#6-idempotency-and-retry-identity — the complete guest retry
+// identity remains one owned issuance-plan component through commit.
+#[derive(Clone, Eq, PartialEq)]
+struct ProviderGuestIssuanceState {
+    effect_budget: snapback_kernel::auth::throttle::RollingWindowBudgetTerms,
+    idempotency: CatalogGuestEntryIdempotencyPlan,
+}
+
 pub struct ProviderSessionIssuancePlan {
     address: CanonicalAddress,
     now_ms: u64,
@@ -1003,8 +1015,6 @@ pub struct ProviderSessionIssuancePlan {
     challenge: Option<PlannedChallengeConsumption>,
     sender_issuance: Option<crate::auth::sender_proof::SenderIssuanceCommitment>,
     rehearsal_exercise: Option<crate::storage::auth_rehearsal::RehearsalExercisePlan>,
-    guest_effect_budget: Option<snapback_kernel::auth::throttle::RollingWindowBudgetTerms>,
-    guest_idempotency: Option<CatalogGuestEntryIdempotencyPlan>,
 }
 
 impl fmt::Debug for ProviderSessionIssuancePlan {
@@ -1028,8 +1038,74 @@ pub struct ProviderSessionIssuanceCommitPlan {
     challenge: Option<PlannedChallengeConsumption>,
     pub(crate) sender_issuance: Option<crate::auth::sender_proof::SenderIssuanceCommitment>,
     rehearsal_exercise: Option<crate::storage::auth_rehearsal::RehearsalExercisePlan>,
-    guest_effect_budget: Option<snapback_kernel::auth::throttle::RollingWindowBudgetTerms>,
-    guest_idempotency: Option<CatalogGuestEntryIdempotencyPlan>,
+}
+
+/// Guest-only issuance carrier. The ordinary provider/session plan remains
+/// compact for the shared host-op shape; guest effect accounting and
+/// idempotency travel beside it only on the guest route.
+pub struct ProviderGuestSessionIssuancePlan {
+    issuance: ProviderSessionIssuancePlan,
+    guest: Box<ProviderGuestIssuanceState>,
+}
+
+#[derive(Clone, Eq, PartialEq)]
+pub struct ProviderGuestSessionIssuanceCommitPlan {
+    issuance: ProviderSessionIssuanceCommitPlan,
+    guest: Box<ProviderGuestIssuanceState>,
+}
+
+pub struct ProviderGuestIssuanceContext {
+    guest: Box<ProviderGuestIssuanceState>,
+}
+
+impl fmt::Debug for ProviderGuestSessionIssuancePlan {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("ProviderGuestSessionIssuancePlan([REDACTED])")
+    }
+}
+
+impl fmt::Debug for ProviderGuestSessionIssuanceCommitPlan {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("ProviderGuestSessionIssuanceCommitPlan([REDACTED])")
+    }
+}
+
+impl ProviderGuestSessionIssuancePlan {
+    pub fn commit_plan(&self) -> ProviderGuestSessionIssuanceCommitPlan {
+        ProviderGuestSessionIssuanceCommitPlan {
+            issuance: self.issuance.commit_plan(),
+            guest: self.guest.clone(),
+        }
+    }
+
+    pub fn into_coordinated_parts(
+        self,
+    ) -> (ProviderSessionIssuancePlan, ProviderGuestIssuanceContext) {
+        (
+            self.issuance,
+            ProviderGuestIssuanceContext { guest: self.guest },
+        )
+    }
+
+    pub fn into_issue(
+        self,
+        session: SessionResponse,
+        committed_revocations: Vec<SessionRevocation>,
+    ) -> CredentialIssue {
+        self.issuance.into_issue(session, committed_revocations)
+    }
+}
+
+impl ProviderGuestIssuanceContext {
+    pub fn commit_plan(
+        &self,
+        issuance: ProviderSessionIssuanceCommitPlan,
+    ) -> ProviderGuestSessionIssuanceCommitPlan {
+        ProviderGuestSessionIssuanceCommitPlan {
+            issuance,
+            guest: self.guest.clone(),
+        }
+    }
 }
 
 impl fmt::Debug for ProviderSessionIssuanceCommitPlan {
@@ -1139,8 +1215,6 @@ impl ProviderSessionIssuancePlan {
             challenge: self.challenge.clone(),
             sender_issuance: self.sender_issuance.clone(),
             rehearsal_exercise: self.rehearsal_exercise.clone(),
-            guest_effect_budget: self.guest_effect_budget,
-            guest_idempotency: self.guest_idempotency.clone(),
         }
     }
 
@@ -1178,8 +1252,6 @@ impl ProviderSessionIssuancePlan {
             challenge: None,
             sender_issuance: None,
             rehearsal_exercise: None,
-            guest_effect_budget: None,
-            guest_idempotency: None,
         }
     }
 
@@ -1251,8 +1323,8 @@ impl ProviderSessionIssuanceCommitPlan {
                 }),
             sender_issuance: self.sender_issuance.as_ref(),
             rehearsal_exercise: self.rehearsal_exercise.as_ref(),
-            guest_effect_budget: self.guest_effect_budget,
-            guest_idempotency: self.guest_idempotency.as_ref(),
+            guest_effect_budget: None,
+            guest_idempotency: None,
             live_session_limit: AUTH_SESSION_LIVE_LIMIT as u64,
         }
     }
@@ -1321,7 +1393,7 @@ pub enum PlannedExchange {
 /// reconstructs the original bearer from a keyring-derived PRF seed; the
 /// plaintext credential is never written to SQLite.
 pub enum ProviderGuestSessionPlan {
-    Planned(ProviderSessionIssuancePlan),
+    Planned(ProviderGuestSessionIssuancePlan),
     Replay(CredentialIssue),
     Refused {
         budget_name: String,
@@ -1711,37 +1783,42 @@ impl AuthProvider {
             retain_until_ms: guest_expires_at_ms,
             refusal_correlation_id: guest_refusal_correlation_id(&key_digest, &request_digest),
         };
-        let plan = ProviderSessionIssuancePlan {
-            address: CanonicalAddress::parse("guest@snapback.invalid")
-                .map_err(|_| provider_unavailable().into_snapback_error())?,
-            now_ms,
-            identity: PlannedIdentityState::GuestCreate {
-                user_id,
-                expires_at_ms: guest_expires_at_ms,
+        let plan = ProviderGuestSessionIssuancePlan {
+            issuance: ProviderSessionIssuancePlan {
+                address: CanonicalAddress::parse("guest@snapback.invalid")
+                    .map_err(|_| provider_unavailable().into_snapback_error())?,
+                now_ms,
+                identity: PlannedIdentityState::GuestCreate {
+                    user_id,
+                    expires_at_ms: guest_expires_at_ms,
+                },
+                candidate,
+                projected,
+                revocations: Vec::new(),
+                password: None,
+                password_profile: None,
+                recovery_codes: None,
+                challenge: None,
+                sender_issuance: None,
+                rehearsal_exercise: None,
             },
-            candidate,
-            projected,
-            revocations: Vec::new(),
-            password: None,
-            password_profile: None,
-            recovery_codes: None,
-            challenge: None,
-            sender_issuance: None,
-            rehearsal_exercise: None,
-            guest_effect_budget: Some(effect_budget),
-            guest_idempotency: Some(idempotency),
+            guest: Box::new(ProviderGuestIssuanceState {
+                effect_budget,
+                idempotency,
+            }),
         };
         if was_committed {
             let durable = database
                 .auth_catalog_read()
-                .lookup_presented_session(&plan.candidate.token_hash)?;
+                .lookup_presented_session(&plan.issuance.candidate.token_hash)?;
             let PresentedSessionLookup::Current(durable) = durable else {
                 return Err(provider_unavailable().into_snapback_error());
             };
-            if durable.session.session_id != plan.projected.session_id
-                || durable.session.user_id != plan.projected.user_id
-                || durable.session.authority_instance_id != plan.projected.authority_instance_id
-                || durable.session.generation != plan.projected.generation
+            if durable.session.session_id != plan.issuance.projected.session_id
+                || durable.session.user_id != plan.issuance.projected.user_id
+                || durable.session.authority_instance_id
+                    != plan.issuance.projected.authority_instance_id
+                || durable.session.generation != plan.issuance.projected.generation
             {
                 return Err(provider_unavailable().into_snapback_error());
             }
@@ -1931,8 +2008,6 @@ impl AuthProvider {
             challenge: None,
             sender_issuance: None,
             rehearsal_exercise: None,
-            guest_effect_budget: None,
-            guest_idempotency: None,
         })
     }
 
@@ -2115,8 +2190,6 @@ impl AuthProvider {
             challenge: None,
             sender_issuance: None,
             rehearsal_exercise: None,
-            guest_effect_budget: None,
-            guest_idempotency: None,
         })
     }
 
@@ -2183,23 +2256,24 @@ impl AuthProvider {
         if plan.password.is_none() || plan.challenge.is_some() || plan.sender_issuance.is_some() {
             return AuthTransactionAttempt::RolledBack(internal_state_snapback());
         }
-        attempt_planned_session_issuance(database, plan, None)
+        attempt_planned_session_issuance(database, plan, None, None)
     }
 
     pub fn commit_guest_issuance(
         &self,
         database: &mut LocalDatabase,
-        plan: &ProviderSessionIssuanceCommitPlan,
+        plan: &ProviderGuestSessionIssuanceCommitPlan,
     ) -> AuthTransactionAttempt<PlannedIssuanceCommit> {
-        if !matches!(plan.identity, PlannedIdentityState::GuestCreate { .. })
-            || plan.guest_effect_budget.is_none()
-            || plan.password.is_some()
-            || plan.challenge.is_some()
-            || plan.sender_issuance.is_some()
+        if !matches!(
+            plan.issuance.identity,
+            PlannedIdentityState::GuestCreate { .. }
+        ) || plan.issuance.password.is_some()
+            || plan.issuance.challenge.is_some()
+            || plan.issuance.sender_issuance.is_some()
         {
             return AuthTransactionAttempt::RolledBack(internal_state_snapback());
         }
-        attempt_planned_session_issuance(database, plan, None)
+        attempt_planned_session_issuance(database, &plan.issuance, None, Some(plan.guest.as_ref()))
     }
 
     pub fn prepare_password_set(
@@ -2331,8 +2405,6 @@ impl AuthProvider {
             challenge: None,
             sender_issuance: None,
             rehearsal_exercise: None,
-            guest_effect_budget: None,
-            guest_idempotency: None,
         })
     }
 
@@ -2737,8 +2809,6 @@ impl AuthProvider {
             challenge: None,
             sender_issuance: None,
             rehearsal_exercise: None,
-            guest_effect_budget: None,
-            guest_idempotency: None,
         })
     }
 
@@ -2855,8 +2925,6 @@ impl AuthProvider {
             challenge: None,
             sender_issuance: None,
             rehearsal_exercise: None,
-            guest_effect_budget: None,
-            guest_idempotency: None,
         })
     }
 
@@ -3129,7 +3197,7 @@ impl AuthAdmission {
 
     pub fn commit_guest_issuance_plan<'a>(
         &'a self,
-        plan: &'a ProviderSessionIssuanceCommitPlan,
+        plan: &'a ProviderGuestSessionIssuanceCommitPlan,
     ) -> impl super::database_plan::AuthDatabasePlan<
         Output = AuthTransactionAttempt<PlannedIssuanceCommit>,
     > + 'a {
@@ -4141,7 +4209,7 @@ impl ExchangeAdmission {
             .provider
             .keyring
             .with_key(&self.coordination.key_id, |key| {
-                attempt_planned_session_issuance(database, plan, Some((key, &code)))
+                attempt_planned_session_issuance(database, plan, Some((key, &code)), None)
             })
             .unwrap_or_else(|_| {
                 AuthTransactionAttempt::RolledBack(provider_unavailable().into_snapback_error())
@@ -4680,7 +4748,7 @@ impl AddressAdmission {
         database: &mut LocalDatabase,
         plan: &ProviderSessionIssuanceCommitPlan,
     ) -> AuthTransactionAttempt<PlannedIssuanceCommit> {
-        attempt_planned_session_issuance(database, plan, None)
+        attempt_planned_session_issuance(database, plan, None, None)
     }
 
     /// Reusable host-operation core. Item 4 owns the AdminWrite and
@@ -5073,8 +5141,6 @@ fn build_session_issuance_plan(
         challenge,
         sender_issuance: None,
         rehearsal_exercise: None,
-        guest_effect_budget: None,
-        guest_idempotency: None,
     })
 }
 
@@ -5203,8 +5269,13 @@ fn attempt_planned_session_issuance(
     database: &mut LocalDatabase,
     plan: &ProviderSessionIssuanceCommitPlan,
     exchange_proof: Option<(&AuthKeyMaterial, &VerificationCode)>,
+    guest: Option<&ProviderGuestIssuanceState>,
 ) -> AuthTransactionAttempt<PlannedIssuanceCommit> {
-    let catalog_plan = plan.catalog_plan();
+    let mut catalog_plan = plan.catalog_plan();
+    if let Some(guest) = guest {
+        catalog_plan.guest_effect_budget = Some(guest.effect_budget);
+        catalog_plan.guest_idempotency = Some(&guest.idempotency);
+    }
     let (attempt, body_outcome) = database
         .auth_catalog()
         .attempt_planned_session_issuance(&catalog_plan, exchange_proof);
@@ -5237,7 +5308,7 @@ fn attempt_planned_session_issuance(
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::GuestIdempotencyConflict)
         }
         refused @ PlannedIssuanceCommit::GuestBudgetRefused { .. } => {
-            let Some(idempotency) = &plan.guest_idempotency else {
+            let Some(idempotency) = guest.map(|guest| &guest.idempotency) else {
                 return AuthTransactionAttempt::Committed(
                     PlannedIssuanceCommit::PredecessorChanged,
                 );

@@ -30,8 +30,8 @@ use crate::auth::lease::{
 use crate::auth::provider::{
     AddressAdmission, AuthProvider, AuthProviderReadiness, CredentialIssue, ExchangeAdmission,
     PasswordIssuanceCustody, PlannedExchange, PlannedFamilyAlarmCommit, PlannedLogout,
-    PlannedRefresh, PlannedRevocationCommit, ProviderError, ProviderSessionIssuancePlan,
-    StepUpBinding, auth_required as provider_auth_required,
+    PlannedRefresh, PlannedRevocationCommit, ProviderError, ProviderGuestSessionIssuancePlan,
+    ProviderSessionIssuancePlan, StepUpBinding, auth_required as provider_auth_required,
     credential_superseded as provider_credential_superseded,
     refresh_superseded as provider_refresh_superseded, session_expired as provider_session_expired,
     session_revoked as provider_session_revoked,
@@ -15227,6 +15227,27 @@ async fn enforce_registered_route_policy_inner(
     {
         return apply_registered_response_controls(effective, error.into_response());
     }
+    // Availability is the first route-specific guest/password decision. It
+    // precedes the global app-data and online-protocol gates as well as source
+    // derivation, admission, body polling, normalization, and attempt charging,
+    // so disabled guest entry and unavailable production claim cannot become
+    // transport-, posture-, protocol-, budget-, or route-presence oracles.
+    // @ref LLP 0214#81-guest-principal-and-session-creation — disabled guest
+    // entry is the fixed absent-route result before request-shape or source
+    // facts can become an oracle.
+    if spec.path == "/auth/guest"
+        && let Err(error) = guest_entry_availability(&runtime).await
+    {
+        return apply_registered_response_controls(effective, error.into_response());
+    }
+    // @ref LLP 0214#82-guest-claim — claim availability, including the
+    // applicable provider-profile refusal, is resolved before any global gate
+    // or credential candidate and target identifier is inspected.
+    if spec.path == "/auth/guest/claim/password"
+        && let Err(error) = guest_password_claim_availability(&runtime).await
+    {
+        return apply_registered_response_controls(effective, error.into_response());
+    }
     if let Some(error) = auth_app_data_refusal(spec, &runtime) {
         return apply_registered_response_controls(
             effective,
@@ -15285,25 +15306,6 @@ async fn enforce_registered_route_policy_inner(
             effective,
             ApiError::from(SnapbackError::error(code, "auth", message)).into_response(),
         );
-    }
-    // Availability is the first route-specific guest/password decision. It
-    // precedes source derivation, admission, body polling, normalization, and
-    // attempt charging so disabled guest entry and unavailable production
-    // signup cannot become budget-state or route-presence oracles.
-    // @ref LLP 0214#81-guest-principal-and-session-creation — disabled guest
-    // entry is the fixed absent-route result before request-shape or source
-    // facts can become an oracle.
-    if spec.path == "/auth/guest"
-        && let Err(error) = guest_entry_availability(&runtime).await
-    {
-        return apply_registered_response_controls(effective, error.into_response());
-    }
-    // @ref LLP 0214#82-guest-claim — claim availability is resolved before
-    // any credential candidate or target identifier is inspected.
-    if spec.path == "/auth/guest/claim/password"
-        && let Err(error) = guest_password_claim_availability(&runtime).await
-    {
-        return apply_registered_response_controls(effective, error.into_response());
     }
     if spec.path == "/auth/password/signup" {
         match installed_auth_provider(&runtime) {
@@ -19060,7 +19062,7 @@ fn password_issue_response(
 async fn commit_guest_issuance_plan(
     runtime: &AppState,
     provider: &Arc<AuthProvider>,
-    plan: ProviderSessionIssuancePlan,
+    plan: ProviderGuestSessionIssuancePlan,
     route_admission: &AdmissionLease,
 ) -> Result<IssuanceFinish, SnapbackError> {
     let coordinator = runtime.auth_coordinator.clone().ok_or_else(|| {
@@ -19070,8 +19072,9 @@ async fn commit_guest_issuance_plan(
             "authentication projection is unavailable",
         )
     })?;
-    let carrier = coordinator.premark_issuance(plan).await?;
-    let commit_plan = carrier.plan().commit_plan();
+    let (issuance, guest) = plan.into_coordinated_parts();
+    let carrier = coordinator.premark_issuance(issuance).await?;
+    let commit_plan = guest.commit_plan(carrier.plan().commit_plan());
     let effect_admission = route_admission.clone();
     let owned_state = runtime.clone();
     let owned_provider = provider.clone();
@@ -24482,8 +24485,12 @@ async fn execute_auth_host_operation(
                     snapback.execute_auth_plan(admission.plan_mint_session_plan(now_ms))
                 })
                 .await;
+                // Guest entry grows the provider issuance plan with
+                // route-only accounting state. Keep the rehearsal copy
+                // behind one allocation so the shared auth dispatcher
+                // does not inherit that by-value plan size.
                 let planned = match planned {
-                    Ok(planned) => planned,
+                    Ok(planned) => Box::new(planned),
                     Err(error) => {
                         return Ok(auth_host_result(
                             runtime,
@@ -24654,7 +24661,8 @@ async fn execute_auth_host_operation(
                 now_ms,
             };
             let outcome = with_snapback(&runtime.snapback, move |snapback| {
-                snapback.auth_rehearsal_exercise(exercise)
+                snapback
+                        .auth_rehearsal_exercise(exercise)
                         .map(|outcome| match outcome {
                             crate::storage::auth_rehearsal::RehearsalExerciseOutcome::Fresh(
                                 value,
@@ -24940,10 +24948,9 @@ async fn host_ops_handler(
     let ring = runtime.recent_invocations.clone();
     let started_at = crate::host_ops::iso8601_utc_ms(now_millis());
     let started = std::time::Instant::now();
-    // The inner dispatcher is a large branch union; pin it on the heap so
-    // middleware/observation frames do not duplicate that size on the poll
-    // stack for every host operation.
-    let result = Box::pin(host_ops_handler_inner(
+    // Pin the unboxed dispatcher directly here so this middleware path keeps
+    // one allocation while direct owner-crate calls use the bounded wrapper.
+    let result = Box::pin(host_ops_handler_inner_unboxed(
         State(runtime.clone()),
         route_admission,
         authority,
@@ -25002,7 +25009,7 @@ async fn host_ops_handler(
     }
     let operational_readiness =
         if operation == "app.inspect" && matches!(&result, Ok(Json(envelope)) if envelope.ok) {
-            Some(evaluate_operational_readiness_for_runtime(&runtime).await)
+            Some(Box::pin(evaluate_operational_readiness_for_runtime(&runtime)).await)
         } else {
             None
         };
@@ -25042,6 +25049,28 @@ async fn host_ops_handler(
 }
 
 async fn host_ops_handler_inner(
+    runtime: State<AppState>,
+    route_admission: Option<Extension<AdmissionLease>>,
+    authority: Option<Extension<PreparedAuthority>>,
+    impersonation: Option<Extension<crate::admin_impersonation::VerifiedImpersonationCapability>>,
+    headers: HeaderMap,
+    request: Json<crate::host_ops::HostOpsRequest>,
+) -> Result<Json<crate::host_ops::HostOpsResult>, ApiError> {
+    // This is the dispatcher future's allocation boundary. Keeping it here
+    // gives direct owner-crate callers and Axum's outer middleware the same
+    // bounded poll frame without allocating twice.
+    Box::pin(host_ops_handler_inner_unboxed(
+        runtime,
+        route_admission,
+        authority,
+        impersonation,
+        headers,
+        request,
+    ))
+    .await
+}
+
+async fn host_ops_handler_inner_unboxed(
     State(runtime): State<AppState>,
     route_admission: Option<Extension<AdmissionLease>>,
     authority: Option<Extension<PreparedAuthority>>,

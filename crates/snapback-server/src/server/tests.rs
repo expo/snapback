@@ -18729,6 +18729,73 @@ async fn guest_entry_authorizes_claims_reaps_and_refuses_policy_or_input_failure
     );
 }
 
+/// @ref LLP 0214#81-guest-principal-and-session-creation — a disabled guest
+/// route is absent before hosted admission or the online protocol offer can
+/// reveal that either registered entry path exists.
+/// @ref LLP 0214#82-guest-claim — password claim shares the same fixed
+/// availability cut before any global gate or credential handling.
+#[tokio::test]
+async fn disabled_guest_routes_preempt_bad_protocol_and_degraded_hosted_admission() {
+    let tombstone = GuestCleanupContractV1::Declarative {
+        default: GuestCleanupActionV1::Tombstone,
+        tables: BTreeMap::new(),
+    };
+    let mut disabled = guest_sessions_activation_server_fixture_async(false, tombstone).await;
+    Arc::make_mut(&mut disabled.server).auth_deployment =
+        crate::auth::deployment::AuthDeploymentTarget::Hosted;
+    disabled.hosted_listener_binding = crate::admin::HostedListenerBinding::Pending;
+    let router = app(disabled);
+
+    for (path, body) in [
+        ("/auth/guest", json!({})),
+        (
+            "/auth/guest/claim/password",
+            json!({
+                "email": "disabled-oracle@example.com",
+                "password": "disabled-oracle-password-123!",
+            }),
+        ),
+    ] {
+        for protocol in [None, Some("malformed")] {
+            let mut request = auth_http_request(
+                "POST",
+                path,
+                serde_json::to_vec(&body).expect("disabled route body"),
+                true,
+                None,
+                None,
+            );
+            if path == "/auth/guest" {
+                request.headers_mut().insert(
+                    "idempotency-key",
+                    HeaderValue::from_static("disabled-oracle-idempotency"),
+                );
+            }
+            if let Some(protocol) = protocol {
+                request.headers_mut().insert(
+                    HeaderName::from_static("x-snapback-auth-client-protocol"),
+                    HeaderValue::from_str(protocol).expect("malformed protocol offer header"),
+                );
+            }
+            let response = router
+                .clone()
+                .oneshot(request)
+                .await
+                .expect("disabled route refusal");
+            assert_eq!(
+                response.status(),
+                StatusCode::NOT_FOUND,
+                "path={path} protocol={protocol:?}"
+            );
+            assert_eq!(
+                response_json(response).await["diagnostic"]["code"],
+                "SNAPBACK_AUTH_GUEST_DISABLED",
+                "path={path} protocol={protocol:?}"
+            );
+        }
+    }
+}
+
 /// @ref LLP 0215#6-idempotency-and-retry-identity — guest creation is an effect: a
 /// lost response and concurrent identical retries converge on one durable
 /// principal/session, while a last-slot race admits at most one fresh key and
@@ -26335,6 +26402,7 @@ const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
     // server faults; they are not caller-authored graph admission failures.
     "SNAPBACK_COMMIT_CAPSULE_DESTINATION_MISMATCH",
     "SNAPBACK_COMMIT_INTENDED_ROWS_ABSENT",
+    "SNAPBACK_COMMIT_RECONCILIATION_WITNESS_MISMATCH",
     "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_ACTIVE",
     "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_IDENTITY_MISMATCH",
     "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_NOT_FOUND",
@@ -40447,6 +40515,7 @@ impl CommitCapsulePrototypeDatabase {
                 None,
                 None,
                 PasswordIdentifierMode::UsernameV1,
+                None,
             )
         })
         .await
