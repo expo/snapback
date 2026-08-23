@@ -94,7 +94,7 @@ documents have since attached to it:
    omits any of them does not unblock 0268 B1 (0268 §0, binding).
 9. **The OQ-1 grammar-lineage ruling applied** — see below.
 
-**Exit record:** a dated note in LLP 0209 (v0.5, "G0 exit") listing each
+**Exit record:** a dated note in LLP 0209 (v0.6, "G0 exit") listing each
 of 1–9 with its evidence pointer, Status moving Draft → Review for the
 §2–§4 content G0 makes concrete; the corpus and its oracle digests
 committed under `demos/zerobugs/control/` (or the conformance crate) with
@@ -282,7 +282,7 @@ orchestrator lands). Docs and corpus land together per repo policy.
   structural-work measurement that sizes the bounds. **No runtime path
   consumes the IR yet** — the opaque handlers keep serving; the corpus
   is the only executable deliverable.
-- **Exit:** the dated v0.5 note in LLP 0209 with the bound table for
+- **Exit:** the dated v0.6 note in LLP 0209 with the bound table for
   author ratification; this ticket records the landed SHAs and moves to
   `issues/closed/`; the parent evidence anchor and
   `issues/20260808-d2-d4-owner-specs-commission.md` get a pointer.
