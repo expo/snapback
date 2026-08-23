@@ -333,4 +333,43 @@ mod tests {
             ]
         );
     }
+
+    #[test]
+    fn stream_attempt_persistence_framing_disambiguates_row_sets() {
+        let rows_a = vec![
+            ("a".to_owned(), "b".to_owned(), "c".to_owned()),
+            ("d".to_owned(), "e".to_owned(), "f".to_owned()),
+        ];
+        let rows_b = vec![
+            ("ab".to_owned(), "c".to_owned(), "d".to_owned()),
+            (String::new(), "e".to_owned(), "f".to_owned()),
+        ];
+        let concatenate_without_lengths = |rows: &[(String, String, String)]| {
+            let mut bytes = Vec::new();
+            for (token, client_key, record_json) in rows {
+                bytes.extend_from_slice(token.as_bytes());
+                bytes.extend_from_slice(client_key.as_bytes());
+                bytes.extend_from_slice(record_json.as_bytes());
+            }
+            bytes
+        };
+
+        assert_ne!(rows_a, rows_b);
+        assert_eq!(
+            concatenate_without_lengths(&rows_a),
+            concatenate_without_lengths(&rows_b)
+        );
+
+        let key = [0x42; STREAM_ATTEMPT_PERSISTENCE_KEY_BYTES];
+        assert_ne!(
+            stream_attempt_persistence_hmac(
+                &key,
+                &stream_attempt_persistence_authentication_message(&rows_a),
+            ),
+            stream_attempt_persistence_hmac(
+                &key,
+                &stream_attempt_persistence_authentication_message(&rows_b),
+            )
+        );
+    }
 }

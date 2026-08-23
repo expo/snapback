@@ -1,11 +1,12 @@
 use super::*;
 
 /// A stream-attempt row observed through the canonical store, carrying the
-/// exact adoption context supplied for that read. The fields are private, the
-/// type is not deserializable, and the public API exposes no constructor, so a
-/// downstream caller cannot mint this witness. Within `snapback-kernel`,
-/// issuing it only after a successful storage read remains an implementation
-/// invariant rather than a stronger Rust visibility guarantee.
+/// exact adoption context supplied for that read. The type is not
+/// deserializable, and the compile-fail examples below guard direct field
+/// construction plus the single `new` constructor spelling. Within
+/// `snapback-kernel`, issuing it only after a successful storage read remains
+/// an implementation invariant rather than a stronger Rust visibility
+/// guarantee.
 ///
 /// This binding prevents replacing the context after the read. It does not
 /// claim that the context owned the historical runner recorded by the row;
@@ -43,6 +44,9 @@ pub struct DurableStreamAttempt<ReadContext> {
     read_context: ReadContext,
 }
 
+// The `new` fixture above is not an exhaustive public-constructor check: a
+// future `issue` or `from_parts` spelling would require its own guard. See
+// issues/20260822-rustdoc-compile-fail-error-codes-are-not-enforced.md.
 impl<ReadContext> DurableStreamAttempt<ReadContext> {
     pub fn persisted(&self) -> &crate::stream_attempt::PersistedStreamAttempt {
         &self.persisted

@@ -1983,6 +1983,33 @@ mod tests {
             "SNAPBACK_ACTION_STREAM_PERSISTENCE_UNAUTHORIZED"
         );
 
+        let mut altered_record: PersistedStreamAttempt =
+            serde_json::from_str(&legitimate_batch.rows()[0].2)
+                .expect("decode the legitimate authenticated record");
+        altered_record.chunk_count = altered_record
+            .chunk_count
+            .checked_add(1)
+            .expect("the fixture chunk count can advance");
+        let (same_token, same_client_key, altered_record_json) = altered_record
+            .to_row()
+            .expect("serialize the record-json-only tamper");
+        assert_eq!(same_token, legitimate_batch.rows()[0].0);
+        assert_eq!(same_client_key, legitimate_batch.rows()[0].1);
+        assert_ne!(altered_record_json, legitimate_batch.rows()[0].2);
+        let record_json_tampered = StreamAttemptPersistenceBatch::from_authenticated_parts(
+            vec![(same_token, same_client_key, altered_record_json)],
+            legitimate_batch.issuer().to_vec(),
+            legitimate_batch.authentication_tag().to_vec(),
+        );
+        let record_json_tampered_error = storage
+            .settlement()
+            .upsert_stream_attempts(&record_json_tampered, 1)
+            .expect_err("changing only authenticated record JSON invalidates the batch");
+        assert_eq!(
+            record_json_tampered_error.diagnostic.code,
+            "SNAPBACK_ACTION_STREAM_PERSISTENCE_UNAUTHORIZED"
+        );
+
         let fabricated = PersistedStreamAttempt {
             token: "fabricated-terminal".to_owned(),
             client_key: "fabricated-terminal".to_owned(),
