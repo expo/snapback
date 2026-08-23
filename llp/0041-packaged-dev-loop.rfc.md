@@ -6,6 +6,13 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (0.1.25 ceremony complete):** 2026-08-23 (the fourteen-package
+closure published and promoted from qualified source `9d9265394953` under
+holding tag `fastpath-0-1-25-9d9265394953`; the public acceptance runner
+first-published, all staged and registry bytes matched, and the post-promotion
+cold boot passed. See §0.1.25 for the completed record and mandatory security
+nonclaims.)
+
 **Revised (public acceptance runner joins the next closure):** 2026-08-22
 (the LLP 0275 D9 author ruling publishes `@expo/snapback-acceptance` as the
 fourteenth identity-preset package; the thirteen-package 0.1.24 record remains
@@ -1583,6 +1590,55 @@ package's supported root and v1 lifecycle/receipt compatibility contract are
 specified by LLP 0275 D9. This is not a publication-completion record: the
 top-level published-closure fact remains the thirteen packages actually
 promoted at 0.1.24 until a separately authorized ceremony advances it.
+
+### 0.1.25 (2026-08-23) — fourteen-package qualified fast-path publication
+
+The fourteen-package identity-preset closure published from qualified source
+revision `9d9265394953769aaa52e63c8a914464175f93ab` under holding tag
+`fastpath-0-1-25-9d9265394953`. `@expo/snapback-acceptance` first-published in
+this cut. The retained candidate ledger is
+`~/snapback-release-ledgers/fastpath-ledger-0.1.25-9d9265394953.json`
+(SHA-256 `31a6dcbb78b394f14e4773d845e7e5e8ee6da99df99907bdb63cccd8ff78d3ae`).
+Every staged tarball rehashed to that ledger before publication. The
+fail-closed staged-tarball gate reopened both packaged-store qualification
+receipts (`darwin-arm64` SHA-256 `7f3757b72fad5184…`, `linux-x64` SHA-256
+`5496274a4c288753…`), their clean `release` / `public-package` identity at the
+qualified source, and the shared build-matched admin snapshot (SHA-256
+`5ed4d703a5901fcc…`).
+
+All fourteen exact versions published under the holding tag and re-downloaded
+byte-identical to the ledger. The registry-installed boot smoke passed all
+eleven checks before promotion. The first complete `latest` readback then
+observed ordinary npm propagation lag for `@expo/snapback-codegen` alone and
+correctly left the ceremony incomplete; an idempotent resume skipped all
+already-published immutable versions, repeated byte verification and the boot
+smoke, and closed with all fourteen `latest` tags at 0.1.25. The retained final
+ceremony is
+`~/snapback-release-ledgers/fastpath-ceremony-0.1.25-9d9265394953.json`
+(SHA-256 `e173384ab06225a590d3462566ac9d52424fd378f87b526963661c4e1b6c81b8`).
+A separate post-promotion cold boot receipt is
+`~/snapback-release-ledgers/smoke-0.1.25-post-promotion-receipt.json`
+(SHA-256 `8a5f65a5af2fdb05d325fe202c97668f200a11b8933eb3c87fbe420eeaddac61`),
+again with all eleven checks green.
+
+Immediately before the first npm mutation, a fresh fetch observed
+`origin/main` at `2456ea437caa`, 25 descendant commits ahead of the qualified
+source. LLP 0189 D-3 and this ceremony's snapshot rule preserve the qualified
+source as the closure identity, so publication did not restart on the newer
+tip. The fast path does not acquire a publication-authority lease or allocate
+an epoch; `publicationAuthorityEpoch` is therefore `null` for this closure and
+the last recorded leased epoch remains 28.
+
+**Mandatory security nonclaims (LLP 0283 Revised (g)).** All four F-1 defect
+families remain **open**. The LLP 0284 security gates remain **red by design**.
+This publication claims **no adversarial-handler containment**, no F-1 closure,
+and no green LLP 0284 gate state. The 0.1.25 package qualification and published
+R2 input do not weaken or supersede any of those facts.
+
+This cut gives LLP 0295 R2 a coherent published Snapback closure containing the
+landed LLP 0295 W1–W5 and LLP 0294 W6/W7 repair surface. It does not claim that
+R2 has run, that its instrument is validated, or that any authoring profile has
+won.
 
 ### 0.1.16 (2026-08-09) — first cut under the rapid-publication ruling
 

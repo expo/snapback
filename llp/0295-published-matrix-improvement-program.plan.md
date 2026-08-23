@@ -8,6 +8,11 @@ Ephemeral state, Memberships, Assets, Client integration, Exact/Contract
 integration, Guide, Benchmarks, Testing, Performance, Rust build
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-20
+**Revised:** 2026-08-23 (the qualified fourteen-package 0.1.25 closure from
+`9d9265394953` is published and supplies R2's coherent Snapback package pin;
+R2 itself has not run and no profile result is claimed. The four LLP 0283 F-1
+defect families remain open, the LLP 0284 gates remain red by design, and no
+adversarial-handler containment is claimed.)
 **Revised:** 2026-08-22 (author rulings: accept LLP 0267 §7's local-only W5
 diagnostics packet and gate Coterie/Clique independently through R1 before
 commissioning their combined R2 wave). 2026-08-22 (R1 evidence correction: retains raw control/native
@@ -836,6 +841,13 @@ only after both app gates are green. A failure in one app blocks that app's
 R2 cells, not collection of the other app's R1 evidence; this keeps failures
 attributable without weakening the requirement that the published R2
 comparison use one qualified combined wave.
+
+**Published Snapback input (2026-08-23).** The qualified 0.1.25 closure from
+`9d9265394953` is now selected by `latest` on all fourteen package identities
+and supplies the coherent Snapback pin required by this rerun. This checkpoint
+does not say R2 has executed, validate its instrument, or select a profile. It
+also makes no F-1 or adversarial-handler-containment claim: the four LLP 0283
+F-1 defect families remain open and the LLP 0284 gates remain red by design.
 
 ### R3. Claim-eligible wave
 

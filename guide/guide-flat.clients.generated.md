@@ -2559,9 +2559,7 @@ fresh query args with a fresh managed presence value can form a
 render/resubscribe/publish loop that saturates the browser main thread until
 clicks stop landing, with no hook diagnostic identifying the storm.
 
-<!-- since: 0.1.25 unreleased -->
-> **Unreleased.** The named `SkipSentinel` and `SkipOr<T>` types are newer than
-> the published 0.1.24 package closure.
+<!-- since: 0.1.25 -->
 
 The imported `skip` sentinel keeps its type through ordinary `useMemo`
 inference, so conditional presence or query options need no explicit return
@@ -3557,7 +3555,7 @@ npm create snapback-app my-app
 #               bun create snapback-app my-app
 #               pnpm create snapback-app my-app
 # scoped CLI spelling, same scaffolder:
-#   npx --yes @expo/snapback-cli@0.1.24 new my-app --template expo-chat
+#   npx --yes @expo/snapback-cli@0.1.25 new my-app --template expo-chat
 ```
 
 `expo-chat` is `create-snapback-app`'s default template, so `--template` is
@@ -3581,11 +3579,11 @@ published closure is the checked-in record in
 
 ```sh
 npx expo install \
-  @expo/snapback-cli@0.1.24 \
-  @expo/snapback-client@0.1.24 \
-  @expo/snapback-codegen@0.1.24 \
-  @expo/snapback-expo@0.1.24 \
-  @expo/snapback-react@0.1.24 \
+  @expo/snapback-cli@0.1.25 \
+  @expo/snapback-client@0.1.25 \
+  @expo/snapback-codegen@0.1.25 \
+  @expo/snapback-expo@0.1.25 \
+  @expo/snapback-react@0.1.25 \
   expo-file-system expo-crypto expo-image-picker
 ```
 

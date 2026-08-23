@@ -6,6 +6,11 @@
 Client integration, Scheduled work, Guide, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-19
+**Revised:** 2026-08-23 (the qualified 0.1.25 closure publishes the landed
+W6/W7 repair surface from `9d9265394953`; this is a package-availability
+checkpoint, not a claim that every Plan acceptance row is complete. The four
+LLP 0283 F-1 defect families remain open, the LLP 0284 gates remain red by
+design, and no adversarial-handler containment is claimed.)
 **Revised:** 2026-08-22 (author ruling accepts LLP 0235 as the governing
 class-M design and sequences its implementation after W6 closes; the
 split-sensitive-fields workaround remains the only shipped pattern until then.)

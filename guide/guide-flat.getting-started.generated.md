@@ -650,8 +650,9 @@ macOS/arm64 and Linux/x64 runtimes plus Contract, client, codegen, React,
 app CLI, and developer-loop CLI packages; clean GitHub-hosted machines on
 both supported runtime tuples installed that exact closure and passed the
 original `todo-contract` scaffold/generate/dev/watch proof. The published
-closure has since widened to eleven packages, including
-`@expo/snapback-expo` and `create-snapback-app`.
+closure has since widened to fourteen packages, including
+`@expo/snapback-expo`, `@expo/snapback-expo-custody`,
+`@expo/snapback-acceptance`, and `create-snapback-app`.
 
 Which closure you get from npm is recorded, not remembered:
 [`published-closure.json`](../published-closure.json) is the authority, and
@@ -693,10 +694,7 @@ unrelated npm product, which is why publication historically used the
 application imports and published names are one identity and no alias
 mapping exists.
 
-<!-- since: 0.1.25 unreleased -->
-
-> **Unreleased.** The exact password/recovery relay projection is not in the
-> newest published `@expo/snapback-*` closure, 0.1.24.
+<!-- since: 0.1.25 -->
 
 ## Use password and recovery through the Vite origin
 

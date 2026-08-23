@@ -7,6 +7,12 @@ Authorization, Runtime readiness, Packaging, Templates, Verification,
 Developer experience, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-17
+**Revised:** 2026-08-23 (D9's supported root package
+`@expo/snapback-acceptance` first-published in the qualified fourteen-package
+0.1.25 closure from `9d9265394953`; package publication does not make it a
+second proof authority. The four LLP 0283 F-1 defect families remain open, the
+LLP 0284 gates remain red by design, and no adversarial-handler containment is
+claimed.)
 **Revised:** 2026-08-22 (D9 terminal-cleanup reconciliation: lifecycle stop
 has an independent bounded last-chance controller, so cleanup callbacks and
 client inspection cannot starve its once-only managed-child termination.)

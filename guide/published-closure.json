@@ -2,8 +2,18 @@
   "schemaVersion": "snapback-published-closure.v1",
   "scope": "@expo/snapback-*",
   "registry": "https://registry.npmjs.org",
-  "newestPublished": "0.1.24",
-  "publishedAt": "2026-08-17",
-  "newestQualified": "0.1.24",
+  "newestPublished": "0.1.25",
+  "publishedAt": "2026-08-23",
+  "newestQualified": "0.1.25",
+  "closureId": "fastpath-0-1-25-9d9265394953",
+  "qualifiedSourceRevision": "9d9265394953769aaa52e63c8a914464175f93ab",
+  "ledgerSha256": "31a6dcbb78b394f14e4773d845e7e5e8ee6da99df99907bdb63cccd8ff78d3ae",
+  "publicationAuthorityEpoch": null,
+  "lastRecordedLeasedPublicationEpoch": 28,
+  "securityNonclaims": {
+    "f1DefectFamilies": "open",
+    "llp0284SecurityGates": "red-by-design",
+    "adversarialHandlerContainment": "not-claimed"
+  },
   "updateProtocol": "The npm promotion lane updates newestPublished (and publishedAt / newestQualified when applicable) in the same change that publishes a new closure, then regenerates the guide manifest and sweeps unreleased fences per guide/conventions.md."
 }

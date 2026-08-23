@@ -686,9 +686,7 @@ fresh query args with a fresh managed presence value can form a
 render/resubscribe/publish loop that saturates the browser main thread until
 clicks stop landing, with no hook diagnostic identifying the storm.
 
-<!-- since: 0.1.25 unreleased -->
-> **Unreleased.** The named `SkipSentinel` and `SkipOr<T>` types are newer than
-> the published 0.1.24 package closure.
+<!-- since: 0.1.25 -->
 
 The imported `skip` sentinel keeps its type through ordinary `useMemo`
 inference, so conditional presence or query options need no explicit return
