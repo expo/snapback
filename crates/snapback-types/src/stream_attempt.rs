@@ -1,7 +1,10 @@
 use crate::diagnostic::{SnapbackError, SnapbackResult};
+use hmac::{Hmac, Mac as _};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use sha2::Sha256;
 use std::collections::BTreeMap;
+use zeroize::Zeroizing;
 
 /// Stable privacy identity for a streaming action. Session reconnects compare
 /// the user id, service reconnects the credential id, while anonymous access
@@ -146,30 +149,114 @@ impl PersistedStreamAttempt {
     }
 }
 
-const STREAM_ATTEMPT_PERSISTENCE_SIGNATURE_DOMAIN: &[u8] =
-    b"snapback.stream-attempt-persistence.v1\0";
+type StreamAttemptPersistenceHmac = Hmac<Sha256>;
 
-/// An exact registry snapshot authorized for one storage write. The row bytes
-/// remain inspectable for persistence, but altering any byte invalidates the
-/// signature. Storage additionally requires the issuer key registered when
-/// its serving graph was constructed.
+const STREAM_ATTEMPT_PERSISTENCE_KEY_BYTES: usize = 32;
+const STREAM_ATTEMPT_PERSISTENCE_ISSUER_DOMAIN: &[u8] =
+    b"snapback.stream-attempt-persistence.issuer.hmac-sha256.v1\0";
+const STREAM_ATTEMPT_PERSISTENCE_MAC_DOMAIN: &[u8] =
+    b"snapback.stream-attempt-persistence.mac.hmac-sha256.v1\0";
+
+fn stream_attempt_persistence_hmac(key: &[u8], message: &[u8]) -> [u8; 32] {
+    let mut mac = StreamAttemptPersistenceHmac::new_from_slice(key)
+        .expect("HMAC-SHA256 accepts stream-attempt key material");
+    mac.update(message);
+    let bytes = mac.finalize().into_bytes();
+    let mut tag = [0; 32];
+    tag.copy_from_slice(&bytes);
+    tag
+}
+
+/// Process-local HMAC-SHA256 authority held only by the stream-attempt
+/// registry. Its verification half can cross the adopt-time crate boundary
+/// without exposing an API that authenticates caller-selected rows.
+///
+/// @ref LLP 0076#settlement-and-retry — persistence binds the exact registry
+/// bytes while keeping raw kernel writes available for startup reconciliation.
+#[doc(hidden)]
+pub struct StreamAttemptPersistenceMacKey {
+    material: Zeroizing<[u8; STREAM_ATTEMPT_PERSISTENCE_KEY_BYTES]>,
+    issuer: [u8; 32],
+}
+
+impl StreamAttemptPersistenceMacKey {
+    pub fn generate() -> Result<Self, ()> {
+        let mut material = [0; STREAM_ATTEMPT_PERSISTENCE_KEY_BYTES];
+        getrandom::fill(&mut material).map_err(|_| ())?;
+        let issuer =
+            stream_attempt_persistence_hmac(&material, STREAM_ATTEMPT_PERSISTENCE_ISSUER_DOMAIN);
+        Ok(Self {
+            material: Zeroizing::new(material),
+            issuer,
+        })
+    }
+
+    pub fn verifier(&self) -> StreamAttemptPersistenceVerifier {
+        StreamAttemptPersistenceVerifier {
+            material: self.material.clone(),
+            issuer: self.issuer,
+        }
+    }
+
+    pub fn authenticate(
+        &self,
+        rows: Vec<(String, String, String)>,
+    ) -> StreamAttemptPersistenceBatch {
+        let message = stream_attempt_persistence_authentication_message(&rows);
+        let authentication_tag =
+            stream_attempt_persistence_hmac(self.material.as_slice(), &message).to_vec();
+        StreamAttemptPersistenceBatch {
+            rows,
+            issuer: self.issuer.to_vec(),
+            authentication_tag,
+        }
+    }
+}
+
+/// Verify-only projection of the process-local persistence MAC key. The key
+/// material remains opaque even though this carrier crosses crate boundaries.
+#[doc(hidden)]
+pub struct StreamAttemptPersistenceVerifier {
+    material: Zeroizing<[u8; STREAM_ATTEMPT_PERSISTENCE_KEY_BYTES]>,
+    issuer: [u8; 32],
+}
+
+impl StreamAttemptPersistenceVerifier {
+    pub fn issuer(&self) -> &[u8] {
+        &self.issuer
+    }
+
+    pub fn verify(&self, message: &[u8], authentication_tag: &[u8]) -> bool {
+        let Ok(mut mac) = StreamAttemptPersistenceHmac::new_from_slice(self.material.as_slice())
+        else {
+            return false;
+        };
+        mac.update(message);
+        mac.verify_slice(authentication_tag).is_ok()
+    }
+}
+
+/// An exact registry snapshot authenticated for one storage write. The row
+/// bytes remain inspectable for persistence, but altering any byte invalidates
+/// the HMAC-SHA256 tag. Storage additionally requires the issuer registered
+/// when its serving graph was constructed.
 pub struct StreamAttemptPersistenceBatch {
     rows: Vec<(String, String, String)>,
-    issuer_public_key: Vec<u8>,
-    signature: Vec<u8>,
+    issuer: Vec<u8>,
+    authentication_tag: Vec<u8>,
 }
 
 impl StreamAttemptPersistenceBatch {
     #[doc(hidden)]
-    pub fn from_signed_parts(
+    pub fn from_authenticated_parts(
         rows: Vec<(String, String, String)>,
-        issuer_public_key: Vec<u8>,
-        signature: Vec<u8>,
+        issuer: Vec<u8>,
+        authentication_tag: Vec<u8>,
     ) -> Self {
         Self {
             rows,
-            issuer_public_key,
-            signature,
+            issuer,
+            authentication_tag,
         }
     }
 
@@ -178,25 +265,27 @@ impl StreamAttemptPersistenceBatch {
     }
 
     #[doc(hidden)]
-    pub fn issuer_public_key(&self) -> &[u8] {
-        &self.issuer_public_key
+    pub fn issuer(&self) -> &[u8] {
+        &self.issuer
     }
 
     #[doc(hidden)]
-    pub fn signature(&self) -> &[u8] {
-        &self.signature
+    pub fn authentication_tag(&self) -> &[u8] {
+        &self.authentication_tag
     }
 
     #[doc(hidden)]
-    pub fn signing_message(&self) -> Vec<u8> {
-        stream_attempt_persistence_signing_message(&self.rows)
+    pub fn authentication_message(&self) -> Vec<u8> {
+        stream_attempt_persistence_authentication_message(&self.rows)
     }
 }
 
-/// Canonical, length-delimited bytes signed by the stream-attempt registry.
-/// Length prefixes prevent tuple or field-boundary ambiguity.
+/// Canonical, length-delimited bytes authenticated by the stream-attempt
+/// registry. Length prefixes prevent tuple or field-boundary ambiguity.
 #[doc(hidden)]
-pub fn stream_attempt_persistence_signing_message(rows: &[(String, String, String)]) -> Vec<u8> {
+pub fn stream_attempt_persistence_authentication_message(
+    rows: &[(String, String, String)],
+) -> Vec<u8> {
     let payload_len = rows.iter().fold(0usize, |total, row| {
         total
             .saturating_add(8)
@@ -207,12 +296,12 @@ pub fn stream_attempt_persistence_signing_message(rows: &[(String, String, Strin
             .saturating_add(row.2.len())
     });
     let mut message = Vec::with_capacity(
-        STREAM_ATTEMPT_PERSISTENCE_SIGNATURE_DOMAIN
+        STREAM_ATTEMPT_PERSISTENCE_MAC_DOMAIN
             .len()
             .saturating_add(8)
             .saturating_add(payload_len),
     );
-    message.extend_from_slice(STREAM_ATTEMPT_PERSISTENCE_SIGNATURE_DOMAIN);
+    message.extend_from_slice(STREAM_ATTEMPT_PERSISTENCE_MAC_DOMAIN);
     message.extend_from_slice(&(rows.len() as u64).to_be_bytes());
     for (token, client_key, record_json) in rows {
         for field in [
@@ -225,4 +314,23 @@ pub fn stream_attempt_persistence_signing_message(rows: &[(String, String, Strin
         }
     }
     message
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stream_attempt_persistence_uses_hmac_sha256() {
+        // RFC 4231 test case 1 pins the primitive independently of the batch
+        // framing and issuer-domain separation around it.
+        assert_eq!(
+            stream_attempt_persistence_hmac(&[0x0b; 20], b"Hi There"),
+            [
+                0xb0, 0x34, 0x4c, 0x61, 0xd8, 0xdb, 0x38, 0x53, 0x5c, 0xa8, 0xaf, 0xce, 0xaf, 0x0b,
+                0xf1, 0x2b, 0x88, 0x1d, 0xc2, 0x00, 0xc9, 0x83, 0x3d, 0xa7, 0x26, 0xe9, 0x37, 0x6c,
+                0x2e, 0x32, 0xcf, 0xf7,
+            ]
+        );
+    }
 }

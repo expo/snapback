@@ -1606,7 +1606,8 @@ impl DetachedReadSnapshot {
 pub struct ServingDatabase {
     db: LocalDatabase,
     authority: KernelCommitAuthority,
-    stream_attempt_persistence_verifier: Option<Vec<u8>>,
+    stream_attempt_persistence_verifier:
+        Option<crate::stream_attempt::StreamAttemptPersistenceVerifier>,
     stream_attempt_startup_reconciliation: Option<StreamAttemptStartupReconciliation>,
 }
 
@@ -1622,19 +1623,22 @@ impl ServingDatabase {
         Self::adopt_with_optional_stream_attempt_verifier(db, None)
     }
 
-    /// Construct the serving graph authorized to persist batches signed by
-    /// one exact stream-attempt registry. Supplying a verifier is the explicit
-    /// embedding authorization; later settlement access cannot replace it.
+    /// Construct the serving graph authorized to persist batches authenticated
+    /// by one exact stream-attempt registry. Supplying a verifier is the
+    /// explicit embedding authorization; later settlement access cannot
+    /// replace it.
     pub fn adopt_with_stream_attempt_verifier(
         db: LocalDatabase,
-        verifier: Vec<u8>,
+        verifier: crate::stream_attempt::StreamAttemptPersistenceVerifier,
     ) -> SnapbackResult<Self> {
         Self::adopt_with_optional_stream_attempt_verifier(db, Some(verifier))
     }
 
     fn adopt_with_optional_stream_attempt_verifier(
         mut db: LocalDatabase,
-        stream_attempt_persistence_verifier: Option<Vec<u8>>,
+        stream_attempt_persistence_verifier: Option<
+            crate::stream_attempt::StreamAttemptPersistenceVerifier,
+        >,
     ) -> SnapbackResult<Self> {
         let authority = db.claim_commit_authority().ok_or_else(|| {
             SnapbackError::error(
@@ -1822,7 +1826,7 @@ impl ServingDatabase {
     pub fn settlement(&mut self) -> SettlementKernel<'_> {
         SettlementKernel::new_with_stream_attempt_verifier(
             &mut self.db,
-            self.stream_attempt_persistence_verifier.as_deref(),
+            self.stream_attempt_persistence_verifier.as_ref(),
         )
     }
 

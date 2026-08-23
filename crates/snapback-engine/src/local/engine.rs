@@ -26301,7 +26301,7 @@ impl LocalSnapback {
         asset_store_config: AssetStoreConfig,
     ) -> SnapbackResult<Self> {
         let stream_attempt_verifier =
-            crate::stream_attempt::global_stream_attempt_registry().persistence_verifying_key()?;
+            crate::stream_attempt::global_stream_attempt_registry().persistence_verifier()?;
         Self::from_database_in_commit_graph(
             crate::storage::ServingDatabase::adopt_with_stream_attempt_verifier(
                 db,

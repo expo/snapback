@@ -1,9 +1,11 @@
 use super::*;
 
 /// A stream-attempt row observed through the canonical store, carrying the
-/// exact adoption context supplied for that read. The fields are private and
-/// the type is not deserializable: only a successful storage read can issue
-/// this witness.
+/// exact adoption context supplied for that read. The fields are private, the
+/// type is not deserializable, and the public API exposes no constructor, so a
+/// downstream caller cannot mint this witness. Within `snapback-kernel`,
+/// issuing it only after a successful storage read remains an implementation
+/// invariant rather than a stronger Rust visibility guarantee.
 ///
 /// This binding prevents replacing the context after the read. It does not
 /// claim that the context owned the historical runner recorded by the row;
@@ -30,6 +32,11 @@ use super::*;
 ///     chunk_count: 0,
 /// };
 /// let _witness = DurableStreamAttempt { persisted: forged, read_context: () };
+/// ```
+///
+/// ```compile_fail,E0599
+/// use snapback_kernel::storage::DurableStreamAttempt;
+/// let _constructor = DurableStreamAttempt::<()>::new;
 /// ```
 pub struct DurableStreamAttempt<ReadContext> {
     persisted: crate::stream_attempt::PersistedStreamAttempt,
@@ -824,7 +831,8 @@ impl LocalDatabase {
 /// kernel through typed operations instead of the wide `LocalDatabase` surface.
 pub struct SettlementKernel<'a> {
     db: &'a mut LocalDatabase,
-    stream_attempt_persistence_verifier: Option<&'a [u8]>,
+    stream_attempt_persistence_verifier:
+        Option<&'a crate::stream_attempt::StreamAttemptPersistenceVerifier>,
 }
 
 impl<'a> SettlementKernel<'a> {
@@ -837,7 +845,9 @@ impl<'a> SettlementKernel<'a> {
 
     pub(super) fn new_with_stream_attempt_verifier(
         db: &'a mut LocalDatabase,
-        stream_attempt_persistence_verifier: Option<&'a [u8]>,
+        stream_attempt_persistence_verifier: Option<
+            &'a crate::stream_attempt::StreamAttemptPersistenceVerifier,
+        >,
     ) -> Self {
         Self {
             db,
@@ -857,22 +867,20 @@ impl<'a> SettlementKernel<'a> {
                 "this serving database has no stream-attempt persistence authority",
             )
         })?;
-        if batch.issuer_public_key() != expected_issuer {
+        if batch.issuer() != expected_issuer.issuer() {
             return Err(SnapbackError::error(
                 "SNAPBACK_ACTION_STREAM_PERSISTENCE_UNAUTHORIZED",
                 "storage",
                 "the stream-attempt batch issuer does not own this serving database",
             ));
         }
-        ring::signature::UnparsedPublicKey::new(&ring::signature::ED25519, expected_issuer)
-            .verify(&batch.signing_message(), batch.signature())
-            .map_err(|_| {
-                SnapbackError::error(
-                    "SNAPBACK_ACTION_STREAM_PERSISTENCE_UNAUTHORIZED",
-                    "storage",
-                    "the stream-attempt persistence signature is invalid",
-                )
-            })?;
+        if !expected_issuer.verify(&batch.authentication_message(), batch.authentication_tag()) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ACTION_STREAM_PERSISTENCE_UNAUTHORIZED",
+                "storage",
+                "the stream-attempt persistence authentication tag is invalid",
+            ));
+        }
         self.db.upsert_stream_attempts(batch.rows(), now_ms)
     }
 

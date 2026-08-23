@@ -18,8 +18,6 @@
 
 use crate::auth::invocation::PreparedAuthority;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use ring::rand::SystemRandom;
-use ring::signature::{Ed25519KeyPair, KeyPair};
 use serde::Serialize;
 use serde_json::{Value, json};
 use snapback_kernel::storage::DurableStreamAttempt;
@@ -363,14 +361,6 @@ impl InvocationCommitGate {
 /// Identity of one detached action invocation as the control plane sees it:
 /// the opaque id, shared runner gate, and finished flag the lease consults.
 /// Host-settlement authority cannot be derived from this public identity.
-///
-/// ```compile_fail,E0624
-/// use snapback_sync::stream_attempt::StreamRunnerIdentity;
-/// use std::sync::{Arc, atomic::AtomicBool};
-///
-/// let runner = StreamRunnerIdentity::new(Arc::new(AtomicBool::new(false)));
-/// let _forged = runner.host_settlement();
-/// ```
 #[derive(Clone)]
 pub struct StreamRunnerIdentity {
     invocation_id: String,
@@ -449,14 +439,15 @@ impl StreamAttemptTransitionOrigin for HostSettlement<'_> {
 
 pub struct StreamAttemptRegistry {
     inner: StdMutex<RegistryInner>,
-    persistence_signer: StdMutex<Option<Ed25519KeyPair>>,
+    persistence_mac_key:
+        StdMutex<Option<snapback_types::stream_attempt::StreamAttemptPersistenceMacKey>>,
 }
 
 impl Default for StreamAttemptRegistry {
     fn default() -> Self {
         Self {
             inner: StdMutex::new(RegistryInner::default()),
-            persistence_signer: StdMutex::new(None),
+            persistence_mac_key: StdMutex::new(None),
         }
     }
 }
@@ -496,46 +487,44 @@ impl StreamAttemptRegistry {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
-    fn with_persistence_signer<T>(
+    fn with_persistence_mac_key<T>(
         &self,
-        operation: impl FnOnce(&Ed25519KeyPair) -> T,
+        operation: impl FnOnce(&snapback_types::stream_attempt::StreamAttemptPersistenceMacKey) -> T,
     ) -> SnapbackResult<T> {
-        let mut signer = self
-            .persistence_signer
+        let mut mac_key = self
+            .persistence_mac_key
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if signer.is_none() {
-            let pkcs8 = Ed25519KeyPair::generate_pkcs8(&SystemRandom::new()).map_err(|_| {
-                SnapbackError::error(
-                    "SNAPBACK_ACTION_STREAM_PERSISTENCE_AUTHORITY_UNAVAILABLE",
-                    "runtime",
-                    "the stream-attempt registry could not create its persistence authority",
-                )
-            })?;
-            *signer = Some(Ed25519KeyPair::from_pkcs8(pkcs8.as_ref()).map_err(|_| {
-                SnapbackError::error(
-                    "SNAPBACK_ACTION_STREAM_PERSISTENCE_AUTHORITY_UNAVAILABLE",
-                    "runtime",
-                    "the stream-attempt registry could not load its persistence authority",
-                )
-            })?);
+        if mac_key.is_none() {
+            *mac_key = Some(
+                snapback_types::stream_attempt::StreamAttemptPersistenceMacKey::generate()
+                    .map_err(|_| {
+                        SnapbackError::error(
+                            "SNAPBACK_ACTION_STREAM_PERSISTENCE_AUTHORITY_UNAVAILABLE",
+                            "runtime",
+                            "the stream-attempt registry could not create its persistence authority",
+                        )
+                    })?,
+            );
         }
         Ok(operation(
-            signer
+            mac_key
                 .as_ref()
-                .expect("stream persistence signer was initialized"),
+                .expect("stream persistence MAC key was initialized"),
         ))
     }
 
-    /// Public verification half registered with the exact serving database.
-    /// The private signing half never leaves this registry.
-    pub fn persistence_verifying_key(&self) -> SnapbackResult<Vec<u8>> {
-        self.with_persistence_signer(|signer| signer.public_key().as_ref().to_vec())
+    /// Opaque verify-only half registered with the exact serving database.
+    /// The MAC-authoring half never leaves this registry.
+    pub fn persistence_verifier(
+        &self,
+    ) -> SnapbackResult<snapback_types::stream_attempt::StreamAttemptPersistenceVerifier> {
+        self.with_persistence_mac_key(|key| key.verifier())
     }
 
-    /// Snapshot and sign the exact dirty rows for one instance namespace.
+    /// Snapshot and authenticate the exact dirty rows for one instance namespace.
     /// Callers cannot add or replace rows after this cut without invalidating
-    /// the storage-verified signature.
+    /// the storage-verified HMAC-SHA256 tag.
     pub fn persistence_batch(
         &self,
         namespace: usize,
@@ -548,15 +537,7 @@ impl StreamAttemptRegistry {
             .iter()
             .map(|snapshot| snapshot.to_row().map_err(Into::into))
             .collect::<SnapbackResult<Vec<_>>>()?;
-        let message =
-            snapback_types::stream_attempt::stream_attempt_persistence_signing_message(&rows);
-        let batch = self.with_persistence_signer(|signer| {
-            snapback_types::stream_attempt::StreamAttemptPersistenceBatch::from_signed_parts(
-                rows,
-                signer.public_key().as_ref().to_vec(),
-                signer.sign(&message).as_ref().to_vec(),
-            )
-        })?;
+        let batch = self.with_persistence_mac_key(|key| key.authenticate(rows))?;
         Ok((snapshots, batch))
     }
 
@@ -1887,7 +1868,7 @@ mod tests {
         let storage = snapback_kernel::storage::LocalDatabase::memory()
             .expect("durable transition test store");
         let verifier = registry
-            .persistence_verifying_key()
+            .persistence_verifier()
             .expect("registry persistence verifier");
         let mut storage =
             snapback_kernel::storage::ServingDatabase::adopt_with_stream_attempt_verifier(
@@ -1944,7 +1925,7 @@ mod tests {
     }
 
     #[test]
-    fn storage_rejects_fabricated_or_foreign_registry_persistence_batches() {
+    fn storage_rejects_unsigned_tampered_or_foreign_registry_persistence_batches() {
         let primary_registry = registry();
         let legitimate_runner = runner();
         let legitimate = primary_registry
@@ -1952,9 +1933,9 @@ mod tests {
             .expect("legitimate registry start");
         let (_, legitimate_batch) = primary_registry
             .persistence_batch(71)
-            .expect("legitimate registry signs its dirty snapshot");
+            .expect("legitimate registry authenticates its dirty snapshot");
         let verifier = primary_registry
-            .persistence_verifying_key()
+            .persistence_verifier()
             .expect("legitimate registry verifier");
         let mut unregistered_database = snapback_kernel::storage::LocalDatabase::memory()
             .expect("unregistered persistence database");
@@ -1966,13 +1947,41 @@ mod tests {
             unregistered_error.diagnostic.code,
             "SNAPBACK_ACTION_STREAM_PERSISTENCE_UNAUTHORIZED"
         );
-        let database =
-            snapback_kernel::storage::LocalDatabase::memory().expect("signed persistence database");
+        let database = snapback_kernel::storage::LocalDatabase::memory()
+            .expect("authenticated persistence database");
         let mut storage =
             snapback_kernel::storage::ServingDatabase::adopt_with_stream_attempt_verifier(
                 database, verifier,
             )
             .expect("register exact stream persistence issuer");
+
+        let unsigned = StreamAttemptPersistenceBatch::from_authenticated_parts(
+            legitimate_batch.rows().to_vec(),
+            legitimate_batch.issuer().to_vec(),
+            Vec::new(),
+        );
+        let unsigned_error = storage
+            .settlement()
+            .upsert_stream_attempts(&unsigned, 1)
+            .expect_err("an unsigned registry snapshot is refused");
+        assert_eq!(
+            unsigned_error.diagnostic.code,
+            "SNAPBACK_ACTION_STREAM_PERSISTENCE_UNAUTHORIZED"
+        );
+
+        let wrong_issuer = StreamAttemptPersistenceBatch::from_authenticated_parts(
+            legitimate_batch.rows().to_vec(),
+            vec![0; legitimate_batch.issuer().len()],
+            legitimate_batch.authentication_tag().to_vec(),
+        );
+        let wrong_issuer_error = storage
+            .settlement()
+            .upsert_stream_attempts(&wrong_issuer, 1)
+            .expect_err("a valid tag cannot be retagged with another issuer");
+        assert_eq!(
+            wrong_issuer_error.diagnostic.code,
+            "SNAPBACK_ACTION_STREAM_PERSISTENCE_UNAUTHORIZED"
+        );
 
         let fabricated = PersistedStreamAttempt {
             token: "fabricated-terminal".to_owned(),
@@ -1993,15 +2002,15 @@ mod tests {
             emitted_bytes: 0,
             chunk_count: 0,
         };
-        let tampered = StreamAttemptPersistenceBatch::from_signed_parts(
+        let tampered = StreamAttemptPersistenceBatch::from_authenticated_parts(
             vec![fabricated.to_row().expect("serialize fabricated row")],
-            legitimate_batch.issuer_public_key().to_vec(),
-            legitimate_batch.signature().to_vec(),
+            legitimate_batch.issuer().to_vec(),
+            legitimate_batch.authentication_tag().to_vec(),
         );
         let tampered_error = storage
             .settlement()
             .upsert_stream_attempts(&tampered, 1)
-            .expect_err("changing signed row bytes invalidates the batch");
+            .expect_err("changing authenticated row bytes invalidates the batch");
         assert_eq!(
             tampered_error.diagnostic.code,
             "SNAPBACK_ACTION_STREAM_PERSISTENCE_UNAUTHORIZED"
@@ -2014,7 +2023,7 @@ mod tests {
             .expect("foreign registry start");
         let (_, foreign_batch) = foreign_registry
             .persistence_batch(71)
-            .expect("foreign registry signs its own snapshot");
+            .expect("foreign registry authenticates its own snapshot");
         let foreign_error = storage
             .settlement()
             .upsert_stream_attempts(&foreign_batch, 2)

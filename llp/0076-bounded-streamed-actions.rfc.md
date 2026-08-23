@@ -6,7 +6,8 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
 **Revised:** 2026-08-22 (structural-boundary repair: durable attempt writes now
-accept only exact batches signed by the registered in-process attempt registry;
+accept only exact HMAC-SHA256-authenticated batches from the registered
+in-process attempt registry;
 the raw-row seam is test-only. Process-death reconciliation consumes a private
 one-use capability during serving-database adoption and writes its
 `Terminalizer` classification before a live serving handle exists. A durable
@@ -773,13 +774,13 @@ a fix before gate 2:
   orphaned non-terminal row `failed` with the effect fact folded from the
   persisted cursor pre-marks, witnessed by a two-process-life recovery test.
   The public kernel/engine persistence seam no longer accepts caller-authored
-  raw rows: storage verifies an exact signed registry batch against the issuer
-  registered when the serving graph is constructed, while the raw-row helper
-  exists only under test support. Reconciliation is likewise not a method on
-  a live settlement handle: serving adoption consumes a private one-use
-  process-death capability and commits the `Terminalizer` classification
-  before exposing the handle, leaving the returned summary usable only for
-  transcript repair.
+  raw rows: storage verifies an exact MAC-authenticated registry batch against
+  the issuer registered when the serving graph is constructed, while the
+  raw-row helper exists only under test support. Reconciliation is likewise not
+  a method on a live settlement handle: serving adoption consumes a private
+  one-use process-death capability and commits the `Terminalizer`
+  classification before exposing the handle, leaving the returned summary
+  usable only for transcript repair.
   Residue: attempt-less streams (no `attemptToken`) have no durable
   settlement row by design — the authored pattern's adoption rides the
   prospective LLP 0075 amendment; the Workerd arm has no substrate.
