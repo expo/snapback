@@ -5394,21 +5394,22 @@ impl LocalSnapback {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn charge_declared_authentication_attempt(
+    pub fn charge_declared_authentication_attempts(
         &mut self,
         deployment_id: &str,
-        budget_name: crate::auth::throttle::AuthBudgetName,
-        terms: crate::auth::throttle::RollingWindowBudgetTerms,
-        source: std::net::IpAddr,
-        canonical_identifier: &str,
+        attempts: &[(
+            crate::auth::throttle::AuthBudgetName,
+            crate::auth::throttle::RollingWindowBudgetTerms,
+        )],
+        source: Option<std::net::IpAddr>,
+        canonical_identifier: Option<&crate::auth::crypto::CanonicalAddress>,
         now_ms: u64,
     ) -> SnapbackResult<crate::auth::throttle::AuthenticationThrottleDecision> {
         self.db
             .auth_database_mut()
-            .charge_declared_authentication_attempt(
+            .charge_declared_authentication_attempts(
                 deployment_id,
-                budget_name,
-                terms,
+                attempts,
                 source,
                 canonical_identifier,
                 now_ms,

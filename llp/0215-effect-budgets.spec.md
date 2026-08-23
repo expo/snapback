@@ -5,6 +5,9 @@
 **Systems:** Auth, Identity, Security, Abuse control, Deployment, Configuration, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex (gpt-5.6-sol) via Claude orchestration
 **Date:** 2026-08-09
+**Revised:** 2026-08-22 (v0.2 — complete password attempt sets charge
+atomically on denial; guest-entry idempotency and refusal receipts bind their
+complete public identity)
 **Revised:** 2026-08-09 (v0.1 — initial commissioned Spec)
 **Related:** LLP 0212, LLP 0057, LLP 0060, LLP 0011, LLP 0203
 
@@ -490,7 +493,8 @@ request**. The digest includes every semantic input that could change the
 effect or its charge:
 
 - effect name and protocol version;
-- app and deployment bindings;
+- app and the canonical digest of the complete deployment identity (schema,
+  bundle, and inputs — never a schema-only surrogate);
 - deployment profile;
 - provider;
 - normalized public request fields;
@@ -525,6 +529,12 @@ The effect and budget outcomes are one logical result:
 - a retry of `pending` resumes or reconciles the authoritative operation;
 - an ambiguous crash must resolve from authoritative effect and counter state;
 - no retry may observe an effect without its corresponding charge.
+
+The durable `refused` receipt includes the complete public refusal projection:
+budget name, retry shape/value, and one stable opaque `correlationId` (plus the
+fixed no-effect facts owned by the diagnostic contract). Lost-response and
+concurrent-identical retries replay that receipt byte-semantically; they do not
+mint a new correlation identity.
 
 Reusing one idempotency key with a different normalized request returns
 `SNAPBACK_AUTH_IDEMPOTENCY_CONFLICT`.

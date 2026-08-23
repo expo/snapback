@@ -1,7 +1,7 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin expo-chat digest=sha256:2e32110c08e918d80f7c8843a0df56c868a50d5f82bfff81d320372ebfd71aec -->
+<!-- start-packet:begin expo-chat digest=sha256:1a88ada3b13b4b7605f4067e469acd35201643c7844787fae9b9b35913ed2299 -->
 This packet is the whole required first read for this app (LLP 0259
 Rung A). Open the edit targets below and work; open one further Guide page
 only via `snapback guide <query>` or on a trigger — the brief is outside

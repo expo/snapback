@@ -2813,6 +2813,7 @@ const REVIEWED_GENERATED_PUBLICATION_PATHS = new Set([
   'demos/chirp/snapback/generated/visibility-governance-quarantine-ledger.json',
   'demos/chirp/snapback/generated/visibility-override-baseline.json',
   'demos/chirp/snapback/generated/visibility-override-owner-baseline.json',
+  'demos/competitive-checkpoint/snapback/generated/api.d.mts',
   'demos/competitive-checkpoint/snapback/generated/api.d.ts',
   'demos/competitive-checkpoint/snapback/generated/api.mjs',
   'demos/competitive-checkpoint/snapback/generated/artifacts.json',

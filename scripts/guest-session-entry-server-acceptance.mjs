@@ -5,6 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 
 import { startServer } from '../demos/_kit/server-process.mjs';
@@ -20,6 +21,7 @@ const binary = resolve(
 );
 const scratch = await mkdtemp(join(tmpdir(), 'snapback-guest-entry-server-'));
 const carrier = join(scratch, 'startup-artifacts.json');
+const persistentDatabase = join(scratch, 'guest-entry-occupied.sqlite');
 const schema = JSON.parse(await readFile(join(generatedRoot, 'schema.manifest.json'), 'utf8'));
 const functions = JSON.parse(await readFile(join(generatedRoot, 'functions.manifest.json'), 'utf8'));
 await writeFile(carrier, `${JSON.stringify({ formatVersion: 1, schema, functions })}\n`, {
@@ -52,7 +54,7 @@ let server = null;
 try {
   server = await startServer({
     port: 0,
-    db: ':memory:',
+    db: persistentDatabase,
     cwd: repositoryRoot,
     startupArtifacts: carrier,
     governanceBackendRoot: backendRoot,
@@ -127,23 +129,53 @@ try {
 
   server = await startServer({
     port: 0,
-    db: ':memory:',
+    // Reopen the exact database in which the Test-profile signup above
+    // durably occupied occupiedEmail. A fresh :memory: database makes the
+    // production occupancy assertion vacuous.
+    db: persistentDatabase,
     cwd: repositoryRoot,
     startupArtifacts: carrier,
     governanceBackendRoot: backendRoot,
     serverBinary: binary,
     env: { SNAPBACK_PROFILE: 'prod' },
   });
+  const occupiedStore = new DatabaseSync(persistentDatabase, { readOnly: true });
+  const occupiedRow = occupiedStore
+    .prepare(
+      "SELECT COUNT(*) AS count FROM _auth_identities WHERE provider='local-password' AND subject=?",
+    )
+    .get(occupiedEmail);
+  occupiedStore.close();
+  assert.equal(
+    Number(occupiedRow?.count),
+    1,
+    'the production server database must contain the occupied password subject',
+  );
   const prodGuest = await request(server, '/auth/guest', {
     idempotencyKey: 'guest-entry-production-refusal-v1',
   });
   assert.equal(prodGuest.response.status, 200, JSON.stringify(prodGuest.payload));
-  const prodClaim = await request(server, '/auth/guest/claim/password', {
-    bearer: prodGuest.payload.token,
-    body: { email: occupiedEmail, password: 'production-must-not-create-password-123!' },
-  });
-  assert.equal(prodClaim.response.status, 503, JSON.stringify(prodClaim.payload));
-  assert.equal(code(prodClaim), 'SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE');
+  const unoccupiedEmail = 'guest-entry-unoccupied-prod@example.com';
+  let canonicalProductionRefusal = null;
+  // The generated production attempt budget is ten per window. Exceed it for
+  // both an actually occupied and an unoccupied subject: availability must
+  // remain the same fixed refusal and must never be preempted by accounting.
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    for (const email of [occupiedEmail, unoccupiedEmail]) {
+      const prodClaim = await request(server, '/auth/guest/claim/password', {
+        bearer: prodGuest.payload.token,
+        body: { email, password: 'production-must-not-create-password-123!' },
+      });
+      assert.equal(prodClaim.response.status, 503, JSON.stringify(prodClaim.payload));
+      assert.equal(code(prodClaim), 'SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE');
+      canonicalProductionRefusal ??= prodClaim.payload;
+      assert.deepEqual(
+        prodClaim.payload,
+        canonicalProductionRefusal,
+        'occupied and unoccupied production subjects must converge through budget exhaustion',
+      );
+    }
+  }
   await server.stop();
   server = null;
 
@@ -166,6 +198,25 @@ try {
     );
   }
 
+  const vocabularyPin = spawnSync(
+    'cargo',
+    [
+      'test',
+      '-p',
+      'snapback-kernel',
+      '--lib',
+      'auth::throttle::tests::compatibility_budget_vocabulary_pins_names_harms_axes_classes_and_timing',
+      '--',
+      '--nocapture',
+    ],
+    { cwd: repositoryRoot, encoding: 'utf8' },
+  );
+  assert.equal(
+    vocabularyPin.status,
+    0,
+    `authentication budget vocabulary pin failed\n${vocabularyPin.stdout}\n${vocabularyPin.stderr}`,
+  );
+
   process.stdout.write(`${JSON.stringify({
     ok: true,
     qualifiedBinary: binary,
@@ -177,6 +228,8 @@ try {
       oldBearerRejectedAfterGrace: true,
       passwordDowngradeRefused: true,
       productionClaimRefusedBeforeOccupancy: true,
+      productionOccupiedRowPreserved: true,
+      productionOccupiedAndUnoccupiedConvergePastBudgetLimit: true,
     },
     injectedHttpFixtures: {
       concurrentLastBudgetSlot: true,
@@ -186,6 +239,7 @@ try {
       foreignBearer: true,
       unavailablePolicy: true,
       predecessorRace: true,
+      budgetVocabularyPinned: true,
     },
   })}\n`);
 } finally {

@@ -256,8 +256,15 @@ revoked. Its recovery codes are a one-time
 return boundary with the same handling as signup. If the email already belongs
 to another principal, `SNAPBACK_AUTH_GUEST_CLAIM_COLLISION` refuses without
 revealing that account or taking it over. The route refuses in production with
-`SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE`. A reaped or expired predecessor
-is rejected by session middleware as `SNAPBACK_AUTH_SESSION_EXPIRED`; a
+`SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE` before body normalization or
+attempt charging, so exhausted subject budgets cannot preempt the fixed
+unavailable response. Disabled guest entry similarly resolves to
+`SNAPBACK_AUTH_GUEST_DISABLED` before budget-policy lookup. Signup and claim
+share one NFC-canonical `CanonicalAddress` attempt lane: enumeration and
+hash-CPU charges, including denial, commit atomically; hosted serving refuses
+without a trusted effective source rather than substituting loopback. A reaped
+or expired predecessor is rejected by session middleware as
+`SNAPBACK_AUTH_SESSION_EXPIRED`; a
 logged-out bearer is rejected by that same middleware with
 `SNAPBACK_AUTH_SESSION_EXPIRED`; a still-live non-guest session reaches the transition and returns
 `SNAPBACK_AUTH_GUEST_SESSION_INVALID`.

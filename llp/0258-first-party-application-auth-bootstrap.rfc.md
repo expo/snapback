@@ -7,6 +7,8 @@ clients, Custody, Password auth, Code generation, Packaging, Diagnostics,
 Guide, Testing, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-15
+**Revised:** 2026-08-22 (second guest-entry security review binds retries to
+the full deployment and makes durable refusal replay body-stable)
 **Revised:** 2026-08-22 (the owner-approved LLP 0214 guest-creation transition
 adds `guest-v1` to generated entry policy and the ordinary shared auth owner)
 **Revised:** 2026-08-17 (`volatile-explicit` now couples the application
@@ -815,7 +817,9 @@ The lifecycle manifest from LLP 0238 gains generated bootstrap rows for:
   active-guest predecessor, same-session/same-authority rotation, collision
   refusal, capability, recovery-credential result type, and one-time recovery
   projection; neither operation creates a framework-specific coordinator or
-  custody path;
+  custody path. Guest-entry retry scope binds the canonical complete served
+  deployment identity (schema, bundle, and inputs), and an exact durable
+  refusal replay retains its complete public receipt and correlation identity;
 - recovery-lifecycle rows derived from LLP 0214's `recoveryPolicy` (not the
   mechanism set): consumption and rotation, their predecessor rules, target
   capabilities, facade methods, and exact return contracts;

@@ -67,7 +67,8 @@ use crate::storage::auth_catalog_ops::{
     CatalogIssuanceCommit, CatalogPasswordChangeCommit, CatalogPasswordChangePlan,
     CatalogPasswordChangeReconcile, CatalogProjectedSession, CatalogRejectedExchangePlan,
     CatalogRevocationPlan, CatalogRotationPlan, CatalogSessionIssuancePlan, CatalogStepUpBinding,
-    GuestEntryIdempotencyLookup, INTERNAL_AUTH_COLLISION, internal_state_snapback,
+    GuestEntryIdempotencyLookup, INTERNAL_AUTH_COLLISION, guest_refusal_correlation_id,
+    internal_state_snapback,
 };
 
 pub const AUTH_ADDRESS_STRIPES: usize = 256;
@@ -1272,6 +1273,7 @@ pub enum PlannedIssuanceCommit {
     GuestBudgetRefused {
         budget_name: &'static str,
         retry_after_ms: u64,
+        correlation_id: String,
     },
     GuestIdempotencyConflict,
     // @ref LLP 0077#issuance-refresh-and-recovery — one live family per
@@ -1324,6 +1326,7 @@ pub enum ProviderGuestSessionPlan {
     Refused {
         budget_name: String,
         retry_after_ms: u64,
+        correlation_id: String,
     },
     Conflict,
 }
@@ -1612,12 +1615,14 @@ impl AuthProvider {
         if let GuestEntryIdempotencyLookup::Refused {
             budget_name,
             retry_after_ms,
+            correlation_id,
             ..
         } = &lookup
         {
             return Ok(ProviderGuestSessionPlan::Refused {
                 budget_name: budget_name.clone(),
                 retry_after_ms: *retry_after_ms,
+                correlation_id: correlation_id.clone(),
             });
         }
         let (key_id, now_ms, seed) = match lookup {
@@ -1704,6 +1709,7 @@ impl AuthProvider {
             key_id,
             created_at_ms: now_ms,
             retain_until_ms: guest_expires_at_ms,
+            refusal_correlation_id: guest_refusal_correlation_id(&key_digest, &request_digest),
         };
         let plan = ProviderSessionIssuancePlan {
             address: CanonicalAddress::parse("guest@snapback.invalid")
@@ -5351,9 +5357,11 @@ fn planned_issuance_from_catalog(outcome: CatalogIssuanceCommit) -> PlannedIssua
         CatalogIssuanceCommit::GuestBudgetRefused {
             budget_name,
             retry_after_ms,
+            correlation_id,
         } => PlannedIssuanceCommit::GuestBudgetRefused {
             budget_name,
             retry_after_ms,
+            correlation_id,
         },
         CatalogIssuanceCommit::GuestIdempotencyConflict => {
             PlannedIssuanceCommit::GuestIdempotencyConflict

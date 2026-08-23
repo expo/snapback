@@ -179,6 +179,7 @@ mod tests {
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::GuestBudgetRefused {
                 budget_name: "auth.guest.create",
                 retry_after_ms: 1_000,
+                ..
             })
         ));
     }

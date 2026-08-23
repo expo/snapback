@@ -11,6 +11,8 @@ W6/W7 repair surface from `9d9265394953`; this is a package-availability
 checkpoint, not a claim that every Plan acceptance row is complete. The four
 LLP 0283 F-1 defect families remain open, the LLP 0284 gates remain red by
 design, and no adversarial-handler containment is claimed.)
+**Revised:** 2026-08-22 (W6.1 second hostile security review closes ordering,
+atomic accounting, retry-scope, refusal-replay, and occupied-Prod proof gaps.)
 **Revised:** 2026-08-22 (author ruling accepts LLP 0235 as the governing
 class-M design and sequences its implementation after W6 closes; the
 split-sensitive-fields workaround remains the only shipped pattern until then.)
@@ -293,11 +295,19 @@ Three defects compose into the native first-use boundary:
    timestamps locally and neither side owns a background refresh timer.
 
 The guest route's initial security reviews on 2026-08-22 were not clean. The
-resulting repair closes production password creation, cross-provider subject
-collision, enumeration/KDF budgeting, guest-entry replay, in-place claim
-rotation, and bounded reaping. The packed browser/Expo test is a client-shape
-witness only; route acceptance launches the qualified server and includes the
-HTTP denial/race fixtures. The crypto and binding-refresh defects remain
+first repair closed the broad production-creation, collision, replay, rotation,
+and reaping holes. A second hostile round found ordering, partial attempt
+accounting, schema-only idempotency, refusal-receipt, and vacuous occupied-Prod
+proof defects. The resulting implementation resolves guest/profile
+availability before body or budget work; charges the complete canonical
+enumeration/hash-CPU attempt set atomically for signup and claim, including
+denial; binds idempotency to schema + bundle + inputs; persists the full public
+refusal identity; and reopens the actually occupied Test database under Prod
+while comparing occupied and unoccupied claims past the budget limit. Dormant
+provider-narrow replacement-session claim helpers are explicitly unwired.
+The packed browser/Expo test is a client-shape witness only; route acceptance
+launches the qualified server and includes the HTTP denial/race fixtures plus
+the budget-vocabulary pin. The crypto and binding-refresh defects remain
 straight repairs with packed native witnesses. Tracked by
 `issues/closed/20260821-guest-session-client-entry.md`,
 `issues/closed/20260821-expo-native-auth-crypto-adapter.md`, and

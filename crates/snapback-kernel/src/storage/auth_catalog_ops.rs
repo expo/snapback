@@ -17,10 +17,25 @@ use crate::contract_types::{
     SessionRevocation, SessionRevocationCandidateFact, TokenDigest,
 };
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
+use sha2::{Digest as _, Sha256};
+use uuid::Uuid;
 use zeroize::Zeroizing;
 
 pub const INTERNAL_AUTH_COLLISION: &str = "INTERNAL_AUTH_COLLISION";
 pub(super) const GUEST_IDEMPOTENCY_TABLE: &str = "_snapback_auth_guest_idempotency";
+
+pub fn guest_refusal_correlation_id(key_digest: &[u8; 32], request_digest: &[u8; 32]) -> String {
+    let mut digest = Sha256::new();
+    digest.update(b"snapback.auth.guest-entry.refusal-correlation.v1\0");
+    digest.update(key_digest);
+    digest.update(request_digest);
+    let digest = digest.finalize();
+    let mut bytes = [0_u8; 16];
+    bytes.copy_from_slice(&digest[..16]);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    Uuid::from_bytes(bytes).to_string()
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CatalogGuestEntryIdempotencyPlan {
@@ -29,6 +44,7 @@ pub struct CatalogGuestEntryIdempotencyPlan {
     pub key_id: String,
     pub created_at_ms: u64,
     pub retain_until_ms: u64,
+    pub refusal_correlation_id: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -47,6 +63,7 @@ pub enum GuestEntryIdempotencyLookup {
         created_at_ms: u64,
         budget_name: String,
         retry_after_ms: u64,
+        correlation_id: String,
     },
     Conflict,
 }
@@ -232,6 +249,7 @@ pub enum CatalogIssuanceCommit {
     GuestBudgetRefused {
         budget_name: &'static str,
         retry_after_ms: u64,
+        correlation_id: String,
     },
     GuestIdempotencyConflict,
     // @ref LLP 0077#issuance-refresh-and-recovery — one live family per
@@ -272,12 +290,36 @@ fn ensure_guest_idempotency_table(connection: &Connection) -> SnapbackResult<()>
            state TEXT NOT NULL CHECK(state IN ('pending','committed','refused')),
            budget_name TEXT,
            retry_after_ms INTEGER,
+           refusal_correlation_id TEXT,
            CHECK((state='refused')=(budget_name IS NOT NULL)),
            CHECK((state='refused')=(retry_after_ms IS NOT NULL)),
+           CHECK(state!='refused' OR refusal_correlation_id IS NOT NULL),
            CHECK(created_at_ms BETWEEN 0 AND 9007199254740991),
            CHECK(retain_until_ms BETWEEN created_at_ms AND 9007199254740991)
          );"
     ))?;
+    // The guest-entry table was introduced on the feature branch before the
+    // complete refusal receipt gained its stable public correlation identity.
+    // Upgrade such local databases in place rather than making replay depend
+    // on whether the process first saw the old or new binary.
+    let has_correlation_column = {
+        let mut statement =
+            connection.prepare(&format!("PRAGMA table_info({GUEST_IDEMPOTENCY_TABLE})"))?;
+        let names = statement.query_map([], |row| row.get::<_, String>(1))?;
+        let mut found = false;
+        for name in names {
+            if name? == "refusal_correlation_id" {
+                found = true;
+            }
+        }
+        found
+    };
+    if !has_correlation_column {
+        connection.execute_batch(&format!(
+            "ALTER TABLE {GUEST_IDEMPOTENCY_TABLE}
+               ADD COLUMN refusal_correlation_id TEXT;"
+        ))?;
+    }
     connection.execute_batch(&format!(
         "CREATE INDEX IF NOT EXISTS _snapback_auth_guest_idempotency_retention
            ON {GUEST_IDEMPOTENCY_TABLE}(retain_until_ms,key_digest);"
@@ -301,11 +343,20 @@ impl LocalDatabase {
                 ),
                 params![key_digest.as_slice(), now_ms as i64],
             )?;
-            let row: Option<(Vec<u8>, String, i64, i64, String, Option<String>, Option<i64>)> =
+            let row: Option<(
+                Vec<u8>,
+                String,
+                i64,
+                i64,
+                String,
+                Option<String>,
+                Option<i64>,
+                Option<String>,
+            )> =
                 transaction
                     .query_row(
                         &format!(
-                            "SELECT request_digest,key_id,created_at_ms,retain_until_ms,state,budget_name,retry_after_ms
+                            "SELECT request_digest,key_id,created_at_ms,retain_until_ms,state,budget_name,retry_after_ms,refusal_correlation_id
                                FROM {GUEST_IDEMPOTENCY_TABLE} WHERE key_digest=?1"
                         ),
                         params![key_digest.as_slice()],
@@ -318,11 +369,12 @@ impl LocalDatabase {
                                 row.get(4)?,
                                 row.get(5)?,
                                 row.get(6)?,
+                                row.get(7)?,
                             ))
                         },
                     )
                     .optional()?;
-            let Some((durable_request, key_id, created_at_ms, retain_until_ms, state, budget, retry)) = row
+            let Some((durable_request, key_id, created_at_ms, retain_until_ms, state, budget, retry, mut correlation_id)) = row
             else {
                 return Ok(GuestEntryIdempotencyLookup::Missing);
             };
@@ -335,6 +387,19 @@ impl LocalDatabase {
                 u64::try_from(retain_until_ms).map_err(|_| internal_state_snapback())?;
             if retain_until_ms <= created_at_ms || now_ms >= retain_until_ms {
                 return Err(internal_state_snapback());
+            }
+            if state == "refused" && correlation_id.is_none() {
+                let repaired = guest_refusal_correlation_id(key_digest, request_digest);
+                transaction.execute(
+                    &format!(
+                        "UPDATE {GUEST_IDEMPOTENCY_TABLE}
+                            SET refusal_correlation_id=?1
+                          WHERE key_digest=?2 AND request_digest=?3 AND state='refused'
+                            AND refusal_correlation_id IS NULL"
+                    ),
+                    params![repaired, key_digest.as_slice(), request_digest.as_slice()],
+                )?;
+                correlation_id = Some(repaired);
             }
             Ok(match state.as_str() {
                 "pending" => GuestEntryIdempotencyLookup::Pending {
@@ -351,6 +416,7 @@ impl LocalDatabase {
                     budget_name: budget.ok_or_else(internal_state_snapback)?,
                     retry_after_ms: u64::try_from(retry.ok_or_else(internal_state_snapback)?)
                         .map_err(|_| internal_state_snapback())?,
+                    correlation_id: correlation_id.ok_or_else(internal_state_snapback)?,
                 },
                 _ => return Err(internal_state_snapback()),
             })
@@ -1374,11 +1440,20 @@ pub(crate) fn planned_session_issuance_transaction(
             return Err(internal_state_snapback());
         }
         ensure_guest_idempotency_table(transaction)?;
-        let durable: Option<(Vec<u8>, String, i64, i64, String, Option<String>, Option<i64>)> =
+        let durable: Option<(
+            Vec<u8>,
+            String,
+            i64,
+            i64,
+            String,
+            Option<String>,
+            Option<i64>,
+            Option<String>,
+        )> =
             transaction
                 .query_row(
                     &format!(
-                        "SELECT request_digest,key_id,created_at_ms,retain_until_ms,state,budget_name,retry_after_ms
+                        "SELECT request_digest,key_id,created_at_ms,retain_until_ms,state,budget_name,retry_after_ms,refusal_correlation_id
                            FROM {GUEST_IDEMPOTENCY_TABLE} WHERE key_digest=?1"
                     ),
                     params![idempotency.key_digest.as_slice()],
@@ -1391,12 +1466,13 @@ pub(crate) fn planned_session_issuance_transaction(
                             row.get(4)?,
                             row.get(5)?,
                             row.get(6)?,
+                            row.get(7)?,
                         ))
                     },
                 )
                 .optional()?;
         match durable {
-            Some((request_digest, _, _, _, _, _, _))
+            Some((request_digest, _, _, _, _, _, _, _))
                 if request_digest.as_slice() != idempotency.request_digest.as_slice() =>
             {
                 return Ok(CatalogIssuanceCommit::GuestIdempotencyConflict);
@@ -1409,6 +1485,7 @@ pub(crate) fn planned_session_issuance_transaction(
                 state,
                 budget_name,
                 retry_after_ms,
+                refusal_correlation_id,
             )) => {
                 if key_id != idempotency.key_id
                     || u64::try_from(created_at_ms).ok() != Some(idempotency.created_at_ms)
@@ -1427,6 +1504,8 @@ pub(crate) fn planned_session_issuance_transaction(
                             retry_after_ms.ok_or_else(internal_state_snapback)?,
                         )
                         .map_err(|_| internal_state_snapback())?,
+                        correlation_id: refusal_correlation_id
+                            .ok_or_else(internal_state_snapback)?,
                     });
                 }
                 if state == "committed" {
@@ -1451,8 +1530,9 @@ pub(crate) fn planned_session_issuance_transaction(
                 transaction.execute(
                     &format!(
                         "INSERT INTO {GUEST_IDEMPOTENCY_TABLE}(
-                           key_digest,request_digest,key_id,created_at_ms,retain_until_ms,state
-                         ) VALUES(?1,?2,?3,?4,?5,'pending')"
+                           key_digest,request_digest,key_id,created_at_ms,retain_until_ms,state,
+                           refusal_correlation_id
+                         ) VALUES(?1,?2,?3,?4,?5,'pending',?6)"
                     ),
                     params![
                         idempotency.key_digest.as_slice(),
@@ -1460,6 +1540,7 @@ pub(crate) fn planned_session_issuance_transaction(
                         idempotency.key_id,
                         idempotency.created_at_ms as i64,
                         idempotency.retain_until_ms as i64,
+                        idempotency.refusal_correlation_id,
                     ],
                 )?;
             }
@@ -1804,12 +1885,14 @@ pub(crate) fn planned_session_issuance_transaction(
                 transaction.execute(
                     &format!(
                         "UPDATE {GUEST_IDEMPOTENCY_TABLE}
-                            SET state='refused',budget_name=?1,retry_after_ms=?2
-                          WHERE key_digest=?3 AND request_digest=?4 AND state='pending'"
+                            SET state='refused',budget_name=?1,retry_after_ms=?2,
+                                refusal_correlation_id=?3
+                          WHERE key_digest=?4 AND request_digest=?5 AND state='pending'"
                     ),
                     params![
                         budget_name.as_str(),
                         retry_after_ms as i64,
+                        idempotency.refusal_correlation_id,
                         idempotency.key_digest.as_slice(),
                         idempotency.request_digest.as_slice(),
                     ],
@@ -1818,6 +1901,11 @@ pub(crate) fn planned_session_issuance_transaction(
             return Ok(CatalogIssuanceCommit::GuestBudgetRefused {
                 budget_name: budget_name.as_str(),
                 retry_after_ms,
+                correlation_id: plan
+                    .guest_idempotency
+                    .ok_or_else(internal_state_snapback)?
+                    .refusal_correlation_id
+                    .clone(),
             });
         }
         execute_candidate(

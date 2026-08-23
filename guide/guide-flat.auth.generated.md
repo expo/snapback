@@ -125,7 +125,9 @@ authority identifiers and bearer material, charges both `auth.guest.create`
 and `auth.session-mint`, then atomically commits the guest principal, session,
 assurance, and security event. The client reuses one entry idempotency key
 across an ambiguous retry; exact committed and refused replays converge without
-another principal or charge, while reuse with different policy bytes refuses.
+another principal or charge. The key is scoped by the complete served deployment
+(schema, bundle, and inputs), and a refused replay retains the same full public
+body, including its correlation id; reuse with different policy bytes refuses.
 
 The returned credential follows the ordinary coordinator transition and its
 custody grade. Browser and Expo web restore it after a cold reload under
@@ -145,9 +147,15 @@ password identities, refuses with the same code. It
 never attaches the guest to that account. Production refuses with
 `SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE`
 until password signup has proof-backed delivery. Every valid claim attempt
-charges `auth.enumeration` and `auth.hash-cpu`; its successful transaction also
-charges `auth.account.create` and `auth.session-mint`. Disabled policy, budget
-exhaustion, unsupported cleanup, malformed
+charges `auth.enumeration` and `auth.hash-cpu` together in one transaction,
+using the same `CanonicalAddress` normalization and attempt set as password
+signup; denial records both charges. Hosted serving requires its trusted
+effective source, while local serving uses the declared source-free axis. The
+availability check precedes body and budget work, so disabled guest entry is
+always `SNAPBACK_AUTH_GUEST_DISABLED` and production remains
+`SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE` even after repeated subject
+attempts. A successful transaction also charges `auth.account.create` and
+`auth.session-mint`. Unsupported cleanup, malformed
 input, and reaped or otherwise invalid guest authority likewise fail closed
 with stable `SNAPBACK_*` codes. Reaping and logout revoke guest sessions, and
 the currently shipped cleanup executor admits only the declarative all-table
@@ -1266,8 +1274,15 @@ revoked. Its recovery codes are a one-time
 return boundary with the same handling as signup. If the email already belongs
 to another principal, `SNAPBACK_AUTH_GUEST_CLAIM_COLLISION` refuses without
 revealing that account or taking it over. The route refuses in production with
-`SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE`. A reaped or expired predecessor
-is rejected by session middleware as `SNAPBACK_AUTH_SESSION_EXPIRED`; a
+`SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE` before body normalization or
+attempt charging, so exhausted subject budgets cannot preempt the fixed
+unavailable response. Disabled guest entry similarly resolves to
+`SNAPBACK_AUTH_GUEST_DISABLED` before budget-policy lookup. Signup and claim
+share one NFC-canonical `CanonicalAddress` attempt lane: enumeration and
+hash-CPU charges, including denial, commit atomically; hosted serving refuses
+without a trusted effective source rather than substituting loopback. A reaped
+or expired predecessor is rejected by session middleware as
+`SNAPBACK_AUTH_SESSION_EXPIRED`; a
 logged-out bearer is rejected by that same middleware with
 `SNAPBACK_AUTH_SESSION_EXPIRED`; a still-live non-guest session reaches the transition and returns
 `SNAPBACK_AUTH_GUEST_SESSION_INVALID`.

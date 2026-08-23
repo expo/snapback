@@ -14611,11 +14611,6 @@ fn require_hosted_effective_source(
 ) -> Result<std::net::IpAddr, Response> {
     match effective_source {
         Some(source) => Ok(source),
-        #[cfg(test)]
-        None => Ok("127.0.0.1"
-            .parse()
-            .expect("test-only hosted effective source is canonical")),
-        #[cfg(not(test))]
         None => {
             let mut response = ApiError::from(SnapbackError::error(
                 "SNAPBACK_AUTH_EFFECTIVE_SOURCE_UNAVAILABLE",
@@ -14633,76 +14628,189 @@ fn hosted_body_auth_throttle_subject(path: &str, body: Option<&Value>) -> Option
     let field = match path {
         "/auth/request-code" => "email",
         "/auth/exchange" => "challengeId",
-        "/auth/guest/claim/password" | "/auth/password/signup" => "email",
         _ => return None,
     };
     let value = body?.get(field)?.as_str()?.trim();
     if value.is_empty() || value.len() > 512 {
         None
-    } else if matches!(
-        path,
-        "/auth/request-code" | "/auth/guest/claim/password" | "/auth/password/signup"
-    ) {
+    } else if path == "/auth/request-code" {
         Some(value.to_lowercase())
     } else {
         Some(value.to_owned())
     }
 }
 
+fn deployment_identity_digest(
+    deployment: &crate::auth::mode::DeploymentIdentity,
+) -> Result<String, ApiError> {
+    let value = serde_json::to_value(deployment).map_err(|_| {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_AUTH_IDEMPOTENCY_INVALID",
+            "auth",
+            "active deployment identity is invalid",
+        ))
+    })?;
+    crate::rqs_contract::sha256_identity(&value).map_err(|_| {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_AUTH_IDEMPOTENCY_INVALID",
+            "auth",
+            "active deployment identity is invalid",
+        ))
+    })
+}
+
+fn active_deployment_digest(runtime: &AppState) -> Result<String, ApiError> {
+    let state = runtime.auth_mode_state();
+    let deployment = state.active_deployment.as_ref().ok_or_else(|| {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_AUTH_IDEMPOTENCY_INVALID",
+            "auth",
+            "active deployment identity is unavailable",
+        ))
+    })?;
+    deployment_identity_digest(deployment)
+}
+
+fn compatibility_password_attempt_terms(
+    profile: crate::contract_types::AuthProviderProfile,
+) -> crate::auth::throttle::RollingWindowBudgetTerms {
+    let (limit, window_ms) = match profile {
+        crate::contract_types::AuthProviderProfile::Dev
+        | crate::contract_types::AuthProviderProfile::Test => (100_000, 1_000),
+        crate::contract_types::AuthProviderProfile::Demo => (10_000, 10_000),
+        crate::contract_types::AuthProviderProfile::Prod => (10, 1_000),
+    };
+    crate::auth::throttle::RollingWindowBudgetTerms { limit, window_ms }
+}
+
+async fn guest_password_claim_availability(
+    runtime: &AppState,
+) -> Result<
+    (
+        crate::contract_types::AuthProgramManifestV1,
+        Arc<AuthProvider>,
+    ),
+    ApiError,
+> {
+    let program = with_snapback(&runtime.snapback, |snapback| {
+        snapback.served_schema_manifest().auth_program.clone()
+    })
+    .await
+    .filter(|program| {
+        program.version == 1
+            && program.guest_policy.enabled
+            && program
+                .mechanisms
+                .values()
+                .any(|mechanism| mechanism.kind == "guest")
+    })
+    .ok_or_else(|| {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_AUTH_GUEST_DISABLED",
+            "auth",
+            "guest entry is unavailable",
+        ))
+    })?;
+    if !program.guest_policy.claiming.iter().any(|name| {
+        program
+            .mechanisms
+            .get(name)
+            .is_some_and(|mechanism| mechanism.kind == "password")
+    }) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_GUEST_CLAIM_UNAVAILABLE",
+            "auth",
+            "guest claim is unavailable",
+        )
+        .into());
+    }
+    let provider = installed_auth_provider(runtime)?;
+    if provider.profile() == crate::contract_types::AuthProviderProfile::Prod {
+        return Err(password_signup_unavailable());
+    }
+    // Only an enabled, password-claimable guest program reaches the closed
+    // policy validation. Disabled guest routes have already converged on the
+    // absent-route 404 and production-unavailable routes on their fixed 503.
+    let _ = guest_auth_budget_terms(&program, "auth.guest.claim.password", provider.profile())?;
+    Ok((program, provider))
+}
+
 async fn charge_hosted_body_auth_attempt(
     spec: RouteSpec,
     runtime: &AppState,
     effective_source: Option<std::net::IpAddr>,
-    subject: Option<String>,
+    body: Option<&Value>,
 ) -> Result<(), Response> {
-    if spec.path == "/auth/guest/claim/password" {
-        let Some(subject) = subject else {
-            return Ok(());
-        };
-        let provider = installed_auth_provider(runtime)
-            .map_err(|error| ApiError::from(error).into_response())?;
-        let (program, deployment_id) = with_snapback(&runtime.snapback, |snapback| {
-            let manifest = snapback.served_schema_manifest();
-            (manifest.auth_program.clone(), manifest.app_id.clone())
-        })
-        .await;
-        let Some(program) = program else {
-            return Err(ApiError::from(SnapbackError::error(
-                "SNAPBACK_AUTH_BUDGET_POLICY_INVALID",
-                "auth",
-                "generated authentication budget policy is invalid",
-            ))
-            .into_response());
-        };
-        let source = effective_source.unwrap_or_else(|| {
-            "127.0.0.1"
-                .parse()
-                .expect("loopback authentication budget source is canonical")
-        });
-        let now_ms = provider.now_ms();
-        for name in [
-            crate::auth::throttle::AuthBudgetName::Enumeration,
-            crate::auth::throttle::AuthBudgetName::HashCpu,
-        ] {
-            let terms = guest_auth_named_budget_terms(&program, name.as_str(), provider.profile())
-                .map_err(|error| error.into_response())?;
-            let deployment_id = deployment_id.clone();
-            let subject = subject.clone();
-            let decision = with_snapback(&runtime.snapback, move |snapback| {
-                snapback.charge_declared_authentication_attempt(
-                    &deployment_id,
-                    name,
-                    terms,
-                    source,
-                    &subject,
-                    now_ms,
-                )
+    if matches!(
+        spec.path,
+        "/auth/guest/claim/password" | "/auth/password/signup"
+    ) {
+        let (program, provider) = if spec.path == "/auth/guest/claim/password" {
+            let (program, provider) = guest_password_claim_availability(runtime)
+                .await
+                .map_err(ApiError::into_response)?;
+            (Some(program), provider)
+        } else {
+            let provider = installed_auth_provider(runtime).map_err(ApiError::into_response)?;
+            let program = with_snapback(&runtime.snapback, |snapback| {
+                snapback.served_schema_manifest().auth_program.clone()
             })
-            .await
-            .map_err(|error| ApiError::from(error).into_response())?;
-            if !decision.admitted {
-                return Err(ApiError::auth_budget_throttled(decision).into_response());
-            }
+            .await;
+            (program, provider)
+        };
+        let deployment_id = active_deployment_digest(runtime).map_err(ApiError::into_response)?;
+        let canonical_identifier = body
+            .and_then(|value| value.get("email"))
+            .and_then(Value::as_str)
+            .and_then(|value| crate::auth::crypto::CanonicalAddress::parse(value).ok());
+        let hosted = runtime.hosted_serving.is_some()
+            || runtime.server.auth_deployment
+                == crate::auth::deployment::AuthDeploymentTarget::Hosted;
+        let source = if hosted {
+            Some(require_hosted_effective_source(effective_source)?)
+        } else {
+            None
+        };
+        let now_ms = provider.now_ms();
+        let terms_for = |name: crate::auth::throttle::AuthBudgetName| {
+            let terms = match program
+                .as_ref()
+                .and_then(|program| program.abuse_budgets.as_ref())
+            {
+                Some(_) => guest_auth_named_budget_terms(
+                    program.as_ref().expect("policy has a program"),
+                    name.as_str(),
+                    provider.profile(),
+                ),
+                None => Ok(compatibility_password_attempt_terms(provider.profile())),
+            }?;
+            Ok::<_, ApiError>(terms)
+        };
+        let attempts = [
+            (
+                crate::auth::throttle::AuthBudgetName::Enumeration,
+                terms_for(crate::auth::throttle::AuthBudgetName::Enumeration)
+                    .map_err(ApiError::into_response)?,
+            ),
+            (
+                crate::auth::throttle::AuthBudgetName::HashCpu,
+                terms_for(crate::auth::throttle::AuthBudgetName::HashCpu)
+                    .map_err(ApiError::into_response)?,
+            ),
+        ];
+        let decision = with_snapback(&runtime.snapback, move |snapback| {
+            snapback.charge_declared_authentication_attempts(
+                &deployment_id,
+                &attempts,
+                source,
+                canonical_identifier.as_ref(),
+                now_ms,
+            )
+        })
+        .await
+        .map_err(|error| ApiError::from(error).into_response())?;
+        if !decision.admitted {
+            return Err(ApiError::auth_budget_throttled(decision).into_response());
         }
         return Ok(());
     }
@@ -14724,7 +14832,14 @@ async fn charge_hosted_body_auth_attempt(
         .map_err(|error| ApiError::from(error).into_response())?;
     let source = require_hosted_effective_source(effective_source)?;
     charge_hosted_sender_attempt(
-        runtime, throttle, source, subject, None, None, false, now_ms,
+        runtime,
+        throttle,
+        source,
+        hosted_body_auth_throttle_subject(spec.path, body),
+        None,
+        None,
+        false,
+        now_ms,
     )
     .await
 }
@@ -15149,6 +15264,33 @@ async fn enforce_registered_route_policy_inner(
             ApiError::from(SnapbackError::error(code, "auth", message)).into_response(),
         );
     }
+    // Availability is the first route-specific guest/password decision. It
+    // precedes source derivation, admission, body polling, normalization, and
+    // attempt charging so disabled guest entry and unavailable production
+    // signup cannot become budget-state or route-presence oracles.
+    // @ref LLP 0214#82-guest-claim — claim availability is resolved before
+    // any credential candidate or target identifier is inspected.
+    if spec.path == "/auth/guest/claim/password"
+        && let Err(error) = guest_password_claim_availability(&runtime).await
+    {
+        return apply_registered_response_controls(effective, error.into_response());
+    }
+    if spec.path == "/auth/password/signup" {
+        match installed_auth_provider(&runtime) {
+            Ok(provider)
+                if provider.profile() == crate::contract_types::AuthProviderProfile::Prod =>
+            {
+                return apply_registered_response_controls(
+                    effective,
+                    password_signup_unavailable().into_response(),
+                );
+            }
+            Err(error) => {
+                return apply_registered_response_controls(effective, error.into_response());
+            }
+            Ok(_) => {}
+        }
+    }
     // Capability-link tokens are the complete credential on their two closed
     // paths. Reject an Authorization credential before secret lookup so a
     // session/service bearer can never be reinterpreted as link authority.
@@ -15387,7 +15529,13 @@ async fn enforce_registered_route_policy_inner(
         && (effective.legacy_body_policy == LegacyBodyPolicy::Rejected
             || connection_id_in_body
             || operation_deferred
-            || matches!(spec.path, "/auth/request-code" | "/auth/exchange")
+            || matches!(
+                spec.path,
+                "/auth/request-code"
+                    | "/auth/exchange"
+                    | "/auth/guest/claim/password"
+                    | "/auth/password/signup"
+            )
             || agent_route_throttle_limit(spec.path).is_some()
             || registered_source.is_some_and(|source| {
                 !matches!(
@@ -15532,7 +15680,7 @@ async fn enforce_registered_route_policy_inner(
         spec,
         &runtime,
         hosted_effective_source,
-        hosted_body_auth_throttle_subject(spec.path, policy_body.as_ref()),
+        policy_body.as_ref(),
     )
     .await
     {
@@ -19103,23 +19251,17 @@ async fn auth_enter_as_guest(
             ))
         })?
         .to_owned();
-    let (program, app_id, deployment_id) = with_snapback(&runtime.snapback, |snapback| {
+    let (program, app_id) = with_snapback(&runtime.snapback, |snapback| {
         (
             snapback.served_schema_manifest().auth_program.clone(),
             snapback.loaded_app_id(),
-            snapback.loaded_schema_hash(),
         )
     })
     .await;
-    let deployment_id = deployment_id
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| {
-            ApiError::from(SnapbackError::error(
-                "SNAPBACK_AUTH_IDEMPOTENCY_INVALID",
-                "auth",
-                "guest-entry deployment identity is unavailable",
-            ))
-        })?;
+    // The idempotency scope follows the complete served deployment, not just
+    // its schema leaf: bundle- or inputs-only changes must never replay an old
+    // deployment's guest credential or durable refusal.
+    let deployment_id = active_deployment_digest(&runtime)?;
     let program = program
         .filter(|program| {
             program.version == 1
@@ -19208,6 +19350,7 @@ async fn auth_enter_as_guest(
         crate::auth::provider::ProviderGuestSessionPlan::Refused {
             budget_name,
             retry_after_ms,
+            correlation_id,
         } => Err(SnapbackError::error(
             "SNAPBACK_AUTH_RATE_BUDGET",
             "auth",
@@ -19216,7 +19359,7 @@ async fn auth_enter_as_guest(
         .with_details(json!({
             "budgetName": budget_name,
             "retryAfter": { "kind": "duration", "milliseconds": retry_after_ms },
-            "correlationId": uuid::Uuid::now_v7().to_string(),
+            "correlationId": correlation_id,
             "effectCommitted": false,
             "effectMayHaveCommitted": false,
         }))
@@ -19238,6 +19381,7 @@ async fn auth_enter_as_guest(
                 IssuanceFinish::GuestBudgetRefused {
                     budget_name,
                     retry_after_ms,
+                    correlation_id,
                 } => Err(SnapbackError::error(
                     "SNAPBACK_AUTH_RATE_BUDGET",
                     "auth",
@@ -19246,7 +19390,7 @@ async fn auth_enter_as_guest(
                 .with_details(json!({
                     "budgetName": budget_name,
                     "retryAfter": { "kind": "duration", "milliseconds": retry_after_ms },
-                    "correlationId": uuid::Uuid::now_v7().to_string(),
+                    "correlationId": correlation_id,
                     "effectCommitted": false,
                     "effectMayHaveCommitted": false,
                 }))
@@ -19271,52 +19415,7 @@ async fn auth_claim_guest_with_password(
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
     require_provider_session_authority(&authority, InvocationSource::AuthRefresh)?;
-    let provider = installed_auth_provider(&runtime)?;
-    // @ref LLP 0227#threat-notes — password
-    // signup is not production-ready until proof-backed delivery exists;
-    // guest claim cannot be a second, less protected signup route.
-    if provider.profile() == crate::contract_types::AuthProviderProfile::Prod {
-        return Err(password_signup_unavailable());
-    }
-    let program = with_snapback(&runtime.snapback, |snapback| {
-        snapback.served_schema_manifest().auth_program.clone()
-    })
-    .await
-    .ok_or_else(|| {
-        ApiError::from(SnapbackError::error(
-            "SNAPBACK_AUTH_GUEST_DISABLED",
-            "auth",
-            "guest entry is unavailable",
-        ))
-    })?;
-    if program.version != 1
-        || !program.guest_policy.enabled
-        || !program
-            .mechanisms
-            .values()
-            .any(|mechanism| mechanism.kind == "guest")
-    {
-        return Err(SnapbackError::error(
-            "SNAPBACK_AUTH_GUEST_DISABLED",
-            "auth",
-            "guest entry is unavailable",
-        )
-        .into());
-    }
-    let password_claim_enabled = program.guest_policy.claiming.iter().any(|name| {
-        program
-            .mechanisms
-            .get(name)
-            .is_some_and(|mechanism| mechanism.kind == "password")
-    });
-    if !password_claim_enabled {
-        return Err(SnapbackError::error(
-            "SNAPBACK_AUTH_GUEST_CLAIM_UNAVAILABLE",
-            "auth",
-            "guest claim is unavailable",
-        )
-        .into());
-    }
+    let (program, provider) = guest_password_claim_availability(&runtime).await?;
     let successful_effect_budget =
         guest_auth_budget_terms(&program, "auth.guest.claim.password", provider.profile())?;
     let request = parse_auth_json::<PasswordCredentialRequest>(&headers, body)?;

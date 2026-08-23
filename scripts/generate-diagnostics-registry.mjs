@@ -249,7 +249,7 @@ function parseHttpStatuses() {
   // StatusCode/family tuples occur only in the reviewed HTTP status table;
   // matching the tuples themselves avoids depending on rustfmt's wrapping of
   // the table's nested slice type.
-  for (const match of source.matchAll(/\(\s*StatusCode::([A-Z_]+)\s*,\s*([A-Z0-9_]+)\s*\)/gu)) {
+  for (const match of source.matchAll(/\(\s*StatusCode::([A-Z_]+)\s*,\s*([A-Z0-9_]+)\s*,?\s*\)/gu)) {
     const status = HTTP_STATUS_NUMBERS[match[1]];
     if (!status) continue;
     for (const code of families.get(match[2]) ?? []) statuses.set(code, status);

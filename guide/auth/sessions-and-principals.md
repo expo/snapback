@@ -120,7 +120,9 @@ authority identifiers and bearer material, charges both `auth.guest.create`
 and `auth.session-mint`, then atomically commits the guest principal, session,
 assurance, and security event. The client reuses one entry idempotency key
 across an ambiguous retry; exact committed and refused replays converge without
-another principal or charge, while reuse with different policy bytes refuses.
+another principal or charge. The key is scoped by the complete served deployment
+(schema, bundle, and inputs), and a refused replay retains the same full public
+body, including its correlation id; reuse with different policy bytes refuses.
 
 The returned credential follows the ordinary coordinator transition and its
 custody grade. Browser and Expo web restore it after a cold reload under
@@ -140,9 +142,15 @@ password identities, refuses with the same code. It
 never attaches the guest to that account. Production refuses with
 `SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE`
 until password signup has proof-backed delivery. Every valid claim attempt
-charges `auth.enumeration` and `auth.hash-cpu`; its successful transaction also
-charges `auth.account.create` and `auth.session-mint`. Disabled policy, budget
-exhaustion, unsupported cleanup, malformed
+charges `auth.enumeration` and `auth.hash-cpu` together in one transaction,
+using the same `CanonicalAddress` normalization and attempt set as password
+signup; denial records both charges. Hosted serving requires its trusted
+effective source, while local serving uses the declared source-free axis. The
+availability check precedes body and budget work, so disabled guest entry is
+always `SNAPBACK_AUTH_GUEST_DISABLED` and production remains
+`SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE` even after repeated subject
+attempts. A successful transaction also charges `auth.account.create` and
+`auth.session-mint`. Unsupported cleanup, malformed
 input, and reaped or otherwise invalid guest authority likewise fail closed
 with stable `SNAPBACK_*` codes. Reaping and logout revoke guest sessions, and
 the currently shipped cleanup executor admits only the declarative all-table

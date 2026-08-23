@@ -315,6 +315,7 @@ pub enum IssuanceFinish {
     GuestBudgetRefused {
         budget_name: &'static str,
         retry_after_ms: u64,
+        correlation_id: String,
     },
     GuestIdempotencyConflict,
     SenderKeyBound,
@@ -1278,11 +1279,13 @@ impl AuthCoordinator {
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::GuestBudgetRefused {
                 budget_name,
                 retry_after_ms,
+                correlation_id,
             }) => {
                 exact_unmark_issuance(&mut topology, &carrier)?;
                 Ok(IssuanceFinish::GuestBudgetRefused {
                     budget_name,
                     retry_after_ms,
+                    correlation_id,
                 })
             }
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::GuestIdempotencyConflict) => {

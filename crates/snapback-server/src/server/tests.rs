@@ -18601,7 +18601,24 @@ async fn guest_entry_authorizes_claims_reaps_and_refuses_policy_or_input_failure
     );
 
     let disabled = guest_sessions_activation_server_fixture_async(false, tombstone.clone()).await;
-    let disabled = app(disabled)
+    let disabled_router = app(disabled);
+    let disabled_claim = disabled_router
+        .clone()
+        .oneshot(password_auth_http_request(
+            "/auth/guest/claim/password",
+            json!({
+                "email": "disabled-guest-route@example.com",
+                "password": "disabled-guest-route-password-123!",
+            }),
+        ))
+        .await
+        .expect("disabled guest claim refusal before credential/body accounting");
+    assert_eq!(disabled_claim.status(), StatusCode::NOT_FOUND);
+    assert_eq!(
+        response_json(disabled_claim).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_GUEST_DISABLED"
+    );
+    let disabled = disabled_router
         .oneshot(password_auth_http_request("/auth/guest", json!({})))
         .await
         .expect("disabled guest refusal");
@@ -18667,6 +18684,24 @@ async fn guest_entry_authorizes_claims_reaps_and_refuses_policy_or_input_failure
 /// lost response and concurrent identical retries converge on one durable
 /// principal/session, while a last-slot race admits at most one fresh key and
 /// durably replays the refusal for the loser.
+#[test]
+fn guest_entry_idempotency_scope_binds_bundle_and_inputs_identity() {
+    let deployment = sessions_deployment();
+    let baseline = super::deployment_identity_digest(&deployment).expect("deployment digest");
+    let mut bundle_changed = deployment.clone();
+    bundle_changed.bundle_hash = format!("snapback.v1:sessions:function:sha256:{}", "b".repeat(64));
+    let mut inputs_changed = deployment;
+    inputs_changed.inputs_hash = format!("snapback.v1:sessions:inputs:sha256:{}", "c".repeat(64));
+    assert_ne!(
+        baseline,
+        super::deployment_identity_digest(&bundle_changed).expect("bundle deployment digest")
+    );
+    assert_ne!(
+        baseline,
+        super::deployment_identity_digest(&inputs_changed).expect("inputs deployment digest")
+    );
+}
+
 #[tokio::test]
 async fn guest_entry_http_replay_and_concurrent_last_budget_slot_are_exact() {
     let tombstone = GuestCleanupContractV1::Declarative {
@@ -18808,12 +18843,8 @@ async fn guest_entry_http_replay_and_concurrent_last_budget_slot_are_exact() {
     assert_eq!(refused_replay.status(), StatusCode::TOO_MANY_REQUESTS);
     let refused_replay = response_json(refused_replay).await;
     assert_eq!(
-        refused_replay["diagnostic"]["details"]["budgetName"],
-        refused["diagnostic"]["details"]["budgetName"]
-    );
-    assert_eq!(
-        refused_replay["diagnostic"]["details"]["retryAfter"],
-        refused["diagnostic"]["details"]["retryAfter"]
+        refused_replay, refused,
+        "a lost or concurrent refusal response must replay the complete public receipt"
     );
 }
 
@@ -19033,22 +19064,56 @@ async fn guest_claim_http_denial_matrix_is_fail_closed_and_non_linking() {
     let prod_router = app(state
         .try_with_auth_provider(prod_provider)
         .expect("production claim state"));
-    let prod_refusal = prod_router
-        .oneshot(session_auth_http_request(
-            "/auth/guest/claim/password",
-            serde_json::to_vec(&json!({
-                "email": "must-not-be-looked-up@example.com",
-                "password": "production-claim-must-refuse-123!",
-            }))
-            .unwrap(),
-            &guest_token,
-        ))
+    for _ in 0..12 {
+        let prod_refusal = prod_router
+            .clone()
+            .oneshot(session_auth_http_request(
+                "/auth/guest/claim/password",
+                serde_json::to_vec(&json!({
+                    "email": "must-not-be-looked-up@example.com",
+                    "password": "production-claim-must-refuse-123!",
+                }))
+                .unwrap(),
+                &guest_token,
+            ))
+            .await
+            .expect("production claim refusal through budget exhaustion");
+        assert_eq!(prod_refusal.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(
+            response_json(prod_refusal).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE"
+        );
+    }
+}
+
+#[tokio::test]
+async fn hosted_guest_claim_attempt_requires_a_real_effective_source() {
+    let mut state = guest_sessions_activation_server_fixture_async(
+        true,
+        GuestCleanupContractV1::Declarative {
+            default: GuestCleanupActionV1::Tombstone,
+            tables: BTreeMap::new(),
+        },
+    )
+    .await;
+    Arc::make_mut(&mut state.server).auth_deployment =
+        crate::auth::deployment::AuthDeploymentTarget::Hosted;
+    let spec = super::core_route_registrations()
+        .into_iter()
+        .find(|route| route.spec.path == "/auth/guest/claim/password")
+        .expect("guest claim registration")
+        .spec;
+    let body = json!({
+        "email": "hosted-source-required@example.com",
+        "password": "hosted-source-required-password-123!",
+    });
+    let response = super::charge_hosted_body_auth_attempt(spec, &state, None, Some(&body))
         .await
-        .expect("production claim refusal");
-    assert_eq!(prod_refusal.status(), StatusCode::SERVICE_UNAVAILABLE);
+        .expect_err("hosted claim accounting must not synthesize loopback");
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
     assert_eq!(
-        response_json(prod_refusal).await["diagnostic"]["code"],
-        "SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE"
+        response_json(response).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_EFFECTIVE_SOURCE_UNAVAILABLE",
     );
 }
 
@@ -24104,10 +24169,6 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
         "comma-separated exact loopback-origin configuration for Dev browser body authority; never an HTTP diagnostic",
     ),
     (
-        "SNAPBACK_ELEVATED_READ_TRACE",
-        "environment variable enabling the fact-only elevated-read JSONL trace; never an HTTP diagnostic",
-    ),
-    (
         "SNAPBACK_HANDLER_ERROR_EXPOSURE",
         "environment variable selecting redacted versus development handler-error rendering; never an HTTP diagnostic",
     ),
@@ -25369,6 +25430,7 @@ const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_AUTH_DEV_ORIGIN_REFUSED",
     "SNAPBACK_AUTH_PASSWORD_SET_AUTHORITY_INVALID",
     "SNAPBACK_AUTH_PROVISIONING_WRITE_FORBIDDEN",
+    "SNAPBACK_AUTH_GUEST_CLAIM_UNAVAILABLE",
     "SNAPBACK_REMEDIATION_APPROVAL_REQUIRED",
     "SNAPBACK_WATCH_AUTHORITY_DEAD",
     "SNAPBACK_WATCH_ANCHOR_SCOPE_MISMATCH",
@@ -25489,6 +25551,7 @@ const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
 ];
 
 const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_AUTH_GUEST_DISABLED",
     "SNAPBACK_EFFECT_NOT_FOUND",
     "SNAPBACK_WATCH_NOT_FOUND",
     "SNAPBACK_ASSET_GRANT_UNKNOWN",
@@ -25539,6 +25602,7 @@ const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
 ];
 
 const CONFLICT_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_AUTH_GUEST_ALREADY_CLAIMED",
     "SNAPBACK_FUNCTION_GENERATION_REHYDRATION_MISMATCH",
     "SNAPBACK_EFFECT_BINDING_STALE",
     "SNAPBACK_AUTH_GUEST_CLAIM_COLLISION",
@@ -25870,6 +25934,7 @@ const NOT_IMPLEMENTED_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_CONNECTED_CLIENT_PREDICATE_UNAVAILABLE",
     "SNAPBACK_ADMIN_RELAY_WEBSOCKET_UNAVAILABLE",
     "SNAPBACK_API_RUN_UNTRUSTED_CODE_UNSUPPORTED",
+    "SNAPBACK_AUTH_GUEST_CUSTODY_UNSUPPORTED",
     "SNAPBACK_AUTH_PASSWORD_SENDER_CONSTRAINED_UNSUPPORTED",
 ];
 
@@ -25937,6 +26002,9 @@ const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_AUTH_RESERVATION_CANCELLED",
     "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
     "SNAPBACK_AUTH_IDENTITY_CORE_REQUIRES_V3",
+    "SNAPBACK_AUTH_GUEST_CATALOG_UNAVAILABLE",
+    "SNAPBACK_AUTH_GUEST_CLEANUP_UNSUPPORTED",
+    "SNAPBACK_AUTH_GUEST_POLICY_INVALID",
     "SNAPBACK_AUTH_PASSWORD_HASH_UNAVAILABLE",
     "SNAPBACK_AUTH_PASSWORD_RESET_UNAVAILABLE",
     "SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE",
@@ -26007,6 +26075,7 @@ const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_TYPE_MISMATCH",
     "SNAPBACK_INVOCATION_AUTHORITY_INVALID",
     "SNAPBACK_BATCH_READ_UNIQUE_INVARIANT_CORRUPT",
+    "SNAPBACK_AUTH_IDEMPOTENCY_INVALID",
     // LLP 0224 host-operation refusals travel inside the HTTP-200 operation
     // envelope, so this row is a fail-safe rather than a live status. Only
     // FACTS_UNAVAILABLE is a server-owned fact: it is a serialization or
@@ -26014,6 +26083,7 @@ const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
     // app-readiness refusals validate the caller's own app.readiness.v1 body
     // and are classified 400 below.
     "SNAPBACK_APP_READINESS_FACTS_UNAVAILABLE",
+    "SNAPBACK_AUTH_BUDGET_STATE_INVALID",
     "SNAPBACK_AUTH_BUDGET_POLICY_INVALID",
     "SNAPBACK_AUTH_LOGICAL_EXPORT_INVALID",
     "SNAPBACK_EFFECT_CATALOG_CORRUPT",
@@ -26705,10 +26775,9 @@ async fn scoped_token_authority_disposition_survives_http_serialization() {
     }
 }
 
-/// LLP 0032 S5.D10 / ENG-24357 — every diagnostic emitted by the Rust
-/// implementation has a reviewed HTTP result, across every status family.
+/// Each reviewed family must remain exactly aligned with the runtime mapper.
 #[test]
-fn s5_d10_all_emitted_diagnostics_have_reviewed_http_status() {
+fn s5_d10_reviewed_http_families_match_mapper() {
     for (expected_status, codes) in HTTP_STATUS_FAMILIES {
         for code in *codes {
             assert_eq!(
@@ -26839,12 +26908,14 @@ async fn served_capability_and_client_profile_refusals_have_distinct_statuses() 
     }
 }
 
-/// The forcing function: derive `SNAPBACK_*` literals from production Rust
-/// ASTs (including helper arguments and macro token streams), normalize the
-/// one audited format family, and require exact equality with the status
-/// table. A new producer cannot inherit a status without a reviewable edit.
+/// LLP 0032 S5.D10 / ENG-24357 — derive the actually emitted `SNAPBACK_*`
+/// literals from production Rust ASTs (including helper arguments and macro
+/// token streams), normalize the one audited format family, and require every
+/// emitted code to belong to the classified set. The classified registry may
+/// include codes owned by source modules that are not compiled into this crate;
+/// a hand-curated emitted subset cannot satisfy this completeness proof.
 #[test]
-fn s5_d10_production_diagnostic_inventory_cannot_drift() {
+fn s5_d10_all_emitted_diagnostics_have_reviewed_http_status() {
     let mut emitted = production_snapback_literals();
     // LLP 0276 split former remainder modules into owner crates. HTTP
     // exhaustiveness remains scoped to the server plus explicitly imported

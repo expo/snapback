@@ -2954,7 +2954,12 @@ impl LocalDatabase {
         })
     }
 
-    pub fn identity_guest_claim_verified_email(
+    // UNWIRED TEST-ONLY LEGACY PRIMITIVE. The served claim protocol lives in
+    // auth_catalog_ops and owns the global-subject collision predicate plus
+    // in-place acting-session rotation. Do not expose or route through this
+    // provider-narrow, replacement-session fixture.
+    #[cfg(any(test, feature = "test-support"))]
+    pub(crate) fn identity_guest_claim_verified_email(
         &mut self,
         guest: &SessionBearer,
         proof: &VerifiedEmailClaim,
@@ -2978,10 +2983,11 @@ impl LocalDatabase {
         })
     }
 
-    /// Local-password claiming preserves the guest user id and refuses an
-    /// existing username without merging or switching principals.
+    /// UNWIRED TEST-ONLY LEGACY PRIMITIVE. The served password-claim protocol
+    /// lives in auth_catalog_ops; this replacement-session fixture must not be
+    /// promoted into a production entry point.
     #[cfg(any(test, feature = "test-support"))]
-    pub fn identity_guest_claim_password(
+    pub(crate) fn identity_guest_claim_password(
         &mut self,
         guest: &SessionBearer,
         username: &str,

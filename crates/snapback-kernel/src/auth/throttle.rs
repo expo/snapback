@@ -597,22 +597,33 @@ pub(crate) fn admit_local_successful_auth_effects_in(
     Ok(None)
 }
 
-/// Charge one declared attempt budget at the observation/KDF-admission cut.
-/// The row commits even when admission is refused; that is the intentional
-/// charge-on-denial difference from successful-effect accounting.
-pub fn charge_local_authentication_attempt(
+/// Charge the complete declared password-attempt set at one observation cut.
+/// Every row, including every denied row, commits in the same transaction so
+/// a later budget's refusal cannot leave a partial attempt behind.
+///
+/// @ref LLP 0215#4-counter-classes-and-atomic-charging — attempt
+/// budgets are charge-on-denial and the declared set is one atomic event.
+pub fn charge_local_authentication_attempts(
     connection: &mut Connection,
     now_ms: u64,
-    terms: RollingWindowBudgetTerms,
-    name: AuthBudgetName,
+    attempts: &[(AuthBudgetName, RollingWindowBudgetTerms)],
     axis_identity: &[u8],
 ) -> crate::diagnostic::SnapbackResult<AuthenticationThrottleDecision> {
-    if terms.limit == 0
-        || terms.window_ms == 0
-        || terms.limit > i64::MAX as u64
+    if attempts.len() != 2
+        || ![AuthBudgetName::Enumeration, AuthBudgetName::HashCpu]
+            .iter()
+            .all(|required| attempts.iter().any(|(name, _)| name == required))
+        || attempts.iter().enumerate().any(|(index, (name, terms))| {
+            terms.limit == 0
+                || terms.window_ms == 0
+                || terms.limit > i64::MAX as u64
+                || !matches!(name, AuthBudgetName::Enumeration | AuthBudgetName::HashCpu)
+                || attempts[..index]
+                    .iter()
+                    .any(|(prior_name, _)| prior_name == name)
+        })
         || now_ms > i64::MAX as u64
         || axis_identity.is_empty()
-        || !matches!(name, AuthBudgetName::Enumeration | AuthBudgetName::HashCpu)
     {
         return Err(crate::diagnostic::SnapbackError::error(
             "SNAPBACK_AUTH_BUDGET_POLICY_INVALID",
@@ -631,24 +642,17 @@ pub fn charge_local_authentication_attempt(
            ON {LOCAL_ATTEMPT_TABLE}(budget_name,axis_digest,charged_at_ms);"
     ))?;
     let axis_digest = Sha256::digest(axis_identity);
-    let cutoff = now_ms.saturating_sub(terms.window_ms);
     let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-    transaction.execute(
-        &format!("DELETE FROM {LOCAL_ATTEMPT_TABLE} WHERE charged_at_ms<=?1"),
-        params![cutoff as i64],
-    )?;
-    let count: i64 = transaction.query_row(
-        &format!(
-            "SELECT COUNT(*) FROM {LOCAL_ATTEMPT_TABLE}
-             WHERE budget_name=?1 AND axis_digest=?2 AND charged_at_ms>?3"
-        ),
-        params![name.as_str(), axis_digest.as_slice(), cutoff as i64],
-        |row| row.get(0),
-    )?;
-    let admitted = u64::try_from(count)
-        .ok()
-        .is_some_and(|count| count < terms.limit);
-    let retry_after_ms = if admitted {
+    let mut refusal: Option<(AuthBudgetName, u64)> = None;
+    for &(name, terms) in attempts {
+        let cutoff = now_ms.saturating_sub(terms.window_ms);
+        transaction.execute(
+            &format!(
+                "DELETE FROM {LOCAL_ATTEMPT_TABLE}
+                  WHERE budget_name=?1 AND axis_digest=?2 AND charged_at_ms<=?3"
+            ),
+            params![name.as_str(), axis_digest.as_slice(), cutoff as i64],
+        )?;
         transaction.execute(
             &format!(
                 "INSERT INTO {LOCAL_ATTEMPT_TABLE}(budget_name,axis_digest,charged_at_ms)
@@ -656,28 +660,57 @@ pub fn charge_local_authentication_attempt(
             ),
             params![name.as_str(), axis_digest.as_slice(), now_ms as i64],
         )?;
-        0
-    } else {
-        let oldest: i64 = transaction.query_row(
+        let count: i64 = transaction.query_row(
             &format!(
-                "SELECT MIN(charged_at_ms) FROM {LOCAL_ATTEMPT_TABLE}
+                "SELECT COUNT(*) FROM {LOCAL_ATTEMPT_TABLE}
                  WHERE budget_name=?1 AND axis_digest=?2 AND charged_at_ms>?3"
             ),
             params![name.as_str(), axis_digest.as_slice(), cutoff as i64],
             |row| row.get(0),
         )?;
-        u64::try_from(oldest)
-            .unwrap_or(now_ms)
-            .saturating_add(terms.window_ms)
-            .saturating_sub(now_ms)
-            .max(1)
-    };
+        let count = u64::try_from(count).map_err(|_| {
+            crate::diagnostic::SnapbackError::error(
+                "SNAPBACK_AUTH_BUDGET_POLICY_INVALID",
+                "auth",
+                "authentication budget policy is invalid",
+            )
+        })?;
+        if count > terms.limit {
+            // Because the denied observation is itself charged, enough of the
+            // oldest rows must expire to leave room for the *next* observation.
+            let recovery_offset = count.saturating_sub(terms.limit);
+            let recovery_charge: i64 = transaction.query_row(
+                &format!(
+                    "SELECT charged_at_ms FROM {LOCAL_ATTEMPT_TABLE}
+                     WHERE budget_name=?1 AND axis_digest=?2 AND charged_at_ms>?3
+                     ORDER BY charged_at_ms,id LIMIT 1 OFFSET ?4"
+                ),
+                params![
+                    name.as_str(),
+                    axis_digest.as_slice(),
+                    cutoff as i64,
+                    recovery_offset as i64,
+                ],
+                |row| row.get(0),
+            )?;
+            let retry_after_ms = u64::try_from(recovery_charge)
+                .unwrap_or(now_ms)
+                .saturating_add(terms.window_ms)
+                .saturating_sub(now_ms)
+                .max(1);
+            if refusal.is_none_or(|(_, prior_retry)| retry_after_ms > prior_retry) {
+                refusal = Some((name, retry_after_ms));
+            }
+        }
+    }
     transaction.commit()?;
+    let (budget_name, retry_after_ms) = refusal.unwrap_or((attempts[0].0, 0));
+    let admitted = refusal.is_none();
     Ok(AuthenticationThrottleDecision {
         admitted,
         retry_after_ms,
-        budget_name: name,
-        refusal: (!admitted).then(|| AuthBudgetRefusal::rate_duration(name, retry_after_ms)),
+        budget_name,
+        refusal: (!admitted).then(|| AuthBudgetRefusal::rate_duration(budget_name, retry_after_ms)),
     })
 }
 
@@ -2014,6 +2047,7 @@ mod tests {
     #[test]
     fn compatibility_budget_vocabulary_pins_names_harms_axes_classes_and_timing() {
         let canonical_names = [
+            AuthBudgetName::AccountCreate,
             AuthBudgetName::GuestCreate,
             AuthBudgetName::Guessing,
             AuthBudgetName::Enumeration,
@@ -2027,6 +2061,7 @@ mod tests {
         assert_eq!(
             canonical_names.map(|name| serde_json::to_value(name).unwrap()),
             [
+                serde_json::json!("auth.account.create"),
                 serde_json::json!("auth.guest.create"),
                 serde_json::json!("auth.guessing"),
                 serde_json::json!("auth.enumeration"),
@@ -2038,7 +2073,17 @@ mod tests {
                 serde_json::json!("auth.oauth-callback"),
             ]
         );
-        assert_eq!(AUTH_COMPATIBILITY_BUDGETS.len(), 7);
+        assert_eq!(AUTH_COMPATIBILITY_BUDGETS.len(), 8);
+
+        assert_eq!(
+            AUTH_ACCOUNT_CREATE_BUDGET.name,
+            AuthBudgetName::AccountCreate
+        );
+        assert_eq!(
+            AUTH_ACCOUNT_CREATE_BUDGET.effects,
+            &["auth.password.signup", "auth.guest.claim.password"]
+        );
+        assert_eq!(ACCOUNT_CREATE_RULES[0].axes, GUEST_EFFECT_AXES);
 
         assert_eq!(AUTH_GUEST_CREATE_BUDGET.name, AuthBudgetName::GuestCreate);
         assert_eq!(
@@ -2097,7 +2142,11 @@ mod tests {
         );
         assert_eq!(
             AUTH_ENUMERATION_BUDGET.effects,
-            &["auth.password.signup", "auth.password.signin"]
+            &[
+                "auth.password.signup",
+                "auth.password.signin",
+                "auth.guest.claim.password",
+            ]
         );
         assert_eq!(ENUMERATION_RULES[0].missing_axis, MissingAxisPolicy::Refuse);
         assert_eq!(
@@ -2114,6 +2163,7 @@ mod tests {
                 "auth.password.signup",
                 "auth.password.signin",
                 "auth.guest.create",
+                "auth.guest.claim.password",
             ]
         );
         assert!(
@@ -2121,6 +2171,72 @@ mod tests {
                 .iter()
                 .all(|budget| budget.public_non_enumerating && !budget.effects.is_empty())
         );
+    }
+
+    #[test]
+    fn complete_password_attempt_set_charges_atomically_including_denials() {
+        let mut db = Connection::open_in_memory().unwrap();
+        let attempts = [
+            (
+                AuthBudgetName::Enumeration,
+                RollingWindowBudgetTerms {
+                    limit: 2,
+                    window_ms: 1_000,
+                },
+            ),
+            (
+                AuthBudgetName::HashCpu,
+                RollingWindowBudgetTerms {
+                    limit: 1,
+                    window_ms: 1_000,
+                },
+            ),
+        ];
+        assert!(
+            charge_local_authentication_attempts(
+                &mut db,
+                99,
+                &attempts[..1],
+                b"incomplete-attempt-axis",
+            )
+            .is_err(),
+            "an incomplete password-attempt set must fail closed",
+        );
+        assert!(
+            charge_local_authentication_attempts(&mut db, 100, &attempts, b"one-attempt-axis")
+                .unwrap()
+                .admitted
+        );
+        let refused =
+            charge_local_authentication_attempts(&mut db, 101, &attempts, b"one-attempt-axis")
+                .unwrap();
+        assert!(!refused.admitted);
+        assert_eq!(refused.budget_name, AuthBudgetName::HashCpu);
+        for name in [AuthBudgetName::Enumeration, AuthBudgetName::HashCpu] {
+            let charged: i64 = db
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_auth_attempt_charges WHERE budget_name=?1",
+                    [name.as_str()],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(charged, 2);
+        }
+
+        let refused_again =
+            charge_local_authentication_attempts(&mut db, 102, &attempts, b"one-attempt-axis")
+                .unwrap();
+        assert!(!refused_again.admitted);
+        for name in [AuthBudgetName::Enumeration, AuthBudgetName::HashCpu] {
+            let charged: i64 = db
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_auth_attempt_charges WHERE budget_name=?1",
+                    [name.as_str()],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(charged, 3);
+        }
     }
 
     #[test]
@@ -2173,6 +2289,7 @@ mod tests {
             &[
                 AuthBudgetName::Enumeration,
                 AuthBudgetName::HashCpu,
+                AuthBudgetName::AccountCreate,
                 AuthBudgetName::SessionMint,
             ]
         );

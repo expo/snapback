@@ -3,35 +3,38 @@
 use std::net::IpAddr;
 
 use super::LocalDatabase;
-use crate::auth::crypto::SessionBearer;
+use crate::auth::crypto::{CanonicalAddress, SessionBearer};
 use crate::auth::deployment::HostedAuthenticationThrottle;
 use crate::auth::sender_proof::sender_constraint_for_presented_token;
 use crate::auth::throttle::{
     AuthBudgetDeploymentProfile, AuthBudgetIdempotencyIdentity, AuthBudgetName,
     AuthenticationThrottleDecision, AuthenticationThrottleDimensions, AuthenticationThrottleError,
-    RollingWindowBudgetTerms, charge_local_authentication_attempt,
+    RollingWindowBudgetTerms, charge_local_authentication_attempts,
     charge_shared_authentication_attempt, charge_shared_authentication_attempt_idempotent,
     initialize_shared_authentication_throttle, password_budget_config,
 };
 
 impl LocalDatabase {
-    pub fn charge_declared_authentication_attempt(
+    pub fn charge_declared_authentication_attempts(
         &mut self,
         deployment_id: &str,
-        budget_name: AuthBudgetName,
-        terms: RollingWindowBudgetTerms,
-        source: IpAddr,
-        canonical_identifier: &str,
+        attempts: &[(AuthBudgetName, RollingWindowBudgetTerms)],
+        source: Option<IpAddr>,
+        canonical_identifier: Option<&CanonicalAddress>,
         now_ms: u64,
     ) -> crate::diagnostic::SnapbackResult<AuthenticationThrottleDecision> {
-        let axis = format!("{}\n{}\n{}", deployment_id, source, canonical_identifier);
-        charge_local_authentication_attempt(
-            &mut self.conn,
-            now_ms,
-            terms,
-            budget_name,
-            axis.as_bytes(),
-        )
+        // Local attempt budgets deliberately omit the source axis. Hosted
+        // callers must provide the trusted effective source and receive a
+        // distinct domain, so neither target silently invents the other's
+        // accounting dimensions.
+        let identifier = canonical_identifier
+            .map(CanonicalAddress::as_str)
+            .unwrap_or("<invalid-password-identifier>");
+        let axis = match source {
+            Some(source) => format!("hosted\n{deployment_id}\n{source}\n{identifier}"),
+            None => format!("local\n{deployment_id}\n{identifier}"),
+        };
+        charge_local_authentication_attempts(&mut self.conn, now_ms, attempts, axis.as_bytes())
     }
 
     /// @ref LLP 0285#8-open-risks — hosted DDL cannot be inherited through
@@ -142,6 +145,94 @@ mod tests {
     use super::*;
     use crate::auth::throttle::{AuthenticationThrottleKey, PasswordAuthEffect};
     use std::sync::Arc;
+
+    #[test]
+    fn declared_password_attempts_share_nfc_identity_and_separate_target_axes() {
+        let mut database = LocalDatabase::memory().expect("database");
+        let attempts = [
+            (
+                AuthBudgetName::Enumeration,
+                RollingWindowBudgetTerms {
+                    limit: 1,
+                    window_ms: 1_000,
+                },
+            ),
+            (
+                AuthBudgetName::HashCpu,
+                RollingWindowBudgetTerms {
+                    limit: 1,
+                    window_ms: 1_000,
+                },
+            ),
+        ];
+        let decomposed = CanonicalAddress::parse("cafe\u{301}@example.com").unwrap();
+        let composed = CanonicalAddress::parse("caf\u{e9}@example.com").unwrap();
+        assert_eq!(decomposed, composed);
+        assert!(
+            database
+                .charge_declared_authentication_attempts(
+                    "deployment-v1",
+                    &attempts,
+                    None,
+                    Some(&decomposed),
+                    100,
+                )
+                .unwrap()
+                .admitted
+        );
+        assert!(
+            !database
+                .charge_declared_authentication_attempts(
+                    "deployment-v1",
+                    &attempts,
+                    None,
+                    Some(&composed),
+                    101,
+                )
+                .unwrap()
+                .admitted,
+            "NFC-equivalent identifiers must hit one local bucket"
+        );
+        assert!(
+            database
+                .charge_declared_authentication_attempts(
+                    "deployment-v1",
+                    &attempts,
+                    Some("192.0.2.10".parse().unwrap()),
+                    Some(&composed),
+                    102,
+                )
+                .unwrap()
+                .admitted,
+            "hosted and local deployments use explicit distinct axes"
+        );
+        assert!(
+            database
+                .charge_declared_authentication_attempts(
+                    "deployment-v1",
+                    &attempts,
+                    None,
+                    None,
+                    200,
+                )
+                .unwrap()
+                .admitted,
+            "a missing or malformed identifier must enter its bounded lane"
+        );
+        assert!(
+            !database
+                .charge_declared_authentication_attempts(
+                    "deployment-v1",
+                    &attempts,
+                    None,
+                    None,
+                    201,
+                )
+                .unwrap()
+                .admitted,
+            "missing or malformed identifiers must not bypass attempt accounting"
+        );
+    }
 
     #[test]
     fn password_effects_charge_only_declared_named_shared_budgets() {

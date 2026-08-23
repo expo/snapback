@@ -6,6 +6,9 @@
 Security, Delivery, Testing
 **Author:** Charlie Cheever / Codex (gpt-5.6-sol) via Claude orchestration
 **Date:** 2026-08-09
+**Revised:** 2026-08-22 (v0.7 — second guest-entry security review closes
+availability ordering, canonical atomic attempt accounting, and dormant-claim
+wiring hazards)
 **Revised:** 2026-08-09 (v0.1 — initial commissioned Draft)
 **Revised:** 2026-08-10 (v0.2 — LLP 0227 reconciliation amendment,
 commissioned by the author; see §20)
@@ -2339,6 +2342,30 @@ A loser observes either:
 - stale transition generation.
 
 It never creates a second link or partially rotates sessions.
+
+The shipped password-claim extension, `POST /auth/guest/claim/password`, resolves
+the generated guest-policy and password-claim availability before body
+normalization, attempt accounting, or credential-candidate work. Disabled or
+undeclared guest entry therefore returns the absent-route
+`SNAPBACK_AUTH_GUEST_DISABLED` result; a production profile that cannot admit
+password signup returns `SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE` before any
+subject-dependent budget state can preempt it. Only an enabled, claimable guest
+program must present the closed generated abuse-policy digest.
+
+Password signup and guest password claim use one shared attempt-accounting cut.
+Valid addresses are normalized once through `CanonicalAddress` (Unicode NFC,
+case folding, and the address grammar); malformed or missing addresses do not
+skip the bounded attempt lane. The complete declared `auth.enumeration` plus
+`auth.hash-cpu` attempt set, including a denied observation, commits in one
+serialized storage transaction. Local accounting omits source by declaration;
+hosted accounting requires the trusted effective source and refuses rather than
+synthesizing loopback.
+
+The password-claim commit tests subject ownership across every live identity
+provider, including disabled identities, and rotates the acting session in
+place. The older direct kernel email/password guest-claim helpers remain
+explicitly `UNWIRED` test-only fixtures; the served route cannot be narrowed to
+their provider-specific predicates or replacement-session behavior.
 
 ### 8.3 Password account creation
 
