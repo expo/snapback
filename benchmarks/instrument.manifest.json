@@ -1,8 +1,10 @@
 {
   "schemaVersion": "benchmark-instrument-snapshot.v1",
-  "instrumentPin": "social-messenger@0.3.2-m8",
+  "instrumentPin": "social-messenger@0.3.3-m8",
   "versions": {
-    "choreography": "0.3.2-m8"
+    "schema": "0.3.0-m8",
+    "ui": "0.3.1-m8",
+    "choreography": "0.3.3-m8"
   },
   "artifacts": {
     "brief": {
@@ -13,7 +15,7 @@
     "contract": {
       "kind": "file",
       "path": "tools/social-messenger/CONTRACT.md",
-      "sha256": "1aa4fc30bb517ef95237c92c9085295cf6df6167f50652b8bbca2a20babf3d1c"
+      "sha256": "8c7edfa4829465332a0b3f792eb25a33db64eaaef5876b14c0c95279ada8ac1a"
     },
     "assertions": {
       "kind": "file",
@@ -40,15 +42,50 @@
       "path": "tools/social-messenger/ui",
       "sha256": "23e8790e42d028bf3074ca415283893e7daa08e6b1a798d8e827e59a5058c3a6"
     },
+    "uiVersion": {
+      "kind": "file",
+      "path": "tools/social-messenger/ui/VERSION",
+      "sha256": "c45c7a61fc18f13a19ac2cbef6e507b79b37e7c4a1f76dc49f260f239516fa50"
+    },
     "choreographyRoot": {
       "kind": "directory",
       "path": "tools/social-messenger/choreography",
-      "sha256": "9b77656c930fcef205d0b5dc5f990b9e587b8fc485c84aa7bda7e0a57ea33282"
+      "sha256": "259dc03106a8dc67949156fa2aec7e249d96a1e8ce6cc72deb8aa1c25846f9a1"
     },
     "choreographyVersion": {
       "kind": "file",
       "path": "tools/social-messenger/choreography/VERSION",
-      "sha256": "3e51ce18e5b67d13ed0abad920df3b9b0cc9d06dce99b6369423b426e332e9fe"
+      "sha256": "a3fa57c8819a0fb2e1bef13c68adf699188b995c7ee870cccdd30a98760b10d7"
+    },
+    "schemaVersion": {
+      "kind": "file",
+      "path": "schema/social-messenger/VERSION",
+      "sha256": "56ff5020017eb5d91c9b14b2993d9d4204af1fd03076d5aebd16fa2e97abe5e5"
+    },
+    "baseRunRecordSchema": {
+      "kind": "file",
+      "path": "schema/run-record.schema.json",
+      "sha256": "d8bd58dd94ec5726cd543fa72ea37dedf7a0226287ff5606fe295320a2651654"
+    },
+    "runRecordSchema": {
+      "kind": "file",
+      "path": "schema/social-messenger/run-record.schema.json",
+      "sha256": "3403455e98fad656125ea2ab0993f780bdb112849fb127bd8bcfcbcf6f2b8a64"
+    },
+    "runRecordExtensionSchema": {
+      "kind": "file",
+      "path": "schema/social-messenger/run-record-extension.schema.json",
+      "sha256": "200b4f3214718581771233db9617638c399469db98f803c1c0f090c872fba5b2"
+    },
+    "recordValidator": {
+      "kind": "file",
+      "path": "tools/social-messenger/record-validator.mjs",
+      "sha256": "f83d900e4ce755a03b24898dc991ce3d63fbc211861ad27ea880bd59849f217b"
+    },
+    "meteringRoot": {
+      "kind": "directory",
+      "path": "tools/social-messenger/metering",
+      "sha256": "4ea07501c0d6438340040c6999cc58f7258c1450d387081418db4607b787b474"
     }
   }
 }

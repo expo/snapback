@@ -50,10 +50,11 @@ Every implemented CLI flag is:
 - `--headed` — show both browser windows; default is headless.
 - `--receipts <path>` — JSONL destination; default is `receipts.jsonl` beside
   `choreography.mjs`. The file is truncated at the beginning of each run.
-- `--suite-status <path>` — optional JSON object keyed by milestone. Each value
-  is `{ "pass": boolean, "receipt": string|null }`. Missing suite status is
-  `null` and can never make a milestone green. A passing value must carry a
-  non-empty suite evidence pointer in `receipt`.
+- `--suite-status <path>` — required JSON object keyed by milestone. Every
+  selected segment must have `{ "pass": boolean, "receipt": string|null }`.
+  The runner validates this complete linkage before credentials, Playwright,
+  receipt creation, or browser startup. A passing value must carry a non-empty
+  suite evidence pointer in `receipt`.
 - `--adapter <path>` — optional lane navigation/fixture adapter. It carries
   route paths and fixture choices only; it cannot report outcomes or bypass
   browser observations. The built-in adapter uses `/profile/{handle}`,
@@ -168,6 +169,20 @@ M6 and M8 web green are intentionally distinct from their simulator artifacts.
 `simulator.md` remains the native proof contract; each matching status is
 recorded under `choreography.supplementalExternal` and scored as native/O4
 evidence rather than silently making web milestones unreachable.
+
+## 0.3.3-m8 migration
+
+`0.3.3-m8` is the coordinated observability bump for LLP 0295 R2. Runners
+MUST pass `--suite-status` (or `CHOREO_SUITE_STATUS`) and the file MUST contain
+an entry for every selected segment. Missing or partial linkage exits `2`
+before any browser or receipt starts; it is no longer represented as a late
+`green:false` instrument result. Run records retain the input and suite
+receipts in the additive `socialMessenger.suiteStatusLinkage` block.
+
+The same instrument pin adds optional, hash-linked D0.6 milestone fields for
+semantic actions, failure-to-recovery episodes, restart/reseed counts, browser
+assertion waits, host load, and API interruptions. The run-record extension
+stays at version `2`, and the W2 five-counter token meter is unchanged.
 
 `0.3.2-m8` uses the unambiguous `sm-convo-quote-preview` selector as the sole
 quoted-excerpt jump path after the Clique kit's matching `0.3.1-m8` migration.

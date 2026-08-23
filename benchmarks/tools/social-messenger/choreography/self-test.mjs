@@ -469,6 +469,60 @@ try {
     CHOREO_PASSWORD: "calibration-password",
     ...(chrome && existsSync(chrome) ? { CHOREO_BROWSER_EXECUTABLE: chrome } : {}),
   };
+  const refusedReceipts = join(scratch, "startup-refused-receipts.jsonl");
+  const missingLinkage = await run(
+    process.execPath,
+    [
+      new URL("./choreography.mjs", import.meta.url).pathname,
+      "m1",
+      "--receipts",
+      refusedReceipts,
+    ],
+    {
+      cwd: new URL(".", import.meta.url).pathname,
+      env: runEnvironment,
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+  if (
+    missingLinkage.status !== 2
+    || !missingLinkage.stderr.includes("suite-status startup refusal")
+    || existsSync(refusedReceipts)
+  ) {
+    throw new Error(
+      `missing suite linkage did not refuse before receipt startup: ${JSON.stringify(missingLinkage)}`,
+    );
+  }
+  const partialSuiteStatus = join(scratch, "partial-suite-status.json");
+  await writeFile(
+    partialSuiteStatus,
+    `${JSON.stringify({ m1: { pass: true, receipt: m1SuiteReceipt } })}\n`,
+  );
+  const partialLinkage = await run(
+    process.execPath,
+    [
+      new URL("./choreography.mjs", import.meta.url).pathname,
+      "m1,m8",
+      "--suite-status",
+      partialSuiteStatus,
+      "--receipts",
+      refusedReceipts,
+    ],
+    {
+      cwd: new URL(".", import.meta.url).pathname,
+      env: runEnvironment,
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+  if (
+    partialLinkage.status !== 2
+    || !partialLinkage.stderr.includes("missing selected segment: m8")
+    || existsSync(refusedReceipts)
+  ) {
+    throw new Error(
+      `partial suite linkage did not refuse before receipt startup: ${JSON.stringify(partialLinkage)}`,
+    );
+  }
   const result = await run(
     process.execPath,
     [
@@ -510,6 +564,21 @@ try {
     new URL("./choreography.mjs", import.meta.url),
     "utf8",
   );
+  const contractSource = await readFile(
+    new URL("../CONTRACT.md", import.meta.url),
+    "utf8",
+  );
+  const contractIds = new Set(contractSource.match(/\bsm-[a-z0-9-]+\b/gu) ?? []);
+  const sourceIds = new Set(
+    [...choreographySource.matchAll(/["'`](sm-[a-z0-9-]+)["'`]/gu)]
+      .map((match) => match[1]),
+  );
+  const unregisteredIds = [...sourceIds].filter((id) => !contractIds.has(id));
+  if (unregisteredIds.length > 0) {
+    throw new Error(
+      `choreography uses test IDs absent from CONTRACT.md: ${unregisteredIds.join(", ")}`,
+    );
+  }
   const implementedFalseCount = [...choreographySource.matchAll(/implemented:\s*false/g)].length;
   if (implementedFalseCount !== 1) {
     throw new Error(
@@ -524,7 +593,7 @@ try {
   }
 
   const skippedSample = {
-    version: "0.3.2-m8",
+    version: "0.3.3-m8",
     runId: "00000000-0000-4000-8000-000000000000",
     recordedAt: "2026-08-10T00:00:00.000Z",
     type: "assertion",
@@ -543,7 +612,7 @@ try {
     },
   };
   const legacySummaryWithoutCause = {
-    version: "0.3.2-m8",
+    version: "0.3.3-m8",
     runId: "00000000-0000-4000-8000-000000000001",
     recordedAt: "2026-08-10T00:00:00.000Z",
     type: "segment-summary",
@@ -726,7 +795,7 @@ try {
   }
 
   process.stdout.write(
-    `social-messenger choreography self-test: PASS (${records.filter((record) => record.type === "assertion").length} assertions, m1+m8 green; deliberate m8 failure rejected)\n`,
+    `social-messenger choreography self-test: PASS (${records.filter((record) => record.type === "assertion").length} assertions, suite linkage startup-refused when missing, m1+m8 green; deliberate m8 failure rejected)\n`,
   );
 } finally {
   await new Promise((resolvePromise) => server.close(resolvePromise));

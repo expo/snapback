@@ -34,6 +34,150 @@ function validateReasoningSubset(errors, counts, path) {
   }
 }
 
+function integerSum(record) {
+  return Object.values(record ?? {}).reduce(
+    (sum, value) => sum + (Number.isInteger(value) ? value : 0),
+    0,
+  );
+}
+
+function validateD06Observability(errors, milestone, value, path) {
+  const semantic = value.semanticActions;
+  if (semantic) {
+    requireEqual(
+      errors,
+      `${path}/semanticActions/total`,
+      semantic.total,
+      integerSum(semantic.byClass),
+      "semantic-action total must equal the closed-taxonomy class counts",
+    );
+    requireEqual(
+      errors,
+      `${path}/semanticActions/total`,
+      semantic.total,
+      integerSum(semantic.byDisposition),
+      "semantic-action total must equal progress + correction",
+    );
+    if (semantic.binaryExcavation > semantic.byClass?.["source-inspection"]) {
+      errors.push(
+        `${path}/semanticActions/binaryExcavation: binary excavation must be a subclass of source-inspection`,
+      );
+    }
+  }
+
+  const episodes = value.failureToRecoveryEpisodes;
+  if (episodes) {
+    requireEqual(
+      errors,
+      `${path}/failureToRecoveryEpisodes/total`,
+      episodes.total,
+      integerSum(episodes.byCarrier),
+      "episode total must equal carrier counts",
+    );
+    requireEqual(
+      errors,
+      `${path}/failureToRecoveryEpisodes/total`,
+      episodes.total,
+      integerSum(episodes.byAttribution),
+      "episode total must equal attribution counts",
+    );
+    requireEqual(
+      errors,
+      `${path}/failureToRecoveryEpisodes/total`,
+      episodes.total,
+      integerSum(episodes.byOutcome),
+      "episode total must equal recovered + unresolved",
+    );
+  }
+
+  if (value.restartReseed?.destructiveReseeds > value.restartReseed?.reseeds) {
+    errors.push(
+      `${path}/restartReseed/destructiveReseeds: destructive reseeds must be a subset of reseeds`,
+    );
+  }
+
+  const hostLoad = value.hostLoad;
+  if (hostLoad) {
+    requireEqual(
+      errors,
+      `${path}/hostLoad/contamination`,
+      hostLoad.contamination,
+      Array.isArray(hostLoad.breaches) && hostLoad.breaches.length > 0,
+      "host-load contamination must match retained breaches",
+    );
+    if (Date.parse(hostLoad.endedAt) < Date.parse(hostLoad.startedAt)) {
+      errors.push(`${path}/hostLoad/endedAt: host-load window ends before it starts`);
+    }
+    for (const [index, breach] of (hostLoad.breaches ?? []).entries()) {
+      if (breach.observed <= breach.ceiling) {
+        errors.push(
+          `${path}/hostLoad/breaches/${index}/observed: a breach must exceed its ceiling`,
+        );
+      }
+    }
+  }
+
+  const interruptions = value.apiInterruptions;
+  if (interruptions) {
+    requireEqual(
+      errors,
+      `${path}/apiInterruptions/interrupted`,
+      interruptions.interrupted,
+      Array.isArray(interruptions.windows) && interruptions.windows.length > 0,
+      "API interruption flag must match retained windows",
+    );
+    for (const [index, window] of (interruptions.windows ?? []).entries()) {
+      if (
+        window.recoveredAt !== null
+        && Date.parse(window.recoveredAt) < Date.parse(window.startedAt)
+      ) {
+        errors.push(
+          `${path}/apiInterruptions/windows/${index}/recoveredAt: recovery precedes interruption`,
+        );
+      }
+    }
+  }
+
+  if (milestone && semantic && episodes) {
+    const correctionActions = semantic.byDisposition?.correction;
+    if (Number.isInteger(correctionActions) && correctionActions < episodes.total) {
+      errors.push(
+        `${path}/semanticActions/byDisposition/correction: each failure-to-recovery episode must contain at least its first failed action`,
+      );
+    }
+  }
+}
+
+function validateSuiteStatusLinkage(errors, extension) {
+  const linkage = extension.suiteStatusLinkage;
+  if (!linkage) return;
+  const linked = new Set();
+  for (const [index, entry] of (linkage.milestones ?? []).entries()) {
+    if (linked.has(entry.milestone)) {
+      errors.push(
+        `$/socialMessenger/suiteStatusLinkage/milestones/${index}/milestone: duplicate suite-status milestone`,
+      );
+    }
+    linked.add(entry.milestone);
+    if (!Object.hasOwn(extension.milestones ?? {}, entry.milestone)) {
+      errors.push(
+        `$/socialMessenger/suiteStatusLinkage/milestones/${index}/milestone: linked milestone is absent from the run record`,
+      );
+    }
+  }
+  for (const [milestone, value] of Object.entries(extension.milestones ?? {})) {
+    if (
+      milestone !== "M7"
+      && ATTEMPTED_STATUSES.has(value?.status)
+      && !linked.has(milestone)
+    ) {
+      errors.push(
+        `$/socialMessenger/suiteStatusLinkage/milestones: attempted ${milestone} lacks hash-linked suite status`,
+      );
+    }
+  }
+}
+
 // Cross-field charging equalities are deliberately adjacent to the composed
 // schema: JSON Schema can constrain each field and flag shape, but cannot
 // express chargedTokens === tokenCap or chargedTokens === input + output.
@@ -52,6 +196,9 @@ export function validateSocialMessengerRecordSemantics(record) {
     const caps = value.caps ?? {};
     const actualTokens = tokenActual(authoring.tokens);
     validateReasoningSubset(errors, authoring.tokens, `${path}/authoring/tokens`);
+    // @ref LLP 0201#d2--quantitative-instrument — D0.6 records hash-linked
+    // semantic actions, recovery, lifecycle, assertion wait, and contamination.
+    validateD06Observability(errors, milestone, value, path);
     if (!ATTEMPTED_STATUSES.has(value.status)) continue;
 
     switch (authoring.terminalReason) {
@@ -142,6 +289,9 @@ export function validateSocialMessengerRecordSemantics(record) {
     extension.firstProductEdit?.orientationTokens,
     "$/socialMessenger/firstProductEdit/orientationTokens",
   );
+  // @ref LLP 0281#w6-suite-status-linkage-ergonomics — a retained linkage
+  // covers every attempted milestone; the choreography refuses it earlier.
+  validateSuiteStatusLinkage(errors, extension);
   return errors;
 }
 

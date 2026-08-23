@@ -118,6 +118,14 @@
               ],
               "additionalProperties": false,
               "properties": {
+                "schema": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "ui": {
+                  "type": "string",
+                  "minLength": 1
+                },
                 "choreography": {
                   "type": "string",
                   "minLength": 1
@@ -149,6 +157,19 @@
               "deduplicated"
             ],
             "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": { "pass": { "const": true } },
+                  "required": ["pass"]
+                },
+                "then": {
+                  "properties": {
+                    "receipt": { "$ref": "#/$defs/hashedArtifact" }
+                  }
+                }
+              }
+            ],
             "properties": {
               "id": {
                 "type": "string",
@@ -582,6 +603,55 @@
               "$ref": "#/$defs/hashedArtifact"
             }
           ]
+        }
+      }
+    },
+    "suiteStatusLinkage": {
+      "type": "object",
+      "description": "Hash custody for the suite-status input that the versioned choreography validates before browser startup. The input and every referenced suite receipt are retained so milestone green cannot depend on an unlinked path.",
+      "required": [
+        "input",
+        "milestones"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "input": {
+          "$ref": "#/$defs/hashedArtifact"
+        },
+        "milestones": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "milestone",
+              "pass",
+              "receipt"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "milestone": {
+                "enum": [
+                  "M1",
+                  "M2",
+                  "M3",
+                  "M4",
+                  "M5",
+                  "M6",
+                  "M8"
+                ]
+              },
+              "pass": {
+                "type": "boolean"
+              },
+              "receipt": {
+                "anyOf": [
+                  { "type": "null" },
+                  { "$ref": "#/$defs/hashedArtifact" }
+                ]
+              }
+            }
+          }
         }
       }
     },
@@ -1234,6 +1304,269 @@
         }
       }
     },
+    "semanticActions": {
+      "type": "object",
+      "description": "Hash-linked per-milestone semantic-action stream under LLP 0186's closed D0.6 taxonomy. Counts are projections of the retained stream, never raw tool-call counts.",
+      "required": [
+        "evidence",
+        "total",
+        "byClass",
+        "byDisposition",
+        "binaryExcavation"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/hashedArtifact"
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "byClass": {
+          "type": "object",
+          "required": [
+            "guide-lookup",
+            "source-inspection",
+            "edit",
+            "generate",
+            "process",
+            "reseed",
+            "suite",
+            "choreography",
+            "retry"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "guide-lookup": { "type": "integer", "minimum": 0 },
+            "source-inspection": { "type": "integer", "minimum": 0 },
+            "edit": { "type": "integer", "minimum": 0 },
+            "generate": { "type": "integer", "minimum": 0 },
+            "process": { "type": "integer", "minimum": 0 },
+            "reseed": { "type": "integer", "minimum": 0 },
+            "suite": { "type": "integer", "minimum": 0 },
+            "choreography": { "type": "integer", "minimum": 0 },
+            "retry": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "byDisposition": {
+          "type": "object",
+          "required": [
+            "progress",
+            "correction"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "progress": { "type": "integer", "minimum": 0 },
+            "correction": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "binaryExcavation": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Flagged subclass count of source-inspection actions."
+        }
+      }
+    },
+    "failureToRecoveryEpisodes": {
+      "type": "object",
+      "description": "Hash-linked failure-to-recovery trace from the first failed action through recovery, inclusive. Carrier and outcome counts project the retained episode stream.",
+      "required": [
+        "evidence",
+        "total",
+        "byCarrier",
+        "byAttribution",
+        "byOutcome"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/hashedArtifact"
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "byCarrier": {
+          "type": "object",
+          "required": [
+            "snapback-refusal",
+            "compiler-codegen-diagnostic",
+            "bare-not-found",
+            "silent-discovery-miss",
+            "other"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "snapback-refusal": { "type": "integer", "minimum": 0 },
+            "compiler-codegen-diagnostic": { "type": "integer", "minimum": 0 },
+            "bare-not-found": { "type": "integer", "minimum": 0 },
+            "silent-discovery-miss": { "type": "integer", "minimum": 0 },
+            "other": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "byOutcome": {
+          "type": "object",
+          "required": [
+            "recovered",
+            "unresolved"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "recovered": { "type": "integer", "minimum": 0 },
+            "unresolved": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "byAttribution": {
+          "type": "object",
+          "description": "The benchmark protocol's lane-relative correction-loop attribution: snapback-defect means the platform under test in every lane.",
+          "required": [
+            "snapback-defect",
+            "agent-error",
+            "environment",
+            "ambiguous"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "snapback-defect": { "type": "integer", "minimum": 0 },
+            "agent-error": { "type": "integer", "minimum": 0 },
+            "environment": { "type": "integer", "minimum": 0 },
+            "ambiguous": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "restartReseed": {
+      "type": "object",
+      "description": "Hash-linked process-lifecycle projection for one milestone. Restarts count server/process restarts; reseeds and destructiveReseeds stay separate so additive-schema regressions remain visible.",
+      "required": [
+        "evidence",
+        "restarts",
+        "reseeds",
+        "destructiveReseeds"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/hashedArtifact"
+        },
+        "restarts": { "type": "integer", "minimum": 0 },
+        "reseeds": { "type": "integer", "minimum": 0 },
+        "destructiveReseeds": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "browserAssertionWait": {
+      "type": "object",
+      "description": "Hash-linked assertion attempt and settlement-wait accounting, split between the acceptance suite and browser choreography.",
+      "required": [
+        "evidence",
+        "suite",
+        "choreography"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/hashedArtifact"
+        },
+        "suite": {
+          "$ref": "#/$defs/assertionWaitCounts"
+        },
+        "choreography": {
+          "$ref": "#/$defs/assertionWaitCounts"
+        }
+      }
+    },
+    "assertionWaitCounts": {
+      "type": "object",
+      "required": [
+        "attempts",
+        "waitMillis"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "attempts": { "type": "integer", "minimum": 0 },
+        "waitMillis": { "type": "number", "minimum": 0 }
+      }
+    },
+    "hostLoad": {
+      "type": "object",
+      "description": "Hash-linked per-milestone host-load sample window. contamination is true exactly when at least one retained breach is present.",
+      "required": [
+        "evidence",
+        "startedAt",
+        "endedAt",
+        "sampleCount",
+        "contamination",
+        "breaches"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/hashedArtifact"
+        },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "endedAt": { "type": "string", "format": "date-time" },
+        "sampleCount": { "type": "integer", "minimum": 1 },
+        "contamination": { "type": "boolean" },
+        "breaches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "at",
+              "metric",
+              "observed",
+              "ceiling"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "at": { "type": "string", "format": "date-time" },
+              "metric": { "enum": ["loadavg1", "loadavg5", "loadavg15"] },
+              "observed": { "type": "number", "minimum": 0 },
+              "ceiling": { "type": "number", "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+    "apiInterruptions": {
+      "type": "object",
+      "description": "Hash-linked provider/API interruption windows from first failed request through the first successful replacement request, or through the terminal boundary when unresolved.",
+      "required": [
+        "evidence",
+        "interrupted",
+        "windows"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/hashedArtifact"
+        },
+        "interrupted": { "type": "boolean" },
+        "windows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "provider",
+              "startedAt",
+              "recoveredAt",
+              "failedRequests"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "provider": { "type": "string", "minLength": 1 },
+              "startedAt": { "type": "string", "format": "date-time" },
+              "recoveredAt": {
+                "type": ["string", "null"],
+                "format": "date-time"
+              },
+              "failedRequests": { "type": "integer", "minimum": 1 }
+            }
+          }
+        }
+      }
+    },
     "milestoneRecord": {
       "type": "object",
       "description": "One milestone's execution record. Status semantics per the brief's Statuses paragraph. Scoring DAG: M2<-M1, M3<-M1 (M3 does not require M2), M4<-M3, M5<-M3, M6<-M2+M3+M4+M5, M7<-M6, M8<-M6. Reduced-run protocol still executes M1 then M2 then M3; skipping M2 is non-conforming.",
@@ -1606,6 +1939,24 @@
               "description": "Empty for green milestones charged at actuals."
             }
           }
+        },
+        "semanticActions": {
+          "$ref": "#/$defs/semanticActions"
+        },
+        "failureToRecoveryEpisodes": {
+          "$ref": "#/$defs/failureToRecoveryEpisodes"
+        },
+        "restartReseed": {
+          "$ref": "#/$defs/restartReseed"
+        },
+        "browserAssertionWait": {
+          "$ref": "#/$defs/browserAssertionWait"
+        },
+        "hostLoad": {
+          "$ref": "#/$defs/hostLoad"
+        },
+        "apiInterruptions": {
+          "$ref": "#/$defs/apiInterruptions"
         },
         "adjudication": {
           "type": "object",

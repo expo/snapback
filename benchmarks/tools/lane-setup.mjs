@@ -96,8 +96,15 @@ const REQUIRED_INSTRUMENT_ARTIFACTS = Object.freeze({
   fixtureReadme: 'file',
   fixtureRoot: 'directory',
   uiRoot: 'directory',
+  uiVersion: 'file',
   choreographyRoot: 'directory',
   choreographyVersion: 'file',
+  schemaVersion: 'file',
+  baseRunRecordSchema: 'file',
+  runRecordSchema: 'file',
+  runRecordExtensionSchema: 'file',
+  recordValidator: 'file',
+  meteringRoot: 'directory',
 });
 
 function byteLength(value) {
@@ -209,11 +216,22 @@ export function resolveInstrumentArtifacts({ instrumentRoot, instrumentPin }) {
   }
 
   const choreographyVersion = readFileSync(artifacts.choreographyVersion.path, 'utf8').trim();
+  const schemaVersion = readFileSync(artifacts.schemaVersion.path, 'utf8').trim();
+  const uiVersion = readFileSync(artifacts.uiVersion.path, 'utf8').trim();
   if (!choreographyVersion || choreographyVersion !== manifest.versions?.choreography) {
     throw new Error(`choreography VERSION mismatch: manifest declares ${manifest.versions?.choreography ?? 'none'}, snapshot contains ${choreographyVersion || 'empty'}`);
   }
+  if (!schemaVersion || schemaVersion !== manifest.versions?.schema) {
+    throw new Error(`schema VERSION mismatch: manifest declares ${manifest.versions?.schema ?? 'none'}, snapshot contains ${schemaVersion || 'empty'}`);
+  }
+  if (!uiVersion || uiVersion !== manifest.versions?.ui) {
+    throw new Error(`UI VERSION mismatch: manifest declares ${manifest.versions?.ui ?? 'none'}, snapshot contains ${uiVersion || 'empty'}`);
+  }
   if (!isWithin(artifacts.choreographyRoot.path, artifacts.choreographyVersion.path)) {
     throw new Error('choreography VERSION must resolve within choreographyRoot');
+  }
+  if (!isWithin(artifacts.uiRoot.path, artifacts.uiVersion.path)) {
+    throw new Error('UI VERSION must resolve within uiRoot');
   }
 
   return Object.freeze({
@@ -223,7 +241,11 @@ export function resolveInstrumentArtifacts({ instrumentRoot, instrumentPin }) {
       logicalPath: INSTRUMENT_MANIFEST_FILE,
       sha256: sha256(manifestContents),
       instrumentPin,
-      versions: Object.freeze({ choreography: choreographyVersion }),
+      versions: Object.freeze({
+        schema: schemaVersion,
+        ui: uiVersion,
+        choreography: choreographyVersion,
+      }),
     }),
     ...artifacts,
   });

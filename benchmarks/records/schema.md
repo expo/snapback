@@ -44,6 +44,15 @@ again to M1 authoring. `orientationTokens` always emits all five counters
 (`input`, `output`, `cacheRead`, `cacheWrite`, `reasoning`), with explicit nulls
 when unavailable.
 
+Instrument `social-messenger@0.3.3-m8` also retains
+`suiteStatusLinkage` plus the optional additive per-milestone D0.6 blocks:
+`semanticActions`, `failureToRecoveryEpisodes`, `restartReseed`,
+`browserAssertionWait`, `hostLoad`, and `apiInterruptions`. Every block points
+to a sha256-bound sidecar and carries the aggregate needed by the efficiency
+scorecard. The record validator checks those aggregates against the closed
+taxonomy and contamination flags; the extension remains version `2` for old
+record compatibility.
+
 For every lane, record `firstGreenProofAt` as the timestamp of its first
 passing acceptance proof. Use null when the lane never produced green proof;
 do not substitute the finish time.

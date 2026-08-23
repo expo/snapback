@@ -29,13 +29,20 @@ LLP 0201's 2026-08-11 dated amendment).
   `{at, orientationBytes, orientationTokens, selectedSkills}` shape. All five
   native counters remain present even when their values are null; those
   cumulative orientation tokens are not M1 authoring.
+  Optional additive D0.6 fields on each milestone retain hash-linked
+  semantic-action and failure-to-recovery streams, restart/reseed counts,
+  suite/choreography assertion attempts and wait wall, host-load samples, and
+  API-interruption windows. The sibling optional `suiteStatusLinkage` block
+  retains the startup-validated input and suite receipts. The extension stays
+  at version `2`, so completed records are never rewritten.
 - `run-record.schema.json` — the complete composed record schema. It restricts
   `tokens.source` by `capFamily`; requires native lane totals and attempted
   milestone phases; and requires advisory or explicitly unavailable metering
   to use a stable reason plus null totals, phases, first-edit tokens, milestone
   token caps/counts, and charges without `capped-tokens`. The publication
   loader composes it with `benchmarks/tools/social-messenger/record-validator.mjs`
-  to enforce D2 charging equalities that JSON Schema cannot express.
+  to enforce D2 charging equalities and D0.6 aggregate/linkage equalities that
+  JSON Schema cannot express.
 
 The grader-side half of the instrument (frozen prompt, report schema,
 calibration plan, probe machinery) lives in

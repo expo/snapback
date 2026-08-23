@@ -6,7 +6,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { performance } from "node:perf_hooks";
 
-const VERSION = "0.3.2-m8";
+const VERSION = "0.3.3-m8";
 const SEGMENTS = ["m1", "m2", "m3", "m4", "m5", "m6", "m8"];
 const SIMULATOR_IDS = {
   m6: "ios-simulator-m6",
@@ -181,7 +181,7 @@ Options:
   --browser <name>       chromium, firefox, or webkit (default: chromium)
   --headed               show browser windows (default: headless)
   --receipts <path>      JSONL output (default: ./receipts.jsonl beside script)
-  --suite-status <path>  JSON suite-status input used for green summaries
+  --suite-status <path>  Required JSON suite-status linkage for selected segments
   --adapter <path>       lane navigation/fixture adapter JSON
   --simulator-status <path>
                          optional separately recorded M6/M8 simulator status
@@ -311,8 +311,12 @@ async function createReceiptWriter(path, runId) {
   };
 }
 
-async function loadSuiteStatuses(path) {
-  if (!path) return {};
+async function loadSuiteStatuses(path, requiredSegments) {
+  if (!path) {
+    throw new Error(
+      "--suite-status / CHOREO_SUITE_STATUS is required before choreography startup",
+    );
+  }
   const parsed = JSON.parse(await readFile(path, "utf8"));
   if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
     throw new Error("suite-status input must be an object keyed by m1..m6 or m8");
@@ -333,6 +337,11 @@ async function loadSuiteStatuses(path) {
     }
     if (status.pass && (typeof status.receipt !== "string" || status.receipt.length === 0)) {
       throw new Error(`suite-status ${segment}.receipt must name evidence when pass is true`);
+    }
+  }
+  for (const segment of requiredSegments) {
+    if (!Object.hasOwn(parsed, segment)) {
+      throw new Error(`suite-status input is missing selected segment: ${segment}`);
     }
   }
   return parsed;
@@ -2224,6 +2233,20 @@ async function main() {
     return;
   }
 
+  // @ref LLP 0281#w6-suite-status-linkage-ergonomics — validate the complete
+  // selected linkage before credentials, Playwright, receipts, or browsers.
+  let suiteStatuses;
+  try {
+    suiteStatuses = await loadSuiteStatuses(
+      options.suiteStatusPath,
+      options.segments,
+    );
+  } catch (error) {
+    process.stderr.write(`suite-status startup refusal: ${errorText(error)}\n`);
+    process.exitCode = 2;
+    return;
+  }
+
   const baseUrl = process.env.CHOREO_BASE_URL;
   const sharedPassword = process.env.CHOREO_PASSWORD;
   const alicePassword = process.env.CHOREO_ALICE_PASSWORD ?? sharedPassword;
@@ -2256,7 +2279,6 @@ async function main() {
 
   const runId = randomUUID();
   const emit = await createReceiptWriter(options.receiptsPath, runId);
-  const suiteStatuses = await loadSuiteStatuses(options.suiteStatusPath);
   const { check, bySegment } = createCheckRunner(emit);
   const browserType = playwright[options.browser];
   const browser = await browserType.launch({

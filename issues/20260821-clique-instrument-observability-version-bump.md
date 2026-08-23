@@ -47,6 +47,38 @@ depends on its disposition and carries its migrated observation boundary.
 Per-milestone token metering and context routing remain their own tickets but
 must be schema-compatible with this version.
 
+## Implementation update — 2026-08-23 (LLP 0295 R2 start blockers)
+
+The R2-gating observability slice is implemented in this change. No measured
+R2 cell has started:
+
+- The social-messenger extension remains `extensionVersion: 2` and gains
+  optional additive, hash-linked per-milestone fields for the closed semantic
+  action taxonomy/dispositions, failure-to-recovery carrier/attribution/outcome
+  projections, restart/reseed counts, suite/choreography assertion attempts and
+  wait wall, host-load samples/breaches, and API-interruption windows. The
+  validator checks aggregate equalities and contamination/linkage consistency.
+- `suiteStatusLinkage` hash-binds the input plus retained suite receipts.
+  Choreography now refuses a missing input or a missing selected-segment entry
+  before credentials, Playwright import, receipt creation, or browser startup.
+- The instrument is bumped to `social-messenger@0.3.3-m8` / choreography
+  `0.3.3-m8`; UI remains `0.3.1-m8` and schema remains `0.3.0-m8`. The frozen
+  manifest now pins both record schemas, their validator, and the unchanged W2
+  metering directory so the coordinated bump cannot discard landed metering.
+- The migration note and static choreography-to-`CONTRACT.md` vocabulary check
+  ship with the bump. Old version-2 records and retained `0.3.2-m8` metering
+  receipts remain valid.
+
+Verification at the implementation boundary: metering `17/17`, lane
+setup/schema `10/10`, choreography calibration green including both startup
+refusals, and the frozen twelve-cell R2 `validate-plan.mjs` green from its
+preregistered `sbs/0295-r2-rerun` worktree. `./ref-check --verbose` is green
+with 0 errors and 0 unchecked references.
+
+This ticket remains open: the broader LLP 0281 media/receipt/avatar/membership,
+selector-isolation/layout, setup-identity, and generated-report acceptance is
+outside this R2 start-blocking slice and is not claimed complete here.
+
 ## Acceptance
 
 One versioned kit/choreography release carries a migration note and static

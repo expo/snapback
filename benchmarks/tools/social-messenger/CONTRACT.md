@@ -125,8 +125,10 @@ The P2 choreography hardening also freezes these accessible-state semantics:
 
 ## Versioning
 
-The choreography subdirectory is `0.3.2-m8` and the UI kit is `0.3.1-m8`; the
-patch series separates
+The choreography subdirectory is `0.3.3-m8` and the UI kit remains
+`0.3.1-m8`. The `0.3.3-m8` migration requires suite-status linkage before
+startup and adds the hash-linked D0.6 run-record observations while retaining
+the W2 metering shape and extension version. The earlier patch series separates
 the per-message Reply action from the quoted-excerpt jump selector, including
 migration of the kit's quoted-excerpt default. The choreography's P2 hardening
 history is retained in its README. Other P1 artifacts remain at their existing

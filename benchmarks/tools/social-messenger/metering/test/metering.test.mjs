@@ -625,7 +625,7 @@ function composedRecord({ capFamily, source, metered }) {
             path: "instrument.manifest.json",
             sha256: "0".repeat(64),
           },
-          versions: { choreography: "fixture" },
+          versions: { schema: "fixture", ui: "fixture", choreography: "fixture" },
         },
         selectedSkills: ["snapback-authoring"],
         artifacts: [{
@@ -709,6 +709,130 @@ function composedErrors(record) {
     schemas: [baseSchema, extensionSchema],
   });
 }
+
+function hashedArtifact(path, digit = "a") {
+  return { path, sha256: `sha256:${digit.repeat(64)}` };
+}
+
+function addD06Observability(record) {
+  record.socialMessenger.suiteStatusLinkage = {
+    input: hashedArtifact("suite-status.json", "3"),
+    milestones: ["M1", "M2", "M3"].map((milestone) => ({
+      milestone,
+      pass: true,
+      receipt: hashedArtifact(`acceptance/${milestone.toLowerCase()}.json`, "4"),
+    })),
+  };
+  record.socialMessenger.milestones.M1.semanticActions = {
+    evidence: hashedArtifact("events/semantic-actions.jsonl"),
+    total: 2,
+    byClass: {
+      "guide-lookup": 0,
+      "source-inspection": 0,
+      edit: 1,
+      generate: 0,
+      process: 0,
+      reseed: 0,
+      suite: 1,
+      choreography: 0,
+      retry: 0,
+    },
+    byDisposition: { progress: 1, correction: 1 },
+    binaryExcavation: 0,
+  };
+  record.socialMessenger.milestones.M1.failureToRecoveryEpisodes = {
+    evidence: hashedArtifact("events/failure-to-recovery.jsonl", "b"),
+    total: 1,
+    byCarrier: {
+      "snapback-refusal": 0,
+      "compiler-codegen-diagnostic": 0,
+      "bare-not-found": 0,
+      "silent-discovery-miss": 0,
+      other: 1,
+    },
+    byAttribution: {
+      "snapback-defect": 0,
+      "agent-error": 1,
+      environment: 0,
+      ambiguous: 0,
+    },
+    byOutcome: { recovered: 1, unresolved: 0 },
+  };
+  record.socialMessenger.milestones.M1.restartReseed = {
+    evidence: hashedArtifact("events/process-lifecycle.jsonl", "c"),
+    restarts: 1,
+    reseeds: 1,
+    destructiveReseeds: 0,
+  };
+  record.socialMessenger.milestones.M1.browserAssertionWait = {
+    evidence: hashedArtifact("events/assertion-waits.jsonl", "d"),
+    suite: { attempts: 1, waitMillis: 10 },
+    choreography: { attempts: 2, waitMillis: 20 },
+  };
+  record.socialMessenger.milestones.M1.hostLoad = {
+    evidence: hashedArtifact("load-samples.jsonl", "e"),
+    startedAt: "2026-08-21T16:00:00.000Z",
+    endedAt: "2026-08-21T16:01:00.000Z",
+    sampleCount: 2,
+    contamination: false,
+    breaches: [],
+  };
+  record.socialMessenger.milestones.M1.apiInterruptions = {
+    evidence: hashedArtifact("api-interruptions.jsonl", "f"),
+    interrupted: false,
+    windows: [],
+  };
+  return record;
+}
+
+test("D0.6 observability stays additive, hash-linked, and semantically closed", () => {
+  const record = addD06Observability(composedRecord({
+    capFamily: "gpt-frontier",
+    source: "codex-rollout-token-count",
+    metered: true,
+  }));
+  assert.equal(record.socialMessenger.extensionVersion, 2);
+  assert.deepEqual(composedErrors(record), []);
+
+  const badActionTotal = structuredClone(record);
+  badActionTotal.socialMessenger.milestones.M1.semanticActions.total = 3;
+  assert.match(
+    composedErrors(badActionTotal).join("\n"),
+    /semantic-action total must equal/u,
+  );
+
+  const badEpisodeTotal = structuredClone(record);
+  badEpisodeTotal.socialMessenger.milestones.M1.failureToRecoveryEpisodes
+    .byOutcome.recovered = 0;
+  assert.match(
+    composedErrors(badEpisodeTotal).join("\n"),
+    /episode total must equal recovered \+ unresolved/u,
+  );
+
+  const badContamination = structuredClone(record);
+  badContamination.socialMessenger.milestones.M1.hostLoad.contamination = true;
+  assert.match(
+    composedErrors(badContamination).join("\n"),
+    /host-load contamination must match retained breaches/u,
+  );
+
+  const missingSuiteLink = structuredClone(record);
+  missingSuiteLink.socialMessenger.suiteStatusLinkage.milestones.pop();
+  assert.match(
+    composedErrors(missingSuiteLink).join("\n"),
+    /attempted M3 lacks hash-linked suite status/u,
+  );
+
+  const oldRecord = composedRecord({
+    capFamily: "gpt-frontier",
+    source: "codex-rollout-token-count",
+    metered: true,
+  });
+  oldRecord.socialMessenger.orientation.instrument.versions = {
+    choreography: "fixture",
+  };
+  assert.deepEqual(composedErrors(oldRecord), []);
+});
 
 test("composed schema restricts approved sources and null cap posture", () => {
   const gpt = composedRecord({

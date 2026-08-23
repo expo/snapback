@@ -1,6 +1,6 @@
 # Social-messenger choreography receipts
 
-Version `0.3.2-m8` writes newline-delimited JSON to `receipts.jsonl`. The same
+Version `0.3.3-m8` writes newline-delimited JSON to `receipts.jsonl`. The same
 objects are written to stdout with the literal prefix `STRUCTURED RECEIPT ` so
 an outer run harness can separate proof records from ordinary process output.
 Each line validates independently against `receipts.schema.json`.
@@ -88,15 +88,16 @@ The normative aggregation is:
    required assertion remains unimplemented. Optional skips therefore stay
    explicit without becoming silent failed attempts.
 2. `externalPass` is true when every external leg required for web green passes.
-   In `0.3.2-m8` there are no such legs. M6's `ios-simulator-m6` and M8's
+   In `0.3.3-m8` there are no such legs. M6's `ios-simulator-m6` and M8's
    `ios-simulator-m8` statuses are recorded in their matching summaries under
    `supplementalExternal` with `requiredForGreen:false`; they are distinct
    native/O4 artifacts governed by `simulator.md`.
 3. `choreography.pass` (and the summary's top-level `pass`) is
    `browserPass && externalPass === true`.
 4. `green` is true only when `suite.pass === true && choreography.pass === true`.
-   A missing suite-status input is represented as `suite.pass:null` and cannot
-   produce green.
+   Version `0.3.3-m8` refuses missing or partial suite-status linkage before
+   creating receipts or starting a browser, so emitted `suite.pass` is always
+   boolean.
 5. `nonGreenCause` is the closed recording convention for a non-green
    segment. It is optional on the schema (default `null` when omitted) so
    existing `0.3.0-m8` receipts remain valid; emitters since `0.3.1-m8`
@@ -105,15 +106,16 @@ The normative aggregation is:
    - `required-unimplemented` — a required assertion was skipped.
    - `choreography-failed` — an implemented assertion failed.
    - `suite-failed` — suite evidence is `pass:false`.
-   - `instrument` — non-green for a harness/input reason (missing suite
-     status, or another instrument defect) rather than an app failure.
+   - `instrument` — non-green for an instrument defect other than missing
+     suite linkage, which `0.3.3-m8` refuses before startup.
 
    Lanes MUST copy `nonGreenCause` from this summary into the run record.
    Do not invent labels such as "functionally green". `green` stays a
    boolean; `capability-failure` remains the brief's cap-exhausted
    milestone status, not a synonym for instrument-caused non-green.
 
-The optional suite-status input is an object keyed by milestone:
+The required suite-status input is an object keyed by milestone. Every selected
+milestone must be present:
 
 ```json
 {
@@ -140,3 +142,9 @@ bump: it removes the legacy `sm-convo-quote` jump fallback, so an M3
 `quoted-reply-excerpt-and-jump` receipt at `0.3.2-m8` proves preview-only
 selection, while a `0.3.1-m8` receipt may have recorded the reply-bubble-
 scoped fallback.
+
+`0.3.3-m8` keeps `0.3.2-m8` selector semantics and makes suite-status linkage
+startup-refusing. It coordinates the additive LLP 0295 D0.6 run-record
+observability fields without changing `extensionVersion: 2` or the W2 token
+meter. A missing-linkage `0.3.2-m8` receipt remains governed by its matching
+schema and may carry `suite.pass:null`; `0.3.3-m8` never emits that state.
