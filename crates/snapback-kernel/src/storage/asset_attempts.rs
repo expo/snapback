@@ -14,7 +14,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 #[cfg(any(test, feature = "test-support"))]
 struct AssetAttemptsAfterCommitObserverEntryForTest {
-    predicate: std::sync::Arc<dyn Fn() -> bool + Send + Sync + 'static>,
+    predicate: std::sync::Arc<dyn Fn(bool) -> bool + Send + Sync + 'static>,
     observed: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
@@ -64,11 +64,13 @@ impl Drop for AssetAttemptsAfterCommitObserverForTest {
 
 /// Install a predicate that is sampled after each asset transaction COMMIT.
 /// It is consumed only when true, allowing a test to select the exact guarded
-/// cut without interfering with unrelated parallel transactions.
+/// cut and its transaction-local state transition without interfering with
+/// unrelated parallel transactions. The predicate argument is true only when
+/// this transaction changed a prepared publication from `Planned` to `Staged`.
 #[cfg(any(test, feature = "test-support"))]
 #[doc(hidden)]
 pub fn install_asset_attempts_after_commit_observer_for_test(
-    predicate: impl Fn() -> bool + Send + Sync + 'static,
+    predicate: impl Fn(bool) -> bool + Send + Sync + 'static,
 ) -> AssetAttemptsAfterCommitObserverForTest {
     let id = format!("asset-after-commit-{}", uuid::Uuid::now_v7().simple());
     let observed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -90,7 +92,7 @@ pub fn install_asset_attempts_after_commit_observer_for_test(
 }
 
 #[cfg(any(test, feature = "test-support"))]
-fn observe_asset_attempts_after_commit_for_test() {
+fn observe_asset_attempts_after_commit_for_test(publication_transitioned_from_planned: bool) {
     let observers = asset_attempts_after_commit_observers_for_test()
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -100,7 +102,7 @@ fn observe_asset_attempts_after_commit_for_test() {
     let matched = observers
         .into_iter()
         .filter_map(|(id, predicate, observed)| {
-            predicate().then(|| {
+            predicate(publication_transitioned_from_planned).then(|| {
                 observed.store(true, std::sync::atomic::Ordering::Release);
                 id
             })
@@ -463,14 +465,30 @@ impl LocalDatabase {
     where
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
+        self.asset_attempts_transaction_guarded_observed(f, before_commit, || false)
+    }
+
+    fn asset_attempts_transaction_guarded_observed<T, G, BeforeCommit, AfterCommit>(
+        &mut self,
+        f: impl FnOnce(&rusqlite::Transaction<'_>) -> SnapbackResult<T>,
+        before_commit: BeforeCommit,
+        after_commit: AfterCommit,
+    ) -> SnapbackResult<T>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+        AfterCommit: FnOnce() -> bool,
+    {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let value = f(&tx)?;
         let _commit_guard = before_commit()?;
         tx.commit()?;
+        let publication_transitioned_from_planned = after_commit();
         #[cfg(any(test, feature = "test-support"))]
-        observe_asset_attempts_after_commit_for_test();
+        observe_asset_attempts_after_commit_for_test(publication_transitioned_from_planned);
+        #[cfg(not(any(test, feature = "test-support")))]
+        let _ = publication_transitioned_from_planned;
         Ok(value)
     }
 
@@ -1041,7 +1059,9 @@ impl LocalDatabase {
     where
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
-        self.asset_attempts_transaction_guarded(
+        #[cfg(any(test, feature = "test-support"))]
+        let transitioned_from_planned = std::cell::Cell::new(false);
+        self.asset_attempts_transaction_guarded_observed(
             |tx| {
                 let mut current = assets::load_publication(tx, &publication.publication_id)?
                     .ok_or_else(|| {
@@ -1072,6 +1092,8 @@ impl LocalDatabase {
                             assets::AssetPublicationState::Staged,
                             now_millis(),
                         )?;
+                        #[cfg(any(test, feature = "test-support"))]
+                        transitioned_from_planned.set(true);
                     }
                     assets::AssetPublicationState::Staged => {}
                     other => {
@@ -1086,6 +1108,16 @@ impl LocalDatabase {
                 Ok(())
             },
             before_commit,
+            || {
+                #[cfg(any(test, feature = "test-support"))]
+                {
+                    transitioned_from_planned.get()
+                }
+                #[cfg(not(any(test, feature = "test-support")))]
+                {
+                    false
+                }
+            },
         )
     }
 

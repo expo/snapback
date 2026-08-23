@@ -12046,6 +12046,15 @@ const TEST_ASSET_RETRY_GUARD_HEADER: &str = "x-snapback-test-asset-retry-guard";
 #[cfg(test)]
 enum TestAssetRetryGuardAction {
     Refuse,
+    Probe {
+        completion: AuthorizedEffectScopeProbeForTest,
+        retry: AuthorizedEffectScopeProbeForTest,
+    },
+}
+
+#[cfg(test)]
+enum TestAssetAppliedGuardAction {
+    Refuse,
     Probe(AuthorizedEffectScopeProbeForTest),
 }
 
@@ -12099,17 +12108,33 @@ impl Drop for TestAssetRetryGuardConfiguration {
 fn take_test_asset_retry_guard(
     headers: &HeaderMap,
     effect: &'static str,
-) -> Option<TestAssetRetryGuardAction> {
-    if effect != "asset finalize witness-retry reservation" {
+) -> Option<TestAssetAppliedGuardAction> {
+    if !matches!(
+        effect,
+        "asset finalize publication/quota reservation" | "asset finalize witness-retry reservation"
+    ) {
         return None;
     }
     let id = headers
         .get(TEST_ASSET_RETRY_GUARD_HEADER)
         .and_then(|value| value.to_str().ok())?;
-    test_asset_retry_guards()
+    let mut guards = test_asset_retry_guards()
         .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .remove(id)
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if effect == "asset finalize publication/quota reservation" {
+        return match guards.get(id) {
+            Some(TestAssetRetryGuardAction::Probe { completion, .. }) => {
+                Some(TestAssetAppliedGuardAction::Probe(completion.clone()))
+            }
+            Some(TestAssetRetryGuardAction::Refuse) | None => None,
+        };
+    }
+    match guards.remove(id)? {
+        TestAssetRetryGuardAction::Refuse => Some(TestAssetAppliedGuardAction::Refuse),
+        TestAssetRetryGuardAction::Probe { retry, .. } => {
+            Some(TestAssetAppliedGuardAction::Probe(retry))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -12121,8 +12146,9 @@ fn test_asset_retry_guard_scope(headers: &HeaderMap) -> Option<AuthorizedEffectS
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     match guards.get(id) {
-        Some(TestAssetRetryGuardAction::Probe(probe)) => Some(probe.clone()),
-        Some(TestAssetRetryGuardAction::Refuse) | None => None,
+        Some(TestAssetRetryGuardAction::Probe { retry, .. }) => Some(retry.clone()),
+        Some(TestAssetRetryGuardAction::Refuse) => None,
+        None => panic!("asset retry-guard registry entry was absent before observer lookup"),
     }
 }
 

@@ -33687,7 +33687,7 @@ async fn asset_http_finalize_fresh_retry_guard_refusal_prevents_phase_d() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn asset_http_finalize_fresh_retry_guard_lives_through_phase_d_commit() {
+async fn asset_http_finalize_completion_and_retry_guards_cover_required_stage_and_phase_d() {
     let fixture = asset_authorized_effect_fixture_with_upload(
         AssetAuthorizedEffectSite::Finalize,
         "requiredImageUpload",
@@ -33710,29 +33710,36 @@ async fn asset_http_finalize_fresh_retry_guard_lives_through_phase_d_commit() {
     .await
     .expect("move finalize admission witness");
 
-    let marker = format!("finalize-retry-{}", uuid::Uuid::now_v7().simple());
-    let scope = crate::auth::invocation::AuthorizedEffectScopeProbeForTest::new(marker.clone());
-    assert_eq!(scope.marker(), marker);
-    let phase_c_scope = scope.clone();
-    let after_phase_c_commit =
-        snapback_kernel::storage::install_asset_attempts_after_commit_observer_for_test(
-            move || phase_c_scope.is_active_for("asset finalize publication-staged transaction"),
-        );
-    let required_phase_c_scope = scope.clone();
+    let completion_marker = format!("finalize-completion-{}", uuid::Uuid::now_v7().simple());
+    let completion_scope =
+        crate::auth::invocation::AuthorizedEffectScopeProbeForTest::new(completion_marker.clone());
+    assert_eq!(completion_scope.marker(), completion_marker);
+    let retry_marker = format!("finalize-retry-{}", uuid::Uuid::now_v7().simple());
+    let retry_scope =
+        crate::auth::invocation::AuthorizedEffectScopeProbeForTest::new(retry_marker.clone());
+    assert_eq!(retry_scope.marker(), retry_marker);
+
+    // Required staging precedes witness revalidation. Bind its one real
+    // Planned -> Staged transition to the original completion reservation;
+    // the fresh retry's already-Staged no-op cannot satisfy this observer.
+    let required_phase_c_scope = completion_scope.clone();
     let after_required_phase_c_commit =
         snapback_kernel::storage::install_asset_attempts_after_commit_observer_for_test(
-            move || {
-                required_phase_c_scope
-                    .is_active_for("asset finalize required-rendition staged transaction")
+            move |publication_transitioned_from_planned| {
+                publication_transitioned_from_planned
+                    && required_phase_c_scope
+                        .is_active_for("asset finalize required-rendition staged transaction")
             },
         );
-    let phase_d_scope = scope.clone();
+    let phase_d_scope = retry_scope.clone();
     let after_phase_d_commit =
         snapback_kernel::storage::install_asset_attempts_after_commit_observer_for_test(
-            move || phase_d_scope.is_active_for("asset finalize publication/quota transaction"),
+            move |_| phase_d_scope.is_active_for("asset finalize publication/quota transaction"),
         );
-    let retry_guard =
-        install_test_asset_retry_guard(TestAssetRetryGuardAction::Probe(scope.clone()));
+    let retry_guard = install_test_asset_retry_guard(TestAssetRetryGuardAction::Probe {
+        completion: completion_scope.clone(),
+        retry: retry_scope.clone(),
+    });
     let mut request = asset_session_request(
         "POST",
         &format!("/assets/attempts/{attempt_id}/finalize"),
@@ -33763,19 +33770,19 @@ async fn asset_http_finalize_fresh_retry_guard_lives_through_phase_d_commit() {
     );
     assert_eq!(body["task"]["availability"], "ready", "{body}");
     assert!(
-        after_phase_c_commit.observed(),
-        "the marked fresh retry guard was not active after the Phase-C COMMIT",
-    );
-    assert!(
         after_required_phase_c_commit.observed(),
-        "the marked fresh retry guard was not active after the required-rendition Phase-C COMMIT",
+        "the original completion guard was not active for the required-rendition Planned-to-Staged COMMIT",
     );
     assert!(
         after_phase_d_commit.observed(),
         "the marked fresh retry guard was not active after the Phase-D COMMIT",
     );
     assert!(
-        scope.is_inactive(),
+        completion_scope.is_inactive(),
+        "the marked original completion guard remained active after Local returned",
+    );
+    assert!(
+        retry_scope.is_inactive(),
         "the marked fresh retry guard remained active after Local returned",
     );
 }
