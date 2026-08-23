@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
+import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -12,6 +14,7 @@ import {
   classifyNonGreenCause,
   UNIMPLEMENTED_ASSERTIONS,
 } from "./choreography.mjs";
+import { parseObservationJsonLines } from "../metering/observations.mjs";
 
 // @ref LLP 0201#d2--quantitative-instrument — calibrate the fail-closed
 // suite-plus-choreography green contract with two isolated browser contexts.
@@ -71,10 +74,6 @@ const causeCases = [
     { green: false, suitePass: false, browserPass: true, requiredUnimplemented: 0 },
     "suite-failed",
   ],
-  [
-    { green: false, suitePass: null, browserPass: true, requiredUnimplemented: 0 },
-    "instrument",
-  ],
 ];
 for (const [input, expected] of causeCases) {
   const actual = classifyNonGreenCause(input);
@@ -84,6 +83,15 @@ for (const [input, expected] of causeCases) {
     );
   }
 }
+assert.throws(
+  () => classifyNonGreenCause({
+    green: false,
+    suitePass: null,
+    browserPass: true,
+    requiredUnimplemented: 0,
+  }),
+  /suitePass must be boolean/u,
+);
 
 function json(response, status, value) {
   response.writeHead(status, { "content-type": "application/json" });
@@ -446,8 +454,8 @@ try {
   await writeFile(
     suiteStatus,
     `${JSON.stringify({
-      m1: { pass: true, receipt: m1SuiteReceipt },
-      m8: { pass: true, receipt: m8SuiteReceipt },
+      m1: { pass: true, receipt: "m1-calibration-suite.json" },
+      m8: { pass: true, receipt: "m8-calibration-suite.json" },
     })}\n`,
   );
   await writeFile(
@@ -467,6 +475,7 @@ try {
     ...process.env,
     CHOREO_BASE_URL: `http://127.0.0.1:${address.port}`,
     CHOREO_PASSWORD: "calibration-password",
+    CHOREO_LANE_RUN_ID: "choreography-self-test-lane",
     ...(chrome && existsSync(chrome) ? { CHOREO_BROWSER_EXECUTABLE: chrome } : {}),
   };
   const refusedReceipts = join(scratch, "startup-refused-receipts.jsonl");
@@ -496,7 +505,7 @@ try {
   const partialSuiteStatus = join(scratch, "partial-suite-status.json");
   await writeFile(
     partialSuiteStatus,
-    `${JSON.stringify({ m1: { pass: true, receipt: m1SuiteReceipt } })}\n`,
+    `${JSON.stringify({ m1: { pass: true, receipt: "m1-calibration-suite.json" } })}\n`,
   );
   const partialLinkage = await run(
     process.execPath,
@@ -521,6 +530,36 @@ try {
   ) {
     throw new Error(
       `partial suite linkage did not refuse before receipt startup: ${JSON.stringify(partialLinkage)}`,
+    );
+  }
+  const danglingSuiteStatus = join(scratch, "dangling-suite-status.json");
+  await writeFile(
+    danglingSuiteStatus,
+    `${JSON.stringify({ m1: { pass: true, receipt: "missing-suite-receipt.json" } })}\n`,
+  );
+  const danglingLinkage = await run(
+    process.execPath,
+    [
+      new URL("./choreography.mjs", import.meta.url).pathname,
+      "m1",
+      "--suite-status",
+      danglingSuiteStatus,
+      "--receipts",
+      refusedReceipts,
+    ],
+    {
+      cwd: new URL(".", import.meta.url).pathname,
+      env: runEnvironment,
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+  if (
+    danglingLinkage.status !== 2
+    || !danglingLinkage.stderr.includes("suite-status startup refusal")
+    || existsSync(refusedReceipts)
+  ) {
+    throw new Error(
+      `dangling suite receipt did not refuse before receipt startup: ${JSON.stringify(danglingLinkage)}`,
     );
   }
   const result = await run(
@@ -552,6 +591,10 @@ try {
     .trim()
     .split("\n")
     .map((line) => JSON.parse(line));
+  const observationRecords = parseObservationJsonLines(
+    await readFile(`${receipts}.observations.jsonl`, "utf8"),
+    "choreography self-test observations",
+  );
   const schema = JSON.parse(
     await readFile(new URL("./receipts.schema.json", import.meta.url), "utf8"),
   );
@@ -647,7 +690,11 @@ try {
       notImplemented: 0,
       requiredUnimplemented: 0,
     },
-    suite: { pass: true, receipt: "acceptance/m1.json" },
+    suite: {
+      pass: true,
+      receipt: "acceptance/m1.json",
+      receiptSha256: `sha256:${"1".repeat(64)}`,
+    },
     choreography: {
       browserPass: true,
       requiredExternal: [],
@@ -690,7 +737,11 @@ try {
       browserPass: false,
       pass: false,
     },
-    suite: { pass: true, receipt: "acceptance/m1.json" },
+    suite: {
+      pass: true,
+      receipt: "acceptance/m1.json",
+      receiptSha256: `sha256:${"1".repeat(64)}`,
+    },
     nonGreenCause: "functionally-green",
   };
   for (const record of [...records, skippedSample, legacySummaryWithoutCause]) {
@@ -732,6 +783,29 @@ try {
     m8Supplemental[0].requiredForGreen !== false
   ) {
     throw new Error(`M8 simulator status was not retained as non-gating: ${JSON.stringify(m8Supplemental)}`);
+  }
+  const m1SuiteDigest = `sha256:${createHash("sha256")
+    .update(await readFile(m1SuiteReceipt))
+    .digest("hex")}`;
+  if (
+    m1Summary.suite.pass !== true
+    || m1Summary.suite.receiptSha256 !== m1SuiteDigest
+    || records.some((record) => record.type === "segment-summary" && record.suite?.pass === null)
+  ) {
+    throw new Error(`suite receipt digest was not bound at refusal time: ${JSON.stringify(m1Summary.suite)}`);
+  }
+  for (const milestone of ["M1", "M8"]) {
+    const events = observationRecords.filter((event) => event.milestone === milestone);
+    if (
+      !events.some((event) => (
+        event.type === "block-claim"
+        && event.block === "browserAssertionWait"
+        && event.claimed === true
+      ))
+      || !events.some((event) => event.type === "assertion-wait")
+    ) {
+      throw new Error(`${milestone} did not retain claimed typed assertion-wait observations`);
+    }
   }
 
   resetM8State();

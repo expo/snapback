@@ -55,6 +55,40 @@
       "const": 2,
       "description": "Version 2 requires an execution-ordered terminal boundary for every attempted milestone."
     },
+    "observabilityProtocol": {
+      "const": "social-messenger-observation.v1",
+      "description": "Typed event/projection protocol used by the current 0.3.3-m8 instrument. Older version-2 records omit it; current records may not omit observability blocks silently."
+    },
+    "efficiencyScorecardEligibility": {
+      "type": "object",
+      "required": [
+        "eligible",
+        "correctionActionTargetEligible",
+        "ineligibilityReasons"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "eligible": { "type": "boolean" },
+        "correctionActionTargetEligible": { "type": "boolean" },
+        "ineligibilityReasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "phase-usage-unavailable",
+              "semantic-actions-non-claimed",
+              "recovery-episodes-non-claimed",
+              "restart-reseed-non-claimed",
+              "assertion-waits-non-claimed",
+              "host-load-non-claimed",
+              "host-load-contamination",
+              "api-interruptions-non-claimed",
+              "api-interruption"
+            ]
+          }
+        }
+      }
+    },
     "orientation": {
       "type": "object",
       "description": "Bounded lane steering generated before the agent starts. This block is additive to the milestone authoring clocks: deliveredBytes is context delivery, while the sibling firstProductEdit field is the cumulative harness-native orientation-token snapshot and MUST NOT be added to milestones.M1.authoring.tokens.",
@@ -157,19 +191,6 @@
               "deduplicated"
             ],
             "additionalProperties": false,
-            "allOf": [
-              {
-                "if": {
-                  "properties": { "pass": { "const": true } },
-                  "required": ["pass"]
-                },
-                "then": {
-                  "properties": {
-                    "receipt": { "$ref": "#/$defs/hashedArtifact" }
-                  }
-                }
-              }
-            ],
             "properties": {
               "id": {
                 "type": "string",
@@ -591,6 +612,22 @@
             }
           }
         },
+        "observations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["sourceId", "path", "sha256"],
+            "additionalProperties": false,
+            "properties": {
+              "sourceId": { "type": "string", "minLength": 1 },
+              "path": { "type": "string", "minLength": 1 },
+              "sha256": {
+                "type": "string",
+                "pattern": "^sha256:[a-f0-9]{64}$"
+              }
+            }
+          }
+        },
         "boundaries": {
           "$ref": "#/$defs/hashedArtifact"
         },
@@ -650,7 +687,20 @@
                   { "$ref": "#/$defs/hashedArtifact" }
                 ]
               }
-            }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": { "pass": { "const": true } },
+                  "required": ["pass"]
+                },
+                "then": {
+                  "properties": {
+                    "receipt": { "$ref": "#/$defs/hashedArtifact" }
+                  }
+                }
+              }
+            ]
           }
         }
       }
@@ -1197,6 +1247,20 @@
         }
       }
     },
+    "hashedArtifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/hashedArtifact" }
+    },
+    "observabilityNonClaim": {
+      "type": "object",
+      "required": ["claimed", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "claimed": { "const": false },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
     "tokenCounts": {
       "type": "object",
       "description": "Harness-native per-turn token usage. input is fresh uncached input; output is the native output total; cacheRead/cacheWrite and the reasoning subset are recorded separately. The cap sum is input + output only, so cache counters are excluded and reasoning is not double-counted. Nulls record an un-metered phase honestly, per benchmarks/protocol.md.",
@@ -1305,19 +1369,28 @@
       }
     },
     "semanticActions": {
+      "oneOf": [
+        { "$ref": "#/$defs/observabilityNonClaim" },
+        { "$ref": "#/$defs/semanticActionsClaim" }
+      ]
+    },
+    "semanticActionsClaim": {
       "type": "object",
       "description": "Hash-linked per-milestone semantic-action stream under LLP 0186's closed D0.6 taxonomy. Counts are projections of the retained stream, never raw tool-call counts.",
       "required": [
+        "claimed",
         "evidence",
         "total",
         "byClass",
         "byDisposition",
+        "byRetriedClass",
         "binaryExcavation"
       ],
       "additionalProperties": false,
       "properties": {
+        "claimed": { "const": true },
         "evidence": {
-          "$ref": "#/$defs/hashedArtifact"
+          "$ref": "#/$defs/hashedArtifacts"
         },
         "total": {
           "type": "integer",
@@ -1361,6 +1434,31 @@
             "correction": { "type": "integer", "minimum": 0 }
           }
         },
+        "byRetriedClass": {
+          "type": "object",
+          "description": "Projection of retry actions by the closed class they retried; the sum equals byClass.retry.",
+          "required": [
+            "guide-lookup",
+            "source-inspection",
+            "edit",
+            "generate",
+            "process",
+            "reseed",
+            "suite",
+            "choreography"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "guide-lookup": { "type": "integer", "minimum": 0 },
+            "source-inspection": { "type": "integer", "minimum": 0 },
+            "edit": { "type": "integer", "minimum": 0 },
+            "generate": { "type": "integer", "minimum": 0 },
+            "process": { "type": "integer", "minimum": 0 },
+            "reseed": { "type": "integer", "minimum": 0 },
+            "suite": { "type": "integer", "minimum": 0 },
+            "choreography": { "type": "integer", "minimum": 0 }
+          }
+        },
         "binaryExcavation": {
           "type": "integer",
           "minimum": 0,
@@ -1369,19 +1467,33 @@
       }
     },
     "failureToRecoveryEpisodes": {
+      "oneOf": [
+        { "$ref": "#/$defs/observabilityNonClaim" },
+        { "$ref": "#/$defs/failureToRecoveryEpisodesClaim" }
+      ]
+    },
+    "failureToRecoveryEpisodesClaim": {
       "type": "object",
       "description": "Hash-linked failure-to-recovery trace from the first failed action through recovery, inclusive. Carrier and outcome counts project the retained episode stream.",
       "required": [
+        "claimed",
         "evidence",
+        "costlyEpisodeThresholdActions",
         "total",
         "byCarrier",
         "byAttribution",
+        "bySubAttribution",
         "byOutcome"
       ],
       "additionalProperties": false,
       "properties": {
+        "claimed": { "const": true },
         "evidence": {
-          "$ref": "#/$defs/hashedArtifact"
+          "$ref": "#/$defs/hashedArtifacts"
+        },
+        "costlyEpisodeThresholdActions": {
+          "const": 2,
+          "description": "Preregistered costly-episode threshold: the first failed action plus at least one correction action. Single-action failures remain semantic actions but are not episode rows."
         },
         "total": {
           "type": "integer",
@@ -1433,13 +1545,30 @@
             "environment": { "type": "integer", "minimum": 0 },
             "ambiguous": { "type": "integer", "minimum": 0 }
           }
+        },
+        "bySubAttribution": {
+          "type": "object",
+          "description": "Required projection for snapback-defect episodes; other attribution classes carry no subAttribution.",
+          "required": ["defect", "knowledge-gap"],
+          "additionalProperties": false,
+          "properties": {
+            "defect": { "type": "integer", "minimum": 0 },
+            "knowledge-gap": { "type": "integer", "minimum": 0 }
+          }
         }
       }
     },
     "restartReseed": {
+      "oneOf": [
+        { "$ref": "#/$defs/observabilityNonClaim" },
+        { "$ref": "#/$defs/restartReseedClaim" }
+      ]
+    },
+    "restartReseedClaim": {
       "type": "object",
       "description": "Hash-linked process-lifecycle projection for one milestone. Restarts count server/process restarts; reseeds and destructiveReseeds stay separate so additive-schema regressions remain visible.",
       "required": [
+        "claimed",
         "evidence",
         "restarts",
         "reseeds",
@@ -1447,8 +1576,9 @@
       ],
       "additionalProperties": false,
       "properties": {
+        "claimed": { "const": true },
         "evidence": {
-          "$ref": "#/$defs/hashedArtifact"
+          "$ref": "#/$defs/hashedArtifacts"
         },
         "restarts": { "type": "integer", "minimum": 0 },
         "reseeds": { "type": "integer", "minimum": 0 },
@@ -1456,17 +1586,25 @@
       }
     },
     "browserAssertionWait": {
+      "oneOf": [
+        { "$ref": "#/$defs/observabilityNonClaim" },
+        { "$ref": "#/$defs/browserAssertionWaitClaim" }
+      ]
+    },
+    "browserAssertionWaitClaim": {
       "type": "object",
       "description": "Hash-linked assertion attempt and settlement-wait accounting, split between the acceptance suite and browser choreography.",
       "required": [
+        "claimed",
         "evidence",
         "suite",
         "choreography"
       ],
       "additionalProperties": false,
       "properties": {
+        "claimed": { "const": true },
         "evidence": {
-          "$ref": "#/$defs/hashedArtifact"
+          "$ref": "#/$defs/hashedArtifacts"
         },
         "suite": {
           "$ref": "#/$defs/assertionWaitCounts"
@@ -1489,9 +1627,16 @@
       }
     },
     "hostLoad": {
+      "oneOf": [
+        { "$ref": "#/$defs/observabilityNonClaim" },
+        { "$ref": "#/$defs/hostLoadClaim" }
+      ]
+    },
+    "hostLoadClaim": {
       "type": "object",
       "description": "Hash-linked per-milestone host-load sample window. contamination is true exactly when at least one retained breach is present.",
       "required": [
+        "claimed",
         "evidence",
         "startedAt",
         "endedAt",
@@ -1501,8 +1646,9 @@
       ],
       "additionalProperties": false,
       "properties": {
+        "claimed": { "const": true },
         "evidence": {
-          "$ref": "#/$defs/hashedArtifact"
+          "$ref": "#/$defs/hashedArtifacts"
         },
         "startedAt": { "type": "string", "format": "date-time" },
         "endedAt": { "type": "string", "format": "date-time" },
@@ -1530,17 +1676,25 @@
       }
     },
     "apiInterruptions": {
+      "oneOf": [
+        { "$ref": "#/$defs/observabilityNonClaim" },
+        { "$ref": "#/$defs/apiInterruptionsClaim" }
+      ]
+    },
+    "apiInterruptionsClaim": {
       "type": "object",
       "description": "Hash-linked provider/API interruption windows from first failed request through the first successful replacement request, or through the terminal boundary when unresolved.",
       "required": [
+        "claimed",
         "evidence",
         "interrupted",
         "windows"
       ],
       "additionalProperties": false,
       "properties": {
+        "claimed": { "const": true },
         "evidence": {
-          "$ref": "#/$defs/hashedArtifact"
+          "$ref": "#/$defs/hashedArtifacts"
         },
         "interrupted": { "type": "boolean" },
         "windows": {
@@ -1549,6 +1703,7 @@
             "type": "object",
             "required": [
               "provider",
+              "operation",
               "startedAt",
               "recoveredAt",
               "failedRequests"
@@ -1556,6 +1711,7 @@
             "additionalProperties": false,
             "properties": {
               "provider": { "type": "string", "minLength": 1 },
+              "operation": { "type": "string", "minLength": 1 },
               "startedAt": { "type": "string", "format": "date-time" },
               "recoveredAt": {
                 "type": ["string", "null"],

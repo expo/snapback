@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { relative, resolve, sep } from 'node:path';
+import { dirname, relative, resolve, sep } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 import { recordDigest } from './canonical-json.mjs';
@@ -184,6 +184,7 @@ export function validateMachineRecord({ root, schema, file, record }) {
     errors = validateSocialMessengerRunRecord(composedSchema, record, {
       schemas: [schema, extensionSchema],
       tolerateAdditiveFields: true,
+      artifactRoot: dirname(resolve(root, file)),
     });
   } else {
     errors = validateJsonSchema(schema, record, { tolerateAdditiveFields: true });

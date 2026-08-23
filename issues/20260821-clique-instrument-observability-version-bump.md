@@ -57,23 +57,32 @@ R2 cell has started:
   action taxonomy/dispositions, failure-to-recovery carrier/attribution/outcome
   projections, restart/reseed counts, suite/choreography assertion attempts and
   wait wall, host-load samples/breaches, and API-interruption windows. The
-  validator checks aggregate equalities and contamination/linkage consistency.
+  validator resolves every retained sidecar, verifies its digest and typed
+  event shape, and recomputes the action/episode join plus all six projections.
+  Every `0.3.3-m8` attempted milestone must carry a claimed block or an
+  explicit non-claim; semantic-action/recovery non-claims automatically make
+  the correction-action target ineligible.
 - `suiteStatusLinkage` hash-binds the input plus retained suite receipts.
   Choreography now refuses a missing input or a missing selected-segment entry
-  before credentials, Playwright import, receipt creation, or browser startup.
+  before credentials, Playwright import, receipt creation, or browser startup,
+  stats and hashes every passing receipt then. The meter stats and re-hashes
+  the same files at record-write time; the record validator repeats that
+  verification and rejects `pass:true` with no receipt.
 - The instrument is bumped to `social-messenger@0.3.3-m8` / choreography
   `0.3.3-m8`; UI remains `0.3.1-m8` and schema remains `0.3.0-m8`. The frozen
-  manifest now pins both record schemas, their validator, and the unchanged W2
+  manifest now pins both record schemas, their validator, and the extended W2
   metering directory so the coordinated bump cannot discard landed metering.
 - The migration note and static choreography-to-`CONTRACT.md` vocabulary check
   ship with the bump. Old version-2 records and retained `0.3.2-m8` metering
   receipts remain valid.
 
-Verification at the implementation boundary: metering `17/17`, lane
-setup/schema `10/10`, choreography calibration green including both startup
-refusals, and the frozen twelve-cell R2 `validate-plan.mjs` green from its
-preregistered `sbs/0295-r2-rerun` worktree. `./ref-check --verbose` is green
-with 0 errors and 0 unchecked references.
+Major-fix verification at the implementation boundary: metering `20/20`, lane
+setup/schema `10/10`, quoted-reply UI `1/1`, choreography calibration green
+including missing/partial/dangling startup refusals, typed wait observations,
+receipt digests, M1/M8 green, and the deliberate M8 failure path. The frozen
+twelve-cell R2 `validate-plan.mjs` is green from its preregistered
+`sbs/0295-r2-rerun` worktree. `./ref-check --verbose` is green with 0 errors
+and 0 unchecked references.
 
 This ticket remains open: the broader LLP 0281 media/receipt/avatar/membership,
 selector-isolation/layout, setup-identity, and generated-report acceptance is

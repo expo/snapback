@@ -11,7 +11,8 @@ const USAGE = `Usage:
 
 The emitted milestones object is a run-record-extension patch. Copy source to
 the base run record's tokens.source, merge milestones.*.authoring, and copy
-firstProductEdit plus meteringProvenance to the socialMessenger extension.
+observabilityProtocol, efficiencyScorecardEligibility, firstProductEdit,
+meteringProvenance, and suiteStatusLinkage to the socialMessenger extension.
 Native adapters only accept the complete, hash-bound builder session tree
 declared by the lane manifest.`;
 

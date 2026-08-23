@@ -125,10 +125,12 @@ milestone must be present:
 }
 ```
 
-The path is an evidence pointer; this P2 harness does not interpret or bless
-the builder's suite contents. A passing suite status must carry a non-empty
-pointer. Coverage-manifest validation belongs to the outer run harness described
-by the benchmark brief.
+The path is relative to the suite-status file. The choreography does not
+interpret or bless the builder's suite semantics, but it does stat and digest
+the actual file before startup. The segment summary retains that SHA-256; the
+meter re-stats and re-digests the same file at record-write time. A missing or
+changed passing receipt refuses rather than becoming green. Coverage-manifest
+validation belongs to the outer run harness described by the benchmark brief.
 
 ## Compatibility
 
@@ -145,6 +147,7 @@ scoped fallback.
 
 `0.3.3-m8` keeps `0.3.2-m8` selector semantics and makes suite-status linkage
 startup-refusing. It coordinates the additive LLP 0295 D0.6 run-record
-observability fields without changing `extensionVersion: 2` or the W2 token
-meter. A missing-linkage `0.3.2-m8` receipt remains governed by its matching
+observability fields without changing `extensionVersion: 2`; the W2 token
+meter now joins typed, hash-verified observation sidecars beside its native
+usage stream. A missing-linkage `0.3.2-m8` receipt remains governed by its matching
 schema and may carry `suite.pass:null`; `0.3.3-m8` never emits that state.

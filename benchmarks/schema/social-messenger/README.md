@@ -7,6 +7,11 @@
 `VERSION` (`0.3.0-m8` — DRAFT until the P3 freeze; M8 added by
 LLP 0201's 2026-08-11 dated amendment).
 
+`VERSION` names the compatible schema vocabulary, not the byte identity of
+every additive draft revision. Exact schema identity is the SHA-256 recorded
+for `runRecordSchema` and `runRecordExtensionSchema` in the frozen
+`instrument.manifest.json`; lane setup verifies those digests before use.
+
 - `assertions.json` — assertion-ID manifest: 51 checklist items
   (M1:7 M2:8 M3:7 M4:5 M5:5 M6:6 M7:5 M8:8) split into 116 atomic
   assertions with stable IDs and one executor class each.
@@ -29,12 +34,15 @@ LLP 0201's 2026-08-11 dated amendment).
   `{at, orientationBytes, orientationTokens, selectedSkills}` shape. All five
   native counters remain present even when their values are null; those
   cumulative orientation tokens are not M1 authoring.
-  Optional additive D0.6 fields on each milestone retain hash-linked
+  Additive D0.6 fields on each milestone retain hash-linked
   semantic-action and failure-to-recovery streams, restart/reseed counts,
   suite/choreography assertion attempts and wait wall, host-load samples, and
   API-interruption windows. The sibling optional `suiteStatusLinkage` block
-  retains the startup-validated input and suite receipts. The extension stays
-  at version `2`, so completed records are never rewritten.
+  retains the startup-validated input and suite receipts. They remain optional
+  in the version-2 JSON shape for old-record compatibility, while the semantic
+  validator requires all six as claimed-or-explicitly-non-claimed plus suite
+  linkage for the `0.3.3-m8` instrument. The extension stays at version `2`,
+  so completed records are never rewritten.
 - `run-record.schema.json` — the complete composed record schema. It restricts
   `tokens.source` by `capFamily`; requires native lane totals and attempted
   milestone phases; and requires advisory or explicitly unavailable metering

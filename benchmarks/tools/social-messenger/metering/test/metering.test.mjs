@@ -31,6 +31,15 @@ import {
 import { joinUsageToMilestones } from "../joiner.mjs";
 import { parseJsonLines } from "../jsonl.mjs";
 import { loadMeteringManifest } from "../manifest.mjs";
+import {
+  OBSERVABILITY_BLOCKS,
+  OBSERVATION_VERSION,
+  ObservationWriter,
+  LaneObservationHarness,
+  parseObservationJsonLines,
+  projectMilestoneObservability,
+  scorecardEligibility,
+} from "../observations.mjs";
 import { assertTokenCounts, capTokenCount } from "../counts.mjs";
 import {
   TokenCapEnforcedError,
@@ -143,7 +152,13 @@ test("Claude native usage joins exact terminal prefixes into milestone phases", 
   });
   for (const milestone of Object.values(result.milestones)) {
     assertExtensionDefinition("tokenCounts", milestone.authoring.tokens);
+    for (const block of OBSERVABILITY_BLOCKS) {
+      assert.equal(milestone[block].claimed, false, `${block} must be an explicit non-claim`);
+      assert.match(milestone[block].reason, /unavailable/u);
+    }
   }
+  assert.equal(result.efficiencyScorecardEligibility.eligible, false);
+  assert.equal(result.efficiencyScorecardEligibility.correctionActionTargetEligible, false);
   assertExtensionDefinition("firstProductEditSnapshot", result.firstProductEdit);
 });
 
@@ -338,6 +353,211 @@ test("lane manifest rejects source-hash and receipt-identity mismatches", async 
     loadMeteringManifest(nonGreenReceiptPath),
     /conflicts with its non-green hash-bound receipt/u,
   );
+});
+
+test("meter binds suite-status bytes to receipts at record-write time", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "snapback-suite-binding-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  for (const name of ["boundaries.json", "first-product-edit.json"]) {
+    await copyFile(new URL(name, FIXTURES), join(directory, name));
+  }
+
+  const statuses = {};
+  const receiptArtifacts = [];
+  for (const milestone of ["M1", "M2"]) {
+    const segment = milestone.toLowerCase();
+    const suitePath = `${segment}-suite.json`;
+    const suiteText = `${JSON.stringify({ milestone, pass: true })}\n`;
+    await writeFile(join(directory, suitePath), suiteText);
+    statuses[segment] = { pass: true, receipt: suitePath };
+
+    const receiptName = `receipts-${segment}.jsonl`;
+    const records = parseJsonLines(await fixtureText(receiptName));
+    const summary = records.find((record) => record.type === "segment-summary");
+    summary.version = "0.3.3-m8";
+    summary.suite = {
+      pass: true,
+      receipt: suitePath,
+      receiptSha256: sha256(suiteText),
+    };
+    const receiptText = `${records.map((record) => JSON.stringify(record)).join("\n")}\n`;
+    await writeFile(join(directory, receiptName), receiptText);
+    receiptArtifacts.push({
+      sourceId: `${segment}-choreography`,
+      runId: summary.runId,
+      milestone,
+      path: receiptName,
+      sha256: sha256(receiptText),
+    });
+  }
+  const suiteStatusText = `${JSON.stringify(statuses)}\n`;
+  await writeFile(join(directory, "suite-status.json"), suiteStatusText);
+
+  const observationsPath = join(directory, "driver-observations.jsonl");
+  let observationAt = Date.parse("2026-08-21T10:00:40.000Z");
+  const observationWriter = new ObservationWriter({
+    path: observationsPath,
+    laneRunId: "fixture-lane-run",
+    now: () => {
+      const at = new Date(observationAt).toISOString();
+      observationAt += 1000;
+      return at;
+    },
+  });
+  await observationWriter.initialize();
+  const observationHarness = new LaneObservationHarness({
+    writer: observationWriter,
+    loadCeilings: { loadavg1: 10, loadavg5: 10, loadavg15: 10 },
+    loadIntervalMs: 60_000,
+    loadSample: () => [1, 2, 3],
+  });
+  for (const milestone of ["M1", "M2"]) {
+    if (milestone === "M2") observationAt = Date.parse("2026-08-21T10:01:40.000Z");
+    await observationHarness.startMilestone(milestone);
+    if (milestone === "M1") {
+      await observationHarness.restart(milestone);
+      await observationHarness.apiRequest(milestone, {
+        provider: "fixture",
+        operation: "stream-turn",
+        requestId: "m1-request",
+        retryOf: null,
+      }, async () => "ok");
+    }
+    await observationHarness.finishMilestone(milestone);
+    await observationWriter.assertionWait(milestone, {
+      owner: "choreography",
+      assertion: `${milestone.toLowerCase()}-fixture`,
+      attempt: 1,
+      durationMs: 5,
+      pass: true,
+    });
+    await observationWriter.claim(milestone, "browserAssertionWait");
+  }
+
+  const manifest = await fixtureJson("unavailable-manifest.json");
+  manifest.receipts = receiptArtifacts;
+  manifest.observations = [{
+    sourceId: "driver-observations",
+    ...await retainedArtifact(directory, "driver-observations.jsonl"),
+  }];
+  manifest.suiteStatus = {
+    path: "suite-status.json",
+    sha256: sha256(suiteStatusText),
+  };
+  const manifestPath = join(directory, "manifest.json");
+  await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
+
+  const loaded = await loadMeteringManifest(manifestPath);
+  assert.equal(loaded.suiteStatusLinkage.milestones.length, 2);
+  assert.equal(
+    loaded.suiteStatusLinkage.milestones[0].receipt.sha256,
+    sha256(`${JSON.stringify({ milestone: "M1", pass: true })}\n`),
+  );
+  const joined = joinUsageToMilestones(loaded);
+  assert.equal(joined.suiteStatusLinkage.milestones[0].pass, true);
+  assert.equal(joined.milestones.M1.hostLoad.claimed, true);
+  assert.equal(joined.milestones.M1.restartReseed.restarts, 1);
+  assert.equal(joined.milestones.M1.browserAssertionWait.choreography.attempts, 1);
+  assert.equal(joined.milestones.M1.semanticActions.claimed, false);
+  assert.equal(joined.efficiencyScorecardEligibility.correctionActionTargetEligible, false);
+
+  await writeFile(join(directory, "m1-suite.json"), "{\"tampered\":true}\n");
+  await assert.rejects(
+    loadMeteringManifest(manifestPath),
+    /receipt changed after choreography refusal-check time/u,
+  );
+});
+
+test("lane observation harness samples load and records lifecycle and API retries", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "lane-observation-harness-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const path = join(root, "driver-observations.jsonl");
+  let tick = 0;
+  const writer = new ObservationWriter({
+    path,
+    laneRunId: "observed-lane",
+    now: () => new Date(Date.parse("2026-08-21T12:00:00.000Z") + tick++ * 10).toISOString(),
+  });
+  await writer.initialize();
+  const harness = new LaneObservationHarness({
+    writer,
+    loadCeilings: { loadavg1: 10, loadavg5: 10, loadavg15: 10 },
+    loadIntervalMs: 2,
+    loadSample: () => [11, 2, 3],
+  });
+  await harness.startMilestone("M1");
+  await assert.rejects(writer.semanticAction("M1", {
+    actionId: "invalid-retry",
+    actionClass: "retry",
+    disposition: "correction",
+    episodeId: "invalid-episode",
+    retriedClass: null,
+    binaryExcavation: false,
+  }), /retriedClass must name the failed class/u);
+  await assert.rejects(writer.recoveryEpisode("M1", {
+    episodeId: "invalid-episode",
+    carrier: "other",
+    attribution: "snapback-defect",
+    subAttribution: null,
+    outcome: "recovered",
+    recoveredAt: "2026-08-21T12:00:01.000Z",
+    actionCount: 1,
+  }), /subAttribution is required/u);
+  await assert.rejects(writer.recoveryEpisode("M1", {
+    episodeId: "too-short-episode",
+    carrier: "other",
+    attribution: "snapback-defect",
+    subAttribution: "defect",
+    outcome: "recovered",
+    recoveredAt: "2026-08-21T12:00:01.000Z",
+    actionCount: 1,
+  }), /integer >= 2/u);
+  await assert.rejects(writer.record("M1", "lifecycle", {
+    operation: "restart",
+    destructive: false,
+    invented: true,
+  }), /unknown field/u);
+  await harness.restart("M1");
+  await harness.reseed("M1", { destructive: true });
+  await assert.rejects(
+    harness.apiRequest("M1", {
+      provider: "fixture",
+      operation: "stream-turn",
+      requestId: "request-1",
+      retryOf: null,
+    }, async () => { throw new Error("stream interrupted"); }),
+    /stream interrupted/u,
+  );
+  assert.equal(await harness.apiRequest("M1", {
+    provider: "fixture",
+    operation: "stream-turn",
+    requestId: "request-2",
+    retryOf: "request-1",
+  }, async () => "recovered"), "recovered");
+  await new Promise((resolvePromise) => setTimeout(resolvePromise, 8));
+  await harness.finishMilestone("M1");
+
+  const events = parseObservationJsonLines(await readFile(path, "utf8"));
+  const projection = projectMilestoneObservability({
+    events,
+    evidence: [await retainedArtifact(root, "driver-observations.jsonl")],
+    milestone: "M1",
+  });
+  assert.equal(projection.hostLoad.claimed, true);
+  assert.ok(projection.hostLoad.sampleCount >= 2);
+  assert.equal(projection.hostLoad.contamination, true);
+  assert.deepEqual(projection.restartReseed, {
+    claimed: true,
+    evidence: [await retainedArtifact(root, "driver-observations.jsonl")],
+    restarts: 1,
+    reseeds: 1,
+    destructiveReseeds: 1,
+  });
+  assert.equal(projection.apiInterruptions.interrupted, true);
+  assert.equal(projection.apiInterruptions.windows[0].failedRequests, 1);
+  assert.ok(projection.apiInterruptions.windows[0].recoveredAt);
+  assert.equal(projection.semanticActions.claimed, false);
+  assert.equal(projection.failureToRecoveryEpisodes.claimed, false);
 });
 
 test("Claude message identity de-duplicates globally across declared sources", () => {
@@ -704,123 +924,315 @@ function composedRecord({ capFamily, source, metered }) {
   };
 }
 
-function composedErrors(record) {
+function composedErrors(record, artifactRoot = null) {
   return validateSocialMessengerRunRecord(composedSchema, record, {
     schemas: [baseSchema, extensionSchema],
+    artifactRoot,
   });
 }
 
-function hashedArtifact(path, digit = "a") {
-  return { path, sha256: `sha256:${digit.repeat(64)}` };
+async function retainedArtifact(root, path) {
+  return { path, sha256: sha256(await readFile(join(root, path))) };
 }
 
-function addD06Observability(record) {
-  record.socialMessenger.suiteStatusLinkage = {
-    input: hashedArtifact("suite-status.json", "3"),
-    milestones: ["M1", "M2", "M3"].map((milestone) => ({
+async function writeObservationFixture(root, { allClaimed = true } = {}) {
+  const path = join(root, "observations.jsonl");
+  let observationAt = Date.parse("2026-08-21T16:00:00.000Z");
+  const writer = new ObservationWriter({
+    path,
+    laneRunId: "fixture-lane",
+    now: () => {
+      const at = new Date(observationAt).toISOString();
+      observationAt += 1000;
+      return at;
+    },
+  });
+  await writer.initialize();
+  for (const milestone of ["M1", "M2", "M3"]) {
+    observationAt = Date.parse({
+      M1: "2026-08-21T16:00:00.000Z",
+      M2: "2026-08-21T16:01:05.000Z",
+      M3: "2026-08-21T16:02:05.000Z",
+    }[milestone]);
+    for (const block of OBSERVABILITY_BLOCKS) {
+      if (!allClaimed && ["semanticActions", "failureToRecoveryEpisodes"].includes(block)) {
+        await writer.nonClaim(milestone, block, `${block}-not-emitted-by-fixture-harness`);
+      } else {
+        await writer.claim(milestone, block);
+      }
+    }
+    if (!allClaimed) {
+      for (const block of ["restartReseed", "browserAssertionWait", "apiInterruptions"]) {
+        // Claimed zero is meaningful only because the fixture driver emitted
+        // the corresponding complete-coverage claim above.
+        assert.ok(block);
+      }
+    }
+    await writer.record(milestone, "host-load-sample", {
+      loadavg1: 1,
+      loadavg5: 1.5,
+      loadavg15: 2,
+      ceiling1: 10,
+      ceiling5: 10,
+      ceiling15: 10,
+    });
+  }
+  observationAt = Date.parse("2026-08-21T16:00:20.000Z");
+  if (allClaimed) {
+    await writer.record("M1", "semantic-action", {
+      actionId: "m1-action-1",
+      actionClass: "source-inspection",
+      disposition: "correction",
+      episodeId: "m1-episode-1",
+      retriedClass: null,
+      binaryExcavation: true,
+    });
+    await writer.record("M1", "semantic-action", {
+      actionId: "m1-action-2",
+      actionClass: "retry",
+      disposition: "correction",
+      episodeId: "m1-episode-1",
+      retriedClass: "source-inspection",
+      binaryExcavation: false,
+    });
+    await writer.record("M1", "recovery-episode", {
+      episodeId: "m1-episode-1",
+      carrier: "other",
+      attribution: "snapback-defect",
+      subAttribution: "knowledge-gap",
+      outcome: "recovered",
+      recoveredAt: "2026-08-21T16:00:59.000Z",
+      actionCount: 2,
+    });
+    observationAt = Date.parse("2026-08-21T16:01:20.000Z");
+    await writer.semanticAction("M2", {
+      actionId: "m2-single-correction",
+      actionClass: "edit",
+      disposition: "correction",
+      episodeId: null,
+      retriedClass: null,
+      binaryExcavation: false,
+    });
+  }
+  observationAt = Date.parse("2026-08-21T16:00:40.000Z");
+  await writer.restart("M1");
+  await writer.reseed("M1", { destructive: false });
+  await writer.assertionWait("M1", {
+    owner: "suite",
+    assertion: "suite-fixture",
+    attempt: 1,
+    durationMs: 10,
+    pass: true,
+  });
+  await writer.assertionWait("M1", {
+    owner: "choreography",
+    assertion: "choreo-fixture",
+    attempt: 1,
+    durationMs: 20,
+    pass: true,
+  });
+  await writer.apiRequest("M1", {
+    provider: "fixture-provider",
+    operation: "stream-turn",
+    requestId: "request-1",
+    outcome: "error",
+    retryOf: null,
+  });
+  await writer.apiRequest("M1", {
+    provider: "fixture-provider",
+    operation: "stream-turn",
+    requestId: "request-2",
+    outcome: "success",
+    retryOf: "request-1",
+  });
+  return { path, artifact: await retainedArtifact(root, "observations.jsonl") };
+}
+
+async function writeSuiteFixture(root) {
+  const milestones = [];
+  const provenance = [];
+  const statuses = {};
+  for (const [index, milestone] of ["M1", "M2", "M3"].entries()) {
+    const receiptPath = `${milestone.toLowerCase()}-suite.json`;
+    await writeFile(join(root, receiptPath), `${JSON.stringify({ milestone, pass: true })}\n`);
+    const receiptArtifact = await retainedArtifact(root, receiptPath);
+    statuses[milestone.toLowerCase()] = { pass: true, receipt: receiptPath };
+    milestones.push({
       milestone,
       pass: true,
-      receipt: hashedArtifact(`acceptance/${milestone.toLowerCase()}.json`, "4"),
-    })),
+      receipt: receiptArtifact,
+    });
+    const choreographyPath = `${milestone.toLowerCase()}-choreography.jsonl`;
+    const runId = `fixture-choreography-${milestone.toLowerCase()}`;
+    const choreographyText = `${JSON.stringify({
+      version: "0.3.3-m8",
+      runId,
+      recordedAt: `2026-08-21T16:0${index + 1}:00.000Z`,
+      type: "segment-summary",
+      segment: milestone.toLowerCase(),
+      suite: {
+        pass: true,
+        receipt: receiptPath,
+        receiptSha256: receiptArtifact.sha256,
+      },
+      choreography: { pass: true },
+      green: true,
+    })}\n`;
+    await writeFile(join(root, choreographyPath), choreographyText);
+    provenance.push({
+      sourceId: `${milestone.toLowerCase()}-choreography`,
+      runId,
+      milestone,
+      path: choreographyPath,
+      sha256: sha256(choreographyText),
+    });
+  }
+  await writeFile(join(root, "suite-status.json"), `${JSON.stringify(statuses)}\n`);
+  return {
+    input: await retainedArtifact(root, "suite-status.json"),
+    milestones,
+    provenance,
   };
-  record.socialMessenger.milestones.M1.semanticActions = {
-    evidence: hashedArtifact("events/semantic-actions.jsonl"),
-    total: 2,
-    byClass: {
-      "guide-lookup": 0,
-      "source-inspection": 0,
-      edit: 1,
-      generate: 0,
-      process: 0,
-      reseed: 0,
-      suite: 1,
-      choreography: 0,
-      retry: 0,
-    },
-    byDisposition: { progress: 1, correction: 1 },
-    binaryExcavation: 0,
+}
+
+async function addD06Observability(record, root, { allClaimed = true } = {}) {
+  const observations = await writeObservationFixture(root, { allClaimed });
+  const events = parseObservationJsonLines(await readFile(observations.path, "utf8"));
+  const evidence = [observations.artifact];
+  record.socialMessenger.orientation.instrument.pin = "social-messenger@0.3.3-m8";
+  record.socialMessenger.orientation.instrument.versions.choreography = "0.3.3-m8";
+  record.socialMessenger.observabilityProtocol = OBSERVATION_VERSION;
+  record.socialMessenger.meteringProvenance.observations = [{
+    sourceId: "fixture-observations",
+    ...observations.artifact,
+  }];
+  for (const milestone of ["M1", "M2", "M3"]) {
+    Object.assign(
+      record.socialMessenger.milestones[milestone],
+      projectMilestoneObservability({ events, evidence, milestone }),
+    );
+  }
+  record.socialMessenger.efficiencyScorecardEligibility = scorecardEligibility({
+    milestones: record.socialMessenger.milestones,
+    phaseUsageAvailable: true,
+  });
+  const suiteFixture = await writeSuiteFixture(root);
+  record.socialMessenger.suiteStatusLinkage = {
+    input: suiteFixture.input,
+    milestones: suiteFixture.milestones,
   };
-  record.socialMessenger.milestones.M1.failureToRecoveryEpisodes = {
-    evidence: hashedArtifact("events/failure-to-recovery.jsonl", "b"),
-    total: 1,
-    byCarrier: {
-      "snapback-refusal": 0,
-      "compiler-codegen-diagnostic": 0,
-      "bare-not-found": 0,
-      "silent-discovery-miss": 0,
-      other: 1,
-    },
-    byAttribution: {
-      "snapback-defect": 0,
-      "agent-error": 1,
-      environment: 0,
-      ambiguous: 0,
-    },
-    byOutcome: { recovered: 1, unresolved: 0 },
-  };
-  record.socialMessenger.milestones.M1.restartReseed = {
-    evidence: hashedArtifact("events/process-lifecycle.jsonl", "c"),
-    restarts: 1,
-    reseeds: 1,
-    destructiveReseeds: 0,
-  };
-  record.socialMessenger.milestones.M1.browserAssertionWait = {
-    evidence: hashedArtifact("events/assertion-waits.jsonl", "d"),
-    suite: { attempts: 1, waitMillis: 10 },
-    choreography: { attempts: 2, waitMillis: 20 },
-  };
-  record.socialMessenger.milestones.M1.hostLoad = {
-    evidence: hashedArtifact("load-samples.jsonl", "e"),
-    startedAt: "2026-08-21T16:00:00.000Z",
-    endedAt: "2026-08-21T16:01:00.000Z",
-    sampleCount: 2,
-    contamination: false,
-    breaches: [],
-  };
-  record.socialMessenger.milestones.M1.apiInterruptions = {
-    evidence: hashedArtifact("api-interruptions.jsonl", "f"),
-    interrupted: false,
-    windows: [],
-  };
+  record.socialMessenger.meteringProvenance.receipts = suiteFixture.provenance;
   return record;
 }
 
-test("D0.6 observability stays additive, hash-linked, and semantically closed", () => {
-  const record = addD06Observability(composedRecord({
-    capFamily: "gpt-frontier",
-    source: "codex-rollout-token-count",
-    metered: true,
-  }));
+test("D0.6 observability is produced from real sidecars and tampering fails closed", async () => {
+  const root = await mkdtemp(join(tmpdir(), "d06-observability-"));
+  const record = await addD06Observability(composedRecord({
+      capFamily: "gpt-frontier",
+      source: "codex-rollout-token-count",
+      metered: true,
+    }), root);
   assert.equal(record.socialMessenger.extensionVersion, 2);
-  assert.deepEqual(composedErrors(record), []);
+  assert.deepEqual(composedErrors(record, root), []);
 
   const badActionTotal = structuredClone(record);
   badActionTotal.socialMessenger.milestones.M1.semanticActions.total = 3;
   assert.match(
-    composedErrors(badActionTotal).join("\n"),
-    /semantic-action total must equal/u,
+    composedErrors(badActionTotal, root).join("\n"),
+    /semantic-action total must equal|does not equal the projection/u,
   );
 
   const badEpisodeTotal = structuredClone(record);
   badEpisodeTotal.socialMessenger.milestones.M1.failureToRecoveryEpisodes
     .byOutcome.recovered = 0;
   assert.match(
-    composedErrors(badEpisodeTotal).join("\n"),
-    /episode total must equal recovered \+ unresolved/u,
+    composedErrors(badEpisodeTotal, root).join("\n"),
+    /episode total must equal recovered \+ unresolved|does not equal the projection/u,
   );
 
   const badContamination = structuredClone(record);
   badContamination.socialMessenger.milestones.M1.hostLoad.contamination = true;
   assert.match(
-    composedErrors(badContamination).join("\n"),
-    /host-load contamination must match retained breaches/u,
+    composedErrors(badContamination, root).join("\n"),
+    /host-load contamination must match retained breaches|does not equal the projection/u,
   );
 
   const missingSuiteLink = structuredClone(record);
   missingSuiteLink.socialMessenger.suiteStatusLinkage.milestones.pop();
   assert.match(
-    composedErrors(missingSuiteLink).join("\n"),
+    composedErrors(missingSuiteLink, root).join("\n"),
     /attempted M3 lacks hash-linked suite status/u,
+  );
+
+  const absentSuiteLinkage = structuredClone(record);
+  delete absentSuiteLinkage.socialMessenger.suiteStatusLinkage;
+  assert.match(
+    composedErrors(absentSuiteLinkage, root).join("\n"),
+    /current instrument requires hash-bound suite-status custody/u,
+  );
+
+  const nullGreenReceipt = structuredClone(record);
+  nullGreenReceipt.socialMessenger.suiteStatusLinkage.milestones[0].receipt = null;
+  assert.match(
+    composedErrors(nullGreenReceipt, root).join("\n"),
+    /pass:true requires|required artifact|exactly one allowed schema/u,
+  );
+
+  const absentBlock = structuredClone(record);
+  delete absentBlock.socialMessenger.milestones.M2.semanticActions;
+  assert.match(
+    composedErrors(absentBlock, root).join("\n"),
+    /requires an explicit claimed or non-claimed block/u,
+  );
+
+  const missingEvidence = structuredClone(record);
+  missingEvidence.socialMessenger.meteringProvenance.observations[0].path = "missing.jsonl";
+  assert.match(
+    composedErrors(missingEvidence, root).join("\n"),
+    /cannot read retained artifact/u,
+  );
+
+  const absentObservationSet = structuredClone(record);
+  delete absentObservationSet.socialMessenger.meteringProvenance.observations;
+  assert.match(
+    composedErrors(absentObservationSet, root).join("\n"),
+    /must declare its complete observation artifact set/u,
+  );
+
+  const fabricatedDigest = structuredClone(record);
+  fabricatedDigest.socialMessenger.meteringProvenance.observations[0].sha256 =
+    `sha256:${"0".repeat(64)}`;
+  assert.match(
+    composedErrors(fabricatedDigest, root).join("\n"),
+    /digest mismatch/u,
+    "a syntactically valid fabricated observation digest must fail",
+  );
+
+  const choreographyReceiptPath = join(root, "m1-choreography.jsonl");
+  const choreographyReceiptText = await readFile(choreographyReceiptPath, "utf8");
+  await writeFile(choreographyReceiptPath, `${choreographyReceiptText} `);
+  assert.match(
+    composedErrors(record, root).join("\n"),
+    /digest mismatch/u,
+    "changing refusal-time choreography evidence must invalidate the record",
+  );
+  await writeFile(choreographyReceiptPath, choreographyReceiptText);
+
+  const suiteReceiptPath = join(root, "m1-suite.json");
+  const suiteReceiptText = await readFile(suiteReceiptPath, "utf8");
+  await writeFile(suiteReceiptPath, "{\"tampered\":true}\n");
+  assert.match(
+    composedErrors(record, root).join("\n"),
+    /digest mismatch/u,
+    "changing a retained suite receipt after record creation must invalidate the record",
+  );
+  await writeFile(suiteReceiptPath, suiteReceiptText);
+
+  await writeFile(join(root, "observations.jsonl"), `${await readFile(join(root, "observations.jsonl"), "utf8")} `);
+  assert.match(
+    composedErrors(record, root).join("\n"),
+    /digest mismatch/u,
+    "changing retained bytes after record creation must invalidate the record",
   );
 
   const oldRecord = composedRecord({
@@ -832,6 +1244,35 @@ test("D0.6 observability stays additive, hash-linked, and semantically closed", 
     choreography: "fixture",
   };
   assert.deepEqual(composedErrors(oldRecord), []);
+  await rm(root, { recursive: true, force: true });
+});
+
+test("semantic and episode non-claims make the correction-action target ineligible", async () => {
+  const root = await mkdtemp(join(tmpdir(), "d06-nonclaim-"));
+  const record = await addD06Observability(composedRecord({
+    capFamily: "gpt-frontier",
+    source: "codex-rollout-token-count",
+    metered: true,
+  }), root, { allClaimed: false });
+  assert.equal(record.socialMessenger.milestones.M1.semanticActions.claimed, false);
+  assert.equal(record.socialMessenger.milestones.M1.failureToRecoveryEpisodes.claimed, false);
+  assert.equal(
+    record.socialMessenger.efficiencyScorecardEligibility.correctionActionTargetEligible,
+    false,
+  );
+  assert.deepEqual(composedErrors(record, root), []);
+
+  const falseEligibility = structuredClone(record);
+  falseEligibility.socialMessenger.efficiencyScorecardEligibility = {
+    eligible: true,
+    correctionActionTargetEligible: true,
+    ineligibilityReasons: [],
+  };
+  assert.match(
+    composedErrors(falseEligibility, root).join("\n"),
+    /eligibility must equal the validator-recomputed/u,
+  );
+  await rm(root, { recursive: true, force: true });
 });
 
 test("composed schema restricts approved sources and null cap posture", () => {

@@ -226,17 +226,25 @@
     },
     "suiteStatus": {
       "type": "object",
-      "required": ["pass", "receipt"],
+      "required": ["pass", "receipt", "receiptSha256"],
       "properties": {
         "pass": { "type": "boolean" },
-        "receipt": { "type": ["string", "null"] }
+        "receipt": { "type": ["string", "null"] },
+        "receiptSha256": {
+          "type": ["string", "null"],
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        }
       },
       "allOf": [
         {
           "if": { "properties": { "pass": { "const": true } }, "required": ["pass"] },
           "then": {
             "properties": {
-              "receipt": { "type": "string", "minLength": 1 }
+              "receipt": { "type": "string", "minLength": 1 },
+              "receiptSha256": {
+                "type": "string",
+                "pattern": "^sha256:[a-f0-9]{64}$"
+              }
             }
           }
         }

@@ -1,10 +1,20 @@
 #!/usr/bin/env node
 
-import { randomUUID } from "node:crypto";
-import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { createHash, randomUUID } from "node:crypto";
+import {
+  appendFile,
+  lstat,
+  mkdir,
+  readFile,
+  realpath,
+  stat,
+  writeFile,
+} from "node:fs/promises";
+import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { performance } from "node:perf_hooks";
+
+import { ObservationWriter } from "../metering/observations.mjs";
 
 const VERSION = "0.3.3-m8";
 const SEGMENTS = ["m1", "m2", "m3", "m4", "m5", "m6", "m8"];
@@ -181,6 +191,8 @@ Options:
   --browser <name>       chromium, firefox, or webkit (default: chromium)
   --headed               show browser windows (default: headless)
   --receipts <path>      JSONL output (default: ./receipts.jsonl beside script)
+  --observations <path>  Typed assertion-wait JSONL (default: <receipts>.observations.jsonl)
+  --lane-run-id <id>     Stable lane identity shared with the metering manifest
   --suite-status <path>  Required JSON suite-status linkage for selected segments
   --adapter <path>       lane navigation/fixture adapter JSON
   --simulator-status <path>
@@ -218,6 +230,8 @@ function parseArgs(argv) {
     browser: process.env.CHOREO_BROWSER ?? "chromium",
     headed: false,
     receiptsPath: process.env.CHOREO_RECEIPTS ?? DEFAULT_RECEIPTS_PATH,
+    observationsPath: process.env.CHOREO_OBSERVATIONS ?? null,
+    laneRunId: process.env.CHOREO_LANE_RUN_ID ?? null,
     suiteStatusPath: process.env.CHOREO_SUITE_STATUS ?? null,
     adapterPath: process.env.CHOREO_ADAPTER ?? null,
     simulatorStatusPath: process.env.CHOREO_SIMULATOR_STATUS ?? null,
@@ -237,6 +251,12 @@ function parseArgs(argv) {
       index += 1;
     } else if (arg === "--receipts") {
       options.receiptsPath = takeValue(argv, index, arg);
+      index += 1;
+    } else if (arg === "--observations") {
+      options.observationsPath = takeValue(argv, index, arg);
+      index += 1;
+    } else if (arg === "--lane-run-id") {
+      options.laneRunId = takeValue(argv, index, arg);
       index += 1;
     } else if (arg === "--suite-status") {
       options.suiteStatusPath = takeValue(argv, index, arg);
@@ -262,12 +282,18 @@ function parseArgs(argv) {
   if (!Number.isInteger(options.timeoutMs) || options.timeoutMs <= 0) {
     throw new Error("--timeout / CHOREO_TIMEOUT_MS must be a positive integer");
   }
+  if (typeof options.laneRunId !== "string" || options.laneRunId.length === 0) {
+    throw new Error("--lane-run-id / CHOREO_LANE_RUN_ID is required");
+  }
   if (!new Set(["chromium", "firefox", "webkit"]).has(options.browser)) {
     throw new Error(`unsupported browser: ${options.browser}`);
   }
 
   options.segments = parseSegments(options.segmentArg);
   options.receiptsPath = resolve(options.receiptsPath);
+  options.observationsPath = resolve(
+    options.observationsPath ?? `${options.receiptsPath}.observations.jsonl`,
+  );
   if (options.suiteStatusPath) {
     options.suiteStatusPath = resolve(options.suiteStatusPath);
   }
@@ -338,6 +364,38 @@ async function loadSuiteStatuses(path, requiredSegments) {
     if (status.pass && (typeof status.receipt !== "string" || status.receipt.length === 0)) {
       throw new Error(`suite-status ${segment}.receipt must name evidence when pass is true`);
     }
+    let receiptSha256 = null;
+    if (typeof status.receipt === "string" && status.receipt.length > 0) {
+      if (isAbsolute(status.receipt)) {
+        throw new Error(`suite-status ${segment}.receipt must be relative to the suite-status file`);
+      }
+      const receiptPath = resolve(dirname(path), status.receipt);
+      const escaped = relative(dirname(path), receiptPath);
+      if (escaped === ".." || escaped.startsWith(`..${sep}`) || isAbsolute(escaped)) {
+        throw new Error(`suite-status ${segment}.receipt must stay beside the suite-status file`);
+      }
+      if ((await lstat(receiptPath)).isSymbolicLink()) {
+        throw new Error(`suite-status ${segment}.receipt cannot be a symbolic link`);
+      }
+      const canonicalReceiptPath = await realpath(receiptPath);
+      const canonicalStatusDirectory = await realpath(dirname(path));
+      const canonicalEscape = relative(canonicalStatusDirectory, canonicalReceiptPath);
+      if (
+        canonicalEscape === ".."
+        || canonicalEscape.startsWith(`..${sep}`)
+        || isAbsolute(canonicalEscape)
+      ) {
+        throw new Error(`suite-status ${segment}.receipt escapes after canonical resolution`);
+      }
+      const receiptStatus = await stat(canonicalReceiptPath);
+      if (!receiptStatus.isFile()) {
+        throw new Error(`suite-status ${segment}.receipt must name a file`);
+      }
+      receiptSha256 = `sha256:${createHash("sha256")
+        .update(await readFile(canonicalReceiptPath))
+        .digest("hex")}`;
+    }
+    parsed[segment] = { ...status, receiptSha256 };
   }
   for (const segment of requiredSegments) {
     if (!Object.hasOwn(parsed, segment)) {
@@ -496,7 +554,7 @@ async function loadSimulatorStatuses(path) {
   return statuses;
 }
 
-function createCheckRunner(emit) {
+function createCheckRunner(emit, observations) {
   const bySegment = new Map();
 
   async function check(
@@ -566,6 +624,15 @@ function createCheckRunner(emit) {
         reason,
       },
     });
+    for (const timing of timings) {
+      await observations.assertionWait(segment.toUpperCase(), {
+        owner: "choreography",
+        assertion,
+        attempt: timing.attempt,
+        durationMs: timing.durationMs,
+        pass: timing.pass,
+      });
+    }
     const receipts = bySegment.get(segment) ?? [];
     receipts.push(receipt);
     bySegment.set(segment, receipts);
@@ -2141,14 +2208,17 @@ export function aggregateChoreography(assertionReceipts) {
 // Closed cause of green:false. Lanes MUST copy this field from the
 // segment-summary. Do not invent a second green label ("functionally green").
 // Precedence: required-unimplemented, then choreography-failed, then
-// suite-failed; remaining non-green (missing suite status, harness input) is
-// instrument. Null when green. Optional on the receipt (default null).
+// suite-failed; any remaining harness-input inconsistency is instrument.
+// Null when green. Optional on the receipt (default null).
 export function classifyNonGreenCause({
   green,
   suitePass,
   browserPass,
   requiredUnimplemented,
 }) {
+  if (typeof suitePass !== "boolean") {
+    throw new TypeError("suitePass must be boolean after startup validation");
+  }
   if (green) return null;
   if (requiredUnimplemented > 0) return "required-unimplemented";
   if (browserPass === false) return "choreography-failed";
@@ -2168,9 +2238,12 @@ async function emitSegmentSummary({
   const requiredExternal = [];
   const externalPass = true;
   const choreographyPass = browserPass && externalPass === true;
-  const suite = suiteStatus
-    ? { pass: suiteStatus.pass, receipt: suiteStatus.receipt ?? null }
-    : { pass: null, receipt: null };
+  if (!suiteStatus) throw new Error(`validated suite status is missing for ${segment}`);
+  const suite = {
+    pass: suiteStatus.pass,
+    receipt: suiteStatus.receipt ?? null,
+    receiptSha256: suiteStatus.receiptSha256 ?? null,
+  };
   const green = suite.pass === true && choreographyPass;
   const nonGreenCause = classifyNonGreenCause({
     green,
@@ -2279,7 +2352,12 @@ async function main() {
 
   const runId = randomUUID();
   const emit = await createReceiptWriter(options.receiptsPath, runId);
-  const { check, bySegment } = createCheckRunner(emit);
+  const observations = new ObservationWriter({
+    path: options.observationsPath,
+    laneRunId: options.laneRunId,
+  });
+  await observations.initialize();
+  const { check, bySegment } = createCheckRunner(emit, observations);
   const browserType = playwright[options.browser];
   const browser = await browserType.launch({
     headless: !options.headed,
@@ -2340,6 +2418,7 @@ async function main() {
     for (const segment of options.segments) {
       const started = performance.now();
       await SEGMENT_FUNCTIONS[segment](context);
+      await observations.claim(segment.toUpperCase(), "browserAssertionWait");
       const summary = await emitSegmentSummary({
         emit,
         segment,

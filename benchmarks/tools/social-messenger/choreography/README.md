@@ -50,11 +50,19 @@ Every implemented CLI flag is:
 - `--headed` — show both browser windows; default is headless.
 - `--receipts <path>` — JSONL destination; default is `receipts.jsonl` beside
   `choreography.mjs`. The file is truncated at the beginning of each run.
+- `--observations <path>` — typed D0.6 assertion-attempt/wait stream; defaults
+  to `<receipts>.observations.jsonl`. The metering manifest hash-binds this
+  stream before it projects browser-wait counts.
+- `--lane-run-id <id>` — required stable lane identity, shared with the
+  metering manifest (`CHOREO_LANE_RUN_ID` is the environment form).
 - `--suite-status <path>` — required JSON object keyed by milestone. Every
   selected segment must have `{ "pass": boolean, "receipt": string|null }`.
   The runner validates this complete linkage before credentials, Playwright,
   receipt creation, or browser startup. A passing value must carry a non-empty
-  suite evidence pointer in `receipt`.
+  suite evidence pointer in `receipt`. Receipt paths are relative to the
+  suite-status file, must remain under its directory, and are statted and
+  SHA-256 digested before startup. The digest is retained in the segment
+  summary so the meter can detect a change when it writes the record.
 - `--adapter <path>` — optional lane navigation/fixture adapter. It carries
   route paths and fixture choices only; it cannot report outcomes or bypass
   browser observations. The built-in adapter uses `/profile/{handle}`,
@@ -80,6 +88,8 @@ configuration or fatal harness failure.
 ## Environment variables
 
 - `CHOREO_BASE_URL` — required lane web URL.
+- `CHOREO_LANE_RUN_ID` — required stable lane identity unless
+  `--lane-run-id` is supplied.
 - `CHOREO_PASSWORD` — shared fixture password fallback for Alice, Bob, and Carol;
   Alice's M8 second context uses the same Alice credential.
 - `CHOREO_ALICE_PASSWORD`, `CHOREO_BOB_PASSWORD` — per-persona passwords;
@@ -90,6 +100,7 @@ configuration or fatal harness failure.
   defaults are the corresponding `@example.com` personas from `CONTRACT.md`.
 - `CHOREO_BROWSER` — default for `--browser`.
 - `CHOREO_RECEIPTS` — default for `--receipts`.
+- `CHOREO_OBSERVATIONS` — default for the typed assertion-wait sidecar.
 - `CHOREO_SUITE_STATUS` — default for `--suite-status`.
 - `CHOREO_ADAPTER` — default for `--adapter`.
 - `CHOREO_SIMULATOR_STATUS` — default for `--simulator-status`.
@@ -179,10 +190,13 @@ before any browser or receipt starts; it is no longer represented as a late
 `green:false` instrument result. Run records retain the input and suite
 receipts in the additive `socialMessenger.suiteStatusLinkage` block.
 
-The same instrument pin adds optional, hash-linked D0.6 milestone fields for
+The same instrument pin adds additive, hash-linked D0.6 milestone fields for
 semantic actions, failure-to-recovery episodes, restart/reseed counts, browser
 assertion waits, host load, and API interruptions. The run-record extension
-stays at version `2`, and the W2 five-counter token meter is unchanged.
+stays at version `2` for old-record compatibility; current records must carry
+each block as either claimed or explicitly non-claimed. The W2 five-counter
+native-usage channel is unchanged, while its meter now verifies and joins the
+typed observation sidecars.
 
 `0.3.2-m8` uses the unambiguous `sm-convo-quote-preview` selector as the sole
 quoted-excerpt jump path after the Clique kit's matching `0.3.1-m8` migration.

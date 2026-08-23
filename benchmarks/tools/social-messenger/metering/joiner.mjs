@@ -7,6 +7,11 @@ import {
 } from "./counts.mjs";
 import { milestoneBoundaryAt, normalizeBoundaryMap } from "./boundaries.mjs";
 import { timestampMillis } from "./jsonl.mjs";
+import {
+  OBSERVATION_VERSION,
+  projectMilestoneObservability,
+  scorecardEligibility,
+} from "./observations.mjs";
 
 function normalizedTurns(channel) {
   if (channel.turns === null) return null;
@@ -122,6 +127,8 @@ export function joinUsageToMilestones({
   maxClockSkewMs = 0,
   wallClockOrigin = null,
   provenance = null,
+  observations = null,
+  suiteStatusLinkage = null,
 }) {
   if (channel === null || typeof channel !== "object") {
     throw new TypeError("usage channel is required");
@@ -150,6 +157,34 @@ export function joinUsageToMilestones({
       left.boundary.terminalSequence - right.boundary.terminalSequence
     ));
   if (ordered.length === 0) throw new Error("at least one attempted milestone boundary is required");
+  const observationEvents = observations?.events ?? [];
+  const observationEvidence = observations?.evidence ?? [];
+  const attemptedMilestones = new Set(ordered.map((item) => item.milestone));
+  const outsideAttempt = observationEvents.find(
+    (event) => !attemptedMilestones.has(event.milestone),
+  );
+  if (outsideAttempt !== undefined) {
+    throw new Error(
+      `observation event ${outsideAttempt.type} names unattempted milestone ${outsideAttempt.milestone}`,
+    );
+  }
+  const orderedByMilestone = new Map(ordered.map((item, index) => [item.milestone, index]));
+  for (const event of observationEvents) {
+    const index = orderedByMilestone.get(event.milestone);
+    const eventAt = Date.parse(event.at);
+    const upper = ordered[index].atMs;
+    const lower = index === 0 ? originMs : ordered[index - 1].atMs;
+    if (eventAt > upper + maxClockSkewMs) {
+      throw new Error(
+        `${event.milestone} observation ${event.type} is after its terminal boundary`,
+      );
+    }
+    if (lower !== null && eventAt < lower - maxClockSkewMs) {
+      throw new Error(
+        `${event.milestone} observation ${event.type} predates its milestone window`,
+      );
+    }
+  }
   for (const [index, item] of ordered.entries()) {
     if (originMs !== null && item.atMs < originMs - maxClockSkewMs) {
       throw new Error(`${item.milestone} terminal boundary predates the lane wall-clock origin`);
@@ -200,6 +235,11 @@ export function joinUsageToMilestones({
         terminalSequence: item.boundary.terminalSequence,
         terminalReason: item.boundary.terminalReason,
       },
+      ...projectMilestoneObservability({
+        events: observationEvents,
+        evidence: observationEvidence,
+        milestone: item.milestone,
+      }),
     };
     boundarySnapshots[item.milestone] = {
       at: item.at,
@@ -222,6 +262,7 @@ export function joinUsageToMilestones({
     throw new Error("first-product-edit boundary predates the lane wall-clock origin");
   }
   return {
+    observabilityProtocol: OBSERVATION_VERSION,
     source: channel.source ?? null,
     available: turns !== null,
     unavailableReason: channel.unavailableReason ?? null,
@@ -230,8 +271,13 @@ export function joinUsageToMilestones({
     totals: previousPrefix,
     executionOrder: ordered.map((item) => item.milestone),
     milestones,
+    efficiencyScorecardEligibility: scorecardEligibility({
+      milestones,
+      phaseUsageAvailable: turns !== null,
+    }),
     boundarySnapshots,
     firstProductEdit: firstEdit,
     meteringProvenance: provenance,
+    ...(suiteStatusLinkage === null ? {} : { suiteStatusLinkage }),
   };
 }

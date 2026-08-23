@@ -21,6 +21,9 @@ tree.
 - a rooted `builder` / `builder-descendant` session tree with native identity,
   parent, role, relative path, and SHA-256 for every source;
 - receipt source IDs, expected `runId`/milestone, relative paths, and hashes;
+- typed observation source IDs, relative paths, and hashes (an explicit empty
+  array means no retained producer stream, not "measured clean");
+- the hashed suite-status input used by choreography startup;
 - a hashed terminal-boundary artifact and optional hashed first-edit marker;
 - the driver's stable ID, stamp, and required lane wall-clock origin; and
 - `rfc3339-with-bounded-skew` evidence plus a non-negative maximum skew.
@@ -32,6 +35,10 @@ parses usage. Every Codex nonzero cumulative delta must equal normalized
 `last_token_usage`. Green milestones additionally require a bound
 `segment-summary` that attests `green: true` at exactly the driver-stamped
 terminal/first-green timestamp; a non-green receipt conflicts.
+At record-write time the loader re-reads every `suiteStatus` receipt path,
+requires a regular file, hashes its current bytes, and compares that digest to
+the `0.3.3-m8` segment-summary digest captured during choreography's startup
+refusal check. A missing, replaced, or edited receipt refuses the record.
 The emitted `meteringProvenance` block retains all identities, hashes, and clock
 evidence.
 
@@ -89,6 +96,36 @@ The first-product-edit marker is also a hash-bound driver receipt:
 The driver measures bytes and selected skills directly. The joiner only takes
 the native usage prefix at `at`; it does not infer orientation from prose or
 shell commands.
+
+## D0.6 observation producers
+
+`observations.mjs` is the typed producer and projection boundary. Each JSONL
+event is closed-shape, lane/milestone/sequence stamped, and belongs to one of
+six blocks. The meter accepts only hash-declared sidecars, validates every
+event, and derives the run-record aggregates itself. The record validator
+later resolves the same relative paths, recomputes their SHA-256 digests,
+revalidates event shape and action/episode joins, and recomputes all six
+projections. Aggregate-only claims and decorative hashes therefore fail.
+
+The lane controller uses `ObservationWriter` through
+`LaneObservationHarness`: `startMilestone()` starts interval `os.loadavg()`
+sampling and claims complete lifecycle/API custody; `restart()` and `reseed()`
+are called at the operations they count; `apiRequest()` wraps native stream
+attempts and records errors plus linked retries; `finishMilestone()` records a
+final load sample. Choreography writes its real assertion attempts and wait
+durations directly. A harness with a native normalized event log may call
+`semanticAction()` and `recoveryEpisode()` and claim those streams. Current
+harness-native Claude/Codex/Kimi/Grok usage logs do not expose sufficient
+semantic-action and failure-to-recovery events, so the lane harness emits
+explicit non-claims for those blocks by default.
+
+Every attempted milestone receives all six fields. A block is either
+`{"claimed":true,...}` with retained evidence or
+`{"claimed":false,"reason":"..."}`. Missing fields are invalid on the
+`0.3.3-m8` instrument. A semantic-action or recovery-episode non-claim makes
+the correction-action target ineligible; phase gaps, other coverage gaps,
+host-load contamination, and API interruptions likewise make the overall
+efficiency scorecard ineligible while preserving product-debugging value.
 
 ## Watchdog contract
 

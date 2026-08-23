@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
-import { dirname, isAbsolute, normalize, resolve, sep } from "node:path";
+import { lstat, readFile, realpath, stat } from "node:fs/promises";
+import { dirname, isAbsolute, normalize, relative, resolve, sep } from "node:path";
 
 import { adaptClaudeSessionTree } from "./adapters/claude-session.mjs";
 import { adaptCodexSessionTree } from "./adapters/codex-session.mjs";
@@ -14,6 +14,7 @@ import {
   normalizeBoundaryMap,
 } from "./boundaries.mjs";
 import { parseJsonLines, timestampMillis } from "./jsonl.mjs";
+import { parseObservationJsonLines } from "./observations.mjs";
 import { assertCapFamily } from "./sources.mjs";
 
 const MANIFEST_VERSION = "social-messenger-metering-manifest.v1";
@@ -51,12 +52,19 @@ async function readArtifact(manifestDirectory, artifact, label) {
     throw new TypeError(`${label}.sha256 must be a sha256:<lowercase hex> digest`);
   }
   const path = artifactPath(manifestDirectory, artifact.path, label);
-  const text = await readFile(path, "utf8");
-  const actual = digest(text);
+  if ((await lstat(path)).isSymbolicLink()) {
+    throw new Error(`${label}.path cannot be a symbolic link`);
+  }
+  const canonicalPath = await realpath(path);
+  if (!inside(await realpath(manifestDirectory), canonicalPath)) {
+    throw new Error(`${label}.path escapes the manifest directory after canonical resolution`);
+  }
+  const contents = await readFile(canonicalPath);
+  const actual = digest(contents);
   if (actual !== artifact.sha256) {
     throw new Error(`${label} digest mismatch: expected ${artifact.sha256}, received ${actual}`);
   }
-  return { path, text, sha256: actual };
+  return { path: canonicalPath, text: contents.toString("utf8"), sha256: actual };
 }
 
 function validateSessionTree(sessions, adapter) {
@@ -161,6 +169,37 @@ async function loadSessions(manifestDirectory, sessions, adapter) {
   return loaded;
 }
 
+async function loadObservations(manifestDirectory, observations, laneRunId) {
+  if (observations === undefined || observations === null) {
+    return { events: [], provenance: [] };
+  }
+  if (!Array.isArray(observations)) {
+    throw new TypeError("manifest.observations must be an array");
+  }
+  const sourceIds = new Set();
+  const events = [];
+  const provenance = [];
+  for (const [index, observation] of observations.entries()) {
+    const label = `manifest.observations[${index}]`;
+    const sourceId = requiredString(observation?.sourceId, `${label}.sourceId`);
+    if (sourceIds.has(sourceId)) throw new Error(`duplicate observation sourceId ${sourceId}`);
+    sourceIds.add(sourceId);
+    const artifact = await readArtifact(manifestDirectory, observation, label);
+    const sourceEvents = parseObservationJsonLines(artifact.text, artifact.path);
+    for (const event of sourceEvents) {
+      if (event.laneRunId !== laneRunId) {
+        throw new Error(`${label} event does not belong to laneRunId ${laneRunId}`);
+      }
+    }
+    events.push(...sourceEvents);
+    provenance.push({ sourceId, path: observation.path, sha256: artifact.sha256 });
+  }
+  events.sort((left, right) => (
+    Date.parse(left.at) - Date.parse(right.at) || left.sequence - right.sequence
+  ));
+  return { events, provenance };
+}
+
 async function loadReceipts(manifestDirectory, receipts) {
   if (!Array.isArray(receipts)) throw new TypeError("manifest.receipts must be an array");
   const maps = [];
@@ -197,8 +236,11 @@ async function loadReceipts(manifestDirectory, receipts) {
       ) {
         const attestations = greenAttestations.get(receipt.milestone) ?? [];
         attestations.push({
+          version: record.version ?? null,
           green: record.green === true,
           suitePass: record.suite?.pass === true,
+          suiteReceipt: record.suite?.receipt ?? null,
+          suiteReceiptSha256: record.suite?.receiptSha256 ?? null,
           choreoPass: record.choreography?.pass === true,
           recordedAt: record.recordedAt ?? null,
           sourceId,
@@ -217,6 +259,91 @@ async function loadReceipts(manifestDirectory, receipts) {
     });
   }
   return { maps, milestones, provenance, greenAttestations };
+}
+
+function inside(root, path) {
+  const rel = relative(resolve(root), resolve(path));
+  return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+}
+
+function logicalRelative(root, path) {
+  return relative(resolve(root), resolve(path)).split(sep).join("/");
+}
+
+async function loadSuiteStatusLinkage(
+  manifestDirectory,
+  suiteStatus,
+  receiptResult,
+) {
+  if (suiteStatus === undefined || suiteStatus === null) return null;
+  const artifact = await readArtifact(
+    manifestDirectory,
+    suiteStatus,
+    "manifest.suiteStatus",
+  );
+  const parsed = JSON.parse(artifact.text);
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
+    throw new TypeError("manifest.suiteStatus must contain an object keyed by milestone");
+  }
+  const milestones = [];
+  for (const milestone of [...receiptResult.milestones].sort()) {
+    const segment = milestone.toLowerCase();
+    const status = parsed[segment];
+    if (!status || typeof status !== "object" || typeof status.pass !== "boolean") {
+      throw new Error(`suite-status input lacks boolean ${segment}.pass`);
+    }
+    if (status.pass && (typeof status.receipt !== "string" || status.receipt.length === 0)) {
+      throw new Error(`suite-status ${segment}.receipt must name evidence when pass is true`);
+    }
+    let receiptArtifact = null;
+    if (typeof status.receipt === "string" && status.receipt.length > 0) {
+      if (isAbsolute(status.receipt)) {
+        throw new Error(`suite-status ${segment}.receipt must be relative to the suite-status file`);
+      }
+      const receiptPath = resolve(dirname(artifact.path), normalize(status.receipt));
+      if (!inside(manifestDirectory, receiptPath)) {
+        throw new Error(`suite-status ${segment}.receipt escapes the lane manifest directory`);
+      }
+      if ((await lstat(receiptPath)).isSymbolicLink()) {
+        throw new Error(`suite-status ${segment}.receipt cannot be a symbolic link`);
+      }
+      const canonicalReceiptPath = await realpath(receiptPath);
+      if (!inside(await realpath(manifestDirectory), canonicalReceiptPath)) {
+        throw new Error(`suite-status ${segment}.receipt escapes after canonical resolution`);
+      }
+      const receiptStatus = await stat(canonicalReceiptPath);
+      if (!receiptStatus.isFile()) {
+        throw new Error(`suite-status ${segment}.receipt must name a retained file`);
+      }
+      const receiptContents = await readFile(canonicalReceiptPath);
+      receiptArtifact = {
+        path: logicalRelative(manifestDirectory, receiptPath),
+        sha256: digest(receiptContents),
+      };
+    } else if (status.receipt !== null && status.receipt !== undefined) {
+      throw new TypeError(`suite-status ${segment}.receipt must be string or null`);
+    }
+
+    const attestations = receiptResult.greenAttestations.get(milestone) ?? [];
+    const current = attestations.find((candidate) => candidate.version === "0.3.3-m8") ?? null;
+    if (current === null) {
+      throw new Error(`suite-status ${segment} lacks a 0.3.3-m8 refusal-time attestation`);
+    }
+    if (current.suitePass !== status.pass) {
+      throw new Error(`suite-status ${segment}.pass changed after choreography refusal-check time`);
+    }
+    if ((current.suiteReceipt ?? null) !== (status.receipt ?? null)) {
+      throw new Error(`suite-status ${segment}.receipt path changed after choreography refusal-check time`);
+    }
+    if (receiptArtifact !== null && current.suiteReceiptSha256 !== receiptArtifact.sha256) {
+      throw new Error(`suite-status ${segment}.receipt changed after choreography refusal-check time`);
+    }
+    milestones.push({ milestone, pass: status.pass, receipt: receiptArtifact });
+  }
+  return {
+    input: { path: suiteStatus.path, sha256: artifact.sha256 },
+    milestones,
+  };
 }
 
 function validateClockCorrelation(clockCorrelation) {
@@ -254,7 +381,7 @@ export async function loadMeteringManifest(manifestPath) {
     throw new Error("manifest.driver.stampedAt predates the lane wall-clock origin");
   }
   const clockCorrelation = validateClockCorrelation(manifest.clockCorrelation);
-  const manifestDirectory = dirname(resolve(manifestPath));
+  const manifestDirectory = await realpath(dirname(resolve(manifestPath)));
 
   validateSessionTree(manifest.sessions, manifest.adapter);
   let loadedSessions = [];
@@ -323,6 +450,17 @@ export async function loadMeteringManifest(manifestPath) {
     }
   }
 
+  const observations = await loadObservations(
+    manifestDirectory,
+    manifest.observations,
+    laneRunId,
+  );
+  const suiteStatusLinkage = await loadSuiteStatusLinkage(
+    manifestDirectory,
+    manifest.suiteStatus,
+    receiptResult,
+  );
+
   let firstProductEdit = null;
   let firstProductEditProvenance = null;
   if (manifest.firstProductEdit !== null && manifest.firstProductEdit !== undefined) {
@@ -345,6 +483,11 @@ export async function loadMeteringManifest(manifestPath) {
     channel,
     boundaries,
     firstProductEdit,
+    observations: {
+      events: observations.events,
+      evidence: observations.provenance.map(({ path, sha256 }) => ({ path, sha256 })),
+    },
+    suiteStatusLinkage,
     maxClockSkewMs: clockCorrelation.maxSkewMillis,
     wallClockOrigin: manifest.driver.startedAt,
     provenance: {
@@ -372,6 +515,7 @@ export async function loadMeteringManifest(manifestPath) {
         sha256: session.resolvedSha256,
       })),
       receipts: receiptResult.provenance,
+      observations: observations.provenance,
       boundaries: {
         path: manifest.boundaries.path,
         sha256: boundaryArtifact.sha256,
