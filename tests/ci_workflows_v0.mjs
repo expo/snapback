@@ -196,7 +196,8 @@ for (const name of workflowNames) {
     );
   }
 }
-assert.equal(setupNodeCount, 11, 'the Node-using workflow inventory changed; review and update this count');
+// 11 -> 12 (2026-08-22): inventories.yml joins the Node-using workflow set.
+assert.equal(setupNodeCount, 12, 'the Node-using workflow inventory changed; review and update this count');
 // 30 -> 31 (2026-08-02): the expo-large local-proof runner does not include
 // Chrome, so the required admin browser-security lane now provisions one
 // through a pinned action instead of inheriting an ambient browser.
