@@ -14,7 +14,17 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const withSnapbackExpo = require('./config-plugin.cjs');
 const appPlugin = require('./app.plugin.js');
-assert.strictEqual(appPlugin, withSnapbackExpo);
+assert.equal(typeof withSnapbackExpo, 'function', 'module.exports is the callable Expo config plugin');
+assert.strictEqual(
+  withSnapbackExpo.withSnapbackExpo,
+  withSnapbackExpo,
+  'the named CommonJS export aliases the module.exports plugin value',
+);
+assert.equal(
+  withSnapbackExpo.SNAPBACK_EXPO_INTEGRATION_RECEIPT_FORMAT,
+  'snapback.expo-integration-receipt.v1',
+);
+assert.strictEqual(appPlugin, withSnapbackExpo, 'the Expo app.plugin entry returns the same module.exports value');
 
 const root = mkdtempSync(join(tmpdir(), 'snapback-expo-plugin-'));
 const descriptorPath = join(root, 'snapback', 'generated', 'app.descriptor.json');
