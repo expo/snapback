@@ -78,6 +78,10 @@ async function mintSession(server, appId, email, clientStoreId) {
     authInvalidationProtocol: 1,
     authorityDescriptorProtocol: 1,
     clientStoreId,
+    // This proof owns the server-side push registry, handoff ledger, and
+    // provider seam. Client RQS/outbox transition custody has an independent
+    // conformance suite and must not preempt the push assertions here.
+    rqsStore: null,
   });
   const requested = await client.authRequestCode(email);
   const mailboxResponse = await fetch(
