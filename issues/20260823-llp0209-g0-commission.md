@@ -67,7 +67,8 @@ documents have since attached to it:
    (amended 2026-08-23, Stage A fix round 2)
 4. **Completeness vocabulary bound to the IR** (§4): `unknown` /
    `complete` / `prefix` / `window` / `refused`, each claimed at an
-   (materialization identity, partition, version) tuple.
+   (materialization identity, partition, authorizationVersion, evaluationCut)
+   tuple.
 5. **Per-node dependency capture specified for every admitted node kind**
    (§5 "required now, with the IR"): root → predicate + boundary; to-one/
    to-many → parent-indexed edge dependencies; semi-join → membership

@@ -174,7 +174,9 @@ type GraphDirectionV1 = "forward" | "backward"
 // byte-identical to the kernel's KeysetAfter; the kernel implements From/Into
 // in both directions and retains KeysetAfter as its storage-native type.
 type KeysetKeyV1 = Readonly<{
+  // Declared-order field/value tuples only; `_id` is never an entry.
   entries: readonly (readonly [string, CanonicalClientValueV1])[]
+  // The implicit final ascending `_id` tie-break.
   id: string
 }>
 
@@ -343,7 +345,8 @@ type GraphCompletenessUnknownReasonV1 =
 type GraphRowKeyV1 = Readonly<{ table: string; id: string }>
 
 // The non-negative safe-integer committed changeset version sampled by the
-// scheduler's atomic coverage cut.
+// scheduler's atomic coverage cut. Generated JSON Schema:
+// {type:"integer", minimum:0}.
 type GraphEvaluationCutV1 = number
 
 type GraphCompletenessProofTupleV1 = Readonly<{
@@ -445,7 +448,7 @@ type GraphNodeCompletenessEvidenceV1 =
       kind: "equality-to-one"
       label: "complete"
       rows: readonly Readonly<{
-        parentKey: KeysetKeyV1
+        parentKey: GraphRowKeyV1
         found: boolean
       }>[]
     }>
@@ -490,7 +493,7 @@ type GraphNodeCompletenessEvidenceV1 =
       kind: "exists-semi-join"
       label: "complete"
       rows: readonly Readonly<{
-        parentKey: KeysetKeyV1
+        parentKey: GraphRowKeyV1
         existenceBit: boolean
       }>[]
     }>
@@ -498,7 +501,7 @@ type GraphNodeCompletenessEvidenceV1 =
       kind: "principal-bound"
       label: "complete"
       rows: readonly Readonly<{
-        parentKey: KeysetKeyV1
+        parentKey: GraphRowKeyV1
         bindingFound: boolean
         targetFound: boolean
       }>[]
@@ -895,7 +898,8 @@ type GraphQueryCarrierV1 = Readonly<{
 type GraphPlanIdentityV1 = GraphQueryCarrierV1
 
 type GraphWindowIdentityV1 = Readonly<{
-  // Copied from the node's declared order and exact-matched at demand time.
+  // Copied from the node's declared order, which excludes the implicit `_id`
+  // tie-break, and exact-matched at demand time.
   order: readonly OrderExpr[]
   direction: GraphDirectionV1
   lower: GraphIntervalEndV1
@@ -983,9 +987,12 @@ graph look-alike. Each `entries` element is the JSON two-tuple
 `[field, value]`; its JSON Schema has `type:"array"`,
 `prefixItems:[{type:"string"}, <CanonicalClientValueV1 schema>]`, and
 `minItems:2,maxItems:2`. Entry field names exact-match the node's declared
-`order` fields in that order, and the separate `id` is the final ascending
-`_id` tie-break after those entries. This is the same tuple-array shape frozen
-in `schemas/migration.journal-entry.schema.json:52`–`:74`.
+`order` fields in that order; `_id` is forbidden in both `entries` and
+`order`. The separate `id` is the implicit final ascending `_id` tie-break
+after the declared-order entries. `KeysetKeyV1` is only a continuation or
+interval-end boundary carrier, never a parent-row identity. This is the same
+tuple-array shape frozen in
+`schemas/migration.journal-entry.schema.json:52`–`:74`.
 
 `AuthorizationVersion` is the existing closed `{incarnation,epoch}`
 authorization-version spelling reused byte-for-byte and governed by LLP 0008
@@ -993,7 +1000,10 @@ authorization-version spelling reused byte-for-byte and governed by LLP 0008
 `crates/snapback-types/src/storage.rs:20`). `GraphEvaluationCutV1` is the
 existing non-negative safe-integer committed changeset version: LLP 0200 §2.2
 samples that value at the atomic coverage cut, and LLP 0008 §Realtime Delivery
-keeps the same comparable changeset version on the wire. These are independent
+keeps the same comparable changeset version on the wire. Its generated schema
+is exactly `type:"integer", minimum:0`; host validation also rejects values
+outside the JavaScript safe-integer range, while the store owner is the `u64`
+returned by `crates/snapback-kernel/src/storage.rs:9011`. These are independent
 closed axes; neither is a free-form `version:string`.
 
 Projection output cardinality and lexical row scope are closed. The top-level
@@ -1110,10 +1120,12 @@ provider certificate, additionally requires `table`, `accessIndex`, and an
 explicit `visibility: TableVisibilityV1`; public read is represented as
 `{kind:"public-read"}`, not omission. Bounds exist only in the
 `queryCost.graph` records in §2.6, keyed by `nodeId`; they are not node
-fields. `FilterExpr[]` is a conjunction.
-`OrderExpr[]` is semantic order; the compiler appends ascending `_id` when it
-is absent and rejects an authored non-ascending `_id`. This applies LLP 0007's
-total-order rule and reuses the shipped `KeysetAfter {entries,id}` boundary
+fields. `FilterExpr[]` is a conjunction. Normalized `OrderExpr[]` is exactly
+the non-empty declared semantic order and never contains `_id`; the compiler
+rejects an authored `_id` entry. The one total-order rule is: after every
+declared component, the kernel applies an implicit ascending `_id` tie-break,
+carried only in `KeysetKeyV1.id`. This applies LLP 0007's total-order rule and
+reuses the shipped `KeysetAfter {entries,id}` boundary
 (`crates/snapback-kernel/src/storage.rs:8004`). Stage B introduces
 `KeysetKeyV1` in `snapback-types` with byte-identical JSON and adds `From` and
 `Into` conversions in both directions in the kernel; the storage-native
@@ -1125,10 +1137,10 @@ literal normalized-record field names. “Dependency” names refer to §5.
 | Kind | Required fields | Optional fields | Reuse/new | Cardinality and edge rules | Exact `queryCost.graph` declarations | §5 dependencies | Allowed authority class |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `root-window` | common fields; `table`; `visibility`; `filters`; `accessIndex`; non-empty `order`; `page:{kind:"demand"}` | none | `FilterExpr`, `OrderExpr`, `TableVisibilityV1` reused; `KeysetKeyV1` is the new wire-identical carrier for kernel `KeysetAfter`; demand page and named interval ends new | Exactly one; no parent; every non-projection node is reachable from it; maximum child-node count is its immutable normalized out-degree; the demand supplies `take`/direction/ends and contributes the mandatory root entry to §2.4's window vector | `maxRootRowsPerPage`; node `maxExaminedEntriesPerExecution`; all six node `maxWindow*` fields; whole-query `queryCost.maxScannedRows`; collection inputs also use the argument fields below | root range `Query`, returned `Row`, point-shaped `MissingRow`, `GraphNode.RootRange` | 1, 2, or 3 when §3 proves it |
-| `equality-to-one` | common fields; `parentNodeId`; `table`; `visibility`; ordered non-empty `joinOn`; unique `accessIndex`; `presence: "required" \| "optional"` | `filters` | `JoinEquality`, `FilterExpr`, `TableVisibilityV1` reused; `parentNodeId`/`presence` new | Child of root, to-one, to-many, or principal-bound; one incoming edge; zero or one child row per parent, statically proved by the complete unique-index key; maximum child-node count is its immutable normalized out-degree | node `maxExaminedEntriesPerExecution`; `maxRelationshipLookupsPerExecution`; no `maxChildrenPerParent` (fixed one) | point `Row`/`MissingRow`, `GraphNode.ParentEdge` | 1, 2, or 3 when §3 proves it |
+| `equality-to-one` | common fields; `parentNodeId`; `table`; `visibility`; ordered non-empty `joinOn`; unique `accessIndex`; `presence: "required" \| "optional"` | `filters` | `JoinEquality`, `FilterExpr`, `TableVisibilityV1` reused; `parentNodeId`/`presence` new | Child of root, to-one, to-many, or principal-bound; one incoming edge; zero or one child row per parent, statically proved by the complete unique-index key; maximum child-node count is its immutable normalized out-degree | node `maxExaminedEntriesPerExecution`; `maxRelationshipLookupsPerExecution`; no `maxChildrenPerParent` (fixed one) | concrete-key point `Row`/`MissingRow`; storage-free null/omitted `GraphNode.ParentEdge` attempt | 1, 2, or 3 when §3 proves it |
 | `bounded-to-many` | common fields; `parentNodeId`; `table`; `visibility`; ordered non-empty `joinOn`; `accessIndex`; non-empty `order`; `page` | `filters` | shipped expressions/visibility/keyset reused; parent-indexed edge and per-parent page new | Child of root, to-one, to-many, or principal-bound; one incoming edge; maximum child-node count is its immutable normalized out-degree; emitted rows per parent are at most the node's `maxChildrenPerParent`; `page:{kind:"literal",direction,lower,upper,take}` is wholly plan-literal and adds no demand identity, while `page:{kind:"demand"}` supplies all four values per parent and adds one keyed §2.4 vector entry for the node; no mixed spelling exists | node `maxExaminedEntriesPerExecution`; `maxRelationshipLookupsPerExecution`; `maxChildrenPerParent`; a demand-paged node also carries all six node `maxWindow*` fields | per-parent range `Query`, returned `Row`, empty range, `GraphNode.ParentRange` | 1, 2, or 3 when §3 proves it |
-| `exists-semi-join` | common fields; `parentNodeId`; `mode: "exists" \| "all"`; `edge: DirectEdgeV1 \| ThroughEdgeV1` | `filters`; `argumentId` only for `all` | `JoinEquality`, `FilterExpr`, `TableVisibilityV1` reused; bounded repeated existence and `ThroughEdgeV1 {table, visibility, parentJoin, targetTable, targetVisibility, targetJoin, parentIndex, targetIndex}` new | Predicate child of root or another result-bearing relation; leaf, so maximum child-node count is zero; contributes no result row unless projection uses its `exists` bit; `all` requires one bounded collection `argumentId`, probes each distinct canonical item once, and uses no vacuous hidden-row shortcut; a through table must be named in `ThroughEdgeV1` | node `maxExaminedEntriesPerExecution`; `maxRelationshipLookupsPerExecution`; `maxChildrenPerParent`; `all` also declares argument `maxItems`, graph `maxArgumentItems`, and node `maxArgumentExpansion` | ordinary membership `Query` including empty ranges, `GraphNode.Membership`; never `Permission` | 1, 2, or 3 when every edge and predicate has that proof |
-| `principal-bound` | common fields; `parentNodeId`; `table`; `visibility`; `parentJoin`; `principalField`; unique `accessIndex`; `principalSource: "auth.userId"` | `binding: {table, visibility, principalField, valueField, uniqueIndex}` only when the target stores an app-user id instead of `v.principal()`; `filters` | table/filter/visibility/join reused; server-principal source and optional declared binding new | Child of root, to-one, or to-many; maximum child-node count is its immutable normalized out-degree; exactly zero or one row per `(principal,parent)` from the complete unique index; the optional binding is one unique point step and may not be caller-selected. This covers Zerobugs' `identityBinding` plus private `viewState`/notification rows (`demos/zerobugs/control/snapback/schema.mjs:149`, `demos/zerobugs/control/snapback/schema.mjs:70`, `demos/zerobugs/control/snapback/schema.mjs:134`) | node `maxExaminedEntriesPerExecution`; `maxRelationshipLookupsPerExecution`; fixed fanout one | `Auth`, binding/target `Row` or `MissingRow`, `GraphNode.PrincipalField` | 3 only |
+| `exists-semi-join` | common fields; `parentNodeId`; `mode: "exists" \| "all"`; `edge: DirectEdgeV1 \| ThroughEdgeV1` | `filters`; `argumentId` only for `all` | `JoinEquality`, `FilterExpr`, `TableVisibilityV1` reused; bounded repeated existence and `ThroughEdgeV1 {table, visibility, parentJoin, targetTable, targetVisibility, targetJoin, parentIndex, targetIndex}` new | Predicate child of root or another result-bearing relation; leaf, so maximum child-node count is zero; contributes no result row unless projection uses its `exists` bit; `all` requires one bounded collection `argumentId`, probes each distinct canonical item once, and uses no vacuous hidden-row shortcut; a through table must be named in `ThroughEdgeV1` | node `maxExaminedEntriesPerExecution`; `maxRelationshipLookupsPerExecution`; `maxChildrenPerParent`; `all` also declares argument `maxItems`, graph `maxArgumentItems`, and node `maxArgumentExpansion` | membership plus direct bounded-range `Query` or unique point, or through edge-range `Query` plus target points; never `Permission` | 1, 2, or 3 when every edge and predicate has that proof |
+| `principal-bound` | common fields; `parentNodeId`; `table`; `visibility`; `parentJoin`; `principalField`; unique `accessIndex`; `principalSource: "auth.userId"` | `binding: {table, visibility, principalField, valueField, uniqueIndex}` only when the target stores an app-user id instead of `v.principal()`; `filters` | table/filter/visibility/join reused; server-principal source and optional declared binding new | Child of root, to-one, or to-many; maximum child-node count is its immutable normalized out-degree; exactly zero or one row per `(principal,parent)` from the complete unique index; the optional binding is one unique point step and may not be caller-selected. This covers Zerobugs' `identityBinding` plus private `viewState`/notification rows (`demos/zerobugs/control/snapback/schema.mjs:149`, `demos/zerobugs/control/snapback/schema.mjs:70`, `demos/zerobugs/control/snapback/schema.mjs:134`) | node `maxExaminedEntriesPerExecution`; `maxRelationshipLookupsPerExecution`; fixed fanout one | `Auth`, target `Row`/`MissingRow`, optional-binding `Row`/`MissingRow` only when present, `GraphNode.PrincipalField` | 3 only |
 | `search-membership` | common fields; `parentNodeId`; `providerCapabilityId`; `membershipIdentity`; `memberField`; `scopeBindings`; non-empty `invalidationTables`; `providerCompletenessClass` | `argumentIds` | parent field binding reused; provider certificate, membership identity, and invalidation tables new; the graph never embeds or evaluates search text | Predicate child of root only in v1; leaf, so maximum child-node count is zero; one admitted membership input may filter the root; no nested search, result hydration, or search implementation; the provider certificate binds plan, arguments, scope, authority class, version, and completeness | node `maxExaminedEntriesPerExecution`; `maxRelationshipLookupsPerExecution`; collection args use `maxItems`, `maxArgumentItems`, `maxArgumentExpansion` | `GraphNode.SearchTable` for every declared table; always table-granular in G0/G2 | exactly the class in the owner-issued provider certificate: 1, 2, or 3 |
 | `closed-projection` | `nodeId`; `kind`; `edgeName`; `object: GraphProjectionObjectV1`; `authority` | none | closed nested projection new; scalar leaves reuse shipped result-value contracts and `resultContractHash` | Exactly one and last; no table and no children. Every object carries §2.1's lexical `scopeNodeId`; object fields preserve declared emitted-key order and use the exact `field {nodeId,field}`, `literal {value}`, `object {nodeId,object}`, `array {scopeNodeId,item}`, or `exists {nodeId}` arms. Every reference must satisfy the scope/correlation rules; undeclared fields and open objects refuse | no independent bound; its serialized whole result consumes `queryCost.maxResultBytes`/`maxPageResultBytes` and the per-lineage window byte/row fields | no storage read; `GraphNode.Projection` links source node ids for ledger composition | maximum class of every referenced or predicate-affecting node; author cannot declare it lower |
 
@@ -1176,7 +1188,7 @@ materialization instance.
 | 14 | `SNAPBACK_GRAPH_SCHEMA_REFERENCE_INVALID` | A named table, field, nominal id domain, policy declaration, result-contract leaf, or capability id does not exist in the installed owner artifacts. |
 | 15 | `SNAPBACK_GRAPH_INDEX_UNPROVABLE` | An access index is missing, ordered incompatibly, not bounded by the equality prefix/range, or not unique where v1 requires uniqueness. |
 | 16 | `SNAPBACK_GRAPH_INDEX_PREFIX_UNSUPPORTED` | An `accessIndex` equality/range prefix cannot support §2.6's unique entries-per-consultation cap for that node and would require an unbounded suffix scan. |
-| 17 | `SNAPBACK_GRAPH_ORDER_NOT_TOTAL` | An order is empty where required, uses an unportable field/direction, or cannot end in the canonical ascending `_id` tie-break. |
+| 17 | `SNAPBACK_GRAPH_ORDER_NOT_TOTAL` | An order is empty where required, uses an unportable field/direction, contains the reserved `_id` field, or cannot accept the implicit ascending `_id` tie-break. |
 | 18 | `SNAPBACK_GRAPH_PROJECTION_SCOPE_INVALID` | A projection object's `scopeNodeId` is absent/wrong, a field names a sibling or uncorrelated descendant, a to-many row is referenced without its array scope, a to-one field appears bare outside its required `object` wrapper, an `object` merely groups fields from the same scope, a to-one is not referenced from its parent scope, or another cross-cardinality reference violates §2.1. |
 | 19 | `SNAPBACK_GRAPH_PROJECTION_OPEN` | A projection is open, references an unprojectable field/node, or fails the exact result contract after lexical-scope validation. |
 | 20 | `SNAPBACK_GRAPH_PRINCIPAL_BINDING_UNPROVABLE` | A principal node accepts caller identity, lacks a unique declared binding, or cannot prove the target principal field from `auth.userId`. |
@@ -1310,10 +1322,12 @@ four values are already in the plan hash. The root entry has exactly one
 interval and `parentKey:null`. A demand-paged child entry has exactly one
 interval per evaluated parent, sorted by the RFC 8785 JCS bytes of
 `parentKey`; duplicate parents refuse. Its per-parent continuation key is the
-tuple `(parentKey, KeysetKeyV1.entries order values, KeysetKeyV1.id)`. Both
-decoded, schema-validated interval ends, including the `_id` component in each
-bounded end, are recorded in `window`; opaque cursor bytes never enter an
-identity.
+tuple `(parentKey, KeysetKeyV1.entries declared-order values,
+KeysetKeyV1.id)`. The `entries` vector and every
+`GraphWindowIdentityV1.order` omit `_id`; `id` alone carries the implicit
+ascending tie-break. Both decoded, schema-validated interval ends, including
+the `_id` component in each bounded end, are recorded in `window`; opaque
+cursor bytes never enter an identity.
 
 The instance hash is SHA-256 over `snapback:graph-instance:v1:` plus the
 `GraphInstancePreimageV1` JCS, rendered in the same digest spelling.
@@ -1323,8 +1337,9 @@ demand-paged child, changing one parent key, boundary order value, `_id`,
 direction, or `take`, or adding a literal-paged child all fail exact
 reconstruction; the last case fails because the plan hash, not the vector,
 rotates. Every `GraphWindowIdentityV1.order` is copied from its node's
-normalized declared order; the host exact-matches it at demand time and
-refuses any difference with `SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH`.
+normalized declared order without `_id`; the host exact-matches it at demand
+time and refuses any difference with
+`SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH`.
 
 `QueryCostWindowLedgerV1` is not identity input. It rides beside the opaque
 cursor and each ledger is authenticated against the exact key `(generation,
@@ -1333,9 +1348,14 @@ vector)`, where the final component is the complete canonical
 `GraphParentWindowIdentityV1[]` for that node. There is one independent ledger lineage per
 demand-paged node—one for the root and one for each demand-paged child—and a
 child lineage cumulatively charges every per-parent interval in that node's
-vector entry. The root lineage charges all six counters; a child lineage keeps
-`rootRows` at zero and charges its page/result/scan/range counters over the
-child intervals. This extends LLP 0267 §5's singular one-window wording; no
+vector entry. Every published page charges the whole subtree its lineage root
+induces: the root lineage's per-page scan, result-row, result-byte, and
+consultation values include every descendant consultation and result that root
+page triggers, while a demand-paged child lineage charges only that child and
+its descendants. The root lineage charges all six counters; a child lineage
+keeps `rootRows` at zero. Each maximum remains `maxWindowPages` times the
+corresponding per-page induced-subtree maximum. This extends LLP 0267 §5's
+singular one-window wording; no
 ledger counter can rotate an otherwise equal window or instance identity.
 
 The outer `GraphMaterializationIdentityV1` is host-recomputed over the inner
@@ -1486,18 +1506,25 @@ second counting rule.
    multiplicative argument remains in `P(node)`. Reuse never multiplies an
    argument twice.
 2. **Consultations per parent row.** A root window makes one range
-   consultation. An equality-to-one makes one unique point consultation,
-   including null-key and miss attempts. A bounded-to-many makes one range
-   consultation. A direct semi-join makes one point consultation per probe:
-   `exists` has one probe and `all` has its argument's declared `maxItems`
-   probes. A through semi-join makes one edge-range consultation plus `C`
-   target-point consultations per probe. A principal-bound node makes two
-   point consultations (principal binding/resolution, then target), including
-   captured misses. Search makes one opaque provider consultation. Projection
-   makes none.
+   consultation. Every equality-to-one parent is one attempted relationship
+   lookup; a concrete complete key makes one unique point consultation, while
+   a null/omitted key makes no storage consultation and fabricates no point or
+   range. A bounded-to-many makes one range consultation. A direct semi-join
+   makes one probe for `exists` and `Q = maxItems` probes for `all`; each probe
+   is a `boundedIndex` range with `LIMIT 1`, unless the complete child index
+   proves uniqueness, in which case it is one point. A through semi-join is
+   unchanged: one edge-range consultation plus `C` target-point consultations
+   per probe. A principal-bound node makes one point consultation for the
+   principal-keyed target row, plus one binding point only when its optional
+   `binding` is present; captured concrete-key misses still count. Anonymous
+   nullable absence for which §4 proves that no lookup is attempted makes no
+   storage consultation. Search makes one opaque provider consultation.
+   Projection makes none.
 3. **Entries per consultation.** Every point, unique, or opaque consultation
-   has an entry maximum of 1. Every bounded range has `cap + 1`: root uses
-   `maxRootRowsPerPage + 1`; bounded child and direct/through edge ranges use
+   has an entry maximum of 1. A non-unique direct semi-join's bounded-index
+   range also has an entry maximum of 1 because its exact access is `LIMIT 1`;
+   it does not fetch a successor. Every other bounded range has `cap + 1`:
+   root uses `maxRootRowsPerPage + 1`; bounded child and through-edge ranges use
    `maxChildrenPerParent + 1`. The `+1` is the mandatory successor lookahead
    used to derive `hasMore`; the existing bounded-child executor fetches
    `take + 1` at `crates/snapback-engine/src/local/engine.rs:37942`–`:37962`.
@@ -1506,22 +1533,27 @@ second counting rule.
    and may only tighten a request-local budget.
 4. **Derived fields.** For every node, checked-sum
    `consultations × entries-per-consultation × P(node)` into
-   `maxExaminedEntriesPerExecution`; checked-sum consultations on every
-   non-root relationship node into that node's
-   `maxRelationshipLookupsPerExecution`; and checked-sum **every**
+   `maxExaminedEntriesPerExecution`; checked-sum attempted edge resolutions on
+   every non-root relationship node into that node's
+   `maxRelationshipLookupsPerExecution`, including null/omitted-key to-one
+   attempts that made zero consultations; and checked-sum **every actual**
    consultation—`point`, `unique`, `boundedIndex`, `fullScan`, or opaque—into
    `queryCost.maxIndexRanges`. Thus one consultation is one index range, exactly
    as LLP 0267 §1.1 requires with
    `indexRangeCount == accessPathConsultations.length`; relationship lookups
    also contribute per LLP 0267 §5. The host checked-sums node examined maxima
-   into `queryCost.maxScannedRows`. For each demand-paged lineage, every
-   cumulative window field is the checked product of `maxWindowPages` and its
-   corresponding per-page maximum: root rows (zero for a child lineage),
-   examined entries, result rows, serialized result bytes, and consultations.
-   Thus, for example, `maxWindowScannedRows = maxWindowPages × per-page
-   examined maximum` and `maxWindowIndexRanges = maxWindowPages × per-page
-   consultation maximum`; `windowRollup` then checked-sums corresponding
-   lineage maxima.
+   into `queryCost.maxScannedRows`. For each demand-paged lineage, a page's
+   corresponding maximum is the checked sum for the entire induced subtree:
+   the lineage node and every descendant consultation/result that publishing
+   that page triggers. The root lineage therefore includes all descendant work;
+   a child lineage includes only its own subtree. Every cumulative window field
+   is the checked product of `maxWindowPages` and that per-page maximum: root
+   rows (zero for a child lineage), examined entries, result rows, serialized
+   result bytes, and consultations. Thus, for example,
+   `maxWindowScannedRows = maxWindowPages × per-page induced-subtree examined
+   maximum` and `maxWindowIndexRanges = maxWindowPages × per-page
+   induced-subtree consultation maximum`; `windowRollup` then checked-sums
+   corresponding lineage maxima.
 
 For clarity, if a `ThroughEdgeV1` node has parent population `P`, probe count
 `Q` (`1` for `exists`, the declared `maxItems` for `all`), and edge cap `C`,
@@ -1550,8 +1582,8 @@ has `P = 1`, `C = 16`, one range, and `17` examined entries; the label to-one
 below it has `P = 16`, hence `16` point consultations and `16` entries. Let
 `C_comments` be the Stage-B-derived, plan-hashed comments cap: its one range
 examines `C_comments + 1`, not the corpus request's `take = 50`. Each of the
-view-state and notification principal nodes has `P = 1`, two point
-consultations, and two entries.
+view-state and notification principal nodes declares `binding`, so each has
+`P = 1`, two point consultations, and two entries.
 
 For this slice,
 `queryCost.maxScannedRows = 2 + 1 + 1 + 1 + 17 + 16 +
@@ -1566,9 +1598,11 @@ Request validation is separate: `take = 50` must satisfy
 `50 <= C_comments`; only then may the runtime tighten this request's comments
 range to `51` examined entries including lookahead, yielding a request-local
 scanned ceiling of `93` without changing any plan field or hash. For a
-one-page illustration, the root and comments physical window contributions
-are `(2 scanned, 1 range)` and `(C_comments + 1 scanned, 1 range)` in the plan,
-versus `(51 scanned, 1 range)` for that validated request. Additional
+one-page illustration, the root lineage charges its whole induced work:
+`(43 + C_comments scanned, 26 ranges)`, including all 25 descendant
+consultations. The comments lineage charges only its subtree:
+`(C_comments + 1 scanned, 1 range)` in the plan, versus `(51 scanned, 1 range)`
+for that validated request. Additional
 issue-emoji/comment-emoji nodes do not inherit `16`; Stage B must fill their
 fixture maxima or admission refuses, which keeps the example from fabricating
 an uncommissioned plan maximum.
@@ -1609,10 +1643,10 @@ internally conflicting value is the admission refusal
 | `maxPageResultBytes` | One keyset page's validated result bytes | every pageable graph | Maximum exact page bytes on normal/large/hot, including the 1,000-root hot page, × H | — | **[Stage B fills]** |
 | node `maxWindowPages` | Published pages in one demand-paged-node ledger lineage | each demand-paged node | Count pages needed for the oracle to exhaust each named interval at declared page size; maximum × H, minimum one | — | **[Stage B fills]** |
 | node `maxWindowRootRows` | Cumulative authorized root rows across one lineage | each demand-paged node; zero for child lineages | Node `maxWindowPages` × per-page root maximum (`maxRootRowsPerPage` for root; zero for child) | — | **[Stage B fills]** |
-| node `maxWindowScannedRows` | Cumulative physical candidates across one node lineage | each demand-paged node | Closed analytical per-page examined maximum × node `maxWindowPages` | — | **[Stage B declares analytically; G2 measures]** |
-| node `maxWindowResultRows` | Cumulative result rows across one demand-paged-node lineage | each demand-paged node | Node `maxWindowPages` × the fixture/oracle-derived per-page result-row maximum | — | **[Stage B fills]** |
-| node `maxWindowResultBytes` | Cumulative validated result bytes across one demand-paged-node lineage | each demand-paged node | Node `maxWindowPages` × the fixture/oracle-derived per-page serialized-byte maximum | — | **[Stage B fills]** |
-| node `maxWindowIndexRanges` | Cumulative access-path consultations across one node lineage | each demand-paged node | Closed analytical per-page consultations of every kind × node `maxWindowPages` | — | **[Stage B declares analytically; G2 measures]** |
+| node `maxWindowScannedRows` | Cumulative physical candidates across one demand-paged-node induced subtree | each demand-paged node | Checked analytical sum of the per-page examined maxima for the lineage node and every descendant that page triggers × node `maxWindowPages` | — | **[Stage B declares analytically; G2 measures]** |
+| node `maxWindowResultRows` | Cumulative result rows across one demand-paged-node induced subtree | each demand-paged node | Node `maxWindowPages` × the fixture/oracle-derived per-page result-row maximum for the lineage node and every descendant that page triggers | — | **[Stage B fills]** |
+| node `maxWindowResultBytes` | Cumulative validated result bytes across one demand-paged-node induced subtree | each demand-paged node | Node `maxWindowPages` × the fixture/oracle-derived per-page serialized-byte maximum for the lineage node and every descendant that page triggers | — | **[Stage B fills]** |
+| node `maxWindowIndexRanges` | Cumulative access-path consultations across one demand-paged-node induced subtree | each demand-paged node | Checked analytical sum of every per-page consultation by the lineage node and every descendant that page triggers × node `maxWindowPages` | — | **[Stage B declares analytically; G2 measures]** |
 | `windowRollup.*` | Derived graph-wide totals for the six lineage fields | graph | Checked sum of each corresponding per-node maximum across demand-paged lineages; exact equality required | derived | **[Stage B exact-checks]** |
 | `maxMaintainedWritesPerMutation` | Graph-owned maintained fact/index writes attempted for one source mutation | graph | G0 has no maintained graph facts, so the exact observed and declared value is zero; G3 must amend it from mutation observations before maintenance | 0 | **[Stage B fills: 0]** |
 
@@ -1800,8 +1834,9 @@ Versioning has two independent causes and neither may be omitted:
    gate before restoration. They are not relabelled as ordinary data writes.
 
 Two subscriptions share an authority partition only when the partition digest
-and current authorization version are byte-equal. Evaluation cut version
-remains the separate third memo/completeness axis.
+and current authorization version are byte-equal. `evaluationCut` remains the
+separate third memo/completeness axis; §6 pairs those three axes with the outer
+materialization identity.
 
 ### 3.3 The nine LLP 0268 inputs and their carriers
 
@@ -2243,8 +2278,9 @@ The result vocabulary distinguishes (LLP 0183 §D2, normative):
 Binding rules this Spec adds: every label is claimed *at* a
 (materialization identity, authority partition, authorization version,
 evaluation cut) tuple and
-is meaningless without it; `prefix` requires the declared order including
-the tie-break plus a keyset continuation proof; a delta-maintained result
+is meaningless without it; `prefix` carries the declared `OrderExpr[]` without
+`_id`, while `KeysetKeyV1.id` proves the implicit ascending tie-break and the
+keyset continuation; a delta-maintained result
 (§7) carries the same label it would carry freshly evaluated, enforced by
 the §7 convergence assertion; and a local evaluator (§8) must reproduce
 the label exactly or answer `unknown` — a downgraded label is honest, an
@@ -2265,13 +2301,19 @@ page bound is never terminal.
 
 | Node kind | Labels it may produce | Required proof |
 | --- | --- | --- |
-| `root-window` | `unknown`, `prefix`, `window`, `complete`, `refused` | `prefix` uses `{kind:"root-window",label:"prefix",order,continuation,stableOrderProof:"declared-order-with-id-tiebreak",take,consumed,hasMore:true}`; `continuation` must be non-null and resume strictly after/before the last consumed authorized root. `window` uses the closed `{interval:{lower,upper},take,consumed,hasMore:false}` arm and proves both named ends exhausted. `complete` uses two unbounded ends plus `sourceExhausted:true`. `take:0` is the closed `unknown/zero-take-unproved` arm unless independent exhaustion proves otherwise; it never mints a zero-progress continuation. |
+| `root-window` | `unknown`, `prefix`, `window`, `complete`, `refused` | `prefix` uses `{kind:"root-window",label:"prefix",order,continuation,stableOrderProof:"declared-order-with-id-tiebreak",take,consumed,hasMore:true}`; `order` is the declared array without `_id`, and `continuation.id` supplies the implicit tie-break. `continuation` must be non-null and resume strictly after/before the last consumed authorized root. `window` uses the closed `{interval:{lower,upper},take,consumed,hasMore:false}` arm and proves both named ends exhausted. `complete` uses two unbounded ends plus `sourceExhausted:true`. `take:0` is the closed `unknown/zero-take-unproved` arm unless independent exhaustion proves otherwise; it never mints a zero-progress continuation. |
 | `equality-to-one` | `unknown`, `complete`, `refused` | The `complete` arm carries a parent-key-ordered `rows` array with one `{parentKey,found}` record for every admitted parent, including captured misses. Visibility executes before presence/projection, so missing and invisible have the same public fact. |
-| `bounded-to-many` | `unknown`, `prefix`, `window`, `complete`, `refused` | Each `(kind,label)` is a distinct arm. `complete` has one parent-key-ordered range per parent with literal `hasMore:false`; `window` has a named `interval` and `hasMore:boolean`; `prefix` has literal `hasMore:true`, non-null continuation, and total order. One absent/unproved parent selects the closed `unknown/parent-range-unproved` arm. |
+| `bounded-to-many` | `unknown`, `prefix`, `window`, `complete`, `refused` | Each `(kind,label)` is a distinct arm. `complete` has one parent-key-ordered range per parent with literal `hasMore:false`; `window` has a named `interval` and `hasMore:boolean`; when `window.hasMore` is true it carries no continuation, and resume supplies the next named interval through §2.4's demand window vector. `prefix` has literal `hasMore:true`, non-null continuation, and total order; its `order` excludes `_id` and `continuation.id` supplies the implicit tie-break. One absent/unproved parent selects the closed `unknown/parent-range-unproved` arm. |
 | `exists-semi-join` | `unknown`, `complete`, `refused` | The leaf node's `complete` arm captures every direct/through lookup, including misses, as one `{parentKey,existenceBit}` row per immediate parent in parent-key order. There is no `childNodeIds` field because the proof is already for this one node. `all` additionally proves the complete deduplicated canonical argument set was checked and every item matched; there is no partial existence label. |
 | `principal-bound` | `unknown`, `complete`, `refused` | The `complete` arm carries a parent-key-ordered `rows` array with one `{parentKey,bindingFound,targetFound}` record per admitted parent, proving the host principal, binding resolution, and target point/miss at one tuple. Absence for anonymous authority is complete only when the result contract declares the node nullable and no lookup is attempted. |
 | `search-membership` | `unknown`, `complete`, `refused` | `complete` carries `providerCompletenessClass:"complete-membership-v1"` and the exact provider-certificate hash. `unknown` still carries the provider completeness class plus `provider-incomplete` or `provider-proof-invalidated`. A provider prefix, stale epoch, absent certificate, or invalidation after the certificate never becomes a graph-minted `prefix`. |
 | `closed-projection` | `unknown`, `prefix`, `window`, `complete`, `refused` | Exact result-contract validation plus §4.2's closed `GraphCompositionProofV1`; projection itself adds no data proof. |
+
+Every completeness `rows` or `ranges` entry identifies its immediate parent
+with `GraphRowKeyV1 {table,id}`. Each such array contains exactly one entry for
+every admitted parent and sorts entries by the RFC 8785 JCS bytes of that
+record. A duplicate or missing parent key fails the proof; `KeysetKeyV1` never
+serves as a parent key.
 
 `proofClass` is also derived, never authored independently: `unknown → none`,
 `refused → refusal`, root `complete/prefix/window →
@@ -2376,16 +2418,25 @@ plan/node identity, parent-keyed edge form, or search-membership identity:
 ```ts
 CapturedReadKind += GraphNode
 
-type GraphParentPointDependencyV1 = Readonly<{
-  kind: "parent-point"
-  table: string
-  index: string
-  parentKey: GraphRowKeyV1
-  lookupKey: readonly CanonicalClientValueV1[] | null
-  childKey: GraphRowKeyV1 | null
-  found: boolean
-  rowVersion: number | null
-}>
+type GraphParentEdgeDependencyV1 =
+  | Readonly<{
+      kind: "parent-point"
+      table: string
+      index: string
+      parentKey: GraphRowKeyV1
+      lookupKey: readonly CanonicalClientValueV1[]
+      childKey: GraphRowKeyV1 | null
+      found: boolean
+      rowVersion: number | null
+    }>
+  | Readonly<{
+      // A relationship attempt, not a storage consultation.
+      kind: "parent-lookup-skipped"
+      table: string
+      index: string
+      parentKey: GraphRowKeyV1
+      reason: "null-or-omitted-key"
+    }>
 
 type GraphMembershipDependencyV1 =
   | Readonly<{
@@ -2428,7 +2479,7 @@ type GraphCapturedReadV1 = Readonly<{
         boundary: KeysetKeyV1 | null
         complete: boolean
       }>
-    | GraphParentPointDependencyV1
+    | GraphParentEdgeDependencyV1
     | Readonly<{
         kind: "parent-range"
         table: string
@@ -2477,12 +2528,12 @@ Canonical validation is fail-closed per variant. Every record is closed;
 `nodeId`/`nodeKind` must name the normalized node; count/version fields are
 non-negative safe integers; table/index vectors are non-empty, equal-length,
 and in edge traversal order; `sourceNodeIds` is the exact §4.2 input vector in
-canonical node order. A `parent-point` hit requires `found:true`, non-null
-`lookupKey`, `childKey`, and `rowVersion`; a miss requires `found:false`,
-`childKey:null`, and `rowVersion:null`. An absent/null join component uses
-`lookupKey:null` and still records that miss as a `MissingRow`-equivalent for
-the `(nodeId,parentKey)` attempt; if a concrete unique key existed, the
-ordinary sibling `MissingRow` is captured too. For `membership`, `mode:exists`
+canonical node order. A `parent-point` hit requires `found:true`, `childKey`,
+and `rowVersion`; a miss requires `found:false`, `childKey:null`, and
+`rowVersion:null`; both require a complete non-null `lookupKey`. An absent/null
+join component emits only `parent-lookup-skipped` for the
+`(nodeId,parentKey)` relationship attempt. It emits no `Row`, `MissingRow`,
+`Query`, range, or point consultation. For `membership`, `mode:exists`
 uses `argumentId:null` and the `argumentDigest` field must be absent;
 `mode:all` requires the normalized non-null `argumentId` and its canonical
 digest. `argumentDigest` is present if and only if `argumentId` is non-null.
@@ -2490,10 +2541,10 @@ digest. `argumentDigest` is present if and only if `argumentId` is non-null.
 | Node kind | Captured dependencies at execution |
 | --- | --- |
 | `root-window` | One `GraphNode.root-range` and the equivalent existing `Query`; one `Row` per returned versioned row; `MissingRow` as well when the statically point-shaped root misses. Boundary includes first/last total-order keys and complete/source-exhausted bit. |
-| `equality-to-one` | One `GraphNode.parent-point` per attempted parent key, including null/omitted attempts; `Row` on hit, ordinary `MissingRow` on a concrete-key miss, and the graph `MissingRow`-equivalent above on a null-key attempt. The declared unique index and complete ordered join fields are present. |
+| `equality-to-one` | One graph edge-attempt dependency per parent: `GraphNode.parent-point` plus `Row` on a concrete-key hit, `GraphNode.parent-point` plus ordinary `MissingRow` on a concrete-key miss, or storage-free `GraphNode.parent-lookup-skipped` on a null/omitted key. The declared unique index and complete ordered join fields are present. |
 | `bounded-to-many` | One `GraphNode.parent-range` and one existing `Query` per parent range, including zero-result ranges; returned versioned children contribute `Row`. Each range carries its own predicate/order/limit/count/boundary, so one parent cannot shadow another. |
-| `exists-semi-join` | One `GraphNode.membership` plus ordinary `Query` dependencies for every direct/through range and both present/empty outcomes. `exists` carries `argumentId:null` and no digest; `all` binds non-null `argumentId` and `argumentDigest`, never values. In the LLP 0056 precedent these are ordinary query dependencies; `Permission` is never correctness evidence. |
-| `principal-bound` | Existing `Auth` for the host principal dimension; binding and target `Row`/`MissingRow`; one `GraphNode.principal-field` for each binding/target field scope. A field/value disjointness skip is permitted only when all such inputs are captured. |
+| `exists-semi-join` | One `GraphNode.membership` per attempted parent. For each probe, a non-unique direct edge additionally records an ordinary `Query`-style bounded-index dependency with `limit:1`, result count, and boundary for both hit and empty outcomes; a unique direct edge records its point `Row`/`MissingRow` instead. A through probe retains its ordinary edge-range `Query` dependency plus target-point `Row`/`MissingRow` dependencies. `exists` carries `argumentId:null` and no digest; `all` binds non-null `argumentId` and `argumentDigest`, never values. In the LLP 0056 precedent these are ordinary query dependencies; `Permission` is never correctness evidence. |
+| `principal-bound` | Existing `Auth` for the host principal dimension; target `Row`/`MissingRow`, plus binding `Row`/`MissingRow` only when `binding` is present; one `GraphNode.principal-field` for each consulted binding/target field scope. Anonymous nullable absence proven to attempt no lookup adds no point/range/row dependency. A field/value disjointness skip is permitted only when all consulted inputs are captured. |
 | `search-membership` | One `GraphNode.search-table` for each `invalidationTables` entry, carrying the same membership/provider identity. Any write to any listed table matches the node in G0/G2; no matched-id, term, posting, range, or document-level skip exists before D6/OQ-4. |
 | `closed-projection` | One storage-free `GraphNode.projection` linking all referenced and predicate-affecting source ids. It exists for ledger/completeness attribution and never makes a changed row match by itself. |
 
@@ -2557,32 +2608,35 @@ the A/B harness.
 ## 6. Rung 3 — same-authority-partition memoization first
 
 **Mechanism.** Within one serving process/generation, the evaluation scheduler
-memoizes evaluation results keyed by **(inner graph instance identity,
-authority partition identity, evaluation cut version)** — every component
-owner-computed (§2, §3; LLP 0200 §2.2's
-atomic cut supplies the version). When N subscriptions
+memoizes evaluation results keyed by **(graph materialization identity,
+authority partition identity, `authorizationVersion`, `evaluationCut`)** —
+every component owner-computed (§2, §3; LLP 0200 §2.2's atomic cut supplies
+the evaluation cut). When N subscriptions
 share the key, one evaluation turn produces one result consumed by N
 per-subscription deliveries. E-3 measures the headroom at ~6× for the
 same-partition six-observer shape: six serialized ~0.9 s turns become one
-turn plus delivery. Any memo shared across a process or materialization
-context must substitute §2.4's outer materialization identity for the inner
-instance hash.
+turn plus delivery. The materialization component is §2.4's outer
+`GraphMaterializationIdentityV1`, so no process-local optimization may weaken
+the semantic key to the inner instance hash.
 
 **Soundness.** The key is exactly the tuple the completeness vocabulary
 already claims results at (§4), so a memo hit delivers bytes the
-subscriber's own evaluation would have produced — same instance, same
-partition, same version, same label. Principal- and policy-ambience is why nothing weaker
-is safe: LLP 0191 rung 3 records that an opaque handler partitioning
+subscriber's own evaluation would have produced — same materialization, same
+partition, same authorization version, same evaluation cut, same label.
+Principal- and policy-ambience is why nothing weaker is safe: LLP 0191 rung 3
+records that an opaque handler partitioning
 before counting cannot be evaluated under a super-principal and projected
 afterward. The IR makes the ambient inputs declared inputs; the partition
 identity makes "same authority" checkable instead of assumed.
 
 **Invalidation is the matcher, not a second system.** A matcher wake for
 any subscription holding the key retires the memo entry (the key's cut
-version is superseded); an authority transition fences subscriptions and
-thereby the entries their partition identity depends on (LLP 0200 §2.4's
-fence semantics, unchanged). There is no TTL and no separate cache
-coherence protocol to get wrong.
+is superseded). An `authorizationVersion` advance retires every entry at the
+older version even when the partition digest and evaluation cut are unchanged;
+an authority-instance transition additionally fences subscriptions and thereby
+the entries their partition identity depends on (LLP 0200 §2.4's fence
+semantics, unchanged). There is no TTL and no separate cache coherence
+protocol to get wrong.
 
 **Placement.** Memo entries live in the scheduler beside the pending-frame
 structures, bounded (entry count and byte budget declared per instance,
@@ -2591,11 +2645,11 @@ watermarks, obligations, and ordering are per-subscription and unchanged;
 a memo hit skips the *turn*, never the delivery or its
 witnessed-shrink/obligation accounting (LLP 0200 §2.4).
 
-**Scope honesty.** The memo collapses only identical
-(instance, partition) tuples. The hot inventory's *mixed*-partition six
-observers gain nothing from this rung — their lever is §7 where the shape
-admits it, or D3's retained facts. This rung is first because it is
-mechanism-cheap (a cache with matcher-driven invalidation) against
+**Scope honesty.** The memo collapses only identical (materialization,
+partition, authorization-version, evaluation-cut) tuples. The hot inventory's
+*mixed*-partition six observers gain nothing from this rung — their lever is
+§7 where the shape admits it, or D3's retained facts. This rung is first
+because it is mechanism-cheap (a cache with matcher-driven invalidation) against
 measured integer-factor headroom, not because it solves the general case.
 
 **Cross-principal sharing is gated, not designed here.** It becomes
@@ -2801,6 +2855,8 @@ type GraphOracleFieldMapV1 = Readonly<{
   outerStatusReason: Readonly<{
     oracleStatusField: "status"
     oracleReasonField: "reason"
+    oracleCursorField: string
+    oracleRowsField: string
     comparison: "translated-label"
     translations: readonly GraphOracleLabelTranslationV1[]
   }>
@@ -2827,15 +2883,16 @@ continuation passes only when resuming each side yields the same next-page rows
 in the same order; opaque cursor bytes are never compared. `issueDetail`
 records the corresponding map for its root and demand-paged comments node, and
 `listIssueByID` records its point/list map. Every oracle-envelope field appears
-exactly once as corresponding or excluded. In every `nodeCompleteness` entry,
-`oracleCursorField` and `oracleRowsField` are required explicit dotted paths
-within that query's oracle envelope. A translation's `when.cursor` and
-`when.rows` test exactly those two mapped fields—even for `"any"`—and never an
-inferred sibling, the outer result by convention, or a field borrowed from
-another query.
+exactly once as corresponding or excluded. In every `nodeCompleteness` entry
+and in `outerStatusReason`, `oracleCursorField` and `oracleRowsField` are
+required explicit dotted paths within that query's oracle envelope. A
+translation's `when.cursor` and `when.rows` test exactly those two mapped
+fields—even for `"any"`—and never an inferred sibling, the outer result by
+convention, or a field borrowed from another query.
 
-The graph's total order is always declared order plus **ascending** `_id`,
-including for `direction:"backward"` (LLP 0007). The frozen Zerobugs D1
+The graph emits the declared order without `_id`; the kernel then applies the
+implicit **ascending** `_id` tie-break through `KeysetKeyV1.id`, including for
+`direction:"backward"` (LLP 0007). The frozen Zerobugs D1
 control instead multiplies its id comparison by direction
 (`demos/zerobugs/control/snapback/functions.mjs:2824`–`:2833`); Stage B must
 not edit that oracle. More precisely, `compareIssueRows` ties on
@@ -2919,7 +2976,7 @@ filters are stable test names, not prose descriptions.
 | # | Deliverable | Stage B artifact | Verification command Stage B must provide |
 | ---: | --- | --- | --- |
 | 1 | [ ] **The IR, as data.** All seven §2.2 node kinds; finite, acyclic, closed; normative exclusions/refusals. | `GraphQueryPlanV1`/`GraphNodeV1` and `GraphQueryCarrierV1` in `snapback-types`; `defineGraphQuery`; `HandlerPlan::GraphQuery`; generated JSON Schema; fail-closed matcher arm; `@ref LLP 0209#2-the-graph-ir` on the IR. Placement follows LLP 0276; no new crate. | `cargo test -p snapback-types graph_query_v1 && volta run --node 24.18.0 node --test packages/snapback-codegen/graph-query.test.mjs` |
-| 2 | [ ] **Plan, demand, and contextual identity.** Host-recomputed normalized plan identity; plan × canonical args × keyed node-window-vector instance identity; LLP 0157 contextual materialization wrapper; wire-identical keysets. | `GraphPlanIdentityV1`, `GraphInstanceIdentityV1`, `GraphMaterializationIdentityV1`, frozen Rust/JS positive and one-axis-rotation vectors, plus positive and negative `KeysetKeyV1` JSON round-trip vectors through the kernel `KeysetAfter` type (multi-field order, null value, wrong tuple arity/type, wrong field order). | `cargo test -p snapback-types graph_plan_identity_v1 && cargo test -p snapback-types graph_keyset_kernel_round_trip && cargo test -p snapback --test graph_corpus_v1 identity_vectors` |
+| 2 | [ ] **Plan, demand, and contextual identity.** Host-recomputed normalized plan identity; plan × canonical args × keyed node-window-vector instance identity; LLP 0157 contextual materialization wrapper; wire-identical keysets. | `GraphPlanIdentityV1`, `GraphInstanceIdentityV1`, `GraphMaterializationIdentityV1`, frozen Rust/JS positive and one-axis-rotation vectors, plus positive and negative `KeysetKeyV1` JSON round-trip vectors through the kernel `KeysetAfter` type (multi-field declared order, null declared value, separate `id`, forbidden `_id` in `entries`/`order`, wrong tuple arity/type, wrong field order). | `cargo test -p snapback-types graph_plan_identity_v1 && cargo test -p snapback-types graph_keyset_kernel_round_trip && cargo test -p snapback --test graph_corpus_v1 identity_vectors` |
 | 3 | [ ] **Per-node authority classification, proved not trusted.** Classes 1/2/3, compile checks, paired-world falsification, partition roll-up; class 3 is partition-of-one. | Codegen proof report embedded in normalized plans; class-2 `GraphPartitionEquivalenceProofV1` host-recomputation vectors; `GraphAuthorityPartitionRuleV1`; paired-world and exact-audience corpus rows from §3; `@ref LLP 0209#3-authorization-at-every-node` on admission. | `volta run --node 24.18.0 node --test --test-name-pattern=authority packages/snapback-codegen/graph-query.test.mjs && cargo test -p snapback --test graph_corpus_v1 paired_worlds` |
 | 4 | [ ] **Completeness vocabulary bound to the IR.** `unknown`/`complete`/`prefix`/`window`/`refused` at one materialization/partition/authorization-version/evaluation-cut tuple. | Closed per-node `GraphNodeCompletenessProofV1` and composed `GraphCompositionProofV1` in every materialized corpus result; materialized refusal reason pinned to the demand/evaluation registers. | `cargo test -p snapback --test graph_corpus_v1 completeness_labels` |
 | 5 | [ ] **Per-node dependency capture specified for every kind.** Root predicate/boundary; parent edges; membership; principal field; table-granular search. | `CapturedReadKind::GraphNode`/`GraphCapturedReadV1` in `snapback-types`, with the matching vocabulary registered in `snapback-sync`; schema/round-trip fixtures only. Execution and matcher consumption wait for G2. | `cargo test -p snapback-types graph_captured_read_v1 && cargo test -p snapback-sync graph_captured_read_v1 && cargo test -p snapback --test graph_corpus_v1 dependency_shapes` |
@@ -3195,6 +3252,12 @@ or identities.
   - **Fix round 4 — G7:** §2.1/§2.3/§4 restrict materialized refusal proofs/results to demand-time and evaluation-time reasons and leave admission reasons only in non-materializing refusal cases.
   - **Fix round 4 — G8:** §2.1/§2.3/§3.3 add the precedence-23 `SNAPBACK_GRAPH_BROADCAST_BASE_CLASS_INVALID` refusal for counterfeit class-2/3 broadcast certificates.
   - **Fix round 4 — MINOR:** §2/§3/§4/§9 pin the partition-function preimage, query-shaped precedence, dotted oracle cursor/row bindings, source-id-to-`_id` normalization, mandatory root continuation, per-node lookup vector, graph proof-class derivation, and this history.
+  - **Fix round 5 — H1:** §2.1/§4 use `GraphRowKeyV1` for every completeness parent and require JCS-byte parent ordering with complete, duplicate-free coverage.
+  - **Fix round 5 — H2:** §2/§4/§9 keep declared `order` and `KeysetKeyV1.entries` free of `_id`; the separate `id` carries the implicit ascending tie-break in continuations and interval ends.
+  - **Fix round 5 — H3:** §2.4/§2.6 charge every demand-paged lineage for its page-induced subtree and re-derive the root example as `43 + C_comments` scanned entries and 26 ranges.
+  - **Fix round 5 — H4:** §2.6/§5.1 distinguish direct semi-join range/unique-point access, optional principal binding points, and storage-free null-key to-one attempts.
+  - **Fix round 5 — H5:** §6 keys graph memos on materialization, partition, authorization-version, and evaluation-cut axes and retires stale authorization versions. This tightens G1's shipped key description without changing the session-exact, pre-G0 G1 mechanism.
+  - **Fix round 5 — MINOR:** §2.1/§4/§9 pin evaluation-cut integer schema, demand-vector resume for a to-many named window, outer oracle cursor/row bindings, the commission packet's four-axis completeness tuple, and this history.
 - **v0.4 (2026-08-23).** **G0 commissioned** (author ruling, Charlie
   Cheever, 2026-08-23 session: "worth commissioning G0 now"). Context: the
   fan-out P1 this Spec anchors is no longer minutes-scale — LLP 0200
