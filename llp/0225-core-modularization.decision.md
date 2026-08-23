@@ -326,7 +326,11 @@ incorporates 0199's OQ3 ruling and the implemented 2026-08-09 follow-up.
    `{state B, admission A, authority A}` and fail.
 
    This seals only construction of the capsule destination: no production
-   AppState API can combine admission graph A with database/commit graph B.
+   AppState constructor can assemble admission graph A with database/commit
+   graph B. It does not freeze the `LocalSnapback` inside the shared mutex
+   afterwards, so replacing that referent still re-aliases the pairing; the
+   kernel's commit-authority check is what refuses the result today. That
+   post-construction path is tracked as a residual.
    It does not seal the open `PendingCommit` adapter, prevent closure capture
    of cloneable commit authority, bind reconciliation to semantic intent, or
    close `PreparedAuthority` publication substitution. Those remain in
