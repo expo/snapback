@@ -1236,6 +1236,85 @@ pub struct AuthorizedEffectReservation {
         std::sync::Mutex<Option<Box<dyn FnOnce(&'static str) + Send + 'static>>>,
     #[cfg(any(test, feature = "test-support"))]
     commit_guard_failure_for_test: std::sync::Mutex<Option<SnapbackError>>,
+    #[cfg(any(test, feature = "test-support"))]
+    scope_probe_for_test: std::sync::Mutex<Option<AuthorizedEffectScopeProbeForTest>>,
+}
+
+/// Test-only observation of one exact reservation's commit-guard scope.
+/// The marker distinguishes a freshly reserved effect from any predecessor,
+/// while the active effect identifies the particular durable cut it guards.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+#[derive(Clone)]
+pub struct AuthorizedEffectScopeProbeForTest {
+    marker: String,
+    active_effect: std::sync::Arc<std::sync::Mutex<Option<&'static str>>>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+impl AuthorizedEffectScopeProbeForTest {
+    #[doc(hidden)]
+    pub fn new(marker: impl Into<String>) -> Self {
+        Self {
+            marker: marker.into(),
+            active_effect: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        }
+    }
+
+    #[doc(hidden)]
+    pub fn marker(&self) -> &str {
+        &self.marker
+    }
+
+    #[doc(hidden)]
+    pub fn is_active_for(&self, effect: &'static str) -> bool {
+        *self
+            .active_effect
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            == Some(effect)
+    }
+
+    #[doc(hidden)]
+    pub fn is_inactive(&self) -> bool {
+        self.active_effect
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .is_none()
+    }
+
+    fn enter(&self, effect: &'static str) -> AuthorizedEffectScopeProbeGuardForTest {
+        let mut active = self
+            .active_effect
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        assert!(
+            active.is_none(),
+            "authorized-effect scope probe {} is already active",
+            self.marker
+        );
+        *active = Some(effect);
+        drop(active);
+        AuthorizedEffectScopeProbeGuardForTest {
+            probe: self.clone(),
+        }
+    }
+}
+
+#[cfg(any(test, feature = "test-support"))]
+struct AuthorizedEffectScopeProbeGuardForTest {
+    probe: AuthorizedEffectScopeProbeForTest,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+impl Drop for AuthorizedEffectScopeProbeGuardForTest {
+    fn drop(&mut self) {
+        *self
+            .probe
+            .active_effect
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+    }
 }
 
 /// The inner synchronous commit guard for an authorized effect. Field order is
@@ -1246,6 +1325,8 @@ pub struct AuthorizedEffectCommitGuard<'a> {
     _mode: AdmissionEffectGuard<'a>,
     _service: Option<RetainedServiceAuthorityGuard<'a>>,
     _reservation: &'a AuthorizedEffectReservation,
+    #[cfg(any(test, feature = "test-support"))]
+    _scope_probe_for_test: Option<AuthorizedEffectScopeProbeGuardForTest>,
 }
 
 impl AuthorizedEffectReservation {
@@ -1288,6 +1369,19 @@ impl AuthorizedEffectReservation {
             .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(error);
     }
 
+    /// Mark every guard acquired from this exact reservation so a transaction
+    /// post-COMMIT hook can observe its lifetime without widening production
+    /// authority carriers.
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn with_scope_probe_for_test(self, probe: AuthorizedEffectScopeProbeForTest) -> Self {
+        *self
+            .scope_probe_for_test
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(probe);
+        self
+    }
+
     /// Acquire the independent mode guard last and retain the complete
     /// authority bundle until the returned transaction guard is dropped.
     pub fn commit_guard(
@@ -1323,10 +1417,19 @@ impl AuthorizedEffectReservation {
                 return Err(error);
             }
         };
+        #[cfg(any(test, feature = "test-support"))]
+        let scope_probe_for_test = self
+            .scope_probe_for_test
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .as_ref()
+            .map(|probe| probe.enter(effect));
         Ok(AuthorizedEffectCommitGuard {
             _mode: mode,
             _service: service,
             _reservation: self,
+            #[cfg(any(test, feature = "test-support"))]
+            _scope_probe_for_test: scope_probe_for_test,
         })
     }
 }
@@ -1801,6 +1904,8 @@ impl PreparedAuthority {
             before_commit_guard_for_test: std::sync::Mutex::new(None),
             #[cfg(any(test, feature = "test-support"))]
             commit_guard_failure_for_test: std::sync::Mutex::new(None),
+            #[cfg(any(test, feature = "test-support"))]
+            scope_probe_for_test: std::sync::Mutex::new(None),
         })
     }
 

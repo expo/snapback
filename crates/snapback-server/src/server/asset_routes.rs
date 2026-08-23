@@ -45,6 +45,19 @@ async fn reserve_asset_authorized_effect(
         .reserve_authorized_effect(effect)
         .map_err(ApiError::from)?;
     #[cfg(test)]
+    let authorized_effect = match take_test_asset_retry_guard(_headers, effect) {
+        Some(TestAssetRetryGuardAction::Refuse) => authorized_effect
+            .with_commit_guard_failure_for_test(SnapbackError::error(
+                "SNAPBACK_ACTION_TIMEOUT",
+                "runtime",
+                "injected asset finalize witness-retry guard refusal",
+            )),
+        Some(TestAssetRetryGuardAction::Probe(probe)) => {
+            authorized_effect.with_scope_probe_for_test(probe)
+        }
+        None => authorized_effect,
+    };
+    #[cfg(test)]
     if pause_after_reservation {
         pause_test_finite_authority_request(
             _headers

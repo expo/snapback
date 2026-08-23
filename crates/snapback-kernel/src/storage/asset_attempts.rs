@@ -12,6 +12,109 @@ use rusqlite::{OptionalExtension, TransactionBehavior};
 use serde_json::{Map, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[cfg(any(test, feature = "test-support"))]
+struct AssetAttemptsAfterCommitObserverEntryForTest {
+    predicate: std::sync::Arc<dyn Fn() -> bool + Send + Sync + 'static>,
+    observed: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+static ASSET_ATTEMPTS_AFTER_COMMIT_OBSERVERS_FOR_TEST: std::sync::OnceLock<
+    std::sync::Mutex<
+        std::collections::HashMap<String, AssetAttemptsAfterCommitObserverEntryForTest>,
+    >,
+> = std::sync::OnceLock::new();
+
+#[cfg(any(test, feature = "test-support"))]
+fn asset_attempts_after_commit_observers_for_test() -> &'static std::sync::Mutex<
+    std::collections::HashMap<String, AssetAttemptsAfterCommitObserverEntryForTest>,
+> {
+    ASSET_ATTEMPTS_AFTER_COMMIT_OBSERVERS_FOR_TEST
+        .get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()))
+}
+
+/// One-shot test observer for the cut immediately after an asset transaction
+/// commits and before its caller-owned guard drops.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub struct AssetAttemptsAfterCommitObserverForTest {
+    id: String,
+    observed: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+impl AssetAttemptsAfterCommitObserverForTest {
+    #[doc(hidden)]
+    pub fn observed(&self) -> bool {
+        self.observed.load(std::sync::atomic::Ordering::Acquire)
+    }
+}
+
+#[cfg(any(test, feature = "test-support"))]
+impl Drop for AssetAttemptsAfterCommitObserverForTest {
+    fn drop(&mut self) {
+        asset_attempts_after_commit_observers_for_test()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .remove(&self.id);
+    }
+}
+
+/// Install a predicate that is sampled after each asset transaction COMMIT.
+/// It is consumed only when true, allowing a test to select the exact guarded
+/// cut without interfering with unrelated parallel transactions.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub fn install_asset_attempts_after_commit_observer_for_test(
+    predicate: impl Fn() -> bool + Send + Sync + 'static,
+) -> AssetAttemptsAfterCommitObserverForTest {
+    let id = format!("asset-after-commit-{}", uuid::Uuid::now_v7().simple());
+    let observed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let previous = asset_attempts_after_commit_observers_for_test()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .insert(
+            id.clone(),
+            AssetAttemptsAfterCommitObserverEntryForTest {
+                predicate: std::sync::Arc::new(predicate),
+                observed: observed.clone(),
+            },
+        );
+    assert!(
+        previous.is_none(),
+        "asset after-COMMIT observer id was reused"
+    );
+    AssetAttemptsAfterCommitObserverForTest { id, observed }
+}
+
+#[cfg(any(test, feature = "test-support"))]
+fn observe_asset_attempts_after_commit_for_test() {
+    let observers = asset_attempts_after_commit_observers_for_test()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .iter()
+        .map(|(id, entry)| (id.clone(), entry.predicate.clone(), entry.observed.clone()))
+        .collect::<Vec<_>>();
+    let matched = observers
+        .into_iter()
+        .filter_map(|(id, predicate, observed)| {
+            predicate().then(|| {
+                observed.store(true, std::sync::atomic::Ordering::Release);
+                id
+            })
+        })
+        .collect::<Vec<_>>();
+    if matched.is_empty() {
+        return;
+    }
+    let mut observers = asset_attempts_after_commit_observers_for_test()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    for id in matched {
+        observers.remove(&id);
+    }
+}
+
 /// A rendered variant whose immutable object is staged and ready for a
 /// generation-checked storage commit.
 #[derive(Clone)]
@@ -364,6 +467,8 @@ impl LocalDatabase {
         let value = f(&tx)?;
         let _commit_guard = before_commit()?;
         tx.commit()?;
+        #[cfg(any(test, feature = "test-support"))]
+        observe_asset_attempts_after_commit_for_test();
         Ok(value)
     }
 

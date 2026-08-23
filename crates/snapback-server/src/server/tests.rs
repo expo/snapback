@@ -4,10 +4,11 @@ use super::{
     CRON_DISPATCH_CONCURRENCY_DEFAULT, CRON_DISPATCH_CONCURRENCY_MAX, ConnectionGrant,
     ConnectionOpenAttempt, DetachedActionHost, DetachedActionWorkerCounters, HostOperationParentV1,
     OpenConnectionRequest, PolicyAuthMode, PreparedAuthority, RealtimeEnvelope, SharedSnapback,
-    SnapbackApp, TEST_FINITE_AUTHORITY_PAUSE_HEADER, TestFiniteAuthorityPausePoint,
-    already_terminal_session_error, app, configured_action_worker_limit,
-    configured_cron_dispatch_concurrency, coordinated_app_reset, dispatch_cron_tick_background,
-    finish_registered_response, install_committed_reset_handoff_test_hook,
+    SnapbackApp, TEST_ASSET_RETRY_GUARD_HEADER, TEST_FINITE_AUTHORITY_PAUSE_HEADER,
+    TestAssetRetryGuardAction, TestFiniteAuthorityPausePoint, already_terminal_session_error, app,
+    configured_action_worker_limit, configured_cron_dispatch_concurrency, coordinated_app_reset,
+    dispatch_cron_tick_background, finish_registered_response,
+    install_committed_reset_handoff_test_hook, install_test_asset_retry_guard,
     install_test_finite_authority_pause, linearize_detached_action_abandonment,
     parse_action_watchdog_timeout, parse_optional_json, reserve_detached_action_worker,
     reserve_detached_action_worker_with_counters, retain_realtime_authority_in,
@@ -32911,6 +32912,7 @@ enum AssetDurableWitness {
         availability: String,
         rendition_count: usize,
         settled_bytes: u64,
+        receipt_count: usize,
     },
 }
 
@@ -33027,6 +33029,10 @@ async fn asset_durable_witness(
                 settled_bytes: inspected["accounting"]["settledBytes"]
                     .as_u64()
                     .expect("finalize settled-byte accounting"),
+                receipt_count: inspected["receipts"]
+                    .as_array()
+                    .expect("finalize receipts")
+                    .len(),
             }
         }
         AssetAuthorizedEffectSite::ExplicitDelete => AssetDurableWitness::Availability(
@@ -33246,6 +33252,7 @@ fn assert_asset_effect_committed(
                 availability: before_availability,
                 rendition_count: before_renditions,
                 settled_bytes: before_settled,
+                receipt_count: before_receipts,
             },
             AssetDurableWitness::Finalize {
                 publication_count: after_publications,
@@ -33253,6 +33260,7 @@ fn assert_asset_effect_committed(
                 availability: after_availability,
                 rendition_count: after_renditions,
                 settled_bytes: after_settled,
+                receipt_count: after_receipts,
             },
         ) => {
             assert_eq!(before_state, "transferring");
@@ -33264,6 +33272,10 @@ fn assert_asset_effect_committed(
             assert!(
                 after_settled > before_settled,
                 "finalize must settle canonical quota"
+            );
+            assert!(
+                after_receipts > before_receipts,
+                "finalize must emit Phase-D receipts"
             );
         }
         (
@@ -33555,6 +33567,168 @@ async fn asset_http_finalize_revalidates_moved_witness_and_retries_under_fresh_r
         "a still-authorized caller must not loop on admission conflict: {body}"
     );
     assert_eq!(body["task"]["availability"], "ready", "{body}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn asset_http_finalize_fresh_retry_guard_refusal_prevents_phase_d() {
+    let fixture = asset_authorized_effect_fixture(AssetAuthorizedEffectSite::Finalize).await;
+    let before = asset_durable_witness(&fixture, AssetAuthorizedEffectSite::Finalize).await;
+    let attempt_id = fixture
+        .target
+        .attempt_id
+        .as_deref()
+        .expect("finalize witness attempt")
+        .to_owned();
+    with_snapback(&fixture.state.snapback, {
+        let attempt_id = attempt_id.clone();
+        move |snapback| {
+            snapback_engine::test_support::asset_move_finalize_witness(snapback, &attempt_id)
+        }
+    })
+    .await
+    .expect("move finalize admission witness");
+
+    let retry_guard = install_test_asset_retry_guard(TestAssetRetryGuardAction::Refuse);
+    let mut request = asset_session_request(
+        "POST",
+        &format!("/assets/attempts/{attempt_id}/finalize"),
+        serde_json::to_vec(&json!({
+            "attemptId": attempt_id,
+            "lifecycleGeneration": fixture.target.lifecycle_generation,
+        }))
+        .expect("serialize moved-witness finalize"),
+        Some("application/json"),
+        &fixture.bearer,
+    );
+    request.headers_mut().insert(
+        HeaderName::from_static(TEST_ASSET_RETRY_GUARD_HEADER),
+        HeaderValue::from_str(retry_guard.id()).expect("retry-guard refusal header"),
+    );
+    let response = fixture
+        .router
+        .clone()
+        .oneshot(request)
+        .await
+        .expect("retry-guard refusal response");
+    let status = response.status();
+    let body = response_json(response).await;
+    assert_ne!(
+        status,
+        StatusCode::OK,
+        "retry guard refusal was bypassed: {body}"
+    );
+    assert_eq!(
+        body["diagnostic"]["code"], "SNAPBACK_ACTION_TIMEOUT",
+        "the exact retry reservation must surface its typed guard refusal: {body}",
+    );
+
+    let after = asset_durable_witness(&fixture, AssetAuthorizedEffectSite::Finalize).await;
+    match (before, after) {
+        (
+            AssetDurableWitness::Finalize {
+                publication_count: before_publications,
+                attempt_state: before_attempt,
+                availability: before_availability,
+                rendition_count: before_renditions,
+                settled_bytes: before_settled,
+                receipt_count: before_receipts,
+            },
+            AssetDurableWitness::Finalize {
+                publication_count: after_publications,
+                attempt_state: after_attempt,
+                availability: after_availability,
+                rendition_count: after_renditions,
+                settled_bytes: after_settled,
+                receipt_count: after_receipts,
+            },
+        ) => {
+            assert_eq!(before_attempt, "transferring");
+            assert_eq!(after_attempt, "finalizing");
+            assert_eq!(before_availability, "pending");
+            assert_eq!(after_availability, before_availability);
+            assert_eq!(after_publications, before_publications + 1);
+            assert_eq!(after_renditions, before_renditions);
+            assert_eq!(after_settled, before_settled);
+            assert_eq!(after_receipts, before_receipts);
+        }
+        witnesses => panic!("unexpected finalize refusal witnesses: {witnesses:?}"),
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn asset_http_finalize_fresh_retry_guard_lives_through_phase_d_commit() {
+    let fixture = asset_authorized_effect_fixture(AssetAuthorizedEffectSite::Finalize).await;
+    let attempt_id = fixture
+        .target
+        .attempt_id
+        .as_deref()
+        .expect("finalize witness attempt")
+        .to_owned();
+    with_snapback(&fixture.state.snapback, {
+        let attempt_id = attempt_id.clone();
+        move |snapback| {
+            snapback_engine::test_support::asset_move_finalize_witness(snapback, &attempt_id)
+        }
+    })
+    .await
+    .expect("move finalize admission witness");
+
+    let marker = format!("finalize-retry-{}", uuid::Uuid::now_v7().simple());
+    let scope = crate::auth::invocation::AuthorizedEffectScopeProbeForTest::new(marker.clone());
+    assert_eq!(scope.marker(), marker);
+    let phase_c_scope = scope.clone();
+    let after_phase_c_commit =
+        snapback_kernel::storage::install_asset_attempts_after_commit_observer_for_test(
+            move || phase_c_scope.is_active_for("asset finalize publication-staged transaction"),
+        );
+    let phase_d_scope = scope.clone();
+    let after_phase_d_commit =
+        snapback_kernel::storage::install_asset_attempts_after_commit_observer_for_test(
+            move || phase_d_scope.is_active_for("asset finalize publication/quota transaction"),
+        );
+    let retry_guard =
+        install_test_asset_retry_guard(TestAssetRetryGuardAction::Probe(scope.clone()));
+    let mut request = asset_session_request(
+        "POST",
+        &format!("/assets/attempts/{attempt_id}/finalize"),
+        serde_json::to_vec(&json!({
+            "attemptId": attempt_id,
+            "lifecycleGeneration": fixture.target.lifecycle_generation,
+        }))
+        .expect("serialize moved-witness finalize"),
+        Some("application/json"),
+        &fixture.bearer,
+    );
+    request.headers_mut().insert(
+        HeaderName::from_static(TEST_ASSET_RETRY_GUARD_HEADER),
+        HeaderValue::from_str(retry_guard.id()).expect("retry-guard scope header"),
+    );
+    let response = fixture
+        .router
+        .clone()
+        .oneshot(request)
+        .await
+        .expect("retry-guard scope response");
+    let status = response.status();
+    let body = response_json(response).await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "moved-witness finalize failed: {body}"
+    );
+    assert_eq!(body["task"]["availability"], "ready", "{body}");
+    assert!(
+        after_phase_c_commit.observed(),
+        "the marked fresh retry guard was not active after the Phase-C COMMIT",
+    );
+    assert!(
+        after_phase_d_commit.observed(),
+        "the marked fresh retry guard was not active after the Phase-D COMMIT",
+    );
+    assert!(
+        scope.is_inactive(),
+        "the marked fresh retry guard remained active after Local returned",
+    );
 }
 
 macro_rules! asset_authorized_effect_race_tests {
