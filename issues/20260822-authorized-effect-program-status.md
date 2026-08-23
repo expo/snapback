@@ -194,3 +194,51 @@ The critical path is the binding implementation plan's Step 5 — the first step
 substitution inexpressible. Its independent early slice (sealing the capsule destination at
 construction) is in flight now and closes the Critical in
 `issues/20260822-capsule-structural-residuals.md`.
+
+---
+
+## 2026-08-23 — the top violating path closed; deltas labelled
+
+Landed since the last status entry, labelled per
+`issues/20260823-implementation-sequencing.md`:
+
+| Delta | Label | Effect |
+|---|---|---|
+| Detached-action nested-mutation fence (6 commits, merge) | **PROPERTY** | Closed the top violating path |
+| OAuth proposal admission cap | **ORTHOGONAL CORRECTNESS** | Bounded creation; closed growth + local DoS |
+| Test-discrimination fixes #7/#9 (4 commits) | **EVIDENCE ONLY** | Four tests now fail under the mutations they name |
+| Capsule construction-origin seal | **STRUCTURAL PREREQUISITE** | `{B,A,A}` unconstructible at construction |
+| R2 atomic batch persistence | **STRUCTURAL PREREQUISITE** | All-or-nothing batches; no authorization change |
+
+## The measured result
+
+**The property is still FALSE, and the top path is closed.** The detached-action
+`/action/{name}` → `ctx.runMutation` route is route-closed for **both** sessions and scoped
+services. The new shortest violation is **session-only pairing-code mint**, where the queued
+closure checks only `effect_guard` — fencing the mode epoch without reserving session authority.
+
+The exposure therefore narrowed on two axes: from both caller classes to **sessions only**, and
+from arbitrary application mutation effects to **pairing-code mint**. A fence for it is in flight.
+
+## What this session established about method
+
+1. **Volume is not progress.** Seven R1 commits plus R2 moved the property **zero**. Six commits
+   with five review rounds closed the top path. Same program, different return.
+2. **Demand a green-mutation.** For any test claiming a structural property, construct the shortest
+   production mutation that leaves it green. This found 13 non-discriminating tests already on
+   `main`, and six false proofs inside the fence work itself.
+3. **Watching a test fail once is necessary, not sufficient.** R2's lane did fail-first properly and
+   still shipped an oracle narrower than the row it claimed to pin.
+4. **Narrow rather than overstate.** Claims that could not be made structural were reduced to what
+   the code enforces, repeatedly and deliberately.
+5. **Route-closed ≠ structurally impossible.** Only the capsule construction seal currently earns
+   the stronger grade.
+
+## Deferred with evidence
+
+The OAuth pairing FK wedge is **deferred**, not fixed — two independently reproduced silent
+data-loss paths in its migration (an inbound FK invisible to the catalog inventory, then a
+TEMP-shadow escape where `pragma_foreign_key_list` resolves TEMP-first). Recorded in
+`issues/20260823-oauth-pairing-fk-wedge-deferred.md` with the open design question: enumerate-and-
+refuse has now failed twice, so the next attempt should consider failing **closed** on any
+unexpected schema object.
