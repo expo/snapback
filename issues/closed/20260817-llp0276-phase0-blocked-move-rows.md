@@ -78,3 +78,15 @@ relocation should be a separately reviewed migration with its consumers.
 - The Phase 0 description no longer implies that these refused rows landed.
 - Any replacement move proposal names a transition plan for revision-anchored
   governance reads and all executable path consumers.
+
+---
+
+## Resolution (2026-08-23)
+
+**Closed — all three refusals stood and were ratified as keeps.** The r5
+acceptance ratified the Phase 2 decision memo's C13–C15 corrections; the
+rearchitecture landed (LLP 0276 "Implemented, structurally", `18cb34fab`)
+without moving any of the three rows. Verified 2026-08-23: root `app.json`,
+`eas.json`, `visibility-governance.config.json`, and
+`visibility-governance-g1-closure.json` remain at root; no `demos/_research/`
+exists; the `demo.snapback.json` declaration rule is unchanged.

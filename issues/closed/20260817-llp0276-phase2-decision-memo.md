@@ -628,3 +628,47 @@ Append:
 8. **P0-C and P0-D landing state** — described here as of memo time (lane branches, reviews dispatched); reconfirm before citing their gates as live.
 
 <!-- path-migration: historical-end -->
+
+---
+
+## Resolution (2026-08-23)
+
+**Closed — every ruling this memo requested was ratified and implemented.**
+The r5 acceptance (2026-08-18, recorded in LLP 0276's header) ratified
+Decisions D-1 through D-7; the 2026-08-19 "Implemented, structurally"
+revision landed the workspace on `main` at `18cb34fab`. Verified directly
+against the tree on 2026-08-23:
+
+- **D-1** — `crates/snapback-auth` exists with the ruled boundary:
+  `auth/keyring.rs` and `auth/rescue.rs` in `snapback-kernel`,
+  `auth/recovery.rs` in `snapback-server`, per the referrer-driven ruling.
+  The bonus finding held: `crates/allowed-dependencies.v1.json` ships
+  `"membershipExceptions": []`.
+- **D-2** — all six reality-overrides landed (`store_state.rs` → cli,
+  `exec_guard.rs` → types, `ask.rs` → engine, rebuild machinery in kernel).
+  `schema_export.rs`'s interim tools placement was superseded — favorably —
+  by LLP 0283 F-5: per-crate carrier registration with `snapback-tools`
+  owning downward-only assembly and `snapback-schemagen`.
+- **D-3/D-4** — manifest-wins leaf assignments and the four small families
+  landed as recommended.
+- **D-5** — the conformance row's allowed set is the original five crates
+  (`auth, engine, kernel, server, types`); the pre-check passed and no
+  mid-carve widening occurred.
+- **D-6** — `tools/agent-safe-baseline-worker` remains lock-isolated under
+  the root `exclude` (option a), alongside `vendor/ibex`/`vendor/celld-ltx`;
+  `crates/snapback` carries `publish = false` and the root manifest carries
+  `default-members = ["crates/snapback"]`.
+- **D-7** — gate-spec ratifications landed; the waiver clock (item 2) is
+  enforced in `scripts/check-workspace-graph.mjs`: every membership
+  exception requires a validated, unexpired `expiresAt` plus an existing
+  `issues/` burn-down ticket. The concern is closed in code, not just prose.
+- **Part 4** — resolved by events beyond the memo's recommendation: the
+  freeze was never acquired; Phases 1–3 ran on the `p2-integrate`
+  integration branch against a moving `main` and landed by fast-forward.
+
+Residual notes: the RFC's auth-row "Today:" cell retains pre-carve glob
+prose (historical; the landed tree and the gate artifact are authoritative),
+and the marked uncertainties in this memo are either resolved by the landed
+state or absorbed into LLP 0283's follow-up program. Companion tickets
+closed with this one. Phase 4 / security follow-ups are tracked in LLP 0283,
+not here.

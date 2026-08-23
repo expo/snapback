@@ -92,3 +92,18 @@ ticket preserves the RFC corrections that need author review.
   before their moves, with receipt-regeneration obligations named.
 - The amendment keeps the checked manifest and straggler gate as the plan of
   record rather than duplicating their 185-row operational inventory in prose.
+
+---
+
+## Resolution (2026-08-23)
+
+**Closed — the corrections were absorbed and implemented.** The Phase 2
+decision memo (companion ticket, closed with this one) folded these into its
+Part 2/Part 5 amendment set; the r5 acceptance ratified them and the landed
+workspace implements the operative ones, verified 2026-08-23: root
+`Cargo.toml` carries `default-members = ["crates/snapback"]` and
+`exclude = ["tools/agent-safe-baseline-worker", "vendor/ibex",
+"vendor/celld-ltx"]`; `scripts/capability-maturity.mjs` implements the
+layout-epoch commit-path selection; the authored-transclusion count was
+corrected in the RFC's 2026-08-19 Phase 3 consolidation revision. The
+path-migration manifest remained the execution artifact, as intended.
