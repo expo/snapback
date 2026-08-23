@@ -20,6 +20,7 @@ use crate::auth::invocation::PreparedAuthority;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use serde::Serialize;
 use serde_json::{Value, json};
+use snapback_kernel::storage::{DurableRecoveredStreamAttempt, DurableStreamAttempt};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex, OnceLock};
@@ -93,6 +94,13 @@ impl PreparedAuthority {
             }
         };
         PreparedStreamAttemptOrigin { kind }
+    }
+
+    /// Mint the host capability and public runner identity together for this
+    /// already-prepared invocation. Callers that hold only a runner identity
+    /// cannot upgrade it into host-settlement authority.
+    pub fn stream_runner_host(&self, abandoned: Arc<AtomicBool>) -> StreamRunnerHost {
+        StreamRunnerHost::new(self.clone(), abandoned)
     }
 }
 
@@ -386,19 +394,27 @@ impl StreamRunnerIdentity {
     }
 }
 
-/// Opaque owner of host-settlement authority for one exact runner. The public
-/// constructor creates a fresh runner and its host capability together; there
-/// is no conversion from a caller-held [`StreamRunnerIdentity`] into this
-/// type.
+/// Opaque owner of host-settlement authority for one exact runner. Only a
+/// prepared invocation can mint this capability; there is no public
+/// constructor or conversion from a caller-held [`StreamRunnerIdentity`].
+///
+/// ```compile_fail
+/// use snapback_sync::stream_attempt::StreamRunnerHost;
+/// use std::sync::{Arc, atomic::AtomicBool};
+///
+/// let _forged = StreamRunnerHost::new(Arc::new(AtomicBool::new(false)));
+/// ```
 #[derive(Clone)]
 pub struct StreamRunnerHost {
     runner: StreamRunnerIdentity,
+    _authority: PreparedAuthority,
 }
 
 impl StreamRunnerHost {
-    pub fn new(abandoned: Arc<AtomicBool>) -> Self {
+    fn new(authority: PreparedAuthority, abandoned: Arc<AtomicBool>) -> Self {
         Self {
             runner: StreamRunnerIdentity::new(abandoned),
+            _authority: authority,
         }
     }
 
@@ -423,6 +439,18 @@ struct HostSettlement<'a> {
 }
 
 impl StreamAttemptTransitionOrigin for HostSettlement<'_> {
+    #[cfg(any(test, feature = "test-support"))]
+    const PROVENANCE: &'static str = "HostSettlement";
+}
+
+/// Startup recovery has no surviving runner. Its host-settlement origin is
+/// therefore constructible only by borrowing the storage-issued proof that
+/// the recovered terminal row committed.
+struct RecoveryHostSettlement<'a> {
+    _durability: &'a DurableRecoveredStreamAttempt,
+}
+
+impl StreamAttemptTransitionOrigin for RecoveryHostSettlement<'_> {
     #[cfg(any(test, feature = "test-support"))]
     const PROVENANCE: &'static str = "HostSettlement";
 }
@@ -1156,11 +1184,12 @@ impl StreamAttemptRegistry {
         if let Some(terminal) = &record.terminal {
             return Ok(terminal.clone());
         }
-        if !record.lease_held_by(runner) {
+        if !record.lease_held_by(runner) || !record.holder.as_ref().is_some_and(RunnerHolder::alive)
+        {
             return Err(attempt_error(
                 "settle",
-                "this runner does not hold the attempt's single-runner lease",
-                json!({ "expected": "the current runner lease", "received": "a superseded or concurrent runner" }),
+                "this live runner does not hold the attempt's single-runner lease",
+                json!({ "expected": "the current live runner lease", "received": "an abandoned, finished, superseded, or concurrent runner" }),
             ));
         }
         let terminal = StreamAttemptTerminal {
@@ -1179,16 +1208,21 @@ impl StreamAttemptRegistry {
         Ok(terminal)
     }
 
-    /// Adopt a durable terminal row as host settlement. A caller/mode start
-    /// cannot take this branch: the call site must first observe the terminal
-    /// durable fact and enter this separate API with the exact runner origin.
+    /// Adopt a storage-issued terminal row as host settlement. The witness
+    /// owns the exact runner host used for the durable read, so callers cannot
+    /// substitute a deserialized row or an unrelated runner.
+    ///
+    /// ```compile_fail
+    /// use snapback_sync::stream_attempt::{PersistedStreamAttempt, StreamAttemptRegistry};
+    /// let row: PersistedStreamAttempt = todo!();
+    /// StreamAttemptRegistry::default().adopt_terminal_host(1, row);
+    /// ```
     pub fn adopt_terminal_host(
         &self,
-        host: &StreamRunnerHost,
         namespace: usize,
-        client_key: &str,
-        persisted: &PersistedStreamAttempt,
+        durable: DurableStreamAttempt<StreamRunnerHost>,
     ) -> SnapbackResult<StreamAttemptStart> {
+        let persisted = durable.persisted();
         if persisted.terminal.is_none() {
             return Err(attempt_error(
                 "attemptStart",
@@ -1196,14 +1230,30 @@ impl StreamAttemptRegistry {
                 json!({ "expected": "a terminal durable attempt", "received": "a nonterminal durable attempt" }),
             ));
         }
+        let host = durable.owner();
         let origin = host.host_settlement();
         self.stage_start_from(
             &origin,
             namespace,
-            client_key,
+            &persisted.client_key,
             origin.runner,
             Some(persisted),
         )
+    }
+
+    /// Classify one startup terminalization only after storage returns its
+    /// opaque committed-recovery witness.
+    ///
+    /// ```compile_fail
+    /// use snapback_sync::stream_attempt::{PersistedStreamAttempt, StreamAttemptRegistry};
+    /// let row: PersistedStreamAttempt = todo!();
+    /// StreamAttemptRegistry::default().record_startup_recovery_host(&row);
+    /// ```
+    pub fn record_startup_recovery_host(&self, recovery: &DurableRecoveredStreamAttempt) {
+        let origin = RecoveryHostSettlement {
+            _durability: recovery,
+        };
+        self.lock().classify_transition(&origin, "startupRecovery");
     }
 
     /// The trusted terminalizer: settle every non-terminal attempt bound to
@@ -1249,7 +1299,8 @@ impl StreamAttemptRegistry {
         settled
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
     pub fn terminal(&self, attempt_token: &str) -> Option<StreamAttemptTerminal> {
         self.lock()
             .by_token
@@ -1412,6 +1463,11 @@ mod tests {
     fn runner_host(runner: &StreamRunnerIdentity) -> StreamRunnerHost {
         StreamRunnerHost {
             runner: runner.clone(),
+            _authority: prepared_authority(
+                crate::auth::invocation::InvocationSource::LocalAction,
+                AuthMode::Dev,
+                ResolvedAppAuthority::Anonymous,
+            ),
         }
     }
 
@@ -1437,12 +1493,7 @@ mod tests {
             runner: &StreamRunnerIdentity,
             persisted: Option<&PersistedStreamAttempt>,
         ) -> SnapbackResult<StreamAttemptStart> {
-            match persisted {
-                Some(row) if row.terminal.is_some() => {
-                    self.adopt_terminal_host(&runner_host(runner), namespace, client_key, row)
-                }
-                _ => mode_origin().stage_start(self, namespace, client_key, runner, persisted),
-            }
+            mode_origin().stage_start(self, namespace, client_key, runner, persisted)
         }
 
         fn start_with_metadata(
@@ -1591,7 +1642,7 @@ mod tests {
     }
 
     #[test]
-    fn prepared_authority_is_the_closed_stream_origin_classifier() {
+    fn prepared_authority_carrier_fixtures_map_to_expected_origins() {
         assert_eq!(
             caller_origin(
                 crate::auth::invocation::InvocationSource::HttpAction,
@@ -1662,7 +1713,7 @@ mod tests {
     }
 
     #[test]
-    fn every_r1_transition_is_classified_at_its_origin() {
+    fn r1_transition_entry_points_record_expected_origin_classifications() {
         let registry = registry();
         let caller = caller_origin(
             crate::auth::invocation::InvocationSource::HttpAction,
@@ -1757,12 +1808,61 @@ mod tests {
             .dirty_snapshots(41)
             .into_iter()
             .find(|snapshot| snapshot.token == caller_started.attempt_token)
-            .expect("terminal snapshot for adoption");
+            .expect("terminal snapshot to persist before adoption");
+        let mut storage = snapback_kernel::storage::LocalDatabase::memory()
+            .expect("durable transition test store");
+        storage
+            .settlement()
+            .upsert_stream_attempts(&[terminal_snapshot.to_row().unwrap()], 1)
+            .expect("terminal adoption source commits");
+
+        let recovery_row = PersistedStreamAttempt {
+            token: "startup-recovery-token".to_owned(),
+            client_key: "startup-recovery-key".to_owned(),
+            runner_generation: 1,
+            progress_commits: 0,
+            cursors_opened: 1,
+            cursors: BTreeMap::from([(
+                "startup-recovery-cursor".to_owned(),
+                PersistedStreamCursor {
+                    initiation_state: StreamInitiationState::InitiationPossible,
+                    open: true,
+                },
+            )]),
+            terminal: None,
+            function_id: None,
+            initiator: None,
+            started_at_ms: 1,
+            settled_at_ms: None,
+            emitted_bytes: 0,
+            chunk_count: 0,
+        };
+        storage
+            .settlement()
+            .upsert_stream_attempts(&[recovery_row.to_row().unwrap()], 2)
+            .expect("orphan source commits before recovery");
+        let recovery = storage
+            .settlement()
+            .reconcile_orphaned_stream_attempts(3)
+            .expect("startup recovery commits");
+        assert_eq!(recovery.recovered().len(), 1);
+        let recovery_registry = StreamAttemptRegistry::default();
+        recovery_registry.record_startup_recovery_host(&recovery.recovered()[0]);
+
         let adoption_registry = StreamAttemptRegistry::default();
-        let adoption_runner = runner();
-        let adoption_host = runner_host(&adoption_runner);
+        let adoption_host = prepared_authority(
+            crate::auth::invocation::InvocationSource::LocalAction,
+            AuthMode::Dev,
+            ResolvedAppAuthority::Anonymous,
+        )
+        .stream_runner_host(Arc::new(AtomicBool::new(false)));
+        let durable_terminal = storage
+            .settlement_read()
+            .durable_stream_attempt_by_client_key("caller", adoption_host)
+            .expect("read committed terminal")
+            .expect("committed terminal exists");
         adoption_registry
-            .adopt_terminal_host(&adoption_host, 42, "adopted", &terminal_snapshot)
+            .adopt_terminal_host(42, durable_terminal)
             .expect("terminal adoption");
 
         assert_eq!(
@@ -1788,6 +1888,10 @@ mod tests {
         assert_eq!(
             adoption_registry.transition_classifications_for_test(),
             vec![("terminalAdoption", "HostSettlement")]
+        );
+        assert_eq!(
+            recovery_registry.transition_classifications_for_test(),
+            vec![("startupRecovery", "HostSettlement")]
         );
         assert_eq!(started.attempt_token, takeover.attempt_token);
     }
@@ -1824,9 +1928,14 @@ mod tests {
     }
 
     #[test]
-    fn runner_and_host_origin_share_one_commit_gate_identity() {
+    fn prepared_runner_host_reuses_its_runner_commit_gate() {
         let abandoned = Arc::new(AtomicBool::new(false));
-        let runner_host = StreamRunnerHost::new(abandoned.clone());
+        let runner_host = prepared_authority(
+            crate::auth::invocation::InvocationSource::LocalAction,
+            AuthMode::Dev,
+            ResolvedAppAuthority::Anonymous,
+        )
+        .stream_runner_host(abandoned.clone());
         let runner = runner_host.runner();
         let origin = runner_host.host_settlement();
         assert_eq!(runner.invocation_id, origin.runner.invocation_id);
@@ -1836,10 +1945,20 @@ mod tests {
     }
 
     #[test]
-    fn host_cursor_observations_require_the_exact_lease_runner() {
+    fn runner_bound_host_transitions_reject_a_different_lease_runner() {
         let registry = registry();
-        let holder_host = StreamRunnerHost::new(Arc::new(AtomicBool::new(false)));
-        let other_host = StreamRunnerHost::new(Arc::new(AtomicBool::new(false)));
+        let holder_host = prepared_authority(
+            crate::auth::invocation::InvocationSource::LocalAction,
+            AuthMode::Dev,
+            ResolvedAppAuthority::Anonymous,
+        )
+        .stream_runner_host(Arc::new(AtomicBool::new(false)));
+        let other_host = prepared_authority(
+            crate::auth::invocation::InvocationSource::LocalAction,
+            AuthMode::Dev,
+            ResolvedAppAuthority::Anonymous,
+        )
+        .stream_runner_host(Arc::new(AtomicBool::new(false)));
         let holder = holder_host.runner();
         let started = registry
             .start(61, "runner-bound-cursor", holder, None)
@@ -1854,6 +1973,22 @@ mod tests {
             StreamInitiationState::DefinitelyNotInitiated,
         );
         registry.record_cursor_close_host(&other_host, "runner-bound-cursor");
+        assert!(
+            registry
+                .settle_provider_outcome_host(
+                    &other_host,
+                    &started.attempt_token,
+                    StreamAttemptCause::Complete,
+                )
+                .is_err(),
+            "another runner cannot provider-settle the holder's attempt"
+        );
+        assert!(
+            registry
+                .terminalize_invocation_host(&other_host, StreamAttemptCause::Failed)
+                .is_empty(),
+            "another runner cannot terminalize the holder's invocation"
+        );
 
         let after_other = registry
             .dirty_snapshots(61)

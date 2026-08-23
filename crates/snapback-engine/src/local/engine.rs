@@ -7363,13 +7363,14 @@ impl LocalSnapback {
     /// row — not the in-process registry — is what the startup reconciler
     /// reads after a crash, so the pre-mark must commit before the upstream
     /// send.
-    pub fn stream_attempt_record(
+    pub fn stream_attempt_record<Owner>(
         &self,
         client_key: &str,
-    ) -> SnapbackResult<Option<(String, String)>> {
+        owner: Owner,
+    ) -> SnapbackResult<Option<crate::storage::DurableStreamAttempt<Owner>>> {
         self.db
             .settlement_read()
-            .stream_attempt_by_client_key(client_key)
+            .durable_stream_attempt_by_client_key(client_key, owner)
     }
 
     pub fn stream_attempt_namespace(&self) -> usize {
@@ -26319,32 +26320,18 @@ impl LocalSnapback {
         // write-ahead cursor pre-marks, so a durable winner exists before any
         // new runner can start against the same client key.
         {
-            let rows = db.settlement_read().load_stream_attempts()?;
-            let mut reconciled = Vec::new();
-            let mut reconciled_transcripts = Vec::new();
-            for (token, client_key, record_json) in rows {
-                let updated = crate::stream_attempt::reconcile_orphaned_record_host(&record_json);
-                let effective_record = updated.as_deref().unwrap_or(&record_json);
-                if let Ok(attempt) = serde_json::from_str::<
-                    crate::stream_attempt::PersistedStreamAttempt,
-                >(effective_record)
-                    && attempt.terminal.is_some()
-                {
-                    // A crash may land after the attempt terminal commits but
-                    // before its transcript insert. Reconcile both newly
-                    // terminalized orphans and already-terminal rows; the
-                    // transcript insert is immutable/idempotent.
-                    reconciled_transcripts.push(attempt);
-                }
-                if let Some(updated) = updated {
-                    reconciled.push((token, client_key, updated));
-                }
+            let reconciled = db
+                .settlement()
+                .reconcile_orphaned_stream_attempts(now_millis())?;
+            for recovery in reconciled.recovered() {
+                crate::stream_attempt::global_stream_attempt_registry()
+                    .record_startup_recovery_host(recovery);
             }
-            if !reconciled.is_empty() {
-                db.settlement()
-                    .upsert_stream_attempts(&reconciled, now_millis())?;
-            }
-            for attempt in &reconciled_transcripts {
+            for attempt in reconciled.terminal_attempts() {
+                // A crash may land after the attempt terminal commits but
+                // before its transcript insert. Reconcile both newly
+                // terminalized orphans and already-terminal rows; the
+                // transcript insert is immutable/idempotent.
                 db.reconcile_stream_transcript_from_attempt(attempt)?;
             }
         }

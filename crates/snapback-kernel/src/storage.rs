@@ -143,7 +143,10 @@ pub use schema_transition::{
 pub(crate) use schema_transition::{
     prove_retained_work_posture, record_schema_transition_event, schema_transition_events_on,
 };
-pub use settlement::{SettlementKernel, SettlementReadKernel};
+pub use settlement::{
+    DurableRecoveredStreamAttempt, DurableStreamAttempt, SettlementKernel, SettlementReadKernel,
+    StreamAttemptStartupReconciliation,
+};
 pub use snapback_types::storage::*;
 pub use versions::{VersionsKernel, VersionsReadKernel};
 

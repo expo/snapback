@@ -433,11 +433,19 @@ mod tests {
             emitted_bytes: 12,
             chunk_count: 2,
         };
-        let reconciled = crate::stream_attempt::reconcile_orphaned_record_host(
-            &serde_json::to_string(&attempt).unwrap(),
-        )
-        .expect("live orphan gains terminal");
-        let reconciled: PersistedStreamAttempt = serde_json::from_str(&reconciled).unwrap();
+        db.settlement()
+            .upsert_stream_attempts(&[attempt.to_row().unwrap()], 100)
+            .expect("persist live orphan");
+        let recovery = db
+            .settlement()
+            .reconcile_orphaned_stream_attempts(101)
+            .expect("storage reconciles live orphan");
+        let reconciled = recovery
+            .recovered()
+            .first()
+            .expect("live orphan gains a committed recovery witness")
+            .persisted()
+            .clone();
         assert_eq!(
             reconciled.terminal,
             Some(StreamAttemptTerminal {

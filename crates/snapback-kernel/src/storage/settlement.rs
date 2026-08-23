@@ -1,5 +1,112 @@
 use super::*;
 
+/// A stream-attempt row observed through the canonical store, carrying the
+/// exact owner supplied for that read. The fields are private and the type is
+/// not deserializable: only a successful storage read can issue this witness.
+///
+/// ```compile_fail
+/// use snapback_kernel::storage::DurableStreamAttempt;
+/// use snapback_kernel::stream_attempt::PersistedStreamAttempt;
+///
+/// let forged = PersistedStreamAttempt {
+///     token: "forged".into(),
+///     client_key: "forged".into(),
+///     runner_generation: 1,
+///     progress_commits: 0,
+///     cursors_opened: 0,
+///     cursors: Default::default(),
+///     terminal: None,
+///     function_id: None,
+///     initiator: None,
+///     started_at_ms: 0,
+///     settled_at_ms: None,
+///     emitted_bytes: 0,
+///     chunk_count: 0,
+/// };
+/// let _witness = DurableStreamAttempt { persisted: forged, owner: () };
+/// ```
+pub struct DurableStreamAttempt<Owner> {
+    persisted: crate::stream_attempt::PersistedStreamAttempt,
+    owner: Owner,
+}
+
+impl<Owner> DurableStreamAttempt<Owner> {
+    pub fn persisted(&self) -> &crate::stream_attempt::PersistedStreamAttempt {
+        &self.persisted
+    }
+
+    pub fn owner(&self) -> &Owner {
+        &self.owner
+    }
+}
+
+/// Opaque proof that startup recovery committed this exact terminal row.
+/// Unlike `PersistedStreamAttempt`, callers cannot deserialize or construct
+/// this transition authority from JSON.
+///
+/// ```compile_fail
+/// use snapback_kernel::storage::DurableRecoveredStreamAttempt;
+/// use snapback_kernel::stream_attempt::PersistedStreamAttempt;
+/// let row: PersistedStreamAttempt = todo!();
+/// let _forged = DurableRecoveredStreamAttempt { persisted: row };
+/// ```
+pub struct DurableRecoveredStreamAttempt {
+    persisted: crate::stream_attempt::PersistedStreamAttempt,
+}
+
+impl DurableRecoveredStreamAttempt {
+    pub fn persisted(&self) -> &crate::stream_attempt::PersistedStreamAttempt {
+        &self.persisted
+    }
+}
+
+/// Results of the storage-owned startup reconciliation pass. `recovered`
+/// contains only rows whose terminal CAS was committed by this pass;
+/// `terminal_attempts` also includes pre-existing winners for transcript
+/// repair.
+pub struct StreamAttemptStartupReconciliation {
+    recovered: Vec<DurableRecoveredStreamAttempt>,
+    terminal_attempts: Vec<crate::stream_attempt::PersistedStreamAttempt>,
+}
+
+impl StreamAttemptStartupReconciliation {
+    pub fn recovered(&self) -> &[DurableRecoveredStreamAttempt] {
+        &self.recovered
+    }
+
+    pub fn terminal_attempts(&self) -> &[crate::stream_attempt::PersistedStreamAttempt] {
+        &self.terminal_attempts
+    }
+}
+
+fn decode_stream_attempt(
+    stored_token: &str,
+    stored_client_key: &str,
+    record_json: &str,
+) -> SnapbackResult<crate::stream_attempt::PersistedStreamAttempt> {
+    let persisted =
+        serde_json::from_str::<crate::stream_attempt::PersistedStreamAttempt>(record_json)
+            .map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_ACTION_STREAM_INVALID",
+                    "runtime",
+                    "the durable stream attempt record is not valid bounded JSON",
+                )
+                .with_details(
+                    json!({ "operation": "durableAttemptRead", "error": error.to_string() }),
+                )
+            })?;
+    if persisted.token != stored_token || persisted.client_key != stored_client_key {
+        return Err(SnapbackError::error(
+            "SNAPBACK_ACTION_STREAM_INVALID",
+            "runtime",
+            "the durable stream attempt identity disagrees with its storage key",
+        )
+        .with_details(json!({ "operation": "durableAttemptRead" })));
+    }
+    Ok(persisted)
+}
+
 impl LocalDatabase {
     /// Durably upsert host-owned `StreamAttemptV1` rows. The write-ahead
     /// pre-mark contract requires the row to be committed BEFORE the upstream
@@ -747,6 +854,51 @@ impl<'a> SettlementKernel<'a> {
         self.db.upsert_stream_attempts(rows, now_ms)
     }
 
+    /// Settle every process-orphaned attempt inside the storage authority
+    /// boundary. Recovery witnesses are issued only after every returned row
+    /// has been durably upserted.
+    // @ref LLP 0076#settlement-and-retry — the trusted startup terminalizer
+    //   folds the write-ahead initiation states conservatively and commits a
+    //   durable winner before another runner can adopt the client key.
+    pub fn reconcile_orphaned_stream_attempts(
+        &mut self,
+        now_ms: u64,
+    ) -> SnapbackResult<StreamAttemptStartupReconciliation> {
+        let rows = self.db.load_stream_attempts()?;
+        let mut recovered_attempts = Vec::new();
+        let mut terminal_attempts = Vec::new();
+        let mut updates = Vec::new();
+        for (token, client_key, record_json) in rows {
+            let mut persisted = decode_stream_attempt(&token, &client_key, &record_json)?;
+            if persisted.terminal.is_none() {
+                let effect_may_have_executed = persisted.cursors.values().any(|cursor| {
+                    cursor.initiation_state
+                        != crate::stream_attempt::StreamInitiationState::DefinitelyNotInitiated
+                });
+                persisted.terminal = Some(crate::stream_attempt::StreamAttemptTerminal {
+                    cause: crate::stream_attempt::StreamAttemptCause::Failed,
+                    effect_may_have_executed,
+                    settled_by: crate::stream_attempt::StreamAttemptSettledBy::Terminalizer,
+                });
+                persisted.settled_at_ms = Some(now_ms);
+                for cursor in persisted.cursors.values_mut() {
+                    cursor.open = false;
+                }
+                updates.push(persisted.to_row()?);
+                recovered_attempts.push(persisted.clone());
+            }
+            terminal_attempts.push(persisted);
+        }
+        self.db.upsert_stream_attempts(&updates, now_ms)?;
+        Ok(StreamAttemptStartupReconciliation {
+            recovered: recovered_attempts
+                .into_iter()
+                .map(|persisted| DurableRecoveredStreamAttempt { persisted })
+                .collect(),
+            terminal_attempts,
+        })
+    }
+
     pub fn acknowledge_client_mutations(
         &mut self,
         auth_fingerprint: &str,
@@ -834,11 +986,16 @@ impl<'a> SettlementReadKernel<'a> {
         Self { db }
     }
 
-    pub fn stream_attempt_by_client_key(
+    pub fn durable_stream_attempt_by_client_key<Owner>(
         &self,
         client_key: &str,
-    ) -> SnapbackResult<Option<(String, String)>> {
-        self.db.stream_attempt_by_client_key(client_key)
+        owner: Owner,
+    ) -> SnapbackResult<Option<DurableStreamAttempt<Owner>>> {
+        let Some((token, record_json)) = self.db.stream_attempt_by_client_key(client_key)? else {
+            return Ok(None);
+        };
+        let persisted = decode_stream_attempt(&token, client_key, &record_json)?;
+        Ok(Some(DurableStreamAttempt { persisted, owner }))
     }
 
     pub fn load_stream_attempts(&self) -> SnapbackResult<Vec<(String, String, String)>> {

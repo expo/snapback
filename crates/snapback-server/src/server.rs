@@ -832,8 +832,14 @@ impl DetachedActionHost {
         attempt_token: &str,
         cause: crate::stream_attempt::StreamAttemptCause,
     ) -> SnapbackResult<crate::stream_attempt::StreamAttemptTerminal> {
+        // Linearize the final liveness recheck and terminal CAS against
+        // watchdog abandonment. The watchdog cannot publish `abandoned`
+        // while this guard is held, and this worker cannot mutate after the
+        // watchdog has acquired it and published abandonment.
+        let commit = self.lock_commit_live("streamAttempt.providerSettle")?;
         let terminal = crate::stream_attempt::global_stream_attempt_registry()
             .settle_provider_outcome_host(&self.stream_runner_host, attempt_token, cause)?;
+        drop(commit);
         self.flush_stream_attempts_required("streamAttempt.providerSettle")?;
         Ok(terminal)
     }
@@ -2412,31 +2418,24 @@ impl IbexActionHost for DetachedActionHost {
         let (namespace, persisted) = {
             let snapback = self.lock_live("streamAttempt.start")?;
             let persisted =
-                snapback
-                    .stream_attempt_record(client_key)?
-                    .and_then(|(_, record_json)| {
-                        serde_json::from_str::<crate::stream_attempt::PersistedStreamAttempt>(
-                            &record_json,
-                        )
-                        .ok()
-                    });
+                snapback.stream_attempt_record(client_key, self.stream_runner_host.clone())?;
             (snapback.stream_attempt_namespace(), persisted)
         };
         let origin = self.authority.stream_attempt_origin();
-        let started = match persisted.as_ref() {
-            Some(row) if row.terminal.is_some() => registry.adopt_terminal_host(
-                &self.stream_runner_host,
-                namespace,
-                client_key,
-                row,
-            )?,
-            _ => origin.stage_start(
+        let started = match persisted {
+            Some(row) if row.persisted().terminal.is_some() => {
+                registry.adopt_terminal_host(namespace, row)?
+            }
+            Some(row) => origin.stage_start(
                 registry,
                 namespace,
                 client_key,
                 &self.stream_runner,
-                persisted.as_ref(),
+                Some(row.persisted()),
             )?,
+            None => {
+                origin.stage_start(registry, namespace, client_key, &self.stream_runner, None)?
+            }
         };
         // The attempt row itself is durable before the caller can bind
         // cursors or commit progress against it.
@@ -2758,7 +2757,10 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
     // @ref LLP 0076#settlement-and-retry — one control-plane identity per
     // invocation: the StreamAttemptV1 lease binds to it, and the trusted
     // terminalizer settles its attempts when it can no longer commit.
-    let stream_runner_host = crate::stream_attempt::StreamRunnerHost::new(abandoned.clone());
+    let stream_runner_host = action
+        .invocation
+        .authority()
+        .stream_runner_host(abandoned.clone());
     let stream_runner = stream_runner_host.runner().clone();
     let commit_gate = stream_runner.commit_gate();
     let automatic_retry_invocation =
@@ -25157,8 +25159,7 @@ async fn start_ask_stream(
 ) -> SnapbackResult<(String, crate::stream_attempt::StreamRunnerHost, u64)> {
     let started_at_ms = now_millis();
     let namespace = with_snapback(state, |snapback| snapback.stream_attempt_namespace()).await;
-    let runner_host =
-        crate::stream_attempt::StreamRunnerHost::new(Arc::new(AtomicBool::new(false)));
+    let runner_host = authority.stream_runner_host(Arc::new(AtomicBool::new(false)));
     let runner = runner_host.runner();
     let registry = crate::stream_attempt::global_stream_attempt_registry();
     let origin = authority.stream_attempt_origin();

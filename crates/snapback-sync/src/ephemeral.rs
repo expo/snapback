@@ -8933,10 +8933,6 @@ mod tests {
         backend
             .register_collection(stream_collection_definition())
             .expect("platform stream collection");
-        let runner_host = crate::stream_attempt::StreamRunnerHost::new(Arc::new(
-            std::sync::atomic::AtomicBool::new(false),
-        ));
-        let runner = runner_host.runner();
         let authority = crate::auth::invocation::InvocationGate::prepare_authority(
             crate::auth::invocation::InvocationSource::LocalAction,
             crate::manifest::AuthMode::Dev,
@@ -8947,6 +8943,9 @@ mod tests {
             crate::auth::invocation::ResolvedAppAuthority::Anonymous,
         )
         .expect("prepare mode-only stream origin");
+        let runner_host =
+            authority.stream_runner_host(Arc::new(std::sync::atomic::AtomicBool::new(false)));
+        let runner = runner_host.runner();
         let origin = authority.stream_attempt_origin();
         let initiator = crate::stream_attempt::StreamInitiator::SessionUser("user-a".to_owned());
         let client_key = format!("ephemeral-stream-test:{}", uuid::Uuid::new_v4());

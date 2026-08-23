@@ -25612,7 +25612,10 @@ fn held_action_host(
     action: &crate::local::DetachedIbexAction,
 ) -> DetachedActionHost {
     let abandoned = Arc::new(AtomicBool::new(false));
-    let stream_runner_host = crate::stream_attempt::StreamRunnerHost::new(abandoned.clone());
+    let stream_runner_host = action
+        .invocation
+        .authority()
+        .stream_runner_host(abandoned.clone());
     let stream_runner = stream_runner_host.runner().clone();
     let commit_gate = stream_runner.commit_gate();
     DetachedActionHost {
@@ -26817,6 +26820,60 @@ fn provider_completion_with_an_authored_cause_stays_on_the_host_path() {
     assert_eq!(
         authored_terminal.settled_by,
         crate::stream_attempt::StreamAttemptSettledBy::Authored
+    );
+}
+
+#[test]
+fn watchdog_abandonment_between_provider_compute_and_settle_wins_the_terminal_cas() {
+    let mut snapback = LocalSnapback::memory().expect("provider race host state");
+    snapback.load_functions(generation_test_manifest());
+    let state = Arc::new(Mutex::new(snapback));
+    let staged = stage_held_action(&state);
+    let mut host = held_action_host(state, &staged);
+    let client_key = format!("provider-watchdog-race:{}", Uuid::new_v4());
+
+    let started = host
+        .start_stream_attempt(&client_key)
+        .expect("provider attempt starts");
+    host.validate_live("provider.compute")
+        .expect("the provider result is computed while the worker is live");
+
+    // Exercise the production watchdog linearization after provider result
+    // computation but before automatic settlement attempts its terminal CAS.
+    linearize_detached_action_abandonment(
+        host.commit_gate.as_ref(),
+        host.abandoned.as_ref(),
+        host.active_reservation.as_ref(),
+    );
+    let refused = host
+        .settle_provider_stream_attempt_host(
+            &started.attempt_token,
+            crate::stream_attempt::StreamAttemptCause::Complete,
+        )
+        .expect_err("an abandoned provider worker cannot mutate the attempt");
+    assert_eq!(refused.diagnostic.code, "SNAPBACK_ACTION_TIMEOUT");
+    let registry = crate::stream_attempt::global_stream_attempt_registry();
+    assert_eq!(
+        registry.terminal(&started.attempt_token),
+        None,
+        "the provider path must not install Complete after abandonment"
+    );
+
+    let watchdog = registry.terminalize_invocation_host(
+        &host.stream_runner_host,
+        crate::stream_attempt::StreamAttemptCause::TimedOut,
+    );
+    assert_eq!(watchdog.len(), 1);
+    assert_eq!(
+        watchdog[0].cause,
+        crate::stream_attempt::StreamAttemptCause::TimedOut
+    );
+    assert_eq!(
+        registry
+            .terminal(&started.attempt_token)
+            .expect("watchdog installs the terminal winner")
+            .cause,
+        crate::stream_attempt::StreamAttemptCause::TimedOut
     );
 }
 
