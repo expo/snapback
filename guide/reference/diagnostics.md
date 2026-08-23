@@ -43,7 +43,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-action-stream-invalid"></a>`SNAPBACK_ACTION_STREAM_INVALID` | harness | 400 | [guide](../backend/streamed-actions.md#read-the-refusal-codes) | `crates/snapback-engine/src/runtime/host_glue.rs:4649` | 28 |
 | <a id="diagnostic-snapback-action-stream-limit-exceeded"></a>`SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED` | harness | 413 | [guide](../backend/streamed-actions.md#design-for-the-v1-limits) | `crates/snapback-engine/src/runtime/host_glue.rs:7100` | 7 |
 | <a id="diagnostic-snapback-action-stream-persistence-authority-unavailable"></a>`SNAPBACK_ACTION_STREAM_PERSISTENCE_AUTHORITY_UNAVAILABLE` | server | — | — | `crates/snapback-sync/src/stream_attempt.rs:503` | 1 |
-| <a id="diagnostic-snapback-action-stream-persistence-unauthorized"></a>`SNAPBACK_ACTION_STREAM_PERSISTENCE_UNAUTHORIZED` | server | — | — | `crates/snapback-kernel/src/storage/settlement.rs:869` | 9 |
+| <a id="diagnostic-snapback-action-stream-persistence-unauthorized"></a>`SNAPBACK_ACTION_STREAM_PERSISTENCE_UNAUTHORIZED` | server | — | — | `crates/snapback-kernel/src/storage/settlement.rs:893` | 11 |
 | <a id="diagnostic-snapback-action-stream-ssrf-refused"></a>`SNAPBACK_ACTION_STREAM_SSRF_REFUSED` | server | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:7099` | 4 |
 | <a id="diagnostic-snapback-action-stream-timeout"></a>`SNAPBACK_ACTION_STREAM_TIMEOUT` | harness | 504 | [guide](../backend/streamed-actions.md#design-for-the-v1-limits) | `crates/snapback-engine/src/runtime/host_glue.rs:7101` | 6 |
 | <a id="diagnostic-snapback-action-stream-unsupported"></a>`SNAPBACK_ACTION_STREAM_UNSUPPORTED` | harness | — | [guide](../backend/streamed-actions.md#read-the-refusal-codes) | `crates/snapback-engine/src/runtime/host_glue.rs:318` | 8 |
@@ -1115,11 +1115,11 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-client-id-status-header"></a>`SNAPBACK_CLIENT_ID_STATUS_HEADER` | client | — | — | `crates/snapback-server/src/server.rs:7165` | 2 |
 | <a id="diagnostic-snapback-client-id-table-invalid"></a>`SNAPBACK_CLIENT_ID_TABLE_INVALID` | client | — | — | `packages/snapback-client/index.mjs:1037` | 1 |
 | <a id="diagnostic-snapback-client-mutation-ack-deferred"></a>`SNAPBACK_CLIENT_MUTATION_ACK_DEFERRED` | client | — | — | `packages/snapback-contract/index.mjs:2341` | 1 |
-| <a id="diagnostic-snapback-client-mutation-ack-limit-exceeded"></a>`SNAPBACK_CLIENT_MUTATION_ACK_LIMIT_EXCEEDED` | client | 400 | — | `crates/snapback-kernel/src/storage/settlement.rs:341` | 2 |
+| <a id="diagnostic-snapback-client-mutation-ack-limit-exceeded"></a>`SNAPBACK_CLIENT_MUTATION_ACK_LIMIT_EXCEEDED` | client | 400 | — | `crates/snapback-kernel/src/storage/settlement.rs:365` | 2 |
 | <a id="diagnostic-snapback-client-mutation-ack-overlap"></a>`SNAPBACK_CLIENT_MUTATION_ACK_OVERLAP` | client | 400 | — | `crates/snapback-server/src/server.rs:27661` | 2 |
 | <a id="diagnostic-snapback-client-mutation-id-invalid"></a>`SNAPBACK_CLIENT_MUTATION_ID_INVALID` | client | 400 | — | `crates/snapback-kernel/src/storage.rs:22356` | 3 |
 | <a id="diagnostic-snapback-client-mutation-id-reused"></a>`SNAPBACK_CLIENT_MUTATION_ID_REUSED` | client | 409 | — | `crates/snapback-kernel/src/operation_ledger.rs:2650` | 16 |
-| <a id="diagnostic-snapback-client-mutation-legacy-auth-quarantined"></a>`SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED` | client | 409 | — | `crates/snapback-kernel/src/storage/settlement.rs:675` | 3 |
+| <a id="diagnostic-snapback-client-mutation-legacy-auth-quarantined"></a>`SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED` | client | 409 | — | `crates/snapback-kernel/src/storage/settlement.rs:699` | 3 |
 | <a id="diagnostic-snapback-client-mutation-purge-selector-invalid"></a>`SNAPBACK_CLIENT_MUTATION_PURGE_SELECTOR_INVALID` | client | 400 | — | `crates/snapback-server/src/server.rs:24379` | 2 |
 | <a id="diagnostic-snapback-client-mutation-result-integrity"></a>`SNAPBACK_CLIENT_MUTATION_RESULT_INTEGRITY` | client | — | — | `crates/snapback-kernel/src/storage.rs:22552` | 1 |
 | <a id="diagnostic-snapback-client-mutation-result-invalid"></a>`SNAPBACK_CLIENT_MUTATION_RESULT_INVALID` | client | — | — | `crates/snapback-kernel/src/storage.rs:22140` | 4 |
@@ -3162,7 +3162,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-speculative-id-unresolved"></a>`SNAPBACK_SPECULATIVE_ID_UNRESOLVED` | client | — | [guide](../sync/offline-and-retention.md#retained-asset-references-do-not-retain-image-bytes) | `packages/snapback-client/index.mjs:10954` | 2 |
 | <a id="diagnostic-snapback-spike-trace"></a>`SNAPBACK_SPIKE_TRACE` | server | — | — | `crates/snapback-sync/src/spike_trace.rs:16` | 1 |
 | <a id="diagnostic-snapback-spike-trace-open-failed"></a>`SNAPBACK_SPIKE_TRACE_OPEN_FAILED` | server | — | — | `crates/snapback-sync/src/spike_trace.rs:37` | 1 |
-| <a id="diagnostic-snapback-sqlite-error"></a>`SNAPBACK_SQLITE_ERROR` | server | — | — | `crates/snapback-kernel/src/diagnostic.rs:125` | 5 |
+| <a id="diagnostic-snapback-sqlite-error"></a>`SNAPBACK_SQLITE_ERROR` | server | — | — | `crates/snapback-kernel/src/diagnostic.rs:125` | 7 |
 | <a id="diagnostic-snapback-stale-"></a>`SNAPBACK_STALE_` | cli | — | — | `crates/snapback-types/src/manifest/mod.rs:118` | 3 |
 | <a id="diagnostic-snapback-stale-contract-data-artifact-kind"></a>`SNAPBACK_STALE_CONTRACT_DATA_ARTIFACT_KIND` | contract | — | — | `packages/snapback-contract/artifact-validation.mjs:69` | 1 |
 | <a id="diagnostic-snapback-stale-contract-data-artifact-version"></a>`SNAPBACK_STALE_CONTRACT_DATA_ARTIFACT_VERSION` | contract | — | — | `packages/snapback-contract/artifact-validation.mjs:87` | 1 |

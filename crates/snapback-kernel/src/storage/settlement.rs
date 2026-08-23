@@ -116,14 +116,38 @@ impl LocalDatabase {
         rows: &[(String, String, String)],
         now_ms: u64,
     ) -> SnapbackResult<()> {
+        self.upsert_stream_attempts_guarded(rows, now_ms, || Ok(()))
+    }
+
+    /// Stage one complete stream-attempt batch before acquiring one final,
+    /// one-shot guard for the durable cut. R2 deliberately keeps this seam
+    /// private: every production path still supplies the no-op callback above.
+    fn upsert_stream_attempts_guarded<G, BeforeCommit>(
+        &mut self,
+        rows: &[(String, String, String)],
+        now_ms: u64,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<()>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        if rows.is_empty() {
+            return Ok(());
+        }
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
         for (token, client_key, record_json) in rows {
-            self.conn.execute(
+            tx.execute(
                 "INSERT INTO _snapback_stream_attempts(token, client_key, record_json, updated_at_ms)
                  VALUES(?1, ?2, ?3, ?4)
                  ON CONFLICT(token) DO UPDATE SET record_json = ?3, updated_at_ms = ?4",
                 params![token, client_key, record_json, now_ms as i64],
             )?;
         }
+        let _commit_guard = before_commit()?;
+        // Once the final guard exists, COMMIT is the only remaining operation.
+        tx.commit()?;
         Ok(())
     }
 
@@ -1070,5 +1094,495 @@ impl<'a> SettlementReadKernel<'a> {
         identity: &ClientMutationIdentity,
     ) -> SnapbackResult<Option<MutationOutput>> {
         self.db.client_mutation_result(identity)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::hooks::{Action, AuthAction, Authorization, TransactionOperation};
+    use rusqlite::{Connection, ErrorCode};
+    use std::collections::BTreeMap;
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    use std::sync::{Arc, Mutex};
+    use std::time::Duration;
+
+    type AttemptRow = (String, String, String);
+
+    fn before_rows() -> Vec<AttemptRow> {
+        vec![
+            ("r2-token-1".into(), "r2-client-1".into(), "before-1".into()),
+            ("r2-token-2".into(), "r2-client-2".into(), "before-2".into()),
+            ("r2-token-3".into(), "r2-client-3".into(), "before-3".into()),
+        ]
+    }
+
+    fn after_rows() -> Vec<AttemptRow> {
+        vec![
+            ("r2-token-1".into(), "r2-client-1".into(), "after-1".into()),
+            ("r2-token-2".into(), "r2-client-2".into(), "after-2".into()),
+            ("r2-token-3".into(), "r2-client-3".into(), "after-3".into()),
+        ]
+    }
+
+    fn sorted_stream_attempt_rows(db: &LocalDatabase) -> Vec<AttemptRow> {
+        let mut rows = db.load_stream_attempts().expect("load stream attempts");
+        rows.sort();
+        rows
+    }
+
+    fn install_row_failure(db: &LocalDatabase, token: &str) {
+        assert!(
+            ["r2-token-1", "r2-token-2", "r2-token-3"].contains(&token),
+            "test trigger token must be a fixed fixture value"
+        );
+        db.conn
+            .execute_batch(&format!(
+                "CREATE TEMP TRIGGER stream_attempt_injected_failure
+                 BEFORE INSERT ON _snapback_stream_attempts
+                 WHEN NEW.token = '{token}'
+                 BEGIN
+                   SELECT RAISE(ABORT, 'injected stream-attempt row failure');
+                 END;"
+            ))
+            .expect("install row failure");
+    }
+
+    fn nonterminal_attempt(
+        token: &str,
+        client_key: &str,
+    ) -> crate::stream_attempt::PersistedStreamAttempt {
+        crate::stream_attempt::PersistedStreamAttempt {
+            token: token.to_owned(),
+            client_key: client_key.to_owned(),
+            runner_generation: 1,
+            progress_commits: 0,
+            cursors_opened: 1,
+            cursors: BTreeMap::from([(
+                "cursor".to_owned(),
+                crate::stream_attempt::PersistedStreamCursor {
+                    initiation_state:
+                        crate::stream_attempt::StreamInitiationState::InitiationPossible,
+                    open: true,
+                },
+            )]),
+            terminal: None,
+            function_id: Some("app:r2-test".to_owned()),
+            initiator: None,
+            started_at_ms: 1,
+            settled_at_ms: None,
+            emitted_bytes: 0,
+            chunk_count: 0,
+        }
+    }
+
+    fn recovery_rows() -> Vec<AttemptRow> {
+        [
+            ("r2-token-1", "r2-client-1"),
+            ("r2-token-2", "r2-client-2"),
+            ("r2-token-3", "r2-client-3"),
+        ]
+        .into_iter()
+        .map(|(token, client_key)| {
+            nonterminal_attempt(token, client_key)
+                .to_row()
+                .expect("serialize recovery fixture")
+        })
+        .collect()
+    }
+
+    #[test]
+    fn authenticated_stream_attempt_batch_is_atomic_at_every_row_failure() {
+        for failed_token in ["r2-token-1", "r2-token-2", "r2-token-3"] {
+            let mut db = LocalDatabase::memory().expect("stream-attempt database");
+            let before = before_rows();
+            db.upsert_stream_attempts(&before, 1)
+                .expect("seed exact preimage");
+            install_row_failure(&db, failed_token);
+
+            let key = crate::stream_attempt::StreamAttemptPersistenceMacKey::generate()
+                .expect("generate persistence key");
+            let verifier = key.verifier();
+            let batch = key.authenticate(after_rows());
+            let error =
+                SettlementKernel::new_with_stream_attempt_verifier(&mut db, Some(&verifier))
+                    .upsert_stream_attempts(&batch, 2)
+                    .expect_err("injected row failure must abort the batch");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_SQLITE_ERROR");
+            assert_eq!(
+                sorted_stream_attempt_rows(&db),
+                before,
+                "failure at {failed_token} left a partial durable batch"
+            );
+        }
+    }
+
+    #[test]
+    fn stream_attempt_batch_reserves_immediate_writer_before_first_row_prepare() {
+        const NOT_OBSERVED: usize = 0;
+        const DEFERRED_OR_MISSING: usize = 1;
+        const IMMEDIATE: usize = 2;
+        const EXCLUSIVE: usize = 3;
+        const SECONDARY_UNEXPECTED_ERROR: usize = 4;
+
+        let directory = tempfile::tempdir().expect("stream-attempt tempdir");
+        let path = directory.path().join("immediate.sqlite3");
+        let mut db = LocalDatabase::open(&path).expect("primary stream-attempt database");
+        db.conn
+            .execute_batch("PRAGMA journal_mode = DELETE;")
+            .expect("rollback journal distinguishes IMMEDIATE from EXCLUSIVE");
+        db.conn.set_prepared_statement_cache_capacity(0);
+
+        let secondary = Connection::open(&path).expect("secondary SQLite connection");
+        secondary
+            .busy_timeout(Duration::ZERO)
+            .expect("zero secondary busy timeout");
+        let secondary = Arc::new(Mutex::new(secondary));
+        let observation = Arc::new(AtomicUsize::new(NOT_OBSERVED));
+        let hook_secondary = Arc::clone(&secondary);
+        let hook_observation = Arc::clone(&observation);
+        db.conn
+            .authorizer(Some(move |context: rusqlite::hooks::AuthContext<'_>| {
+                if matches!(
+                    context.action,
+                    AuthAction::Insert {
+                        table_name: "_snapback_stream_attempts"
+                    }
+                ) && hook_observation
+                    .compare_exchange(
+                        NOT_OBSERVED,
+                        DEFERRED_OR_MISSING,
+                        Ordering::SeqCst,
+                        Ordering::SeqCst,
+                    )
+                    .is_ok()
+                {
+                    let secondary = hook_secondary.lock().expect("secondary connection lock");
+                    let writer_result = secondary.execute_batch("BEGIN IMMEDIATE; ROLLBACK;");
+                    let reader_result = secondary.query_row(
+                        "SELECT COUNT(*) FROM _snapback_stream_attempts",
+                        [],
+                        |row| row.get::<_, u64>(0),
+                    );
+                    hook_observation.store(
+                        match (writer_result, reader_result) {
+                            (Ok(()), Ok(_)) => DEFERRED_OR_MISSING,
+                            (Err(error), Ok(_))
+                                if matches!(
+                                    error.sqlite_error_code(),
+                                    Some(ErrorCode::DatabaseBusy | ErrorCode::DatabaseLocked)
+                                ) =>
+                            {
+                                IMMEDIATE
+                            }
+                            (Err(writer_error), Err(reader_error))
+                                if matches!(
+                                    writer_error.sqlite_error_code(),
+                                    Some(ErrorCode::DatabaseBusy | ErrorCode::DatabaseLocked)
+                                ) && matches!(
+                                    reader_error.sqlite_error_code(),
+                                    Some(ErrorCode::DatabaseBusy | ErrorCode::DatabaseLocked)
+                                ) =>
+                            {
+                                EXCLUSIVE
+                            }
+                            _ => SECONDARY_UNEXPECTED_ERROR,
+                        },
+                        Ordering::SeqCst,
+                    );
+                }
+                Authorization::Allow
+            }));
+
+        db.upsert_stream_attempts(&after_rows()[..1], 2)
+            .expect("primary batch commits");
+        assert_eq!(
+            observation.load(Ordering::SeqCst),
+            IMMEDIATE,
+            "the primary must hold exactly an IMMEDIATE reservation before its first row is prepared"
+        );
+    }
+
+    #[test]
+    fn stream_attempt_before_commit_failure_follows_full_staging_and_rolls_back() {
+        let mut db = LocalDatabase::memory().expect("stream-attempt database");
+        let staged_rows = Arc::new(AtomicUsize::new(0));
+        let hook_staged_rows = Arc::clone(&staged_rows);
+        db.conn.update_hook(Some(
+            move |action: Action, _database: &str, table: &str, _rowid: i64| {
+                if action == Action::SQLITE_INSERT && table == "_snapback_stream_attempts" {
+                    hook_staged_rows.fetch_add(1, Ordering::SeqCst);
+                }
+            },
+        ));
+        let callback_count = AtomicUsize::new(0);
+
+        let error = db
+            .upsert_stream_attempts_guarded(&after_rows(), 2, || -> SnapbackResult<()> {
+                assert_eq!(
+                    staged_rows.load(Ordering::SeqCst),
+                    3,
+                    "before_commit ran before every row was staged"
+                );
+                callback_count.fetch_add(1, Ordering::SeqCst);
+                Err(SnapbackError::error(
+                    "TEST_STREAM_ATTEMPT_BEFORE_COMMIT_REFUSED",
+                    "test",
+                    "injected before-commit refusal",
+                ))
+            })
+            .expect_err("callback refusal must abort the transaction");
+
+        assert_eq!(
+            error.diagnostic.code,
+            "TEST_STREAM_ATTEMPT_BEFORE_COMMIT_REFUSED"
+        );
+        assert_eq!(callback_count.load(Ordering::SeqCst), 1);
+        assert_eq!(staged_rows.load(Ordering::SeqCst), 3);
+        assert!(sorted_stream_attempt_rows(&db).is_empty());
+    }
+
+    struct CommitLifetimeGuard {
+        live: Arc<AtomicBool>,
+    }
+
+    impl Drop for CommitLifetimeGuard {
+        fn drop(&mut self) {
+            self.live.store(false, Ordering::SeqCst);
+        }
+    }
+
+    #[test]
+    fn stream_attempt_before_commit_guard_remains_live_through_actual_commit() {
+        let mut db = LocalDatabase::memory().expect("stream-attempt database");
+        let guard_live = Arc::new(AtomicBool::new(false));
+        let hook_guard_live = Arc::clone(&guard_live);
+        let commit_count = Arc::new(AtomicUsize::new(0));
+        let hook_commit_count = Arc::clone(&commit_count);
+        let commit_observed_live_guard = Arc::new(AtomicBool::new(false));
+        let hook_observed_live_guard = Arc::clone(&commit_observed_live_guard);
+        db.conn.commit_hook(Some(move || {
+            hook_commit_count.fetch_add(1, Ordering::SeqCst);
+            hook_observed_live_guard
+                .store(hook_guard_live.load(Ordering::SeqCst), Ordering::SeqCst);
+            false
+        }));
+        let callback_count = AtomicUsize::new(0);
+        let callback_guard_live = Arc::clone(&guard_live);
+
+        db.upsert_stream_attempts_guarded(&after_rows(), 2, || {
+            callback_count.fetch_add(1, Ordering::SeqCst);
+            callback_guard_live.store(true, Ordering::SeqCst);
+            Ok(CommitLifetimeGuard {
+                live: Arc::clone(&callback_guard_live),
+            })
+        })
+        .expect("guarded stream-attempt batch commits");
+
+        assert_eq!(callback_count.load(Ordering::SeqCst), 1);
+        assert_eq!(commit_count.load(Ordering::SeqCst), 1);
+        assert!(commit_observed_live_guard.load(Ordering::SeqCst));
+        assert!(!guard_live.load(Ordering::SeqCst));
+        assert_eq!(sorted_stream_attempt_rows(&db), after_rows());
+    }
+
+    #[test]
+    fn empty_stream_attempt_batch_skips_transaction_and_callback_but_not_authentication() {
+        let directory = tempfile::tempdir().expect("stream-attempt tempdir");
+        let path = directory.path().join("empty.sqlite3");
+        let mut db = LocalDatabase::open(&path).expect("primary stream-attempt database");
+        db.conn
+            .busy_timeout(Duration::ZERO)
+            .expect("zero primary busy timeout");
+        let secondary = Connection::open(&path).expect("secondary SQLite connection");
+        secondary
+            .execute_batch("BEGIN IMMEDIATE;")
+            .expect("secondary owns the writer reservation");
+
+        let key = crate::stream_attempt::StreamAttemptPersistenceMacKey::generate()
+            .expect("generate persistence key");
+        let verifier = key.verifier();
+        let invalid_empty =
+            crate::stream_attempt::StreamAttemptPersistenceBatch::from_authenticated_parts(
+                Vec::new(),
+                verifier.issuer().to_vec(),
+                vec![0; 32],
+            );
+        let error = SettlementKernel::new_with_stream_attempt_verifier(&mut db, Some(&verifier))
+            .upsert_stream_attempts(&invalid_empty, 2)
+            .expect_err("invalid empty batch must not bypass authentication");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ACTION_STREAM_PERSISTENCE_UNAUTHORIZED"
+        );
+
+        let callback_count = AtomicUsize::new(0);
+        db.upsert_stream_attempts_guarded(&[], 2, || -> SnapbackResult<()> {
+            callback_count.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        })
+        .expect("empty batch does not contend with the existing writer");
+        assert_eq!(callback_count.load(Ordering::SeqCst), 0);
+        secondary
+            .execute_batch("ROLLBACK;")
+            .expect("release secondary writer reservation");
+    }
+
+    #[test]
+    fn exact_batch_authentication_finishes_before_any_transaction_or_row_write() {
+        let directory = tempfile::tempdir().expect("stream-attempt tempdir");
+        let path = directory.path().join("authentication.sqlite3");
+        let mut db = LocalDatabase::open(&path).expect("primary stream-attempt database");
+        db.conn.set_prepared_statement_cache_capacity(0);
+        let transaction_begins = Arc::new(AtomicUsize::new(0));
+        let hook_transaction_begins = Arc::clone(&transaction_begins);
+        db.conn
+            .authorizer(Some(move |context: rusqlite::hooks::AuthContext<'_>| {
+                if matches!(
+                    context.action,
+                    AuthAction::Transaction {
+                        operation: TransactionOperation::Begin
+                    }
+                ) {
+                    hook_transaction_begins.fetch_add(1, Ordering::SeqCst);
+                }
+                Authorization::Allow
+            }));
+        let key = crate::stream_attempt::StreamAttemptPersistenceMacKey::generate()
+            .expect("generate persistence key");
+        let verifier = key.verifier();
+        let original = key.authenticate(after_rows());
+        let mut tampered_rows = original.rows().to_vec();
+        tampered_rows.last_mut().expect("last authenticated row").2 = "tampered-last-row".into();
+        let tampered =
+            crate::stream_attempt::StreamAttemptPersistenceBatch::from_authenticated_parts(
+                tampered_rows,
+                original.issuer().to_vec(),
+                original.authentication_tag().to_vec(),
+            );
+
+        let error = SettlementKernel::new_with_stream_attempt_verifier(&mut db, Some(&verifier))
+            .upsert_stream_attempts(&tampered, 2)
+            .expect_err("last-row tamper must fail before storage begins");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ACTION_STREAM_PERSISTENCE_UNAUTHORIZED"
+        );
+        assert_eq!(transaction_begins.load(Ordering::SeqCst), 0);
+        assert!(sorted_stream_attempt_rows(&db).is_empty());
+
+        SettlementKernel::new_with_stream_attempt_verifier(&mut db, Some(&verifier))
+            .upsert_stream_attempts(&original, 2)
+            .expect("original exact batch commits");
+        assert_eq!(
+            transaction_begins.load(Ordering::SeqCst),
+            1,
+            "the authorizer probe must observe the valid batch's transaction"
+        );
+        assert_eq!(sorted_stream_attempt_rows(&db), after_rows());
+    }
+
+    #[test]
+    fn startup_recovery_batch_is_atomic_at_every_row_failure_and_result_is_takeable_once() {
+        for failed_token in ["r2-token-1", "r2-token-2", "r2-token-3"] {
+            let directory = tempfile::tempdir().expect("stream-attempt tempdir");
+            let path = directory.path().join("recovery.sqlite3");
+            let mut db = LocalDatabase::open(&path).expect("stream-attempt database");
+            let before = recovery_rows();
+            db.upsert_stream_attempts(&before, 1)
+                .expect("seed nonterminal attempts");
+            install_row_failure(&db, failed_token);
+
+            let error = match ServingDatabase::adopt(db) {
+                Ok(_) => panic!("failure at {failed_token} must abort startup adoption"),
+                Err(error) => error,
+            };
+            assert_eq!(error.diagnostic.code, "SNAPBACK_SQLITE_ERROR");
+
+            let reopened = LocalDatabase::open(&path).expect("inspect failed recovery");
+            assert_eq!(
+                sorted_stream_attempt_rows(&reopened),
+                before,
+                "failed recovery at {failed_token} changed a durable row"
+            );
+            let mut serving = ServingDatabase::adopt(reopened).expect("retry recovery atomically");
+            let recovery = serving
+                .take_stream_attempt_startup_reconciliation()
+                .expect("take startup recovery result");
+            assert_eq!(recovery.recovered_count(), 3);
+            assert_eq!(recovery.terminal_attempts().len(), 3);
+            assert!(
+                serving
+                    .take_stream_attempt_startup_reconciliation()
+                    .is_none(),
+                "startup recovery result must be takeable only once"
+            );
+        }
+    }
+
+    #[test]
+    fn fresh_stream_attempt_verifier_reads_and_recovers_prior_issuer_rows() {
+        let directory = tempfile::tempdir().expect("stream-attempt tempdir");
+        let path = directory.path().join("new-process.sqlite3");
+        let key_a = crate::stream_attempt::StreamAttemptPersistenceMacKey::generate()
+            .expect("generate process-A persistence key");
+        let issuer_a = key_a.verifier().issuer().to_vec();
+        let mut terminal = nonterminal_attempt("terminal-a", "client-terminal-a");
+        terminal.terminal = Some(crate::stream_attempt::StreamAttemptTerminal {
+            cause: crate::stream_attempt::StreamAttemptCause::Complete,
+            effect_may_have_executed: true,
+            settled_by: crate::stream_attempt::StreamAttemptSettledBy::Authored,
+        });
+        terminal.settled_at_ms = Some(10);
+        for cursor in terminal.cursors.values_mut() {
+            cursor.open = false;
+        }
+        let orphan = nonterminal_attempt("orphan-a", "client-orphan-a");
+        let rows = vec![
+            terminal.to_row().expect("serialize terminal attempt"),
+            orphan.to_row().expect("serialize orphan attempt"),
+        ];
+        {
+            let local = LocalDatabase::open(&path).expect("process-A database");
+            let mut serving =
+                ServingDatabase::adopt_with_stream_attempt_verifier(local, key_a.verifier())
+                    .expect("adopt process-A verifier");
+            serving
+                .settlement()
+                .upsert_stream_attempts(&key_a.authenticate(rows), 10)
+                .expect("process A persists both rows");
+        }
+
+        let key_b = crate::stream_attempt::StreamAttemptPersistenceMacKey::generate()
+            .expect("generate process-B persistence key");
+        assert_ne!(issuer_a, key_b.verifier().issuer());
+        let local = LocalDatabase::open(&path).expect("process-B database");
+        let mut serving =
+            ServingDatabase::adopt_with_stream_attempt_verifier(local, key_b.verifier())
+                .expect("new verifier recovers prior issuer rows");
+        let recovery = serving
+            .take_stream_attempt_startup_reconciliation()
+            .expect("process-B startup result");
+        assert_eq!(recovery.recovered_count(), 1);
+
+        let durable_terminal = serving
+            .settlement_read()
+            .durable_stream_attempt_by_client_key("client-terminal-a", ())
+            .expect("read prior terminal")
+            .expect("prior terminal exists");
+        assert_eq!(durable_terminal.persisted().terminal, terminal.terminal);
+        let durable_orphan = serving
+            .settlement_read()
+            .durable_stream_attempt_by_client_key("client-orphan-a", ())
+            .expect("read recovered orphan")
+            .expect("recovered orphan exists");
+        assert_eq!(
+            durable_orphan.persisted().terminal,
+            Some(crate::stream_attempt::StreamAttemptTerminal {
+                cause: crate::stream_attempt::StreamAttemptCause::Failed,
+                effect_may_have_executed: true,
+                settled_by: crate::stream_attempt::StreamAttemptSettledBy::Terminalizer,
+            })
+        );
     }
 }

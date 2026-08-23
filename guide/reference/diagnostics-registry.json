@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:7e010eaffb6329f888c3140c2961816e9e7cdd2023194baef64dcdd756a6cd29"
+    "sourceDigest": "sha256:8cb0713f0df8fc434a9d01c4bd9de4d32968fabd38927bf7a50a3bfd60d48373"
   },
   "limits": {
     "lookupBytes": 16384
@@ -10,7 +10,7 @@
   "counts": {
     "codes": 3541,
     "sourceFiles": 592,
-    "emittingSites": 12224,
+    "emittingSites": 12228,
     "httpClassified": 1030,
     "guideAnchored": 445
   },
@@ -681,18 +681,28 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage/settlement.rs",
-          "line": 869,
+          "line": 893,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage/settlement.rs",
-          "line": 876,
+          "line": 900,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage/settlement.rs",
-          "line": 883,
+          "line": 907,
           "column": 18
+        },
+        {
+          "file": "crates/snapback-kernel/src/storage/settlement.rs",
+          "line": 1416,
+          "column": 14
+        },
+        {
+          "file": "crates/snapback-kernel/src/storage/settlement.rs",
+          "line": 1469,
+          "column": 14
         },
         {
           "file": "crates/snapback-sync/src/stream_attempt.rs",
@@ -28320,12 +28330,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/settlement.rs",
-          "line": 682,
+          "line": 706,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage/settlement.rs",
-          "line": 698,
+          "line": 722,
           "column": 22
         },
         {
@@ -35276,7 +35286,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage/settlement.rs",
-          "line": 341,
+          "line": 365,
           "column": 18
         },
         {
@@ -35321,7 +35331,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/settlement.rs",
-          "line": 352,
+          "line": 376,
           "column": 22
         },
         {
@@ -35401,17 +35411,17 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/settlement.rs",
-          "line": 662,
+          "line": 686,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage/settlement.rs",
-          "line": 711,
+          "line": 735,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage/settlement.rs",
-          "line": 732,
+          "line": 756,
           "column": 22
         },
         {
@@ -35431,12 +35441,12 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage/settlement.rs",
-          "line": 675,
+          "line": 699,
           "column": 26
         },
         {
           "file": "crates/snapback-kernel/src/storage/settlement.rs",
-          "line": 690,
+          "line": 714,
           "column": 22
         },
         {
@@ -35506,7 +35516,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/settlement.rs",
-          "line": 814,
+          "line": 838,
           "column": 22
         }
       ],
@@ -68970,7 +68980,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/settlement.rs",
-          "line": 297,
+          "line": 321,
           "column": 26
         },
         {
@@ -69630,12 +69640,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/settlement.rs",
-          "line": 225,
+          "line": 249,
           "column": 22
         },
         {
           "file": "crates/snapback-kernel/src/storage/settlement.rs",
-          "line": 257,
+          "line": 281,
           "column": 22
         },
         {
@@ -87353,6 +87363,16 @@
           "column": 18
         },
         {
+          "file": "crates/snapback-kernel/src/storage/settlement.rs",
+          "line": 1211,
+          "column": 48
+        },
+        {
+          "file": "crates/snapback-kernel/src/storage/settlement.rs",
+          "line": 1500,
+          "column": 48
+        },
+        {
           "file": "crates/snapback-kernel/src/vector/acceptance.rs",
           "line": 623,
           "column": 40
@@ -88629,12 +88649,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/settlement.rs",
-          "line": 789,
+          "line": 813,
           "column": 26
         },
         {
           "file": "crates/snapback-kernel/src/storage/settlement.rs",
-          "line": 804,
+          "line": 828,
           "column": 22
         },
         {
