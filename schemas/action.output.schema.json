@@ -53,6 +53,32 @@
       "type": "string"
     },
     "CapturedReadDependency": {
+      "allOf": [
+        {
+          "else": {
+            "not": {
+              "required": [
+                "graph"
+              ]
+            }
+          },
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "graphNode"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "graph"
+            ]
+          }
+        }
+      ],
       "properties": {
         "boundary": true,
         "field": {

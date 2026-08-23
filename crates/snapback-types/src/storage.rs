@@ -20,6 +20,9 @@ fn graph_captured_read_schema(generator: &mut schemars::SchemaGenerator) -> sche
     generator.subschema_for::<crate::manifest::GraphCapturedReadV1>()
 }
 
+pub const CAPTURED_READ_GRAPH_PAIRING_ERROR: &str =
+    "captured read graph must be present exactly when kind is graphNode";
+
 pub const SEQUENCE_MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 
 /// The one durable authorization-stream witness. The incarnation closes reset
@@ -287,7 +290,17 @@ fn canonical_json(value: Value) -> Value {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, PartialEq, Serialize, schemars::JsonSchema)]
+#[schemars(extend(
+    "allOf" = [{
+        "if": {
+            "properties": { "kind": { "const": "graphNode" } },
+            "required": ["kind"]
+        },
+        "then": { "required": ["graph"] },
+        "else": { "not": { "required": ["graph"] } }
+    }]
+))]
 pub struct CapturedReadDependency {
     pub kind: CapturedReadKind,
     /// Additive graph-specific dependency detail. Required exactly for
@@ -326,6 +339,63 @@ pub struct CapturedReadDependency {
     pub boundary: Option<Value>,
 }
 
+impl CapturedReadDependency {
+    pub fn graph_pairing_is_valid(&self) -> bool {
+        matches!(
+            (&self.kind, &self.graph),
+            (CapturedReadKind::GraphNode, Some(_))
+        ) || (!matches!(&self.kind, CapturedReadKind::GraphNode) && self.graph.is_none())
+    }
+}
+
+impl<'de> Deserialize<'de> for CapturedReadDependency {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct Wire {
+            kind: CapturedReadKind,
+            #[serde(default, deserialize_with = "deserialize_optional_non_null")]
+            graph: Option<crate::manifest::GraphCapturedReadV1>,
+            table: Option<String>,
+            id: Option<String>,
+            version: Option<u64>,
+            predicate: Option<Value>,
+            #[serde(default)]
+            rows: Vec<String>,
+            field: Option<String>,
+            value: Option<Value>,
+            order: Option<Value>,
+            limit: Option<usize>,
+            result_count: Option<usize>,
+            boundary: Option<Value>,
+        }
+
+        let wire = Wire::deserialize(deserializer)?;
+        let dependency = Self {
+            kind: wire.kind,
+            graph: wire.graph,
+            table: wire.table,
+            id: wire.id,
+            version: wire.version,
+            predicate: wire.predicate,
+            rows: wire.rows,
+            field: wire.field,
+            value: wire.value,
+            order: wire.order,
+            limit: wire.limit,
+            result_count: wire.result_count,
+            boundary: wire.boundary,
+        };
+        if dependency.graph_pairing_is_valid() {
+            Ok(dependency)
+        } else {
+            Err(serde::de::Error::custom(CAPTURED_READ_GRAPH_PAIRING_ERROR))
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum CapturedReadKind {
@@ -354,3 +424,62 @@ pub struct SequenceAllocationFact {
 }
 
 pub mod watches;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn graph_payload() -> Value {
+        json!({
+            "format":"snapback.graph-captured-read.v1",
+            "graphPlanHash":"sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "instanceHash":"sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "nodeId":"n1",
+            "nodeKind":"closed-projection",
+            "authorityClass":1,
+            "dependency":{"kind":"projection","sourceNodeIds":["n0"]}
+        })
+    }
+
+    #[test]
+    fn captured_read_graph_pairing_is_enforced_during_deserialization() {
+        let missing = serde_json::from_value::<CapturedReadDependency>(json!({
+            "kind":"graphNode"
+        }))
+        .unwrap_err();
+        assert_eq!(missing.to_string(), CAPTURED_READ_GRAPH_PAIRING_ERROR);
+
+        let legacy_with_graph = serde_json::from_value::<CapturedReadDependency>(json!({
+            "kind":"auth",
+            "graph":graph_payload()
+        }))
+        .unwrap_err();
+        assert_eq!(
+            legacy_with_graph.to_string(),
+            CAPTURED_READ_GRAPH_PAIRING_ERROR
+        );
+
+        let valid = serde_json::from_value::<CapturedReadDependency>(json!({
+            "kind":"graphNode",
+            "graph":graph_payload()
+        }))
+        .expect("graph dependency with its payload decodes");
+        assert!(valid.graph_pairing_is_valid());
+    }
+
+    #[test]
+    fn captured_read_schema_states_graph_pairing() {
+        let schema = serde_json::to_value(schemars::schema_for!(CapturedReadDependency)).unwrap();
+        assert_eq!(
+            schema["allOf"][0],
+            json!({
+                "if": {
+                    "properties": { "kind": { "const": "graphNode" } },
+                    "required": ["kind"]
+                },
+                "then": { "required": ["graph"] },
+                "else": { "not": { "required": ["graph"] } }
+            })
+        );
+    }
+}

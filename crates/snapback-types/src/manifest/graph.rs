@@ -3294,7 +3294,82 @@ fn graph_node_multiplicative_argument_ids(
     Ok(arguments)
 }
 
-fn graph_cost_record_faults(plan: &GraphQueryPlanV1) -> BTreeSet<GraphAdmissionRefusalReasonV1> {
+fn graph_cost_record_is_malformed(node: &GraphNodeV1, cost: &GraphNodeCostV1) -> bool {
+    if !require_positive(Some(cost.max_examined_entries_per_execution))
+        || cost
+            .max_argument_expansion
+            .is_some_and(|value| !(1..=GRAPH_MAX_SAFE_INTEGER).contains(&value))
+    {
+        return true;
+    }
+
+    let window = graph_window_fields(cost);
+    let has_all_windows = window.iter().all(Option::is_some);
+    let has_no_windows = window.iter().all(Option::is_none);
+    let valid_windows = !has_all_windows
+        || (require_positive(cost.max_window_pages)
+            && cost
+                .max_window_root_rows
+                .is_some_and(|value| value <= GRAPH_MAX_SAFE_INTEGER)
+            && require_positive(cost.max_window_scanned_rows)
+            && cost
+                .max_window_result_rows
+                .is_some_and(|value| value <= GRAPH_MAX_SAFE_INTEGER)
+            && cost
+                .max_window_result_bytes
+                .is_some_and(|value| value <= GRAPH_MAX_SAFE_INTEGER)
+            && require_positive(cost.max_window_index_ranges));
+    if !valid_windows {
+        return true;
+    }
+
+    match node {
+        GraphNodeV1::RootWindow { .. } => {
+            !require_positive(cost.max_root_rows_per_page)
+                || cost.max_relationship_lookups_per_execution.is_some()
+                || cost.max_children_per_parent.is_some()
+                || !has_all_windows
+                || !require_positive(cost.max_window_root_rows)
+        }
+        GraphNodeV1::EqualityToOne { .. } | GraphNodeV1::PrincipalBound { .. } => {
+            cost.max_root_rows_per_page.is_some()
+                || !require_positive(cost.max_relationship_lookups_per_execution)
+                || cost.max_children_per_parent.is_some()
+                || !has_no_windows
+        }
+        GraphNodeV1::BoundedToMany { page, .. } => {
+            cost.max_root_rows_per_page.is_some()
+                || !require_positive(cost.max_relationship_lookups_per_execution)
+                || !require_positive(cost.max_children_per_parent)
+                || if matches!(page, GraphChildPageV1::Demand(_)) {
+                    !has_all_windows || cost.max_window_root_rows != Some(0)
+                } else {
+                    !has_no_windows
+                        || !matches!(page, GraphChildPageV1::Literal(page)
+                            if (1..=GRAPH_MAX_SAFE_INTEGER).contains(&page.take)
+                                && cost.max_children_per_parent == Some(page.take))
+                }
+        }
+        GraphNodeV1::ExistsSemiJoin { mode, .. } => {
+            cost.max_root_rows_per_page.is_some()
+                || !require_positive(cost.max_relationship_lookups_per_execution)
+                || !require_positive(cost.max_children_per_parent)
+                || !has_no_windows
+                || (matches!(mode, GraphExistsModeV1::All)
+                    && !require_positive(cost.max_argument_expansion))
+        }
+        GraphNodeV1::SearchMembership { argument_ids, .. } => {
+            cost.max_root_rows_per_page.is_some()
+                || !require_positive(cost.max_relationship_lookups_per_execution)
+                || cost.max_children_per_parent.is_some()
+                || !has_no_windows
+                || (argument_ids.is_some() && !require_positive(cost.max_argument_expansion))
+        }
+        GraphNodeV1::ClosedProjection { .. } => true,
+    }
+}
+
+fn graph_cost_faults(plan: &GraphQueryPlanV1) -> BTreeSet<GraphAdmissionRefusalReasonV1> {
     let data_node_ids = plan
         .nodes
         .iter()
@@ -3318,6 +3393,17 @@ fn graph_cost_record_faults(plan: &GraphQueryPlanV1) -> BTreeSet<GraphAdmissionR
         .any(|(node_id, count)| *count != 1 || !data_node_ids.contains(node_id))
     {
         faults.insert(GraphAdmissionRefusalReasonV1::BoundInvalid);
+    }
+    if plan.query_cost.graph.nodes.iter().any(|cost| {
+        plan.nodes
+            .iter()
+            .find(|node| node.node_id() == cost.node_id)
+            .is_some_and(|node| graph_cost_record_is_malformed(node, cost))
+    }) {
+        faults.insert(GraphAdmissionRefusalReasonV1::BoundInvalid);
+    }
+    if let Err(reason) = validate_graph_costs(plan) {
+        faults.insert(reason);
     }
     faults
 }
@@ -4454,10 +4540,7 @@ pub fn graph_query_plan_faults_v1(plan: &GraphQueryPlanV1) -> Vec<GraphAdmission
             faults.insert(GraphAdmissionRefusalReasonV1::BroadcastSeparationUnprovable);
         }
     }
-    faults.extend(graph_cost_record_faults(plan));
-    if let Err(reason) = validate_graph_costs(plan) {
-        faults.insert(reason);
-    }
+    faults.extend(graph_cost_faults(plan));
     match normalized_graph_plan(plan) {
         Ok(normalized) if normalized != *plan => {
             faults.insert(GraphAdmissionRefusalReasonV1::PlanIdentityMismatch);
@@ -5944,6 +6027,68 @@ mod tests {
         assert_eq!(schema["type"], "integer");
         assert_eq!(schema["minimum"], 0);
         assert!(schema.get("maximum").is_none());
+    }
+
+    #[test]
+    fn graph_cost_faults_include_missing_and_malformed_present_records() {
+        let mut value = serde_json::to_value(candidate_plan("n0", "n2")).unwrap();
+        value["nodes"].as_array_mut().unwrap().insert(
+            1,
+            json!({
+                "nodeId":"n1", "kind":"equality-to-one", "edgeName":"owner",
+                "authority":authority(1), "parentNodeId":"n0", "table":"users",
+                "visibility":{"kind":"public-read"},
+                "joinOn":[{"rootField":"ownerId","joinedField":"id"}],
+                "accessIndex":"by_id", "presence":"optional"
+            }),
+        );
+        value["nodes"][2]["object"]["fields"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({
+                "name":"owner",
+                "value":{
+                    "kind":"object", "nodeId":"n1",
+                    "object":{
+                        "scopeNodeId":"n0",
+                        "fields":[{
+                            "name":"name",
+                            "value":{"kind":"field","nodeId":"n1","field":"name"}
+                        }]
+                    }
+                }
+            }));
+        value["queryCost"]["maxScannedRows"] = json!(5);
+        value["queryCost"]["maxIndexRanges"] = json!(3);
+        value["queryCost"]["graph"]["nodes"][0]["maxWindowScannedRows"] = json!(10);
+        value["queryCost"]["graph"]["nodes"][0]["maxWindowIndexRanges"] = json!(6);
+        value["queryCost"]["graph"]["nodes"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({
+                "nodeId":"n1",
+                "maxExaminedEntriesPerExecution":2,
+                "maxRelationshipLookupsPerExecution":2
+            }));
+        value["queryCost"]["graph"]["windowRollup"]["maxWindowScannedRows"] = json!(10);
+        value["queryCost"]["graph"]["windowRollup"]["maxWindowIndexRanges"] = json!(6);
+
+        let mut plan: GraphQueryPlanV1 = serde_json::from_value(value).unwrap();
+        assert_eq!(validate_graph_query_plan_v1(&plan), Ok(()));
+
+        plan.query_cost.graph.nodes.remove(1);
+        plan.query_cost.graph.nodes[0].max_examined_entries_per_execution = 0;
+        let faults = graph_query_plan_faults_v1(&plan);
+        assert!(faults.contains(&GraphAdmissionFaultV1::from(
+            GraphAdmissionRefusalReasonV1::UnboundedExpansion
+        )));
+        assert!(faults.contains(&GraphAdmissionFaultV1::from(
+            GraphAdmissionRefusalReasonV1::BoundInvalid
+        )));
+        assert_eq!(
+            validate_graph_query_plan_v1(&plan),
+            Err(GraphAdmissionRefusalReasonV1::UnboundedExpansion)
+        );
     }
 
     #[test]
