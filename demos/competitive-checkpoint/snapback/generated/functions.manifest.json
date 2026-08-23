@@ -7,7 +7,7 @@
   "artifactKind": "functionManifest",
   "authoredSourceHash": "sha256:ae022cf5e372070874f099d4915753b843d02914541ddafdfa4226c1c4bb9430",
   "authoringProfile": "snapback-explicit-v1",
-  "bundleHash": "sha256:f372202757b6fc2d",
+  "bundleHash": "sha256:625310566be3a0de",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -767,14 +767,16 @@
       "exportedName": "createConversation",
       "handlerForm": "plan",
       "id": "competitive-checkpoint:createConversation",
-      "implementationHash": "sha256:3c0900fc274c3813dafe179864f514600ed19aea9f88c16f6aca1866f63ca5c9",
+      "implementationHash": "sha256:55fb8e2e62ff2743499fbe07a38e3b12a3dea0e8b9ed5eb24d861fd9eee03f12",
       "kind": "Mutation",
       "name": "createConversation",
       "readSetSummary": {
         "authScopeField": null,
-        "mode": "none",
-        "primaryTable": null,
-        "tables": []
+        "mode": "singleTable",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
       },
       "requiredCapabilities": [
         "host_plan_runtime",
@@ -783,108 +785,115 @@
         "args_contract_v1"
       ],
       "resultContract": {
-        "document": {
-          "allowExtra": false,
-          "fields": [
+        "kind": "value",
+        "value": {
+          "kind": "union",
+          "variants": [
             {
-              "name": "_id",
-              "required": true,
-              "value": {
-                "kind": "id",
-                "table": "conversations"
-              }
+              "kind": "null"
             },
             {
-              "name": "_version",
-              "required": true,
-              "value": {
-                "kind": "integer",
-                "max": 9007199254740991,
-                "min": 0
-              }
-            },
-            {
-              "name": "_createdAt",
-              "required": true,
-              "value": {
-                "kind": "integer",
-                "max": 9007199254740991,
-                "min": 0
-              }
-            },
-            {
-              "name": "_updatedAt",
-              "required": true,
-              "value": {
-                "kind": "integer",
-                "max": 9007199254740991,
-                "min": 0
-              }
-            },
-            {
-              "name": "ownerId",
-              "required": true,
-              "value": {
-                "kind": "principal"
-              }
-            },
-            {
-              "name": "slug",
-              "required": true,
-              "value": {
-                "kind": "string",
-                "maxBytes": 1048576
-              }
-            },
-            {
-              "name": "title",
-              "required": true,
-              "value": {
-                "kind": "string",
-                "maxBytes": 1048576
-              }
-            },
-            {
-              "name": "model",
-              "required": true,
-              "value": {
-                "kind": "string",
-                "maxBytes": 1048576
-              }
-            },
-            {
-              "name": "pageKey",
-              "required": true,
-              "value": {
-                "kind": "string",
-                "maxBytes": 1048576
-              }
-            },
-            {
-              "name": "createdAt",
-              "required": true,
-              "value": {
-                "kind": "integer",
-                "max": 9007199254740991,
-                "min": -9007199254740991
-              }
-            },
-            {
-              "name": "updatedAt",
-              "required": true,
-              "value": {
-                "kind": "integer",
-                "max": 9007199254740991,
-                "min": -9007199254740991
-              }
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "_id",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "conversations"
+                  }
+                },
+                {
+                  "name": "_version",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_updatedAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "ownerId",
+                  "required": true,
+                  "value": {
+                    "kind": "principal"
+                  }
+                },
+                {
+                  "name": "slug",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "title",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "model",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "pageKey",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": -9007199254740991
+                  }
+                },
+                {
+                  "name": "updatedAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": -9007199254740991
+                  }
+                }
+              ],
+              "kind": "object"
             }
-          ],
-          "kind": "object"
-        },
-        "kind": "document",
-        "table": "conversations"
+          ]
+        }
       },
-      "resultContractHash": "sha256:344bedd6d97d9e9634aabc51f0e23fd5a8c8fa5a3e732ea66aa7caed1d886d6b",
+      "resultContractHash": "sha256:7b724076dcdef96becb9cccd109deef15d568ba3aa532d9fa8e70bcf98e0f6a5",
       "runtime": {
         "HostPlan": {
           "Mutation": {
@@ -2650,7 +2659,7 @@
       "exportedName": "updateConversation",
       "handlerForm": "plan",
       "id": "competitive-checkpoint:updateConversation",
-      "implementationHash": "sha256:96c81dd7da3b24554d50fb840895f701cf3c0363375ac231cc255a95a6e08206",
+      "implementationHash": "sha256:af4182ccae6f71ee6d8448b3453eeb2ea7a05a51ce6ef2f23ed3a2ee54687295",
       "kind": "Mutation",
       "name": "updateConversation",
       "readSetSummary": {
@@ -2668,108 +2677,115 @@
         "args_contract_v1"
       ],
       "resultContract": {
-        "document": {
-          "allowExtra": false,
-          "fields": [
+        "kind": "value",
+        "value": {
+          "kind": "union",
+          "variants": [
             {
-              "name": "_id",
-              "required": true,
-              "value": {
-                "kind": "id",
-                "table": "conversations"
-              }
+              "kind": "null"
             },
             {
-              "name": "_version",
-              "required": true,
-              "value": {
-                "kind": "integer",
-                "max": 9007199254740991,
-                "min": 0
-              }
-            },
-            {
-              "name": "_createdAt",
-              "required": true,
-              "value": {
-                "kind": "integer",
-                "max": 9007199254740991,
-                "min": 0
-              }
-            },
-            {
-              "name": "_updatedAt",
-              "required": true,
-              "value": {
-                "kind": "integer",
-                "max": 9007199254740991,
-                "min": 0
-              }
-            },
-            {
-              "name": "ownerId",
-              "required": true,
-              "value": {
-                "kind": "principal"
-              }
-            },
-            {
-              "name": "slug",
-              "required": true,
-              "value": {
-                "kind": "string",
-                "maxBytes": 1048576
-              }
-            },
-            {
-              "name": "title",
-              "required": true,
-              "value": {
-                "kind": "string",
-                "maxBytes": 1048576
-              }
-            },
-            {
-              "name": "model",
-              "required": true,
-              "value": {
-                "kind": "string",
-                "maxBytes": 1048576
-              }
-            },
-            {
-              "name": "pageKey",
-              "required": true,
-              "value": {
-                "kind": "string",
-                "maxBytes": 1048576
-              }
-            },
-            {
-              "name": "createdAt",
-              "required": true,
-              "value": {
-                "kind": "integer",
-                "max": 9007199254740991,
-                "min": -9007199254740991
-              }
-            },
-            {
-              "name": "updatedAt",
-              "required": true,
-              "value": {
-                "kind": "integer",
-                "max": 9007199254740991,
-                "min": -9007199254740991
-              }
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "_id",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "conversations"
+                  }
+                },
+                {
+                  "name": "_version",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_updatedAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "ownerId",
+                  "required": true,
+                  "value": {
+                    "kind": "principal"
+                  }
+                },
+                {
+                  "name": "slug",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "title",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "model",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "pageKey",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": -9007199254740991
+                  }
+                },
+                {
+                  "name": "updatedAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": -9007199254740991
+                  }
+                }
+              ],
+              "kind": "object"
             }
-          ],
-          "kind": "object"
-        },
-        "kind": "document",
-        "table": "conversations"
+          ]
+        }
       },
-      "resultContractHash": "sha256:344bedd6d97d9e9634aabc51f0e23fd5a8c8fa5a3e732ea66aa7caed1d886d6b",
+      "resultContractHash": "sha256:7b724076dcdef96becb9cccd109deef15d568ba3aa532d9fa8e70bcf98e0f6a5",
       "runtime": {
         "HostPlan": {
           "Mutation": {
@@ -2839,7 +2855,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "2e19e621d54424d1105d57b15c753cc6cd1d382bf9d5bd382dceadf629482ac4",
+  "inputsHash": "93a46a6d428af1f66b869cc4c959380e238e394cd269b8ffc0cbf5940f46f0f8",
   "projections": [
     {
       "fanOutLimit": 64,
@@ -2927,16 +2943,19 @@
       "code": "SNAPBACK_PLAN_FACTS_DERIVED",
       "details": {
         "dependencySet": {
-          "reads": [],
+          "reads": [
+            "conversations"
+          ],
           "writes": [
             "conversations"
           ]
         },
         "dependencySetProvenance": "plan-derived",
         "function": "createConversation",
-        "resultContractHash": "sha256:344bedd6d97d9e9634aabc51f0e23fd5a8c8fa5a3e732ea66aa7caed1d886d6b",
+        "resultContractHash": "sha256:7b724076dcdef96becb9cccd109deef15d568ba3aa532d9fa8e70bcf98e0f6a5",
         "resultContractProvenance": "plan-derived"
       },
+      "guideAnchor": "/_snapback/guide/backend/declarative-plans.md#return-bindings",
       "message": "createConversation: closed plan result/dependency facts resolved with provenance",
       "severity": "info",
       "subsystem": "function"
@@ -2957,6 +2976,7 @@
         "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
         "resultContractProvenance": "unknown"
       },
+      "guideAnchor": "/_snapback/guide/backend/declarative-plans.md#return-bindings",
       "message": "deleteConversation: closed plan result/dependency facts resolved with provenance",
       "severity": "info",
       "subsystem": "function"
@@ -2984,6 +3004,7 @@
         "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
         "resultContractProvenance": "unknown"
       },
+      "guideAnchor": "/_snapback/guide/backend/declarative-plans.md#return-bindings",
       "message": "registerModel: closed plan result/dependency facts resolved with provenance",
       "severity": "info",
       "subsystem": "function"
@@ -3037,9 +3058,10 @@
         },
         "dependencySetProvenance": "plan-derived",
         "function": "updateConversation",
-        "resultContractHash": "sha256:344bedd6d97d9e9634aabc51f0e23fd5a8c8fa5a3e732ea66aa7caed1d886d6b",
+        "resultContractHash": "sha256:7b724076dcdef96becb9cccd109deef15d568ba3aa532d9fa8e70bcf98e0f6a5",
         "resultContractProvenance": "plan-derived"
       },
+      "guideAnchor": "/_snapback/guide/backend/declarative-plans.md#return-bindings",
       "message": "updateConversation: closed plan result/dependency facts resolved with provenance",
       "severity": "info",
       "subsystem": "function"

@@ -5,7 +5,7 @@
   "authorizationTables": [],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "2e19e621d54424d1105d57b15c753cc6cd1d382bf9d5bd382dceadf629482ac4",
+  "inputsHash": "93a46a6d428af1f66b869cc4c959380e238e394cd269b8ffc0cbf5940f46f0f8",
   "operations": [
     {
       "authRequirement": {
@@ -393,9 +393,11 @@
       "name": "createConversation",
       "readSetSummary": {
         "authScopeField": null,
-        "mode": "none",
-        "primaryTable": null,
-        "tables": []
+        "mode": "singleTable",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
       },
       "runtimeClass": "host-plan",
       "standardPattern": {

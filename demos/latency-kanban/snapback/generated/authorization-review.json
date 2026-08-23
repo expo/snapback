@@ -5,7 +5,7 @@
   "authorizationTables": [],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "5b378e988d36e8c04ae3ba0717a673e86615d5d65fe533a36c4e259b3134ea66",
+  "inputsHash": "c89dee30c992881362479387f271e76c144faf600677c54b471a0449f9e0c889",
   "operations": [
     {
       "authRequirement": {
@@ -282,9 +282,11 @@
       "name": "createBoard",
       "readSetSummary": {
         "authScopeField": null,
-        "mode": "none",
-        "primaryTable": null,
-        "tables": []
+        "mode": "singleTable",
+        "primaryTable": "boards",
+        "tables": [
+          "boards"
+        ]
       },
       "runtimeClass": "host-plan",
       "standardPattern": null,
@@ -334,9 +336,11 @@
       "name": "createCard",
       "readSetSummary": {
         "authScopeField": null,
-        "mode": "none",
-        "primaryTable": null,
-        "tables": []
+        "mode": "singleTable",
+        "primaryTable": "cards",
+        "tables": [
+          "cards"
+        ]
       },
       "runtimeClass": "host-plan",
       "standardPattern": null,
