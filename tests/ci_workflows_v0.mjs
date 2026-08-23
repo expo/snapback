@@ -213,7 +213,8 @@ assert.equal(setupNodeCount, 12, 'the Node-using workflow inventory changed; rev
 // 46 -> 53 (2026-08-15): LLP 0234's protected observer projection and
 // missing-event reconciler add two checkouts, two Node setups, two retained
 // evidence uploads, and one provenance attestation.
-assert.equal(actionCount, 53, 'the reviewed workflow action inventory changed; review and update this count');
+// 53 -> 56 (2026-08-22): inventories.yml adds its reviewed pinned actions.
+assert.equal(actionCount, 56, 'the reviewed workflow action inventory changed; review and update this count');
 
 const telemetryLatestMain = readFileSync(
   join(workflowDir, 'telemetry-latest-main.yml'),
