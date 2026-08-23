@@ -1,7 +1,8 @@
 # Design: structural authority-to-publication binding for authorized effects
 
-Status: Proposed — design accepted for implementation, not yet built
+Status: Proposed — design accepted; capsule construction-origin slice built, core binding not built
 Created: 2026-08-22
+Updated: 2026-08-23
 Related: issues/20260822-claims-versus-enforcement-is-endemic.md (Critical 1 and 2),
 LLP 0058, LLP 0059
 
@@ -19,11 +20,13 @@ precise loss: **"The split-phase algorithm itself is sound for a correctly const
 The structural defect is the loss of identity between resolution and reservation."**
 
 The substitution is endemic to `PreparedAuthority`, and checking another correlated field at an
-individual destination cannot establish correspondence. The bounded commit capsule's AppState
-grouping closes only literal substitution through the separately visible fields *after*
-construction; it does not prove the grouping itself has a common origin, because server startup
-can independently supply Local B with preclaimed admission/authority A. The capsule's complete
-residual register is `issues/20260822-capsule-structural-residuals.md`.
+individual destination cannot establish correspondence. The bounded commit capsule now has a
+separate construction-origin seal: AppState checks preclaimed engine bindings against the exact
+Local graph before minting one private runtime destination. That closes only the capsule's
+`{state B, admission A, authority A}` splice. It does not prove correspondence between resolved
+authority and a publication attached inside `PreparedAuthority`; that core design remains to be
+built. The capsule's remaining residual register is
+`issues/20260822-capsule-structural-residuals.md`.
 
 ## The load-bearing result
 

@@ -243,13 +243,15 @@ intended-row fingerprint and does not reject a semantically different intent sha
 `FinalCommitCut` does record a disposition on every exit, including exact-existing success or
 mismatch and rollback failures, so every final cut is one-shot.
 
-`CommitCapsuleDestination` is assembled from one immutable AppState binding containing the managed
-Local graph, its admission controller, and its database commit authority. Binding checks the
-prepared authority against that bundled admission controller and later uses only the bundled Local
-and database capability. This closes the literal same-AppState substitution where a test replaces
-only the separately visible `AppState::snapback` field. It does not prove common construction
-origin: server startup accepts `SharedSnapback` B and preclaimed engine bindings A independently,
-so `{state B, admission A, authority A}` remains constructible and binds successfully.
+`CommitCapsuleDestination` is assembled from one immutable AppState runtime binding containing the
+managed Local graph, its admission controller, opaque graph identity, and database commit
+authority. AppState construction consumes preclaimed engine bindings only beside the exact locked
+Local that must share their opaque identity; binding then checks the prepared authority against
+the bundled admission controller and later uses only the bundled Local and database capability.
+This closes both literal substitution through the separately visible `AppState::snapback` field
+and the historical `{state B, admission A, authority A}` construction splice. The claim is limited
+to destination construction; the open pending adapter and captured commit-authority paths below
+remain.
 
 `PendingCommit` is also an open `pub(crate)` adapter contract rather than a sealed database- and
 operation-bound capability. An implementation can ignore the authority passed to `commit`, return
@@ -262,10 +264,10 @@ carrier-replacement constructors that do not prove the attached publication corr
 admission lease. The inherited Critical and its separate remedy are tracked in
 `issues/20260822-authority-publication-binding-design.md`; the capsule must not claim to close it.
 All capsule structural residuals are collected in
-`issues/20260822-capsule-structural-residuals.md`. The construction-origin remedy belongs to the
-independent early slice assigned to
-`issues/20260822-authority-publication-binding-implementation-plan.md`; that plan file is absent
-from this revision.
+`issues/20260822-capsule-structural-residuals.md`. The construction-origin remedy from the
+independent early slice in
+`issues/20260822-authority-publication-binding-implementation-plan.md` landed on 2026-08-23; it
+does not implement the separate authority-publication binding design.
 
 The capsule acquires the reservation from `PreparedAuthority` before queuing for Local. A capsule
 future that has not been polled owns no permit, and the API cannot accept an already-held

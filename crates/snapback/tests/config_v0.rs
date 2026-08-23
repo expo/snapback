@@ -370,13 +370,15 @@ fn set_validation_rejects_undeclared_and_non_pool_shapes() {
 #[test]
 fn verify_runs_the_probe_records_the_outcome_and_cooldown_blocks() {
     let mut snapback = configured();
-    let (_, _, _, _, _, operator) = snapback
+    let bindings = snapback
         .claim_app_state_graph(
             snapback::admin::ServerProfile::Test,
             snapback::auth::deployment::AuthDeploymentTarget::Local,
         )
-        .expect("claim config verify composition graph")
-        .into_parts();
+        .expect("claim config verify composition graph");
+    let (_, _, _, _, _, _, _, operator) = bindings
+        .into_parts_for_app_state(&snapback)
+        .expect("bind config verify composition graph");
     // Unset → verify refuses before running any probe.
     let error = snapback
         .verify_config_entry(&operator, "feedKeys")
@@ -427,13 +429,15 @@ fn verify_rejects_an_authenticated_only_probe() {
     snapback
         .set_config_entry("feedKeys", vec!["k1".to_owned()], false, "test")
         .expect("set probe secret");
-    let (_, _, _, _, _, operator) = snapback
+    let bindings = snapback
         .claim_app_state_graph(
             snapback::admin::ServerProfile::Test,
             snapback::auth::deployment::AuthDeploymentTarget::Local,
         )
-        .expect("claim config verify composition graph")
-        .into_parts();
+        .expect("claim config verify composition graph");
+    let (_, _, _, _, _, _, _, operator) = bindings
+        .into_parts_for_app_state(&snapback)
+        .expect("bind config verify composition graph");
 
     let outcome = snapback
         .verify_config_entry(&operator, "feedKeys")
@@ -466,13 +470,15 @@ fn verify_grants_only_the_exact_entry_to_a_shared_probe() {
             .set_config_entry(name, vec![format!("{name}-secret")], false, "test")
             .expect("set shared probe secret");
     }
-    let (_, _, _, _, _, operator) = snapback
+    let bindings = snapback
         .claim_app_state_graph(
             snapback::admin::ServerProfile::Test,
             snapback::auth::deployment::AuthDeploymentTarget::Local,
         )
-        .expect("claim config verify composition graph")
-        .into_parts();
+        .expect("claim config verify composition graph");
+    let (_, _, _, _, _, _, _, operator) = bindings
+        .into_parts_for_app_state(&snapback)
+        .expect("bind config verify composition graph");
 
     let outcome = snapback
         .verify_config_entry(&operator, "feedKeys")

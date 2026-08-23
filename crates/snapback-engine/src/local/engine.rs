@@ -3055,11 +3055,20 @@ impl AssetStoreConfig {
 pub struct EngineAppStateBindings {
     admission: AdmissionController,
     commit_capsule_authority: crate::storage::CommitCapsuleAuthority,
+    graph_identity: EngineAppStateGraphIdentity,
     telemetry: crate::telemetry::Telemetry,
     derived_instance_identity: Option<crate::instance_fork::DerivedForkLineageV1>,
     connected_clients: ConnectedClientObserver,
     network_profiles: NetworkProfileView,
     operator_authority: EngineOperatorAuthority,
+}
+
+/// Opaque identity for the exact `LocalSnapback` graph claimed by one
+/// `AppState`. The server retains this inside its commit-capsule runtime
+/// binding; copied durable incarnation text is not process-graph identity.
+#[derive(Clone)]
+pub struct EngineAppStateGraphIdentity {
+    identity: Arc<()>,
 }
 
 /// Exact composition-owned authority for operator commands. The private
@@ -3312,26 +3321,46 @@ impl ExpiredServiceAuthorityPlan {
 }
 
 impl EngineAppStateBindings {
-    pub fn into_parts(
+    /// Consume a preclaimed graph only beside the exact `LocalSnapback` that
+    /// minted it. This comparison happens before the server can assemble its
+    /// private runtime binding, so independently supplied graph claims cannot
+    /// redirect database or commit authority at `AppState` construction.
+    pub fn into_parts_for_app_state(
         self,
-    ) -> (
+        local: &LocalSnapback,
+    ) -> SnapbackResult<(
         AdmissionController,
         crate::storage::CommitCapsuleAuthority,
+        EngineAppStateGraphIdentity,
         crate::telemetry::Telemetry,
         Option<crate::instance_fork::DerivedForkLineageV1>,
         ConnectedClientObserver,
         NetworkProfileView,
         EngineOperatorAuthority,
-    ) {
-        (
+    )> {
+        // @ref LLP 0225#3-transaction-and-commit-boundaries--who-may-commit-what —
+        // AppState destination origin is opaque process-graph identity, not
+        // copied durable incarnation text.
+        if !Arc::ptr_eq(
+            &self.graph_identity.identity,
+            &local.app_state_graph_identity,
+        ) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_COMMIT_CAPSULE_DESTINATION_MISMATCH",
+                "server",
+                "the preclaimed AppState bindings do not belong to the supplied SharedSnapback graph",
+            ));
+        }
+        Ok((
             self.admission,
             self.commit_capsule_authority,
+            self.graph_identity,
             self.telemetry,
             self.derived_instance_identity,
             self.connected_clients,
             self.network_profiles,
             self.operator_authority,
-        )
+        ))
     }
 }
 
@@ -3347,6 +3376,7 @@ pub struct LocalSnapback {
     auth_deployment: crate::auth::deployment::AuthDeploymentTarget,
     hosted_serving_present: bool,
     network_profile_startup_activated: bool,
+    app_state_graph_identity: Arc<()>,
     operator_authority_identity: Arc<()>,
     /// Deployment configuration captured once at the public construction
     /// boundary. Asset-store construction never re-reads process-global env.
@@ -6622,6 +6652,9 @@ impl LocalSnapback {
         Ok(EngineAppStateBindings {
             admission: self.admission.clone(),
             commit_capsule_authority: self.db.commit_capsule_authority(),
+            graph_identity: EngineAppStateGraphIdentity {
+                identity: self.app_state_graph_identity.clone(),
+            },
             telemetry: self.telemetry.clone(),
             derived_instance_identity: self.derived_fork_identity().cloned(),
             connected_clients: ConnectedClientObserver {
@@ -26440,6 +26473,7 @@ impl LocalSnapback {
             auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
             hosted_serving_present: false,
             network_profile_startup_activated: false,
+            app_state_graph_identity: Arc::new(()),
             operator_authority_identity: Arc::new(()),
             asset_store_config,
             stream_attempt_namespace: STREAM_ATTEMPT_NAMESPACE

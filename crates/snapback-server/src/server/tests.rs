@@ -155,7 +155,9 @@ async fn network_profile_http_release_marks_delay_and_keeps_normal_identity() {
             crate::auth::deployment::AuthDeploymentTarget::Local,
         )
         .expect("claim network profile graph");
-    let (_, _, _, _, _, profiles, _) = bindings.into_parts();
+    let (_, _, _, _, _, _, profiles, _) = bindings
+        .into_parts_for_app_state(&snapback)
+        .expect("bind network profile graph");
     snapback
         .activate_startup_network_profile(crate::network_profile::NetworkConditionProfile {
             name: "test-delay".to_owned(),
@@ -198,13 +200,15 @@ async fn network_profile_http_release_marks_delay_and_keeps_normal_identity() {
     );
 
     let mut normal_snapback = LocalSnapback::memory().expect("normal network profile fixture");
-    let (_, _, _, _, _, profiles, _) = normal_snapback
+    let bindings = normal_snapback
         .claim_app_state_graph(
             crate::contract_types::ServerProfile::Test,
             crate::auth::deployment::AuthDeploymentTarget::Local,
         )
-        .expect("claim normal network profile graph")
-        .into_parts();
+        .expect("claim normal network profile graph");
+    let (_, _, _, _, _, _, profiles, _) = bindings
+        .into_parts_for_app_state(&normal_snapback)
+        .expect("bind normal network profile graph");
     let started = Instant::now();
     let normal = super::release_network_profiled_response(
         axum::response::Response::new(axum::body::Body::empty()),
@@ -37569,6 +37573,139 @@ fn commit_capsule_intent(
     }
 }
 
+async fn assert_preclaimed_app_state_splice_refused(
+    authority_bindings: crate::local::EngineAppStateBindings,
+    durable_graph: LocalSnapback,
+    fixture: &'static str,
+) {
+    let read = durable_graph.read_lane();
+    let ephemeral = durable_graph.ephemeral_api();
+    let durable_state = Arc::new(Mutex::new(durable_graph));
+
+    // This is the actual historical splice: database/Local B is paired with
+    // preclaimed admission and commit authority A. Before the graph-identity
+    // seal, this constructor returned an AppState containing {B, A, A}.
+    let error = match AppState::try_new_for_server_startup(
+        durable_state.clone(),
+        read,
+        ephemeral,
+        ServerContext::detached(),
+        authority_bindings,
+        None,
+        format!("commit-capsule-splice-{fixture}"),
+    ) {
+        Ok(_) => panic!("AppState construction must refuse the {{B, A, A}} graph splice"),
+        Err(error) => error,
+    };
+    assert_eq!(
+        error.diagnostic.code, "SNAPBACK_COMMIT_CAPSULE_DESTINATION_MISMATCH",
+        "{fixture}"
+    );
+    tokio::task::spawn_blocking(move || {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        durable_state
+            .blocking_lock()
+            .claim_app_state_graph(
+                ServerProfile::Test,
+                crate::auth::deployment::AuthDeploymentTarget::Local,
+            )
+            .map(|_| ())
+    })
+    .await
+    .expect("join graph B claim after splice refusal")
+    .expect("splice refusal must leave graph B unclaimed");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn bounded_commit_capsule_rejects_preclaimed_graph_a_with_shared_snapback_b() {
+    let _registry_test_guard = lock_commit_capsule_registry_tests().await;
+    let directory = tempfile::tempdir().expect("AppState splice fixture directory");
+    let authority_directory = directory.path().join("authority-a");
+    let durable_directory = directory.path().join("durable-b");
+    fs::create_dir_all(&authority_directory).expect("create graph A directory");
+    fs::create_dir_all(&durable_directory).expect("create graph B directory");
+    let authority_path = authority_directory.join("app.sqlite3");
+    let durable_path = durable_directory.join("app.sqlite3");
+    let (_authority_graph, authority_bindings, durable_graph) =
+        tokio::task::spawn_blocking(move || {
+            let _sanction = crate::exec_guard::BlockingSanction::acquire();
+            // Copy a closed seed so A and B have identical durable bytes and
+            // authorization-incarnation text but distinct process graphs and
+            // commit-authority roots. A string/id comparison must not make
+            // this splice legitimate.
+            drop(LocalSnapback::open(&authority_path).expect("seed graph A database"));
+            fs::copy(&authority_path, &durable_path).expect("copy graph A bytes to graph B");
+            let mut authority_graph =
+                LocalSnapback::open(&authority_path).expect("open authority graph A");
+            let durable_graph = LocalSnapback::open(&durable_path).expect("open durable graph B");
+            assert_ne!(
+                authority_graph.database_path(),
+                durable_graph.database_path(),
+                "the copied-database case must not also be the equal-path case"
+            );
+            assert_eq!(
+                authority_graph
+                    .auth_rehearsal_instance_id()
+                    .expect("graph A durable incarnation"),
+                durable_graph
+                    .auth_rehearsal_instance_id()
+                    .expect("graph B durable incarnation"),
+                "the adversarial graphs must share the copied durable incarnation identifier"
+            );
+            let authority_bindings = authority_graph
+                .claim_app_state_graph(
+                    ServerProfile::Test,
+                    crate::auth::deployment::AuthDeploymentTarget::Local,
+                )
+                .expect("claim graph A before the splice attempt");
+            (authority_graph, authority_bindings, durable_graph)
+        })
+        .await
+        .expect("join same-identity A/B graph construction");
+    assert_preclaimed_app_state_splice_refused(
+        authority_bindings,
+        durable_graph,
+        "same-copied-incarnation",
+    )
+    .await;
+
+    let (_memory_authority_graph, memory_bindings, memory_durable_graph) =
+        tokio::task::spawn_blocking(|| {
+            let _sanction = crate::exec_guard::BlockingSanction::acquire();
+            let mut authority_graph = LocalSnapback::memory().expect("memory authority graph A");
+            let durable_graph = LocalSnapback::memory().expect("memory durable graph B");
+            assert_eq!(
+                authority_graph.database_path(),
+                durable_graph.database_path(),
+                "the in-memory case must share the absent path identity"
+            );
+            assert_ne!(
+                authority_graph
+                    .auth_rehearsal_instance_id()
+                    .expect("memory graph A durable incarnation"),
+                durable_graph
+                    .auth_rehearsal_instance_id()
+                    .expect("memory graph B durable incarnation"),
+                "the in-memory case must complement the copied-incarnation case"
+            );
+            let authority_bindings = authority_graph
+                .claim_app_state_graph(
+                    ServerProfile::Test,
+                    crate::auth::deployment::AuthDeploymentTarget::Local,
+                )
+                .expect("claim memory graph A before the splice attempt");
+            (authority_graph, authority_bindings, durable_graph)
+        })
+        .await
+        .expect("join same-path A/B graph construction");
+    assert_preclaimed_app_state_splice_refused(
+        memory_bindings,
+        memory_durable_graph,
+        "same-absent-path",
+    )
+    .await;
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn bounded_commit_capsule_rejects_authority_against_a_wholly_replaced_destination_bundle() {
     let _registry_test_guard = lock_commit_capsule_registry_tests().await;
@@ -37580,11 +37717,11 @@ async fn bounded_commit_capsule_rejects_authority_against_a_wholly_replaced_dest
     // This replaces both the state and its binding, producing destination
     // {state B, admission B, authority B} against caller authority A. It
     // proves the admission comparison rejects a wholly foreign destination.
-    // It does not exercise the live construction-origin splice
-    // {state B, admission A, authority A}, which binds successfully today.
+    // The construction-origin splice {state B, admission A, authority A} is
+    // covered separately at the AppState constructor that now refuses it.
     let mut hybrid = authority_database.app_state.clone();
     hybrid.snapback = durable_database.app_state.snapback.clone();
-    hybrid.commit_capsule_binding = durable_database.app_state.commit_capsule_binding.clone();
+    hybrid.commit_capsule_runtime = durable_database.app_state.commit_capsule_runtime.clone();
     let Err(error) = super::CommitCapsuleDestination::bind(&hybrid, caller.authority()) else {
         panic!("an authority must not bind against a wholly foreign destination bundle")
     };

@@ -1,7 +1,8 @@
 # Implementation plan: structural authority-to-publication binding
 
-Status: Proposed — plan accepted, implementation not started
+Status: In progress — independent early slice implemented; Steps 2–8 not started
 Created: 2026-08-22
+Updated: 2026-08-23
 Related: issues/20260822-authority-publication-binding-design.md (the design),
 issues/20260822-claims-versus-enforcement-is-endemic.md,
 issues/20260822-landed-fence-tests-do-not-prove-non-substitutability.md
@@ -284,9 +285,16 @@ After watch management lands, the capsule destination fix can land before the in
 
 This slice does not need to touch `invocation.rs` or R1.
 
+Implemented 2026-08-23. The destination-only graph identity added here seals
+`EngineAppStateBindings` to the exact `LocalSnapback` used to mint the private runtime binding;
+it is not Step 2's application-wide authority-origin binding. No `PreparedAuthority`
+publication construction changed.
+
 ## 3. Landable staging
 
 ### Step 1 — Seal the capsule destination
+
+**Implemented 2026-08-23.**
 
 Refactor the incoming `EngineAppStateBindings`/`AppState` capsule fields into one private `CommitCapsuleRuntimeBinding`. `CommitCapsuleDestination` receives the prepared authority and the sealed runtime binding; it never copies `AppState.snapback` independently.
 
@@ -462,7 +470,7 @@ The tests remain per-site terminal-first/reservation-first proofs. Their old zer
 | Every guarded sink has no separate authority parameter | Compile-fail/API surface | Representative session, asset, descriptor, and mutation calls with `(B, reservation_A)` do not type-check | Restoring an overload changes compilation/API snapshot; test fails. |
 | Request/resource B with reservation A | Runtime A/B | Sink derives A from reservation, returns typed authorization refusal, durable bytes unchanged | Reading caller identity from request/ambient B authorizes or changes state; test fails. |
 | Reservation A applied to Local B | Runtime A/B | Refusal before staging; Local B byte-identical | Removing destination graph check commits or stages B; test fails. |
-| Hybrid `AppState`: admission A plus snapback/commit binding B | Runtime A/B | `CommitCapsuleDestination::bind` refuses; neither graph changes | The watch branch’s lease-only check succeeds and reaches B; test fails. |
+| Preclaimed admission/commit graph A plus `SharedSnapback` B | Runtime A/B | `AppState::try_new_for_server_startup` refuses before graph B is claimed | Removing the opaque graph comparison constructs `{state B, admission A, authority A}`; test fails. |
 | Ticket/staged value B plus reservation A | Runtime binder refusal or compile-fail composite | No commit-capable composite, no state change | Ignoring operation identity produces a composite/commit; test fails. |
 | Binding-to-reservation/R1 classification matrix | Unit test over every private binding variant | One exhaustive policy yields both reservation posture and R1 provenance | Reverting R1 to `(mode,resolved)` misclassifies carrier-free service-shaped watch authority; test fails. |
 | Explicit carrier-free matrix | Unit/integration | Watch, callback, cron/job, Dev, and host settlement work only through their named origin | Replacing the origin with inferred `None` either becomes impossible or changes the expected variant; test fails. |

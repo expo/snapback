@@ -2576,36 +2576,33 @@ struct AuthModeRuntimeSnapshot {
     desired_policy: PolicyAuthMode,
 }
 
-/// AppState-carried grouping of the bounded-commit Local graph, admission
-/// controller, and database authority. Once constructed, capsule binding uses
-/// this grouping rather than the separately visible AppState fields, so
-/// replacing only `AppState::snapback` cannot redirect a capsule.
-///
-/// This grouping is not a common-origin proof. Server startup accepts the
-/// `SharedSnapback` and preclaimed `EngineAppStateBindings` independently, so
-/// safe construction can still group Local B with admission/authority A. The
-/// construction-time seal is fix-forward work recorded in
-/// `issues/20260822-capsule-structural-residuals.md`.
+/// Private common-origin binding for the bounded-commit runtime. Construction
+/// first consumes engine bindings beside the exact graph identity that minted
+/// them, then packages that graph's `SharedSnapback`, admission controller,
+/// graph identity, and database commit authority without exposing a parts API.
 ///
 /// @ref LLP 0225#3-transaction-and-commit-boundaries--who-may-commit-what —
-/// the current binding preserves the AppState-carried grouping after
-/// construction; it does not establish the grouping's origin.
+/// adapters retain one kernel-bound destination instead of composing database
+/// and admission authority independently.
 #[derive(Clone)]
-pub(crate) struct CommitCapsuleBinding {
+pub(crate) struct CommitCapsuleRuntimeBinding {
     state: SharedSnapback,
     admission: AuthAdmissionController,
+    _graph_identity: crate::local::EngineAppStateGraphIdentity,
     authority: crate::storage::CommitCapsuleAuthority,
 }
 
-impl CommitCapsuleBinding {
+impl CommitCapsuleRuntimeBinding {
     fn new(
         state: SharedSnapback,
         admission: AuthAdmissionController,
+        graph_identity: crate::local::EngineAppStateGraphIdentity,
         authority: crate::storage::CommitCapsuleAuthority,
     ) -> Self {
         Self {
             state,
             admission,
+            _graph_identity: graph_identity,
             authority,
         }
     }
@@ -2684,12 +2681,8 @@ pub struct AppState {
     /// runtime, cron, and staged-mode publication therefore count and retire
     /// roots in one process-local epoch domain.
     pub(crate) auth_admission: AuthAdmissionController,
-    /// AppState-carried Local/admission/database grouping used by the bounded
-    /// capsule. It prevents later substitution through the separately visible
-    /// fields, but startup can currently combine independently supplied
-    /// `SharedSnapback` and engine bindings; see the structural residuals
-    /// ticket.
-    pub(crate) commit_capsule_binding: CommitCapsuleBinding,
+    /// Exact graph-bound runtime destination used by the bounded capsule.
+    pub(crate) commit_capsule_runtime: CommitCapsuleRuntimeBinding,
     /// Opaque exact-engine operator authority minted by the one-shot graph
     /// claim. Administrative engine commands require this in addition to the
     /// request's admitted invocation.
@@ -2874,8 +2867,7 @@ impl AppState {
         let connections = ConnectionRegistry::default();
         let mut preclaimed_bindings = preclaimed;
         let (
-            auth_admission,
-            commit_capsule_authority,
+            commit_capsule_runtime,
             telemetry,
             derived_instance_identity,
             connected_clients,
@@ -2894,20 +2886,26 @@ impl AppState {
                 Some(bindings) => bindings,
                 None => instance.claim_app_state_graph(server_profile, auth_deployment)?,
             };
-            let coordinator = instance.build_stream_auth_coordinator()?;
-            instance.bind_auth_coordinator(coordinator.as_ref())?;
             let (
                 admission,
                 commit_capsule_authority,
+                graph_identity,
                 telemetry,
                 derived,
                 clients,
                 profiles,
                 operator,
-            ) = bindings.into_parts();
-            (
+            ) = bindings.into_parts_for_app_state(&instance)?;
+            let commit_capsule_runtime = CommitCapsuleRuntimeBinding::new(
+                snapback.clone(),
                 admission,
+                graph_identity,
                 commit_capsule_authority,
+            );
+            let coordinator = instance.build_stream_auth_coordinator()?;
+            instance.bind_auth_coordinator(coordinator.as_ref())?;
+            (
+                commit_capsule_runtime,
                 telemetry,
                 derived,
                 clients,
@@ -2916,16 +2914,12 @@ impl AppState {
                 coordinator,
             )
         };
+        let auth_admission = commit_capsule_runtime.admission().clone();
         let auth_terminal_lifecycle = AuthTerminalLifecycle::new(
             connections.clone(),
             connected_clients.clone(),
             &ephemeral,
             snapback.clone(),
-        );
-        let commit_capsule_binding = CommitCapsuleBinding::new(
-            snapback.clone(),
-            auth_admission.clone(),
-            commit_capsule_authority,
         );
         Ok((
             Self {
@@ -2949,7 +2943,7 @@ impl AppState {
                 })),
                 auth_program_readiness: Arc::new(AuthProgramReadiness::item4(false)),
                 auth_admission,
-                commit_capsule_binding,
+                commit_capsule_runtime,
                 operator_authority,
                 server_startup_nonce: Arc::from(
                     crate::identity::binary_identity()

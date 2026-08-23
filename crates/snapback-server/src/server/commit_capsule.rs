@@ -16,8 +16,8 @@
 //!   kernel-supplied pending transaction. The open adapter trait and exposed
 //!   authorities are residual seams, not a structural COMMIT proof.
 
-use super::{SharedSnapback, writer_gate::lock_managed_snapback};
-use crate::admin::{AppState, CommitCapsuleBinding};
+use super::writer_gate::lock_managed_snapback;
+use crate::admin::{AppState, CommitCapsuleRuntimeBinding};
 use crate::auth::invocation::{AuthorizedEffectReservation, PreparedAuthority};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::local::LocalSnapback;
@@ -70,38 +70,49 @@ impl<T> CommitAttempt<T> {
 }
 
 pub(crate) struct CommitCapsuleDestination {
-    state: SharedSnapback,
     authority: PreparedAuthority,
-    binding: CommitCapsuleBinding,
+    runtime: CommitCapsuleRuntimeBinding,
 }
 
 impl CommitCapsuleDestination {
     pub(crate) fn bind(runtime: &AppState, authority: PreparedAuthority) -> SnapbackResult<Self> {
-        let binding = runtime.commit_capsule_binding.clone();
-        if !binding.admission().owns_lease(authority.admission_lease()) {
+        let runtime = runtime.commit_capsule_runtime.clone();
+        if !runtime.admission().owns_lease(authority.admission_lease()) {
             return Err(SnapbackError::error(
                 "SNAPBACK_COMMIT_CAPSULE_DESTINATION_MISMATCH",
                 "server",
                 "the prepared authority does not belong to the destination AppState",
             ));
         }
-        // This rejects an authority that differs from the admission controller
-        // already stored in this binding and ignores later substitution of the
-        // separately visible `AppState::snapback` field. It does not prove the
-        // binding's own common origin: AppState startup currently accepts the
-        // SharedSnapback and preclaimed engine bindings independently, so
-        // {state B, admission A, authority A} remains constructible. That
-        // construction-time seal is tracked in
-        // issues/20260822-capsule-structural-residuals.md and assigned to the
-        // independent early slice in
-        // issues/20260822-authority-publication-binding-implementation-plan.md
-        // (the plan file is absent from this revision). PreparedAuthority
-        // publication substitution is a separate residual tracked there too.
-        Ok(Self {
-            state: binding.state().clone(),
-            authority,
-            binding,
-        })
+        Ok(Self { authority, runtime })
+    }
+}
+
+/// The capsule-private pairing of one prepared authority and the exact effect
+/// reservation it minted. Transaction closures may borrow the authority view
+/// only through this carrier; callers cannot supply a second staging identity.
+pub(crate) struct CommitCapsuleReservation {
+    authority: PreparedAuthority,
+    effect: AuthorizedEffectReservation,
+}
+
+impl CommitCapsuleReservation {
+    fn reserve(authority: PreparedAuthority, operation: &'static str) -> SnapbackResult<Self> {
+        let effect = authority.reserve_authorized_effect(operation)?;
+        Ok(Self { authority, effect })
+    }
+
+    fn authority_view(&self) -> &PreparedAuthority {
+        &self.authority
+    }
+
+    fn effect(&self) -> &AuthorizedEffectReservation {
+        &self.effect
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_commit_guard_failure_for_test(&self, error: SnapbackError) {
+        self.effect.set_commit_guard_failure_for_test(error);
     }
 }
 
@@ -194,11 +205,12 @@ impl CommitCapsuleTransaction<'_> {
 
     pub(crate) fn stage_watch_management<'connection>(
         &'connection mut self,
-        authority: &PreparedAuthority,
+        reservation: &CommitCapsuleReservation,
         intent: &crate::storage::watches::WatchManagementIntent,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::watches::WatchManagementPending<'connection>> {
-        self.local.stage_watch_management(authority, intent, now_ms)
+        self.local
+            .stage_watch_management(reservation.authority_view(), intent, now_ms)
     }
 
     pub(crate) fn reconcile_watch_management(
@@ -617,7 +629,7 @@ impl<I: crate::storage::CommitCapsuleIntent, U: Send + 'static> FinalCommitCut<I
 
     pub(crate) fn commit<T, Pending>(
         &mut self,
-        reservation: &AuthorizedEffectReservation,
+        reservation: &CommitCapsuleReservation,
         pending: Pending,
     ) -> CommitAttempt<T>
     where
@@ -644,7 +656,7 @@ impl<I: crate::storage::CommitCapsuleIntent, U: Send + 'static> FinalCommitCut<I
             };
         }
 
-        let commit_guard = match reservation.commit_guard(self.operation) {
+        let commit_guard = match reservation.effect().commit_guard(self.operation) {
             Ok(guard) => guard,
             Err(error) => {
                 self.disposition = Some(FinalCutDisposition::Refused);
@@ -692,7 +704,7 @@ impl<I: crate::storage::CommitCapsuleIntent, U: Send + 'static> FinalCommitCut<I
     /// caller-constructed identifier.
     pub(crate) fn exact_existing<T>(
         &mut self,
-        reservation: &AuthorizedEffectReservation,
+        reservation: &CommitCapsuleReservation,
         intent: &I,
         witness: crate::storage::ExactCommitRows<I, T>,
     ) -> CommitAttempt<T> {
@@ -706,7 +718,7 @@ impl<I: crate::storage::CommitCapsuleIntent, U: Send + 'static> FinalCommitCut<I
                 CommitTimeoutPhase::FinalCut.diagnostic(),
             ));
         }
-        let commit_guard = match reservation.commit_guard(self.operation) {
+        let commit_guard = match reservation.effect().commit_guard(self.operation) {
             Ok(guard) => guard,
             Err(error) => {
                 self.disposition = Some(FinalCutDisposition::Refused);
@@ -754,7 +766,7 @@ pub(crate) async fn with_bounded_commit_capsule<T, Intent, Gate, Uncertain>(
         &mut CommitCapsuleTransaction<'_>,
         &Intent,
         Gate,
-        &AuthorizedEffectReservation,
+        &CommitCapsuleReservation,
         &mut FinalCommitCut<Intent, Uncertain>,
     ) -> CommitAttempt<T>
     + Send
@@ -774,11 +786,8 @@ where
     Gate: Send + 'static,
     Uncertain: Send + 'static,
 {
-    let CommitCapsuleDestination {
-        state,
-        authority,
-        binding,
-    } = destination;
+    let CommitCapsuleDestination { authority, runtime } = destination;
+    let state = runtime.state().clone();
     // Reservation acquisition is part of the capsule API rather than caller
     // setup. A capsule future that has not been polled therefore owns no
     // authority permit, and every successfully created reservation is born
@@ -795,7 +804,7 @@ where
         None,
     )
     .await;
-    let reservation = match authority.reserve_authorized_effect(spec.operation) {
+    let reservation = match CommitCapsuleReservation::reserve(authority, spec.operation) {
         Ok(reservation) => reservation,
         Err(error) => return CommitCapsuleOutcome::Refused(with_refusal_facts(error)),
     };
@@ -819,7 +828,7 @@ where
             intent,
             transact,
             reconcile,
-            binding,
+            runtime,
             uncertain_retention,
         )
     };
@@ -830,7 +839,7 @@ where
         intent,
         transact,
         reconcile,
-        binding,
+        runtime,
         uncertain_retention,
     )) = timeout_at(spec.deadline, queued).await
     else {
@@ -845,7 +854,7 @@ where
         let mut final_cut = FinalCommitCut::new(
             spec.operation,
             spec.deadline,
-            binding.authority().clone(),
+            runtime.authority().clone(),
             uncertain_retention,
         );
         let mut transaction = CommitCapsuleTransaction::new(&mut guard);

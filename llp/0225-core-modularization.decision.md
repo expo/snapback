@@ -84,6 +84,9 @@ final cut; the inherited authority/publication seam remains open)
 same-AppState substitution and one-shot ordering actually enforced; independent
 construction origin, open pending adapters, captured commit authority, and
 same-ID intent replay are recorded as latent fix-forward residuals)
+**Revised:** 2026-08-23 (ae — §3 records the capsule's independent
+construction-origin seal; open pending adapters, captured commit authority,
+same-ID intent replay, and PreparedAuthority publication substitution remain)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -307,20 +310,28 @@ incorporates 0199's OQ3 ruling and the implemented 2026-08-09 follow-up.
    fingerprint, and caller-constructible identifiers have no uniqueness
    ledger. Every final-cut exit does still record a one-shot disposition.
 
-   The AppState-carried destination closes one narrower substitution: after a
-   correctly constructed AppState exists, replacing only its separately
-   visible `snapback` field cannot redirect the capsule because binding uses
-   the stored destination grouping. It does **not** close construction origin.
-   `AppState::try_new_for_server_startup` accepts `SharedSnapback` B and
-   preclaimed engine bindings A independently, and the inner constructor can
-   therefore build `{state B, admission A, authority A}` in safe Rust. The
-   residuals and shortest paths are recorded in
-   `issues/20260822-capsule-structural-residuals.md`. The real construction-time
-   remedy belongs to the independent early slice assigned to
-   `issues/20260822-authority-publication-binding-implementation-plan.md`; that
-   plan file is not present in this revision, and no closure claim is made here.
-   `PreparedAuthority` publication substitution remains separately open as
-   well in `issues/20260822-authority-publication-binding-design.md`.
+   The AppState construction root now closes that destination-origin splice.
+   Its one-shot engine claim carries an opaque identity minted by the exact
+   `LocalSnapback`; the inner constructor compares it while holding the
+   supplied SharedSnapback, before minting one private runtime binding that
+   retains the exact database graph, admission controller, graph identity, and
+   commit authority. `CommitCapsuleDestination::bind` consumes that binding,
+   and watch staging derives its prepared-authority view from the capsule's
+   reservation instead of a separately cloned authority. The adversarial test
+   has complementary copied-database and in-memory cases: one gives distinct
+   process graphs A and B identical durable incarnation text, while the other
+   gives them the same absent database-path identity. Both supply preclaimed A
+   with SharedSnapback B and observe refusal before B is claimed; neutralizing
+   only the opaque identity comparison makes the test accept
+   `{state B, admission A, authority A}` and fail.
+
+   This seals only construction of the capsule destination: no production
+   AppState API can combine admission graph A with database/commit graph B.
+   It does not seal the open `PendingCommit` adapter, prevent closure capture
+   of cloneable commit authority, bind reconciliation to semantic intent, or
+   close `PreparedAuthority` publication substitution. Those remain in
+   `issues/20260822-capsule-structural-residuals.md` and
+   `issues/20260822-authority-publication-binding-design.md`.
 2. **The generation-activation coordinator owns the atomic transition, not
    the transaction.** The minimum atomic set — the manifest/generation
    record, projection digest pins, sequence installs/enrollment, and auth
@@ -1464,3 +1475,12 @@ so slices can follow product priorities.
   final-cut consumption remains a structural guarantee. The other residuals,
   including the open `PendingCommit` adapter and `PreparedAuthority`
   publication substitution, remain fix-forward work linked from §3.
+- **2026-08-23 (ae).** The independent early slice seals AppState construction
+  by comparing a one-shot engine claim's opaque graph identity with the exact
+  supplied `LocalSnapback`, then retaining SharedSnapback, admission, graph
+  identity, and commit authority in one private capsule runtime binding. The
+  actual same-copied-incarnation preclaimed-A/SharedSnapback-B test fails when
+  only that comparison is neutralized and passes when restored. This closes
+  the construction-origin Critical only; the open pending adapter,
+  captured-authority, same-ID replay, and PreparedAuthority
+  publication-substitution residuals remain.
