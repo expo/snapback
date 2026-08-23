@@ -6,7 +6,7 @@ Related: issues/20260822-authorized-effect-program-status.md,
 issues/20260822-critical-direct-route-fence-design.md,
 issues/20260822-stream-attempt-refactor-design.md,
 issues/20260822-bounded-commit-capsule-spec.md,
-issues/20260821-terminal-accounting-settlement-ruling.md
+issues/closed/20260821-terminal-accounting-settlement-ruling.md
 
 Five questions had accumulated that engineering could not settle. All five are now ruled. Each
 records the ruling, the reasoning, and what it unblocks, so lanes and later sessions act on the

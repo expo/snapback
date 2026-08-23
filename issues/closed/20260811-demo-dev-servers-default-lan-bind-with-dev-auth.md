@@ -8,7 +8,7 @@
 **Systems:** Demos, Local server lifecycle, Auth, Security, Developer experience
 **Date:** 2026-08-11
 **Governing:** LLP 0060 (D1 dev-auth override), LLP 0181, LLP 0168
-**Related:** `issues/20260811-ios-physical-device-dev-carrier-decision-packet.md`
+**Related:** `issues/closed/20260811-ios-physical-device-dev-carrier-decision-packet.md`
 (and its `.packet.md`), `issues/20260804-tunnelled-loopback-server-keeps-dev-profile.md`
 **Found while:** Verifying the iOS carrier decision packet's evidence against
 committed code

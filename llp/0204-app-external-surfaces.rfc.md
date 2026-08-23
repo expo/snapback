@@ -8,7 +8,10 @@ Hosted platform, Developer experience, Docs
 **Date:** 2026-08-08
 **Revised:** 2026-08-23 (OAuth proposal creation now shares ordinary pairing's
 ten-slot unresolved-consent budget; the child-FK wedge and table rebuild remain
-deferred). 2026-08-10 (author sitting: the commissioned remainders were
+deferred). 2026-08-23 (author ruling: Ask provider authorization is per
+provider turn; a durable turn handoff that wins before retirement may finish,
+while later turns refuse).
+2026-08-10 (author sitting: the commissioned remainders were
 ruled. (1) Untrusted-code execution: commission an investigation into what
 confident launch requires on BOTH the Ibex restricted worker and
 workerd/v8 before any promotion. (2) Capability links: commission the FULL
@@ -472,6 +475,15 @@ sends a task in natural language plus an optional result schema; a hosted
 agent runs **next to the data**, iterates over the app's exposed functions
 (and only those), and returns a result with receipts, streamed via the
 D9.1 primitive by default.
+
+**Per-turn authority ruling (2026-08-23).** Starting an Ask run does not
+authorize every future provider call in that run. Each provider turn requires
+an exact durable handoff bound to the run, turn, provider/model, request
+digest, and spend reservation. Retirement before that handoff prevents the
+provider call; a handoff committed before retirement owns that turn's send and
+settlement even if retirement follows. Later turns must re-authorize and
+refuse after retirement. Implementation is tracked by
+`issues/20260823-ask-per-turn-authority-handoff.md`.
 
 - **Authority = caller's authority.** The agent runs under the caller's
   grant; every function call inside the loop passes the same per-function

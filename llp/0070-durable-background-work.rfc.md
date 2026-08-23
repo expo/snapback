@@ -5,7 +5,10 @@
 **Systems:** Background work, Actions, Webhooks, Cron, Storage, Runtime, Auth, Secrets, Deployment, Admin, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-02 (CV-9 executable-evidence amendment: the shipped
+**Revised:** 2026-08-23 (author ruling: outbound webhooks advertise
+at-least-once delivery; stable idempotency keys enable cooperative receiver
+deduplication but never an exactly-once claim).
+2026-08-02 (CV-9 executable-evidence amendment: the shipped
 single-process SQLite slice now retains a file-backed crash/reopen witness.
 It commits and claims attempt 1, closes the only connection without a finish,
 reopens the same database, advances to the stored lease boundary, atomically
@@ -687,6 +690,14 @@ include queue capacity, byte capacity, concurrency, rate limits, lease bounds,
 oldest age, ready depth, claimed depth, dead depth, and saturation counts.
 
 ## Webhook work
+
+**Delivery ruling (2026-08-23).** Outbound webhook delivery is
+**at-least-once**. Every retry preserves the logical delivery identity and
+stable idempotency key, but an arbitrary receiver may ignore that key; a crash
+or transport-uncertainty window may therefore produce a duplicate. Snapback
+does not advertise exactly-once delivery. Receivers that require a single
+observable effect must deduplicate by the supplied delivery/idempotency
+identity.
 
 **Implementation checkpoint (external-automations bundle, 2026-08-10).** The
 outbound slice is implemented as a reusable host delivery primitive with

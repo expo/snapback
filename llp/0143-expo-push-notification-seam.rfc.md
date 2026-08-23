@@ -6,7 +6,9 @@
 Deployment, Testing, Documentation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-10 (LLP 0222 connected-client predicate recorded as advisory push-policy input, never exactly-once settlement). 2026-08-03 (PUSH-01 Exit: a physical iOS development build
+**Revised:** 2026-08-23 (author ruling: the durable reservation is the caller
+authority handoff; no live-session veto may run after accepted reservation).
+2026-08-10 (LLP 0222 connected-client predicate recorded as advisory push-policy input, never exactly-once settlement). 2026-08-03 (PUSH-01 Exit: a physical iOS development build
 returned an allowlisted Expo ticket and receipt with `ok` status; the local
 `notifications.expoPushSeam` integration seam is shipped, while hosted remains
 Missing and the first-class LLP 0045 `notifications` boolean remains false.)
@@ -508,6 +510,16 @@ transition:
 4. **Transmit:** the Expo POST(s) run under the claim.
 5. **Settle:** ticket outcomes are written per message row; the batch
    attempt records the request outcome.
+
+**Caller-authority handoff ruling (2026-08-23).** For an immediate
+session/service-backed send, reservation is the authoritative transfer from
+the live caller to the durable intent. Reservation must revalidate and commit
+the caller authority atomically. Once it commits, claim, `transmitting`,
+provider I/O, and settlement proceed from the durable intent and must not be
+vetoed by a later live-session check. An optional check before reservation may
+only fail fast; it cannot replace the reservation's atomic validation. The
+required implementation correction is tracked by
+`issues/20260823-expo-push-reservation-authority-handoff.md`.
 
 Crash recovery by point, discriminated by the marker: before reserve —
 nothing exists, the send never happened; after reserve or claim,

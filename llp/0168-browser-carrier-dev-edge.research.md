@@ -5,12 +5,16 @@
 **Systems:** Developer experience, Browser carriers, Client integration, Local server lifecycle, Security, Tooling, Packaging, Testing
 **Author:** Codex (gpt-5.6-sol) / Charlie Cheever
 **Date:** 2026-08-04
-**Revised:** 2026-08-15 — Executes Charlie Cheever's accepted packet rulings:
+**Revised:** 2026-08-23 — Closes packet rulings 4–6 by author ruling: do not
+measure F-A2-4 now; schedule the Android USB native receipt; treat a
+peer-authenticated private overlay as an unsupported experimental front, not a
+carrier, until a separate reviewed design admits it.
+2026-08-15 — Executes Charlie Cheever's accepted packet rulings:
 the NOT-YET recommendation stands with the successor-RFC gate closed on A3
 grounds; a client pointing at an already-admitted hosted target is outside this
 front-edge gate; and A1 is explicitly scoped to the browser carrier studied
 here. A native Metro/Expo physical-device carrier is a different carrier whose
-own A1 is not stated here. Packet rulings 4–6 remain open.
+own A1 is not stated here. At that revision, packet rulings 4–6 remained open.
 **Related:** LLP 0008, LLP 0017, LLP 0030, LLP 0031, LLP 0041, LLP 0043, LLP 0060, LLP 0064, LLP 0090, LLP 0129, LLP 0166, LLP 0169, `diaries/0056-warble-local-first-microblog.diary.md`
 
 ## Summary
@@ -335,9 +339,14 @@ creates no listener or route composition and is outside this gate. Packet
 ruling 3 is the A1 scoping edit above. Packet ruling 1 is implemented by LLP
 0181's `hosted-development` binding arm.
 
-Packet rulings 4–6 remain open: this Research does not schedule the F-A2-4
-blast-radius measurement, the Android USB live receipt, or a ruling on whether
-a peer-authenticated private overlay is a carrier or an undeclared front.
+**Author addendum — 2026-08-23.** Packet rulings 4–6 are closed. F-A2-4's
+loopback-auth blast-radius measurement is not scheduled while the local edge
+remains NOT-YET. The Android USB native live-device receipt is scheduled in
+`issues/20260823-android-usb-native-live-device-receipt.md`. A
+peer-authenticated private overlay remains an unsupported experimental front,
+not a carrier, until a separate reviewed design explicitly admits its peer,
+route, authority, lifecycle, and receipt contracts. This addendum does not
+open the successor-RFC gate or change the A3 blocker.
 
 ## Provenance
 

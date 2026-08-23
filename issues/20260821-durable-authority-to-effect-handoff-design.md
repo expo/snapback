@@ -1,6 +1,7 @@
 # Design: durable authority-to-effect handoff for irreversible external effects
 
-Status: Proposed — needs author ruling on the items in "Open rulings"
+Status: Accepted direction — three open rulings resolved by author 2026-08-23;
+implementation remains open
 Created: 2026-08-21
 Related: LLP 0283 F-1, issues/20260821-authorized-effect-remedy-classification.md,
 issues/20260821-nonsql-durable-effects-unguarded.md, LLP 0044, LLP 0070, LLP 0204
@@ -86,16 +87,23 @@ sufficient authority. Checked against source:
   every physical key or the webhook authority predicate. Asset cleanup needs
   `{claimed work, condemned record}`; webhook needs the full watch/job composite.
 
-## Open rulings
+## Author rulings — 2026-08-23
 
-1. Webhook duplicate delivery: arbitrary receivers may ignore `Idempotency-Key`, so duplicates
-   remain part of the advertised at-least-once contract. Marked INFERRED — confirm this is the
-   intended public contract.
-2. Ask per-turn vs per-run authorization. This design chooses per-turn, following LLP 0204's
-   statement that each inner call uses the caller's authority: a turn whose marker commits before
-   logout may send; later turns stop after retirement. Confirm.
-3. Whether Expo's pre-transmit authority check should be removed outright or retained as a
-   pre-reservation implementation aid.
+Charlie Cheever accepted the general durable-handoff rule and ruled:
+
+1. **Webhook delivery is at-least-once.** Arbitrary receivers may ignore
+   `Idempotency-Key`, so duplicates remain part of the advertised contract;
+   no exactly-once claim follows.
+2. **Ask authorization is per provider turn.** A turn whose exact durable
+   marker commits before retirement may send and settle; later turns stop.
+3. **Expo reservation is the authority cut.** No live-session veto remains
+   after accepted reservation. A pre-reservation check may exist only as a
+   non-authoritative fast-fail aid; atomic validation at reservation remains
+   mandatory.
+
+These rulings are recorded in LLPs 0070, 0204, and 0143 respectively. They
+unblock the three named implementation tickets; they do not silently decide
+arbitrary-fetch automatic-redrive policy.
 
 ## Provenance
 

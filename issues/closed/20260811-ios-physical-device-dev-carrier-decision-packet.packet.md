@@ -1,7 +1,7 @@
 # Decision packet: iOS physical-device development carrier
 
-**Status:** Packet complete — awaiting author go/no-go
-**Ticket:** `issues/20260811-ios-physical-device-dev-carrier-decision-packet.md`
+**Status:** Ruled — all six questions resolved 2026-08-23
+**Ticket:** `issues/closed/20260811-ios-physical-device-dev-carrier-decision-packet.md`
 **Systems:** React/Expo, Local server lifecycle, Developer experience, Security, Auth, Packaging
 **Governing:** LLP 0168 (gate), LLP 0181 (binding union), LLP 0060 (transport/auth contract)
 **Date:** 2026-08-11
@@ -607,7 +607,13 @@ Triumphs is landing in a separate lane):
 | `guide/auth/targets.md` | Already carries the 2026-08-10 direction-1 wording about tunnelled loopback servers. No change needed; it is the anchor the other pages should cite. |
 | `demos/relay-room-bakeoff/snapback-expo/scripts/dev-server.mjs` | §3.4's launcher deserves its own follow-up: either a header comment recording that it deliberately defeats two fences and must not be copied, or removal. Filing that is out of this packet's scope, but it should not be left unremarked. |
 
-## 9. What needs an author ruling, not an analyst's judgment
+## 9. Author rulings
+
+Rulings 1–3 were accepted 2026-08-15. Charlie Cheever closed rulings 4–6 on
+2026-08-23: defer the F-A2-4 measurement, schedule the Android USB native
+receipt, and classify private overlays as unsupported experimental fronts
+pending a separate admitted design. The questions below are retained as the
+decision record.
 
 1. **Is Expo Go plus a hosted Snapback backend a workflow Snapback wants to
    represent?** §6.3 shows there is no representable binding for "development

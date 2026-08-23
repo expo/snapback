@@ -6,7 +6,11 @@
 Auth, Assets, Offline, Testing, Hosted environments, Code generation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-21 (y) — Supervised AppBindings now refresh lazily at
+**Revised:** 2026-08-23 (z) — iOS carrier ruling addendum: defer the F-A2-4
+measurement, schedule the Android USB native receipt, and classify private
+overlays as unsupported experimental fronts pending a separately admitted
+design; the NOT-YET local-iOS posture and A3-closed gate remain unchanged.
+2026-08-21 (y) — Supervised AppBindings now refresh lazily at
 bootstrap exchange inside a bounded window. Concurrent exchanges join one
 supervisor-owned publication; refresh preserves every fact except issuance and
 expiry, loses to any newer descriptor/backend rotation, emits bearer-free
@@ -85,15 +89,17 @@ origin admission now refuses loopback names and private IP literals, and the
 framework-neutral application client accepts only the exact binding object
 returned by generated-target-and-receipt admission. This revision deliberately
 does not classify DNS names: DNS-named private origins remain outside the
-client arm's guarantees while packet ruling 6 stays open.
+client arm's guarantees; the 2026-08-23 addendum now classifies such private
+overlays as unsupported experimental fronts pending a separately admitted
+design.
 **Revised:** 2026-08-15 (o) — Executes Charlie Cheever's accepted iOS
 physical-device carrier ruling recorded in
-`issues/20260811-ios-physical-device-dev-carrier-decision-packet.md`: topology
+`issues/closed/20260811-ios-physical-device-dev-carrier-decision-packet.md`: topology
 (c) is adopted and `source: "hosted-development"` makes a development bundle
 against an already-admitted hosted HTTPS backend representable without adding
 a listener, relay, tunnel, or E5 carrier. The LLP 0168 successor-RFC gate stays
 closed on A3 grounds; a client using the admitted hosted target is outside that
-edge gate. Rulings 4–6 remain open.
+edge gate. At that revision, rulings 4–6 remained open.
 **Revised:** 2026-08-15 (n) — Reconciles ordinary-session custody ownership
 **Revised:** 2026-08-16 (o) — Records the supervised-browser compatibility
 projection: LLP 0030 may put its same-origin relative Vite relay base in the
@@ -1470,7 +1476,7 @@ non-opted-in provider path retains its prior contract unchanged.
 ## Amendment — 2026-08-15 (iOS physical-device carrier ruling)
 
 Charlie Cheever accepted the NOT-YET recommendation and topology (c) in
-`issues/20260811-ios-physical-device-dev-carrier-decision-packet.md`. Packet
+`issues/closed/20260811-ios-physical-device-dev-carrier-decision-packet.md`. Packet
 ruling 1 is implemented by the `hosted-development` arm specified above:
 development bundle, separately admitted development asset carrier, and an
 already-admitted hosted HTTPS backend. The arm's generated-target match and
@@ -1487,6 +1493,10 @@ Packet ruling 2 places a client pointing at that already-admitted hosted target
 outside LLP 0168's front-edge gate. Packet ruling 3 scopes LLP 0168 A1 to its
 browser carrier and leaves a native carrier's own A1 to its future owner. The
 NOT-YET local iOS nonclaim and A3-closed successor-RFC gate remain in force.
-Packet rulings 4–6 — F-A2-4 blast-radius measurement, the Android USB live
-receipt, and private-overlay posture — remain visibly open and are not changed
-by this amendment.
+**Author addendum — 2026-08-23.** Packet rulings 4–6 are closed: do not spend
+current effort on the F-A2-4 loopback-auth blast-radius measurement; schedule
+the Android USB native receipt through
+`issues/20260823-android-usb-native-live-device-receipt.md`; and treat a
+peer-authenticated private overlay as an unsupported experimental front, not
+an admitted carrier, until a separate reviewed design says otherwise. None of
+these rulings claims an iOS local carrier or advances E5.

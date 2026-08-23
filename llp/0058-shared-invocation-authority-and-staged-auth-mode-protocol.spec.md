@@ -1405,7 +1405,7 @@ openings carry no app admission authority and are deliberately unfenced.
 settlement, push settlement and capability-use settlement truthfully settle an
 outcome that has already been caused. Fencing them against a retired caller
 would not prevent the effect — it would strand the reservation and hide the
-outcome. See `issues/20260821-terminal-accounting-settlement-ruling.md`.
+outcome. See `issues/closed/20260821-terminal-accounting-settlement-ruling.md`.
 
 **Irreversible and external effects are withheld, not fenced.** Holding a guard
 across the moment of irreversibility is too late; authority transfers to a

@@ -1,11 +1,16 @@
 # Terminal accounting: do Ask/push/capability settlements need a caller fence? (ruling packet)
 
-Status: Open — needs an author ruling on ONE question (below); two of the three need no change
+Status: Ruled 2026-08-22 — retirement blocks new handoffs; durable predecessors
+own completion and settlement
 Created: 2026-08-21
 Related: issues/20260821-authorized-effect-remedy-classification.md,
 issues/20260821-durable-authority-to-effect-handoff-design.md, LLP 0204
 
-## The question the author has to answer
+## Author ruling — 2026-08-22
+
+Retirement blocks new handoffs only. Once an exact durable predecessor owns
+the effect, it also owns completion and settlement; retirement does not
+retroactively veto it. The question below is retained as the decision record.
 
 When a live caller authorizes a durable handoff and then logs out or is revoked, does retirement:
 

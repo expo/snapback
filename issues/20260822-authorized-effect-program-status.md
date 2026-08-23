@@ -38,29 +38,41 @@ including four regressions the fences themselves introduced.
 - **Residual findings 4 and 5** — watch renewal/management, denial/revocation.
   `issues/20260822-residual-findings-4-9-disposition.md`.
 - **Stream refactor R1–R3** — `issues/20260822-stream-attempt-refactor-design.md`.
+- **External/irreversible effects** — the general handoff direction and three
+  product rulings were accepted 2026-08-23. Webhook, Ask, and Expo corrections
+  are tracked by `issues/20260823-webhook-attempt-authority-handoff.md`,
+  `issues/20260823-ask-per-turn-authority-handoff.md`, and
+  `issues/20260823-expo-push-reservation-authority-handoff.md`.
 
-## Open, blocked on author rulings
+## Author rulings resolved 2026-08-22
 
-1. **Detached-action ownership** — is a detached action the caller's effect or the system's once
-   accepted? Blocks Critical 1.
-2. **OAuth consent atomicity** — may a grant survive code-issuance failure? Blocks the OAuth
-   storage refactor.
-3. **Watchdog vs never-wait-for-Local** — blocks stream R4.
-4. **Terminal accounting** — does retirement block only new handoffs, or retroactively veto
-   settlement? `issues/20260821-terminal-accounting-settlement-ruling.md` recommends the former;
-   two of the three settlements need no change either way.
-5. **Capsule rollout** — common deadline budget vs per-operation; automatic retry for all calls or
-   only idempotency-bearing ones.
+All five questions below were ruled in
+`issues/20260822-author-rulings-fence-program.md`; none remains an author
+blocker. Individual implementation packets may still carry stale pre-ruling
+status lines until reconciled.
 
-## Deferred with a recorded design
+1. **Detached actions are caller-bound.** Terminal refusal latches failure;
+   later authority-bearing host calls refuse.
+2. **OAuth consent is atomic.** Grant and authorization-code issuance are one
+   approval result.
+3. **Watchdog settlement is bounded and durable.** Handler execution stays
+   time-bounded; the response waits for the bounded terminal transaction.
+4. **Retirement blocks new handoffs only.** The durable predecessor owns
+   completion and settlement; see
+   `issues/closed/20260821-terminal-accounting-settlement-ruling.md`.
+5. **Capsules use a common five-second default and narrow retry.** Automatic
+   retry is limited to exact unchanged idempotency-bearing operations.
+
+## Deferred or sequenced with a recorded design
 
 - **Watch creation** — `issues/20260822-watch-creation-fence-design-decision.md`. Decided:
   restrict the anchor rather than witness state. Stays mode-only until four prerequisites exist.
   Extracted after six review rounds; `issues/20260822-watch-creation-fence-needs-a-design.md`
   records why.
-- **External/irreversible effects** — withhold rather than fence.
-  `issues/20260821-durable-authority-to-effect-handoff-design.md`. 4 of 9 need work; 5 are already
-  correct.
+- **Remaining external/irreversible effects** — withhold rather than fence.
+  `issues/20260821-durable-authority-to-effect-handoff-design.md` is accepted
+  direction; arbitrary fetch, TUS, canonical staging, and asset ordering retain
+  their own sequencing or unresolved implementation details.
 
 ## Program-level defects found along the way
 

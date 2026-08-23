@@ -1,6 +1,6 @@
 # Decide a supported iOS physical-device development carrier
 
-**Status:** Open
+**Status:** Closed — all six packet rulings resolved 2026-08-23
 **Impact:** 4
 **Urgency:** 2
 **Ease:** 1
@@ -18,7 +18,8 @@
 separately admitted development asset carrier, and holds the LLP 0168
 successor-RFC gate closed (not-yet) on A3 grounds. Charlie Cheever accepted the
 recommendation and rulings 1–3 on 2026-08-15; the execution record below names
-the implemented-in-lane amendments. Rulings 4–6 remain open.
+the implemented-in-lane amendments. The 2026-08-23 addendum below closes
+rulings 4–6.
 
 ## Problem
 
@@ -156,7 +157,22 @@ The commissioned items are executed in the iOS-carrier documentation lane:
 
 The accepted NOT-YET result remains unchanged: iOS physical-device **local**
 development is still an explicit nonclaim and the LLP 0168 successor-RFC gate
-is still closed on A3 grounds. This ticket remains **Open only for rulings
+is still closed on A3 grounds. At that revision, this ticket remained **Open only for rulings
 4–6**: F-A2-4 blast-radius measurement scheduling, the Android USB live receipt
 schedule, and the private-overlay carrier question. This execution does not
 answer or schedule any of them.
+
+## Final ruling addendum — 2026-08-23
+
+Author ruling (Charlie Cheever, 2026-08-23):
+
+- **Ruling 4:** do not prioritize the F-A2-4 loopback-auth blast-radius
+  measurement while the local edge remains NOT-YET.
+- **Ruling 5:** schedule the Android USB native live-device receipt in
+  `issues/20260823-android-usb-native-live-device-receipt.md`.
+- **Ruling 6:** classify peer-authenticated private-overlay delivery as an
+  unsupported experimental front, not a carrier, until a separate reviewed
+  design explicitly admits it.
+
+All packet rulings are now resolved. The local-iOS nonclaim and A3-closed gate
+remain unchanged; implementation/evidence work continues in its named ticket.
