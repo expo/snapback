@@ -1,4 +1,8 @@
-# The two-axis defect is systemic: 153 sites, one root cause
+# The two-axis defect is systemic: one root cause, ~48 real guard sites
+
+> **Corrected 2026-08-24.** The original title and counts said "153 sites". That number
+> conflated generic-bound *occurrences* with actual guard acquisitions. See
+> "Correction" at the end. The root cause and its consequences are unchanged.
 
 Status: open
 Date: 2026-08-23
@@ -87,3 +91,65 @@ three fences at a time.
 
 This needs its own reviewed design before implementation; it touches every guarded write in the
 system. It should probably supersede the remaining per-path fence work in LLP 0283 F-1.
+
+
+## Correction (2026-08-24) — counts, mechanism, and completeness
+
+A follow-up feasibility pass re-derived the population from code. Three of this ticket's
+claims were wrong or misleading. I verified each correction directly.
+
+**1. "153 sites" conflates two different things.** The 99 kernel entries are 99
+`BeforeCommit: FnOnce() -> SnapbackResult<G>` *generic-bound occurrences* — including three
+bodyless trait declarations, their three implementations, a test-only helper, and many layers
+forwarding the same closure. They converge on **eight** actual `before_commit()` invocation
+points. They are not 99 independent authority seams.
+
+The real reachable population for a guard-signature change is roughly **45 production
+`AuthorizedEffectReservation::{commit_guard,commit_guard_classified}` calls in `engine.rs`**
+(49 textual occurrences including definitions and match arms), plus the eight raw
+`AdmissionEffectGuard` paths, plus the eight kernel cut points.
+
+**2. `let _ = effect` does NOT discard the guard.** This ticket said the eight raw-guard
+bodies "literally discard the guard (`let _ = effect`) before writing." That is wrong. The
+parameter is a borrowed reference — `effect: &AdmissionEffectGuard<'_>`
+(`crates/snapback-engine/src/local/engine.rs:5703`) — so the caller-owned RAII guard remains
+alive across the database call. Admission/epoch protection is intact at those sites. What is
+discarded is any ability to *inspect or correlate* the guard. The defect is narrower and more
+precise than stated: missing correlation, not missing admission.
+
+**3. The population was incomplete.** `server.rs:932` performs
+`commit_guard_classified("detached action child mutation commit")` inside
+`NestedActionEffectCommitGuard` and sits outside the enumerated engine population. A sweep
+that misses a guard call is not a closed enumeration.
+
+**4. This ticket carries no site table**, so its counts were not independently checkable — a
+gap I introduced by summarizing rather than recording. Any future claim of a closed population
+must land the table with it.
+
+**5. The two commit-capsule calls are already structurally correlated**, because
+`CommitCapsuleReservation` stores both the authority and the reservation. They are prior art,
+not defect sites.
+
+### Feasibility buckets
+
+Can each site produce a subject authority where it needs the guard?
+
+| Bucket | Count |
+|---|---:|
+| A. Has one in scope | 40 |
+| B. Has one upstream (threadable) | 90 |
+| C. Genuinely unscoped at this signature | 23 |
+| D. Several ambiguous candidates | 0 |
+
+Bucket C is conservative: a shared generic signature was classified C if *any* legitimate
+production use of it is unscoped. Those 23 are why a non-caller mechanism is unavoidable, which
+supports — rather than undercuts — the separate closed carriers in
+`issues/20260823-mandatory-authority-correlation-design.md`. There is no bucket D, so no site
+requires guessing which of several authorities is the subject.
+
+### What does not change
+
+The root cause stands exactly as recorded: `AuthorizedEffectReservation` retains its own cloned
+`PreparedAuthority` and exposes no accessor and no comparison API, so the correlation is
+unexpressible rather than merely omitted. The three confirmed live defects stand. The direction
+stands. Only the headline number, the raw-guard mechanism, and the completeness claim were wrong.
