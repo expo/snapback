@@ -42,6 +42,10 @@ const bobCredentials = {
   email: 'bob@example.com',
   password: 'Bob!Clique2026',
 };
+const carolCredentials = {
+  email: 'carol@example.com',
+  password: 'Carol!Clique2026',
+};
 const erinCredentials = {
   email: 'erin@example.com',
   password: 'Erin!Clique2026',
@@ -528,10 +532,63 @@ integrationTest(
       await clientAM3Chats.next((rows) => rows.some((chat) => (
         chat.id === mappedGroup.chatId && chat.memberIds.includes('carol')
       )));
+      const clientM3Carol = provider();
+      mutationValue(
+        await clientM3Carol.mutate('login', carolCredentials),
+        'client M3 Carol login',
+      );
+      const aliceMappedTyping = readyStream<TypingParticipant[]>(
+        clientA,
+        'observeTyping',
+        { chatId: mappedGroup.chatId },
+      );
+      const carolMappedTyping = readyStream<TypingParticipant[]>(
+        clientM3Carol,
+        'observeTyping',
+        { chatId: mappedGroup.chatId },
+      );
+      subscriptions.add(aliceMappedTyping);
+      subscriptions.add(carolMappedTyping);
+      await Promise.all([
+        aliceMappedTyping.next((rows) => rows.length === 0),
+        carolMappedTyping.next((rows) => rows.length === 0),
+      ]);
+      const carolTypingVisible = aliceMappedTyping.nextFuture((rows) => (
+        rows.some((row) => row.userId === 'carol')
+      )).catch((error) => {
+        throw new Error('timed out waiting for Carol typing before removal', { cause: error });
+      });
+      mutationValue(
+        await clientM3Carol.mutate('setTyping', { chatId: mappedGroup.chatId, active: true }),
+        'Carol setTyping before removal',
+      );
+      expect(await carolTypingVisible).toContainEqual(expect.objectContaining({
+        chatId: mappedGroup.chatId,
+        userId: 'carol',
+      }));
       mutationValue(
         await clientA.mutate('promoteAdmin', { chatId: mappedGroup.chatId, userId: 'bob' }),
         'promoteAdmin operation matrix',
       );
+      const promotedAdminTypingVisible = aliceMappedTyping.nextFuture((rows) => (
+        rows.some((row) => row.userId === 'bob')
+      )).catch((error) => {
+        throw new Error('timed out waiting for promoted-admin typing', { cause: error });
+      });
+      mutationValue(
+        await clientM3B.mutate('setTyping', { chatId: mappedGroup.chatId, active: true }),
+        'promoted admin retains typing membership',
+      );
+      expect(await promotedAdminTypingVisible).toContainEqual(expect.objectContaining({
+        chatId: mappedGroup.chatId,
+        userId: 'bob',
+      }));
+      const carolTypingTerminal = carolMappedTyping.nextFutureCell((cell) => (
+        cell.status === 'error'
+      ));
+      const carolTypingRemoved = aliceMappedTyping.nextFuture((rows) => (
+        !rows.some((row) => row.userId === 'carol')
+      ));
       mutationValue(
         await clientM3B.mutate('removeMember', {
           chatId: mappedGroup.chatId,
@@ -539,6 +596,38 @@ integrationTest(
         }),
         'removeMember operation matrix',
       );
+      expect(await carolTypingTerminal).toMatchObject({
+        status: 'error',
+        error: {
+          name: 'ChatMembershipRequiredError',
+          message: 'Conversation membership is required.',
+        },
+      });
+      expect(await carolTypingRemoved).not.toContainEqual(expect.objectContaining({
+        userId: 'carol',
+      }));
+      const carolTerminalCellCount = carolMappedTyping.cells.length;
+      expect(await clientM3Carol.mutate('setTyping', {
+        chatId: mappedGroup.chatId,
+        active: true,
+      })).toMatchObject({
+        ok: false,
+        error: {
+          name: 'ChatMembershipRequiredError',
+          message: 'Conversation membership is required.',
+        },
+      });
+      const survivorPostRevocationTyping = aliceMappedTyping.nextFuture((rows) => (
+        !rows.some((row) => row.userId === 'bob')
+      )).catch((error) => {
+        throw new Error('timed out waiting for survivor typing after revocation', { cause: error });
+      });
+      mutationValue(
+        await clientM3B.mutate('setTyping', { chatId: mappedGroup.chatId, active: false }),
+        'survivor clears typing after Carol removal',
+      );
+      await survivorPostRevocationTyping;
+      expect(carolMappedTyping.cells).toHaveLength(carolTerminalCellCount);
       await clientAM3Chats.next((rows) => rows.some((chat) => (
         chat.id === mappedGroup.chatId && !chat.memberIds.includes('carol')
       )));

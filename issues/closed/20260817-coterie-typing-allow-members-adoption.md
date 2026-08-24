@@ -60,18 +60,19 @@ Coterie's backend acceptance carries anonymous, authenticated non-member, and
 former-member observer and writer denials. Existing incarnation churn,
 receipt, unread/rejoin, quote/privacy, message-envelope, and chat-envelope
 proofs remain green. The byte-frozen Exact v8 declaration and its generated
-declaration products are byte-identical to `HEAD`.
+declaration products are byte-identical to `origin/main`.
 
 Verification:
 
-- Coterie M3 backend acceptance with both runtime/server binaries — 16/16
-- Coterie Snapback adapter integration with both binaries — 15/15, 274 assertions
+- Coterie M3 backend acceptance with both runtime/server binaries — 14/14
+  named M3 subtests (the Node summary also counts the parent harness and the
+  standalone receipt-envelope test)
+- Coterie Snapback adapter integration with both binaries — 1/1 integration
+  test, 104 assertions
 - shared Coterie Snapback provider proof — 30/30, zero skipped claims
 - shared Coterie memory provider proof — 30/30, zero skipped claims
-- Coterie Snapback adapter unit tests — 14/14
+- Coterie Snapback adapter unit tests — 14/14, 176 assertions
 - Coterie Snapback codegen — 13 tables, 39 operations, one ephemeral collection
-- `node scripts/check-guide.mjs` — 22/22
-- `node scripts/check-inventories.mjs`
 - `./ref-check --verbose`
 
 Landing SHA: TBD

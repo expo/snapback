@@ -234,6 +234,11 @@ try {
   assert.equal(terminalChanges[0].details.reason, 'AuthRevoked');
   assert.equal(terminalChanges[0].details.roomAuthorityGeneration, 2);
   assert.deepEqual(overlay.currentEntries({ prune: false }), []);
+  await assert.rejects(
+    overlay.publish({ online: true }),
+    (error) => error?.diagnostic?.code === 'SNAPBACK_AUTH_PERMISSION_DENIED',
+    'a terminal overlay refuses publish locally from its latched diagnostic',
+  );
   assert.equal(overlay.apply(snapshot('authority-b')), 'terminal_error');
   assert.equal(terminalChanges.length, 1, 'no later frame reopens or renotifies the terminal overlay');
   let lateTerminalNotifications = 0;

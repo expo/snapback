@@ -1214,6 +1214,7 @@ export interface EphemeralRoomHandle<Value> {
 
 export class EphemeralOverlay<Scope = Record<string, unknown>, Value = unknown> {
   readonly scope: Scope;
+  readonly terminalDiagnostic: SnapbackDiagnostic | null;
   onChange(
     listener: (result: string, overlay: EphemeralOverlay<Scope, Value>) => void,
   ): () => void;
@@ -2269,6 +2270,17 @@ export class SnapbackClient {
       readonly permissions?: readonly string[];
     },
   ): Promise<EphemeralOverlay<EphemeralScope<Ref>, EphemeralValue<Ref>>>;
+  unsubscribeEphemeral<
+    Ref extends string | SnapbackEphemeralReference<string, unknown, unknown>,
+  >(
+    ref: Ref,
+    options: {
+      readonly connectionId: string;
+      readonly scope?: EphemeralScope<Ref>;
+      readonly userId?: string;
+      readonly permissions?: readonly string[];
+    },
+  ): Promise<unknown>;
   registerEphemeralRepublisher<
     Ref extends string | SnapbackEphemeralReference<string, unknown, unknown>,
   >(

@@ -193,6 +193,7 @@ interface ProfileSubscription<T> {
 interface LiveHandle {
   readonly rows: readonly unknown[] | null;
   readonly connection: unknown;
+  readonly terminalDiagnostic?: unknown;
   dispose(): void | Promise<void>;
 }
 
@@ -379,12 +380,7 @@ async function unsubscribeTyping(
   connectionId: string,
   conversationId: GeneratedDataModel['conversations']['_id'],
 ): Promise<void> {
-  await (client as unknown as {
-    unsubscribeEphemeral(
-      ref: unknown,
-      options: { connectionId: string; scope: { conversationId: string } },
-    ): Promise<unknown>;
-  }).unsubscribeEphemeral(api.ephemeral.typing, {
+  await client.unsubscribeEphemeral(api.ephemeral.typing, {
     connectionId,
     scope: { conversationId },
   });
@@ -2117,6 +2113,20 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
           subscription.observer(readyCell(subscription.lastValue, next));
         }
       };
+      const publishError = (error: unknown): void => {
+        pendingDelivery = pendingDelivery.then(() => {
+          if (!subscription.active || subscription.generation !== generation) return;
+          const cacheKey = this.#m3CacheKey(subscription.queryName, subscription.args);
+          this.#m3Cache.delete(cacheKey);
+          subscription.lastValue = undefined;
+          subscription.connection = 'disconnected';
+          subscription.observer({
+            status: 'error',
+            error: serialized(declaredError(subscription.queryName, error)),
+            connection: 'disconnected',
+          });
+        });
+      };
       try {
         await this.#refreshProfileIdentityIndex();
         const connectionId =
@@ -2151,7 +2161,12 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
             'ChatNotFoundError',
             'Conversation was not found.',
           ) as GeneratedDataModel['conversations']['_id'];
-          handle = await this.#typingLiveHandle(conversationId, connectionId, publishRows);
+          handle = await this.#typingLiveHandle(
+            conversationId,
+            connectionId,
+            publishRows,
+            publishError,
+          );
         } else {
           throw unclaimedOperationRefusal(subscription.queryName);
         }
@@ -2161,7 +2176,11 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
         }
         subscription.handle = handle;
         subscription.connection = toConnection(handle.connection);
-        await publishRows(handle.rows);
+        if (handle.terminalDiagnostic == null) {
+          await publishRows(handle.rows);
+        } else {
+          await pendingDelivery;
+        }
       } catch (error) {
         if (!subscription.active || subscription.generation !== generation) return;
         subscription.observer({
@@ -2220,7 +2239,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
         id: this.#externalProfileId(member.profileId),
         displayName: member.displayName,
         avatarUrl: member.avatar ? this.#assetUrl(member.avatar) : null,
-        isAdmin: row.kind === 'group' && member.role === 'admin',
+        isAdmin: member.role === 'admin',
         isMe: member.profileId === this.#currentBackendProfileId,
       }));
       const counterpart = row.kind === 'dm'
@@ -2237,7 +2256,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
         kind: row.kind,
         memberIds: members.map((member) => member.id),
         members,
-        currentUserIsAdmin: row.kind === 'group' && row.active && row.viewerRole === 'admin',
+        currentUserIsAdmin: row.active && row.viewerRole === 'admin',
         currentUserIsMember: row.active,
         typingHint: null,
         latestReceiptStatus:
@@ -2313,6 +2332,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     conversationId: GeneratedDataModel['conversations']['_id'],
     connectionId: string,
     publishRows: (rows: readonly unknown[] | null) => Promise<void>,
+    publishError: (error: unknown) => void,
   ): Promise<LiveHandle> {
     const scope = { conversationId };
     const overlay = await this.#client.subscribeEphemeral(api.ephemeral.typing, {
@@ -2320,6 +2340,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       scope,
     });
     let active = true;
+    let terminal = false;
     let expiryTimer: ReturnType<typeof setTimeout> | null = null;
     const clearExpiry = () => {
       if (expiryTimer !== null) clearTimeout(expiryTimer);
@@ -2327,24 +2348,33 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     };
     const scheduleExpiry = () => {
       clearExpiry();
-      if (!active) return;
+      if (!active || terminal) return;
       const entries = overlay.currentEntries();
       if (entries.length === 0) return;
       const nextExpiry = Math.min(...entries.map((entry) => entry.expiresAtMs));
       expiryTimer = setTimeout(() => {
         expiryTimer = null;
-        if (!active) return;
+        if (!active || terminal) return;
         void publishRows(overlay.currentEntries()).then(scheduleExpiry);
       }, Math.max(0, nextExpiry - Date.now()));
     };
-    const off = overlay.onChange(() => {
+    const off = overlay.onChange((result) => {
       if (!active) return;
+      if (result === 'terminal_error') {
+        terminal = true;
+        clearExpiry();
+        publishError(overlay.terminalDiagnostic);
+        return;
+      }
       void publishRows(overlay.currentEntries()).then(scheduleExpiry);
     });
     scheduleExpiry();
     return {
       get rows() {
         return overlay.currentEntries();
+      },
+      get terminalDiagnostic() {
+        return overlay.terminalDiagnostic;
       },
       connection: 'live',
       dispose: async () => {

@@ -363,6 +363,30 @@ test('Coterie Snapback M3 backend', { timeout: 1_800_000 }, async (t) => {
     );
     assert(churnChat.members.every(({ active }) => active));
 
+    const churnAliceConnection = 'coterie-m3-typing-churn-alice';
+    const churnBobConnection = 'coterie-m3-typing-churn-bob';
+    const churnAliceOverlay = await alice.client.subscribeEphemeral(api.ephemeral.typing, {
+      connectionId: churnAliceConnection,
+      scope: { conversationId: churnGroup },
+    });
+    const churnBobOverlay = await bob.client.subscribeEphemeral(api.ephemeral.typing, {
+      connectionId: churnBobConnection,
+      scope: { conversationId: churnGroup },
+    });
+    try {
+      await churnBobOverlay.publish(typingValue(bob), { ttlMs: 5_000 });
+      await eventually(() => {
+        assert(churnAliceOverlay.currentEntries().some(
+          (entry) => entry.value.userId === 'bob',
+        ));
+      }, 'canonical typing membership did not survive incarnation churn', 2_000);
+    } finally {
+      await Promise.all([
+        releaseTyping(alice.client, churnAliceOverlay, churnAliceConnection, churnGroup),
+        releaseTyping(bob.client, churnBobOverlay, churnBobConnection, churnGroup),
+      ]);
+    }
+
     const recipientProbe = (await alice.client.mutate(api.sendMessage, {
       args: { conversationId: churnGroup, body: 'Recipient projection probe.' },
     })).result;
@@ -502,14 +526,21 @@ test('Coterie Snapback M3 backend', { timeout: 1_800_000 }, async (t) => {
     const formerObserver = await alice.client.subscribeEphemeral(api.ephemeral.typing, {
       connectionId: formerObserverConnection,
       scope: formerScope,
+      transport: 'poll',
     });
     const formerWriter = await carol.client.subscribeEphemeral(api.ephemeral.typing, {
       connectionId: formerWriterConnection,
       scope: formerScope,
+      transport: 'poll',
+    });
+    const formerWriterResults = [];
+    const offFormerWriter = formerWriter.onChange((result) => {
+      formerWriterResults.push(result);
     });
     try {
       await formerWriter.publish(typingValue(carol), { ttlMs: 5_000 });
-      await eventually(() => {
+      await eventually(async () => {
+        await formerObserver.drain();
         assert(formerObserver.currentEntries().some(
           (entry) => entry.value.userId === 'carol',
         ));
@@ -517,7 +548,47 @@ test('Coterie Snapback M3 backend', { timeout: 1_800_000 }, async (t) => {
       await alice.client.mutate(api.removeMember, {
         args: { conversationId: formerConversation, profileId: carol.profile._id },
       });
+      await eventually(async () => {
+        await Promise.all([formerObserver.drain(), formerWriter.drain()]);
+        assert.equal(
+          formerWriter.terminalDiagnostic?.code,
+          'SNAPBACK_AUTH_PERMISSION_DENIED',
+        );
+        assert.equal(formerWriter.terminalDiagnostic?.details?.reason, 'AuthRevoked');
+      }, 'the already-live former-member overlay did not become terminal', 20_000);
+      assert.equal(
+        formerWriterResults.filter((result) => result === 'terminal_error').length,
+        1,
+        'the former-member overlay must publish exactly one terminal boundary',
+      );
+      await expectPermissionDenied(
+        formerWriter.publish(typingValue(carol), { ttlMs: 5_000 }),
+        'existing former-member writer overlay',
+      );
+      await eventually(() => {
+        assert.equal(
+          formerObserver.currentEntries().some((entry) => entry.value.userId === 'carol'),
+          false,
+        );
+      }, 'the survivor did not receive Carol\'s AuthRevoked removal', 20_000);
+
+      const terminalChangeCount = formerWriterResults.length;
+      await formerObserver.publish(typingValue(alice), { ttlMs: 5_000 });
+      await eventually(async () => {
+        await formerObserver.drain();
+        assert(formerObserver.currentEntries().some(
+          (entry) => entry.value.userId === 'alice',
+        ));
+      }, 'the survivor did not receive a post-revocation typing frame', 20_000);
+      await formerWriter.drain();
+      assert.equal(
+        formerWriterResults.length,
+        terminalChangeCount,
+        'no frame may notify the terminal former-member overlay',
+      );
+      assert.deepEqual(formerWriter.currentEntries({ prune: false }), []);
     } finally {
+      offFormerWriter();
       await Promise.all([
         releaseTyping(
           alice.client,

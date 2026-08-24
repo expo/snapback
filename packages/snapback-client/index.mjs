@@ -19972,6 +19972,18 @@ export class EphemeralOverlay {
   }
 
   publish(value, options = {}) {
+    // @ref LLP 0013#capability-fixture-obligations — a membership-denied
+    // overlay generation is terminal. Refuse locally from the trusted
+    // diagnostic so a writer cannot depend on a later server round trip to
+    // rediscover the revocation.
+    if (this.terminalDiagnostic !== null) {
+      return Promise.reject(new SnapbackDiagnosticError(this.terminalDiagnostic, {
+        operation: 'ephemeral-publish',
+        refKind: 'ephemeralCollectionReference',
+        effectCommitted: false,
+        effectMayHaveCommitted: false,
+      }));
+    }
     return this.client.publishEphemeral(this.ref, {
       connectionId: options.connectionId ?? this.connectionId,
       scope: this.scope,
