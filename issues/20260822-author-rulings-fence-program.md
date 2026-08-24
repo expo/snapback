@@ -109,9 +109,9 @@ classifications provisional.
 
 ## What remains genuinely open
 
-Not rulings, but decisions needing repository context rather than program context:
-
-- Whether `demos/competitive-checkpoint/.../api.d.mts` is still a consumer-committed publication
-  leaf (`issues/20260822-agent-safe-publication-leaf-set-red-on-main.md`).
-- Whether `check-inventories` should become a required CI job
-  (`issues/20260821-check-inventories-has-no-mechanical-enforcement.md`).
+Nothing in this packet remains an author blocker. The two repository-context
+questions listed here originally were resolved later on 2026-08-22: the stale
+`api.d.mts` reviewed row was removed, and `check-inventories` gained its CI
+workflow. Their records are in
+`issues/closed/20260822-agent-safe-publication-leaf-set-red-on-main.md` and
+`issues/closed/20260821-check-inventories-has-no-mechanical-enforcement.md`.

@@ -1,6 +1,6 @@
 # Authorized-effect fence program: what is landed, what is open, what is blocked
 
-Status: Open — index; update as items close
+Status: Open — current through the 2026-08-23 appendices; earlier inventories are dated snapshots
 Created: 2026-08-22
 Related: LLP 0283 F-1, LLP 0058
 
@@ -12,11 +12,16 @@ the individual documents do not say where the program stands.
 > An ordinary session or scoped-service caller cannot commit a durable write after their own
 > authority has gone terminal.
 
+LLP 0297 now defines “durable write” here as a caller-attributable durable
+effect, with a closed, enumerated, gated boundary for genuinely auxiliary
+writes. It resolves the former literal-versus-effect-based ambiguity without
+silently reclassifying any existing exposure.
+
 **It is not true yet.** `issues/20260821-residual-caller-terminal-write-exposure.md` measured the
 aggregate rather than the site count and found the ordinary mutation seam sound while direct routes
 still violate it. Counting fenced sites overstates progress; that ticket is the honest measure.
 
-## Landed
+## Landed — 2026-08-22 baseline
 
 | What | Commit |
 |---|---|
@@ -29,7 +34,7 @@ Every fenced site carries a mutation test that fails when its own fence is remov
 landings were reviewed independently by two models; between them review found ~12 defects,
 including four regressions the fences themselves introduced.
 
-## Open, unblocked
+## Open, unblocked — 2026-08-22 baseline
 
 - **Asset follow-ups** (`lane/assetfix`) — 409 retry, plan-proof enforcement, width convergence.
   In its fifth review round.
@@ -49,7 +54,8 @@ including four regressions the fences themselves introduced.
 All five questions below were ruled in
 `issues/20260822-author-rulings-fence-program.md`; none remains an author
 blocker. Individual implementation packets may still carry stale pre-ruling
-status lines until reconciled.
+historical alternatives, but their current status lines were reconciled on
+2026-08-23.
 
 1. **Detached actions are caller-bound.** Terminal refusal latches failure;
    later authority-bearing host calls refuse.

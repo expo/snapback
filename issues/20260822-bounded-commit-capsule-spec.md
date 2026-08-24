@@ -1,6 +1,6 @@
 # Spec: the bounded commit capsule
 
-Status: Open — implementable; two rollout rulings needed before adoption (not before prototyping)
+Status: Open — prototype landed; rollout rulings resolved; route-by-route adoption remains
 Created: 2026-08-22
 Related: issues/20260822-permits-pin-logout-on-unbounded-local-wait.md,
 issues/20260822-critical-direct-route-fence-design.md,
@@ -84,7 +84,12 @@ transaction (recommended for OAuth, watch resume, clocks, denials, revocations),
 COMMIT as `CommitStarted`, permit no timeout thereafter, and reconcile the whole tuple. **A timeout
 after one sibling has committed may never claim `effectCommitted: false`.**
 
-## AUTHOR RULINGS — needed before adoption, not before prototyping
+## AUTHOR RULINGS — RESOLVED 2026-08-22
+
+The author selected the recommended common five-second default with explicit
+per-site overrides, and automatic retry only for exact, unchanged,
+idempotency-bearing operations. See
+`issues/20260822-author-rulings-fence-program.md`.
 
 1. **Deadline budget:** one common default, or per-operation declared budgets? Recommended: a
    common five-second default with explicit per-site overrides — and framed as a final-cut

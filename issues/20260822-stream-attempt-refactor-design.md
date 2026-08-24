@@ -1,6 +1,6 @@
 # Design: the stream-attempt refactor that must land before any stream fence
 
-Status: Open — R1–R3 implementable now; R4 blocked on one author ruling (below)
+Status: Open — R1 and R2 landed; R3 needs its recorded API amendment; R4 ruling resolved
 Created: 2026-08-22
 Related: issues/20260821-stream-attempt-fence-blocked-on-flush-api.md,
 issues/20260821-residual-caller-terminal-write-exposure.md, LLP 0058, LLP 0076, LLP 0204
@@ -25,7 +25,7 @@ authority and publication carriers.
 **Terminal cause is never consulted.** Cause and `settled_by` are already orthogonal, so `complete`
 cannot imply caller or host provenance. That is the precise defect the current code has.
 
-## Staged migration — R1–R3 implementable now
+## Staged migration — R1/R2 landed; R3/R4 remain
 
 | Stage | Change | Boundary invariant |
 |---|---|---|
@@ -55,7 +55,12 @@ failure becomes all-or-nothing. A failed required caller flush is aborted rather
 available for an unrelated trusted flush. **A completed watchdog timeout survives database reopen
 as `timed_out`** instead of being reconciled to `failed`.
 
-## AUTHOR RULING REQUIRED — blocks R4 only
+## AUTHOR RULING — RESOLVED 2026-08-22
+
+The author selected a bounded terminal transaction: handler execution remains
+time-bounded, while the response waits for durable terminal settlement;
+permanent storage failure returns a storage failure and retains an owned
+retry. See `issues/20260822-author-rulings-fence-program.md`.
 
 **Watchdog durability versus the never-wait-for-Local rule.** The watchdog today explicitly
 refuses to wait for `LocalSnapback` (`crates/snapback-server/src/server.rs:2999`), because a wedged
@@ -405,7 +410,7 @@ R4:
 - Admission no-self-deadlock test: after the final guard is returned, only `tx.commit()` runs.
 - File-backed test: wait for watchdog response, drop all shared state, reopen the database in a fresh `LocalSnapback`, and assert `timed_out`/`Terminalizer`. The current watchdog test reuses the same shared process state instead. [server/tests.rs:27611](crates/snapback-server/src/server/tests.rs:27611) [server/tests.rs:27672](crates/snapback-server/src/server/tests.rs:27672)
 
-## Required author rulings
+## Author rulings and remaining design input
 
 1. **Watchdog durability versus never waiting for Local.** The current watchdog explicitly refuses to wait for `LocalSnapback`, because a wedged owner could defeat the timeout. [server.rs:2999](crates/snapback-server/src/server.rs:2999) A crash-safe `timed_out` linearization using the existing database owner requires acquiring Local before the runner gate.
 
@@ -415,7 +420,8 @@ R4:
    - Preserve the no-Local-wait rule by designing a separate host settlement connection/lane. This is materially larger and must address reset/schema/SQLite-writer ordering.
    - Return timeout before durability and retry in the background. This does not satisfy the requested immediate-reopen guarantee.
 
-   R4 should not land until the author selects one.
+   **Resolved 2026-08-22:** the author selected the recommended bounded
+   terminal transaction. R4 is no longer author-blocked.
 
 2. **Anonymous connection authority.** The carrier can classify anonymous starts as `CallerAuthorized(ConnectionBound)`, but the later fence still needs the ticket’s ruling about retaining the exact connection grant through commit. This does not block R1–R4 because no fence is added here.
 

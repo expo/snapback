@@ -1,6 +1,6 @@
 # Re-measurement at 4776e028e: still false, and R1/R2 did not move it
 
-Status: Open — measurement
+Status: Superseded — detached-action fence remeasurement landed later on 2026-08-23
 Created: 2026-08-23
 Related: issues/20260822-residual-exposure-remeasurement.md (prior measurement at 261e595ad),
 issues/20260821-residual-caller-terminal-write-exposure.md (original),

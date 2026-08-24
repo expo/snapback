@@ -1,6 +1,6 @@
 # LLP 0276 Phase 2 decision memo — corrections, rulings needed, and the schedule finding
 
-**Status:** Open — awaiting author rulings
+**Status:** Closed 2026-08-23 — all seven rulings ratified and implemented
 **Filed:** 2026-08-17
 **Related:** LLP 0276, LLP 0225, LLP 0189, LLP 0232
 **Blocks:** LLP 0276 Phase 2 (the carve series) cannot start until Part 3 is ruled.

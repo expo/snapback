@@ -47,13 +47,13 @@ One run that covers all of:
 - retained target, browser, profile/store, source, and artifact identities plus
   scoped cleanup.
 
-## Open decision this depends on
+## Gate disposition — ruled
 
-LLP 0129 §Open questions 7 asks whether Phase 0's gate splits (landed
-Node/file/public half + open browser/React/authorized half) or is held whole.
-That answer determines whether this witness is a conjunct of the **SD-5 Phase 0
-gate**, of the **Phase 0 exit criteria**, or both. Until it is answered, a
-public-browser-only witness must not be treated as advancing the phase.
+LLP 0129 §Open questions 7 was ruled on 2026-08-03 and extended on 2026-08-07:
+the gate splits. The Node/file/public and browser/public halves are landed;
+this browser/React/authenticated/authorized conjunction remains an explicit
+open remainder gated on M1 lease custody. A public-browser-only witness does
+not close this ticket.
 
 ## Backlog Lane C assessment (2026-08-01) — prerequisite-gated, no witness landable yet
 
@@ -77,9 +77,9 @@ the front:
    Node-carrier receipt landed in this lane — the interim receipt the
    sibling ticket asked for). Until leg 1 lands there is nothing
    authorized to retain, so the conjunction cannot be witnessed.
-3. **LLP 0129 §Open questions 7 is still an open author decision** on
-   whether Phase 0's gate splits; this ticket's own text binds how any
-   witness counts to that answer.
+3. **LLP 0129 §Open questions 7 is resolved:** the gate splits, and this
+   authenticated/authorized conjunction remains the open half. The ruling no
+   longer blocks implementation; M1 lease custody and the browser harness do.
 
 One adjacent piece DID land in this lane: the cold-boot binding receipt
 (issues/20260801-0137-reverify-react-cold-boot-binding-requires-server.md)

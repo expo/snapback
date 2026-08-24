@@ -1,6 +1,6 @@
 # Evidence for the nine write-posture rulings — and why most cannot be answered from source
 
-**Status:** Open — decision support, awaiting author
+**Status:** Deferred — author ruling waits on LLP 0274's runtime carrier/lowerer
 **Filed:** 2026-08-21
 **Parent:** `issues/20260821-fixture-policy-repair-plan.md`
 

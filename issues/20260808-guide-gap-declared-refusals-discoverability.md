@@ -1,5 +1,6 @@
 # guide-gap: declared refusals exist but handlers ship plain throws for months
 
+**Status:** Open — P3; guide fix landed, asks 2–3 await author scope/contract choices
 **Opened:** 2026-08-08 · **Severity:** P3 (DX/discoverability)
 
 The typed refusal channel (`refusals: ['CODE']` + `ctx.refuse(code, details)`)

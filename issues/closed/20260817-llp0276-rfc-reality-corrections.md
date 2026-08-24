@@ -1,6 +1,6 @@
 # LLP 0276 RFC reality corrections from the Phase 0 path survey
 
-**Status:** Open
+**Status:** Closed 2026-08-23 — corrections absorbed and implemented
 **Systems:** Project, Build, Packaging, Verification, Docs
 **Date:** 2026-08-17
 **Source:** LLP 0276 Phase 0 path-migration survey and

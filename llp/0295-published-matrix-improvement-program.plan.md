@@ -8,7 +8,9 @@ Ephemeral state, Memberships, Assets, Client integration, Exact/Contract
 integration, Guide, Benchmarks, Testing, Performance, Rust build
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-20
-**Revised:** 2026-08-23 (the qualified fourteen-package 0.1.25 closure from
+**Revised:** 2026-08-23 (execution-status reconciliation: LLP 0267 §7 W5 is
+accepted at v0.15 and graduated to four implementation tickets; the old W5
+author gate is removed). 2026-08-23 (the qualified fourteen-package 0.1.25 closure from
 `9d9265394953` is published and supplies R2's coherent Snapback package pin;
 R2 itself has not run and no profile result is claimed. The four LLP 0283 F-1
 defect families remain open, the LLP 0284 gates remain red by design, and no
@@ -272,15 +274,15 @@ boundaries are settled. Move 3's liveness classification precedes ergonomic
 query consolidation. Move 4 follows the recorded authority/projection ruling.
 Move 5 instruments all of them and supplies the evidence for Phase 3.
 
-### Execution status (reconciled 2026-08-22 against `main` at `59b4c6231`)
+### Execution status (reconciled 2026-08-23 against the landed records)
 
 | Move | Landed on `main` | Still open |
 | --- | --- | --- |
 | 1. Vertical contract defects | 1A closed as a batch (five tickets); 1B four of five closed; 1C seven of eight closed; the Familiar `v.doc` and handler-dialect receipts landed | `issues/20260822-declared-refusal-client-code-preservation.md`; `issues/20260822-guide-derived-where-applicable-index-fact.md`; the W3 packed fixture catalogue and entrypoint export parity in `issues/20260821-authoring-profile-vertical-contract-fixtures.md` |
 | 2. Fixed-origin lifecycle | W1 closed 2026-08-21 (`15efbe6cb`, `7a2903ae6`, `a3a2d8725`, `e98961ad3`, `70e2b9af4`); Guide recipe ticket closed | none owned here; R1 verifies the packed journey |
-| 3. Authority transitions and live composition | W2 conformance closed (`cebbf5c1a`, `f22cd67d6`, `94d4d8546`, `ea062befb`, `411334ae5`); 1D classified the six-subscription case as an LLP 0200 composition bound | the pre-inconsistency client diagnostic in `issues/20260820-familiar-live-subscription-contention.md`, which is W5's client subscription-row item and waits on the LLP 0267 §7 owner acceptance |
+| 3. Authority transitions and live composition | W2 conformance closed (`cebbf5c1a`, `f22cd67d6`, `94d4d8546`, `ea062befb`, `411334ae5`); 1D classified the six-subscription case as an LLP 0200 composition bound; LLP 0267 §7's owner acceptance landed at v0.15 | the pre-inconsistency client diagnostic in `issues/20260820-familiar-live-subscription-contention.md`, owned by `issues/20260822-client-runtime-cost-and-delivery-inspection.md` |
 | 4. Safe private composition | W4 closed 2026-08-22 (`a0bb35684`, `0b0bbaac7`, `810eacd2c`); D0.5 closed with four implementation records | none owned here |
-| 5. Cost and evidence visibility | per-milestone token metering (`59894588b`); W5 design packet at LLP 0267 §7 v0.14 after eight review rounds | LLP 0267 §7 acceptance (author gate); `issues/20260821-clique-instrument-observability-version-bump.md` (W6, LLP 0281 Draft); the binary-size drift metric in `issues/20260820-debug-binary-symbol-bloat.md`; R1 has not yet run against post-landing `main` |
+| 5. Cost and evidence visibility | per-milestone token metering (`59894588b`); W5 accepted at LLP 0267 §7 v0.15 and graduated to four independently closable implementation tickets | `issues/20260822-runtime-cost-recorder-and-server-observations.md`; `issues/20260822-client-runtime-cost-and-delivery-inspection.md`; `issues/20260822-equivalent-work-and-framework-multiplicity-diagnostics.md`; `issues/20260822-runtime-cost-diagnostics-integration-proof.md`; `issues/20260821-clique-instrument-observability-version-bump.md` (W6, LLP 0281 Draft); the binary-size drift metric in `issues/20260820-debug-binary-symbol-bloat.md`; R1 has not yet run against post-landing `main` |
 
 The consumer-skill size ceiling breach found while staging the Air run
 (`issues/20260822-consumer-skill-body-exceeds-0259-ceiling.md`) is an

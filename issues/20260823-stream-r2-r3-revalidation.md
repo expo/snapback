@@ -1,6 +1,6 @@
 # R2/R3 revalidation after stream R1 landed
 
-Status: Open — R2 ready to implement; R3 needs an API amendment first
+Status: Open — R2 landed; R3 still needs the API amendment specified here
 Created: 2026-08-23
 Related: issues/20260822-stream-attempt-refactor-design.md (the staged design),
 issues/20260822-landed-fence-tests-do-not-prove-non-substitutability.md
@@ -13,8 +13,13 @@ were re-checked against the code rather than assumed to survive.
 
 ## Verdict
 
-- **R2 remains implementable with its stated outcome, and needs no semantic respecification.**
+- **R2 landed with its stated outcome.** Its later evidence gaps are tracked in
+  `issues/20260823-r2-evidence-gaps.md`.
 - **R3 remains implementable but its API/type specification now needs amendment.**
+
+The R2 implementation plan below is retained as the pre-landing design
+record. Current execution should use it only as historical rationale; R3's
+amendment and its acceptance work remain live.
 
 The correct R2 ordering is the load-bearing detail: **authentication must complete entirely before
 `BEGIN IMMEDIATE`**, then the authenticated rows enter one transaction, followed by one `FnOnce`

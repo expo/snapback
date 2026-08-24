@@ -1,6 +1,6 @@
 # LLP 0276 Phase 0 move rows conflict with live repository contracts
 
-**Status:** Open
+**Status:** Closed 2026-08-23 — all three refused moves ratified as keeps
 **Severity:** P1
 **Systems:** Project, CI, Packaging, Governance, Demos
 **Date:** 2026-08-17

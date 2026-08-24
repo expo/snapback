@@ -1,6 +1,6 @@
 # Design: fencing the three Critical direct-route exposures
 
-Status: Open — BLOCKED on two author rulings (below); the rest is implementable as specified
+Status: Open — author rulings resolved 2026-08-22; Critical 1 landed, Criticals 2–3 remain
 Created: 2026-08-22
 Related: issues/20260821-residual-caller-terminal-write-exposure.md, LLP 0058,
 issues/20260821-durable-authority-to-effect-handoff-design.md
@@ -54,9 +54,14 @@ Logout need not synchronously kill the evaluator; the watchdog remains the hard 
 Abandonment cannot replace per-mutation reservations, because **logout does not currently linearize
 through the action's `commit_gate`**.
 
-## AUTHOR RULINGS REQUIRED
+## AUTHOR RULINGS — RESOLVED 2026-08-22
 
-### 1. Detached action ownership — blocks Critical 1
+The author selected caller-bound detached actions and one atomic OAuth consent
+result in `issues/20260822-author-rulings-fence-program.md`. Those choices
+unblocked all three Critical routes. Critical 1 subsequently landed; the
+grant/OAuth and pending-effect approval implementations remain open.
+
+### 1. Detached action ownership — resolved; formerly blocked Critical 1
 
 Once a detached action has been accepted, is it the **caller's** effect or the **system's**?
 
@@ -69,7 +74,7 @@ Once a detached action has been accepted, is it the **caller's** effect or the *
 - Sub-question: does "stop" mean fail at the next authority-bearing boundary, or proactively cancel
   the evaluator? The latter needs new coordinator-to-action cancellation wiring.
 
-### 2. OAuth consent atomicity — blocks the OAuth storage refactor
+### 2. OAuth consent atomicity — resolved; formerly blocked the storage refactor
 
 - *Recommended:* grant and authorization code are one atomic approval result.
 - *Alternative:* the grant deliberately survives code-issuance failure — which then requires an
@@ -326,7 +331,11 @@ Riskiest part: correctly separating pre-decision failure, durable refusal, commi
 7. Implement the selected detached-action terminal semantics and the HostPlan/Ibex/session/service/watchdog race matrix.
 8. Audit every new guarded closure for admission re-entry, awaits, callbacks, network work, and unbounded Local waits.
 
-## Required author rulings
+## Author rulings — resolved 2026-08-22
+
+The authoritative rulings are recorded in
+`issues/20260822-author-rulings-fence-program.md`; the alternatives below are
+retained as the design record, not as current blockers.
 
 1. **Detached action ownership — required before Critical 1 semantics are implemented.**
 

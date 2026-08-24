@@ -1,6 +1,6 @@
 # Implementation sequencing, and a correction to how this program has been run
 
-Status: Open — process change adopted
+Status: Open — process change adopted; auxiliary-write scope resolved by LLP 0297
 Created: 2026-08-23
 Related: issues/20260823-remeasurement-property-still-false.md,
 issues/20260822-authority-publication-binding-implementation-plan.md,
@@ -30,8 +30,9 @@ sites, 49 reservations, and a 35–55-call migration.
    or `ORTHOGONAL CORRECTNESS`.
 4. **Remeasure after property-moving landings**, not after design or commit volume.
 5. Lane one for the next property closure; lane two only for source-independent work.
-6. **Stop claiming convergence toward literal TRUE** until the auxiliary-write interpretation is
-   resolved.
+6. **Do not claim convergence against an undefined completion boundary.** LLP
+   0297 subsequently resolved the boundary as effect-based with a closed,
+   enumerated auxiliary-write set; future measurements use that ruling.
 
 ## A correction I need to record against myself
 
@@ -92,7 +93,7 @@ is the ranking criterion now.
    Specifically: denial/revocation and approval-gated intent creation. They remain remote-authenticated counterexamples (`issues/20260823-remeasurement-property-still-false.md:64-76,101-110`). They outrank in-process capsule hardening by the requested metric.
 
 7. **Resume the stream chain only after its blockers are removed: R3 amendment → R3 → R4 ruling/implementation → actual caller-authority stream fence.**  
-   R3 is not dispatchable under this request: its API amendment is still required (`issues/20260823-stream-r2-r3-revalidation.md:14-36`), and no stream fence may land before R4 (`:50-53`). R3 itself is structural groundwork and does not move the property. R2 is already landed and should be removed from the queue; measurement explicitly says R1/R2 produced no property improvement (`issues/20260823-remeasurement-property-still-false.md:38-46`).
+   R3 is not dispatchable under this request: its API amendment is still required (`issues/20260823-stream-r2-r3-revalidation.md:28-41`), and no stream fence may land before R4 (`:55-58`). R3 itself is structural groundwork and does not move the property. R2 is already landed and should be removed from the queue; measurement explicitly says R1/R2 produced no property improvement (`issues/20260823-remeasurement-property-still-false.md:38-46`).
 
 8. **Then do Binding Steps 6 and 7, folding the relevant capsule and asset-carrier work into them; finish with Step 8.**  
    Steps 6–7 close authority/reservation and ticket/destination substitution (`issues/20260822-authority-publication-binding-implementation-plan.md:373-397`). These are necessary for an unqualified structural claim, but their current exposure is in-process only (`issues/20260823-remeasurement-property-still-false.md:111-116`), so they rank below live remote routes. Step 8 is cleanup/evidence only (`issues/20260822-authority-publication-binding-implementation-plan.md:399-405`).
@@ -116,7 +117,7 @@ Suggested two-lane waves:
 | Grant/OAuth approval | Common approval files plus `server/oauth.rs`, `storage/auth_grants.rs`, `storage/auth_integrations.rs` (`20260823-approval-fence-design.md:268-284`) |
 | OAuth proposal/FK wedge | `storage/auth.rs`, `storage/auth_grants.rs`, `storage/auth_integrations.rs`, `storage/auth_mode.rs`; possibly root `storage.rs` (`20260823-oauth-proposal-bound-and-fk-wedge-design.md:101-177`) |
 | Binding Steps 6–7 | `invocation.rs`, `engine.rs`, `server.rs`, `asset_routes.rs`, `commit_capsule.rs`, engine/server tests, asset/watch storage modules (`20260822-authority-publication-binding-implementation-plan.md:166-213,373-397`) |
-| R3 | `snapback-sync/src/stream_attempt.rs`; `engine.rs`; `server.rs`; `storage/settlement.rs`; associated tests (`20260823-stream-r2-r3-revalidation.md:91-111`) |
+| R3 | `snapback-sync/src/stream_attempt.rs`; `engine.rs`; `server.rs`; `storage/settlement.rs`; associated tests (`20260823-stream-r2-r3-revalidation.md:96-116`) |
 | Capsule residual tranche | `server/admin.rs`, `server/commit_capsule.rs`, `engine.rs`, `storage.rs`, `storage/watches.rs` (`20260822-capsule-structural-residuals.md:88-131`) |
 | Test #5 | asset carrier definitions in `snapback-kernel/src/services_assets.rs`, `snapback-services/src/assets.rs`, and a private engine carrier module plus security fixtures (`20260823-test-discrimination-fix-plan.md:16-47`) |
 | Test #10 | `snapback-engine/src/local/tests/engine.rs` (`20260823-test-discrimination-fix-plan.md:101-134`) |
@@ -146,7 +147,7 @@ Safe source-level pairs:
 - **Pending-effect approval + finding #10**.
 - **OAuth proposal/FK wedge + finding #5 or #10**, although #5 should be deferred.
 
-Generated diagnostics/guide files may still conflict mechanically; the later landing should regenerate them after rebasing. That is not a semantic dependency (`issues/20260823-stream-r2-r3-revalidation.md:334-342`).
+Generated diagnostics/guide files may still conflict mechanically; the later landing should regenerate them after rebasing. That is not a semantic dependency (`issues/20260823-stream-r2-r3-revalidation.md:339-347`).
 
 ## Blocking relationships
 
@@ -155,10 +156,14 @@ Genuine blockers:
 - Binding Step 5 requires Steps 2–4: the closed producers and all consumers must exist before deleting the raw setters/constructors.
 - Approval B requires the shared typed reservation/terminal-cause plumbing and one atomic ordinary/OAuth operation. It also needs a ruling for pre-existing grant-only OAuth half-states.
 - R3 requires its API amendment.
-- R4 requires R3 and the watchdog-durability ruling.
+- R4 requires R3; the watchdog-durability ruling was resolved 2026-08-22 in
+  `issues/20260822-author-rulings-fence-program.md`.
 - A stream caller-authority fence requires R4.
 - Binding Step 8 requires Steps 5–7.
-- A literal `TRUE` remains impossible until auxiliary artifacts, lazy cleanup, and clock writes are fenced or the property is formally narrowed (`issues/20260823-remeasurement-property-still-false.md:78-81,136`).
+- LLP 0297 formally selected the effect-based boundary and requires every
+  excluded auxiliary site to satisfy all four criteria and appear in a gated
+  enumeration. The next measurement, rather than this pre-ruling plan, owns
+  the resulting completion verdict.
 
 Merely awkward, not blocked:
 

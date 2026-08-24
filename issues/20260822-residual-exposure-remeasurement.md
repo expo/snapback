@@ -1,6 +1,6 @@
 # Re-measurement: the property is still false, but true for three named subsets
 
-Status: Open — measurement, re-run after four landings
+Status: Superseded — rerun after the detached-action landing; latest measurement linked below
 Created: 2026-08-22
 Related: issues/20260821-residual-caller-terminal-write-exposure.md (the original measurement),
 issues/20260822-authorized-effect-program-status.md
@@ -19,7 +19,10 @@ child mutations inherit it, and `validate_live` checks abandonment, generation a
 gate before the SQLite commit. It applies to session and scoped-service callers alike and can
 commit arbitrary application mutation effects.
 
-That path is blocked on an author ruling (detached-action ownership), not on engineering.
+That path was blocked on an author ruling at this measurement point. The
+caller-bound ruling landed 2026-08-22 and the detached-action fence later
+closed this top path; see
+`issues/20260823-remeasurement-after-detached-action-fence.md`.
 
 ## But it is now true for three named subsets
 

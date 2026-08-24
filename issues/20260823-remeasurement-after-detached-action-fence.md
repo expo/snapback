@@ -1,6 +1,6 @@
 # Re-measurement after the detached-action fence: the top path is closed
 
-Status: Open — measurement
+Status: Superseded for completion scope by LLP 0297; route-closure evidence remains valid
 Created: 2026-08-23
 Related: issues/20260823-remeasurement-property-still-false.md (prior measurement),
 issues/20260823-detached-action-nested-mutation-fence-design.md,
