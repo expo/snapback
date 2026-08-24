@@ -40686,6 +40686,40 @@ async fn origin_bound_watch_returns_the_typed_terminal_cause_without_string_reco
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn origin_bound_watch_rejects_state_b_graph_b_origin_b_admission_a_authority_a() {
+    let fixture_a = watch_management_race_fixture(WatchManagementRaceSite::Suspend).await;
+    let fixture_b = watch_management_race_fixture(WatchManagementRaceSite::Suspend).await;
+    let authority_a = prepared_test_session_route_authority(
+        &fixture_a.state,
+        InvocationSource::WatchManagement,
+        &fixture_a.bearer,
+    );
+    let admission_a = fixture_a.state.auth_admission_controller();
+    let admission_b = fixture_b.state.auth_admission_controller();
+    assert!(admission_a.owns_lease(authority_a.admission_lease()));
+    assert!(!admission_b.owns_lease(authority_a.admission_lease()));
+
+    // Safe route code can still clone AppState B and supply its separately
+    // visible admission field from A. State, graph, origin, and admission B
+    // remain inseparable inside the opaque engine carrier, so authority A
+    // cannot bind and the former {B, B, B, A, A} runtime cannot be built.
+    let mut attempted_splice = fixture_b.state.clone();
+    attempted_splice.auth_admission = admission_a;
+    let Err(error) = super::CommitCapsuleDestination::bind(&attempted_splice, authority_a) else {
+        panic!("{{state B, graph B, origin B, admission A, authority A}} must be refused")
+    };
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_COMMIT_CAPSULE_DESTINATION_MISMATCH"
+    );
+    assert_eq!(
+        watch_management_facts(&fixture_b).await.watch.status,
+        crate::watches::WatchStatus::Active,
+        "the rejected authority-A splice must not alter database B"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn origin_bound_watch_rejects_post_bind_local_referent_replacement() {
     let fixture = watch_management_race_fixture(WatchManagementRaceSite::Suspend).await;
     let authority = prepared_test_session_route_authority(
