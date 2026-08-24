@@ -6,7 +6,7 @@
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-24
-**Revised:** 2026-08-24 (a — initial ruling)
+**Revised:** 2026-08-24 (b — provenance corollary added)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
 `issues/20260824-liveness-row-bucket-assignment.md`,
 `issues/20260824-entitlement-predicates-for-the-live-sites.md`
@@ -30,6 +30,48 @@ The ruling is therefore a single rule with enumerated exceptions:
 
 Exceptions are not "trusted callers". They are flows that are **cross-principal by design**, and
 each carries its own binding rule rather than a relaxation.
+
+## Corollary — the artifact must carry provenance, not just type
+
+Added 2026-08-24, after the first three implementation lanes were each blocked by an executable
+review for the same reason.
+
+Deriving the subject from the authority usually means introducing an artifact — a seal, an
+operation identity, a bound attempt, a witness — that only the verifying path can produce. Three
+independent lanes built such an artifact and each shipped the same hole:
+
+- **Q03** sealed the revocation attempt by type. A reviewer resolved a real plan, built a *second*
+  `LocalDatabase::memory()`, committed against that disposable database, and handed the resulting
+  seal to the live coordinator. The live durable row stayed `(generation 1, revoked_at None)` while
+  the live projection accepted the seal and revoked the session.
+- **Q05** made the operation identity a provider pointer plus an RNG nonce, where the `RandomSource`
+  is caller-supplied and the repository already ships constant sources that repeat every byte. Two
+  operations on one provider could receive equal identities.
+- **The authority seal** bound a `LeaseToken` that could still prepare two genuinely different
+  authorities.
+
+Each artifact proved *"something of the right type exists"*. None proved *"this specific instance
+produced it."* A type-only seal is not a correlation; it is a forgery machine as soon as a second
+instance of the right type can be constructed — and under `test-support`, public constructors for
+second instances generally can be.
+
+> **Any artifact introduced to carry a derivation must identify the instance that produced it, and
+> the consumer must verify that it is the instance now consuming it.**
+
+Three questions settle it, and a lane that introduces such an artifact answers all three explicitly:
+
+1. Which instance produced this?
+2. Can a second instance of the same type produce an equal one?
+3. Can `test-support` staple it to an outcome it did not come from?
+
+Question 3 is not a lesser one. `test-support` is not a safety boundary in this repository: a
+feature-enabled public API is part of the surface, so "only tests can do that" does not answer it.
+Uniqueness must also not rest on caller-supplied randomness — a provider-owned monotonic source is
+the mechanism; a nonce is defence in depth.
+
+The accepted shape already exists: `EngineAppStateGraphIdentity` is a private `Arc<()>` compared
+with `Arc::ptr_eq` (`crates/snapback-engine/src/local/engine.rs`). Reuse it rather than inventing
+another.
 
 ## Approved dispositions
 
