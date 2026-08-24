@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "snapback.r2-admission.v1",
+  "cellId": "opus-clique-explicit",
+  "startedAt": "2026-08-24T08:45:06.194Z",
+  "admittedAt": "2026-08-24T09:17:06.356Z",
+  "admissionWaitSeconds": 1920.162,
+  "sampleEverySeconds": 60,
+  "requiredConsecutivePassingSamples": 3,
+  "ceilingInclusive": {
+    "loadavg1": 10,
+    "loadavg5": 10,
+    "loadavg15": 10
+  },
+  "sampleCount": 33,
+  "finalConsecutivePassingSamples": 3,
+  "samplesPath": "opus-clique-explicit.jsonl"
+}

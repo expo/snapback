@@ -1,0 +1,149 @@
+{
+  "schemaVersion": "clique.acceptance.v1",
+  "app": "clique",
+  "laneRunId": "opus-clique-explicit",
+  "milestone": "M1",
+  "startedAt": "2026-08-24T10:07:57.141Z",
+  "finishedAt": "2026-08-24T10:08:35.903Z",
+  "durationMs": 38762,
+  "baseUrl": "http://127.0.0.1:42161",
+  "segments": [
+    "starter-m1.log"
+  ],
+  "seed": {
+    "firstPass": {
+      "applied": 16,
+      "skipped": 8,
+      "actors": 8,
+      "entities": 53
+    },
+    "secondPass": {
+      "applied": 16,
+      "skipped": 8,
+      "actors": 8,
+      "entities": 53
+    }
+  },
+  "coverage": {
+    "suiteRequired": 7,
+    "covered": 7,
+    "missing": [],
+    "map": [
+      {
+        "assertion": "m1-a01",
+        "text": "Sign up as a new user with email + password (password >= 8 chars) succeeds.",
+        "test": "sign up with email + password (>= 8 chars) succeeds",
+        "covered": true
+      },
+      {
+        "assertion": "m1-a02",
+        "text": "After signup the app lands in the authenticated state.",
+        "test": "after signup the app lands in the authenticated state",
+        "covered": true
+      },
+      {
+        "assertion": "m1-a03",
+        "text": "Signing up with a duplicate handle is rejected with a visible error.",
+        "test": "duplicate handle is rejected with a visible error",
+        "covered": true
+      },
+      {
+        "assertion": "m1-a04",
+        "text": "Signing up with a duplicate email is rejected with a visible error.",
+        "test": "duplicate email is rejected with a visible error",
+        "covered": true
+      },
+      {
+        "assertion": "m1-a08",
+        "text": "Editing display name and bio persists (updated values shown on own profile).",
+        "test": "editing display name and bio persists",
+        "covered": true
+      },
+      {
+        "assertion": "m1-a10",
+        "text": "Uploading a fixture avatar succeeds.",
+        "test": "uploading a fixture avatar succeeds",
+        "covered": true
+      },
+      {
+        "assertion": "m1-a11",
+        "text": "The uploaded avatar renders on the profile (avatars beside posts and messages are asserted at M2/M3, where those surfaces exist).",
+        "test": "the uploaded avatar renders on the profile",
+        "covered": true
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "id": "m1-a01",
+      "name": "sign up with email + password (>= 8 chars) succeeds",
+      "pass": true,
+      "durationMs": 2680.4,
+      "detail": null,
+      "error": null
+    },
+    {
+      "id": "m1-a02",
+      "name": "after signup the app lands in the authenticated state",
+      "pass": true,
+      "durationMs": 1601,
+      "detail": null,
+      "error": null
+    },
+    {
+      "id": "m1-a03",
+      "name": "duplicate handle is rejected with a visible error",
+      "pass": true,
+      "durationMs": 1769.3,
+      "detail": {
+        "error": "That handle is already taken."
+      },
+      "error": null
+    },
+    {
+      "id": "m1-a04",
+      "name": "duplicate email is rejected with a visible error",
+      "pass": true,
+      "durationMs": 1637.7,
+      "detail": {
+        "error": "a password credential already exists for this identifier"
+      },
+      "error": null
+    },
+    {
+      "id": "m1-a08",
+      "name": "editing display name and bio persists",
+      "pass": true,
+      "durationMs": 4044.4,
+      "detail": {
+        "profile": [
+          "QA Edited mt72paei",
+          "QM",
+          "Edit profile",
+          "QA Edited mt72paei"
+        ]
+      },
+      "error": null
+    },
+    {
+      "id": "m1-a10",
+      "name": "uploading a fixture avatar succeeds",
+      "pass": true,
+      "durationMs": 2144.3,
+      "detail": null,
+      "error": null
+    },
+    {
+      "id": "m1-a11",
+      "name": "the uploaded avatar renders on the profile",
+      "pass": true,
+      "durationMs": 1745.4,
+      "detail": {
+        "src": "http://127.0.0.1:42160/assets/public/01a0333e-4266-7af1-babd-14672ce01284/primary",
+        "width": 256
+      },
+      "error": null
+    }
+  ],
+  "pass": true
+}
