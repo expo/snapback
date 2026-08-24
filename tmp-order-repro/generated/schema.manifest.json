@@ -1,0 +1,43 @@
+{
+  "appId": "impl-0301-a",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "authoredSourceHash": "sha256:c7451a6eabd1c2e38924e82a2e53d6e66bf0dc9e549417d63ca68bd9e039cadd",
+  "authoringProfile": "snapback-familiar-ts-v1",
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "b43e9e5e84fd20a1e8a439b6dbe491f0528a81d212d14ab301049646de1f95a6",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:ab3c7cdfe42ef0d4",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "Boolean",
+          "name": "completed",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "completed"
+          ],
+          "name": "by_completed"
+        }
+      ],
+      "name": "todos",
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

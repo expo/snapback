@@ -17493,7 +17493,7 @@ async fn auth_grant_request_approve(
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<crate::storage::auth_grants::ApprovedGrant>, ApiError> {
-    let (user_id, session_id) = require_grant_session(&authority)?;
+    let _ = require_grant_session(&authority)?;
     let provider = require_agent_routes_available(&runtime)?;
     let request: GrantApprovalRequest = parse_auth_json(&headers, body)?;
     let requested_ttl_ms = request.requested_ttl_ms;
@@ -17521,14 +17521,14 @@ async fn auth_grant_request_approve(
     let effect_authority = authority.clone();
     let effect_provider = provider.clone();
     let approval = with_snapback(&runtime.snapback, move |snapback| {
-        let _effect = effect_authority.effect_guard("grant approval transaction")?;
         // Freshness and grant TTL linearize here, after proof coordination and
         // its asynchronous address-stripe wait.
         let now_ms = effect_provider.now_ms();
+        // The engine derives both durable subject axes from this prepared
+        // authority and retains its effect guard across the storage commit;
+        // no independently supplied user/session crosses the sink.
         snapback.approve_grant_request(
-            &_effect,
-            &user_id,
-            &session_id,
+            &effect_authority,
             &request_id,
             requested_ttl_ms,
             proof_admission.as_ref().map(|admission| admission.proof()),
