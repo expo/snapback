@@ -6,7 +6,14 @@ import type {
   FunctionReference as FamiliarFunctionReference,
   GeneratedApi as FamiliarGeneratedApi,
 } from '../../tests/fixtures/familiar-todo/generated/api.d.ts';
-import { skip, useAction, useMutation, useQuery, useQueryState } from './familiar.mjs';
+import {
+  projectAppRefusal,
+  skip,
+  useAction,
+  useMutation,
+  useQuery,
+  useQueryState,
+} from './familiar.mjs';
 import { useSnapbackQuery } from './index.mjs';
 
 declare const familiar: FamiliarGeneratedApi;
@@ -22,6 +29,10 @@ useQuery(familiar['todos.list'], { completed: false });
 useQuery(familiar['todos.list'], 'skip');
 useQuery(familiar['todos.list'], skip);
 useMutation(familiar['todos.create'])({ title: 'typed' });
+useMutation(familiar['todos.create'])({ title: 'typed' }).catch((error: unknown) => {
+  const refusal = projectAppRefusal(error);
+  if (refusal?.detailsDropped) refusal.appDetails satisfies null;
+});
 useAction(familiar['todos.createFromAction'])({ title: 'typed' });
 useQueryState(familiar['todos.list'], { completed: false });
 useSnapbackQuery(familiar['todos.list'], { completed: false });

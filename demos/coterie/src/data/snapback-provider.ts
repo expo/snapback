@@ -10,6 +10,7 @@ import type {
 } from '@exact/contract/runtime';
 
 import { createAssetClient } from '../../../../packages/snapback-client/assets.mjs';
+import { projectAppRefusal } from '../../../../packages/snapback-client/index.mjs';
 import { SnapbackClient } from '../../../../packages/snapback-client/online.mjs';
 import {
   AuthCoordinator,
@@ -457,19 +458,10 @@ function diagnosticCode(error: unknown): string | null {
   return typeof value === 'string' ? value : null;
 }
 
-function applicationCode(error: unknown): string | null {
-  const candidate = error as {
-    details?: { appCode?: unknown };
-    diagnostic?: { details?: { appCode?: unknown } };
-  } | null;
-  const value = candidate?.diagnostic?.details?.appCode ?? candidate?.details?.appCode;
-  return typeof value === 'string' ? value : null;
-}
-
 function declaredError(operation: string, error: unknown): NamedProviderError {
   if (error instanceof NamedProviderError) return error;
   const code = diagnosticCode(error);
-  const appCode = applicationCode(error);
+  const appCode = projectAppRefusal(error)?.appCode ?? null;
   const causeMessage = error instanceof Error ? error.message : String(error);
 
   const applicationMappings: Record<string, Record<string, readonly [string, string]>> = {
@@ -2748,7 +2740,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       ]);
       return result.value;
     } catch (originalError) {
-      const error = applicationCode(originalError) === 'DUPLICATE_HANDLE'
+      const error = projectAppRefusal(originalError)?.appCode === 'DUPLICATE_HANDLE'
         ? new NamedProviderError(
             'PartialRegistrationError',
             `The email ${email} is registered, but its profile is incomplete because the handle was claimed concurrently. Sign in with this email, then complete signup with a new handle.`,

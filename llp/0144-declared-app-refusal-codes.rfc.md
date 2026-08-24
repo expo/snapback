@@ -6,6 +6,10 @@
 Authoring, Contract, Diagnostics, Guide, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-01
+**Revised:** 2026-08-24 (packaged-accessor amendment: the canonical client now
+exports `projectAppRefusal(error)` and `SnapbackAppRefusal`, with identical
+React-root and Familiar re-exports; OQ7 is answered while per-operation D2
+generation remains future work.)
 **Revised:** 2026-08-03 (Accepted 2026-08-03 by the author — decision
 sitting #2, "accept all that verify",
 `issues/20260803-author-decision-sitting-2.md`; gate verified: the loop
@@ -436,6 +440,19 @@ union reaching client types". Options for the shape:
   contract while delivering the types. The React arm
   (`useSnapbackMutation`) needs the same treatment either way.
 
+**Packaged accessor amendment — 2026-08-24.** The minimal D1 accessor now
+exists. `@expo/snapback-client` exports
+`projectAppRefusal(error: unknown): SnapbackAppRefusal | null`; the React root
+and Familiar entry re-export the identical helper and type. It accepts either
+the public `SnapbackDiagnosticError` carrier or a raw public diagnostic, projects
+only platform code `SNAPBACK_APP_REFUSAL` with a non-reserved app code matching
+the declaration grammar, and returns the B3-compatible discriminated shape:
+`{ code: 'SNAPBACK_APP_REFUSAL', appCode: string, appDetails: unknown,
+detailsDropped: false } | { code: 'SNAPBACK_APP_REFUSAL', appCode: string,
+appDetails: null, detailsDropped: true }`. This is an observation helper over a
+host-admitted diagnostic, never a second admission authority. It makes D1
+teachable now without claiming D2's generated per-operation code union.
+
 ### Axis E — retry, quarantine, and disposition participation
 
 The landed slice: declared refusals participate in no dispositions.
@@ -724,10 +741,11 @@ target, staged:
   with its quieter sibling: whether the served public descriptor should
   ever restate `refusals` (floor fact 6), which no document currently
   owns.
-- **OQ7 (client accessor now).** Independent of D2's timeline: does the
-  packaged web client grow a minimal documented accessor
-  (`isAppRefusal(err)` / `err.appCode`) immediately, so D1 is at least
-  teachable in the guide?
+- **OQ7 (client accessor now) — ANSWERED 2026-08-24: yes.** The packaged
+  accessor is `projectAppRefusal(error)`, returning the dated Axis D amendment's
+  `SnapbackAppRefusal | null` discriminated shape. The React root and Familiar
+  entry re-export the same helper/type; D2's generated per-operation union
+  remains separate future work.
 - **OQ8 (decoder-allowlist divergence).** The 16-code divergence
   between the Rust and JS `handler_envelope_code` allowlists (Axis C):
   intentional per-engine difference or drift? Someone should rule;

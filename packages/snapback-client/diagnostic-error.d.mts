@@ -19,6 +19,21 @@ export interface SnapbackDiagnosticErrorFacts {
   readonly status?: number;
 }
 
+/** Caller-visible projection of one host-admitted application refusal. */
+export type SnapbackAppRefusal =
+  | Readonly<{
+    readonly code: 'SNAPBACK_APP_REFUSAL';
+    readonly appCode: string;
+    readonly appDetails: unknown;
+    readonly detailsDropped: false;
+  }>
+  | Readonly<{
+    readonly code: 'SNAPBACK_APP_REFUSAL';
+    readonly appCode: string;
+    readonly appDetails: null;
+    readonly detailsDropped: true;
+  }>;
+
 export class SnapbackDiagnosticError extends Error {
   constructor(diagnostic: SnapbackDiagnosticLike, facts?: SnapbackDiagnosticErrorFacts);
   readonly name: 'SnapbackDiagnosticError';
@@ -40,6 +55,7 @@ export class SnapbackDiagnosticError extends Error {
 }
 
 export function isSnapbackDiagnosticError(value: unknown): value is SnapbackDiagnosticError;
+export function projectAppRefusal(error: unknown): SnapbackAppRefusal | null;
 export function asSnapbackDiagnosticError(
   error: unknown,
   facts?: SnapbackDiagnosticErrorFacts & { readonly fallbackCode?: string },

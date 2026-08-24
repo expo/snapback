@@ -24,6 +24,7 @@ export {
   SnapbackDiagnosticError,
   bindSnapbackAppLifecycle,
   isSnapbackDiagnosticError,
+  projectAppRefusal,
 } from '@expo/snapback-client';
 export {
   CLIENT_AUTHORITY_STATES,

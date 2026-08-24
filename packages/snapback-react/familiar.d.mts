@@ -7,6 +7,7 @@ import type {
 } from '@expo/snapback-client';
 
 export {
+  projectAppRefusal,
   SnapbackProvider,
   skip,
   useSnapbackQuery as useQueryState,
@@ -15,6 +16,7 @@ export {
 } from './index.mjs';
 
 export type { SkipOr, SkipSentinel } from './index.mjs';
+export type { SnapbackAppRefusal } from '@expo/snapback-client';
 
 export type FamiliarAuthoringProfile = 'snapback-familiar-ts-v1';
 

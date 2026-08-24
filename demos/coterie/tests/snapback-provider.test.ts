@@ -165,7 +165,7 @@ describe('Snapback adapter diagnostic allow-lists', () => {
       expect(
         coterieSnapbackTestInternals.declaredError(
           operation,
-          diagnostic('SNAPBACK_APPLICATION_REJECTED', appCode),
+          diagnostic('SNAPBACK_APP_REFUSAL', appCode),
         ).name,
       ).toBe(errorName);
     }

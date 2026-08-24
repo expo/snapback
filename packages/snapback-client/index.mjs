@@ -124,6 +124,7 @@ export {
 export {
   SnapbackDiagnosticError,
   isSnapbackDiagnosticError,
+  projectAppRefusal,
 } from './diagnostic-error.mjs';
 export {
   compileResultContractValidator,

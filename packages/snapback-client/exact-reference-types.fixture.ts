@@ -4,6 +4,7 @@ import {
   createCommandClient,
   createRqsRegisteredRegistry,
   isSnapbackDiagnosticError,
+  projectAppRefusal,
   type ActionRef,
   type ActiveSeedIdentityV1,
   type CommandRef,
@@ -13,6 +14,7 @@ import {
   type QueryRef,
   type SnapbackEphemeralReference,
   type SnapbackAppRefusalError,
+  type SnapbackAppRefusal,
   type SnapbackDiagnosticCode,
   type SnapbackFunctionReference,
   type SearchPageV1,
@@ -31,6 +33,8 @@ const inventedDiagnosticCode: SnapbackDiagnosticCode = 'SNAPBACK_NOT_A_REGISTERE
 void inventedDiagnosticCode;
 declare const refusalError: SnapbackAppRefusalError;
 refusalError.diagnostic.details.appCode.toUpperCase();
+const refusalProjection: SnapbackAppRefusal | null = projectAppRefusal(refusalError);
+if (refusalProjection?.detailsDropped) refusalProjection.appDetails satisfies null;
 
 declare const listTodos: SnapbackFunctionReference<
   'listTodos',

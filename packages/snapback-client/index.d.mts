@@ -13,8 +13,10 @@ import type {
 export {
   SnapbackDiagnosticError,
   isSnapbackDiagnosticError,
+  projectAppRefusal,
 } from './diagnostic-error.mjs';
 export type {
+  SnapbackAppRefusal,
   SnapbackDiagnosticLike,
   SnapbackDiagnosticOperation,
 } from './diagnostic-error.mjs';

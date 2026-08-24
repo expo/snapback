@@ -607,13 +607,13 @@ only that layer — is removed and every newer layer recomputes over the
 authoritative base:
 
 ```ts fragment reason="refusal codes and copy come from the application's declared refusals"
-import type { SnapbackAppRefusalError } from '@expo/snapback-client';
+import { projectAppRefusal } from '@expo/snapback-client';
 
 try {
   await reserveSlot({ slotKey, resourceId });
 } catch (error) {
-  const diagnostic = (error as SnapbackAppRefusalError).diagnostic;
-  if (diagnostic?.code === 'SNAPBACK_APP_REFUSAL' && diagnostic.details?.appCode === 'SLOT_TAKEN') {
+  const refusal = projectAppRefusal(error);
+  if (refusal?.appCode === 'SLOT_TAKEN') {
     showSlotTakenBanner(slotKey); // stable declared code, not message text
   } else {
     throw error;

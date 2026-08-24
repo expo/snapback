@@ -14,7 +14,10 @@ import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { SnapbackClient } from '../../../packages/snapback-client/index.mjs';
+import {
+  projectAppRefusal,
+  SnapbackClient,
+} from '../../../packages/snapback-client/index.mjs';
 import {
   AuthCoordinator,
   createMemoryAuthCustodyStorage,
@@ -45,14 +48,10 @@ function code(error) {
   return error?.diagnostic?.code ?? error?.code ?? null;
 }
 
-function applicationCode(error) {
-  return error?.diagnostic?.details?.appCode ?? error?.details?.appCode ?? null;
-}
-
 async function expectAppCode(operation, expected) {
   await assert.rejects(operation, (error) => {
     assert.equal(code(error), 'SNAPBACK_APP_REFUSAL', error?.stack ?? String(error));
-    assert.equal(applicationCode(error), expected, error?.stack ?? String(error));
+    assert.equal(projectAppRefusal(error)?.appCode, expected, error?.stack ?? String(error));
     return true;
   });
 }

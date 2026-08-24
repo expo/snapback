@@ -1,6 +1,9 @@
 import { useCallback, useEffect } from 'react';
 
-import { positiveDevelopmentEnvironment } from '@expo/snapback-client';
+import {
+  positiveDevelopmentEnvironment,
+  projectAppRefusal,
+} from '@expo/snapback-client';
 import {
   asSnapbackDiagnosticError,
   SnapbackDiagnosticError,
@@ -24,6 +27,7 @@ const FAMILIAR_PROFILE = Object.freeze([FAMILIAR_AUTHORING_PROFILE]);
 export {
   SnapbackProvider,
   canonicalUseQueryState as useQueryState,
+  projectAppRefusal,
   skip,
   useSnapbackAuth as useAuth,
   useSnapbackCurrentPrincipal as useCurrentPrincipal,
@@ -80,12 +84,17 @@ function emitRoutingDiagnostic(client, state) {
 
 // @ref LLP 0253#s63-usemutation — a raw pre-custody transport refusal is
 // hardened to the existing typed carrier and names the canonical offline path.
+// @ref LLP 0144#axis-d--generation-and-client-typing-cv-16 — Familiar keeps
+// the shared declared-refusal carrier intact before adding generic route help.
 function settledMutationError(error) {
   const normalized = asSnapbackDiagnosticError(error, {
     operation: 'mutation',
     refKind: 'Mutation',
   });
-  if (error?.diagnostic && typeof error.diagnostic.code === 'string') return normalized;
+  if (
+    projectAppRefusal(normalized) !== null
+    || (error?.diagnostic && typeof error.diagnostic.code === 'string')
+  ) return normalized;
   const diagnostic = Object.freeze({
     ...normalized.diagnostic,
     message: `${normalized.diagnostic.message}; offline custody uses useSnapbackMutation with useSnapbackOutbox().mutationStatus`,

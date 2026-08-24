@@ -4,7 +4,10 @@ import { test } from 'node:test';
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 
-import { SnapbackDiagnosticError } from '@expo/snapback-client';
+import {
+  SnapbackDiagnosticError,
+  projectAppRefusal,
+} from '@expo/snapback-client';
 import { prepareReactBindingForClient } from '@expo/snapback-client/react-binding';
 import { defineJsMutation } from '@expo/snapback-codegen/define';
 import { resultContractHash } from '@expo/snapback-codegen/result-contracts';
@@ -473,6 +476,20 @@ test('settled mutations use queue:false and harden pre-custody transport rejecti
   });
   assert.equal(await mutate({ title: 'one' }), 'mutated:todos.create');
   assert.equal(f.metrics.mutations.at(-1).options.queue, false);
+  f.setMutationFailure(new SnapbackDiagnosticError({
+    code: 'SNAPBACK_APP_REFUSAL',
+    message: 'admin required',
+    details: { appCode: 'ADMIN_REQUIRED', appDetails: { role: 'admin' } },
+  }));
+  await assert.rejects(mutate({ title: 'refused' }), (error) => {
+    assert.deepEqual(projectAppRefusal(error), {
+      code: 'SNAPBACK_APP_REFUSAL',
+      appCode: 'ADMIN_REQUIRED',
+      appDetails: { role: 'admin' },
+      detailsDropped: false,
+    });
+    return true;
+  });
   f.setMutationFailure(new TypeError('offline before dispatch'));
   await assert.rejects(mutate({ title: 'two' }), (error) => (
     error instanceof SnapbackDiagnosticError

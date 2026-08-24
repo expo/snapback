@@ -258,6 +258,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'cold-boot-binding-indexeddb.test.mjs',
       'cold-boot-binding.test.mjs',
       'commands.test.mjs',
+      'declared-refusal-packed.test.mjs',
       'dev-diagnostics-acceptance.test.mjs',
       'dev-diagnostics.test.mjs',
       'familiar.test.mjs',
@@ -593,7 +594,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 347,
+  expectedTotal = 348,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1105,6 +1106,8 @@ export function checkPackageTestInventories(options = {}) {
 // @expo/snapback-cli gains the auth setup group proof, the shared development
 // broker-half proof, and the supervised broker HTTP proof; @expo/snapback-expo
 // gains the shared development browser Adapter proof.
+// 347 -> 348 (2026-08-24, LLP 0144 Lane E): @expo/snapback-react gains the
+// packed Explicit + Familiar declared-refusal preservation proof.
 // LLP 0300 nine-row acceptance traceability (0301 §8 set-level table):
 // 1 cold bring-up -> templates/*/acceptance.mjs + declared-dev-episode.test.mjs;
 // 2 two principals -> declared-dev-episode.test.mjs; 3 forwards/tunnel/rebinding

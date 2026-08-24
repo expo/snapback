@@ -32,6 +32,8 @@ import type {
   StrandedMutation,
   StrandedMutationDiscardOutcome,
 } from '@expo/snapback-client';
+export { projectAppRefusal } from '@expo/snapback-client';
+export type { SnapbackAppRefusal } from '@expo/snapback-client';
 export type {
   ClientAuthorityMatrixCell,
   ClientAuthorityState,

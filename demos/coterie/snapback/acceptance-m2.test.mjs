@@ -16,7 +16,10 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { SnapbackClient } from '../../../packages/snapback-client/index.mjs';
+import {
+  projectAppRefusal,
+  SnapbackClient,
+} from '../../../packages/snapback-client/index.mjs';
 import { createAssetClient } from '../../../packages/snapback-client/assets.mjs';
 import { generate } from '../../../packages/snapback-codegen/index.mjs';
 import {
@@ -194,10 +197,6 @@ function code(error) {
   return error?.diagnostic?.code ?? error?.code ?? null;
 }
 
-function applicationCode(error) {
-  return error?.diagnostic?.details?.appCode ?? error?.details?.appCode ?? null;
-}
-
 function passwordClient(baseUrl, clientStoreId) {
   const coordinator = new AuthCoordinator({
     appId: schema.appId,
@@ -219,7 +218,7 @@ function passwordClient(baseUrl, clientStoreId) {
 async function expectAppCode(operation, expected) {
   await assert.rejects(operation, (error) => {
     assert.equal(code(error), 'SNAPBACK_APP_REFUSAL', error?.stack ?? String(error));
-    assert.equal(applicationCode(error), expected, error?.stack ?? String(error));
+    assert.equal(projectAppRefusal(error)?.appCode, expected, error?.stack ?? String(error));
     return true;
   });
 }

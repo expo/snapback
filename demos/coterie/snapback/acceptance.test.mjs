@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   createExternalSessionClient,
+  projectAppRefusal,
   SnapbackClient,
 } from '../../../packages/snapback-client/index.mjs';
 import { createAssetClient } from '../../../packages/snapback-client/assets.mjs';
@@ -42,10 +43,6 @@ const functions = loadGeneratedJson('functions.manifest.json');
 
 function code(error) {
   return error?.diagnostic?.code ?? error?.code ?? null;
-}
-
-function applicationCode(error) {
-  return error?.diagnostic?.details?.appCode ?? error?.details?.appCode ?? null;
 }
 
 function passwordClient(baseUrl, clientStoreId) {
@@ -77,7 +74,7 @@ async function expectCode(operation, expected) {
 async function expectAppCode(operation, expected) {
   await assert.rejects(operation, (error) => {
     assert.equal(code(error), 'SNAPBACK_APP_REFUSAL', error?.stack ?? String(error));
-    assert.equal(applicationCode(error), expected, error?.stack ?? String(error));
+    assert.equal(projectAppRefusal(error)?.appCode, expected, error?.stack ?? String(error));
     return true;
   });
 }

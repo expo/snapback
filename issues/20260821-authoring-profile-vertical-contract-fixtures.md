@@ -154,6 +154,9 @@ Key rulings, in brief:
   projection now closes over `action`, `allow`, `defineAssetUpload`,
   `defineEphemeral`, `defineSchema`, `defineTable`, `ephemeral`,
   `membershipResource`, `mutation`, and `query`, while values projects `v`.
+  The Familiar React export authority also projects the canonical
+  `projectAppRefusal` value and `SnapbackAppRefusal` type for declared-refusal
+  narrowing; it owns no separate decoder or error carrier.
   Unit and packed checks prove both the umbrella and generated entrypoints
   match that authority. VCF-F-E1 additionally proves membership-backed
   presence and the retired `_generated/` refusal. VCF-F-MB1 proves `_id`

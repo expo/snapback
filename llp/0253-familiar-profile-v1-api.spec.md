@@ -732,6 +732,17 @@ or client — LLP 0258 D6). Exact names remain subject to LLP 0258's Phase 1
 API review, and the re-exports ship only when the canonical hooks ship;
 until then the v1 export surface is unchanged.
 
+**Dated amendment (2026-08-24, declared-refusal projection).** The closed
+Familiar React export list additionally includes the value re-export
+`projectAppRefusal` and type re-export `SnapbackAppRefusal` from
+`@expo/snapback-client`. The helper has shape
+`(error: unknown) => SnapbackAppRefusal | null`; the projected union retains
+`code: 'SNAPBACK_APP_REFUSAL'` and `appCode`, with either
+`{ appDetails: unknown, detailsDropped: false }` or
+`{ appDetails: null, detailsDropped: true }`. Familiar owns no decoder or error
+type: the re-export is the canonical client helper/type by identity, matching
+the no-second-owner rule for this entrypoint.
+
 ### S6.2 `useQuery`
 
 `useQuery(ref, args | "skip" | typeof skip): Result | undefined`

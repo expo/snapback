@@ -7,6 +7,40 @@ const objectDiagnostic = (value) => (
   value !== null && typeof value === 'object' && !Array.isArray(value)
 );
 
+const APP_CODE = /^(?!SNAPBACK_)[A-Z0-9_]{1,64}$/u;
+
+/**
+ * Project the declared application refusal carried by either a public
+ * Snapback error or a raw diagnostic. This is deliberately an observation
+ * helper, not an admission authority: the serving host has already checked
+ * the appCode against the invoked function's declaration.
+ *
+ * @ref LLP 0144#axis-d--generation-and-client-typing-cv-16 — Explicit and
+ * Familiar clients narrow the one namespaced diagnostic shape instead of
+ * reaching through transport-specific error fields.
+ */
+export function projectAppRefusal(error) {
+  const diagnostic = objectDiagnostic(error?.diagnostic)
+    ? error.diagnostic
+    : objectDiagnostic(error)
+      ? error
+      : null;
+  if (diagnostic?.code !== 'SNAPBACK_APP_REFUSAL') return null;
+  const details = diagnostic.details;
+  if (
+    !objectDiagnostic(details)
+    || typeof details.appCode !== 'string'
+    || !APP_CODE.test(details.appCode)
+  ) return null;
+  const detailsDropped = details.appDetailsDropped === true;
+  return Object.freeze({
+    code: 'SNAPBACK_APP_REFUSAL',
+    appCode: details.appCode,
+    appDetails: detailsDropped ? null : (details.appDetails ?? null),
+    detailsDropped,
+  });
+}
+
 const diagnosticFor = (error, fallbackCode = 'SNAPBACK_CLIENT_REFUSED') => {
   if (objectDiagnostic(error?.diagnostic) && typeof error.diagnostic.code === 'string') {
     return error.diagnostic;

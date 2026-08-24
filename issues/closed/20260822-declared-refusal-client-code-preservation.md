@@ -1,6 +1,6 @@
 # Preserve declared application refusal codes at every client boundary
 
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-08-22
 **Impact:** 5
 **Urgency:** 5
@@ -64,3 +64,16 @@ closed.
   prose.
 - The Clique denial assertions can branch on the client-observed app code
   while retaining the unchanged-state proof.
+
+## Resolution
+
+Resolved 2026-08-24. `@expo/snapback-client` now exports the shared typed
+`projectAppRefusal` projection, and the React root and Familiar entry re-export
+the same helper. Coterie no longer carries a private diagnostic decoder.
+
+The packed regression installs archive-built Contract, Client, Codegen, and
+React packages into external consumers. It proves `DUPLICATE_HANDLE` through
+generated Explicit headless code, `ADMIN_REQUIRED` through a generated
+Familiar mutation hook, bounded structured details, the details-dropped
+discriminant, generic folding for malformed/undeclared/forged/bare claims, and
+zero committed writes. The native Coterie M1/M2/M3 acceptance suites also pass.

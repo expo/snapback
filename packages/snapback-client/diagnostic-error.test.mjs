@@ -4,6 +4,7 @@ import {
   SnapbackClient,
   SnapbackDiagnosticError,
   isSnapbackDiagnosticError,
+  projectAppRefusal,
 } from './index.mjs';
 import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
 
@@ -64,7 +65,10 @@ globalThis.fetch = async (url) => {
 console.warn = (...parts) => warnings.push(parts.join(' '));
 
 try {
-  const client = new SnapbackClient('http://diagnostics.invalid');
+  const client = new SnapbackClient('http://diagnostics.invalid', {
+    rqsStore: null,
+    offlineQueue: false,
+  });
   for (const [operation, call, expectedMayCommit] of [
     ['query', () => client.query(reference('Query', 'refusedQuery')), false],
     ['mutation', () => client.mutate(reference('Mutation', 'refusedMutation'), { queue: false }), false],
@@ -78,9 +82,35 @@ try {
       assert.equal(error.operation, operation, operation);
       assert.equal(error.retryable, false, operation);
       assert.equal(error.effectMayHaveCommitted, expectedMayCommit, operation);
+      const projected = projectAppRefusal(error);
+      assert.equal(projected?.appCode, `${operation.toUpperCase()}_NO`, operation);
+      assert.equal(projected?.appDetails, null, operation);
+      assert.equal(projected?.detailsDropped, false, operation);
       return true;
     });
   }
+
+  assert.deepEqual(projectAppRefusal({
+    code: 'SNAPBACK_APP_REFUSAL',
+    details: {
+      appCode: 'DETAILS_INVALID',
+      appDetails: { mustNotCross: true },
+      appDetailsDropped: true,
+    },
+  }), {
+    code: 'SNAPBACK_APP_REFUSAL',
+    appCode: 'DETAILS_INVALID',
+    appDetails: null,
+    detailsDropped: true,
+  });
+  for (const value of [
+    null,
+    new Error('bare'),
+    { code: 'SNAPBACK_HANDLER_FAILED', details: { appCode: 'FORGED' } },
+    { code: 'SNAPBACK_APP_REFUSAL', details: { appCode: '' } },
+    { code: 'SNAPBACK_APP_REFUSAL', details: { appCode: 'SNAPBACK_FORGED' } },
+    { code: 'SNAPBACK_APP_REFUSAL', details: { appCode: 7 } },
+  ]) assert.equal(projectAppRefusal(value), null);
 
   assert.deepEqual(
     await client.run(reference('Action', 'successAction')),
@@ -128,4 +158,4 @@ try {
   else process.env.NODE_ENV = originalNodeEnv;
 }
 
-console.log('diagnostic-error.test.mjs: query/run/mutation guard parity, queue capability, action compatibility, and deprecation passed');
+console.log('diagnostic-error.test.mjs: 3 operation projections, 1 details-drop projection, 6 fold negatives, queue capability, action compatibility, and deprecation passed');
