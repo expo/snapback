@@ -1,0 +1,62 @@
+{
+  "manifestVersion": "social-messenger-metering-manifest.v1",
+  "laneRunId": "dry-run-1787534242471/dry-run-noop",
+  "capFamily": "grok-advisory",
+  "adapter": "unavailable",
+  "unavailableReason": "dry-run-stub-has-no-model-usage",
+  "sessions": [],
+  "receipts": [
+    {
+      "sourceId": "m1-dry-run-choreography",
+      "runId": "5f2827c8-9586-4156-bbb1-c185f5027ba6",
+      "milestone": "M1",
+      "path": "receipts/m1-choreography.jsonl",
+      "sha256": "sha256:e96e2bed292fb5fdf185cae655dff3045b945ea5c0d0c54e2abd65a7e41671cd"
+    },
+    {
+      "sourceId": "m2-dry-run-choreography",
+      "runId": "88940673-8efd-49d7-a153-b462e1203378",
+      "milestone": "M2",
+      "path": "receipts/m2-choreography.jsonl",
+      "sha256": "sha256:32b7ad331674d76f87ffb5a6129e76d3590834761027a15bfb5fe162ba58c244"
+    },
+    {
+      "sourceId": "m3-dry-run-choreography",
+      "runId": "06affbe7-ec0d-4bb4-9be6-843187e5ad1d",
+      "milestone": "M3",
+      "path": "receipts/m3-choreography.jsonl",
+      "sha256": "sha256:590a9a494855fec2bad3c8122e2cae9a44e028dcf5c3bff354c01fa6e7eec29c"
+    }
+  ],
+  "observations": [
+    {
+      "sourceId": "dry-run-choreography-observations",
+      "path": "events/dry-run-choreography-observations.jsonl",
+      "sha256": "sha256:a8f7da84f4befe1796173ba2f99f40ee144ac923f701d36b2fe61381be90f38d"
+    },
+    {
+      "sourceId": "dry-run-1787534242471/dry-run-noop-lane-controller",
+      "path": "events/lane-controller-observations.jsonl",
+      "sha256": "sha256:8eec9f29666d98c28bff810ea11f0474af34cd6c313c7e9c02e75d9573d0c141"
+    }
+  ],
+  "suiteStatus": {
+    "path": "suite-status.json",
+    "sha256": "sha256:1397953294c863eb93959dc9e0eb04e9e82762b599fb7f09668da5a719beb453"
+  },
+  "boundaries": {
+    "path": "terminal-boundaries.json",
+    "sha256": "sha256:bdab65101c4ec1c84f401c234c4ae810ff3ddd9be8e19c48fcceebf9f0175962"
+  },
+  "firstProductEdit": null,
+  "driver": {
+    "id": "social-messenger-r2-two-minute-noop.v1",
+    "startedAt": "2026-08-24T01:17:22.585Z",
+    "stampedAt": "2026-08-24T01:19:22.719Z"
+  },
+  "clockCorrelation": {
+    "method": "rfc3339-with-bounded-skew",
+    "maxSkewMillis": 5000,
+    "evidence": "dry-run controller and stub use one process host clock with a 5s final-sample allowance"
+  }
+}

@@ -8,7 +8,11 @@ Ephemeral state, Memberships, Assets, Client integration, Exact/Contract
 integration, Guide, Benchmarks, Testing, Performance, Rust build
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-20
-**Revised:** 2026-08-23 (execution-status reconciliation: LLP 0267 §7 W5 is
+**Revised:** 2026-08-23 (R2 orchestrator rulings preserve Claude's actually
+executed 0.1.24 harness-default effort despite the frozen prompt text saying
+`xhigh`, approve the 1/5/15-minute load ceiling at 10.00 with three consecutive
+passing minute samples before admission, and accept Codex 0.149.0 as the same
+harness with the version change flagged). 2026-08-23 (execution-status reconciliation: LLP 0267 §7 W5 is
 accepted at v0.15 and graduated to four implementation tickets; the old W5
 author gate is removed). 2026-08-23 (the qualified fourteen-package 0.1.25 closure from
 `9d9265394953` is published and supplies R2's coherent Snapback package pin;
@@ -850,6 +854,15 @@ and supplies the coherent Snapback pin required by this rerun. This checkpoint
 does not say R2 has executed, validate its instrument, or select a profile. It
 also makes no F-1 or adversarial-handler-containment claim: the four LLP 0283
 F-1 defect families remain open and the LLP 0284 gates remain red by design.
+
+**ORCHESTRATOR RULING (2026-08-23).** R2 preserves what the 0.1.24 harness
+actually executed, not a contradictory comment in the retained prompt. Claude
+Opus 5 therefore runs at harness-default effort with no `--effort` argument;
+the prompt's `effort=xhigh` text remains frozen and is recorded as a deviation.
+The load-isolation ceiling is approved at loadavg-1/loadavg-5/loadavg-15 ≤
+10.00 with one-minute sampling and three consecutive passing samples before
+admission. Codex CLI 0.149.0 is accepted as the same harness as the recorded
+0.147.0 baseline, with that version change carried as an explicit flag.
 
 ### R3. Claim-eligible wave
 

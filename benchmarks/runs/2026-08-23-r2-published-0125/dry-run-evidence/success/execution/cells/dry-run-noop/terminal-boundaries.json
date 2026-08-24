@@ -1,0 +1,33 @@
+{
+  "laneRunId": "dry-run-1787534242471/dry-run-noop",
+  "driverId": "social-messenger-r2-two-minute-noop.v1",
+  "milestones": {
+    "M1": {
+      "status": "green",
+      "firstGreenAt": "2026-08-24T01:18:02.614Z",
+      "suitePassAt": "2026-08-24T01:18:02.614Z",
+      "choreoPassAt": "2026-08-24T01:18:02.614Z",
+      "terminalAt": "2026-08-24T01:18:02.614Z",
+      "terminalSequence": 1,
+      "terminalReason": "green"
+    },
+    "M2": {
+      "status": "green",
+      "firstGreenAt": "2026-08-24T01:18:42.654Z",
+      "suitePassAt": "2026-08-24T01:18:42.654Z",
+      "choreoPassAt": "2026-08-24T01:18:42.654Z",
+      "terminalAt": "2026-08-24T01:18:42.654Z",
+      "terminalSequence": 2,
+      "terminalReason": "green"
+    },
+    "M3": {
+      "status": "green",
+      "firstGreenAt": "2026-08-24T01:19:22.691Z",
+      "suitePassAt": "2026-08-24T01:19:22.691Z",
+      "choreoPassAt": "2026-08-24T01:19:22.691Z",
+      "terminalAt": "2026-08-24T01:19:22.691Z",
+      "terminalSequence": 3,
+      "terminalReason": "green"
+    }
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "snapback.r2-dry-run-validation.v1",
+  "ok": true,
+  "durationSeconds": 1,
+  "failureProbe": true,
+  "controller": {
+    "failedAsRequested": true
+  },
+  "stderr": "social-messenger lane controller: requested dry-run pre-choreography failure",
+  "cellRoot": "execution/cells/dry-run-noop",
+  "record": {
+    "path": "execution/cells/dry-run-noop/record.json",
+    "sha256": "sha256:e1ea4bd64ed0f18647b9525fe0a173cb68cbf048cd54429218436ffdaeed6ded"
+  },
+  "status": "aborted",
+  "scorecardEligible": false,
+  "noModelCellStarted": true,
+  "validator": {
+    "errors": [],
+    "sources": {
+      "base": {
+        "path": "benchmarks/schema/run-record.schema.json",
+        "sha256": "sha256:d8bd58dd94ec5726cd543fa72ea37dedf7a0226287ff5606fe295320a2651654"
+      },
+      "extension": {
+        "path": "benchmarks/schema/social-messenger/run-record-extension.schema.json",
+        "sha256": "sha256:1cf39ff49e9b34465a1086f4a4d37491289c6590aca657652285c39138542983"
+      },
+      "composed": {
+        "path": "benchmarks/schema/social-messenger/run-record.schema.json",
+        "sha256": "sha256:3403455e98fad656125ea2ab0993f780bdb112849fb127bd8bcfcbcf6f2b8a64"
+      },
+      "semantic": {
+        "path": "benchmarks/tools/social-messenger/record-validator.mjs",
+        "sha256": "sha256:fa1b179a617db743ec15d9d87017458e594cab070b798ccd72b5349ccf373238"
+      }
+    }
+  },
+  "artifacts": [
+    {
+      "path": "execution/cells/dry-run-noop/dry-run-coverage.json",
+      "bytes": 19,
+      "sha256": "sha256:b22698c8d6ac5703b7a421512efdaa8bb2439475aa09cc3746cefb8d58d89f60"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/dry-run-orientation.txt",
+      "bytes": 68,
+      "sha256": "sha256:91e23af76c804cc3392e298d56d586f2ed7eab834359d4a761c2818ca6d94885"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/events/dry-run-choreography-observations.jsonl",
+      "bytes": 0,
+      "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/events/lane-controller-observations.jsonl",
+      "bytes": 3176,
+      "sha256": "sha256:00684c570a17a8ecb7a8a11e796091d8a6e8f0bc8ba15c8619aded20017d4635"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/instrument.manifest.json",
+      "bytes": 3268,
+      "sha256": "sha256:8a13dcc55eca1dfe49a13d704575d2e2843ca059c34c964df86c7287dfb729ad"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/metering-manifest.json",
+      "bytes": 1441,
+      "sha256": "sha256:2caf01c069e71d2cdd70031b45711a58c099323f13231dd73d5f29ed076d9d17"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/metering.json",
+      "bytes": 8167,
+      "sha256": "sha256:5f2d2988bc547a626c4360c7bf36a304396ee6ebfebe31f05be04fa168ebb23f"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/receipts/m1-suite.json",
+      "bytes": 32,
+      "sha256": "sha256:4beeb02995ae932b66e2db337c0657507e56c10d3b542b7914602a1e383f1ff3"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/record-base.json",
+      "bytes": 3708,
+      "sha256": "sha256:d8218f7e664c269136ee56387bf8087324ca3b6548009f12b6e9093979330450"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/record.json",
+      "bytes": 12713,
+      "sha256": "sha256:e1ea4bd64ed0f18647b9525fe0a173cb68cbf048cd54429218436ffdaeed6ded"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/suite-status.json",
+      "bytes": 77,
+      "sha256": "sha256:fad11158b7b055e08ef2c626d945a9ea3d6273097472897eb59342c6a857a945"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/terminal-boundaries.json",
+      "bytes": 372,
+      "sha256": "sha256:5e28e2b5758b840d8c6a1be478186ecd19edb2c2bdc714de8c2c0929faeaf9ad"
+    },
+    {
+      "path": "harness-config.json",
+      "bytes": 1222,
+      "sha256": "sha256:14b5fa1ee5e51595878567e2d56b8c1f9905096db47f3f00dbe8198cf8050613"
+    }
+  ]
+}

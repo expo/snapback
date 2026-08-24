@@ -152,7 +152,9 @@ The joiner stamps `instrumentVersion: "social-messenger@0.3.3-m8"`;
 validation requires that pin, the exact orientation pin, the current
 observability protocol, suite linkage, and the complete claimed-or-non-claimed
 shape. A current/R2 record cannot become legacy-compatible by coordinated
-deletion/downgrade of optional markers.
+deletion/downgrade of optional markers or by substituting explicit
+`social-messenger@0.3.2-m8` while retaining a current protocol, orientation
+pin, or choreography version.
 
 ## Watchdog contract
 

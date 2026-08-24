@@ -14,9 +14,10 @@ claim.
 - The original prompts are recovered from commit `67700dd43`, not from the
   subsequently edited reusable templates. The four files under `prompts/`
   change only the published Snapback spelling from 0.1.24 to 0.1.25 and the
-  absolute instrument root to the R2 root. Model, effort declaration, app
-  scope, M1–M3 limit, fixtures, proof contract, safety limits, and Exact pin
-  remain as recorded.
+  absolute instrument root to the R2 root. Model, prompt-text effort
+  declaration, app scope, M1–M3 limit, fixtures, proof contract, safety limits,
+  and Exact pin remain as recorded. Actual launch effort follows the executed
+  harness record and the deviations table below.
 - Snapback is the fourteen-package public 0.1.25 closure
   `fastpath-0-1-25-9d9265394953`, qualified from
   `9d9265394953769aaa52e63c8a914464175f93ab`.
@@ -33,12 +34,21 @@ claim.
   `benchmarks/schema/social-messenger/run-record.schema.json` and then pass
   `benchmarks/tools/social-messenger/record-validator.mjs`.
 
+## Orchestrator rulings and deviations
+
+| Item | Retained 0.1.24 / proposed basis | R2 ruling and disposition |
+| --- | --- | --- |
+| Claude effort | The frozen prompts say `effort=xhigh`, but the retained harness record shows harness-default effort actually ran. | Preserve executed behavior: config `effort.value` is null and Claude argv deliberately has no `--effort` argument. The prompt text remains unchanged as the recorded discrepancy. |
+| Claude executable | The prepared config named the mutable `~/.local/bin/claude`, which advanced from 2.1.239 to 2.1.241 after preparation. | Invoke the retained installed 2.1.239 executable by its immutable versioned path. |
+| Host load ceiling | The 0.1.24 contamination flags carried no numeric admission threshold. | Approve loadavg-1/loadavg-5/loadavg-15 ≤ 10.00, sampled once per minute, with three consecutive passing samples before admission. |
+| Codex CLI | The 0.1.24 record used 0.147.0; the prepared R2 host has 0.149.0. | Accept 0.149.0 as the same harness and carry `same-harness-version-change-accepted:0.147.0->0.149.0` as an explicit config and record flag. |
+
 ## Execution plan
 
 1. Resolve every blocking entry in `preflight.json` and rerun preflight. Do not
    waive a red by editing a cell after its authoring clock begins.
 2. Freeze the single machine, Node 24 path, CLI versions, Exact checkout,
-   instrument tree, package closure, and proposed load ceiling in
+   instrument tree, package closure, and approved load ceiling in
    `harness-config.json`.
 3. Materialize each lane from a fresh directory with the landed lane setup and
    its bounded start packet. Start its exact `controllerCommand` from
@@ -83,18 +93,19 @@ The production command shape is frozen per cell, for example:
 hooks, verifies each native CLI exists, and asks the lane controller to resolve
 every cell against the external 0.3.3-m8 pin.
 
-## Load-isolation proposal
+## Load-isolation ruling
 
 The sole machine is this `MacBookPro18,4` (Darwin arm64, 10 logical CPUs,
-64 GiB). The proposed ceiling is loadavg-1/loadavg-5/loadavg-15 each at or
+64 GiB). The approved ceiling is loadavg-1/loadavg-5/loadavg-15 each at or
 below 10.00, sampled once per minute. A cell is contaminated on the first
 sample above any ceiling; it continues for product evidence but becomes
 scorecard-ineligible. The machine must be otherwise reserved, and a new cell
 requires three consecutive all-green samples.
 
 LLP 0186 deliberately reused the 0.1.24 contamination flags without inventing
-a threshold, while this R2 request requires an explicit ceiling. The numeric
-10.00 proposal therefore needs an orchestrator ruling before cell 1.
+a threshold, while this R2 request requires an explicit ceiling. The
+orchestrator approved the numeric 10.00 ceiling and three-sample admission rule
+before cell 1.
 
 ## Record layout
 
@@ -156,18 +167,43 @@ load-drain waits and final aggregation.
 `dry-run-cell.mjs` runs a two-minute no-op stub through the same controller,
 typed observation, manifest, metering, complete-record, and checked-validator
 path. It does not invoke a model CLI or mark a preregistered campaign slot
-started. The output is a private temporary cell root containing a validating
-`record.json`; the script prints its path and validation disposition.
+started. By default the output is a private temporary cell root. Passing
+`--output-root` retains the complete record, all sidecars, and a
+`validation.json` digest inventory at an exact inspectable path.
 
 ```sh
-node benchmarks/runs/2026-08-23-r2-published-0125/dry-run-cell.mjs
 node benchmarks/runs/2026-08-23-r2-published-0125/dry-run-cell.mjs \
-  --duration-seconds 1 --failure-probe
+  --output-root benchmarks/runs/2026-08-23-r2-published-0125/dry-run-evidence/success
+node benchmarks/runs/2026-08-23-r2-published-0125/dry-run-cell.mjs \
+  --duration-seconds 1 --failure-probe \
+  --output-root benchmarks/runs/2026-08-23-r2-published-0125/dry-run-evidence/failure
 ```
 
 The first command is the required full-duration lifecycle proof. The second is
 a focused fault-injection check: it throws in M1 before choreography, then
 requires a validating `record.json` with M1 `aborted` and M2/M3 `not-run`.
+
+The retained Round-5 evidence is:
+
+- Success: `dry-run-evidence/success/validation.json`
+  (`sha256:f1eb390c7a2696a8d2c324fd10dc207ec8e0693781292217393845c8ca018862`),
+  binding the complete green record at
+  `sha256:ba23a258935c82d6c8b6e90c32cc4bf7c610c155c5766692be3ebe6076bd200a`.
+- Forced failure: `dry-run-evidence/failure/validation.json`
+  (`sha256:8fe36e2574c94eca13b6a8b045b04e132e05b7adcc96d599e4346a6c79e39100`),
+  binding the checked-valid aborted record at
+  `sha256:e1ea4bd64ed0f18647b9525fe0a173cb68cbf048cd54429218436ffdaeed6ded`.
+
+Both validation dispositions report zero schema/semantic errors and inventory
+every retained sidecar by relative path, byte size, and SHA-256 digest.
+Re-hash and revalidate them independently with:
+
+```sh
+node benchmarks/runs/2026-08-23-r2-published-0125/validate-dry-run-evidence.mjs \
+  benchmarks/runs/2026-08-23-r2-published-0125/dry-run-evidence/success
+node benchmarks/runs/2026-08-23-r2-published-0125/validate-dry-run-evidence.mjs \
+  benchmarks/runs/2026-08-23-r2-published-0125/dry-run-evidence/failure
+```
 
 ## Start blockers
 
@@ -175,7 +211,5 @@ The authoritative list is `preflight.json`. The controller, driver,
 suite-status refusal, complete-record path, and 0.3.3-m8 pin are no longer
 blockers. The campaign still waits for materialization of the new private
 instrument archive, Grok authentication, absent raw 0.1.24 event streams or a
-governing pre-wave ruling, the load-ceiling ruling, an actually reserved/quiet
-host, and the Claude effort contradiction. Codex also moved from the recorded
-0.147.0 to 0.149.0 and needs a comparator ruling or restoration of the old
-binary.
+governing pre-wave ruling, and an actually reserved/quiet host. The Claude
+effort, load ceiling, and Codex 0.149.0 rulings are resolved and frozen above.

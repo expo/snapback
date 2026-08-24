@@ -1,0 +1,139 @@
+{
+  "schemaVersion": "snapback.r2-dry-run-validation.v1",
+  "ok": true,
+  "durationSeconds": 120,
+  "failureProbe": false,
+  "controller": {
+    "ok": true,
+    "laneRunId": "dry-run-1787534242471/dry-run-noop",
+    "milestones": [
+      "M1",
+      "M2",
+      "M3"
+    ],
+    "record": "record.json",
+    "scorecardEligible": false
+  },
+  "stderr": "",
+  "cellRoot": "execution/cells/dry-run-noop",
+  "record": {
+    "path": "execution/cells/dry-run-noop/record.json",
+    "sha256": "sha256:ba23a258935c82d6c8b6e90c32cc4bf7c610c155c5766692be3ebe6076bd200a"
+  },
+  "status": "green",
+  "scorecardEligible": false,
+  "noModelCellStarted": true,
+  "validator": {
+    "errors": [],
+    "sources": {
+      "base": {
+        "path": "benchmarks/schema/run-record.schema.json",
+        "sha256": "sha256:d8bd58dd94ec5726cd543fa72ea37dedf7a0226287ff5606fe295320a2651654"
+      },
+      "extension": {
+        "path": "benchmarks/schema/social-messenger/run-record-extension.schema.json",
+        "sha256": "sha256:1cf39ff49e9b34465a1086f4a4d37491289c6590aca657652285c39138542983"
+      },
+      "composed": {
+        "path": "benchmarks/schema/social-messenger/run-record.schema.json",
+        "sha256": "sha256:3403455e98fad656125ea2ab0993f780bdb112849fb127bd8bcfcbcf6f2b8a64"
+      },
+      "semantic": {
+        "path": "benchmarks/tools/social-messenger/record-validator.mjs",
+        "sha256": "sha256:fa1b179a617db743ec15d9d87017458e594cab070b798ccd72b5349ccf373238"
+      }
+    }
+  },
+  "artifacts": [
+    {
+      "path": "execution/cells/dry-run-noop/dry-run-coverage.json",
+      "bytes": 19,
+      "sha256": "sha256:b22698c8d6ac5703b7a421512efdaa8bb2439475aa09cc3746cefb8d58d89f60"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/dry-run-orientation.txt",
+      "bytes": 68,
+      "sha256": "sha256:91e23af76c804cc3392e298d56d586f2ed7eab834359d4a761c2818ca6d94885"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/events/dry-run-choreography-observations.jsonl",
+      "bytes": 1629,
+      "sha256": "sha256:a8f7da84f4befe1796173ba2f99f40ee144ac923f701d36b2fe61381be90f38d"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/events/lane-controller-observations.jsonl",
+      "bytes": 47400,
+      "sha256": "sha256:8eec9f29666d98c28bff810ea11f0474af34cd6c313c7e9c02e75d9573d0c141"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/instrument.manifest.json",
+      "bytes": 3268,
+      "sha256": "sha256:8a13dcc55eca1dfe49a13d704575d2e2843ca059c34c964df86c7287dfb729ad"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/metering-manifest.json",
+      "bytes": 2271,
+      "sha256": "sha256:6c4773f1a76e7d001e936cc376a0a595b0572193435608993e75ca08d8ee42fc"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/metering.json",
+      "bytes": 21592,
+      "sha256": "sha256:261c46ac1c4fd4d6a2b0d6cf42398bbcd8eef25c6e17db2491948dfae4b9e7d9"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/receipts/m1-choreography.jsonl",
+      "bytes": 866,
+      "sha256": "sha256:e96e2bed292fb5fdf185cae655dff3045b945ea5c0d0c54e2abd65a7e41671cd"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/receipts/m1-suite.json",
+      "bytes": 31,
+      "sha256": "sha256:261a9435511a997a81fd1e54d6d1a685caa18c3d6bee8f1058a191abce59a4f8"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/receipts/m2-choreography.jsonl",
+      "bytes": 866,
+      "sha256": "sha256:32b7ad331674d76f87ffb5a6129e76d3590834761027a15bfb5fe162ba58c244"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/receipts/m2-suite.json",
+      "bytes": 31,
+      "sha256": "sha256:0f303f8b2f2708966b8fba23f75eecbc891005cf740a7525e3896b032593119a"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/receipts/m3-choreography.jsonl",
+      "bytes": 866,
+      "sha256": "sha256:590a9a494855fec2bad3c8122e2cae9a44e028dcf5c3bff354c01fa6e7eec29c"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/receipts/m3-suite.json",
+      "bytes": 31,
+      "sha256": "sha256:91d2b5009316b59c4f09a9a7e623da6c1e0a015a99efa34955924991e0ee6678"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/record-base.json",
+      "bytes": 3708,
+      "sha256": "sha256:d8218f7e664c269136ee56387bf8087324ca3b6548009f12b6e9093979330450"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/record.json",
+      "bytes": 25461,
+      "sha256": "sha256:ba23a258935c82d6c8b6e90c32cc4bf7c610c155c5766692be3ebe6076bd200a"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/suite-status.json",
+      "bytes": 222,
+      "sha256": "sha256:1397953294c863eb93959dc9e0eb04e9e82762b599fb7f09668da5a719beb453"
+    },
+    {
+      "path": "execution/cells/dry-run-noop/terminal-boundaries.json",
+      "bytes": 1040,
+      "sha256": "sha256:bdab65101c4ec1c84f401c234c4ae810ff3ddd9be8e19c48fcceebf9f0175962"
+    },
+    {
+      "path": "harness-config.json",
+      "bytes": 1225,
+      "sha256": "sha256:bf9a18a1d69c3b3d316beca0fbca549e46f1e8b46cf137fbaa50b05904fd024f"
+    }
+  ]
+}

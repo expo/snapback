@@ -6,6 +6,7 @@ import { validateJsonSchema } from "../lib/json-schema.mjs";
 import {
   CURRENT_INSTRUMENT_PIN,
   OBSERVABILITY_BLOCKS,
+  OBSERVATION_VERSION,
   parseObservationJsonLines,
   projectMilestoneObservability,
   scorecardEligibility,
@@ -604,6 +605,16 @@ export function validateSocialMessengerRecordSemantics(record, { artifactRoot = 
   const extension = record?.socialMessenger;
   if (extension === null || typeof extension !== "object") return errors;
   const currentInstrument = extension.instrumentVersion === CURRENT_INSTRUMENT_PIN;
+  const currentProtocolMarker = extension.observabilityProtocol === OBSERVATION_VERSION;
+  const currentOrientationMarker = (
+    extension.orientation?.instrument?.pin === CURRENT_INSTRUMENT_PIN
+    || extension.orientation?.instrument?.versions?.choreography === CURRENT_CHOREOGRAPHY_VERSION
+  );
+  if (!currentInstrument && (currentProtocolMarker || currentOrientationMarker)) {
+    errors.push(
+      `$/socialMessenger/instrumentVersion: current observability/orientation markers require ${CURRENT_INSTRUMENT_PIN}`,
+    );
+  }
 
   for (const [milestone, value] of Object.entries(extension.milestones ?? {})) {
     if (value === null || typeof value !== "object") continue;

@@ -52,7 +52,10 @@ import {
 } from "../watchdog.mjs";
 import { validateJsonSchema } from "../../../lib/json-schema.mjs";
 import { validateMachineRecord } from "../../../lib/record-loader.mjs";
-import { validateSocialMessengerRunRecord } from "../../record-validator.mjs";
+import {
+  validateSocialMessengerRecordSemantics,
+  validateSocialMessengerRunRecord,
+} from "../../record-validator.mjs";
 
 const execFileAsync = promisify(execFile);
 const FIXTURES = new URL("./fixtures/", import.meta.url);
@@ -1479,6 +1482,23 @@ test("D0.6 observability is produced from real sidecars and tampering fails clos
   assert.match(
     composedErrors(absentInstrumentVersion, root).join("\n"),
     /instrumentVersion.*required field is missing/u,
+  );
+
+  const explicitInstrumentDowngrade = structuredClone(record);
+  explicitInstrumentDowngrade.socialMessenger.instrumentVersion =
+    "social-messenger@0.3.2-m8";
+  assert.match(
+    validateSocialMessengerRecordSemantics(
+      explicitInstrumentDowngrade,
+      { artifactRoot: root },
+    ).join("\n"),
+    /current observability\/orientation markers require social-messenger@0\.3\.3-m8/u,
+    "semantic validation must reject explicit legacy-version substitution on an otherwise-current record",
+  );
+  assert.match(
+    composedErrors(explicitInstrumentDowngrade, root).join("\n"),
+    /expected constant "social-messenger@0\.3\.3-m8"/u,
+    "the composed schema must make current protocol/orientation markers imply the current instrument version",
   );
 
   const coordinatedDowngrade = structuredClone(record);

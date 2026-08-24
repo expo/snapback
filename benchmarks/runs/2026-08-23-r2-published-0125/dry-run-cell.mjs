@@ -1,9 +1,17 @@
 #!/usr/bin/env node
 
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
@@ -22,11 +30,55 @@ function duration(argv) {
   return value;
 }
 
+function argument(argv, name) {
+  const index = argv.indexOf(name);
+  if (index === -1) return null;
+  const value = argv[index + 1];
+  if (typeof value !== "string" || value.length === 0 || value.startsWith("--")) {
+    throw new Error(`${name} requires a value`);
+  }
+  return value;
+}
+
+function sha256(bytes) {
+  return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+}
+
+function logical(root, path) {
+  return relative(root, path).split(sep).join("/");
+}
+
+async function artifactInventory(root, directory = root) {
+  const inventory = [];
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      inventory.push(...await artifactInventory(root, path));
+    } else if (entry.isFile() && entry.name !== "validation.json") {
+      const bytes = await readFile(path);
+      inventory.push({
+        path: logical(root, path),
+        bytes: (await stat(path)).size,
+        sha256: sha256(bytes),
+      });
+    }
+  }
+  return inventory.sort((left, right) => left.path.localeCompare(right.path));
+}
+
 async function main() {
   const argv = process.argv.slice(2);
   const durationSeconds = duration(argv);
   const failureProbe = argv.includes("--failure-probe");
-  const root = await mkdtemp(join(tmpdir(), "snapback-r2-dry-run-"));
+  const requestedRoot = argument(argv, "--output-root");
+  let root;
+  if (requestedRoot === null) {
+    root = await mkdtemp(join(tmpdir(), "snapback-r2-dry-run-"));
+  } else {
+    root = resolve(requestedRoot);
+    await mkdir(dirname(root), { recursive: true });
+    await mkdir(root);
+  }
   const privateExecutionRoot = join(root, "execution");
   const configPath = join(root, "harness-config.json");
   const driverPath = join(runRoot, "dry-run-driver.mjs");
@@ -107,19 +159,49 @@ async function main() {
     artifactRoot: cellRoot,
   });
   if (errors.length > 0) throw new Error(`dry-run record failed validation: ${errors.join("; ")}`);
-  process.stdout.write(`${JSON.stringify({
+  const controller = controllerFailed
+    ? { failedAsRequested: true }
+    : JSON.parse(stdout.trim());
+  const schemaPaths = {
+    base: "benchmarks/schema/run-record.schema.json",
+    extension: "benchmarks/schema/social-messenger/run-record-extension.schema.json",
+    composed: "benchmarks/schema/social-messenger/run-record.schema.json",
+    semantic: "benchmarks/tools/social-messenger/record-validator.mjs",
+  };
+  const disposition = {
+    schemaVersion: "snapback.r2-dry-run-validation.v1",
     ok: true,
     durationSeconds,
-    controller: controllerFailed
-      ? { failedAsRequested: true }
-      : JSON.parse(stdout.trim()),
-    stderr: stderr.trim(),
-    cellRoot,
-    recordPath,
-    status: record.socialMessenger.milestones.M1.status,
     failureProbe,
+    controller,
+    stderr: stderr.trim(),
+    cellRoot: logical(root, cellRoot),
+    record: {
+      path: logical(root, recordPath),
+      sha256: sha256(await readFile(recordPath)),
+    },
+    status: record.socialMessenger.milestones.M1.status,
     scorecardEligible: record.socialMessenger.efficiencyScorecardEligibility.eligible,
     noModelCellStarted: true,
+    validator: {
+      errors,
+      sources: Object.fromEntries(await Promise.all(
+        Object.entries(schemaPaths).map(async ([name, path]) => [
+          name,
+          { path, sha256: sha256(await readFile(join(repositoryRoot, path))) },
+        ]),
+      )),
+    },
+    artifacts: await artifactInventory(root),
+  };
+  const validationPath = join(root, "validation.json");
+  await writeFile(validationPath, `${JSON.stringify(disposition, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify({
+    ...disposition,
+    evidenceRoot: root,
+    recordPath,
+    validationPath,
+    validationSha256: sha256(await readFile(validationPath)),
   })}\n`);
 }
 

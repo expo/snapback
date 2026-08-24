@@ -127,6 +127,9 @@ function recordBase(
         node: config.harnessConfig.machine.node.version,
         snapback: config.harnessConfig.pins.snapback0125.version,
         instrument: CURRENT_INSTRUMENT_PIN,
+        ...(config.harness.versionFlag
+          ? { harnessVersionFlag: config.harness.versionFlag }
+          : {}),
       },
     },
     timestamps: { startedAt: "1970-01-01T00:00:00.000Z", finishedAt: "1970-01-01T00:00:00.000Z" },
@@ -203,9 +206,7 @@ function recordBase(
 }
 
 function harnessInvocation(state) {
-  const argv = [...(state.config.harness.argvTemplate
-    ?? state.config.harness.argvTemplateWithoutEffortRuling
-    ?? [])];
+  const argv = [...(state.config.harness.argvTemplate ?? [])];
   const promptFile = state.promptPath;
   const promptMode = state.config.harness.promptDelivery;
   for (let index = 0; index < argv.length; index += 1) {

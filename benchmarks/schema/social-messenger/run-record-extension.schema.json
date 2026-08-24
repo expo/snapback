@@ -115,7 +115,12 @@
       "then": {
         "required": [
           "instrumentVersion"
-        ]
+        ],
+        "properties": {
+          "instrumentVersion": {
+            "const": "social-messenger@0.3.3-m8"
+          }
+        }
       }
     },
     {
@@ -146,7 +151,55 @@
       "then": {
         "required": [
           "instrumentVersion"
+        ],
+        "properties": {
+          "instrumentVersion": {
+            "const": "social-messenger@0.3.3-m8"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "orientation": {
+            "properties": {
+              "instrument": {
+                "properties": {
+                  "versions": {
+                    "properties": {
+                      "choreography": {
+                        "const": "0.3.3-m8"
+                      }
+                    },
+                    "required": [
+                      "choreography"
+                    ]
+                  }
+                },
+                "required": [
+                  "versions"
+                ]
+              }
+            },
+            "required": [
+              "instrument"
+            ]
+          }
+        },
+        "required": [
+          "orientation"
         ]
+      },
+      "then": {
+        "required": [
+          "instrumentVersion"
+        ],
+        "properties": {
+          "instrumentVersion": {
+            "const": "social-messenger@0.3.3-m8"
+          }
+        }
       }
     }
   ],

@@ -1,0 +1,91 @@
+{
+  "schemaVersion": "benchmark-instrument-snapshot.v1",
+  "instrumentPin": "social-messenger@0.3.3-m8",
+  "versions": {
+    "schema": "0.3.0-m8",
+    "ui": "0.3.1-m8",
+    "choreography": "0.3.3-m8"
+  },
+  "artifacts": {
+    "brief": {
+      "kind": "file",
+      "path": "briefs/social-messenger.md",
+      "sha256": "8ce705938a756a1228d712c6bed31b6fe49cf7f03f58bd887d69f74ddfbc390a"
+    },
+    "contract": {
+      "kind": "file",
+      "path": "tools/social-messenger/CONTRACT.md",
+      "sha256": "48fac18b87da640be864955c51a2fbc582653fd4595d06bfeaf7d8f0fea06db5"
+    },
+    "assertions": {
+      "kind": "file",
+      "path": "schema/social-messenger/assertions.json",
+      "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+    },
+    "applicability": {
+      "kind": "file",
+      "path": "schema/social-messenger/applicability.json",
+      "sha256": "b3d45805202375949b657cc30609e9d1de51da6a188469e9bf2c60f8fd1e37a1"
+    },
+    "fixtureReadme": {
+      "kind": "file",
+      "path": "fixtures/social-messenger/README.md",
+      "sha256": "99029e65be75f2715e057d56b639fb0490b5532c5e2afb4d1a35c962579073b2"
+    },
+    "fixtureRoot": {
+      "kind": "directory",
+      "path": "fixtures/social-messenger",
+      "sha256": "51e763163325960839f552ebf63d0bd9c54afdbc3d80a747696217d7568659b1"
+    },
+    "uiRoot": {
+      "kind": "directory",
+      "path": "tools/social-messenger/ui",
+      "sha256": "23e8790e42d028bf3074ca415283893e7daa08e6b1a798d8e827e59a5058c3a6"
+    },
+    "uiVersion": {
+      "kind": "file",
+      "path": "tools/social-messenger/ui/VERSION",
+      "sha256": "c45c7a61fc18f13a19ac2cbef6e507b79b37e7c4a1f76dc49f260f239516fa50"
+    },
+    "choreographyRoot": {
+      "kind": "directory",
+      "path": "tools/social-messenger/choreography",
+      "sha256": "71c74ddbb47e426f98e4d07cea36aff6d6a209426224d72dc97da7781700cedf"
+    },
+    "choreographyVersion": {
+      "kind": "file",
+      "path": "tools/social-messenger/choreography/VERSION",
+      "sha256": "a3fa57c8819a0fb2e1bef13c68adf699188b995c7ee870cccdd30a98760b10d7"
+    },
+    "schemaVersion": {
+      "kind": "file",
+      "path": "schema/social-messenger/VERSION",
+      "sha256": "56ff5020017eb5d91c9b14b2993d9d4204af1fd03076d5aebd16fa2e97abe5e5"
+    },
+    "baseRunRecordSchema": {
+      "kind": "file",
+      "path": "schema/run-record.schema.json",
+      "sha256": "d8bd58dd94ec5726cd543fa72ea37dedf7a0226287ff5606fe295320a2651654"
+    },
+    "runRecordSchema": {
+      "kind": "file",
+      "path": "schema/social-messenger/run-record.schema.json",
+      "sha256": "3403455e98fad656125ea2ab0993f780bdb112849fb127bd8bcfcbcf6f2b8a64"
+    },
+    "runRecordExtensionSchema": {
+      "kind": "file",
+      "path": "schema/social-messenger/run-record-extension.schema.json",
+      "sha256": "1cf39ff49e9b34465a1086f4a4d37491289c6590aca657652285c39138542983"
+    },
+    "recordValidator": {
+      "kind": "file",
+      "path": "tools/social-messenger/record-validator.mjs",
+      "sha256": "fa1b179a617db743ec15d9d87017458e594cab070b798ccd72b5349ccf373238"
+    },
+    "meteringRoot": {
+      "kind": "directory",
+      "path": "tools/social-messenger/metering",
+      "sha256": "df0969356ff508a52ac44cb338d284e97eb1cc4c2a8cfafcb9dc6bbc0d66eebd"
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "snapback.r2-harness-config.v1",
+  "runId": "dry-run-1787534368269",
+  "paths": {
+    "privateExecutionRoot": "/Users/ccheever/projects/snapback-worktrees/sbs-0295/w6-observability/benchmarks/runs/2026-08-23-r2-published-0125/dry-run-evidence/failure/execution"
+  },
+  "execution": {
+    "milestones": [
+      "M1",
+      "M2",
+      "M3"
+    ],
+    "perMilestoneWallSafetyLimitSeconds": 300,
+    "loadIsolation": {
+      "sampleEverySeconds": 1,
+      "ceilingInclusive": {
+        "loadavg1": 1000000,
+        "loadavg5": 1000000,
+        "loadavg15": 1000000
+      }
+    }
+  },
+  "pins": {
+    "instrument": {
+      "instrumentPin": "social-messenger@0.3.3-m8"
+    }
+  },
+  "harnesses": {
+    "dry-run-stub": {
+      "binary": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+      "observedVersion": "v24.18.0",
+      "promptDelivery": "stdin"
+    }
+  },
+  "cells": [
+    {
+      "id": "dry-run-noop",
+      "harness": "dry-run-stub",
+      "model": "none",
+      "effort": null,
+      "app": "DryRun",
+      "profile": "none",
+      "promptFile": "none",
+      "ports": [
+        0,
+        0
+      ],
+      "dryRunDurationSeconds": 1,
+      "failBeforeChoreography": true
+    }
+  ]
+}

@@ -43,8 +43,9 @@
     "milestones": ["M1", "M2", "M3"],
     "perMilestoneWallSafetyLimitSeconds": 14400,
     "loadIsolation": {
-      "policyId": "host-10cpu-loadavg-10-proposal",
-      "status": "needs-orchestrator-ruling",
+      "policyId": "host-10cpu-loadavg-10-approved",
+      "status": "approved",
+      "ruling": "ORCHESTRATOR RULING: loadavg-1/loadavg-5/loadavg-15 <= 10.00 is approved, with three consecutive one-minute passing samples before admission.",
       "sampleEverySeconds": 60,
       "metrics": ["loadavg1", "loadavg5", "loadavg15"],
       "ceilingInclusive": {
@@ -108,7 +109,7 @@
     "instrument": {
       "semanticSnapshotRevision": "e8048d8238b3abe1fe3d6553bd12f334affbf88f",
       "instrumentPin": "social-messenger@0.3.3-m8",
-      "manifestSha256": "2b9bb33479c8a834692e577db0a577cc7bb0cff9aa022a4ab0a7e1505726dcb9",
+      "manifestSha256": "8a13dcc55eca1dfe49a13d704575d2e2843ca059c34c964df86c7287dfb729ad",
       "fixtureVersion": "0.2.0-m8",
       "schemaVersion": "0.3.0-m8",
       "uiVersion": "0.3.1-m8",
@@ -118,12 +119,12 @@
         "status": "landed",
         "recordSchema": "benchmarks/schema/social-messenger/run-record.schema.json",
         "recordSchemaSha256": "3403455e98fad656125ea2ab0993f780bdb112849fb127bd8bcfcbcf6f2b8a64",
-        "extensionSchemaSha256": "0c4e01d1dd91d33cb100c53284afe82170feeb135d9ec53051f0efd5c91c188a",
-        "recordValidatorSha256": "d549f89e91699fda68fba341632bea29bc7325d5edf7a331f589f6cafd63e71e",
+        "extensionSchemaSha256": "1cf39ff49e9b34465a1086f4a4d37491289c6590aca657652285c39138542983",
+        "recordValidatorSha256": "fa1b179a617db743ec15d9d87017458e594cab070b798ccd72b5349ccf373238",
         "meterSha256": "d19aa6764c513af489e43b00ef15f8560d347dc84998254d1cceb4bf9e4d5a62",
         "laneSetupSha256": "b46ddce548b4415dfd791eb32c97eba581adb0d9794da557f314fd2b34c9e71f",
         "laneControllerSha256": "e5fac8225f912b675081977ade585d2adbbdb22508e3d5983d4975231132f6f2",
-        "productionDriverSha256": "5387848884547ce30e71d21335f306cf9a4001a43dd1fb180a99fa5ea9328614",
+        "productionDriverSha256": "5fa15c7ede74b030cf06b61176bbe8b9649ec09a8d85be264af21251021ff295",
         "signalSha256": "f2f835538bc92cd5ea2af0098e43ca0e97cf3934101c713f6c13ede55066a712"
       },
       "observabilityBump": {
@@ -195,6 +196,8 @@
       "binary": "/Users/ccheever/.volta/bin/codex",
       "observedVersion": "0.149.0",
       "baselineVersion": "0.147.0",
+      "versionFlag": "same-harness-version-change-accepted:0.147.0->0.149.0",
+      "versionRuling": "ORCHESTRATOR RULING: Codex 0.149.0 is accepted as the same harness; preserve the version change as a flag.",
       "model": "gpt-5.6-sol",
       "effort": "xhigh",
       "permissionMode": "dangerously-bypass-approvals-and-sandbox",
@@ -236,16 +239,18 @@
       ]
     },
     "claude-opus5": {
-      "binary": "/Users/ccheever/.local/bin/claude",
+      "binary": "/Users/ccheever/.local/share/claude/versions/2.1.239",
       "observedVersion": "2.1.239",
       "model": "claude-opus-5",
-      "effort": null,
-      "effortStatus": "needs-ruling: baseline harness record says default; prompt declares xhigh",
+      "effort": {
+        "value": null,
+        "ruled": "ORCHESTRATOR RULING: harness-default per 0.1.24 executed behavior; prompt-text discrepancy recorded"
+      },
       "permissionMode": "dangerously-skip-permissions",
       "outputFormat": "stream-json",
       "promptDelivery": "argument",
       "tokensSource": "claude-code-session-usage",
-      "argvTemplateWithoutEffortRuling": [
+      "argvTemplate": [
         "--print",
         "--model",
         "claude-opus-5",
@@ -282,7 +287,7 @@
       "promptFile": "prompts/clique-explicit.md",
       "ports": [42000, 42019],
       "pins": ["snapback0125", "instrument"],
-      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 3720, "outputTokens": 120825},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "sol-clique-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
     },
@@ -297,7 +302,7 @@
       "promptFile": "prompts/clique-familiar.md",
       "ports": [42020, 42039],
       "pins": ["snapback0125", "instrument"],
-      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 4748, "outputTokens": 139934},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "sol-clique-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
     },
@@ -312,7 +317,7 @@
       "promptFile": "prompts/coterie-explicit.md",
       "ports": [42040, 42059],
       "pins": ["snapback0125", "instrument", "exact0124Comparator"],
-      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 5212, "outputTokens": 159445},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "sol-coterie-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
     },
@@ -327,7 +332,7 @@
       "promptFile": "prompts/coterie-familiar.md",
       "ports": [42060, 42079],
       "pins": ["snapback0125", "instrument", "exact0124Comparator"],
-      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 7631, "outputTokens": 152614},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "sol-coterie-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
     },
@@ -342,7 +347,7 @@
       "promptFile": "prompts/clique-explicit.md",
       "ports": [42080, 42099],
       "pins": ["snapback0125", "instrument"],
-      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 4336, "outputTokens": 141020},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-clique-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
     },
@@ -357,7 +362,7 @@
       "promptFile": "prompts/clique-familiar.md",
       "ports": [42100, 42119],
       "pins": ["snapback0125", "instrument"],
-      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 19346, "outputTokens": 188471, "contamination": ["host-load-contamination"]},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-clique-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
     },
@@ -372,7 +377,7 @@
       "promptFile": "prompts/coterie-explicit.md",
       "ports": [42120, 42139],
       "pins": ["snapback0125", "instrument", "exact0124Comparator"],
-      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 7664, "outputTokens": 263396},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-coterie-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
     },
@@ -387,7 +392,7 @@
       "promptFile": "prompts/coterie-familiar.md",
       "ports": [42140, 42159],
       "pins": ["snapback0125", "instrument", "exact0124Comparator"],
-      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 7002, "outputTokens": 196650},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-coterie-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
     },
@@ -395,14 +400,14 @@
       "id": "opus-clique-explicit",
       "harness": "claude-opus5",
       "model": "claude-opus-5",
-      "effort": "needs-ruling",
+      "effort": null,
       "app": "Clique",
       "clientStack": "Expo Router web",
       "profile": "explicit",
       "promptFile": "prompts/clique-explicit.md",
       "ports": [42160, 42179],
       "pins": ["snapback0125", "instrument"],
-      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 27282, "outputTokens": 387583, "contamination": ["host-load-contamination", "api-interruption"]},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "opus-clique-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
     },
@@ -410,14 +415,14 @@
       "id": "opus-clique-familiar",
       "harness": "claude-opus5",
       "model": "claude-opus-5",
-      "effort": "needs-ruling",
+      "effort": null,
       "app": "Clique",
       "clientStack": "Expo Router web",
       "profile": "familiar",
       "promptFile": "prompts/clique-familiar.md",
       "ports": [42180, 42199],
       "pins": ["snapback0125", "instrument"],
-      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 12367, "outputTokens": 430232},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "opus-clique-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
     },
@@ -425,14 +430,14 @@
       "id": "opus-coterie-explicit",
       "harness": "claude-opus5",
       "model": "claude-opus-5",
-      "effort": "needs-ruling",
+      "effort": null,
       "app": "Coterie",
       "clientStack": "Exact/Contract web",
       "profile": "explicit",
       "promptFile": "prompts/coterie-explicit.md",
       "ports": [42200, 42219],
       "pins": ["snapback0125", "instrument", "exact0124Comparator"],
-      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 13504, "outputTokens": 365823},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "opus-coterie-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
     },
@@ -440,14 +445,14 @@
       "id": "opus-coterie-familiar",
       "harness": "claude-opus5",
       "model": "claude-opus-5",
-      "effort": "needs-ruling",
+      "effort": null,
       "app": "Coterie",
       "clientStack": "Exact/Contract web",
       "profile": "familiar",
       "promptFile": "prompts/coterie-familiar.md",
       "ports": [42220, 42239],
       "pins": ["snapback0125", "instrument", "exact0124Comparator"],
-      "loadCeilingId": "host-10cpu-loadavg-10-proposal",
+      "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 8283, "outputTokens": 333058},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "opus-coterie-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
     }

@@ -1,0 +1,273 @@
+{
+  "instrumentVersion": "social-messenger@0.3.3-m8",
+  "observabilityProtocol": "social-messenger-observation.v1",
+  "source": null,
+  "available": false,
+  "unavailableReason": "dry-run-stub-has-no-model-usage",
+  "capAdjudicationEligible": false,
+  "capCounters": [
+    "input",
+    "output"
+  ],
+  "totals": {
+    "input": null,
+    "output": null,
+    "cacheRead": null,
+    "cacheWrite": null,
+    "reasoning": null
+  },
+  "executionOrder": [
+    "M1"
+  ],
+  "milestones": {
+    "M1": {
+      "status": "aborted",
+      "authoring": {
+        "tokens": {
+          "input": null,
+          "output": null,
+          "cacheRead": null,
+          "cacheWrite": null,
+          "reasoning": null
+        },
+        "firstGreenAt": null,
+        "suitePassAt": null,
+        "choreoPassAt": null,
+        "terminalAt": "2026-08-24T01:19:28.775Z",
+        "terminalSequence": 1,
+        "terminalReason": "abort"
+      },
+      "semanticActions": {
+        "claimed": true,
+        "evidence": [
+          {
+            "path": "events/dry-run-choreography-observations.jsonl",
+            "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "events/lane-controller-observations.jsonl",
+            "sha256": "sha256:00684c570a17a8ecb7a8a11e796091d8a6e8f0bc8ba15c8619aded20017d4635"
+          }
+        ],
+        "total": 1,
+        "byClass": {
+          "guide-lookup": 0,
+          "source-inspection": 0,
+          "edit": 0,
+          "generate": 0,
+          "process": 1,
+          "reseed": 0,
+          "suite": 0,
+          "choreography": 0,
+          "retry": 0
+        },
+        "byDisposition": {
+          "progress": 1,
+          "correction": 0
+        },
+        "byRetriedClass": {
+          "guide-lookup": 0,
+          "source-inspection": 0,
+          "edit": 0,
+          "generate": 0,
+          "process": 0,
+          "reseed": 0,
+          "suite": 0,
+          "choreography": 0
+        },
+        "binaryExcavation": 0
+      },
+      "failureToRecoveryEpisodes": {
+        "claimed": true,
+        "evidence": [
+          {
+            "path": "events/dry-run-choreography-observations.jsonl",
+            "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "events/lane-controller-observations.jsonl",
+            "sha256": "sha256:00684c570a17a8ecb7a8a11e796091d8a6e8f0bc8ba15c8619aded20017d4635"
+          }
+        ],
+        "costlyEpisodeThresholdActions": 2,
+        "total": 0,
+        "byCarrier": {
+          "snapback-refusal": 0,
+          "compiler-codegen-diagnostic": 0,
+          "bare-not-found": 0,
+          "silent-discovery-miss": 0,
+          "other": 0
+        },
+        "byAttribution": {
+          "snapback-defect": 0,
+          "agent-error": 0,
+          "environment": 0,
+          "ambiguous": 0
+        },
+        "bySubAttribution": {
+          "defect": 0,
+          "knowledge-gap": 0
+        },
+        "byOutcome": {
+          "recovered": 0,
+          "unresolved": 0
+        }
+      },
+      "restartReseed": {
+        "claimed": true,
+        "evidence": [
+          {
+            "path": "events/dry-run-choreography-observations.jsonl",
+            "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "events/lane-controller-observations.jsonl",
+            "sha256": "sha256:00684c570a17a8ecb7a8a11e796091d8a6e8f0bc8ba15c8619aded20017d4635"
+          }
+        ],
+        "restarts": 1,
+        "reseeds": 1,
+        "destructiveReseeds": 0
+      },
+      "browserAssertionWait": {
+        "suite": {
+          "claimed": true,
+          "evidence": [
+            {
+              "path": "events/dry-run-choreography-observations.jsonl",
+              "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "path": "events/lane-controller-observations.jsonl",
+              "sha256": "sha256:00684c570a17a8ecb7a8a11e796091d8a6e8f0bc8ba15c8619aded20017d4635"
+            }
+          ],
+          "attempts": 0,
+          "waitMillis": 0
+        },
+        "choreography": {
+          "claimed": false,
+          "reason": "choreography-assertion-settlement-waits-unavailable"
+        }
+      },
+      "hostLoad": {
+        "claimed": true,
+        "evidence": [
+          {
+            "path": "events/dry-run-choreography-observations.jsonl",
+            "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "events/lane-controller-observations.jsonl",
+            "sha256": "sha256:00684c570a17a8ecb7a8a11e796091d8a6e8f0bc8ba15c8619aded20017d4635"
+          }
+        ],
+        "startedAt": "2026-08-24T01:19:28.433Z",
+        "endedAt": "2026-08-24T01:19:28.773Z",
+        "sampleCount": 2,
+        "contamination": false,
+        "breaches": []
+      },
+      "apiInterruptions": {
+        "claimed": true,
+        "evidence": [
+          {
+            "path": "events/dry-run-choreography-observations.jsonl",
+            "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "events/lane-controller-observations.jsonl",
+            "sha256": "sha256:00684c570a17a8ecb7a8a11e796091d8a6e8f0bc8ba15c8619aded20017d4635"
+          }
+        ],
+        "interrupted": false,
+        "windows": []
+      }
+    }
+  },
+  "efficiencyScorecardEligibility": {
+    "eligible": false,
+    "correctionActionTargetEligible": false,
+    "ineligibilityReasons": [
+      "assertion-waits-non-claimed",
+      "phase-usage-unavailable"
+    ]
+  },
+  "boundarySnapshots": {
+    "M1": {
+      "at": "2026-08-24T01:19:28.775Z",
+      "sequence": 1,
+      "status": "aborted",
+      "tokens": {
+        "input": null,
+        "output": null,
+        "cacheRead": null,
+        "cacheWrite": null,
+        "reasoning": null
+      }
+    }
+  },
+  "firstProductEdit": {
+    "at": null,
+    "orientationBytes": null,
+    "selectedSkills": [],
+    "orientationTokens": {
+      "input": null,
+      "output": null,
+      "cacheRead": null,
+      "cacheWrite": null,
+      "reasoning": null
+    }
+  },
+  "meteringProvenance": {
+    "manifestVersion": "social-messenger-metering-manifest.v1",
+    "laneRunId": "dry-run-1787534368269/dry-run-noop",
+    "driver": {
+      "id": "social-messenger-r2-two-minute-noop.v1",
+      "stampedAt": "2026-08-24T01:19:28.783Z",
+      "startedAt": "2026-08-24T01:19:28.423Z"
+    },
+    "manifestSha256": "sha256:2caf01c069e71d2cdd70031b45711a58c099323f13231dd73d5f29ed076d9d17",
+    "unavailableReason": "dry-run-stub-has-no-model-usage",
+    "clockCorrelation": {
+      "method": "rfc3339-with-bounded-skew",
+      "maxSkewMillis": 5000,
+      "evidence": "dry-run controller and stub use one process host clock with a 5s final-sample allowance"
+    },
+    "sessions": [],
+    "receipts": [],
+    "observations": [
+      {
+        "sourceId": "dry-run-choreography-observations",
+        "path": "events/dry-run-choreography-observations.jsonl",
+        "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "sourceId": "dry-run-1787534368269/dry-run-noop-lane-controller",
+        "path": "events/lane-controller-observations.jsonl",
+        "sha256": "sha256:00684c570a17a8ecb7a8a11e796091d8a6e8f0bc8ba15c8619aded20017d4635"
+      }
+    ],
+    "boundaries": {
+      "path": "terminal-boundaries.json",
+      "sha256": "sha256:5e28e2b5758b840d8c6a1be478186ecd19edb2c2bdc714de8c2c0929faeaf9ad"
+    },
+    "firstProductEdit": null
+  },
+  "suiteStatusLinkage": {
+    "input": {
+      "path": "suite-status.json",
+      "sha256": "sha256:fad11158b7b055e08ef2c626d945a9ea3d6273097472897eb59342c6a857a945"
+    },
+    "milestones": [
+      {
+        "milestone": "M1",
+        "pass": false,
+        "receipt": {
+          "path": "receipts/m1-suite.json",
+          "sha256": "sha256:4beeb02995ae932b66e2db337c0657507e56c10d3b542b7914602a1e383f1ff3"
+        }
+      }
+    ]
+  }
+}
