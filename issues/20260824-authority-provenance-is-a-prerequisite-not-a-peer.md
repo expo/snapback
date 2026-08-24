@@ -81,3 +81,29 @@ Two consequences:
 2. **The seal is not optional cleanup.** Until it lands, the per-row fixes close the
    *supplied-beside-it* half of the defect and leave the *forged-authority* half open. Anyone
    reading the landed rows should understand they are half of a pair.
+
+
+## What the seal actually closes — reviewer wording to reuse verbatim
+
+The first seal stage (`42c11f4d0`) was reviewed and cleared with no blocking findings *relative to
+its partial claim*. The reviewer's scope sentence is the one to quote in any downstream claim:
+
+> **Do not read this landing as "`PreparedAuthority` is unconstructible."** It is unconstructible
+> *as a Session/ServicePrincipal literal join*. System/Admin/Dev and carrier-FRU still produce one.
+
+Three residuals were called non-blocking for this stage but must not be ignored by later rows:
+
+1. **The runtime origin/seal has no failing-then-green test**, and `TestOnly` actively disables the
+   seal in `snapback-sync` tests. The compile-fail fixtures prove the literal join is closed; nothing
+   yet proves the runtime seal rejects at runtime.
+2. **Watch / callback / revalidated markers do not bind facts.** Functional-record-update plus the
+   public prepare path still yields a `PreparedAuthority` with a caller-chosen subject —
+   `prepare_admitted_watch_anchor` mints a `ServicePrincipal` from FRU'd public fields, so LLP 0303
+   Q08's "no longer authorable from copied fields" is true of the *enum literal* only.
+3. **One compile-fail fixture needs re-running on a host with `vendor/ibex`**: in the join attack the
+   setup `Session` literal sits *before* the `@attack` span, so the fixture may currently fail for
+   the wrong reason. A fixture that fails for an unrelated reason is not evidence — that exact defect
+   has shipped in this repo before.
+
+Consequence for sequencing: this stage narrows construction but does not finish it. Rows may still
+claim only derivation from a given authority.
