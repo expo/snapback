@@ -2,11 +2,13 @@
 
 **Type:** Plan
 **Status:** Accepted
-**Systems:** Storage, Performance, Schema, Sync, Realtime, Deployment, Testing
+**Systems:** Storage, Assets, Performance, Schema, Sync, Realtime, Deployment, Testing
 **Author:** Codex gpt-5.6-sol xhigh, orchestrated by Claude Fable 5 (commissioned in the author's 2026-08-16 orchestration session under Charlie Cheever's 2026-08-15 performance-direction ruling)
 **Date:** 2026-08-16
-**Revised:** 2026-08-18 (LLP 0276 crate-path relocation); 2026-08-16 (v0.3 — Status Draft → Accepted, author ruling 2026-08-16)
-**Related:** LLP 0007, LLP 0012, LLP 0046, LLP 0080, LLP 0113, LLP 0128, LLP 0163, LLP 0189, LLP 0198, LLP 0209, LLP 0225, LLP 0265, `issues/20260815-storage-graduation-plan-commission.md`
+**Revised:** 2026-08-24 (review-ready design addition for trusted video
+container/codec/duration admission; implementation and capability claims remain
+open); 2026-08-18 (LLP 0276 crate-path relocation); 2026-08-16 (v0.3 — Status Draft → Accepted, author ruling 2026-08-16)
+**Related:** LLP 0007, LLP 0012, LLP 0037, LLP 0044, LLP 0046, LLP 0080, LLP 0113, LLP 0128, LLP 0163, LLP 0189, LLP 0198, LLP 0209, LLP 0225, LLP 0265, LLP 0276, LLP 0277, `issues/20260815-storage-graduation-plan-commission.md`, `issues/20260817-upload-intent-codec-duration-admission-facts.md`
 
 ## 0. Charter and position
 
@@ -451,6 +453,266 @@ when:
 Phase 3 exits class by class. “Cross-cell support” without that qualifier is
 not a capability or a publishable claim.
 
+## Dated design addition: trusted video admission facts (2026-08-24)
+
+**Addition status.** Review-ready design, not implementation and not a
+capability claim. This section routes LLP 0277 F8 and
+`issues/20260817-upload-intent-codec-duration-admission-facts.md` through the
+storage graduation plan because the same upload intent, trusted facts, refusal,
+and durable outcome must survive SQLite → Postgres → transactional-cell
+graduation. LLP 0044 remains the asset-pipeline authority; this addition fixes
+the portable declaration and graduation obligations for that pipeline. It does
+not fire §0's Postgres demand gate.
+
+### Video admission declaration and composition
+
+The upload intent's existing `accept` object gains one optional, closed
+`video` member. The Coterie M2 intent's intended spelling is:
+
+```ts
+export const postVideoUpload = defineAssetUpload({
+  args: {},
+  auth: "authenticated",
+  accept: {
+    mediaTypes: ["video/mp4"],
+    maxBytes: 50_000_000,
+    video: {
+      containers: ["mp4"],
+      videoCodecs: ["h264"],
+      audioCodecs: ["aac"],
+      maxDurationMs: 60_000,
+    },
+  },
+  delivery: { kind: "public-immutable" },
+  access: { read: "via-references" },
+  video: { location: "strip" },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+})
+```
+
+The two `video` spellings have deliberately different jobs. `accept.video` is
+admission policy over trusted byte-derived facts. The existing top-level
+`video.location` is canonicalization/privacy policy and remains unchanged per
+LLP 0044's 2026-08-03 sibling-block decision. Moving `location` beneath
+`accept`, or putting admission fields beside `location`, would blur that split
+and needlessly disturb the frozen authoring/hash surface.
+
+`accept.video` is all-or-nothing in v1: `containers`, `videoCodecs`, and
+`audioCodecs` are non-empty duplicate-free allowlists, and `maxDurationMs` is a
+positive JavaScript-safe integer. Declaration order is not semantic; codegen
+canonicalizes each set in the policy identity. The initial closed vocabulary
+is:
+
+- containers: `mp4`, `quicktime`;
+- video codecs: `h264`; and
+- audio codecs: `aac`.
+
+The declaration means that the normalized container must be allowed, at least
+one video track must exist, every video track/sample description must normalize
+to an allowed video codec, every audio track/sample description that exists
+must normalize to an allowed audio codec, and the trusted presentation duration
+must be less than or equal to `maxDurationMs`. An audio track is not required;
+`audioCodecs: ["aac"]` means “AAC if audio exists.” All sample descriptions are
+checked, including an unused alternate, so an unexamined codec cannot become
+active through later sample-table selection. Non-audio/video handler tracks do
+not satisfy the required video-track rule and are outside these codec
+allowlists.
+
+`mediaTypes` and `maxBytes` retain their current meanings and precedence:
+attempt creation reserves against the declared byte length, trusted
+finalization rechecks received and canonical length, and magic-byte content
+type must match `mediaTypes`. `accept.video` is then an additional conjunction
+only for bytes detected as `video/mp4` or `video/quicktime`. Codegen refuses an
+`accept.video` block whose `mediaTypes` has no intersection with the supported
+video types. A mixed image/video intent applies the block only to its detected
+video branch.
+
+The optional member is presence-only in the canonical artifact. When absent,
+the emitted manifest and `snapback.asset-intent-policy.v1` preimage remain
+byte-identical to their current forms; existing intents keep their hashes,
+generations, behavior, and required capabilities. When present, the normalized
+block participates in `intentPolicyHash`, implementation identity, retained
+generation artifacts, AssetRef semantic identity, and required-capability
+derivation. Adding or changing it therefore bumps the ordinary intent policy
+generation. Existing in-flight attempts still follow LLP 0044's frozen-policy
+rule: an ordinary non-revoking deploy does not retroactively apply the new
+facts, while an explicitly revoked old generation cannot finalize.
+
+The Rust-owned `AssetAcceptPolicy` carrier is the source of truth under LLP
+0037; codegen constructs it and committed JSON Schemas/SDK consumers follow it.
+No attempt-create/finalize request gains caller-supplied `container`, `codec`,
+or `duration` fields. A client may perform an advisory preview check, but those
+values never become admission evidence and cannot widen or satisfy the intent.
+
+### Trusted detection and authority boundary
+
+The authority is LLP 0044's existing trusted finalization prepare boundary:
+after restricted staging is complete and exact length, transport integrity,
+and magic-byte content type pass, but before any blob/rendition can be planned
+or published. The implementation extends the bounded in-process ISO BMFF
+walker in `crates/snapback-services/src/assets_video.rs`; it does not trust the
+filename, extension, HTTP `Content-Type`, client media APIs, or client-provided
+metadata, and it does not shell out to an ambient, version-variable `ffprobe`.
+
+One bounded walk over the complete staged object produces a closed
+`VideoAdmissionFactsV1` tied to the prepared canonical object's digest:
+
+- `container`: normalize the validated `ftyp` major/compatible-brand family to
+  `mp4` or `quicktime`; unknown or contradictory brand/box structures do not
+  become `mp4` by fallback;
+- `videoCodecs` and `audioCodecs`: classify tracks by the `hdlr` handler and
+  walk `moov/trak/mdia/minf/stbl/stsd`; `avc1`/`avc3` plus a structurally valid
+  `avcC` normalize to `h264`, while `mp4a` plus a structurally valid `esds` /
+  AudioSpecificConfig in the closed AAC family normalizes to `aac`. A FourCC
+  alone is not proof. The resulting sets are sorted and de-duplicated, while
+  policy comparison still examines every track and sample description; and
+- `durationMs`: compute the maximum presentation span of the admitted audio
+  and video tracks from checked-timescale `tkhd`/`mdhd` durations and supported
+  `elst` edit lists, with `mvhd` as a conservative consistency bound rather
+  than the sole authority. Comparison uses checked rational arithmetic before
+  rounding; the persisted millisecond fact rounds upward, so a duration just
+  over the ceiling cannot truncate into admission.
+
+Malformed sizes, missing required configuration boxes, zero/overflowing
+timescales, contradictory duration tables, and an ISO BMFF form whose codec or
+presentation duration the v1 walker cannot prove all fail closed. Fragmented
+media whose complete presentation span requires `moof`/`traf` sample-timeline
+evaluation is not silently evaluated from its initialization segment; v1
+refuses it as facts-unavailable until that bounded timeline is implemented and
+qualified.
+
+The current strip rewrite blanks location boxes in place without changing
+`ftyp`, track/sample descriptions, timelines, or offsets. The same walk may
+therefore produce admission facts while preparing the strip output, but the
+opaque prepared carrier binds those facts to the resulting canonical digest.
+The retain path performs the same walk without rewriting. Both policies enforce
+the same codec/container/duration rules.
+
+This is the authority split LLP 0276 requires: `snapback-services` owns the
+repeatable byte read, bounded parsing, canonicalization, and policy comparison
+outside the global writer; the storage kernel receives only an opaque prepared
+admission carrier and performs generation/witness revalidation plus durable
+publication commits. No public constructor, backend adapter, or manifest value
+can assert that byte-derived admission occurred. Eventual implementation sites
+should cite this section and the next one rather than duplicating the rules in
+SQLite, Postgres, transport, or client code.
+
+### Stable refusal contract
+
+The first deterministic failure wins after successful trusted MIME detection,
+in this order: facts unavailable, container, video codec, audio codec, then
+duration. The new stable `SNAPBACK_ASSET_*` refusals are all content-policy
+HTTP 422 outcomes when served over HTTP:
+
+| Code | Condition | Bounded safe details |
+| --- | --- | --- |
+| `SNAPBACK_ASSET_VIDEO_FACTS_UNAVAILABLE` | A structurally supported video cannot yield every fact required by the declaration (including unsupported fragmentation/timeline or unprovable codec configuration). Malformed input retains `SNAPBACK_ASSET_VIDEO_PARSE_FAILED`; resource ceilings retain `SNAPBACK_ASSET_VIDEO_BOUNDS_EXCEEDED`. | `fact`, `reasonClass`, detected MIME; never byte samples or raw metadata |
+| `SNAPBACK_ASSET_VIDEO_CONTAINER_UNSUPPORTED` | The normalized container is outside `containers`. | `allowedContainers`, `detectedContainer`, bounded major/compatible brands |
+| `SNAPBACK_ASSET_VIDEO_CODEC_UNSUPPORTED` | A video or audio track/sample description is outside its corresponding allowlist, or no video track exists. | `trackKind`, `allowedCodecs`, `detectedCodec` or `unknown`, bounded sample-entry FourCC, track ordinal |
+| `SNAPBACK_ASSET_VIDEO_DURATION_EXCEEDED` | Exact rational presentation duration is greater than the inclusive ceiling. | `maxDurationMs`, upward-rounded `detectedDurationMs` |
+
+These codes identify admission causes; they do not expose filenames, payload
+bytes, location metadata, or unbounded track lists. A refusal makes the current
+attempt `failed`, records the ordinary safe diagnostic/receipt, publishes no
+blob or rendition, and leaves the stable asset `pending` and eligible for a
+successor attempt with different bytes. Retry of identical bytes deterministically
+returns the same policy refusal. The existing parse, bounds, location-strip,
+type, integrity, and canonical-size codes keep their meanings.
+
+### Capability and storage-graduation posture
+
+A declaration carrying `accept.video` mechanically requires a new target fact,
+`asset_video_admission_facts_v1`, in addition to whatever lifecycle,
+delivery, and `asset_video_finalization_v1` facts its other fields already
+require. Its manifest facts name the supported closed container/video-codec/
+audio-codec vocabulary, duration extraction as `Enforced`, parser byte/box/
+track/sample-description/edit-list ceilings, and whether fragmented timelines
+are supported. A target missing the fact refuses the intent at generation or
+activation before staging; it cannot ignore the block, treat client metadata as
+proof, or borrow a sibling target's claim.
+
+This feature can implement on the current SQLite authority without waiting for
+§1's demand trigger: byte inspection is an asset-domain service operation, not
+a new authority-store engine. Graduation nevertheless binds it as follows:
+
+1. The generated intent and Rust-owned schema are identical on every target.
+2. Parsing and policy comparison remain above the backend port. SQLite,
+   Postgres, and later cells persist the same normalized safe facts, lifecycle
+   transition, refusal code/details, and receipt; no backend re-detects codec or
+   duration independently.
+3. Publication of admitted facts and asset readiness stays in the asset's
+   owning transactional cell with the existing generation, witness, quota,
+   blob, rendition, and journal atomicity. Detection may run concurrently
+   outside its commit fence, but the opaque carrier must be revalidated at the
+   final commit exactly like current prepared asset facts.
+4. The Phase-1 shared behavior corpus gains video-admission positive and
+   negative vectors. A Postgres profile cannot claim
+   `asset_video_admission_facts_v1` until identical bytes and frozen intent
+   artifacts produce the same admitted facts or stable refusal as SQLite.
+   Phase-2 migration carries the normalized facts and policy/generation
+   identity with the asset component; it does not re-probe old blobs and risk a
+   parser-version-dependent policy rewrite.
+
+Supporting new containers/codecs or changing normalization is a versioned
+capability/artifact change. It cannot silently widen `v1`, reinterpret retained
+facts, or change the outcome of an attempt frozen under an older intent/parser
+generation.
+
+### Implementation acceptance
+
+The follow-up implementation is complete only when all of these hold:
+
+- authoring/codegen accepts the exact Coterie spelling above; rejects unknown,
+  empty, duplicate, dead-with-respect-to-`mediaTypes`, or invalid-bound forms;
+  emits the normalized Rust-owned carrier; and proves that intents without
+  `accept.video` retain byte-identical manifests and policy hashes;
+- policy-identity metamorphic fixtures show that each container, codec, or
+  duration change bumps only the changed intent's policy generation and that
+  frozen-generation finalization/revocation retains LLP 0044 semantics;
+- trusted fixtures cover `mp4` and `quicktime`, `avc1` and `avc3` H.264, AAC,
+  silent video, multiple audio/video tracks and sample descriptions, exact
+  60,000 ms admission, 60,001 ms refusal, rational sub-millisecond overflow,
+  unknown/malformed codec configuration, understated `mvhd`, edit lists,
+  fragmented input, parse/resource ceilings, and filename/MIME/client-fact
+  spoofing;
+- every mismatch returns the exact code and bounded details above, publishes no
+  blob/rendition, leaves a retryable pending asset, and is identical on strip
+  and retain paths; successful finalization records container, codec sets, and
+  upward-rounded duration against the canonical digest;
+- target capability tests prove missing-fact refusal before staging, local
+  capability activation only after the affected parser/finalizer corpus passes,
+  and SQLite/Postgres parity before any future Postgres claim;
+- the affected schema, diagnostic registry, guide/capability manifest, public
+  authoring types, SDK artifact validation, and `@ref` anchors are regenerated
+  and drift-checked under LLP 0037/0012; and
+- Coterie M2's `postVideoUpload` declares MP4 + H.264 + AAC + inclusive 60 s
+  (alongside its existing 50 MB and location-strip rules), then a real-server
+  rerun uses a fixture whose bytes independently prove those facts, exercises
+  at least one codec and duration refusal, and updates Diary 0086 to retire the
+  honesty caveat with the run evidence. Editing the declaration or diary
+  without that rerun does not satisfy this row.
+
+### Non-goals and open questions
+
+Non-goals for this slice are transcoding/remuxing nonconforming uploads,
+poster/HLS/bitrate ladders, arbitrary codec strings, WebM/Matroska/AVI support,
+resolution/frame-rate/bitrate policy, requiring an audio track, content
+moderation/virus scanning, client-authoritative admission, and triggering the
+Postgres or cell-partition program. Delivery ranges and location rewriting keep
+their existing contracts.
+
+Open questions, none of which blocks the MP4/H.264/AAC/60 s slice:
+
+1. Should a later grammar express required/forbidden audio, exact track-count
+   ceilings, or allowed container+codec tuples rather than independent sets?
+2. Which real application first justifies bounded fragmented-MP4 timeline
+   support rather than the initial facts-unavailable refusal?
+3. Should future codec vocabulary distinguish H.264 profiles/levels and AAC
+   object types, or should those become separately named admission facts?
+4. When a second parser implementation is needed on another target, what
+   frozen cross-parser corpus and parser-version fact are sufficient to claim
+   semantic equivalence rather than merely accepting the same happy fixture?
+
 ## 4. Open questions
 
 Every item below is author-gated before the phase that freezes its surface.
@@ -497,6 +759,12 @@ The recommendation is a default for decision, not a silent ruling.
 
 ## 5. Revision history
 
+- **v0.4 (2026-08-24).** Adds the review-ready trusted-video-admission design:
+  an additive `accept.video` policy for container/codec sets and duration,
+  byte-authoritative bounded ISO BMFF inspection, stable refusal codes, an
+  explicit target capability, cross-engine/cell obligations, and the Coterie
+  M2 rerun gate. This is design only; implementation and capability claims
+  remain open pending dual review and the follow-up lane.
 - **v0.3 (2026-08-16).** Status Draft → Accepted by author ruling (Charlie Cheever, 2026-08-16 session), on the converged dual-family review record in the run journal.
 - **v0.2 (2026-08-16).** Applies review round 1: corrects implementation and
   LLP citations; scopes envelopes to identity-bearing lanes; adds the
