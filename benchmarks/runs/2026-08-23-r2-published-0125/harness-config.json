@@ -1,8 +1,9 @@
 {
   "schemaVersion": "snapback.r2-harness-config.v1",
   "runId": "2026-08-23-r2-published-0125",
-  "status": "prepared-blocked",
-  "noBenchmarkCellStarted": true,
+  "status": "wave-running",
+  "waveTransition": {"date": "2026-08-24", "from": "prepared-blocked", "authorization": "orchestrator ruling; publication and rulings landed, dry-run proofs green under repaired instrument (migration recorded in instrumentMigrations)", "firstCell": "sol-clique-explicit"},
+  "noBenchmarkCellStarted": false,
   "governing": [
     "LLP 0295#r2-load-isolated-calibration-rerun",
     "LLP 0295#d06-efficiency-instrument-and-target-registration",
