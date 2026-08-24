@@ -3,7 +3,7 @@
 **Opened:** 2026-08-17
 **Source:** Adapter-M3 round-2 architecture ruling
 
-## Current constraint and ruling
+## Current constraint
 
 Snapback's platform live-window ceiling is 1,024 rows:
 
@@ -26,45 +26,50 @@ chat 1,001. This is sufficient for M3 correctness, but M6 scale replay needs a m
 history larger than the current one-window platform limit. It must not silently
 raise the Coterie claim or reintroduce a one-shot non-live tail.
 
-## Candidate growth paths
+## Author ruling and selected path (2026-08-24)
 
-1. **Grow the engine live-window limit.** Raise the platform query/result
-   ceilings together, qualify the larger live reevaluation and delivery cost,
-   and then deliberately raise Coterie's backend and mutation envelopes.
-2. **Version Coterie's frozen surface for cursor pagination.** Add a cursor to
-   `listMessages` following the provider-neutral `listFeed@3` architecture:
-   opaque declaration cursor, backend keyset translation, one live page per
-   subscription, and an explicit compatibility-token bump. This is a future
-   declaration revision; v8 remains byte-frozen.
+Choose **path 1, scoped**: keep the platform's ordinary query/result profile
+at 1,024 and add an explicit, declaration-level `large-result-window-v1`
+profile whose closed hard maximum is 10,000. Coterie v9 opts its one
+`listMessages` live query into the qualified cap; declaration v8 remains
+byte-frozen and executable at 1,024 with its message-1,025 refusal.
 
-## Design recommendation landed (2026-08-24)
+Cursor pagination is rejected for this envelope because it gives up
+Snapback's atomic single-window exact-live semantics. Cutoff, insert, and
+delete races across independently versioned pages are gap-free only under an
+atomic cross-page client transition; “eventually converges” is not exactness.
+The scoped result profile preserves one query, one subscription, and one
+versioned `live_replace`, making the remaining risk a measurable single-window
+evaluation/hydration/replacement/socket/memory cost.
 
-LLP 0266's dated section
-`Dated recommendation for author ruling — M6 message-envelope growth
-(2026-08-24)` recommends **path 2** and records the qualified design: a
-separate v9 declaration, `listMessages@5` plus `sendMessage@5`, an opaque
-conversation-bound cursor translated to a strict sequence keyset, 200-row
-pages with a 201st-row boundary witness, one live backend query per subscribed
-page, downstream live-page re-anchoring when a predecessor boundary moves,
-and a claim-gated 10,000-message M6 acceptance suite.
+LLP 0266's `Author ruling — M6 scoped result-profile growth (2026-08-24)`
+section fixes the mechanism and gates it on a 10,000-message/50-member M6 cost
+probe. It also requires a stored `messageEnvelopeCount`, atomically incremented
+with each send, so `sendMessage@5` returns structured
+`MESSAGE_ENVELOPE_EXCEEDED` before every write at message 10,001. A truncated
+`.take(10_000).length` is explicitly not an admissible count.
 
-The recommendation is based on current code: the 1,024 maximum is also the
-platform's implicit query default and result/harness ceiling, while Coterie's
-ordered authored live query uses full re-query/replacement delivery. Raising
-that platform-wide ceiling would broaden reevaluation and delivery cost for
-every application. The existing provider-neutral `listFeed@3` implementation
-proves opaque cursor translation and live cursor pages; the LLP 0266 design
-adds the moving-boundary invalidation rule needed to avoid a stale or gapped
-message archive.
+V9 is a cap-parameter revision, not a page runtime: `listMessages` and
+`sendMessage` move from compatibility token 4 to 5, the dependent
+`markReceipt` extension moves from 1 to 2, and every other token is audited.
+V8 keeps `messageHistoryEnvelopeLimit() === 1_024` and its 1,024/1,025 checked
+fixture behavior; the helper is not globally retargeted.
 
-**Status:** design and recommendation landed; author/owner confirmation of
-path 2 is still required before implementation. This ticket stays open. No
-platform ceiling, declaration bytes, compatibility token, backend envelope,
-or Coterie capability claim changed in this lane.
+The profile is a genuine new platform capability. The implementation lane
+must create/accept its focused platform Spec and reconcile LLP 0004, LLP 0007,
+LLP 0108, and LLP 0267 before changing runtime/codegen/harness limits. It then
+implements v9, the stored-count migration, concurrent exact-live acceptance,
+and the scoped LLP 0189 qualification digest. If 10,000 fails any predeclared
+cost threshold, it must qualify a lower cap or return for an author ruling on
+pagination/a new atomic primitive; it may not silently ship a slow window.
+
+**Status:** author ruling and design landed; implementation is the next lane.
+This ticket stays open. No platform constant, declaration bytes, compatibility
+token, backend envelope, or Coterie capability claim changed in this lane.
 
 ## Done when
 
-Before M6 claims scale replay beyond 1,024 messages, choose and qualify one
-path, update the declaration/token if pagination wins, and add acceptance that
-proves both history reachability and the exact live semantics the chosen path
-claims.
+Before M6 claims scale replay beyond 1,024 messages, implement and qualify the
+scoped result profile, versioned v9 cap/token routes, stored admission count,
+10,000-row single-window concurrent-live semantics, 50-member cost probe, and
+10,001 pre-write refusal while keeping the v8 fixture green.
