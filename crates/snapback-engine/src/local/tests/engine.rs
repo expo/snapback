@@ -28960,7 +28960,7 @@ fn oauth_consent_ownership_fixture() -> (LocalSnapback, String, String) {
         .register_agent_principal_with_class(
             crate::manifest::AgentsMode::Open,
             None,
-            Some("Ownership Test Integration".to_owned()),
+            Some(OAUTH_INTEGRATION_DISPLAY_NAME.to_owned()),
             Some("ops@example.test".to_owned()),
             crate::storage::auth_integrations::AgentRegistrationClass::Integration,
             crate::storage::auth_integrations::IntegrationRegistrationFacts {
@@ -28983,7 +28983,7 @@ fn oauth_consent_ownership_fixture() -> (LocalSnapback, String, String) {
 
 fn seed_oauth_consent_users(snapback: &mut LocalSnapback, now_ms: u64) {
     let mut catalog = snapback.auth_database_mut().auth_catalog();
-    for user_id in ["user-a", "user-m", "user-z"] {
+    for user_id in ["user-a", "user-m", "user-n", "user-z"] {
         catalog
             .insert_human_user_for_test(user_id, now_ms)
             .unwrap_or_else(|error| panic!("create OAuth consent user {user_id}: {error:?}"));
@@ -29002,9 +29002,9 @@ fn begin_oauth_request_for_test(
         .begin_oauth_authorization(
             user_id,
             client_id,
-            "https://example.test/callback",
-            &["read".to_owned()],
-            "abcdefghijklmnopqrstuvwxyzABCDEFGH012345678",
+            OAUTH_TEST_REDIRECT_URI,
+            &[OAUTH_TEST_BUNDLE.to_owned()],
+            OAUTH_TEST_CODE_CHALLENGE,
             None,
             now_ms,
             random,
@@ -29013,58 +29013,91 @@ fn begin_oauth_request_for_test(
         .request_id
 }
 
-fn oauth_consent_rows_for_test(
+fn oauth_durable_state_for_test(
     snapback: &mut LocalSnapback,
-) -> crate::storage::auth_integrations::OAuthConsentRowsForTest {
+) -> crate::storage::auth_integrations::OAuthDurableStateForTest {
     snapback
         .auth_database_mut()
-        .oauth_consent_rows_for_test()
-        .expect("read durable OAuth consent rows")
+        .oauth_durable_state_for_test()
+        .expect("read complete physical OAuth durable state")
 }
 
-fn oauth_approval_rows_for_test(
-    snapback: &mut LocalSnapback,
-) -> crate::storage::auth_integrations::OAuthApprovalRowsForTest {
-    snapback
-        .auth_database_mut()
-        .oauth_approval_rows_for_test()
-        .expect("read complete durable OAuth approval rows")
+fn with_oauth_authorization_clock(
+    mut state: crate::storage::auth_integrations::OAuthDurableStateForTest,
+    now_ms: u64,
+) -> crate::storage::auth_integrations::OAuthDurableStateForTest {
+    let clock = state
+        .meta
+        .iter_mut()
+        .find(|row| row.key == OAUTH_AUTH_CLOCK_META_KEY)
+        .expect("authorization-clock row exists in full meta snapshot");
+    clock.value = now_ms.to_string();
+    state
 }
 
-const OAUTH_APPROVAL_SCOPES_JSON: &str =
+fn oauth_authorization_clock(
+    state: &crate::storage::auth_integrations::OAuthDurableStateForTest,
+) -> &str {
+    &state
+        .meta
+        .iter()
+        .find(|row| row.key == OAUTH_AUTH_CLOCK_META_KEY)
+        .expect("authorization-clock row exists in full meta snapshot")
+        .value
+}
+
+const OAUTH_AUTH_CLOCK_META_KEY: &str = "auth_invalidation_clock_high_water_ms_v1";
+const OAUTH_TEST_REDIRECT_URI: &str = "https://example.test/callback";
+const OAUTH_TEST_BUNDLE: &str = "read";
+const OAUTH_TEST_BUNDLES_JSON: &str = r#"["read"]"#;
+const OAUTH_TEST_CODE_CHALLENGE: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGH012345678";
+const OAUTH_TEST_SCOPES_JSON: &str =
     r#"[{"fn":"fn:oauthQuery","kind":"query","basis":0,"authorityCreating":false}]"#;
+const OAUTH_REQUEST_TTL_MS_FOR_TEST: u64 = 600_000;
+const OAUTH_CODE_TTL_MS_FOR_TEST: u64 = 60_000;
+const OAUTH_GRANT_TTL_MS_FOR_TEST: u64 = 30 * 24 * 60 * 60 * 1_000;
+const OAUTH_INTEGRATION_DISPLAY_NAME: &str = "Ownership Test Integration";
+const OAUTH_INTEGRATION_REGISTRATION_PROVENANCE: &str = r#"{"class":"integration","source":"self-register","mode":"open","profile":"test","createdAtMs":900}"#;
 const OAUTH_APPROVAL_UNOWNED_WARNING: &str = "This agent is unowned. Where the deployment profile permits operator recovery, a replacement credential can use memberships or roles that this grant creates for the agent.";
 
-fn expected_oauth_approval_consent_digest(
-    principal: &crate::storage::auth_integrations::OAuthApprovalPrincipalRowForTest,
-    expires_at_ms: u64,
-) -> Vec<u8> {
+fn expected_oauth_approval_consent_digest(principal_user_id: &str, expires_at_ms: u64) -> Vec<u8> {
+    #[derive(serde::Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct ExpectedScope<'a> {
+        #[serde(rename = "fn")]
+        function_id: &'a str,
+        kind: &'a str,
+        basis: u64,
+        authority_creating: bool,
+    }
+
     #[derive(serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     struct ExpectedConsent<'a> {
         agent_user_id: &'a str,
-        display_name: Option<&'a str>,
+        display_name: &'a str,
         registration_provenance: &'a str,
         owner_assumption: &'a str,
-        owner_assumption_warning: Option<&'a str>,
-        scopes: Vec<crate::storage::auth_grants::ExactGrantScope>,
+        owner_assumption_warning: &'a str,
+        scopes: &'a [ExpectedScope<'a>],
         expires_at_ms: u64,
     }
 
     use sha2::Digest as _;
 
-    let scopes = serde_json::from_str(OAUTH_APPROVAL_SCOPES_JSON)
-        .expect("parse independently pinned OAuth approval scopes");
+    let scopes = [ExpectedScope {
+        function_id: "fn:oauthQuery",
+        kind: "query",
+        basis: 0,
+        authority_creating: false,
+    }];
     let encoded = serde_json::to_vec(&ExpectedConsent {
-        agent_user_id: &principal.user_id,
-        display_name: principal.display_name.as_deref(),
-        registration_provenance: principal
-            .registration_provenance
-            .as_deref()
-            .expect("OAuth integration registration provenance"),
+        agent_user_id: principal_user_id,
+        display_name: OAUTH_INTEGRATION_DISPLAY_NAME,
+        registration_provenance: OAUTH_INTEGRATION_REGISTRATION_PROVENANCE,
         owner_assumption: "unowned",
-        owner_assumption_warning: Some(OAUTH_APPROVAL_UNOWNED_WARNING),
-        scopes,
+        owner_assumption_warning: OAUTH_APPROVAL_UNOWNED_WARNING,
+        scopes: &scopes,
         expires_at_ms,
     })
     .expect("encode independently pinned OAuth approval consent");
@@ -29072,139 +29105,261 @@ fn expected_oauth_approval_consent_digest(
 }
 
 fn expected_oauth_approval_grant_row(
-    principal: &crate::storage::auth_integrations::OAuthApprovalPrincipalRowForTest,
+    principal_user_id: &str,
     effective_user_id: &str,
     session_id: &str,
     request_id: &str,
     grant_id: &str,
     approved_at_ms: u64,
-) -> crate::storage::auth_integrations::OAuthApprovalGrantRowForTest {
+) -> crate::storage::auth_integrations::OAuthGrantRowForTest {
     let expires_at_ms = approved_at_ms
-        .checked_add(crate::storage::auth_grants::DELEGATED_GRANT_DEFAULT_TTL_MS)
+        .checked_add(OAUTH_GRANT_TTL_MS_FOR_TEST)
         .expect("OAuth approval expiry");
-    crate::storage::auth_integrations::OAuthApprovalGrantRowForTest {
+    crate::storage::auth_integrations::OAuthGrantRowForTest {
         grant_id: grant_id.to_owned(),
-        actor_user_id: principal.user_id.clone(),
-        effective_user_id: effective_user_id.to_owned(),
-        scopes: OAUTH_APPROVAL_SCOPES_JSON.to_owned(),
-        created_at_ms: i64::try_from(approved_at_ms).expect("approval time fits SQLite"),
-        expires_at_ms: i64::try_from(expires_at_ms).expect("approval expiry fits SQLite"),
+        actor_user_id: principal_user_id.to_owned(),
+        effective_user_id: Some(effective_user_id.to_owned()),
+        scopes: OAUTH_TEST_SCOPES_JSON.to_owned(),
+        created_at_ms: approved_at_ms,
+        expires_at_ms: Some(expires_at_ms),
         revoked_at_ms: None,
         created_by: format!("session:{session_id}"),
-        request_id: request_id.to_owned(),
-        consent_digest: expected_oauth_approval_consent_digest(principal, expires_at_ms),
-        last_used_at_ms: i64::try_from(approved_at_ms).expect("last-used time fits SQLite"),
+        request_id: Some(request_id.to_owned()),
+        consent_digest: Some(expected_oauth_approval_consent_digest(
+            principal_user_id,
+            expires_at_ms,
+        )),
+        last_used_at_ms: approved_at_ms,
     }
 }
 
 #[test]
 fn oauth_consent_request_derives_the_durable_user_from_authority() {
-    let (mut snapback, client_id, principal_user_id) = oauth_consent_ownership_fixture();
-    let now_ms = 1_000;
-    seed_oauth_consent_users(&mut snapback, now_ms);
-    let random = CounterRandom::new();
-    let absent_authority = test_live_session_authority(
-        InvocationSource::AgentGrantManagement,
-        "user-n",
-        1,
-        now_ms + 60_000,
-        None,
-    );
-    let absent = snapback.begin_oauth_authorization(
-        &absent_authority,
-        &client_id,
-        "https://example.test/callback",
-        &["read".to_owned()],
-        "abcdefghijklmnopqrstuvwxyzABCDEFGH012345678",
-        None,
-        now_ms,
-        &random,
-    );
-    assert_eq!(
-        absent
-            .expect_err("an authority for an absent user must be refused")
-            .diagnostic
-            .code,
-        "SNAPBACK_AUTH_OAUTH_ACCESS_DENIED"
-    );
-    let after_absent_refusal = oauth_consent_rows_for_test(&mut snapback);
-    assert!(after_absent_refusal.grants.is_empty());
-    assert!(after_absent_refusal.pairing_requests.is_empty());
-    assert!(after_absent_refusal.authorizations.is_empty());
+    use crate::storage::auth_grants::{ExactGrantScope, ScopedFunctionKind};
+    use crate::storage::auth_integrations::{
+        OAuthAuthorizationRowForTest, OAuthPairingRequestRowForTest,
+    };
 
-    let authority = test_live_session_authority(
-        InvocationSource::AgentGrantManagement,
-        "user-m",
-        1,
-        now_ms + 60_000,
-        None,
-    );
-    let begun = snapback
-        .begin_oauth_authorization(
+    const NOW_MS: u64 = 2_000;
+
+    #[derive(Clone, Copy)]
+    enum Case {
+        FirstExact,
+        SecondExact,
+        WrongSource,
+        AbsentUser,
+    }
+
+    impl Case {
+        fn name(self) -> &'static str {
+            match self {
+                Self::FirstExact => "first-exact",
+                Self::SecondExact => "second-exact",
+                Self::WrongSource => "wrong-source",
+                Self::AbsentUser => "absent-user",
+            }
+        }
+
+        fn user_id(self) -> &'static str {
+            match self {
+                Self::SecondExact => "user-z",
+                Self::AbsentUser => "user-missing",
+                _ => "user-m",
+            }
+        }
+
+        fn source(self) -> InvocationSource {
+            if matches!(self, Self::WrongSource) {
+                InvocationSource::HttpMutation
+            } else {
+                InvocationSource::AgentGrantManagement
+            }
+        }
+
+        fn expected_error(self) -> Option<&'static str> {
+            match self {
+                Self::FirstExact | Self::SecondExact => None,
+                Self::WrongSource => Some("SNAPBACK_AUTH_REQUIRED"),
+                Self::AbsentUser => Some("SNAPBACK_AUTH_OAUTH_ACCESS_DENIED"),
+            }
+        }
+    }
+
+    let mut accepted = Vec::new();
+    let mut refused = Vec::new();
+    for case in [
+        Case::FirstExact,
+        Case::SecondExact,
+        Case::WrongSource,
+        Case::AbsentUser,
+    ] {
+        let (mut snapback, client_id, principal_user_id) = oauth_consent_ownership_fixture();
+        seed_oauth_consent_users(&mut snapback, 1_000);
+        let authority = test_live_session_authority_with_session(
+            case.source(),
+            case.user_id(),
+            if matches!(case, Case::SecondExact) {
+                "begin-session-z"
+            } else {
+                "begin-session-m"
+            },
+            1,
+            NOW_MS + 60_000,
+            None,
+        );
+        let before = oauth_durable_state_for_test(&mut snapback);
+        let random = CounterRandom::new();
+        let result = snapback.begin_oauth_authorization(
             &authority,
             &client_id,
-            "https://example.test/callback",
-            &["read".to_owned()],
-            "abcdefghijklmnopqrstuvwxyzABCDEFGH012345678",
-            None,
-            now_ms,
+            OAUTH_TEST_REDIRECT_URI,
+            &[OAUTH_TEST_BUNDLE.to_owned()],
+            OAUTH_TEST_CODE_CHALLENGE,
+            Some(case.name()),
+            NOW_MS,
             &random,
-        )
-        .expect("authority user can create their OAuth consent request");
-    let after_acceptance = oauth_consent_rows_for_test(&mut snapback);
-    assert!(after_acceptance.grants.is_empty());
-    assert_eq!(
-        after_acceptance.pairing_requests,
-        vec![
-            crate::storage::auth_integrations::OAuthPairingRequestRowForTest {
-                request_id: begun.request_id.clone(),
-                minted_by_user_id: "user-m".to_owned(),
-                state: "pending".to_owned(),
-                grant_id: None,
-            }
-        ]
-    );
-    assert_eq!(
-        after_acceptance.authorizations,
-        vec![
-            crate::storage::auth_integrations::OAuthAuthorizationRowForTest {
-                request_id: begun.request_id,
-                principal_user_id,
-                consenting_user_id: "user-m".to_owned(),
-                status: "pending".to_owned(),
-                code_hash: None,
-                grant_id: None,
-                code_expires_at_ms: None,
-                consumed_at_ms: None,
-            }
-        ]
-    );
+        );
+        let after = oauth_durable_state_for_test(&mut snapback);
 
-    let wrong_source = test_live_session_authority(
-        InvocationSource::HttpMutation,
-        "user-m",
-        1,
-        now_ms + 60_000,
-        None,
-    );
-    let refused = snapback.begin_oauth_authorization(
-        &wrong_source,
-        &client_id,
-        "https://example.test/callback",
-        &["read".to_owned()],
-        "abcdefghijklmnopqrstuvwxyzABCDEFGH012345678",
-        None,
-        now_ms,
-        &random,
-    );
+        if let Some(expected_code) = case.expected_error() {
+            let code = result
+                .expect_err("refused OAuth begin case")
+                .diagnostic
+                .code;
+            assert_eq!(code, expected_code);
+            let expected = if matches!(case, Case::WrongSource) {
+                before
+            } else {
+                with_oauth_authorization_clock(before, NOW_MS)
+            };
+            assert_eq!(
+                oauth_authorization_clock(&after),
+                oauth_authorization_clock(&expected),
+                "{} refusal authorization clock",
+                case.name()
+            );
+            assert_eq!(after, expected, "{} refusal durable snapshot", case.name());
+            refused.push((case.name(), code));
+            continue;
+        }
+
+        let begun = result.expect("exact authority user begins OAuth consent");
+        assert!(begun.request_id.starts_with("greq_"));
+        assert_eq!(begun.client.client_id, client_id);
+        assert_eq!(begun.client.principal_user_id, principal_user_id);
+        assert_eq!(begun.bundle_names, [OAUTH_TEST_BUNDLE.to_owned()]);
+        assert_eq!(
+            begun.scopes,
+            [ExactGrantScope {
+                function_id: "fn:oauthQuery".to_owned(),
+                kind: ScopedFunctionKind::Query,
+                basis: 0,
+                authority_creating: false,
+            }]
+        );
+        assert_eq!(
+            oauth_authorization_clock(&after),
+            NOW_MS.to_string(),
+            "{} authorization clock",
+            case.name()
+        );
+
+        let expires_at_ms = NOW_MS + OAUTH_REQUEST_TTL_MS_FOR_TEST;
+        assert!(expires_at_ms > NOW_MS);
+        let durable_pairing = after
+            .pairing_requests
+            .iter()
+            .find(|row| row.request_id == begun.request_id)
+            .expect("accepted durable pairing request");
+        assert!(durable_pairing.request_id.starts_with("greq_"));
+        assert_eq!(durable_pairing.code_hash, vec![1; 32]);
+        assert_eq!(durable_pairing.minted_by_user_id, case.user_id());
+        assert_eq!(
+            durable_pairing.agent_user_id.as_deref(),
+            Some(principal_user_id.as_str())
+        );
+        assert_eq!(
+            durable_pairing.requested_scopes.as_deref(),
+            Some(OAUTH_TEST_SCOPES_JSON)
+        );
+        assert_eq!(durable_pairing.created_at_ms, NOW_MS);
+        assert!(durable_pairing.expires_at_ms > durable_pairing.created_at_ms);
+        assert_eq!(
+            durable_pairing.expires_at_ms - durable_pairing.created_at_ms,
+            OAUTH_REQUEST_TTL_MS_FOR_TEST
+        );
+        assert_eq!(durable_pairing.consumed_at_ms, Some(NOW_MS));
+        let durable_authorization = after
+            .authorizations
+            .iter()
+            .find(|row| row.request_id == begun.request_id)
+            .expect("accepted durable OAuth authorization");
+        assert_eq!(durable_authorization.request_id, durable_pairing.request_id);
+        assert_eq!(durable_authorization.consenting_user_id, case.user_id());
+        assert_eq!(
+            durable_authorization.oauth_state.as_deref(),
+            Some(case.name())
+        );
+        assert_eq!(durable_authorization.created_at_ms, NOW_MS);
+        assert!(durable_authorization.expires_at_ms > durable_authorization.created_at_ms);
+        assert_eq!(
+            durable_authorization.expires_at_ms - durable_authorization.created_at_ms,
+            OAUTH_REQUEST_TTL_MS_FOR_TEST
+        );
+        let expected_pairing = OAuthPairingRequestRowForTest {
+            request_id: begun.request_id.clone(),
+            code_hash: vec![1; 32],
+            minted_by_user_id: case.user_id().to_owned(),
+            agent_user_id: Some(principal_user_id.clone()),
+            requested_scopes: Some(OAUTH_TEST_SCOPES_JSON.to_owned()),
+            state: "pending".to_owned(),
+            attempts: 0,
+            created_at_ms: NOW_MS,
+            expires_at_ms,
+            consumed_at_ms: Some(NOW_MS),
+            grant_id: None,
+        };
+        let expected_authorization = OAuthAuthorizationRowForTest {
+            request_id: begun.request_id,
+            client_id,
+            principal_user_id,
+            consenting_user_id: case.user_id().to_owned(),
+            redirect_uri: OAUTH_TEST_REDIRECT_URI.to_owned(),
+            code_challenge: OAUTH_TEST_CODE_CHALLENGE.to_owned(),
+            bundle_names_json: OAUTH_TEST_BUNDLES_JSON.to_owned(),
+            oauth_state: Some(case.name().to_owned()),
+            status: "pending".to_owned(),
+            code_hash: None,
+            grant_id: None,
+            created_at_ms: NOW_MS,
+            expires_at_ms,
+            code_expires_at_ms: None,
+            consumed_at_ms: None,
+        };
+        let mut expected = with_oauth_authorization_clock(before, NOW_MS);
+        expected.pairing_requests.push(expected_pairing);
+        expected
+            .pairing_requests
+            .sort_by(|left, right| left.request_id.cmp(&right.request_id));
+        expected.authorizations.push(expected_authorization);
+        expected
+            .authorizations
+            .sort_by(|left, right| left.request_id.cmp(&right.request_id));
+        assert_eq!(after, expected, "{} accepted durable snapshot", case.name());
+        accepted.push(case.name());
+    }
+
+    assert_eq!(accepted, ["first-exact", "second-exact"]);
     assert_eq!(
-        refused
-            .expect_err("wrong invocation source must be refused")
-            .diagnostic
-            .code,
-        "SNAPBACK_AUTH_REQUIRED"
+        refused,
+        [
+            ("wrong-source", "SNAPBACK_AUTH_REQUIRED".to_owned()),
+            (
+                "absent-user",
+                "SNAPBACK_AUTH_OAUTH_ACCESS_DENIED".to_owned(),
+            ),
+        ]
     );
-    assert_eq!(oauth_consent_rows_for_test(&mut snapback), after_acceptance);
 }
 
 #[test]
@@ -29212,11 +29367,6 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
     let (mut snapback, client_id, principal_user_id) = oauth_consent_ownership_fixture();
     let now_ms = 1_000;
     seed_oauth_consent_users(&mut snapback, now_ms);
-    snapback
-        .auth_database_mut()
-        .auth_catalog()
-        .insert_human_user_for_test("user-n", now_ms)
-        .expect("create second OAuth approval authority user");
     let random = CounterRandom::new();
 
     #[derive(Clone)]
@@ -29228,14 +29378,10 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
     }
 
     let requests = [
-        ("a-anchor", "user-a"),
-        ("m-approved-low", "user-m"),
-        ("m-pending-low", "user-m"),
+        ("a-lower", "user-a"),
         ("m-target", "user-m"),
-        ("m-pending-high", "user-m"),
-        ("m-approved-high", "user-m"),
         ("n-target", "user-n"),
-        ("z-anchor", "user-z"),
+        ("z-upper", "user-z"),
     ]
     .into_iter()
     .enumerate()
@@ -29260,94 +29406,50 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
         .iter()
         .map(|request| (request.label, request))
         .collect::<BTreeMap<_, _>>();
-    for (label, grant_id, session_id, approved_at_ms, digest_tag) in [
-        (
-            "a-anchor",
-            "fixture-grant-a",
-            "fixture-anchor-session-a",
-            1_100,
-            0xa1,
-        ),
-        (
-            "m-approved-low",
-            "fixture-grant-m-low",
-            "fixture-anchor-session-m-low",
-            1_101,
-            0xb1,
-        ),
-        (
-            "m-approved-high",
-            "fixture-grant-m-high",
-            "fixture-anchor-session-m-high",
-            1_102,
-            0xb2,
-        ),
-        (
-            "z-anchor",
-            "fixture-grant-z",
-            "fixture-anchor-session-z",
-            1_103,
-            0xd1,
-        ),
-    ] {
-        let request = request_by_label
-            .get(label)
-            .unwrap_or_else(|| panic!("fixture request {label} exists"));
-        snapback
-            .auth_database_mut()
-            .seed_oauth_approval_anchor_for_test(
-                grant_id,
-                &request.request_id,
-                &principal_user_id,
-                request.user_id,
-                session_id,
-                approved_at_ms,
-                digest_tag,
-            )
-            .unwrap_or_else(|error| panic!("pre-approve {label}: {error:?}"));
-    }
 
-    let initial_rows = oauth_approval_rows_for_test(&mut snapback);
+    let initial_rows = oauth_durable_state_for_test(&mut snapback);
     assert_eq!(initial_rows.pairing_requests.len(), requests.len());
     assert_eq!(initial_rows.authorizations.len(), requests.len());
-    assert_eq!(initial_rows.grants.len(), 4);
-    assert_eq!(initial_rows.principals.len(), 1);
-    let approval_principal = initial_rows.principals[0].clone();
-    assert_eq!(approval_principal.user_id, principal_user_id);
-    assert_eq!(approval_principal.kind, "agent");
+    assert!(initial_rows.grants.is_empty());
     assert_eq!(
-        approval_principal.display_name.as_deref(),
-        Some("Ownership Test Integration")
+        initial_rows
+            .meta
+            .iter()
+            .find(|row| row.key == OAUTH_AUTH_CLOCK_META_KEY)
+            .expect("approval fixture authorization clock")
+            .value,
+        "1003"
     );
-    assert_eq!(approval_principal.owner_user_id, None);
-    assert_eq!(approval_principal.deactivated_at_ms, None);
-    assert!(approval_principal.registration_provenance.is_some());
-    for request in &requests {
+    for (offset, request) in requests.iter().enumerate() {
         let pairing = initial_rows
             .pairing_requests
             .iter()
             .find(|row| row.request_id == request.request_id)
             .unwrap_or_else(|| panic!("pairing row {} exists", request.label));
+        assert!(pairing.request_id.starts_with("greq_"));
+        assert_eq!(
+            pairing.code_hash,
+            vec![u8::try_from(offset + 1).unwrap(); 32]
+        );
         assert_eq!(pairing.minted_by_user_id, request.user_id);
-        assert_eq!(pairing.agent_user_id, principal_user_id);
-        assert_eq!(pairing.requested_scopes, OAUTH_APPROVAL_SCOPES_JSON);
-        assert_eq!(pairing.code_hash.len(), 32);
+        assert_eq!(
+            pairing.agent_user_id.as_deref(),
+            Some(principal_user_id.as_str())
+        );
+        assert_eq!(
+            pairing.requested_scopes.as_deref(),
+            Some(OAUTH_TEST_SCOPES_JSON)
+        );
         assert_eq!(pairing.attempts, 0);
-        assert_eq!(pairing.created_at_ms, request.created_at_ms as i64);
+        assert_eq!(pairing.created_at_ms, request.created_at_ms);
+        assert!(pairing.expires_at_ms > pairing.created_at_ms);
         assert_eq!(
             pairing.expires_at_ms,
-            request.created_at_ms as i64 + 600_000
+            request.created_at_ms + OAUTH_REQUEST_TTL_MS_FOR_TEST
         );
-        assert_eq!(pairing.consumed_at_ms, request.created_at_ms as i64);
-        let is_anchor = matches!(
-            request.label,
-            "a-anchor" | "m-approved-low" | "m-approved-high" | "z-anchor"
-        );
-        assert_eq!(
-            pairing.state,
-            if is_anchor { "approved" } else { "pending" }
-        );
-        assert_eq!(pairing.grant_id.is_some(), is_anchor);
+        assert_eq!(pairing.consumed_at_ms, Some(request.created_at_ms));
+        assert_eq!(pairing.state, "pending");
+        assert_eq!(pairing.grant_id, None);
 
         let authorization = initial_rows
             .authorizations
@@ -29357,20 +29459,18 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
         assert_eq!(authorization.client_id, client_id);
         assert_eq!(authorization.principal_user_id, principal_user_id);
         assert_eq!(authorization.consenting_user_id, request.user_id);
-        assert_eq!(authorization.redirect_uri, "https://example.test/callback");
-        assert_eq!(
-            authorization.code_challenge,
-            "abcdefghijklmnopqrstuvwxyzABCDEFGH012345678"
-        );
-        assert_eq!(authorization.bundle_names_json, r#"["read"]"#);
+        assert_eq!(authorization.redirect_uri, OAUTH_TEST_REDIRECT_URI);
+        assert_eq!(authorization.code_challenge, OAUTH_TEST_CODE_CHALLENGE);
+        assert_eq!(authorization.bundle_names_json, OAUTH_TEST_BUNDLES_JSON);
         assert_eq!(authorization.oauth_state, None);
         assert_eq!(authorization.status, "pending");
         assert_eq!(authorization.code_hash, None);
         assert_eq!(authorization.grant_id, None);
-        assert_eq!(authorization.created_at_ms, request.created_at_ms as i64);
+        assert_eq!(authorization.created_at_ms, request.created_at_ms);
+        assert!(authorization.expires_at_ms > authorization.created_at_ms);
         assert_eq!(
             authorization.expires_at_ms,
-            request.created_at_ms as i64 + 600_000
+            request.created_at_ms + OAUTH_REQUEST_TTL_MS_FOR_TEST
         );
         assert_eq!(authorization.code_expires_at_ms, None);
         assert_eq!(authorization.consumed_at_ms, None);
@@ -29391,19 +29491,46 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
     let authorities = [
         AuthorityCase {
             user_id: "user-m",
-            session_id: "approval-session-m",
+            session_id: "approval-session-n",
             target_label: "m-target",
             approved_at_ms: 2_000,
         },
         AuthorityCase {
             user_id: "user-n",
-            session_id: "approval-session-n",
+            session_id: "approval-session-m",
             target_label: "n-target",
             approved_at_ms: 3_000,
         },
     ];
     assert_ne!(authorities[0].user_id, authorities[1].user_id);
     assert_ne!(authorities[0].session_id, authorities[1].session_id);
+    let wrong_source = test_live_session_authority_with_session(
+        InvocationSource::HttpMutation,
+        authorities[0].user_id,
+        authorities[0].session_id,
+        1,
+        now_ms + 60_000,
+        None,
+    );
+    let before_wrong_source = oauth_durable_state_for_test(&mut snapback);
+    let wrong_source_result = snapback.approve_oauth_grant_request(
+        &wrong_source,
+        &request_by_label[authorities[0].target_label].request_id,
+        None,
+        authorities[0].approved_at_ms,
+    );
+    assert_eq!(
+        wrong_source_result
+            .expect_err("OAuth approval requires its registered source")
+            .diagnostic
+            .code,
+        "SNAPBACK_AUTH_REQUIRED"
+    );
+    assert_eq!(
+        oauth_durable_state_for_test(&mut snapback),
+        before_wrong_source,
+        "wrong-source refusal stops before the authorization clock"
+    );
     let mut accepted = BTreeMap::<String, BTreeSet<String>>::new();
     let mut refused = BTreeMap::<String, BTreeMap<String, String>>::new();
 
@@ -29423,7 +29550,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
         let attempts = [
             (
                 "foreign-lower",
-                request_by_label["a-anchor"].request_id.as_str(),
+                request_by_label["a-lower"].request_id.as_str(),
             ),
             (
                 "foreign-other-authority",
@@ -29437,7 +29564,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
             ),
             (
                 "foreign-upper",
-                request_by_label["z-anchor"].request_id.as_str(),
+                request_by_label["z-upper"].request_id.as_str(),
             ),
             (
                 authority_case.target_label,
@@ -29449,14 +29576,19 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
             ("selector-above-all", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"),
         ];
         for (attempt_label, request_id) in attempts {
-            let before = oauth_approval_rows_for_test(&mut snapback);
+            let before = oauth_durable_state_for_test(&mut snapback);
             let result = snapback.approve_oauth_grant_request(
                 &authority,
                 request_id,
                 None,
                 authority_case.approved_at_ms,
             );
-            let after = oauth_approval_rows_for_test(&mut snapback);
+            let after = oauth_durable_state_for_test(&mut snapback);
+            assert_eq!(
+                oauth_authorization_clock(&after),
+                authority_case.approved_at_ms.to_string(),
+                "{attempt_label} authorization clock"
+            );
             if attempt_label == authority_case.target_label {
                 let approval = match result
                     .unwrap_or_else(|error| panic!("approve {attempt_label}: {error:?}"))
@@ -29467,35 +29599,63 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
                     }
                 };
                 let expected_grant = expected_oauth_approval_grant_row(
-                    &approval_principal,
+                    &principal_user_id,
                     authority_case.user_id,
                     authority_case.session_id,
                     request_id,
                     &approval.grant_id,
                     authority_case.approved_at_ms,
                 );
-                assert_eq!(approval.request_id, expected_grant.request_id);
+                assert!(approval.grant_id.starts_with("grt_"));
+                assert_eq!(
+                    approval.request_id,
+                    expected_grant.request_id.as_deref().unwrap()
+                );
                 assert_eq!(approval.actor_user_id, expected_grant.actor_user_id);
-                assert_eq!(approval.effective_user_id, expected_grant.effective_user_id);
+                assert_eq!(
+                    approval.effective_user_id,
+                    expected_grant.effective_user_id.as_deref().unwrap()
+                );
                 assert_eq!(
                     serde_json::to_string(&approval.scopes).expect("encode returned scopes"),
                     expected_grant.scopes
                 );
-                assert_eq!(approval.expires_at_ms, expected_grant.expires_at_ms as u64);
+                assert!(approval.expires_at_ms > authority_case.approved_at_ms);
+                assert_eq!(
+                    approval.expires_at_ms,
+                    expected_grant.expires_at_ms.unwrap()
+                );
                 assert_eq!(
                     approval.consent_digest.as_slice(),
-                    expected_grant.consent_digest.as_slice()
+                    expected_grant.consent_digest.as_deref().unwrap()
                 );
                 let durable_grant = after
                     .grants
                     .iter()
-                    .find(|row| row.request_id == request_id)
+                    .find(|row| row.request_id.as_deref() == Some(request_id))
                     .expect("accepted durable OAuth grant exists");
+                assert!(durable_grant.grant_id.starts_with("grt_"));
+                assert_eq!(durable_grant.grant_id, approval.grant_id);
+                assert_eq!(durable_grant.actor_user_id, principal_user_id);
                 assert_eq!(
-                    durable_grant.effective_user_id,
-                    expected_grant.effective_user_id
+                    durable_grant.effective_user_id.as_deref(),
+                    Some(authority_case.user_id)
                 );
+                assert_eq!(durable_grant.scopes, OAUTH_TEST_SCOPES_JSON);
+                assert_eq!(durable_grant.created_at_ms, authority_case.approved_at_ms);
+                assert!(durable_grant.expires_at_ms.unwrap() > durable_grant.created_at_ms);
+                assert_eq!(
+                    durable_grant.expires_at_ms.unwrap() - durable_grant.created_at_ms,
+                    OAUTH_GRANT_TTL_MS_FOR_TEST
+                );
+                assert_eq!(durable_grant.revoked_at_ms, None);
                 assert_eq!(durable_grant.created_by, expected_grant.created_by);
+                assert_eq!(durable_grant.request_id.as_deref(), Some(request_id));
+                assert_eq!(
+                    durable_grant.consent_digest.as_deref(),
+                    expected_grant.consent_digest.as_deref()
+                );
+                assert_eq!(durable_grant.last_used_at_ms, durable_grant.created_at_ms);
                 let durable_pairing = after
                     .pairing_requests
                     .iter()
@@ -29507,13 +29667,12 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
                     Some(approval.grant_id.as_str())
                 );
 
-                let mut expected = before;
+                let mut expected =
+                    with_oauth_authorization_clock(before, authority_case.approved_at_ms);
                 expected.grants.push(expected_grant);
-                expected.grants.sort_by(|left, right| {
-                    left.request_id
-                        .cmp(&right.request_id)
-                        .then_with(|| left.grant_id.cmp(&right.grant_id))
-                });
+                expected
+                    .grants
+                    .sort_by(|left, right| left.grant_id.cmp(&right.grant_id));
                 let pairing = expected
                     .pairing_requests
                     .iter_mut()
@@ -29532,7 +29691,11 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
                     .diagnostic
                     .code;
                 assert_eq!(code, "SNAPBACK_AUTH_GRANT_INVALID");
-                assert_eq!(after, before);
+                assert_eq!(
+                    after,
+                    with_oauth_authorization_clock(before, authority_case.approved_at_ms),
+                    "{attempt_label} refusal advances only the authorization clock"
+                );
                 refused
                     .entry(authority_case.user_id.to_owned())
                     .or_default()
@@ -29624,26 +29787,38 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
         None,
     );
 
-    let initial_rows = oauth_consent_rows_for_test(&mut snapback);
+    let initial_rows = oauth_durable_state_for_test(&mut snapback);
     let mut expected_grants = requests
         .iter()
-        .map(|(user_id, request_id, grant_id)| {
-            crate::storage::auth_integrations::OAuthGrantRowForTest {
-                grant_id: grant_id.clone(),
-                request_id: request_id.clone(),
-                actor_user_id: principal_user_id.clone(),
-                effective_user_id: user_id.clone(),
-            }
+        .enumerate()
+        .map(|(offset, (user_id, request_id, grant_id))| {
+            expected_oauth_approval_grant_row(
+                &principal_user_id,
+                user_id,
+                &format!("session-{user_id}"),
+                request_id,
+                grant_id,
+                now_ms + (offset as u64 * 10) + 1,
+            )
         })
         .collect::<Vec<_>>();
-    expected_grants.sort_by(|left, right| left.request_id.cmp(&right.request_id));
+    expected_grants.sort_by(|left, right| left.grant_id.cmp(&right.grant_id));
     let mut expected_pairing_requests = requests
         .iter()
-        .map(|(user_id, request_id, grant_id)| {
+        .enumerate()
+        .map(|(offset, (user_id, request_id, grant_id))| {
+            let created_at_ms = now_ms + (offset as u64 * 10);
             crate::storage::auth_integrations::OAuthPairingRequestRowForTest {
                 request_id: request_id.clone(),
+                code_hash: vec![u8::try_from(offset + 1).unwrap(); 32],
                 minted_by_user_id: user_id.clone(),
+                agent_user_id: Some(principal_user_id.clone()),
+                requested_scopes: Some(OAUTH_TEST_SCOPES_JSON.to_owned()),
                 state: "approved".to_owned(),
+                attempts: 0,
+                created_at_ms,
+                expires_at_ms: created_at_ms + OAUTH_REQUEST_TTL_MS_FOR_TEST,
+                consumed_at_ms: Some(created_at_ms),
                 grant_id: Some(grant_id.clone()),
             }
         })
@@ -29651,14 +29826,23 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
     expected_pairing_requests.sort_by(|left, right| left.request_id.cmp(&right.request_id));
     let mut expected_authorizations = requests
         .iter()
-        .map(|(user_id, request_id, _)| {
+        .enumerate()
+        .map(|(offset, (user_id, request_id, _))| {
+            let created_at_ms = now_ms + (offset as u64 * 10);
             crate::storage::auth_integrations::OAuthAuthorizationRowForTest {
                 request_id: request_id.clone(),
+                client_id: client_id.clone(),
                 principal_user_id: principal_user_id.clone(),
                 consenting_user_id: user_id.clone(),
+                redirect_uri: OAUTH_TEST_REDIRECT_URI.to_owned(),
+                code_challenge: OAUTH_TEST_CODE_CHALLENGE.to_owned(),
+                bundle_names_json: OAUTH_TEST_BUNDLES_JSON.to_owned(),
+                oauth_state: None,
                 status: "pending".to_owned(),
                 code_hash: None,
                 grant_id: None,
+                created_at_ms,
+                expires_at_ms: created_at_ms + OAUTH_REQUEST_TTL_MS_FOR_TEST,
                 code_expires_at_ms: None,
                 consumed_at_ms: None,
             }
@@ -29669,14 +29853,56 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
     assert_eq!(initial_rows.pairing_requests, expected_pairing_requests);
     assert_eq!(initial_rows.authorizations, expected_authorizations);
 
+    let wrong_source = test_live_session_authority_with_session(
+        InvocationSource::HttpMutation,
+        "user-m",
+        "issuance-session-m",
+        1,
+        now_ms + 60_000,
+        None,
+    );
+    let (_, own_request_id, _) = requests
+        .iter()
+        .find(|(user_id, _, _)| user_id == "user-m")
+        .expect("authority user's issuance request exists");
+    let before_wrong_source = oauth_durable_state_for_test(&mut snapback);
+    let wrong_source_result = snapback.issue_oauth_authorization_code(
+        &wrong_source,
+        own_request_id,
+        now_ms + 100,
+        &random,
+    );
+    assert_eq!(
+        wrong_source_result
+            .expect_err("OAuth issuance requires its registered source")
+            .diagnostic
+            .code,
+        "SNAPBACK_AUTH_REQUIRED"
+    );
+    assert_eq!(
+        oauth_durable_state_for_test(&mut snapback),
+        before_wrong_source,
+        "wrong-source issuance stops before the authorization clock"
+    );
+
     let mut durable_code_hashes = Vec::new();
+    let mut accepted = Vec::new();
+    let mut refused = Vec::new();
     for (user_id, request_id, grant_id) in &requests {
-        let before = oauth_consent_rows_for_test(&mut snapback);
+        let before = oauth_durable_state_for_test(&mut snapback);
         let result =
             snapback.issue_oauth_authorization_code(&authority, request_id, now_ms + 100, &random);
-        let after = oauth_consent_rows_for_test(&mut snapback);
+        let after = oauth_durable_state_for_test(&mut snapback);
+        assert_eq!(
+            oauth_authorization_clock(&after),
+            (now_ms + 100).to_string(),
+            "{user_id} issuance authorization clock"
+        );
         if user_id == "user-m" {
             let issued = result.expect("authority user can issue their OAuth code");
+            assert!(issued.code.expose_secret().starts_with("sboac_"));
+            assert_eq!(issued.redirect_uri, OAUTH_TEST_REDIRECT_URI);
+            assert_eq!(issued.oauth_state, None);
             let expected_code_hash: [u8; 32] = {
                 use sha2::Digest as _;
 
@@ -29691,21 +29917,35 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
                 updated.status, "approved",
                 "authority user's durable OAuth row must be the row updated"
             );
+            assert_eq!(updated.client_id, client_id);
+            assert_eq!(updated.principal_user_id, principal_user_id);
+            assert_eq!(updated.consenting_user_id, user_id.as_str());
+            assert_eq!(updated.redirect_uri, OAUTH_TEST_REDIRECT_URI);
+            assert_eq!(updated.code_challenge, OAUTH_TEST_CODE_CHALLENGE);
+            assert_eq!(updated.bundle_names_json, OAUTH_TEST_BUNDLES_JSON);
+            assert_eq!(updated.oauth_state, None);
             assert_eq!(updated.grant_id.as_deref(), Some(grant_id.as_str()));
-            assert_eq!(updated.code_expires_at_ms, Some(61_100));
+            let expected_code_expires_at_ms = now_ms + 100 + OAUTH_CODE_TTL_MS_FOR_TEST;
+            assert!(expected_code_expires_at_ms > now_ms + 100);
+            assert_eq!(
+                updated.code_expires_at_ms,
+                Some(expected_code_expires_at_ms)
+            );
             assert_eq!(
                 updated.code_hash.as_deref(),
                 Some(expected_code_hash.as_slice()),
                 "durable OAuth selector must be the SHA-256 of the returned code"
             );
+            assert_eq!(updated.consumed_at_ms, None);
             durable_code_hashes.push(
                 updated
                     .code_hash
                     .clone()
                     .expect("issued OAuth row must retain its durable selector"),
             );
+            accepted.push(user_id.as_str());
 
-            let mut expected = before;
+            let mut expected = with_oauth_authorization_clock(before, now_ms + 100);
             let expected_updated = expected
                 .authorizations
                 .iter_mut()
@@ -29714,17 +29954,20 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
             expected_updated.status = "approved".to_owned();
             expected_updated.code_hash = Some(expected_code_hash.to_vec());
             expected_updated.grant_id = Some(grant_id.clone());
-            expected_updated.code_expires_at_ms = Some(61_100);
+            expected_updated.code_expires_at_ms = Some(expected_code_expires_at_ms);
             assert_eq!(after, expected);
         } else {
+            let code = result
+                .expect_err("foreign OAuth code issuance must be refused")
+                .diagnostic
+                .code;
+            assert_eq!(code, "SNAPBACK_AUTH_OAUTH_GRANT_INVALID");
+            refused.push((user_id.as_str(), code));
             assert_eq!(
-                result
-                    .expect_err("foreign OAuth code issuance must be refused")
-                    .diagnostic
-                    .code,
-                "SNAPBACK_AUTH_OAUTH_GRANT_INVALID"
+                after,
+                with_oauth_authorization_clock(before, now_ms + 100),
+                "foreign issuance advances only the authorization clock"
             );
-            assert_eq!(after, before);
         }
     }
 
@@ -29740,7 +29983,7 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
         .iter()
         .find(|(user_id, _, _)| user_id == "user-z")
         .expect("second authority user's OAuth request exists");
-    let before = oauth_consent_rows_for_test(&mut snapback);
+    let before = oauth_durable_state_for_test(&mut snapback);
     let issued = snapback
         .issue_oauth_authorization_code(&second_authority, second_request_id, now_ms + 100, &random)
         .expect("second authority user can issue their own OAuth code");
@@ -29749,28 +29992,50 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
 
         sha2::Sha256::digest(issued.code.expose_secret().as_bytes()).into()
     };
-    let after = oauth_consent_rows_for_test(&mut snapback);
+    assert!(issued.code.expose_secret().starts_with("sboac_"));
+    assert_eq!(issued.redirect_uri, OAUTH_TEST_REDIRECT_URI);
+    assert_eq!(issued.oauth_state, None);
+    let after = oauth_durable_state_for_test(&mut snapback);
+    assert_eq!(
+        oauth_authorization_clock(&after),
+        (now_ms + 100).to_string(),
+        "second issuance authorization clock"
+    );
     let updated = after
         .authorizations
         .iter()
         .find(|row| row.request_id == *second_request_id)
         .expect("second authority user's durable OAuth row exists");
     assert_eq!(updated.status, "approved");
+    assert_eq!(updated.client_id, client_id);
+    assert_eq!(updated.principal_user_id, principal_user_id);
+    assert_eq!(updated.consenting_user_id, "user-z");
+    assert_eq!(updated.redirect_uri, OAUTH_TEST_REDIRECT_URI);
+    assert_eq!(updated.code_challenge, OAUTH_TEST_CODE_CHALLENGE);
+    assert_eq!(updated.bundle_names_json, OAUTH_TEST_BUNDLES_JSON);
+    assert_eq!(updated.oauth_state, None);
     assert_eq!(updated.grant_id.as_deref(), Some(second_grant_id.as_str()));
-    assert_eq!(updated.code_expires_at_ms, Some(61_100));
+    let expected_code_expires_at_ms = now_ms + 100 + OAUTH_CODE_TTL_MS_FOR_TEST;
+    assert!(expected_code_expires_at_ms > now_ms + 100);
+    assert_eq!(
+        updated.code_expires_at_ms,
+        Some(expected_code_expires_at_ms)
+    );
     assert_eq!(
         updated.code_hash.as_deref(),
         Some(expected_code_hash.as_slice()),
         "second durable OAuth selector must be the SHA-256 of its own returned code"
     );
+    assert_eq!(updated.consumed_at_ms, None);
     durable_code_hashes.push(
         updated
             .code_hash
             .clone()
             .expect("second issued OAuth row must retain its durable selector"),
     );
+    accepted.push("user-z");
 
-    let mut expected = before;
+    let mut expected = with_oauth_authorization_clock(before, now_ms + 100);
     let expected_updated = expected
         .authorizations
         .iter_mut()
@@ -29779,11 +30044,19 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
     expected_updated.status = "approved".to_owned();
     expected_updated.code_hash = Some(expected_code_hash.to_vec());
     expected_updated.grant_id = Some(second_grant_id.clone());
-    expected_updated.code_expires_at_ms = Some(61_100);
+    expected_updated.code_expires_at_ms = Some(expected_code_expires_at_ms);
     assert_eq!(after, expected);
     assert_ne!(
         durable_code_hashes[0], durable_code_hashes[1],
         "independently issued OAuth codes must have distinct durable selectors"
+    );
+    assert_eq!(accepted, ["user-m", "user-z"]);
+    assert_eq!(
+        refused,
+        [
+            ("user-a", "SNAPBACK_AUTH_OAUTH_GRANT_INVALID".to_owned(),),
+            ("user-z", "SNAPBACK_AUTH_OAUTH_GRANT_INVALID".to_owned(),),
+        ]
     );
 }
 
