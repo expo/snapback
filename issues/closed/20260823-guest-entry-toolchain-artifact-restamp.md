@@ -1,6 +1,6 @@
 # Guest-entry toolchain artifact re-stamp
 
-Status: Open
+Status: Closed
 
 The guest-entry codegen change alters repo-owned toolchain bytes whose isolated
 evaluation is bound into each application's `inputsHash`. Under LLP 0157's
@@ -58,3 +58,25 @@ artifact pins from those exact regenerated fixtures, and make
 semantics. It must land before any publication or promotion whose qualification
 depends on generated-artifact freshness; ordinary landing deferral does not
 weaken the LLP 0189 publication/promotion gates.
+
+## Resolution
+
+Landing SHA: f10d2c9781346075bde424e2c4bd14a340510669
+
+The deferred guest-entry rotation was subsumed by the later canonical codegen
+fix-round regenerations in `4c0cd35e1`, `f72719055`, and `4627f9d95`. This lane
+bootstrapped and handler-VM-qualified its checkout binary, replayed all 35 jobs
+in `scripts/generated-artifact-policy.mjs` (32 demo projections and three
+package fixtures), and confirmed that the complete generated closure is
+current: `scripts/check-generated-artifacts` passes with 0 stale projections.
+
+The replay also confirmed that the comparator source app generates cleanly.
+Its committed rename-conflict markers had already been removed by the
+source-driven regeneration in `597c73374`; this lane did not guess-resolve a
+binding/descriptor pair.
+
+One served-artifact assertion remained stale outside the generated roots. The
+Todo diagnostic pin in `crates/snapback-server/src/server/tests.rs` now matches
+the exact regenerated `functions.manifest.json` bundle hash,
+`sha256:8686ea0fb93c7d18`. No generated file was hand-edited and no guest
+security semantic changed.

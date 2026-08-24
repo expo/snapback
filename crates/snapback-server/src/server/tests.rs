@@ -13519,10 +13519,9 @@ async fn served_http_refusals_project_typed_candidates_and_argument_contracts() 
     assert_eq!(details["candidateFunctions"][0]["kind"], "LiveQuery");
     // The todo source carries no authority profile. This is the checked-in
     // todo artifact, not a separately authored test value (re-pinned
-    // 2026-08-22: mainline declaration-custody pairing, W4 composition, and
-    // W3's editTitle plan-facts Guide anchor moved generated bundle identity;
-    // the watch-management server delta is composition-neutral).
-    assert_eq!(details["artifactHash"], "sha256:516470d7f94769b8");
+    // 2026-08-24 after the post-guest-entry B2 codegen fix rounds coherently
+    // regenerated the checked-in application projections).
+    assert_eq!(details["artifactHash"], "sha256:8686ea0fb93c7d18");
     assert_eq!(
         details["remediationSet"]["schemaVersion"],
         "snapback.remediation-set.v1"
