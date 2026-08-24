@@ -8,8 +8,14 @@ Diagnostics
 overnight directive 2026-08-24: RFC → refine → Specs → refine →
 implementation)
 **Date:** 2026-08-24
-**Revised:** 2026-08-24 (b — Draft → Review at llp-super-refine loop start;
-authorization: the author's standing overnight directive)
+**Revised:** 2026-08-24 (c — round-1 revision: `startupNonce` dropped from
+the fact; caching rules; posture variable specified as spawn-owned; receipt
+writer/reader matrix + attach contract; dev-session full contract on the
+existing managed admin token; canonicalization algorithm + shared vectors;
+Origin-less rule; writer atomicity/duplicate rules; documentary
+deliverables and the nine-row traceability table added; signed discovery
+designed at spec altitude, implementation excluded from this set)
+**Revised:** 2026-08-24 (b — Draft → Review at loop start)
 **Revised:** 2026-08-24 (a — initial draft)
 **Related:** LLP 0300 (Accepted — the governing RFC), LLP 0299, LLP 0302
 (the client-side sibling), LLP 0010, LLP 0181, LLP 0223
@@ -19,167 +25,267 @@ authorization: the author's standing overnight directive)
 The server/CLI half of LLP 0300: the identity-discovery wire contract, the
 path-split origin-admission implementation, the receipt posture field, URL
 printing and the opt-in `.env.local` writer, the explicit dev-session
-command, and the two-process template flip. The client half (the
-`declared-dev` binding source and the standing discovery gate) is LLP 0302;
-this Spec owns everything the client calls.
+command, the two-process template flip, and the documentary deliverables.
+The client half is LLP 0302; this Spec owns everything the client calls.
 
 ## 1. The identity fact
 
 - **Route:** `GET /_snapback/api/app/identity` (unauthenticated; no other
-  method). Served by development-profile servers only; a Prod-profile
-  server refuses with `404` and the typed body code
-  `SNAPBACK_APP_IDENTITY_UNAVAILABLE` (production clients never discover —
-  release bindings are pre-admitted, LLP 0300 P1).
-- **Shape** (`formatVersion: "snapback.app-identity.v1"`), and nothing
-  more — LLP 0300 rules the fact identity-and-posture-only:
+  method; no redirects — a 3xx is never followed by clients and never
+  emitted by the server). Served by development-profile servers only; a
+  Prod-profile server refuses `404` with body code
+  `SNAPBACK_APP_IDENTITY_UNAVAILABLE`.
+- **Shape** (`formatVersion: "snapback.app-identity.v1"`) — identity and
+  posture only, exactly LLP 0300's ruling:
 
   ```json
   {
     "formatVersion": "snapback.app-identity.v1",
-    "deployment": { "…": "the active DeploymentIdentity, exactly as the readiness fact carries it" },
-    "admissionPosture": "loopback-any" | "explicit-list",
-    "startupNonce": "<the running server's startup nonce>"
+    "deployment": { "…": "DeploymentIdentity, §2a" },
+    "admissionPosture": "loopback-any" | "explicit-list"
   }
   ```
 
-  No receipts, tokens, ports, lease or reaper state, or foreign-listener
-  facts. `startupNonce` is already client-visible via the bootstrap
-  exchange and gives LLP 0302 its restart signal.
-- CORS on this route follows the same admission as the rest of the dev
-  surface (§2) — the fact is readable by any admitted origin, and the
-  fetch itself is the one call LLP 0302 exempts from the gate.
+  No `startupNonce`, receipts, tokens, ports, lease or reaper state, or
+  foreign-listener facts. Restart/replacement detection is transport-based
+  (LLP 0302 §3), not nonce-based.
+- **Caching is forbidden:** the response carries
+  `Cache-Control: no-store` and no validator headers (no ETag /
+  Last-Modified); clients fetch with cache bypass (LLP 0302). A cached
+  identity would defeat mix-up detection across a same-origin process
+  replacement.
+- CORS: the route follows §2's admission; **Origin-less** requests
+  (headless Node, curl — non-browser callers that send no `Origin`) are
+  admitted on the dev surface under both postures, per the existing
+  non-CORS rule: the origin check governs browser-origin-bearing requests
+  only. This is stated, tested (§8), and is the same same-machine trust
+  the bearer model already assumes.
+
+### 2a. DeploymentIdentity — the one comparator
+
+The fact's `deployment` is the active `DeploymentIdentity` exactly as the
+operational-readiness fact serializes it today (camelCase JSON of the Rust
+type — the Spec pins the *existing* schema, not a new one). Equality —
+used by the wire gate (LLP 0302 §3) and by generation-provenance matching
+(LLP 0302 §1) — is **field-wise strict string equality of that type's
+digest-bearing fields after JSON parse**; never object reference equality.
+An unknown `formatVersion`, or a `deployment` missing a digest field, is a
+malformed fact (connect refusal naming what was malformed). Mismatch
+diagnostics carry both serialized identities.
 
 ## 2. Origin admission — the path split, implemented
 
-Admission is decided by one server-side input,
-`SNAPBACK_DEV_ADMISSION_POSTURE`, set only by the lifecycle owner
-(`runDev`), never documented for hand use:
+One server-side input decides posture: `SNAPBACK_DEV_ADMISSION_POSTURE`.
 
-- **Plain/URL profile:** `runDev` sets `loopback-any` when no explicit
-  origins are declared. The server's existing origin check
-  (`dev_body_origin_refused` seam) admits any **literal** loopback origin:
-  scheme `http`/`https`, hostname exactly `localhost`, `127.0.0.1`, or
-  `[::1]` (case-insensitive, brackets canonicalized), any port. No DNS
-  resolution is ever performed on the Origin header (rebinding names stay
-  refused). The existing `canonical_loopback_http_origin` normalizer is
-  the single matcher.
-- **Explicit list replaces:** when the operator declares origins —
-  `SNAPBACK_DEV_AUTH_ORIGINS` and/or `--external-client-origin` — `runDev`
-  passes posture `explicit-list` and the **union of the declarations** as
-  the complete allowlist. Flag-only `--external-client-origin` is the
-  singleton complete allowlist (replace, not union-with-default) — the
-  same semantics as a tunnel-only environment list. The flag keeps its
-  `--port` requirement and its `--expo` refusal.
-- **Supervised `--expo` profile: unchanged.** The supervisor injects exact
-  planned origins; caller `SNAPBACK_DEV_AUTH_ORIGINS` **merges** and never
-  drops injected origins (`expoBackendDevAuthEnvironment` today); the
-  server receives the merged exact list with posture `explicit-list`.
-- An unrecognized posture value fails closed to `explicit-list` semantics
-  with whatever list accompanies it, and emits
-  `SNAPBACK_DEV_ADMISSION_POSTURE_INVALID` as a structured startup
-  diagnostic (refusal, not adoption of `loopback-any`).
+**Trust boundary, specified:** `runDev` **constructs** the backend child's
+environment and **always overwrites** this variable — it is never inherited
+from the caller's environment. `loopback-any` is set iff the spawn has no
+explicit origin declarations; otherwise `explicit-list` plus the union
+allowlist. The server may trust the variable because it is spawn-owned,
+not because it is secret; setting it by hand is unsupported and equivalent
+to replacing the lifecycle owner. A value that is missing, unrecognized,
+or inconsistent with its accompanying list (the posture × list pairs
+below) **refuses startup** with `SNAPBACK_DEV_ADMISSION_POSTURE_INVALID` —
+never a silent downgrade in either direction.
 
-## 3. Receipt posture (additive, versioned)
+Posture × list pairs (exhaustive):
 
-`snapback.application-ready.v1` gains one optional field,
-`admissionPosture: "loopback-any" | "explicit-list"`:
+| Posture | `SNAPBACK_DEV_AUTH_ORIGINS` (as passed to the child) | Meaning |
+| --- | --- | --- |
+| `loopback-any` | unset/empty | plain profile, no declarations: admit any literal loopback origin |
+| `loopback-any` | non-empty | **invalid** — refuse startup |
+| `explicit-list` | non-empty | the complete allowlist (plain: union of declarations; supervised: merged exact origins) |
+| `explicit-list` | unset/empty | **invalid** — refuse startup |
 
-- Supervised runs keep writing exact `clientOrigins` and now also write
-  `admissionPosture: "explicit-list"`. Byte-level assertions in existing
-  batteries are updated to tolerate the additive field; semantics are
-  unchanged.
-- Plain runs write `admissionPosture: "loopback-any"` and `clientOrigins`
-  as the explicit declarations only (empty when none).
-- **Reader rule (reader-before-writer):** a missing field means
-  `explicit-list` (every pre-existing receipt). Readers ship before
-  writers within one publication; an old CLI reading a new receipt sees an
-  unknown optional field and, per the receipt verifier's existing
-  unknown-field posture, must tolerate it — the Spec's acceptance includes
-  the four old/new CLI×receipt attach combinations from LLP 0300 P2.
+- **Literal loopback matcher:** scheme `http`/`https`, hostname exactly
+  `localhost`, `127.0.0.1`, or `[::1]`, any port, via a new shared
+  normalizer `canonical_dev_client_origin` that **extends** today's
+  `canonical_loopback_http_origin` (which is the http-focused seam) —
+  named honestly as an extension, with no DNS resolution ever performed.
+- **Plain profile:** no declarations → `loopback-any`. Declarations
+  (`SNAPBACK_DEV_AUTH_ORIGINS` and/or `--external-client-origin`) →
+  `explicit-list` with the union; flag-only is the singleton complete
+  allowlist. The flag keeps its `--port` requirement and `--expo` refusal.
+- **Supervised `--expo`: unchanged.** Injected exact origins; caller env
+  merges and never drops injected origins; the child receives
+  `explicit-list` + the merged list.
+- Note: `10.0.2.2` is the Android emulator's NAT alias for host loopback —
+  it is a *URL host* (LLP 0302 §2), never an Origin-allowlist entry here
+  (the browser never runs at a `10.0.2.2` origin).
+
+### 2b. URL/origin canonicalization — one normative algorithm
+
+Used by the server matcher, the CLI flags, and all LLP 0302 consumers:
+parse with the WHATWG URL parser; refuse on parse failure, credentials,
+non-empty path (other than `/`), query, or fragment; require scheme
+`http`/`https`; lowercase the hostname; the post-parse hostname must be
+**string-equal** to one of the admitted literals for the surface (`localhost`,
+`127.0.0.1`, `[::1]` — plus `10.0.2.2` for LLP 0302's URL admission).
+Parser normalization is the canonicalizer: `127.1` normalizes to
+`127.0.0.1` and is thereby admitted; `localhost.` (trailing dot) does not
+normalize away and is refused; default ports normalize to none; the
+canonical form is the parser's `origin` serialization. **Shared vectors**
+(the conformance set every consumer must pass, accept → canonical form):
+`http://127.0.0.1:4287` ✓; `http://localhost:5173/` ✓; `https://[::1]:8443` ✓;
+`http://127.1:4287` ✓ (→ `127.0.0.1`); `HTTP://LOCALHOST:80` ✓ (→
+`http://localhost`); refuse: `http://localhost.`, `http://attacker.dev`
+(even if DNS-loopback), `http://127.0.0.1:4287/path`, `http://user@127.0.0.1`,
+`http://127.0.0.1?x`, `ws://127.0.0.1`, `http://0.0.0.0`,
+`http://192.168.1.10:4287`. (`http://10.0.2.2:4287` ✓ on the LLP 0302 URL
+surface only.)
+
+## 3. Receipt posture — writer matrix, reader rule, attach contract
+
+`snapback.application-ready.v1` gains one optional field
+`admissionPosture`:
+
+| Run | Writes |
+| --- | --- |
+| Plain, no declarations | `admissionPosture: "loopback-any"`, `clientOrigins: []` |
+| Plain, with declarations | `admissionPosture: "explicit-list"`, `clientOrigins` = the complete union |
+| Supervised | `admissionPosture: "explicit-list"`, `clientOrigins` = merged exact origins (unchanged bytes plus the new field) |
+| Legacy receipt (field missing) | read as `explicit-list` |
+
+**Reader rule:** under `loopback-any`, `clientOrigins` is
+declarations-only and MAY be empty — it is **never** the allowlist; a
+reader must not interpret empty as "admit nobody".
+
+**Attach contract:** an attaching CLI cannot change a running server's
+posture. Attach compares the *requested* admission contract (posture +
+declarations of the attaching invocation) against the *recorded* one; on
+mismatch it refuses with a typed diagnostic naming both (no adoption, no
+restart side-effect) — deliberate restart remains the operator's move.
+The four CLI×receipt cells and their expected outcomes: old-CLI/old-receipt
+= today; old-CLI/new-supervised-receipt = attach succeeds (additive field
+tolerated by the verifier's unknown-field posture); old-CLI/new-plain
+(`loopback-any`) receipt = attach **refuses** (the old CLI cannot honor a
+posture it does not know — the unknown-field tolerance applies to parsing,
+and the recorded-contract comparison above is what refuses);
+new-CLI/old-receipt = `explicit-list` per the reader rule. Readers ship
+before writers within one publication.
 
 ## 4. `snapback dev` prints the URL; the opt-in writer
 
-- On every `ready`/attach/rebind of a plain-profile backend, the CLI
-  prints, as both human line and `--json` event field:
-  `SNAPBACK_URL=http://127.0.0.1:<port>` and
-  `androidEmulatorUrl=http://10.0.2.2:<port>`.
-- `--write-env [path]` (default `./.env.local`, opt-in only — templates
-  may opt in via their `dev` script): writes/refreshes
-  `EXPO_PUBLIC_SNAPBACK_URL`, `VITE_SNAPBACK_URL`, and `SNAPBACK_URL` to
-  the backend origin. The writer manages **only the block between its
-  marker comments**, never clobbers other keys, refreshes after every
-  ready/attach/rebind that changes the origin, and prints the
-  bundler-must-restart caveat when it rewrites while a bundler could be
-  running. It never writes any credential (LLP 0300 P4). The target file
-  must be gitignored or the writer warns.
-- `snapback dev --expo` continues to print its supervised readiness; the
-  URL-printing surface is additive there (the backend origin line prints
-  in both profiles).
+- On every `ready`/attach/rebind of a plain-profile backend the CLI prints
+  the human line `SNAPBACK_URL=http://127.0.0.1:<port>` plus an
+  Android-emulator note, and emits `--json` fields `snapbackUrl` and
+  `androidEmulatorUrl` (camelCase; the human line keeps the env spelling).
+- `--write-env [path]` (default `./.env.local`; opt-in only): writes
+  `EXPO_PUBLIC_SNAPBACK_URL`, `VITE_SNAPBACK_URL`, `SNAPBACK_URL`, each
+  byte-equal to the printed `snapbackUrl`, inside exactly one marker block
+  (`# >>> snapback dev >>>` … `# <<< snapback dev <<<`). Rules: atomic
+  replace (temp file + rename) preserving unrelated bytes and file mode;
+  refresh after every ready/attach/rebind that changes the origin, with
+  the bundler-must-restart caveat printed on rewrite; exactly one
+  well-formed block required — duplicate or malformed blocks, or a managed
+  key present *outside* the block, refuse with a typed diagnostic rather
+  than guessing; an Android `10.0.2.2` line may be written **commented**
+  inside the block and a manually-uncommented value is never silently
+  overwritten (the writer re-comments nothing; it refuses with the same
+  typed diagnostic). No credential bytes ever (LLP 0300 P4); unignored
+  target file → warn.
+- Android-emulator teaching (start packets): paste `androidEmulatorUrl` by
+  hand; the writer's block is the host-loopback value.
 
 ## 5. `snapback auth dev-session`
 
-Explicit replacement for the ambient mint on the canonical path:
-
-- `snapback auth dev-session [--ready-file <path>] [--email <address>]
-  [--json]` mints an ordinary dev session against the running backend
-  using the existing supervised-mint machinery (ready-file descriptor +
-  managed admin token), prints the bearer and expiry to **stdout only**
-  (never a file), and exits.
-- Refusals (typed): no ready file / no running backend
-  (`SNAPBACK_DEV_SESSION_TARGET_MISSING`); backend not in a mode that can
-  mint (reuse the existing supervised-mint refusal codes).
+- **Target resolution:** `--ready-file <path>` wins; otherwise the
+  conventional plain-profile ready file the current directory's project
+  writes (the same default path `runDev` uses). Ambiguity (no file, stale
+  receipt, dead pid) refuses `SNAPBACK_DEV_SESSION_TARGET_MISSING` with
+  the path(s) tried; the descriptor is verified with the existing
+  ready-receipt validation before use.
+- **Admin capability:** the store's **existing** managed admin artifacts
+  (the ready descriptor + the managed admin token the store already
+  maintains — the same seam the supervised mint uses today). This command
+  adds **no new on-disk credential**; it reads what `runDev`-managed
+  stores already hold.
+- **Semantics:** `--email` defaults to the existing supervised-mint
+  default identity; mints an ordinary session; prints to stdout only —
+  human form `bearer` + `expiresAt`, `--json` form
+  `{ "formatVersion": "snapback.dev-session.v1", "email", "bearer",
+  "expiresAt" }`; stderr carries diagnostics only. Mint-mode refusals
+  reuse the existing supervised-mint refusal codes verbatim.
 - Plain `snapback dev` prints the instruction naming this command; it
-  never runs it. `--expo` issuance is unchanged (LLP 0300 P4).
+  never runs it. `--expo` issuance is unchanged.
 
 ## 6. Templates go two-process
 
-For `expo-chat`, `react`, and `crud-dashboard`:
+As before (expo-chat/react/crud-dashboard: `"dev"` = backend +
+`--write-env`; `"dev:client"` = bundler; `"dev:supervised"` on expo-chat;
+media-feed follows), plus: `--client <dir> --client-command <cmd>` remains
+a non-allocating child launcher and is not the template shape; migration
+text names the leftover `SNAPBACK_DEV_CLIENT_PORT` /
+`SNAPBACK_DEV_BOOTSTRAP_PORT` footgun.
 
-- `"dev"`: `snapback dev snapback --write-env` (backend only, opt-in
-  writer on — the template's `.env.local` is gitignored by the scaffold
-  already).
-- `"dev:client"`: the bundler (`expo start` / `vite`).
-- `"dev:supervised"` (expo-chat only): the previous
-  `snapback dev snapback --expo --expo-platform web`, kept as the
-  documented convenience.
-- Start packets and READMEs teach the two-terminal shape first and the
-  supervised path as the appendix; the client one-liner comes from LLP
-  0302's template contract. `media-feed` follows expo-chat.
-- Migration text (guide + start packets) names the leftover-environment
-  footgun: `SNAPBACK_DEV_CLIENT_PORT`/`SNAPBACK_DEV_BOOTSTRAP_PORT` in the
-  environment fail the plain profile with `SNAPBACK_CLI_ARGUMENT_INVALID`
-  (LLP 0299 §5).
+## 7. Documentary deliverables (owned here)
 
-## 7. Diagnostics
+- `guide/clients/react-expo.md`: restructured URL-first-first (two-process
+  bring-up, one env var, bundler restart caveat, native bundler pinning
+  for persistence-sensitive lanes), supervised path demoted to the
+  appendix section.
+- Start packets (`guide/start/expo-chat.md`, `react.md`,
+  `crud-dashboard.md`, `media-feed.md`): two-terminal shape first;
+  Android-emulator manual paste; supervised appendix pointer.
+- LLP 0181 and LLP 0223 dated amendment notes (supervised baseline → one
+  of two admitted dev sources; client process ordinarily caller-owned),
+  per LLP 0300 migration step 4. LLP 0299's own amendment is already
+  landed.
+- Diagnostics: the new codes here and in LLP 0302 are Rust/JS-classified
+  per the s5_d10 table as part of the landing (registry + classification
+  updated together).
 
-New codes: `SNAPBACK_APP_IDENTITY_UNAVAILABLE`,
-`SNAPBACK_DEV_ADMISSION_POSTURE_INVALID`,
-`SNAPBACK_DEV_SESSION_TARGET_MISSING`. All server-emitted codes are Rust
-literals and must be classified per the s5_d10 table; the JS-side writer
-and CLI reuse existing codes wherever a fitting one exists.
+## 8. Acceptance (server/CLI half) + set-level traceability
 
-## 8. Acceptance (server/CLI half of LLP 0300's battery)
+1. Identity fact: dev serves the v1 three-field shape with
+   `Cache-Control: no-store` and no validators; Prod refuses typed; an
+   Origin-less GET succeeds under both postures.
+2. Admission: loopback-any admits the shared-vector accepts on any port
+   and refuses every shared-vector refusal (rebinding hostname included);
+   tunnel-only explicit list refuses loopback unless restated; flag-only
+   equals singleton list; supervised merge never drops injected origins;
+   an SSH/devcontainer-forwarded literal-loopback URL works end-to-end
+   (LLP 0300 row 3); posture×list invalid pairs refuse startup.
+3. Receipt: the four CLI×receipt cells land on the §3 outcomes; attach
+   posture-mismatch refuses; supervised battery green with the additive
+   field.
+4. Writer: refresh-on-rebind; no-clobber; single-block enforcement;
+   outside-duplicate refusal; atomicity (kill mid-write leaves old or new,
+   never a torn file); byte-equality with the printed URL; no credential
+   bytes; warn-on-unignored; Android commented-line rules.
+5. dev-session: mints against a running plain backend; typed refusals
+   (missing/stale/dead target, mint-mode); stdout-only; a filesystem sweep
+   of the project and store shows no new credential artifact.
+6. Hostile-origin boundary (LLP 0300 row 9, server side): second-origin
+   signup succeeds as a new principal under loopback-any; that origin
+   cannot obtain the first origin's bearer (one custody assertion); an
+   explicit list excluding it refuses even signup.
+7. Template cold bring-up (row 1): two terminals, one env var, logged-out
+   boot, ordinary signup, per template.
 
-1. Identity fact: dev server serves the v1 shape unauthenticated; Prod
-   refuses typed; the fact carries exactly the four fields.
-2. Admission: loopback-any admits `localhost`/`127.0.0.1`/`[::1]` on any
-   port and refuses a rebinding hostname; tunnel-only explicit list
-   refuses loopback unless restated; flag-only equals singleton list;
-   supervised merge never drops injected origins (existing battery).
-3. Receipt: the four CLI×receipt attach combinations; supervised battery
-   green with the additive field.
-4. Writer: refresh-on-rebind, no-clobber, marker-block ownership, no
-   credential bytes, warn-on-unignored.
-5. dev-session: mints against a running plain backend; typed refusal with
-   none; nothing written to disk.
-6. Hostile-origin signup boundary (LLP 0300 acceptance 9, server side):
-   with loopback-any, a second-origin signup succeeds as a new principal;
-   with an explicit list excluding it, even signup is refused.
-7. Template cold bring-up (LLP 0300 acceptance 1): two terminals, one env
-   var, logged-out boot, ordinary signup — driven per template.
+**Set-level traceability (jointly with LLP 0302 §8):** LLP 0300 rows →
+batteries: 1 → 0301.7 + 0302.5; 2 → 0302.5; 3 → 0301.2 (forward + tunnel
++ rebinding); 4 → 0302.2; 5 → 0302.1 (successful release matrix, URL set);
+6 → 0301.3 (+ existing supervised battery); 7 → 0302.5; 8 → 0302.6 (incl.
+backend-data preservation and ordinary re-sign-in); 9 → 0301.6 + 0302.5.
+Every row names at least one executable battery; the implementation ships
+this table as a checked test-inventory comment.
 
-## 9. Out of scope
+## 9. Signed discovery — designed, excluded from this set
 
-The client gate, source arms, and per-bundler exclusion (LLP 0302); signed
-discovery (deferred obligation, ticket to be filed at implementation);
-guide/docs beyond the migration and template texts named here.
+Protocol (design pinned at spec altitude; **implementation explicitly
+excluded from this implementation set**, tracked by an issue filed at
+landing): the store mints an Ed25519 dev-identity key at initialization;
+the identity fact gains optional `identitySignature` over the canonical
+JSON bytes of `deployment`+`admissionPosture`; the fingerprint reaches the
+client out-of-band via the printed line
+(`SNAPBACK_URL_FINGERPRINT=<fp>`) and an optional provider argument;
+a client configured with a fingerprint refuses an unsigned or wrongly
+signed fact (typed); absent configuration runs unsigned (opt-in
+hardening, per LLP 0300); store re-key rotates the key and fingerprint
+together. Shared-host lanes are the trigger audience.
+
+## 10. Out of scope
+
+The client gate, source arms, generated-kind mechanics, per-bundler
+consumers (LLP 0302); implementing §9.
