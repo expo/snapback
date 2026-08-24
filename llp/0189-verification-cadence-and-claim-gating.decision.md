@@ -41,6 +41,12 @@ Cheever in session: D-2 defers ordinary `origin/main` frozen-record drift
 verdicts to the scheduled backstop, which uses the LLP 0232 D-3 classifier;
 affected product reds and semantic integration changes remain landing
 concerns; irreversible release/promotion gates are unchanged.)
+**Revised:** 2026-08-24 (temporary low-noise development posture, author
+direction by Charlie Cheever in session: stop automatic main-push fan-out while
+the repository is landing in bursts and several baselines are already red;
+retain cheap/path-scoped feedback, PR affected proof, six-hour/manual complete
+proof, and explicit qualification entry points; keep visibility widening
+activation-disabled until protected custody exists.)
 **Related:** LLP 0005, LLP 0010, LLP 0061, LLP 0154, LLP 0158, LLP 0162, LLP
 0175, LLP 0185, LLP 0232 (D-4 health projection and ticket transitions
 cross-reference D-1's battery-red tickets without weakening fix-forward or
@@ -139,6 +145,36 @@ qualified protocols for publication, promotion, destructive migrations,
 urgent security exposure, active destructive corruption, and similar external
 effects remain available and blocking where their governing decisions require
 it. (LLP 0175 implements the cadence; LLP 0232 owns landing economics.)
+
+### Temporary low-noise development posture (2026-08-24)
+
+Ruled by the author (Charlie Cheever), 2026-08-24. This is an explicit,
+reversible operational exception to D-2 while direct pushes arrive in bursts
+and known baseline failures make per-push GitHub Actions repeat an already
+known verdict. In the measured hour preceding the ruling, 16 pushes produced
+130 workflow runs: 66 failed and 40 were cancelled.
+
+- `ref-check` remains on every push, and already path-scoped platform proof
+  remains affected by path.
+- `local-proof` remains on pull requests and on its six-hour/manual complete
+  cadence, but not on every direct `main` push.
+- heavyweight cold-clone, required-surface, and Linux-package proofs become
+  explicit qualification actions rather than per-push actions.
+- deployment-identity and generated-inventory checks remain available on pull
+  requests and by explicit dispatch while their current baseline reds are
+  repaired; restoration must add reviewed path selection rather than restoring
+  unconditional main-push fan-out.
+- visibility observation and reconciliation become explicit-only until their
+  protected environment, signing material, and external custody exist.
+  LLP 0234's fail-closed consequence is unchanged: no visibility widening may
+  activate without the protected verdict.
+
+No test, assertion, or qualification command is deleted. Publication,
+promotion, destructive migration, urgent-security, active-corruption, and
+other irreversible/high-danger protocols retain their own blocking gates.
+Restoration is tracked in
+`issues/20260824-restore-automatic-actions-after-low-noise-interval.md` and
+requires an author-directed end to this exception.
 
 **D-3 — Claims are snapshots.** A capability claim, publication, or promotion
 binds the qualification commit and the scoped evidence surface it names

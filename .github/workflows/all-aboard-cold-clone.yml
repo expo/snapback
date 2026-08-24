@@ -9,17 +9,16 @@ name: all-aboard-cold-clone
 # scripts/cold-clone-check.sh is the canonical check; this job runs it
 # unmodified on a runner with no sibling checkouts by construction.
 #
+# @ref LLP 0189#temporary-low-noise-development-posture-2026-08-24 — keep
+# heavyweight cold-clone qualification manual while main is landing in bursts.
+#
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# Agents push to main in bursts; only the newest commit's proof matters, so
-# cancel superseded runs instead of paying for each.
+# Coalesce repeated manual qualification requests for the same ref.
 concurrency:
   group: all-aboard-cold-clone-${{ github.ref }}
   cancel-in-progress: true

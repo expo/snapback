@@ -1,8 +1,6 @@
 name: local-proof
 
 on:
-  push:
-    branches: [main]
   pull_request:
   schedule:
     - cron: '41 */6 * * *'
@@ -11,14 +9,11 @@ on:
 permissions:
   contents: read
 
-# @ref LLP 0175#d23-complete-latest-main-proof — pushes get an affected
-# per-change verdict, while schedule/manual runs finish one complete snapshot
-# and coalesce newer pending main heads instead of creating a full-proof queue.
-# Push groups are commit-unique: GitHub may replace an older pending run in a
-# shared concurrency group, and a later event's before..HEAD diff does not
-# contain an independently pushed commit that was discarded that way.
+# @ref LLP 0189#temporary-low-noise-development-posture-2026-08-24 — PRs keep
+# affected feedback; schedule/manual runs finish one complete latest-main
+# snapshot without launching another proof for every direct main push.
 concurrency:
-  group: local-proof-${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'latest-main' || (github.event_name == 'push' && github.sha || github.ref) }}
+  group: local-proof-${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'latest-main' || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
