@@ -5,7 +5,12 @@
 **Systems:** Live queries, Relational queries, Schema, Auth, Performance, Client SDK
 **Author:** Claude Fable 5 (commissioned by the LLP 0191 author rulings, Charlie Cheever, 2026-08-08)
 **Date:** 2026-08-09
-**Revised:** 2026-08-23 (v0.6 — G0 exit recorded: Stage A/B1/B2/B3 landed; exit checklist rows 1/2/5/9 COMPLETE, 3/4/6/7 PARTIAL, 8 NOT SATISFIED; LLP 0268 §7 labels satisfied only for G0-BCAST-IDENTITY — the exit must be extended and re-recorded before 0268 B1; author ratification table provisional where large-fixture maxima are unverified; Status Draft → Review for §2–§5)
+**Revised:** 2026-08-24 (v0.7 — author ratification recorded: the six hash
+domains, `CapturedReadKind::GraphNode`, `KeysetKeyV1`'s wire shape, and the
+logical/physical bound split are RATIFIED as landed; the fixture-derived bound
+table is RATIFIED PROVISIONALLY — values stand, provisional entries confirm or
+revise on the zb5 large-fixture validation; G2 and the LLP 0268 exit extension
+commissioned the same day)
 **Related:** LLP 0183 (D2 charter this Spec owns), LLP 0191 (evidence and the
 five-rung ladder), LLP 0200 (the D4-side sibling: scheduling/settlement;
 measured Phase-1 record in its §6a), LLP 0008 (DK-3 `live_delta` precedent,
@@ -3302,6 +3307,24 @@ or identities.
 
 ## Revision history
 
+- **v0.7 (2026-08-24).** **Author ratification** (Charlie Cheever, 2026-08-24
+  session): (1) the mechanical identity choices are ratified as landed — the
+  six graph hash domains, the unit `CapturedReadKind::GraphNode` with its
+  enforced sibling `graph` payload, `KeysetKeyV1` wire-identical to kernel
+  `KeysetAfter`, and the ruled logical-now/physical-at-G2 bound split
+  (LLP 0267 observed-value consumption for graph plans begins at G2);
+  (2) the fixture-derived bound table (§9 exit note;
+  `tests/conformance/graph/bound-derivation.v1.json`, content digest
+  `sha256:3e2f942c…a59430`) is **ratified provisionally** — the declared
+  values stand now, and every entry marked `provisional` is confirmed or
+  revised when the zb5 large-fixture validation runs (command in the
+  derivation record); a revision is an ordinary amendment, not a
+  retroactive invalidation. The "pending author ratification (v0.6)"
+  labels in the exit note are discharged by this entry. Same-day
+  commissions: **G2** (`issues/20260824-llp0209-g2-commission.md`) and the
+  **LLP 0268 exit extension**
+  (`issues/20260824-llp0268-exit-extension-commission.md`), running in
+  parallel by author ruling.
 - **v0.6 (2026-08-23).** **G0 exit recorded** (see §9 "Exit"). Stages A, B1, B2, B3 landed; checklist rows 1/2/5/9 COMPLETE, 3/4/6/7 PARTIAL, 8 NOT SATISFIED (only `G0-BCAST-IDENTITY` of the LLP 0268 §7 labels is satisfied; the exit must be extended and re-recorded before 0268 B1). Author ratification owed on: the six hash domains, `CapturedReadKind::GraphNode`, the headroom factors and the fixture-derived bound values (provisional where large-fixture maxima are unverified), and the logical/physical bound split. Status Draft → Review. Open follow-ups: `issues/20260823-graph-empty-child-demand-window-vector.md` (B1 hidden-root pair), `issues/20260823-graph-codegen-rust-admission-parity-gaps.md`, `issues/20260823-zerobugs-control-descending-tiebreak-deviation.md` (control-owned), the large-fixture spot check (zb5 rerun), and the 0267/0268 drift requests listed in v0.5.
 - **v0.5 (2026-08-23, Stage A).** Tightened G0 as a docs-only landing:
   §2 now fixes the normalized graph record, all seven node kinds and their
