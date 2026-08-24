@@ -232,6 +232,9 @@ function git(args, repositoryRoot) {
   return Buffer.isBuffer(bytes) ? bytes : bytes.trim();
 }
 
+// @ref LLP 0295#r2-load-isolated-calibration-rerun — this run's two-host
+// migration preserves single-attempt custody by requiring a pristine target
+// and a landed, replayed record or committed failure report for every attempt.
 export async function inspectCommittedSeriality({
   harnessConfig,
   cellId,
@@ -242,23 +245,108 @@ export async function inspectCommittedSeriality({
   const requestedIndex = harnessConfig.cellOrder.indexOf(cellId);
   if (requestedIndex < 0) throw new Error(`R2_ADMISSION_INVALID: unknown cell ${cellId}`);
   inspectPrivateCellPath({ harnessConfig, cellId });
+  const state = await inspectCommittedDispositions({
+    harnessConfig,
+    repositoryRoot,
+    privateExists,
+    gitRead,
+    targetCellId: cellId,
+  });
+  return {
+    gitHead: gitRead(["rev-parse", "HEAD"], repositoryRoot),
+    committedPrefix: state.landedDispositions.map((disposition) => disposition.cellId),
+    requestedIndex,
+    laterPristine: state.pristineCells.filter((id) => (
+      harnessConfig.cellOrder.indexOf(id) > requestedIndex
+    )),
+    landedDispositions: state.landedDispositions,
+    privateCellState: "absent",
+  };
+}
+
+function validateLandedDispositionReport({
+  descriptor,
+  cellId,
+  committedRoot,
+  repositoryRoot,
+  gitRead,
+}) {
+  if (
+    descriptor?.kind !== "driver-failure-report"
+    || typeof descriptor.path !== "string"
+    || descriptor.path.length === 0
+    || descriptor.path.includes("/")
+    || descriptor.path.includes("\\")
+    || (!descriptor.path.startsWith("BLOCKED-") && !descriptor.path.includes("driver-failure"))
+    || !descriptor.path.endsWith(".md")
+    || !SHA256.test(descriptor.sha256 ?? "")
+  ) {
+    throw new Error(`R2_ADMISSION_PRISTINE: later slot ${cellId} is not pristine`);
+  }
+  const reportPath = resolve(committedRoot, descriptor.path);
+  if (!inside(committedRoot, reportPath)) {
+    throw new Error(`R2_ADMISSION_PRISTINE: later slot ${cellId} is not pristine`);
+  }
+  let bytes;
+  try {
+    bytes = readRegular(reportPath, `disposition report for ${cellId}`);
+  } catch {
+    throw new Error(`R2_ADMISSION_PRISTINE: later slot ${cellId} is not pristine`);
+  }
+  if (digest(bytes) !== descriptor.sha256 || !bytes.toString("utf8").includes(`\`${cellId}\``)) {
+    throw new Error(`R2_ADMISSION_PRISTINE: later slot ${cellId} is not pristine`);
+  }
+  const logical = relative(repositoryRoot, reportPath).split(sep).join("/");
+  let committed;
+  try {
+    committed = gitRead(["show", `HEAD:${logical}`], repositoryRoot);
+  } catch {
+    throw new Error(`R2_ADMISSION_PRISTINE: later slot ${cellId} is not pristine`);
+  }
+  const committedBytes = Buffer.isBuffer(committed) ? committed : Buffer.from(committed);
+  if (!committedBytes.equals(bytes)) {
+    throw new Error(`R2_ADMISSION_PRISTINE: later slot ${cellId} is not pristine`);
+  }
+  return { cellId, kind: descriptor.kind, path: descriptor.path, sha256: descriptor.sha256 };
+}
+
+export async function inspectCommittedDispositions({
+  harnessConfig,
+  repositoryRoot = REPOSITORY_ROOT,
+  privateExists = existsSync,
+  gitRead = git,
+  targetCellId = null,
+}) {
   const committedRoot = resolve(repositoryRoot, harnessConfig.paths.committedRunRoot);
   const privateRoot = resolve(harnessConfig.paths.privateExecutionRoot);
-  const committedPrefix = [];
-  let firstOpen = null;
-  for (const [index, id] of harnessConfig.cellOrder.entries()) {
+  const configuredCells = new Map((harnessConfig.cells ?? []).map((cell) => [cell.id, cell]));
+  const landedDispositions = [];
+  const pristineCells = [];
+  for (const id of harnessConfig.cellOrder) {
     const slotPath = resolve(committedRoot, "cells", id, "cell.json");
     const slot = JSON.parse(readRegular(slotPath, `cell slot ${id}`).toString("utf8"));
+    if (slot.cellId !== id) throw new Error(`R2_ADMISSION_INVALID: cell slot identity drifted: ${id}`);
     const recordPath = resolve(committedRoot, "cells", id, "record.json");
     const meteringPath = resolve(committedRoot, "cells", id, "metering.json");
-    if (isFinalizedStatus(slot.status)) {
-      if (
-        firstOpen !== null
-        || !existsSync(recordPath)
-        || !existsSync(meteringPath)
-      ) {
-        throw new Error(`R2_ADMISSION_SERIALITY: finalized cells must form one contiguous recorded prefix (${id})`);
+    const privateEvidence = privateExists(resolve(privateRoot, "cells", id));
+    const disposition = configuredCells.get(id)?.disposition;
+    const committedEvidence = readdirSync(dirname(slotPath)).some((entry) => entry !== "cell.json");
+    const pristine = slot.status === "not-started"
+      && !existsSync(recordPath)
+      && !existsSync(meteringPath)
+      && !committedEvidence
+      && !privateEvidence
+      && disposition === undefined;
+
+    if (id === targetCellId) {
+      if (!pristine) {
+        throw new Error(`R2_ADMISSION_PRISTINE: target slot ${id} is not pristine`);
       }
+      pristineCells.push(id);
+      continue;
+    }
+
+    if (isFinalizedStatus(slot.status)) {
       await validateFinalizedCellSlot({
         slotPath,
         cellId: id,
@@ -266,29 +354,22 @@ export async function inspectCommittedSeriality({
         expectedMilestones: harnessConfig.execution?.milestones ?? [],
         gitRead,
       });
-      committedPrefix.push(id);
+      landedDispositions.push({ cellId: id, kind: "validated-record", path: `cells/${id}/record.json` });
+    } else if (pristine) {
+      pristineCells.push(id);
+    } else if (disposition !== undefined) {
+      landedDispositions.push(validateLandedDispositionReport({
+        descriptor: disposition,
+        cellId: id,
+        committedRoot,
+        repositoryRoot,
+        gitRead,
+      }));
     } else {
-      if (firstOpen === null) firstOpen = index;
-      if (slot.status !== "not-started" || existsSync(recordPath) || existsSync(meteringPath)) {
-        throw new Error(`R2_ADMISSION_PRISTINE: later slot ${id} is not pristine`);
-      }
-    }
-    if (index >= requestedIndex && privateExists(resolve(privateRoot, "cells", id))) {
-      throw new Error(
-        `R2_ADMISSION_EXISTING_UNRECORDED_EVIDENCE: ${id} already has private evidence; finalize it instead of launching or rerunning`,
-      );
+      throw new Error(`R2_ADMISSION_PRISTINE: later slot ${id} is not pristine`);
     }
   }
-  if (firstOpen !== requestedIndex || committedPrefix.length !== requestedIndex) {
-    throw new Error(`R2_ADMISSION_SERIALITY: ${cellId} is not the first cell after the committed prefix`);
-  }
-  return {
-    gitHead: gitRead(["rev-parse", "HEAD"], repositoryRoot),
-    committedPrefix,
-    requestedIndex,
-    laterPristine: harnessConfig.cellOrder.slice(requestedIndex + 1),
-    privateCellState: "absent",
-  };
+  return { landedDispositions, pristineCells };
 }
 
 function assertSamples(artifact, policy, issuedAtMs) {

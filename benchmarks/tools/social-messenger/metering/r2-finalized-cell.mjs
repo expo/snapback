@@ -531,9 +531,9 @@ function committedBytes(gitRead, repositoryRoot, absolute) {
   };
 }
 
-// @ref LLP 0295#r2-load-isolated-calibration-rerun — a later cell may only
-// follow a contiguous prefix whose single-attempt records and complete native
-// evidence graphs replay under the same checked validator used by publication.
+// @ref LLP 0295#r2-load-isolated-calibration-rerun — any record used as a
+// landed cell disposition must remain a single-attempt record whose complete
+// native evidence graph replays under the publication validator.
 export async function validateFinalizedCellSlot({
   slotPath,
   cellId,

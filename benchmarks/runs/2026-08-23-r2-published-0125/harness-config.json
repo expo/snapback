@@ -21,7 +21,7 @@
   "paths": {
     "committedRunRoot": "benchmarks/runs/2026-08-23-r2-published-0125",
     "privateExecutionRoot": "/Users/ccheever/bench-matrix-20260823-r2",
-    "instrumentRoot": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260824-v4",
+    "instrumentRoot": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260824-v5",
     "exactPinnedCheckout": "/Users/ccheever/bench-matrix-20260817/exact-pinned"
   },
   "machines": {
@@ -70,7 +70,7 @@
       "meteringRoot": {
         "kind": "directory",
         "path": "benchmarks/tools/social-messenger/metering",
-      "sha256": "sha256:c0f36423443562734885ee8504086add1c117b216fefd920ddac73fbe3f6a415"
+      "sha256": "sha256:b8b56bc3f29cf689b7401f58eec4c77583a52c66bb2ec638b055bad552363c9e"
       },
       "files": [
         {
@@ -219,7 +219,7 @@
       "manifestPath": "benchmarks/instrument.manifest.json",
       "semanticSnapshotRevision": "e8048d8238b3abe1fe3d6553bd12f334affbf88f",
       "instrumentPin": "social-messenger@0.3.3-m8",
-    "manifestSha256": "1320261386aadb2dfdf0ebd161df8845f0d8582f37000aa77aebd334107c2833",
+    "manifestSha256": "13d5fe72dfdf5f401b1e81452f1668af071fb83093cdb92aed1941db61ddff3d",
       "fixtureVersion": "0.2.0-m8",
       "schemaVersion": "0.3.0-m8",
       "uiVersion": "0.3.1-m8",
@@ -242,12 +242,36 @@
         "codexAdapterSha256": "4c420019dd003737a4b1c7d2ca6103678a80258290b85a206e67cd500628920b",
       "codexNativeEvidenceSha256": "d510466a1dbf897ce4091a4ccb59fc5d31dbd50be7652e5f63ec22a1306fc744",
       "recordComposerSha256": "66868a4513a682b411e219927752edc16b7ee0cb85bb01b11f0c5dea56a5b98e",
-      "admissionToolSha256": "1531082d27a08e699515b08fd1ae5ea863efe20dff6bb48ad3b7fc85e37ce861",
-      "finalizedCellValidatorSha256": "fb84f64839623bc7d7fcfe2170a0b8c5b1128b604e2f848eb5f34cb2f7b22e21",
+      "admissionToolSha256": "b7b56f1b571bd05240002e5c68926a02507e09d4cfa67b0f5032842c9daa489d",
+      "finalizedCellValidatorSha256": "cce9a149c421801e0badea8b7bc04518df12e9280d5f7ed664d246fca7baadb2",
       "hostLockSha256": "55a4c8cb77d13658f7e5a4aae73c3aefd1826408124e4cc60bb70d972f57a6fb",
       "finalizeExistingSha256": "cf9848906ed653a8ebd667f7c17cf79b4e2651c3a995c98872a6bb3d93d1a4d7",
       "instrumentMaterializerSha256": "1ac7cd354d22e67c4b1eb19d96ac395a0ab62e0ecd3506bdf13844952c65306a"
       },
+      "instrumentMigrations": [
+        {
+          "date": "2026-08-24",
+          "reason": "finalizer repairs after cell-1 corrupt token_count and sidecar-identity defects",
+          "commits": ["a4ad07029", "7b828efca"],
+          "recordValidatorSha256From": "fa1b179a617db743ec15d9d87017458e594cab070b798ccd72b5349ccf373238",
+          "recordValidatorSha256To": "6083bf88cf29feac9e625093b5bc026377c644c7a963195f920cc6b17edcd727",
+          "semantics": "fail-closed additions only: aggregate-total checksum, pre-validation identity canonicalization"
+        },
+        {
+          "date": "2026-08-24",
+          "reason": "two-host R2 execution requires disposition-complete admission independent of plan order",
+          "commits": ["scoped-review-pending"],
+          "admissionToolSha256From": "1531082d27a08e699515b08fd1ae5ea863efe20dff6bb48ad3b7fc85e37ce861",
+          "admissionToolSha256To": "b7b56f1b571bd05240002e5c68926a02507e09d4cfa67b0f5032842c9daa489d",
+          "validatePlanSha256From": "4acd162d5f99c9648ba0fa7709615c74fbce3c8f32bbb6d2369b2941ae68214d",
+          "validatePlanSha256To": "908544533fcda8d5488129c077c518e9e1270cac7e59580a758090fbf3373308",
+          "instrumentManifestSha256From": "1320261386aadb2dfdf0ebd161df8845f0d8582f37000aa77aebd334107c2833",
+          "instrumentManifestSha256To": "13d5fe72dfdf5f401b1e81452f1668af071fb83093cdb92aed1941db61ddff3d",
+          "materializedRootFrom": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260824-v4",
+          "materializedRootTo": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260824-v5",
+          "semantics": "target remains pristine; every other attempted slot requires a validator-clean record or committed hash-bound driver-failure report"
+        }
+      ],
       "observabilityBump": {
         "issue": "issues/20260821-clique-instrument-observability-version-bump.md",
         "status": "landed",
@@ -452,6 +476,7 @@
       "allowedHostId": "mac-mini-durand",
       "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 5212, "outputTokens": 159445},
+      "disposition": {"kind": "driver-failure-report", "path": "BLOCKED-sol-coterie-explicit-driver-observation.md", "sha256": "sha256:5a3c7857892157c9bebac145b4be3b40e4e5213c4c48e5c187a8920dce22027c"},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "sol-coterie-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/sol-coterie-explicit.json"],
       "admissionArtifact": "admissions/sol-coterie-explicit.json",
       "meteringPolicy": {"adapter": "codex", "capFamily": "gpt-frontier", "nativeCounts": "required"}
@@ -560,6 +585,7 @@
       "allowedHostId": "macbook-pro-2",
       "loadCeilingId": "macbookpro18-4-m1-max-10core-loadavg-10-approved",
       "baseline": {"wallSeconds": 27282, "outputTokens": 387583, "contamination": ["host-load-contamination", "api-interruption"]},
+      "disposition": {"kind": "driver-failure-report", "path": "BLOCKED-charlies-macbook-pro-2-driver-finalization.md", "sha256": "sha256:5f1338efe1cf227455f53eaaa776dfa5f0dc5602a42a738bf726d34dc7defb17"},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "opus-clique-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/opus-clique-explicit.json"],
       "admissionArtifact": "admissions/opus-clique-explicit.json",
       "meteringPolicy": {"adapter": "claude", "capFamily": "claude-frontier", "nativeCounts": "required"}
@@ -578,6 +604,7 @@
       "allowedHostId": "macbook-pro-2",
       "loadCeilingId": "macbookpro18-4-m1-max-10core-loadavg-10-approved",
       "baseline": {"wallSeconds": 12367, "outputTokens": 430232},
+      "disposition": {"kind": "driver-failure-report", "path": "BLOCKED-charlies-macbook-pro-2-opus-clique-familiar-driver-observation.md", "sha256": "sha256:3e2ecd66a86c99f5ad68bc8d8ecbdba186f88d4226e62580d543009bff8f6544"},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "opus-clique-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/opus-clique-familiar.json"],
       "admissionArtifact": "admissions/opus-clique-familiar.json",
       "meteringPolicy": {"adapter": "claude", "capFamily": "claude-frontier", "nativeCounts": "required"}
@@ -596,6 +623,7 @@
       "allowedHostId": "macbook-pro-2",
       "loadCeilingId": "macbookpro18-4-m1-max-10core-loadavg-10-approved",
       "baseline": {"wallSeconds": 13504, "outputTokens": 365823},
+      "disposition": {"kind": "driver-failure-report", "path": "BLOCKED-charlies-macbook-pro-2-opus-coterie-explicit-driver-observation.md", "sha256": "sha256:6247e31c50537e877714854022973c049ee18efc198092c44000fe054adcc0ff"},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "opus-coterie-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/opus-coterie-explicit.json"],
       "admissionArtifact": "admissions/opus-coterie-explicit.json",
       "meteringPolicy": {"adapter": "claude", "capFamily": "claude-frontier", "nativeCounts": "required"}

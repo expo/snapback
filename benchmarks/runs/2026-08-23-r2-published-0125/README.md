@@ -292,6 +292,11 @@ effort, load ceiling, and Codex 0.149.0 rulings are resolved and frozen above.
   cell; the plan's "reserved machines or enforced load ceilings" language
   admits both mechanisms.
 
+**Disposition-complete order ruling:** The two-host split legitimately records
+cells out of plan order, so admission requires the target itself to be pristine
+and every other attempted cell to carry a landed validator-clean record or
+hash-bound committed driver-failure report; order alone is not a refusal.
+
 ## Cell-1 deterministic recovery (2026-08-24)
 
 The first and only `sol-clique-explicit` attempt remains immutable at its

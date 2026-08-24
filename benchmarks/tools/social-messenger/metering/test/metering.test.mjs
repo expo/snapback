@@ -1736,7 +1736,7 @@ test("R2 controller rejects inherited Node loaders before state and accepts the 
   }
 });
 
-test("admission refuses an unrecorded private cell instead of permitting a rerun", async () => {
+test("admission refuses a non-pristine target slot instead of permitting a rerun", async () => {
   const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-admission-pristine-")));
   try {
     const committedRoot = join(temp, "run");
@@ -1762,7 +1762,7 @@ test("admission refuses an unrecorded private cell instead of permitting a rerun
         if (args[0] === "rev-parse") return "fixture-head";
         return readFileSync(join(temp, args[1].split(":").slice(1).join(":")));
       },
-    }), /EXISTING_UNRECORDED_EVIDENCE/u);
+    }), /R2_ADMISSION_PRISTINE: target slot cell-2 is not pristine/u);
   } finally {
     await rm(temp, { recursive: true, force: true });
   }
@@ -1800,7 +1800,94 @@ async function makeFinalizedPrefixFixture() {
   return { temp, cellId, cellRoot, harnessConfig, gitRead };
 }
 
-test("admission validates every finalized prefix cell and rejects either kind of stray tail artifact", async (context) => {
+test("admission accepts a validator-clean recorded disposition after its pristine target", async () => {
+  const fixture = await makeFinalizedPrefixFixture();
+  try {
+    fixture.harnessConfig.cellOrder = ["next-cell", fixture.cellId];
+    const state = await inspectCommittedSeriality({
+      harnessConfig: fixture.harnessConfig,
+      cellId: "next-cell",
+      repositoryRoot: fixture.temp,
+      gitRead: fixture.gitRead,
+    });
+    assert.deepEqual(state.committedPrefix, [fixture.cellId]);
+    assert.deepEqual(state.landedDispositions, [{
+      cellId: fixture.cellId,
+      kind: "validated-record",
+      path: `cells/${fixture.cellId}/record.json`,
+    }]);
+  } finally {
+    await rm(fixture.temp, { recursive: true, force: true });
+  }
+});
+
+test("admission requires a landed disposition for every attempted non-target slot", async (context) => {
+  const makeFixture = async () => {
+    const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-attempt-disposition-")));
+    await Promise.all([
+      mkdir(join(temp, "run", "cells", "attempted"), { recursive: true }),
+      mkdir(join(temp, "run", "cells", "target"), { recursive: true }),
+      mkdir(join(temp, "private", "cells", "attempted"), { recursive: true }),
+    ]);
+    for (const id of ["attempted", "target"]) {
+      await writeFile(join(temp, "run", "cells", id, "cell.json"), `${JSON.stringify({
+        schemaVersion: "snapback.r2-cell-slot.v1",
+        cellId: id,
+        status: "not-started",
+      }, null, 2)}\n`);
+    }
+    const harnessConfig = {
+      cellOrder: ["attempted", "target"],
+      cells: [{ id: "attempted" }, { id: "target" }],
+      paths: { committedRunRoot: "run", privateExecutionRoot: join(temp, "private") },
+    };
+    const gitRead = (args) => {
+      if (args[0] === "rev-parse") return "fixture-head";
+      return readFileSync(join(temp, args[1].split(":").slice(1).join(":")));
+    };
+    return { temp, harnessConfig, gitRead };
+  };
+
+  await context.test("attempted but dispositionless", async () => {
+    const fixture = await makeFixture();
+    try {
+      await assert.rejects(inspectCommittedSeriality({
+        harnessConfig: fixture.harnessConfig,
+        cellId: "target",
+        repositoryRoot: fixture.temp,
+        gitRead: fixture.gitRead,
+      }), /R2_ADMISSION_PRISTINE: later slot attempted is not pristine/u);
+    } finally {
+      await rm(fixture.temp, { recursive: true, force: true });
+    }
+  });
+
+  await context.test("committed driver-failure report", async () => {
+    const fixture = await makeFixture();
+    try {
+      const reportPath = "BLOCKED-attempted-driver-failure.md";
+      const report = "# Driver failure for `attempted`\n\nDisposition: consumed; do not rerun.\n";
+      await writeFile(join(fixture.temp, "run", reportPath), report);
+      fixture.harnessConfig.cells[0].disposition = {
+        kind: "driver-failure-report",
+        path: reportPath,
+        sha256: sha256(report),
+      };
+      const state = await inspectCommittedSeriality({
+        harnessConfig: fixture.harnessConfig,
+        cellId: "target",
+        repositoryRoot: fixture.temp,
+        gitRead: fixture.gitRead,
+      });
+      assert.deepEqual(state.committedPrefix, ["attempted"]);
+      assert.equal(state.landedDispositions[0].path, reportPath);
+    } finally {
+      await rm(fixture.temp, { recursive: true, force: true });
+    }
+  });
+});
+
+test("admission validates every finalized disposition and rejects stray target artifacts", async (context) => {
   await context.test("coordinated committed quantitative fabrication", async () => {
     const fixture = await makeFinalizedPrefixFixture();
     try {
@@ -1870,7 +1957,7 @@ test("admission validates every finalized prefix cell and rejects either kind of
           cellId: "next-cell",
           repositoryRoot: fixture.temp,
           gitRead: fixture.gitRead,
-        }), /later slot next-cell is not pristine/u);
+        }), /target slot next-cell is not pristine/u);
       } finally {
         await rm(fixture.temp, { recursive: true, force: true });
       }

@@ -13,14 +13,11 @@ import { resolveInstrumentArtifacts } from '../../tools/lane-setup.mjs';
 import { loadLaneControllerConfig } from '../../tools/social-messenger/metering/lane-controller.mjs';
 import {
   configuredExecutionBinding,
+  inspectCommittedDispositions,
   loadPolicyForCell,
   liveSourceClosure,
   registeredCellExpectations,
 } from '../../tools/social-messenger/metering/r2-cell-admission.mjs';
-import {
-  isFinalizedStatus,
-  validateFinalizedCellSlot,
-} from '../../tools/social-messenger/metering/r2-finalized-cell.mjs';
 import { validateDryRunEvidence } from './validate-dry-run-evidence.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -153,6 +150,12 @@ if (
 const recovery = readJson(recoveryDescriptor.path);
 const recoveryWithoutIntegrity = structuredClone(recovery);
 delete recoveryWithoutIntegrity.integrity;
+const dispositionMigration = config.pins.instrument.instrumentMigrations?.at(-1);
+const recoveryInstrumentMigrated = dispositionMigration?.instrumentManifestSha256From
+    === recovery.resumeInstrument.sha256?.replace(/^sha256:/u, '')
+  && dispositionMigration.instrumentManifestSha256To === config.pins.instrument.manifestSha256
+  && dispositionMigration.materializedRootFrom === recovery.resumeInstrument.materializedRoot
+  && dispositionMigration.materializedRootTo === config.paths.instrumentRoot;
 if (
   recovery.version !== recoveryDescriptor.version
   || recovery.completedCell !== config.cellOrder[0]
@@ -160,7 +163,7 @@ if (
   || recovery.nextCell !== config.cellOrder[2]
   || recovery.completedCellRecoveryVersion !== 'snapback.r2-retained-corrupt-finalization.v1'
   || recovery.campaignCellRerun !== false
-  || recovery.resumeInstrument.sha256 !== `sha256:${config.pins.instrument.manifestSha256}`
+  || !recoveryInstrumentMigrated
   || sha256(recovery.resumeInstrument.path) !== config.pins.instrument.manifestSha256
   || recovery.integrity?.algorithm !== 'sha256-canonical-json-without-integrity'
   || recovery.integrity?.sha256 !== `sha256:${canonicalSha256(recoveryWithoutIntegrity)}`
@@ -294,6 +297,22 @@ for (const [field, path] of Object.entries(overlayHashes)) {
     fail(`D0.6 overlay digest drifted: ${field} (${path})`);
   }
 }
+if (
+  !Array.isArray(config.pins.instrument.instrumentMigrations)
+  || dispositionMigration?.date !== '2026-08-24'
+  || dispositionMigration.reason !== 'two-host R2 execution requires disposition-complete admission independent of plan order'
+  || dispositionMigration.commits?.includes('scoped-review-pending') !== true
+  || dispositionMigration.admissionToolSha256From !== '1531082d27a08e699515b08fd1ae5ea863efe20dff6bb48ad3b7fc85e37ce861'
+  || dispositionMigration.admissionToolSha256To !== repositorySha256(
+    overlayHashes.admissionToolSha256,
+  )
+  || dispositionMigration.validatePlanSha256To !== repositorySha256(
+    'benchmarks/runs/2026-08-23-r2-published-0125/validate-plan.mjs',
+  )
+  || !recoveryInstrumentMigrated
+) {
+  fail('instrument migration does not bind the disposition-complete admission implementation');
+}
 
 for (const field of ['entrypoint', 'driver', 'signal', 'admission', 'finalizeExisting', 'materializeInstrument']) {
   const path = resolve(repositoryRoot, config.controller?.[field] ?? '');
@@ -341,8 +360,26 @@ if (
   fail('retained success/failure dry-run evidence has the wrong dispositions');
 }
 
-let recordedPrefixLength = 0;
-let sawOpenSlot = false;
+let campaignDispositions;
+try {
+  campaignDispositions = await inspectCommittedDispositions({
+    harnessConfig: config,
+    repositoryRoot,
+    gitRead: (args, cwd) => execFileSync('git', args, {
+      cwd,
+      maxBuffer: 256 * 1024 * 1024,
+    }),
+  });
+} catch (error) {
+  fail(`campaign slots lack landed dispositions: ${error.message}`);
+}
+const dispositionedCells = new Set(
+  campaignDispositions.landedDispositions.map((disposition) => disposition.cellId),
+);
+const dispositionPrefixLength = config.cellOrder.findIndex((cellId) => !dispositionedCells.has(cellId));
+const recordedPrefixLength = dispositionPrefixLength === -1
+  ? config.cellOrder.length
+  : dispositionPrefixLength;
 for (const [cellIndex, cell] of config.cells.entries()) {
   try {
     registeredCellExpectations(config, cell);
@@ -354,41 +391,15 @@ for (const [cellIndex, cell] of config.cells.entries()) {
     fail(`cell ${cell.id} does not bind one registered host-specific load ceiling`);
   }
   const slot = readJson(`cells/${cell.id}/cell.json`);
-  const recordPath = join(root, 'cells', cell.id, 'record.json');
-  const meteringPath = join(root, 'cells', cell.id, 'metering.json');
   if (slot.cellId !== cell.id) fail(`cell slot identity drifted: ${cell.id}`);
-  if (isFinalizedStatus(slot.status)) {
-    if (sawOpenSlot) fail(`finalized cells are not a contiguous prefix: ${cell.id}`);
-    recordedPrefixLength += 1;
-    if (
-      cellIndex === 0 && (
-        slot.status !== 'recovered-finalized'
-        || slot.campaignCellRerun !== false
-        || slot.recoveryVersion !== recovery.completedCellRecoveryVersion
-      )
-    ) {
-      fail(`recovered cell 1 does not retain its exact versioned non-rerun declaration: ${cell.id}`);
-    }
-    try {
-      await validateFinalizedCellSlot({
-        slotPath: join(root, 'cells', cell.id, 'cell.json'),
-        cellId: cell.id,
-        repositoryRoot,
-        expectedMilestones: config.execution.milestones,
-        gitRead: (args, cwd) => execFileSync('git', args, {
-          cwd,
-          maxBuffer: 256 * 1024 * 1024,
-        }),
-      });
-    } catch (error) {
-      fail(`finalized cell is not a committed validator-clean replay: ${cell.id}: ${error.message}`);
-    }
-  } else {
-    sawOpenSlot = true;
-    if (slot.status !== 'not-started') fail(`later cell slot is not pristine: ${cell.id}`);
-    if (existsSync(recordPath) || existsSync(meteringPath)) {
-      fail(`later cell ${cell.id} unexpectedly has a record or metering artifact`);
-    }
+  if (
+    cellIndex === 0 && (
+      slot.status !== 'recovered-finalized'
+      || slot.campaignCellRerun !== false
+      || slot.recoveryVersion !== recovery.completedCellRecoveryVersion
+    )
+  ) {
+    fail(`recovered cell 1 does not retain its exact versioned non-rerun declaration: ${cell.id}`);
   }
   const expectedCommand = config.controller.commandTemplate.map((value) => (
     value.replaceAll('{cellId}', cell.id)
