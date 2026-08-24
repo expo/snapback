@@ -1367,9 +1367,8 @@ fn attest_registration_semantics(
 }
 
 /// Validate evaluator-authored graph reads and mint the only object the graph
-/// matcher consumes. This remains test/test-support-only while graph serving
-/// is disabled.
-#[cfg(any(test, feature = "test-support"))]
+/// matcher consumes. G2-C routes serving through this same attestation seam;
+/// raw evaluator reads never become matcher authority on their own.
 pub fn attest_graph_subscription_dependencies(
     carrier: &GraphQueryCarrierV1,
     schema: &SchemaManifest,
@@ -1564,10 +1563,8 @@ pub fn live_subscription_match_decision(
     )
 }
 
-/// Test-support bridge for the not-yet-served graph arm. Ordinary serving
-/// continues to call `live_subscription_match_decision`, which deliberately
-/// has no way to synthesize a graph registration from raw reads.
-#[cfg(any(test, feature = "test-support"))]
+/// Serving bridge for the graph arm. The registered value is sync-attested;
+/// this function deliberately has no raw-read overload.
 pub fn live_subscription_match_decision_with_graph_registration(
     definition: &FunctionDefinition,
     input: &HandlerInput,

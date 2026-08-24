@@ -1,6 +1,6 @@
 {
   "format": "snapback.graph-bound-derivation.v1",
-  "derivedAt": "2026-08-23",
+  "derivedAt": "2026-08-24",
   "fixtures": {
     "normal": {
       "users": 14,
@@ -74,7 +74,7 @@
   },
   "queries": {
     "issueListV2": {
-      "declarationPlanHash": "sha256:5de83ed5e9a19aa6a777cdc48dc83559d9a76e99056baf5aef83602d40ae1662",
+      "declarationPlanHash": "sha256:17d314bfadbb58edf5185df72d2e66cbe99571e1d6f97f784cbf746be9285f20",
       "logical": {
         "maxResultRows": {
           "value": 1024,
@@ -104,16 +104,16 @@
         }
       },
       "physical": {
-        "observationPosture": "[G2 measures]",
+        "observationPosture": "normal fixture measured through admitted serving; large/hot ceilings remain provisional",
         "maxScannedRows": {
           "value": 54273,
-          "derivation": "Σ analytical node examined-entry formulas = 54273; inputs that depend on large/hot maxima remain provisional and no graph executor observation exists",
+          "derivation": "Σ analytical node examined-entry formulas = 54273; normal served observation validates the ceiling; large/hot inputs remain provisional",
           "provisional": true,
           "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
         },
         "maxIndexRanges": {
           "value": 36865,
-          "derivation": "Σ analytical access-path consultations = 36865; inputs that depend on large/hot maxima remain provisional and no graph executor observation exists",
+          "derivation": "Σ analytical access-path consultations = 36865; normal served observation validates the ceiling; large/hot inputs remain provisional",
           "provisional": true,
           "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
         },
@@ -186,6 +186,141 @@
           "derivation": "sum of each demand-paged node lineage; list filtered-interval and whole-result byte inputs remain provisional",
           "provisional": true,
           "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+        },
+        "servedNormalMeasurement": {
+          "format": "snapback.graph-bound-observation.g2-c.v1",
+          "source": "tests/conformance/graph/served-observations.g2-c.v1.json",
+          "fixture": "normal-seed-v1",
+          "graphPlanHash": "sha256:17d314bfadbb58edf5185df72d2e66cbe99571e1d6f97f784cbf746be9285f20",
+          "queryCost": {
+            "maxScannedRows": {
+              "declared": 54273,
+              "observed": 2239,
+              "disposition": "fit"
+            },
+            "maxIndexRanges": {
+              "declared": 36865,
+              "observed": 2153,
+              "disposition": "fit"
+            }
+          },
+          "nodes": [
+            {
+              "nodeId": "n0",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 1025,
+                "observed": 516,
+                "disposition": "fit"
+              },
+              "maxWindowScannedRows": {
+                "declared": 54273,
+                "observed": 2239,
+                "disposition": "fit"
+              },
+              "maxWindowIndexRanges": {
+                "declared": 36865,
+                "observed": 2153,
+                "disposition": "fit"
+              }
+            },
+            {
+              "nodeId": "n1",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 1024,
+                "observed": 516,
+                "disposition": "fit"
+              },
+              "maxRelationshipLookupsPerExecution": {
+                "declared": 1024,
+                "observed": 516,
+                "disposition": "fit"
+              }
+            },
+            {
+              "nodeId": "n2",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 17408,
+                "observed": 603,
+                "disposition": "fit"
+              },
+              "maxRelationshipLookupsPerExecution": {
+                "declared": 1024,
+                "observed": 516,
+                "disposition": "fit"
+              }
+            },
+            {
+              "nodeId": "n3",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 16384,
+                "observed": 603,
+                "disposition": "fit"
+              },
+              "maxRelationshipLookupsPerExecution": {
+                "declared": 16384,
+                "observed": 603,
+                "disposition": "fit"
+              }
+            },
+            {
+              "nodeId": "n4",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 16384,
+                "observed": 0,
+                "disposition": "fit"
+              },
+              "maxRelationshipLookupsPerExecution": {
+                "declared": 16384,
+                "observed": 0,
+                "disposition": "fit"
+              }
+            },
+            {
+              "nodeId": "n5",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 2048,
+                "observed": 1,
+                "disposition": "fit"
+              },
+              "maxRelationshipLookupsPerExecution": {
+                "declared": 2048,
+                "observed": 517,
+                "disposition": "fit"
+              }
+            }
+          ],
+          "windowRollup": {
+            "maxWindowPages": {
+              "declared": 1,
+              "observed": 1,
+              "disposition": "fit"
+            },
+            "maxWindowRootRows": {
+              "declared": 1024,
+              "observed": 516,
+              "disposition": "fit"
+            },
+            "maxWindowScannedRows": {
+              "declared": 54273,
+              "observed": 2239,
+              "disposition": "fit"
+            },
+            "maxWindowResultRows": {
+              "declared": 1024,
+              "observed": 516,
+              "disposition": "fit"
+            },
+            "maxWindowResultBytes": {
+              "declared": 33554432,
+              "observed": 436163,
+              "disposition": "fit"
+            },
+            "maxWindowIndexRanges": {
+              "declared": 36865,
+              "observed": 2153,
+              "disposition": "fit"
+            }
+          }
         }
       },
       "derivationTable": {
@@ -459,7 +594,7 @@
       }
     },
     "issueDetail": {
-      "declarationPlanHash": "sha256:0467e4ae034de639b2bc913150cc7265d299741d846ce23353fae160f44cccc5",
+      "declarationPlanHash": "sha256:d4425b76b047783be76990f73e92087daf371b38bd6a935755be1a6801056a04",
       "logical": {
         "maxResultRows": {
           "value": 1,
@@ -487,16 +622,16 @@
         }
       },
       "physical": {
-        "observationPosture": "[G2 measures]",
+        "observationPosture": "normal fixture measured through admitted serving; large/hot ceilings remain provisional",
         "maxScannedRows": {
           "value": 1067,
-          "derivation": "Σ analytical node examined-entry formulas = 1067; inputs that depend on large/hot maxima remain provisional and no graph executor observation exists",
+          "derivation": "Σ analytical node examined-entry formulas = 1067; normal served observation validates the ceiling; large/hot inputs remain provisional",
           "provisional": true,
           "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
         },
         "maxIndexRanges": {
           "value": 26,
-          "derivation": "Σ analytical access-path consultations = 26; inputs that depend on large/hot maxima remain provisional and no graph executor observation exists",
+          "derivation": "Σ analytical access-path consultations = 26; normal served observation validates the ceiling; large/hot inputs remain provisional",
           "provisional": true,
           "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
         },
@@ -598,6 +733,190 @@
           "derivation": "sum of each demand-paged node lineage; list filtered-interval and whole-result byte inputs remain provisional",
           "provisional": true,
           "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+        },
+        "servedNormalMeasurement": {
+          "format": "snapback.graph-bound-observation.g2-c.v1",
+          "source": "tests/conformance/graph/served-observations.g2-c.v1.json",
+          "fixture": "normal-seed-v1",
+          "graphPlanHash": "sha256:d4425b76b047783be76990f73e92087daf371b38bd6a935755be1a6801056a04",
+          "queryCost": {
+            "maxScannedRows": {
+              "declared": 1067,
+              "observed": 30,
+              "disposition": "fit"
+            },
+            "maxIndexRanges": {
+              "declared": 26,
+              "observed": 11,
+              "disposition": "fit"
+            }
+          },
+          "nodes": [
+            {
+              "nodeId": "n0",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 2,
+                "observed": 1,
+                "disposition": "fit"
+              },
+              "maxWindowScannedRows": {
+                "declared": 1067,
+                "observed": 30,
+                "disposition": "fit"
+              },
+              "maxWindowIndexRanges": {
+                "declared": 26,
+                "observed": 11,
+                "disposition": "fit"
+              }
+            },
+            {
+              "nodeId": "n1",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 1,
+                "observed": 0,
+                "disposition": "fit"
+              },
+              "maxRelationshipLookupsPerExecution": {
+                "declared": 1,
+                "observed": 1,
+                "disposition": "fit"
+              }
+            },
+            {
+              "nodeId": "n2",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 1025,
+                "observed": 21,
+                "disposition": "fit"
+              },
+              "maxRelationshipLookupsPerExecution": {
+                "declared": 1,
+                "observed": 1,
+                "disposition": "fit"
+              },
+              "maxWindowScannedRows": {
+                "declared": 1025,
+                "observed": 21,
+                "disposition": "fit"
+              },
+              "maxWindowIndexRanges": {
+                "declared": 1,
+                "observed": 1,
+                "disposition": "fit"
+              }
+            },
+            {
+              "nodeId": "n3",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 1,
+                "observed": 1,
+                "disposition": "fit"
+              },
+              "maxRelationshipLookupsPerExecution": {
+                "declared": 1,
+                "observed": 1,
+                "disposition": "fit"
+              }
+            },
+            {
+              "nodeId": "n4",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 17,
+                "observed": 2,
+                "disposition": "fit"
+              },
+              "maxRelationshipLookupsPerExecution": {
+                "declared": 1,
+                "observed": 1,
+                "disposition": "fit"
+              }
+            },
+            {
+              "nodeId": "n5",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 16,
+                "observed": 2,
+                "disposition": "fit"
+              },
+              "maxRelationshipLookupsPerExecution": {
+                "declared": 16,
+                "observed": 2,
+                "disposition": "fit"
+              }
+            },
+            {
+              "nodeId": "n6",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 2,
+                "observed": 1,
+                "disposition": "fit"
+              },
+              "maxRelationshipLookupsPerExecution": {
+                "declared": 2,
+                "observed": 2,
+                "disposition": "fit"
+              }
+            },
+            {
+              "nodeId": "n7",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 1,
+                "observed": 1,
+                "disposition": "fit"
+              },
+              "maxRelationshipLookupsPerExecution": {
+                "declared": 1,
+                "observed": 1,
+                "disposition": "fit"
+              }
+            },
+            {
+              "nodeId": "n8",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 2,
+                "observed": 1,
+                "disposition": "fit"
+              },
+              "maxRelationshipLookupsPerExecution": {
+                "declared": 2,
+                "observed": 2,
+                "disposition": "fit"
+              }
+            }
+          ],
+          "windowRollup": {
+            "maxWindowPages": {
+              "declared": 2,
+              "observed": 2,
+              "disposition": "fit"
+            },
+            "maxWindowRootRows": {
+              "declared": 1,
+              "observed": 1,
+              "disposition": "fit"
+            },
+            "maxWindowScannedRows": {
+              "declared": 2092,
+              "observed": 51,
+              "disposition": "fit"
+            },
+            "maxWindowResultRows": {
+              "declared": 2,
+              "observed": 2,
+              "disposition": "fit"
+            },
+            "maxWindowResultBytes": {
+              "declared": 16777216,
+              "observed": 40522,
+              "disposition": "fit"
+            },
+            "maxWindowIndexRanges": {
+              "declared": 27,
+              "observed": 12,
+              "disposition": "fit"
+            }
+          }
         }
       },
       "derivationTable": {
@@ -896,7 +1215,7 @@
       }
     },
     "listIssueByID": {
-      "declarationPlanHash": "sha256:27ce1a8e7ecfed993d6d9e8c6dbe544a874770be3363fe8f667862ff49c63c3e",
+      "declarationPlanHash": "sha256:25f4e4680f4c7eae9c675c2c06adcbf23cce5fdbdc16bcb0bf830986268a6dfb",
       "logical": {
         "maxResultRows": {
           "value": 1,
@@ -924,16 +1243,16 @@
         }
       },
       "physical": {
-        "observationPosture": "[G2 measures]",
+        "observationPosture": "normal fixture measured through admitted serving; large/hot ceilings remain provisional",
         "maxScannedRows": {
           "value": 54,
-          "derivation": "Σ analytical node examined-entry formulas = 54; inputs that depend on large/hot maxima remain provisional and no graph executor observation exists",
+          "derivation": "Σ analytical node examined-entry formulas = 54; normal served observation validates the ceiling; large/hot inputs remain provisional",
           "provisional": true,
           "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
         },
         "maxIndexRanges": {
           "value": 37,
-          "derivation": "Σ analytical access-path consultations = 37; inputs that depend on large/hot maxima remain provisional and no graph executor observation exists",
+          "derivation": "Σ analytical access-path consultations = 37; normal served observation validates the ceiling; large/hot inputs remain provisional",
           "provisional": true,
           "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
         },
@@ -1006,6 +1325,141 @@
           "derivation": "sum of each demand-paged node lineage; list filtered-interval and whole-result byte inputs remain provisional",
           "provisional": true,
           "validationCommand": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+        },
+        "servedNormalMeasurement": {
+          "format": "snapback.graph-bound-observation.g2-c.v1",
+          "source": "tests/conformance/graph/served-observations.g2-c.v1.json",
+          "fixture": "normal-seed-v1",
+          "graphPlanHash": "sha256:25f4e4680f4c7eae9c675c2c06adcbf23cce5fdbdc16bcb0bf830986268a6dfb",
+          "queryCost": {
+            "maxScannedRows": {
+              "declared": 54,
+              "observed": 7,
+              "disposition": "fit"
+            },
+            "maxIndexRanges": {
+              "declared": 37,
+              "observed": 7,
+              "disposition": "fit"
+            }
+          },
+          "nodes": [
+            {
+              "nodeId": "n0",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 2,
+                "observed": 1,
+                "disposition": "fit"
+              },
+              "maxWindowScannedRows": {
+                "declared": 54,
+                "observed": 7,
+                "disposition": "fit"
+              },
+              "maxWindowIndexRanges": {
+                "declared": 37,
+                "observed": 7,
+                "disposition": "fit"
+              }
+            },
+            {
+              "nodeId": "n1",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 1,
+                "observed": 1,
+                "disposition": "fit"
+              },
+              "maxRelationshipLookupsPerExecution": {
+                "declared": 1,
+                "observed": 1,
+                "disposition": "fit"
+              }
+            },
+            {
+              "nodeId": "n2",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 17,
+                "observed": 2,
+                "disposition": "fit"
+              },
+              "maxRelationshipLookupsPerExecution": {
+                "declared": 1,
+                "observed": 1,
+                "disposition": "fit"
+              }
+            },
+            {
+              "nodeId": "n3",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 16,
+                "observed": 2,
+                "disposition": "fit"
+              },
+              "maxRelationshipLookupsPerExecution": {
+                "declared": 16,
+                "observed": 2,
+                "disposition": "fit"
+              }
+            },
+            {
+              "nodeId": "n4",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 16,
+                "observed": 0,
+                "disposition": "fit"
+              },
+              "maxRelationshipLookupsPerExecution": {
+                "declared": 16,
+                "observed": 0,
+                "disposition": "fit"
+              }
+            },
+            {
+              "nodeId": "n5",
+              "maxExaminedEntriesPerExecution": {
+                "declared": 2,
+                "observed": 1,
+                "disposition": "fit"
+              },
+              "maxRelationshipLookupsPerExecution": {
+                "declared": 2,
+                "observed": 2,
+                "disposition": "fit"
+              }
+            }
+          ],
+          "windowRollup": {
+            "maxWindowPages": {
+              "declared": 1,
+              "observed": 1,
+              "disposition": "fit"
+            },
+            "maxWindowRootRows": {
+              "declared": 1,
+              "observed": 1,
+              "disposition": "fit"
+            },
+            "maxWindowScannedRows": {
+              "declared": 54,
+              "observed": 7,
+              "disposition": "fit"
+            },
+            "maxWindowResultRows": {
+              "declared": 1,
+              "observed": 1,
+              "disposition": "fit"
+            },
+            "maxWindowResultBytes": {
+              "declared": 1048576,
+              "observed": 6479,
+              "disposition": "fit"
+            },
+            "maxWindowIndexRanges": {
+              "declared": 37,
+              "observed": 7,
+              "disposition": "fit"
+            }
+          }
         }
       },
       "derivationTable": {
@@ -1248,5 +1702,10 @@
     "reason": "receipt is present but local CSV fixture is absent",
     "command": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
   },
-  "contentDigest": "sha256:3e2f942c7d627da65eb8af0b7545e7e164c1d0a312aca5d5d9817f9b71a59430"
+  "servedMeasurement": {
+    "status": "normal-fixture-validated",
+    "source": "tests/conformance/graph/served-observations.g2-c.v1.json",
+    "scope": "N=1 deterministic normal fixture per graph; large/hot claims remain gated on recorded rerun commands"
+  },
+  "contentDigest": "sha256:17c02a494533b5d3812fbad730e6fbb6d20f3a57f1a8ff990e9a49f546e23d58"
 }

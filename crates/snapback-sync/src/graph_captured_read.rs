@@ -1,12 +1,10 @@
 //! Graph captured-read registration at the durable subscription seam.
 //!
-//! G2-B keeps graph serving disabled, but test/test-support evaluation crosses
-//! this exact validator before its dependency vector reaches the shared live
-//! matcher. G2-C can therefore attach serving without inventing another
-//! registration path.
+//! Evaluator output crosses this exact validator before its dependency vector
+//! reaches the shared live matcher. G2-C attaches serving here rather than
+//! inventing a second registration path.
 
 pub use snapback_kernel::live_matcher::RegisteredGraphSubscriptionDependenciesV1;
-#[cfg(any(test, feature = "test-support"))]
 use snapback_kernel::live_matcher::attest_graph_subscription_dependencies;
 pub use snapback_kernel::live_matcher::{
     GraphCapturedQueryOutputV1, GraphRegistrationPermissionValuesV1,
@@ -30,13 +28,11 @@ pub fn graph_capture_carrier_is_well_formed(read: &CapturedReadDependency) -> bo
 /// Validate and retain the evaluator-emitted dependency vector in the exact
 /// shared carrier consumed by relational/handler live subscriptions.
 ///
-/// This is intentionally test-support-only until graph serving exists. It
-/// performs no evaluation and mints no dependency facts: the evaluator is the
-/// sole capture authority, while sync owns registration.
+/// It performs no evaluation and mints no dependency facts: the evaluator is
+/// the sole capture authority, while sync owns registration.
 ///
 /// @ref LLP 0209#51-captured-vocabulary-by-normalized-node — every graph
 /// payload binds the admitted plan/node and remains paired with `GraphNode`.
-#[cfg(any(test, feature = "test-support"))]
 pub fn register_graph_subscription_dependencies(
     carrier: &snapback_types::manifest::GraphQueryCarrierV1,
     schema: &snapback_types::manifest::SchemaManifest,

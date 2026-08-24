@@ -786,11 +786,12 @@ try {
   const generated = await generateInProcess(fixture, {}, { capabilityManifest: localCapability });
   assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
   const manifestPath = join(fixture, 'generated', 'functions.manifest.json');
+  const frozenManifestPath = join(graphCorpus, 'codegen-emitted-manifest.v1.json');
+  if (process.env.SNAPBACK_FREEZE_GRAPH_CODEGEN_SEAM === '1') {
+    writeFileSync(frozenManifestPath, readFileSync(manifestPath));
+  }
   const emittedManifestLines = readFileSync(manifestPath, 'utf8').split('\n');
-  const frozenManifestLines = readFileSync(
-    join(graphCorpus, 'codegen-emitted-manifest.v1.json'),
-    'utf8',
-  ).split('\n');
+  const frozenManifestLines = readFileSync(frozenManifestPath, 'utf8').split('\n');
   assert.equal(
     emittedManifestLines.length,
     frozenManifestLines.length,

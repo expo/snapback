@@ -1303,6 +1303,9 @@ impl TargetCapabilityFactsExt for TargetCapabilityFacts {
             // coordinated cursor family, and fixed first-page live posture
             // are one local registration; maturity remains experimental.
             snapshot_batch_v2_registered: true,
+            // G2-C is registered only by an explicit process-live serving
+            // owner. The committed/local default remains support-false.
+            graph_query_v1_registered: false,
             // @ref LLP 0157#d1--the-node-algebra — registration enables
             // only the host-derived, single-node class; the publication
             // carrier below remains the independent support gate.
@@ -1378,6 +1381,7 @@ impl TargetCapabilityFactsExt for TargetCapabilityFacts {
             bounded_children_v1_registered: false,
             snapshot_batch_v1_registered: false,
             snapshot_batch_v2_registered: false,
+            graph_query_v1_registered: false,
             single_table_v1_registered: false,
             mixed_bundle_boot_v2_registered: false,
             sequence_allocation_v1_registered: false,

@@ -1,7 +1,7 @@
 {
   "format": "snapback.graph-broadcast-prover-dispositions.v1",
   "version": 1,
-  "description": "Additive G0 prover dispositions for the unchanged four-row G2 sidecar contract.",
+  "description": "Final prover dispositions after G2-C moved the scheduler cases into the executable corpus.",
   "dispositions": [
     {
       "id": "zerobugs-audience-parity-g2",
@@ -18,15 +18,15 @@
     {
       "id": "zerobugs-authority-transition-g2",
       "caseKind": "authorityTransition",
-      "proverDisposition": "pending-g2-delivery-ordering",
-      "reason": "requires the G2-C broadcast evaluator to observe an authority-only commit fence before any post-transition delivery; G0 plan admission cannot execute or order deliveries"
+      "proverDisposition": "executable-in-g2-c-served-scheduler",
+      "reason": "the admitted served graph subscription observes an authority-only commit fence before its single post-transition delivery"
     },
     {
       "id": "zerobugs-mixed-commit-g2",
       "caseKind": "mixedCommit",
-      "proverDisposition": "pending-g2-delivery-ordering",
-      "reason": "requires the G2-C broadcast evaluator to coalesce data and authority invalidation in one commit and prove the fence precedes the single post-commit delivery; G0 has no delivery scheduler"
+      "proverDisposition": "executable-in-g2-c-served-scheduler",
+      "reason": "the admitted served graph subscription coalesces data and authority invalidation and observes one fence before one post-commit delivery"
     }
   ],
-  "contentDigest": "sha256:1fa6a8a4875f23ea8854323a33eb2526f4c8df78ebb344e218e43577ea4a1604"
+  "contentDigest": "sha256:3d81481f82089034d382884bd5044ee4375ee4d823d0e076d7419dad201b7b5c"
 }

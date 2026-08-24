@@ -51,7 +51,8 @@ use crate::ephemeral::{
 };
 use crate::live_matcher::{
     GraphNodeDecisionStatsV1, LiveDeltaKind, LiveDeltaOutcome, LiveMatchOutcome,
-    compute_live_delta, live_subscription_match_decision, live_subscription_match_outcome,
+    compute_live_delta, live_subscription_match_decision,
+    live_subscription_match_decision_with_graph_registration, live_subscription_match_outcome,
     query_dependencies_from_plan, rollup_graph_node_decisions,
 };
 use crate::live_wire::{
@@ -70,7 +71,10 @@ use crate::manifest::{
     SettlementTimeObservation, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, auth_fingerprint,
     ctx_ledger_version, legacy_auth_fingerprint,
 };
-use crate::manifest::{CapabilityManifestLocalExt as _, SchemaManifestValidationExt as _};
+use crate::manifest::{
+    CapabilityManifestLocalExt as _, SchemaManifestValidationExt as _,
+    TargetCapabilityFactsExt as _,
+};
 use crate::runtime::{
     CapabilityState, ExecutedIbexMutation, IbexActionHost, IbexCliCapability,
     IbexSubmoduleCapability, RuntimeCapabilities, RuntimeManager,
@@ -147,6 +151,10 @@ static NEXT_APP_GENERATION: AtomicU64 = AtomicU64::new(1);
 
 fn live_evaluation_memo_disabled(value: Option<&str>) -> bool {
     matches!(value, Some("1") | Some("true"))
+}
+
+fn graph_execution_disabled(value: Option<&str>) -> bool {
+    value == Some("1")
 }
 
 /// Hard retained durable-live ceilings for the canonical local server. These
@@ -3509,6 +3517,13 @@ pub struct LocalSnapback {
     auth_deployment: crate::auth::deployment::AuthDeploymentTarget,
     hosted_serving_present: bool,
     network_profile_startup_activated: bool,
+    /// Instance-live target registration for the experimental graph executor.
+    /// Construction is conservative; a target owner must explicitly declare
+    /// this capability, independently of the execution kill switch.
+    graph_query_v1_target_declared: Arc<AtomicBool>,
+    /// Target-owned class-2/evaluator facts. The production map starts empty;
+    /// its test-support installer cannot be reached from handler input.
+    graph_serving_authority_contexts: Arc<RwLock<BTreeMap<String, GraphServingAuthorityContextV1>>>,
     app_state_graph_identity: Arc<()>,
     operator_authority_identity: Arc<()>,
     /// Deployment configuration captured once at the public construction
@@ -3851,6 +3866,7 @@ struct LiveSubscription {
     authority: RetainedLiveAuthority,
     input: HandlerInput,
     read_dependencies: Vec<CapturedReadDependency>,
+    graph_serving: Option<GraphServingRegistration>,
     authorization: Option<LiveSubscriptionAuthorization>,
     effect_fence: Option<crate::ephemeral::ConnectionEffectFence>,
     observation: LiveSubscriptionObservation,
@@ -4435,6 +4451,24 @@ fn local_live_stage_corrupt() -> SnapbackError {
 pub struct QueryInvocation {
     pub(crate) output: QueryOutput,
     pub(crate) read_dependencies: Vec<CapturedReadDependency>,
+    graph_serving: Option<GraphServingRegistration>,
+}
+
+/// Authority facts resolved by the serving target, never by graph handler
+/// arguments. The public shape exists for the conformance target compiled
+/// with `test-support`; ordinary targets retain an empty registry.
+#[derive(Clone, Debug)]
+pub struct GraphServingAuthorityContextV1 {
+    pub evaluation: crate::graph_evaluator::GraphEvaluationAuthorityV1,
+    pub class2: Vec<crate::manifest::GraphResolvedPartitionInputV1>,
+}
+
+#[derive(Clone, Debug)]
+struct GraphServingRegistration {
+    dependencies: snapback_sync::graph_captured_read::RegisteredGraphSubscriptionDependenciesV1,
+    matcher_input: HandlerInput,
+    structural_work: crate::graph_evaluator::StructuralWorkV1,
+    window_ledgers: Vec<crate::graph_evaluator::GraphWindowLedgerV1>,
 }
 
 impl QueryInvocation {
@@ -7801,10 +7835,7 @@ impl LocalSnapback {
         &self,
         manifest: &FunctionManifest,
     ) -> Vec<Diagnostic> {
-        let served = crate::manifest::CapabilityManifest::local_v0_instance(
-            self.capability_gaps(),
-            crate::runtime::outbound_actions_enabled(),
-        );
+        let served = self.local_target_capability_manifest(self.capability_gaps());
         // @ref LLP 0058#capability-maturity — an experimental entry is not
         // plain support: the requirement admits only when the artifact
         // acknowledges the experimental contract it binds to.
@@ -8601,10 +8632,7 @@ impl LocalSnapback {
         // fact, just like `/inspect` and ordinary function loading. The
         // conservative committed declaration is not authority for a process
         // that explicitly enabled outbound actions.
-        let target = CapabilityManifest::local_v0_instance(
-            self.capability_gaps(),
-            crate::runtime::outbound_actions_enabled(),
-        );
+        let target = self.local_target_capability_manifest(self.capability_gaps());
         // @ref LLP 0058#capability-maturity — the artifact pair's
         // experimental acknowledgments (declared on the function manifest,
         // covering the pair) accompany every requirement, including the
@@ -11834,10 +11862,7 @@ impl LocalSnapback {
     // it reflects whether THIS process enabled outbound egress and so the
     // bounded response-stream profile, not the conservative declaration.
     fn served_capability_manifest(&self, capability_gaps: Vec<String>) -> CapabilityManifest {
-        let mut capability_manifest = CapabilityManifest::local_v0_instance(
-            capability_gaps,
-            crate::runtime::outbound_actions_enabled(),
-        );
+        let mut capability_manifest = self.local_target_capability_manifest(capability_gaps);
         // @ref LLP 0009#dk-4-retired--upstream-ibex-owner-thread-contract-2026-07-27 —
         // report the lifecycle policy honestly. The compatibility branch is
         // retained for older policy implementations.
@@ -11847,6 +11872,105 @@ impl LocalSnapback {
         }
         self.project_agent_safe_app_effective(&mut capability_manifest);
         capability_manifest
+    }
+
+    fn local_target_capability_manifest(&self, capability_gaps: Vec<String>) -> CapabilityManifest {
+        let mut manifest = CapabilityManifest::local_v0_instance(
+            capability_gaps,
+            crate::runtime::outbound_actions_enabled(),
+        );
+        if self.graph_query_v1_target_declared.load(Ordering::Acquire) {
+            let mut facts = crate::manifest::TargetCapabilityFacts::local_auth_aware();
+            facts.graph_query_v1_registered = true;
+            manifest.refresh_supported_capabilities(facts);
+        }
+        manifest
+    }
+
+    /// Explicitly register the experimental graph executor on this process.
+    /// This changes only the instance-live target manifest; the committed
+    /// local declaration and LLP 0183 publication gate stay conservative.
+    pub fn declare_graph_query_v1_capability(&mut self) {
+        self.graph_query_v1_target_declared
+            .store(true, Ordering::Release);
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn install_graph_serving_authority_context_for_test(
+        &self,
+        function: impl Into<String>,
+        context: GraphServingAuthorityContextV1,
+    ) {
+        self.graph_serving_authority_contexts
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .insert(function.into(), context);
+    }
+
+    /// Reconstruct the installed-schema-owned result contract used by graph
+    /// admission. Conformance manifests use this instead of trusting a
+    /// corpus-authored digest to describe its own output shape.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn graph_result_contract_for_test(
+        &self,
+        plan: &crate::manifest::GraphQueryPlanV1,
+    ) -> Result<
+        crate::manifest::FunctionResultContract,
+        crate::manifest::GraphAdmissionRefusalReasonV1,
+    > {
+        reify_graph_result_contract(plan, self.db.schema())
+    }
+
+    fn graph_serving_authority_context(
+        &self,
+        function: &str,
+    ) -> Option<GraphServingAuthorityContextV1> {
+        self.graph_serving_authority_contexts
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .get(function)
+            .cloned()
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn graph_serving_observation_for_test(&self, subscription_id: &str) -> Option<Value> {
+        let graph = self
+            .subscriptions
+            .get(subscription_id)?
+            .graph_serving
+            .as_ref()?;
+        Some(json!({
+            "structuralWork": graph.structural_work,
+            "windowLedgers": graph.window_ledgers,
+            "capturedDependencies": graph.dependencies.reads().iter()
+                .filter_map(|read| read.graph.as_ref())
+                .collect::<Vec<_>>(),
+            "instanceHash": graph.dependencies.instance_hash(),
+            "materializationHash": graph.dependencies.materialization_hash(),
+            "partitionHash": graph.dependencies.partition_hash(),
+        }))
+    }
+
+    /// Replay one committed change shape against the exact attested
+    /// registration produced by a served graph subscription. This is a
+    /// read-only conformance seam: it neither synthesizes a registration nor
+    /// publishes a delivery, so the corpus can isolate D2-H2 matcher evidence
+    /// from scheduler and storage effects.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn replay_graph_matcher_for_test(
+        &self,
+        subscription_id: &str,
+        changes: &[ChangedRow],
+    ) -> Option<crate::live_matcher::LiveMatchDecisionV1> {
+        let subscription = self.subscriptions.get(subscription_id)?;
+        let graph = subscription.graph_serving.as_ref()?;
+        let function = self.functions.function(&subscription.function)?;
+        Some(live_subscription_match_decision_with_graph_registration(
+            function,
+            &graph.matcher_input,
+            &graph.dependencies,
+            changes,
+        ))
     }
 
     pub fn current_capability_manifest(&self) -> CapabilityManifest {
@@ -12054,9 +12178,12 @@ impl LocalSnapback {
                         keyring: &self.resume_keyring,
                         schema_hash: self.db.schema().schema_hash.as_deref(),
                         function_bundle_hash: self.functions.bundle_hash.as_deref(),
+                        function_inputs_hash: self.functions.inputs_hash.as_deref(),
                         function_publication_generation: self.app_generation,
                         target_profile: self.db.schema().target_profile.as_deref(),
                     }),
+                    self.graph_query_v1_target_declared.load(Ordering::Acquire),
+                    self.graph_serving_authority_context(name),
                     None,
                     None,
                 )
@@ -12880,6 +13007,7 @@ impl LocalSnapback {
                 cursor: None,
             },
             read_dependencies,
+            graph_serving: None,
         })
     }
 
@@ -12925,6 +13053,7 @@ impl LocalSnapback {
                 cursor: None,
             },
             read_dependencies,
+            graph_serving: None,
         })
     }
 
@@ -13015,6 +13144,7 @@ impl LocalSnapback {
         };
         if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
             stored.read_dependencies = query.read_dependencies;
+            stored.graph_serving = query.graph_serving;
         }
         self.enqueue_subscription_durable(subscription, payload);
         self.live_delivery.total_deliveries += 1;
@@ -20105,6 +20235,7 @@ impl LocalSnapback {
         let keyring = &self.resume_keyring;
         let schema_hash = self.db.schema().schema_hash.clone();
         let bundle_hash = self.functions.bundle_hash.clone();
+        let inputs_hash = self.functions.inputs_hash.clone();
         let app_generation = self.app_generation;
         let target_profile = self.db.schema().target_profile.clone();
         let mut invocations = self
@@ -20128,9 +20259,12 @@ impl LocalSnapback {
                                 keyring,
                                 schema_hash: schema_hash.as_deref(),
                                 function_bundle_hash: bundle_hash.as_deref(),
+                                function_inputs_hash: inputs_hash.as_deref(),
                                 function_publication_generation: app_generation,
                                 target_profile: target_profile.as_deref(),
                             }),
+                            self.graph_query_v1_target_declared.load(Ordering::Acquire),
+                            self.graph_serving_authority_context(name),
                             None,
                             None,
                         )
@@ -20975,9 +21109,12 @@ impl LocalSnapback {
                             keyring: &self.resume_keyring,
                             schema_hash: self.db.schema().schema_hash.as_deref(),
                             function_bundle_hash: self.functions.bundle_hash.as_deref(),
+                            function_inputs_hash: self.functions.inputs_hash.as_deref(),
                             function_publication_generation: self.app_generation,
                             target_profile: self.db.schema().target_profile.as_deref(),
                         }),
+                        self.graph_query_v1_target_declared.load(Ordering::Acquire),
+                        self.graph_serving_authority_context(name),
                         if proof_namespace
                             .as_ref()
                             .is_some_and(|namespace| namespace.query_key.starts_with("qmk1."))
@@ -21370,6 +21507,7 @@ impl LocalSnapback {
                 authority: retained_authority,
                 input: subscription_input.clone(),
                 read_dependencies: query.read_dependencies,
+                graph_serving: query.graph_serving,
                 authorization: subscription_authorization,
                 effect_fence,
                 observation,
@@ -22526,6 +22664,7 @@ impl LocalSnapback {
                 .expect("preflight validated retained live predecessor presence");
             stored.connection_id = input.connection_id.clone();
             stored.read_dependencies = query.read_dependencies;
+            stored.graph_serving = query.graph_serving;
             stored.authorization = Some(authorization.clone());
             stored.effect_fence = subscription.effect_fence.clone();
             self.renew_live_subscription_observation(&subscription.id, name, &input.connection_id);
@@ -22582,6 +22721,7 @@ impl LocalSnapback {
             if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
                 stored.connection_id = input.connection_id.clone();
                 stored.read_dependencies = query.read_dependencies;
+                stored.graph_serving = query.graph_serving;
                 stored.effect_fence = subscription.effect_fence.clone();
             }
             self.renew_live_subscription_observation(&subscription.id, name, &input.connection_id);
@@ -27007,6 +27147,8 @@ impl LocalSnapback {
             auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
             hosted_serving_present: false,
             network_profile_startup_activated: false,
+            graph_query_v1_target_declared: Arc::new(AtomicBool::new(false)),
+            graph_serving_authority_contexts: Arc::new(RwLock::new(BTreeMap::new())),
             app_state_graph_identity: Arc::new(()),
             operator_authority_identity: Arc::new(()),
             asset_store_config,
@@ -28205,6 +28347,8 @@ impl LocalSnapback {
             admission: self.admission.clone(),
             connected_clients: self.connected_clients.clone(),
             secret_read_reset_generation: self.secret_read_reset_generation.clone(),
+            graph_query_v1_target_declared: self.graph_query_v1_target_declared.clone(),
+            graph_serving_authority_contexts: self.graph_serving_authority_contexts.clone(),
             resume_keyring: self.resume_keyring.clone(),
         }
     }
@@ -30115,6 +30259,7 @@ impl LocalSnapback {
         self.resolve_authorization_retry_episode(subscription, &proof, &_publication)?;
         if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
             stored.read_dependencies = query.read_dependencies;
+            stored.graph_serving = query.graph_serving;
         }
         // @ref LLP 0094#0c8-sessions-live-update-envelope-and-delivery-multiplicity —
         // the pending obligation is the sole frame source. Enqueuing its exact
@@ -30446,6 +30591,7 @@ impl LocalSnapback {
                     }
                     if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
                         stored.read_dependencies = query.read_dependencies;
+                        stored.graph_serving = query.graph_serving;
                     }
                     if let Some(projection) = projection
                         && let Ok(frame) =
@@ -31111,12 +31257,20 @@ impl LocalSnapback {
                 );
                 continue;
             }
-            let match_decision = live_subscription_match_decision(
-                function,
-                &subscription.input,
-                &subscription.read_dependencies,
-                changes,
-            );
+            let match_decision = match subscription.graph_serving.as_ref() {
+                Some(graph) => live_subscription_match_decision_with_graph_registration(
+                    function,
+                    &graph.matcher_input,
+                    &graph.dependencies,
+                    changes,
+                ),
+                None => live_subscription_match_decision(
+                    function,
+                    &subscription.input,
+                    &subscription.read_dependencies,
+                    changes,
+                ),
+            };
             let match_outcome = match_decision.outcome;
             merge_graph_node_matcher_stats(
                 &mut matcher_stats.graph_nodes,
@@ -31484,6 +31638,7 @@ impl LocalSnapback {
             let enqueue = {
                 if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
                     stored.read_dependencies = query.read_dependencies;
+                    stored.graph_serving = query.graph_serving;
                 }
                 self.enqueue_subscription_durable(&subscription, payload)
             };
@@ -32680,6 +32835,8 @@ pub struct ReadLane {
     admission: AdmissionController,
     connected_clients: crate::connected_clients::ConnectedClientRegistry,
     secret_read_reset_generation: Arc<AtomicU64>,
+    graph_query_v1_target_declared: Arc<AtomicBool>,
+    graph_serving_authority_contexts: Arc<RwLock<BTreeMap<String, GraphServingAuthorityContextV1>>>,
     // Shared with the write lane: relational pagination cursors are MAC'd
     // with the resume keyring, and the read lane serves `/query` (LLP 0080
     // §2 cursors) without the global mutex.
@@ -32693,6 +32850,17 @@ pub struct ReadHealth {
 }
 
 impl ReadLane {
+    fn graph_serving_authority_context(
+        &self,
+        function: &str,
+    ) -> Option<GraphServingAuthorityContextV1> {
+        self.graph_serving_authority_contexts
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .get(function)
+            .cloned()
+    }
+
     #[cfg(any(test, feature = "test-support"))]
     pub fn evaluate_graph_query(
         &self,
@@ -33098,9 +33266,12 @@ impl ReadLane {
                                 keyring: &self.resume_keyring,
                                 schema_hash: manifests.schema.schema_hash.as_deref(),
                                 function_bundle_hash: manifests.functions.bundle_hash.as_deref(),
+                                function_inputs_hash: manifests.functions.inputs_hash.as_deref(),
                                 function_publication_generation: manifests.app_generation,
                                 target_profile: manifests.schema.target_profile.as_deref(),
                             }),
+                            self.graph_query_v1_target_declared.load(Ordering::Acquire),
+                            self.graph_serving_authority_context(name),
                             None,
                             Some(&vector_quarantine),
                         )
@@ -34466,14 +34637,14 @@ fn reify_graph_projection_object(
             GraphProjectionValueV1::Object { node_id, object } => {
                 let nested = reify_graph_projection_object(object, nodes, plan, schema)?;
                 match nodes.get(node_id.as_str()) {
-                    Some(GraphNodeV1::EqualityToOne {
-                        presence: crate::manifest::GraphToOnePresenceV1::Required,
-                        ..
-                    }) => nested,
-                    Some(GraphNodeV1::EqualityToOne {
-                        presence: crate::manifest::GraphToOnePresenceV1::Optional,
-                        ..
-                    })
+                    // Codegen deliberately gives every to-one projection a
+                    // nullable envelope. `presence` controls graph admission
+                    // and row survival, not the stable serialized value
+                    // contract. Principal binding establishes the caller
+                    // value but does not guarantee a row in the scoped table,
+                    // so that projected object uses the same nullable shape.
+                    // @ref LLP 0209#2-the-graph-ir — projection nullability is part of the exact cross-language carrier.
+                    Some(GraphNodeV1::EqualityToOne { .. })
                     | Some(GraphNodeV1::PrincipalBound { .. }) => ResultValueContract::Union {
                         variants: vec![ResultValueContract::Null, nested],
                     },
@@ -34653,6 +34824,14 @@ fn validate_graph_query_schema_references(
                  prefix: &[String],
                  unique: bool|
      -> SnapbackResult<bool> {
+        // `by_id` is the storage-owned primary-key access path. It is
+        // available on every table but is intentionally absent from authored
+        // index manifests, so graph admission must recognize its closed
+        // identity without asking authors to redeclare the reserved `_id`.
+        // @ref LLP 0209#23-closure-admission-demand-time-evaluation-time-and-qualification-registers — installed-owner admission includes platform indexes.
+        if index_name == "by_id" && prefix == ["_id"] {
+            return Ok(true);
+        }
         let declared_table = table(table_name)?;
         let declared = declared_table
             .indexes
@@ -34746,7 +34925,16 @@ fn validate_graph_query_schema_references(
                         ),
                     ));
                 }
-                prefix.extend(order.iter().map(|ordered| ordered.field.clone()));
+                // Equality-constrained prefix components remain valid order
+                // components but are not repeated in the physical index
+                // identity (for example `where id = $id order by id`).
+                // @ref LLP 0209#23-closure-admission-demand-time-evaluation-time-and-qualification-registers — admission proves the actual access-path prefix.
+                prefix.extend(
+                    order
+                        .iter()
+                        .filter(|ordered| !filtered_fields.contains(ordered.field.as_str()))
+                        .map(|ordered| ordered.field.clone()),
+                );
                 index(table_name, access_index, &prefix, false)?;
             }
             crate::manifest::GraphNodeV1::EqualityToOne {
@@ -35195,6 +35383,11 @@ fn graph_query_schema_faults(
         }
     };
     let check_index = |table_name: &str, name: &str, prefix: &[String], unique: bool| {
+        // Mirror the full validator's platform-primary-index rule in the
+        // complete-set fault probe so precedence cannot drift by entry point.
+        if name == "by_id" && prefix == ["_id"] {
+            return Some(true);
+        }
         let Some(index) = schema
             .table(table_name)
             .and_then(|table| table.indexes.iter().find(|index| index.name == name))
@@ -35248,7 +35441,12 @@ fn graph_query_schema_faults(
                     if prefix.len() != filtered.len() {
                         reasons.insert(Reason::IndexPrefixUnsupported);
                     }
-                    prefix.extend(order.iter().map(|component| component.field.clone()));
+                    prefix.extend(
+                        order
+                            .iter()
+                            .filter(|component| !filtered.contains(component.field.as_str()))
+                            .map(|component| component.field.clone()),
+                    );
                     check_index(table, access_index, &prefix, false);
                 } else {
                     reasons.insert(Reason::IndexUnprovable);
@@ -37496,6 +37694,7 @@ pub(crate) struct RelationalCursorAuthority<'a> {
     pub(crate) keyring: &'a RwLock<crate::rqs::ResumeKeyring>,
     pub(crate) schema_hash: Option<&'a str>,
     pub(crate) function_bundle_hash: Option<&'a str>,
+    pub(crate) function_inputs_hash: Option<&'a str>,
     pub(crate) function_publication_generation: u64,
     pub(crate) target_profile: Option<&'a str>,
 }
@@ -38042,6 +38241,7 @@ fn execute_snapshot_batch_v2(
                 cursor: None,
             },
             read_dependencies: Vec::new(),
+            graph_serving: None,
         });
     }
 
@@ -38375,6 +38575,7 @@ fn execute_snapshot_batch_v2(
             cursor: None,
         },
         read_dependencies: Vec::new(),
+        graph_serving: None,
     })
 }
 
@@ -38711,6 +38912,308 @@ impl VectorQuarantineCapture {
     }
 }
 
+fn graph_serving_error(code: &str, message: impl Into<String>) -> SnapbackError {
+    SnapbackError::error(code, "query", message.into())
+}
+
+fn graph_serving_demand(
+    mut input: HandlerInput,
+) -> SnapbackResult<(HandlerInput, crate::graph_evaluator::GraphServingDemandV1)> {
+    let args = input.args.as_object_mut().ok_or_else(|| {
+        graph_serving_error(
+            "SNAPBACK_GRAPH_DEMAND_INVALID",
+            "graph query arguments must be an object",
+        )
+    })?;
+    let encoded = args
+        .remove(crate::graph_evaluator::GRAPH_SERVING_DEMAND_ARG)
+        .ok_or_else(|| {
+            graph_serving_error(
+                "SNAPBACK_GRAPH_DEMAND_REQUIRED",
+                "served graph queries require the exact graph demand carrier",
+            )
+        })?;
+    let demand: crate::graph_evaluator::GraphServingDemandV1 = serde_json::from_value(encoded)
+        .map_err(|error| {
+            graph_serving_error(
+                "SNAPBACK_GRAPH_DEMAND_INVALID",
+                format!("graph demand carrier is invalid: {error}"),
+            )
+        })?;
+    if demand.format != "snapback.graph-serving-demand.v1" {
+        return Err(graph_serving_error(
+            "SNAPBACK_GRAPH_DEMAND_INVALID",
+            "graph demand carrier has an unsupported format",
+        ));
+    }
+    Ok((input, demand))
+}
+
+fn graph_matcher_input(
+    plan: &crate::manifest::GraphQueryPlanV1,
+    input: &HandlerInput,
+) -> SnapbackResult<HandlerInput> {
+    let supplied = input.args.as_object().ok_or_else(|| {
+        graph_serving_error(
+            "SNAPBACK_GRAPH_ARGUMENT_INVALID",
+            "graph query arguments must be an object",
+        )
+    })?;
+    let mut normalized = Map::new();
+    for argument in &plan.arguments {
+        let value = supplied.get(&argument.name).cloned().ok_or_else(|| {
+            graph_serving_error(
+                "SNAPBACK_GRAPH_ARGUMENT_INVALID",
+                format!("graph argument {} is missing", argument.name),
+            )
+        })?;
+        normalized.insert(argument.argument_id.clone(), value);
+    }
+    Ok(HandlerInput {
+        args: Value::Object(normalized),
+        auth: input.auth.clone(),
+        read_set: Vec::new(),
+        correlation: input.correlation.clone(),
+        ctx_ledger: None,
+    })
+}
+
+fn graph_evaluated_parent_sets(
+    windows: &[crate::manifest::GraphNodeWindowIdentityV1],
+) -> BTreeMap<String, Vec<crate::manifest::GraphRowKeyV1>> {
+    windows
+        .iter()
+        .filter_map(|window| {
+            window
+                .intervals
+                .iter()
+                .map(|interval| interval.parent_key.clone())
+                .collect::<Option<Vec<_>>>()
+                .map(|parents| (window.node_id.clone(), parents))
+        })
+        .collect()
+}
+
+fn graph_authority_partition(
+    carrier: &crate::manifest::GraphQueryCarrierV1,
+    prepared: &PreparedInvocation,
+    input: &HandlerInput,
+    authorization_version: &crate::storage::AuthorizationVersion,
+    context: Option<&GraphServingAuthorityContextV1>,
+) -> SnapbackResult<crate::manifest::GraphAuthorityPartitionIdentityV1> {
+    let class2 = if carrier
+        .normalized_plan
+        .authority_partition_rule
+        .class2_inputs
+        .is_empty()
+    {
+        Vec::new()
+    } else {
+        // The target registry, not the request, owns these policy-equivalence
+        // facts. Registration below re-attests them against the normalized
+        // plan before any subscription becomes live.
+        context
+            .map(|context| context.class2.clone())
+            .ok_or_else(|| {
+                graph_serving_error(
+                    "SNAPBACK_GRAPH_AUTHORITY_CONTEXT_UNAVAILABLE",
+                    "the serving target cannot resolve this graph's class-2 policy-equivalence scope",
+                )
+            })?
+    };
+    let class3 = match carrier.normalized_plan.authority_partition_rule.class3 {
+        crate::manifest::GraphClass3PartitionV1::None => None,
+        crate::manifest::GraphClass3PartitionV1::PartitionOfOne => {
+            let resolved = prepared.authority().resolved();
+            let (authority_instance_id, provider_id, delegation) = match resolved {
+                ResolvedAppAuthority::Session {
+                    authority_instance_id,
+                    provider,
+                    ..
+                } => (authority_instance_id.clone(), Some(provider.clone()), None),
+                ResolvedAppAuthority::ServicePrincipal {
+                    actor_user_id,
+                    grant_id,
+                    effective_user_id,
+                    ..
+                } => (
+                    resolved.invalidation_subject(),
+                    None,
+                    Some(crate::manifest::AuthorityPartitionDelegationV1 {
+                        grant_id: grant_id.clone(),
+                        actor_principal_id: actor_user_id.clone(),
+                        effective_principal_id: effective_user_id
+                            .as_deref()
+                            .unwrap_or(actor_user_id)
+                            .to_owned(),
+                    }),
+                ),
+                _ => (resolved.invalidation_subject(), None, None),
+            };
+            Some(crate::manifest::AuthorityPartitionV1 {
+                format: "snapback.authority-partition.v1".to_owned(),
+                principal_data_scope: crate::manifest::AuthorityPartitionPrincipalDataScopeV1 {
+                    auth_mode: match prepared.authority().active_mode() {
+                        AuthMode::Dev => crate::manifest::AuthorityPartitionAuthModeV1::Dev,
+                        AuthMode::Sessions => {
+                            crate::manifest::AuthorityPartitionAuthModeV1::Sessions
+                        }
+                    },
+                    user_id: input.auth.user_id.clone(),
+                    authorization_stream_incarnation: authorization_version.incarnation.clone(),
+                },
+                authority_instance_id,
+                auth_fingerprint: Some(auth_fingerprint(&input.auth)),
+                tenant_id: None,
+                provider_id,
+                delegation,
+            })
+        }
+    };
+    crate::manifest::graph_authority_partition_identity_v1(
+        crate::manifest::GraphAuthorityPartitionPreimageV1 {
+            format: "snapback.graph-authority-partition.v1".to_owned(),
+            graph_plan_hash: carrier.plan_hash.clone(),
+            class2,
+            class3,
+        },
+    )
+    .map_err(|reason| {
+        graph_serving_error(
+            reason.code(),
+            format!("graph authority partition is invalid: {reason:?}"),
+        )
+    })
+}
+
+fn required_graph_hash(
+    value: Option<&str>,
+    field: &str,
+) -> SnapbackResult<crate::manifest::Sha256V1> {
+    crate::manifest::Sha256V1::new(value.unwrap_or_default().to_owned()).map_err(|_| {
+        graph_serving_error(
+            "SNAPBACK_GRAPH_MATERIALIZATION_INVALID",
+            format!("served graph function is missing a valid {field}"),
+        )
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn graph_materialization(
+    db: &DbRead<'_>,
+    function: &FunctionDefinition,
+    carrier: &crate::manifest::GraphQueryCarrierV1,
+    input: &HandlerInput,
+    demand: &crate::graph_evaluator::GraphServingDemandV1,
+    authority: RelationalCursorAuthority<'_>,
+) -> SnapbackResult<crate::manifest::GraphMaterializationIdentityV1> {
+    let instance = crate::manifest::graph_instance_identity_v1(
+        carrier,
+        &input.args,
+        demand.windows.clone(),
+        &graph_evaluated_parent_sets(&demand.windows),
+    )
+    .map_err(|reason| {
+        graph_serving_error(
+            reason.code(),
+            format!("graph instance demand is invalid: {reason:?}"),
+        )
+    })?;
+    let schema_hash = authority.schema_hash.ok_or_else(|| {
+        graph_serving_error(
+            "SNAPBACK_GRAPH_MATERIALIZATION_INVALID",
+            "served graph schema has no admitted schema hash",
+        )
+    })?;
+    let bundle_hash = authority.function_bundle_hash.ok_or_else(|| {
+        graph_serving_error(
+            "SNAPBACK_GRAPH_MATERIALIZATION_INVALID",
+            "served graph functions have no admitted bundle hash",
+        )
+    })?;
+    let inputs_hash = authority.function_inputs_hash.ok_or_else(|| {
+        graph_serving_error(
+            "SNAPBACK_GRAPH_MATERIALIZATION_INVALID",
+            "served graph artifact pair has no coherent inputs hash",
+        )
+    })?;
+    let activation_hash = crate::manifest::Sha256V1::new(
+        crate::rqs_contract::sha256_identity(&json!({
+            "schemaHash": schema_hash,
+            "bundleHash": bundle_hash,
+            "inputsHash": inputs_hash,
+            "publicationGeneration": authority.function_publication_generation,
+        }))
+        .map_err(|_| {
+            graph_serving_error(
+                "SNAPBACK_GRAPH_MATERIALIZATION_INVALID",
+                "served graph activation identity is not canonicalizable",
+            )
+        })?,
+    )
+    .map_err(|_| {
+        graph_serving_error(
+            "SNAPBACK_GRAPH_MATERIALIZATION_INVALID",
+            "served graph activation hash is invalid",
+        )
+    })?;
+    let function_kind = match function.kind {
+        FunctionKind::Query => crate::manifest::GraphExportedFunctionKindV1::Query,
+        FunctionKind::LiveQuery => crate::manifest::GraphExportedFunctionKindV1::LiveQuery,
+        _ => {
+            return Err(graph_serving_error(
+                "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                "graph function is not a query",
+            ));
+        }
+    };
+    crate::manifest::graph_materialization_identity_v1(
+        crate::manifest::GraphMaterializationPreimageV1 {
+            format: "snapback.graph-materialization.v1".to_owned(),
+            app_id: authority.app_id.to_owned(),
+            database_id: db.search_database_identity()?,
+            deployment_id: bundle_hash.to_owned(),
+            target_profile_id: authority
+                .target_profile
+                .unwrap_or(TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX)
+                .to_owned(),
+            activation_hash,
+            function: crate::manifest::GraphExportedFunctionIdentityV1 {
+                artifact_kind:
+                    crate::manifest::GraphExportedFunctionArtifactKindV1::FunctionReference,
+                schema_version: db.schema().schema_version.clone(),
+                app_id: authority.app_id.to_owned(),
+                id: function.id.clone(),
+                name: function.name.clone(),
+                kind: function_kind,
+                implementation_hash: required_graph_hash(
+                    function.implementation_hash.as_deref(),
+                    "implementationHash",
+                )?,
+                args_contract_hash: required_graph_hash(
+                    function.args_contract_hash.as_deref(),
+                    "argsContractHash",
+                )?,
+                result_contract_hash: carrier.normalized_plan.result_contract_hash.clone(),
+                expected_generation: ArtifactGeneration {
+                    schema_version: db.schema().schema_version.clone(),
+                    app_id: authority.app_id.to_owned(),
+                    schema_hash: schema_hash.to_owned(),
+                    bundle_hash: bundle_hash.to_owned(),
+                    inputs_hash: inputs_hash.to_owned(),
+                },
+            },
+            graph_instance_hash: instance.instance_hash,
+        },
+    )
+    .map_err(|reason| {
+        graph_serving_error(
+            reason.code(),
+            format!("graph materialization is invalid: {reason:?}"),
+        )
+    })
+}
+
 #[allow(clippy::too_many_arguments)]
 fn execute_query_invocation(
     serving_database: Option<&crate::storage::ServingDatabase>,
@@ -38722,6 +39225,8 @@ fn execute_query_invocation(
     prepared: &PreparedInvocation,
     warm_vms: Option<&crate::warm_vm::WarmVmPool>,
     cursor_authority: Option<RelationalCursorAuthority<'_>>,
+    graph_query_v1_target_declared: bool,
+    graph_authority_context: Option<GraphServingAuthorityContextV1>,
     examined_entry_ceiling: Option<usize>,
     vector_quarantine: Option<&VectorQuarantineCapture>,
 ) -> SnapbackResult<QueryInvocation> {
@@ -38739,6 +39244,8 @@ fn execute_query_invocation(
                 prepared,
                 warm_vms,
                 cursor_authority,
+                graph_query_v1_target_declared,
+                graph_authority_context,
                 examined_entry_ceiling,
                 Some(capture),
             )
@@ -38760,6 +39267,31 @@ fn execute_query_invocation(
         return result;
     }
     prepared.validate_admission("query execution")?;
+    let (input, graph_demand) = if matches!(
+        function.runtime,
+        FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(_))
+    ) {
+        if !graph_query_v1_target_declared {
+            return Err(graph_serving_error(
+                "SNAPBACK_CAPABILITY_UNSUPPORTED",
+                "the serving target did not declare graph_query_v1",
+            ));
+        }
+        if graph_execution_disabled(
+            std::env::var("SNAPBACK_GRAPH_EXEC_DISABLED")
+                .ok()
+                .as_deref(),
+        ) {
+            return Err(graph_serving_error(
+                "SNAPBACK_GRAPH_EXEC_DISABLED",
+                "graph execution is disabled by the serving kill switch",
+            ));
+        }
+        let (input, demand) = graph_serving_demand(input)?;
+        (input, Some(demand))
+    } else {
+        (input, None)
+    };
     // @ref LLP 0131#runtime-ingress-validation — fresh query admission
     // (direct run, server request, live subscribe binding, search) validates
     // the declared argument contract before any plan or handler work.
@@ -38898,6 +39430,7 @@ fn execute_query_invocation(
             Ok(QueryInvocation {
                 output,
                 read_dependencies,
+                graph_serving: None,
             })
         }
         (
@@ -38950,6 +39483,7 @@ fn execute_query_invocation(
                     rows,
                 },
                 read_dependencies,
+                graph_serving: None,
             })
         }
         (FunctionKind::Query, FunctionRuntime::HostPlan(HandlerPlan::PushLedgerQuery(_))) => {
@@ -38991,6 +39525,7 @@ fn execute_query_invocation(
                     rows,
                 },
                 read_dependencies,
+                graph_serving: None,
             })
         }
         (
@@ -39073,6 +39608,7 @@ fn execute_query_invocation(
             Ok(QueryInvocation {
                 output,
                 read_dependencies,
+                graph_serving: None,
             })
         }
         (FunctionKind::Query, FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(plan))) => {
@@ -39134,6 +39670,7 @@ fn execute_query_invocation(
             Ok(QueryInvocation {
                 output,
                 read_dependencies,
+                graph_serving: None,
             })
         }
         (
@@ -39252,6 +39789,7 @@ fn execute_query_invocation(
             Ok(QueryInvocation {
                 output,
                 read_dependencies,
+                graph_serving: None,
             })
         }
         (
@@ -39375,6 +39913,7 @@ fn execute_query_invocation(
                         cursor: None,
                     },
                     read_dependencies: Vec::new(),
+                    graph_serving: None,
                 });
             }
 
@@ -39615,6 +40154,7 @@ fn execute_query_invocation(
                     cursor: None,
                 },
                 read_dependencies: Vec::new(),
+                graph_serving: None,
             })
         }
         (
@@ -39654,6 +40194,7 @@ fn execute_query_invocation(
                         cursor: None,
                     },
                     read_dependencies: Vec::new(),
+                    graph_serving: None,
                 });
             }
             let incarnation = db
@@ -39767,6 +40308,7 @@ fn execute_query_invocation(
                         cursor: None,
                     },
                     read_dependencies: Vec::new(),
+                    graph_serving: None,
                 });
             }
             let mut child_output = db.query_keyset(&child_query, &input, keyset.as_ref())?;
@@ -39840,6 +40382,130 @@ fn execute_query_invocation(
                     cursor: None,
                 },
                 read_dependencies: Vec::new(),
+                graph_serving: None,
+            })
+        }
+        (
+            FunctionKind::Query | FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier)),
+        ) => {
+            // @ref LLP 0209#9-sequencing-and-measurement-what-lands-first-and-how-it-is-measured
+            // — G2-C evaluates one admitted demand in the pinned read snapshot,
+            // attests its captures, and hands the registration to the existing
+            // live turn/frame machinery.
+            let demand = graph_demand.as_ref().expect("graph arm parsed its demand");
+            let cursor_authority = cursor_authority.ok_or_else(|| {
+                graph_serving_error(
+                    "SNAPBACK_GRAPH_MATERIALIZATION_INVALID",
+                    "the serving owner did not supply graph materialization custody",
+                )
+            })?;
+            let evaluation_cut = db.current_version()?;
+            let (authorization_version, _) = db.membership_cursor_custody_snapshot()?;
+            let materialization =
+                graph_materialization(&db, function, carrier, &input, demand, cursor_authority)?;
+            let partition = graph_authority_partition(
+                carrier,
+                prepared,
+                &input,
+                &authorization_version,
+                graph_authority_context.as_ref(),
+            )?;
+            let request = crate::graph_evaluator::GraphEvaluationRequestV1 {
+                args: input.args.clone(),
+                windows: demand.windows.clone(),
+                advanced_node_id: demand.advanced_node_id.clone(),
+                materialization_hash: materialization.materialization_hash.clone(),
+                partition_hash: partition.partition_hash.clone(),
+                authorization_version,
+                evaluation_cut: crate::manifest::GraphEvaluationCutV1(evaluation_cut),
+                authority: graph_authority_context
+                    .as_ref()
+                    .map(|context| context.evaluation.clone())
+                    .unwrap_or_else(|| crate::graph_evaluator::GraphEvaluationAuthorityV1 {
+                        auth: input.auth.clone(),
+                        permission_values_by_table: BTreeMap::new(),
+                        resolved_membership_inputs: BTreeSet::new(),
+                        resolved_role_inputs: BTreeSet::new(),
+                    }),
+                prior_window_ledgers: demand.prior_window_ledgers.clone(),
+            };
+            let evaluated = crate::graph_evaluator::evaluate_graph_query_on(
+                db.reborrow(),
+                &carrier.normalized_plan,
+                &request,
+            )?;
+            if let Some(reason) = evaluated.refusal_reason.as_ref() {
+                return Err(graph_serving_error(
+                    reason.code(),
+                    format!("graph evaluation refused: {reason:?}"),
+                ));
+            }
+            let rows = serde_json::from_str::<Vec<Value>>(
+                evaluated.result_bytes.as_deref().ok_or_else(|| {
+                    graph_serving_error(
+                        "SNAPBACK_GRAPH_RESULT_INVALID",
+                        "successful graph evaluation omitted result bytes",
+                    )
+                })?,
+            )
+            .map_err(|error| {
+                graph_serving_error(
+                    "SNAPBACK_GRAPH_RESULT_INVALID",
+                    format!("graph result bytes are invalid: {error}"),
+                )
+            })?;
+            let matcher_input = graph_matcher_input(&carrier.normalized_plan, &input)?;
+            let registration_demand =
+                snapback_sync::graph_captured_read::GraphSubscriptionRegistrationDemandV1 {
+                    args: request.args.clone(),
+                    windows: request.windows.clone(),
+                    input: matcher_input.clone(),
+                    permission_values_by_table: request
+                        .authority
+                        .permission_values_by_table
+                        .iter()
+                        .map(|(table, values)| {
+                            (
+                                table.clone(),
+                                snapback_sync::graph_captured_read::GraphRegistrationPermissionValuesV1 {
+                                    field: values.field.clone(),
+                                    allowed_values: values.allowed_values.clone(),
+                                },
+                            )
+                        })
+                        .collect(),
+                    materialization,
+                    partition,
+                };
+            let dependencies =
+                snapback_sync::graph_captured_read::register_graph_subscription_dependencies(
+                    carrier,
+                    db.schema(),
+                    &registration_demand,
+                    &evaluated.captured_reads,
+                    &evaluated.capture_attachments,
+                    &evaluated.captured_query_outputs,
+                )
+                .map_err(|reason| {
+                    graph_serving_error(
+                        reason.code(),
+                        format!("graph dependency registration refused: {reason:?}"),
+                    )
+                })?;
+            Ok(QueryInvocation {
+                output: QueryOutput {
+                    version: evaluation_cut,
+                    rows,
+                    cursor: None,
+                },
+                read_dependencies: evaluated.captured_reads.clone(),
+                graph_serving: Some(GraphServingRegistration {
+                    dependencies,
+                    matcher_input,
+                    structural_work: evaluated.structural_work,
+                    window_ledgers: evaluated.window_ledgers,
+                }),
             })
         }
         (FunctionKind::Query | FunctionKind::LiveQuery, FunctionRuntime::IbexModule(module)) => {
@@ -39862,6 +40528,7 @@ fn execute_query_invocation(
             Ok(QueryInvocation {
                 output: run.output,
                 read_dependencies,
+                graph_serving: None,
             })
         }
         _ => Err(SnapbackError::error(
@@ -40131,9 +40798,35 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
                 .collect::<BTreeSet<_>>();
             (reads.into_iter().collect(), Vec::new())
         }
-        // The graph sibling is support-false and has no executor in G0; do
-        // not make its declarative tables look executable in runtime I/O.
-        FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(_)) => (Vec::new(), Vec::new()),
+        // @ref LLP 0209#2-the-graph-ir — G2-C reports the exact closed graph
+        // read surface now that the instance-live executor can serve it.
+        FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier)) => {
+            let reads = carrier
+                .normalized_plan
+                .nodes
+                .iter()
+                .flat_map(|node| match node {
+                    crate::manifest::GraphNodeV1::RootWindow { table, .. }
+                    | crate::manifest::GraphNodeV1::EqualityToOne { table, .. }
+                    | crate::manifest::GraphNodeV1::BoundedToMany { table, .. }
+                    | crate::manifest::GraphNodeV1::PrincipalBound { table, .. } => {
+                        vec![table.clone()]
+                    }
+                    crate::manifest::GraphNodeV1::ExistsSemiJoin { edge, .. } => match edge {
+                        crate::manifest::GraphEdgeV1::Direct(edge) => vec![edge.table.clone()],
+                        crate::manifest::GraphEdgeV1::Through(edge) => {
+                            vec![edge.table.clone(), edge.target_table.clone()]
+                        }
+                    },
+                    crate::manifest::GraphNodeV1::SearchMembership {
+                        invalidation_tables,
+                        ..
+                    } => invalidation_tables.clone(),
+                    crate::manifest::GraphNodeV1::ClosedProjection { .. } => Vec::new(),
+                })
+                .collect::<BTreeSet<_>>();
+            (reads.into_iter().collect(), Vec::new())
+        }
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
         | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
             crate::manifest::WriteWithActivityPlan { mutation: plan, .. },

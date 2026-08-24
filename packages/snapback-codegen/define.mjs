@@ -4001,7 +4001,13 @@ function graphProjectionValidator(object, projectionFacts, queryCost, where) {
       assertKnownSpecFields(value, `${leafWhere}.value`, new Set(['kind', 'nodeId', 'object']), 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
       const nested = graphProjectionValidator(value.object, projectionFacts, queryCost, leafWhere);
       const node = projectionFacts.get(value.nodeId);
-      fields[leaf.name] = node?.kind === 'equality-to-one' ? v.union([v.null(), nested]) : nested;
+      // Both to-one forms can materialize an absent relationship as JSON
+      // null. Principal binding establishes the caller value, not the
+      // existence of the caller-scoped row in the target table.
+      // @ref LLP 0209#2-the-graph-ir — projection value shapes are closed and must match evaluator absence semantics.
+      fields[leaf.name] = ['equality-to-one', 'principal-bound'].includes(node?.kind)
+        ? v.union([v.null(), nested])
+        : nested;
     } else if (value.kind === 'array') {
       assertKnownSpecFields(value, `${leafWhere}.value`, new Set(['kind', 'scopeNodeId', 'item']), 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
       const nested = graphProjectionValidator(value.item, projectionFacts, queryCost, leafWhere);

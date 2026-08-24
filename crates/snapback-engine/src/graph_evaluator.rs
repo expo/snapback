@@ -1,8 +1,8 @@
 //! Snapshot-pinned evaluator for admitted `graph_query_v1` plans.
 //!
-//! This module deliberately has no serving dispatch. G2-A exposes the
-//! evaluator as an engine primitive so the frozen corpus can execute it; the
-//! matcher and serving integration remain later slices.
+//! G2-A introduced the evaluator as an engine primitive. G2-C routes admitted
+//! live graph functions through it while retaining the same closed request
+//! and capture contracts used by the frozen corpus.
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
@@ -22,6 +22,24 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
+
+/// Reserved engine-owned argument carrying the graph demand ladder. It is
+/// removed before the application argument contract is validated and is
+/// never visible to a handler or a plan expression.
+pub const GRAPH_SERVING_DEMAND_ARG: &str = "__snapbackGraphDemandV1";
+
+/// Wire-internal demand carrier for one served graph page. Materialization,
+/// partition, authorization version, and evaluation cut are deliberately
+/// absent: the serving owner derives them inside the pinned read snapshot.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GraphServingDemandV1 {
+    pub format: String,
+    pub windows: Vec<GraphNodeWindowIdentityV1>,
+    pub advanced_node_id: String,
+    #[serde(default)]
+    pub prior_window_ledgers: Vec<GraphWindowLedgerV1>,
+}
 
 /// Authorization inputs already resolved by the engine's authority boundary.
 ///
@@ -2239,7 +2257,22 @@ fn literal_value(literal: &GraphProjectionLiteralV1) -> Value {
         GraphProjectionLiteralV1::Null(()) => Value::Null,
         GraphProjectionLiteralV1::Boolean(value) => Value::Bool(*value),
         GraphProjectionLiteralV1::String(value) => Value::String(value.clone()),
-        GraphProjectionLiteralV1::Number(value) => json!(value),
+        GraphProjectionLiteralV1::Number(value) => snapback_types::value_expr::number_value(*value),
+    }
+}
+
+fn graph_transport_value(value: &Value) -> Value {
+    match value {
+        // SQLite REAL values arrive as f64 even when ECMAScript would render
+        // the same finite value without a fractional suffix. Normalize at the
+        // graph projection boundary so the host plan emits the same JSON
+        // number bytes as the opaque JavaScript oracle.
+        // @ref LLP 0209#8-serverlocal-evaluator-agreement-the-d2d3-interface-rung-5-referenced — graph projection has portable JavaScript value semantics.
+        Value::Number(number) if number.is_f64() => number
+            .as_f64()
+            .map(snapback_types::value_expr::number_value)
+            .unwrap_or(Value::Null),
+        _ => value.clone(),
     }
 }
 
@@ -2254,7 +2287,7 @@ fn project_object(
             GraphProjectionValueV1::Field { node_id, field } => scope
                 .get(node_id)
                 .and_then(|row| row.get(field))
-                .cloned()
+                .map(graph_transport_value)
                 .unwrap_or(Value::Null),
             GraphProjectionValueV1::Literal { value } => literal_value(value),
             GraphProjectionValueV1::Object { node_id, object } => {

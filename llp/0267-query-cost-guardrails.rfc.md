@@ -5,7 +5,10 @@
 **Systems:** Live queries, Relational queries, Performance, Diagnostics, Schema
 **Author:** Codex gpt-5.6-sol xhigh, orchestrated by Claude Fable 5 (commissioned by the author performance-direction ruling 2026-08-15, Charlie Cheever)
 **Date:** 2026-08-16
-**Revised:** 2026-08-22 (v0.15 — author acceptance of the cross-owner §7
+**Revised:** 2026-08-24 (v0.16 — §5 owner amendment gives G0 graph plans a
+distinct 65,536-consultation product ceiling; the admitted 1,024-root/
+1,025-consultation shape and served normal observation exposed the 512
+conflict without redefining point consultations). 2026-08-22 (v0.15 — author acceptance of the cross-owner §7
 W5 packet; implementation graduated to four independently closable tickets).
 2026-08-21 (v0.14 — §7 round-8: the four-outcome derivation is
 a strict ordered decision list — step-0 client lifecycle classes
@@ -564,6 +567,31 @@ nodes in order and, within each node, the bound kinds in the order root, examine
 relationship, fanout, argument; then summed-window limits in the tuple order above; then
 whole-query aggregates.
 If both cross, the first structural miss is primary and aggregate may be a note; either refuses.
+
+**Owner amendment (2026-08-24) — the G0 graph consultation ceiling is a
+distinct profile.** For `graph_query_v1` only, the common
+`queryCostGuardrails.maxIndexRanges = 512` ceiling in §§2.2/3.4 does not
+participate in the effective maximum. The graph profile instead has
+`maxGraphIndexRanges = 65_536`, also inclusive and tighten-only. Its effective
+maximum is the minimum of the function declaration, any target graph ceiling,
+and the instance's `maxGraphIndexRanges`; an operator cannot raise 65,536 and
+an artifact cannot select this profile without admitted `graph_query_v1`.
+The original 512 ceiling remains unchanged for every non-graph plan.
+
+This is a ceiling/profile correction, not a counter correction. Every point,
+unique, bounded-index, full-scan, and opaque access-path consultation still
+contributes one to `indexRangeCount`, `queryCost.maxIndexRanges`, and the
+applicable window ledger. The LLP 0209 `issueListV2` carrier demonstrates the
+conflict: a page admitting 1,024 roots plus even one to-one access per root has
+a 1,025-consultation lower bound; its closed analytical declaration is 36,865.
+G2-C then served the normal fixture through the admitted executor and measured
+2,153 consultations, fitting 36,865 but exceeding 512. The 65,536 product
+ceiling is the smallest power-of-two product boundary that admits that closed
+declaration. This evidence is N=1 deterministic normal-fixture shape evidence;
+large/hot maxima remain gated on their recorded qualification commands. The
+amendment changes no scan, result-byte, result-row, timing, or fan-out ceiling
+and creates no capability or publication claim before the policy/profile is
+implemented and qualified.
 
 `maxObservers`, `maxDistinctEvaluationGroups`, and `maxEstimatedLiveFanoutMs` are orthogonal live
 fields, **not a ninth G0 bound**. G0 proof may reduce groups, never alter §§1.6/3.4.

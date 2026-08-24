@@ -19,7 +19,7 @@ use snapback::live_matcher::{
     GraphNodeMatchDispositionV1, LiveMatchOutcome,
     live_subscription_match_decision_with_graph_registration, live_subscription_match_outcome,
 };
-use snapback::local::LocalSnapback;
+use snapback::local::{GraphServingAuthorityContextV1, LiveSubscribeInput, LocalSnapback};
 use snapback::manifest::*;
 use snapback_engine::graph_evaluator::{
     GraphEvaluationAuthorityV1, GraphEvaluationOutputV1, GraphEvaluationRequestV1,
@@ -42,7 +42,18 @@ const PROVER_DISPOSITIONS_FILE: &str =
 const PAIRED_FIXTURES_FILE: &str = "tests/conformance/graph/paired-world-fixtures.v1.json";
 const RUNTIME_CAPTURES_FILE: &str = "tests/conformance/graph/runtime-captures.g2-b.v1.json";
 const MATCH_DISPOSITIONS_FILE: &str = "tests/conformance/graph/match-dispositions.v1.json";
+const SERVED_OBSERVATIONS_FILE: &str = "tests/conformance/graph/served-observations.g2-c.v1.json";
 const OWNER_SCOPE_DOMAIN: &str = "snapback:g0-corpus-authority-scope:v1:";
+const CORPUS_SCHEMA_HASH: &str =
+    "sha256:1111111111111111111111111111111111111111111111111111111111111111";
+const CORPUS_INPUTS_HASH: &str =
+    "sha256:2222222222222222222222222222222222222222222222222222222222222222";
+const CORPUS_BUNDLE_HASH: &str =
+    "sha256:3333333333333333333333333333333333333333333333333333333333333333";
+const CORPUS_IMPLEMENTATION_HASH: &str =
+    "sha256:4444444444444444444444444444444444444444444444444444444444444444";
+const CORPUS_ARGS_HASH: &str =
+    "sha256:5555555555555555555555555555555555555555555555555555555555555555";
 
 fn repository_path(relative: &str) -> PathBuf {
     PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).join(relative)
@@ -190,7 +201,10 @@ fn graph_index_manifest(table: &str) -> Vec<IndexManifest> {
             name: (*name).to_owned(),
             fields: fields.iter().map(|field| (*field).to_owned()).collect(),
             unique: *unique,
-            where_applicable: *unique && fields.iter().any(|field| *field != "_id"),
+            where_applicable: *unique
+                && fields
+                    .iter()
+                    .any(|field| corpus_declared_field_optional(table, field)),
         })
         .collect()
 }
@@ -210,6 +224,56 @@ fn inferred_field_type(values: impl Iterator<Item = Value>) -> FieldType {
     }
 }
 
+fn corpus_declared_field_type(table: &str, field: &str, inferred: FieldType) -> FieldType {
+    let id_target = match (table, field) {
+        ("issue", "projectID")
+        | ("label", "projectID")
+        | ("issueListRead", "projectID")
+        | ("issueLabelRead", "projectID") => Some("project"),
+        ("issue", "creatorID")
+        | ("issue", "assigneeID")
+        | ("comment", "creatorID")
+        | ("viewState", "userID")
+        | ("issueNotifications", "userID")
+        | ("identityBinding", "userID")
+        | ("issueListRead", "creatorID")
+        | ("issueListRead", "assigneeID") => Some("user"),
+        ("comment", "issueID")
+        | ("viewState", "issueID")
+        | ("issueNotifications", "issueID")
+        | ("issueListRead", "issueID")
+        | ("issueLabelRead", "issueID") => Some("issue"),
+        ("issueLabelRead", "labelID") => Some("label"),
+        _ => None,
+    };
+    if let Some(table) = id_target {
+        return FieldType::Id {
+            table: table.to_owned(),
+        };
+    }
+    if (table, field) == ("identityBinding", "principal") {
+        return FieldType::Principal;
+    }
+    if matches!(field, "modified" | "created" | "viewed") {
+        return FieldType::Real;
+    }
+    inferred
+}
+
+fn corpus_declared_field_optional(table: &str, field: &str) -> bool {
+    matches!(
+        (table, field),
+        ("user", "name")
+            | ("user", "email")
+            | ("project", "issueCountEstimate")
+            | ("project", "markURL")
+            | ("project", "logoURL")
+            | ("issue", "shortID")
+            | ("issue", "assigneeID")
+            | ("issueListRead", "assigneeID")
+    )
+}
+
 fn corpus_schema(tables: &BTreeMap<String, Vec<Map<String, Value>>>) -> SchemaManifest {
     let tables = tables
         .iter()
@@ -225,12 +289,16 @@ fn corpus_schema(tables: &BTreeMap<String, Vec<Map<String, Value>>>) -> SchemaMa
                 fields: names
                     .into_iter()
                     .map(|field| FieldManifest {
-                        field_type: inferred_field_type(
-                            rows.iter()
-                                .map(|row| row.get(&field).cloned().unwrap_or(Value::Null)),
+                        field_type: corpus_declared_field_type(
+                            name,
+                            &field,
+                            inferred_field_type(
+                                rows.iter()
+                                    .map(|row| row.get(&field).cloned().unwrap_or(Value::Null)),
+                            ),
                         ),
+                        optional: corpus_declared_field_optional(name, &field),
                         name: field,
-                        optional: true,
                     })
                     .collect(),
                 indexes: graph_index_manifest(name),
@@ -251,6 +319,8 @@ fn corpus_schema(tables: &BTreeMap<String, Vec<Map<String, Value>>>) -> SchemaMa
         .collect();
     SchemaManifest {
         app_id: "zerobugs-graph-g2-corpus".to_owned(),
+        schema_hash: Some(CORPUS_SCHEMA_HASH.to_owned()),
+        inputs_hash: Some(CORPUS_INPUTS_HASH.to_owned()),
         tables,
         ..SchemaManifest::default()
     }
@@ -381,6 +451,23 @@ fn normalized_matcher_input(
         correlation: None,
         ctx_ledger: None,
     }
+}
+
+fn normalized_served_capture_vector(value: &Value) -> Value {
+    let mut normalized = value.clone();
+    for capture in normalized
+        .as_array_mut()
+        .expect("served graph capture vector")
+    {
+        if let Some(partition_hash) = capture
+            .get_mut("dependency")
+            .and_then(Value::as_object_mut)
+            .and_then(|dependency| dependency.get_mut("partitionHash"))
+        {
+            *partition_hash = json!("<served-authority-partition>");
+        }
+    }
+    normalized
 }
 
 fn normal_graph_evaluations(
@@ -803,6 +890,274 @@ fn match_disposition_artifact(
         "replays":replays,
         "summary":summary,
     }))
+}
+
+/// Establish all three normal-fixture corpus graphs through the same
+/// admitted function-manifest, live-subscription, evaluator, and attested
+/// registration path used by serving. The frozen commit shapes are then
+/// replayed against those served registrations without publishing synthetic
+/// deliveries, keeping D2-H2 measurement separate from scheduler effects.
+fn served_graph_execution_artifacts(corpus: &Value) -> (Value, Value) {
+    let mut snapback = graph_store(corpus, None);
+    snapback.declare_graph_query_v1_capability();
+
+    let carriers = corpus_queries(corpus)
+        .map(|query| {
+            let name = query["query"].as_str().unwrap().to_owned();
+            let carrier: GraphQueryCarrierV1 =
+                serde_json::from_value(query["carrier"].clone()).unwrap();
+            let result_contract = snapback
+                .graph_result_contract_for_test(&carrier.normalized_plan)
+                .unwrap_or_else(|reason| panic!("reify served {name} result contract: {reason:?}"));
+            assert_eq!(
+                result_contract_hash(&result_contract).expect("reified graph result hash"),
+                carrier.normalized_plan.result_contract_hash.as_str(),
+                "served {name} installed schema must reconstruct the frozen result contract",
+            );
+            let mut definition = FunctionDefinition::new(
+                &name,
+                FunctionKind::LiveQuery,
+                FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier.clone())),
+            );
+            definition.handler_form = Some("plan".to_owned());
+            definition.implementation_hash = Some(CORPUS_IMPLEMENTATION_HASH.to_owned());
+            definition.args_contract_hash = Some(CORPUS_ARGS_HASH.to_owned());
+            definition.result_contract = result_contract;
+            definition.result_contract_hash =
+                Some(carrier.normalized_plan.result_contract_hash.to_string());
+            definition.required_capabilities = vec![
+                TargetCapabilityId::ArgsContractV1.as_str().to_owned(),
+                TargetCapabilityId::GraphQueryV1.as_str().to_owned(),
+                TargetCapabilityId::HostPlanRuntime.as_str().to_owned(),
+                TargetCapabilityId::LiveSubscriptions.as_str().to_owned(),
+                TargetCapabilityId::ResultContractV1.as_str().to_owned(),
+            ];
+            (name, carrier, definition)
+        })
+        .collect::<Vec<_>>();
+    let diagnostics = snapback.load_functions(FunctionManifest {
+        app_id: "zerobugs-graph-g2-corpus".to_owned(),
+        bundle_hash: Some(CORPUS_BUNDLE_HASH.to_owned()),
+        inputs_hash: Some(CORPUS_INPUTS_HASH.to_owned()),
+        acknowledged_experimental_capabilities: vec![
+            TargetCapabilityId::ArgsContractV1.as_str().to_owned(),
+            TargetCapabilityId::GraphQueryV1.as_str().to_owned(),
+            TargetCapabilityId::ResultContractV1.as_str().to_owned(),
+        ],
+        functions: carriers
+            .iter()
+            .map(|(_, _, definition)| definition.clone())
+            .collect(),
+        ..FunctionManifest::default()
+    });
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+        "served graph manifest diagnostics: {diagnostics:?}",
+    );
+
+    let mut observations = Vec::new();
+    let mut subscriptions = Vec::new();
+    for evidence in corpus["g0ExitObservationEvidence"]
+        .as_array()
+        .expect("G0 exit evidence")
+    {
+        let plan_hash = evidence["graphPlanHash"].as_str().unwrap();
+        let (name, carrier, _) = carriers
+            .iter()
+            .find(|(_, carrier, _)| carrier.plan_hash.as_str() == plan_hash)
+            .unwrap_or_else(|| panic!("served carrier for {plan_hash}"));
+        let call = &evidence["invocation"];
+        let principal = call["partition"]["class3"]["principalDataScope"]["userId"]
+            .as_str()
+            .unwrap_or("principal_ordinary");
+        let authority = corpus_authority(corpus, principal);
+        snapback.install_graph_serving_authority_context_for_test(
+            name,
+            GraphServingAuthorityContextV1 {
+                evaluation: authority.clone(),
+                class2: serde_json::from_value(call["partition"]["class2"].clone())
+                    .expect("served class-2 partition inputs"),
+            },
+        );
+        let mut args = call["args"].as_object().expect("served graph args").clone();
+        args.insert(
+            snapback_engine::graph_evaluator::GRAPH_SERVING_DEMAND_ARG.to_owned(),
+            json!({
+                "format":"snapback.graph-serving-demand.v1",
+                "windows":call["windows"],
+                "advancedNodeId":call["advancedNodeId"],
+                "priorWindowLedgers":[],
+            }),
+        );
+        let established = snapback
+            .subscribe_live(
+                name,
+                LiveSubscribeInput {
+                    connection_id: format!("g2-c-served-{name}"),
+                    input: HandlerInput {
+                        args: Value::Object(args),
+                        auth: authority.auth,
+                        read_set: Vec::new(),
+                        correlation: None,
+                        ctx_ledger: None,
+                    },
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+            .unwrap_or_else(|error| panic!("serve graph {name}: {error:?}"));
+        let snapshot = established.snapshot.expect("served initial graph snapshot");
+        let expected_rows: Vec<Value> =
+            serde_json::from_str(evidence["resultBytes"].as_str().unwrap())
+                .expect("frozen result bytes");
+        assert_eq!(snapshot.rows, expected_rows, "served {name} result bytes");
+        let expected_execution = corpus["cases"]
+            .as_array()
+            .expect("graph cases")
+            .iter()
+            .find(|case| {
+                case["plan"]["planHash"] == plan_hash
+                    && case["expect"]["resultBytes"] == evidence["resultBytes"]
+            })
+            .unwrap_or_else(|| panic!("frozen execution evidence for served {name}"));
+        let observation = snapback
+            .graph_serving_observation_for_test(&established.subscription_id)
+            .unwrap_or_else(|| panic!("served graph observation for {name}"));
+        assert_eq!(
+            observation["structuralWork"], expected_execution["expect"]["structuralWork"],
+            "served {name} structural work",
+        );
+        assert_eq!(
+            observation["windowLedgers"], expected_execution["expect"]["windowLedgers"],
+            "served {name} window ledgers",
+        );
+        assert_eq!(
+            normalized_served_capture_vector(&observation["capturedDependencies"]),
+            normalized_served_capture_vector(&evidence["capturedDependencies"]),
+            "served {name} evaluator captures must equal the G2-B oracle after normalizing only the rotating authority-partition identity",
+        );
+        let captured_dependencies = observation["capturedDependencies"]
+            .as_array()
+            .expect("served captured dependencies");
+        let mut captured_by_node_kind = BTreeMap::<String, u64>::new();
+        for captured in captured_dependencies {
+            *captured_by_node_kind
+                .entry(
+                    captured["nodeKind"]
+                        .as_str()
+                        .expect("served capture node kind")
+                        .to_owned(),
+                )
+                .or_default() += 1;
+        }
+        observations.push(json!({
+            "query":name,
+            "graphPlanHash":carrier.plan_hash,
+            "fixture":"normal-seed-v1",
+            "structuralWork":observation["structuralWork"],
+            "windowLedgers":observation["windowLedgers"],
+            "instanceHash":observation["instanceHash"],
+            "captureRegistration":{
+                "source":"served-evaluator-attested",
+                "capturedDependencyCount":captured_dependencies.len(),
+                "byNodeKind":captured_by_node_kind,
+                "oracleComparison":"exact after normalizing only the rotating authority-partition identity",
+            },
+        }));
+        subscriptions.push((name.clone(), carrier.clone(), established.subscription_id));
+    }
+
+    let mut replays = Vec::new();
+    let mut summary = BTreeMap::<GraphNodeKindV1, [u64; 3]>::new();
+    for kind in [
+        GraphNodeKindV1::RootWindow,
+        GraphNodeKindV1::EqualityToOne,
+        GraphNodeKindV1::BoundedToMany,
+        GraphNodeKindV1::ExistsSemiJoin,
+        GraphNodeKindV1::PrincipalBound,
+        GraphNodeKindV1::SearchMembership,
+        GraphNodeKindV1::ClosedProjection,
+    ] {
+        summary.insert(kind, [0, 0, 0]);
+    }
+    let commits = graph_match_replay_commits(corpus);
+    for (commit_id, changes) in &commits {
+        for (query, _, subscription_id) in &subscriptions {
+            let decision = snapback
+                .replay_graph_matcher_for_test(subscription_id, changes)
+                .unwrap_or_else(|| panic!("served matcher registration for {query}"));
+            for node in &decision.graph_nodes {
+                let counts = summary.get_mut(&node.node_kind).unwrap();
+                counts[match node.disposition {
+                    GraphNodeMatchDispositionV1::Skip => 0,
+                    GraphNodeMatchDispositionV1::Match => 1,
+                    GraphNodeMatchDispositionV1::ConservativeFallback => 2,
+                }] += 1;
+            }
+            replays.push(json!({
+                "commit":commit_id,
+                "query":query,
+                "overallDisposition":match_outcome_name(decision.outcome),
+                "nodes":decision.graph_nodes,
+            }));
+        }
+    }
+    let totals = summary.values().fold([0_u64; 3], |mut totals, counts| {
+        totals[0] += counts[0];
+        totals[1] += counts[1];
+        totals[2] += counts[2];
+        totals
+    });
+    let summary = summary
+        .into_iter()
+        .map(|(node_kind, counts)| {
+            json!({
+                "nodeKind":node_kind,
+                "skip":counts[0],
+                "match":counts[1],
+                "conservativeFallback":counts[2],
+            })
+        })
+        .collect::<Vec<_>>();
+
+    (
+        content_digest(json!({
+            "format":"snapback.graph-served-observations.g2-c.v1",
+            "version":1,
+            "servingGate":{
+                "targetCapability":"graph_query_v1",
+                "killSwitchControl":"SNAPBACK_GRAPH_EXEC_DISABLED=1",
+            },
+            "observations":observations,
+        })),
+        content_digest(json!({
+            "format":"snapback.graph-match-dispositions.v1",
+            "version":1,
+            "registrationSource":"served-graph-subscription",
+            "commits":commits.iter().map(|(id, _)| id).collect::<Vec<_>>(),
+            "measurementScope":{
+                "fixture":"normal-seed-v1",
+                "fixtureRuns":1,
+                "graphs":subscriptions.len(),
+                "commitShapes":commits.len(),
+                "graphCommitReplays":replays.len(),
+                "nodeDecisions":totals.iter().sum::<u64>(),
+                "totals":{
+                    "skip":totals[0],
+                    "match":totals[1],
+                    "conservativeFallback":totals[2],
+                },
+                "nodeDisjointSkipRate":format!("{}/{}", totals[0], totals.iter().sum::<u64>()),
+                "conservativeFallbackRate":format!("{}/{}", totals[2], totals.iter().sum::<u64>()),
+                "caveat":"N=1 deterministic normal-fixture shape evidence; no magnitude, variance, large-fixture, hot-fixture, or publication claim",
+            },
+            "replays":replays,
+            "summary":summary,
+        })),
+    )
 }
 
 fn write_frozen_json(relative: &str, value: &Value) {
@@ -1679,7 +2034,7 @@ fn dependency_shapes() {
 }
 
 #[test]
-fn no_runtime_consumer() {
+fn default_targets_require_explicit_graph_capability_declaration() {
     let definition = FunctionDefinition::new(
         "graphIssues",
         FunctionKind::LiveQuery,
@@ -1727,8 +2082,8 @@ fn no_runtime_consumer() {
     snapback.install_forged_function_for_test(definition);
     let error = snapback
         .invoke_query("graphIssues", input)
-        .expect_err("B1 has no graph executor even after an in-memory forge");
-    assert_eq!(error.diagnostic.code, "SNAPBACK_FUNCTION_KIND_MISMATCH");
+        .expect_err("a forged graph function cannot bypass target capability admission");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_CAPABILITY_UNSUPPORTED");
 }
 
 /// The three corpus-owned declarations are real generated graph carriers.
@@ -3613,9 +3968,10 @@ fn graph_registration_refuses_semantically_forged_provenance() {
 /// replay ledger; the ordinary shared Query/Row/Auth dependencies remain
 /// runtime-only and are asserted through the registration result here.
 ///
-/// Run with `SNAPBACK_FREEZE_GRAPH_G2_B=1` to regenerate both artifacts, then
-/// run the JS graph freezer so its embedded capture vectors/digests follow the
-/// runtime sidecar. A normal test run is read-only.
+/// Run with `SNAPBACK_FREEZE_GRAPH_G2_B=1` to regenerate the evaluator capture
+/// artifact, then run the JS graph freezer so its embedded vectors/digests
+/// follow the runtime sidecar. G2-C owns the matcher ledger now that a served
+/// registration exists. A normal test run is read-only.
 ///
 /// @ref LLP 0209#51-captured-vocabulary-by-normalized-node — the evaluator is
 /// the sole capture authority and sync validates the exact shared carrier.
@@ -3641,7 +3997,6 @@ fn graph_runtime_captures_register_and_match_replays_are_frozen() {
     let dispositions = match_disposition_artifact(&corpus, &runs);
     if std::env::var_os("SNAPBACK_FREEZE_GRAPH_G2_B").is_some() {
         write_frozen_json(RUNTIME_CAPTURES_FILE, &captures);
-        write_frozen_json(MATCH_DISPOSITIONS_FILE, &dispositions);
         return;
     }
 
@@ -3650,10 +4005,16 @@ fn graph_runtime_captures_register_and_match_replays_are_frozen() {
         captures,
         "runtime graph capture sidecar is stale"
     );
+    let frozen_dispositions = load_json(MATCH_DISPOSITIONS_FILE);
+    for field in ["commits", "replays", "summary"] {
+        assert_eq!(
+            frozen_dispositions[field], dispositions[field],
+            "served and direct matcher disposition {field} drifted",
+        );
+    }
     assert_eq!(
-        load_json(MATCH_DISPOSITIONS_FILE),
-        dispositions,
-        "graph matcher disposition corpus is stale"
+        frozen_dispositions["registrationSource"],
+        "served-graph-subscription",
     );
     for (query, carrier, _, registered) in &runs {
         let frozen = corpus["g0ExitObservationEvidence"]
@@ -3673,6 +4034,36 @@ fn graph_runtime_captures_register_and_match_replays_are_frozen() {
             "G0 exit capture vector for {query} must be evaluator-authored"
         );
     }
+}
+
+/// G2-C's executable corpus arm. Every carrier first crosses graph admission
+/// on an instance that explicitly declares `graph_query_v1`, then establishes
+/// a live subscription, evaluates and registers its captures, and finally
+/// consumes the frozen commit-shape replay through that served registration.
+///
+/// Run with `SNAPBACK_FREEZE_GRAPH_G2_C=1` to re-freeze the two measurement
+/// artifacts after inspecting the generated diff. A normal run is read-only.
+///
+/// @ref LLP 0209#9-sequencing-and-measurement-what-lands-first-and-how-it-is-measured — G2-C discharges serving, structural-work,
+/// and D2-H2 evidence without changing the opaque default path.
+#[test]
+fn graph_served_corpus_executes_and_records_structural_work_and_d2_h2() {
+    let (observations, dispositions) = served_graph_execution_artifacts(&graph_corpus());
+    if std::env::var_os("SNAPBACK_FREEZE_GRAPH_G2_C").is_some() {
+        write_frozen_json(SERVED_OBSERVATIONS_FILE, &observations);
+        write_frozen_json(MATCH_DISPOSITIONS_FILE, &dispositions);
+        return;
+    }
+    assert_eq!(
+        load_json(SERVED_OBSERVATIONS_FILE),
+        observations,
+        "served graph observation artifact is stale",
+    );
+    assert_eq!(
+        load_json(MATCH_DISPOSITIONS_FILE),
+        dispositions,
+        "served matcher disposition ledger is stale",
+    );
 }
 
 /// @ref LLP 0209#9-sequencing-and-measurement-what-lands-first-and-how-it-is-measured — executable graph corpus entries run
@@ -4028,10 +4419,10 @@ fn broadcast_prover_cases_are_executable() {
     );
 }
 
-/// The shared G2 sidecar retains its exact four-row top-level contract. G0
-/// prover dispositions live in a separate additive artifact.
+/// G2-C moves both scheduler cases into the executable corpus. The retained
+/// sidecar stays structurally frozen but has no residual rows.
 #[test]
-fn g2_pending_broadcast_cases_are_structurally_frozen() {
+fn g2_pending_broadcast_sidecar_is_empty_after_scheduler_discharge() {
     let pending = pending_broadcast_cases();
     assert_exact_object_keys(
         &pending,
@@ -4054,144 +4445,13 @@ fn g2_pending_broadcast_cases_are_structurally_frozen() {
         pending["contentDigest"].as_str(),
         Some(jcs_domain_hash("", &without_digest).as_str()),
     );
-    assert_eq!(
-        pending["caseKinds"],
-        json!([
-            "audienceParity",
-            "scopeMismatch",
-            "authorityTransition",
-            "mixedCommit"
-        ]),
-    );
+    assert_eq!(pending["caseKinds"], json!([]),);
     let cases = pending["cases"].as_array().expect("pending cases");
-    assert_eq!(cases.len(), 4);
-
-    for case in cases {
-        assert!(
-            case.get("pending").is_none(),
-            "the closed case union has no pending arm"
-        );
-        let carrier: GraphQueryCarrierV1 =
-            serde_json::from_value(case["plan"].clone()).expect("pending carrier");
-        assert_eq!(
-            graph_plan_identity_v1(&carrier.normalized_plan).expect("pending host plan identity"),
-            carrier,
-        );
-        match case["caseKind"].as_str().expect("pending case kind") {
-            "audienceParity" => {
-                assert_exact_object_keys(
-                    case,
-                    &[
-                        "caseKind",
-                        "id",
-                        "plan",
-                        "invocations",
-                        "principals",
-                        "expect",
-                    ],
-                    "audienceParity sidecar case",
-                );
-                assert_eq!(case["invocations"].as_array().unwrap().len(), 2);
-                for invocation in case["invocations"].as_array().unwrap() {
-                    validate_corpus_invocation(&carrier, invocation, "listIssueByID");
-                }
-            }
-            "scopeMismatch" => {
-                assert_exact_object_keys(
-                    case,
-                    &[
-                        "caseKind",
-                        "id",
-                        "plan",
-                        "invocations",
-                        "principal",
-                        "expect",
-                    ],
-                    "scopeMismatch sidecar case",
-                );
-                validate_corpus_invocation(
-                    &carrier,
-                    &case["invocations"]["memberScope"],
-                    "listIssueByID",
-                );
-                validate_corpus_invocation(
-                    &carrier,
-                    &case["invocations"]["presentedInstance"],
-                    "listIssueByID",
-                );
-            }
-            "authorityTransition" | "mixedCommit" => {
-                assert_exact_object_keys(
-                    case,
-                    &[
-                        "caseKind",
-                        "id",
-                        "plan",
-                        "invocations",
-                        "principal",
-                        "commit",
-                        "observed",
-                    ],
-                    "transition case",
-                );
-                validate_corpus_invocation(
-                    &carrier,
-                    &case["invocations"]["before"],
-                    "listIssueByID",
-                );
-                validate_corpus_invocation(
-                    &carrier,
-                    &case["invocations"]["after"],
-                    "listIssueByID",
-                );
-                assert_eq!(
-                    case["invocations"]["before"]["authorizationVersion"]["epoch"],
-                    0
-                );
-                assert_eq!(
-                    case["invocations"]["after"]["authorizationVersion"]["epoch"],
-                    1
-                );
-                assert!(
-                    case["commit"]["authorityEvents"]
-                        .as_array()
-                        .is_some_and(|events| !events.is_empty())
-                );
-                let changes = case["commit"]["dataChanges"]
-                    .as_array()
-                    .expect("data changes");
-                if case["caseKind"] == "authorityTransition" {
-                    assert!(changes.is_empty());
-                } else {
-                    assert!(!changes.is_empty());
-                }
-                assert_eq!(
-                    case["commit"]["afterAuthorizationVersion"],
-                    case["invocations"]["after"]["authorizationVersion"],
-                );
-                let observed = case["observed"].as_array().expect("fence sequence");
-                assert_eq!(observed.len(), 2);
-                assert_eq!(observed[0]["ordinal"], 0);
-                assert_eq!(observed[0]["kind"], "fence");
-                assert_eq!(observed[1]["ordinal"], 1);
-                assert_eq!(observed[1]["kind"], "delivery");
-                assert_eq!(
-                    observed[0]["authorizationVersion"],
-                    case["commit"]["afterAuthorizationVersion"],
-                );
-                assert_eq!(
-                    observed[1]["authorizationVersion"],
-                    case["commit"]["afterAuthorizationVersion"],
-                );
-            }
-            kind => panic!("unexpected pending case kind {kind}"),
-        }
-    }
+    assert!(cases.is_empty());
 }
 
 #[test]
-fn broadcast_prover_dispositions_are_additive() {
-    let pending = pending_broadcast_cases();
+fn broadcast_prover_dispositions_are_final() {
     let artifact = broadcast_prover_dispositions();
     assert_exact_object_keys(
         &artifact,
@@ -4215,18 +4475,22 @@ fn broadcast_prover_dispositions_are_additive() {
     );
     let dispositions = artifact["dispositions"].as_array().unwrap();
     assert_eq!(dispositions.len(), 4);
-    for case in pending["cases"].as_array().unwrap() {
-        let disposition = dispositions
-            .iter()
-            .find(|row| row["id"] == case["id"])
-            .expect("each unchanged G2 row has one additive prover disposition");
-        assert_eq!(disposition["caseKind"], case["caseKind"]);
+    for disposition in dispositions {
         assert!(disposition["proverDisposition"].as_str().is_some());
         assert!(
             disposition["reason"]
                 .as_str()
                 .is_some_and(|reason| !reason.is_empty())
         );
+        if matches!(
+            disposition["caseKind"].as_str(),
+            Some("authorityTransition" | "mixedCommit")
+        ) {
+            assert_eq!(
+                disposition["proverDisposition"],
+                "executable-in-g2-c-served-scheduler"
+            );
+        }
     }
 }
 
@@ -4429,8 +4693,27 @@ fn bounds_are_fixture_derived() {
         );
         assert_eq!(
             bounds["queries"][name]["physical"]["observationPosture"],
-            "[G2 measures]"
+            "normal fixture measured through admitted serving; large/hot ceilings remain provisional"
         );
+        let measured = &bounds["queries"][name]["physical"]["servedNormalMeasurement"];
+        assert_eq!(measured["fixture"], "normal-seed-v1");
+        assert_eq!(measured["graphPlanHash"], carrier.plan_hash.as_str());
+        for field in measured["queryCost"].as_object().unwrap().values() {
+            assert_eq!(field["disposition"], "fit");
+        }
+        for node in measured["nodes"].as_array().unwrap() {
+            for field in node
+                .as_object()
+                .unwrap()
+                .values()
+                .filter(|value| value.is_object())
+            {
+                assert_eq!(field["disposition"], "fit");
+            }
+        }
+        for field in measured["windowRollup"].as_object().unwrap().values() {
+            assert_eq!(field["disposition"], "fit");
+        }
         for (field, actual_value) in actual.as_object().unwrap() {
             if field == "graph" {
                 continue;
@@ -4551,9 +4834,8 @@ fn bounds_are_fixture_derived() {
     }
 }
 
-/// The corpus retains the seven-kind schema, executes the prover-owned case
-/// kinds, and keeps the two delivery-order cases honestly partial.
-/// All nine LLP 0268 labels carry the extension re-record posture.
+/// The corpus retains the seven-kind schema and executes every case kind.
+/// All nine LLP 0268 labels have a final satisfied re-record posture.
 #[test]
 fn broadcast_inputs_complete() {
     let corpus = graph_corpus();
@@ -4576,6 +4858,8 @@ fn broadcast_inputs_complete() {
             "allowDeny",
             "audienceParity",
             "scopeMismatch",
+            "authorityTransition",
+            "mixedCommit",
             "refusal"
         ]),
     );
@@ -4590,11 +4874,45 @@ fn broadcast_inputs_complete() {
         BTreeSet::from([
             "allowDeny",
             "audienceParity",
+            "authorityTransition",
+            "mixedCommit",
             "pairedWorld",
             "refusal",
             "scopeMismatch"
         ]),
     );
+    for case in corpus["cases"].as_array().unwrap().iter().filter(|case| {
+        matches!(
+            case["caseKind"].as_str(),
+            Some("authorityTransition" | "mixedCommit")
+        )
+    }) {
+        let carrier: GraphQueryCarrierV1 =
+            serde_json::from_value(case["plan"].clone()).expect("scheduler carrier");
+        assert_eq!(
+            graph_plan_identity_v1(&carrier.normalized_plan).expect("scheduler plan identity"),
+            carrier,
+        );
+        validate_corpus_invocation(&carrier, &case["invocations"]["before"], "listIssueByID");
+        validate_corpus_invocation(&carrier, &case["invocations"]["after"], "listIssueByID");
+        let observed = case["observed"].as_array().expect("scheduler observations");
+        assert_eq!(observed.len(), 2);
+        assert_eq!(observed[0]["kind"], "fence");
+        assert_eq!(observed[1]["kind"], "delivery");
+        assert_eq!(
+            observed[0]["authorizationVersion"],
+            case["commit"]["afterAuthorizationVersion"]
+        );
+        assert_eq!(
+            observed[1]["authorizationVersion"],
+            case["commit"]["afterAuthorizationVersion"]
+        );
+        let data_changes = case["commit"]["dataChanges"].as_array().unwrap();
+        assert_eq!(
+            data_changes.is_empty(),
+            case["caseKind"] == "authorityTransition"
+        );
+    }
     for case in corpus["cases"].as_array().unwrap() {
         assert!(case.get("pending").is_none());
     }
@@ -4624,27 +4942,10 @@ fn broadcast_inputs_complete() {
         .filter(|entry| entry["status"] == "SATISFIED")
         .map(|entry| entry["label"].as_str().unwrap())
         .collect::<BTreeSet<_>>();
-    assert_eq!(
-        satisfied,
-        BTreeSet::from([
-            "G0-BCAST-AUDIENCE",
-            "G0-BCAST-CLASS",
-            "G0-BCAST-IDENTITY",
-            "G0-BCAST-SCOPE",
-            "G0-BCAST-SCOPE-BINDING",
-            "G0-BCAST-SEPARATION",
-        ]),
-    );
+    assert_eq!(satisfied, labels);
     for entry in input_rows {
-        match entry["status"].as_str().unwrap() {
-            "SATISFIED" => assert!(entry["missingCarrier"].is_null()),
-            "PARTIAL" => assert!(
-                entry["missingCarrier"]
-                    .as_str()
-                    .is_some_and(|value| !value.is_empty())
-            ),
-            status => panic!("unexpected broadcast input status {status}"),
-        }
+        assert_eq!(entry["status"], "SATISFIED");
+        assert!(entry["missingCarrier"].is_null());
     }
     let observations = corpus["g0ExitObservations"]
         .as_array()

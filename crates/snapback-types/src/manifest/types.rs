@@ -4928,6 +4928,15 @@ fn validate_authority_independent(function: &FunctionDefinition) -> SnapbackResu
         FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(_)) => {
             function.kind == FunctionKind::LiveQuery
         }
+        // @ref LLP 0209#3-authorization-at-every-node — a graph whose complete
+        // admitted node set is class 1 has no caller authority partition.
+        // Graph admission separately proves those class-1 reads public and
+        // refuses forged authority labels against the installed schema.
+        FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier)) => carrier
+            .normalized_plan
+            .nodes
+            .iter()
+            .all(|node| node.authority().declared_class == GraphAuthorityClassV1::INDEPENDENT),
         FunctionRuntime::HostPlan(_) | FunctionRuntime::IbexModule(_) => false,
     };
 
@@ -4947,7 +4956,7 @@ fn validate_authority_independent(function: &FunctionDefinition) -> SnapbackResu
         "function": function.name,
         "kind": &function.kind,
         "authRequirement": function.effective_auth_requirement().as_str(),
-        "hostPlanQuery": matches!(&function.runtime, FunctionRuntime::HostPlan(HandlerPlan::Query(_))),
+        "hostPlanQuery": matches!(&function.runtime, FunctionRuntime::HostPlan(HandlerPlan::Query(_) | HandlerPlan::GraphQuery(_))),
         "usesConfig": !function.uses.is_empty(),
         "authScopeField": function.read_set_summary.auth_scope_field.as_deref(),
         "authorizationDependence": &function.authorization_dependence,

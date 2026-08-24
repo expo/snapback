@@ -9,6 +9,10 @@ pub struct TargetCapabilityFacts {
     pub bounded_batch_reads_v1_registered: bool,
     pub snapshot_batch_v1_registered: bool,
     pub snapshot_batch_v2_registered: bool,
+    /// Process-live registration for the kill-switched graph executor. The
+    /// committed local target keeps this false; a serving owner has to opt in
+    /// before `graph_query_v1` can become an admitted instance capability.
+    pub graph_query_v1_registered: bool,
     pub single_table_v1_registered: bool,
     pub bounded_response_stream_v1_registered: bool,
     pub relational_query_v1_registered: bool,
@@ -441,10 +445,15 @@ impl TargetCapabilityId {
                     && Self::LiveSubscriptions.is_supported_by(manifest, facts)
                     && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
             }
-            // @ref LLP 0209#25-additive-sibling-carrier-stage-b-plan-not-shipped-surface —
-            // G0 reserves and validates the carrier but intentionally has no
-            // target executor or positive support fact.
-            Self::GraphQueryV1 => false,
+            // @ref LLP 0209#9-sequencing-and-measurement-what-lands-first-and-how-it-is-measured — G2-C installs an
+            // instance-live executor fact without changing the conservative
+            // committed target declaration or the publication gate.
+            Self::GraphQueryV1 => {
+                facts.graph_query_v1_registered
+                    && facts.host_plan_runtime
+                    && Self::LiveSubscriptions.is_supported_by(manifest, facts)
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+            }
             // @ref LLP 0110#local-persistent-store-publication-authority-amendment--2026-08-04
             // — the host-derived class is supportable only on the exact
             // contributor-source target whose embedded carrier binds the

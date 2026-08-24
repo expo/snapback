@@ -1,0 +1,373 @@
+{
+  "format": "snapback.graph-served-observations.g2-c.v1",
+  "version": 1,
+  "servingGate": {
+    "targetCapability": "graph_query_v1",
+    "killSwitchControl": "SNAPBACK_GRAPH_EXEC_DISABLED=1"
+  },
+  "observations": [
+    {
+      "query": "issueListV2",
+      "graphPlanHash": "sha256:17d314bfadbb58edf5185df72d2e66cbe99571e1d6f97f784cbf746be9285f20",
+      "fixture": "normal-seed-v1",
+      "structuralWork": {
+        "rootRowsByNode": [
+          {
+            "nodeId": "n0",
+            "observed": 516
+          }
+        ],
+        "examinedEntriesByNode": [
+          {
+            "nodeId": "n0",
+            "observed": 516
+          },
+          {
+            "nodeId": "n1",
+            "observed": 516
+          },
+          {
+            "nodeId": "n2",
+            "observed": 603
+          },
+          {
+            "nodeId": "n3",
+            "observed": 603
+          },
+          {
+            "nodeId": "n4",
+            "observed": 0
+          },
+          {
+            "nodeId": "n5",
+            "observed": 1
+          }
+        ],
+        "relationshipLookupsByNode": [
+          {
+            "nodeId": "n1",
+            "observed": 516
+          },
+          {
+            "nodeId": "n2",
+            "observed": 516
+          },
+          {
+            "nodeId": "n3",
+            "observed": 603
+          },
+          {
+            "nodeId": "n4",
+            "observed": 0
+          },
+          {
+            "nodeId": "n5",
+            "observed": 517
+          }
+        ],
+        "maxFanoutByNode": [
+          {
+            "nodeId": "n2",
+            "observed": 5
+          },
+          {
+            "nodeId": "n4",
+            "observed": 0
+          }
+        ],
+        "argumentItemsByArgument": [
+          {
+            "argumentId": "a0",
+            "observed": 1
+          },
+          {
+            "argumentId": "a1",
+            "observed": 0
+          }
+        ],
+        "argumentItems": 1,
+        "argumentExpansionByNode": [
+          {
+            "nodeId": "n4",
+            "observed": 0
+          }
+        ]
+      },
+      "windowLedgers": [
+        {
+          "nodeId": "n0",
+          "pages": 1,
+          "rootRows": 516,
+          "scannedRows": 2239,
+          "resultRows": 516,
+          "resultBytes": 436163,
+          "indexRanges": 2153
+        }
+      ],
+      "instanceHash": "sha256:af322d6aef4d3b7796caa15f0b99e207ed209a2c4d6b68337b44e13ce97260b4",
+      "captureRegistration": {
+        "source": "served-evaluator-attested",
+        "capturedDependencyCount": 2671,
+        "byNodeKind": {
+          "bounded-to-many": 516,
+          "closed-projection": 1,
+          "equality-to-one": 1119,
+          "exists-semi-join": 516,
+          "principal-bound": 518,
+          "root-window": 1
+        },
+        "oracleComparison": "exact after normalizing only the rotating authority-partition identity"
+      }
+    },
+    {
+      "query": "issueDetail",
+      "graphPlanHash": "sha256:d4425b76b047783be76990f73e92087daf371b38bd6a935755be1a6801056a04",
+      "fixture": "normal-seed-v1",
+      "structuralWork": {
+        "rootRowsByNode": [
+          {
+            "nodeId": "n0",
+            "observed": 1
+          }
+        ],
+        "examinedEntriesByNode": [
+          {
+            "nodeId": "n0",
+            "observed": 1
+          },
+          {
+            "nodeId": "n1",
+            "observed": 0
+          },
+          {
+            "nodeId": "n2",
+            "observed": 21
+          },
+          {
+            "nodeId": "n3",
+            "observed": 1
+          },
+          {
+            "nodeId": "n4",
+            "observed": 2
+          },
+          {
+            "nodeId": "n5",
+            "observed": 2
+          },
+          {
+            "nodeId": "n6",
+            "observed": 1
+          },
+          {
+            "nodeId": "n7",
+            "observed": 1
+          },
+          {
+            "nodeId": "n8",
+            "observed": 1
+          }
+        ],
+        "relationshipLookupsByNode": [
+          {
+            "nodeId": "n1",
+            "observed": 1
+          },
+          {
+            "nodeId": "n2",
+            "observed": 1
+          },
+          {
+            "nodeId": "n3",
+            "observed": 1
+          },
+          {
+            "nodeId": "n4",
+            "observed": 1
+          },
+          {
+            "nodeId": "n5",
+            "observed": 2
+          },
+          {
+            "nodeId": "n6",
+            "observed": 2
+          },
+          {
+            "nodeId": "n7",
+            "observed": 1
+          },
+          {
+            "nodeId": "n8",
+            "observed": 2
+          }
+        ],
+        "maxFanoutByNode": [
+          {
+            "nodeId": "n2",
+            "observed": 21
+          },
+          {
+            "nodeId": "n4",
+            "observed": 2
+          }
+        ],
+        "argumentItemsByArgument": [
+          {
+            "argumentId": "a0",
+            "observed": 1
+          }
+        ],
+        "argumentItems": 1,
+        "argumentExpansionByNode": []
+      },
+      "windowLedgers": [
+        {
+          "nodeId": "n0",
+          "pages": 1,
+          "rootRows": 1,
+          "scannedRows": 30,
+          "resultRows": 1,
+          "resultBytes": 20261,
+          "indexRanges": 11
+        },
+        {
+          "nodeId": "n2",
+          "pages": 1,
+          "rootRows": 0,
+          "scannedRows": 21,
+          "resultRows": 1,
+          "resultBytes": 20261,
+          "indexRanges": 1
+        }
+      ],
+      "instanceHash": "sha256:040f66c0e8cf919014166673fc661171b3b44f7106c6793b1bf4a88c39b13d1e",
+      "captureRegistration": {
+        "source": "served-evaluator-attested",
+        "capturedDependencyCount": 15,
+        "byNodeKind": {
+          "bounded-to-many": 2,
+          "closed-projection": 1,
+          "equality-to-one": 5,
+          "principal-bound": 6,
+          "root-window": 1
+        },
+        "oracleComparison": "exact after normalizing only the rotating authority-partition identity"
+      }
+    },
+    {
+      "query": "listIssueByID",
+      "graphPlanHash": "sha256:25f4e4680f4c7eae9c675c2c06adcbf23cce5fdbdc16bcb0bf830986268a6dfb",
+      "fixture": "normal-seed-v1",
+      "structuralWork": {
+        "rootRowsByNode": [
+          {
+            "nodeId": "n0",
+            "observed": 1
+          }
+        ],
+        "examinedEntriesByNode": [
+          {
+            "nodeId": "n0",
+            "observed": 1
+          },
+          {
+            "nodeId": "n1",
+            "observed": 1
+          },
+          {
+            "nodeId": "n2",
+            "observed": 2
+          },
+          {
+            "nodeId": "n3",
+            "observed": 2
+          },
+          {
+            "nodeId": "n4",
+            "observed": 0
+          },
+          {
+            "nodeId": "n5",
+            "observed": 1
+          }
+        ],
+        "relationshipLookupsByNode": [
+          {
+            "nodeId": "n1",
+            "observed": 1
+          },
+          {
+            "nodeId": "n2",
+            "observed": 1
+          },
+          {
+            "nodeId": "n3",
+            "observed": 2
+          },
+          {
+            "nodeId": "n4",
+            "observed": 0
+          },
+          {
+            "nodeId": "n5",
+            "observed": 2
+          }
+        ],
+        "maxFanoutByNode": [
+          {
+            "nodeId": "n2",
+            "observed": 2
+          },
+          {
+            "nodeId": "n4",
+            "observed": 0
+          }
+        ],
+        "argumentItemsByArgument": [
+          {
+            "argumentId": "a0",
+            "observed": 0
+          },
+          {
+            "argumentId": "a1",
+            "observed": 1
+          }
+        ],
+        "argumentItems": 1,
+        "argumentExpansionByNode": [
+          {
+            "nodeId": "n4",
+            "observed": 0
+          }
+        ]
+      },
+      "windowLedgers": [
+        {
+          "nodeId": "n0",
+          "pages": 1,
+          "rootRows": 1,
+          "scannedRows": 7,
+          "resultRows": 1,
+          "resultBytes": 6479,
+          "indexRanges": 7
+        }
+      ],
+      "instanceHash": "sha256:2be90ae77e323d78f3876c5b919b8a02c7dad372af3e40b9297638bfb2fc27da",
+      "captureRegistration": {
+        "source": "served-evaluator-attested",
+        "capturedDependencyCount": 10,
+        "byNodeKind": {
+          "bounded-to-many": 1,
+          "closed-projection": 1,
+          "equality-to-one": 3,
+          "exists-semi-join": 1,
+          "principal-bound": 3,
+          "root-window": 1
+        },
+        "oracleComparison": "exact after normalizing only the rotating authority-partition identity"
+      }
+    }
+  ],
+  "contentDigest": "sha256:abb1ebc43362f540291a33c6551c07defdb1a6e89bdd75e93a4b87497f26be23"
+}

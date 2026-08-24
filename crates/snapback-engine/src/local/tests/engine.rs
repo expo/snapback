@@ -400,11 +400,8 @@ fn graph_to_one_function(presence: crate::manifest::GraphToOnePresenceV1) -> Fun
         }],
         allow_extra: false,
     };
-    let related = match presence {
-        crate::manifest::GraphToOnePresenceV1::Required => nested,
-        crate::manifest::GraphToOnePresenceV1::Optional => ResultValueContract::Union {
-            variants: vec![ResultValueContract::Null, nested],
-        },
+    let related = ResultValueContract::Union {
+        variants: vec![ResultValueContract::Null, nested],
     };
     let result_contract = FunctionResultContract::Records {
         record: ResultValueContract::Object {
@@ -604,8 +601,8 @@ fn graph_result_contract_is_reified_not_trusted_from_retained_hash() {
 }
 
 #[test]
-fn graph_to_one_result_contract_tracks_required_and_optional_presence() {
-    use crate::manifest::{GraphAdmissionRefusalReasonV1 as Reason, GraphToOnePresenceV1};
+fn graph_to_one_result_contract_is_nullable_independent_of_presence() {
+    use crate::manifest::GraphToOnePresenceV1;
 
     for presence in [
         GraphToOnePresenceV1::Required,
@@ -626,10 +623,7 @@ fn graph_to_one_result_contract_tracks_required_and_optional_presence() {
         unreachable!()
     };
     *presence = GraphToOnePresenceV1::Optional;
-    assert!(
-        graph_fault_reasons(&retained_required).contains(&Reason::ResultContractMismatch),
-        "optionalizing a retained required object contract must rotate it"
-    );
+    assert!(graph_fault_reasons(&retained_required).is_empty());
 
     let mut retained_optional = graph_to_one_function(GraphToOnePresenceV1::Optional);
     let crate::manifest::GraphNodeV1::EqualityToOne { presence, .. } =
@@ -638,10 +632,7 @@ fn graph_to_one_result_contract_tracks_required_and_optional_presence() {
         unreachable!()
     };
     *presence = GraphToOnePresenceV1::Required;
-    assert!(
-        graph_fault_reasons(&retained_optional).contains(&Reason::ResultContractMismatch),
-        "requiring a retained nullable object contract must rotate it"
-    );
+    assert!(graph_fault_reasons(&retained_optional).is_empty());
 }
 
 #[test]
@@ -881,7 +872,7 @@ fn graph_query_v1_schema_round_trips_every_node_kind_through_public_engine_admis
 }
 
 #[test]
-fn graph_query_v1_forged_engine_invocation_has_no_executor() {
+fn graph_query_v1_forged_engine_invocation_requires_target_declaration() {
     let mut snapback = LocalSnapback::memory().expect("forged graph fixture");
     snapback.install_forged_function_for_test(graph_test_function());
     let error = snapback
@@ -895,8 +886,537 @@ fn graph_query_v1_forged_engine_invocation_has_no_executor() {
                 ctx_ledger: None,
             },
         )
-        .expect_err("Stage B1 has no graph executor");
-    assert_eq!(error.diagnostic.code, "SNAPBACK_FUNCTION_KIND_MISMATCH");
+        .expect_err("an undeclared target cannot execute graph_query_v1");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_CAPABILITY_UNSUPPORTED");
+}
+
+fn graph_serving_fixture() -> LocalSnapback {
+    let mut schema = graph_test_schema();
+    schema.app_id = "graph-serving-g2-c".to_owned();
+    schema.schema_hash = Some("graph-serving-schema-v1".to_owned());
+    schema.inputs_hash = Some("graph-serving-inputs-v1".to_owned());
+    schema.target_profile = Some(TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned());
+    schema
+        .tables
+        .iter_mut()
+        .find(|table| table.name == "issues")
+        .expect("issues table")
+        .indexes
+        .retain(|index| index.name != "by_id");
+    schema.tables.push(TableManifest {
+        name: "graphPermissions".to_owned(),
+        fields: vec![FieldManifest {
+            name: "generation".to_owned(),
+            field_type: FieldType::Integer,
+            optional: false,
+        }],
+        indexes: Vec::new(),
+        search_indexes: Vec::new(),
+        vector_indexes: Vec::new(),
+        search_live_limits: None,
+        syncable: true,
+        permission_backing: true,
+        permission_fields: Some(vec!["generation".to_owned()]),
+        membership: None,
+        authority_profile: None,
+        asset_sharing: None,
+        visibility: None,
+        history: None,
+    });
+
+    let mut graph = graph_test_function();
+    graph.id = "graph-serving-g2-c:graphIssues".to_owned();
+    graph.implementation_hash = Some(format!("sha256:{}", "1".repeat(64)));
+    graph.args_contract = Some(FunctionArgsContract::default());
+    graph.auth_requirement = Some(crate::manifest::AuthRequirement::Public);
+    graph.authority_independent = false;
+    graph.args_contract_hash = Some(
+        crate::manifest::args_contract_hash(
+            graph
+                .args_contract
+                .as_ref()
+                .expect("graph argument contract"),
+        )
+        .expect("empty graph argument contract hashes"),
+    );
+    graph.required_capabilities = vec![
+        "host_plan_runtime".to_owned(),
+        "live_subscriptions".to_owned(),
+        "graph_query_v1".to_owned(),
+        "result_contract_v1".to_owned(),
+        "args_contract_v1".to_owned(),
+    ];
+    let insert = FunctionDefinition::new(
+        "insertIssue",
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
+            steps: vec![MutationStep::Insert {
+                table: "issues".to_owned(),
+                values: BTreeMap::from([
+                    ("title".to_owned(), ValueExpr::Arg("title".to_owned())),
+                    ("status".to_owned(), ValueExpr::Literal(json!("open"))),
+                    ("assigneeId".to_owned(), ValueExpr::Literal(json!("owner"))),
+                    (
+                        "updatedAt".to_owned(),
+                        ValueExpr::Arg("updatedAt".to_owned()),
+                    ),
+                ]),
+                bind_id_as: None,
+            }],
+            return_value: None,
+        })),
+    );
+    let authority_transition = FunctionDefinition::new(
+        "graphAuthorityTransition",
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
+            steps: vec![MutationStep::Insert {
+                table: "graphPermissions".to_owned(),
+                values: BTreeMap::from([(
+                    "generation".to_owned(),
+                    ValueExpr::Arg("generation".to_owned()),
+                )]),
+                bind_id_as: None,
+            }],
+            return_value: None,
+        })),
+    );
+    let mixed_commit = FunctionDefinition::new(
+        "graphMixedCommit",
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
+            steps: vec![
+                MutationStep::Insert {
+                    table: "issues".to_owned(),
+                    values: BTreeMap::from([
+                        ("title".to_owned(), ValueExpr::Arg("title".to_owned())),
+                        ("status".to_owned(), ValueExpr::Literal(json!("open"))),
+                        ("assigneeId".to_owned(), ValueExpr::Literal(json!("owner"))),
+                        (
+                            "updatedAt".to_owned(),
+                            ValueExpr::Arg("updatedAt".to_owned()),
+                        ),
+                    ]),
+                    bind_id_as: None,
+                },
+                MutationStep::Insert {
+                    table: "graphPermissions".to_owned(),
+                    values: BTreeMap::from([(
+                        "generation".to_owned(),
+                        ValueExpr::Arg("generation".to_owned()),
+                    )]),
+                    bind_id_as: None,
+                },
+            ],
+            return_value: None,
+        })),
+    );
+    let manifest = FunctionManifest {
+        app_id: schema.app_id.clone(),
+        bundle_hash: Some("graph-serving-bundle-v1".to_owned()),
+        inputs_hash: schema.inputs_hash.clone(),
+        acknowledged_experimental_capabilities: vec![
+            "graph_query_v1".to_owned(),
+            "result_contract_v1".to_owned(),
+            "args_contract_v1".to_owned(),
+        ],
+        functions: vec![graph, insert, authority_transition, mixed_commit],
+        ..FunctionManifest::default()
+    };
+
+    let mut snapback = LocalSnapback::memory().expect("graph serving memory fixture");
+    snapback.declare_graph_query_v1_capability();
+    let diagnostics = snapback.apply_schema(schema).expect("graph serving schema");
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+        "graph serving schema diagnostics: {diagnostics:?}"
+    );
+    let diagnostics = snapback.load_functions(manifest);
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+        "graph serving function diagnostics: {diagnostics:?}"
+    );
+    snapback
+        .db
+        .activate_current_auth_catalog()
+        .expect("install graph serving auth catalog");
+    snapback
+        .seed(serde_json::from_value(json!({
+            "tables": {
+                "issues": [
+                    {"_id":"issue-1","title":"one","status":"open","assigneeId":"owner","updatedAt":1},
+                    {"_id":"issue-2","title":"two","status":"open","assigneeId":"owner","updatedAt":2}
+                ]
+            }
+        }))
+        .expect("graph serving seed"))
+        .expect("seed graph serving rows");
+    snapback
+}
+
+fn graph_serving_sessions_fixture() -> LocalSnapback {
+    let dev = graph_serving_fixture();
+    let mut schema = dev.db.schema().clone();
+    let mut functions = dev.functions.clone();
+    let (identity_schema, identity_functions) = auth_artifact_pair(AuthMode::Sessions, 'c');
+    schema.schema_version = identity_schema.schema_version;
+    schema.auth = identity_schema.auth;
+    schema.schema_hash = identity_schema.schema_hash;
+    schema.inputs_hash = identity_schema.inputs_hash;
+    schema.required_capabilities = identity_schema.required_capabilities;
+    functions.schema_version = identity_functions.schema_version;
+    functions.bundle_hash = identity_functions.bundle_hash;
+    functions.inputs_hash = identity_functions.inputs_hash;
+
+    let mut snapback = LocalSnapback::memory().expect("sessions graph fixture");
+    snapback.declare_graph_query_v1_capability();
+    let prepared = snapback
+        .prepare_auth_provision(
+            EnsureAppMode::Sessions,
+            Some(schema),
+            Some(functions.clone()),
+            Some(crate::manifest::SeedData {
+                tables: BTreeMap::from([(
+                    "issues".to_owned(),
+                    vec![
+                        serde_json::Map::from_iter([
+                            ("title".to_owned(), json!("one")),
+                            ("status".to_owned(), json!("open")),
+                            ("assigneeId".to_owned(), json!("owner")),
+                            ("updatedAt".to_owned(), json!(1)),
+                        ]),
+                        serde_json::Map::from_iter([
+                            ("title".to_owned(), json!("two")),
+                            ("status".to_owned(), json!("open")),
+                            ("assigneeId".to_owned(), json!("owner")),
+                            ("updatedAt".to_owned(), json!(2)),
+                        ]),
+                    ],
+                )]),
+            }),
+        )
+        .expect("preflight sessions graph pair");
+    let (_, pending) = snapback
+        .commit_auth_provision(prepared, "test")
+        .expect("stage sessions graph pair");
+    assert_eq!(
+        pending.mode_state,
+        crate::auth::mode::AuthModeStatus::PendingRestart
+    );
+    let readiness = AuthProgramReadiness::new(true, true, true, true, true, true, true);
+    let settled = snapback
+        .auth_database_mut()
+        .consume_sessions_auth_mode_with_functions(&readiness, &functions)
+        .expect("consume sessions graph pair");
+    snapback
+        .synchronize_auth_mode_admission(&settled)
+        .expect("publish sessions graph admission");
+    let diagnostics =
+        snapback.publish_preflighted_functions(functions, 42, DiagnosticBoundary::Attached);
+    assert!(
+        diagnostics.iter().all(|diagnostic| !matches!(
+            diagnostic.severity,
+            DiagnosticSeverity::Error | DiagnosticSeverity::Fatal
+        )),
+        "sessions graph functions publish: {diagnostics:?}"
+    );
+    snapback
+}
+
+fn graph_serving_live_input(connection_id: &str) -> LiveSubscribeInput {
+    LiveSubscribeInput {
+        connection_id: connection_id.to_owned(),
+        input: HandlerInput {
+            args: json!({
+                crate::graph_evaluator::GRAPH_SERVING_DEMAND_ARG: {
+                    "format":"snapback.graph-serving-demand.v1",
+                    "windows":[{
+                        "nodeId":"n0",
+                        "intervals":[{
+                            "parentKey":null,
+                            "window":{
+                                "order":[{"field":"updatedAt","direction":"Desc"}],
+                                "direction":"forward",
+                                "lower":{"kind":"unbounded"},
+                                "upper":{"kind":"unbounded"},
+                                "take":2
+                            }
+                        }]
+                    }],
+                    "advancedNodeId":"n0",
+                    "priorWindowLedgers":[]
+                }
+            }),
+            ..HandlerInput::default()
+        },
+        authorization_namespace: None,
+        supersedes: None,
+        resume_from_token: None,
+    }
+}
+
+#[test]
+fn graph_serving_kill_switch_is_exactly_one() {
+    const CHILD_MARKER: &str = "SNAPBACK_TEST_GRAPH_EXEC_DISABLED_CHILD";
+    assert!(super::graph_execution_disabled(Some("1")));
+    for value in [None, Some("0"), Some("true"), Some("yes")] {
+        assert!(!super::graph_execution_disabled(value));
+    }
+    if std::env::var(CHILD_MARKER).as_deref() != Ok("1") {
+        let output = std::process::Command::new(
+            std::env::current_exe().expect("resolve the graph test binary"),
+        )
+        .args([
+            "--exact",
+            "local::engine::tests::engine::graph_serving_kill_switch_is_exactly_one",
+            "--nocapture",
+            "--test-threads=1",
+        ])
+        .env(CHILD_MARKER, "1")
+        .env("SNAPBACK_GRAPH_EXEC_DISABLED", "1")
+        .output()
+        .expect("run isolated graph kill-switch child");
+        assert!(
+            output.status.success(),
+            "graph kill-switch child failed:\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr),
+        );
+        return;
+    }
+
+    let mut snapback = graph_serving_fixture();
+    let error = snapback
+        .invoke_query("graphIssues", graph_serving_live_input("disabled").input)
+        .expect_err("the kill switch refuses before graph evaluation");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_GRAPH_EXEC_DISABLED");
+}
+
+#[test]
+fn graph_subscription_serves_through_registration_matcher_scheduler_and_replace() {
+    let conservative = LocalSnapback::memory().expect("conservative capability fixture");
+    assert!(
+        !conservative
+            .current_capability_manifest()
+            .supported_capabilities
+            .contains(&crate::manifest::TargetCapabilityId::GraphQueryV1)
+    );
+
+    let mut snapback = graph_serving_fixture();
+    assert!(
+        snapback
+            .current_capability_manifest()
+            .supported_capabilities
+            .contains(&crate::manifest::TargetCapabilityId::GraphQueryV1)
+    );
+    install_live_memo_scheduler(&mut snapback);
+    let established = snapback
+        .subscribe_live("graphIssues", graph_serving_live_input("graph-serving"))
+        .expect("admitted graph subscription evaluates and registers");
+    assert_eq!(
+        established.snapshot.as_ref().unwrap().rows,
+        vec![json!({"title":"two"}), json!({"title":"one"})]
+    );
+    let first_observation = snapback
+        .graph_serving_observation_for_test(&established.subscription_id)
+        .expect("served subscription retains structural work");
+    assert_eq!(
+        first_observation["structuralWork"]["rootRowsByNode"][0],
+        json!({"nodeId":"n0","observed":2})
+    );
+
+    snapback
+        .invoke_mutation(
+            "insertIssue",
+            HandlerInput {
+                args: json!({"title":"three","updatedAt":3}),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("graph-intersecting write commits");
+    assert!(snapback.flush_pending_live_fanout());
+    let frames = snapback
+        .drain_live_stream("graph-serving")
+        .into_iter()
+        .map(|frame| serde_json::from_str::<Value>(&frame).unwrap())
+        .collect::<Vec<_>>();
+    assert!(frames.iter().any(|frame| {
+        frame["kind"] == "live_replace"
+            && frame["rows"] == json!([{"title":"three"},{"title":"two"}])
+    }));
+    let node = snapback
+        .live_matcher_stats
+        .graph_nodes
+        .iter()
+        .find(|node| node.node_kind == crate::manifest::GraphNodeKindV1::RootWindow)
+        .expect("root matcher ledger");
+    assert_eq!(node.matches, 1);
+    assert_eq!(node.conservative_fallbacks, 0);
+    let refreshed = snapback
+        .graph_serving_observation_for_test(&established.subscription_id)
+        .expect("replacement refreshes attested graph registration");
+    assert_eq!(
+        refreshed["structuralWork"]["examinedEntriesByNode"][0],
+        json!({"nodeId":"n0","observed":3})
+    );
+}
+
+fn run_graph_scheduler_authority_case(case_kind: &str, mixed: bool) {
+    let corpus: Value = serde_json::from_str(include_str!(
+        "../../../../../tests/conformance/graph/corpus.v1.json"
+    ))
+    .expect("G2-C graph corpus");
+    let corpus_case_kind = if mixed {
+        "mixedCommit"
+    } else {
+        "authorityTransition"
+    };
+    let corpus_case = corpus["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| case["caseKind"] == corpus_case_kind)
+        .expect("scheduler case moved into the executable corpus");
+    assert_eq!(
+        corpus_case["commit"]["dataChanges"]
+            .as_array()
+            .unwrap()
+            .is_empty(),
+        !mixed,
+    );
+    assert_eq!(corpus_case["observed"][0]["kind"], "fence");
+    assert_eq!(corpus_case["observed"][1]["kind"], "delivery");
+
+    let mut snapback = graph_serving_sessions_fixture();
+    install_live_memo_scheduler(&mut snapback);
+    let connection = install_test_invalidation(&mut snapback);
+    let connection_id = format!("graph-{case_kind}");
+    let mut input = graph_serving_live_input(&connection_id);
+    input.authorization_namespace =
+        Some(test_authorization_namespace(if mixed { 812 } else { 811 }));
+    let established = snapback
+        .subscribe_live_with_invalidation(
+            "graphIssues",
+            input,
+            LiveInvalidationAdmission {
+                session_mode: true,
+                connection: Some(connection),
+                effect_fence: None,
+            },
+        )
+        .expect("establish auth-scoped served graph");
+    assert!(established.authorization_scope.is_some());
+    assert!(snapback.drain_live_stream(&connection_id).is_empty());
+
+    let before_fences = snapback.live_authority_stats.fences_applied;
+    let mutation = if mixed {
+        "graphMixedCommit"
+    } else {
+        "graphAuthorityTransition"
+    };
+    invoke_test_session_mutation(
+        &mut snapback,
+        mutation,
+        HandlerInput {
+            args: if mixed {
+                json!({"title":"three","updatedAt":3,"generation":1})
+            } else {
+                json!({"generation":1})
+            },
+            ..HandlerInput::default()
+        },
+    )
+    .expect("commit the scheduler corpus transition");
+
+    assert_eq!(
+        snapback.live_authority_stats.fences_applied - before_fences,
+        1,
+        "the authority lane fences the served graph synchronously"
+    );
+    assert!(
+        snapback.flush_pending_live_fanout(),
+        "the fenced restoration runs through the existing scheduler"
+    );
+    let mut frame_strings = snapback.drain_live_stream(&connection_id);
+    frame_strings.extend(project_authorization_frames_through_test_sink(
+        &mut snapback,
+        &connection_id,
+        &test_session_admission(),
+    ));
+    let frames = frame_strings
+        .into_iter()
+        .map(|frame| serde_json::from_str::<Value>(&frame).expect("scheduler frame JSON"))
+        .collect::<Vec<_>>();
+    let diagnostics = snapback
+        .inspect_core()
+        .expect("inspect authority-case diagnostics")
+        .recent_diagnostics;
+    let fence = frames
+        .iter()
+        .position(|frame| {
+            frame["kind"] == "authorization_invalidation" && frame.get("snapshot").is_none()
+        })
+        .expect("inline authorization fence frame");
+    let delivery = frames
+        .iter()
+        .enumerate()
+        .skip(fence + 1)
+        .find(|(_, frame)| {
+            frame["kind"] == "authorization_invalidation" && frame.get("snapshot").is_some()
+        })
+        .map(|(index, _)| index)
+        .unwrap_or_else(|| {
+            panic!(
+                "one post-fence restoration delivery: frames={frames:#?} diagnostics={diagnostics:#?}"
+            )
+        });
+    assert!(fence < delivery, "fence must precede graph delivery");
+    assert_eq!(
+        corpus_case["observed"][0]["ordinal"].as_u64(),
+        Some(fence as u64)
+    );
+    assert_eq!(
+        corpus_case["observed"][1]["ordinal"].as_u64(),
+        Some(delivery as u64)
+    );
+    assert_eq!(
+        frames
+            .iter()
+            .filter(|frame| frame.get("snapshot").is_some())
+            .count(),
+        1,
+        "one fenced post-commit graph delivery"
+    );
+    let delivered_rows = frames[delivery]["snapshot"]["rows"]
+        .as_array()
+        .expect("replacement rows");
+    assert_eq!(delivered_rows.len(), 2);
+    if mixed {
+        assert_eq!(delivered_rows[0], json!({"title":"three"}));
+    }
+}
+
+// @ref LLP 0200#24-the-authorization-lane-splits-in-two--by-declared-classification
+// — the executable G2 authority-only case observes the fence before the
+// served graph's scheduler restoration.
+#[test]
+fn graph_scheduler_case_authority_transition_fences_before_delivery() {
+    run_graph_scheduler_authority_case("authority-transition", false);
+}
+
+// @ref LLP 0200#24-the-authorization-lane-splits-in-two--by-declared-classification
+// — one commit containing graph data and authority state still produces one
+// fenced post-commit graph restoration.
+#[test]
+fn graph_scheduler_case_mixed_commit_has_one_fenced_delivery() {
+    run_graph_scheduler_authority_case("mixed-commit", true);
 }
 
 #[test]
@@ -2592,6 +3112,7 @@ fn live_evaluation_memo_estimator_matches_serialized_lengths() {
             result_count: Some(1),
             boundary: Some(json!({ "after": "row-0" })),
         }],
+        graph_serving: None,
     };
     let serialized_bytes = serde_json::to_vec(&invocation.output)
         .expect("representative query output serializes")
@@ -20271,6 +20792,7 @@ fn snapshot_batch_v2_all_relational_executor_uses_one_sbsb2_cursor() {
                 keyring: &snapback.resume_keyring,
                 schema_hash: None,
                 function_bundle_hash: None,
+                function_inputs_hash: None,
                 function_publication_generation: 0,
                 target_profile: Some(crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX),
             }),
@@ -24574,6 +25096,7 @@ fn membership_keyset_binding_components_change_and_owned_digest_is_stable() {
         keyring: &keyring,
         schema_hash: Some("schema-a"),
         function_bundle_hash: Some("bundle-a"),
+        function_inputs_hash: Some("inputs-a"),
         function_publication_generation: 7,
         target_profile: Some("local-dev-sqlite-ibex"),
     };
