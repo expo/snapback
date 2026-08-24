@@ -2631,7 +2631,124 @@ pub struct OAuthConsentRowsForTest {
 }
 
 #[cfg(any(test, feature = "test-support"))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OAuthApprovalGrantRowForTest {
+    pub grant_id: String,
+    pub actor_user_id: String,
+    pub effective_user_id: String,
+    pub scopes: String,
+    pub created_at_ms: i64,
+    pub expires_at_ms: i64,
+    pub revoked_at_ms: Option<i64>,
+    pub created_by: String,
+    pub request_id: String,
+    pub consent_digest: Vec<u8>,
+    pub last_used_at_ms: i64,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OAuthApprovalPairingRequestRowForTest {
+    pub request_id: String,
+    pub code_hash: Vec<u8>,
+    pub minted_by_user_id: String,
+    pub agent_user_id: String,
+    pub requested_scopes: String,
+    pub state: String,
+    pub attempts: i64,
+    pub created_at_ms: i64,
+    pub expires_at_ms: i64,
+    pub consumed_at_ms: i64,
+    pub grant_id: Option<String>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OAuthApprovalAuthorizationRowForTest {
+    pub request_id: String,
+    pub client_id: String,
+    pub principal_user_id: String,
+    pub consenting_user_id: String,
+    pub redirect_uri: String,
+    pub code_challenge: String,
+    pub bundle_names_json: String,
+    pub oauth_state: Option<String>,
+    pub status: String,
+    pub code_hash: Option<Vec<u8>>,
+    pub grant_id: Option<String>,
+    pub created_at_ms: i64,
+    pub expires_at_ms: i64,
+    pub code_expires_at_ms: Option<i64>,
+    pub consumed_at_ms: Option<i64>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OAuthApprovalPrincipalRowForTest {
+    pub user_id: String,
+    pub kind: String,
+    pub display_name: Option<String>,
+    pub registration_provenance: Option<String>,
+    pub owner_user_id: Option<String>,
+    pub deactivated_at_ms: Option<i64>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OAuthApprovalRowsForTest {
+    pub grants: Vec<OAuthApprovalGrantRowForTest>,
+    pub pairing_requests: Vec<OAuthApprovalPairingRequestRowForTest>,
+    pub authorizations: Vec<OAuthApprovalAuthorizationRowForTest>,
+    pub principals: Vec<OAuthApprovalPrincipalRowForTest>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
 impl LocalDatabase {
+    #[doc(hidden)]
+    pub fn seed_oauth_approval_anchor_for_test(
+        &mut self,
+        grant_id: &str,
+        request_id: &str,
+        principal_user_id: &str,
+        effective_user_id: &str,
+        session_id: &str,
+        approved_at_ms: u64,
+        digest_tag: u8,
+    ) -> SnapbackResult<()> {
+        let expires_at_ms = approved_at_ms
+            .checked_add(super::auth_grants::DELEGATED_GRANT_DEFAULT_TTL_MS)
+            .ok_or_else(oauth_state_corrupt)?;
+        self.with_auth_transaction(|tx| {
+            tx.execute(
+                "INSERT INTO _auth_grants(
+                   id, actor_user_id, effective_user_id, scopes, created_at_ms,
+                   expires_at_ms, revoked_at_ms, created_by, request_id,
+                   consent_digest, last_used_at_ms
+                 ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, NULL, ?7, ?8, ?9, ?5)",
+                params![
+                    grant_id,
+                    principal_user_id,
+                    effective_user_id,
+                    r#"[{"fn":"fn:oauthQuery","kind":"query","basis":0,"authorityCreating":false}]"#,
+                    approved_at_ms as i64,
+                    expires_at_ms as i64,
+                    format!("session:{session_id}"),
+                    request_id,
+                    vec![digest_tag; 32],
+                ],
+            )?;
+            let changed = tx.execute(
+                "UPDATE _auth_pairing_requests SET state = 'approved', grant_id = ?1
+                 WHERE id = ?2 AND state = 'pending' AND grant_id IS NULL",
+                params![grant_id, request_id],
+            )?;
+            if changed != 1 {
+                return Err(oauth_state_corrupt());
+            }
+            Ok(())
+        })
+    }
+
     pub fn oauth_consent_rows_for_test(&self) -> SnapbackResult<OAuthConsentRowsForTest> {
         let grants = {
             let mut statement = self.conn.prepare(
@@ -2700,6 +2817,132 @@ impl LocalDatabase {
             grants,
             pairing_requests,
             authorizations,
+        })
+    }
+
+    /// Complete durable projection for the OAuth approval ownership proof.
+    /// Every column read or written by `approve_grant_request` is present, and
+    /// the untouched OAuth child is projected in full so before/after equality
+    /// cannot conceal a neighbouring-column write.
+    pub fn oauth_approval_rows_for_test(&self) -> SnapbackResult<OAuthApprovalRowsForTest> {
+        let grants = {
+            let mut statement = self.conn.prepare(
+                "SELECT id, actor_user_id, effective_user_id, scopes,
+                        created_at_ms, expires_at_ms, revoked_at_ms, created_by,
+                        request_id, consent_digest, last_used_at_ms
+                 FROM _auth_grants
+                 WHERE request_id IN (
+                   SELECT request_id FROM _snapback_oauth_authorizations
+                 )
+                 ORDER BY request_id, id",
+            )?;
+            statement
+                .query_map([], |row| {
+                    Ok(OAuthApprovalGrantRowForTest {
+                        grant_id: row.get(0)?,
+                        actor_user_id: row.get(1)?,
+                        effective_user_id: row.get(2)?,
+                        scopes: row.get(3)?,
+                        created_at_ms: row.get(4)?,
+                        expires_at_ms: row.get(5)?,
+                        revoked_at_ms: row.get(6)?,
+                        created_by: row.get(7)?,
+                        request_id: row.get(8)?,
+                        consent_digest: row.get(9)?,
+                        last_used_at_ms: row.get(10)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?
+        };
+        let pairing_requests = {
+            let mut statement = self.conn.prepare(
+                "SELECT id, code_hash, minted_by_user_id, agent_user_id,
+                        requested_scopes, state, attempts, created_at_ms,
+                        expires_at_ms, consumed_at_ms, grant_id
+                 FROM _auth_pairing_requests
+                 WHERE id IN (
+                   SELECT request_id FROM _snapback_oauth_authorizations
+                 )
+                 ORDER BY id",
+            )?;
+            statement
+                .query_map([], |row| {
+                    Ok(OAuthApprovalPairingRequestRowForTest {
+                        request_id: row.get(0)?,
+                        code_hash: row.get(1)?,
+                        minted_by_user_id: row.get(2)?,
+                        agent_user_id: row.get(3)?,
+                        requested_scopes: row.get(4)?,
+                        state: row.get(5)?,
+                        attempts: row.get(6)?,
+                        created_at_ms: row.get(7)?,
+                        expires_at_ms: row.get(8)?,
+                        consumed_at_ms: row.get(9)?,
+                        grant_id: row.get(10)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?
+        };
+        let authorizations = {
+            let mut statement = self.conn.prepare(
+                "SELECT request_id, client_id, principal_user_id,
+                        consenting_user_id, redirect_uri, code_challenge,
+                        bundle_names_json, oauth_state, status, code_hash,
+                        grant_id, created_at_ms, expires_at_ms,
+                        code_expires_at_ms, consumed_at_ms
+                 FROM _snapback_oauth_authorizations
+                 ORDER BY request_id",
+            )?;
+            statement
+                .query_map([], |row| {
+                    Ok(OAuthApprovalAuthorizationRowForTest {
+                        request_id: row.get(0)?,
+                        client_id: row.get(1)?,
+                        principal_user_id: row.get(2)?,
+                        consenting_user_id: row.get(3)?,
+                        redirect_uri: row.get(4)?,
+                        code_challenge: row.get(5)?,
+                        bundle_names_json: row.get(6)?,
+                        oauth_state: row.get(7)?,
+                        status: row.get(8)?,
+                        code_hash: row.get(9)?,
+                        grant_id: row.get(10)?,
+                        created_at_ms: row.get(11)?,
+                        expires_at_ms: row.get(12)?,
+                        code_expires_at_ms: row.get(13)?,
+                        consumed_at_ms: row.get(14)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?
+        };
+        let principals = {
+            let mut statement = self.conn.prepare(
+                "SELECT id, kind, display_name, registration_provenance,
+                        owner_user_id, deactivated_at_ms
+                 FROM _auth_users
+                 WHERE id IN (
+                   SELECT principal_user_id FROM _snapback_oauth_authorizations
+                 )
+                 ORDER BY id",
+            )?;
+            statement
+                .query_map([], |row| {
+                    Ok(OAuthApprovalPrincipalRowForTest {
+                        user_id: row.get(0)?,
+                        kind: row.get(1)?,
+                        display_name: row.get(2)?,
+                        registration_provenance: row.get(3)?,
+                        owner_user_id: row.get(4)?,
+                        deactivated_at_ms: row.get(5)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?
+        };
+        Ok(OAuthApprovalRowsForTest {
+            grants,
+            pairing_requests,
+            authorizations,
+            principals,
         })
     }
 }
