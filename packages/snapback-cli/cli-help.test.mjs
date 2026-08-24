@@ -31,9 +31,17 @@ for (const line of runCliSource.split('\n').filter((candidate) => candidate.star
     if (!['--help', '-h', 'help', '--version', '-V'].includes(match[1])) dispatched.add(match[1]);
   }
 }
+// A command may be package-owned outright, or natively owned with a few
+// package-owned verbs (`snapback auth enable|configure|status`). Either way the
+// dispatch branch must be named by composed help — as a command, or as the root
+// of a registered subcommand path.
+const composedHelpRoots = new Set([
+  ...PACKAGED_CLI_COMMANDS.map(({ name }) => name),
+  ...PACKAGED_CLI_SUBCOMMANDS.map(({ path }) => path[0]),
+]);
 assert.deepEqual(
   [...dispatched].sort(),
-  PACKAGED_CLI_COMMANDS.map(({ name }) => name).sort(),
+  [...composedHelpRoots].sort(),
   'composed help registry must equal the mechanically derived package dispatch set',
 );
 assert.equal(

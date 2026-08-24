@@ -93,6 +93,7 @@ import {
   verifyRuntimeReadinessReceipt,
   verifyRuntimePackageSeal,
 } from './runtime-readiness.mjs';
+import { maskInitSourceCommentsAndStrings } from './source-mask.mjs';
 import { createSupervisedBindingPublisher } from './expo-binding-refresh.mjs';
 import {
   loadComparatorProfile,
@@ -2582,55 +2583,6 @@ function plannedInitTypecheck(root, detected, configs) {
   };
 }
 
-function maskInitSourceCommentsAndStrings(source, maskStrings = true) {
-  let output = '';
-  let state = 'code';
-  let quote = null;
-  let escaped = false;
-  for (let index = 0; index < source.length; index += 1) {
-    const character = source[index];
-    const next = source[index + 1];
-    if (state === 'line-comment') {
-      if (character === '\n' || character === '\r') {
-        state = 'code';
-        output += character;
-      } else output += ' ';
-      continue;
-    }
-    if (state === 'block-comment') {
-      if (character === '*' && next === '/') {
-        output += '  ';
-        index += 1;
-        state = 'code';
-      } else output += character === '\n' || character === '\r' ? character : ' ';
-      continue;
-    }
-    if (state === 'string') {
-      output += !maskStrings || character === '\n' || character === '\r' ? character : ' ';
-      if (escaped) escaped = false;
-      else if (character === '\\') escaped = true;
-      else if (character === quote) {
-        state = 'code';
-        quote = null;
-      }
-      continue;
-    }
-    if (character === '/' && next === '/') {
-      output += '  ';
-      index += 1;
-      state = 'line-comment';
-    } else if (character === '/' && next === '*') {
-      output += '  ';
-      index += 1;
-      state = 'block-comment';
-    } else if (character === "'" || character === '"' || character === '`') {
-      output += maskStrings ? ' ' : character;
-      state = 'string';
-      quote = character;
-    } else output += character;
-  }
-  return output;
-}
 
 function initImportBindings(source) {
   const bindings = new Set();
@@ -6597,6 +6549,31 @@ function takeBooleanFlag(args, name) {
 function printResult(result, json) {
   if (json) console.log(JSON.stringify(result, null, 2));
   else if (result.ok === undefined) console.log(JSON.stringify(result, null, 2));
+  else if (result.ok !== false && result.schemaVersion === 'snapback.auth-status.v1') {
+    for (const provider of result.providers) {
+      console.log(`${provider.provider}: ${provider.resolvedAdapter} (${provider.identityRealm}, ${provider.readiness})`);
+      if (provider.nextAction !== null) console.log(`  Next: ${provider.nextAction}`);
+    }
+    if (result.providers.length === 0) console.log('No provider is declared. Run snapback auth enable apple google.');
+    for (const nonclaim of result.nonclaims) console.log(`Note: ${nonclaim}`);
+  }
+  else if (result.ok !== false && result.schemaVersion === 'snapback.auth-enable.v1') {
+    console.log(`Enabled ${result.providers.join(' and ')} in ${result.declaration}.`);
+    for (const command of result.next) console.log(`Next: ${command}`);
+    for (const nonclaim of result.nonclaims) console.log(`Note: ${nonclaim}`);
+  }
+  else if (result.ok !== false && result.schemaVersion === 'snapback.auth-configure.v1') {
+    console.log(`${result.provider}: ${result.walkthrough.console}`);
+    for (const [index, step] of result.walkthrough.steps.entries()) {
+      console.log(`  ${index + 1}. ${step}`);
+    }
+    if (result.operation === 'record') {
+      console.log(`Recorded ${result.recorded.join(', ')} in ${result.configFile}.`);
+      if (result.missing.length > 0) console.log(`Still missing: ${result.missing.join(', ')}`);
+    }
+    for (const command of result.next) console.log(`Next: ${command}`);
+    for (const nonclaim of result.nonclaims ?? []) console.log(`Note: ${nonclaim}`);
+  }
   else if (result.ok !== false && result.schemaVersion === 'snapback.init.v1') {
     console.log(`snapback.init.v1: ${result.state}`);
     console.log(`Install command: ${result.install.command.join(' ')}`);
@@ -6811,7 +6788,60 @@ const HOSTED_LIFECYCLE_HELP_DETAILS = Object.freeze([
 //
 // @ref LLP 0111#closed-request-and-command-registry — hosted lifecycle verb
 // spellings are derived from the exhaustive authority registry.
+const AUTH_SETUP_HELP_SHELL = Object.freeze({
+  lifecycle: 'one-shot',
+  output: 'snapback.auth-enable.v1, snapback.auth-configure.v1, or snapback.auth-status.v1',
+  exits: '0 completed (including a blocked provider readiness report); 1 typed declaration, staleness, or argument refusal',
+  recovery: 'Act on the reported next action; a stale-refused edit is retried after rereading the named file.',
+});
+
+function authSetupCliHelp(path, usage, description, details = []) {
+  return Object.freeze({
+    name: path.join(' '),
+    path: Object.freeze(path),
+    usage,
+    description,
+    ...AUTH_SETUP_HELP_SHELL,
+    details: Object.freeze(details),
+  });
+}
+
 export const PACKAGED_CLI_SUBCOMMANDS = Object.freeze([
+  // @ref LLP 0151#setup-and-status — the provider setup verbs are package-owned
+  // because they edit app source and read generated artifacts. Every other
+  // `snapback auth` verb delegates to the native binary, help included.
+  authSetupCliHelp(
+    ['auth', 'enable'],
+    'snapback auth enable <apple|google>... [--backend-dir <dir>] [--json]',
+    'Declare identity providers in the app auth declaration itself, with a stale-safe edit.',
+    [
+      'The declaration is the source of provider policy, so this edits it rather than writing a side-channel file the declaration would not agree with.',
+      'Enabling a provider also adds the external-session seam its completion path redeems through; a declaration that sets externalSessionEntry to anything but true is refused.',
+      'A hand-written providers block is never reserialized; the refusal names the exact entries to paste.',
+      'Local development without app-owned credentials resolves to the Snapback shared development profile, which issues hermetic rehearsal identities — not Apple or Google logins.',
+    ],
+  ),
+  authSetupCliHelp(
+    ['auth', 'configure'],
+    'snapback auth configure <apple|google> [--<identifier> <value>...] [--app-scheme <scheme>] [--bundle-identifier <id>] [--return-url <url>] [--backend-dir <dir>] [--json]',
+    'Record one provider\'s public identifiers and secret references, and print the console work that cannot be automated.',
+    [
+      'With no identifiers this prints the walkthrough and writes nothing.',
+      'Secret values are never accepted here. Each one comes back as an exact snapback config set --entry <name> --value-stdin command.',
+      'Apple and Google expose no client-registration API, so the console steps are a deterministic walkthrough carrying this app\'s own bundle identifier, scheme, and return URL.',
+      'Recorded configuration is not readiness: the installed client must also carry the matching native integration.',
+    ],
+  ),
+  authSetupCliHelp(
+    ['auth', 'status'],
+    'snapback auth status [--deployment <profile>] [--platform ios|android|web] [--shared-available] [--backend-dir <dir>] [--json]',
+    'Report the requested credential policy, resolved Adapter, configuration readiness, profile generation, and one next action per declared provider.',
+    [
+      'Resolution uses the same first-party resolver the client uses, so status and runtime cannot disagree.',
+      'The CLI never claims native readiness: it cannot observe an installed build, and the installed client reports its own build receipt.',
+      'Secret values never appear in this output.',
+    ],
+  ),
   nestedCliHelp(
     ['author', 'suggest'],
     'snapback author suggest <operation-or-file> <--format patch|--json>',
@@ -6883,7 +6913,12 @@ const PACKAGED_CLI_HELP_BY_NAME = new Map([
 ]);
 
 function resolvePackagedHelpName(command, args = []) {
-  if (!PACKAGED_CLI_COMMAND_BY_NAME.has(command)) return command;
+  // `snapback auth` is native; only three of its verbs are package-owned. Help
+  // therefore resolves per verb, so asking for a native verb's help still
+  // reaches the native binary instead of the packaged group's.
+  const packagedRoot = PACKAGED_CLI_COMMAND_BY_NAME.has(command)
+    || PACKAGED_CLI_SUBCOMMANDS.some((entry) => entry.path[0] === command);
+  if (!packagedRoot) return command;
   let match = command;
   for (const entry of PACKAGED_CLI_SUBCOMMANDS) {
     if (entry.path[0] !== command || entry.path.length === 1) continue;
@@ -6959,6 +6994,16 @@ function printCliHelp(command, { json, options }) {
   if (command !== null) {
     const native = nativeHelp(options, command);
     if (native.text) console.log(native.text);
+    // A natively owned command can still have package-owned verbs (`snapback
+    // auth enable|configure|status`). Native help cannot know about them, so
+    // name them here rather than leaving them undiscoverable.
+    const packagedVerbs = PACKAGED_CLI_SUBCOMMANDS
+      .filter((entry) => entry.path[0] === command && !PACKAGED_CLI_COMMAND_BY_NAME.has(command))
+      .map((entry) => entry.name);
+    if (packagedVerbs.length > 0) {
+      console.log('');
+      console.log(`Package-owned verbs (use --help on one): ${packagedVerbs.join(', ')}`);
+    }
     return native.exitCode;
   }
 
@@ -7487,6 +7532,83 @@ export async function runCli(argv, options = {}) {
     const result = await generateApp(backendDirectory, { targetProfile, check });
     printResult(result, json);
     return result.ok ? 0 : 1;
+  }
+  // @ref LLP 0151#setup-and-status — the provider setup verbs are package-owned
+  // because they edit app source and read generated artifacts. Every other
+  // `snapback auth` verb (export, import, backup, restore, rehearse, password,
+  // recovery) keeps delegating to the native binary untouched.
+  if (command === 'auth' && ['enable', 'configure', 'status'].includes(args[0])) {
+    const subcommand = args.shift();
+    const { runAuthConfigure, runAuthEnable, runAuthStatus, AUTH_SETUP_PROVIDERS } =
+      await import('./auth-setup.mjs');
+    const backendFlag = takeFlag(args, '--backend-dir');
+    if (subcommand === 'enable') {
+      const providers = [];
+      while (args.length > 0 && !args[0].startsWith('--')) providers.push(args.shift());
+      if (args.length > 0) {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          `usage: snapback auth enable <${AUTH_SETUP_PROVIDERS.join('|')}>... [--backend-dir <dir>] [--json]`,
+        );
+      }
+      const result = runAuthEnable({
+        ...(backendFlag === null ? {} : { backendDirectory: backendFlag }),
+        providers,
+        cwd: options.cwd ?? process.cwd(),
+      });
+      printResult(result, json);
+      return 0;
+    }
+    if (subcommand === 'configure') {
+      const provider = args.shift();
+      const identifierNames = [
+        'servicesId', 'teamId', 'keyId', 'bundleIdentifier',
+        'iosClientId', 'androidClientId', 'webClientId',
+      ];
+      const identifiers = {};
+      for (const name of identifierNames) {
+        const value = takeFlag(args, `--${name}`);
+        if (value !== null) identifiers[name] = value;
+      }
+      const appScheme = takeFlag(args, '--app-scheme');
+      const bundleIdentifier = takeFlag(args, '--bundle-identifier') ?? identifiers.bundleIdentifier ?? null;
+      const returnUrl = takeFlag(args, '--return-url');
+      if (args.length > 0) {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          `usage: snapback auth configure <${AUTH_SETUP_PROVIDERS.join('|')}> [--<identifier> <value>...] [--app-scheme <scheme>] [--return-url <url>] [--backend-dir <dir>] [--json]`,
+        );
+      }
+      const result = runAuthConfigure({
+        ...(backendFlag === null ? {} : { backendDirectory: backendFlag }),
+        provider,
+        identifiers,
+        appScheme,
+        bundleIdentifier,
+        returnUrl,
+        cwd: options.cwd ?? process.cwd(),
+      });
+      printResult(result, json);
+      return 0;
+    }
+    const deployment = takeFlag(args, '--deployment') ?? 'development';
+    const platform = takeFlag(args, '--platform') ?? 'ios';
+    const sharedAvailable = takeBooleanFlag(args, '--shared-available');
+    if (args.length > 0) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        'usage: snapback auth status [--deployment <profile>] [--platform ios|android|web] [--shared-available] [--backend-dir <dir>] [--json]',
+      );
+    }
+    const result = runAuthStatus({
+      ...(backendFlag === null ? {} : { backendDirectory: backendFlag }),
+      deployment,
+      platform,
+      sharedAvailable,
+      cwd: options.cwd ?? process.cwd(),
+    });
+    printResult(result, json);
+    return 0;
   }
   if (command === 'hosted') {
     const subcommand = args.shift();

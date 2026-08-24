@@ -1,7 +1,7 @@
 ---
 title: API reference — @expo/snapback-react
 id: reference.api.expo.snapback.react
-order: 850
+order: 852
 audience: agent-first
 capabilities: []
 authorities: [llp/0194-generated-api-reference.rfc.md, guide/reference/lifecycle.json, packages/snapback-react/package.json, packages/snapback-react/index.d.mts]
@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:83441d323196cb49169a1a877e1b1428ddf88c00f7c3
 # @expo/snapback-react
 
 Build-bound public API projection for `@expo/snapback-react`. Canonical registry identity:
-`sha256:cde9880aaa5b2333d2371fa1f7c28885646dae37ef8b5aed404051be0a1d1510`.
+`sha256:65beaf7d972c266eea79cecb444257b26f74954e3a634740ebd7111293b341b9`.
 Runtime parity condition:
 `import` → `packages/snapback-react/index.mjs`.
 

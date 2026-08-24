@@ -1,7 +1,7 @@
 ---
 title: API reference — @expo/snapback-codegen/ctx
 id: reference.api.expo.snapback.codegen.ctx
-order: 861
+order: 863
 audience: agent-first
 capabilities: []
 authorities: [llp/0194-generated-api-reference.rfc.md, guide/reference/lifecycle.json, packages/snapback-codegen/package.json, packages/snapback-codegen/ctx.d.mts]
@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:cb57a18e21995660d8aebfb898812bbc46e8d7662b11
 # @expo/snapback-codegen/ctx
 
 Build-bound public API projection for `@expo/snapback-codegen/ctx`. Canonical registry identity:
-`sha256:cde9880aaa5b2333d2371fa1f7c28885646dae37ef8b5aed404051be0a1d1510`.
+`sha256:65beaf7d972c266eea79cecb444257b26f74954e3a634740ebd7111293b341b9`.
 This package subpath is type-only; runtime export parity is not applicable.
 
 [Compact reference index](./index.md) · [machine-readable registry](./registry.json)

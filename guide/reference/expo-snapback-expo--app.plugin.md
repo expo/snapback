@@ -1,7 +1,7 @@
 ---
 title: API reference — @expo/snapback-expo/app.plugin
 id: reference.api.expo.snapback.expo.app.plugin
-order: 856
+order: 858
 audience: agent-first
 capabilities: []
 authorities: [llp/0194-generated-api-reference.rfc.md, guide/reference/lifecycle.json, packages/snapback-expo/package.json, packages/snapback-expo/config-plugin.d.mts]
@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:7bcc32020cec4783a426623ca783be2fa2111ab908ed
 # @expo/snapback-expo/app.plugin
 
 Build-bound public API projection for `@expo/snapback-expo/app.plugin`. Canonical registry identity:
-`sha256:cde9880aaa5b2333d2371fa1f7c28885646dae37ef8b5aed404051be0a1d1510`.
+`sha256:65beaf7d972c266eea79cecb444257b26f74954e3a634740ebd7111293b341b9`.
 Runtime parity condition:
 `require, default` → `packages/snapback-expo/app.plugin.js`.
 

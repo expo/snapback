@@ -68,6 +68,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'agent-setup.test.mjs',
       'application-auth-fixtures.test.mjs',
       'application-ready.test.mjs',
+      'auth-setup.test.mjs',
       'carrier-kit.test.mjs',
       'cli-help.test.mjs',
       'comparator-profile.test.mjs',
@@ -97,6 +98,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'reference-lookup.test.mjs',
       'scaffold-skill-budget.test.mjs',
       'sessions-dev-loop.test.mjs',
+      'shared-development-auth.test.mjs',
       'visibility-governance-dev-loop.test.mjs',
       'verify.test.mjs',
     ],
@@ -170,6 +172,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'outbox-store.test.mjs',
       'package.test.mjs',
       'password-auth.test.mjs',
+      'provider-entry.test.mjs',
       'push-registry.test.mjs',
       'registration-ledger.test.mjs',
       'reference-kind.test.mjs',
@@ -187,6 +190,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'rqs-store-v3.test.mjs',
       'rqs-store.test.mjs',
       'sender-proof.test.mjs',
+      'shared-development-auth.test.mjs',
       'sender-transport.test.mjs',
       'search.test.mjs',
       'store-policy.test.mjs',
@@ -580,7 +584,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 335,
+  expectedTotal = 339,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1081,6 +1085,10 @@ export function checkPackageTestInventories(options = {}) {
 // and Rust-host admission conformance suite.
 // 332 -> 335 (2026-08-23, LLP 0299): @expo/snapback-cli gains the pure port
 // plan matrix, plain ranged-backend proof, and supervised refusal/allocation proof.
+// 335 -> 339 (2026-08-24, LLP 0151): @expo/snapback-client gains the provider
+// entry resolver/dispatch proof and the shared development client-half proof;
+// @expo/snapback-cli gains the auth setup group proof and the shared
+// development broker-half proof.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');
