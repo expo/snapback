@@ -503,7 +503,7 @@ pub(super) async fn oauth_authorize_post(
             );
         }
     };
-    let (user_id, session_id) = match require_grant_session(&authority) {
+    let (user_id, _) = match require_grant_session(&authority) {
         Ok(session) => session,
         Err(error) => return error.into_response(),
     };
@@ -563,15 +563,11 @@ pub(super) async fn oauth_authorize_post(
         None
     };
     let request_id = form.request_id.clone();
-    let approval_user = user_id.clone();
-    let approval_session = session_id.clone();
     let now_ms = provider.now_ms();
     let approval_authority = authority.clone();
     let approval = with_snapback(&runtime.snapback, move |snapback| {
         snapback.approve_oauth_grant_request(
             &approval_authority,
-            &approval_user,
-            &approval_session,
             &request_id,
             proof_admission.as_ref().map(|proof| proof.proof()),
             now_ms,
@@ -585,7 +581,6 @@ pub(super) async fn oauth_authorize_post(
     let issued = with_snapback(&runtime.snapback, move |snapback| {
         snapback.issue_oauth_authorization_code(
             &authority,
-            &user_id,
             &request_id,
             provider.now_ms(),
             provider.agent_random_source(),
