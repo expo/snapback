@@ -121,6 +121,47 @@ r2 folds all ten MATERIALs (both families) + both high items; recorded in
 the Spec's r2 Revised line. Status Review. **One delta round follows on
 r2** (punch lists per family, same capsule lineage); runs in parallel with
 the implementation wave, which holds only the S1 lane on this Spec.
+
+## Round 3 — 2026-08-24 (0307.000 r2 delta; final for the Spec)
+
+- Target hash: 0307.000 r2 (incl. the r2b obligation edit) sha256
+  `50f09b6271b2dc16d684c5cc7a1bbda7fb3c7c7a266bb2cac605fdd3e9d02af4`.
+- Capsule: same worktree lineage, r2 spec overlaid; still no 0307-family
+  review artifacts inside (they exist only on main/primary now — the
+  capsule predates them and is never refreshed from main).
+- Same families/config as prior rounds; delta-round scope: verify own
+  punch list + review the r1→r2 diff; outside findings only as disposition
+  errors or diff-created MATERIAL contradictions; IN-DELTA vs PRE-EXISTING
+  classification required. Single-target verdict line.
+- Stop rule (author-delegated): final round for the Spec; remaining
+  in-delta fixes fold as a final revision labeled unreviewed if material.
+- grok-4.6 receipt: **NOT READY ×3 MATERIAL, all IN-DELTA** on the r2 WAL
+  text (drain set could acknowledge the crash-ambiguous id; `dead`
+  predicate unsafe on live pid; Acceptance 4 kept the pre-stop-default
+  're-executed action' sentence) + 8 non-blocking; zero PRE-EXISTING
+  MATERIAL; all dispositions otherwise verified. The three MATERIALs and
+  five of the non-blocking items were folded immediately as r3 text (the
+  reviewer supplied the required shapes verbatim); codex receipt pending.
+- codex receipt: **NOT READY ×5 MATERIAL, all IN-DELTA**, zero
+  PRE-EXISTING — three coinciding with grok's set (drain set,
+  refused-terminal skip, Acceptance 4), two new: the byte window is not
+  client-computable (storage meters private settlement fields stripped
+  from the public response — `storage.rs:22745` vs
+  `response_types.rs:267`), and resume lacks a runner/WAL fence. Both
+  folded as r3 (proven-conservative charge or exposed exact charge;
+  exclusive per-WAL lockfile fence).
+
+### Terminal state — LLP 0307.000
+
+The loop for the Spec is **closed** under the author's delegated stop
+rule. Final tally: r1 → 10 MATERIAL (dual), r2 → 8 distinct MATERIAL
+(dual, all IN-DELTA on the r2 rewrite, three coinciding), r3 folds all of
+them with reviewer-supplied shapes and is **unreviewed**. Verdicts bind to
+r2 hash `50f09b62…`; r3 exists beyond it. Status applied by the author's
+delegate outside the skill: **Accepted with disclosure** (recorded in the
+Spec's r3 Revised entry) — the S1 implementation's dual code review is
+explicitly instructed to audit the r3 contract in situ, and any
+incoherence reopens the Spec via dated amendment.
 - Mid-round author input (2026-08-24, real user message): the author
   confirmed all five rulings and narrowed the Track Q probe to the
   ports-fix-relevant slice only. Queued for the r2 revision; the r1 target

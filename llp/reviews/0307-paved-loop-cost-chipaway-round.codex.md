@@ -139,3 +139,27 @@ The exact LLP 0201 checkpoint/action-grammar adapter remains a nonblocking imple
 
 VERDICT 0307: NOT READY
 VERDICT 0307.000: NOT READY
+## Round 3 — 2026-08-24 (0307.000 r2 delta; final for the Spec)
+
+- Same config (ultra verified); target 0307.000 r2 sha256 `50f09b62…`.
+- Verdict: **NOT READY ×5 MATERIAL (all IN-DELTA)** — three overlapping
+  grok's set, two new (client-computable byte charge with
+  storage-vs-response evidence; runner fence). Folded as r3.
+
+### Verbatim body
+
+The r2 dispositions are not all correct.
+
+- **IN-DELTA · MATERIAL — custody/WAL:** D7 ACK-drains every minted, unwatermarked ID, which includes the dispatch-only crash-ambiguous action. ACK removes replay evidence, and the kernel proves a same-ID retry can then execute again ([spec](/private/tmp/claude-501/-Users-ccheever-projects-snapback/2236b7d9-696c-481f-a128-5496fa28e998/scratchpad/sr0307-capsule/llp/0307.000-headless-replay-surface.spec.md:304), [kernel test](/private/tmp/claude-501/-Users-ccheever-projects-snapback/2236b7d9-696c-481f-a128-5496fa28e998/scratchpad/sr0307-capsule/crates/snapback-kernel/src/storage/tests.rs:6195)). ACK eligibility must require a durably written terminal line; ambiguity recovery must happen first. Thus disposition 1 is present but its exactly-once guarantee is defeated by new D7 text.
+
+- **IN-DELTA · MATERIAL — dependent actions:** D7 skips every terminal line, including terminal refusals that carry no `settled` projection. That contradicts stop-on-first-failure and can continue with an incomplete `ctx.settled` map. Resume must halt/re-emit a prior refusal and skip only successfully settled terminals. Disposition 2 is therefore incomplete, although the projection itself and obligation 5 are real.
+
+- **IN-DELTA · MATERIAL — `'none'` semantics:** D7 correctly records opt-in re-execution as duplicate-possible, but Acceptance 4 calls the re-executed action an “at-most-once ambiguity” and does not require the opt-in ([spec](/private/tmp/claude-501/-Users-ccheever-projects-snapback/2236b7d9-696c-481f-a128-5496fa28e998/scratchpad/sr0307-capsule/llp/0307.000-headless-replay-surface.spec.md:419)). Acceptance must separately prove default-stop and explicitly opted-in duplicate-possible behavior. This is a disposition-3 error.
+
+- **IN-DELTA · MATERIAL — byte ceiling:** disposition 4 adds a 2 MiB meter, but the public mutation output exposes no server-retained byte charge. Storage meters the complete logical carrier, including private settlement fields stripped from the public response ([storage accounting](/private/tmp/claude-501/-Users-ccheever-projects-snapback/2236b7d9-696c-481f-a128-5496fa28e998/scratchpad/sr0307-capsule/crates/snapback-kernel/src/storage.rs:22745), [response projection](/private/tmp/claude-501/-Users-ccheever-projects-snapback/2236b7d9-696c-481f-a128-5496fa28e998/scratchpad/sr0307-capsule/crates/snapback-server/src/server/response_types.rs:267)). The spec must bind a proven conservative client-computable charge/window or expose the exact charge; otherwise “respected by construction” is not implementable.
+
+- **IN-DELTA · MATERIAL — detached status:** a stale heartbeat with a still-live PID proves stalled/unknown, not dead. Directing `resume:true` without a runner/receipt fence can create overlapping runners. Missing process identity may synthesize `dead`; live-PID staleness needs a non-dead state or explicit stop/fencing. The closure/module boundary in disposition 5 itself is correctly folded.
+
+Obligation 4 for the LLP 0201 adapter and obligation 5 for action digests are both recorded correctly. No PRE-EXISTING concern is admitted.
+
+VERDICT 0307.000: NOT READY

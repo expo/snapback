@@ -198,3 +198,81 @@ Close the receipt WAL: in-flight line with transport id (and enough result paylo
 
 VERDICT 0307: READY
 VERDICT 0307.000: NOT READY
+
+## Round 3 — 2026-08-24 (0307.000 r2 delta; final for the Spec)
+
+- Same config; target 0307.000 r2 sha256 `50f09b62…` (capsule overlay).
+- Verdict: **NOT READY ×3 MATERIAL (all IN-DELTA)** + 8 non-blocking;
+  zero PRE-EXISTING. Folded as r3 (see the Spec's r3 Revised entry).
+
+### Verbatim body
+
+I'll load the full offloaded prompt and review the r2 text and dispositions from that material only—no shell or process tools.The r2 punch-list folds are mostly present in the text, but the new write-ahead log is not internally sound: as specified, resume ack-drain can drop the crash-ambiguous settlement and undo exactly-once.
+
+## Punch-list check
+
+| Finding | Claimed disposition | In r2? |
+| --- | --- | --- |
+| M1 receipts vs `ctx.settled` | FOLDED (two-line WAL + bounded `settled` projection; D7 rebuilds from file) | **Yes.** D6 terminal `settled`; D7 rebuilds from those projections. |
+| M2 exactly-once needs persist-before-send | FOLDED (dispatch line flushed before send) | **Text is there (D6).** **Not sound** with D7 ack-drain (below). |
+| M3 Acceptance 4 vs `'none'` | FOLDED AND EXTENDED (digest scoped to minted; `'none'` stops by default) | **D7 stop/opt-in is real. Acceptance 4 is not:** it still treats `'none'` resume as re-executing one action. |
+| M4 per-action custody | FOLDED (dispatch-line custody; upgraded steps resume as minted) | **Yes.** |
+| M5 cross-run retention | FOLDED (ack watermarks + drain + 5b) | **Text is there.** **Drain set is wrong** (below). |
+| SIGKILL status | FOLDED (`dead` from missing pid / stale heartbeat) | **Text is there.** **Predicate is unsafe** (below). |
+| One-shot iterable vs resume | FOLDED (re-readable source or named refuse) | **Yes.** |
+
+Other-family folds are present: D2 0600 session-custody beside receipts; count- and byte-aware ack window (256 / 2 MiB vs 1,024 / 8 MiB); D8 serializable detach boundary; OQ4 (0201 adapter) and OQ5 (args digest) as non-blocking obligations.
+
+## MATERIAL concerns (all IN-DELTA)
+
+### 1. Resume ack-drain can acknowledge the crash-ambiguous id (re-breaks M2 / unsound M5)
+
+D6 persist-before-send plus D7 re-send of the recorded `transportId` is the exactly-once path: the server must still hold that settlement.
+
+D7 then says that on `resume: true` the runner acknowledges **minted transport ids in the receipts that are not on an ack watermark**, in batches, **before dispatching new work**. Those ids live on **dispatch** lines. The crash-ambiguous action is defined as dispatch-without-terminal, so its `transportId` is unwatermarked.
+
+In-run acks are restricted to “outstanding **settled** ids” (the in-flight action is excluded). Cross-run drain is not. Order on a SIGKILL after send and before terminal:
+
+1. Drain acks `T` → server drops the retained result.
+2. Re-send `T` → lookup miss → **second execution**.
+
+That is a defective drain set, not an implementation detail. The load-bearing exactly-once claim (D3, D7, Acceptance 4) does not hold with D7 as written. The M5 fold is in the document and is internally inconsistent with M2.
+
+The same WAL also never states the other durability orders it now depends on: **terminal line flushed before the next dispatch line** (r1 required flush-before-next-dispatch on the single receipt line; r2 dropped it; without it, “at most one” dispatch-without-terminal is false), and **server ack success before the ack-watermark append** (D6’s “already dropped” only implies this). Those are secondary to the drain-set bug; fixing drain without persist-terminal-before-next-dispatch still leaves a two-ambiguous-seq crash.
+
+**Required shape (normative, not new closure):** drain only transport ids that already have a **terminal** line; persist that terminal before the next dispatch line; persist watermarks only after a successful ack. Do not ack a dispatch-only id until after republish and a terminal line.
+
+### 2. `readReplayStatus` reports `dead` on stale heartbeat while `pid` still lives
+
+D8: synthesize `dead` when recorded `pid` is gone **or** `updatedAt` is staler than the checkpoint cadence; recovery is `resume: true`.
+
+Checkpoint rewrite is not specified as a timer independent of settle-before-next. A long settlement stalls `updatedAt` while the pid is alive. The **or** still reports `dead`. The prescribed recovery starts a second runner on the same receipts WAL — torn JSONL, two dispatch lines, exactly-once gone.
+
+The SIGKILL fold (pid gone / synthesize `dead`) is real. The liveness predicate as written is not a safe decision.
+
+**Required shape:** `pid` alive ⇒ not `dead` (hung/stale is a different state). `dead` is for pid gone (heartbeat only if pid liveness cannot be observed). Do not point recovery at `resume: true` while a runner may still be alive.
+
+### 3. Acceptance 4 still describes `'none'` resume as re-execution (M3 incomplete)
+
+D7: `transportId: null` **stops** on the ambiguous action by default; re-execution needs declared idempotency or `resume: {ambiguous: 'reexecute'}`.
+
+Acceptance 4: a `'none'` resume “proves prefix-skip plus an honestly recorded at-most-once ambiguity **for the one re-executed action**.”
+
+That sentence is false for the default D7 path and does not mention the opt-in it depends on. Digest-equality **is** correctly scoped to minted; the M3 extension did not land in the checkable criterion. An implementer can “pass” Acceptance 4 by auto-re-executing `'none'`, which D7 forbids.
+
+## Non-blocking (altitude / new-closure)
+
+- Terminal example has `seq` but not `intent`; rebuild of `ctx.settled(intent)` is a seq-join to the dispatch line. Implied, not contradictory.
+- D5 still exposes only `acknowledgeEvery: 256`; byte budget is default-only. Fine if not caller-configurable in v1. Ack byte budget must track **server** retained-row bytes (or a conservative bound), not D6 projection size (minted ids). 256 × 65,536 B > 8 MiB; the byte window is what makes D4 “by construction” true.
+- Projection-over-cap after the mutation has already settled: refusing to continue is right; labeling it `outcome: "refused"` is a later-action resume hazard if skip-all-terminals continues past it. Implementation: stop the run; do not treat a committed mutation as skipped work.
+- Resume skips **every** terminal seq, including `refused`. That is “never retry” but also “continue past a failed run.” Tighten so a refused terminal stays a failed run.
+- D7 re-attach is only the D2 session file. `bearerFor` callers with a stable-bearer obligation have no stated attach path.
+- CLI `--resume` cannot express `resume: {ambiguous: 'reexecute'}`. Safe default; no extra flag required for v1.
+- Acceptance 5b is count-ceiling-only; D4 already covers bytes.
+- OQ4 / OQ5 stay non-blocking.
+
+No PRE-EXISTING MATERIAL in scope. No new-closure demand is blocking.
+
+The WAL drain set and the D8 `dead` predicate are enough to keep this off READY: both are new text, and both falsify the exactly-once / crash-recovery story the punch list claims to have folded.
+
+VERDICT 0307.000: NOT READY
