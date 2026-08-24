@@ -129,6 +129,18 @@ fn validate_corpus_invocation(
     GraphMaterializationIdentityV1,
     GraphAuthorityPartitionIdentityV1,
 ) {
+    validate_corpus_invocation_with_disposition(carrier, call, function_name, None)
+}
+
+fn validate_corpus_invocation_with_disposition(
+    carrier: &GraphQueryCarrierV1,
+    call: &Value,
+    function_name: &str,
+    window_disposition: Option<&Value>,
+) -> (
+    GraphMaterializationIdentityV1,
+    GraphAuthorityPartitionIdentityV1,
+) {
     assert_eq!(
         call["planHash"].as_str(),
         Some(carrier.plan_hash.as_str()),
@@ -159,15 +171,50 @@ fn validate_corpus_invocation(
             Some((window.node_id.clone(), parents))
         })
         .collect::<BTreeMap<_, _>>();
-    let instance = graph_instance_identity_v1(carrier, &call["args"], windows, &evaluated_parents)
-        .unwrap_or_else(|reason| {
-            panic!("{function_name} invocation instance identity reconstructs: {reason:?}")
+    let instance = graph_instance_identity_v1(
+        carrier,
+        &call["args"],
+        windows.clone(),
+        &evaluated_parents,
+    );
+    let instance_hash = if window_disposition.is_some_and(|row| row["status"] == "BLOCKED") {
+        assert_eq!(
+            window_disposition.unwrap()["expectedB1Refusal"],
+            "SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID",
+        );
+        assert!(
+            matches!(instance, Err(GraphDemandTimeRefusalReasonV1::WindowVectorInvalid)),
+            "the empty-child vector records the current B1 acceptance blocker",
+        );
+        assert!(
+            window_disposition.unwrap()["ticket"]
+                .as_str()
+                .is_some_and(|ticket| ticket.ends_with("graph-empty-child-demand-window-vector.md")),
+        );
+        let preimage = json!({
+            "format":"snapback.graph-instance.v1",
+            "graphPlanHash":carrier.plan_hash,
+            "argsDigest":graph_args_digest_v1(&call["args"]).expect("blocked instance args digest"),
+            "windows":windows,
         });
+        jcs_domain_hash("snapback:graph-instance:v1:", &preimage)
+    } else {
+        if let Some(disposition) = window_disposition {
+            assert_eq!(disposition["status"], "VALIDATED");
+        }
+        instance
+            .unwrap_or_else(|reason| {
+                panic!("{function_name} invocation instance identity reconstructs: {reason:?}")
+            })
+            .instance_hash
+            .as_str()
+            .to_owned()
+    };
     let materialization: GraphMaterializationPreimageV1 =
         serde_json::from_value(call["materialization"].clone())
             .expect("invocation materialization preimage");
     assert_eq!(
-        materialization.graph_instance_hash, instance.instance_hash,
+        materialization.graph_instance_hash.as_str(), instance_hash,
         "materialization binds the rebuilt instance",
     );
     let materialization = graph_materialization_identity_v1(materialization)
@@ -183,6 +230,36 @@ fn validate_corpus_invocation(
         partition_preimage.class3.is_some(),
         "the three corpus graphs all roll up principal-scoped nodes as partition-of-one",
     );
+    assert!(
+        !partition_preimage.class2.is_empty(),
+        "the crew-or-public control policy resolves class-2 inputs",
+    );
+    let declared_class2 = carrier
+        .normalized_plan
+        .authority_partition_rule
+        .class2_inputs
+        .iter()
+        .map(|input| {
+            (
+                input.node_id.as_str(),
+                input.declaration_id.as_str(),
+                input.policy_identity.as_str(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let resolved_class2 = partition_preimage
+        .class2
+        .iter()
+        .map(|input| {
+            assert_ne!(input.scope_identity.as_str(), zero_hash());
+            (
+                input.node_id.as_str(),
+                input.declaration_id.as_str(),
+                input.policy_identity.as_str(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(resolved_class2, declared_class2, "class-2 inputs resolve exactly");
     let partition = graph_authority_partition_identity_v1(partition_preimage)
         .expect("Rust reconstructs the complete authority-partition identity");
     (materialization, partition)
@@ -600,24 +677,39 @@ fn zerobugs_declarations_admit_with_host_identities() {
             case["id"],
         );
         let expected = &case["declaredGraph"]["expected"];
-        let expected_bytes = expected["resultBytes"]
-            .as_str()
-            .expect("mapped expected bytes");
-        assert_eq!(
-            expected["digest"].as_str(),
-            Some(byte_hash(expected_bytes).as_str()),
-            "{} mapped expected bytes bind their digest",
-            case["id"],
-        );
-        let expected_rows =
-            serde_json::from_str::<Value>(expected_bytes).expect("mapped expected rows parse");
-        assert_eq!(
-            expected_rows.as_array().map(Vec::len),
-            expected["resultLength"]
-                .as_u64()
-                .map(|value| value as usize),
-        );
-        assert_label_arrays_follow_graph_order(&expected_rows, &physical_by_source);
+        if expected["graphCompleteness"] == "refused" {
+            assert_eq!(expected["kind"], "result");
+            assert_eq!(expected["label"], "refused");
+            assert!(expected["resultBytes"].is_null());
+            assert!(expected["digest"].is_null());
+            assert_eq!(expected["orderedRootIds"], json!([]));
+            assert_eq!(expected["resultLength"], 0);
+            assert_eq!(expected["continuation"], json!([]));
+            assert!(
+                expected["refusalReason"]
+                    .as_str()
+                    .is_some_and(|reason| !reason.is_empty()),
+            );
+        } else {
+            let expected_bytes = expected["resultBytes"]
+                .as_str()
+                .expect("mapped expected bytes");
+            assert_eq!(
+                expected["digest"].as_str(),
+                Some(byte_hash(expected_bytes).as_str()),
+                "{} mapped expected bytes bind their digest",
+                case["id"],
+            );
+            let expected_rows = serde_json::from_str::<Value>(expected_bytes)
+                .expect("mapped expected rows parse");
+            assert_eq!(
+                expected_rows.as_array().map(Vec::len),
+                expected["resultLength"]
+                    .as_u64()
+                    .map(|value| value as usize),
+            );
+            assert_label_arrays_follow_graph_order(&expected_rows, &physical_by_source);
+        }
         assert!(matches!(
             expected["graphCompleteness"].as_str(),
             Some("complete" | "prefix" | "window" | "refused" | "unknown")
@@ -642,6 +734,22 @@ fn zerobugs_declarations_admit_with_host_identities() {
                 case["oracle"]["resumedDigest"].as_str(),
                 Some(byte_hash(resumed_bytes).as_str()),
             );
+            let resumed_rows = case["oracle"]["resumedRowsBytes"]
+                .as_str()
+                .expect("resumption freezes mapped next-page rows");
+            assert_eq!(
+                case["oracle"]["resumedRowsDigest"].as_str(),
+                Some(byte_hash(resumed_rows).as_str()),
+            );
+            let continuation = expected["continuation"]
+                .as_array()
+                .expect("resumed result carries continuation evidence")
+                .first()
+                .expect("one resumed continuation");
+            assert_eq!(continuation["nextPageResultBytes"], resumed_rows);
+            assert_eq!(continuation["nextPageDigest"], case["oracle"]["resumedRowsDigest"]);
+            let rows: Value = serde_json::from_str(resumed_rows).expect("mapped resumed rows parse");
+            assert!(rows.as_array().is_some_and(|rows| !rows.is_empty()));
         }
     }
     let tied = oracle_cases
@@ -676,6 +784,19 @@ fn zerobugs_declarations_admit_with_host_identities() {
     let detail_continuation = &detail_tie["declaredGraph"]["expected"]["continuation"][0];
     assert_eq!(detail_continuation["hasMore"], true);
     assert_eq!(detail_continuation["cursorPresent"], true);
+    assert_eq!(
+        detail_continuation["nextPageResultBytes"],
+        detail_tie["oracle"]["resumedRowsBytes"],
+    );
+    assert!(
+        serde_json::from_str::<Value>(
+            detail_continuation["nextPageResultBytes"].as_str().unwrap()
+        )
+        .unwrap()
+        .as_array()
+        .is_some_and(|rows| !rows.is_empty()),
+        "detail continuation compares a real non-empty resumed page",
+    );
     let cost_bound = oracle_cases
         .iter()
         .find(|case| case["id"] == "issueDetail-comments-cost-bound-refusal")
@@ -684,10 +805,11 @@ fn zerobugs_declarations_admit_with_host_identities() {
         cost_bound["declaredGraph"]["expected"]["graphCompleteness"],
         "refused"
     );
-    assert_eq!(
-        cost_bound["declaredGraph"]["expected"]["continuation"][0]["hasMore"],
-        false
-    );
+    let refusal = &cost_bound["declaredGraph"]["expected"];
+    assert_eq!(refusal["resultBytes"], Value::Null);
+    assert_eq!(refusal["orderedRootIds"], json!([]));
+    assert_eq!(refusal["resultLength"], 0);
+    assert_eq!(refusal["refusalReason"], "SNAPBACK_QUERY_COST_BOUND_EXCEEDED");
     let miss = oracle_cases
         .iter()
         .find(|case| case["id"] == "issueDetail-authoritative-miss")
@@ -867,8 +989,8 @@ fn oracle_field_maps_and_refusals_are_closed() {
 }
 
 /// Six corpus-local present/absent fixture pairs differ only by the named
-/// slice, feed real nodes in all three graph declarations, and cover every
-/// authority class those declarations install.
+/// slice. Every class-2 node is covered by a pair whose absent world changes
+/// an oracle row; the class-3 pairs retain their non-interference check.
 #[test]
 fn paired_worlds() {
     let corpus = graph_corpus();
@@ -893,19 +1015,48 @@ fn paired_worlds() {
     assert_eq!(fixture_pairs.len(), 6);
     let mut covered_classes = BTreeSet::new();
     let mut covered_queries = BTreeSet::new();
+    let mut active_class2_nodes = BTreeSet::new();
     for case in cases {
-        assert_eq!(
-            case["oracleEvidence"]["presentDigest"], case["oracleEvidence"]["absentDigest"],
-            "{} opaque rows must be indistinguishable",
-            case["id"],
-        );
+        match case["expectedRelation"].as_str().expect("paired relation") {
+            "equal" => assert_eq!(
+                case["oracleEvidence"]["presentDigest"],
+                case["oracleEvidence"]["absentDigest"],
+                "{} hidden slice must be observationally absent",
+                case["id"],
+            ),
+            "different" => {
+                assert_ne!(
+                    case["oracleEvidence"]["presentDigest"],
+                    case["oracleEvidence"]["absentDigest"],
+                    "{} absent authority world must flip an oracle row",
+                    case["id"],
+                );
+                assert_ne!(case["expect"]["resultBytes"], case["absentExpect"]["resultBytes"]);
+            }
+            relation => panic!("unexpected paired relation {relation}"),
+        }
         let carrier: GraphQueryCarrierV1 =
             serde_json::from_value(case["plan"].clone()).expect("paired plan");
         let call = &case["invocation"];
         let query = case["query"].as_str().expect("paired query");
         covered_queries.insert(query);
-        validate_corpus_invocation(&carrier, call, query);
+        validate_corpus_invocation_with_disposition(
+            &carrier,
+            call,
+            query,
+            Some(&case["windowVectorDisposition"]),
+        );
+        if case["windowVectorDisposition"]["status"] == "BLOCKED" {
+            let child = call["windows"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|window| window["nodeId"] != carrier.normalized_plan.nodes[0].node_id())
+                .expect("hidden-root detail pair carries its child demand entry");
+            assert_eq!(child["intervals"], json!([]));
+        }
         assert_eq!(case["expect"]["label"], "complete");
+        assert_eq!(case["absentExpect"]["label"], "complete");
         assert_eq!(
             case["expect"]["resultLength"].as_u64().unwrap() as usize,
             case["expect"]["orderedRootIds"].as_array().unwrap().len(),
@@ -916,6 +1067,7 @@ fn paired_worlds() {
             .find(|pair| pair["id"] == case["fixturePairId"])
             .expect("case links one frozen fixture pair");
         assert_eq!(pair["query"], case["query"]);
+        assert_eq!(pair["expectedRelation"], case["expectedRelation"]);
         assert_eq!(pair["coveredNodeIds"], case["coveredNodeIds"]);
         assert_eq!(
             pair["coveredAuthorityClasses"],
@@ -1013,6 +1165,20 @@ fn paired_worlds() {
             .map(|class| class.as_u64().unwrap() as u8)
             .collect::<BTreeSet<_>>();
         assert_eq!(node_classes, recorded_classes);
+        if case["expectedRelation"] == "different" {
+            for node_id in case["coveredNodeIds"].as_array().unwrap() {
+                let node_id = node_id.as_str().unwrap();
+                let node = carrier
+                    .normalized_plan
+                    .nodes
+                    .iter()
+                    .find(|node| node.node_id() == node_id)
+                    .unwrap();
+                if node.authority().declared_class.0 == 2 {
+                    active_class2_nodes.insert(format!("{query}:{node_id}"));
+                }
+            }
+        }
         covered_classes.extend(recorded_classes);
     }
     assert_eq!(
@@ -1030,6 +1196,23 @@ fn paired_worlds() {
                 .map(|node| node.authority().declared_class.0)
         })
         .collect::<BTreeSet<_>>();
+    let declared_class2_nodes = corpus_queries(&corpus)
+        .flat_map(|query| {
+            let query_name = query["query"].as_str().unwrap().to_owned();
+            let carrier: GraphQueryCarrierV1 =
+                serde_json::from_value(query["carrier"].clone()).unwrap();
+            carrier
+                .normalized_plan
+                .nodes
+                .into_iter()
+                .filter(|node| node.authority().declared_class.0 == 2)
+                .map(move |node| format!("{query_name}:{}", node.node_id()))
+        })
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        active_class2_nodes, declared_class2_nodes,
+        "every class-2 node has a paired absent world that flips a row",
+    );
     assert_eq!(
         covered_classes, declared_classes,
         "six pairs cover every declared authority class across the three graphs",
@@ -1255,10 +1438,11 @@ fn completeness_labels() {
         .filter(|case| case["caseKind"] == "pairedWorld")
     {
         let plan: GraphQueryCarrierV1 = serde_json::from_value(case["plan"].clone()).unwrap();
-        let (materialization, partition) = validate_corpus_invocation(
+        let (materialization, partition) = validate_corpus_invocation_with_disposition(
             &plan,
             &case["invocation"],
             case["query"].as_str().expect("paired query"),
+            Some(&case["windowVectorDisposition"]),
         );
         let expected = &case["expect"];
         let nodes = expected["nodeCompleteness"]
@@ -1485,6 +1669,37 @@ fn bounds_are_fixture_derived() {
         "list pages derive from the filtered interval rather than whole-table rows",
     );
 
+    let detail = &bounds["queries"]["issueDetail"];
+    let comments = &detail["derivationTable"]["graph"]["nodes"][2];
+    assert_eq!(comments["nodeId"], "n2");
+    assert_eq!(comments["fields"]["maxWindowPages"]["value"], 1);
+    assert_eq!(comments["fields"]["maxWindowPages"]["provisional"], true);
+    assert!(
+        comments["fields"]["maxWindowPages"]["derivation"]
+            .as_str()
+            .is_some_and(|text| text.contains("21 / declared maxChildrenPerParent 1,024") && text.contains("= 1")),
+    );
+    assert_eq!(
+        comments["fields"]["maxWindowPages"]["validationCommand"],
+        "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs",
+    );
+    assert_eq!(comments["fields"]["maxWindowScannedRows"]["value"], 1_025);
+    assert_eq!(comments["fields"]["maxWindowIndexRanges"]["value"], 1);
+    assert_eq!(comments["fields"]["maxWindowResultRows"]["value"], 1);
+    assert_eq!(comments["fields"]["maxWindowResultBytes"]["value"], 8_388_608);
+    let rollup = &detail["derivationTable"]["graph"]["windowRollup"];
+    for (field, value) in [
+        ("maxWindowPages", 2),
+        ("maxWindowRootRows", 1),
+        ("maxWindowScannedRows", 2_092),
+        ("maxWindowResultRows", 2),
+        ("maxWindowResultBytes", 16_777_216),
+        ("maxWindowIndexRanges", 27),
+    ] {
+        assert_eq!(rollup[field]["value"], value, "detail rollup {field}");
+        assert_eq!(rollup[field]["provisional"], true);
+    }
+
     let spot = &bounds["largeFixtureSpotCheck"];
     let large_fixture = repository_path("demos/zerobugs/fixtures-local/large-seed42-v1");
     if large_fixture.exists() {
@@ -1558,7 +1773,7 @@ fn broadcast_inputs_complete() {
         .collect::<BTreeSet<_>>();
     assert_eq!(
         satisfied,
-        BTreeSet::from(["G0-BCAST-CLASS", "G0-BCAST-IDENTITY"]),
+        BTreeSet::from(["G0-BCAST-IDENTITY"]),
     );
     for entry in input_rows {
         match entry["status"].as_str().unwrap() {

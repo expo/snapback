@@ -1102,9 +1102,22 @@ export function compileGraphQueryV1({ source, argsContract, resultContractHash, 
     for (const nodeId of [...unresolved]) {
       const node = byId.get(nodeId);
       if (node.parentNodeId !== undefined && !classById.has(node.parentNodeId)) continue;
-      const inputs = nodePolicyInputs(node, tables);
+      const localInputs = nodePolicyInputs(node, tables);
+      const inheritedInputs = node.parentNodeId === undefined
+        ? []
+        : (class2PolicyInputsByNode.get(node.parentNodeId) ?? []);
+      const inputs = [...new Map(
+        [...inheritedInputs, ...localInputs].map((input) => [
+          graphCanonicalJson({
+            declarationId: input.declarationId,
+            kind: input.kind,
+            identity: input.identity,
+          }),
+          input,
+        ]),
+      ).values()];
       const derived = Math.max(
-        localAuthorityClass(node, inputs),
+        localAuthorityClass(node, localInputs),
         node.parentNodeId === undefined ? 1 : classById.get(node.parentNodeId),
       );
       if (![1, 2, 3].includes(node.authorityClass) || node.authorityClass < derived

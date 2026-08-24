@@ -1,32 +1,40 @@
 # Child demand vector cannot represent zero evaluated parents
 
-**Status:** Open  
-**Owner:** graph demand identity / LLP 0209  
-**Governing:** LLP 0209 §2.4 and §3.4  
+**Status:** Open
+**Owner:** graph demand identity / LLP 0209 B1
+**Governing:** LLP 0209 §2.4 and §3.4
 **Found:** 2026-08-23, G0 Stage B3
 
-## Problem
+## HEAD evidence
 
-`validate_graph_window_vector_v1` requires every demand-paged node entry to
-have a non-empty `intervals` vector before it distinguishes the root from a
-child. A demand-paged child legitimately has zero evaluated parents when the
-root is missing or invisible. Its exact keyed interval vector is then empty,
-but the current validator returns `SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID`.
+The B3 corpus now contains the real hidden-root detail pair
+`g0-pair-detail-hidden-root-empty-child-demand`. Both worlds evaluate zero
+root rows for the ordinary principal: one contains an invisible internal issue
+and the other omits it. Its comments demand entry therefore has
+`intervals: []`; no parent interval is minted, and the parent key would be the
+physical `issue._id` if a parent were evaluated.
 
-This prevented the B3 hidden-world root-miss case from using the admitted
-`issueDetail` graph, whose comments node is demand-paged. B3 uses the admitted
-point/list graph for that executable proof instead; it does not mint a fake
-parent or interval.
+The remaining blocker is in B1's
+`validate_graph_window_vector_v1`. It rejects every empty `intervals` vector
+before distinguishing root entries from child entries, returning
+`SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID`. The Rust corpus runner records that
+exact refusal as the pair's `windowVectorDisposition`; B3 does not change B1
+types or invent a parent.
 
-## Acceptance
+## Acceptance criterion
 
-- Rule explicitly whether a child demand entry with zero evaluated parents has
-  an empty interval vector or another closed representation.
 - Keep exactly one node-keyed vector entry per demand-paged node.
-- Accept the ruled zero-parent form only when `evaluated_parents[nodeId]` is
-  exactly empty; keep root intervals non-empty and singleton.
-- Add instance-identity rotations for zero parents versus one parent.
-- Add a missing/invisible root paired-world case on a graph with a demand child.
+- Keep a root entry non-empty and singleton with `parentKey: null`.
+- Accept a child entry with `intervals: []` if and only if
+  `evaluated_parents[nodeId]` exists and is exactly empty.
+- Continue to require one canonical interval keyed by the physical parent row
+  key for every evaluated parent; reject missing, extra, duplicate, source-id,
+  or non-canonical parent keys.
+- Add instance-identity rotation evidence for zero parents versus one physical
+  parent.
+- Change the corpus pair's disposition from `BLOCKED` to `VALIDATED`; the same
+  hidden/missing-root detail pair and its empty child vector must then pass
+  ordinary Rust identity reconstruction.
 
 ```sh
 cargo test -p snapback-types graph_instance_identity_v1

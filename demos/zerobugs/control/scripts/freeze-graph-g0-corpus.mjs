@@ -393,6 +393,12 @@ function mapDetailRows(value, labelRows) {
   }];
 }
 
+function mapCommentPageRows(items) {
+  return items.map(row => ({
+    id: row.comment.id, created: row.comment.created, body: row.comment.body,
+  }));
+}
+
 function applyTranslation(entry, status, reason, cursor, rows) {
   assert(Array.isArray(rows), `${entry.oracleRowsField} must resolve to rows`);
   const cursorClass = cursor === null ? 'null' : 'non-null';
@@ -477,15 +483,27 @@ function expectedFromOracle(query, result, map, options = {}) {
     outerStatusReason,
     ...nodeCompleteness.flatMap(entry => entry.rows),
   ];
+  const graphCompleteness = composeLabels(translations);
+  const refusalReasons = [...new Set(translations
+    .map(entry => entry.graphRefusalReason)
+    .filter(reason => reason !== null))];
+  assert(refusalReasons.length <= 1, `${query} has one top-level graph refusal reason`);
+  if (graphCompleteness === 'refused') {
+    assert.equal(refusalReasons.length, 1, `${query} refused result names its reason`);
+    return {
+      basis: 'oracle-mapped-target; admitted structural declaration is not executed at G0',
+      kind: 'result', label: 'refused', graphCompleteness, resultBytes: null, digest: null,
+      orderedRootIds: [], resultLength: 0, nodeCompleteness, outerStatusReason,
+      continuation: [], refusalReason: refusalReasons[0],
+    };
+  }
   const continuation = map.continuation.map(entry => {
     const hasMore = query === 'issueDetail'
       ? envelope.value !== null && envelope.value.commentsCursor !== null
       : envelope.hasMore;
-    const nextRows = options.nextResult
-      ? (query === 'issueDetail'
-          ? mapDetailRows(options.nextResult[0].value, options.labelRows)
-          : mapListRows(options.nextResult[0].items, options.labelRows))
-      : [];
+    const nextRows = options.nextRows ?? (options.nextResult
+      ? mapListRows(options.nextResult[0].items, options.labelRows)
+      : []);
     return {
       graphNodeId: entry.graphNodeId, hasMore,
       cursorPresent: outerCursor !== null,
@@ -497,13 +515,14 @@ function expectedFromOracle(query, result, map, options = {}) {
   const resultBytes = JSON.stringify(rows);
   return {
     basis: 'oracle-mapped-target; admitted structural declaration is not executed at G0',
+    kind: 'result', label: graphCompleteness,
     resultBytes, digest: digestBytes(resultBytes), orderedRootIds,
     resultLength: rows.length, nodeCompleteness, outerStatusReason,
-    graphCompleteness: composeLabels(translations), continuation,
+    graphCompleteness, continuation, refusalReason: null,
   };
 }
 
-function windowVector(carrier, args, direction = 'forward') {
+function windowVector(carrier, direction = 'forward', evaluatedParentKeys = []) {
   return carrier.normalizedPlan.nodes
     .filter(node => node.kind === 'root-window' || (node.kind === 'bounded-to-many' && node.page.kind === 'demand'))
     .map(node => {
@@ -511,18 +530,26 @@ function windowVector(carrier, args, direction = 'forward') {
       const parent = node.kind === 'root-window'
         ? null
         : carrier.normalizedPlan.nodes.find(entry => entry.nodeId === node.parentNodeId);
-      const parentID = String(args.sourceIssueID ?? args.issueID ?? 'g0-corpus-parent-v1');
+      const intervals = node.kind === 'root-window' ? [{
+        parentKey: null,
+        window: {
+          order: node.order, direction,
+          lower: { kind: 'unbounded' }, upper: { kind: 'unbounded' }, take: 1,
+        },
+      }] : evaluatedParentKeys.map(parentKey => {
+        assert.deepEqual(parentKey.table, parent.table, `${node.nodeId} parent key uses the physical parent table`);
+        return {
+          parentKey,
+          window: {
+            order: node.order, direction,
+            lower: { kind: 'unbounded' }, upper: { kind: 'unbounded' },
+            take: cost.maxChildrenPerParent,
+          },
+        };
+      });
       return {
         nodeId: node.nodeId,
-        intervals: [{
-          parentKey: node.kind === 'root-window' ? null : { table: parent.table, id: parentID },
-          window: {
-            order: node.order,
-            direction,
-            lower: { kind: 'unbounded' }, upper: { kind: 'unbounded' },
-            take: node.kind === 'root-window' ? 1 : cost.maxChildrenPerParent,
-          },
-        }],
+        intervals,
       };
     });
 }
@@ -533,8 +560,9 @@ function invocation(
   principal = 'principal_ordinary',
   epoch = 0,
   functionName = 'listIssueByID',
+  evaluatedParentKeys = [],
 ) {
-  const windows = windowVector(carrier, args);
+  const windows = windowVector(carrier, 'forward', evaluatedParentKeys);
   const instancePreimage = {
     format: 'snapback.graph-instance.v1', graphPlanHash: carrier.planHash,
     argsDigest: domainHash('snapback:materialization-args:v1:', args), windows,
@@ -558,7 +586,14 @@ function invocation(
     partition: {
       format: 'snapback.graph-authority-partition.v1',
       graphPlanHash: carrier.planHash,
-      class2: [],
+      class2: carrier.normalizedPlan.authorityPartitionRule.class2Inputs.map(input => ({
+        nodeId: input.nodeId,
+        declarationId: input.declarationId,
+        scopeIdentity: domainHash('snapback:g0-corpus-authority-scope:v1:', {
+          principal, nodeId: input.nodeId, declarationId: input.declarationId, args,
+        }),
+        policyIdentity: input.policyIdentity,
+      })),
       class3: {
         format: 'snapback.authority-partition.v1',
         principalDataScope: {
@@ -863,7 +898,7 @@ function boundDerivation(carriers, measurements, tables) {
       if (field === 'maxChildrenPerParent' && value === 1_024) return provisional('the control refuses the collection at exactly 1,024 comments; normal maximum is 21, while the documented floored-exponential generator has no finite per-issue ceiling and the receipt supplies only the 2,527,886-row absolute ceiling');
       if (field === 'maxArgumentExpansion' && value === 16) return 'maximum selected-label collection length 16 × H=1';
       if (field === 'maxWindowPages' && query === 'issueListV2') return provisional('ceil(max currently obtainable filtered interval max(normal project 516, manifest-defined hot W 1,000) / 1,024) = 1; the large selected-project full interval is not the whole-table 1,000,000-row receipt count and awaits zb5');
-      if (field === 'maxWindowPages' && query === 'issueDetail' && node?.maxRootRowsPerPage === undefined) return 'ceil(declared 1,024-comment refusal threshold / corpus demand take 50) = 21';
+      if (field === 'maxWindowPages' && query === 'issueDetail' && node?.maxRootRowsPerPage === undefined) return provisional('ceil(normal maxCommentsPerIssue 21 / declared maxChildrenPerParent 1,024) = 1; the large seed-42 per-issue maximum remains unverified');
       if (field === 'maxWindowPages') return 'one exhaustive point/root interval at the declared page size';
       if (field === 'maxWindowRootRows') return query === 'issueListV2'
         ? provisional('maxWindowPages × maxRootRowsPerPage for the filtered list interval; child lineage is exactly zero')
@@ -966,6 +1001,8 @@ async function main() {
     assert.equal(typeof handler, 'function', `${name} exposes the control inline-handler harness seam`);
     return [name, handler];
   }));
+  const commentsPageHandler = control.commentsPage?.js?.inlineHandler;
+  assert.equal(typeof commentsPageHandler, 'function', 'commentsPage exposes the control inline-handler continuation seam');
   const fixture = readJson(join(NORMAL_ROOT, 'fixture.json'));
   const tables = loadTables();
   const ordinaryPrincipal = 'principal_ordinary';
@@ -980,6 +1017,8 @@ async function main() {
   assert(listPage[0].cursor, 'normal 50-row list page carries a continuation');
   const listNextArgs = { ...listPageArgs, start: listPage[0].cursor };
   const listNextPage = await handlers.issueListV2(context, listNextArgs);
+  const listNextRows = mapListRows(listNextPage[0].items, tables.label);
+  assert(listNextRows.length > 0, 'list continuation resumes to a non-empty next page');
   const listBackwardArgs = { ...listArgs, dir: 'backward' };
   const listBackward = await handlers.issueListV2(context, listBackwardArgs);
   const commentsByIssue = new Map();
@@ -1037,6 +1076,16 @@ async function main() {
   );
   assert.equal(continuationDetail[0].value.comments.length, 50);
   assert.notEqual(continuationDetail[0].value.commentsCursor, null);
+  const continuationResumeArgs = {
+    issueID: noCommentIssues[0].id, limit: 50,
+    start: continuationDetail[0].value.commentsCursor,
+    dir: 'backward', inclusive: false,
+  };
+  const continuationNextPage = await commentsPageHandler(
+    mockContext(continuationTables, ordinaryPrincipal), continuationResumeArgs,
+  );
+  const continuationNextRows = mapCommentPageRows(continuationNextPage[0].items);
+  assert(continuationNextRows.length > 0, 'detail continuation resumes to a non-empty next page');
   const normalizedComments = normalizeCommentTiesForGraph(
     continuationDetail[0].value, continuationTables.comment,
   );
@@ -1071,6 +1120,8 @@ async function main() {
         resumedInvocation: listNextArgs,
         resumedResultBytes: JSON.stringify(listNextPage),
         resumedDigest: digestBytes(JSON.stringify(listNextPage)),
+        resumedRowsBytes: JSON.stringify(listNextRows),
+        resumedRowsDigest: digestBytes(JSON.stringify(listNextRows)),
       },
       fieldMap: fieldMaps.issueListV2,
       declaredGraph: {
@@ -1104,13 +1155,21 @@ async function main() {
       id: 'issueDetail-comments-window-and-child-tie', query: 'issueDetail',
       fixture: 'g0-oracle-comments-window-v1', invocation: continuationArgs,
       oracleDivergences: [{graphNodeId: commentsNodeId, kind: 'direction-tie-break', equalCreatedGroups: 1}],
-      oracle: {resultBytes: JSON.stringify(continuationDetail), digest: digestBytes(JSON.stringify(continuationDetail))},
+      oracle: {
+        resultBytes: JSON.stringify(continuationDetail), digest: digestBytes(JSON.stringify(continuationDetail)),
+        resumedInvocation: continuationResumeArgs,
+        resumedResultBytes: JSON.stringify(continuationNextPage),
+        resumedDigest: digestBytes(JSON.stringify(continuationNextPage)),
+        resumedRowsBytes: JSON.stringify(continuationNextRows),
+        resumedRowsDigest: digestBytes(JSON.stringify(continuationNextRows)),
+      },
       fieldMap: fieldMaps.issueDetail,
       declaredGraph: {
         planHash: carriers.issueDetail.planHash,
         resultDisposition: 'admitted-fixed-id-structural-shape', fullOracleRows: 'refused',
         expected: expectedFromOracle('issueDetail', continuationDetail, fieldMaps.issueDetail, {
           detailValue: normalizedComments.value, labelRows: tables.label,
+          nextRows: continuationNextRows,
         }),
       },
     },
@@ -1139,19 +1198,16 @@ async function main() {
   ];
   const translationCoverage = oracleTranslationCoverage(fieldMaps, oracleCases);
 
-  const publicIssueIDs = new Set(tables.issue.filter(row => row.visibility === 'public').map(row => row._id));
-  const labelPopulation = tables.label.map(labelRow => ({
-    label: labelRow,
-    count: tables.issueLabelRead.filter(edge => edge.labelID === labelRow._id && publicIssueIDs.has(edge.issueID)).length,
-  })).sort((left, right) => left.count - right.count || left.label._id.localeCompare(right.label._id));
-  const [sparseLabel, secondSparseLabel] = labelPopulation.slice(0, 2).map(row => row.label);
   const internalIssue = tables.issue.find(row => row.id === 'zbav1_internal_issue');
   const internalListRow = tables.issueListRead.find(row => row.sourceIssueID === internalIssue.id);
   const otherUserID = fixture.actorBindings['crew-admin'].userID;
-  const labelEdgeOverlay = labelRow => ({
-    _id: `issueLabelRead_g0_${labelRow._id.slice(-12)}`,
-    projectID: internalIssue.projectID, issueID: internalIssue._id, labelID: labelRow._id,
-  });
+  const crewPrincipal = 'principal_crew';
+  const class2Nodes = Object.fromEntries(Object.entries(carriers).map(([query, carrier]) => [
+    query,
+    carrier.normalizedPlan.nodes
+      .filter(node => node.authority.declaredClass === 2)
+      .map(node => node.nodeId),
+  ]));
   const notificationOverlay = {
     _id: 'issueNotifications_g0_other_principal', userID: otherUserID,
     issueID: publicIssue._id, subscribed: true, created: 2_000_000_000_100,
@@ -1160,41 +1216,56 @@ async function main() {
     _id: 'viewState_g0_other_principal', userID: otherUserID,
     issueID: publicIssue._id, viewed: 2_000_000_000_200,
   };
-  const listPairArgs = labelRow => ({
-    listContext: defaultListContext({labels: [labelRow.id]}),
-    limit: 1_023, start: null, dir: 'forward', inclusive: false,
-  });
   const pairDefinitions = [
     {
-      id: 'g0-pair-list-internal-root', query: 'issueListV2', table: 'issueListRead',
+      id: 'g0-pair-list-crew-visible-internal-root', query: 'issueListV2', table: 'issueListRead',
       presentTables: deepClone(tables),
       absentTables: {...deepClone(tables), issueListRead: tables.issueListRead.filter(row => row._id !== internalListRow._id)},
-      rowIds: [internalListRow._id], handlerArgs: listPairArgs(sparseLabel),
-      graphArgs: {projectID: internalIssue.projectID, selectedLabelIDs: [sparseLabel._id]},
-      coveredNodeIds: ['n0'], channel: 'internal list root filtered by authority before publication',
+      rowIds: [internalListRow._id], handlerArgs: listArgs,
+      graphArgs: {projectID: internalIssue.projectID, selectedLabelIDs: []},
+      principal: crewPrincipal, expectedRelation: 'different',
+      coveredNodeIds: class2Nodes.issueListV2,
+      channel: 'crew-or-public policy makes removal of the internal list root observable',
     },
     {
-      id: 'g0-pair-list-label-edge', query: 'issueListV2', table: 'issueLabelRead',
-      presentTables: {...deepClone(tables), issueLabelRead: [...tables.issueLabelRead, labelEdgeOverlay(sparseLabel)]},
-      absentTables: deepClone(tables), rowIds: [labelEdgeOverlay(sparseLabel)._id],
-      handlerArgs: listPairArgs(sparseLabel),
-      graphArgs: {projectID: internalIssue.projectID, selectedLabelIDs: [sparseLabel._id]},
-      coveredNodeIds: ['n2', 'n3'], channel: 'issue-label child edge under a hidden parent',
+      id: 'g0-pair-detail-crew-visible-row-change', query: 'issueDetail', table: 'issue',
+      presentTables: {
+        ...deepClone(tables),
+        issue: tables.issue.map(row => row._id === internalIssue._id
+          ? {...row, title: `${row.title} [present-world]`}
+          : row),
+      },
+      absentTables: deepClone(tables), rowIds: [internalIssue._id],
+      handlerArgs: {idField: 'id', id: internalIssue.id},
+      graphArgs: {sourceIssueID: internalIssue.id},
+      principal: crewPrincipal, expectedRelation: 'different',
+      evaluatedParentKeys: [{table: 'issue', id: internalIssue._id}],
+      coveredNodeIds: class2Nodes.issueDetail,
+      channel: 'crew-or-public policy makes an internal detail-row change observable',
     },
     {
-      id: 'g0-pair-list-membership-edge', query: 'issueListV2', table: 'issueLabelRead',
-      presentTables: {...deepClone(tables), issueLabelRead: [...tables.issueLabelRead, labelEdgeOverlay(secondSparseLabel)]},
-      absentTables: deepClone(tables), rowIds: [labelEdgeOverlay(secondSparseLabel)._id],
-      handlerArgs: listPairArgs(secondSparseLabel),
-      graphArgs: {projectID: internalIssue.projectID, selectedLabelIDs: [secondSparseLabel._id]},
-      coveredNodeIds: ['n4'], channel: 'selected-label membership row under a hidden parent',
+      id: 'g0-pair-point-crew-visible-internal-root', query: 'listIssueByID', table: 'issueListRead',
+      presentTables: deepClone(tables),
+      absentTables: {...deepClone(tables), issueListRead: tables.issueListRead.filter(row => row._id !== internalListRow._id)},
+      rowIds: [internalListRow._id],
+      handlerArgs: {listContext: defaultListContext(), idField: 'id', idValue: internalIssue.id},
+      graphArgs: {sourceIssueID: internalIssue.id, selectedLabelIDs: []},
+      principal: crewPrincipal, expectedRelation: 'different',
+      coveredNodeIds: class2Nodes.listIssueByID,
+      channel: 'crew-or-public policy makes removal of the internal point root observable',
     },
     {
-      id: 'g0-pair-detail-internal-root', query: 'issueDetail', table: 'issue',
+      id: 'g0-pair-detail-hidden-root-empty-child-demand', query: 'issueDetail', table: 'issue',
       presentTables: deepClone(tables),
       absentTables: {...deepClone(tables), issue: tables.issue.filter(row => row._id !== internalIssue._id)},
       rowIds: [internalIssue._id], handlerArgs: {idField: 'id', id: internalIssue.id},
       graphArgs: {sourceIssueID: internalIssue.id}, coveredNodeIds: ['n0'],
+      principal: ordinaryPrincipal, expectedRelation: 'equal', evaluatedParentKeys: [],
+      windowVectorDisposition: {
+        status: 'BLOCKED',
+        ticket: 'issues/20260823-graph-empty-child-demand-window-vector.md',
+        expectedB1Refusal: 'SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID',
+      },
       channel: 'internal detail root collapsed into the authoritative not-found channel',
     },
     {
@@ -1202,6 +1273,8 @@ async function main() {
       presentTables: {...deepClone(tables), issueNotifications: [...tables.issueNotifications, notificationOverlay]},
       absentTables: deepClone(tables), rowIds: [notificationOverlay._id], handlerArgs: detailArgs,
       graphArgs: {sourceIssueID: publicIssue.id}, coveredNodeIds: ['n6'],
+      principal: ordinaryPrincipal, expectedRelation: 'equal',
+      evaluatedParentKeys: [{table: 'issue', id: publicIssue._id}],
       channel: 'other-principal notification row beside a hydrated issue',
     },
     {
@@ -1209,27 +1282,41 @@ async function main() {
       presentTables: {...deepClone(tables), viewState: [...tables.viewState, viewStateOverlay]},
       absentTables: deepClone(tables), rowIds: [viewStateOverlay._id], handlerArgs: pointArgs,
       graphArgs: {sourceIssueID: publicIssue.id, selectedLabelIDs: []}, coveredNodeIds: ['n5'],
+      principal: ordinaryPrincipal, expectedRelation: 'equal',
       channel: 'other-principal view-state row beside a hydrated point result',
     },
   ];
   const pairedWorlds = [];
   const frozenPairs = [];
   for (const definition of pairDefinitions) {
+    if (definition.principal === crewPrincipal) {
+      installBinding(definition.presentTables, crewPrincipal, fixture.actorBindings['crew-admin']);
+      installBinding(definition.absentTables, crewPrincipal, fixture.actorBindings['crew-admin']);
+    }
     const presentResult = await handlers[definition.query](
-      mockContext(definition.presentTables, ordinaryPrincipal), definition.handlerArgs,
+      mockContext(definition.presentTables, definition.principal), definition.handlerArgs,
     );
     const absentResult = await handlers[definition.query](
-      mockContext(definition.absentTables, ordinaryPrincipal), definition.handlerArgs,
+      mockContext(definition.absentTables, definition.principal), definition.handlerArgs,
     );
-    assert.deepEqual(absentResult, presentResult, `${definition.id} hidden slice is observationally absent`);
-    const mapped = expectedFromOracle(
+    if (definition.expectedRelation === 'equal') {
+      assert.deepEqual(absentResult, presentResult, `${definition.id} hidden slice is observationally absent`);
+    } else {
+      assert.notDeepEqual(absentResult, presentResult, `${definition.id} absent world flips an oracle row`);
+    }
+    const presentMapped = expectedFromOracle(
       definition.query, presentResult, fieldMaps[definition.query], {labelRows: tables.label},
     );
-    assert.equal(mapped.graphCompleteness, 'complete', `${definition.id} paired result is complete`);
-    const call = invocation(
-      carriers[definition.query], definition.graphArgs, ordinaryPrincipal, 0, definition.query,
+    const absentMapped = expectedFromOracle(
+      definition.query, absentResult, fieldMaps[definition.query], {labelRows: tables.label},
     );
-    const input = {query: definition.query, handlerArgs: definition.handlerArgs, graphArgs: definition.graphArgs, principal: ordinaryPrincipal};
+    assert.equal(presentMapped.graphCompleteness, 'complete', `${definition.id} present result is complete`);
+    assert.equal(absentMapped.graphCompleteness, 'complete', `${definition.id} absent result is complete`);
+    const call = invocation(
+      carriers[definition.query], definition.graphArgs, definition.principal, 0,
+      definition.query, definition.evaluatedParentKeys,
+    );
+    const input = {query: definition.query, handlerArgs: definition.handlerArgs, graphArgs: definition.graphArgs, principal: definition.principal};
     const present = frozenWorld(`${definition.id}-present-v1`, definition.presentTables, input, definition.table);
     const absent = frozenWorld(`${definition.id}-absent-v1`, definition.absentTables, input, definition.table);
     const planNodes = new Map(carriers[definition.query].normalizedPlan.nodes.map(node => [node.nodeId, node]));
@@ -1242,19 +1329,28 @@ async function main() {
       id: definition.id, query: definition.query, channel: definition.channel,
       namedSlice: {table: definition.table, rowIds: definition.rowIds},
       coveredNodeIds: definition.coveredNodeIds, coveredAuthorityClasses,
+      expectedRelation: definition.expectedRelation,
       present, absent,
     });
     pairedWorlds.push({
       caseKind: 'pairedWorld', id: definition.id, query: definition.query,
       plan: carriers[definition.query], invocation: call,
       fixturePairId: definition.id, coveredNodeIds: definition.coveredNodeIds,
-      coveredAuthorityClasses,
+      coveredAuthorityClasses, expectedRelation: definition.expectedRelation,
+      windowVectorDisposition: definition.windowVectorDisposition ?? {status: 'VALIDATED'},
       worlds: {
         present: {fixture: present.identity, fixtureDigest: present.fixtureDigest, hiddenSlice: [{table: definition.table, rowIds: definition.rowIds}]},
         absent: {fixture: absent.identity, fixtureDigest: absent.fixtureDigest, hiddenSlice: []},
       },
       oracleEvidence: {presentDigest: digestBytes(JSON.stringify(presentResult)), absentDigest: digestBytes(JSON.stringify(absentResult))},
-      expect: completeResult(carriers[definition.query], call, mapped.resultBytes, mapped.orderedRootIds),
+      expect: completeResult(
+        carriers[definition.query], call,
+        presentMapped.resultBytes, presentMapped.orderedRootIds,
+      ),
+      absentExpect: completeResult(
+        carriers[definition.query], call,
+        absentMapped.resultBytes, absentMapped.orderedRootIds,
+      ),
     });
   }
   const pairedFixtureCorpus = {
@@ -1276,9 +1372,9 @@ async function main() {
   pendingCorpus.contentDigest = digestBytes(canonical(pendingCorpus));
 
   const refusalCases = [
-    { caseKind: 'refusal', id: 'issueListV2-search-membership', query: 'issueListV2', trigger: { phase: 'admission', plan: { sourceDeclaration: 'issueListSearchCandidate' }, schemaFixture: 'tests/conformance/graph/zerobugs/schema.mjs', policyFixture: 'public-read-corpus-mirror' }, expect: { reason: refusals.issueListV2, resultBytes: null } },
-    { caseKind: 'refusal', id: 'issueDetail-ordered-result-bearing-through', query: 'issueDetail', trigger: { phase: 'admission', plan: { sourceDeclaration: 'issueDetailOrderedLabelsCandidate' }, schemaFixture: 'tests/conformance/graph/zerobugs/schema.mjs', policyFixture: 'public-read-corpus-mirror' }, expect: { reason: refusals.issueDetail, resultBytes: null } },
-    { caseKind: 'refusal', id: 'listIssueByID-ordered-result-bearing-through', query: 'listIssueByID', trigger: { phase: 'admission', plan: { sourceDeclaration: 'listIssueByIDOrderedLabelsCandidate' }, schemaFixture: 'tests/conformance/graph/zerobugs/schema.mjs', policyFixture: 'public-read-corpus-mirror' }, expect: { reason: refusals.listIssueByID, resultBytes: null } },
+    { caseKind: 'refusal', id: 'issueListV2-search-membership', query: 'issueListV2', trigger: { phase: 'admission', plan: { sourceDeclaration: 'issueListSearchCandidate' }, schemaFixture: 'tests/conformance/graph/zerobugs/schema.mjs', policyFixture: 'crew-or-public-permission-backing-mirror' }, expect: { reason: refusals.issueListV2, resultBytes: null } },
+    { caseKind: 'refusal', id: 'issueDetail-ordered-result-bearing-through', query: 'issueDetail', trigger: { phase: 'admission', plan: { sourceDeclaration: 'issueDetailOrderedLabelsCandidate' }, schemaFixture: 'tests/conformance/graph/zerobugs/schema.mjs', policyFixture: 'crew-or-public-permission-backing-mirror' }, expect: { reason: refusals.issueDetail, resultBytes: null } },
+    { caseKind: 'refusal', id: 'listIssueByID-ordered-result-bearing-through', query: 'listIssueByID', trigger: { phase: 'admission', plan: { sourceDeclaration: 'listIssueByIDOrderedLabelsCandidate' }, schemaFixture: 'tests/conformance/graph/zerobugs/schema.mjs', policyFixture: 'crew-or-public-permission-backing-mirror' }, expect: { reason: refusals.listIssueByID, resultBytes: null } },
   ];
   const cases = [...pairedWorlds, ...refusalCases];
   const g0ExitObservations = [];
@@ -1291,7 +1387,10 @@ async function main() {
   };
   for (const [query, carrier] of Object.entries(carriers)) {
     const normalCase = normalCases.find(caseRow => caseRow.query === query);
-    const call = invocation(carrier, observationGraphArgs[query], ordinaryPrincipal, 0, query);
+    const call = invocation(
+      carrier, observationGraphArgs[query], ordinaryPrincipal, 0, query,
+      query === 'issueDetail' ? [{table: 'issue', id: publicIssue._id}] : [],
+    );
     const resultBytes = normalCase.declaredGraph.expected.resultBytes;
     const capturedDependencies = capturedDependencyVector(
       carrier, call, normalCase.declaredGraph.expected.orderedRootIds,
@@ -1355,7 +1454,7 @@ async function main() {
     executableCaseKinds: ['pairedWorld', 'refusal'],
     pendingBroadcastCases: 'tests/conformance/graph/broadcast-cases.g2-pending.v1.json',
     broadcastInputs: [
-      { label: 'G0-BCAST-CLASS', status: 'SATISFIED', missingCarrier: null, artifact: 'queries[*].carrier.normalizedPlan.nodes[*].authority + pairedWorld cases', caseKinds: ['pairedWorld', 'refusal'] },
+      { label: 'G0-BCAST-CLASS', status: 'NOT SATISFIED', missingCarrier: 'every admitted Zerobugs base derives class 2 and each projection rolls up to class 3; no class-1 broadcast base or executed counterfeit-broadcast refusal exists', artifact: 'queries[*].carrier.normalizedPlan.nodes[*].authority + pairedWorld cases', caseKinds: ['pairedWorld', 'refusal'] },
       { label: 'G0-BCAST-SEPARATION', status: 'NOT SATISFIED', missingCarrier: 'host-proven separation certificate and evaluator', artifact: 'broadcast-cases.g2-pending.v1.json', caseKinds: ['allowDeny', 'refusal'] },
       { label: 'G0-BCAST-SCOPE', status: 'NOT SATISFIED', missingCarrier: 'executed canonical scope and P/Q mismatch evidence', artifact: 'broadcast-cases.g2-pending.v1.json', caseKinds: ['allowDeny', 'scopeMismatch'] },
       { label: 'G0-BCAST-SCOPE-BINDING', status: 'NOT SATISFIED', missingCarrier: 'executed resource-to-scope equality proof', artifact: 'broadcast-cases.g2-pending.v1.json', caseKinds: ['scopeMismatch', 'refusal'] },

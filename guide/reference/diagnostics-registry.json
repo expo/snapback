@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:462e248f90cd5ab936e4e2cddb2d510a262a2c45b4b4ce5701e2ec57d2801710"
+    "sourceDigest": "sha256:1ae6e77ae4bf5b2fac8fa8fb317a63389b8cbbefe0111a327b5d8e438bf7e504"
   },
   "limits": {
     "lookupBytes": 16384
@@ -53896,12 +53896,12 @@
         },
         {
           "file": "packages/snapback-codegen/graph-query.mjs",
-          "line": 1112,
+          "line": 1125,
           "column": 21
         },
         {
           "file": "packages/snapback-codegen/graph-query.mjs",
-          "line": 1141,
+          "line": 1154,
           "column": 17
         },
         {
@@ -54241,7 +54241,7 @@
         },
         {
           "file": "packages/snapback-codegen/graph-query.mjs",
-          "line": 1137,
+          "line": 1150,
           "column": 32
         }
       ],

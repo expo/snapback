@@ -18,12 +18,12 @@ latency, or graph-executor claim. It does not change LLP 0209's status.
 | ---: | --- | --- | --- |
 | 1 | COMPLETE | B1 closed plan/node vocabulary and fail-closed matcher; B2 codegen constructor | `cargo test -p snapback-types`; codegen graph suite |
 | 2 | COMPLETE | Rust/JS vectors plus three host-admitted Zerobugs carriers | `identity_vectors`; `zerobugs_declarations_admit_with_host_identities` |
-| 3 | PARTIAL | Static authority proofs, six real paired-world channels, all declared authority classes, and full partition preimages are frozen and Rust-reconstructed. No graph evaluator or host-proven broadcast certificate exists at G0. | `paired_worlds`; `completeness_labels` |
-| 4 | COMPLETE | Every paired-world node and composition has a proof tuple whose materialization and partition hashes are reconstructed by Rust | `completeness_labels` |
+| 3 | PARTIAL | The crew-or-public `visibility` inputs derive class 2, principal-bound nodes derive class 3, three authority-sensitive absent worlds change rows and cover every class-2 node, and full partition preimages are frozen and Rust-reconstructed. The hidden-root detail pair correctly has an empty child vector, but B1 still refuses that form; no graph evaluator or host-proven broadcast certificate exists at G0. | `paired_worlds`; `completeness_labels`; `issues/20260823-graph-empty-child-demand-window-vector.md` |
+| 4 | PARTIAL | Every paired-world node and composition carries a proof tuple whose materialization and partition hashes are reconstructed by Rust. The hidden-root detail pair remains explicitly blocked on B1 accepting the empty-child interval vector, so this row does not claim universal instance admission. | `completeness_labels`; `paired_worlds` |
 | 5 | COMPLETE | Closed `GraphCapturedReadV1` vocabulary and one top-level captured-read arm exist; execution consumption remains deferred by the staged contract | `dependency_shapes`; snapback-types graph-capture tests |
-| 6 | PARTIAL | Three declarations, eight executable oracle cases, six paired worlds, three executable refusals, closed translation coverage, continuation/miss/cost cases, graph-order labels, and tie dispositions are frozen. The large fixture spot check and graph evaluator remain unavailable. | corpus freezer; `oracle_field_maps_and_refusals_are_closed`; `paired_worlds` |
+| 6 | PARTIAL | Three declarations, eight executable oracle cases, six paired worlds, three executable refusals, closed translation coverage, a real detail resume through `commentsPage`, authoritative miss and closed cost-refusal cases, graph-order labels, and the one live comments tie disposition are frozen. The large fixture spot check and graph evaluator remain unavailable. | corpus freezer; `oracle_field_maps_and_refusals_are_closed`; `paired_worlds` |
 | 7 | PARTIAL | Normal-fixture typed exit observations are complete for all three graphs. Large/hot maxima and observations are unavailable, and every affected bound field is explicitly provisional with its validation command. | `bounds_are_fixture_derived`; `broadcast_inputs_complete` |
-| 8 | NOT SATISFIED | Only `G0-BCAST-CLASS` and `G0-BCAST-IDENTITY` are satisfied. Five broadcast-adjacent case kinds are non-executable structural records in `broadcast-cases.g2-pending.v1.json`; seven LLP 0268 §7 labels lack named carriers. | `g2_pending_broadcast_cases_are_structurally_frozen`; `broadcast_inputs_complete` |
+| 8 | NOT SATISFIED | Only `G0-BCAST-IDENTITY` is satisfied. Every admitted base is class 2 and every projection rolls up to class 3, so all three plans record `base-not-class-1`; no class-1 broadcast base or executed counterfeit-broadcast refusal exists. Five broadcast-adjacent case kinds are non-executable structural records, and eight LLP 0268 §7 labels lack named carriers. | `g2_pending_broadcast_cases_are_structurally_frozen`; `broadcast_inputs_complete` |
 | 9 | COMPLETE | Additive sibling arm/capability/constructor; relational corpus unchanged; no serving consumer | `no_runtime_consumer`; relational corpus suite |
 
 The executable G0 corpus contains the seven-kind schema but only six
@@ -36,7 +36,7 @@ executed.
 
 | Label | Status | Evidence or specific missing carrier |
 | --- | --- | --- |
-| `G0-BCAST-CLASS` | SATISFIED | Node authority certificates plus paired-world/refusal coverage |
+| `G0-BCAST-CLASS` | NOT SATISFIED | `issueListV2` and `listIssueByID` derive n0–n4 as class 2 and n5–n6 as class 3; `issueDetail` derives n0–n5/n7 as class 2 and n6/n8/n9 as class 3. All three broadcast admissions therefore say `base-not-class-1`; no class-1 base or executed counterfeit-broadcast refusal is frozen. |
 | `G0-BCAST-SEPARATION` | NOT SATISFIED | Missing host-proven separation certificate and evaluator |
 | `G0-BCAST-SCOPE` | NOT SATISFIED | Missing executed canonical-scope and P/Q mismatch evidence |
 | `G0-BCAST-SCOPE-BINDING` | NOT SATISFIED | Missing executed resource-to-scope equality proof |
@@ -47,7 +47,7 @@ executed.
 | `G0-BCAST-BOUNDS` | NOT SATISFIED | Missing large/hot typed observations and ratified non-provisional maxima |
 
 The machine-readable source is `corpus.v1.json.broadcastInputs`. Per LLP 0268
-§0, G0 exit must be extended and re-recorded before LLP 0268 B1; the seven
+§0, G0 exit must be extended and re-recorded before LLP 0268 B1; the eight
 unsatisfied labels cannot be carried forward as an implicit claim.
 
 ## Bounds and provisional ratification
@@ -67,6 +67,9 @@ working set from the manifest-defined `W = 1,000` interval.
 | `issueListV2.maxResultRows` | 1,024 | one admitted hot page | PROVISIONAL — hot validation required |
 | `issueListV2.maxResultBytes` | 33,554,432 | normal mapped result 436,163 bytes with exact declared ratio | PROVISIONAL — large validation required |
 | detail comment `maxChildrenPerParent` | 1,024 | control refusal boundary; normal maximum 21; large receipt ceiling 2,527,886; seed-42 per-issue maximum unavailable | PROVISIONAL — large validation required |
+| detail comments `maxWindowPages` | 1 | `ceil(normal maxCommentsPerIssue 21 / maxChildrenPerParent 1,024)` | PROVISIONAL — seed-42 per-issue maximum requires zb5 |
+| detail comments lineage | pages 1; scanned rows 1,025; index ranges 1; result rows 1; result bytes 8,388,608 | one declared comments page at the normal maximum | PROVISIONAL — seed-42 per-issue maximum requires zb5 |
+| detail `windowRollup` | pages 2; root rows 1; scanned rows 2,092; result rows 2; result bytes 16,777,216; index ranges 27 | root lineage plus one planned comments lineage, per §2.6 | PROVISIONAL — seed-42 per-issue maximum requires zb5 |
 | `issueDetail.maxResultRows` | 1 | point root | RATIFIED |
 | `issueDetail.maxResultBytes` | 8,388,608 | normal mapped result 20,261 bytes with exact declared ratio | PROVISIONAL — large validation required |
 | `listIssueByID.maxResultRows` | 1 | point root | RATIFIED |
@@ -119,8 +122,12 @@ note. No incomplete pseudo-observation is emitted.
 - `issueDetail` comments declare `created DESC`. Its executable continuation
   case has a child-scoped `direction-tie-break` disposition for the one equal-
   `created` group whose oracle and graph physical-id order disagree.
-- The detail oracle suite includes a real non-null comment continuation, the
-  null-cursor/empty cost-bound refusal, and an authoritative miss. Every
+- The detail oracle suite resumes its frozen non-null cursor through the
+  control's `commentsPage` seam and exact-compares the non-empty mapped next
+  page (`g0_window_0050`, digest
+  `sha256:766a764b9762f427c38d04926229681841d0b09dba80e46c026dee86dfcbd19b`).
+  It also includes the null-cursor/empty cost-bound refusal and an
+  authoritative miss. Every
   `(status, reason, when)` translation row is linked to an executable case or
   explicitly marked unexercised in the corpus.
 
@@ -136,15 +143,17 @@ Normal raw-oracle and mapped-result measurements:
 
 | Artifact | Content digest |
 | --- | --- |
-| `corpus.v1.json` | `sha256:577aea759fb43370b18c8465b6cf58d3d44fea8f168de004921b124a31336c1d` |
-| `bound-derivation.v1.json` | `sha256:9feba4072153d07b2288a961090c06e6efab4d79eb58c0bdc17c78d06f9e81c7` |
-| `paired-world-fixtures.v1.json` | `sha256:98d3c34c584821e2b2f2040a1ba91d9490c0cdafdf0d2e80f2e6133d8abfac9a` |
-| `broadcast-cases.g2-pending.v1.json` | `sha256:7d2facf6953ca04fee11d5ecb28ae5c86c1ba580e22baff951ef132354685dcf` |
+| `corpus.v1.json` | `sha256:94d59de5fc198d4b40d3b857d16635c062458a2cf5624b0e90756f2de69270a1` |
+| `bound-derivation.v1.json` | `sha256:3e2f942c7d627da65eb8af0b7545e7e164c1d0a312aca5d5d9817f9b71a59430` |
+| `paired-world-fixtures.v1.json` | `sha256:e87b347591efb58293a77c266818b6bdc052e2882bd3fd8ad4080bb62688c50c` |
+| `broadcast-cases.g2-pending.v1.json` | `sha256:bb4f03d0065164baca6ef2342e043532aed67ccfa5e9e5ec9b9b1ea71f723be7` |
 
 ## Remaining gaps
 
-- Seven LLP 0268 §7 broadcast inputs are not satisfied; their exact missing
+- Eight LLP 0268 §7 broadcast inputs are not satisfied; their exact missing
   carriers are listed above.
+- The hidden/missing-root detail pair has the correct empty comments interval
+  vector but remains blocked on B1's empty-child acceptance ticket.
 - Large/hot maxima and typed exit observations require the recorded zb5 runs.
 - `GraphG0ExitObservationV1` needs a deferred/unavailable arm or an explicit
   owner ruling in the v0.6 note.

@@ -16,34 +16,34 @@ import {
 export const issueListV2 = graph.defineGraphQuery({
   nodes: [
     {
-      nodeId: 'listRoot', kind: 'root-window', edgeName: '$root', authorityClass: 1,
+      nodeId: 'listRoot', kind: 'root-window', edgeName: '$root', authorityClass: 2,
       table: issueListRead,
       filters: [{ field: 'projectID', op: 'Eq', value: graph.arg('projectID') }],
       accessIndex: 'by_project_modified',
       order: [graph.desc('modified'), graph.desc('sourceIssueID')],
     },
     {
-      nodeId: 'issueRow', kind: 'equality-to-one', edgeName: 'issue', authorityClass: 1,
+      nodeId: 'issueRow', kind: 'equality-to-one', edgeName: 'issue', authorityClass: 2,
       parentNodeId: 'listRoot', table: issue,
       joinOn: [{ rootField: 'issueID', joinedField: '_id' }],
       accessIndex: 'by_id', presence: 'required',
     },
     {
-      nodeId: 'labelEdges', kind: 'bounded-to-many', edgeName: 'labels', authorityClass: 1,
+      nodeId: 'labelEdges', kind: 'bounded-to-many', edgeName: 'labels', authorityClass: 2,
       parentNodeId: 'listRoot', table: issueLabelRead,
       joinOn: [{ rootField: 'issueID', joinedField: 'issueID' }],
       accessIndex: 'by_issue_label', order: [graph.asc('labelID')],
       page: { kind: 'literal', direction: 'forward', lower: { kind: 'unbounded' }, upper: { kind: 'unbounded' }, take: 16 },
     },
     {
-      nodeId: 'labelRow', kind: 'equality-to-one', edgeName: 'label', authorityClass: 1,
+      nodeId: 'labelRow', kind: 'equality-to-one', edgeName: 'label', authorityClass: 2,
       parentNodeId: 'labelEdges', table: label,
       joinOn: [{ rootField: 'labelID', joinedField: '_id' }],
       accessIndex: 'by_id', presence: 'required',
     },
     {
       nodeId: 'selectedLabels', kind: 'exists-semi-join', edgeName: 'selectedLabels',
-      authorityClass: 1, parentNodeId: 'listRoot', mode: 'all',
+      authorityClass: 2, parentNodeId: 'listRoot', mode: 'all',
       edge: {
         kind: 'direct', table: issueLabelRead,
         joinOn: [{ rootField: 'issueID', joinedField: 'issueID' }],
@@ -117,17 +117,17 @@ export const issueListV2 = graph.defineGraphQuery({
 export const issueDetail = graph.defineGraphQuery({
   nodes: [
     {
-      nodeId: 'issueRoot', kind: 'root-window', edgeName: '$root', authorityClass: 1,
+      nodeId: 'issueRoot', kind: 'root-window', edgeName: '$root', authorityClass: 2,
       table: issue, filters: [{ field: 'id', op: 'Eq', value: graph.arg('sourceIssueID') }],
       accessIndex: 'by_source_id', order: [graph.asc('id')],
     },
-    { nodeId: 'assignee', kind: 'equality-to-one', edgeName: 'assignee', authorityClass: 1, parentNodeId: 'issueRoot', table: user, joinOn: [{ rootField: 'assigneeID', joinedField: '_id' }], accessIndex: 'by_id', presence: 'optional' },
-    { nodeId: 'comments', kind: 'bounded-to-many', edgeName: 'comments', authorityClass: 1, parentNodeId: 'issueRoot', table: comment, joinOn: [{ rootField: '_id', joinedField: 'issueID' }], accessIndex: 'by_issue_created', order: [graph.desc('created')], page: { kind: 'demand' } },
-    { nodeId: 'creator', kind: 'equality-to-one', edgeName: 'creator', authorityClass: 1, parentNodeId: 'issueRoot', table: user, joinOn: [{ rootField: 'creatorID', joinedField: '_id' }], accessIndex: 'by_id', presence: 'required' },
-    { nodeId: 'labelEdges', kind: 'bounded-to-many', edgeName: 'labels', authorityClass: 1, parentNodeId: 'issueRoot', table: issueLabelRead, joinOn: [{ rootField: '_id', joinedField: 'issueID' }], accessIndex: 'by_issue_label', order: [graph.asc('labelID')], page: { kind: 'literal', direction: 'forward', lower: { kind: 'unbounded' }, upper: { kind: 'unbounded' }, take: 16 } },
-    { nodeId: 'labelRow', kind: 'equality-to-one', edgeName: 'label', authorityClass: 1, parentNodeId: 'labelEdges', table: label, joinOn: [{ rootField: 'labelID', joinedField: '_id' }], accessIndex: 'by_id', presence: 'required' },
+    { nodeId: 'assignee', kind: 'equality-to-one', edgeName: 'assignee', authorityClass: 2, parentNodeId: 'issueRoot', table: user, joinOn: [{ rootField: 'assigneeID', joinedField: '_id' }], accessIndex: 'by_id', presence: 'optional' },
+    { nodeId: 'comments', kind: 'bounded-to-many', edgeName: 'comments', authorityClass: 2, parentNodeId: 'issueRoot', table: comment, joinOn: [{ rootField: '_id', joinedField: 'issueID' }], accessIndex: 'by_issue_created', order: [graph.desc('created')], page: { kind: 'demand' } },
+    { nodeId: 'creator', kind: 'equality-to-one', edgeName: 'creator', authorityClass: 2, parentNodeId: 'issueRoot', table: user, joinOn: [{ rootField: 'creatorID', joinedField: '_id' }], accessIndex: 'by_id', presence: 'required' },
+    { nodeId: 'labelEdges', kind: 'bounded-to-many', edgeName: 'labels', authorityClass: 2, parentNodeId: 'issueRoot', table: issueLabelRead, joinOn: [{ rootField: '_id', joinedField: 'issueID' }], accessIndex: 'by_issue_label', order: [graph.asc('labelID')], page: { kind: 'literal', direction: 'forward', lower: { kind: 'unbounded' }, upper: { kind: 'unbounded' }, take: 16 } },
+    { nodeId: 'labelRow', kind: 'equality-to-one', edgeName: 'label', authorityClass: 2, parentNodeId: 'labelEdges', table: label, joinOn: [{ rootField: 'labelID', joinedField: '_id' }], accessIndex: 'by_id', presence: 'required' },
     { nodeId: 'notificationState', kind: 'principal-bound', edgeName: 'notificationState', authorityClass: 3, parentNodeId: 'issueRoot', table: issueNotifications, parentJoin: [{ rootField: '_id', joinedField: 'issueID' }], principalField: 'userID', accessIndex: 'by_issue_user', binding: { table: identityBinding, principalField: 'principal', valueField: 'userID', uniqueIndex: 'by_principal' } },
-    { nodeId: 'project', kind: 'equality-to-one', edgeName: 'project', authorityClass: 1, parentNodeId: 'issueRoot', table: project, joinOn: [{ rootField: 'projectID', joinedField: '_id' }], accessIndex: 'by_id', presence: 'required' },
+    { nodeId: 'project', kind: 'equality-to-one', edgeName: 'project', authorityClass: 2, parentNodeId: 'issueRoot', table: project, joinOn: [{ rootField: 'projectID', joinedField: '_id' }], accessIndex: 'by_id', presence: 'required' },
     { nodeId: 'viewState', kind: 'principal-bound', edgeName: 'viewState', authorityClass: 3, parentNodeId: 'issueRoot', table: viewState, parentJoin: [{ rootField: '_id', joinedField: 'issueID' }], principalField: 'userID', accessIndex: 'by_issue_user', binding: { table: identityBinding, principalField: 'principal', valueField: 'userID', uniqueIndex: 'by_principal' } },
   ],
   projection: {
@@ -181,7 +181,7 @@ export const issueDetail = graph.defineGraphQuery({
     nodes: [
       { nodeId: 'issueRoot', maxRootRowsPerPage: 1, maxExaminedEntriesPerExecution: 2, maxWindowPages: 1, maxWindowRootRows: 1, maxWindowScannedRows: 1_067, maxWindowResultRows: 1, maxWindowResultBytes: 8_388_608, maxWindowIndexRanges: 26 },
       { nodeId: 'assignee', maxExaminedEntriesPerExecution: 1, maxRelationshipLookupsPerExecution: 1 },
-      { nodeId: 'comments', maxExaminedEntriesPerExecution: 1_025, maxRelationshipLookupsPerExecution: 1, maxChildrenPerParent: 1_024, maxWindowPages: 21, maxWindowRootRows: 0, maxWindowScannedRows: 21_525, maxWindowResultRows: 21, maxWindowResultBytes: 176_160_768, maxWindowIndexRanges: 21 },
+      { nodeId: 'comments', maxExaminedEntriesPerExecution: 1_025, maxRelationshipLookupsPerExecution: 1, maxChildrenPerParent: 1_024, maxWindowPages: 1, maxWindowRootRows: 0, maxWindowScannedRows: 1_025, maxWindowResultRows: 1, maxWindowResultBytes: 8_388_608, maxWindowIndexRanges: 1 },
       { nodeId: 'creator', maxExaminedEntriesPerExecution: 1, maxRelationshipLookupsPerExecution: 1 },
       { nodeId: 'labelEdges', maxExaminedEntriesPerExecution: 17, maxRelationshipLookupsPerExecution: 1, maxChildrenPerParent: 16 },
       { nodeId: 'labelRow', maxExaminedEntriesPerExecution: 16, maxRelationshipLookupsPerExecution: 16 },
@@ -190,7 +190,7 @@ export const issueDetail = graph.defineGraphQuery({
       { nodeId: 'viewState', maxExaminedEntriesPerExecution: 2, maxRelationshipLookupsPerExecution: 2 },
     ],
     arguments: [], maxArgumentItems: 1, maxPageResultBytes: 8_388_608,
-    windowRollup: { maxWindowPages: 22, maxWindowRootRows: 1, maxWindowScannedRows: 22_592, maxWindowResultRows: 22, maxWindowResultBytes: 184_549_376, maxWindowIndexRanges: 47 },
+    windowRollup: { maxWindowPages: 2, maxWindowRootRows: 1, maxWindowScannedRows: 2_092, maxWindowResultRows: 2, maxWindowResultBytes: 16_777_216, maxWindowIndexRanges: 27 },
     maxMaintainedWritesPerMutation: 0,
   } },
   broadcast: { classification: 'query-shaped' },
@@ -198,11 +198,11 @@ export const issueDetail = graph.defineGraphQuery({
 
 export const listIssueByID = graph.defineGraphQuery({
   nodes: [
-    { nodeId: 'pointRoot', kind: 'root-window', edgeName: '$root', authorityClass: 1, table: issueListRead, filters: [{ field: 'sourceIssueID', op: 'Eq', value: graph.arg('sourceIssueID') }], accessIndex: 'by_source_issue_id', order: [graph.asc('sourceIssueID')] },
-    { nodeId: 'issueRow', kind: 'equality-to-one', edgeName: 'issue', authorityClass: 1, parentNodeId: 'pointRoot', table: issue, joinOn: [{ rootField: 'issueID', joinedField: '_id' }], accessIndex: 'by_id', presence: 'required' },
-    { nodeId: 'labelEdges', kind: 'bounded-to-many', edgeName: 'labels', authorityClass: 1, parentNodeId: 'pointRoot', table: issueLabelRead, joinOn: [{ rootField: 'issueID', joinedField: 'issueID' }], accessIndex: 'by_issue_label', order: [graph.asc('labelID')], page: { kind: 'literal', direction: 'forward', lower: { kind: 'unbounded' }, upper: { kind: 'unbounded' }, take: 16 } },
-    { nodeId: 'labelRow', kind: 'equality-to-one', edgeName: 'label', authorityClass: 1, parentNodeId: 'labelEdges', table: label, joinOn: [{ rootField: 'labelID', joinedField: '_id' }], accessIndex: 'by_id', presence: 'required' },
-    { nodeId: 'selectedLabels', kind: 'exists-semi-join', edgeName: 'selectedLabels', authorityClass: 1, parentNodeId: 'pointRoot', mode: 'all', edge: { kind: 'direct', table: issueLabelRead, joinOn: [{ rootField: 'issueID', joinedField: 'issueID' }], accessIndex: 'by_issue_label' }, filters: [{ field: 'labelID', op: 'In', value: graph.arg('selectedLabelIDs') }], argumentId: 'selectedLabelIDs' },
+    { nodeId: 'pointRoot', kind: 'root-window', edgeName: '$root', authorityClass: 2, table: issueListRead, filters: [{ field: 'sourceIssueID', op: 'Eq', value: graph.arg('sourceIssueID') }], accessIndex: 'by_source_issue_id', order: [graph.asc('sourceIssueID')] },
+    { nodeId: 'issueRow', kind: 'equality-to-one', edgeName: 'issue', authorityClass: 2, parentNodeId: 'pointRoot', table: issue, joinOn: [{ rootField: 'issueID', joinedField: '_id' }], accessIndex: 'by_id', presence: 'required' },
+    { nodeId: 'labelEdges', kind: 'bounded-to-many', edgeName: 'labels', authorityClass: 2, parentNodeId: 'pointRoot', table: issueLabelRead, joinOn: [{ rootField: 'issueID', joinedField: 'issueID' }], accessIndex: 'by_issue_label', order: [graph.asc('labelID')], page: { kind: 'literal', direction: 'forward', lower: { kind: 'unbounded' }, upper: { kind: 'unbounded' }, take: 16 } },
+    { nodeId: 'labelRow', kind: 'equality-to-one', edgeName: 'label', authorityClass: 2, parentNodeId: 'labelEdges', table: label, joinOn: [{ rootField: 'labelID', joinedField: '_id' }], accessIndex: 'by_id', presence: 'required' },
+    { nodeId: 'selectedLabels', kind: 'exists-semi-join', edgeName: 'selectedLabels', authorityClass: 2, parentNodeId: 'pointRoot', mode: 'all', edge: { kind: 'direct', table: issueLabelRead, joinOn: [{ rootField: 'issueID', joinedField: 'issueID' }], accessIndex: 'by_issue_label' }, filters: [{ field: 'labelID', op: 'In', value: graph.arg('selectedLabelIDs') }], argumentId: 'selectedLabelIDs' },
     { nodeId: 'viewState', kind: 'principal-bound', edgeName: 'viewState', authorityClass: 3, parentNodeId: 'pointRoot', table: viewState, parentJoin: [{ rootField: 'issueID', joinedField: 'issueID' }], principalField: 'userID', accessIndex: 'by_issue_user', binding: { table: identityBinding, principalField: 'principal', valueField: 'userID', uniqueIndex: 'by_principal' } },
   ],
   projection: {

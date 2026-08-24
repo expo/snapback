@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:68de9473e2895c53edcd1c26c71ec9832aedef34f5654bfb7c93cf1bf6268254"
+    "sourceDigest": "sha256:318cde06e764bab9487d651c26b480a0efd6647dcd4037844da229adddfb080a"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -13150,7 +13150,7 @@
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
       "bytes": 2729265,
-      "sha256": "ba93b2a75cd901b02622fe8bb911f5dc384ad454622c00b9532b8f5b7f4e0e0e",
+      "sha256": "7b37d67fec464821240ec982aa8df778cab3bf58a22a2d5f918046f175c15b7b",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -13159,7 +13159,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:462e248f90cd5ab936e4e2cddb2d510a262a2c45b4b4ce5701e2ec57d2801710",
+      "sourceDigest": "sha256:1ae6e77ae4bf5b2fac8fa8fb317a63389b8cbbefe0111a327b5d8e438bf7e504",
       "codes": 3595,
       "emittingSites": 12553
     }
@@ -13406,5 +13406,5 @@
       }
     }
   },
-  "contentHash": "68de9473e2895c53edcd1c26c71ec9832aedef34f5654bfb7c93cf1bf6268254"
+  "contentHash": "318cde06e764bab9487d651c26b480a0efd6647dcd4037844da229adddfb080a"
 }

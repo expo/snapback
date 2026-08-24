@@ -1,9 +1,11 @@
 import { defineSchema, defineTable, v } from '@expo/snapback-codegen/define';
 
 // Corpus-owned mirror of the Zerobugs control tables touched by the three G0
-// declarations. The field and index names intentionally match the control;
-// public-read visibility is the corpus's closed admission posture, not a
-// proposal to change the still-authoritative opaque handlers.
+// declarations. The field and index names intentionally match the control.
+// Issue reads are public only when the row says so; internal rows require a
+// crew principal in the still-authoritative opaque handlers. The visibility
+// field is therefore permission-backing input even though the storage mirror
+// remains public-read.
 // @ref LLP 0209#stage-b-oracle-comparison-contract — graph declarations and
 // the opaque control oracle share schema facts without sharing execution.
 
@@ -38,6 +40,7 @@ export const issue = defineTable({
   .index('by_short_id', ['shortID'])
   .index('by_created', ['created'])
   .index('by_project_modified', ['projectID', 'modified', 'id'])
+  .permissionBacking(['visibility'])
   .visibility({ kind: 'public-read' });
 
 export const comment = defineTable({
@@ -90,6 +93,7 @@ export const issueListRead = defineTable({
   .index('by_source_issue_id', ['sourceIssueID'], { unique: true })
   .index('by_project_modified', ['projectID', 'modified', 'sourceIssueID'])
   .index('by_project_created', ['projectID', 'created', 'sourceIssueID'])
+  .permissionBacking(['visibility'])
   .visibility({ kind: 'public-read' });
 
 export const issueLabelRead = defineTable({
