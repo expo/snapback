@@ -1,7 +1,7 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin media-feed digest=sha256:40baaafdec73e537cd828b2ab8c4b0b43889c911af8285cb8722f5141f460cff -->
+<!-- start-packet:begin media-feed digest=sha256:34a4c6642e553b3fcd5e014cf88603f2278277610ad77c1f618e3375362288fe -->
 Mental model: [Snapback in one screen](/_snapback/guide/start/mental-model.md); with this stub it is
 the whole first read.
 
@@ -16,11 +16,10 @@ receipt (acceptance evidence, not formal proof). `npm test`: unwrapped
 <!-- script-glossary:end -->
 
 Edit `snapback/{schema,functions}.mjs`, `seed.json`, `App.tsx`, and
-`pagination.mjs` → `generate` → run `dev` (backend) and `dev:client` (Expo)
-in separate terminals → `prove`; `dev:supervised` remains optional.
-`publishEntry` owns upload/finalize/attach; app uploads require sessions
-custody. Paginate on immutable `pageKey`; dedupe accumulated pages by `_id`.
-Escalate: `snapback guide <query>`.
+`pagination.mjs` → `generate` → `dev` → `prove`. `publishEntry` owns
+upload/finalize/attach; app uploads require sessions custody. Paginate on
+immutable `pageKey`; dedupe accumulated pages by `_id`. Escalate:
+`snapback guide <query>`.
 <!-- start-packet:end -->
 
 ## Operate it

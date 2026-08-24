@@ -33,7 +33,7 @@
         "structured-snapback-refusal",
         "failed-prove"
       ],
-      "digest": "sha256:9c1d3d9aa0ef284d3ba6ac2b7fc09478b6c89b49ccc190c74956aacccbf81775"
+      "digest": "sha256:80e031e7a2d699ec9110261240780ba8ca3fbd6d2a1cd43e0425d21be2ad0206"
     },
     "expo-chat": {
       "template": "expo-chat",
@@ -68,7 +68,7 @@
         "structured-snapback-refusal",
         "failed-prove"
       ],
-      "digest": "sha256:1a88ada3b13b4b7605f4067e469acd35201643c7844787fae9b9b35913ed2299"
+      "digest": "sha256:8ff12f3adc8254b6338a1e6e8ebf5ab10082267b4f272afd26a080a4a74ccd79"
     },
     "crud-dashboard": {
       "template": "crud-dashboard",

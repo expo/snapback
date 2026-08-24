@@ -1,7 +1,7 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin react digest=sha256:b368bd3fd3c2cc8285b0172219d2be9022a7916ff18f54f9e431935dd268b572 -->
+<!-- start-packet:begin react digest=sha256:80e031e7a2d699ec9110261240780ba8ca3fbd6d2a1cd43e0425d21be2ad0206 -->
 This packet is the whole required first read for this app (LLP 0259
 Rung A). Open the edit targets below and work; open one further Guide page
 only via `snapback guide <query>` or on a trigger — the brief is outside
@@ -10,8 +10,9 @@ this packet, a structured `SNAPBACK_*` refusal, or a failed `prove`.
 ## The loop
 
 Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
-→ `bun run generate` → in two terminals, `bun run dev` (backend; writes
-`.env.local`) and `bun run dev:client` (Vite) → `bun run prove`.
+→ `bun run generate` → `bun run dev` (backend; writes `.env.local`) plus
+`bun run dev:client` in a second terminal (previously one supervisor:
+Vite; it prints the admin console URL) → `bun run prove`.
 
 `bun run prove` (`npm run prove` is equivalent) is the acceptance command:
 it runs the registered live profile through `snapback verify` and writes

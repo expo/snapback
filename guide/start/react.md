@@ -24,7 +24,8 @@ this packet, a structured `SNAPBACK_*` refusal, or a failed `prove`.
 ## The loop
 
 Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
-→ `bun run generate` → `bun run dev` (one supervisor: managed server plus
+→ `bun run generate` → `bun run dev` (backend; writes `.env.local`) plus
+`bun run dev:client` in a second terminal (previously one supervisor:
 Vite; it prints the admin console URL) → `bun run prove`.
 
 `bun run prove` (`npm run prove` is equivalent) is the acceptance command:

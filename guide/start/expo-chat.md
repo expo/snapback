@@ -24,7 +24,9 @@ this packet, a structured `SNAPBACK_*` refusal, or a failed `prove`.
 ## The loop
 
 Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
-→ `bun run generate` → `bun run dev` (supervises the Expo client; it never
+→ `bun run generate` → `bun run dev` (backend; writes `.env.local`) plus
+`bun run dev:client` in a second terminal (`dev:supervised` = one-command
+convenience; it never
 launches a device or simulator — Expo Go, a dev client, or
 `expo run:ios|android` is your job) → `bun run prove`.
 
@@ -45,7 +47,7 @@ Migration: `test:live` was removed; use `npm test` for the same raw acceptance c
 <!-- script-glossary:end -->
 
 The native carrier owns simulator boot, drive, and screenshots. Self-started
-Metro must not inherit `CI=1` (it disables watching); prefer `bun run dev`.
+Metro must not inherit `CI=1` (it disables watching).
 
 ## Edit targets (work files — listed, not charged to the first read)
 
@@ -115,5 +117,5 @@ and outside this template. If a brief selects it, read the
 <!-- /llp0259:stop-fence -->
 <!-- start-packet:end -->
 
-For constrained lanes, `snapback dev --expo` accepts strict `--port`,
-`--client-port`, and `--bootstrap-port` pins or one `--port-range`.
+Constrained lanes: `--port`/`--client-port`/`--bootstrap-port` pins or
+`--port-range`.
