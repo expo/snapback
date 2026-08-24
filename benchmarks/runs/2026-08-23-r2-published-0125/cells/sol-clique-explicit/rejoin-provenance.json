@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "snapback.r2-retained-rejoin.v1",
+  "cellId": "sol-clique-explicit",
+  "mode": "deterministic-retained-evidence-rejoin",
+  "rerun": false,
+  "sourceFailureReport": "../../BLOCKED-charlies-mac-mini--durand-driver-finalization.md",
+  "normalization": {
+    "reason": "The original driver used each choreography summary time as the terminal boundary even though the retained controller phase transition and final flush occurred later.",
+    "clockCorrelation": "All retained sources use the same host clock; the rejoin partitions at exact retained controller transition/final stamps with zero cross-host skew.",
+    "milestones": {
+      "M1": "2026-08-24T09:54:53.931Z",
+      "M2": "2026-08-24T10:02:30.777Z",
+      "M3": "2026-08-24T10:10:23.198Z"
+    },
+    "originalSha256": {
+      "terminal-boundaries.json": "sha256:1fcd53f32deec0c23087e2c06a7f194a7493395e92425ac6d98d3cbb6626ab36",
+      "receipts/m1-choreography.jsonl": "sha256:cf2e882e18b3e11d60cb0b65d51a81162651efa6036b65d1630fc69cd5647944",
+      "receipts/m2-choreography.jsonl": "sha256:d259024b356095c38b973840c11c7ae38342b4f7c7b53fda5c3bf096e706f89c",
+      "receipts/m3-choreography.jsonl": "sha256:05b53f51edef1c93fd1b507eac43742610d748f3e301d9a5129f94d0e72a3737"
+    }
+  }
+}

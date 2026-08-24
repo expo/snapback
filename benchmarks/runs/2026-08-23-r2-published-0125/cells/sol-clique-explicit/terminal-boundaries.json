@@ -1,0 +1,33 @@
+{
+  "laneRunId": "2026-08-23-r2-published-0125/sol-clique-explicit",
+  "driverId": "social-messenger-r2-native-cli-driver.v1",
+  "milestones": {
+    "M1": {
+      "status": "green",
+      "firstGreenAt": "2026-08-24T09:54:53.931Z",
+      "suitePassAt": "2026-08-24T09:54:53.931Z",
+      "choreoPassAt": "2026-08-24T09:54:53.931Z",
+      "terminalAt": "2026-08-24T09:54:53.931Z",
+      "terminalSequence": 1,
+      "terminalReason": "green"
+    },
+    "M2": {
+      "status": "green",
+      "firstGreenAt": "2026-08-24T10:02:30.777Z",
+      "suitePassAt": "2026-08-24T10:02:30.777Z",
+      "choreoPassAt": "2026-08-24T10:02:30.777Z",
+      "terminalAt": "2026-08-24T10:02:30.777Z",
+      "terminalSequence": 2,
+      "terminalReason": "green"
+    },
+    "M3": {
+      "status": "green",
+      "firstGreenAt": "2026-08-24T10:10:23.198Z",
+      "suitePassAt": "2026-08-24T10:10:23.198Z",
+      "choreoPassAt": "2026-08-24T10:10:23.198Z",
+      "terminalAt": "2026-08-24T10:10:23.198Z",
+      "terminalSequence": 3,
+      "terminalReason": "green"
+    }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "format": "clique-suite-receipt.v1",
+  "milestone": "m3",
+  "pass": true,
+  "startedAt": "2026-08-24T10:04:04.153Z",
+  "finishedAt": "2026-08-24T10:05:07.828Z",
+  "requiredAssertionIds": [
+    "m3-a03",
+    "m3-a04",
+    "m3-a05",
+    "m3-a10",
+    "m3-a11",
+    "m3-a14",
+    "m3-a15"
+  ],
+  "assertions": {
+    "m3-a03": {
+      "id": "m3-a03",
+      "pass": true,
+      "durationMs": 48.88787500000035
+    },
+    "m3-a04": {
+      "id": "m3-a04",
+      "pass": true,
+      "durationMs": 87.13779200000135
+    },
+    "m3-a05": {
+      "id": "m3-a05",
+      "pass": true,
+      "durationMs": 49.08508399999846
+    },
+    "m3-a10": {
+      "id": "m3-a10",
+      "pass": true,
+      "durationMs": 22.3814579999962
+    },
+    "m3-a11": {
+      "id": "m3-a11",
+      "pass": true,
+      "durationMs": 0.11404200000106357
+    },
+    "m3-a14": {
+      "id": "m3-a14",
+      "pass": true,
+      "durationMs": 19.44791599999735
+    },
+    "m3-a15": {
+      "id": "m3-a15",
+      "pass": true,
+      "durationMs": 29687.23725
+    }
+  },
+  "fatalError": null
+}
