@@ -204,7 +204,11 @@ test('configure records public identifiers and secret references only', () => {
   assert.equal(result.operation, 'record');
   assert.deepEqual(result.recorded, ['iosClientId', 'webClientId']);
   assert.deepEqual(result.missing, ['androidClientId']);
-  assert.deepEqual(result.nativeIntegration, AUTH_PROVIDER_NATIVE_INTEGRATIONS.google);
+  assert.deepEqual(result.nativeIntegration, {
+    ...AUTH_PROVIDER_NATIVE_INTEGRATIONS.google,
+    pluginConfigured: false,
+    reason: 'configuration-incomplete',
+  });
   const written = readFileSync(join(root, 'snapback', 'auth-providers.json'), 'utf8');
   assert.equal(JSON.parse(written).format, 'snapback.app-owned-auth-providers.v1');
   assert.deepEqual(
@@ -215,6 +219,83 @@ test('configure records public identifiers and secret references only', () => {
   assert.equal(/"[^"]*[Ss]ecret[^"]*":\s*"[^"]+"/u.test(written.replace(/"secretReferences":[\s\S]*?\]/u, '')), false);
   assert.equal(result.secretCommands[0].includes('--value-stdin'), true);
   assert.equal(result.nonclaims.some((note) => note.includes('not provider readiness')), true);
+});
+
+// @ref LLP 0151#native-readiness-requires-both-halves — the native integration
+// is installed only once app-owned configuration exists.
+test('configure adds the config plugin only when configuration is complete', () => {
+  const root = project({ appConfig: { expo: { name: 'x', slug: 'x' } } });
+  const partial = runAuthConfigure({
+    provider: 'apple',
+    identifiers: { servicesId: 'com.example.service' },
+    cwd: root,
+  });
+  assert.equal(partial.nativeIntegration.pluginConfigured, false);
+  assert.equal(partial.nativeIntegration.reason, 'configuration-incomplete');
+  assert.equal(
+    JSON.parse(readFileSync(join(root, 'app.json'), 'utf8')).expo.plugins,
+    undefined,
+  );
+
+  const complete = runAuthConfigure({
+    provider: 'apple',
+    identifiers: { teamId: 'TEAM1', keyId: 'KEY1', bundleIdentifier: 'com.example.myapp' },
+    cwd: root,
+  });
+  assert.deepEqual(complete.missing, []);
+  assert.equal(complete.nativeIntegration.pluginConfigured, true);
+  assert.equal(complete.nativeIntegration.reason, 'added');
+  assert.deepEqual(
+    JSON.parse(readFileSync(join(root, 'app.json'), 'utf8')).expo.plugins,
+    ['expo-apple-authentication'],
+  );
+  assert.equal(complete.next.includes('npx expo install expo-apple-authentication'), true);
+  assert.equal(
+    complete.next.includes('Rebuild the client so it carries the native integration.'),
+    true,
+  );
+
+  // Rerunning is idempotent, not a second plugin entry.
+  const again = runAuthConfigure({
+    provider: 'apple',
+    identifiers: { keyId: 'KEY1' },
+    cwd: root,
+  });
+  assert.equal(again.nativeIntegration.reason, 'already-present');
+  assert.deepEqual(
+    JSON.parse(readFileSync(join(root, 'app.json'), 'utf8')).expo.plugins,
+    ['expo-apple-authentication'],
+  );
+});
+
+test('configure refuses an app.json shape it did not write', () => {
+  for (const [appConfig, code] of [
+    [{ name: 'no-expo-object' }, 'SNAPBACK_AUTH_APP_CONFIG_INVALID'],
+    [{ expo: { name: 'x', plugins: 'not-an-array' } }, 'SNAPBACK_AUTH_APP_CONFIG_INVALID'],
+    [{ expo: { name: 'x', plugins: [{ shape: 'unknown' }] } }, 'SNAPBACK_AUTH_APP_CONFIG_INVALID'],
+  ]) {
+    const root = project({ appConfig });
+    assert.throws(
+      () => runAuthConfigure({
+        provider: 'google',
+        identifiers: { iosClientId: 'i', androidClientId: 'a', webClientId: 'w' },
+        cwd: root,
+      }),
+      (error) => error.code === code,
+      JSON.stringify(appConfig),
+    );
+  }
+});
+
+test('an app with no app.json records configuration without inventing one', () => {
+  const root = project();
+  const result = runAuthConfigure({
+    provider: 'google',
+    identifiers: { iosClientId: 'i', androidClientId: 'a', webClientId: 'w' },
+    cwd: root,
+  });
+  assert.equal(result.nativeIntegration.pluginConfigured, false);
+  assert.equal(result.nativeIntegration.reason, 'no-app-json');
 });
 
 test('configure rotates the configuration generation when an identifier changes', () => {

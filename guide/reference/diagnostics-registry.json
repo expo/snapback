@@ -2,15 +2,15 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:6129bd93f6cd8a73e9e4451a40bf589cfc6bed5a658fb01d852dd65939c3dc18"
+    "sourceDigest": "sha256:6bf2192127771126ca0bb0e7b77057c4ce67fbe32a63811dd68e8ce5c9624557"
   },
   "limits": {
     "lookupBytes": 16384
   },
   "counts": {
-    "codes": 3626,
+    "codes": 3628,
     "sourceFiles": 604,
-    "emittingSites": 12663,
+    "emittingSites": 12667,
     "httpClassified": 1720,
     "guideAnchored": 456
   },
@@ -16735,6 +16735,46 @@
       "guideAnchor": null,
       "guideAnchors": []
     },
+    "SNAPBACK_AUTH_APP_CONFIG_INVALID": {
+      "code": "SNAPBACK_AUTH_APP_CONFIG_INVALID",
+      "subsystem": "auth",
+      "sites": [
+        {
+          "file": "packages/snapback-cli/auth-setup.mjs",
+          "line": 527,
+          "column": 8
+        },
+        {
+          "file": "packages/snapback-cli/auth-setup.mjs",
+          "line": 534,
+          "column": 8
+        },
+        {
+          "file": "packages/snapback-cli/auth-setup.mjs",
+          "line": 544,
+          "column": 8
+        }
+      ],
+      "httpStatus": null,
+      "httpStatusClass": null,
+      "guideAnchor": null,
+      "guideAnchors": []
+    },
+    "SNAPBACK_AUTH_APP_CONFIG_STALE": {
+      "code": "SNAPBACK_AUTH_APP_CONFIG_STALE",
+      "subsystem": "auth",
+      "sites": [
+        {
+          "file": "packages/snapback-cli/auth-setup.mjs",
+          "line": 560,
+          "column": 8
+        }
+      ],
+      "httpStatus": null,
+      "httpStatusClass": null,
+      "guideAnchor": null,
+      "guideAnchors": []
+    },
     "SNAPBACK_AUTH_ASSURANCE_INADMISSIBLE": {
       "code": "SNAPBACK_AUTH_ASSURANCE_INADMISSIBLE",
       "subsystem": "auth",
@@ -19631,7 +19671,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/auth-setup.mjs",
-          "line": 205,
+          "line": 207,
           "column": 8
         }
       ],
@@ -19646,7 +19686,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/auth-setup.mjs",
-          "line": 167,
+          "line": 169,
           "column": 8
         }
       ],
@@ -19661,7 +19701,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/auth-setup.mjs",
-          "line": 265,
+          "line": 267,
           "column": 8
         }
       ],
@@ -19676,22 +19716,22 @@
       "sites": [
         {
           "file": "packages/snapback-cli/auth-setup.mjs",
-          "line": 89,
+          "line": 91,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/auth-setup.mjs",
-          "line": 107,
+          "line": 109,
           "column": 6
         },
         {
           "file": "packages/snapback-cli/auth-setup.mjs",
-          "line": 179,
+          "line": 181,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/auth-setup.mjs",
-          "line": 231,
+          "line": 233,
           "column": 8
         }
       ],
@@ -25793,12 +25833,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/auth-setup.mjs",
-          "line": 303,
+          "line": 305,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/auth-setup.mjs",
-          "line": 310,
+          "line": 312,
           "column": 8
         }
       ],
@@ -25813,7 +25853,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/auth-setup.mjs",
-          "line": 320,
+          "line": 322,
           "column": 8
         }
       ],
@@ -25828,7 +25868,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/auth-setup.mjs",
-          "line": 459,
+          "line": 461,
           "column": 8
         }
       ],
@@ -25883,7 +25923,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/auth-setup.mjs",
-          "line": 400,
+          "line": 402,
           "column": 10
         }
       ],
@@ -25928,7 +25968,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/auth-setup.mjs",
-          "line": 407,
+          "line": 409,
           "column": 10
         }
       ],
@@ -26133,17 +26173,17 @@
       "sites": [
         {
           "file": "packages/snapback-cli/auth-setup.mjs",
-          "line": 156,
+          "line": 158,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/auth-setup.mjs",
-          "line": 252,
+          "line": 254,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/auth-setup.mjs",
-          "line": 391,
+          "line": 393,
           "column": 8
         }
       ],
@@ -29394,7 +29434,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/auth-setup.mjs",
-          "line": 549,
+          "line": 624,
           "column": 8
         }
       ],

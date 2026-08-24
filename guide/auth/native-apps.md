@@ -128,6 +128,14 @@ and they emit the provider-console steps that cannot be automated with this
 app's own bundle identifier, scheme, and return URL filled in. Apple and Google
 expose no client-registration API, so that walkthrough is the honest surface.
 
+Once a provider's identifiers are all recorded, the same command adds that
+provider's Expo config plugin to your `app.json` and names the
+`npx expo install` and the rebuild that finish the native half. Until then it
+adds nothing: an app on the shared development profile is a browser flow and
+needs no native integration. Adding the plugin is a source edit, not proof —
+readiness still requires the two halves above, and the CLI cannot see your
+installed build.
+
 Shared and app-owned credentials are separate provider installations. Switching
 rotates the auth-profile generation and signs out the incompatible rehearsal
 custody; Snapback never merges the two identities by email.

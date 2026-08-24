@@ -1154,8 +1154,13 @@ importantly — what still does not exist.
   compare-and-write and refuses to reserialize a hand-written providers block.
   `configure` records public identifiers and secret *references* only, refuses
   a secret value, and emits the deterministic console walkthrough with the
-  app's own bundle identifier, scheme, and return URL filled in. `status`
-  resolves with the same resolver the client uses.
+  app's own bundle identifier, scheme, and return URL filled in. Once — and
+  only once — a provider's app-owned configuration is complete, `configure`
+  also adds that provider's Expo config plugin to `app.json` through the same
+  stale-safe compare-and-write, and names the `npx expo install` and rebuild
+  that finish the native half. An app on the shared development profile is a
+  browser flow, so nothing native is added to it. `status` resolves with the
+  same resolver the client uses.
 
 ### What is deliberately not claimed
 
@@ -1169,8 +1174,11 @@ importantly — what still does not exist.
   separate product work.** Option D's production path is unchanged, and
   `auth.first-party-social-providers` stays a design-only capability row.
 - **App-owned native provider auth is wired but unproven.** `configure` records
-  the configuration and names the native integration; the resolver will select
-  `app-owned-native` when both halves verify. No signed build carrying
+  the configuration and adds the native integration's config plugin; the
+  resolver will select `app-owned-native` when both halves verify. Adding the
+  plugin is a source edit, not evidence — it neither installs the dependency
+  nor produces a build, and the CLI still observes no installed build. No
+  signed build carrying
   `expo-apple-authentication` or
   `@react-native-google-signin/google-signin` has been produced or exercised,
   and the CLI never claims native readiness because it cannot observe an

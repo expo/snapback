@@ -61,6 +61,8 @@ const PROVIDER_CONFIG_FIELDS = Object.freeze({
   }),
 });
 
+const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+
 function refuse(code, message, details = {}) {
   const error = new Error(message);
   error.code = code;
@@ -466,6 +468,13 @@ export function runAuthConfigure({
     typeof merged.providers[provider][name] !== 'string'
       || merged.providers[provider][name].length === 0
   ));
+  const nativeIntegration = missing.length === 0
+    ? installNativeConfigPlugin(root, provider)
+    : Object.freeze({
+        ...AUTH_PROVIDER_NATIVE_INTEGRATIONS[provider],
+        pluginConfigured: false,
+        reason: 'configuration-incomplete',
+      });
   return Object.freeze({
     schemaVersion: 'snapback.auth-configure.v1',
     ok: true,
@@ -477,11 +486,14 @@ export function runAuthConfigure({
     missing: Object.freeze(missing),
     configGeneration: merged.providers[provider].configGeneration,
     secretCommands: Object.freeze(secretCommands),
-    nativeIntegration: AUTH_PROVIDER_NATIVE_INTEGRATIONS[provider],
+    nativeIntegration,
     walkthrough,
     next: Object.freeze([
       ...(missing.length === 0 ? [] : [`snapback auth configure ${provider} ${missing.map((name) => `--${name} <value>`).join(' ')}`]),
       ...secretCommands,
+      ...(nativeIntegration.pluginConfigured
+        ? [`npx expo install ${nativeIntegration.dependency}`, 'Rebuild the client so it carries the native integration.']
+        : []),
       'snapback auth status',
     ]),
     nonclaims: Object.freeze([
@@ -489,6 +501,69 @@ export function runAuthConfigure({
       'This command wrote no secret value. Secrets live only in LLP 0036 deployment state.',
     ]),
   });
+}
+
+/**
+ * Add the provider's Expo config plugin, once its app-owned configuration is
+ * complete.
+ *
+ * @ref LLP 0151#native-readiness-requires-both-halves — the native integration
+ * is installed only when app-owned configuration exists. An app on the shared
+ * development profile is a browser flow and needs none of it, so nothing is
+ * added until `configure` has recorded a complete provider.
+ */
+function installNativeConfigPlugin(root, provider) {
+  const integration = AUTH_PROVIDER_NATIVE_INTEGRATIONS[provider];
+  const path = join(root, 'app.json');
+  if (!existsSync(path)) {
+    return Object.freeze({ ...integration, pluginConfigured: false, reason: 'no-app-json' });
+  }
+  const source = readFileSync(path, 'utf8');
+  let appConfig;
+  try {
+    appConfig = JSON.parse(source);
+  } catch {
+    throw refuse(
+      'SNAPBACK_AUTH_APP_CONFIG_INVALID',
+      `${path} is not valid JSON, so the ${provider} config plugin was not added`,
+      { path, provider },
+    );
+  }
+  if (!isRecord(appConfig?.expo)) {
+    throw refuse(
+      'SNAPBACK_AUTH_APP_CONFIG_INVALID',
+      `${path} has no expo object, so the ${provider} config plugin was not added`,
+      { path, provider },
+    );
+  }
+  const plugins = appConfig.expo.plugins;
+  if (plugins !== undefined && (!Array.isArray(plugins) || plugins.some((entry) => (
+    typeof entry !== 'string' && !(Array.isArray(entry) && typeof entry[0] === 'string')
+  )))) {
+    throw refuse(
+      'SNAPBACK_AUTH_APP_CONFIG_INVALID',
+      `${path} expo.plugins must be plugin-name strings or [name, options] tuples; add ${integration.plugin} by hand`,
+      { path, provider, plugin: integration.plugin },
+    );
+  }
+  const present = (plugins ?? []).some((entry) => (
+    (Array.isArray(entry) ? entry[0] : entry) === integration.plugin
+  ));
+  if (present) return Object.freeze({ ...integration, pluginConfigured: true, reason: 'already-present' });
+  const next = {
+    ...appConfig,
+    expo: { ...appConfig.expo, plugins: [...(plugins ?? []), integration.plugin] },
+  };
+  const observed = readFileSync(path, 'utf8');
+  if (observed !== source) {
+    throw refuse(
+      'SNAPBACK_AUTH_APP_CONFIG_STALE',
+      `${path} changed while snapback auth configure was preparing its edit; nothing was written`,
+      { path, provider },
+    );
+  }
+  writeAtomically(path, `${JSON.stringify(next, null, 2)}\n`);
+  return Object.freeze({ ...integration, pluginConfigured: true, reason: 'added' });
 }
 
 function readJsonIfPresent(path) {
