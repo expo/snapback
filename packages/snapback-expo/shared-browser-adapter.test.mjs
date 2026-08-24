@@ -200,6 +200,7 @@ test('an unavailable projection or missing Expo module refuses at construction',
 });
 
 test('absent Expo modules resolve to null rather than failing the boot', async () => {
+  assert.equal(await resolveExpoSharedBrowserModules(), null);
   assert.equal(await resolveExpoSharedBrowserModules(() => Promise.reject(new Error('not installed'))), null);
   assert.equal(await resolveExpoSharedBrowserModules(() => Promise.resolve({})), null);
   const resolved = await resolveExpoSharedBrowserModules((specifier) => Promise.resolve(

@@ -30,7 +30,12 @@ function run(command, args, options = {}) {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
     ...options,
-    env: { ...process.env, PATH: nodePath, ...(options.env ?? {}) },
+    env: {
+      ...process.env,
+      PATH: nodePath,
+      TMPDIR: temporary,
+      ...(options.env ?? {}),
+    },
   });
 }
 function chromeLaunch() {
@@ -170,7 +175,12 @@ let staticServer = null;
 let browser = null;
 try {
   cpSync(fixtureRoot, externalApp, { recursive: true });
-  const installOutput = run(process.execPath, [installer, externalApp], {
+  const installOutput = run(process.execPath, [
+    installer,
+    externalApp,
+    '--cache-dir',
+    join(temporary, 'bun-cache'),
+  ], {
     cwd: repoRoot,
     timeout: 600_000,
   });
@@ -191,7 +201,7 @@ try {
   }
 
   const outputDirectory = join(externalApp, 'dist');
-  run(join(externalApp, 'node_modules', '.bin', 'expo'), [
+  const metroOutput = run(join(externalApp, 'node_modules', '.bin', 'expo'), [
     'export',
     '--platform', 'web',
     '--output-dir', outputDirectory,
@@ -202,18 +212,25 @@ try {
     env: { CI: '1', EXPO_NO_TELEMETRY: '1' },
   });
   assert.ok(existsSync(join(outputDirectory, 'index.html')), 'Metro produced the Expo web export');
+  const bundleSummary = metroOutput.split('\n').find((line) => /Web Bundled/u.test(line));
+  console.log(bundleSummary ?? 'metro-first-render.test.mjs: packed shared-browser Adapter Metro export pass');
 
   staticServer = await serve(outputDirectory);
   const launch = chromeLaunch();
   browser = await launchChromeCdp({
     ...launch,
     headless: true,
+    tempRoot: temporary,
     startupTimeoutMs: 60_000,
     extraArgs: ['--remote-allow-origins=*', '--disable-background-networking'],
   });
   const rendered = await firstRender(browser, staticServer.origin);
-  assert.match(rendered, /^Snapback Expo first render:/u);
-  console.log('metro-first-render.test.mjs: packed external Expo entrypoint bundles and reaches first render');
+  assert.match(
+    rendered,
+    /^Snapback Expo first render: .*; resolver=function$/u,
+    'the packed shared-browser Adapter reaches first render',
+  );
+  console.log('metro-first-render.test.mjs: packed shared-browser Adapter bundles and reaches first render');
 } finally {
   await browser?.stop();
   await staticServer?.close();

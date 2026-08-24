@@ -164,7 +164,8 @@ for (const [name, version] of Object.entries(templateManifest.dependencies ?? {}
   );
 }
 
-const scratchRoot = mkdtempSync(join(tmpdir(), 'snapback-expo-chat-template-'));
+const scratchParent = process.env.SNAPBACK_EXPO_CHAT_TEMPLATE_SCRATCH_ROOT ?? tmpdir();
+const scratchRoot = mkdtempSync(join(scratchParent, 'snapback-expo-chat-template-'));
 const scaffoldRoot = join(scratchRoot, 'expo-chat');
 try {
   // @ref LLP 0186#w2--context-injection-surface-owned-here — keep the
@@ -172,9 +173,10 @@ try {
   // template and first-party client declarations evolve.
   const scaffold = scaffoldApp(scaffoldRoot, { template: 'expo-chat' });
   assert.equal(scaffold.ok, true);
-  // Keep the generated project outside the source monorepo so Expo resolves
-  // the installed package closure exactly like a consumer. The harness owns
-  // that frozen closure; the scaffold itself remains untouched.
+  // Materialize workspace packages through their publish allowlists. Metro
+  // therefore consumes package bytes rather than following Bun's per-file
+  // workspace links back to contributor source. A supervised lane can pin the
+  // scratch parent inside its worktree without changing this package closure.
   materializeConsumerNodeModules(join(scaffoldRoot, 'node_modules'));
   const generated = await generateApp(join(scaffoldRoot, 'snapback'));
   assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
@@ -216,6 +218,10 @@ try {
   );
   assert.equal(webExport.status, 0, webExport.stderr || webExport.stdout);
   assert.equal(existsSync(join(webOutput, 'index.html')), true, 'Expo web export omitted index.html');
+  const bundleSummary = `${webExport.stdout}\n${webExport.stderr}`
+    .split('\n')
+    .find((line) => /Web Bundled/u.test(line));
+  if (bundleSummary) process.stdout.write(`${bundleSummary}\n`);
   let webPort;
   try {
     webPort = await freeLoopbackPort();

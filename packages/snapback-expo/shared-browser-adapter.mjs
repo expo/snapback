@@ -134,7 +134,24 @@ export function createSharedBrowserAdapter({
  * shared Adapter instead of failing to boot. The app that then calls
  * `auth.signIn` gets a named refusal from the dispatcher.
  */
-export async function resolveExpoSharedBrowserModules(load = (specifier) => import(specifier)) {
+function loadOptionalExpoSharedBrowserModule(specifier) {
+  // @ref LLP 0181#metro-and-package-closure — the shipped Expo tuple must
+  // transform every client module while optional Expo adapters stay optional.
+  // Metro requires a literal dynamic-import target. Keeping the rejection
+  // handler on each import also tells Expo's Metro transformer that these are
+  // optional dependencies: apps without provider auth still bundle, while an
+  // app that installs the modules gets the ordinary ESM namespace in Metro,
+  // Node, and other headless ESM runtimes.
+  if (specifier === 'expo-web-browser') {
+    return import('expo-web-browser').catch((error) => Promise.reject(error));
+  }
+  if (specifier === 'expo-linking') {
+    return import('expo-linking').catch((error) => Promise.reject(error));
+  }
+  return Promise.reject(new TypeError(`unsupported Expo shared browser module: ${specifier}`));
+}
+
+export async function resolveExpoSharedBrowserModules(load = loadOptionalExpoSharedBrowserModule) {
   try {
     const [webBrowser, linking] = await Promise.all([
       load('expo-web-browser'),
