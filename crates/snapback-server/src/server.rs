@@ -9286,7 +9286,7 @@ fn connection_id_from_request_path(path: &str) -> Option<&str> {
 /// adopted (non-prod only).
 async fn open_connection(
     State(runtime): State<AppState>,
-    Extension(_authority): Extension<PreparedAuthority>,
+    Extension(authority): Extension<PreparedAuthority>,
     Extension(prepared): Extension<PreparedConnectionOpenAuthority>,
     Extension(admission): Extension<AdmissionLease>,
     headers: HeaderMap,
@@ -9437,7 +9437,11 @@ async fn open_connection(
                 )
             })?
     };
-    let deadline = match record_connection_authenticated_use(&runtime, use_key, &admission).await {
+    let deadline = match record_connection_authenticated_use(
+        &runtime, &authority, use_key, &admission,
+    )
+    .await
+    {
         Ok(deadline) => deadline,
         Err(error) => {
             runtime.connections.discard_unpublished_open(&opened);
@@ -13476,7 +13480,7 @@ async fn record_successful_finite_session_use(
     authority: &PreparedAuthority,
 ) -> Result<(), ApiError> {
     let ResolvedAppAuthority::Session {
-        session_id,
+        session_id: _,
         generation,
         ..
     } = authority.resolved()
@@ -13486,19 +13490,14 @@ async fn record_successful_finite_session_use(
     let provider = installed_auth_provider(runtime)?;
     let coordinator = installed_auth_coordinator(runtime)?;
     let provider_admission = provider.admit().await;
-    let session_id = session_id.clone();
     let expected_generation = *generation;
     let now_ms = provider.now_ms();
     let effect_authority = authority.clone();
     let outcome = with_snapback(&runtime.snapback, move |snapback| {
-        let _effect = effect_authority
+        let effect = effect_authority
             .effect_guard("authenticated-use expiry transaction")
             .map_err(ProviderError::from)?;
-        snapback.execute_auth_plan(provider_admission.record_authenticated_use_plan(
-            session_id,
-            expected_generation,
-            now_ms,
-        ))
+        snapback.record_authenticated_use(provider_admission, &effect, &effect_authority, now_ms)
     })
     .await
     .map_err(map_provider_error)?;
@@ -18230,16 +18229,43 @@ async fn persist_expired_service_authority_owned(
     await_owned_auth_transaction(transaction).await?
 }
 
-/// Record one LLP 0057 qualifying use after the connection act itself has
-/// passed its exact grant/session fence. Bearer classification never reaches
-/// this path: the immutable session id and generation came from the projection
-/// and the provider transaction can only extend that exact durable row.
+/// Record one LLP 0057 qualifying use after the connection act succeeds. The
+/// caller supplies `PreparedConnectionAct::authenticated_use_key`; this helper
+/// requires that tuple to equal the request's prepared authority before the
+/// engine derives the durable row key from that authority. This does not
+/// inspect the session deadline or revalidate session lifecycle state.
+fn require_connection_authenticated_use_key(
+    authority: &PreparedAuthority,
+    key: Option<(String, u64)>,
+) -> crate::auth::provider::ProviderResult<Option<(String, u64)>> {
+    let Some((session_id, generation)) = key else {
+        return Ok(None);
+    };
+    let ResolvedAppAuthority::Session {
+        session_id: resolved_session_id,
+        generation: resolved_generation,
+        ..
+    } = authority.resolved()
+    else {
+        return Err(provider_auth_required());
+    };
+    let session_matches = session_id.as_str() == resolved_session_id.as_str();
+    let generation_matches = generation == *resolved_generation;
+    if !(session_matches && generation_matches) {
+        return Err(provider_auth_required());
+    }
+    Ok(Some((session_id, generation)))
+}
+
 async fn record_connection_authenticated_use(
     runtime: &AppState,
+    authority: &PreparedAuthority,
     key: Option<(String, u64)>,
     route_admission: &AdmissionLease,
 ) -> Result<Option<u64>, ApiError> {
-    let Some((session_id, generation)) = key else {
+    let Some((session_id, generation)) =
+        require_connection_authenticated_use_key(authority, key).map_err(map_provider_error)?
+    else {
         return Ok(None);
     };
     let provider = installed_auth_provider(runtime)?;
@@ -18247,16 +18273,17 @@ async fn record_connection_authenticated_use(
     let provider_admission = provider.admit().await;
     let durable_now_ms = provider.now_ms();
     let effect_admission = route_admission.clone();
-    let session_for_write = session_id.clone();
+    let authenticated_use_authority = authority.clone();
     let outcome = with_snapback(&runtime.snapback, move |snapback| {
-        let _effect = effect_admission
+        let effect = effect_admission
             .effect_guard("authenticated connection use")
             .map_err(ProviderError::from)?;
-        snapback.execute_auth_plan(provider_admission.record_authenticated_use_plan(
-            session_for_write,
-            generation,
+        snapback.record_authenticated_use(
+            provider_admission,
+            &effect,
+            &authenticated_use_authority,
             durable_now_ms,
-        ))
+        )
     })
     .await
     .map_err(map_provider_error)?;
@@ -32503,9 +32530,10 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
     // scoped-service grants intentionally create no principal witness.
     let witness_connection_id = connection_id.clone();
     let witness_grant_id = terminal_capture.grant_id.clone();
+    let witness_authority = authority.clone();
     let managed_witness = with_read_lane(&runtime.read, move |lane| {
         lane.register_managed_websocket_client(
-            &authority,
+            &witness_authority,
             &witness_connection_id,
             &witness_grant_id,
             generation,
@@ -32825,6 +32853,7 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                         }
                         let deadline = match record_connection_authenticated_use(
                             &runtime,
+                            &authority,
                             connection_act.authenticated_use_key(),
                             &admission,
                         ).await {

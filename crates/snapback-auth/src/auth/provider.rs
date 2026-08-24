@@ -3380,20 +3380,6 @@ impl AuthAdmission {
         super::database_plan::plan(move |database| self.commit_planned_rotation(database, plan))
     }
 
-    /// Seal one authenticated-use transaction for execution by the engine
-    /// that owns the target database.
-    pub fn record_authenticated_use_plan(
-        self,
-        session_id: String,
-        expected_generation: u64,
-        now_ms: u64,
-    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderResult<AuthenticatedUse>>
-    {
-        super::database_plan::plan(move |database| {
-            self.record_authenticated_use(database, &session_id, expected_generation, now_ms)
-        })
-    }
-
     /// Resolve the human delivery address from the exact still-live session.
     /// The caller keeps this maintenance admission while acquiring the
     /// resulting address stripe, preserving the provider lock order.

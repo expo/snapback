@@ -23766,6 +23766,107 @@ async fn successful_finite_session_use_extends_the_projection_deadline() {
         .expect("sliding use moved the projected deadline past its original value");
 }
 
+/// @ref LLP 0059#operation-specific-publication — connection authenticated
+/// use accepts only the prepared authority's exact session id and generation;
+/// this test does not exercise the session deadline or a session fence.
+#[tokio::test]
+async fn authenticated_use_accepts_only_the_resolved_connection_tuple() {
+    let start_ms = 1_700_000_100_000;
+    let (state, clock) = manual_clock_sessions_fixture(start_ms);
+    let mut sessions = Vec::new();
+    for (offset, email) in [
+        (0, "authenticated-use-a@example.com"),
+        (1, "authenticated-use-m@example.com"),
+        (2, "authenticated-use-z@example.com"),
+    ] {
+        clock.set(start_ms + offset);
+        let credential = mint_test_credential(&state, email).await;
+        sessions.push((
+            credential["session"]["id"]
+                .as_str()
+                .expect("minted session id")
+                .to_owned(),
+            credential["token"]
+                .as_str()
+                .expect("minted session bearer")
+                .to_owned(),
+        ));
+    }
+    let [
+        (lower_session_id, _),
+        (session_id, bearer),
+        (upper_session_id, _),
+    ] = sessions.as_slice()
+    else {
+        unreachable!("three authenticated-use sessions")
+    };
+    assert!(
+        lower_session_id < session_id && session_id < upper_session_id,
+        "the timestamp-ordered sessions cover both sides of lexical ordering",
+    );
+
+    let coordinator = state.auth_coordinator.as_ref().expect("auth coordinator");
+    let prepared = coordinator
+        .resolve_required_bearer(bearer, clock.epoch_ms(), clock.monotonic_now())
+        .expect("resolve middle connection session");
+    let (resolved, publication) = prepared.into_parts();
+    let generation = match &resolved {
+        ResolvedAppAuthority::Session { generation, .. } => *generation,
+        _ => unreachable!("resolved session bearer"),
+    };
+    assert!(generation > 0, "generation mutations require a predecessor");
+    let session_claims = test_session_claims_for(&resolved);
+    let authority = InvocationGate::prepare_admitted_authority(
+        InvocationSource::HttpQuery,
+        AuthMode::Sessions,
+        ServerProfile::Test,
+        test_route_admission(&state).0,
+        &WireAuthorityFields::default(),
+        resolved,
+        session_claims,
+    )
+    .expect("prepare admitted middle connection authority")
+    .with_fenced_publication(publication);
+
+    let mut accepted = BTreeSet::new();
+    let mut refused = BTreeMap::new();
+    for (case, selected_session_id, selected_generation) in [
+        ("lower-session", lower_session_id.as_str(), generation),
+        ("lower-generation", session_id.as_str(), generation - 1),
+        ("exact", session_id.as_str(), generation),
+        ("upper-generation", session_id.as_str(), generation + 1),
+        ("upper-session", upper_session_id.as_str(), generation),
+    ] {
+        let route_admission = test_route_admission(&state).0;
+        match super::record_connection_authenticated_use(
+            &state,
+            &authority,
+            Some((selected_session_id.to_owned(), selected_generation)),
+            &route_admission,
+        )
+        .await
+        {
+            Ok(_) => {
+                accepted.insert(case);
+            }
+            Err(error) => {
+                refused.insert(case, error.0.diagnostic.code.clone());
+            }
+        }
+    }
+
+    assert_eq!(accepted, BTreeSet::from(["exact"]));
+    assert_eq!(
+        refused,
+        BTreeMap::from([
+            ("lower-generation", "SNAPBACK_AUTH_REQUIRED".to_owned()),
+            ("lower-session", "SNAPBACK_AUTH_REQUIRED".to_owned()),
+            ("upper-generation", "SNAPBACK_AUTH_REQUIRED".to_owned()),
+            ("upper-session", "SNAPBACK_AUTH_REQUIRED".to_owned()),
+        ])
+    );
+}
+
 /// @ref LLP 0057#host-operation-dtos — mint projects the exact credential as a
 /// named host-ops datum and records its administrative issue provenance;
 /// active Dev keeps the operation unavailable until item 4 activates

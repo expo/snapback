@@ -6813,6 +6813,37 @@ impl LocalSnapback {
         plan.execute(self.db.auth_database_mut())
     }
 
+    /// Record authenticated use for the session id and generation derived
+    /// from the prepared authority. This derivation is scoped to this method
+    /// and its current server callers: it does not inspect the session
+    /// deadline or revalidate a session fence.
+    ///
+    /// @ref LLP 0059#operation-specific-publication — a sliding-use extension
+    /// belongs to the exact session generation whose qualifying act succeeded.
+    pub fn record_authenticated_use(
+        &mut self,
+        provider_admission: crate::auth::provider::AuthAdmission,
+        effect: &AdmissionEffectGuard<'_>,
+        authority: &PreparedAuthority,
+        now_ms: u64,
+    ) -> crate::auth::provider::ProviderResult<crate::contract_types::AuthenticatedUse> {
+        let _ = effect;
+        let ResolvedAppAuthority::Session {
+            session_id: resolved_session_id,
+            generation: resolved_generation,
+            ..
+        } = authority.resolved()
+        else {
+            return Err(crate::auth::provider::auth_required());
+        };
+        provider_admission.record_authenticated_use(
+            self.db.auth_database_mut(),
+            resolved_session_id,
+            *resolved_generation,
+            now_ms,
+        )
+    }
+
     /// Execute one sealed auth maintenance pass and the existing push-idle
     /// retirement in the same target-owner turn.
     pub fn execute_auth_gc_plan<P>(
