@@ -131,3 +131,43 @@ Earlier in this session a diagnostics generator was run speculatively on a docs-
 corrupted the artifacts; the corruption was reverted and never pushed. The rule that follows: do not
 regenerate unless the change actually touches a generator input, and when you do, run the guide
 manifest generator so the whole chain moves together.
+
+## Land from the main checkout, not from a lane worktree
+
+Established by dry-running a rebase of a finished lane before the real landings.
+
+**The good news first.** Six finished lane branches were merge-tested against `main`. Every one
+conflicts — and **every conflict is in generated artifacts only**:
+`guide/guide-manifest.generated.json`, `guide/reference/diagnostics-registry.json`,
+`guide/guide-flat*.generated.md`, `guide/reference/diagnostics.md`. **Zero source conflicts across
+all six**, despite them touching overlapping kernel, sync and engine files. So concurrent lanes on
+this program do not fight over code; they fight over regenerated output, which is resolved by
+regenerating rather than by merging.
+
+**The trap.** A `git worktree add` checkout is missing three things the main checkout has, and each
+fails differently and late:
+
+| Missing | Symptom |
+|---|---|
+| `vendor/ibex` | `ibex-runtime` build script fails; engine/server cannot build |
+| `node_modules` | `ERR_MODULE_NOT_FOUND: Cannot find package 'typescript'` from `scripts/generate-symbol-registry.mjs` |
+| `demos/*/snapback/generated/` (gitignored) | `check-inventories` reports "snippet source does not exist" for guide snippets |
+
+The middle one is worth calling out: it is the same root cause as the pre-push hook failing from lane
+worktrees with `ERR_MODULE_NOT_FOUND`, which has been worked around by pushing from the main checkout.
+Both are one missing `node_modules`.
+
+Symlinking `vendor/ibex` and `node_modules` gets a worktree far enough to complete a rebase, but the
+guide generator still needs the demo generated artifacts, so the chain is not reproducible there
+without shipping those too.
+
+**Therefore:** since there are no source conflicts, cherry-pick each finished lane commit into the
+fully provisioned main checkout, regenerate the chain there with
+`node scripts/generate-guide-manifest.mjs`, run `node scripts/check-inventories.mjs`, and push from
+there. Do not try to complete a rebase-and-regenerate inside a lane worktree.
+
+One caveat found during the dry run and not yet diagnosed: the generator also reported
+`SNAPBACK_SYMBOL_REMOVAL_UNDECLARED: published symbols disappeared without authored removedIn facts`
+for `npm:@expo/snapback-expo#SnapbackDiagnosticError`. That may be an artifact of the incomplete
+worktree or a genuine issue in the rebased content; it needs re-checking in the main checkout before
+any landing, and must not be assumed benign.
