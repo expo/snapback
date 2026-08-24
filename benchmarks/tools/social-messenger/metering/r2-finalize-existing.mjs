@@ -37,6 +37,10 @@ import {
 } from "./r2-host-lock.mjs";
 import { joinUsageToMilestones } from "./joiner.mjs";
 import { loadMeteringManifest } from "./manifest.mjs";
+import {
+  formatFinalizationFailure,
+  withFinalizationStage,
+} from "./finalization-diagnostics.mjs";
 import { composeRunRecord } from "./record-composer.mjs";
 import { inspectPrivateCellPath } from "./r2-private-paths.mjs";
 import {
@@ -960,8 +964,18 @@ export async function finalizeExisting({
     // No derived/private or publication write occurs until the finalizer has
     // rebound the exact executing closure immediately after the quiet probe.
     liveSourceClosure({ harnessConfig, repositoryRoot });
-    const manifest = updateManifestObservations(cellRoot, manifestPath, retainedManifestBytes);
-    const metering = joinUsageToMilestones(await loadMeteringManifest(realpathSync(manifestPath)));
+    const manifest = await withFinalizationStage(
+      "retained-observation-registration",
+      () => updateManifestObservations(cellRoot, manifestPath, retainedManifestBytes),
+    );
+    const meteringInput = await withFinalizationStage(
+      "metering-manifest-load",
+      () => loadMeteringManifest(realpathSync(manifestPath)),
+    );
+    const metering = await withFinalizationStage(
+      "milestone-usage-join",
+      () => joinUsageToMilestones(meteringInput),
+    );
     const meteringBytes = Buffer.from(`${JSON.stringify(metering, null, 2)}\n`);
     const base = JSON.parse(readRegular(
       resolve(cellRoot, manifest.recordBase?.path ?? ""),
@@ -1056,7 +1070,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   else finalizeExisting(options).then((result) => {
     process.stdout.write(`${JSON.stringify(result)}\n`);
   }).catch((error) => {
-    process.stderr.write(`${error.message}\n`);
+    process.stderr.write(`${formatFinalizationFailure(error)}\n`);
     process.exitCode = 2;
   });
 }

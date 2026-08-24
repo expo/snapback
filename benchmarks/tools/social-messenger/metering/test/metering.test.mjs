@@ -40,6 +40,11 @@ import {
 } from "../boundaries.mjs";
 import { joinUsageToMilestones } from "../joiner.mjs";
 import { recoverCodexSignalSettlements } from "../codex-native-evidence.mjs";
+import {
+  FINALIZATION_RAW_EXCERPT_LIMIT,
+  formatFinalizationFailure,
+  withFinalizationStage,
+} from "../finalization-diagnostics.mjs";
 import { parseJsonLines } from "../jsonl.mjs";
 import {
   applyR2DriverV1TerminalCompatibility,
@@ -109,6 +114,44 @@ const extensionSchema = JSON.parse(await readFile(
   new URL("benchmarks/schema/social-messenger/run-record-extension.schema.json", ROOT),
   "utf8",
 ));
+
+test("finalization diagnostics retain stage, ordinal, event type, cause, and bounded raw payload", async () => {
+  const rawPayload = JSON.stringify({
+    ordinal: 73,
+    timestamp: "2026-08-24T12:00:00.000Z",
+    type: "event_msg",
+    payload: {
+      type: "token_count",
+      info: { total_token_usage: { input_tokens: "invalid" } },
+      oversized: "x".repeat(2_000),
+    },
+  });
+  const [event] = parseJsonLines(`${rawPayload}\n`, "retained-real-stream.jsonl");
+  let error = null;
+  try {
+    await withFinalizationStage(
+      "metering-manifest-load",
+      async () => adaptCodexSessionTree([{
+        sourceId: "builder",
+        nativeSessionId: "session-1",
+        records: [event],
+      }]),
+    );
+  } catch (caught) {
+    error = caught;
+  }
+  assert.notEqual(error, null);
+  const rendered = formatFinalizationFailure(error);
+  assert.match(rendered, /stage=metering-manifest-load\/codex-token-count-normalize/u);
+  assert.match(rendered, /source="retained-real-stream\.jsonl"/u);
+  assert.match(rendered, /streamLine=1/u);
+  assert.match(rendered, /eventOrdinal=73/u);
+  assert.match(rendered, /eventType="event_msg\/token_count"/u);
+  assert.match(rendered, /cause="Codex token_count record 1\.total_token_usage\.input_tokens must be a non-negative integer"/u);
+  assert.match(rendered, /<truncated/u);
+  assert.ok(rendered.length < rawPayload.length);
+  assert.equal(FINALIZATION_RAW_EXCERPT_LIMIT, 512);
+});
 const baseSchema = JSON.parse(await readFile(
   new URL("benchmarks/schema/run-record.schema.json", ROOT),
   "utf8",

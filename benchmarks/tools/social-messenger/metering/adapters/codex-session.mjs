@@ -5,6 +5,7 @@ import {
 } from "../counts.mjs";
 import { timestampMillis } from "../jsonl.mjs";
 import { TOKEN_SOURCES } from "../sources.mjs";
+import { withEventDiagnostic } from "../finalization-diagnostics.mjs";
 
 export const CODEX_ADAPTER_VERSION = "codex-rollout-jsonl.v2";
 export const CODEX_0149_ZERO_DELTA_RULE =
@@ -124,25 +125,29 @@ function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
   const nativeCliVersion = codexCliVersion(records);
   const cumulativeRecords = [];
   for (const [index, record] of records.entries()) {
-    const info = record?.type === "event_msg"
-      && record?.payload?.type === "token_count"
-      ? record.payload.info
-      : null;
-    if (info?.total_token_usage === undefined) continue;
-    const completedAt = record.timestamp;
-    cumulativeRecords.push({
-      completedAt,
-      completedAtMs: timestampMillis(
+    const entry = withEventDiagnostic("codex-token-count-normalize", record, () => {
+      const info = record?.type === "event_msg"
+        && record?.payload?.type === "token_count"
+        ? record.payload.info
+        : null;
+      if (info?.total_token_usage === undefined) return null;
+      const completedAt = record.timestamp;
+      return {
         completedAt,
-        `Codex token_count record ${index + 1}.timestamp`,
-      ),
-      recordIndex: index + 1,
-      cumulative: normalizeCodexCumulative(
-        info.total_token_usage,
-        `Codex token_count record ${index + 1}.total_token_usage`,
-      ),
-      lastRaw: info.last_token_usage ?? null,
+        completedAtMs: timestampMillis(
+          completedAt,
+          `Codex token_count record ${index + 1}.timestamp`,
+        ),
+        recordIndex: index + 1,
+        rawRecord: record,
+        cumulative: normalizeCodexCumulative(
+          info.total_token_usage,
+          `Codex token_count record ${index + 1}.total_token_usage`,
+        ),
+        lastRaw: info.last_token_usage ?? null,
+      };
     });
+    if (entry !== null) cumulativeRecords.push(entry);
   }
   cumulativeRecords.sort((left, right) => left.completedAtMs - right.completedAtMs);
 
@@ -150,59 +155,61 @@ function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
   const turns = [];
   const compatibilityEvents = [];
   for (const entry of cumulativeRecords) {
-    if (tokenCountsEqual(entry.cumulative, previous)) {
-      if (entry.lastRaw === null) continue;
-      try {
-        normalizeCodexCumulative(
-          entry.lastRaw,
-          `Codex token_count record ${entry.recordIndex}.last_token_usage`,
-        );
-      } catch (error) {
-        // @ref LLP 0201#d2--quantitative-instrument — charged usage comes
-        // only from validated cumulative component deltas. Codex 0.149.0 can
-        // repeat an unchanged cumulative status with zero last components and
-        // a contradictory advisory total; retain that native shape but do not
-        // invent a turn or tokens for it.
-        const compatibilityEvent = zeroDeltaCompatibilityEvent({
-          entry,
-          nativeCliVersion,
-          nativeSessionId,
-          sourceId,
-        });
-        if (compatibilityEvent === null) throw error;
-        compatibilityEvents.push(compatibilityEvent);
+    withEventDiagnostic("codex-token-count-delta-join", entry.rawRecord, () => {
+      if (tokenCountsEqual(entry.cumulative, previous)) {
+        if (entry.lastRaw === null) return;
+        try {
+          normalizeCodexCumulative(
+            entry.lastRaw,
+            `Codex token_count record ${entry.recordIndex}.last_token_usage`,
+          );
+        } catch (error) {
+          // @ref LLP 0201#d2--quantitative-instrument — charged usage comes
+          // only from validated cumulative component deltas. Codex 0.149.0 can
+          // repeat an unchanged cumulative status with zero last components and
+          // a contradictory advisory total; retain that native shape but do not
+          // invent a turn or tokens for it.
+          const compatibilityEvent = zeroDeltaCompatibilityEvent({
+            entry,
+            nativeCliVersion,
+            nativeSessionId,
+            sourceId,
+          });
+          if (compatibilityEvent === null) throw error;
+          compatibilityEvents.push(compatibilityEvent);
+        }
+        return;
       }
-      continue;
-    }
-    const usage = subtractTokenCounts(entry.cumulative, previous);
-    if (entry.lastRaw === null) {
-      throw new Error(
-        `Codex token_count record ${entry.recordIndex} changed cumulative usage without last_token_usage`,
+      const usage = subtractTokenCounts(entry.cumulative, previous);
+      if (entry.lastRaw === null) {
+        throw new Error(
+          `Codex token_count record ${entry.recordIndex} changed cumulative usage without last_token_usage`,
+        );
+      }
+      const last = normalizeCodexCumulative(
+        entry.lastRaw,
+        `Codex token_count record ${entry.recordIndex}.last_token_usage`,
       );
-    }
-    const last = normalizeCodexCumulative(
-      entry.lastRaw,
-      `Codex token_count record ${entry.recordIndex}.last_token_usage`,
-    );
-    if (!tokenCountsEqual(usage, last)) {
-      throw new RangeError(
-        `Codex token_count record ${entry.recordIndex} cumulative delta does not equal last_token_usage`,
-      );
-    }
-    const cumulativeIdentity = [
-      entry.cumulative.input,
-      entry.cumulative.output,
-      entry.cumulative.cacheRead,
-      entry.cumulative.cacheWrite,
-      entry.cumulative.reasoning,
-    ].join(":");
-    turns.push({
-      id: `codex-token-count:${nativeSessionId}:${entry.completedAt}:${cumulativeIdentity}`,
-      sourceId,
-      completedAt: entry.completedAt,
-      usage,
+      if (!tokenCountsEqual(usage, last)) {
+        throw new RangeError(
+          `Codex token_count record ${entry.recordIndex} cumulative delta does not equal last_token_usage`,
+        );
+      }
+      const cumulativeIdentity = [
+        entry.cumulative.input,
+        entry.cumulative.output,
+        entry.cumulative.cacheRead,
+        entry.cumulative.cacheWrite,
+        entry.cumulative.reasoning,
+      ].join(":");
+      turns.push({
+        id: `codex-token-count:${nativeSessionId}:${entry.completedAt}:${cumulativeIdentity}`,
+        sourceId,
+        completedAt: entry.completedAt,
+        usage,
+      });
+      previous = entry.cumulative;
     });
-    previous = entry.cumulative;
   }
   return { turns, compatibilityEvents, nativeCliVersion };
 }

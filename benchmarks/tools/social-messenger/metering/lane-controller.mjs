@@ -8,6 +8,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { joinUsageToMilestones } from "./joiner.mjs";
 import { loadMeteringManifest } from "./manifest.mjs";
+import {
+  formatFinalizationFailure,
+  withFinalizationStage,
+} from "./finalization-diagnostics.mjs";
 import { composeRunRecord } from "./record-composer.mjs";
 import {
   inspectCommittedSeriality,
@@ -206,8 +210,14 @@ export class R2LaneController {
     }
     await writeFile(absoluteManifest, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 
-    const meteringInput = await loadMeteringManifest(absoluteManifest);
-    const patch = joinUsageToMilestones(meteringInput);
+    const meteringInput = await withFinalizationStage(
+      "metering-manifest-load",
+      () => loadMeteringManifest(absoluteManifest),
+    );
+    const patch = await withFinalizationStage(
+      "milestone-usage-join",
+      () => joinUsageToMilestones(meteringInput),
+    );
     await writeFile(resolve(requiredString(outPath, "outPath")), `${JSON.stringify(patch, null, 2)}\n`);
     return patch;
   }
@@ -658,7 +668,10 @@ async function main() {
         try {
           if (typeof driver.finalize === "function") {
             attemptPhase = "driver-finalize";
-            await driver.finalize({ config, configDirectory, error: cellError });
+            await withFinalizationStage(
+              "driver-finalize",
+              () => driver.finalize({ config, configDirectory, error: cellError }),
+            );
           }
         } catch (error) {
           finalizationError = error;
@@ -666,7 +679,10 @@ async function main() {
         try {
           attemptPhase = "record-finalization";
           const driverSources = typeof driver.observationSources === "function"
-            ? await driver.observationSources({ config, configDirectory })
+            ? await withFinalizationStage(
+                "observation-source-discovery",
+                () => driver.observationSources({ config, configDirectory }),
+              )
             : [];
           patch = await controller.writeRecordPatch({
             manifestPath: configPath(configDirectory, config.manifestPath, "manifestPath"),
@@ -741,7 +757,7 @@ async function main() {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((error) => {
-    process.stderr.write(`social-messenger lane controller: ${error.message}\n`);
+    process.stderr.write(`social-messenger lane controller finalization failure:\n${formatFinalizationFailure(error)}\n`);
     process.exitCode = 2;
   });
 }

@@ -2,6 +2,12 @@ import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { loadavg } from "node:os";
 
+import {
+  FinalizationDiagnosticError,
+  retainRawEventContext,
+  withEventDiagnostic,
+} from "./finalization-diagnostics.mjs";
+
 // @ref LLP 0295#d06--efficiency-instrument-and-target-registration — typed
 // retained events are the authority for every claimed observability aggregate;
 // unavailable native streams become explicit scorecard-affecting non-claims.
@@ -364,9 +370,26 @@ export function parseObservationJsonLines(text, label = "observations") {
     try {
       event = JSON.parse(line);
     } catch (error) {
-      throw new SyntaxError(`${label}:${index + 1}: ${error.message}`);
+      throw new FinalizationDiagnosticError(
+        new SyntaxError(`${label}:${index + 1}: ${error.message}`),
+        {
+          stage: "observation-jsonl-parse",
+          source: label,
+          streamLine: index + 1,
+          rawPayload: line,
+        },
+      );
     }
-    events.push(normalizeObservationEvent(event, `${label}:${index + 1}`));
+    retainRawEventContext(event, {
+      source: label,
+      streamLine: index + 1,
+      rawPayload: line,
+    });
+    events.push(withEventDiagnostic(
+      "observation-event-normalize",
+      event,
+      () => normalizeObservationEvent(event, `${label}:${index + 1}`),
+    ));
   }
   const identities = new Set();
   for (const event of events) {
