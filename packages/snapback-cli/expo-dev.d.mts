@@ -382,3 +382,74 @@ export declare function resolveExpoMetroCommand(
   shell: boolean;
   display: string;
 };
+
+export type ExpoSupervisorPortOwner = 'client' | 'bootstrap' | 'metro';
+
+export interface ExpoSupervisorReservation {
+  readonly port?: number;
+  close(): Promise<void>;
+  readonly [member: string]: unknown;
+}
+
+export interface ExpoSupervisorPortAllocation {
+  readonly assigned: Readonly<Partial<Record<ExpoSupervisorPortOwner, number>>>;
+  readonly reservations: Readonly<Partial<Record<ExpoSupervisorPortOwner, ExpoSupervisorReservation>>>;
+  close(): Promise<void>;
+}
+
+export interface MetroWebFrontReservation extends ExpoSupervisorReservation {
+  readonly origin: string;
+  readonly port: number;
+  readonly upstreamOrigin: string | null;
+  setUpstreamOrigin(origin: string): void;
+}
+
+export interface PlannedSupervisorListeners {
+  readonly assigned: Readonly<Partial<Record<ExpoSupervisorPortOwner, number>>>;
+  readonly clientPort: number;
+  readonly metroProcessPort: number;
+  readonly metroFront: MetroWebFrontReservation | null;
+  readonly bootstrap: ExpoSupervisorReservation;
+  readonly metroPlaceholder: ExpoSupervisorReservation;
+  close(): Promise<void>;
+}
+
+export const __test: Readonly<{
+  allocateSupervisorPortCandidates(
+    plan: DevPortPlan,
+    excluded?: ReadonlySet<number>,
+    options?: Readonly<{
+      platform?: ExpoDevicePlatform;
+      bindOwner?: (
+        owner: ExpoSupervisorPortOwner,
+        port: number,
+        context: Readonly<{ platform: ExpoDevicePlatform }>,
+      ) => ExpoSupervisorReservation | Promise<ExpoSupervisorReservation>;
+      onReservation?: (owner: ExpoSupervisorPortOwner, reservation: ExpoSupervisorReservation) => void;
+      afterOwnerBound?: (
+        owner: ExpoSupervisorPortOwner,
+        port: number,
+        reservation: ExpoSupervisorReservation,
+      ) => void | Promise<void>;
+    }>,
+  ): Promise<ExpoSupervisorPortAllocation>;
+  startMetroWebFront(input: Readonly<{
+    port: number;
+    upstreamOrigin: string | null;
+    attestation: Readonly<{ serve(request: unknown, response: unknown): boolean }>;
+  }>): Promise<MetroWebFrontReservation>;
+  bindPlannedSupervisorListeners(input: Readonly<{
+    plan: DevPortPlan;
+    platform: ExpoDevicePlatform;
+    attestation: Readonly<{ serve(request: unknown, response: unknown): boolean }>;
+    getBootstrapPayload: () => unknown | Promise<unknown>;
+    onControl?: (request: BootstrapExchangeControlRequest) => BootstrapExchangeControlResult | Promise<BootstrapExchangeControlResult>;
+    onDevIdentityCheckout?: (nonce: unknown) => string | null | Promise<string | null>;
+    onReservation?: (owner: ExpoSupervisorPortOwner, reservation: ExpoSupervisorReservation) => void;
+    afterOwnerBound?: (
+      owner: ExpoSupervisorPortOwner,
+      port: number,
+      reservation: ExpoSupervisorReservation,
+    ) => void | Promise<void>;
+  }>): Promise<PlannedSupervisorListeners>;
+}>;

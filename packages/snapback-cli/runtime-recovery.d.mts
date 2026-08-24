@@ -2,6 +2,7 @@
 // selection, identity, and handler-VM qualification records.
 
 export const RUNTIME_RECOVERY_SCHEMA_VERSION: 'snapback.runtime-recovery.v1';
+export const IBEX_CARGO_NOT_FOUND_CODE: 'SNAPBACK_IBEX_CARGO_NOT_FOUND';
 
 /** Independent build-identity stamp reported by (or read for) a runtime. */
 export interface RuntimeStamp {

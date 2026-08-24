@@ -2,6 +2,7 @@ export const CLIENT_LIFECYCLE_MANIFEST_FILE: 'client-lifecycle.v1.json';
 export const CLIENT_LIFECYCLE_MANIFEST_VERSION: 'snapback.client-lifecycle.v1';
 export const CLIENT_REFERENCE_GUIDE: '/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs';
 export const CLIENT_REFERENCE_KIND_MISMATCH_CODE: 'SNAPBACK_CLIENT_REFERENCE_KIND_MISMATCH';
+export const AUTH_BOOTSTRAP_COMPLETENESS_UNCLASSIFIED_CODE: 'SNAPBACK_AUTH_BOOTSTRAP_COMPLETENESS_UNCLASSIFIED';
 export const APPLICATION_AUTH_PLATFORM_KINDS: readonly [
   'browser',
   'expo-web',

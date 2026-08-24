@@ -22,7 +22,9 @@
     "authorization-review.d.mts",
     "authorization-review.mjs",
     "authorization-review.schema.json",
+    "visibility-governance.d.mts",
     "visibility-governance.mjs",
+    "visibility-governance-dev-config.d.mts",
     "visibility-governance-dev-config.mjs",
     "visibility-governance-dev-registration.schema.json",
     "visibility-governance-target-config.schema.json",
@@ -123,8 +125,14 @@
       "default": "./authorization-review.mjs"
     },
     "./authorization-review.schema.json": "./authorization-review.schema.json",
-    "./visibility-governance": "./visibility-governance.mjs",
-    "./visibility-governance-dev-config": "./visibility-governance-dev-config.mjs",
+    "./visibility-governance": {
+      "types": "./visibility-governance.d.mts",
+      "default": "./visibility-governance.mjs"
+    },
+    "./visibility-governance-dev-config": {
+      "types": "./visibility-governance-dev-config.d.mts",
+      "default": "./visibility-governance-dev-config.mjs"
+    },
     "./visibility-governance-dev-registration.schema.json": "./visibility-governance-dev-registration.schema.json",
     "./visibility-governance-target-config.schema.json": "./visibility-governance-target-config.schema.json",
     "./visibility-governance-g1-closure.schema.json": "./visibility-governance-g1-closure.schema.json",

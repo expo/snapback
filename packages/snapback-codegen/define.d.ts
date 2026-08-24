@@ -15,6 +15,7 @@ export declare const QUERY_SPEC_FIELDS: ReadonlySet<string>;
 export declare const MUTATION_SPEC_FIELDS: ReadonlySet<string>;
 export declare const ACTION_SPEC_FIELDS: ReadonlySet<string>;
 export declare const JS_QUERY_SPEC_FIELDS: ReadonlySet<string>;
+export declare const JS_MUTATION_SPEC_FIELDS: ReadonlySet<string>;
 
 export type FieldType =
   | 'String'
@@ -438,9 +439,8 @@ export interface CustomAuthorizationV1 {
   readonly sync: 'coarse-global' | 'reauthorize-on-change';
 }
 
-declare const customAuthorizationDeclarationBrand: unique symbol;
 export interface CustomAuthorizationDeclarationV1 {
-  readonly [customAuthorizationDeclarationBrand]: true;
+  readonly __customAuthorizationDeclarationBrand: true;
 }
 
 export declare const policyInput: {
