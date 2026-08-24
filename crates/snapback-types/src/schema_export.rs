@@ -69,7 +69,7 @@ pub struct SchemaArtifact {
 
 /// Schema artifacts whose generator lives outside Rust's schema registry.
 pub const EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS: &[&str] = &[
-    "../../../packages/snapback-codegen/handler-typescript-profile.schema.json",
+    "../packages/snapback-codegen/handler-typescript-profile.schema.json",
     "normalized-definition.v1.schema.json",
     "cloudflare.deploy-receipt-v1.schema.json",
     "control-catalog-instance.v1.schema.json",

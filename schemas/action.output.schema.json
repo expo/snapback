@@ -377,6 +377,16 @@
             "complete": {
               "type": "boolean"
             },
+            "direction": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/GraphDirectionV1"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "index": {
               "type": "string"
             },
@@ -388,6 +398,16 @@
               "format": "uint64",
               "minimum": 0,
               "type": "integer"
+            },
+            "lower": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/GraphIntervalEndV1"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "order": {
               "items": {
@@ -408,6 +428,16 @@
             },
             "table": {
               "type": "string"
+            },
+            "upper": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/GraphIntervalEndV1"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
@@ -522,6 +552,16 @@
             "complete": {
               "type": "boolean"
             },
+            "direction": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/GraphDirectionV1"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "index": {
               "type": "string"
             },
@@ -533,6 +573,16 @@
               "format": "uint64",
               "minimum": 0,
               "type": "integer"
+            },
+            "lower": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/GraphIntervalEndV1"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "order": {
               "items": {
@@ -556,6 +606,16 @@
             },
             "table": {
               "type": "string"
+            },
+            "upper": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/GraphIntervalEndV1"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
@@ -665,6 +725,17 @@
               "const": "principal-field",
               "type": "string"
             },
+            "parentKey": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/GraphRowKeyV1"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The evaluated parent whose target lookup this fact records.\nBinding-table facts are node-global and therefore carry null."
+            },
             "partitionHash": {
               "$ref": "#/$defs/Sha256V1"
             },
@@ -679,6 +750,7 @@
             "kind",
             "table",
             "index",
+            "parentKey",
             "partitionHash",
             "field",
             "valueDigest",
@@ -770,6 +842,64 @@
         "dependency"
       ],
       "type": "object"
+    },
+    "GraphDirectionV1": {
+      "enum": [
+        "forward",
+        "backward"
+      ],
+      "type": "string"
+    },
+    "GraphIntervalEndV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "unbounded",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "key": {
+              "$ref": "#/$defs/KeysetKeyV1"
+            },
+            "kind": {
+              "const": "inclusive",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "key"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "key": {
+              "$ref": "#/$defs/KeysetKeyV1"
+            },
+            "kind": {
+              "const": "exclusive",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "key"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "GraphNodeKindV1": {
       "enum": [

@@ -525,8 +525,12 @@ fn representative_restore_activation_plan() -> RestoreActivationPlan {
     }
 }
 
+fn repo_root() -> PathBuf {
+    PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
+}
+
 fn schemas_dir() -> PathBuf {
-    PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).join("schemas")
+    repo_root().join("schemas")
 }
 
 fn committed(file: &str) -> Value {
@@ -1671,13 +1675,26 @@ fn dk7_every_artifact_has_a_committed_schema_file() {
         "schemas/ is out of sync with the generator; regenerate with \
          `cargo run -p snapback-tools --bin snapback-schemagen`"
     );
+    let canonical_repo_root = repo_root()
+        .canonicalize()
+        .expect("repository root can be canonicalized");
     for path in EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS
         .iter()
         .filter(|path| path.contains('/'))
     {
+        let owning_path = schemas_dir().join(path);
         assert!(
-            schemas_dir().join(path).is_file(),
+            owning_path.is_file(),
             "externally managed schema {path} is not present at its owning path"
+        );
+        let canonical_owning_path = owning_path.canonicalize().unwrap_or_else(|error| {
+            panic!("externally managed schema {path} owning path cannot be canonicalized: {error}")
+        });
+        assert!(
+            canonical_owning_path.starts_with(&canonical_repo_root),
+            "externally managed schema {path} owning path {} escapes repository root {}",
+            canonical_owning_path.display(),
+            canonical_repo_root.display()
         );
     }
 }
