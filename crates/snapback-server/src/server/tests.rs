@@ -25144,6 +25144,10 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID",
     "SNAPBACK_GRAPH_CURSOR_UNBOUND",
     "SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH",
+    // G2-A's required-edge miss is an evaluation-time materialized refusal,
+    // but it still reports a caller-visible graph shape/data mismatch in the
+    // reviewed 4xx family rather than inheriting the fail-safe 500 default.
+    "SNAPBACK_GRAPH_REQUIRED_EDGE_MISSING",
     "SNAPBACK_QUERY_COST_CLIENT_UNSUPPORTED",
     // These closed terminal-protocol ids are produced by the mapper's
     // dedicated registry rather than a match arm, but retain the same reviewed

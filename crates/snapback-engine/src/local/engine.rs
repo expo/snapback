@@ -4817,6 +4817,18 @@ impl<R> DirectAuthorizationWrite<R> {
 }
 
 impl LocalSnapback {
+    /// Evaluate an already-admitted graph query without exposing it through a
+    /// handler or serving dispatch. G2-C owns that integration boundary.
+    pub fn evaluate_graph_query(
+        &self,
+        plan: &crate::manifest::GraphQueryPlanV1,
+        request: &crate::graph_evaluator::GraphEvaluationRequestV1,
+    ) -> SnapbackResult<crate::graph_evaluator::GraphEvaluationOutputV1> {
+        self.db.query_reads_read().with_pinned_read_view(|read| {
+            crate::graph_evaluator::evaluate_graph_query_on(read, plan, request)
+        })
+    }
+
     pub fn database_path(&self) -> Option<&std::path::Path> {
         self.db.database_path()
     }

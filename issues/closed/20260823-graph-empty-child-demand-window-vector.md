@@ -1,11 +1,11 @@
 # Child demand vector cannot represent zero evaluated parents
 
-**Status:** Open
+**Status:** Resolved 2026-08-24
 **Owner:** graph demand identity / LLP 0209 B1
 **Governing:** LLP 0209 §2.4 and §3.4
 **Found:** 2026-08-23, G0 Stage B3
 
-## HEAD evidence
+## Original evidence (2026-08-23)
 
 The B3 corpus now contains the real hidden-root detail pair
 `g0-pair-detail-hidden-root-empty-child-demand`. Both worlds evaluate zero
@@ -40,3 +40,12 @@ types or invent a parent.
 cargo test -p snapback-types graph_instance_identity_v1
 cargo test -p snapback --test graph_corpus_v1 paired_worlds
 ```
+
+## Resolution
+
+G2-A changed `validate_graph_window_vector_v1` to accept the still-present
+demand-node entry with `intervals: []` exactly when the evaluated physical
+parent set is empty. The root entry remains singleton/non-empty, and the
+ordinary canonical physical-parent equality checks remain in force. The
+corpus pair is now `VALIDATED` and executes through the evaluator in both
+worlds.

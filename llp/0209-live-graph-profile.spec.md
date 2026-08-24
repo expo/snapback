@@ -5,7 +5,8 @@
 **Systems:** Live queries, Relational queries, Schema, Auth, Performance, Client SDK
 **Author:** Claude Fable 5 (commissioned by the LLP 0191 author rulings, Charlie Cheever, 2026-08-08)
 **Date:** 2026-08-09
-**Revised:** 2026-08-24 (v0.7 — author ratification recorded: the six hash
+**Revised:** 2026-08-24 (v0.7 — author ratification recorded; v0.8 Spec-gap
+notes appended from the G2-A fix-round rulings: the six hash
 domains, `CapturedReadKind::GraphNode`, `KeysetKeyV1`'s wire shape, and the
 logical/physical bound split are RATIFIED as landed; the fixture-derived bound
 table is RATIFIED PROVISIONALLY — values stand, provisional entries confirm or
@@ -3304,6 +3305,13 @@ or identities.
   gap detection, and the gap-to-replace rule (§8). Designed jointly with
   LLP 0190's owner at that point, not before; until ruled, no §7 delta
   is claimed replica-applicable.
+
+### v0.8 Spec-gap notes from G2-A fix round 1
+
+- GraphRowKeyV1.id is the physical `_id`, never an application identity.
+- A required equality-to-one miss materializes `SNAPBACK_GRAPH_REQUIRED_EDGE_MISSING` in the evaluation-time register and is classified 4xx.
+- Through-edge filters apply to the edge range before target resolution; target-row predicates belong to target nodes.
+- Graph interval ends honor inclusive/exclusive boundary comparison, and backward traversal reverses declared order components while retaining the ascending physical `_id` tie within equal keys.
 
 ## Revision history
 

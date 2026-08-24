@@ -79,6 +79,7 @@ pub mod telemetry {
 
 pub mod ask;
 pub mod control_catalog;
+pub mod graph_evaluator;
 pub mod host_ops;
 pub mod local;
 pub mod manifest;

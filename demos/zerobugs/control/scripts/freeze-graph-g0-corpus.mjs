@@ -44,6 +44,7 @@ const requestedFixtures = (process.argv.find(value => value.startsWith('--fixtur
   .split(',');
 const checkOnly = process.argv.includes('--check');
 let corpusAuthorityOwner = null;
+const freezerProofSelfChecks = {consumed: false, found: false, parentLinkage: false};
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
@@ -59,8 +60,14 @@ function digestBytes(value) {
 
 function canonical(value) {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
-  return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`;
+  if (Array.isArray(value)) {
+    return `[${value.map(item => item === undefined ? 'null' : canonical(item)).join(',')}]`;
+  }
+  return `{${Object.keys(value)
+    .filter(key => value[key] !== undefined)
+    .sort()
+    .map(key => `${JSON.stringify(key)}:${canonical(value[key])}`)
+    .join(',')}}`;
 }
 
 function domainHash(domain, value) {
@@ -634,7 +641,12 @@ function expectedFromOracle(query, result, map, options = {}) {
   };
 }
 
-function windowVector(carrier, direction = 'forward', evaluatedParentKeys = []) {
+function windowVector(
+  carrier,
+  direction = 'forward',
+  evaluatedParentKeys = [],
+  options = {},
+) {
   return carrier.normalizedPlan.nodes
     .filter(node => node.kind === 'root-window' || (node.kind === 'bounded-to-many' && node.page.kind === 'demand'))
     .map(node => {
@@ -646,7 +658,8 @@ function windowVector(carrier, direction = 'forward', evaluatedParentKeys = []) 
         parentKey: null,
         window: {
           order: node.order, direction,
-          lower: { kind: 'unbounded' }, upper: { kind: 'unbounded' }, take: 1,
+          lower: { kind: 'unbounded' }, upper: { kind: 'unbounded' },
+          take: options.rootTake ?? 1,
         },
       }] : evaluatedParentKeys.map(parentKey => {
         assert.deepEqual(parentKey.table, parent.table, `${node.nodeId} parent key uses the physical parent table`);
@@ -673,8 +686,14 @@ function invocation(
   epoch = 0,
   functionName = 'listIssueByID',
   evaluatedParentKeys = [],
+  windowOptions = {},
 ) {
-  const windows = windowVector(carrier, 'forward', evaluatedParentKeys);
+  const windows = windowVector(
+    carrier,
+    windowOptions.direction ?? 'forward',
+    evaluatedParentKeys,
+    windowOptions,
+  );
   const instancePreimage = {
     format: 'snapback.graph-instance.v1', graphPlanHash: carrier.planHash,
     argsDigest: domainHash('snapback:materialization-args:v1:', args), windows,
@@ -715,26 +734,305 @@ function invocation(
   };
 }
 
-function completeResult(carrier, call, resultBytes = '[]', orderedRootIds = []) {
+function graphArgumentValue(carrier, call, expression) {
+  if (Object.hasOwn(expression, 'Literal')) return expression.Literal;
+  const argument = carrier.normalizedPlan.arguments
+    .find(candidate => candidate.argumentId === expression.Arg);
+  assert(argument, `graph argument ${expression.Arg} is declared`);
+  return call.args[argument.name];
+}
+
+function graphFilterMatches(carrier, call, row, filter) {
+  const expected = graphArgumentValue(carrier, call, filter.value);
+  if (filter.op === 'Eq') return row[filter.field] === expected;
+  if (filter.op === 'In') {
+    return Array.isArray(expected) && expected.some(value => canonical(value) === canonical(row[filter.field]));
+  }
+  assert.fail(`freezer does not model graph filter operator ${filter.op}`);
+}
+
+function graphJoinMatches(parent, child, join) {
+  return join.every(equality => (
+    parent[equality.rootField] !== null
+    && parent[equality.rootField] !== undefined
+    && child[equality.joinedField] === parent[equality.rootField]
+  ));
+}
+
+function graphCompareValue(left, right) {
+  if (left === right) return 0;
+  if (left === null || left === undefined) return -1;
+  if (right === null || right === undefined) return 1;
+  return left < right ? -1 : 1;
+}
+
+function graphSortRows(rows, order, direction = 'forward') {
+  const reversed = direction === 'backward';
+  return [...rows].sort((left, right) => {
+    for (const component of order) {
+      const declared = component.direction === 'Desc' ? -1 : 1;
+      const compared = graphCompareValue(left[component.field], right[component.field]);
+      if (compared !== 0) return compared * declared * (reversed ? -1 : 1);
+    }
+    // LLP 0007/0209: physical `_id` is always the ascending tie rule, even
+    // for backward traversal.
+    return graphCompareValue(left._id, right._id);
+  });
+}
+
+function graphPhysicalKey(node, row) {
+  assert.equal(typeof row?._id, 'string', `${node.nodeId} row has physical _id`);
+  return {table: node.table, id: row._id};
+}
+
+function graphApplicationId(row) {
+  return row.id ?? row.sourceIssueID ?? row._id;
+}
+
+function graphChildKey(parentNodeId, parent, childNodeId) {
+  return `${parentNodeId}\u0000${parent.key.id}\u0000${childNodeId}`;
+}
+
+function frozenGraphState(carrier, call, tables, orderedRootIds) {
+  const nodes = carrier.normalizedPlan.nodes;
+  const root = nodes.find(node => node.kind === 'root-window');
+  const byNode = new Map();
+  const childrenBy = new Map();
+  const existenceBy = new Map();
+  const proofEvidence = new Map();
+  const rootRows = orderedRootIds.map(id => {
+    const row = (tables[root.table] ?? []).find(candidate => graphApplicationId(candidate) === id);
+    assert(row, `${root.nodeId} ordered application id ${id} resolves to a physical row`);
+    return {row, key: graphPhysicalKey(root, row), rootId: id};
+  });
+  byNode.set(root.nodeId, rootRows);
+  proofEvidence.set(root.nodeId, {
+    interval: {lower: {kind: 'unbounded'}, upper: {kind: 'unbounded'}},
+    consumed: rootRows.length, hasMore: false, sourceExhausted: true,
+  });
+
+  const principal = call.partition.class3.principalDataScope.userId;
+  const authority = authorityFact(principal);
+  for (const node of nodes.filter(candidate => !['root-window', 'closed-projection'].includes(candidate.kind))) {
+    const parents = byNode.get(node.parentNodeId) ?? [];
+    const output = [];
+    if (node.kind === 'equality-to-one') {
+      const rows = [];
+      for (const parent of parents) {
+        const matches = (tables[node.table] ?? []).filter(row => (
+          graphJoinMatches(parent.row, row, node.joinOn)
+          && (node.filters ?? []).every(filter => graphFilterMatches(carrier, call, row, filter))
+        ));
+        assert(matches.length <= 1, `${node.nodeId} equality edge is unique`);
+        const children = matches.map(row => ({row, key: graphPhysicalKey(node, row), rootId: parent.rootId}));
+        output.push(...children);
+        childrenBy.set(graphChildKey(node.parentNodeId, parent, node.nodeId), children);
+        rows.push({parentKey: parent.key, found: children.length === 1});
+      }
+      rows.sort((left, right) => canonical(left.parentKey).localeCompare(canonical(right.parentKey)));
+      proofEvidence.set(node.nodeId, {rows});
+    } else if (node.kind === 'bounded-to-many') {
+      const ranges = [];
+      for (const parent of parents) {
+        const interval = node.page.kind === 'literal'
+          ? {window: node.page}
+          : call.windows.find(window => window.nodeId === node.nodeId)?.intervals
+            .find(candidate => canonical(candidate.parentKey) === canonical(parent.key));
+        assert(interval, `${node.nodeId} has a frozen interval for ${canonical(parent.key)}`);
+        const window = interval.window;
+        const matches = graphSortRows(
+          (tables[node.table] ?? []).filter(row => (
+            graphJoinMatches(parent.row, row, node.joinOn)
+            && (node.filters ?? []).every(filter => graphFilterMatches(carrier, call, row, filter))
+          )),
+          node.order,
+          window.direction,
+        );
+        assert(matches.length <= window.take, `${node.nodeId} complete freeze does not truncate a parent range`);
+        const children = matches.map(row => ({row, key: graphPhysicalKey(node, row), rootId: parent.rootId}));
+        output.push(...children);
+        childrenBy.set(graphChildKey(node.parentNodeId, parent, node.nodeId), children);
+        ranges.push({parentKey: parent.key, consumed: children.length, cap: window.take, hasMore: false});
+      }
+      ranges.sort((left, right) => canonical(left.parentKey).localeCompare(canonical(right.parentKey)));
+      proofEvidence.set(node.nodeId, {ranges});
+    } else if (node.kind === 'exists-semi-join') {
+      const rows = [];
+      const argument = node.argumentId === null || node.argumentId === undefined
+        ? null
+        : carrier.normalizedPlan.arguments.find(candidate => candidate.argumentId === node.argumentId);
+      const values = argument ? call.args[argument.name] : [null];
+      for (const parent of parents) {
+        let found = node.mode === 'all' && values.length === 0;
+        if (!found) {
+          const probes = node.mode === 'all' ? values : [null];
+          found = probes.every(value => {
+            const filters = (node.filters ?? []).map(filter => (
+              node.mode === 'all' && filter.op === 'In'
+                ? {...filter, op: 'Eq', value: {Literal: value}}
+                : filter
+            ));
+            assert(!node.edge.targetTable, `${node.nodeId} complete freezer helper expects a direct edge`);
+            return (tables[node.edge.table] ?? []).some(row => (
+              graphJoinMatches(parent.row, row, node.edge.joinOn)
+              && filters.every(filter => graphFilterMatches(carrier, call, row, filter))
+            ));
+          });
+        }
+        existenceBy.set(graphChildKey(node.parentNodeId, parent, node.nodeId), found);
+        rows.push({parentKey: parent.key, existenceBit: found});
+      }
+      rows.sort((left, right) => canonical(left.parentKey).localeCompare(canonical(right.parentKey)));
+      proofEvidence.set(node.nodeId, {rows});
+    } else if (node.kind === 'principal-bound') {
+      const rows = [];
+      const bindingFound = authority !== undefined;
+      const boundPrincipal = bindingFound ? authority.userID : null;
+      for (const parent of parents) {
+        const matches = boundPrincipal === null ? [] : (tables[node.table] ?? []).filter(row => (
+          graphJoinMatches(parent.row, row, node.parentJoin)
+          && row[node.principalField] === boundPrincipal
+          && (node.filters ?? []).every(filter => graphFilterMatches(carrier, call, row, filter))
+        ));
+        assert(matches.length <= 1, `${node.nodeId} principal edge is unique`);
+        const children = matches.map(row => ({row, key: graphPhysicalKey(node, row), rootId: parent.rootId}));
+        output.push(...children);
+        childrenBy.set(graphChildKey(node.parentNodeId, parent, node.nodeId), children);
+        rows.push({parentKey: parent.key, bindingFound, targetFound: children.length === 1});
+      }
+      rows.sort((left, right) => canonical(left.parentKey).localeCompare(canonical(right.parentKey)));
+      proofEvidence.set(node.nodeId, {rows});
+    } else {
+      assert.fail(`complete freezer helper does not model ${node.kind}`);
+    }
+    byNode.set(node.nodeId, output);
+  }
+  return {root, roots: rootRows, byNode, childrenBy, existenceBy, proofEvidence};
+}
+
+function assertFrozenProofsMatchBytes(carrier, resultBytes, state, nodeCompleteness) {
+  const projected = JSON.parse(resultBytes);
+  assert.equal(projected.length, state.roots.length, 'root proof consumed count matches frozen result rows');
+  const proofs = new Map(nodeCompleteness.map(proof => [proof.nodeId, proof]));
+  const nodes = new Map(carrier.normalizedPlan.nodes.map(node => [node.nodeId, node]));
+
+  for (const node of nodes.values()) {
+    if (!node.parentNodeId) continue;
+    const parents = state.byNode.get(node.parentNodeId) ?? [];
+    const evidence = proofs.get(node.nodeId)?.proof;
+    const proofRows = evidence?.rows ?? evidence?.ranges ?? [];
+    assert.deepEqual(
+      proofRows.map(row => row.parentKey),
+      [...parents].map(parent => parent.key)
+        .sort((left, right) => canonical(left).localeCompare(canonical(right))),
+      `${node.nodeId} proof cites every immediate physical parent and no root substitute`,
+    );
+  }
+
+  const verifyObject = (object, bytes, scope) => {
+    assert(bytes && typeof bytes === 'object' && !Array.isArray(bytes), 'projected object bytes exist');
+    for (const field of object.fields) {
+      const value = field.value;
+      if (value.kind === 'object') {
+        const parent = scope.get(value.object.scopeNodeId);
+        assert(parent, `${field.name} projection has its immediate parent scope`);
+        const children = state.childrenBy.get(graphChildKey(value.object.scopeNodeId, parent, value.nodeId)) ?? [];
+        const proofRow = proofs.get(value.nodeId).proof.rows
+          .find(row => canonical(row.parentKey) === canonical(parent.key));
+        const proofFound = Object.hasOwn(proofRow, 'found') ? proofRow.found : proofRow.targetFound;
+        assert.equal(proofFound, bytes[field.name] !== null, `${field.name} found proof matches frozen nullability`);
+        assert.equal(children.length === 1, bytes[field.name] !== null, `${field.name} child bytes match frozen nullability`);
+        if (children.length === 1) {
+          verifyObject(value.object, bytes[field.name], new Map(scope).set(value.nodeId, children[0]));
+        }
+      } else if (value.kind === 'array') {
+        const parent = scope.get(object.scopeNodeId);
+        assert(parent, `${field.name} projection has its immediate parent scope`);
+        const children = state.childrenBy.get(graphChildKey(object.scopeNodeId, parent, value.scopeNodeId)) ?? [];
+        assert(Array.isArray(bytes[field.name]), `${field.name} freezes array bytes`);
+        assert.equal(children.length, bytes[field.name].length, `${field.name} consumed rows match frozen array bytes`);
+        const range = proofs.get(value.scopeNodeId).proof.ranges
+          .find(row => canonical(row.parentKey) === canonical(parent.key));
+        assert.equal(range.consumed, bytes[field.name].length, `${field.name} consumed proof matches frozen array bytes`);
+        children.forEach((child, index) => {
+          verifyObject(value.item, bytes[field.name][index], new Map(scope).set(value.scopeNodeId, child));
+        });
+      } else if (value.kind === 'exists') {
+        const parent = scope.get(object.scopeNodeId);
+        const bit = state.existenceBy.get(graphChildKey(object.scopeNodeId, parent, value.nodeId)) ?? false;
+        assert.equal(bit, bytes[field.name], `${field.name} existence proof matches frozen bytes`);
+      }
+    }
+  };
+  const projection = carrier.normalizedPlan.nodes.find(node => node.kind === 'closed-projection');
+  state.roots.forEach((root, index) => {
+    verifyObject(projection.object, projected[index], new Map([[state.root.nodeId, root]]));
+  });
+}
+
+function exerciseFrozenProofSelfChecks(carrier, resultBytes, state, nodeCompleteness) {
+  if (!freezerProofSelfChecks.consumed) {
+    const bounded = nodeCompleteness.find(proof => proof.proof.ranges?.length > 0);
+    if (bounded) {
+      const contradictory = deepClone(nodeCompleteness);
+      contradictory.find(proof => proof.nodeId === bounded.nodeId).proof.ranges[0].consumed += 1;
+      assert.throws(
+        () => assertFrozenProofsMatchBytes(carrier, resultBytes, state, contradictory),
+        /consumed proof matches frozen array bytes/u,
+      );
+      freezerProofSelfChecks.consumed = true;
+    }
+  }
+  if (!freezerProofSelfChecks.found) {
+    const optionalNode = carrier.normalizedPlan.nodes.find(node => (
+      node.kind === 'equality-to-one' && node.presence === 'optional'
+    ));
+    const proof = optionalNode && nodeCompleteness.find(entry => (
+      entry.nodeId === optionalNode.nodeId && entry.proof.rows.length > 0
+    ));
+    if (proof) {
+      const contradictory = deepClone(nodeCompleteness);
+      const row = contradictory.find(entry => entry.nodeId === proof.nodeId).proof.rows[0];
+      row.found = !row.found;
+      assert.throws(
+        () => assertFrozenProofsMatchBytes(carrier, resultBytes, state, contradictory),
+        /found proof matches frozen nullability/u,
+      );
+      freezerProofSelfChecks.found = true;
+    }
+  }
+  if (!freezerProofSelfChecks.parentLinkage) {
+    const nested = carrier.normalizedPlan.nodes.find(node => (
+      node.parentNodeId
+      && carrier.normalizedPlan.nodes.find(parent => parent.nodeId === node.parentNodeId)?.parentNodeId
+    ));
+    const proof = nested && nodeCompleteness.find(entry => (
+      entry.nodeId === nested.nodeId && (entry.proof.rows ?? entry.proof.ranges)?.length > 0
+    ));
+    if (proof) {
+      const contradictory = deepClone(nodeCompleteness);
+      const evidence = contradictory.find(entry => entry.nodeId === proof.nodeId).proof;
+      (evidence.rows ?? evidence.ranges)[0].parentKey.id = '__wrong_root_substitute__';
+      assert.throws(
+        () => assertFrozenProofsMatchBytes(carrier, resultBytes, state, contradictory),
+        /immediate physical parent/u,
+      );
+      freezerProofSelfChecks.parentLinkage = true;
+    }
+  }
+}
+
+function completeResult(carrier, call, tables, resultBytes = '[]', orderedRootIds = []) {
   const materializationHash = domainHash('snapback:graph-materialization:v1:', call.materialization);
   const partitionHash = domainHash('snapback:graph-authority-partition:v1:', call.partition);
   const tuple = {
     materializationHash, partitionHash,
     authorizationVersion: call.authorizationVersion, evaluationCut: call.evaluationCut,
   };
+  const state = frozenGraphState(carrier, call, tables, orderedRootIds);
   const nodes = [];
-  const rootNode = carrier.normalizedPlan.nodes.find(node => node.kind === 'root-window');
-  const parentRows = orderedRootIds.map(id => ({table: rootNode.table, id}));
   for (const node of carrier.normalizedPlan.nodes.filter(node => node.kind !== 'closed-projection')) {
-    const evidence = node.kind === 'root-window'
-      ? { interval: { lower: { kind: 'unbounded' }, upper: { kind: 'unbounded' } }, consumed: orderedRootIds.length, hasMore: false, sourceExhausted: true }
-      : node.kind === 'bounded-to-many'
-        ? { ranges: parentRows.map(parentKey => ({parentKey, consumed: 0, cap: node.page.kind === 'literal' ? node.page.take : carrier.normalizedPlan.queryCost.graph.nodes.find(cost => cost.nodeId === node.nodeId).maxChildrenPerParent, hasMore: false})) }
-        : node.kind === 'equality-to-one'
-          ? { rows: parentRows.map(parentKey => ({parentKey, found: true})) }
-          : node.kind === 'exists-semi-join'
-            ? { rows: parentRows.map(parentKey => ({parentKey, existenceBit: false})) }
-            : { rows: parentRows.map(parentKey => ({parentKey, bindingFound: true, targetFound: false})) };
+    const evidence = state.proofEvidence.get(node.nodeId);
     const proof = { ...tuple, kind: node.kind, label: 'complete', ...evidence };
     nodes.push({ nodeId: node.nodeId, nodeKind: node.kind, label: 'complete', proofClass: node.kind === 'root-window' ? 'whole-source' : node.kind === 'equality-to-one' ? 'unique-point' : node.kind === 'bounded-to-many' ? 'parent-ranges' : node.kind === 'exists-semi-join' ? 'complete-membership' : 'principal-point', proof });
   }
@@ -745,11 +1043,44 @@ function completeResult(carrier, call, resultBytes = '[]', orderedRootIds = []) 
   const composition = { ...tuple, kind: 'graph-composition', label: 'complete', nodes: citations, allComplete: true };
   const projection = carrier.normalizedPlan.nodes.find(node => node.kind === 'closed-projection');
   nodes.push({ nodeId: projection.nodeId, nodeKind: projection.kind, label: 'complete', proofClass: 'projection-composition', proof: { ...tuple, kind: 'closed-projection', label: 'complete', composition } });
+  // This is deliberately a freezer gate rather than a Rust-runner assertion:
+  // a contradictory expectation must never be written to the corpus.
+  assertFrozenProofsMatchBytes(carrier, resultBytes, state, nodes);
+  exerciseFrozenProofSelfChecks(carrier, resultBytes, state, nodes);
   return {
     kind: 'result', label: 'complete', resultBytes, orderedRootIds,
     resultLength: orderedRootIds.length, nodeCompleteness: nodes,
     graphCompleteness: { ...tuple, label: 'complete', proofClass: 'all-complete', proof: composition },
     refusalReason: null,
+  };
+}
+
+function materializedRefusalResult(carrier, call, reason) {
+  const materializationHash = domainHash('snapback:graph-materialization:v1:', call.materialization);
+  const partitionHash = domainHash('snapback:graph-authority-partition:v1:', call.partition);
+  const tuple = {
+    materializationHash, partitionHash,
+    authorizationVersion: call.authorizationVersion, evaluationCut: call.evaluationCut,
+  };
+  const nodes = carrier.normalizedPlan.nodes
+    .filter(node => node.kind !== 'closed-projection')
+    .map(node => ({
+      nodeId: node.nodeId, nodeKind: node.kind, label: 'refused', proofClass: 'refusal',
+      proof: {...tuple, kind: node.kind, label: 'refused', reason},
+    }));
+  const citations = nodes.map(entry => ({
+    nodeId: entry.nodeId, nodeKind: entry.nodeKind, label: entry.label,
+    proofHash: domainHash('snapback:graph-node-completeness:v1:', entry),
+  }));
+  const composition = {
+    ...tuple, kind: 'graph-composition', label: 'refused', nodes: citations,
+    primaryReason: reason,
+  };
+  return {
+    kind: 'result', label: 'refused', resultBytes: null, orderedRootIds: [],
+    resultLength: 0, nodeCompleteness: nodes,
+    graphCompleteness: {...tuple, label: 'refused', proofClass: 'refusal', proof: composition},
+    refusalReason: reason,
   };
 }
 
@@ -854,9 +1185,9 @@ function oracleTranslationCoverage(fieldMaps, oracleCases) {
   return coverage;
 }
 
-function capturedDependencyVector(carrier, call, orderedRootIds) {
+function capturedDependencyVector(carrier, call, tables, orderedRootIds) {
   const root = carrier.normalizedPlan.nodes.find(node => node.kind === 'root-window');
-  const rootKeys = orderedRootIds.map(id => ({table: root.table, id}));
+  const state = frozenGraphState(carrier, call, tables, orderedRootIds);
   const instanceHash = call.materialization.graphInstanceHash;
   const partitionHash = domainHash('snapback:graph-authority-partition:v1:', call.partition);
   const common = node => ({
@@ -867,25 +1198,41 @@ function capturedDependencyVector(carrier, call, orderedRootIds) {
   const captures = [];
   for (const node of carrier.normalizedPlan.nodes) {
     if (node.kind === 'root-window') {
-      const cost = carrier.normalizedPlan.queryCost.graph.nodes.find(row => row.nodeId === node.nodeId);
+      const interval = call.windows.find(window => window.nodeId === node.nodeId).intervals[0];
       captures.push({...common(node), dependency: {
         kind: 'root-range', table: node.table, index: node.accessIndex,
-        predicate: node.filters, order: node.order, limit: cost.maxRootRowsPerPage,
+        predicate: node.filters, order: node.order, limit: interval.window.take,
         resultCount: orderedRootIds.length, boundary: null, complete: true,
       }});
     } else if (node.kind === 'equality-to-one') {
-      for (const parentKey of rootKeys) captures.push({...common(node), dependency: {
-        kind: 'parent-point', table: node.table, index: node.accessIndex, parentKey,
-        lookupKey: [parentKey.id], childKey: {table: node.table, id: `${parentKey.id}:${node.nodeId}`},
-        found: true, rowVersion: 1,
-      }});
+      for (const parent of state.byNode.get(node.parentNodeId) ?? []) {
+        const children = state.childrenBy.get(graphChildKey(node.parentNodeId, parent, node.nodeId)) ?? [];
+        const lookupKey = node.joinOn.map(equality => parent.row[equality.rootField]);
+        captures.push({...common(node), dependency: lookupKey.some(value => value == null)
+          ? {
+              kind: 'parent-lookup-skipped', table: node.table, index: node.accessIndex,
+              parentKey: parent.key, reason: 'null-or-omitted-key',
+            }
+          : {
+              kind: 'parent-point', table: node.table, index: node.accessIndex,
+              parentKey: parent.key, lookupKey,
+              childKey: children.length === 0 ? null : children[0].key,
+              found: children.length === 1, rowVersion: children.length === 0 ? null : 1,
+            }});
+      }
     } else if (node.kind === 'bounded-to-many') {
-      const cost = carrier.normalizedPlan.queryCost.graph.nodes.find(row => row.nodeId === node.nodeId);
-      for (const parentKey of rootKeys) captures.push({...common(node), dependency: {
-        kind: 'parent-range', table: node.table, index: node.accessIndex, parentKey,
+      for (const parent of state.byNode.get(node.parentNodeId) ?? []) {
+        const children = state.childrenBy.get(graphChildKey(node.parentNodeId, parent, node.nodeId)) ?? [];
+        const interval = node.page.kind === 'literal'
+          ? {window: node.page}
+          : call.windows.find(window => window.nodeId === node.nodeId).intervals
+            .find(candidate => canonical(candidate.parentKey) === canonical(parent.key));
+        captures.push({...common(node), dependency: {
+        kind: 'parent-range', table: node.table, index: node.accessIndex, parentKey: parent.key,
         predicate: node.filters ?? [], order: node.order,
-        limit: cost.maxChildrenPerParent, resultCount: 0, boundary: null, complete: true,
+        limit: interval.window.take, resultCount: children.length, boundary: null, complete: true,
       }});
+      }
     } else if (node.kind === 'exists-semi-join') {
       const edge = node.edge;
       const direct = edge.targetTable === undefined;
@@ -893,19 +1240,22 @@ function capturedDependencyVector(carrier, call, orderedRootIds) {
       const indexes = direct ? [edge.accessIndex] : [edge.parentIndex, edge.targetIndex];
       const argumentName = carrier.normalizedPlan.arguments
         .find(argument => argument.argumentId === node.argumentId)?.name;
-      for (const parentKey of rootKeys) captures.push({...common(node), dependency: {
-        kind: 'membership', tables, indexes, parentKey,
+      for (const parent of state.byNode.get(node.parentNodeId) ?? []) captures.push({...common(node), dependency: {
+        kind: 'membership', tables, indexes, parentKey: parent.key,
         argumentId: node.argumentId,
         ...(node.argumentId === null ? {} : {argumentDigest: domainHash('snapback:g0-corpus-argument:v1:', call.args[argumentName])}),
-        matchedCount: 0, complete: true,
+        matchedCount: Number(state.existenceBy.get(graphChildKey(node.parentNodeId, parent, node.nodeId)) ?? false), complete: true,
       }});
     } else if (node.kind === 'principal-bound') {
-      for (const parentKey of rootKeys) captures.push({...common(node), dependency: {
+      for (const parent of state.byNode.get(node.parentNodeId) ?? []) {
+        const children = state.childrenBy.get(graphChildKey(node.parentNodeId, parent, node.nodeId)) ?? [];
+        captures.push({...common(node), dependency: {
         kind: 'principal-field', table: node.table, index: node.accessIndex,
         partitionHash, field: node.principalField,
         valueDigest: domainHash('snapback:g0-corpus-principal-value:v1:', call.partition.class3.principalDataScope.userId),
-        found: false,
+        found: children.length === 1,
       }});
+      }
     } else if (node.kind === 'closed-projection') {
       captures.push({...common(node), dependency: {
         kind: 'projection',
@@ -1358,6 +1708,10 @@ async function main() {
       rowIds: [internalListRow._id], handlerArgs: listArgs,
       graphArgs: {projectID: internalIssue.projectID, selectedLabelIDs: []},
       principal: ordinaryPrincipal, coveredNodeIds: ['n0'],
+      // Preserve the pair's full-interval hidden-root channel. Freezing take=1
+      // would turn this into a one-row prefix claim, so the invocation uses
+      // the admitted 1,024-row full window and proves all 516 visible roots.
+      windowOptions: {rootTake: 1_024},
       channel: 'internal list root is wholly hidden from the ordinary principal',
     },
     {
@@ -1377,11 +1731,6 @@ async function main() {
       rowIds: [internalIssue._id], handlerArgs: {idField: 'id', id: internalIssue.id},
       graphArgs: {sourceIssueID: internalIssue.id}, coveredNodeIds: ['n0'],
       principal: ordinaryPrincipal, evaluatedParentKeys: [],
-      windowVectorDisposition: {
-        status: 'BLOCKED',
-        ticket: 'issues/20260823-graph-empty-child-demand-window-vector.md',
-        expectedB1Refusal: 'SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID',
-      },
       channel: 'internal detail root collapsed into the authoritative not-found channel',
     },
     {
@@ -1422,7 +1771,7 @@ async function main() {
     assert.equal(mapped.graphCompleteness, 'complete', `${definition.id} paired result is complete`);
     const call = invocation(
       carriers[definition.query], definition.graphArgs, definition.principal, 0,
-      definition.query, definition.evaluatedParentKeys,
+      definition.query, definition.evaluatedParentKeys, definition.windowOptions,
     );
     const input = {query: definition.query, handlerArgs: definition.handlerArgs, graphArgs: definition.graphArgs, principal: definition.principal};
     const present = frozenWorld(`${definition.id}-present-v1`, definition.presentTables, input, definition.table);
@@ -1451,7 +1800,7 @@ async function main() {
       },
       oracleEvidence: {presentDigest: digestBytes(JSON.stringify(presentResult)), absentDigest: digestBytes(JSON.stringify(absentResult))},
       expect: completeResult(
-        carriers[definition.query], call,
+        carriers[definition.query], call, definition.presentTables,
         mapped.resultBytes, mapped.orderedRootIds,
       ),
     });
@@ -1512,7 +1861,7 @@ async function main() {
     },
     expect: {
       allowed: completeResult(
-        carriers.listIssueByID, activationAllowedInvocation,
+        carriers.listIssueByID, activationAllowedInvocation, activationTables,
         activationMapped.resultBytes, activationMapped.orderedRootIds,
       ),
       denied: 'deny',
@@ -1531,12 +1880,39 @@ async function main() {
   };
   pendingCorpus.contentDigest = digestBytes(canonical(pendingCorpus));
 
+  const requiredMissInvocation = invocation(
+    carriers.listIssueByID,
+    {sourceIssueID: publicIssue.id, selectedLabelIDs: []},
+    ordinaryPrincipal,
+    0,
+    'listIssueByID',
+  );
   const refusalCases = [
     { caseKind: 'refusal', id: 'issueListV2-search-membership', query: 'issueListV2', trigger: { phase: 'admission', plan: { sourceDeclaration: 'issueListSearchCandidate' }, schemaFixture: 'tests/conformance/graph/zerobugs/schema.mjs', policyFixture: 'crew-or-public-permission-backing-mirror' }, expect: { reason: refusals.issueListV2, resultBytes: null } },
     { caseKind: 'refusal', id: 'issueDetail-ordered-result-bearing-through', query: 'issueDetail', trigger: { phase: 'admission', plan: { sourceDeclaration: 'issueDetailOrderedLabelsCandidate' }, schemaFixture: 'tests/conformance/graph/zerobugs/schema.mjs', policyFixture: 'crew-or-public-permission-backing-mirror' }, expect: { reason: refusals.issueDetail, resultBytes: null } },
     { caseKind: 'refusal', id: 'listIssueByID-ordered-result-bearing-through', query: 'listIssueByID', trigger: { phase: 'admission', plan: { sourceDeclaration: 'listIssueByIDOrderedLabelsCandidate' }, schemaFixture: 'tests/conformance/graph/zerobugs/schema.mjs', policyFixture: 'crew-or-public-permission-backing-mirror' }, expect: { reason: refusals.listIssueByID, resultBytes: null } },
+    {
+      caseKind: 'refusal', id: 'listIssueByID-required-issue-edge-missing', query: 'listIssueByID',
+      trigger: {phase: 'evaluation', nodeId: 'n1', presence: 'required'},
+      plan: carriers.listIssueByID, invocation: requiredMissInvocation,
+      fixture: {
+        table: 'issue',
+        rows: tables.issue.filter(row => row._id !== publicIssue._id),
+        removedPhysicalRowKey: {table: 'issue', id: publicIssue._id},
+      },
+      expect: materializedRefusalResult(
+        carriers.listIssueByID,
+        requiredMissInvocation,
+        'SNAPBACK_GRAPH_REQUIRED_EDGE_MISSING',
+      ),
+    },
   ];
   const cases = [...pairedWorlds, ...allowDenyCases, ...refusalCases];
+  assert.deepEqual(
+    freezerProofSelfChecks,
+    {consumed: true, found: true, parentLinkage: true},
+    'freezer adversarial self-checks cover result-row consumption, optional found/null, and immediate parent linkage',
+  );
   const g0ExitObservations = [];
   const g0ExitObservationEvidence = [];
   const g0ExitObservationGaps = [];
@@ -1550,10 +1926,11 @@ async function main() {
     const call = invocation(
       carrier, observationGraphArgs[query], ordinaryPrincipal, 0, query,
       query === 'issueDetail' ? [{table: 'issue', id: publicIssue._id}] : [],
+      query === 'issueListV2' ? {rootTake: 1_024} : {},
     );
     const resultBytes = normalCase.declaredGraph.expected.resultBytes;
     const capturedDependencies = capturedDependencyVector(
-      carrier, call, normalCase.declaredGraph.expected.orderedRootIds,
+      carrier, call, tables, normalCase.declaredGraph.expected.orderedRootIds,
     );
     const proofTuple = {
       materializationHash: domainHash('snapback:graph-materialization:v1:', call.materialization),
@@ -1594,7 +1971,7 @@ async function main() {
   }
   const corpus = {
     format: 'snapback.graph-conformance-corpus.v1', version: 1,
-    description: 'G0 corpus: opaque oracle cases, exact hidden paired worlds, oracle-frozen allow/deny activation, and admission refusals execute; graph-evaluator cases live outside this union.',
+    description: 'G2-A corpus: opaque G0 oracle evidence, evaluator-executed paired worlds and allowed activation, one evaluation-time refusal, and structural admission refusals plus pending broadcast cases.',
     fixtures: {
       normal: 'demos/zerobugs/control/fixtures/normal-seed-v1',
       policyExtension: 'demos/zerobugs/control/fixtures/policy-extension-v1.json',
@@ -1616,10 +1993,10 @@ async function main() {
     pendingBroadcastCases: 'tests/conformance/graph/broadcast-cases.g2-pending.v1.json',
     broadcastInputs: [
       { label: 'G0-BCAST-CLASS', status: 'NOT SATISFIED', missingCarrier: 'every admitted Zerobugs base derives class 2 and each projection rolls up to class 3; no class-1 broadcast base or executed counterfeit-broadcast refusal exists', artifact: 'queries[*].carrier.normalizedPlan.nodes[*].authority + pairedWorld cases', caseKinds: ['pairedWorld', 'refusal'] },
-      { label: 'G0-BCAST-SEPARATION', status: 'NOT SATISFIED', missingCarrier: 'host-proven separation certificate and graph evaluator; allow/deny activation is oracle-executed only', artifact: 'corpus.v1.json allowDeny + broadcast-cases.g2-pending.v1.json', caseKinds: ['allowDeny', 'refusal'] },
+      { label: 'G0-BCAST-SEPARATION', status: 'NOT SATISFIED', missingCarrier: 'host-proven separation certificate and executed counterfeit-broadcast refusal; allowed activation executes through the evaluator while denial remains establishment-only', artifact: 'corpus.v1.json allowDeny + broadcast-cases.g2-pending.v1.json', caseKinds: ['allowDeny', 'refusal'] },
       { label: 'G0-BCAST-SCOPE', status: 'NOT SATISFIED', missingCarrier: 'executed P/Q mismatch evidence; owner-normalized P/Q-distinct scope identities are frozen and Rust-reconstructed', artifact: 'corpus.v1.json authorityOwner/allowDeny + broadcast-cases.g2-pending.v1.json', caseKinds: ['allowDeny', 'scopeMismatch'] },
       { label: 'G0-BCAST-SCOPE-BINDING', status: 'NOT SATISFIED', missingCarrier: 'executed resource-to-scope equality proof', artifact: 'broadcast-cases.g2-pending.v1.json', caseKinds: ['scopeMismatch', 'refusal'] },
-      { label: 'G0-BCAST-AUDIENCE', status: 'NOT SATISFIED', missingCarrier: 'executed establishment versus strict-evaluator parity; allow/deny activation is oracle-executed only', artifact: 'corpus.v1.json allowDeny + broadcast-cases.g2-pending.v1.json', caseKinds: ['allowDeny', 'audienceParity'] },
+      { label: 'G0-BCAST-AUDIENCE', status: 'NOT SATISFIED', missingCarrier: 'executed establishment versus strict-evaluator parity; allowed activation executes through the evaluator while denial remains establishment-only', artifact: 'corpus.v1.json allowDeny + broadcast-cases.g2-pending.v1.json', caseKinds: ['allowDeny', 'audienceParity'] },
       { label: 'G0-BCAST-INVALIDATION', status: 'NOT SATISFIED', missingCarrier: 'executed authority-transition and mixed-commit fence evidence', artifact: 'broadcast-cases.g2-pending.v1.json', caseKinds: ['authorityTransition', 'mixedCommit'] },
       { label: 'G0-BCAST-IDENTITY', status: 'SATISFIED', missingCarrier: null, artifact: 'full plan/instance/materialization/partition/version/cut preimages and Rust reconstruction', caseKinds: ['pairedWorld'] },
       { label: 'G0-BCAST-CORPUS', status: 'NOT SATISFIED', missingCarrier: 'four graph-evaluator case kinds are structurally pending and not executable at G0', artifact: 'caseKinds schema + corpus allowDeny + broadcast-cases.g2-pending.v1.json', caseKinds: ['pairedWorld', 'allowDeny', 'audienceParity', 'scopeMismatch', 'authorityTransition', 'mixedCommit', 'refusal'] },
@@ -1628,9 +2005,11 @@ async function main() {
     g0ExitObservations, g0ExitObservationEvidence, g0ExitObservationGaps,
     requestedFixtures,
   };
-  corpus.contentDigest = digestBytes(canonical(corpus));
   const bounds = boundDerivation(carriers, measurements, tables);
   bounds.contentDigest = digestBytes(canonical(bounds));
+  // Bound derivation shares normalized carrier objects with the corpus and
+  // may normalize/sort nested arrays. Bind the bytes only after that pass.
+  corpus.contentDigest = digestBytes(canonical(corpus));
 
   if (checkOnly) {
     assert.equal(readFileSync(CORPUS_PATH, 'utf8'), pretty(corpus), 'corpus.v1.json is stale');

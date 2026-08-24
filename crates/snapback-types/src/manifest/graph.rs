@@ -547,6 +547,7 @@ graph_reason_enum!(GraphDemandTimeRefusalReasonV1 {
 });
 
 graph_reason_enum!(GraphEvaluationTimeRefusalReasonV1 {
+    GraphRequiredEdgeMissing => "SNAPBACK_GRAPH_REQUIRED_EDGE_MISSING",
     QueryCostIndexRequired => "SNAPBACK_QUERY_COST_INDEX_REQUIRED",
     QueryCostPaginationRequired => "SNAPBACK_QUERY_COST_PAGINATION_REQUIRED",
     QueryCostBoundExceeded => "SNAPBACK_QUERY_COST_BOUND_EXCEEDED",
@@ -565,6 +566,7 @@ graph_reason_enum!(GraphMaterializedRefusalReasonV1 {
     CursorUnbound => "SNAPBACK_GRAPH_CURSOR_UNBOUND",
     DemandIdentityMismatch => "SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH",
     QueryCostClientUnsupported => "SNAPBACK_QUERY_COST_CLIENT_UNSUPPORTED",
+    GraphRequiredEdgeMissing => "SNAPBACK_GRAPH_REQUIRED_EDGE_MISSING",
     QueryCostIndexRequired => "SNAPBACK_QUERY_COST_INDEX_REQUIRED",
     QueryCostPaginationRequired => "SNAPBACK_QUERY_COST_PAGINATION_REQUIRED",
     QueryCostBoundExceeded => "SNAPBACK_QUERY_COST_BOUND_EXCEEDED",
@@ -595,6 +597,10 @@ pub enum GraphCompletenessUnknownReasonV1 {
 
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+/// Physical storage identity used by demand windows and completeness proofs.
+///
+/// @ref LLP 0209#4-completeness-vocabulary — the id is always the row's
+/// physical `_id`; application/source identities remain ordinary row fields.
 pub struct GraphRowKeyV1 {
     pub table: String,
     pub id: String,
@@ -1309,7 +1315,7 @@ pub struct GraphQueryCostEnvelopeV1 {
 
 /// Complete normalized graph plan and all plan-hashed policy/bound facts.
 ///
-/// @ref LLP 0209#2-the-graph-ir — this is the closed non-executable G0 IR.
+/// @ref LLP 0209#2-the-graph-ir — this closed normalized graph IR executes in G2-A without callbacks or data-dependent shape.
 /// @ref LLP 0209#21-the-normalized-carrier — the plan is finite, closed, and
 /// uses preorder node ids plus canonical argument ids.
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
@@ -4791,7 +4797,7 @@ pub fn validate_graph_window_vector_v1(
         return Err(GraphDemandTimeRefusalReasonV1::WindowVectorInvalid);
     }
     for (entry, node) in windows.iter().zip(demand_nodes) {
-        if entry.node_id != node.node_id() || entry.intervals.is_empty() {
+        if entry.node_id != node.node_id() {
             return Err(GraphDemandTimeRefusalReasonV1::WindowVectorInvalid);
         }
         let order = node
@@ -4816,6 +4822,10 @@ pub fn validate_graph_window_vector_v1(
                 return Err(GraphDemandTimeRefusalReasonV1::WindowVectorInvalid);
             }
         } else {
+            // @ref LLP 0209#24-plan-instance-and-contextual-materialization-identity —
+            // a demand-paged child records exactly the evaluated physical
+            // parent set; an empty root result therefore has an empty, but
+            // still present, child interval vector.
             let expected =
                 expected_parents.ok_or(GraphDemandTimeRefusalReasonV1::WindowVectorInvalid)?;
             let actual = entry
@@ -5740,6 +5750,78 @@ mod tests {
             vectors["broadcastScope"]["rotatedHash"].as_str().unwrap()
         );
         assert_ne!(scope.scope_hash, rotated_scope.scope_hash);
+    }
+
+    #[test]
+    fn graph_instance_identity_distinguishes_empty_and_one_physical_child_parent() {
+        let mut normalized_plan = candidate_plan("n0", "n2");
+        normalized_plan.nodes.insert(
+            1,
+            serde_json::from_value(json!({
+                "nodeId":"n1", "kind":"bounded-to-many", "edgeName":"comments",
+                "authority":authority(1), "parentNodeId":"n0", "table":"comments",
+                "visibility":{"kind":"public-read"},
+                "joinOn":[{"rootField":"id","joinedField":"issueId"}],
+                "accessIndex":"by_issue", "order":[{"field":"updatedAt","direction":"Desc"}],
+                "page":{"kind":"demand"}
+            }))
+            .unwrap(),
+        );
+        normalized_plan.query_cost.graph.nodes.insert(
+            1,
+            GraphNodeCostV1 {
+                node_id: "n1".to_owned(),
+                max_root_rows_per_page: None,
+                max_examined_entries_per_execution: 3,
+                max_relationship_lookups_per_execution: Some(1),
+                max_children_per_parent: Some(2),
+                max_argument_expansion: None,
+                max_window_pages: Some(1),
+                max_window_root_rows: Some(0),
+                max_window_scanned_rows: Some(3),
+                max_window_result_rows: Some(2),
+                max_window_result_bytes: Some(100),
+                max_window_index_ranges: Some(1),
+            },
+        );
+        let plan = GraphPlanIdentityV1 {
+            normalized_plan,
+            plan_hash: Sha256V1::new(zero_hash()).unwrap(),
+        };
+        let child_window = |intervals| GraphNodeWindowIdentityV1 {
+            node_id: "n1".to_owned(),
+            intervals,
+        };
+        let empty_windows = vec![root_window("n0"), child_window(Vec::new())];
+        let empty_parents = BTreeMap::from([("n1".to_owned(), Vec::new())]);
+        let empty = graph_instance_identity_v1(&plan, &json!({}), empty_windows, &empty_parents)
+            .expect("empty evaluated child parent set is represented exactly");
+
+        let physical_parent = GraphRowKeyV1 {
+            table: "issues".to_owned(),
+            id: "physical_issue_1".to_owned(),
+        };
+        let one_windows = vec![
+            root_window("n0"),
+            child_window(vec![GraphParentWindowIdentityV1 {
+                parent_key: Some(physical_parent.clone()),
+                window: GraphWindowIdentityV1 {
+                    order: vec![OrderExpr {
+                        field: "updatedAt".to_owned(),
+                        direction: OrderDirection::Desc,
+                        max_encoded_bytes: None,
+                    }],
+                    direction: GraphDirectionV1::Forward,
+                    lower: GraphIntervalEndV1::Unbounded,
+                    upper: GraphIntervalEndV1::Unbounded,
+                    take: 2,
+                },
+            }]),
+        ];
+        let one_parents = BTreeMap::from([("n1".to_owned(), vec![physical_parent])]);
+        let one = graph_instance_identity_v1(&plan, &json!({}), one_windows, &one_parents)
+            .expect("one evaluated physical child parent is represented exactly");
+        assert_ne!(empty.instance_hash, one.instance_hash);
     }
 
     #[test]

@@ -1,24 +1,29 @@
-//! G0 Stage B graph conformance seam.
+//! G0/G2-A graph conformance seam.
 //!
 //! B1 freezes identity/capture/no-runtime-consumer behavior. B3 adds the
 //! corpus-owned Zerobugs declarations, opaque-handler oracle records, closed
 //! completeness proofs, fixture-derived logical bounds, analytical physical
 //! declarations, the seven-kind schema, executable G0
 //! oracle/paired/allow-deny/refusal evidence, and honest gaps for the LLP 0268
-//! inputs. No test in this file
-//! executes a graph; evaluator-dependent cases remain structurally frozen for G2.
+//! inputs. G2-A additionally executes every admitted corpus carrier through
+//! the snapshot-pinned engine evaluator while keeping matcher and serving
+//! integration absent.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 use snapback::live_matcher::{LiveMatchOutcome, live_subscription_match_outcome};
 use snapback::local::LocalSnapback;
 use snapback::manifest::*;
+use snapback_engine::graph_evaluator::{
+    GraphEvaluationAuthorityV1, GraphEvaluationRequestV1, GraphPermissionValuesV1,
+};
 use snapback_kernel::storage::{ChangeOp, ChangedRow};
 use snapback_sync::graph_captured_read::graph_capture_carrier_is_well_formed;
+use snapback_types::diagnostic::DiagnosticSeverity;
 use snapback_types::storage::{CapturedReadDependency, CapturedReadKind};
 
 const CORPUS_FILE: &str = "tests/conformance/graph/corpus.v1.json";
@@ -53,6 +58,251 @@ fn pending_broadcast_cases() -> Value {
 
 fn paired_world_fixtures() -> Value {
     load_json(PAIRED_FIXTURES_FILE)
+}
+
+fn corpus_seed_tables(corpus: &Value) -> BTreeMap<String, Vec<Map<String, Value>>> {
+    let fixture = load_json(&format!(
+        "{}/fixture.json",
+        corpus["fixtures"]["normal"].as_str().unwrap()
+    ));
+    let base = corpus["fixtures"]["normal"].as_str().unwrap();
+    let mut tables = fixture["tableFiles"]
+        .as_object()
+        .unwrap()
+        .iter()
+        .map(|(table, file)| {
+            let rows = load_json(&format!("{base}/{}", file.as_str().unwrap()))
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|row| row.as_object().unwrap().clone())
+                .collect::<Vec<_>>();
+            (table.clone(), rows)
+        })
+        .collect::<BTreeMap<_, _>>();
+
+    // The paired fixture freezes the normalized read-model/policy-extension
+    // worlds that the opaque oracle used. Use its present worlds as the
+    // canonical executable baseline; individual paired executions replace
+    // exactly their named slice below.
+    let paired = paired_world_fixtures();
+    for pair_id in [
+        "g0-pair-point-hidden-internal-root",
+        "g0-pair-detail-hidden-root-empty-child-demand",
+        "g0-pair-detail-notification-principal",
+        "g0-pair-point-view-state-principal",
+    ] {
+        let pair = paired["pairs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|pair| pair["id"] == pair_id)
+            .unwrap();
+        let table = pair["namedSlice"]["table"].as_str().unwrap();
+        tables.insert(
+            table.to_owned(),
+            pair["present"]["sliceTableRows"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|row| row.as_object().unwrap().clone())
+                .collect(),
+        );
+    }
+
+    // The server-owned principal binding projection is intentionally absent
+    // from the authored seed. The corpus owner facts freeze its exact target.
+    tables.insert(
+        "identityBinding".to_owned(),
+        corpus["authorityOwner"]["facts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .enumerate()
+            .map(|(index, fact)| {
+                Map::from_iter([
+                    (
+                        "_id".to_owned(),
+                        json!(format!("graph_identity_binding_{index}")),
+                    ),
+                    ("principal".to_owned(), fact["principal"].clone()),
+                    ("userID".to_owned(), fact["userID"].clone()),
+                    ("sourceUserID".to_owned(), fact["sourceUserID"].clone()),
+                ])
+            })
+            .collect(),
+    );
+    tables
+}
+
+fn graph_index_manifest(table: &str) -> Vec<IndexManifest> {
+    let indexes: &[(&str, &[&str], bool)] = match table {
+        "issue" => &[("by_source_id", &["id"], true)],
+        "comment" => &[("by_issue_created", &["issueID", "created", "id"], false)],
+        "issueListRead" => &[
+            ("by_source_issue_id", &["sourceIssueID"], true),
+            (
+                "by_project_modified",
+                &["projectID", "modified", "sourceIssueID"],
+                false,
+            ),
+        ],
+        "issueLabelRead" => &[("by_issue_label", &["issueID", "labelID"], true)],
+        "viewState" | "issueNotifications" => &[("by_issue_user", &["issueID", "userID"], true)],
+        "identityBinding" => &[("by_principal", &["principal"], true)],
+        _ => &[],
+    };
+    indexes
+        .iter()
+        .map(|(name, fields, unique)| IndexManifest {
+            name: (*name).to_owned(),
+            fields: fields.iter().map(|field| (*field).to_owned()).collect(),
+            unique: *unique,
+            where_applicable: *unique && fields.iter().any(|field| *field != "_id"),
+        })
+        .collect()
+}
+
+fn inferred_field_type(values: impl Iterator<Item = Value>) -> FieldType {
+    let values = values.filter(|value| !value.is_null()).collect::<Vec<_>>();
+    if values.iter().all(Value::is_string) {
+        FieldType::String
+    } else if values.iter().all(Value::is_boolean) {
+        FieldType::Boolean
+    } else if values.iter().all(|value| value.as_i64().is_some()) {
+        FieldType::Integer
+    } else if values.iter().all(Value::is_number) {
+        FieldType::Real
+    } else {
+        FieldType::Json
+    }
+}
+
+fn corpus_schema(tables: &BTreeMap<String, Vec<Map<String, Value>>>) -> SchemaManifest {
+    let tables = tables
+        .iter()
+        .map(|(name, rows)| {
+            let names = rows
+                .iter()
+                .flat_map(|row| row.keys())
+                .filter(|field| field.as_str() != "_id")
+                .cloned()
+                .collect::<BTreeSet<_>>();
+            TableManifest {
+                name: name.clone(),
+                fields: names
+                    .into_iter()
+                    .map(|field| FieldManifest {
+                        field_type: inferred_field_type(
+                            rows.iter()
+                                .map(|row| row.get(&field).cloned().unwrap_or(Value::Null)),
+                        ),
+                        name: field,
+                        optional: true,
+                    })
+                    .collect(),
+                indexes: graph_index_manifest(name),
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                syncable: true,
+                permission_backing: matches!(name.as_str(), "issue" | "issueListRead"),
+                permission_fields: matches!(name.as_str(), "issue" | "issueListRead")
+                    .then(|| vec!["visibility".to_owned()]),
+                membership: None,
+                authority_profile: None,
+                asset_sharing: None,
+                visibility: Some(TableVisibilityV1::PublicRead),
+                history: None,
+            }
+        })
+        .collect();
+    SchemaManifest {
+        app_id: "zerobugs-graph-g2-corpus".to_owned(),
+        tables,
+        ..SchemaManifest::default()
+    }
+}
+
+fn graph_store(corpus: &Value, replacement: Option<(&str, &Value)>) -> LocalSnapback {
+    let mut tables = corpus_seed_tables(corpus);
+    if let Some((table, rows)) = replacement {
+        tables.insert(
+            table.to_owned(),
+            rows.as_array()
+                .unwrap()
+                .iter()
+                .map(|row| row.as_object().unwrap().clone())
+                .collect(),
+        );
+    }
+    let mut snapback = LocalSnapback::memory().expect("graph corpus memory store");
+    let diagnostics = snapback
+        .apply_schema(corpus_schema(&tables))
+        .expect("apply corpus schema");
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+        "corpus schema diagnostics: {diagnostics:?}"
+    );
+    snapback
+        .seed(SeedData { tables })
+        .expect("seed graph corpus store");
+    snapback
+}
+
+fn corpus_authority(corpus: &Value, principal: &str) -> GraphEvaluationAuthorityV1 {
+    let fact = corpus["authorityOwner"]["facts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|fact| fact["principal"] == principal)
+        .unwrap();
+    let permission_values_by_table = fact["visibilityPolicyInputs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|input| {
+            (
+                input["declarationId"].as_str().unwrap().to_owned(),
+                GraphPermissionValuesV1 {
+                    field: input["permissionFields"][0].as_str().unwrap().to_owned(),
+                    allowed_values: input["allowedValues"].as_array().unwrap().clone(),
+                },
+            )
+        })
+        .collect();
+    GraphEvaluationAuthorityV1 {
+        auth: AuthInput {
+            principal: Some(principal.to_owned()),
+            user_id: Some(principal.to_owned()),
+            ..AuthInput::default()
+        },
+        permission_values_by_table,
+    }
+}
+
+fn evaluation_request(
+    corpus: &Value,
+    call: &Value,
+    materialization: &GraphMaterializationIdentityV1,
+    partition: &GraphAuthorityPartitionIdentityV1,
+) -> GraphEvaluationRequestV1 {
+    let principal = call["partition"]["class3"]["principalDataScope"]["userId"]
+        .as_str()
+        .expect("corpus principal");
+    GraphEvaluationRequestV1 {
+        args: call["args"].clone(),
+        windows: serde_json::from_value(call["windows"].clone()).unwrap(),
+        materialization_hash: materialization.materialization_hash.clone(),
+        partition_hash: partition.partition_hash.clone(),
+        authorization_version: serde_json::from_value(call["authorizationVersion"].clone())
+            .unwrap(),
+        evaluation_cut: serde_json::from_value(call["evaluationCut"].clone()).unwrap(),
+        authority: corpus_authority(corpus, principal),
+        prior_window_ledgers: Vec::new(),
+    }
 }
 
 fn jcs_domain_hash(domain: &str, value: &Value) -> String {
@@ -291,44 +541,17 @@ fn validate_corpus_invocation_with_disposition(
             Some((window.node_id.clone(), parents))
         })
         .collect::<BTreeMap<_, _>>();
-    let instance =
-        graph_instance_identity_v1(carrier, &call["args"], windows.clone(), &evaluated_parents);
-    let instance_hash = if window_disposition.is_some_and(|row| row["status"] == "BLOCKED") {
-        assert_eq!(
-            window_disposition.unwrap()["expectedB1Refusal"],
-            "SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID",
-        );
-        assert!(
-            matches!(
-                instance,
-                Err(GraphDemandTimeRefusalReasonV1::WindowVectorInvalid)
-            ),
-            "the empty-child vector records the current B1 acceptance blocker",
-        );
-        assert!(
-            window_disposition.unwrap()["ticket"]
-                .as_str()
-                .is_some_and(|ticket| ticket.ends_with("graph-empty-child-demand-window-vector.md")),
-        );
-        let preimage = json!({
-            "format":"snapback.graph-instance.v1",
-            "graphPlanHash":carrier.plan_hash,
-            "argsDigest":graph_args_digest_v1(&call["args"]).expect("blocked instance args digest"),
-            "windows":windows,
-        });
-        jcs_domain_hash("snapback:graph-instance:v1:", &preimage)
-    } else {
-        if let Some(disposition) = window_disposition {
-            assert_eq!(disposition["status"], "VALIDATED");
-        }
-        instance
+    if let Some(disposition) = window_disposition {
+        assert_eq!(disposition["status"], "VALIDATED");
+    }
+    let instance_hash =
+        graph_instance_identity_v1(carrier, &call["args"], windows, &evaluated_parents)
             .unwrap_or_else(|reason| {
                 panic!("{function_name} invocation instance identity reconstructs: {reason:?}")
             })
             .instance_hash
             .as_str()
-            .to_owned()
-    };
+            .to_owned();
     let materialization: GraphMaterializationPreimageV1 =
         serde_json::from_value(call["materialization"].clone())
             .expect("invocation materialization preimage");
@@ -1279,12 +1502,22 @@ fn oracle_field_maps_and_refusals_are_closed() {
         .iter()
         .filter(|case| case["caseKind"] == "refusal")
         .collect::<Vec<_>>();
-    assert_eq!(refusals.len(), 3);
+    assert_eq!(refusals.len(), 4);
     for case in refusals {
         let query = case["query"].as_str().expect("refusal query");
-        assert_eq!(case["trigger"]["phase"], "admission");
-        assert_eq!(case["expect"]["reason"], expected[query]);
-        assert!(case["expect"]["resultBytes"].is_null());
+        if case["trigger"]["phase"] == "admission" {
+            assert_eq!(case["expect"]["reason"], expected[query]);
+            assert!(case["expect"]["resultBytes"].is_null());
+        } else {
+            assert_eq!(case["trigger"]["phase"], "evaluation");
+            assert_eq!(case["trigger"]["presence"], "required");
+            assert_eq!(
+                case["expect"]["refusalReason"],
+                "SNAPBACK_GRAPH_REQUIRED_EDGE_MISSING"
+            );
+            assert_eq!(case["expect"]["label"], "refused");
+            assert!(case["expect"]["resultBytes"].is_null());
+        }
     }
 }
 
@@ -1331,15 +1564,6 @@ fn paired_worlds() {
             query,
             Some(&case["windowVectorDisposition"]),
         );
-        if case["windowVectorDisposition"]["status"] == "BLOCKED" {
-            let child = call["windows"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .find(|window| window["nodeId"] != carrier.normalized_plan.nodes[0].node_id())
-                .expect("hidden-root detail pair carries its child demand entry");
-            assert_eq!(child["intervals"], json!([]));
-        }
         assert_eq!(case["expect"]["label"], "complete");
         assert_eq!(
             case["expect"]["resultLength"].as_u64().unwrap() as usize,
@@ -1561,9 +1785,143 @@ fn allow_deny_cases_are_oracle_frozen_and_structurally_executable() {
     assert!(case["expect"]["deniedResultBytes"].is_null());
 }
 
-/// The four graph-evaluator case kinds are outside the executable G0 corpus.
-/// Their separate file is a closed structural carrier: every plan and
-/// invocation reconstructs, but this test performs no evaluation claim.
+fn assert_evaluator_matches_frozen_result(
+    case_id: &str,
+    actual: &snapback_engine::graph_evaluator::GraphEvaluationOutputV1,
+    expected: &Value,
+    exact_proofs: bool,
+) {
+    let actual = serde_json::to_value(actual).expect("serialize evaluator output");
+    for field in [
+        "kind",
+        "label",
+        "resultBytes",
+        "orderedRootIds",
+        "resultLength",
+        "refusalReason",
+    ] {
+        assert_eq!(actual[field], expected[field], "{case_id} field {field}");
+    }
+    if exact_proofs {
+        assert_eq!(
+            actual["nodeCompleteness"], expected["nodeCompleteness"],
+            "{case_id} node proofs"
+        );
+        assert_eq!(
+            actual["graphCompleteness"], expected["graphCompleteness"],
+            "{case_id} graph proof"
+        );
+    }
+    assert!(
+        actual["structuralWork"].is_object(),
+        "{case_id} emits structural work"
+    );
+    assert!(
+        actual["windowLedgers"].is_array(),
+        "{case_id} emits window ledgers"
+    );
+}
+
+/// @ref LLP 0209#9-sequencing-and-measurement-what-lands-first-and-how-it-is-measured — executable graph corpus entries run
+/// through the real snapshot-pinned evaluator. The three admission refusals
+/// remain structural because they deliberately carry no invocation; the
+/// required-edge miss exercises the evaluation-time register.
+#[test]
+fn executes_the_corpus_through_the_evaluator() {
+    let corpus = graph_corpus();
+    let paired = paired_world_fixtures();
+
+    for case in corpus["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|case| case["caseKind"] == "pairedWorld")
+    {
+        let carrier: GraphQueryCarrierV1 = serde_json::from_value(case["plan"].clone()).unwrap();
+        let query = case["query"].as_str().unwrap();
+        let (materialization, partition) = validate_corpus_invocation_with_disposition(
+            &carrier,
+            &case["invocation"],
+            query,
+            Some(&case["windowVectorDisposition"]),
+        );
+        let request =
+            evaluation_request(&corpus, &case["invocation"], &materialization, &partition);
+        let fixture = paired["pairs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|pair| pair["id"] == case["fixturePairId"])
+            .unwrap();
+        let table = fixture["namedSlice"]["table"].as_str().unwrap();
+        for world in ["present", "absent"] {
+            let store = graph_store(&corpus, Some((table, &fixture[world]["sliceTableRows"])));
+            let result = store
+                .evaluate_graph_query(&carrier.normalized_plan, &request)
+                .unwrap_or_else(|error| panic!("{} {world}: {error:?}", case["id"]));
+            assert_evaluator_matches_frozen_result(
+                &format!("{} {world}", case["id"].as_str().unwrap()),
+                &result,
+                &case["expect"],
+                true,
+            );
+        }
+    }
+
+    let allow_deny = corpus["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| case["caseKind"] == "allowDeny")
+        .unwrap();
+    let carrier: GraphQueryCarrierV1 = serde_json::from_value(allow_deny["plan"].clone()).unwrap();
+    let call = &allow_deny["invocations"]["allowed"];
+    let (materialization, partition) = validate_corpus_invocation(&carrier, call, "listIssueByID");
+    let request = evaluation_request(&corpus, call, &materialization, &partition);
+    let result = graph_store(&corpus, None)
+        .evaluate_graph_query(&carrier.normalized_plan, &request)
+        .expect("allowed class-2 graph evaluates");
+    assert_evaluator_matches_frozen_result(
+        allow_deny["id"].as_str().unwrap(),
+        &result,
+        &allow_deny["expect"]["allowed"],
+        true,
+    );
+    assert_eq!(allow_deny["expect"]["denied"], "deny");
+    assert!(allow_deny["expect"]["deniedResultBytes"].is_null());
+
+    let required_miss = corpus["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| case["caseKind"] == "refusal" && case["trigger"]["phase"] == "evaluation")
+        .expect("one evaluation-time required-edge refusal");
+    let carrier: GraphQueryCarrierV1 =
+        serde_json::from_value(required_miss["plan"].clone()).unwrap();
+    let call = &required_miss["invocation"];
+    let (materialization, partition) =
+        validate_corpus_invocation(&carrier, call, required_miss["query"].as_str().unwrap());
+    let request = evaluation_request(&corpus, call, &materialization, &partition);
+    let result = graph_store(
+        &corpus,
+        Some((
+            required_miss["fixture"]["table"].as_str().unwrap(),
+            &required_miss["fixture"]["rows"],
+        )),
+    )
+    .evaluate_graph_query(&carrier.normalized_plan, &request)
+    .expect("required to-one miss materializes a refusal result");
+    assert_evaluator_matches_frozen_result(
+        required_miss["id"].as_str().unwrap(),
+        &result,
+        &required_miss["expect"],
+        true,
+    );
+}
+
+/// The four broadcast-specific graph-evaluator case kinds are outside G2-A's
+/// executable union. Their separate file is a closed structural carrier: every
+/// plan and invocation reconstructs, but this test makes no evaluation claim.
 #[test]
 fn g2_pending_broadcast_cases_are_structurally_frozen() {
     let pending = pending_broadcast_cases();
@@ -2177,8 +2535,14 @@ fn broadcast_inputs_complete() {
         for dependency in dependencies {
             let capture: GraphCapturedReadV1 =
                 serde_json::from_value(dependency.clone()).expect("typed captured dependency");
-            validate_graph_captured_read_v1(&capture, &carrier.normalized_plan)
-                .expect("captured dependency binds the exact plan node");
+            validate_graph_captured_read_v1(&capture, &carrier.normalized_plan).unwrap_or_else(
+                |reason| {
+                    panic!(
+                        "captured dependency binds the exact plan node: plan={} node={} dependency={:?} reason={reason:?}",
+                        capture.graph_plan_hash, capture.node_id, capture.dependency,
+                    )
+                },
+            );
         }
         assert_eq!(
             evidence["capturedDependencyVectorDigest"].as_str(),
