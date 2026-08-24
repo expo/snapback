@@ -644,6 +644,7 @@ here (or listed here but gone from the code).
 | /_snapback/guide/{*path} | operating.served-guide |
 | /llms.txt | operating.served-guide |
 | /_snapback/api/admin-secret-read/mint | notAuthorFacing (operator data-read lease, LLP 0058) |
+| /_snapback/api/app/identity | clients.protocol |
 | /_snapback/api/app/reset | backend.seed |
 | /_snapback/api/app/seed/clear-v1 | backend.versioned-seed |
 | /_snapback/api/app/seed/ensure-v1 | backend.versioned-seed |

@@ -697,9 +697,13 @@ export async function doctor(options = {}) {
       );
     }
     mkdirSync(stateRoot, { recursive: true });
+    const childEnvironment = runtimeSpawnEnvironment(runtime.binary, options.env);
+    // @ref LLP 0301#2-origin-admission--the-path-split-implemented — the
+    // posture is lifecycle-owner input, never ambient.
+    delete childEnvironment.SNAPBACK_DEV_ADMISSION_POSTURE;
     child = spawn(runtime.binary, ['start', '--ready-file', readyFile, '--db', database], {
       cwd: projectRoot,
-      env: runtimeSpawnEnvironment(runtime.binary, options.env),
+      env: childEnvironment,
       stdio: ['ignore', 'ignore', 'ignore'],
     });
     const descriptor = validateDevTarget(
@@ -4406,7 +4410,7 @@ export function spawnManagedRuntime(binary, args, {
 }
 
 function managedDevRuntimeEnvironment(environment) {
-  return {
+  const childEnvironment = {
     ...scrubDynamicLoaderEnvironment(environment),
     // @ref LLP 0193#program — managed development is the explicit opt-in
     // boundary for bounded handler exception detail. Native `start` and every
@@ -4414,6 +4418,10 @@ function managedDevRuntimeEnvironment(environment) {
     // choice; an inherited caller value cannot silently change this supervisor.
     SNAPBACK_HANDLER_ERROR_EXPOSURE: 'development',
   };
+  // @ref LLP 0301#2-origin-admission--the-path-split-implemented — interim
+  // scrub until the lifecycle owner constructs the posture (Lane B)
+  delete childEnvironment.SNAPBACK_DEV_ADMISSION_POSTURE;
+  return childEnvironment;
 }
 
 export async function loadGenerated(
@@ -8425,9 +8433,15 @@ export async function runCli(argv, options = {}) {
   const delegatedArgs = command === undefined
     ? []
     : [command, ...args, ...(command === 'guide' && json ? ['--json'] : [])];
+  const delegatedEnvironment = runtimeSpawnEnvironment(runtime.binary, options.env);
+  if (command === 'start') {
+    // @ref LLP 0301#2-origin-admission--the-path-split-implemented — direct
+    // native start must not inherit lifecycle posture.
+    delete delegatedEnvironment.SNAPBACK_DEV_ADMISSION_POSTURE;
+  }
   const result = spawnSync(runtime.binary, delegatedArgs, {
     stdio: 'inherit',
-    env: runtimeSpawnEnvironment(runtime.binary, options.env),
+    env: delegatedEnvironment,
   });
   if (result.error) throw result.error;
   return result.status ?? 1;

@@ -5,7 +5,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { __test, runDev, scaffoldApp } from './index.mjs';
+import {
+  __test,
+  runDev,
+  scaffoldApp,
+  spawnManagedRuntime,
+} from './index.mjs';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const runtimeBinary = resolve(
@@ -46,18 +51,39 @@ try {
   assert.equal(scaffolded.ok ?? true, true, JSON.stringify(scaffolded));
   const range = await reserveFreeRange(4);
   const readyEvents = [];
-  dev = await runDev({
-    backendDirectory: join(project, 'snapback'),
-    projectRoot: project,
-    runtimeBinary,
-    portRange: `${range.lo}-${range.hi}`,
-    watch: false,
-    env: { ...process.env, SNAPBACK_CRON_DISABLED: '1' },
-    serverStdio: ['ignore', 'ignore', 'ignore'],
-    onEvent(event) {
-      if (event.state === 'generated-and-loaded') readyEvents.push(event);
-    },
-  });
+  const inheritedPosture = process.env.SNAPBACK_DEV_ADMISSION_POSTURE;
+  let spawnedEnvironment = null;
+  process.env.SNAPBACK_DEV_ADMISSION_POSTURE = 'hostile-ambient-value';
+  try {
+    dev = await runDev({
+      backendDirectory: join(project, 'snapback'),
+      projectRoot: project,
+      runtimeBinary,
+      portRange: `${range.lo}-${range.hi}`,
+      watch: false,
+      env: process.env,
+      serverStdio: ['ignore', 'ignore', 'ignore'],
+      spawnManagedRuntime(binary, args, launchOptions) {
+        spawnedEnvironment = launchOptions.env;
+        return spawnManagedRuntime(binary, args, launchOptions);
+      },
+      onEvent(event) {
+        if (event.state === 'generated-and-loaded') readyEvents.push(event);
+      },
+    });
+  } finally {
+    if (inheritedPosture === undefined) {
+      delete process.env.SNAPBACK_DEV_ADMISSION_POSTURE;
+    } else {
+      process.env.SNAPBACK_DEV_ADMISSION_POSTURE = inheritedPosture;
+    }
+  }
+  assert.notEqual(spawnedEnvironment, null, 'managed runtime spawn was inspected');
+  assert.equal(
+    Object.hasOwn(spawnedEnvironment, 'SNAPBACK_DEV_ADMISSION_POSTURE'),
+    false,
+    'a polluted parent posture must not reach the managed runtime child',
+  );
   assert.equal(dev.ok, true);
   const backendPort = Number(new URL(dev.serverUrl).port);
   assert.ok(backendPort >= range.lo && backendPort <= range.hi);

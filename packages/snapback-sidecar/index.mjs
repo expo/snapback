@@ -907,6 +907,10 @@ export class SnapbackSidecarSupervisor {
   async #spawnRecord(runtime, purpose, { watch = true } = {}) {
     await this.#removeStaleReadyArtifacts();
     const generation = ++this.#generation;
+    const childEnvironment = { ...this.environment };
+    // @ref LLP 0301#2-origin-admission--the-path-split-implemented — the
+    // posture is lifecycle-owner input, never ambient.
+    delete childEnvironment.SNAPBACK_DEV_ADMISSION_POSTURE;
     const child = spawnManagedRuntime(runtime.binary, [
       'start',
       '--ready-file', this.readyFile,
@@ -915,7 +919,7 @@ export class SnapbackSidecarSupervisor {
       ...this.startArgs,
     ], {
       cwd: this.projectRoot,
-      env: this.environment,
+      env: childEnvironment,
       stdio: this.serverStdio,
     });
     let descriptor;

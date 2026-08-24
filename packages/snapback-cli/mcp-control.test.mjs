@@ -166,7 +166,11 @@ try {
     '--db', database,
   ], {
     cwd: project,
-    env: { ...process.env, SNAPBACK_RUNTIME_BINARY: runtimeBinary },
+    env: {
+      ...process.env,
+      SNAPBACK_RUNTIME_BINARY: runtimeBinary,
+      SNAPBACK_DEV_ADMISSION_POSTURE: 'hostile-ambient-value',
+    },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   const client = new McpClient(mcp);

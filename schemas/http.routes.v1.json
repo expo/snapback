@@ -84,6 +84,15 @@
     },
     {
       "class": "SystemApi",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/api/app/identity",
+      "path_policy": "Public"
+    },
+    {
+      "class": "SystemApi",
       "credential_resolution": "AdminCredential",
       "inputSchema": null,
       "method": "POST",

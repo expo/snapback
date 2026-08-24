@@ -8249,7 +8249,7 @@ async fn run_composed(
     // This keeps profile/capture posture identical for numeric hosts and DNS
     // aliases without opening a listener early.
     let bind_ip = resolve_bind_ip(&args.host).await?;
-    let startup_resolution = crate::admin::resolve_server_startup(bind_ip.is_loopback());
+    let startup_resolution = crate::admin::resolve_server_startup(bind_ip.is_loopback())?;
     let startup_profile = startup_resolution.profile();
     // @ref LLP 0262#d4-declared-exposure — a fronted unset profile resolves
     // to full Prod semantics; explicit non-production remains explicit and
