@@ -18,6 +18,7 @@ use super::{
     spawn_detached_action_worker, status_for_diagnostic_code, with_snapback,
     with_snapback_staged_authorization_write,
 };
+use crate::auth::provider::ProviderRevocationAttempt;
 use crate::manifest::SchemaManifestValidationExt as _;
 use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::storage::auth_rescue::{
@@ -36013,7 +36014,10 @@ fn pairing_code_mint_saturated_blocking_pool_times_out_and_logout_premark_drains
             "clean up saturated-pool logout premark",
         );
         let (cleanup, committed_revocations) = coordinator
-            .finish_revocation(carrier, AuthTransactionAttempt::RolledBack(cleanup_error))
+            .finish_revocation(
+                carrier,
+                ProviderRevocationAttempt::rolled_back(cleanup_error),
+            )
             .into_parts();
         assert_eq!(
             cleanup

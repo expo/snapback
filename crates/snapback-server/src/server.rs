@@ -30,8 +30,9 @@ use crate::auth::lease::{
 use crate::auth::provider::{
     AddressAdmission, AuthProvider, AuthProviderReadiness, CredentialIssue, ExchangeAdmission,
     PasswordIssuanceCustody, PlannedExchange, PlannedFamilyAlarmCommit, PlannedLogout,
-    PlannedRefresh, PlannedRevocationCommit, ProviderError, ProviderGuestSessionIssuancePlan,
-    ProviderSessionIssuancePlan, StepUpBinding, auth_required as provider_auth_required,
+    PlannedRefresh, ProviderError, ProviderFamilyAlarmAttempt, ProviderGuestSessionIssuancePlan,
+    ProviderRevocationAttempt, ProviderSessionIssuancePlan, StepUpBinding,
+    auth_required as provider_auth_required,
     credential_superseded as provider_credential_superseded,
     refresh_superseded as provider_refresh_superseded, session_expired as provider_session_expired,
     session_revoked as provider_session_revoked,
@@ -20224,7 +20225,7 @@ async fn auth_refresh(
                         Ok(_effect) => snapback.execute_auth_plan(
                             admission.commit_planned_revocation_plan(&commit_plan, now_ms),
                         ),
-                        Err(error) => AuthTransactionAttempt::RolledBack(error),
+                        Err(error) => ProviderRevocationAttempt::rolled_back(error),
                     })
                     .await;
                     let finish = owned_coordinator.finish_revocation(carrier, attempt);
@@ -20319,7 +20320,7 @@ async fn auth_logout(
                     Ok(_effect) => snapback.execute_auth_plan(
                         admission.commit_planned_revocation_plan(&commit_plan, now_ms),
                     ),
-                    Err(error) => AuthTransactionAttempt::RolledBack(error),
+                    Err(error) => ProviderRevocationAttempt::rolled_back(error),
                 }
             })
             .await;
@@ -20495,10 +20496,11 @@ async fn auth_family_alarm(
                         Ok(_effect) => snapback.execute_auth_plan(
                             admission.commit_planned_family_alarm_plan(&commit_plan),
                         ),
-                        Err(error) => AuthTransactionAttempt::RolledBack(error),
+                        Err(error) => ProviderFamilyAlarmAttempt::rolled_back(error),
                     }
                 })
                 .await
+                .into_transaction_attempt()
                 {
                     AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Noop)
                     | AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Retry) => {
@@ -20542,29 +20544,11 @@ async fn auth_family_alarm(
                             Ok(_effect) => snapback.execute_auth_plan(
                                 admission.commit_planned_family_alarm_plan(&commit_plan),
                             ),
-                            Err(error) => AuthTransactionAttempt::RolledBack(error),
+                            Err(error) => ProviderFamilyAlarmAttempt::rolled_back(error),
                         }
                     })
                     .await;
-                    let attempt = match family_attempt {
-                        AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Revoked(
-                            revocation,
-                        )) => AuthTransactionAttempt::Committed(
-                            PlannedRevocationCommit::Committed(revocation),
-                        ),
-                        AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Retry)
-                        | AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Noop) => {
-                            AuthTransactionAttempt::Committed(
-                                PlannedRevocationCommit::PredecessorChanged,
-                            )
-                        }
-                        AuthTransactionAttempt::RolledBack(error) => {
-                            AuthTransactionAttempt::RolledBack(error)
-                        }
-                        AuthTransactionAttempt::CommitUncertain(error) => {
-                            AuthTransactionAttempt::CommitUncertain(error)
-                        }
-                    };
+                    let attempt = family_attempt.into_revocation_attempt();
                     let finish = owned_coordinator.finish_revocation(carrier, attempt);
                     finish_auth_with_terminal_propagation(
                         &owned_state,

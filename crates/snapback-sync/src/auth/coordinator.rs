@@ -15,8 +15,9 @@ use super::invocation::{
 use super::provider::{
     AUTH_SESSION_SLIDING_WINDOW_MS, AUTH_SESSION_SUPERSESSION_GRACE_MS, AuthenticatedUse,
     CredentialIssue, PlannedIssuanceCommit, PlannedPasswordChangeCommit, PlannedRevocationCommit,
-    PlannedRotationCommit, ProviderPasswordChangePlan, ProviderRevocationPlan,
-    ProviderSessionIssuancePlan, ProviderTokenRotationPlan, SessionRevocation,
+    PlannedRotationCommit, ProviderPasswordChangePlan, ProviderRevocationAttempt,
+    ProviderRevocationPlan, ProviderSessionIssuancePlan, ProviderTokenRotationPlan,
+    SessionRevocation,
 };
 use super::session_projection::{
     AUTH_LOCK_RANK_TOPOLOGY, AuthorityWorkDrain, BoundConnectionSessionIdentity, DueExpiryBatch,
@@ -669,6 +670,9 @@ impl AuthCoordinator {
         self: &Arc<Self>,
         plan: ProviderRevocationPlan,
     ) -> SnapbackResult<PremarkedRevocation> {
+        if !plan.projection_installable() {
+            return Err(projection_unavailable());
+        }
         let (ticket, drain, terminal_target) = {
             let mut topology = self.lock_topology()?;
             topology.require_session_available(plan.session_id())?;
@@ -990,8 +994,9 @@ impl AuthCoordinator {
     pub fn finish_revocation(
         &self,
         carrier: PremarkedRevocation,
-        attempt: AuthTransactionAttempt<PlannedRevocationCommit>,
+        attempt: ProviderRevocationAttempt,
     ) -> AuthFinish<RevocationFinish> {
+        let attempt = attempt.into_transaction_attempt();
         let committed_revocation = matches!(
             &attempt,
             AuthTransactionAttempt::Committed(PlannedRevocationCommit::Committed(_))
@@ -2182,13 +2187,17 @@ mod tests {
     use super::*;
     use crate::auth::crypto::{CryptoError, RandomSource};
     use crate::auth::invocation::{InvocationGate, InvocationSource, WireAuthorityFields};
-    use crate::auth::provider::PlannedTokenSource;
+    use crate::auth::keyring::AuthKeyringStore;
+    use crate::auth::provider::{AuthClock, AuthProvider, PlannedLogout, PlannedTokenSource};
     use crate::auth::session_projection::{
         AuthorizationStreamRecord, ProjectedSessionInsert, ProjectionIdentityRow,
         ProjectionSessionRow, ProjectionSource, ProjectionUserRow,
     };
-    use crate::contract_types::{AuthorizationStreamIncarnation, RevocationReason, ServerProfile};
+    use crate::contract_types::{
+        AuthProviderProfile, AuthorizationStreamIncarnation, RevocationReason, ServerProfile,
+    };
     use crate::manifest::AuthMode;
+    use crate::storage::LocalDatabase;
     use std::sync::Arc;
     use std::time::Duration;
 
@@ -2198,6 +2207,21 @@ mod tests {
         fn fill(&self, destination: &mut [u8]) -> Result<(), CryptoError> {
             destination.fill(self.0);
             Ok(())
+        }
+    }
+
+    struct FixedClock {
+        epoch_ms: u64,
+        monotonic_origin: Instant,
+    }
+
+    impl AuthClock for FixedClock {
+        fn epoch_ms(&self) -> u64 {
+            self.epoch_ms
+        }
+
+        fn monotonic_now(&self) -> Instant {
+            self.monotonic_origin + Duration::from_millis(self.epoch_ms)
         }
     }
 
@@ -2212,15 +2236,21 @@ mod tests {
         incarnation: String,
         session_id: String,
         bearer: String,
+        family_alarm_bearer: String,
         digest: TokenDigest,
         authority_instance_id: String,
         monotonic_start: Instant,
+        provider: Arc<AuthProvider>,
+        database: Mutex<LocalDatabase>,
     }
 
     fn fixture() -> Fixture {
         let bearer = SessionBearer::generate(&FixedRandom(7)).unwrap();
         let bearer_text = bearer.expose_secret().to_owned();
         let token_hash = bearer.token_hash();
+        let family_alarm_bearer = SessionBearer::generate(&FixedRandom(8)).unwrap();
+        let family_alarm_bearer_text = family_alarm_bearer.expose_secret().to_owned();
+        let family_alarm_token_hash = family_alarm_bearer.token_hash();
         let digest = TokenDigest::from_token_hash(&token_hash);
         let user_id = uuid_v7(2, 2);
         let identity_id = uuid_v7(3, 3);
@@ -2264,32 +2294,112 @@ mod tests {
         let monotonic_start = Instant::now();
         let projection =
             SessionProjection::rebuild(source, &uuid_v7(6, 6), 100, monotonic_start).unwrap();
+        let mut database = LocalDatabase::memory().expect("memory auth database");
+        database
+            .activate_current_auth_catalog()
+            .expect("activate auth catalog");
+        database
+            .auth_catalog()
+            .insert_email_session_for_test(
+                &uuid_v7(2, 2),
+                &uuid_v7(3, 3),
+                &session_id,
+                &authority_instance_id,
+                "projection-fixture@example.com",
+                token_hash.as_bytes(),
+                3,
+                4,
+                1_000,
+                9_000_000_000,
+            )
+            .expect("insert durable session matching the projection");
+        database
+            .auth_catalog()
+            .insert_session_tombstone_for_test(family_alarm_token_hash.as_bytes(), &session_id, 100)
+            .expect("insert attributable family-alarm tombstone");
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        keyring
+            .load_or_mint_initial(100, &FixedRandom(9))
+            .expect("initialize test keyring");
+        let provider = Arc::new(
+            AuthProvider::new_with_dependencies(
+                AuthProviderProfile::Test,
+                keyring,
+                Arc::new(FixedRandom(10)),
+                Arc::new(FixedClock {
+                    epoch_ms: 200,
+                    monotonic_origin: monotonic_start,
+                }),
+            )
+            .expect("initialize provider"),
+        );
         Fixture {
             coordinator: Arc::new(AuthCoordinator::new(projection).unwrap()),
             incarnation,
             session_id,
             bearer: bearer_text,
+            family_alarm_bearer: family_alarm_bearer_text,
             digest,
             authority_instance_id,
             monotonic_start,
+            provider,
+            database: Mutex::new(database),
         }
     }
 
-    fn plan(fixture: &Fixture, reason: RevocationReason) -> ProviderRevocationPlan {
-        ProviderRevocationPlan::for_test(
-            fixture.session_id.clone(),
-            1,
-            fixture.digest,
-            PlannedTokenSource::Current,
-            reason,
-        )
+    async fn plan(fixture: &Fixture, reason: RevocationReason) -> ProviderRevocationPlan {
+        let admission = fixture.provider.admit().await;
+        let database = fixture
+            .database
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        match reason {
+            RevocationReason::Logout => {
+                let PlannedLogout::Revoke(plan) = admission
+                    .plan_logout(&database, &fixture.bearer, 200)
+                    .expect("resolve exact logout plan")
+                else {
+                    panic!("the fixture current bearer must resolve to a logout plan")
+                };
+                plan
+            }
+            RevocationReason::FamilyAlarm => admission
+                .plan_family_alarm(&database, &fixture.family_alarm_bearer, 200)
+                .expect("resolve exact family-alarm plan")
+                .revocation_plan()
+                .expect("the fixture tombstone must be actionable"),
+            _ => panic!("the coordinator fixture supports exact logout and family-alarm plans"),
+        }
     }
 
-    fn committed(fixture: &Fixture) -> AuthTransactionAttempt<PlannedRevocationCommit> {
-        AuthTransactionAttempt::Committed(PlannedRevocationCommit::Committed(SessionRevocation {
-            session_id: fixture.session_id.clone(),
-            generation: 2,
-        }))
+    async fn committed(
+        fixture: &Fixture,
+        plan: &ProviderRevocationPlan,
+    ) -> ProviderRevocationAttempt {
+        let admission = fixture.provider.admit().await;
+        let mut database = fixture
+            .database
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        admission.commit_planned_revocation(&mut database, plan, 200)
+    }
+
+    async fn rotate_durable_session(fixture: &Fixture) {
+        let admission = fixture.provider.admit().await;
+        let mut database = fixture
+            .database
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let crate::auth::provider::PlannedRefresh::Rotate(plan) = admission
+            .plan_refresh(&database, &fixture.bearer, 250)
+            .expect("resolve exact durable rotation")
+        else {
+            panic!("the fixture current bearer must resolve to a rotation")
+        };
+        assert!(matches!(
+            admission.commit_planned_rotation(&mut database, &plan.commit_plan()),
+            AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed { .. })
+        ));
     }
 
     fn committed_rotation_session(fixture: &Fixture) -> crate::auth::wire::SessionResponse {
@@ -2402,16 +2512,42 @@ mod tests {
         let fixture = fixture();
         let carrier = fixture
             .coordinator
-            .premark_revocation(plan(&fixture, RevocationReason::Logout))
+            .premark_revocation(plan(&fixture, RevocationReason::Logout).await)
             .await
             .unwrap();
         assert!(fixture.coordinator.topology.try_lock().is_ok());
         let rollback = SnapbackError::error("TEST_ROLLBACK", "test", "known rollback");
         let error = fixture
             .coordinator
-            .finish_revocation(carrier, AuthTransactionAttempt::RolledBack(rollback))
+            .finish_revocation(carrier, ProviderRevocationAttempt::rolled_back(rollback))
             .unwrap_err();
         assert_eq!(error.diagnostic.code, "TEST_ROLLBACK");
+        fixture.coordinator.check_invariants().unwrap();
+    }
+
+    #[tokio::test]
+    async fn feature_test_revocation_plan_cannot_cross_the_coordinator_install_seam() {
+        let fixture = fixture();
+        let test_plan = ProviderRevocationPlan::for_test(
+            fixture.session_id.clone(),
+            1,
+            fixture.digest,
+            PlannedTokenSource::Current,
+            RevocationReason::Logout,
+        );
+        let error = fixture
+            .coordinator
+            .premark_revocation(test_plan)
+            .await
+            .expect_err("a raw feature-enabled test plan is not installable");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
+        fixture
+            .coordinator
+            .resolve_required_bearer(&fixture.bearer, 200, fixture.monotonic_start)
+            .expect("refusing the test plan leaves the exact session available");
         fixture.coordinator.check_invariants().unwrap();
     }
 
@@ -2428,7 +2564,7 @@ mod tests {
             .unwrap()
             .expect("initial retained session work");
         let coordinator = fixture.coordinator.clone();
-        let revocation = plan(&fixture, RevocationReason::Logout);
+        let revocation = plan(&fixture, RevocationReason::Logout).await;
         let mut pending =
             tokio::spawn(async move { coordinator.premark_revocation(revocation).await });
         wait_until_publication_closed(&publication, 200, fixture.monotonic_start).await;
@@ -2457,7 +2593,7 @@ mod tests {
         assert_eq!(
             fixture
                 .coordinator
-                .finish_revocation(carrier, AuthTransactionAttempt::RolledBack(rollback))
+                .finish_revocation(carrier, ProviderRevocationAttempt::rolled_back(rollback))
                 .unwrap_err()
                 .diagnostic
                 .code,
@@ -2478,7 +2614,7 @@ mod tests {
             .unwrap()
             .expect("initial retained session work");
         let coordinator = fixture.coordinator.clone();
-        let revocation = plan(&fixture, RevocationReason::Logout);
+        let revocation = plan(&fixture, RevocationReason::Logout).await;
         let pending = tokio::spawn(async move { coordinator.premark_revocation(revocation).await });
         wait_until_publication_closed(&publication, 200, fixture.monotonic_start).await;
         pending.abort();
@@ -2563,14 +2699,20 @@ mod tests {
             .into_parts();
         let carrier = fixture
             .coordinator
-            .premark_revocation(plan(&fixture, RevocationReason::Logout))
+            .premark_revocation(plan(&fixture, RevocationReason::Logout).await)
             .await
             .unwrap();
         let finish_coordinator = fixture.coordinator.clone();
         let blocked_publication = publication.clone();
         let outcome = cancel_waiter_with_owned_rollback_blocked_on_local(
             local_blocker_fixture(),
-            move |attempt| finish_coordinator.finish_revocation(carrier, attempt),
+            move |attempt: AuthTransactionAttempt<PlannedRevocationCommit>| {
+                let AuthTransactionAttempt::RolledBack(error) = attempt else {
+                    unreachable!("the cancellation fixture produces a known rollback")
+                };
+                finish_coordinator
+                    .finish_revocation(carrier, ProviderRevocationAttempt::rolled_back(error))
+            },
             move || {
                 assert!(
                     blocked_publication
@@ -3016,9 +3158,11 @@ mod tests {
             ))
             .await
             .unwrap();
+        let revocation_plan = plan(&revocation_fixture, RevocationReason::Logout).await;
+        let durable_revocation_plan = revocation_plan.clone();
         let revocation = revocation_fixture
             .coordinator
-            .premark_revocation(plan(&revocation_fixture, RevocationReason::Logout))
+            .premark_revocation(revocation_plan)
             .await
             .unwrap();
         let RotationFinish::Committed { outcome, .. } = revocation_fixture
@@ -3045,12 +3189,13 @@ mod tests {
                 .is_none(),
             "a real revocation ticket is never admitted by the refresh-only exception"
         );
+        rotate_durable_session(&revocation_fixture).await;
         assert!(matches!(
             revocation_fixture
                 .coordinator
                 .finish_revocation(
                     revocation,
-                    AuthTransactionAttempt::Committed(PlannedRevocationCommit::PredecessorChanged),
+                    committed(&revocation_fixture, &durable_revocation_plan).await,
                 )
                 .unwrap(),
             RevocationFinish::PredecessorChanged
@@ -3062,27 +3207,35 @@ mod tests {
     async fn sibling_rollback_never_reopens_a_committed_revocation_in_either_order() {
         for second_wins in [false, true] {
             let fixture = fixture();
+            let a_plan = plan(&fixture, RevocationReason::Logout).await;
+            let durable_a_plan = a_plan.clone();
             let a = fixture
                 .coordinator
-                .premark_revocation(plan(&fixture, RevocationReason::Logout))
+                .premark_revocation(a_plan)
                 .await
                 .unwrap();
+            let b_plan = plan(&fixture, RevocationReason::FamilyAlarm).await;
+            let durable_b_plan = b_plan.clone();
             let b = fixture
                 .coordinator
-                .premark_revocation(plan(&fixture, RevocationReason::FamilyAlarm))
+                .premark_revocation(b_plan)
                 .await
                 .unwrap();
-            let (winner, loser) = if second_wins { (b, a) } else { (a, b) };
+            let (winner, loser, winner_plan) = if second_wins {
+                (b, a, durable_b_plan)
+            } else {
+                (a, b, durable_a_plan)
+            };
             let outcome = fixture
                 .coordinator
-                .finish_revocation(winner, committed(&fixture))
+                .finish_revocation(winner, committed(&fixture, &winner_plan).await)
                 .unwrap();
             assert!(matches!(outcome, RevocationFinish::Committed { .. }));
             let rollback = SnapbackError::error("TEST_ROLLBACK", "test", "known rollback");
             assert_eq!(
                 fixture
                     .coordinator
-                    .finish_revocation(loser, AuthTransactionAttempt::RolledBack(rollback))
+                    .finish_revocation(loser, ProviderRevocationAttempt::rolled_back(rollback))
                     .unwrap_err()
                     .diagnostic
                     .code,
@@ -3104,14 +3257,19 @@ mod tests {
     #[tokio::test]
     async fn committed_outcome_is_one_shot_and_response_class_bound() {
         let logout_fixture = fixture();
+        let logout_plan = plan(&logout_fixture, RevocationReason::Logout).await;
+        let durable_logout_plan = logout_plan.clone();
         let carrier = logout_fixture
             .coordinator
-            .premark_revocation(plan(&logout_fixture, RevocationReason::Logout))
+            .premark_revocation(logout_plan)
             .await
             .unwrap();
         let RevocationFinish::Committed { outcome, .. } = logout_fixture
             .coordinator
-            .finish_revocation(carrier, committed(&logout_fixture))
+            .finish_revocation(
+                carrier,
+                committed(&logout_fixture, &durable_logout_plan).await,
+            )
             .unwrap()
         else {
             panic!("logout revocation committed");
@@ -3143,14 +3301,19 @@ mod tests {
         );
 
         let family_fixture = fixture();
+        let family_plan = plan(&family_fixture, RevocationReason::FamilyAlarm).await;
+        let durable_family_plan = family_plan.clone();
         let carrier = family_fixture
             .coordinator
-            .premark_revocation(plan(&family_fixture, RevocationReason::FamilyAlarm))
+            .premark_revocation(family_plan)
             .await
             .unwrap();
         let RevocationFinish::Committed { outcome, .. } = family_fixture
             .coordinator
-            .finish_revocation(carrier, committed(&family_fixture))
+            .finish_revocation(
+                carrier,
+                committed(&family_fixture, &durable_family_plan).await,
+            )
             .unwrap()
         else {
             panic!("family-alarm revocation committed");
@@ -3173,14 +3336,12 @@ mod tests {
     #[tokio::test]
     async fn committed_outcome_does_not_survive_stream_incarnation_change() {
         let fixture = fixture();
-        let carrier = fixture
-            .coordinator
-            .premark_revocation(plan(&fixture, RevocationReason::Logout))
-            .await
-            .unwrap();
+        let plan = plan(&fixture, RevocationReason::Logout).await;
+        let durable_plan = plan.clone();
+        let carrier = fixture.coordinator.premark_revocation(plan).await.unwrap();
         let RevocationFinish::Committed { outcome, .. } = fixture
             .coordinator
-            .finish_revocation(carrier, committed(&fixture))
+            .finish_revocation(carrier, committed(&fixture, &durable_plan).await)
             .unwrap()
         else {
             panic!("logout revocation committed");
@@ -3206,29 +3367,27 @@ mod tests {
     #[tokio::test]
     async fn already_terminal_loser_exact_unmarks_after_sibling_finalize() {
         let fixture = fixture();
+        let winner_plan = plan(&fixture, RevocationReason::Logout).await;
+        let durable_winner_plan = winner_plan.clone();
         let winner = fixture
             .coordinator
-            .premark_revocation(plan(&fixture, RevocationReason::Logout))
+            .premark_revocation(winner_plan)
             .await
             .unwrap();
+        let loser_plan = plan(&fixture, RevocationReason::FamilyAlarm).await;
+        let durable_loser_plan = loser_plan.clone();
         let loser = fixture
             .coordinator
-            .premark_revocation(plan(&fixture, RevocationReason::FamilyAlarm))
+            .premark_revocation(loser_plan)
             .await
             .unwrap();
         fixture
             .coordinator
-            .finish_revocation(winner, committed(&fixture))
+            .finish_revocation(winner, committed(&fixture, &durable_winner_plan).await)
             .unwrap();
         let outcome = fixture
             .coordinator
-            .finish_revocation(
-                loser,
-                AuthTransactionAttempt::Committed(PlannedRevocationCommit::AlreadyTerminal {
-                    generation: 2,
-                    reason: Some(RevocationReason::Logout),
-                }),
-            )
+            .finish_revocation(loser, committed(&fixture, &durable_loser_plan).await)
             .unwrap();
         assert!(matches!(
             outcome,
@@ -3243,15 +3402,13 @@ mod tests {
     #[tokio::test]
     async fn known_commit_finalize_failure_marks_session_uncertain_and_requires_rebuild() {
         let fixture = fixture();
-        let carrier = fixture
-            .coordinator
-            .premark_revocation(plan(&fixture, RevocationReason::Logout))
-            .await
-            .unwrap();
+        let plan = plan(&fixture, RevocationReason::Logout).await;
+        let durable_plan = plan.clone();
+        let carrier = fixture.coordinator.premark_revocation(plan).await.unwrap();
         fixture.coordinator.inject_finalize_failure();
         let (outcome, terminal_target) = fixture
             .coordinator
-            .finish_revocation(carrier, committed(&fixture))
+            .finish_revocation(carrier, committed(&fixture, &durable_plan).await)
             .into_parts();
         let error = outcome.unwrap_err();
         assert_eq!(
@@ -3281,14 +3438,14 @@ mod tests {
         let fixture = fixture();
         let carrier = fixture
             .coordinator
-            .premark_revocation(plan(&fixture, RevocationReason::Logout))
+            .premark_revocation(plan(&fixture, RevocationReason::Logout).await)
             .await
             .unwrap();
         let error = fixture
             .coordinator
             .finish_revocation(
                 carrier,
-                AuthTransactionAttempt::CommitUncertain(SnapbackError::error(
+                ProviderRevocationAttempt::commit_uncertain(SnapbackError::error(
                     "SNAPBACK_SQLITE_ERROR",
                     "storage",
                     "ambiguous commit",

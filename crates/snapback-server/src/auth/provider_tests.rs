@@ -1981,7 +1981,7 @@ mod tests {
         };
         let committed = admission.commit_planned_revocation(&mut database, &plan, start_ms + 1);
         assert!(matches!(
-            committed,
+            committed.as_transaction_attempt(),
             AuthTransactionAttempt::Committed(PlannedRevocationCommit::Committed(
                 SessionRevocation { generation: 2, .. }
             ))
@@ -1995,7 +1995,7 @@ mod tests {
         );
         let loser = admission.commit_planned_revocation(&mut database, &plan, start_ms + 1);
         assert!(matches!(
-            loser,
+            loser.as_transaction_attempt(),
             AuthTransactionAttempt::Committed(PlannedRevocationCommit::AlreadyTerminal {
                 generation: 2,
                 reason: Some(RevocationReason::Logout),
@@ -2006,7 +2006,9 @@ mod tests {
             .delete_terminal_cause_witness_for_test(plan.session_id())
             .expect("simulate a legacy terminal row without a cause witness");
         assert!(matches!(
-            admission.commit_planned_revocation(&mut database, &plan, start_ms + 1),
+            admission
+                .commit_planned_revocation(&mut database, &plan, start_ms + 1)
+                .as_transaction_attempt(),
             AuthTransactionAttempt::Committed(PlannedRevocationCommit::AlreadyTerminal {
                 generation: 2,
                 reason: None,
@@ -2065,7 +2067,9 @@ mod tests {
             panic!("out-of-grace predecessor must revoke its family");
         };
         assert!(matches!(
-            admission.commit_planned_revocation(&mut database, &reuse, reuse_at),
+            admission
+                .commit_planned_revocation(&mut database, &reuse, reuse_at)
+                .as_transaction_attempt(),
             AuthTransactionAttempt::Committed(PlannedRevocationCommit::Committed(
                 SessionRevocation { generation: 2, .. }
             ))
@@ -2089,7 +2093,9 @@ mod tests {
             .expect("dummy plan");
         assert!(!dummy.actionable);
         assert!(matches!(
-            admission.commit_planned_family_alarm(&mut database, &dummy),
+            admission
+                .commit_planned_family_alarm(&mut database, &dummy)
+                .as_transaction_attempt(),
             AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Noop)
         ));
 
@@ -2119,7 +2125,9 @@ mod tests {
             .expect("actionable alarm plan");
         assert!(alarm.actionable);
         assert!(matches!(
-            admission.commit_planned_family_alarm(&mut database, &alarm),
+            admission
+                .commit_planned_family_alarm(&mut database, &alarm)
+                .as_transaction_attempt(),
             AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Revoked(
                 SessionRevocation { generation: 2, .. }
             ))
@@ -2171,7 +2179,9 @@ mod tests {
             .expect("malformed alarm plan");
         assert!(!alarm.actionable, "parse failure dominates digest lookup");
         assert!(matches!(
-            admission.commit_planned_family_alarm(&mut database, &alarm),
+            admission
+                .commit_planned_family_alarm(&mut database, &alarm)
+                .as_transaction_attempt(),
             AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Noop)
         ));
         let revoked: i64 = database
@@ -2557,11 +2567,13 @@ mod tests {
         assert_eq!(committed_revocations[0].session_id, oldest);
         assert_eq!(committed_revocations[0].generation, 2);
         assert!(matches!(
-            logout_admission.commit_planned_revocation(
-                &mut database,
-                &losing_logout,
-                start_ms + AUTH_SESSION_LIVE_LIMIT as u64,
-            ),
+            logout_admission
+                .commit_planned_revocation(
+                    &mut database,
+                    &losing_logout,
+                    start_ms + AUTH_SESSION_LIVE_LIMIT as u64,
+                )
+                .as_transaction_attempt(),
             AuthTransactionAttempt::Committed(PlannedRevocationCommit::AlreadyTerminal {
                 generation: 2,
                 reason: Some(RevocationReason::CapEviction),

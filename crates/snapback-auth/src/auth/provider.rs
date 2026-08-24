@@ -561,6 +561,7 @@ pub struct ProviderRevocationPlan {
     presented_digest: TokenDigest,
     source: PlannedTokenSource,
     reason: RevocationReason,
+    projection_installable: bool,
 }
 
 impl ProviderRevocationPlan {
@@ -576,6 +577,11 @@ impl ProviderRevocationPlan {
         self.reason
     }
 
+    #[doc(hidden)]
+    pub fn projection_installable(&self) -> bool {
+        self.projection_installable
+    }
+
     pub fn catalog_plan(&self) -> CatalogRevocationPlan<'_> {
         CatalogRevocationPlan {
             session_id: &self.session_id,
@@ -589,6 +595,10 @@ impl ProviderRevocationPlan {
         }
     }
 
+    /// Construct projection-unit-test input that cannot cross the public
+    /// coordinator install seam. Feature-enabled consumers may inspect raw
+    /// projection behavior without gaining a plan accepted by
+    /// `AuthCoordinator::premark_revocation`.
     #[cfg(any(test, feature = "test-support"))]
     pub fn for_test(
         session_id: String,
@@ -603,7 +613,61 @@ impl ProviderRevocationPlan {
             presented_digest,
             source,
             reason,
+            projection_installable: false,
         }
+    }
+}
+
+/// Provider-sealed outcome of one exact durable revocation attempt.
+///
+/// A caller may supply only the failure outcomes needed to settle or retain a
+/// marker when work outside the provider is refused. Only provider commit and
+/// durable reconciliation can construct the committed outcome. In particular,
+/// a raw [`AuthTransactionAttempt::Committed`] is not a revocation-finalization
+/// capability.
+///
+/// ```compile_fail
+/// use snapback_auth::auth::provider::ProviderRevocationAttempt;
+/// use snapback_kernel::storage::auth::AuthTransactionAttempt;
+/// use snapback_types::contract_types::{PlannedRevocationCommit, SessionRevocation};
+///
+/// let raw = AuthTransactionAttempt::Committed(PlannedRevocationCommit::Committed(
+///     SessionRevocation { session_id: "caller-selected".into(), generation: 2 },
+/// ));
+/// let _sealed = ProviderRevocationAttempt { attempt: raw };
+/// ```
+#[must_use = "a provider revocation attempt must be finalized or propagated"]
+pub struct ProviderRevocationAttempt {
+    attempt: AuthTransactionAttempt<PlannedRevocationCommit>,
+}
+
+impl ProviderRevocationAttempt {
+    fn from_provider(attempt: AuthTransactionAttempt<PlannedRevocationCommit>) -> Self {
+        Self { attempt }
+    }
+
+    pub fn rolled_back(error: SnapbackError) -> Self {
+        Self::from_provider(AuthTransactionAttempt::RolledBack(error))
+    }
+
+    pub fn commit_uncertain(error: SnapbackError) -> Self {
+        Self::from_provider(AuthTransactionAttempt::CommitUncertain(error))
+    }
+
+    pub fn as_transaction_attempt(&self) -> &AuthTransactionAttempt<PlannedRevocationCommit> {
+        &self.attempt
+    }
+
+    pub fn into_transaction_attempt(self) -> AuthTransactionAttempt<PlannedRevocationCommit> {
+        self.attempt
+    }
+}
+
+impl fmt::Debug for ProviderRevocationAttempt {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ProviderRevocationAttempt")
+            .finish_non_exhaustive()
     }
 }
 
@@ -952,6 +1016,56 @@ pub struct ProviderFamilyAlarmPlan {
     publish_not_before: Instant,
 }
 
+/// Provider-sealed result of the family-alarm transaction. The conversion to
+/// a revocation attempt is owned here so transport code cannot fabricate a
+/// committed revocation while adapting the family-alarm result.
+#[must_use = "a provider family-alarm attempt must be consumed"]
+pub struct ProviderFamilyAlarmAttempt {
+    attempt: AuthTransactionAttempt<PlannedFamilyAlarmCommit>,
+}
+
+impl ProviderFamilyAlarmAttempt {
+    fn from_provider(attempt: AuthTransactionAttempt<PlannedFamilyAlarmCommit>) -> Self {
+        Self { attempt }
+    }
+
+    pub fn rolled_back(error: SnapbackError) -> Self {
+        Self::from_provider(AuthTransactionAttempt::RolledBack(error))
+    }
+
+    pub fn as_transaction_attempt(&self) -> &AuthTransactionAttempt<PlannedFamilyAlarmCommit> {
+        &self.attempt
+    }
+
+    pub fn into_transaction_attempt(self) -> AuthTransactionAttempt<PlannedFamilyAlarmCommit> {
+        self.attempt
+    }
+
+    pub fn into_revocation_attempt(self) -> ProviderRevocationAttempt {
+        ProviderRevocationAttempt::from_provider(match self.attempt {
+            AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Revoked(revocation)) => {
+                AuthTransactionAttempt::Committed(PlannedRevocationCommit::Committed(revocation))
+            }
+            AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Retry)
+            | AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Noop) => {
+                AuthTransactionAttempt::Committed(PlannedRevocationCommit::PredecessorChanged)
+            }
+            AuthTransactionAttempt::RolledBack(error) => AuthTransactionAttempt::RolledBack(error),
+            AuthTransactionAttempt::CommitUncertain(error) => {
+                AuthTransactionAttempt::CommitUncertain(error)
+            }
+        })
+    }
+}
+
+impl fmt::Debug for ProviderFamilyAlarmAttempt {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ProviderFamilyAlarmAttempt")
+            .finish_non_exhaustive()
+    }
+}
+
 impl ProviderFamilyAlarmPlan {
     pub fn revocation_plan(&self) -> Option<ProviderRevocationPlan> {
         self.actionable.then(|| ProviderRevocationPlan {
@@ -962,6 +1076,7 @@ impl ProviderFamilyAlarmPlan {
                 superseded_at_ms: self.superseded_at_ms,
             },
             reason: RevocationReason::FamilyAlarm,
+            projection_installable: true,
         })
     }
 
@@ -3353,9 +3468,7 @@ impl AuthAdmission {
     pub fn commit_planned_family_alarm_plan<'a>(
         &'a self,
         plan: &'a ProviderFamilyAlarmPlan,
-    ) -> impl super::database_plan::AuthDatabasePlan<
-        Output = AuthTransactionAttempt<PlannedFamilyAlarmCommit>,
-    > + 'a {
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderFamilyAlarmAttempt> + 'a {
         super::database_plan::plan(move |database| self.commit_planned_family_alarm(database, plan))
     }
 
@@ -3363,9 +3476,7 @@ impl AuthAdmission {
         &'a self,
         plan: &'a ProviderRevocationPlan,
         now_ms: u64,
-    ) -> impl super::database_plan::AuthDatabasePlan<
-        Output = AuthTransactionAttempt<PlannedRevocationCommit>,
-    > + 'a {
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = ProviderRevocationAttempt> + 'a {
         super::database_plan::plan(move |database| {
             self.commit_planned_revocation(database, plan, now_ms)
         })
@@ -3742,6 +3853,16 @@ impl AuthAdmission {
         &self,
         database: &mut LocalDatabase,
         plan: &ProviderFamilyAlarmPlan,
+    ) -> ProviderFamilyAlarmAttempt {
+        ProviderFamilyAlarmAttempt::from_provider(
+            self.commit_planned_family_alarm_transaction(database, plan),
+        )
+    }
+
+    fn commit_planned_family_alarm_transaction(
+        &self,
+        database: &mut LocalDatabase,
+        plan: &ProviderFamilyAlarmPlan,
     ) -> AuthTransactionAttempt<PlannedFamilyAlarmCommit> {
         let catalog_plan = plan.catalog_plan();
         let attempt = database
@@ -3778,6 +3899,17 @@ impl AuthAdmission {
     /// ticket itself is opaque to this function and no topology/fence lock is
     /// held across the transaction.
     pub fn commit_planned_revocation(
+        &self,
+        database: &mut LocalDatabase,
+        plan: &ProviderRevocationPlan,
+        now_ms: u64,
+    ) -> ProviderRevocationAttempt {
+        ProviderRevocationAttempt::from_provider(
+            self.commit_planned_revocation_transaction(database, plan, now_ms),
+        )
+    }
+
+    fn commit_planned_revocation_transaction(
         &self,
         database: &mut LocalDatabase,
         plan: &ProviderRevocationPlan,
@@ -3888,7 +4020,10 @@ impl AuthAdmission {
                 PlannedRefresh::SessionExpired => return Err(session_expired()),
                 PlannedRefresh::SupersededInsideGrace => return Err(refresh_superseded()),
                 PlannedRefresh::ReuseRevoke(plan) => {
-                    return match self.commit_planned_revocation(database, &plan, now_ms) {
+                    return match self
+                        .commit_planned_revocation(database, &plan, now_ms)
+                        .into_transaction_attempt()
+                    {
                         AuthTransactionAttempt::Committed(PlannedRevocationCommit::Committed(
                             revocation,
                         )) => Err(ProviderError::with_committed_revocation(
@@ -3928,7 +4063,10 @@ impl AuthAdmission {
             PlannedLogout::SessionExpired => Err(session_expired()),
             PlannedLogout::CredentialSuperseded => Err(credential_superseded()),
             PlannedLogout::Revoke(plan) => {
-                match self.commit_planned_revocation(database, &plan, now_ms) {
+                match self
+                    .commit_planned_revocation(database, &plan, now_ms)
+                    .into_transaction_attempt()
+                {
                     AuthTransactionAttempt::Committed(PlannedRevocationCommit::Committed(
                         revocation,
                     )) => Ok(revocation),
@@ -3949,7 +4087,10 @@ impl AuthAdmission {
     ) -> ProviderResult<FamilyAlarmResult> {
         let plan = self.plan_family_alarm(database, bearer, now_ms)?;
         let publish_not_before = plan.publish_not_before();
-        let committed_revocation = match self.commit_planned_family_alarm(database, &plan) {
+        let committed_revocation = match self
+            .commit_planned_family_alarm(database, &plan)
+            .into_transaction_attempt()
+        {
             AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Revoked(revocation)) => {
                 Some(revocation)
             }
@@ -4975,6 +5116,7 @@ fn revocation_plan(
         presented_digest,
         source,
         reason,
+        projection_installable: true,
     }
 }
 
@@ -5040,6 +5182,7 @@ fn classify_session_issuance(
             presented_digest: oldest.token_digest,
             source: PlannedTokenSource::Current,
             reason: RevocationReason::CapEviction,
+            projection_installable: true,
         })
     } else {
         if facts.oldest_live_session.is_some() {
@@ -5064,6 +5207,7 @@ fn classify_session_cap(facts: SessionCapFacts) -> SnapbackResult<Option<Provide
             presented_digest: oldest.token_digest,
             source: PlannedTokenSource::Current,
             reason: RevocationReason::CapEviction,
+            projection_installable: true,
         }));
     }
     if facts.oldest_live_session.is_some() {
@@ -5083,6 +5227,7 @@ fn classify_user_session_revocations(
             presented_digest: fact.token_digest,
             source: PlannedTokenSource::Current,
             reason: RevocationReason::DurableRevocation,
+            projection_installable: true,
         })
         .collect()
 }
