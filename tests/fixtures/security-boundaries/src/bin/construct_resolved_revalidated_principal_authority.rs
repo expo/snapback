@@ -1,9 +1,10 @@
-use snapback_sync::auth::invocation::ResolvedAppAuthority;
+use snapback_kernel::storage::watches::RevalidatedWatchPrincipal;
 
-fn main() {
+// A genuine revalidation result must not be editable before it is consumed by
+// prepare_admitted_revalidated_principal.
+fn mutate_genuine_revalidation(mut principal: RevalidatedWatchPrincipal) {
     // @attack
-    let _authority = ResolvedAppAuthority::RevalidatedPrincipal {
-        user_id: "forged-user".to_owned(),
-        authority_instance_id: "forged-authority".to_owned(),
-    };
+    principal.user_id = "caller-chosen-user".to_owned();
 }
+
+fn main() {}

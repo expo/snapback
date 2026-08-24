@@ -166,7 +166,7 @@ pub(super) async fn prepare_original_authority(
             now_ms,
             Some(publication),
         ),
-        EffectAuthorityResolution::Session(prepared) => snapback.prepare_bearer_authority(
+        EffectAuthorityResolution::Session(prepared) => snapback.prepare_retained_bearer_authority(
             prepared,
             InvocationSource::EffectExecution,
             AuthMode::Sessions,
@@ -176,7 +176,7 @@ pub(super) async fn prepare_original_authority(
             now_ms,
         ),
         EffectAuthorityResolution::Service(resolution, publication) => snapback
-            .prepare_service_authority(
+            .prepare_retained_service_authority(
                 resolution,
                 InvocationSource::EffectExecution,
                 AuthMode::Sessions,

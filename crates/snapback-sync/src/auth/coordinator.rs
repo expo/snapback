@@ -6,7 +6,7 @@
 //! every topology and leaf lock released. Exact finalize or rollback then
 //! reacquires topology → stream/session in the sole permitted order.
 
-use super::admission::{AdmissionController, AdmissionLease, AdmissionLeaseOrigin};
+use super::admission::{AdmissionController, AdmissionLease};
 use super::crypto::SessionBearer;
 use super::identity_core::AuthClaimsProjection;
 use super::invocation::{
@@ -45,7 +45,7 @@ pub struct AuthCoordinator {
 
 struct CoordinatorTopology {
     projection: SessionProjection,
-    admission_origin: AdmissionLeaseOrigin,
+    admission: AdmissionController,
     rebuild_required_sessions: BTreeSet<String>,
     global_rebuild_required: bool,
 }
@@ -580,6 +580,41 @@ impl PreparedBearerAuthority {
         )
         .map(|authority| authority.with_fenced_publication(self.publication))
     }
+
+    /// Re-prepare one bearer-free retained session beneath an enclosing
+    /// admission without joining that enclosing token to the session subject.
+    /// The opaque resolution mints and claims a fresh child lease instead.
+    #[doc(hidden)]
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare_retained(
+        self,
+        database: &mut crate::storage::ServingDatabase,
+        source: InvocationSource,
+        active_mode: AuthMode,
+        profile: ServerProfile,
+        enclosing_admission: AdmissionLease,
+        wire: &WireAuthorityFields,
+        now_ms: u64,
+    ) -> SnapbackResult<PreparedAuthority> {
+        let session_claims = self
+            .authority
+            .session_id()
+            .map(|session_id| database.identity_claims(session_id, now_ms, profile))
+            .transpose()?;
+        let admission = self
+            .authority
+            .fresh_admission_for_enclosing(&enclosing_admission, active_mode)?;
+        InvocationGate::prepare_admitted_authority(
+            source,
+            active_mode,
+            profile,
+            admission,
+            wire,
+            self.authority,
+            session_claims,
+        )
+        .map(|authority| authority.with_fenced_publication(self.publication))
+    }
 }
 
 impl AuthCoordinator {
@@ -598,7 +633,7 @@ impl AuthCoordinator {
                 epoch_now_ms,
                 monotonic_now,
             )?,
-            admission.lease_origin(),
+            admission,
         )
     }
 
@@ -607,18 +642,18 @@ impl AuthCoordinator {
         projection: SessionProjection,
         admission: AdmissionController,
     ) -> SnapbackResult<Self> {
-        Self::new_inner(projection, admission.lease_origin())
+        Self::new_inner(projection, admission)
     }
 
     fn new_inner(
         projection: SessionProjection,
-        admission_origin: AdmissionLeaseOrigin,
+        admission: AdmissionController,
     ) -> SnapbackResult<Self> {
         projection.check_invariants()?;
         Ok(Self {
             topology: Mutex::new(CoordinatorTopology {
                 projection,
-                admission_origin,
+                admission,
                 rebuild_required_sessions: BTreeSet::new(),
                 global_rebuild_required: false,
             }),
@@ -1665,7 +1700,7 @@ impl AuthCoordinator {
                 ConnectionBearerResolution::Current(PreparedConnectionSessionAuthority {
                     authority: ResolvedAppAuthority::from_projected_session(
                         authority,
-                        topology.admission_origin.clone(),
+                        topology.admission.lease_origin(),
                     ),
                     authorization_stream_incarnation: incarnation,
                     deadline_ms,
@@ -1722,7 +1757,7 @@ impl AuthCoordinator {
                 ProjectedBoundSessionResolution::Current(authority) => {
                     let authority = ResolvedAppAuthority::from_projected_session(
                         authority,
-                        topology.admission_origin.clone(),
+                        topology.admission.lease_origin(),
                     );
                     let publication = topology
                         .projection
@@ -2008,7 +2043,7 @@ impl CoordinatorTopology {
         Ok(PreparedBearerAuthority {
             authority: ResolvedAppAuthority::from_projected_session(
                 authority,
-                self.admission_origin.clone(),
+                self.admission.lease_origin(),
             ),
             publication,
         })
@@ -2255,47 +2290,79 @@ mod tests {
 
     struct Fixture {
         coordinator: Arc<AuthCoordinator>,
+        admission: AdmissionController,
         incarnation: String,
         session_id: String,
         bearer: String,
+        other_bearer: String,
         digest: TokenDigest,
         authority_instance_id: String,
         monotonic_start: Instant,
     }
 
     fn fixture() -> Fixture {
+        fixture_with_second_session(false)
+    }
+
+    fn fixture_with_second_session(include_second_session: bool) -> Fixture {
         let bearer = SessionBearer::generate(&FixedRandom(7)).unwrap();
         let bearer_text = bearer.expose_secret().to_owned();
         let token_hash = bearer.token_hash();
         let digest = TokenDigest::from_token_hash(&token_hash);
+        let other_bearer = SessionBearer::generate(&FixedRandom(8)).unwrap();
+        let other_bearer_text = other_bearer.expose_secret().to_owned();
+        let other_token_hash = other_bearer.token_hash();
         let user_id = uuid_v7(2, 2);
+        let other_user_id = uuid_v7(2, 8);
         let identity_id = uuid_v7(3, 3);
+        let other_identity_id = uuid_v7(3, 8);
         let session_id = uuid_v7(4, 4);
+        let other_session_id = uuid_v7(4, 8);
         let authority_instance_id = uuid_v7(5, 5);
+        let other_authority_instance_id = uuid_v7(5, 8);
         let incarnation = uuid_v7(1, 1);
-        let source = ProjectionSource {
-            authorization_stream_value: AuthorizationStreamRecord::new(
-                AuthorizationStreamIncarnation::parse(&incarnation).unwrap(),
-            )
-            .encode_bytes()
-            .unwrap(),
-            restore_declaration_id: None,
-            users: vec![ProjectionUserRow {
-                id: user_id.clone(),
+        let mut users = vec![ProjectionUserRow {
+            id: user_id.clone(),
+            created_at_ms: 1,
+        }];
+        let mut identities = vec![ProjectionIdentityRow {
+            id: identity_id.clone(),
+            user_id: user_id.clone(),
+            provider: "email-code".to_owned(),
+            verified_at_ms: 2,
+        }];
+        let mut sessions = vec![ProjectionSessionRow {
+            id: session_id.clone(),
+            user_id,
+            identity_id,
+            authority_instance_id: authority_instance_id.clone(),
+            token_hash: token_hash.as_bytes().to_vec(),
+            generation: 1,
+            created_at_ms: 3,
+            last_used_at_ms: 4,
+            expires_at_ms: 1_000,
+            absolute_expires_at_ms: 9_000_000_000,
+            revoked_at_ms: None,
+            terminal_cause: None,
+            rehearsal_provenance: None,
+        }];
+        if include_second_session {
+            users.push(ProjectionUserRow {
+                id: other_user_id.clone(),
                 created_at_ms: 1,
-            }],
-            identities: vec![ProjectionIdentityRow {
-                id: identity_id.clone(),
-                user_id: user_id.clone(),
+            });
+            identities.push(ProjectionIdentityRow {
+                id: other_identity_id.clone(),
+                user_id: other_user_id.clone(),
                 provider: "email-code".to_owned(),
                 verified_at_ms: 2,
-            }],
-            sessions: vec![ProjectionSessionRow {
-                id: session_id.clone(),
-                user_id,
-                identity_id,
-                authority_instance_id: authority_instance_id.clone(),
-                token_hash: token_hash.as_bytes().to_vec(),
+            });
+            sessions.push(ProjectionSessionRow {
+                id: other_session_id,
+                user_id: other_user_id,
+                identity_id: other_identity_id,
+                authority_instance_id: other_authority_instance_id,
+                token_hash: other_token_hash.as_bytes().to_vec(),
                 generation: 1,
                 created_at_ms: 3,
                 last_used_at_ms: 4,
@@ -2304,24 +2371,32 @@ mod tests {
                 revoked_at_ms: None,
                 terminal_cause: None,
                 rehearsal_provenance: None,
-            }],
+            });
+        }
+        let source = ProjectionSource {
+            authorization_stream_value: AuthorizationStreamRecord::new(
+                AuthorizationStreamIncarnation::parse(&incarnation).unwrap(),
+            )
+            .encode_bytes()
+            .unwrap(),
+            restore_declaration_id: None,
+            users,
+            identities,
+            sessions,
             superseded_tokens: Vec::new(),
         };
         let monotonic_start = Instant::now();
         let projection =
             SessionProjection::rebuild(source, &uuid_v7(6, 6), 100, monotonic_start).unwrap();
+        let admission =
+            crate::auth::invocation::test_admission_controller(AuthMode::Sessions, 1).unwrap();
         Fixture {
-            coordinator: Arc::new(
-                AuthCoordinator::new(
-                    projection,
-                    crate::auth::invocation::test_admission_controller(AuthMode::Sessions, 1)
-                        .unwrap(),
-                )
-                .unwrap(),
-            ),
+            coordinator: Arc::new(AuthCoordinator::new(projection, admission.clone()).unwrap()),
+            admission,
             incarnation,
             session_id,
             bearer: bearer_text,
+            other_bearer: other_bearer_text,
             digest,
             authority_instance_id,
             monotonic_start,
@@ -2448,6 +2523,49 @@ mod tests {
                 ..
             } if authority_instance_id == &fixture.authority_instance_id
         ));
+    }
+
+    #[test]
+    fn cloned_admission_lease_cannot_prepare_two_genuine_session_authorities() {
+        let fixture = fixture_with_second_session(true);
+        let first = fixture
+            .coordinator
+            .resolve_required_bearer(&fixture.bearer, 200, fixture.monotonic_start)
+            .unwrap();
+        let second = fixture
+            .coordinator
+            .resolve_required_bearer(&fixture.other_bearer, 200, fixture.monotonic_start)
+            .unwrap();
+        assert_ne!(
+            first.resolved().session_id(),
+            second.resolved().session_id()
+        );
+
+        let admission = fixture
+            .admission
+            .admit_for_mode(AuthMode::Sessions)
+            .unwrap();
+        first
+            .prepare_with_claims(
+                InvocationSource::HttpQuery,
+                AuthMode::Sessions,
+                ServerProfile::Test,
+                admission.clone(),
+                &WireAuthorityFields::default(),
+                AuthClaimsProjection::server_derived(Vec::new(), Vec::new()),
+            )
+            .expect("the first genuine resolution claims the shared lease token");
+        let error = second
+            .prepare_with_claims(
+                InvocationSource::HttpQuery,
+                AuthMode::Sessions,
+                ServerProfile::Test,
+                admission,
+                &WireAuthorityFields::default(),
+                AuthClaimsProjection::server_derived(Vec::new(), Vec::new()),
+            )
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
     }
 
     #[tokio::test]

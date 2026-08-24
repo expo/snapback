@@ -10,6 +10,7 @@
 //! plan-before-write terminal tickets, durable deadline publication, and the
 //! external native-effect initiation cut share this one process registry.
 
+use crate::auth::admission::{AdmissionController, AdmissionLeaseOrigin};
 use crate::auth::provider::AuthProvider;
 use crate::auth::service_authority_contract::{
     ServiceAuthorityActResolution, ServiceAuthorityDeadlineTerminal, ServiceAuthorityDisposition,
@@ -658,13 +659,75 @@ struct ServiceAuthorityFenceRegistryState {
 pub struct ServiceAuthorityFenceRegistry {
     state: Arc<Mutex<ServiceAuthorityFenceRegistryState>>,
     changed: Arc<Notify>,
+    admission: AdmissionController,
+    resolution_binding:
+        Arc<crate::storage::auth_agent_credentials::ServiceAuthorityRegistryBinding>,
 }
 
+#[cfg(test)]
 impl Default for ServiceAuthorityFenceRegistry {
     fn default() -> Self {
+        let mut database = crate::storage::ServingDatabase::adopt(
+            crate::storage::LocalDatabase::memory().expect("service-fence test database"),
+        )
+        .expect("service-fence test serving database");
+        let binding = database
+            .take_service_authority_registry_binding()
+            .expect("service-fence test registry binding");
+        let admission =
+            AdmissionController::new(0, true).expect("service-fence test admission controller");
+        Self::new(binding, admission)
+    }
+}
+
+/// Exact token resolution after it has been installed in the database-owned
+/// finite-authority fence. Its admission origin is minted by that installation
+/// and cannot be supplied or replaced by the caller that consumes the carrier.
+pub struct RegisteredServiceAuthority {
+    token: crate::storage::auth_agent_credentials::ResolvedScopedToken,
+    publication: ServiceAuthorityPublication,
+    admission_origin: AdmissionLeaseOrigin,
+}
+
+impl std::fmt::Debug for RegisteredServiceAuthority {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("RegisteredServiceAuthority")
+            .finish_non_exhaustive()
+    }
+}
+
+impl RegisteredServiceAuthority {
+    pub fn with_provider_clock(mut self, clock: Arc<AuthProvider>) -> Self {
+        self.publication = self.publication.with_provider_clock(clock);
+        self
+    }
+
+    pub fn into_parts(
+        self,
+    ) -> (
+        crate::storage::auth_agent_credentials::ResolvedScopedToken,
+        ServiceAuthorityPublication,
+        AdmissionLeaseOrigin,
+    ) {
+        (self.token, self.publication, self.admission_origin)
+    }
+}
+
+impl ServiceAuthorityFenceRegistry {
+    /// Construct the one fence owner beside the admission controller of the
+    /// same engine graph. Raw witness installation remains private; callers
+    /// can register only a kernel-resolved scoped-token carrier.
+    #[doc(hidden)]
+    pub fn new(
+        resolution_binding: crate::storage::auth_agent_credentials::ServiceAuthorityRegistryBinding,
+        admission: AdmissionController,
+    ) -> Self {
         Self {
             state: Arc::new(Mutex::new(ServiceAuthorityFenceRegistryState::default())),
             changed: Arc::new(Notify::new()),
+            admission,
+            resolution_binding: Arc::new(resolution_binding),
         }
     }
 }
@@ -679,6 +742,18 @@ impl ServiceAuthorityFenceRegistry {
     #[cfg(any(test, feature = "test-support"))]
     pub fn is_same_registry(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.state, &other.state)
+    }
+
+    /// Preserve the exact registry/binding graph while giving a unit test a
+    /// settled controller when the engine under test is deliberately closed.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn with_admission_for_test(&self, admission: AdmissionController) -> Self {
+        Self {
+            state: self.state.clone(),
+            changed: self.changed.clone(),
+            admission,
+            resolution_binding: self.resolution_binding.clone(),
+        }
     }
 
     fn install_terminal_intent(
@@ -814,11 +889,39 @@ impl ServiceAuthorityFenceRegistry {
         )
     }
 
+    /// Install only facts carried by an opaque kernel resolution. The
+    /// returned admission origin is minted here from this registry's engine
+    /// graph; no service-authority constructor accepts a caller-selected
+    /// origin.
+    pub fn register_resolved(
+        &self,
+        token: crate::storage::auth_agent_credentials::ResolvedScopedToken,
+        validated_at_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<RegisteredServiceAuthority> {
+        // @ref LLP 0303#q08-answer — raw witness registration cannot rebind a carrier to another graph.
+        if !self.resolution_binding.owns(&token) {
+            return Err(service_authority_unavailable(
+                "resolved service authority belongs to another serving graph",
+            ));
+        }
+        let publication = self.register(
+            token.service_authority_witness(),
+            validated_at_ms,
+            monotonic_now,
+        )?;
+        Ok(RegisteredServiceAuthority {
+            token,
+            publication,
+            admission_origin: self.admission.lease_origin(),
+        })
+    }
+
     /// Register while the caller still owns the app/database lock used for
     /// durable resolution. A terminal transaction therefore either premarks
     /// this exact fence later or committed before resolution and makes the
     /// durable lookup fail; it cannot pass unseen between lookup and install.
-    pub fn register(
+    fn register(
         &self,
         witness: ServiceAuthorityWitness,
         validated_at_ms: u64,

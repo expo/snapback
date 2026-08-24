@@ -6,7 +6,7 @@
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-24
-**Revised:** 2026-08-24 (b — authority-provenance prerequisite first stage)
+**Revised:** 2026-08-24 (c — executable provenance review corrections)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
 `issues/20260824-liveness-row-bucket-assignment.md`,
 `issues/20260824-entitlement-predicates-for-the-live-sites.md`
@@ -93,14 +93,28 @@ are affordable and why the program was not run as an incident.
 
 The service-principal arm is no longer authorable from copied token, grant, credential, effective
 user, and scope fields. `ResolvedScopedToken` keeps every resolved fact private and carries a
-private resolution marker that only the exact token-secret plus durable-grant resolver can mint;
-downstream code gets read-only accessors, so it cannot edit a genuine resolution into a different
-subject. The resolver output then enters a private
-`ResolvedServiceAuthority` carrier together with its service-publication reservation and the
-resolution coordinator's process-local admission origin. Final preparation consumes that carrier
-and rejects a lease from any other admission graph. The session/service provenance also seals an
-exact private copy of every resolved authority fact, so editing the public enum projection after a
-genuine resolution cannot produce a preparable different authority.
+private resolution marker minted by either of two exact live-catalog paths: token-secret
+resolution, or bearer-free retained-authority re-resolution from the complete durable token,
+grant, actor, effective-user, credential, and generation tuple. The bearer-free path is public and
+caller-supplied at the tuple boundary; it remains bounded by exact current-row, liveness, scope,
+integration, and deadline predicates. Downstream code gets read-only accessors, so it cannot edit
+a genuine resolution into a different subject.
+
+The resolver output then enters a `RegisteredServiceAuthority` carrier that keeps the token,
+service-publication reservation, and process-local admission origin together. Raw witness
+registration is private. Each `ServingDatabase` mints one opaque registry binding; its token
+resolutions carry the paired private origin, the binding can construct only the graph's sole
+registry, and that registry rejects a token resolved by any other serving graph. No
+service-authority constructor accepts a caller-selected origin. Final preparation consumes that
+carrier and rejects a lease from any other admission graph. The session/service provenance also
+seals an exact private copy of every resolved authority fact, so editing the public enum projection
+after a genuine resolution cannot produce a preparable different authority.
+
+Retained live fan-out and deferred-effect re-preparation validate that their enclosing drain or
+approver admission belongs to the same controller as the retained resolution, then mint one fresh
+counted lease for each `Session` or `ServicePrincipal` rerun from that authority's sealed resolution
+origin. They therefore preserve admission transition fencing without reusing one generic lease
+token across distinct subject authorities or accepting a foreign retained carrier.
 
 This closes downstream struct/enum-literal construction and the old independently supplied
 `ResolvedAppAuthority` plus `AdmissionLease` join for the service arm. It does not yet bind an
@@ -110,7 +124,10 @@ separate remaining step and no global closure claim follows from this stage.
 ### Q09 answer
 
 The session arm carries a private resolution marker. Only the coordinator path that consumes a
-kernel-minted opaque durable projection snapshot can attach that marker. Its
+kernel-minted opaque durable projection snapshot can attach that marker. Every resolution gets a
+distinct process-local authority identity, and the first preparation claims the shared
+`LeaseToken` for that identity; cloned leases therefore cannot prepare a second genuine authority
+from the same coordinator. Its
 `PreparedBearerAuthority` retains the resolved subject and final-publication fence privately
 through invocation preparation, and the marker records the coordinator's process-local admission
 origin. A mode-valid lease from a separately manufactured controller therefore cannot prepare the
@@ -119,21 +136,26 @@ resolved session.
 Rehearsal sessions use this same path: protected rehearsal lineage is projected as part of the
 resolved session and there is no separate rehearsal session constructor. Asset-callback service
 principals, durable-watch service anchors, and revalidated human watch principals now likewise
-require opaque kernel carriers produced by their exact protected-catalog reads.
+require opaque kernel carriers produced by their exact protected-catalog reads, and their fact
+fields are read-only before public preparation.
 
-This stage does not seal the public non-resolution `System`, `AdminBypass`, or
-`DevImpersonation` arms. Operator authority remains separately closed by the existing private
-`Arc<()>` engine identity and `Arc::ptr_eq` check. Closing the remaining non-resolution arms is
-required before describing `ResolvedAppAuthority` as globally unconstructible.
+The honest claim for this stage is only: authority is unconstructible as a `Session` or
+`ServicePrincipal` literal join, while `System`, `AdminBypass`, `DevImpersonation`, and remaining
+carrier-FRU routes still produce `PreparedAuthority`. Operator authority remains separately closed
+by the existing private `Arc<()>` engine identity and `Arc::ptr_eq` check. Closing the remaining
+non-resolution and carrier routes is required before describing `ResolvedAppAuthority` or
+`PreparedAuthority` as globally unconstructible.
 
 ### Q11 answer
 
 `InvocationGate::prepare_admitted_authority` is crate-private, and public bearer/service entry
 points consume resolution-owned carriers instead of accepting a freely supplied resolved subject.
-Session and service provenance is also compared to the lease's private controller origin at the
-inner gate. Thus a public `AuthModeStateRecord` plus `AdmissionController::from_mode_state` can
-still create a mode-valid lease, but that lease cannot mint either subject-bearing arm and cannot be
-joined to an arm resolved under another controller.
+Session and service provenance is compared to both the lease's private controller origin and the
+specific shared `LeaseToken` that the resolved authority first claimed at the inner gate. Thus a
+public `AuthModeStateRecord` plus `AdmissionController::from_mode_state` can still create a
+mode-valid lease, but that lease cannot mint either subject-bearing arm, cannot be joined to an arm
+resolved under another controller, and cannot be cloned to join two different genuine resolutions
+from one controller.
 
 The first stage deliberately makes no claim about every consumer of an already prepared authority.
 Some engine APIs still accept `PreparedAuthority` produced by another engine graph, and the public

@@ -22,15 +22,33 @@ const ASSET_CALLBACKS_CREATED_BY: &str = "startup:asset-callbacks";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AssetCallbacksServicePrincipal {
-    pub app_id: String,
-    pub actor_user_id: String,
-    pub grant_id: String,
-    pub scope: ExactGrantScope,
+    app_id: String,
+    actor_user_id: String,
+    grant_id: String,
+    scope: ExactGrantScope,
     _resolution: AssetCallbacksResolution,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct AssetCallbacksResolution;
+
+impl AssetCallbacksServicePrincipal {
+    pub fn app_id(&self) -> &str {
+        &self.app_id
+    }
+
+    pub fn actor_user_id(&self) -> &str {
+        &self.actor_user_id
+    }
+
+    pub fn grant_id(&self) -> &str {
+        &self.grant_id
+    }
+
+    pub fn scope(&self) -> &ExactGrantScope {
+        &self.scope
+    }
+}
 
 impl LocalDatabase {
     /// Resolve or mint the one per-app principal and an immutable grant for

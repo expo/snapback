@@ -164,13 +164,15 @@ pub struct AdmissionController {
     inner: Arc<AdmissionInner>,
 }
 
-/// Opaque identity for the process-local admission graph that minted a
-/// lease. Authority resolvers retain this value so invocation preparation
-/// can compare provenance by pointer identity instead of trusting matching
-/// mode counters supplied by a caller.
+/// Opaque identity for one resolved authority in a process-local admission
+/// graph. Every call to [`AdmissionController::lease_origin`] mints a fresh
+/// authority identity. The first resolved authority prepared with a lease
+/// binds that lease's shared token to this identity, so cloning the lease
+/// cannot join a second resolution to the same counted admission root.
 #[derive(Clone)]
 pub struct AdmissionLeaseOrigin {
     controller: Arc<AdmissionInner>,
+    authority: Arc<()>,
 }
 
 impl fmt::Debug for AdmissionLeaseOrigin {
@@ -184,20 +186,59 @@ impl fmt::Debug for AdmissionLeaseOrigin {
 impl PartialEq for AdmissionLeaseOrigin {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.controller, &other.controller)
+            && Arc::ptr_eq(&self.authority, &other.authority)
     }
 }
 
 impl Eq for AdmissionLeaseOrigin {}
 
 impl AdmissionLeaseOrigin {
-    /// Whether `lease` was minted by the exact controller retained by this
-    /// opaque origin. Counter equality is deliberately irrelevant.
-    pub fn owns(&self, lease: &AdmissionLease) -> bool {
+    /// Mint a fresh counted root in the same controller graph as this opaque
+    /// resolved-authority origin. The caller still has to join it through
+    /// [`Self::owns`], which binds the new token to this exact authority.
+    #[doc(hidden)]
+    pub fn admit_for_mode(&self, mode: AuthMode) -> SnapbackResult<AdmissionLease> {
+        AdmissionController {
+            inner: self.controller.clone(),
+        }
+        .admit_for_mode(mode)
+    }
+
+    /// Test whether an enclosing admission came from this resolution's
+    /// controller without claiming its shared token for this authority. This
+    /// is used only to authorize minting a distinct, authority-bound child
+    /// lease; final preparation still has to call [`Self::owns`].
+    #[doc(hidden)]
+    pub fn shares_controller_with(&self, lease: &AdmissionLease) -> bool {
         lease
             .token
             .controller
             .as_ref()
             .is_some_and(|controller| Arc::ptr_eq(controller, &self.controller))
+    }
+
+    /// Claim `lease` for this exact resolved authority. A repeated preparation
+    /// of the same authority through a clone is allowed; a different authority
+    /// origin cannot reuse the shared [`LeaseToken`]. Counter equality is
+    /// deliberately irrelevant.
+    // @ref LLP 0303#q08-answer — one shared lease token can join only the resolution that first claims it.
+    pub fn owns(&self, lease: &AdmissionLease) -> bool {
+        if !lease
+            .token
+            .controller
+            .as_ref()
+            .is_some_and(|controller| Arc::ptr_eq(controller, &self.controller))
+        {
+            return false;
+        }
+        let mut bound = lock(&lease.token.authority_origin);
+        match bound.as_ref() {
+            Some(authority) => Arc::ptr_eq(authority, &self.authority),
+            None => {
+                *bound = Some(self.authority.clone());
+                true
+            }
+        }
     }
 }
 
@@ -251,6 +292,7 @@ impl AdmissionController {
     pub fn lease_origin(&self) -> AdmissionLeaseOrigin {
         AdmissionLeaseOrigin {
             controller: self.inner.clone(),
+            authority: Arc::new(()),
         }
     }
 
@@ -473,6 +515,7 @@ impl AdmissionController {
         Ok(AdmissionLease {
             token: Arc::new(LeaseToken {
                 controller: Some(self.inner.clone()),
+                authority_origin: Mutex::new(None),
                 transition_generation: current.transition_generation,
                 admission_epoch: epoch,
                 active_mode: Some(current.active_mode),
@@ -560,6 +603,7 @@ impl AdmissionController {
         Ok(AdmissionLease {
             token: Arc::new(LeaseToken {
                 controller: Some(self.inner.clone()),
+                authority_origin: Mutex::new(None),
                 transition_generation: current.transition_generation,
                 admission_epoch: epoch,
                 active_mode: Some(current.active_mode),
@@ -877,6 +921,10 @@ impl fmt::Debug for AdmissionLease {
 
 struct LeaseToken {
     controller: Option<Arc<AdmissionInner>>,
+    /// First resolved authority joined to this counted root. Every
+    /// [`AdmissionLease`] clone shares this slot because all clones share the
+    /// surrounding `Arc<LeaseToken>`.
+    authority_origin: Mutex<Option<Arc<()>>>,
     transition_generation: u64,
     admission_epoch: u64,
     active_mode: Option<AuthMode>,
@@ -920,6 +968,7 @@ impl AdmissionLease {
             .as_ref()
             .map(|controller| AdmissionLeaseOrigin {
                 controller: controller.clone(),
+                authority: Arc::new(()),
             })
     }
 
@@ -931,6 +980,7 @@ impl AdmissionLease {
         Self {
             token: Arc::new(LeaseToken {
                 controller: None,
+                authority_origin: Mutex::new(None),
                 transition_generation,
                 admission_epoch,
                 active_mode: None,
@@ -1315,6 +1365,7 @@ impl ModeTransitionGuard {
         Ok(AdmissionLease {
             token: Arc::new(LeaseToken {
                 controller: Some(self.controller.inner.clone()),
+                authority_origin: Mutex::new(None),
                 transition_generation: epoch.transition_generation,
                 admission_epoch: self.admission_epoch,
                 active_mode: Some(epoch.active_mode),

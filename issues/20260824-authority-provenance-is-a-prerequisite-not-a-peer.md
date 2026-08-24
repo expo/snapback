@@ -63,8 +63,9 @@ construction is unsealed, and that implication was missed at the time.
 The first coherent stage seals the subject-bearing resolution routes without claiming global
 closure:
 
-- downstream crates cannot construct the `Session`, `ServicePrincipal`, or
-  `RevalidatedPrincipal` arms by enum literal because each now requires private provenance;
+- downstream crates cannot construct the `Session` or `ServicePrincipal` arms by enum literal
+  because each now requires private provenance; revalidated watch authority instead crosses an
+  opaque, read-only kernel carrier;
 - downstream crates cannot construct `ResolvedScopedToken`, the asset-callback service principal,
   or the durable-watch anchor by struct literal; resolved scoped-token fields are private and
   read-only outside the kernel;
@@ -72,15 +73,29 @@ closure:
   consumes a kernel-minted opaque catalog snapshot;
 - `prepare_admitted_authority` is crate-private, while public session/service preparation consumes
   a carrier that privately retains the resolved subject and its publication reservation;
-- session/service preparation compares the carrier's process-local admission origin to the lease,
-  so a lease manufactured from public mode-state fields cannot be joined to authority resolved by
-  another controller, and also compares every projected authority fact to the private fact seal so
-  mutation of a genuine resolved enum value cannot prepare a different subject;
+- each session/service resolution has a distinct process-local admission origin, and the first
+  preparation binds that identity to the shared `LeaseToken`; a cloned lease therefore cannot
+  prepare a second different genuine authority even when both came from one coordinator;
+- service preparation consumes a registered carrier rather than accepting a caller-selected
+  origin, raw service-witness registration is private, and the one-use registry binding rejects a
+  resolved token from any other `ServingDatabase` graph;
+- every projected session/service authority fact is compared to the private fact seal, with no
+  test-only bypass, so mutation of a genuine resolved enum value cannot prepare a different
+  subject;
+- callback, watch-anchor, and revalidated-watch carrier fact fields are private and read-only, so
+  functional-record-update or field mutation cannot substitute a subject before public
+  preparation;
 
-This issue remains open. `System`, `AdminBypass`, and `DevImpersonation` are still public
-non-resolution construction routes, and not every engine consumer yet proves that an already
-prepared authority belongs to that exact engine graph. Operator authority is already separately
-closed by its private engine-owned `Arc<()>`; rehearsal session authority has no separate producer
-and now enters only through the sealed session resolver. A later stage must close the named public
-non-resolution routes and the remaining cross-engine prepared-authority seams before any global
-unconstructibility claim is sound.
+`ResolvedScopedToken` has two honest mint paths, not one: exact token-secret resolution and public
+bearer-free retained-authority re-resolution from caller-supplied durable coordinates. The latter
+is bounded by exact current token/grant/actor/effective-user/credential-generation rows plus live
+status, scopes, integration state, and deadlines. Its fields and marker remain private.
+
+This issue remains open. The accurate partial claim is: unconstructible as a `Session` or
+`ServicePrincipal` literal join, while `System`, `AdminBypass`, `DevImpersonation`, and remaining
+carrier-FRU routes still produce `PreparedAuthority`. Not every engine consumer yet proves that an
+already prepared authority belongs to that exact engine graph. Operator authority is already
+separately closed by its private engine-owned `Arc<()>`; rehearsal session authority has no
+separate producer and now enters only through the sealed session resolver. A later stage must close
+the named public non-resolution routes, remaining carrier-FRU routes, and cross-engine
+prepared-authority seams before any global unconstructibility claim is sound.

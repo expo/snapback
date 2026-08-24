@@ -144,30 +144,66 @@ pub enum EvaluationDecision {
 
 #[derive(Clone, Debug)]
 pub struct WatchAnchorAuthority {
-    pub actor_user_id: String,
-    pub effective_user_id: String,
-    pub grant_id: String,
-    pub scopes: Vec<crate::storage::auth_grants::ExactGrantScope>,
-    pub expires_at_ms: u64,
-    pub integration_status: crate::storage::auth_integrations::IntegrationStatus,
+    actor_user_id: String,
+    effective_user_id: String,
+    grant_id: String,
+    scopes: Vec<crate::storage::auth_grants::ExactGrantScope>,
+    expires_at_ms: u64,
+    integration_status: crate::storage::auth_integrations::IntegrationStatus,
     _resolution: WatchAnchorResolution,
 }
 
 #[derive(Clone, Debug)]
 struct WatchAnchorResolution;
 
+impl WatchAnchorAuthority {
+    pub fn actor_user_id(&self) -> &str {
+        &self.actor_user_id
+    }
+
+    pub fn effective_user_id(&self) -> &str {
+        &self.effective_user_id
+    }
+
+    pub fn grant_id(&self) -> &str {
+        &self.grant_id
+    }
+
+    pub fn scopes(&self) -> &[crate::storage::auth_grants::ExactGrantScope] {
+        &self.scopes
+    }
+
+    pub fn expires_at_ms(&self) -> u64 {
+        self.expires_at_ms
+    }
+
+    pub fn integration_status(&self) -> crate::storage::auth_integrations::IntegrationStatus {
+        self.integration_status
+    }
+}
+
 /// Protected-catalog proof that the durable watch still names an active
 /// human owner. Its private marker prevents copied watch fields from becoming
 /// revalidated invocation authority.
 #[derive(Clone, Debug)]
 pub struct RevalidatedWatchPrincipal {
-    pub user_id: String,
-    pub authority_instance_id: String,
+    user_id: String,
+    authority_instance_id: String,
     _resolution: RevalidatedWatchPrincipalResolution,
 }
 
 #[derive(Clone, Debug)]
 struct RevalidatedWatchPrincipalResolution;
+
+impl RevalidatedWatchPrincipal {
+    pub fn user_id(&self) -> &str {
+        &self.user_id
+    }
+
+    pub fn authority_instance_id(&self) -> &str {
+        &self.authority_instance_id
+    }
+}
 
 /// Caller-constructed operation identifier for one watch-management attempt.
 /// The newtype prevents accidental comparison with another intent type, but

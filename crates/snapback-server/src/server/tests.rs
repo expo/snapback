@@ -430,6 +430,7 @@ use crate::admin::{AppState, ServerContext};
 use crate::admin_impersonation::{
     IMPERSONATION_CAPABILITY_HEADER, ImpersonationCapabilityRegistry,
 };
+use crate::auth::admission::AdmissionController;
 use crate::auth::crypto::{AgentCredential, CryptoError, OsRandom, RandomSource, SessionBearer};
 use crate::auth::deployment::{
     AuthenticationBucketPolicy, AuthenticationThrottle, BrowserCredentialPosture,
@@ -466,6 +467,19 @@ use crate::contract_types::{
     GuestCleanupContractV1, GuestPolicyManifestV1, GuestReapingPolicyV1, RevocationReason,
     ServerProfile,
 };
+
+fn service_authority_registry_for_test(
+    admission: AdmissionController,
+) -> ServiceAuthorityFenceRegistry {
+    let mut database = crate::storage::ServingDatabase::adopt(
+        crate::storage::LocalDatabase::memory().expect("service registry test database"),
+    )
+    .expect("adopt service registry test database");
+    let binding = database
+        .take_service_authority_registry_binding()
+        .expect("claim service registry test binding");
+    ServiceAuthorityFenceRegistry::new(binding, admission)
+}
 use crate::cron::CronRunOutcome;
 use crate::diagnostic::SnapbackError;
 use crate::local::{
@@ -31665,7 +31679,9 @@ async fn detached_action_host_closes_begin_to_native_initiated_revocation_race()
     snapback.load_functions(generation_test_manifest());
     let state = Arc::new(Mutex::new(snapback));
     let staged = stage_held_action(&state);
-    let registry = ServiceAuthorityFenceRegistry::default();
+    let registry = service_authority_registry_for_test(
+        AdmissionController::new(0, true).expect("service-fence test admission"),
+    );
     let monotonic = Instant::now();
     let epoch_now_ms = super::now_millis();
     let publication = registry
@@ -41706,7 +41722,9 @@ impl CommitCapsuleTerminalFixture {
         Self,
         crate::auth::service_fence::ServiceAuthorityTerminalGate,
     ) {
-        let registry = ServiceAuthorityFenceRegistry::default();
+        let registry = service_authority_registry_for_test(
+            AdmissionController::new(0, true).expect("service-fence test admission"),
+        );
         let monotonic = Instant::now();
         let publication = registry
             .synthetic_publication_for_test("capsule-token", 100, 10_000, monotonic)

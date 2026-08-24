@@ -5227,15 +5227,11 @@ impl LocalSnapback {
                 "the scoped-token deadline differs from the frozen authority",
             ));
         }
-        let publication = self
+        let registered = self
             .service_authority_fences
-            .register(resolved.service_authority_witness(), now_ms, monotonic_now)?
+            .register_resolved(resolved, now_ms, monotonic_now)?
             .with_provider_clock(provider);
-        Ok(ResolvedServiceAuthority::from_scoped_token(
-            resolved,
-            publication,
-            self.admission.lease_origin(),
-        ))
+        Ok(ResolvedServiceAuthority::from_registered(registered))
     }
 
     pub fn refuse_pending_effect(
@@ -5362,15 +5358,11 @@ impl LocalSnapback {
         provider: Arc<crate::auth::provider::AuthProvider>,
     ) -> SnapbackResult<ResolvedServiceAuthority> {
         let resolved = self.db.resolve_scoped_token(token, now_ms)?;
-        let publication = self
+        let registered = self
             .service_authority_fences
-            .register(resolved.service_authority_witness(), now_ms, monotonic_now)?
+            .register_resolved(resolved, now_ms, monotonic_now)?
             .with_provider_clock(provider);
-        Ok(ResolvedServiceAuthority::from_scoped_token(
-            resolved,
-            publication,
-            self.admission.lease_origin(),
-        ))
+        Ok(ResolvedServiceAuthority::from_registered(registered))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -7535,8 +7527,8 @@ impl LocalSnapback {
                     ),
                 ));
             };
-            if actor_user_id != &principal.actor_user_id
-                || grant_id != &principal.grant_id
+            if actor_user_id != principal.actor_user_id()
+                || grant_id != principal.grant_id()
                 || !self
                     .db
                     .asset_callbacks_service_principal_is_live(principal)
@@ -7882,6 +7874,9 @@ impl LocalSnapback {
             retained.profile(),
             now_millis(),
         )?;
+        // @ref LLP 0303#q08-answer — `prepare_rerun` validates the enclosing
+        // drain lease, then each retained subject-bearing authority mints and
+        // claims a fresh token from its sealed resolution controller.
         let prepared = retained.prepare_rerun(admission, session_claims)?;
         self.persist_and_validate_prepared_service_authority(&prepared)?;
         Ok(prepared)
@@ -8315,6 +8310,38 @@ impl LocalSnapback {
         )
     }
 
+    /// Re-prepare a retained session under an enclosing authority from this
+    /// engine. The retained carrier verifies the same controller and mints a
+    /// separate lease token for its own resolved subject.
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare_retained_bearer_authority(
+        &mut self,
+        prepared: crate::auth::coordinator::PreparedBearerAuthority,
+        source: InvocationSource,
+        active_mode: AuthMode,
+        profile: ServerProfile,
+        enclosing_admission: AdmissionLease,
+        wire: &WireAuthorityFields,
+        now_ms: u64,
+    ) -> SnapbackResult<PreparedAuthority> {
+        if !self.admission.owns_lease(&enclosing_admission) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "retained session enclosure belongs to another engine graph",
+            ));
+        }
+        prepared.prepare_retained(
+            &mut self.db,
+            source,
+            active_mode,
+            profile,
+            enclosing_admission,
+            wire,
+            now_ms,
+        )
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn prepare_service_authority(
         &mut self,
@@ -8339,6 +8366,37 @@ impl LocalSnapback {
             active_mode,
             profile,
             admission,
+            wire,
+            Some(stream_publication),
+        )
+    }
+
+    /// Re-prepare a retained service principal under an enclosing authority
+    /// from this engine, using a fresh subject-bound lease token.
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare_retained_service_authority(
+        &mut self,
+        resolution: ResolvedServiceAuthority,
+        source: InvocationSource,
+        active_mode: AuthMode,
+        profile: ServerProfile,
+        enclosing_admission: AdmissionLease,
+        wire: &WireAuthorityFields,
+        _now_ms: u64,
+        stream_publication: crate::auth::session_projection::FencedPublication,
+    ) -> SnapbackResult<PreparedAuthority> {
+        if !self.admission.owns_lease(&enclosing_admission) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "retained service enclosure belongs to another engine graph",
+            ));
+        }
+        resolution.prepare_retained(
+            source,
+            active_mode,
+            profile,
+            enclosing_admission,
             wire,
             Some(stream_publication),
         )
@@ -8561,6 +8619,34 @@ impl LocalSnapback {
         self.db
             .activate_current_auth_catalog()
             .expect("activate unit-test service catalog");
+        let digest = |prefix: &str, byte: char| format!("{prefix}{}", byte.to_string().repeat(64));
+        let deployment = DeploymentIdentity {
+            schema_version: "snapback.v1".to_owned(),
+            auth_mode: AuthMode::Sessions,
+            app_id: "authority-provenance-service-unit-test".to_owned(),
+            schema_hash: digest(crate::auth::mode::SCHEMA_V1_PREFIX, 'd'),
+            bundle_hash: digest(crate::auth::mode::FUNCTION_V1_PREFIX, 'e'),
+            inputs_hash: digest(crate::auth::mode::INPUTS_V1_PREFIX, 'f'),
+        };
+        let mut state = AuthModeStateRecord::initial_dev(Some(deployment.clone()));
+        state.transition_generation = 1;
+        state.active = AuthMode::Sessions;
+        state.desired = AuthMode::Sessions;
+        state.sessions_ever_activated = true;
+        state.active_deployment = Some(deployment);
+        state
+            .validate_shape()
+            .expect("validate unit-test service mode");
+        // Service-resolution tests sometimes exercise a target engine that is
+        // deliberately mid-transition. Use a closed fixture-local controller
+        // for resolution and preparation; the service publication remains in
+        // the target engine's registry so retirement tests still observe the
+        // exact production fence.
+        let resolution_admission = AdmissionController::from_mode_state(&state)
+            .expect("build unit-test service admission graph");
+        self.service_authority_fences = self
+            .service_authority_fences
+            .with_admission_for_test(resolution_admission.clone());
         let random = FixedServiceRandom {
             base: NEXT_SERVICE_FIXTURE_RANDOM.fetch_add(1_024, Ordering::SeqCst),
             next: AtomicU64::new(0),
@@ -8612,32 +8698,6 @@ impl LocalSnapback {
                 .expect("mint unit-test scoped token");
         }
 
-        let digest = |prefix: &str, byte: char| format!("{prefix}{}", byte.to_string().repeat(64));
-        let deployment = DeploymentIdentity {
-            schema_version: "snapback.v1".to_owned(),
-            auth_mode: AuthMode::Sessions,
-            app_id: "authority-provenance-service-unit-test".to_owned(),
-            schema_hash: digest(crate::auth::mode::SCHEMA_V1_PREFIX, 'd'),
-            bundle_hash: digest(crate::auth::mode::FUNCTION_V1_PREFIX, 'e'),
-            inputs_hash: digest(crate::auth::mode::INPUTS_V1_PREFIX, 'f'),
-        };
-        let mut state = AuthModeStateRecord::initial_dev(Some(deployment.clone()));
-        state.transition_generation = 1;
-        state.active = AuthMode::Sessions;
-        state.desired = AuthMode::Sessions;
-        state.sessions_ever_activated = true;
-        state.active_deployment = Some(deployment);
-        state
-            .validate_shape()
-            .expect("validate unit-test service mode");
-        // Service-resolution tests sometimes exercise a target engine that is
-        // deliberately mid-transition. Use a closed fixture-local controller
-        // for resolution and preparation; the service publication remains in
-        // the target engine's registry so retirement tests still observe the
-        // exact production fence.
-        let resolution_admission = AdmissionController::from_mode_state(&state)
-            .expect("build unit-test service admission graph");
-
         let resolved = self
             .db
             .resolve_scoped_token(&token.secret, now_ms)
@@ -8647,15 +8707,11 @@ impl LocalSnapback {
             credential_id,
             "the resolver returns the independently issued credential id"
         );
-        let publication = self
+        let registered = self
             .service_authority_fences
-            .register(resolved.service_authority_witness(), now_ms, Instant::now())
+            .register_resolved(resolved, now_ms, Instant::now())
             .expect("register unit-test service publication");
-        let resolution = ResolvedServiceAuthority::from_scoped_token(
-            resolved,
-            publication,
-            resolution_admission.lease_origin(),
-        );
+        let resolution = ResolvedServiceAuthority::from_registered(registered);
         let admission = resolution_admission
             .admit_for_mode(AuthMode::Sessions)
             .expect("admit unit-test service authority");
@@ -16380,8 +16436,8 @@ impl LocalSnapback {
                 let authority_receipt = authority.asset_callbacks_service().map(|principal| {
                     serde_json::json!({
                         "actorKind": crate::storage::auth_asset_callbacks::ASSET_CALLBACKS_SERVICE_NAME,
-                        "actorUserId": principal.actor_user_id.clone(),
-                        "grantId": principal.grant_id.clone(),
+                        "actorUserId": principal.actor_user_id(),
+                        "grantId": principal.grant_id(),
                         "sessionId": null,
                     })
                 });
@@ -27144,10 +27200,6 @@ impl LocalSnapback {
         telemetry_store_identity: Option<crate::telemetry::TelemetryStoreIdentity>,
         asset_store_config: AssetStoreConfig,
     ) -> SnapbackResult<Self> {
-        let service_authority_fences =
-            crate::auth::service_fence::ServiceAuthorityFenceRegistry::default();
-        let service_commit_interlock = service_authority_fences.kernel_commit_interlock(&db);
-        db.install_service_authority_commit_interlock(service_commit_interlock)?;
         // LocalSnapback is the auth-capable embedding boundary. Complete the
         // explicit stream migration here, before the instance can disappear
         // behind a managed server mutex; managed authorization writes may then
@@ -27210,6 +27262,16 @@ impl LocalSnapback {
             &auth_mode,
             migration_fenced,
         )?;
+        let service_registry_binding = db
+            .take_service_authority_registry_binding()
+            .expect("ServingDatabase exposes one service-authority registry binding");
+        let service_authority_fences =
+            crate::auth::service_fence::ServiceAuthorityFenceRegistry::new(
+                service_registry_binding,
+                admission.clone(),
+            );
+        let service_commit_interlock = service_authority_fences.kernel_commit_interlock(&db);
+        db.install_service_authority_commit_interlock(service_commit_interlock)?;
         let mut recent_diagnostics = VecDeque::new();
         for diagnostic in runtime.diagnostics() {
             recent_diagnostics.push_back(diagnostic);

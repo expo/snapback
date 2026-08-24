@@ -15647,8 +15647,7 @@ fn settled_sessions_activation_snapback(
 fn scoped_live_authority(snapback: &mut LocalSnapback) -> PreparedAuthority {
     let random = CounterRandom::new();
     let now_ms = now_millis();
-    let service_fences = snapback.service_authority_fences.clone();
-    let (resolved, service_publication) = {
+    let token = {
         let db = snapback.auth_database_mut();
         db.auth_catalog()
             .insert_human_user_for_test("activation-owner", now_ms)
@@ -15670,32 +15669,28 @@ fn scoped_live_authority(snapback: &mut LocalSnapback) -> PreparedAuthority {
         db.auth_catalog()
             .insert_activation_live_grant_for_test(now_ms)
             .expect("create activation grant");
-        let token = db
-            .mint_scoped_token(
-                &credential.secret,
-                "activation-grant",
-                Some(60_000),
-                now_ms,
-                &random,
-            )
-            .expect("mint activation token");
-        let resolved = db
-            .resolve_scoped_token(&token.secret, now_ms)
-            .expect("resolve activation token");
-        let publication = service_fences
-            .register(resolved.service_authority_witness(), now_ms, Instant::now())
-            .expect("register activation token fence");
-        (resolved, publication)
+        db.mint_scoped_token(
+            &credential.secret,
+            "activation-grant",
+            Some(60_000),
+            now_ms,
+            &random,
+        )
+        .expect("mint activation token")
     };
+    let resolved = snapback
+        .db
+        .resolve_scoped_token(&token.secret, now_ms)
+        .expect("resolve activation token");
+    let registered = snapback
+        .service_authority_fences
+        .register_resolved(resolved, now_ms, Instant::now())
+        .expect("register activation token fence");
     let admission = snapback
         .admission
         .admit_for_mode(AuthMode::Sessions)
         .expect("admit service live owner");
-    let resolution = crate::auth::invocation::ResolvedServiceAuthority::from_scoped_token(
-        resolved,
-        service_publication,
-        snapback.admission.lease_origin(),
-    );
+    let resolution = crate::auth::invocation::ResolvedServiceAuthority::from_registered(registered);
     snapback
         .prepare_connection_service_authority(
             resolution,
@@ -26027,7 +26022,6 @@ fn managed_action_staging_preserves_terminal_service_loss_after_repeated_policy_
         .expect("stage managed classified action");
 
     let now_ms = now_millis();
-    let registry = snapback.service_authority_fences.clone();
     let service_authority = snapback.prepare_resolved_service_for_test(
         InvocationSource::HttpAction,
         "managed-classified-agent",
@@ -26053,6 +26047,7 @@ fn managed_action_staging_preserves_terminal_service_loss_after_repeated_policy_
         now_ms,
         now_ms + 60_000,
     );
+    let registry = snapback.service_authority_fences.clone();
     let ResolvedAppAuthority::ServicePrincipal { token_id, .. } = service_authority.resolved()
     else {
         panic!("resolved service fixture must project service authority");
@@ -28045,16 +28040,11 @@ fn service_mutation_authority(
     .expect("parse registered replay token secret");
     let now_ms = now_millis();
     let resolved = snapback.db.resolve_scoped_token(&token, now_ms)?;
-    let publication = snapback.service_authority_fences.register(
-        resolved.service_authority_witness(),
-        now_ms,
-        Instant::now(),
-    )?;
-    let resolution = crate::auth::invocation::ResolvedServiceAuthority::from_scoped_token(
-        resolved,
-        publication,
-        snapback.admission.lease_origin(),
-    );
+    let registered =
+        snapback
+            .service_authority_fences
+            .register_resolved(resolved, now_ms, Instant::now())?;
+    let resolution = crate::auth::invocation::ResolvedServiceAuthority::from_registered(registered);
     let admission = snapback.admission.admit_for_mode(AuthMode::Sessions)?;
     snapback.prepare_connection_service_authority(
         resolution,
@@ -28065,6 +28055,32 @@ fn service_mutation_authority(
         &WireAuthorityFields::default(),
         now_ms,
     )
+}
+
+#[test]
+fn resolved_service_authority_cannot_rebind_to_another_serving_registry() {
+    let mut source = LocalSnapback::memory().expect("source service graph");
+    let secrets = install_service_replay_auth(&mut source);
+    let token = crate::auth::crypto::ScopedToken::parse(
+        secrets
+            .0
+            .get("token-a")
+            .expect("source service token secret"),
+    )
+    .expect("parse source service token");
+    let now_ms = now_millis();
+    let resolved = source
+        .db
+        .resolve_scoped_token(&token, now_ms)
+        .expect("resolve token in source serving graph");
+
+    let target = LocalSnapback::memory().expect("target service graph");
+    let error = target
+        .service_authority_fences
+        .register_resolved(resolved, now_ms, Instant::now())
+        .unwrap_err();
+    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
+    assert!(error.diagnostic.message.contains("another serving graph"));
 }
 
 fn admitted_service_mutation_authority(snapback: &mut LocalSnapback) -> PreparedAuthority {

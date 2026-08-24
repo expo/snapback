@@ -426,8 +426,6 @@ enum ResolvedAuthoritySeal {
         token_expires_at_ms: u64,
         integration_status: Option<crate::storage::auth_integrations::IntegrationStatus>,
     },
-    #[cfg(test)]
-    TestOnly,
 }
 
 impl ResolvedAuthorityProvenance {
@@ -500,9 +498,58 @@ impl ResolvedAuthorityProvenance {
                     && sealed_token_expires_at_ms == token_expires_at_ms
                     && sealed_integration_status == integration_status
             }
-            #[cfg(test)]
-            (ResolvedAuthoritySeal::TestOnly, _) => true,
             _ => false,
+        }
+    }
+}
+
+impl ResolvedAuthoritySeal {
+    #[cfg(test)]
+    fn from_authority(authority: &ResolvedAppAuthority) -> Option<Self> {
+        match authority {
+            ResolvedAppAuthority::Session {
+                user_id,
+                session_id,
+                provider,
+                generation,
+                authority_instance_id,
+                session_not_after_ms,
+                provider_not_after_ms,
+                rehearsal_provenance,
+                ..
+            } => Some(Self::Session {
+                user_id: user_id.clone(),
+                session_id: session_id.clone(),
+                provider: provider.clone(),
+                generation: *generation,
+                authority_instance_id: authority_instance_id.clone(),
+                session_not_after_ms: *session_not_after_ms,
+                provider_not_after_ms: *provider_not_after_ms,
+                rehearsal_provenance: rehearsal_provenance.clone(),
+            }),
+            ResolvedAppAuthority::ServicePrincipal {
+                actor_user_id,
+                credential_id,
+                credential_generation,
+                grant_id,
+                token_id,
+                effective_user_id,
+                scopes,
+                token_expires_at_ms,
+                integration_status,
+                ..
+            } => Some(Self::ServicePrincipal {
+                actor_user_id: actor_user_id.clone(),
+                credential_id: credential_id.clone(),
+                credential_generation: *credential_generation,
+                grant_id: grant_id.clone(),
+                token_id: token_id.clone(),
+                effective_user_id: effective_user_id.clone(),
+                scopes: scopes.clone(),
+                token_expires_at_ms: *token_expires_at_ms,
+                integration_status: *integration_status,
+            }),
+            _ => None,
         }
     }
 }
@@ -519,7 +566,20 @@ pub(crate) fn test_resolution() -> ResolvedAuthorityProvenance {
         admission_origin: crate::auth::admission::AdmissionController::new(0, true)
             .expect("test admission controller")
             .lease_origin(),
-        seal: ResolvedAuthoritySeal::TestOnly,
+        // Test literals that cross invocation preparation are resealed from
+        // their exact fields by `bind_test_admission_origin`. This ordinary
+        // mismatching seal deliberately fails closed if a test bypasses that
+        // helper; there is no test-only seal bypass in the runtime gate.
+        seal: ResolvedAuthoritySeal::Session {
+            user_id: String::new(),
+            session_id: String::new(),
+            provider: String::new(),
+            generation: 0,
+            authority_instance_id: String::new(),
+            session_not_after_ms: 0,
+            provider_not_after_ms: None,
+            rehearsal_provenance: None,
+        },
     }
 }
 
@@ -546,11 +606,10 @@ pub struct ResolvedServiceAuthority {
 }
 
 impl ResolvedServiceAuthority {
-    pub fn from_scoped_token(
-        token: ResolvedScopedToken,
-        publication: crate::auth::service_fence::ServiceAuthorityPublication,
-        admission_origin: crate::auth::admission::AdmissionLeaseOrigin,
+    pub fn from_registered(
+        registered: crate::auth::service_fence::RegisteredServiceAuthority,
     ) -> Self {
+        let (token, publication, admission_origin) = registered.into_parts();
         Self {
             resolved: ResolvedAppAuthority::from_scoped_token(token, admission_origin),
             publication,
@@ -590,6 +649,34 @@ impl ResolvedServiceAuthority {
             None => authority,
         })
     }
+
+    /// Re-prepare a bearer-free retained service authority under an enclosing
+    /// admission from the same controller. The enclosing token is not joined
+    /// to this subject; a fresh child lease is minted from the resolution's
+    /// sealed origin and claimed by final preparation.
+    #[doc(hidden)]
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare_retained(
+        self,
+        source: InvocationSource,
+        active_mode: AuthMode,
+        profile: ServerProfile,
+        enclosing_admission: AdmissionLease,
+        wire: &WireAuthorityFields,
+        stream_publication: Option<crate::auth::session_projection::FencedPublication>,
+    ) -> SnapbackResult<PreparedAuthority> {
+        let admission = self
+            .resolved
+            .fresh_admission_for_enclosing(&enclosing_admission, active_mode)?;
+        self.prepare(
+            source,
+            active_mode,
+            profile,
+            admission,
+            wire,
+            stream_publication,
+        )
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -628,14 +715,48 @@ impl ResolvedGrantScope {
 }
 
 impl ResolvedAppAuthority {
+    /// Mint one subject-bound child admission only when `enclosing` belongs to
+    /// the same controller as this genuine resolution. The enclosing token is
+    /// deliberately not claimed: it may be an approver/drain authority and is
+    /// not the subject being prepared.
+    pub(super) fn fresh_admission_for_enclosing(
+        &self,
+        enclosing: &AdmissionLease,
+        mode: AuthMode,
+    ) -> SnapbackResult<AdmissionLease> {
+        enclosing.validate("retained authority enclosing admission")?;
+        let origin = match self {
+            Self::Session { _resolution, .. } | Self::ServicePrincipal { _resolution, .. } => {
+                &_resolution.admission_origin
+            }
+            _ => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                    "auth",
+                    "only resolved subject authority can mint a retained child admission",
+                ));
+            }
+        };
+        if !origin.shares_controller_with(enclosing) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "retained authority belongs to a different admission graph",
+            ));
+        }
+        origin.admit_for_mode(mode)
+    }
+
     #[cfg(test)]
     fn bind_test_admission_origin(
         &mut self,
         admission_origin: crate::auth::admission::AdmissionLeaseOrigin,
     ) {
+        let seal = ResolvedAuthoritySeal::from_authority(self);
         match self {
             Self::Session { _resolution, .. } | Self::ServicePrincipal { _resolution, .. } => {
                 _resolution.admission_origin = admission_origin;
+                _resolution.seal = seal.expect("resolved test authority has a seal");
             }
             _ => {}
         }
@@ -732,7 +853,7 @@ impl ResolvedAppAuthority {
         )
     }
 
-    pub fn from_scoped_token(
+    fn from_scoped_token(
         token: ResolvedScopedToken,
         admission_origin: crate::auth::admission::AdmissionLeaseOrigin,
     ) -> Self {
@@ -1247,7 +1368,7 @@ impl HandlerAuthProjection {
     ///   — `ctx.auth.actorKind` names the service principal; no interactive
     ///   session projection is counterfeited.
     fn for_asset_callbacks(principal: &AssetCallbacksServicePrincipal) -> Self {
-        Self::for_asset_callbacks_actor(&principal.actor_user_id)
+        Self::for_asset_callbacks_actor(principal.actor_user_id())
     }
 
     fn for_asset_callbacks_actor(actor_user_id: &str) -> Self {
@@ -2233,14 +2354,14 @@ impl PreparedAuthority {
     pub fn canonical_auth_input(&self) -> AuthInput {
         if let Some(principal) = &self.asset_callbacks_service {
             return AuthInput {
-                user_id: Some(principal.actor_user_id.clone()),
+                user_id: Some(principal.actor_user_id().to_owned()),
                 ..AuthInput::default()
             }
             .with_authorization_projection(Some("agent"), Some(ASSET_CALLBACKS_SERVICE_NAME), false)
             .with_activity_provenance(
-                Some(&principal.actor_user_id),
+                Some(principal.actor_user_id()),
                 Some(ASSET_CALLBACKS_SERVICE_NAME),
-                Some(&principal.grant_id),
+                Some(principal.grant_id()),
             );
         }
         self.resolved.legacy_input()
@@ -2815,6 +2936,17 @@ impl RetainedLiveAuthority {
         admission: AdmissionLease,
         session_claims: Option<AuthClaimsProjection>,
     ) -> SnapbackResult<PreparedAuthority> {
+        // @ref LLP 0303#q08-answer — retained subject fan-out mints one fresh lease from each sealed resolution origin.
+        let admission = match &self.resolved {
+            ResolvedAppAuthority::Session { .. }
+            | ResolvedAppAuthority::ServicePrincipal { .. } => self
+                .resolved
+                .fresh_admission_for_enclosing(&admission, self.active_mode)?,
+            _ => {
+                admission.validate("retained live rerun admission")?;
+                admission
+            }
+        };
         let prepared = InvocationGate::prepare_admitted_authority_inner(
             InvocationSource::LiveRerun,
             self.active_mode,
@@ -3192,8 +3324,8 @@ impl InvocationGate {
             admission,
             &WireAuthorityFields::default(),
             ResolvedAppAuthority::RevalidatedPrincipal {
-                user_id: principal.user_id,
-                authority_instance_id: principal.authority_instance_id,
+                user_id: principal.user_id().to_owned(),
+                authority_instance_id: principal.authority_instance_id().to_owned(),
                 _resolution: RevalidatedAuthorityProvenance { _private: () },
             },
             None,
@@ -3215,7 +3347,7 @@ impl InvocationGate {
         admission.require_mode(active_mode)?;
         if let ResolvedAppAuthority::Session { _resolution, .. }
         | ResolvedAppAuthority::ServicePrincipal { _resolution, .. } = &resolved
-            && (!_resolution.admission_origin.owns(&admission) || !_resolution.matches(&resolved))
+            && (!_resolution.matches(&resolved) || !_resolution.admission_origin.owns(&admission))
         {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
@@ -3328,20 +3460,20 @@ impl InvocationGate {
         })?;
         let credential_id = derived_asset_callbacks_id(
             crate::ids::Kind::AgentCredential,
-            &[&principal.actor_user_id],
+            &[principal.actor_user_id()],
         );
         let token_id = derived_asset_callbacks_id(
             crate::ids::Kind::AgentToken,
-            &[&principal.actor_user_id, &principal.grant_id],
+            &[principal.actor_user_id(), principal.grant_id()],
         );
         let resolved = ResolvedAppAuthority::resolved_service_principal(
-            principal.actor_user_id.clone(),
+            principal.actor_user_id().to_owned(),
             credential_id,
             1,
-            principal.grant_id.clone(),
+            principal.grant_id().to_owned(),
             token_id,
             None,
-            vec![ResolvedGrantScope::from_exact(principal.scope.clone())],
+            vec![ResolvedGrantScope::from_exact(principal.scope().clone())],
             u64::MAX,
             None,
             admission_origin,
@@ -3378,19 +3510,20 @@ impl InvocationGate {
             )
         })?;
         let resolved = ResolvedAppAuthority::resolved_service_principal(
-            anchor.actor_user_id,
+            anchor.actor_user_id().to_owned(),
             format!("watchAnchor:{watch_id}"),
             0,
-            anchor.grant_id,
+            anchor.grant_id().to_owned(),
             format!("watch:{watch_id}"),
-            Some(anchor.effective_user_id),
+            Some(anchor.effective_user_id().to_owned()),
             anchor
-                .scopes
-                .into_iter()
+                .scopes()
+                .iter()
+                .cloned()
                 .map(ResolvedGrantScope::from_exact)
                 .collect(),
-            anchor.expires_at_ms,
-            Some(anchor.integration_status),
+            anchor.expires_at_ms(),
+            Some(anchor.integration_status()),
             admission_origin,
         );
         Self::prepare_admitted_authority(
@@ -4005,6 +4138,38 @@ mod tests {
                 .code,
             "SNAPBACK_AUTH_CLAIMS_AUTHORITY_INVALID"
         );
+    }
+
+    #[test]
+    fn mutated_genuine_session_facts_fail_the_runtime_resolution_seal() {
+        let controller = test_admission_controller(AuthMode::Sessions, 7).unwrap();
+        let mut resolved = ResolvedAppAuthority::resolved_session(
+            "resolved-user".to_owned(),
+            "resolved-session".to_owned(),
+            "email-code".to_owned(),
+            1,
+            "resolved-authority".to_owned(),
+            10_000,
+            None,
+            None,
+            controller.lease_origin(),
+        );
+        let ResolvedAppAuthority::Session { user_id, .. } = &mut resolved else {
+            unreachable!("resolved_session returns a session authority")
+        };
+        *user_id = "caller-chosen-user".to_owned();
+
+        let error = InvocationGate::prepare_admitted_authority(
+            InvocationSource::HttpQuery,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            controller.admit_for_mode(AuthMode::Sessions).unwrap(),
+            &WireAuthorityFields::default(),
+            resolved,
+            Some(AuthClaimsProjection::server_derived(Vec::new(), Vec::new())),
+        )
+        .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
     }
 
     #[test]
@@ -5062,6 +5227,15 @@ mod tests {
         assert_eq!(rerun.source(), InvocationSource::LiveRerun);
         assert_eq!(rerun.resolved(), &resolved);
         assert!(serde_json::to_value(rerun.projection()).unwrap()["claims"].is_object());
+
+        let foreign = test_admission_controller(AuthMode::Sessions, 7).unwrap();
+        let error = retained
+            .prepare_rerun(
+                foreign.admit_for_mode(AuthMode::Sessions).unwrap(),
+                Some(AuthClaimsProjection::server_derived(Vec::new(), Vec::new())),
+            )
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
 
         let raw = InvocationGate::prepare_admitted_authority(
             InvocationSource::LiveRerun,

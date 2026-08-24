@@ -1643,6 +1643,9 @@ impl DetachedReadSnapshot {
 pub struct ServingDatabase {
     db: LocalDatabase,
     authority: KernelCommitAuthority,
+    service_authority_resolution_origin: auth_agent_credentials::ServiceAuthorityResolutionOrigin,
+    service_authority_registry_binding:
+        Option<auth_agent_credentials::ServiceAuthorityRegistryBinding>,
     stream_attempt_persistence_verifier:
         Option<crate::stream_attempt::StreamAttemptPersistenceVerifier>,
     stream_attempt_startup_reconciliation: Option<StreamAttemptStartupReconciliation>,
@@ -1684,6 +1687,8 @@ impl ServingDatabase {
                 "the database already belongs to a serving commit-authority graph",
             )
         })?;
+        let (service_authority_resolution_origin, service_authority_registry_binding) =
+            auth_agent_credentials::service_authority_resolution_graph();
         // @ref LLP 0076#settlement-and-retry — owner-free terminalization is
         // confined to this construction cut. No live `ServingDatabase` can
         // invoke it, and storage writes the Terminalizer classification in
@@ -1703,6 +1708,8 @@ impl ServingDatabase {
         Ok(Self {
             db,
             authority,
+            service_authority_resolution_origin,
+            service_authority_registry_binding: Some(service_authority_registry_binding),
             stream_attempt_persistence_verifier,
             stream_attempt_startup_reconciliation,
         })
@@ -1719,6 +1726,16 @@ impl ServingDatabase {
 
     pub fn binding(&self) -> DatabaseBinding {
         self.authority.binding()
+    }
+
+    /// Consume the sole registry-construction input for this serving graph.
+    /// Resolved tokens retain the paired private origin; a registry made for a
+    /// different database cannot accept them.
+    #[doc(hidden)]
+    pub fn take_service_authority_registry_binding(
+        &mut self,
+    ) -> Option<auth_agent_credentials::ServiceAuthorityRegistryBinding> {
+        self.service_authority_registry_binding.take()
     }
 
     /// Delegate only database identity, never the kernel's root commit

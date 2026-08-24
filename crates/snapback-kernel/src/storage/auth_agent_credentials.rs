@@ -23,6 +23,7 @@ use crate::storage::auth::{
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use serde_json::Value;
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 pub const AGENT_CREDENTIAL_ROTATION_MIN_INTERVAL_MS: u64 = 60 * 60 * 1_000;
 pub const AGENT_CREDENTIAL_FAMILY_RETENTION_MS: u64 = 30 * 24 * 60 * 60 * 1_000;
@@ -90,17 +91,80 @@ pub struct ResolvedScopedToken {
     expires_at_ms: u64,
     grant_expires_at_ms: Option<u64>,
     integration_status: Option<super::auth_integrations::IntegrationStatus>,
-    /// Private proof that these fields came from the exact token-secret and
-    /// durable-grant resolver in this module. Downstream crates may inspect
-    /// the resolved facts but cannot assemble a service-authority input from
-    /// copied identifiers.
+    /// Process-local serving graph that performed this exact resolution.
+    /// Plain `LocalDatabase` test resolutions deliberately carry no origin and
+    /// cannot enter the runtime service-authority registry.
+    serving_origin: Option<ServiceAuthorityResolutionOrigin>,
+    /// Private proof that these fields came from an exact live protected-
+    /// catalog resolution in this module. The marker is minted by either the
+    /// token-secret resolver or the bearer-free retained-authority resolver.
+    /// The latter accepts durable identifiers, but all token, grant, actor,
+    /// effective-user, credential-generation, liveness, scope, integration,
+    /// and deadline predicates must still match the current catalog rows.
+    /// Downstream crates may inspect the result but cannot assemble or edit
+    /// one from copied identifiers.
     _resolution: ResolvedScopedTokenResolution,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct ResolvedScopedTokenResolution;
 
+#[derive(Clone)]
+pub(crate) struct ServiceAuthorityResolutionOrigin(Arc<()>);
+
+impl std::fmt::Debug for ServiceAuthorityResolutionOrigin {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("ServiceAuthorityResolutionOrigin([REDACTED])")
+    }
+}
+
+impl PartialEq for ServiceAuthorityResolutionOrigin {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Eq for ServiceAuthorityResolutionOrigin {}
+
+/// One-use constructor input for the sole service-authority registry paired
+/// with a `ServingDatabase`. Its private origin prevents a caller from making
+/// a second registry and rebinding a resolved token to another controller.
+pub struct ServiceAuthorityRegistryBinding {
+    origin: ServiceAuthorityResolutionOrigin,
+}
+
+impl std::fmt::Debug for ServiceAuthorityRegistryBinding {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("ServiceAuthorityRegistryBinding([REDACTED])")
+    }
+}
+
+impl ServiceAuthorityRegistryBinding {
+    // @ref LLP 0303#q08-answer — a resolved service carrier stays inside its one serving graph.
+    pub fn owns(&self, token: &ResolvedScopedToken) -> bool {
+        token
+            .serving_origin
+            .as_ref()
+            .is_some_and(|origin| origin == &self.origin)
+    }
+}
+
+pub(crate) fn service_authority_resolution_graph() -> (
+    ServiceAuthorityResolutionOrigin,
+    ServiceAuthorityRegistryBinding,
+) {
+    let origin = ServiceAuthorityResolutionOrigin(Arc::new(()));
+    let binding = ServiceAuthorityRegistryBinding {
+        origin: origin.clone(),
+    };
+    (origin, binding)
+}
+
 impl ResolvedScopedToken {
+    pub(crate) fn bind_serving_origin(&mut self, origin: &ServiceAuthorityResolutionOrigin) {
+        debug_assert!(self.serving_origin.is_none());
+        self.serving_origin = Some(origin.clone());
+    }
     pub fn token_id(&self) -> &str {
         &self.token_id
     }
@@ -1236,6 +1300,7 @@ impl LocalDatabase {
                     .transpose()
                     .map_err(|_| agent_credential_state_corrupt())?,
                 integration_status,
+                serving_origin: None,
                 _resolution: ResolvedScopedTokenResolution,
             })
         })
@@ -1254,8 +1319,12 @@ impl LocalDatabase {
     }
 
     /// Re-resolve a bearer-free pending-effect snapshot to the complete
-    /// current grant scopes and deadlines. Exact ids and generation are
-    /// predicates, so token rotation/revocation and grant changes fail closed.
+    /// current grant scopes and deadlines. This is the second legitimate mint
+    /// path for `ResolvedScopedToken`: its caller supplies durable coordinates,
+    /// while the exact ids, actor/effective-user pair, credential generation,
+    /// live rows, scopes, integration state, and deadlines remain kernel-
+    /// derived predicates. Token rotation/revocation and grant changes fail
+    /// closed.
     pub fn resolve_retained_service_authority(
         &mut self,
         authority: RetainedServiceAuthority<'_>,
@@ -1332,6 +1401,7 @@ impl LocalDatabase {
                     .transpose()
                     .map_err(|_| agent_credential_state_corrupt())?,
                 integration_status,
+                serving_origin: None,
                 _resolution: ResolvedScopedTokenResolution,
             })
         })
@@ -3577,7 +3647,9 @@ impl super::ServingDatabase {
         token: &ScopedToken,
         now_ms: u64,
     ) -> SnapbackResult<ResolvedScopedToken> {
-        self.db.resolve_scoped_token(token, now_ms)
+        let mut resolved = self.db.resolve_scoped_token(token, now_ms)?;
+        resolved.bind_serving_origin(&self.service_authority_resolution_origin);
+        Ok(resolved)
     }
     pub fn retained_service_authority_is_live(
         &mut self,
@@ -3592,8 +3664,11 @@ impl super::ServingDatabase {
         authority: RetainedServiceAuthority<'_>,
         now_ms: u64,
     ) -> SnapbackResult<ResolvedScopedToken> {
-        self.db
-            .resolve_retained_service_authority(authority, now_ms)
+        let mut resolved = self
+            .db
+            .resolve_retained_service_authority(authority, now_ms)?;
+        resolved.bind_serving_origin(&self.service_authority_resolution_origin);
+        Ok(resolved)
     }
     pub fn terminalize_expired_service_authority(
         &mut self,
