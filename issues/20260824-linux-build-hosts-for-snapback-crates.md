@@ -91,3 +91,43 @@ nobody.
 Mitigations: give lanes repo-relative paths, tell them explicitly to stay inside their
 worktree, and before committing from a shared checkout, `git status` it and stage only the
 paths that landing actually owns.
+
+---
+
+## Landing sequence for generated artifacts, verified 2026-08-24
+
+CLAUDE.md warns that the generated artifacts **chain** — regenerating one can leave the next stale —
+and that grepping the diff for new `SNAPBACK_` codes is not a sufficient check. Two facts make this
+cheaper than it reads, both verified on a clean `main`:
+
+**1. One generator, not two.** `scripts/generate-guide-manifest.mjs` invokes
+`scripts/generate-diagnostics-registry.mjs` itself (line 27). Running the guide manifest generator
+alone therefore regenerates the registry first and then the manifest that embeds it, in the right
+order. Running the diagnostics generator on its own is the mistake — it updates the registry and
+leaves the manifest and both flat guides stale.
+
+**2. The generators are idempotent.** On a clean checkout at `main`, running both produces **zero**
+changed files. So a non-empty diff after regeneration always means something real changed, never
+generator churn. That makes the output safe to inspect rather than something to be reverted on
+sight.
+
+Verified landing sequence:
+
+```sh
+git fetch origin && git rebase origin/main       # main moves continuously; expect to retry
+node scripts/generate-guide-manifest.mjs         # chains the diagnostics registry
+node scripts/check-inventories.mjs               # the only step that sees the whole chain
+cargo test -p <affected crates>                  # affected scope only, per LLP 0189
+./ref-check --verbose
+git push origin HEAD:main
+```
+
+`check-inventories` is the step that matters: it is the only one that validates the registry,
+manifest, guide projections and demo catalog **together**. Its failure messages name the repair
+directly — e.g. *"run node scripts/generate-guide-manifest.mjs and commit both generated guide
+projections"* — so read them rather than guessing at the chain.
+
+Earlier in this session a diagnostics generator was run speculatively on a docs-only change and
+corrupted the artifacts; the corruption was reverted and never pushed. The rule that follows: do not
+regenerate unless the change actually touches a generator input, and when you do, run the guide
+manifest generator so the whole chain moves together.
