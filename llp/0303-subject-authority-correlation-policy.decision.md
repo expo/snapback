@@ -6,7 +6,7 @@
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-24
-**Revised:** 2026-08-24 (b — provenance corollary added)
+**Revised:** 2026-08-24 (c — binding coverage added to the corollary)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
 `issues/20260824-liveness-row-bucket-assignment.md`,
 `issues/20260824-entitlement-predicates-for-the-live-sites.md`
@@ -72,6 +72,42 @@ the mechanism; a nonce is defence in depth.
 The accepted shape already exists: `EngineAppStateGraphIdentity` is a private `Arc<()>` compared
 with `Arc::ptr_eq` (`crates/snapback-engine/src/local/engine.rs`). Reuse it rather than inventing
 another.
+
+### Coverage, not just the primitive
+
+Added after Q03 round 3, where the primitive was right and the lane still shipped an exploit.
+
+Q03 bound its revocation path correctly — `Arc<()>`, `Arc::ptr_eq`, private constructor — and an
+executable review confirmed the original exploit dead. It then walked in through `finish_rotation`,
+which had kept the *unsealed* type, and through `finish_issuance`, whose binding check inspected only
+revocation plans and so was a no-op for an issuance plan carrying `revocations: Vec::new()`.
+
+The worst composition needed **no second database and no durable commit at all**: plan through the
+ordinary production API, premark, skip the commit entirely, and hand `finish_rotation` a
+caller-built `AuthTransactionAttempt::Committed { .. }` — every field public. The live projection
+accepted a commit that never happened.
+
+> **A binding applied to one path while its sibling paths keep the raw type is not a binding.** The
+> unbound sibling is the whole attack surface, and it is usually the one nobody demoed.
+
+So a lane that introduces a binding must enumerate **every** entry point that can mutate the same
+durable state and bind all of them, or state explicitly which are left unbound and why they cannot
+authorize finalization. Partial coverage must be declared, never assumed from the fixed path.
+
+Check the binding *predicate* too, not only its presence: Q03's issuance check ran, passed, and
+proved nothing, because it examined a collection the attacking plan left empty.
+
+### A test can demonstrate the exploit and call it correct
+
+The same review found that `committed_rotation_response_ignores_only_doomed_sibling_refresh_tickets`
+already performed the caller-built-attempt composition as a **happy path**, and never read durable
+token state. The suite was exercising the exploit and asserting it was fine.
+
+This follows from the projection rule in
+`issues/20260824-assertion-provenance-is-the-recurring-test-defect.md`: the test read
+`(generation, revoked_at)` and rotation writes `token_hash`. A readback that omits the column a path
+writes cannot see that path's mutation. When adding a per-path test, project the columns **that
+path** writes, not the columns the previously-fixed path wrote.
 
 ## Approved dispositions
 
