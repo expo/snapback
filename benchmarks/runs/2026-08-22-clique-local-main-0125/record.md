@@ -124,4 +124,4 @@ this sample; Familiar's gap narrowed substantially.
 Raw lane directories, event streams, prompts, receipts, reports, essays, load
 samples, and the trimmed/original skill bodies are retained outside git at
 `/Users/ccheever/clique-main-20260821/`. Build experience is consolidated in
-`diaries/0106-sol-high-clique-local-main-0125.diary.md`.
+`diaries/0112-sol-high-clique-local-main-0125.diary.md`.

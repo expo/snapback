@@ -1,4 +1,4 @@
-# Diary 0104: Knockoff social auth
+# Diary 0111: Knockoff social auth
 
 **Date:** 2026-08-21
 **App:** `demos/knockoff`

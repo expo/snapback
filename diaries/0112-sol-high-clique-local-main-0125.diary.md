@@ -1,4 +1,4 @@
-# Diary 0106: Sol-high Clique local-main 0.1.25 — both profiles
+# Diary 0112: Sol-high Clique local-main 0.1.25 — both profiles
 
 **Date:** 2026-08-22
 **Run:** `benchmarks/runs/2026-08-22-clique-local-main-0125/`
