@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:fb626f5d4ebad776802a2b2af8e1f068489f42ebb988
 # @expo/snapback-client/rqs-preload
 
 Build-bound public API projection for `@expo/snapback-client/rqs-preload`. Canonical registry identity:
-`sha256:f8d86246351b1a71358102d5f2244256259f099ff4bb7708a690d06a3cbff6ef`.
+`sha256:4eba25adf37b7963a2cd0360c16e1124327725efb2346241697a9e33839ac8ce`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-preload-core.mjs`.
 
@@ -199,7 +199,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/rqs-preload#RqsRegisteredRegistry`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:936`
+Source: `packages/snapback-client/index.d.mts:938`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface RqsRegisteredRegistry {
@@ -230,7 +230,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/rqs-preload#RqsRegisteredSubscription`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:909`
+Source: `packages/snapback-client/index.d.mts:911`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface RqsRegisteredSubscription {

@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:fadebefdb7c96000df2b3969f5e0447f4f45d0e32062
 # @expo/snapback-client/react-binding
 
 Build-bound public API projection for `@expo/snapback-client/react-binding`. Canonical registry identity:
-`sha256:f8d86246351b1a71358102d5f2244256259f099ff4bb7708a690d06a3cbff6ef`.
+`sha256:4eba25adf37b7963a2cd0360c16e1124327725efb2346241697a9e33839ac8ce`.
 Runtime parity condition:
 `import` → `packages/snapback-client/react-binding.mjs`.
 
@@ -55,7 +55,7 @@ Symbols: 21 total; 16 runtime values; 5 type-only.
 
 Stable identity: `npm:@expo/snapback-client/react-binding#abandonConsumedReactQueryGroup`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:1110`
+Source: `packages/snapback-client/index.d.mts:1112`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function abandonConsumedReactQueryGroup(
@@ -68,7 +68,7 @@ export function abandonConsumedReactQueryGroup(
 
 Stable identity: `npm:@expo/snapback-client/react-binding#activeReactBindingDeploymentIdentity`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2311`
+Source: `packages/snapback-client/index.d.mts:2313`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function activeReactBindingDeploymentIdentity(
@@ -81,7 +81,7 @@ export function activeReactBindingDeploymentIdentity(
 
 Stable identity: `npm:@expo/snapback-client/react-binding#admittedReactCommand`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2281`
+Source: `packages/snapback-client/index.d.mts:2283`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function admittedReactCommand(
@@ -95,7 +95,7 @@ export function admittedReactCommand(
 
 Stable identity: `npm:@expo/snapback-client/react-binding#admittedReactEphemeralDefinition`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2299`
+Source: `packages/snapback-client/index.d.mts:2301`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function admittedReactEphemeralDefinition(
@@ -109,7 +109,7 @@ export function admittedReactEphemeralDefinition(
 
 Stable identity: `npm:@expo/snapback-client/react-binding#admittedReactQueryGroup`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2273`
+Source: `packages/snapback-client/index.d.mts:2275`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function admittedReactQueryGroup(
@@ -123,7 +123,7 @@ export function admittedReactQueryGroup(
 
 Stable identity: `npm:@expo/snapback-client/react-binding#admittedReactReference`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2285`
+Source: `packages/snapback-client/index.d.mts:2287`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function admittedReactReference(
@@ -138,7 +138,7 @@ export function admittedReactReference(
 
 Stable identity: `npm:@expo/snapback-client/react-binding#admittedReactSurface`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2277`
+Source: `packages/snapback-client/index.d.mts:2279`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function admittedReactSurface(
@@ -152,7 +152,7 @@ export function admittedReactSurface(
 
 Stable identity: `npm:@expo/snapback-client/react-binding#assertPreparedReactBinding`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2270`
+Source: `packages/snapback-client/index.d.mts:2272`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function assertPreparedReactBinding(binding: unknown): PreparedReactBinding;
@@ -163,7 +163,7 @@ export function assertPreparedReactBinding(binding: unknown): PreparedReactBindi
 
 Stable identity: `npm:@expo/snapback-client/react-binding#classifyRegeneratedReactReference`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2314`
+Source: `packages/snapback-client/index.d.mts:2316`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function classifyRegeneratedReactReference(
@@ -177,7 +177,7 @@ export function classifyRegeneratedReactReference(
 
 Stable identity: `npm:@expo/snapback-client/react-binding#consumePreparedReactQueryGroup`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:1104`
+Source: `packages/snapback-client/index.d.mts:1106`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function consumePreparedReactQueryGroup<
@@ -193,7 +193,7 @@ export function consumePreparedReactQueryGroup<
 
 Stable identity: `npm:@expo/snapback-client/react-binding#handoffPreparedReactBindingGeneration`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2318`
+Source: `packages/snapback-client/index.d.mts:2320`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function handoffPreparedReactBindingGeneration(
@@ -214,7 +214,7 @@ export function handoffPreparedReactBindingGeneration(
 
 Stable identity: `npm:@expo/snapback-client/react-binding#isPreparedReactQueryGroup`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2272`
+Source: `packages/snapback-client/index.d.mts:2274`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function isPreparedReactQueryGroup(value: unknown): boolean;
@@ -225,7 +225,7 @@ export function isPreparedReactQueryGroup(value: unknown): boolean;
 
 Stable identity: `npm:@expo/snapback-client/react-binding#PreparedReactBinding`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:1031`
+Source: `packages/snapback-client/index.d.mts:1033`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface PreparedReactBinding {
@@ -288,7 +288,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/react-binding#preparedReactBindingClient`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2271`
+Source: `packages/snapback-client/index.d.mts:2273`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function preparedReactBindingClient(binding: unknown): SnapbackClient;
@@ -299,7 +299,7 @@ export function preparedReactBindingClient(binding: unknown): SnapbackClient;
 
 Stable identity: `npm:@expo/snapback-client/react-binding#PreparedReactEphemeralDefinition`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:2294`
+Source: `packages/snapback-client/index.d.mts:2296`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface PreparedReactEphemeralDefinition {
@@ -320,7 +320,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/react-binding#PreparedReactQueryGroup`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:1066`
+Source: `packages/snapback-client/index.d.mts:1068`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface PreparedReactQueryGroup<
@@ -367,7 +367,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/react-binding#preparedReactResultContract`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2290`
+Source: `packages/snapback-client/index.d.mts:2292`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function preparedReactResultContract(
@@ -395,7 +395,7 @@ export function prepareReactBindingForClient(
 
 Stable identity: `npm:@expo/snapback-client/react-binding#prepareReactQueryGroupForBinding`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:1093`
+Source: `packages/snapback-client/index.d.mts:1095`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function prepareReactQueryGroupForBinding<
@@ -416,7 +416,7 @@ export function prepareReactQueryGroupForBinding<
 
 Stable identity: `npm:@expo/snapback-client/react-binding#QueryGroupParams`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/index.d.mts:346`
+Source: `packages/snapback-client/index.d.mts:348`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type QueryGroupParams<Ref> =
@@ -428,7 +428,7 @@ export type QueryGroupParams<Ref> =
 
 Stable identity: `npm:@expo/snapback-client/react-binding#RegeneratedReferenceGeneration`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:2304`
+Source: `packages/snapback-client/index.d.mts:2306`
 
 The exact generation stamp codegen embeds on every generated reference.
 

@@ -17,8 +17,8 @@ reviewed-authorities-digest: sha256:1d3c09c8252521b6bd78d59f5387e665a53ab92b5086
 
 # Generated API reference
 
-One build-bound projection of 1428 public symbols (594 runtime values and 834 explicit type-only symbols).
-Registry source identity: `sha256:f8d86246351b1a71358102d5f2244256259f099ff4bb7708a690d06a3cbff6ef`.
+One build-bound projection of 1438 public symbols (599 runtime values and 839 explicit type-only symbols).
+Registry source identity: `sha256:4eba25adf37b7963a2cd0360c16e1124327725efb2346241697a9e33839ac8ce`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 
@@ -28,7 +28,7 @@ The handler context contract is owned by the type-only [`@expo/snapback-codegen/
 
 | Module | Symbols | Runtime | Types |
 | --- | ---: | ---: | ---: |
-| [`@expo/snapback-client`](./expo-snapback-client.md) | 320 | 99 | 221 |
+| [`@expo/snapback-client`](./expo-snapback-client.md) | 322 | 100 | 222 |
 | [`@expo/snapback-client/agent-authority`](./expo-snapback-client--agent-authority.md) | 17 | 3 | 14 |
 | [`@expo/snapback-client/app-client-internal`](./expo-snapback-client--app-client-internal.md) | 11 | 11 | 0 |
 | [`@expo/snapback-client/app-data`](./expo-snapback-client--app-data.md) | 9 | 6 | 3 |
@@ -38,7 +38,7 @@ The handler context contract is owned by the type-only [`@expo/snapback-codegen/
 | [`@expo/snapback-client/canonical-client-value`](./expo-snapback-client--canonical-client-value.md) | 4 | 3 | 1 |
 | [`@expo/snapback-client/client-diagnostics`](./expo-snapback-client--client-diagnostics.md) | 16 | 6 | 10 |
 | [`@expo/snapback-client/commands`](./expo-snapback-client--commands.md) | 28 | 2 | 26 |
-| [`@expo/snapback-client/diagnostic-error`](./expo-snapback-client--diagnostic-error.md) | 7 | 4 | 3 |
+| [`@expo/snapback-client/diagnostic-error`](./expo-snapback-client--diagnostic-error.md) | 9 | 5 | 4 |
 | [`@expo/snapback-client/evaluation-floor`](./expo-snapback-client--evaluation-floor.md) | 6 | 4 | 2 |
 | [`@expo/snapback-client/external-store`](./expo-snapback-client--external-store.md) | 15 | 6 | 9 |
 | [`@expo/snapback-client/hosted-browser`](./expo-snapback-client--hosted-browser.md) | 2 | 1 | 1 |
@@ -71,11 +71,11 @@ The handler context contract is owned by the type-only [`@expo/snapback-codegen/
 | [`@expo/snapback-client/search`](./expo-snapback-client--search.md) | 11 | 2 | 9 |
 | [`@expo/snapback-client/shared-development-auth`](./expo-snapback-client--shared-development-auth.md) | 14 | 10 | 4 |
 | [`@expo/snapback-client/vector-search`](./expo-snapback-client--vector-search.md) | 5 | 1 | 4 |
-| [`@expo/snapback-react`](./expo-snapback-react.md) | 149 | 53 | 96 |
+| [`@expo/snapback-react`](./expo-snapback-react.md) | 151 | 54 | 97 |
 | [`@expo/snapback-react/core`](./expo-snapback-react--core.md) | 68 | 27 | 41 |
-| [`@expo/snapback-react/familiar`](./expo-snapback-react--familiar.md) | 17 | 8 | 9 |
+| [`@expo/snapback-react/familiar`](./expo-snapback-react--familiar.md) | 19 | 9 | 10 |
 | [`@expo/snapback-react/thumbhash`](./expo-snapback-react--thumbhash.md) | 5 | 5 | 0 |
-| [`@expo/snapback-expo`](./expo-snapback-expo.md) | 201 | 79 | 122 |
+| [`@expo/snapback-expo`](./expo-snapback-expo.md) | 203 | 80 | 123 |
 | [`@expo/snapback-expo/app-binding`](./expo-snapback-expo--app-binding.md) | 14 | 5 | 9 |
 | [`@expo/snapback-expo/app.plugin`](./expo-snapback-expo--app.plugin.md) | 6 | 4 | 2 |
 | [`@expo/snapback-expo/asset-source`](./expo-snapback-expo--asset-source.md) | 7 | 4 | 3 |

@@ -846,8 +846,9 @@ as `diagnostic.code` itself, not wrapped in `SNAPBACK_APP_REFUSAL` with an
 codegen and server artifact validation reject omissions, while reserved
 `SNAPBACK_` platform codes are exempt. That declaration cross-check does not
 unify the runtime envelopes. Match plan refusals on `diagnostic.code` and
-JS-handler refusals on `details.appCode`; do not write one client branch
-expecting both shapes. The plan channel's complete semantics are
+project JS-handler refusals with `projectAppRefusal(error)` from
+`@expo/snapback-client`; do not write one client branch expecting both
+shapes. The plan channel's complete semantics are
 [refusals from a plan](./declarative-plans.md#refuse-from-a-plan-elseerror-and-guard).
 
 ## Preserve invariants with read sets
