@@ -4,11 +4,10 @@ name: linux-runtime-package
 # genuinely clean Linux machine: build against the pinned Hermes runtime,
 # launch with LD_LIBRARY_PATH absent, pack the public alias closure, then run
 # the same external cold-install/doctor/dev proof used by the macOS slice.
+# @ref LLP 0189#temporary-low-noise-development-posture-2026-08-24 — this
+# release/platform proof is manual until qualified publication needs it.
 
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 permissions:

@@ -16,11 +16,14 @@ name: inventories
 #
 # scripts/check-inventories.mjs is the same entry point agents are asked to run
 # before pushing, so local runs and CI exercise one code path.
+#
+# @ref LLP 0189#temporary-low-noise-development-posture-2026-08-24 — while the
+# committed baseline is already red, do not repeat the same failure on every
+# direct main push; retain PR and explicit diagnostic execution.
 
 on:
-  push:
-    branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read

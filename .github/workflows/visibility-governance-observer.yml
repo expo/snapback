@@ -10,9 +10,11 @@ name: visibility-governance-protected-observer
 # — GitHub supplies authenticated per-ref before/after OIDs for an existing
 # ref, but no verified atomic multi-ref envelope. New governed refs therefore
 # remain prohibited here and belong to the protected single-ref service.
+# @ref LLP 0189#temporary-low-noise-development-posture-2026-08-24 — automatic
+# observation is paused until the protected environment and custody exist;
+# visibility widening therefore remains activation-disabled.
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -25,6 +27,10 @@ concurrency:
 
 jobs:
   observe:
+    # workflow_dispatch keeps this paused workflow visible, but cannot supply
+    # LLP 0234's authenticated push envelope. Restoring the push trigger makes
+    # this condition true only after protected custody is provisioned.
+    if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-24.04
     environment: visibility-governance-observer
     steps:

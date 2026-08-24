@@ -4,9 +4,9 @@ name: visibility-governance-missing-event-reconciler
 # its authentication remain in the protected `visibility-governance-observer`
 # environment. Missing custody fails without manufacturing a green verdict.
 # @ref LLP 0234#d3--widening-requires-a-remotely-prior-artifact-closed-approval-receipt
+# @ref LLP 0189#temporary-low-noise-development-posture-2026-08-24 — automatic
+# reconciliation is paused until protected remote custody is provisioned.
 on:
-  schedule:
-    - cron: '17 * * * *'
   workflow_dispatch:
 
 permissions:

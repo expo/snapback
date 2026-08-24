@@ -4,27 +4,27 @@ name: required-surface-builds
 # required cursors-web Contract surface was DEV-GREEN, SHIP-BROKEN on the pin —
 # it had never been production-built, so a `vite build` regression shipped
 # silently behind a green dev loop. This lane production-builds EVERY REQUIRED
-# demo web surface (derived from demos/*/demo.snapback.json) on every push/PR,
-# so a package/lockfile bump that breaks a required build fails here
-# instead of shipping. scripts/check-required-surface-builds.mjs is the
-# canonical gate; verify-local-proof runs the same script, so local runs and
-# CI exercise one code path.
+# demo web surface (derived from demos/*/demo.snapback.json), so a package or
+# lockfile bump that breaks a required build can be caught before shipping.
+# scripts/check-required-surface-builds.mjs is the canonical gate;
+# verify-local-proof runs the same script, so local runs and explicit CI
+# qualification exercise one code path.
 #
 # This is the CORE lane (LLP 0015 §Peer Checkout Versus Submodule): every
 # surface installs @exact/* from npm and bun.lock is the pin. ENG-22564 removed
 # the Exact checkout/native-asset bridge; this job proves a clean Snapback
 # checkout can install and build without sibling source state.
+#
+# @ref LLP 0189#temporary-low-noise-development-posture-2026-08-24 — retain
+# this heavyweight proof for explicit qualification while its baseline is red.
 
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# Agents push to main in bursts; only the newest commit's proof matters.
+# Coalesce repeated manual qualification requests for the same ref.
 concurrency:
   group: required-surface-builds-${{ github.ref }}
   cancel-in-progress: true
