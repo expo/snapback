@@ -196,7 +196,11 @@ async function loadObservations(manifestDirectory, observations, laneRunId) {
     if (sourceIds.has(sourceId)) throw new Error(`duplicate observation sourceId ${sourceId}`);
     sourceIds.add(sourceId);
     const artifact = await readArtifact(manifestDirectory, observation, label);
-    const sourceEvents = parseObservationJsonLines(artifact.text, artifact.path);
+    const sourceEvents = parseObservationJsonLines(
+      artifact.text,
+      artifact.path,
+      { laneRunId },
+    );
     for (const event of sourceEvents) {
       if (!observationLaneRunIdMatches(event.laneRunId, laneRunId)) {
         throw new Error(`${label} event does not belong to laneRunId ${laneRunId}`);

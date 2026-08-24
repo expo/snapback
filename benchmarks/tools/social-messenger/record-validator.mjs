@@ -263,7 +263,11 @@ function loadObservationEvidence(errors, extension, artifactRoot) {
     if (loaded === null) continue;
     let sourceEvents;
     try {
-      sourceEvents = parseObservationJsonLines(loaded.text, artifact.path);
+      sourceEvents = parseObservationJsonLines(
+        loaded.text,
+        artifact.path,
+        { laneRunId: extension.meteringProvenance?.laneRunId },
+      );
     } catch (error) {
       errors.push(`${path}: invalid observation event stream: ${error.message}`);
       continue;

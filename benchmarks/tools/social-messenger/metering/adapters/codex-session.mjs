@@ -55,13 +55,15 @@ function normalizeCodexCumulative(usage, label) {
 }
 
 function normalizeCodexLast(usage, label) {
+  const aggregateTotal = requiredCount(usage?.total_tokens, `${label}.total_tokens`);
   try {
     return {
       version: "codex-last-token-usage.v1",
       counts: normalizeCodexCumulative(usage, label),
+      aggregateTotal,
     };
   } catch (error) {
-    const aggregateOnly = requiredCount(usage?.total_tokens, `${label}.total_tokens`) > 0
+    const aggregateOnly = aggregateTotal > 0
       && [
         "input_tokens",
         "cached_input_tokens",
@@ -73,8 +75,13 @@ function normalizeCodexLast(usage, label) {
     return {
       version: "codex-last-token-usage.aggregate-only.v1",
       counts: nullTokenCounts(),
+      aggregateTotal,
     };
   }
+}
+
+function rawTokenTotal(counts) {
+  return counts.input + counts.output + counts.cacheRead + counts.cacheWrite;
 }
 
 function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
@@ -110,11 +117,23 @@ function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
   let previous = zeroTokenCounts();
   const turns = [];
   for (const entry of cumulativeRecords) {
-    if (tokenCountsEqual(entry.cumulative, previous)) continue;
     const usage = subtractTokenCounts(entry.cumulative, previous);
+    const cumulativeChanged = !tokenCountsEqual(entry.cumulative, previous);
+    if (
+      !cumulativeChanged
+      && entry.last?.version !== "codex-last-token-usage.aggregate-only.v1"
+    ) {
+      continue;
+    }
     if (entry.last === null) {
       throw new Error(
         `Codex token_count record ${entry.recordIndex} changed cumulative usage without last_token_usage`,
+      );
+    }
+    const cumulativeDeltaTotal = rawTokenTotal(usage);
+    if (cumulativeDeltaTotal !== entry.last.aggregateTotal) {
+      throw new RangeError(
+        `Codex token_count record ${entry.recordIndex} cumulative delta does not equal last_token_usage.total_tokens; received ${cumulativeDeltaTotal} and ${entry.last.aggregateTotal}`,
       );
     }
     if (
@@ -125,6 +144,7 @@ function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
         `Codex token_count record ${entry.recordIndex} cumulative delta does not equal last_token_usage`,
       );
     }
+    if (!cumulativeChanged) continue;
     const cumulativeIdentity = [
       entry.cumulative.input,
       entry.cumulative.output,

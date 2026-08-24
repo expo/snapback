@@ -367,7 +367,11 @@ export function normalizeObservationEvent(event, label = "observation") {
   }
 }
 
-export function parseObservationJsonLines(text, label = "observations") {
+export function parseObservationJsonLines(
+  text,
+  label = "observations",
+  { laneRunId = null } = {},
+) {
   const events = [];
   for (const [index, line] of text.split(/\r?\n/u).entries()) {
     if (line.trim() === "") continue;
@@ -377,7 +381,14 @@ export function parseObservationJsonLines(text, label = "observations") {
     } catch (error) {
       throw new SyntaxError(`${label}:${index + 1}: ${error.message}`);
     }
-    events.push(normalizeObservationEvent(event, `${label}:${index + 1}`));
+    const normalized = normalizeObservationEvent(event, `${label}:${index + 1}`);
+    if (laneRunId !== null) {
+      normalized.laneRunId = canonicalObservationLaneRunId(
+        normalized.laneRunId,
+        laneRunId,
+      );
+    }
+    events.push(normalized);
   }
   const identities = new Set();
   for (const event of events) {
