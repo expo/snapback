@@ -385,11 +385,15 @@ export declare function resolveExpoMetroCommand(
 
 export type ExpoSupervisorPortOwner = 'client' | 'bootstrap' | 'metro';
 
-export interface ExpoSupervisorReservation {
-  readonly port?: number;
+export interface LoopbackPortReservation {
+  readonly port: number;
   close(): Promise<void>;
-  readonly [member: string]: unknown;
 }
+
+export type ExpoSupervisorReservation =
+  | LoopbackPortReservation
+  | BootstrapExchangeHandle
+  | MetroWebFrontReservation;
 
 export interface ExpoSupervisorPortAllocation {
   readonly assigned: Readonly<Partial<Record<ExpoSupervisorPortOwner, number>>>;
@@ -397,7 +401,7 @@ export interface ExpoSupervisorPortAllocation {
   close(): Promise<void>;
 }
 
-export interface MetroWebFrontReservation extends ExpoSupervisorReservation {
+export interface MetroWebFrontReservation extends LoopbackPortReservation {
   readonly origin: string;
   readonly port: number;
   readonly upstreamOrigin: string | null;
@@ -409,8 +413,8 @@ export interface PlannedSupervisorListeners {
   readonly clientPort: number;
   readonly metroProcessPort: number;
   readonly metroFront: MetroWebFrontReservation | null;
-  readonly bootstrap: ExpoSupervisorReservation;
-  readonly metroPlaceholder: ExpoSupervisorReservation;
+  readonly bootstrap: BootstrapExchangeHandle;
+  readonly metroPlaceholder: LoopbackPortReservation;
   close(): Promise<void>;
 }
 

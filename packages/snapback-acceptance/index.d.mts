@@ -29,8 +29,10 @@ export interface GeneratedOperationReference {
   readonly expectedGeneration: StarterArtifactGeneration;
 }
 
+declare const starterAcceptancePathToken: unique symbol;
+
 export interface StarterAcceptancePath {
-  readonly __starterAcceptancePathToken: true;
+  readonly [starterAcceptancePathToken]: true;
   readonly id: string;
   readonly kind: StarterVerifyPathKind;
   readonly targetProfileId: string;

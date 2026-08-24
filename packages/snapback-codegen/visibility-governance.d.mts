@@ -220,9 +220,18 @@ export interface VisibilityOverrideBaselineEntry extends GovernanceRecord {
   readonly scopeDigestVersion: 'snapback.visibility-scope.v1';
   readonly scopeDigest: string;
   readonly normalizedDeclaration: CanonicalOverride;
-  readonly approvalKind: string;
+  readonly approvalKind: 'custom' | 'pattern';
+  readonly normalizedPatternCeiling: VisibilityOverridePatternCeiling | null;
+  readonly patternId: string | null;
+  readonly constructorVersion: string | null;
+  readonly constructorDigest: string | null;
+  readonly derivationDigest: string | null;
   readonly lifecycleClass: 'production' | 'fixture';
   readonly authorityMode: CanonicalOverrideAuthority['mode'];
+  readonly authorityAdmissionPolicy: CanonicalVisibilityPolicy | null;
+  readonly authorityAdmissionPolicyDigest: string | null;
+  readonly authorityAdmissionMembershipAudienceClosure: readonly MembershipAudienceDeclaration[];
+  readonly authorityAdmissionMembershipAudienceClosureDigest: string;
   readonly operations: readonly string[];
   readonly tables: readonly string[];
   readonly rowScopeDigests: readonly string[];
@@ -232,8 +241,21 @@ export interface VisibilityOverrideBaselineEntry extends GovernanceRecord {
   readonly approvalClosureDigest: string;
   readonly serverSeparationReceipt: string;
   readonly serverSeparationReceiptDigest: string;
+  readonly fixtureProfileId: string | null;
+  readonly fixtureProfileDigest: string | null;
+  readonly fixtureTargetClassCeiling: string | null;
+  readonly fixturePrincipalClass: 'synthetic' | null;
+  readonly fixtureDataClassification: 'fixture-owned' | null;
   readonly expiresOn: string | null;
   readonly acceptanceId: string;
+}
+
+export interface VisibilityOverridePatternCeiling {
+  readonly authority: CanonicalOverrideAuthority;
+  readonly reads: readonly CanonicalGovernedRead[];
+  readonly operations: readonly string[];
+  readonly lifecycleClass: 'production' | 'fixture';
+  readonly fixtureProfile?: VisibilityFixtureProfile;
 }
 
 export function visibilityOverrideBaselineEntry(input: Readonly<{

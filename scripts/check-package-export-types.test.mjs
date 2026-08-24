@@ -28,6 +28,15 @@ test('admits a declaration module with only type-space exports', () => {
   });
 });
 
+test('admits a private unique-symbol brand used by an exported interface', () => {
+  withDeclaration('branded-type.d.mts', `
+    declare const privateBrand: unique symbol;
+    export interface BrandedValue { readonly [privateBrand]: true }
+  `, (file) => {
+    assert.deepEqual(inspectDeclarationValueExports(ts, file), []);
+  });
+});
+
 test('rejects a types-only subpath declaration with a runtime value', () => {
   withDeclaration('runtime-value.d.mts', `
     export declare const runtimeValue: string;

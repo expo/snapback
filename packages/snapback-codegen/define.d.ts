@@ -439,8 +439,9 @@ export interface CustomAuthorizationV1 {
   readonly sync: 'coarse-global' | 'reauthorize-on-change';
 }
 
+declare const customAuthorizationDeclarationBrand: unique symbol;
 export interface CustomAuthorizationDeclarationV1 {
-  readonly __customAuthorizationDeclarationBrand: true;
+  readonly [customAuthorizationDeclarationBrand]: true;
 }
 
 export declare const policyInput: {
