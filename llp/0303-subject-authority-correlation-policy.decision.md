@@ -6,7 +6,7 @@
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-24
-**Revised:** 2026-08-24 (g — combinators and recycling separate a carrier from its contents)
+**Revised:** 2026-08-24 (h — removing a constructor is not removing the capability)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
 `issues/20260824-liveness-row-bucket-assignment.md`,
 `issues/20260824-entitlement-predicates-for-the-live-sites.md`
@@ -213,6 +213,41 @@ the row existed to close.
 > authorised the carrier.
 
 An unused or cancelled artifact must be **cancellation-only**, never a reinstallable capability.
+
+### Removing a constructor is not removing the capability
+
+Two lanes closed their named construction routes in the same cycle, both verifiably, and both were
+defeated by an unnamed route that produced the same value.
+
+- One removed three `commit_*_for_test` functions and every public fn taking a caller-chosen
+  `&mut LocalDatabase` from its provider. A reviewer then used `AuthDatabasePlan::execute`, public and
+  **needing no feature flags at all**, to plan on the live database, premark the live coordinator,
+  build the commit plan through a second provider, execute against a shadow database, and finish on
+  the live coordinator. All three flows were accepted while every table, column and row in the live
+  database stayed byte-identical.
+- The other privatised every field of `ExactGrantScope` and removed `Deserialize`, `Default`, `From`,
+  builders and `from_exact`. A reviewer then used public `reconcile_auth_scope_bases` plus
+  `current_exact_scope` — readers, not constructors — to manufacture
+  `(fn:ordinary, Mutation, basis=1, authority_creating=true)` in a **disposable database** while the
+  real function declared `authority_creating=false`.
+
+> **Closing the ways a value can be *constructed* does not close the ways it can be *obtained*.** A
+> reader that pulls the value out of a caller-named database is a constructor with extra steps.
+
+So a lane must enumerate every public path that can **produce or reconstruct** the value, not merely
+those that build it: readers and accessors, anything that round-trips through a database or a
+serialised form, anything with `execute`/`commit`/`apply`/`run`/`install` on a plan or carrier, and
+anything reachable through a `pub use` re-export from a private module — `snapback_kernel::storage`
+re-exports private submodule types, so module-private is not privacy. For each, state whether the
+value is derived from the same authority that will consume it.
+
+Both exploits reached for a **second database**. That recurs often enough to be a first check in its
+own right: if a caller can name the database, they can manufacture whatever that database says.
+
+**A note on verifying these fixes.** The supervising session confirmed both lanes' removals by direct
+measurement — `commit_*_for_test` 2 → 0, `&mut LocalDatabase` parameters 1 → 0, `from_exact` 1 → 0 —
+and all of those were true. The measurements were correct and the conclusion drawn from them was
+wrong, because *symbol removed* is not *capability removed*. Verify the capability, not the symbol.
 
 This is the same family as the constructor/setter case above: a derivation that holds at one instant
 and is undone afterwards. Setters undo it by assignment; combinators undo it by rewrapping; recycling
