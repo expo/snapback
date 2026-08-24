@@ -351,3 +351,52 @@ tests could not detect corruption in a durable table the operation under test wr
 
 The second and third points are what the earlier wording missed. Scoping bugs — a `WHERE` clause that
 is too broad — are only visible against a row that should have survived.
+
+---
+
+## Round 11 — where the mutant threat model ends
+
+Round 10 split the OAuth matrices into one `#[test]` per case, which killed the ordinal channel.
+Round 11 found that the split introduced a stronger one: **Rust exposes each test's name through
+`std::thread::current().name()`**, and the new names encode the case — `first_exact`,
+`user_m_session_n`. Two mutants were executed:
+
+- Begin: kept the engine source check, ignored the authority user, reconstructed it from the
+  test-thread name. **5/5 passed.**
+- Approval: kept `effective_user_id` authority-derived and every foreign-request check, and
+  reconstructed only `created_by`'s session from the test-thread name. **19/19 passed.**
+
+The same review confirmed the redesign met its goals: both ordinal mutants are genuinely dead, and
+the correlations survived the split — begin executes both directions of `user ↔ oauth_state` and
+`user ↔ session` in every case, approval both directions of `user ↔ session` in every attempt.
+
+### The ruling
+
+**This channel is real and is out of the model.** Recorded as a supervisory judgement, not as a
+refutation of the finding.
+
+Every channel through round 10 used **data the production path legitimately reads** — a timestamp, a
+pairing hash, a uuid rank, a call count. A mutant exploiting those is a shape a genuine bug could
+take: someone reaches for a nearby value that happens to correlate.
+
+Reading `std::thread::current().name()` to select a session is not that. It is production code
+introspecting the test harness. There is no bug that arrives at it by accident; it is a deliberate
+backdoor keyed to the runner, and it would be equally available against *any* in-process test suite
+in this repository, regardless of fixture design. A defect class that no fixture can defend and that
+no accident can produce is not a fixture problem.
+
+**So: mutants may read anything the production path could plausibly read. They may not read the test
+harness's own identity.** State that boundary in any brief that asks for mutation review.
+
+### If you disagree, the fix is cheap
+
+Give the tests opaque names (`consent_case_a`, `consent_case_b`) so the name carries no case
+information. That closes it at the cost of readable test output. It was not done here because the
+boundary above is the more honest fix and the cost lands on every future reader of the suite — but
+it is a one-line-per-test change if the author prefers a belt-and-braces answer.
+
+### What generalises
+
+When a channel is available against every possible fixture in the repository, the finding has stopped
+being about the fixture and has become a statement about the threat model. Say which one you are
+making. Ten rounds of this fixture were real defects in the fixture; the eleventh is not.
