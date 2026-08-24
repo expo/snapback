@@ -162,6 +162,27 @@ A lane reporting executed mutations must record, in the commit message, the exac
 needed to reproduce them — including the ibex bootstrap step and the precise test invocation and
 filters. Otherwise the strongest available evidence degrades to a claim on landing.
 
+## A limit on these rules: only lock axes production actually reads
+
+The bijection rule (round 8) was applied to a lane as three conditions: same user with two sessions,
+same session with two users, and `authority_instance_id` chosen independently of session. A reviewer
+correctly reported the third was not mutation-locked — changing the fixture to
+`authority_instance_id: format!("grant-authority-{session_id}")` left every assertion unchanged.
+
+That finding was **overruled**, on evidence: the production helper destructures
+`ResolvedAppAuthority::Session { user_id, session_id, .. }` and discards the instance id, which is
+written to no durable row on that path. A mutation of an unread field has no production counterpart,
+so there is nothing for the test to lock.
+
+> **Apply the axis rules only to values the production path under test actually reads or writes.**
+> Locking an axis the code ignores adds fixture complexity and review rounds without excluding any
+> reachable defect.
+
+The rule that generated the condition remains right — the *earlier* fixture derived instance-id from
+session on a path that did read it. The lesson is that these rules are about production data flow,
+not about fixture tidiness, and a requirement written for one path should be re-checked before being
+demanded of another.
+
 ## The rule this yields
 
 > **For every assertion, ask where the expected value comes from.** If it comes from the same read
