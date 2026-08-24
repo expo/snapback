@@ -1563,7 +1563,7 @@ title: Authenticate a native app
 id: auth.native-apps
 order: 3
 audience: agent-first
-capabilities: [auth.external-identity-broker]
+capabilities: [auth.external-identity-broker, auth.shared-development-providers]
 authorities: [llp/0024-agent-operating-surface.spec.md, llp/0045-notifications-outbox.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0181-zero-configuration-expo.rfc.md, packages/snapback-client/app-client.mjs, packages/snapback-client/index.mjs, packages/snapback-expo/supervised-environment.mjs, crates/snapback-cli/src/cli.rs, clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift]
 examples: [demos/knockoff]
 status: current
@@ -1613,6 +1613,88 @@ the same coordinator-owned custody transition as built-in entry. It refuses
 before network I/O if the generated policy omits
 `external-session-explicit-v1`. This method does not make the broker a
 first-party provider and does not widen the local-only claim on this page.
+
+## Sign in with Apple or Google in development
+
+An app declares the providers it offers; the declaration is the only place
+provider policy lives. `snapback auth enable apple google` writes it, together
+with the `externalSessionEntry` seam the provider completion path redeems
+through:
+
+```js source=packages/snapback-cli/auth-setup.test.mjs
+  const next = enableProvidersInDeclaration(DECLARATION, ['apple', 'google']);
+```
+
+After `snapback generate`, the app calls one method for every provider and every
+Adapter:
+
+```js source=packages/snapback-client/app-client.test.mjs
+    const entry = appClient.auth.providerEntry('apple');
+    assert.equal(entry.adapter, 'snapback-shared-browser');
+    assert.equal(entry.identityRealm, 'rehearsal');
+    server.respond('/auth/exchange', ({ body }) => {
+      assert.deepEqual(body, exchange);
+      return Response.json(server.credential());
+    });
+    const result = await appClient.auth.signIn({ provider: 'apple' });
+```
+
+**What actually signs you in.** In local development with no app-owned provider
+credentials, `snapback dev --expo` supervises a local broker on the same
+loopback origin the client already discovers, and the resolver selects the
+`snapback-shared-browser` Adapter. That broker issues **hermetic rehearsal
+identities**: they are minted by the supervisor, their issuer names its own
+provenance, and nothing in the flow contacts Apple or Google. This is a working
+development sign-in with no provider setup — not a real provider login.
+
+A rehearsal identity is app-scoped: its durable subject is derived from the app
+id *and* the provider subject, so two apps on the same shared profile never
+receive the same Snapback identity, and email never links accounts. Rehearsal
+custody cannot enter a staging or production deployment.
+
+The callback carries only `state` and a short-lived one-use code. Redemption
+additionally requires the verifier the app kept, so neither value alone
+completes a sign-in, and no provider token or Snapback session credential ever
+crosses a URL.
+
+### Native readiness requires both halves
+
+Configuration alone never selects app-owned native auth. The installed client
+must also carry the matching native integration — `expo-apple-authentication`
+for Apple, `@react-native-google-signin/google-signin` for Google — and say so
+with its own build receipt. Configuration that is ready while the build is not
+keeps local development on the shared browser Adapter, and the projected next
+action tells you to rebuild.
+
+`snapback auth status` reports the requested credential policy, the resolved
+Adapter, configuration readiness, the profile generation, and one next action
+per provider. It never claims native readiness, because the CLI cannot observe
+an installed build.
+
+### Resolution is frozen for one attempt
+
+The Adapter is resolved once, before the attempt starts. If it returns
+cancellation, a timeout, `invalid_client`, or a token refusal, that *is* the
+result of `auth.signIn`. Snapback does not then open the shared browser
+Adapter: doing so would change the consent brand, the provider installation,
+and possibly the identity realm behind the caller's back, and could hide broken
+production configuration behind a working-looking sign-in.
+
+### Moving to your own credentials
+
+`snapback auth configure apple` and `snapback auth configure google` record
+public identifiers and secret *references*; they never accept a secret value,
+and they emit the provider-console steps that cannot be automated with this
+app's own bundle identifier, scheme, and return URL filled in. Apple and Google
+expose no client-registration API, so that walkthrough is the honest surface.
+
+Shared and app-owned credentials are separate provider installations. Switching
+rotates the auth-profile generation and signs out the incompatible rehearsal
+custody; Snapback never merges the two identities by email.
+
+**Not claimed on this page:** Snapback-owned Apple and Google registrations, a
+hosted public callback, and app-owned native provider auth proven end to end.
+Staging and production refuse shared credentials outright.
 
 ## Keep the broker server-side
 

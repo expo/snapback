@@ -8,6 +8,11 @@ OpenAI Codex (`gpt-5.6-sol`) and a non-author Fable context (rounds 1–2, per
 Charlie's direction that the other family participate in the design, not
 only review it)
 **Date:** 2026-08-02
+**Revised:** 2026-08-24 (implementation record for the default development
+provider profile: declared providers, one resolver, one stable `signIn`, the
+supervised shared broker, and the `snapback auth` setup group. Records what is
+not claimed — the identities are hermetic rehearsal identities, not Apple or
+Google logins. See the 2026-08-24 dated amendment.)
 **Revised:** 2026-08-21 (author ruling and follow-on concurrence:
 first-party providers get zero-setup shared development profiles. Local
 development and expiring owner-authenticated previews may use Snapback-owned
@@ -1100,3 +1105,90 @@ note that the broker rejection (credential-ownership ruling,
 2026-08-02) does not automatically extend to delivery. The wave-3
 program ticket (`issues/20260803-wave3-program.md`) carries the
 matching wave-4 line.
+
+## Dated amendment — 2026-08-24: the default development profile is implemented
+
+The 2026-08-21 amendment made the shared broker the default development path
+for first-party providers. This records what landed for it, and — more
+importantly — what still does not exist.
+
+### What landed
+
+- **The declaration is the source of provider policy.** `defineAuth` types
+  `apple` and `google` declarations with `credentials: 'auto' | 'shared' |
+  'app-owned'`. The declaration key *is* the name `auth.signIn({ provider })`
+  takes; v1 refuses an alias rather than opening a second namespace the
+  resolved entry and the CLI would both have to carry. The generated
+  `ApplicationAuthBootstrapV1` projects the declared providers and their
+  credential policy and nothing else — no client id, callback secret, signing
+  key, or resolved Adapter. The field is *absent* rather than empty when
+  nothing is declared, so apps that declare no provider keep their existing
+  descriptor bytes.
+- **One resolver, one frozen Adapter.**
+  `@expo/snapback-client/provider-entry` implements §Resolved provider entry's
+  closed selection table, including the two-part native rule and the
+  staging/production refusal. `createProviderEntryDispatch` runs exactly the
+  resolved Adapter exactly once. The auth-profile generation binds the provider
+  installation, the configuration revision, and the build receipt, so switching
+  credential ownership rotates it.
+- **One stable call.** `auth.signIn({ provider })` joins the existing
+  application auth owner. The Adapter runs the provider flow and returns one
+  short-lived external completion; the ordinary coordinator redeems it, so
+  provider entry adds no second coordinator and no second signed-in state.
+  Provider entry therefore requires the explicit external-session seam, and
+  `snapback auth enable` writes it alongside the provider block.
+- **The completion protocol, split by seam.** The client half (WebCrypto
+  verifier, authorization-URL origin validation, callback state checking) is in
+  `@expo/snapback-client` and imports nothing from `node:`; the broker half
+  (transaction state, admission, exact return allowlisting, one-use codes, the
+  100-user cap, app-scoped rehearsal identities) is in `@expo/snapback-cli`.
+- **`snapback dev` supervises the broker.** It mounts on the bootstrap origin
+  the Expo client already discovers, and its origin plus return targets ride
+  the ordinary credential-free exchange. No second terminal, no broker origin
+  to configure, no `EXPO_PUBLIC_*` variable. Return targets are *derived* from
+  the supervised client port — `exp://<host>:<port>/--/auth/shared` for Expo Go
+  and the web origins — which keeps exact allowlisting intact while needing no
+  app-owned native build.
+- **Setup and status.** `snapback auth enable | configure | status` implements
+  §Setup and status. `enable` edits the declaration through a stale-safe
+  compare-and-write and refuses to reserialize a hand-written providers block.
+  `configure` records public identifiers and secret *references* only, refuses
+  a secret value, and emits the deterministic console walkthrough with the
+  app's own bundle identifier, scheme, and return URL filled in. `status`
+  resolves with the same resolver the client uses.
+
+### What is deliberately not claimed
+
+- **The shared development identities are hermetic rehearsal identities**
+  issued by the local supervisor. Nothing in the flow contacts Apple or Google.
+  The issuer names its own provenance (`snapback-shared-development.invalid/…`)
+  so no downstream consumer can mistake it for `accounts.google.com` or
+  `appleid.apple.com`. This is a working development sign-in with no provider
+  setup — not a provider login.
+- **Snapback-owned provider registrations and a hosted public callback remain
+  separate product work.** Option D's production path is unchanged, and
+  `auth.first-party-social-providers` stays a design-only capability row.
+- **App-owned native provider auth is wired but unproven.** `configure` records
+  the configuration and names the native integration; the resolver will select
+  `app-owned-native` when both halves verify. No signed build carrying
+  `expo-apple-authentication` or
+  `@react-native-google-signin/google-signin` has been produced or exercised,
+  and the CLI never claims native readiness because it cannot observe an
+  installed build.
+- **Native durable custody is unchanged.** Rehearsal sign-in does not make
+  native custody durable; the templates' existing
+  `SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED` refusal stands.
+
+### One scoped divergence from §Setup and status
+
+That section says configuration writes "public client ids and secret values
+into LLP 0036 deployment state". What landed writes **public identifiers only**
+into a tracked, credential-free `snapback/auth-providers.json`
+(`snapback.app-owned-auth-providers.v1`), and names the LLP 0036 config entries
+for the secrets — `configure` prints the exact
+`snapback config set --entry <name> --value-stdin` command and never accepts a
+value. The split is deliberate: public identifiers belong to the app and want
+to be reviewable and diffable in the repository, while secrets belong to
+deployment state and must never be diffable. The file refuses to be read past
+if a literal secret ever appears in it. Whether the public half should later
+move into LLP 0036 entries as well is an open question, not a decided one.
