@@ -5282,6 +5282,17 @@ impl LocalSnapback {
         now_ms: u64,
         random: &dyn crate::auth::crypto::RandomSource,
     ) -> SnapbackResult<crate::storage::auth_integrations::BegunOAuthAuthorization> {
+        let authority_user_id = Self::require_agent_grant_management_session(
+            authority,
+            "OAuth consent request authorization",
+        )?;
+        if authority_user_id != consenting_user_id {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_REQUIRED",
+                "auth",
+                "OAuth consent request facts do not match exact caller authority",
+            ));
+        }
         let _effect = authority.effect_guard("OAuth consent request transaction")?;
         self.db.begin_oauth_authorization(
             consenting_user_id,
@@ -5307,16 +5318,20 @@ impl LocalSnapback {
             .deny_oauth_authorization(consenting_user_id, request_id, now_ms)
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn approve_oauth_grant_request(
         &mut self,
         authority: &PreparedAuthority,
-        effective_user_id: &str,
-        session_id: &str,
         request_id: &str,
         step_up_proof: Option<&crate::auth::crypto::StepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::auth_grants::GrantApproval> {
+        let effective_user_id = Self::require_agent_grant_management_session(
+            authority,
+            "OAuth consent approval authorization",
+        )?;
+        let ResolvedAppAuthority::Session { session_id, .. } = authority.resolved() else {
+            unreachable!("grant-management authority must resolve to a session");
+        };
         let _effect = authority.effect_guard("OAuth consent approval transaction")?;
         self.db.approve_grant_request(
             effective_user_id,
@@ -5331,11 +5346,14 @@ impl LocalSnapback {
     pub fn issue_oauth_authorization_code(
         &mut self,
         authority: &PreparedAuthority,
-        consenting_user_id: &str,
         request_id: &str,
         now_ms: u64,
         random: &dyn crate::auth::crypto::RandomSource,
     ) -> SnapbackResult<crate::storage::auth_integrations::IssuedOAuthAuthorization> {
+        let consenting_user_id = Self::require_agent_grant_management_session(
+            authority,
+            "OAuth authorization-code issuance authorization",
+        )?;
         let _effect = authority.effect_guard("OAuth authorization-code issuance transaction")?;
         self.db
             .issue_oauth_authorization_code(consenting_user_id, request_id, now_ms, random)
@@ -6043,9 +6061,10 @@ impl LocalSnapback {
     /// session id.
     /// Admission validates the lease and rehearsal authority; it does not
     /// inspect `session_not_after_ms` or re-read the durable session.
-    /// For revocation, that statement is scoped to the two planners below and
-    /// their existing HTTP route handlers. It is not a global internal-API
-    /// closure and does not require the session user to own the grant's agent.
+    /// For revocation and OAuth consent, that statement is scoped to the
+    /// functions that call this helper and their existing HTTP route handlers.
+    /// It is not a global internal-API closure and does not require the session
+    /// user to own the grant's agent.
     ///
     /// @ref LLP 0055#routes-and-credential-classes — user-facing grant
     /// management is session-only and scoped to the session user.
