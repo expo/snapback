@@ -1,4 +1,4 @@
-# Deny paths left unfixed beside their fixed approve paths
+# Deny and revoke paths left unfixed beside their fixed siblings
 
 Status: open
 Date: 2026-08-24
@@ -41,3 +41,30 @@ verifying it.
 Until the authority-provenance seal lands, a fix here may claim only that it derives the subject
 from the prepared authority — not that a mismatch is unconstructible. See
 `issues/20260824-authority-provenance-is-a-prerequisite-not-a-peer.md`.
+
+
+## Two more found by a lane's own sibling audit (2026-08-24)
+
+The invitation/pairing lane ran a read-only audit of its neighbours without being asked and found
+two further paths still accepting a separately supplied user:
+
+- `revoke_grant_for_user`
+- `revoke_grants_by_actor_for_user`
+
+These are **revoke** paths, so they carry the deny-path risk in its strongest form: a caller-supplied
+subject means revoking someone else's grant. That is not a denial of one request but removal of a
+standing capability, and it is the same shape as the grant-revocation *planner* defect already fixed
+(`a5d66e941` + `23db84b46`) — which suggests the planner fix closed one door while these two
+remained open beside it.
+
+Predicate: the same as their fixed siblings — derive the subject from the admitted authority via
+`require_agent_grant_management_session` and remove the independent parameter rather than verifying
+it.
+
+## Note on discovery
+
+Both this pair and the original deny pair were found by lanes auditing their own neighbourhood
+rather than by the sweep that produced the row inventory. The inventory enumerated *guard
+acquisitions* and *authority-minting factories*; these paths are neither. Any future claim that the
+population is closed should account for that: **operations adjacent to a fixed one are the cheapest
+place to find the next instance, and no enumeration so far has covered them systematically.**
