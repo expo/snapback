@@ -26,7 +26,10 @@ import {
   setTyping,
 } from '../src/data/generated/coterie.bindings.ts';
 import { bootCoterieProvider } from '../src/data/provider-factory.ts';
-import { resolveCoterieSnapbackUrl } from '../src/data/snapback-provider.ts';
+import {
+  createCoterieSnapbackProvider,
+  resolveCoterieSnapbackUrl,
+} from '../src/data/snapback-provider.ts';
 import { installM3Fixtures } from '../snapback/seed-m3.mjs';
 
 const CONTRACT_PATH = new URL(
@@ -190,6 +193,9 @@ function createDeliveryLog(name) {
     waitFor(predicate = () => true, timeoutMs = 20_000) {
       const existing = deliveries.findLast(predicate);
       if (existing !== undefined) return Promise.resolve(existing);
+      return this.waitForFuture(predicate, timeoutMs);
+    },
+    waitForFuture(predicate = () => true, timeoutMs = 20_000) {
       return new Promise((resolveDelivery, rejectDelivery) => {
         const waiter = {
           predicate,
@@ -757,30 +763,74 @@ async function runAcceptanceScenario({
     });
 
     await runStep('m3-typing-lease-expires', ['sm-convo-typing'], async () => {
-      await loginAs(bob);
-      requireMutationSuccess(
-        await setTyping({ chatId: directChatId, active: true }),
-        'setTyping(active)',
-      );
-      await loginAs(alice);
-      const visible = await typingLog.waitFor((rows) =>
-        rows.some((participant) => participant.userId === bob.id),
-      );
-      if (visible.length !== 1) {
-        throw new Error('typing observer projected an unexpected participant count');
+      let typingActor = null;
+      let typingActorAuthenticated = false;
+      try {
+        if (requestedProvider === 'snapback') {
+          // A Snapback typing entry is connection-owned. Keep Alice's
+          // observer authenticated while a second adapter connection owns
+          // Bob's five-second publisher lease.
+          typingActor = createCoterieSnapbackProvider({
+            baseUrl: resolveCoterieSnapbackUrl(),
+            custody: 'memory',
+            storagePartition: `coterie-typing-${scenario}-${Date.now()}`,
+          });
+          const loginValue = requireObject(
+            requireMutationSuccess(
+              await typingActor.mutate('login', {
+                email: bob.email,
+                password: bob.password,
+              }),
+              'typing actor login(bob)',
+            ),
+            'typing actor login(bob)',
+          );
+          rememberSensitiveValue(sensitiveValues, loginValue.sessionToken);
+          typingActorAuthenticated = true;
+          requireMutationSuccess(
+            await typingActor.mutate('setTyping', { chatId: directChatId, active: true }),
+            'typing actor setTyping(active)',
+          );
+        } else {
+          await loginAs(bob);
+          requireMutationSuccess(
+            await setTyping({ chatId: directChatId, active: true }),
+            'setTyping(active)',
+          );
+          await loginAs(alice);
+        }
+        const visible = await typingLog.waitFor(
+          (rows) => rows.some((participant) => participant.userId === bob.id),
+          2000,
+        );
+        if (visible.length !== 1) {
+          throw new Error('typing observer projected an unexpected participant count');
+        }
+        const expiryDelivery = typingLog.waitForFuture((rows) => rows.length === 0, 7000);
+        let expiryProbe = 'wall-clock';
+        if (typeof boot.advanceClock === 'function') {
+          expiryProbe = 'provider-clock-capability';
+          boot.advanceClock(5000);
+        }
+        await expiryDelivery;
+        return {
+          appeared: true,
+          visibilityBudgetMs: 2000,
+          leaseMs: 5000,
+          expiryProbe,
+          expired: true,
+        };
+      } finally {
+        if (typingActor) {
+          if (typingActorAuthenticated) {
+            const logoutResult = await typingActor.mutate('logout', {}).catch(() => null);
+            if (logoutResult?.ok) {
+              rememberSensitiveValue(sensitiveValues, logoutResult.value?.revokedToken);
+            }
+          }
+          await typingActor.close();
+        }
       }
-      let expiryProbe = 'wall-clock';
-      if (typeof boot.advanceClock === 'function') {
-        expiryProbe = 'provider-clock-capability';
-        boot.advanceClock(5000);
-      }
-      await typingLog.waitFor((rows) => rows.length === 0, 7000);
-      return {
-        appeared: true,
-        leaseMs: 5000,
-        expiryProbe,
-        expired: true,
-      };
     });
 
     let groupChatId = '';

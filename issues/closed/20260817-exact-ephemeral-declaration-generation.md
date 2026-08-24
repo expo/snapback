@@ -20,7 +20,7 @@ lease/visibility facts) from provider-native declarations. Acceptance: the
 Coterie v8 bridge extension is deleted and typing claims become declaration
 facts that conformance can check. External (Exact repo) fix; graduate to
 Linear (Exact project) when picked up. Related Snapback-side adoption:
-`issues/20260817-coterie-typing-allow-members-adoption.md`.
+`issues/closed/20260817-coterie-typing-allow-members-adoption.md`.
 
 ## Resolution (2026-08-17)
 

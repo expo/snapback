@@ -982,3 +982,43 @@ edge 1,025 before insert, and authoritative stats remain unchanged for the
 overflow target. The cheaper fixture still proves that `setFollowCore`
 actually invokes the guard rather than merely proving the guard function in
 isolation.
+
+## 2026-08-24 — Canonical membership-backed M3 typing
+
+Coterie can now claim the last two M3 operations without changing its
+byte-frozen Exact v8 declaration. The Snapback schema gained a deliberately
+small canonical-current table—one principal, conversation, and role per live
+seat—while `conversationMembers` remains the incarnation ledger for receipt
+obligations, unread watermarks, join sequences, and removal cutoffs. Creating,
+adding, leaving, and removing update both projections in the same mutation;
+group-admin promotion remains a product-history change and does not churn the
+canonical access seat. The split felt slightly more verbose than using one
+`isCurrent` column, but it made the authorization fact unambiguous and left
+the existing receipt/cutoff model intact.
+
+The landed typing recipe was unusually effective: `allow.members` on both
+publish and subscribe generated the Sessions permission backing, and omitting
+`roles` selected Coterie's complete active set—the canonical relation's sole
+`member` role. The adapter only needed to own connection identities,
+translate entries into the frozen
+`observeTyping` row shape, publish explicit five-second leases, and schedule
+local projection expiry. Compared with building presence policy around
+Supabase channels, the important privacy rule stayed in the schema; compared
+with a Convex presence component, Coterie still writes more adapter lifecycle
+code because the frozen provider seam exposes imperative `setTyping` rather
+than Snapback's room handle directly.
+
+Acceptance now carries the recipe's full negative battery: anonymous,
+authenticated non-member, and former-member clients are denied as observers
+and writers. The two shared acceptance scenarios also keep Alice's observation
+connection live while a second Bob adapter owns the typing lease, which
+exposed the useful connection-owned nature of the feature instead of hiding it
+behind persona switching. Both previously claim-skipped typing steps are
+therefore ordinary green steps.
+
+Exact remained a separate concern in this change. Its v8 declaration and
+generated declaration products were not regenerated or edited; only the
+Snapback adapter claim/refusal surface grew to match operations that were
+already present in the frozen contract. The guide recipe supplied all needed
+membership and negative-fixture detail, so this adoption found no new guide
+gap to file.

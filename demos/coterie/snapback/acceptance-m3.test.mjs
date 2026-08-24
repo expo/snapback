@@ -56,6 +56,29 @@ async function expectAppCode(operation, expected) {
   });
 }
 
+async function expectPermissionDenied(operation, label) {
+  await assert.rejects(operation, (error) => {
+    assert.equal(code(error), 'SNAPBACK_AUTH_PERMISSION_DENIED', `${label}: ${error?.stack ?? error}`);
+    return true;
+  });
+}
+
+function typingValue(actor) {
+  return {
+    profileId: actor.profile._id,
+    userId: actor.profile.fixtureId ?? actor.profile.ownerId,
+    displayName: actor.profile.displayName,
+  };
+}
+
+async function releaseTyping(client, overlay, connectionId, conversationId) {
+  overlay.dispose();
+  await client.unsubscribeEphemeral(api.ephemeral.typing, {
+    connectionId,
+    scope: { conversationId },
+  }).catch(() => {});
+}
+
 function passwordClient(baseUrl, clientStoreId) {
   const coordinator = new AuthCoordinator({
     appId: schema.appId,
@@ -163,7 +186,7 @@ test('Coterie Snapback M3 backend', { timeout: 1_800_000 }, async (t) => {
     args: { fixtureId: 'g-starter' },
   })).rows[0]._id;
 
-  await t.test('schema invariants, absent typing surface, and seed replay are deterministic', async () => {
+  await t.test('schema authority, typing permission backing, and seed replay are deterministic', async () => {
     const table = (name) => schema.tables.find((candidate) => candidate.name === name);
     assert.equal(table('conversations').indexes.find(({ name }) => name === 'by_dm_pair').unique, true);
     assert.equal(
@@ -185,6 +208,32 @@ test('Coterie Snapback M3 backend', { timeout: 1_800_000 }, async (t) => {
         .find(({ name }) => name === 'by_profile_latest_chat_page').fields,
       ['profileId', 'isLatest', 'chatPageKey'],
     );
+    assert.deepEqual(table('conversationCurrentMembers').membership, {
+      bootstrapRole: 'member',
+      id: 'conversationCurrentMembers',
+      principal: 'ownerId',
+      principalAddressedWrites: { remove: true },
+      provenance: 'full',
+      resource: 'conversationId',
+      resourceTable: 'conversations',
+      role: 'role',
+      roles: ['member'],
+      scope: 'resource',
+      transitions: [
+        { by: ['member'], op: 'insert', target: 'other', to: ['member'] },
+        { by: ['member'], op: 'remove', target: 'other' },
+        { by: ['self'], from: ['member'], op: 'remove', target: 'self' },
+      ],
+    });
+    assert.equal(
+      table('conversationCurrentMembers').indexes
+        .find(({ name }) => name === 'by_owner_conversation').unique,
+      true,
+    );
+    assert.deepEqual(
+      table('conversationCurrentMembers').visibility,
+      { kind: 'owner', field: 'ownerId' },
+    );
     assert.equal(
       table('messageReceipts').indexes.find(({ name }) => name === 'by_message_recipient').unique,
       true,
@@ -193,8 +242,22 @@ test('Coterie Snapback M3 backend', { timeout: 1_800_000 }, async (t) => {
       assert.deepEqual(table(name).visibility, { kind: 'public-read' });
       assert.equal(table(name).syncable, false);
     }
-    assert.equal(schema.ephemeralCollections.some(({ name }) => name === 'typing'), false);
-    assert.equal(api.ephemeral?.typing, undefined);
+    const typing = schema.ephemeralCollections.find(({ name }) => name === 'typing');
+    assert(typing);
+    assert.equal(typing.defaultTtlMs, 5_000);
+    assert.equal(typing.maxTtlMs, 5_000);
+    assert.deepEqual(typing.permissionBacking, {
+      allowedRoles: ['member'],
+      roleField: 'role',
+      scopeFields: { conversationId: 'conversationId' },
+      subjectField: 'ownerId',
+      table: 'conversationCurrentMembers',
+    });
+    assert.deepEqual(typing.publish, {
+      RequireRoomPermission: { prefix: 'm_conversationCurrentMembers' },
+    });
+    assert.deepEqual(typing.subscribe, typing.publish);
+    assert(api.ephemeral.typing);
     assert.equal(firstSeed.logDigest, '4b03a5935eda1cee32e4031ade2bef41cb1d304922edc07ecf9e6f3893e51008');
     assert(firstSeed.conversations.every(({ disposition }) => disposition === 'created'));
     assert(firstSeed.memberships.every(({ disposition }) => disposition === 'created'));
@@ -368,9 +431,124 @@ test('Coterie Snapback M3 backend', { timeout: 1_800_000 }, async (t) => {
     }
   });
 
-  await t.test('Snapback M3 exposes no typing collection until membership backing exists', async () => {
-    assert.equal(schema.ephemeralCollections.some(({ name }) => name === 'typing'), false);
-    assert.equal(api.ephemeral?.typing, undefined);
+  await t.test('typing is visible within two seconds, expires at five seconds, and denies every non-member class', async () => {
+    const aliceConnection = 'coterie-m3-typing-alice';
+    const bobConnection = 'coterie-m3-typing-bob';
+    const scope = { conversationId: fixtureDm };
+    const aliceOverlay = await alice.client.subscribeEphemeral(api.ephemeral.typing, {
+      connectionId: aliceConnection,
+      scope,
+    });
+    const bobOverlay = await bob.client.subscribeEphemeral(api.ephemeral.typing, {
+      connectionId: bobConnection,
+      scope,
+    });
+    try {
+      const publishedAt = Date.now();
+      await bobOverlay.publish(typingValue(bob), { ttlMs: 5_000 });
+      await eventually(() => {
+        const entry = aliceOverlay.currentEntries().find(
+          (candidate) => candidate.value.userId === 'bob',
+        );
+        assert(entry, 'Alice has not observed Bob typing');
+        assert.equal(entry.value.displayName, bob.profile.displayName);
+      }, 'Bob typing was not visible inside the two-second contract', 2_000);
+      await eventually(() => {
+        assert.equal(aliceOverlay.currentEntries().length, 0);
+      }, 'Bob typing did not expire inside the five-second lease window', 7_000);
+      assert(Date.now() - publishedAt >= 4_500, 'typing lease expired materially before five seconds');
+    } finally {
+      await Promise.all([
+        releaseTyping(alice.client, aliceOverlay, aliceConnection, fixtureDm),
+        releaseTyping(bob.client, bobOverlay, bobConnection, fixtureDm),
+      ]);
+    }
+
+    const anonymous = passwordClient(server.baseUrl, 'coterie-m3-typing-anonymous');
+    clients.push(anonymous);
+    const negativeCases = [
+      ['anonymous', anonymous, typingValue(alice)],
+      ['non-member', henry.client, typingValue(henry)],
+    ];
+    for (const [kind, client, value] of negativeCases) {
+      await expectPermissionDenied(
+        client.subscribeEphemeral(api.ephemeral.typing, {
+          connectionId: `coterie-m3-typing-${kind}-observer`,
+          scope,
+        }),
+        `${kind} observer`,
+      );
+      await expectPermissionDenied(
+        client.publishEphemeral(api.ephemeral.typing, {
+          connectionId: `coterie-m3-typing-${kind}-writer`,
+          scope,
+          value,
+          ttlMs: 5_000,
+        }),
+        `${kind} writer`,
+      );
+    }
+
+    const formerConversation = (await alice.client.mutate(api.createGroup, {
+      args: {
+        name: 'Former-member typing denial',
+        description: 'Removal closes both ephemeral directions.',
+        memberProfileIds: [carol.profile._id],
+      },
+    })).result;
+    const formerScope = { conversationId: formerConversation };
+    const formerObserverConnection = 'coterie-m3-typing-former-observer-active';
+    const formerWriterConnection = 'coterie-m3-typing-former-writer-active';
+    const formerObserver = await alice.client.subscribeEphemeral(api.ephemeral.typing, {
+      connectionId: formerObserverConnection,
+      scope: formerScope,
+    });
+    const formerWriter = await carol.client.subscribeEphemeral(api.ephemeral.typing, {
+      connectionId: formerWriterConnection,
+      scope: formerScope,
+    });
+    try {
+      await formerWriter.publish(typingValue(carol), { ttlMs: 5_000 });
+      await eventually(() => {
+        assert(formerObserver.currentEntries().some(
+          (entry) => entry.value.userId === 'carol',
+        ));
+      }, 'current member typing was not visible before removal', 2_000);
+      await alice.client.mutate(api.removeMember, {
+        args: { conversationId: formerConversation, profileId: carol.profile._id },
+      });
+    } finally {
+      await Promise.all([
+        releaseTyping(
+          alice.client,
+          formerObserver,
+          formerObserverConnection,
+          formerConversation,
+        ),
+        releaseTyping(
+          carol.client,
+          formerWriter,
+          formerWriterConnection,
+          formerConversation,
+        ),
+      ]);
+    }
+    await expectPermissionDenied(
+      carol.client.subscribeEphemeral(api.ephemeral.typing, {
+        connectionId: 'coterie-m3-typing-former-observer-denied',
+        scope: formerScope,
+      }),
+      'former-member observer',
+    );
+    await expectPermissionDenied(
+      carol.client.publishEphemeral(api.ephemeral.typing, {
+        connectionId: 'coterie-m3-typing-former-writer-denied',
+        scope: formerScope,
+        value: typingValue(carol),
+        ttlMs: 5_000,
+      }),
+      'former-member writer',
+    );
   });
 
   await t.test('receipts are monotonic and group aggregation uses the send-time recipient set', async () => {

@@ -12,6 +12,10 @@ import type {
 import { createAssetClient } from '../../../../packages/snapback-client/assets.mjs';
 import { projectAppRefusal } from '../../../../packages/snapback-client/index.mjs';
 import { SnapbackClient } from '../../../../packages/snapback-client/online.mjs';
+import type {
+  EphemeralEntry,
+  EphemeralOverlay,
+} from '../../../../packages/snapback-client/index.mjs';
 import {
   AuthCoordinator,
   createMemoryAuthCustodyStorage,
@@ -34,7 +38,7 @@ import {
 import { coterieSurfaceManifest } from './memory-provider.ts';
 import { coterieProviderClaims } from './provider-claims.ts';
 
-export const COTERIE_SNAPBACK_MILESTONE = 'M3-minus-typing' as const;
+export const COTERIE_SNAPBACK_MILESTONE = 'M3' as const;
 
 export const COTERIE_SNAPBACK_M1_OPERATIONS = Object.freeze({
   queries: Object.freeze(['listSession', 'listProfiles', 'listProviderClaims']),
@@ -53,7 +57,7 @@ export const COTERIE_SNAPBACK_M2_OPERATIONS = Object.freeze({
 });
 
 export const COTERIE_SNAPBACK_M3_OPERATIONS = Object.freeze({
-  queries: Object.freeze(['listChats', 'listMessages']),
+  queries: Object.freeze(['listChats', 'listMessages', 'observeTyping']),
   mutations: Object.freeze([
     'openDm',
     'createGroup',
@@ -62,6 +66,7 @@ export const COTERIE_SNAPBACK_M3_OPERATIONS = Object.freeze({
     'promoteAdmin',
     'leaveChat',
     'sendMessage',
+    'setTyping',
     'markReceipt',
   ]),
 });
@@ -101,7 +106,6 @@ const M4_MUTATION_NAMES = new Set(['setMessageReaction']);
 const M5_QUERY_NAMES = new Set(['searchSocial']);
 const M5_MUTATION_NAMES = new Set(['setChatAccent', 'setDisappearing']);
 const M8_QUERY_NAMES = new Set(['listInsights']);
-const TYPING_OPERATION_NAMES = new Set(['observeTyping', 'setTyping']);
 const SNAPBACK_PROVIDER_CLAIMS = coterieProviderClaims(COTERIE_SNAPBACK_CLAIMED_OPERATIONS);
 
 const PROFILE_STREAM_TIMEOUT_MS = 10_000;
@@ -110,6 +114,8 @@ const POST_ASSET_CACHE_LIMIT = 64;
 const FEED_PAGE_SIZE = 20;
 export const COTERIE_SNAPBACK_MAX_CHAT_HISTORY = 1_000;
 export const COTERIE_SNAPBACK_MAX_MESSAGE_HISTORY = 1_024;
+const COTERIE_SNAPBACK_MAX_TYPING_PARTICIPANTS = 50;
+const COTERIE_SNAPBACK_TYPING_TTL_MS = 5_000;
 const AVATAR_MEDIA_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const SESSION_REQUIRED_CODES = new Set([
   'SNAPBACK_AUTH_SESSION_EXPIRED',
@@ -304,7 +310,20 @@ interface BackendChatRow {
   lastMessageAt: number;
 }
 
-type M3BackendRow = BackendChatRow | BackendChatMessageRow;
+interface BackendTypingValue {
+  profileId: string;
+  userId: string;
+  displayName: string;
+}
+
+type BackendTypingEntry = EphemeralEntry<BackendTypingValue>;
+type M3BackendRow = BackendChatRow | BackendChatMessageRow | BackendTypingEntry;
+
+interface TypingPublisher {
+  connectionId: string;
+  conversationId: GeneratedDataModel['conversations']['_id'];
+  overlay: EphemeralOverlay<{ conversationId: string }, BackendTypingValue>;
+}
 
 interface FeedCursorPayload {
   v: 1;
@@ -329,6 +348,7 @@ class NamedProviderError extends Error {
 }
 
 function assertM3LiveWindow(queryName: string, count: number): void {
+  if (queryName === 'observeTyping') return;
   const maximum = queryName === 'listChats'
     ? COTERIE_SNAPBACK_MAX_CHAT_HISTORY
     : COTERIE_SNAPBACK_MAX_MESSAGE_HISTORY;
@@ -352,6 +372,22 @@ function environmentValue(name: string): string | undefined {
     if (typeof processValue === 'string' && processValue.length > 0) return processValue;
   }
   return undefined;
+}
+
+async function unsubscribeTyping(
+  client: SnapbackClient,
+  connectionId: string,
+  conversationId: GeneratedDataModel['conversations']['_id'],
+): Promise<void> {
+  await (client as unknown as {
+    unsubscribeEphemeral(
+      ref: unknown,
+      options: { connectionId: string; scope: { conversationId: string } },
+    ): Promise<unknown>;
+  }).unsubscribeEphemeral(api.ephemeral.typing, {
+    connectionId,
+    scope: { conversationId },
+  });
 }
 
 export function resolveCoterieSnapbackUrl(explicit?: string): string {
@@ -420,17 +456,11 @@ function milestoneRefusal(name: string): NamedProviderError {
   const milestone = milestoneForOperation(name) ?? 'M2/M3/M4/M5/M8';
   return new NamedProviderError(
     'SnapbackMilestoneUnsupportedError',
-    `snapback provider claims M1+M2+M3-minus-typing plus provider discovery only; ${name} is outside that claim — LLP 0266 D7 (${milestone})`,
+    `snapback provider claims M1+M2+M3 plus provider discovery only; ${name} is outside that claim — LLP 0266 D7 (${milestone})`,
   );
 }
 
 function unclaimedOperationRefusal(name: string): NamedProviderError {
-  if (TYPING_OPERATION_NAMES.has(name)) {
-    return new NamedProviderError(
-      'SnapbackTypingPermissionBackingUnavailableError',
-      `snapback provider deliberately does not claim ${name}; membership-backed ephemeral permission lowering is required — issues/20260817-ephemeral-membership-permission-backing.md`,
-    );
-  }
   return milestoneRefusal(name);
 }
 
@@ -665,6 +695,7 @@ function declaredError(operation: string, error: unknown): NamedProviderError {
     (
       operation === 'editProfile'
       || operation === 'setAvatar'
+      || operation === 'observeTyping'
       || M2_MUTATION_NAMES.has(operation)
       || CLAIMED_M3_MUTATION_NAMES.has(operation)
     )
@@ -674,6 +705,16 @@ function declaredError(operation: string, error: unknown): NamedProviderError {
     return new NamedProviderError(
       'SessionRequiredError',
       'An active session is required.',
+      { cause: error },
+    );
+  }
+  if (
+    (operation === 'observeTyping' || operation === 'setTyping')
+    && code === 'SNAPBACK_AUTH_PERMISSION_DENIED'
+  ) {
+    return new NamedProviderError(
+      'ChatMembershipRequiredError',
+      'Conversation membership is required.',
       { cause: error },
     );
   }
@@ -1123,10 +1164,12 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
   readonly #m2Cache = new Map<string, { value: unknown; connection: DataConnection }>();
   readonly #m3Subscriptions = new Set<M3Subscription<unknown>>();
   readonly #m3Cache = new Map<string, { value: unknown; connection: DataConnection }>();
+  readonly #typingPublishers = new Map<string, TypingPublisher>();
   readonly #profileWaiters = new Set<() => void>();
   readonly #uploadedAvatarAssets = new Map<string, string>();
   readonly #uploadedPostAssets = new Map<string, string>();
   readonly #profileIdentityById = new Map<string, string>();
+  readonly #profileDisplayNameById = new Map<string, string>();
   readonly #profileStatsRows = new Map<string, BackendProfileStatsRow>();
   readonly #unsubscribePrincipal: () => void;
   readonly #unsubscribeAuthTerminal: () => void;
@@ -1137,6 +1180,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
   #profileConnectionSequence = 0;
   #m2ConnectionSequence = 0;
   #m3ConnectionSequence = 0;
+  #typingConnectionSequence = 0;
   #currentBackendProfileId: string | null = null;
   #principalRefreshGeneration = 0;
   #profileCompletion: { email: string; credential: BackendSessionCredential } | null = null;
@@ -1184,6 +1228,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
         this.#stopProfileSubscriptions('disconnected');
         this.#stopM2Subscriptions('disconnected');
         this.#stopM3Subscriptions('disconnected');
+        this.#stopTypingPublishers();
       }
     });
   }
@@ -1318,7 +1363,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
 
     if (CLAIMED_M3_QUERY_NAMES.has(queryName)) {
       try {
-        if (queryName === 'listMessages') {
+        if (queryName === 'listMessages' || queryName === 'observeTyping') {
           nonEmptyString(
             _args.chatId,
             'ChatNotFoundError',
@@ -1501,6 +1546,9 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       subscription.handle = null;
     }
     this.#m3Subscriptions.clear();
+    for (const publisher of [...this.#typingPublishers.values()]) {
+      handleClosures.push(this.#retireTypingPublisher(publisher.conversationId));
+    }
     this.#closePromise = (async () => {
       await Promise.allSettled(handleClosures.map((result) => Promise.resolve(result)));
       await this.#client.closeAuth();
@@ -1533,6 +1581,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       this.#stopProfileSubscriptions('disconnected');
       this.#stopM2Subscriptions('disconnected');
       this.#stopM3Subscriptions('disconnected');
+      this.#stopTypingPublishers();
       return;
     }
     if (principal.status === 'blocked') {
@@ -1544,6 +1593,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       this.#stopProfileSubscriptions('disconnected');
       this.#stopM2Subscriptions('disconnected');
       this.#stopM3Subscriptions('disconnected');
+      this.#stopTypingPublishers();
       return;
     }
     if (principal.status === 'loading' || principal.status === 'refreshing') return;
@@ -1571,6 +1621,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
           this.#stopProfileSubscriptions('disconnected');
           this.#stopM2Subscriptions('disconnected');
           this.#stopM3Subscriptions('disconnected');
+          this.#stopTypingPublishers();
         },
         refreshNonAnonymous: () => this.#principalChanged(),
       },
@@ -1591,6 +1642,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       if (generation !== this.#principalRefreshGeneration || this.#disposed) return;
       const current = this.#client.auth.currentPrincipal();
       if (current.status !== 'authenticated' || current.sessionId !== principal.sessionId) return;
+      this.#rememberProfileIdentities(rows);
       const capture = this.#coordinator.capture();
       const credential = this.#coordinator.credentialFor(capture);
       if (!credential.bearer) {
@@ -1748,10 +1800,23 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     const principal = this.#client.auth.currentPrincipal();
     for (const row of rows) {
       this.#profileIdentityById.set(row._id, row.fixtureId ?? row.ownerId);
+      this.#profileDisplayNameById.set(row._id, row.displayName);
       if (principal.status === 'authenticated' && row.ownerId === principal.userId) {
         this.#currentBackendProfileId = row._id;
       }
     }
+  }
+
+  // @ref LLP 0013#first-delivery-latency-budget — the typing action reuses
+  // login/profile-stream identity instead of spending its 2 s budget on a query.
+  #currentTypingValue(): BackendTypingValue | null {
+    const profileId = this.#currentBackendProfileId;
+    if (!profileId) return null;
+    const userId = this.#profileIdentityById.get(profileId);
+    const displayName = this.#profileDisplayNameById.get(profileId);
+    return userId === undefined || displayName === undefined
+      ? null
+      : { profileId, userId, displayName };
   }
 
   async #rebuildProfileStats<T>(
@@ -2016,7 +2081,9 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
           try {
             const liveRows = deliveryRows as readonly M3BackendRow[];
             assertM3LiveWindow(subscription.queryName, liveRows.length);
-            await this.#hydrateM3ProfileIdentities(liveRows);
+            if (subscription.queryName !== 'observeTyping') {
+              await this.#hydrateM3ProfileIdentities(liveRows);
+            }
             if (!subscription.active || subscription.generation !== generation) return;
             const value = await this.#projectM3Rows<T>(subscription, liveRows);
             if (!subscription.active || subscription.generation !== generation) return;
@@ -2078,6 +2145,13 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
             onUpdate: (rows) => { void publishRows(rows); },
             onConnectionChange,
           });
+        } else if (subscription.queryName === 'observeTyping') {
+          const conversationId = nonEmptyString(
+            subscription.args.chatId,
+            'ChatNotFoundError',
+            'Conversation was not found.',
+          ) as GeneratedDataModel['conversations']['_id'];
+          handle = await this.#typingLiveHandle(conversationId, connectionId, publishRows);
         } else {
           throw unclaimedOperationRefusal(subscription.queryName);
         }
@@ -2112,13 +2186,41 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
         .reverse()
         .map((row) => this.#projectMessage(row)) as T;
     }
+    if (subscription.queryName === 'observeTyping') {
+      const latestByUser = new Map<string, BackendTypingEntry>();
+      for (const entry of rows as readonly BackendTypingEntry[]) {
+        if (entry.value.profileId === this.#currentBackendProfileId) continue;
+        const prior = latestByUser.get(entry.value.userId);
+        if (
+          !prior
+          || entry.expiresAtMs > prior.expiresAtMs
+          || (
+            entry.expiresAtMs === prior.expiresAtMs
+            && entry.entryVersion > prior.entryVersion
+          )
+        ) latestByUser.set(entry.value.userId, entry);
+      }
+      if (latestByUser.size > COTERIE_SNAPBACK_MAX_TYPING_PARTICIPANTS) {
+        throw new NamedProviderError(
+          'SnapbackProviderError',
+          `observeTyping exceeded the explicit ${COTERIE_SNAPBACK_MAX_TYPING_PARTICIPANTS}-participant Coterie live envelope.`,
+        );
+      }
+      return [...latestByUser.values()].map((entry) => ({
+        id: entry.key,
+        chatId: String(subscription.args.chatId ?? ''),
+        userId: entry.value.userId,
+        displayName: entry.value.displayName,
+        expiresAt: new Date(entry.expiresAtMs).toISOString(),
+      })) as T;
+    }
     const projected = [];
     for (const row of rows as readonly BackendChatRow[]) {
       const members = row.members.map((member) => ({
         id: this.#externalProfileId(member.profileId),
         displayName: member.displayName,
         avatarUrl: member.avatar ? this.#assetUrl(member.avatar) : null,
-        isAdmin: member.role === 'admin',
+        isAdmin: row.kind === 'group' && member.role === 'admin',
         isMe: member.profileId === this.#currentBackendProfileId,
       }));
       const counterpart = row.kind === 'dm'
@@ -2135,7 +2237,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
         kind: row.kind,
         memberIds: members.map((member) => member.id),
         members,
-        currentUserIsAdmin: row.active && row.viewerRole === 'admin',
+        currentUserIsAdmin: row.kind === 'group' && row.active && row.viewerRole === 'admin',
         currentUserIsMember: row.active,
         typingHint: null,
         latestReceiptStatus:
@@ -2205,6 +2307,55 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
         'Snapback returned an M3 row whose external profile identity is unavailable.',
       );
     }
+  }
+
+  async #typingLiveHandle(
+    conversationId: GeneratedDataModel['conversations']['_id'],
+    connectionId: string,
+    publishRows: (rows: readonly unknown[] | null) => Promise<void>,
+  ): Promise<LiveHandle> {
+    const scope = { conversationId };
+    const overlay = await this.#client.subscribeEphemeral(api.ephemeral.typing, {
+      connectionId,
+      scope,
+    });
+    let active = true;
+    let expiryTimer: ReturnType<typeof setTimeout> | null = null;
+    const clearExpiry = () => {
+      if (expiryTimer !== null) clearTimeout(expiryTimer);
+      expiryTimer = null;
+    };
+    const scheduleExpiry = () => {
+      clearExpiry();
+      if (!active) return;
+      const entries = overlay.currentEntries();
+      if (entries.length === 0) return;
+      const nextExpiry = Math.min(...entries.map((entry) => entry.expiresAtMs));
+      expiryTimer = setTimeout(() => {
+        expiryTimer = null;
+        if (!active) return;
+        void publishRows(overlay.currentEntries()).then(scheduleExpiry);
+      }, Math.max(0, nextExpiry - Date.now()));
+    };
+    const off = overlay.onChange(() => {
+      if (!active) return;
+      void publishRows(overlay.currentEntries()).then(scheduleExpiry);
+    });
+    scheduleExpiry();
+    return {
+      get rows() {
+        return overlay.currentEntries();
+      },
+      connection: 'live',
+      dispose: async () => {
+        if (!active) return;
+        active = false;
+        clearExpiry();
+        off();
+        overlay.dispose();
+        await unsubscribeTyping(this.#client, connectionId, conversationId).catch(() => {});
+      },
+    };
   }
 
   #projectM2Rows<T>(subscription: M2Subscription<T>, rows: readonly unknown[]): T {
@@ -2347,6 +2498,12 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     }
   }
 
+  #stopTypingPublishers(): void {
+    for (const publisher of [...this.#typingPublishers.values()]) {
+      void this.#retireTypingPublisher(publisher.conversationId);
+    }
+  }
+
   #m2CacheKey(queryName: string, args: Record<string, unknown>): string {
     if (queryName === 'listFeed') {
       return `${queryName}:${String(args.mode)}:${String(args.cursor ?? '')}`;
@@ -2356,7 +2513,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
   }
 
   #m3CacheKey(queryName: string, args: Record<string, unknown>): string {
-    return queryName === 'listMessages'
+    return queryName === 'listMessages' || queryName === 'observeTyping'
       ? `${queryName}:${String(args.chatId ?? '')}`
       : queryName;
   }
@@ -2418,6 +2575,8 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
         return this.#leaveChat(args);
       case 'sendMessage':
         return this.#sendMessage(args);
+      case 'setTyping':
+        return this.#setTyping(args);
       case 'markReceipt':
         return this.#markReceipt(args);
       default:
@@ -2586,12 +2745,15 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
   }
 
   async #leaveChat(args: Record<string, unknown>): Promise<void> {
+    const conversationId = this.#conversationId(args.chatId);
     await this.#client.mutate(api.leaveChat, {
-      args: { conversationId: this.#conversationId(args.chatId) },
+      args: { conversationId },
     });
+    await this.#retireTypingPublisher(conversationId);
   }
 
   async #sendMessage(args: Record<string, unknown>): Promise<{ id: string }> {
+    const conversationId = this.#conversationId(args.chatId);
     const quotedMessageId = args.quotedMessageId === null || args.quotedMessageId === undefined
       ? null
       : nonEmptyString(
@@ -2601,7 +2763,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
         ) as GeneratedDataModel['messages']['_id'];
     const outcome = await this.#client.mutate(api.sendMessage, {
       args: {
-        conversationId: this.#conversationId(args.chatId),
+        conversationId,
         body: String(args.body ?? ''),
         ...(quotedMessageId ? { quotedMessageId } : {}),
       },
@@ -2612,7 +2774,68 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
         'sendMessage was queued even though the Coterie adapter disables offline mutation replay.',
       );
     }
+    await this.#clearTyping(conversationId);
     return { id: outcome.result };
+  }
+
+  async #setTyping(args: Record<string, unknown>): Promise<void> {
+    const conversationId = this.#conversationId(args.chatId);
+    const publisher = await this.#typingPublisher(conversationId);
+    if (!Boolean(args.active)) {
+      await publisher.overlay.delete();
+      return;
+    }
+    let value = this.#currentTypingValue();
+    if (!value) {
+      await this.#refreshProfileIdentityIndex();
+      value = this.#currentTypingValue();
+    }
+    if (!value) {
+      throw new NamedProviderError('SessionRequiredError', 'An active session is required.');
+    }
+    await publisher.overlay.publish(value, { ttlMs: COTERIE_SNAPBACK_TYPING_TTL_MS });
+  }
+
+  async #typingPublisher(
+    conversationId: GeneratedDataModel['conversations']['_id'],
+  ): Promise<TypingPublisher> {
+    const key = String(conversationId);
+    const existing = this.#typingPublishers.get(key);
+    if (existing) return existing;
+    const connectionId = `${this.#instanceId}-typing-publish-${++this.#typingConnectionSequence}`;
+    const overlay = await this.#client.subscribeEphemeral(api.ephemeral.typing, {
+      connectionId,
+      scope: { conversationId },
+    });
+    const raced = this.#typingPublishers.get(key);
+    if (raced) {
+      overlay.dispose();
+      await unsubscribeTyping(this.#client, connectionId, conversationId).catch(() => {});
+      return raced;
+    }
+    const publisher: TypingPublisher = { connectionId, conversationId, overlay };
+    this.#typingPublishers.set(key, publisher);
+    return publisher;
+  }
+
+  async #clearTyping(conversationId: GeneratedDataModel['conversations']['_id']): Promise<void> {
+    const publisher = this.#typingPublishers.get(String(conversationId));
+    if (publisher) await publisher.overlay.delete();
+  }
+
+  async #retireTypingPublisher(
+    conversationId: GeneratedDataModel['conversations']['_id'],
+  ): Promise<void> {
+    const key = String(conversationId);
+    const publisher = this.#typingPublishers.get(key);
+    if (!publisher) return;
+    this.#typingPublishers.delete(key);
+    publisher.overlay.dispose();
+    await unsubscribeTyping(
+      this.#client,
+      publisher.connectionId,
+      publisher.conversationId,
+    ).catch(() => {});
   }
 
   async #markReceipt(args: Record<string, unknown>): Promise<void> {
@@ -2789,6 +3012,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     if (!bearer) {
       throw new NamedProviderError('SnapbackProviderError', 'Snapback adopted no session bearer.');
     }
+    this.#rememberProfileIdentities(rows);
     return {
       profileExists: rows.length > 0,
       value: {
@@ -2866,6 +3090,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       this.#stopProfileSubscriptions('disconnected');
       this.#stopM2Subscriptions('disconnected');
       this.#stopM3Subscriptions('disconnected');
+      this.#stopTypingPublishers();
       return { revokedToken: null };
     }
     const capture = this.#coordinator.capture();
@@ -2902,17 +3127,20 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     if (!current) {
       throw new NamedProviderError('SessionRequiredError', 'An active session is required.');
     }
+    this.#rememberProfileIdentities(rows);
+    const displayName = validateDisplayName(args.displayName);
     const before = this.#profileRevision;
     await this.#client.mutate(api.editProfile, {
       args: {
         profileId: current._id,
-        displayName: validateDisplayName(args.displayName),
+        displayName,
         bio: validateBio(args.bio),
         handle: args.handle === null ? current.handle : validateHandle(args.handle),
         location: args.location === null ? current.location : validateLocation(args.location),
         link: args.link === null ? current.link : validateLink(args.link),
       },
     });
+    this.#profileDisplayNameById.set(current._id, displayName);
     await this.#waitForProfileDelivery(before);
   }
 
@@ -3046,10 +3274,11 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
  * @ref LLP 0266#d4-backend-boundary — backend transport and live delivery stay
  * behind Exact's public ContractDataProvider seam.
  * @ref LLP 0266#d7-milestone-frozen-provider-surfaces-resolves-oq1 — this
- * adapter implements the frozen M1+M2+M3-minus-typing set and refuses typing
- * against its named permission-backing ticket. Snapback's ensureFixture* and
+ * adapter implements the frozen M1+M2+M3 set; Snapback's ensureFixture* and
  * getMyFixture* operations are seed machinery only and are never mapped onto
  * this declaration.
+ * @ref LLP 0013#lowering-and-one-validator-convergence — typing observation
+ * and publication share the generated canonical-membership permission.
  * @ref LLP 0266#d8-provider-selection-at-boot — the adapter never generates a
  * provider-specific Coterie declaration or manifest.
  * @ref LLP 0266#d9-snapback-backend-placement — application-owned auth,

@@ -11,7 +11,9 @@ integration, Diagnostics, Guide, Testing
 **Revised:** 2026-08-24 (F8 design routing moves from LLP 0269's storage Plan
 to dedicated Review LLP 0305 under LLP 0044; implementation and the Coterie
 evidence rerun remain open)
-**Revised:** 2026-08-21 (F5 residual reconciliation: membership-backed room
+**Revised:** 2026-08-24 (F5 application reconciliation: Coterie now separates
+canonical current membership from incarnation history and claims M3 typing
+through `allow.members`); 2026-08-21 (F5 residual reconciliation: membership-backed room
 role narrowing is closed); 2026-08-21 (P17 follow-through: records the packed
 external Expo Metro cycle repair); 2026-08-20 (0.1.24 matrix amendment: adds the completed
 three-model-family x two-profile x two-app published-package run, preserves
@@ -267,10 +269,11 @@ first-class negative fixtures
 Role narrowing subsequently closed on 2026-08-21
 (`issues/closed/20260817-ephemeral-membership-role-narrowing.md`). Residuals are
 the overlay's missing terminal Error arm
-(`issues/20260817-ephemeral-overlay-missing-error-arm.md`), and Coterie's own
-adoption — its schema uses incarnation-oriented membership and must migrate
-to a canonical `membership()` declaration first
-(`issues/20260817-coterie-typing-allow-members-adoption.md`).
+(`issues/20260817-ephemeral-overlay-missing-error-arm.md`). Coterie's own
+adoption closed on 2026-08-24: its schema now separates a canonical current
+`membership()` relation from incarnation history, and M3 typing uses that
+relation for both `allow.members` directions
+(`issues/closed/20260817-coterie-typing-allow-members-adoption.md`).
 
 ### F6. Authorization census blind spot for helper-mediated writes — historical, now closed
 
@@ -672,7 +675,7 @@ such as "P14 cost 12% of tokens" would be invented.
 | Exact/Contract generator, envelope, mock, dev-loop program | LLP 0279 (new Plan) + tickets |
 | Cross-system write seams (signup, persona replacement, sign-out, attach residue) | LLP 0280 (new RFC); composition surface LLP 0258 |
 | Benchmark instrument observability and outcome classification | LLP 0281 (new Plan) under LLP 0201/0266 |
-| Ephemeral role narrowing, overlay Error arm, Coterie typing adoption | existing tickets + `issues/20260817-coterie-typing-allow-members-adoption.md` |
+| Ephemeral role narrowing, overlay Error arm, Coterie typing adoption | closed role/adoption records + `issues/20260817-ephemeral-overlay-missing-error-arm.md` |
 | Published 0.1.24 cross-cutting authoring/lifecycle/efficiency program | LLP 0295 (new Plan), with mechanisms retained by their subsystem owners |
 | Clique Explicit/Familiar historical register and prior rerun protocol | LLP 0236; superseding matrix evidence is in this amendment and LLP 0295 |
 | Media/codec admission facts | Review LLP 0305 under LLP 0044; LLP 0269 graduation obligations; `issues/20260817-upload-intent-codec-duration-admission-facts.md` |

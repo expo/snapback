@@ -1480,7 +1480,10 @@ async function createConversationCore(ctx, creator, input, fixture) {
   await requireChatEnvelopeCapacity(ctx, input.initialProfiles);
   const createdAt = ctx.runtime.now();
   const chatPageKey = pageKeyFor(ctx, createdAt);
-  const conversationId = await ctx.db.insert('conversations', {
+  // @ref LLP 0056#dated-amendment-bounded-atomic-bootstrap-rosters-2026-08-15
+  // — the canonical current roster and its conversation are one atomic
+  // authority-creating command; incarnation history is written beside it.
+  const conversationId = await ctx.membership.conversationCurrentMembers.bootstrap({
     ownerId: creator.ownerId,
     kind: input.kind,
     ...(input.dmPairKey ? { dmPairKey: input.dmPairKey } : {}),
@@ -1492,7 +1495,9 @@ async function createConversationCore(ctx, creator, input, fixture) {
     chatPageKey,
     lastMessageAt: createdAt,
     createdAt,
-  });
+  }, input.initialProfiles
+    .filter((profile) => profile._id !== creator._id)
+    .map((profile) => ({ ownerId: profile.ownerId, role: 'member' })));
   for (const profile of input.initialProfiles) {
     await ctx.db.insert('conversationMembers', {
       ownerId: profile.ownerId,
@@ -1577,6 +1582,11 @@ async function addGroupMemberCore(
   if (previousMembership?.isLatest) {
     await ctx.db.patch('conversationMembers', previousMembership._id, { isLatest: false });
   }
+  await ctx.membership.conversationCurrentMembers.insert({
+    ownerId: targetProfile.ownerId,
+    conversationId: conversation._id,
+    role: 'member',
+  });
   const joinedAt = ctx.runtime.now();
   const joinedSequence = conversation.nextEventSequence;
   const membershipId = await ctx.db.insert('conversationMembers', {
@@ -1605,6 +1615,14 @@ async function addGroupMemberCore(
 }
 
 async function closeMembership(ctx, conversation, membership) {
+  if (membership.ownerId === ctx.auth.userId) {
+    await ctx.membership.conversationCurrentMembers.removeSelf(conversation._id);
+  } else {
+    await ctx.membership.conversationCurrentMembers.removePrincipal(
+      conversation._id,
+      membership.ownerId,
+    );
+  }
   const removedAt = ctx.runtime.now();
   const removedSequence = conversation.nextEventSequence;
   await ctx.db.patch('conversationMembers', membership._id, {
@@ -2031,13 +2049,14 @@ export const listMessages = defineJsLiveQuery({
 
 export const openDm = defineJsMutation({
   auth: 'authenticated',
+  authorityCreating: true,
   args: { otherProfileId: v.id('profiles') },
   result: results.value(v.object({
     conversationId: v.id('conversations'),
     disposition: v.string(),
   })),
   reads: ['profiles', 'conversations', 'conversationMembers'],
-  writes: ['conversations', 'conversationMembers'],
+  writes: ['conversations', 'conversationMembers', 'conversationCurrentMembers'],
   refusals: [
     'PROFILE_REQUIRED',
     'PROFILE_NOT_FOUND',
@@ -2060,6 +2079,7 @@ export const openDm = defineJsMutation({
 
 export const createGroup = defineJsMutation({
   auth: 'authenticated',
+  authorityCreating: true,
   args: {
     name: v.string(),
     description: v.string(),
@@ -2067,7 +2087,7 @@ export const createGroup = defineJsMutation({
   },
   result: results.value(v.id('conversations')),
   reads: ['profiles', 'conversationMembers'],
-  writes: ['conversations', 'conversationMembers'],
+  writes: ['conversations', 'conversationMembers', 'conversationCurrentMembers'],
   refusals: [
     'PROFILE_REQUIRED',
     'PROFILE_NOT_FOUND',
@@ -2101,13 +2121,14 @@ export const createGroup = defineJsMutation({
 
 export const addMember = defineJsMutation({
   auth: 'authenticated',
+  authorityCreating: true,
   args: {
     conversationId: v.id('conversations'),
     profileId: v.id('profiles'),
   },
   result: results.value(v.id('conversationMembers')),
   reads: ['profiles', 'conversations', 'conversationMembers'],
-  writes: ['conversations', 'conversationMembers'],
+  writes: ['conversations', 'conversationMembers', 'conversationCurrentMembers'],
   refusals: [
     'PROFILE_REQUIRED',
     'PROFILE_NOT_FOUND',
@@ -2158,8 +2179,8 @@ export const removeMember = defineJsMutation({
     profileId: v.id('profiles'),
   },
   result: results.value(v.id('conversations')),
-  reads: ['profiles', 'conversations', 'conversationMembers'],
-  writes: ['conversations', 'conversationMembers'],
+  reads: ['profiles', 'conversations', 'conversationMembers', 'conversationCurrentMembers'],
+  writes: ['conversations', 'conversationMembers', 'conversationCurrentMembers'],
   refusals: [
     'PROFILE_REQUIRED',
     'CHAT_NOT_FOUND',
@@ -2237,8 +2258,8 @@ export const leaveChat = defineJsMutation({
   auth: 'authenticated',
   args: { conversationId: v.id('conversations') },
   result: results.value(v.id('conversations')),
-  reads: ['profiles', 'conversations', 'conversationMembers'],
-  writes: ['conversations', 'conversationMembers'],
+  reads: ['profiles', 'conversations', 'conversationMembers', 'conversationCurrentMembers'],
+  writes: ['conversations', 'conversationMembers', 'conversationCurrentMembers'],
   refusals: [
     'PROFILE_REQUIRED',
     'CHAT_NOT_FOUND',
@@ -2563,6 +2584,7 @@ export const getMyFixtureMessage = defineJsQuery({
 
 export const ensureFixtureDm = defineJsMutation({
   auth: 'authenticated',
+  authorityCreating: true,
   args: {
     fixtureId: v.string(),
     fixtureDigest: v.string(),
@@ -2573,7 +2595,7 @@ export const ensureFixtureDm = defineJsMutation({
     disposition: v.string(),
   })),
   reads: ['profiles', 'conversations', 'conversationMembers'],
-  writes: ['conversations', 'conversationMembers'],
+  writes: ['conversations', 'conversationMembers', 'conversationCurrentMembers'],
   refusals: [
     'PROFILE_REQUIRED',
     'PROFILE_NOT_FOUND',
@@ -2616,6 +2638,7 @@ export const ensureFixtureDm = defineJsMutation({
 
 export const ensureFixtureGroup = defineJsMutation({
   auth: 'authenticated',
+  authorityCreating: true,
   args: {
     fixtureId: v.string(),
     fixtureDigest: v.string(),
@@ -2628,7 +2651,7 @@ export const ensureFixtureGroup = defineJsMutation({
     disposition: v.string(),
   })),
   reads: ['profiles', 'conversations', 'conversationMembers'],
-  writes: ['conversations', 'conversationMembers'],
+  writes: ['conversations', 'conversationMembers', 'conversationCurrentMembers'],
   refusals: [
     'PROFILE_REQUIRED',
     'PROFILE_NOT_FOUND',
@@ -2706,6 +2729,7 @@ export const ensureFixtureGroup = defineJsMutation({
 
 export const ensureFixtureMember = defineJsMutation({
   auth: 'authenticated',
+  authorityCreating: true,
   args: {
     conversationId: v.id('conversations'),
     profileId: v.id('profiles'),
@@ -2717,7 +2741,7 @@ export const ensureFixtureMember = defineJsMutation({
     disposition: v.string(),
   })),
   reads: ['profiles', 'conversations', 'conversationMembers'],
-  writes: ['conversations', 'conversationMembers'],
+  writes: ['conversations', 'conversationMembers', 'conversationCurrentMembers'],
   refusals: [
     'PROFILE_REQUIRED',
     'PROFILE_NOT_FOUND',

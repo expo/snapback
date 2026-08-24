@@ -525,8 +525,8 @@ test('provider claims are exactly the adapter allow-list and refusal behavior ag
     expect(claims).toContainEqual({ name: 'listMessages', kind: 'query', token: '4' });
     expect(claims).toContainEqual({ name: 'sendMessage', kind: 'mutation', token: '4' });
     expect(claims).toContainEqual({ name: 'markReceipt', kind: 'mutation', token: '1' });
-    expect(claims.some((claim) => claim.name === 'observeTyping')).toBe(false);
-    expect(claims.some((claim) => claim.name === 'setTyping')).toBe(false);
+    expect(claims).toContainEqual({ name: 'observeTyping', kind: 'query', token: '1' });
+    expect(claims).toContainEqual({ name: 'setTyping', kind: 'mutation', token: '1' });
     expect(claims.some((claim) => claim.name === 'setMessageReaction')).toBe(false);
     claimSubscription.dispose();
 
@@ -540,16 +540,6 @@ test('provider claims are exactly the adapter allow-list and refusal behavior ag
       if (claimedQueries.has(queryName)) {
         expect(first.status === 'error' && first.error.name === 'SnapbackMilestoneUnsupportedError')
           .toBe(false);
-      } else if (queryName === 'observeTyping') {
-        expect(first).toMatchObject({
-          status: 'error',
-          error: {
-            name: 'SnapbackTypingPermissionBackingUnavailableError',
-            message: expect.stringContaining(
-              'issues/20260817-ephemeral-membership-permission-backing.md',
-            ),
-          },
-        });
       } else {
         expect(first).toMatchObject({
           status: 'error',
@@ -564,16 +554,6 @@ test('provider claims are exactly the adapter allow-list and refusal behavior ag
       const result = await provider.mutate(mutationName, {});
       if (claimedMutations.has(mutationName)) {
         expect(result.ok || result.error.name !== 'SnapbackMilestoneUnsupportedError').toBe(true);
-      } else if (mutationName === 'setTyping') {
-        expect(result).toMatchObject({
-          ok: false,
-          error: {
-            name: 'SnapbackTypingPermissionBackingUnavailableError',
-            message: expect.stringContaining(
-              'issues/20260817-ephemeral-membership-permission-backing.md',
-            ),
-          },
-        });
       } else {
         expect(result).toMatchObject({
           ok: false,
@@ -585,7 +565,7 @@ test('provider claims are exactly the adapter allow-list and refusal behavior ag
       ok: false,
       error: {
         name: 'SnapbackMilestoneUnsupportedError',
-        message: 'snapback provider claims M1+M2+M3-minus-typing plus provider discovery only; setChatAccent is outside that claim — LLP 0266 D7 (M5)',
+        message: 'snapback provider claims M1+M2+M3 plus provider discovery only; setChatAccent is outside that claim — LLP 0266 D7 (M5)',
       },
     });
     const insightsCells: DataCellV2<unknown>[] = [];
@@ -594,7 +574,7 @@ test('provider claims are exactly the adapter allow-list and refusal behavior ag
       status: 'error',
       error: {
         name: 'SnapbackMilestoneUnsupportedError',
-        message: 'snapback provider claims M1+M2+M3-minus-typing plus provider discovery only; listInsights is outside that claim — LLP 0266 D7 (M8)',
+        message: 'snapback provider claims M1+M2+M3 plus provider discovery only; listInsights is outside that claim — LLP 0266 D7 (M8)',
       },
     });
     expect(claims.some((claim) => claim.name.startsWith('ensureFixture'))).toBe(false);
@@ -611,7 +591,9 @@ test('provider claims are exactly the adapter allow-list and refusal behavior ag
     });
     expect(COTERIE_SNAPBACK_M1_OPERATIONS.queries).toContain('listProfiles');
     expect(COTERIE_SNAPBACK_M2_OPERATIONS.queries).toContain('listFeed');
-    expect(COTERIE_SNAPBACK_M3_OPERATIONS.queries).toEqual(['listChats', 'listMessages']);
+    expect(COTERIE_SNAPBACK_M3_OPERATIONS.queries)
+      .toEqual(['listChats', 'listMessages', 'observeTyping']);
+    expect(COTERIE_SNAPBACK_M3_OPERATIONS.mutations).toContain('setTyping');
   } finally {
     await provider.close();
   }

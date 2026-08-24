@@ -1,7 +1,10 @@
 import {
+  allow,
   defineAuth,
+  defineEphemeral,
   defineSchema,
   defineTable,
+  ephemeral,
   v,
 } from '../../_kit/define.mjs';
 
@@ -205,6 +208,41 @@ export default defineSchema(
       .index('by_fixture_mutation', ['fixtureMutationId'], { unique: true })
       .visibility({ kind: 'public-read' }),
 
+    // Current authorization and historical product facts deliberately live in
+    // different tables. `conversationMembers` keeps every incarnation for
+    // receipt obligations and removal cutoffs; one row here means the
+    // principal is a member now. Its sole role encodes current access, while
+    // group-admin product semantics remain on the incarnation row.
+    // @ref LLP 0056#declaring-a-membership-table — protected-room authority is
+    // one canonical current principal/resource/role row, never an isCurrent
+    // flag on an incarnation-history row.
+    conversationCurrentMembers: defineTable({
+      ownerId: v.principal(),
+      conversationId: v.id('conversations'),
+      role: v.string(),
+    })
+      .index('by_conversation', ['conversationId'])
+      .index('by_owner', ['ownerId'])
+      .index('by_owner_conversation', ['ownerId', 'conversationId'], { unique: true })
+      .visibility({ kind: 'owner', field: 'ownerId' })
+      .membership({
+        id: 'conversationCurrentMembers',
+        principal: 'ownerId',
+        resource: 'conversationId',
+        role: 'role',
+        roles: ['member'],
+        bootstrapRole: 'member',
+        provenance: 'full',
+        principalAddressedWrites: { remove: true },
+        transitions: [
+          { op: 'insert', by: ['member'], target: 'other', to: ['member'] },
+          // Total removal is required for the private principal-addressed
+          // command. Product-level group-admin admission happens before it.
+          { op: 'remove', by: ['member'], target: 'other' },
+          { op: 'remove', by: ['self'], target: 'self', from: ['member'] },
+        ],
+      }),
+
     messages: defineTable({
       ownerId: v.principal(),
       conversationId: v.id('conversations'),
@@ -243,5 +281,27 @@ export default defineSchema(
   {
     auth: { mode: 'sessions' },
     authProgram,
+    ephemeral: defineEphemeral({
+      typing: ephemeral.collection({
+        scope: { conversationId: v.id('conversations') },
+        routing: ['conversationId'],
+        key: 'connection',
+        ttlMs: 5_000,
+        maxTtlMs: 5_000,
+        maxValueBytes: 256,
+        publishRate: { sustainedHz: 5, burst: 10 },
+        delivery: { mode: 'latest', dispatchMs: 100 },
+        value: v.object({
+          profileId: v.id('profiles'),
+          userId: v.string(),
+          displayName: v.string(),
+        }),
+        // @ref LLP 0013#lowering-and-one-validator-convergence — subscribe and
+        // publish bind the same complete active-role set from the canonical
+        // current-membership declaration.
+        publish: allow.members('conversationCurrentMembers'),
+        subscribe: allow.members('conversationCurrentMembers'),
+      }),
+    }),
   },
 );

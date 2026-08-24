@@ -12,8 +12,9 @@ follow, like, repost, reply, pagination, media, and multi-client-live behavior
 from the application-owned backend. It also supplies the M3 durable messaging
 core: chat membership/admin operations, quoted text messages, live receipt
 aggregates, and the selected fixture-avatar reference projection. It advertises
-**M1+M2+M3-minus-typing**. Typing is deliberately unclaimed until Snapback can
-lower membership-backed ephemeral permissions; reactions remain unclaimed
+**M1+M2+M3**. Typing uses a five-second connection-owned ephemeral lease,
+backed for both observers and writers by the canonical current conversation
+membership relation; reactions remain unclaimed
 because the landed Coterie backend has no reaction operation or storage slice.
 The memory lane implements the wider declaration for client evidence.
 The memory lane makes no durability, server-authority, offline, or multi-client
@@ -248,12 +249,11 @@ has not qualified has no affordance at all; it is never rendered as a dead
 button. Query-driven screens remain present and render their typed loading,
 error, stale, empty, and ready states without query-claim gating. Memory
 reports every declaration operation it implements. The Snapback adapter
-derives its claim rows from the same M1+M2+M3-minus-typing allow-list used by
+derives its claim rows from the same M1+M2+M3 allow-list used by
 its refusal path, and tests require those two views to agree.
-`observeTyping@1` and `setTyping@1` instead return
-`SnapbackTypingPermissionBackingUnavailableError`, naming
-`issues/20260817-ephemeral-membership-permission-backing.md`; this is an honest
-unclaimed-platform-gap result, not a later-milestone refusal.
+`observeTyping@1` and `setTyping@1` are now claimed through the same generated
+`allow.members` permission backing; anonymous, non-member, and former-member
+observers and writers are denied by the Sessions authority boundary.
 
 ## Provider surface and v8 overlay
 
@@ -350,7 +350,7 @@ The operation map is deliberately app-owned and contains no seed machinery:
 | --- | --- |
 | `listSession@2` | `AuthCoordinator` principal + `getMyProfile` |
 | `listProfiles@3` | streaming `listProfiles` + one retained streaming `profileStats` per profile; `avatarSourceDigest` → fixture-vocabulary `avatarRef`, consumed directly by the picker UI |
-| `listProviderClaims@1` | adapter-local frozen M1+M2+M3-minus-typing claim projection |
+| `listProviderClaims@1` | adapter-local frozen M1+M2+M3 claim projection |
 | `signup@2` | password signup + `ensureMyProfile` |
 | `login@1` / `logout@1` | password sign-in / auth logout through `AuthCoordinator` |
 | `editProfile@1` | `getMyProfile` + `editProfile` |
@@ -370,7 +370,7 @@ The operation map is deliberately app-owned and contains no seed machinery:
 | `leaveChat@1` | `leaveChat` |
 | `sendMessage@4` | `sendMessage`, including the optional quoted-message identity |
 | `markReceipt@1` | one atomic `markReceiptsThrough` membership-watermark mutation |
-| `observeTyping@1` / `setTyping@1` | deliberately unclaimed; membership-backed ephemeral permission ticket |
+| `observeTyping@1` / `setTyping@1` | generated `typing` ephemeral projection, five-second lease, canonical-current-membership `allow.members` backing |
 | `setMessageReaction@2` | unclaimed; the landed backend has no reaction operation/table (M4 surface) |
 
 `ensureFixture*`, `getMyFixturePost`, and `getMyFixturePostMedia` are seed-
@@ -387,9 +387,8 @@ Malformed, non-canonical, or cross-mode tokens become
 `FeedCursorInvalidError`; the terminal short page carries `null`, while every
 row in a full 20-row page carries the same next cursor.
 
-This adapter claims **M1+M2+M3-minus-typing plus provider discovery only**.
-Typing calls use the ticket-bearing unclaimed-platform-gap error described
-above. Reactions and later milestone operations return
+This adapter claims **M1+M2+M3 plus provider discovery only**.
+Reactions and later milestone operations return
 `SnapbackMilestoneUnsupportedError`; they never synthesize rows or acknowledge
 a fake mutation. Snapback's error translation is an exact allow-list; prefix
 families are deliberately not used:
@@ -529,10 +528,10 @@ migrate` loop with explicit required-field backfills before activating the
 schema.
 
 The shared headless provider-proof runner selects steps from
-`listProviderClaims@1`. The Snapback lane runs its 14 claimed M1+M2+M3
-binding steps across both `provider-boot` and `injected-signed-out`; the one
-typing step per scenario is recorded as `skipped-by-claim`, not attempted or
-counted as proof.
+`listProviderClaims@1`. The Snapback lane runs its 15 claimed M1+M2+M3
+binding steps across both `provider-boot` and `injected-signed-out`; the typing
+step in each scenario is ordinary required proof of the 2,000 ms appearance
+target and 5,000 ms lease expiry.
 
 Native hosts use the same source:
 
@@ -595,7 +594,7 @@ projection. It finally proves logout revokes the exact last Alice token.
 Tokens stay local to the runner for comparison; the JSON artifact records only
 boolean token receipts, and a partial failure triggers best-effort session
 revocation before provider disposal. Both providers run the `provider-boot`
-and `injected-signed-out` scenarios. The Snapback M1+M2+M3-minus-typing lane requires its
+and `injected-signed-out` scenarios. The Snapback M1+M2+M3 lane requires its
 configured server and streaming socket and installs fixtures through
 `seed-m3.mjs`. The runner reuses the shared assertion aggregator and writes
 the artifact under the ignored `.data/acceptance/` directory, printing the

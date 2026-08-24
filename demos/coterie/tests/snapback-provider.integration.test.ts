@@ -72,6 +72,14 @@ type FeedItem = {
   mediaUrls: string[];
 };
 
+type TypingParticipant = {
+  id: string;
+  chatId: string;
+  userId: string;
+  displayName: string;
+  expiresAt: string;
+};
+
 type Chat = {
   id: string;
   memberIds: string[];
@@ -222,8 +230,8 @@ async function loginAlice(provider: ContractDataProvider): Promise<void> {
 }
 
 integrationTest(
-  'Snapback adapter passes M1+M2+M3-minus-typing conformance, live proofs, fault cuts, and recovery',
-  { timeout: 900_000 },
+  'Snapback adapter passes M1+M2+M3 conformance, live proofs, fault cuts, and recovery',
+  { timeout: 1_200_000 },
   async () => {
     expect(existsSync(runtimeBinary)).toBe(true);
     const scratch = mkdtempSync(join(tmpdir(), 'coterie-provider-'));
@@ -280,14 +288,6 @@ integrationTest(
       expect(initialProfiles.find((row) => row.id === 'carol')?.avatarRef)
         .toBe('media/avatar-alice.png');
 
-      const clientBFeed = readyStream<FeedItem[]>(
-        clientB,
-        'listFeed',
-        { mode: 'global', cursor: null },
-      );
-      subscriptions.add(clientBFeed);
-      await clientBFeed.next(() => true);
-
       const dm = mutationValue<{ chatId: string; reused: boolean }>(
         await clientA.mutate('openDm', { userId: 'bob' }),
         'client A openDm',
@@ -307,6 +307,29 @@ integrationTest(
       expect(racedDmValues.map(({ reused }) => reused).sort()).toEqual([false, true]);
       const clientM3B = provider();
       mutationValue(await clientM3B.mutate('login', bobCredentials), 'client M3 B login');
+      const clientATyping = readyStream<TypingParticipant[]>(
+        clientA,
+        'observeTyping',
+        { chatId: dm.chatId },
+      );
+      subscriptions.add(clientATyping);
+      await clientATyping.next((rows) => rows.length === 0);
+      const bobTypingVisible = clientATyping.nextFuture(
+        (rows) => rows.some((row) => row.userId === 'bob'),
+        2_000,
+      );
+      mutationValue(
+        await clientM3B.mutate('setTyping', { chatId: dm.chatId, active: true }),
+        'client B setTyping active',
+      );
+      expect(await bobTypingVisible).toContainEqual(expect.objectContaining({
+        chatId: dm.chatId,
+        userId: 'bob',
+      }));
+      expect(await clientATyping.nextFuture((rows) => rows.length === 0, 7_000)).toEqual([]);
+      process.stdout.write(
+        'COTERIE_SNAPBACK_M3_TYPING alice observed bob within 2s and the 5s lease expired; polling=disabled\n',
+      );
       const clientBM3Messages = readyStream<Message[]>(
         clientM3B,
         'listMessages',
@@ -603,6 +626,16 @@ integrationTest(
       subscriptions.add(identityOnlyFeed);
       await identityOnlyFeed.next(() => true);
 
+      // Open this stream after the M3 envelope probes so its push proof does
+      // not depend on an idle connection surviving 1,100+ unrelated writes.
+      const clientBFeed = readyStream<FeedItem[]>(
+        clientB,
+        'listFeed',
+        { mode: 'global', cursor: null },
+      );
+      subscriptions.add(clientBFeed);
+      await clientBFeed.next(() => true);
+
       // LLP 0034 D5 + LLP 0266 D4: after B's stream and waiters are armed,
       // B performs no polling, refetch, mutation, or other action. A creates
       // a post and then likes it; both committed states arrive by server push.
@@ -810,7 +843,7 @@ integrationTest(
       await clientAM3Messages.next(() => true);
       let m3ConformanceSequence = 0;
       const m3Fixture: DataProviderConformanceFixture = {
-        name: 'coterie-snapback-m3-minus-typing',
+        name: 'coterie-snapback-m3',
         capabilities: coterieSurfaceManifest.capabilities,
         createProvider: () => clientB,
         primaryQuery: {
@@ -853,7 +886,7 @@ integrationTest(
       const m3Conformance = await assertDataProviderConformance(m3Fixture);
       expect(m3Conformance.ok).toBe(true);
       process.stdout.write(
-        'COTERIE_SNAPBACK_CONFORMANCE_SCOPE claimed allow-list=M1+M2+M3-minus-typing; '
+        'COTERIE_SNAPBACK_CONFORMANCE_SCOPE claimed allow-list=M1+M2+M3; '
           + 'formal probes=M1 listProfiles@3+editProfile@1, M2 listFeed@3+createPost@1, '
           + 'M3 listMessages@4+sendMessage@4; '
           + `M1 ${m1Conformance.checks.filter((check) => check.status === 'pass').length} pass/`
@@ -1468,27 +1501,32 @@ integrationTest(
         connection: 'live',
       });
 
-      let refusedQuery: DataCellV2<unknown> | null = null;
-      const refusedSubscription: DataSubscription = authClient.subscribe(
-        'observeTyping',
-        { chatId: dm.chatId },
-        (cell) => { refusedQuery = cell; },
-      );
-      refusedSubscription.dispose();
-      expect(refusedQuery).toMatchObject({
+      const deniedTypingCell = new Promise<DataCellV2<unknown>>((resolveDenied) => {
+        let deniedSubscription: DataSubscription | null = null;
+        deniedSubscription = clientErin.subscribe(
+          'observeTyping',
+          { chatId: dm.chatId },
+          (cell) => {
+            if (cell.status !== 'error') return;
+            resolveDenied(cell);
+            deniedSubscription?.dispose();
+          },
+        );
+      });
+      expect(await deniedTypingCell).toMatchObject({
         status: 'error',
         error: {
-          name: 'SnapbackTypingPermissionBackingUnavailableError',
-          message: 'snapback provider deliberately does not claim observeTyping; membership-backed ephemeral permission lowering is required — issues/20260817-ephemeral-membership-permission-backing.md',
+          name: 'ChatMembershipRequiredError',
+          message: 'Conversation membership is required.',
         },
       });
-      expect(await authClient.mutate('setTyping', { chatId: dm.chatId, active: true }))
+      expect(await clientErin.mutate('setTyping', { chatId: dm.chatId, active: true }))
         .toMatchObject({
-        ok: false,
-        error: {
-          name: 'SnapbackTypingPermissionBackingUnavailableError',
-          message: 'snapback provider deliberately does not claim setTyping; membership-backed ephemeral permission lowering is required — issues/20260817-ephemeral-membership-permission-backing.md',
-        },
+          ok: false,
+          error: {
+            name: 'ChatMembershipRequiredError',
+            message: 'Conversation membership is required.',
+          },
         });
       expect(await authClient.mutate('setMessageReaction', {
         chatId: dm.chatId,
@@ -1500,9 +1538,9 @@ integrationTest(
         ok: false,
         error: {
           name: 'SnapbackMilestoneUnsupportedError',
-          message: 'snapback provider claims M1+M2+M3-minus-typing plus provider discovery only; setMessageReaction is outside that claim — LLP 0266 D7 (M4)',
+          message: 'snapback provider claims M1+M2+M3 plus provider discovery only; setMessageReaction is outside that claim — LLP 0266 D7 (M4)',
         },
-        });
+      });
     } finally {
       for (const subscription of subscriptions) subscription.dispose();
       await Promise.allSettled([...providers].map((value) => value.close()));
@@ -1510,5 +1548,5 @@ integrationTest(
       rmSync(scratch, { recursive: true, force: true });
     }
   },
-  900_000,
+  1_200_000,
 );
