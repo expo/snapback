@@ -60,18 +60,36 @@ private in-memory database and serializes that to the pinned descriptor.
 `#[cfg]`-selected path construction; that the descriptor is the *output* image opened
 `SQLITE_OPEN_READ_WRITE`.
 
-**Not verified — do not treat as diagnosed:** *why* Linux rejects it. Two plausible causes,
-untested:
+**Measured and RULED OUT, 2026-08-24.** I ran a probe on the same Linux host against the system
+`libsqlite3` and eliminated every hypothesis this ticket originally recorded. All of the
+following **succeed**, opening `/proc/self/fd/N` and then actually writing:
 
-1. `tempfile::tempfile()` unlinks immediately, so `/proc/self/fd/N` resolves to a path marked
-   `(deleted)`.
-2. SQLite derives sidecar paths from the database path, and cannot create
-   `/proc/self/fd/N-journal` or `-wal` under `/proc`.
+| Case | Result |
+|---|---|
+| Unlinked `tempfile` (path resolves to `/tmp/#30441180 (deleted)`) | OK |
+| Named on-disk file | OK |
+| `journal_mode` = `delete`, `wal`, `truncate`, `persist`, `memory` — each on its own fd | **all OK** |
+| `sqlite3_open_v2` with the repo's exact `SQLITE_OPEN_READ_WRITE \| SQLITE_OPEN_NO_MUTEX` (no `CREATE`), then `CREATE TABLE` + `INSERT` | OK |
+| Same, with `SQLITE_OPEN_CREATE` added | OK |
+| Same, `PRAGMA journal_mode=wal` before the write | OK |
 
-Cause 2 would also explain why a plain read of the same path is not what fails. Whoever picks
-this up should establish which it is before choosing a fix — the two lead to different
-answers, and the macOS in-memory-then-serialize workaround suggests the sidecar theory is
-worth checking first.
+So on this host, with system SQLite: the deleted-inode theory is **wrong**, and the
+journal/WAL-sidecar theory is **wrong**. `/proc/self/fd/N` is fully usable as a SQLite database
+path, for unlinked files, in every journal mode, with the exact flags the repo passes.
+
+*(A first version of that probe reused file descriptors after `close()` and produced
+`table t already exists` / `database is locked`. Those were artifacts of fd reuse, not results.
+The table above is from the corrected probe that holds every file open so no two share an fd.)*
+
+**Still not diagnosed.** The leading remaining candidate is that **rusqlite does not use the system
+SQLite**. If it is built with the bundled amalgamation, that is a different library with different
+compile-time options from the one probed above, and the probe therefore does not exercise the code
+that actually fails. Check `rusqlite`'s features in `Cargo.toml` first, and re-run the equivalent
+probe against the bundled build before looking anywhere else.
+
+Two lesser candidates, untested: the failing open may not be the output image at all but another
+open in the same chain (the code copies into an in-memory database and serialises to the pinned
+descriptor, so there is more than one); or the descriptor may not be live at the point of use.
 
 ## Why it matters
 
