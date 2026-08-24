@@ -109,7 +109,7 @@
     "instrument": {
       "semanticSnapshotRevision": "e8048d8238b3abe1fe3d6553bd12f334affbf88f",
       "instrumentPin": "social-messenger@0.3.3-m8",
-      "manifestSha256": "8a13dcc55eca1dfe49a13d704575d2e2843ca059c34c964df86c7287dfb729ad",
+      "manifestSha256": "a3ff59a5e9d4b351953d35be68652dd7a4a1a298b4593a3fcc4754263ca14841",
       "fixtureVersion": "0.2.0-m8",
       "schemaVersion": "0.3.0-m8",
       "uiVersion": "0.3.1-m8",

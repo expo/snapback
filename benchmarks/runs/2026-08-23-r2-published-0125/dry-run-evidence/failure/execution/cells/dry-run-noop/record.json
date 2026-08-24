@@ -9,15 +9,15 @@
     "effort": null
   },
   "timestamps": {
-    "startedAt": "2026-08-24T01:19:28.423Z",
-    "finishedAt": "2026-08-24T01:19:28.775Z"
+    "startedAt": "2026-08-24T18:32:01.061Z",
+    "finishedAt": "2026-08-24T18:32:01.410Z"
   },
   "firstGreenProofAt": null,
   "wallClock": {
-    "totalSeconds": 0.352,
+    "totalSeconds": 0.349,
     "phases": {
       "orientation": 0,
-      "authoring": 0.352,
+      "authoring": 0.349,
       "verification": 0,
       "diagnosis": 0
     }
@@ -51,7 +51,7 @@
         "pin": "social-messenger@0.3.3-m8",
         "manifest": {
           "path": "instrument.manifest.json",
-          "sha256": "8a13dcc55eca1dfe49a13d704575d2e2843ca059c34c964df86c7287dfb729ad"
+          "sha256": "a3ff59a5e9d4b351953d35be68652dd7a4a1a298b4593a3fcc4754263ca14841"
         },
         "versions": {
           "schema": "0.3.0-m8",
@@ -95,10 +95,10 @@
           "firstGreenAt": null,
           "suitePassAt": null,
           "choreoPassAt": null,
-          "terminalAt": "2026-08-24T01:19:28.775Z",
+          "terminalAt": "2026-08-24T18:32:01.410Z",
           "terminalSequence": 1,
           "terminalReason": "abort",
-          "wallSeconds": 0.352
+          "wallSeconds": 0.349
         },
         "semanticActions": {
           "claimed": true,
@@ -109,7 +109,7 @@
             },
             {
               "path": "events/lane-controller-observations.jsonl",
-              "sha256": "sha256:00684c570a17a8ecb7a8a11e796091d8a6e8f0bc8ba15c8619aded20017d4635"
+              "sha256": "sha256:d52d5cb8d4aabe005b847ae2e8c94028dd6003271cb3a1dd5a1a06c893807156"
             }
           ],
           "total": 1,
@@ -149,7 +149,7 @@
             },
             {
               "path": "events/lane-controller-observations.jsonl",
-              "sha256": "sha256:00684c570a17a8ecb7a8a11e796091d8a6e8f0bc8ba15c8619aded20017d4635"
+              "sha256": "sha256:d52d5cb8d4aabe005b847ae2e8c94028dd6003271cb3a1dd5a1a06c893807156"
             }
           ],
           "costlyEpisodeThresholdActions": 2,
@@ -185,7 +185,7 @@
             },
             {
               "path": "events/lane-controller-observations.jsonl",
-              "sha256": "sha256:00684c570a17a8ecb7a8a11e796091d8a6e8f0bc8ba15c8619aded20017d4635"
+              "sha256": "sha256:d52d5cb8d4aabe005b847ae2e8c94028dd6003271cb3a1dd5a1a06c893807156"
             }
           ],
           "restarts": 1,
@@ -202,7 +202,7 @@
               },
               {
                 "path": "events/lane-controller-observations.jsonl",
-                "sha256": "sha256:00684c570a17a8ecb7a8a11e796091d8a6e8f0bc8ba15c8619aded20017d4635"
+                "sha256": "sha256:d52d5cb8d4aabe005b847ae2e8c94028dd6003271cb3a1dd5a1a06c893807156"
               }
             ],
             "attempts": 0,
@@ -222,11 +222,11 @@
             },
             {
               "path": "events/lane-controller-observations.jsonl",
-              "sha256": "sha256:00684c570a17a8ecb7a8a11e796091d8a6e8f0bc8ba15c8619aded20017d4635"
+              "sha256": "sha256:d52d5cb8d4aabe005b847ae2e8c94028dd6003271cb3a1dd5a1a06c893807156"
             }
           ],
-          "startedAt": "2026-08-24T01:19:28.433Z",
-          "endedAt": "2026-08-24T01:19:28.773Z",
+          "startedAt": "2026-08-24T18:32:01.068Z",
+          "endedAt": "2026-08-24T18:32:01.409Z",
           "sampleCount": 2,
           "contamination": false,
           "breaches": []
@@ -240,7 +240,7 @@
             },
             {
               "path": "events/lane-controller-observations.jsonl",
-              "sha256": "sha256:00684c570a17a8ecb7a8a11e796091d8a6e8f0bc8ba15c8619aded20017d4635"
+              "sha256": "sha256:d52d5cb8d4aabe005b847ae2e8c94028dd6003271cb3a1dd5a1a06c893807156"
             }
           ],
           "interrupted": false,
@@ -334,13 +334,13 @@
     },
     "meteringProvenance": {
       "manifestVersion": "social-messenger-metering-manifest.v1",
-      "laneRunId": "dry-run-1787534368269/dry-run-noop",
+      "laneRunId": "dry-run-1787596320933/dry-run-noop",
       "driver": {
         "id": "social-messenger-r2-two-minute-noop.v1",
-        "stampedAt": "2026-08-24T01:19:28.783Z",
-        "startedAt": "2026-08-24T01:19:28.423Z"
+        "stampedAt": "2026-08-24T18:32:01.418Z",
+        "startedAt": "2026-08-24T18:32:01.061Z"
       },
-      "manifestSha256": "sha256:2caf01c069e71d2cdd70031b45711a58c099323f13231dd73d5f29ed076d9d17",
+      "manifestSha256": "sha256:6d25f81e15cd93a2476afb3efab67c963480984012ff0fe74d4f8659c1a7140f",
       "unavailableReason": "dry-run-stub-has-no-model-usage",
       "clockCorrelation": {
         "method": "rfc3339-with-bounded-skew",
@@ -356,14 +356,14 @@
           "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         },
         {
-          "sourceId": "dry-run-1787534368269/dry-run-noop-lane-controller",
+          "sourceId": "dry-run-1787596320933/dry-run-noop-lane-controller",
           "path": "events/lane-controller-observations.jsonl",
-          "sha256": "sha256:00684c570a17a8ecb7a8a11e796091d8a6e8f0bc8ba15c8619aded20017d4635"
+          "sha256": "sha256:d52d5cb8d4aabe005b847ae2e8c94028dd6003271cb3a1dd5a1a06c893807156"
         }
       ],
       "boundaries": {
         "path": "terminal-boundaries.json",
-        "sha256": "sha256:5e28e2b5758b840d8c6a1be478186ecd19edb2c2bdc714de8c2c0929faeaf9ad"
+        "sha256": "sha256:9d3754451743c44559281e3ca78cfd0cefb214e336a396e16eb1ccb0d55999e2"
       },
       "firstProductEdit": null
     },

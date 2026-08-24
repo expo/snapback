@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.r2-harness-config.v1",
-  "runId": "dry-run-1787534368269",
+  "runId": "dry-run-1787596320933",
   "paths": {
-    "privateExecutionRoot": "/Users/ccheever/projects/snapback-worktrees/sbs-0295/w6-observability/benchmarks/runs/2026-08-23-r2-published-0125/dry-run-evidence/failure/execution"
+    "privateExecutionRoot": "/Users/ccheever/projects/snapback/benchmarks/runs/2026-08-23-r2-published-0125/dry-run-evidence/failure/execution"
   },
   "execution": {
     "milestones": [
