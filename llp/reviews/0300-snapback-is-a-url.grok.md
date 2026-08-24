@@ -378,3 +378,42 @@ Altitude: help text, `portPlan` JSON examples, how the client detects a live ren
 0299: NOT READY
 0300: NOT READY
 SET: NOT READY
+
+## Cluster round 2 (delta) — 2026-08-24
+
+- Targets: 0299(d) + 0300(f) at 5bc0e3b88; capsule + hashes in run journal
+- Received: complete response; verbatim body follows
+
+I'll read the full prompt file first so I can review the complete documents without using any other tools.The prompt file was truncated mid-diff; I'll read the rest so the review covers both documents fully.The delta’s three load-bearing decisions are sound: path-split admission, the recorded signup/new-principal exposure, and bundler-owned client-origin stability. None of them is a defective ruling. Round-1 seams (merge vs replace, P5 “0299 does not change”, cookie-claim leftover in the consequence, OQ1/OQ2, template acceptance bound to a script 0300 moves) are actually closed in the text.
+
+## Findings
+
+1. **NIT · IN-DELTA · LLP 0299 §2 (last sentence of the consequence paragraph)**  
+   The paragraph now states auth is bearer-token with no cookies, then still says ephemeral ports are gone for anything “a client, **cookie**, or receipt depends on.” That is leftover from the cookie rewrite, not a second auth model.  
+   **Concrete change:** drop `cookie, or` so the sentence matches the bearer-only restatement (e.g. “anything a client or receipt depends on”).
+
+2. **SUGGESTION (Spec-phase; does not block) · IN-DELTA · LLP 0300 P2 / OQ4**  
+   Replace vs union is explicit when `SNAPBACK_DEV_AUTH_ORIGINS` is set, and when **both** that env and `--external-client-origin` are set (union, complete allowlist). Flag-only (`--external-client-origin` with no env) is only implied by “compatibility spelling of the allowlist.”  
+   **Concrete change (in the forthcoming Spec, not a new RFC fork):** one sentence that flag-only is the singleton complete allowlist (replace, not union-with-default), so it matches tunnel-only env behavior in Acceptance 3. OQ4’s actual question (required vs deprecate) is already answered.
+
+No other IN-DELTA defects. Pre-existing nits (e.g. Acceptance 3 still listing `client`/`metro` without an `--expo` invocation) were not reopened by this revision and are not in scope to block.
+
+## Decisions judged
+
+**Path-split (plain replace / supervised merge)** — no MATERIAL findings.  
+Opening only the canonical path, keeping `--expo` exact-origin injection and merge, and refusing to let an env list drop supervisor-injected origins is the conservative split. It preserves 0299 receipts, batteries, and attach, and it is written the same way in 0299 §5 / OQ1 and 0300 P2 / P5.
+
+**Signup / new-principal exposure** — no MATERIAL findings.  
+It is named, accepted as the local Convex/Supabase posture, closed by allowlist narrowing, and locked by Acceptance 9. Theft of an existing session stays closed (no cookies; origin-scoped bearer storage). That is an accepted tradeoff, not an omitted one.
+
+**Bundler delegation of client-origin stability** — no MATERIAL findings.  
+0299 §2 now ties backend stability to `SNAPBACK_URL` / attach / lanes, and supervised client-origin stability to `--expo` only. 0300 P3 records browser-local loss on bundler port movement, points persistence-sensitive lanes at native pins (`vite --port --strictPort`, `expo start --port`), and Acceptance 8 tests the restart case. 0299 Acceptance 5 is correctly rebound to the explicit supervised invocation.
+
+**Cluster consistency (P5 list, receipts, P4, OQs, obligations, migration)** — no MATERIAL findings.  
+P5 is an amendment list, not a “0299 does not change” claim. `portPlan` is universal; exact-origin `application-ready` is supervised-only; plain receipt encoding is deferred to 0300 P2. Plain mints nothing; `--expo` issuance is unchanged. OQ4/OQ5 are closed at RFC altitude. Leftover `SNAPBACK_DEV_CLIENT_PORT` / `SNAPBACK_DEV_BOOTSTRAP_PORT` failing the plain profile is a real migration footgun and is now named. Spec obligations (`.env.local` lifecycle, `dev-session`, rendezvous-vs-URL) are recorded, not smuggled into this RFC.
+
+Altitude: finding 2 is encoding/composition detail that does not identify a defective RFC decision — Spec-phase, not a blocker.
+
+0299: READY
+0300: READY
+SET: READY

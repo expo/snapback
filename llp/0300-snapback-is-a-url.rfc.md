@@ -1,7 +1,7 @@
 # LLP 0300: Snapback is a URL — URL-first development binding
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Client integration, React/Expo, Vite/Exact clients, Headless
 client, CLI, Local server lifecycle, Auth, Templates, Guide, Developer
 experience
@@ -11,6 +11,15 @@ seem to run into the same issues"; "maybe we should just try to be more like
 them"; "Let's make an LLP/RFC about this, then refine it, then make a spec,
 then implement")
 **Date:** 2026-08-24
+**Revised:** 2026-08-24 (h — Review → Accepted. The refine loop never
+applies acceptance; this transition is applied by the orchestrator under
+the author's standing overnight directive of 2026-08-24 ("Once the RFCs
+are in good shape, make some specs based on these and then
+/llp-super-refine on those... don't stop to ask me questions"), after the
+cluster loop's dual READY per-target and set verdicts)
+**Revised:** 2026-08-24 (g — post-convergence wording repair (Acceptance 9
+scoped to bearer/authority, per the cluster round-2 review), unreviewed by
+the loop; verdicts bind to (f))
 **Revised:** 2026-08-24 (f — cluster round 1 with LLP 0299: the admission
 fork is decided as PATH-SPLIT (plain/URL profile opens to literal loopback
 with replace-semantics allowlist; supervised keeps exact-origin injection
@@ -377,9 +386,9 @@ table below is scoped accordingly.
    accepted P3 tradeoff — and the backend's data is intact after ordinary
    re-sign-in.
 9. A page on a second literal-loopback origin can complete open signup as
-   a NEW principal (the accepted P2 exposure) but cannot read another
-   principal's data; setting an explicit allowlist without that origin
-   closes even the signup channel.
+   a NEW principal (the accepted P2 exposure) but cannot obtain another
+   principal's bearer or exceed new-principal authority; setting an
+   explicit allowlist without that origin closes even the signup channel.
 
 ## Open questions
 
@@ -434,5 +443,5 @@ table below is scoped accordingly.
 This RFC → `llp-super-refine` (dual-family, until READY/READY) → author
 acceptance → a Spec (owner boundaries, exact codes, discovery fact,
 precedence, receipt encoding, template diffs) → implementation program with
-its own review gates. The Spec and implementation must not begin before
-this RFC is Accepted.
+its own review gates. This RFC is Accepted (revision h); the Spec phase
+proceeds under the author's standing directive.

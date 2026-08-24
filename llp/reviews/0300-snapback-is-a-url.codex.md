@@ -117,3 +117,30 @@ READY
 0299: READY
 0300: NOT READY
 SET: NOT READY
+## Cluster round 2 (delta) — 2026-08-24
+
+- Targets: 0299(d) + 0300(f) at 5bc0e3b88; capsule + hashes in run journal
+- Received: complete response; verbatim body follows
+
+1. **LOW — IN-DELTA — 0299, Summary:** After adding native listener counts, “the other three” is inaccurate for native, which has only two non-backend listeners. Change to “the supervisor-owned listeners were allocated with `listen(0)`.”
+
+2. **LOW — PRE-EXISTING — 0299, §2:** The final sentence still mentions ports that a “cookie” depends on despite the bearer-only correction. Replace with “anything client state or a receipt depends on.”
+
+3. **LOW — IN-DELTA — 0300, Acceptance 9:** “Cannot read another principal’s data” exceeds P2’s actual guarantee, since a new principal receives whatever authority the application schema grants. Scope this to a fixture with principal isolation, or assert that the hostile origin cannot obtain another principal’s bearer or exceed new-principal authority.
+
+4. **INFO — PRE-EXISTING — 0300, P4:** The supervised shared-mint guide gap remains intentionally outside the canonical-path fix. Concrete change remains the tracked guide/start-packet warning and skip recipe; this is documentation-phase and identifies no defective RFC decision.
+
+5. **INFO — PRE-EXISTING — 0299 §7 / 0300 failure table:** The supervised `restart` reconciliation bug remains tracked. Funnel `restart` through the existing post-rebind reconciliation and test old-port occupation. This is an implementation defect, not a defective decision, and is non-blocking under the altitude rule.
+
+- **Correctness:** no MATERIAL findings. The path split defines replace versus merge behavior, flag contribution, and receipt posture without contradiction.
+- **Coherence:** no MATERIAL findings. The 0299 amendments and 0300 P5 now agree on canonical versus supervised scope.
+- **Feasibility:** no MATERIAL findings. Cross-profile transition, receipt encoding, writer lifecycle, and dev-session mechanics are appropriately assigned to the follow-on Spec.
+- **Safety:** no MATERIAL findings. Hostile signup is explicitly accepted at its true new-principal authority level, with allowlist narrowing as closure.
+- **Decision quality:** no MATERIAL findings. Bundler-origin stability is knowingly delegated, native pinning is documented, and port movement/state loss has an acceptance case.
+- **Known pre-existing issues:** no MATERIAL decision-level findings.
+
+Verdicts bind to SHA-256 `59f22743bd7bc5588a309ed32642026fd8095aaa95a75f548077989bab3b4413` for 0299 and `9bca4608b29bb70d4384de62a3dc01747bfed6e1856f148601d377546181eb3b` for 0300. No later revision appears in the capsule.
+
+0299: READY
+0300: READY
+SET: READY

@@ -9,6 +9,8 @@ Developer experience, Diagnostics, Guide, Templates
 able to handle all kinds of weird setups, not handle this as an Expo
 one-off")
 **Date:** 2026-08-23
+**Revised:** 2026-08-24 (e — post-convergence wording repairs from the
+cluster round-2 reviews, unreviewed by the loop; verdicts bind to (d))
 **Revised:** 2026-08-24 (d — LLP 0300 harmonization amendment, cluster
 refine round 1: canonical-path banner; problem item (1) scoped as the
 pre-0300 diagnosis; §5 merge scoped to the supervised path; §7 split into
@@ -32,8 +34,8 @@ Diary 0100, Diary 0101, Diary 0104, Diary 0106,
 `snapback dev --expo` starts four listeners on web — the Snapback backend,
 the bootstrap exchange, the browser-facing client front, and the Metro
 process — and three on native, where Metro is itself the client; until this
-Spec only the backend could be pinned. The other
-three were allocated with `listen(0)`, so every restart moved the origin the
+Spec only the backend could be pinned. The supervisor-owned
+listeners were allocated with `listen(0)`, so every restart moved the origin the
 browser had just stored a session for, pinned-range sandboxes (Clique lanes)
 were pushed out of contract, and the only escape was to leave the supervised
 path and rebuild the lifecycle by hand. That workaround dominated M1 wall in
@@ -138,7 +140,7 @@ browser's origin-scoped bearer storage and IndexedDB. Auth is bearer-token
 backend stability alone does not stabilize a caller-owned browser origin.
 Under contention (the fleet, a second project) the scan walks and the
 readiness record says where it landed. Ephemeral kernel-assigned ports are no longer a
-default for anything a client, cookie, or receipt depends on.
+default for anything client state or a receipt depends on.
 
 ## 3. Pins are strict
 
