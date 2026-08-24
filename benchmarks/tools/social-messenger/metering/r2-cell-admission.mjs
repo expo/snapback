@@ -2,7 +2,17 @@
 
 import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  renameSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { arch, cpus, hostname, loadavg, platform, release, totalmem } from "node:os";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { createServer } from "node:net";
@@ -18,8 +28,19 @@ import {
 } from "./r2-host-lock.mjs";
 
 export const R2_ADMISSION_VERSION = "snapback.r2-cell-admission.v2";
+export const R2_SOURCE_CLOSURE_VERSION = "snapback.r2-executing-source-closure.v1";
 const SHA256 = /^sha256:[a-f0-9]{64}$/u;
 const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
+const METERING_SOURCE_ROOT = "benchmarks/tools/social-messenger/metering";
+const REQUIRED_SOURCE_CLOSURE_FILES = Object.freeze([
+  "benchmarks/schema/run-record.schema.json",
+  "benchmarks/schema/social-messenger/run-record-extension.schema.json",
+  "benchmarks/schema/social-messenger/run-record.schema.json",
+  "benchmarks/tools/lane-setup.mjs",
+  "benchmarks/tools/social-messenger/choreography/receipts.schema.json",
+  "benchmarks/tools/social-messenger/record-validator.mjs",
+  "benchmarks/tools/lib/json-schema.mjs",
+]);
 
 function canonical(value) {
   if (Array.isArray(value)) return value.map(canonical);
@@ -31,6 +52,10 @@ function canonical(value) {
 
 function digest(bytes) {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+}
+
+function bareDigest(bytes) {
+  return digest(bytes).replace(/^sha256:/u, "");
 }
 
 export function admissionIdentity(artifact) {
@@ -62,6 +87,138 @@ function readRegular(path, label) {
     throw new Error(`R2_ADMISSION_INVALID: ${label} must be a regular file`);
   }
   return readFileSync(canonicalPath);
+}
+
+function publishAdmissionArtifact({ admissionPath, artifact, privateCellPath, issuedAtMs }) {
+  const path = resolve(admissionPath);
+  const bytes = Buffer.from(`${JSON.stringify(artifact, null, 2)}\n`);
+  let archived = null;
+  if (existsSync(path)) {
+    const priorBytes = readRegular(path, "prior admission artifact");
+    const prior = JSON.parse(priorBytes.toString("utf8"));
+    if (
+      existsSync(privateCellPath)
+      || prior.version !== R2_ADMISSION_VERSION
+      || prior.runId !== artifact.runId
+      || prior.cellId !== artifact.cellId
+      || prior.identity?.sha256 !== admissionIdentity(prior)
+      || !Number.isFinite(Date.parse(prior.expiresAt))
+      || Date.parse(prior.expiresAt) >= issuedAtMs
+    ) {
+      throw new Error("R2_ADMISSION_EXISTING_ARTIFACT: prior admission is not an expired unused artifact for this exact cell");
+    }
+    const historyRoot = resolve(dirname(path), "history", artifact.cellId);
+    mkdirSync(historyRoot, { recursive: true });
+    archived = resolve(historyRoot, `${prior.identity.sha256.replace(/^sha256:/u, "")}.json`);
+    if (existsSync(archived)) {
+      if (!readFileSync(archived).equals(priorBytes)) {
+        throw new Error("R2_ADMISSION_EXISTING_ARTIFACT: prior admission history digest collides with different bytes");
+      }
+      throw new Error("R2_ADMISSION_EXISTING_ARTIFACT: exact prior admission was already archived without replacement");
+    }
+    renameSync(path, archived);
+  }
+  try {
+    writeFileSync(path, bytes, { flag: "wx" });
+  } catch (error) {
+    if (archived !== null && !existsSync(path) && existsSync(archived)) renameSync(archived, path);
+    throw error;
+  }
+}
+
+function directoryDigest(root, label) {
+  const canonicalRoot = realpathSync(resolve(root));
+  if (!statSync(canonicalRoot).isDirectory()) {
+    throw new Error(`R2_ADMISSION_SOURCE_CLOSURE: ${label} must be a directory`);
+  }
+  const entries = [];
+  const visit = (directory, prefix = "") => {
+    for (const entry of readdirSync(directory, { withFileTypes: true }).sort((left, right) => (
+      left.name.localeCompare(right.name)
+    ))) {
+      const absolute = resolve(directory, entry.name);
+      const logical = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
+      const status = lstatSync(absolute);
+      if (status.isSymbolicLink()) {
+        throw new Error(`R2_ADMISSION_SOURCE_CLOSURE: ${label} contains a symbolic link at ${logical}`);
+      }
+      if (status.isDirectory()) visit(absolute, logical);
+      else if (status.isFile()) {
+        const bytes = readFileSync(absolute);
+        entries.push(`${logical}\0${bytes.byteLength}\0${bareDigest(bytes)}\n`);
+      } else {
+        throw new Error(`R2_ADMISSION_SOURCE_CLOSURE: ${label} contains an unsupported entry at ${logical}`);
+      }
+    }
+  };
+  visit(canonicalRoot);
+  return `sha256:${bareDigest(entries.join(""))}`;
+}
+
+function declaredSourceClosure(harnessConfig) {
+  const closure = harnessConfig.execution?.sourceClosure;
+  if (
+    closure?.version !== R2_SOURCE_CLOSURE_VERSION
+    || closure.meteringRoot?.kind !== "directory"
+    || !SHA256.test(closure.meteringRoot?.sha256 ?? "")
+    || !Array.isArray(closure.files)
+  ) {
+    throw new Error("R2_ADMISSION_SOURCE_CLOSURE: harness config lacks the registered executing source closure");
+  }
+  const paths = closure.files.map((file) => file?.path);
+  if (
+    JSON.stringify([...paths].sort()) !== JSON.stringify([...REQUIRED_SOURCE_CLOSURE_FILES].sort())
+    || closure.files.some((file) => file.kind !== "file" || !SHA256.test(file.sha256 ?? ""))
+  ) {
+    throw new Error("R2_ADMISSION_SOURCE_CLOSURE: registered external source leaves are incomplete");
+  }
+  return closure;
+}
+
+// This is the executing checkout closure, not the separately materialized
+// instrument snapshot. Static imports beneath meteringRoot resolve inside this
+// exact directory; the listed leaves close over runtime/schema imports outside
+// it. Rechecking this object immediately before driver import and first write
+// prevents a clean entrypoint from laundering a dirty dependency.
+export function measureSourceClosure({ repositoryRoot = REPOSITORY_ROOT }) {
+  const canonicalRepository = realpathSync(resolve(repositoryRoot));
+  const rootPath = resolve(canonicalRepository, METERING_SOURCE_ROOT);
+  if (!inside(canonicalRepository, rootPath) || lstatSync(rootPath).isSymbolicLink()) {
+    throw new Error("R2_ADMISSION_SOURCE_CLOSURE: metering source root escapes or is a symbolic link");
+  }
+  const meteringRoot = {
+    kind: "directory",
+    path: relative(canonicalRepository, realpathSync(rootPath)).split(sep).join("/"),
+    sha256: directoryDigest(rootPath, "metering source root"),
+  };
+  const files = REQUIRED_SOURCE_CLOSURE_FILES.map((path) => {
+    const absolute = resolve(canonicalRepository, path);
+    if (!inside(canonicalRepository, absolute)) {
+      throw new Error(`R2_ADMISSION_SOURCE_CLOSURE: source leaf escapes the repository: ${path}`);
+    }
+    const live = fileDescriptor(absolute, `source closure leaf ${path}`);
+    const logical = relative(canonicalRepository, live.path).split(sep).join("/");
+    return { kind: "file", path: logical, sha256: live.sha256, bytes: live.bytes };
+  });
+  return { version: R2_SOURCE_CLOSURE_VERSION, meteringRoot, files };
+}
+
+export function liveSourceClosure({ harnessConfig, repositoryRoot = REPOSITORY_ROOT }) {
+  const closure = declaredSourceClosure(harnessConfig);
+  const live = measureSourceClosure({ repositoryRoot });
+  if (
+    live.meteringRoot.path !== closure.meteringRoot.path
+    || live.meteringRoot.sha256 !== closure.meteringRoot.sha256
+  ) {
+    throw new Error("R2_ADMISSION_SOURCE_CLOSURE: executing metering directory differs from the registered graph");
+  }
+  for (const registered of closure.files) {
+    const measured = live.files.find((file) => file.path === registered.path);
+    if (measured?.sha256 !== registered.sha256) {
+      throw new Error(`R2_ADMISSION_SOURCE_CLOSURE: executing source leaf changed: ${registered.path}`);
+    }
+  }
+  return live;
 }
 
 function git(args, repositoryRoot) {
@@ -222,10 +379,11 @@ export function configuredExecutionBinding({ harnessConfig, cell, repositoryRoot
     node,
     controller: { ...controller, configuredArg: command[1] },
     driver: { ...driver, configuredArg: driverArg },
+    sourceClosure: liveSourceClosure({ harnessConfig, repositoryRoot }),
   };
 }
 
-function assertCommittedConfig({ harnessConfigPath, configBytes, repositoryRoot, gitRead }) {
+export function assertCommittedConfig({ harnessConfigPath, configBytes, repositoryRoot, gitRead = git }) {
   const absolute = resolve(harnessConfigPath);
   if (!inside(repositoryRoot, absolute)) {
     throw new Error("R2_ADMISSION_IDENTITY: harness config must be inside the committed repository");
@@ -241,6 +399,55 @@ function assertCommittedConfig({ harnessConfigPath, configBytes, repositoryRoot,
   if (!committedBytes.equals(configBytes)) {
     throw new Error("R2_ADMISSION_IDENTITY: harness config bytes differ from committed HEAD");
   }
+}
+
+export function registeredCellExpectations(harnessConfig, cell) {
+  const harness = harnessConfig.harnesses?.[cell.harness];
+  const policy = cell.meteringPolicy;
+  const exactPolicy = cell.harness === "codex-sol"
+    ? { adapter: "codex", capFamily: "gpt-frontier", nativeCounts: "required" }
+    : cell.harness === "claude-opus5"
+      ? { adapter: "claude", capFamily: "claude-frontier", nativeCounts: "required" }
+      : cell.harness === "grok-46"
+        ? { adapter: "unavailable", capFamily: "grok-advisory", nativeCounts: "registered-unavailable" }
+        : null;
+  if (
+    !harness
+    || exactPolicy === null
+    || policy?.adapter === undefined
+    || !new Set(["required", "registered-unavailable"]).has(policy.nativeCounts)
+    || policy.adapter !== exactPolicy.adapter
+    || policy.capFamily !== exactPolicy.capFamily
+    || policy.nativeCounts !== exactPolicy.nativeCounts
+    || (policy.nativeCounts === "registered-unavailable"
+      && (cell.harness !== "grok-46"
+        || policy.adapter !== "unavailable"
+        || policy.unavailableReason !== harness.meteringUnavailableReason))
+    || (policy.nativeCounts === "required" && policy.adapter === "unavailable")
+  ) {
+    throw new Error(`R2_ADMISSION_METERING_POLICY: cell ${cell.id} lacks an honest registered adapter/count policy`);
+  }
+  return {
+    runId: harnessConfig.runId,
+    cellId: cell.id,
+    laneRunId: `${harnessConfig.runId}/${cell.id}`,
+    app: cell.app,
+    clientStack: cell.clientStack,
+    profile: cell.profile,
+    promptFile: cell.promptFile,
+    harnessKey: cell.harness,
+    harnessBinary: harness.binary,
+    harnessVersion: harness.observedVersion,
+    model: cell.model,
+    effort: cell.effort,
+    adapter: policy.adapter,
+    capFamily: policy.capFamily,
+    nativeCounts: policy.nativeCounts,
+    unavailableReason: policy.unavailableReason ?? null,
+    allowedHostId: cell.allowedHostId,
+    loadCeilingId: cell.loadCeilingId,
+    controllerCommand: cell.controllerCommand,
+  };
 }
 
 function assertActualExecution(expected, actual) {
@@ -450,7 +657,11 @@ export function verifyAdmissionArtifact({
   }
   const execution = executionBinding({ harnessConfig, cell, repositoryRoot });
   if (!sameJson(artifact.execution, execution)) {
-    throw new Error("R2_ADMISSION_COMMAND: admitted Node/controller/argv/driver bytes changed");
+    throw new Error("R2_ADMISSION_COMMAND: admitted Node/controller/argv/driver bytes changed or source closure changed");
+  }
+  const expectations = registeredCellExpectations(harnessConfig, cell);
+  if (!sameJson(artifact.registeredCell, expectations)) {
+    throw new Error("R2_ADMISSION_IDENTITY: admitted cell/harness/model/adapter expectations changed");
   }
   const allowedMachine = harnessConfig.machines?.[cell.allowedHostId];
   if (
@@ -477,6 +688,16 @@ export function verifyAdmissionArtifact({
     throw new Error("R2_ADMISSION_IDENTITY: harness-config digest mismatch");
   }
   const instrumentPath = resolve(repositoryRoot, harnessConfig.pins.instrument.manifestPath);
+  const sourceInstrumentManifest = JSON.parse(readRegular(instrumentPath, "instrument manifest"));
+  const registeredMeteringRoot = sourceInstrumentManifest.artifacts?.meteringRoot;
+  if (
+    registeredMeteringRoot?.kind !== "directory"
+    || resolve(dirname(instrumentPath), registeredMeteringRoot.path)
+      !== resolve(repositoryRoot, harnessConfig.execution.sourceClosure.meteringRoot.path)
+    || `sha256:${registeredMeteringRoot.sha256}` !== harnessConfig.execution.sourceClosure.meteringRoot.sha256
+  ) {
+    throw new Error("R2_ADMISSION_SOURCE_CLOSURE: instrument manifest and executing metering-root registration disagree");
+  }
   let materializedInstrument;
   try {
     materializedInstrument = resolveInstrument({
@@ -754,6 +975,7 @@ export async function createAdmissionArtifact({
       harnessConfig: { path: resolve(harnessConfigPath), sha256: digest(configBytes) },
       controllerCommand: cell.controllerCommand,
       execution,
+      registeredCell: registeredCellExpectations(harnessConfig, cell),
       instrument: {
         instrumentPin: harnessConfig.pins.instrument.instrumentPin,
         source: {
@@ -791,7 +1013,12 @@ export async function createAdmissionArtifact({
       resolveInstrument: dependencies.resolveInstrument ?? resolveInstrumentArtifacts,
     });
     mkdirSync(dirname(resolve(admissionPath)), { recursive: true });
-    writeFileSync(resolve(admissionPath), `${JSON.stringify(artifact, null, 2)}\n`, { flag: "wx" });
+    publishAdmissionArtifact({
+      admissionPath,
+      artifact,
+      privateCellPath: resolve(harnessConfig.paths.privateExecutionRoot, "cells", cellId),
+      issuedAtMs,
+    });
     return artifact;
   } catch (error) {
     try {

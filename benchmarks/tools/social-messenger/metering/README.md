@@ -198,14 +198,16 @@ failure.
 
 For R2 campaign cells, admission binds the actual Node executable bytes,
 controller and production-driver paths and bytes, exact ordered argv, harness
-config, immutable materialized instrument, non-sensitive allowed-host hardware
-identity, the complete committed prefix replay, and an atomic campaign-private
-exclusive host lock. Process and every campaign port are probed after the
-three load samples. The controller atomically claims that same lock and repeats
-the process, port, prefix, command, and byte checks immediately before its
-first private-cell write and driver import; it holds the lock through
-finalization. Explicit stale-lock recovery archives the old lock and still
-refuses any cell with existing private evidence.
+config, immutable materialized instrument, the entire actually imported source
+closure, non-sensitive allowed-host hardware identity, the complete committed
+prefix replay, and an atomic campaign-private exclusive host lock. Process and
+every campaign port are probed after the three load samples. The controller
+atomically claims that same lock, imports and preflights the driver without
+writing an attempt, and repeats the process, port, prefix, command, config,
+instrument, and source-closure checks immediately before its first atomic
+private-cell write; it holds the lock through finalization. Explicit stale-lock
+recovery uses an exact snapshot/CAS guard, archives only the owner it inspected,
+and still refuses any cell with existing private evidence.
 
 If a single campaign attempt completed its native stream and manifest but the
 controller failed during join or record write, finalize it without importing
@@ -217,13 +219,18 @@ node benchmarks/tools/social-messenger/metering/r2-finalize-existing.mjs \
   --cell <cell-id> --reserved-by <operator> [--publish]
 ```
 
-The tool requires retained `attempt.json` to declare exactly one non-rerun
-attempt, derives counts only from the hash-bound native graph, validates the
-composed record, and writes a deterministic publication manifest. `--publish`
-copies only that validation-required graph into a pristine committed slot and
-writes `cell.json` last. Missing counts, divergent derived bytes, a non-pristine
-slot, or a second attempt fail closed; retained private evidence is never
-deleted.
+The tool requires a retained one-attempt capsule whose exact admission,
+config/instrument/source identities, host/lock claim, process ownership, and
+registered model/adapter policy form one consistent graph. It derives counts
+only from the hash-bound native graph, validates the composed record, and
+writes a deterministic publication manifest. `--publish` preflights every
+target conflict before its first write, resumes only byte-identical partials
+from the same transaction, copies the whole validation graph (including prompt,
+assertions, and provenance), writes `cell.json` last, and runs the production
+finalized-slot validator against the published slot. Missing counts outside the
+registered Grok-unavailable path, divergent derived or partial bytes, a target
+escape/symlink, or a second attempt fail closed; retained private evidence is
+never deleted.
 
 Choreography separately writes its own owner-scoped assertion attempts and
 measures only the intervals actually spent awaiting browser settlement. Suite

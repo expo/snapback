@@ -14,6 +14,8 @@ import { loadLaneControllerConfig } from '../../tools/social-messenger/metering/
 import {
   configuredExecutionBinding,
   loadPolicyForCell,
+  liveSourceClosure,
+  registeredCellExpectations,
 } from '../../tools/social-messenger/metering/r2-cell-admission.mjs';
 import {
   isFinalizedStatus,
@@ -43,6 +45,18 @@ function repositorySha256(relativePath) {
   return createHash('sha256')
     .update(readFileSync(join(repositoryRoot, relativePath)))
     .digest('hex');
+}
+
+function canonical(value) {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));
+  }
+  return value;
+}
+
+function canonicalSha256(value) {
+  return createHash('sha256').update(JSON.stringify(canonical(value))).digest('hex');
 }
 
 function optionValue(argv, option) {
@@ -137,6 +151,8 @@ if (
   fail('configuration lacks the exact versioned recovery/resume transition');
 }
 const recovery = readJson(recoveryDescriptor.path);
+const recoveryWithoutIntegrity = structuredClone(recovery);
+delete recoveryWithoutIntegrity.integrity;
 if (
   recovery.version !== recoveryDescriptor.version
   || recovery.completedCell !== config.cellOrder[0]
@@ -145,6 +161,12 @@ if (
   || recovery.campaignCellRerun !== false
   || recovery.resumeInstrument.sha256 !== `sha256:${config.pins.instrument.manifestSha256}`
   || sha256(recovery.resumeInstrument.path) !== config.pins.instrument.manifestSha256
+  || recovery.integrity?.algorithm !== 'sha256-canonical-json-without-integrity'
+  || recovery.integrity?.sha256 !== `sha256:${canonicalSha256(recoveryWithoutIntegrity)}`
+  || recovery.cell1RecoveryValidation?.metadata?.path !== 'cells/sol-clique-explicit/validation.json'
+  || recovery.cell1RecoveryValidation?.metadata?.sha256 !== `sha256:${sha256(recovery.cell1RecoveryValidation.metadata.path)}`
+  || recovery.cell1RecoveryValidation?.protectedEvidenceHashesVerified !== true
+  || recovery.cell1RecoveryValidation?.campaignCellRerun !== false
   || JSON.stringify(recovery.initiallyPristineCells) !== JSON.stringify(config.cellOrder.slice(1))
 ) {
   fail('recovery transition does not bind recovered cell 1 to pristine cell 2');
@@ -155,6 +177,11 @@ if (unresolvedRulings.length > 0) {
 }
 if (!config.execution.serial || config.execution.maxConcurrentCells !== 1) {
   fail('execution must be strictly serial');
+}
+try {
+  liveSourceClosure({ harnessConfig: config, repositoryRoot });
+} catch (error) {
+  fail(`executing source closure is not exact: ${error.message}`);
 }
 const loadIsolation = config.execution.loadIsolation;
 const loadPolicies = Object.values(loadIsolation.policies ?? {});
@@ -274,7 +301,7 @@ if (!existsSync(config.controller.commandTemplate?.[0] ?? '')) {
   fail('controller command does not name an executable Node binary');
 }
 const driverModule = await import(pathToFileURL(resolve(repositoryRoot, config.controller.driver)));
-for (const hook of ['prepare', 'claimOptions', 'runMilestone', 'finalize', 'observationSources']) {
+for (const hook of ['preflight', 'prepare', 'claimOptions', 'runMilestone', 'finalize', 'observationSources']) {
   if (typeof driverModule[hook] !== 'function') fail(`production driver lacks ${hook}()`);
 }
 
@@ -315,6 +342,11 @@ if (
 let recordedPrefixLength = 0;
 let sawOpenSlot = false;
 for (const [cellIndex, cell] of config.cells.entries()) {
+  try {
+    registeredCellExpectations(config, cell);
+  } catch (error) {
+    fail(`cell ${cell.id} has no exact adapter/native-count policy: ${error.message}`);
+  }
   const policy = loadPolicyForCell(config, cell);
   if (cell.allowedHostId !== policy.allowedHostId || !config.machines[cell.allowedHostId]) {
     fail(`cell ${cell.id} does not bind one registered host-specific load ceiling`);

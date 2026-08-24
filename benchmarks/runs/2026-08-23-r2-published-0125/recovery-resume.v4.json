@@ -1,10 +1,14 @@
 {
   "version": "snapback.r2-recovery-resume.v4",
   "supersedes": "snapback.r2-recovery-resume.v3",
-  "scopedReviewBaseline": "07b0c5255b40447789d04dd22adee2b7ef123dcd",
+  "scopedReviewBaseline": "a5147ca6c4509ff0074fe32c3d43a5e9a68e5bae",
   "campaignCellRerun": false,
   "privateAttemptDisposition": "retained-read-only-no-model-or-product-rerun",
   "transition": "recovered-cell-1-v3-to-immutable-instrument-host-bound-locked-per-cell-admission",
+  "integrity": {
+    "algorithm": "sha256-canonical-json-without-integrity",
+    "sha256": "sha256:af474c4020a1fe46943e00d47aed1ad9414a879f19ed1ae00977401d9f9972d3"
+  },
   "completedCell": "sol-clique-explicit",
   "completedCellRecoveryVersion": "snapback.r2-recovery-resume.v3",
   "completedAttemptCount": 1,
@@ -31,9 +35,20 @@
     },
     "historicalHostEvidenceDisposition": "retained byte-for-byte and not rewritten; it is historical evidence for cell 1, not authorization for a resumed cell"
   },
+  "cell1RecoveryValidation": {
+    "version": "snapback.r2-cell1-recovery-validation.v1",
+    "metadata": {
+      "path": "cells/sol-clique-explicit/validation.json",
+      "sha256": "sha256:82e97d3a405a11754d584ececd25c166de0b2ffd0fb9d33a37f59252d06ea0c2"
+    },
+    "recordAndMeteringReplay": "validator-clean-under-current-production-replay",
+    "protectedEvidenceHashesVerified": true,
+    "publicationProtocolApplicability": "recovered-finalized-v3-is-preserved; recorded-finalized-v2 provenance applies only to later production attempts",
+    "campaignCellRerun": false
+  },
   "resumeInstrument": {
     "path": "../../instrument.manifest.json",
-    "sha256": "sha256:7a576c4d3aa4aa734dcbbd9dc16681120fa9e7cb1efe05bcbe2789e2ab71f785",
+    "sha256": "sha256:a065634564c901ae9e2665e0dde18e4ebe8aa4b2ec337c0a6b966b2ea35024e4",
     "materializedRoot": "/Users/ccheever/bench-matrix-20260823-r2/instrument-resume-20260824",
     "materializationCommand": "node benchmarks/tools/materialize-instrument.mjs --out /Users/ccheever/bench-matrix-20260823-r2/instrument-resume-20260824",
     "transition": "new immutable non-overwriting snapshot; the old /instrument archive remains cell-1-only"

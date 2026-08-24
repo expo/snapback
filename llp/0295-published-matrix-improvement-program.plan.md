@@ -886,12 +886,17 @@ Admission acquires an atomic campaign-private host lock before the load window.
 After all three once-per-minute passing samples, it freshly checks campaign
 private-root/cell/process ownership and every port registered by any campaign
 cell; the probe timestamps are the actual check times, not issuance aliases.
-The controller atomically claims and holds that lock through finalization, and
-repeats process, port, prefix, execution-byte, config, host, and instrument
-checks immediately before its first private-cell write and driver import. A
-competing admission or controller fails. Stale recovery is explicit and
-archives the old reservation, but existing private cell evidence always makes
-the cell finalization-only and never authorizes a rerun.
+The controller atomically claims and holds that lock through finalization. It
+loads and validates the production driver and its read-only preflight before
+minting the one-attempt capsule, then repeats process, port, prefix,
+execution-byte, config, host, instrument, and complete executing-source-closure
+checks immediately before its first private-cell write. The source closure is
+the actual imported metering directory plus the validator, schema, lane setup,
+and JSON-schema leaves outside it; a separately materialized tree is not
+claimed as executed. A competing admission or controller fails. Stale recovery
+uses an exact owner/token/inode/digest compare-and-swap guard and cannot replace
+a lock newly claimed while recovery was paused. Existing private cell evidence
+always makes the cell finalization-only and never authorizes a rerun.
 
 Codex and Grok continuation is allowed only on `Mac.lan`, a `Mac16,11` Mac mini
 with Apple M4 Pro, 12 physical/logical cores, and 24 GB. Claude retains its
@@ -908,10 +913,17 @@ If a single private attempt completed its native stream, boundaries, manifest,
 and record base but controller join/record finalization failed, the registered
 no-launch finalizer may deterministically rejoin and validate it without
 calling `prepare()`, importing a launching driver, or invoking a model/product
-cell. It refuses missing native counts, divergent derived files, and any second
-attempt. Its optional publisher copies only the validation-required evidence
-graph into a pristine committed slot and writes the exact one-attempt cell slot
-last; retained private evidence is never deleted.
+cell. The retained attempt capsule binds exact admission bytes and identity,
+host, lock owner and controller claim, process ownership, registered cell/model,
+adapter/count policy, config, instrument, and executing source closure. It
+refuses missing native counts except for the exact preregistered Grok
+unavailable path, divergent derived files, and any second attempt. Its optional
+publisher preflights every target conflict before writing, resumes only exact
+hash-bound partials from the same versioned transaction, copies the complete
+record/manifest/provenance graph (including rendered prompt and assertion
+manifest), writes the exact one-attempt cell slot last, and replays the real
+finalized-slot validator before reporting success. Retained private evidence
+is never deleted.
 
 For Codex, the suite-and-choreography green timestamp remains the LLP 0201
 authoring terminal and wall boundary. A later native usage-settlement

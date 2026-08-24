@@ -6,7 +6,7 @@
   "recoveryResume": {
     "version": "snapback.r2-recovery-resume.v4",
     "path": "recovery-resume.v4.json",
-    "sha256": "1ff7ce396a196ec59c6f5e1426c43d910b4b91a41da5266c86f35321a36b3bdf",
+    "sha256": "1a0cd1dbf2ec63e5c1080bbd5566cc724119a26551e12b05deb920ab9d255b36",
     "nextCell": "sol-clique-familiar"
   },
   "governing": [
@@ -65,6 +65,51 @@
   "execution": {
     "serial": true,
     "maxConcurrentCells": 1,
+    "sourceClosure": {
+      "version": "snapback.r2-executing-source-closure.v1",
+      "meteringRoot": {
+        "kind": "directory",
+        "path": "benchmarks/tools/social-messenger/metering",
+      "sha256": "sha256:8ba7693b9d42705f058d2683039152e02b2847839cace608f4417dbd6fd454d2"
+      },
+      "files": [
+        {
+          "kind": "file",
+          "path": "benchmarks/schema/run-record.schema.json",
+          "sha256": "sha256:d8bd58dd94ec5726cd543fa72ea37dedf7a0226287ff5606fe295320a2651654"
+        },
+        {
+          "kind": "file",
+          "path": "benchmarks/schema/social-messenger/run-record-extension.schema.json",
+          "sha256": "sha256:5d8a6f41d1f02d7fe8df4ef761bb7cd921d2fa2c711e938c553c903689e14c4b"
+        },
+        {
+          "kind": "file",
+          "path": "benchmarks/schema/social-messenger/run-record.schema.json",
+          "sha256": "sha256:3403455e98fad656125ea2ab0993f780bdb112849fb127bd8bcfcbcf6f2b8a64"
+        },
+        {
+          "kind": "file",
+          "path": "benchmarks/tools/lane-setup.mjs",
+          "sha256": "sha256:b46ddce548b4415dfd791eb32c97eba581adb0d9794da557f314fd2b34c9e71f"
+        },
+        {
+          "kind": "file",
+          "path": "benchmarks/tools/lib/json-schema.mjs",
+          "sha256": "sha256:7b882f6147e6efde88bc41f4dbc6806e712fb54c2e1b47a214a5d59e96f02660"
+        },
+        {
+          "kind": "file",
+          "path": "benchmarks/tools/social-messenger/choreography/receipts.schema.json",
+          "sha256": "sha256:ec8349972f0aba6c632665ce7f8021a3fb6d177800698242faa22628c78777a4"
+        },
+        {
+          "kind": "file",
+          "path": "benchmarks/tools/social-messenger/record-validator.mjs",
+          "sha256": "sha256:4986ba54b0bb7872840211b4a88530d8f2155b8a4ed41ff61d3b85e2252ee93b"
+        }
+      ]
+    },
     "coldContextPerCell": true,
     "reuseAcrossCells": [],
     "milestones": ["M1", "M2", "M3"],
@@ -156,22 +201,22 @@
       "manifestPath": "benchmarks/instrument.manifest.json",
       "semanticSnapshotRevision": "e8048d8238b3abe1fe3d6553bd12f334affbf88f",
       "instrumentPin": "social-messenger@0.3.3-m8",
-    "manifestSha256": "7a576c4d3aa4aa734dcbbd9dc16681120fa9e7cb1efe05bcbe2789e2ab71f785",
+    "manifestSha256": "a065634564c901ae9e2665e0dde18e4ebe8aa4b2ec337c0a6b966b2ea35024e4",
       "fixtureVersion": "0.2.0-m8",
       "schemaVersion": "0.3.0-m8",
       "uiVersion": "0.3.1-m8",
       "choreographyVersion": "0.3.3-m8",
       "d06MeteringOverlay": {
-      "revision": "scoped-review-remediation-after-07b0c5255b40447789d04dd22adee2b7ef123dcd-no-campaign-cell-rerun",
-        "status": "locally-committed-no-campaign-cell-rerun",
+      "revision": "final-blocker-remediation-after-a5147ca6c4509ff0074fe32c3d43a5e9a68e5bae-scoped-review-pending-no-campaign-cell-rerun",
+        "status": "scoped-review-pending-final-blocker-remediation-no-campaign-cell-rerun",
         "recordSchema": "benchmarks/schema/social-messenger/run-record.schema.json",
         "recordSchemaSha256": "3403455e98fad656125ea2ab0993f780bdb112849fb127bd8bcfcbcf6f2b8a64",
       "extensionSchemaSha256": "5d8a6f41d1f02d7fe8df4ef761bb7cd921d2fa2c711e938c553c903689e14c4b",
       "recordValidatorSha256": "4986ba54b0bb7872840211b4a88530d8f2155b8a4ed41ff61d3b85e2252ee93b",
         "meterSha256": "d19aa6764c513af489e43b00ef15f8560d347dc84998254d1cceb4bf9e4d5a62",
         "laneSetupSha256": "b46ddce548b4415dfd791eb32c97eba581adb0d9794da557f314fd2b34c9e71f",
-      "laneControllerSha256": "3b57594f69c9c5835dee7d179ada144d7d19e1fa2868f9284fd366cd40aa46df",
-      "productionDriverSha256": "2b2660d2f773830af0d15e117938cd5a2f50337e88c18a37fb224505734a5db5",
+      "laneControllerSha256": "b8a2f688ccee5347f7465dbff93fdb10c6b13243e7f3c7cbb7f5ebc36c74826b",
+      "productionDriverSha256": "0ed43a03dbf39cea9fe1f58eb3c4e791c376e10f12ee0a36ba2739b482b0b525",
         "signalSha256": "f2f835538bc92cd5ea2af0098e43ca0e97cf3934101c713f6c13ede55066a712",
       "manifestLoaderSha256": "c51e7909d2b3bb782a58da86a18dd2eb91bc295ceab0e27cf4a027a966ed6ad6",
       "joinerSha256": "152fd1a89e30d96ac2b4b4fcb2a246b2722da3cd68e51fde8cd4ee3fa3636f85",
@@ -179,10 +224,10 @@
         "codexAdapterSha256": "3afd75d48389dff2d8c307016638927e38bcf8c8600242113a613ca1fe509db8",
       "codexNativeEvidenceSha256": "d510466a1dbf897ce4091a4ccb59fc5d31dbd50be7652e5f63ec22a1306fc744",
       "recordComposerSha256": "66868a4513a682b411e219927752edc16b7ee0cb85bb01b11f0c5dea56a5b98e",
-      "admissionToolSha256": "84aa7d5ee907596a52fb83357377de3d2eb7ad1fbc06b0521b7ab55967ce7eea",
-      "finalizedCellValidatorSha256": "ed1d28912433b14d4018cfa6b661b8ae764fbd9b833ce02bf737fd05b59a277a",
-      "hostLockSha256": "d5f88ead039905e2409ddeb3c26604e550060d08ba4811793a41c07e4535f60d",
-      "finalizeExistingSha256": "bcd295e21ea32f9e6735ced1f88d7b93c69e05599e98d34ec2553d9db4e3702d",
+      "admissionToolSha256": "c78a6686e6ce395b23308fff966ed149e202e0b675708b409ae4b87817666b78",
+      "finalizedCellValidatorSha256": "b9bc2967a342e1458a73c0be18bb596a4990b9ef40f74cf8e265ac44f794e767",
+      "hostLockSha256": "cbb51585aa62e580521fef0cdcbd83ccc2cbc5d7d6ffd67b678191a9fec5e60a",
+      "finalizeExistingSha256": "7aa640eb5afa5ad6f6a04785c49bfcc179f73ea8dcfc27a01cbd577f1312af4d",
       "instrumentMaterializerSha256": "1ac7cd354d22e67c4b1eb19d96ac395a0ab62e0ecd3506bdf13844952c65306a"
       },
       "observabilityBump": {
@@ -354,7 +399,8 @@
       "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 3720, "outputTokens": 120825},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "sol-clique-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/sol-clique-explicit.json"],
-      "admissionArtifact": "admissions/sol-clique-explicit.json"
+      "admissionArtifact": "admissions/sol-clique-explicit.json",
+      "meteringPolicy": {"adapter": "codex", "capFamily": "gpt-frontier", "nativeCounts": "required"}
     },
     {
       "id": "sol-clique-familiar",
@@ -371,7 +417,8 @@
       "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 4748, "outputTokens": 139934},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "sol-clique-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/sol-clique-familiar.json"],
-      "admissionArtifact": "admissions/sol-clique-familiar.json"
+      "admissionArtifact": "admissions/sol-clique-familiar.json",
+      "meteringPolicy": {"adapter": "codex", "capFamily": "gpt-frontier", "nativeCounts": "required"}
     },
     {
       "id": "sol-coterie-explicit",
@@ -388,7 +435,8 @@
       "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 5212, "outputTokens": 159445},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "sol-coterie-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/sol-coterie-explicit.json"],
-      "admissionArtifact": "admissions/sol-coterie-explicit.json"
+      "admissionArtifact": "admissions/sol-coterie-explicit.json",
+      "meteringPolicy": {"adapter": "codex", "capFamily": "gpt-frontier", "nativeCounts": "required"}
     },
     {
       "id": "sol-coterie-familiar",
@@ -405,7 +453,8 @@
       "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 7631, "outputTokens": 152614},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "sol-coterie-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/sol-coterie-familiar.json"],
-      "admissionArtifact": "admissions/sol-coterie-familiar.json"
+      "admissionArtifact": "admissions/sol-coterie-familiar.json",
+      "meteringPolicy": {"adapter": "codex", "capFamily": "gpt-frontier", "nativeCounts": "required"}
     },
     {
       "id": "grok-clique-explicit",
@@ -422,7 +471,8 @@
       "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 4336, "outputTokens": 141020},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-clique-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/grok-clique-explicit.json"],
-      "admissionArtifact": "admissions/grok-clique-explicit.json"
+      "admissionArtifact": "admissions/grok-clique-explicit.json",
+      "meteringPolicy": {"adapter": "unavailable", "capFamily": "grok-advisory", "nativeCounts": "registered-unavailable", "unavailableReason": "advisory-family-no-approved-native-per-turn-adapter"}
     },
     {
       "id": "grok-clique-familiar",
@@ -439,7 +489,8 @@
       "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 19346, "outputTokens": 188471, "contamination": ["host-load-contamination"]},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-clique-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/grok-clique-familiar.json"],
-      "admissionArtifact": "admissions/grok-clique-familiar.json"
+      "admissionArtifact": "admissions/grok-clique-familiar.json",
+      "meteringPolicy": {"adapter": "unavailable", "capFamily": "grok-advisory", "nativeCounts": "registered-unavailable", "unavailableReason": "advisory-family-no-approved-native-per-turn-adapter"}
     },
     {
       "id": "grok-coterie-explicit",
@@ -456,7 +507,8 @@
       "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 7664, "outputTokens": 263396},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-coterie-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/grok-coterie-explicit.json"],
-      "admissionArtifact": "admissions/grok-coterie-explicit.json"
+      "admissionArtifact": "admissions/grok-coterie-explicit.json",
+      "meteringPolicy": {"adapter": "unavailable", "capFamily": "grok-advisory", "nativeCounts": "registered-unavailable", "unavailableReason": "advisory-family-no-approved-native-per-turn-adapter"}
     },
     {
       "id": "grok-coterie-familiar",
@@ -473,7 +525,8 @@
       "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 7002, "outputTokens": 196650},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-coterie-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/grok-coterie-familiar.json"],
-      "admissionArtifact": "admissions/grok-coterie-familiar.json"
+      "admissionArtifact": "admissions/grok-coterie-familiar.json",
+      "meteringPolicy": {"adapter": "unavailable", "capFamily": "grok-advisory", "nativeCounts": "registered-unavailable", "unavailableReason": "advisory-family-no-approved-native-per-turn-adapter"}
     },
     {
       "id": "opus-clique-explicit",
@@ -490,7 +543,8 @@
       "loadCeilingId": "macbookpro18-4-m1-max-10core-loadavg-10-approved",
       "baseline": {"wallSeconds": 27282, "outputTokens": 387583, "contamination": ["host-load-contamination", "api-interruption"]},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "opus-clique-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/opus-clique-explicit.json"],
-      "admissionArtifact": "admissions/opus-clique-explicit.json"
+      "admissionArtifact": "admissions/opus-clique-explicit.json",
+      "meteringPolicy": {"adapter": "claude", "capFamily": "claude-frontier", "nativeCounts": "required"}
     },
     {
       "id": "opus-clique-familiar",
@@ -507,7 +561,8 @@
       "loadCeilingId": "macbookpro18-4-m1-max-10core-loadavg-10-approved",
       "baseline": {"wallSeconds": 12367, "outputTokens": 430232},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "opus-clique-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/opus-clique-familiar.json"],
-      "admissionArtifact": "admissions/opus-clique-familiar.json"
+      "admissionArtifact": "admissions/opus-clique-familiar.json",
+      "meteringPolicy": {"adapter": "claude", "capFamily": "claude-frontier", "nativeCounts": "required"}
     },
     {
       "id": "opus-coterie-explicit",
@@ -524,7 +579,8 @@
       "loadCeilingId": "macbookpro18-4-m1-max-10core-loadavg-10-approved",
       "baseline": {"wallSeconds": 13504, "outputTokens": 365823},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "opus-coterie-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/opus-coterie-explicit.json"],
-      "admissionArtifact": "admissions/opus-coterie-explicit.json"
+      "admissionArtifact": "admissions/opus-coterie-explicit.json",
+      "meteringPolicy": {"adapter": "claude", "capFamily": "claude-frontier", "nativeCounts": "required"}
     },
     {
       "id": "opus-coterie-familiar",
@@ -541,7 +597,8 @@
       "loadCeilingId": "macbookpro18-4-m1-max-10core-loadavg-10-approved",
       "baseline": {"wallSeconds": 8283, "outputTokens": 333058},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "opus-coterie-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/opus-coterie-familiar.json"],
-      "admissionArtifact": "admissions/opus-coterie-familiar.json"
+      "admissionArtifact": "admissions/opus-coterie-familiar.json",
+      "meteringPolicy": {"adapter": "claude", "capFamily": "claude-frontier", "nativeCounts": "required"}
     }
   ]
 }

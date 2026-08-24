@@ -85,7 +85,7 @@
     "meteringRoot": {
       "kind": "directory",
       "path": "tools/social-messenger/metering",
-      "sha256": "a8efe8c46ed9af3a5a0175ad570b28d41ecf71f608ad5bf46c05bcae99c6272d"
+      "sha256": "8ba7693b9d42705f058d2683039152e02b2847839cace608f4417dbd6fd454d2"
     }
   }
 }

@@ -10,10 +10,11 @@ import {
   readFile,
   rm,
   stat,
+  symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import test from "node:test";
@@ -43,18 +44,25 @@ import {
   R2_DRIVER_V1_TERMINAL_RULE,
 } from "../manifest.mjs";
 import {
+  importAndPreflightR2Driver,
   loadLaneControllerConfig,
   R2LaneController,
+  writeAttemptFailure,
+  writeCampaignAttemptStart,
 } from "../lane-controller.mjs";
 import {
   admissionIdentity,
   configuredExecutionBinding,
   createAdmissionArtifact,
   inspectCommittedSeriality,
+  liveSourceClosure,
+  measureSourceClosure,
   probeLaunchQuiet,
+  registeredCellExpectations,
   verifyAdmissionArtifact,
 } from "../r2-cell-admission.mjs";
 import { finalizeExisting } from "../r2-finalize-existing.mjs";
+import { validateFinalizedCellSlot } from "../r2-finalized-cell.mjs";
 import {
   acquireExclusiveHostLock,
   claimExclusiveHostLock,
@@ -87,6 +95,7 @@ import { validateDryRunEvidence } from "../../../../runs/2026-08-23-r2-published
 const execFileAsync = promisify(execFile);
 const FIXTURES = new URL("./fixtures/", import.meta.url);
 const ROOT = new URL("../../../../../", import.meta.url);
+const ROOT_PATH = fileURLToPath(ROOT);
 const meterPath = fileURLToPath(new URL("../meter.mjs", import.meta.url));
 const extensionSchema = JSON.parse(await readFile(
   new URL("benchmarks/schema/social-messenger/run-record-extension.schema.json", ROOT),
@@ -1634,6 +1643,51 @@ test("direct campaign controller command refuses before any prepare or native la
   );
 });
 
+test("production driver import and preflight failures precede the attempt/private-cell boundary", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "r2-pre-attempt-import-"));
+  const configDirectory = join(temp, "never-created-cell");
+  try {
+    const loaded = await loadLaneControllerConfig({
+      harnessConfigPath: fileURLToPath(new URL(
+        "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json",
+        ROOT,
+      )),
+      cellId: "sol-clique-explicit",
+    });
+    const production = await importAndPreflightR2Driver({
+      driverPath: fileURLToPath(new URL(
+        "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs",
+        ROOT,
+      )),
+      config: loaded.config,
+      configDirectory,
+    });
+    assert.equal(production.preflight.root, configDirectory);
+    await assert.rejects(stat(configDirectory), { code: "ENOENT" });
+
+    await assert.rejects(importAndPreflightR2Driver({
+      driverPath: "/production-shaped/import-failure.mjs",
+      config: loaded.config,
+      configDirectory,
+      importModule: async () => { throw new Error("fixture-import-failure"); },
+    }), /fixture-import-failure/u);
+    await assert.rejects(stat(configDirectory), { code: "ENOENT" });
+
+    await assert.rejects(importAndPreflightR2Driver({
+      driverPath: "/production-shaped/preflight-failure.mjs",
+      config: loaded.config,
+      configDirectory,
+      importModule: async () => ({
+        runMilestone: async () => {},
+        preflight: async () => { throw new Error("fixture-preflight-failure"); },
+      }),
+    }), /fixture-preflight-failure/u);
+    await assert.rejects(stat(configDirectory), { code: "ENOENT" });
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
 test("admission refuses an unrecorded private cell instead of permitting a rerun", async () => {
   const temp = await mkdtemp(join(tmpdir(), "r2-admission-pristine-"));
   try {
@@ -1851,6 +1905,69 @@ test("stale host-lock recovery is explicit and scoped without authorizing a reru
       mayRecoverOwner: (owner) => owner.cellId === "cell-1",
     });
     releaseExclusiveHostLock({ lock: recovered, outcome: "stale-recovery-test", nowMs: 11_000 });
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
+test("stale recovery cannot overwrite a controller claim acquired after its inspected snapshot", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "r2-stale-lock-cas-"));
+  try {
+    const harnessConfig = {
+      runId: "fixture-run",
+      paths: { privateExecutionRoot: join(temp, "private") },
+      execution: { exclusiveHostLock: { path: join(temp, "private", "locks", "host.lock") } },
+    };
+    const ownerA = acquireExclusiveHostLock({
+      harnessConfig,
+      cellId: "cell-a",
+      purpose: "admission",
+      reservedBy: "paused-a",
+      nowMs: 0,
+      pid: 999_999,
+      awaitingControllerUntil: 1,
+      token: "a".repeat(64),
+    });
+    let controllerClaim;
+    assert.throws(() => acquireExclusiveHostLock({
+      harnessConfig,
+      cellId: "cell-b",
+      purpose: "admission",
+      reservedBy: "contender-b",
+      nowMs: 10_000,
+      recoverStale: true,
+      processAlive: () => false,
+      mayRecoverOwner: (owner) => owner.token === ownerA.token,
+      beforeRecoveryCompare: () => {
+        controllerClaim = claimExclusiveHostLock({
+          lock: ownerA,
+          harnessConfig,
+          cellId: "cell-a",
+          artifactSha256: `sha256:${"1".repeat(64)}`,
+          execution: { exact: "controller-a" },
+        });
+      },
+    }), /LOCK_CAS/u);
+    const retainedOwner = JSON.parse(await readFile(join(ownerA.path, "owner.json"), "utf8"));
+    const retainedClaim = JSON.parse(await readFile(join(ownerA.path, "controller-claim.json"), "utf8"));
+    assert.equal(retainedOwner.token, ownerA.token);
+    assert.equal(retainedClaim.token, ownerA.token);
+    assert.throws(() => acquireExclusiveHostLock({
+      harnessConfig,
+      cellId: "cell-b",
+      purpose: "admission",
+      reservedBy: "second-contender-b",
+      nowMs: 11_000,
+      recoverStale: true,
+      processAlive: (pid) => pid === process.pid,
+      mayRecoverOwner: () => true,
+    }), /still live/u);
+    releaseExclusiveHostLock({
+      lock: ownerA,
+      claim: controllerClaim,
+      outcome: "controller-a-remained-owner",
+      nowMs: 12_000,
+    });
   } finally {
     await rm(temp, { recursive: true, force: true });
   }
@@ -2075,102 +2192,567 @@ test("per-cell admission binds exact execution, probes after sampling, and owns 
       outcome: "metering-test-complete",
       nowMs: clock,
     });
+    clock += 31_000;
+    samplesObserved = 0;
+    quietProbes = 0;
+    const replacement = await createAdmissionArtifact({
+      harnessConfigPath: configPath,
+      cellId: cell.id,
+      reservedBy: "fresh-controller-after-pre-attempt-failure",
+      admissionPath,
+      dependencies: injected,
+    });
+    assert.notEqual(replacement.identity.sha256, artifact.identity.sha256);
+    assert.deepEqual(
+      await readFile(join(dirname(admissionPath), "history", cell.id, `${artifact.identity.sha256.slice(7)}.json`)),
+      Buffer.from(`${JSON.stringify(artifact, null, 2)}\n`),
+    );
+    releaseExclusiveHostLock({
+      lock: replacement.exclusiveHostLock,
+      outcome: "fresh-controller-remains-permitted",
+      nowMs: clock,
+    });
   } finally {
     await execFileAsync("chmod", ["-R", "u+w", temp]).catch(() => {});
     await rm(temp, { recursive: true, force: true });
   }
 });
 
-test("finalize-existing deterministically rejoins and publishes a synthetic post-run join failure without a driver", async () => {
+test("executing source closure refuses dirty imported dependency and schema bytes with clean entrypoints", async () => {
+  const paths = [
+    "benchmarks/schema/run-record.schema.json",
+    "benchmarks/schema/social-messenger/run-record-extension.schema.json",
+    "benchmarks/schema/social-messenger/run-record.schema.json",
+    "benchmarks/tools/lane-setup.mjs",
+    "benchmarks/tools/social-messenger/choreography/receipts.schema.json",
+    "benchmarks/tools/social-messenger/record-validator.mjs",
+    "benchmarks/tools/lib/json-schema.mjs",
+  ];
+  for (const mutationPath of [
+    "benchmarks/tools/social-messenger/metering/counts.mjs",
+    "benchmarks/schema/social-messenger/run-record.schema.json",
+  ]) {
+    const temp = await mkdtemp(join(tmpdir(), "r2-source-closure-mutation-"));
+    try {
+      await cp(
+        join(ROOT_PATH, "benchmarks/tools/social-messenger/metering"),
+        join(temp, "benchmarks/tools/social-messenger/metering"),
+        { recursive: true },
+      );
+      for (const path of paths) {
+        await mkdir(dirname(join(temp, path)), { recursive: true });
+        await copyFile(join(ROOT_PATH, path), join(temp, path));
+      }
+      const config = JSON.parse(await readFile(new URL(
+        "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json",
+        ROOT,
+      ), "utf8"));
+      config.execution.sourceClosure = measureSourceClosure({ repositoryRoot: temp });
+      liveSourceClosure({ harnessConfig: config, repositoryRoot: temp });
+      await writeFile(join(temp, mutationPath), Buffer.concat([
+        await readFile(join(temp, mutationPath)),
+        Buffer.from("\n// direct dirty dependency mutation\n"),
+      ]));
+      assert.throws(
+        () => liveSourceClosure({ harnessConfig: config, repositoryRoot: temp }),
+        /SOURCE_CLOSURE/u,
+        mutationPath,
+      );
+    } finally {
+      await rm(temp, { recursive: true, force: true });
+    }
+  }
+});
+
+async function makeFinalizeExistingFixture({ targetOutsideRepository = false } = {}) {
   const temp = await mkdtemp(join(tmpdir(), "r2-finalize-existing-"));
+  const registeredRunRoot = await mkdtemp(join(ROOT_PATH, "benchmarks/runs/.r2-finalize-existing-"));
+  const publicationRunRoot = targetOutsideRepository ? join(temp, "escaped-run") : registeredRunRoot;
   const cellId = "sol-clique-explicit";
   const privateCell = join(temp, "private", "cells", cellId);
+  const targetCell = join(publicationRunRoot, "cells", cellId);
+  const configPath = join(registeredRunRoot, "harness-config.json");
+  const admissionPath = join(registeredRunRoot, "admissions", `${cellId}.json`);
+  const sourceConfig = JSON.parse(await readFile(new URL(
+    "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json",
+    ROOT,
+  ), "utf8"));
+  const sourceCell = structuredClone(sourceConfig.cells[0]);
+  sourceConfig.cells = [sourceCell];
+  sourceConfig.cellOrder = [cellId];
+  sourceConfig.paths.committedRunRoot = targetOutsideRepository
+    ? publicationRunRoot
+    : relative(ROOT_PATH, registeredRunRoot);
+  sourceConfig.paths.privateExecutionRoot = join(temp, "private");
+  sourceConfig.paths.instrumentRoot = join(temp, "instrument");
+  sourceConfig.execution.exclusiveHostLock.path = join(temp, "private", "locks", "host.lock");
+  sourceCell.admissionArtifact = `admissions/${cellId}.json`;
+  const logicalConfigPath = relative(ROOT_PATH, configPath);
+  const logicalAdmissionPath = relative(ROOT_PATH, admissionPath);
+  sourceCell.controllerCommand = [
+    sourceConfig.machines[sourceCell.allowedHostId].node.path,
+    sourceConfig.controller.entrypoint,
+    "--harness-config",
+    logicalConfigPath,
+    "--cell",
+    cellId,
+    "--driver",
+    sourceConfig.controller.driver,
+    "--admission",
+    logicalAdmissionPath,
+  ];
+  sourceConfig.controller.commandTemplate = sourceCell.controllerCommand.map((value) => (
+    value === cellId ? "{cellId}" : value
+  ));
+  const instrumentBytes = await readFile(new URL("benchmarks/instrument.manifest.json", ROOT));
+  sourceConfig.pins.instrument.manifestSha256 = sha256(instrumentBytes).replace(/^sha256:/u, "");
+  materializeInstrumentSnapshot({
+    sourceRoot: fileURLToPath(new URL("benchmarks/", ROOT)),
+    outPath: sourceConfig.paths.instrumentRoot,
+  });
+  await Promise.all([
+    mkdir(dirname(admissionPath), { recursive: true }),
+    mkdir(targetCell, { recursive: true }),
+  ]);
+  const configBytes = Buffer.from(`${JSON.stringify(sourceConfig, null, 2)}\n`);
+  await writeFile(configPath, configBytes);
+  const execution = configuredExecutionBinding({
+    harnessConfig: sourceConfig,
+    cell: sourceCell,
+    repositoryRoot: ROOT_PATH,
+  });
+  const hostMachine = sourceConfig.machines[sourceCell.allowedHostId];
+  const observedHost = {
+    hostname: hostMachine.hostname,
+    platform: hostMachine.platform,
+    release: hostMachine.release,
+    arch: hostMachine.arch,
+    hardwareModel: hostMachine.hardwareModel,
+    chip: hostMachine.chip,
+    physicalCpuCount: hostMachine.physicalCpuCount,
+    logicalCpuCount: hostMachine.logicalCpuCount,
+    memoryBytes: hostMachine.memoryBytes,
+  };
+  const issuedAt = "2026-08-24T09:05:53.500Z";
+  const owner = {
+    version: "snapback.r2-exclusive-host-lock.v1",
+    runId: sourceConfig.runId,
+    cellId,
+    purpose: "admission",
+    token: "a".repeat(64),
+    hostname: observedHost.hostname,
+    reservedBy: "production-shaped-finalize-fixture",
+    pid: process.pid,
+    createdAt: "2026-08-24T09:02:00.000Z",
+    awaitingControllerUntil: "2026-08-24T09:06:23.500Z",
+  };
+  const ownerBytes = Buffer.from(`${JSON.stringify(owner, null, 2)}\n`);
+  const seriality = {
+    gitHead: "fixture-head",
+    committedPrefix: [],
+    requestedIndex: 0,
+    laterPristine: [],
+    privateCellState: "absent",
+  };
+  const artifact = {
+    version: "snapback.r2-cell-admission.v2",
+    runId: sourceConfig.runId,
+    cellId,
+    issuedAt,
+    expiresAt: "2026-08-24T09:06:23.500Z",
+    controllerCommand: sourceCell.controllerCommand,
+    harnessConfig: { path: resolve(configPath), sha256: sha256(configBytes) },
+    registeredCell: registeredCellExpectations(sourceConfig, sourceCell),
+    execution,
+    instrument: {
+      instrumentPin: sourceConfig.pins.instrument.instrumentPin,
+      source: {
+        path: fileURLToPath(new URL("benchmarks/instrument.manifest.json", ROOT)),
+        sha256: sha256(instrumentBytes),
+      },
+      materialized: {
+        root: resolve(sourceConfig.paths.instrumentRoot),
+        manifestPath: resolve(sourceConfig.paths.instrumentRoot, "instrument.manifest.json"),
+        sha256: sha256(instrumentBytes),
+      },
+    },
+    host: { allowedHostId: sourceCell.allowedHostId, observed: observedHost },
+    loadIsolation: {
+      policyId: sourceCell.loadCeilingId,
+      samples: [
+        { ordinal: 1, sampledAt: "2026-08-24T09:03:53.500Z", loadavg1: 1, loadavg5: 1, loadavg15: 1 },
+        { ordinal: 2, sampledAt: "2026-08-24T09:04:53.500Z", loadavg1: 1, loadavg5: 1, loadavg15: 1 },
+        { ordinal: 3, sampledAt: "2026-08-24T09:05:53.500Z", loadavg1: 1, loadavg5: 1, loadavg15: 1 },
+      ],
+    },
+    priorProcessClosure: { checkedAt: issuedAt, closed: true, active: [] },
+    ports: {
+      checkedAt: issuedAt,
+      unbound: true,
+      values: Array.from(
+        { length: sourceCell.ports[1] - sourceCell.ports[0] + 1 },
+        (_, index) => sourceCell.ports[0] + index,
+      ),
+    },
+    harness: {
+      key: sourceCell.harness,
+      binary: sourceConfig.harnesses[sourceCell.harness].binary,
+      observedVersion: sourceConfig.harnesses[sourceCell.harness].observedVersion,
+      version: { ok: true, argv: ["--version"] },
+      auth: { ok: true, argv: ["fixture-auth"] },
+    },
+    exclusiveHostLock: {
+      version: owner.version,
+      path: sourceConfig.execution.exclusiveHostLock.path,
+      token: owner.token,
+      owner: {
+        path: join(sourceConfig.execution.exclusiveHostLock.path, "owner.json"),
+        sha256: sha256(ownerBytes),
+        declaration: owner,
+      },
+    },
+    seriality,
+  };
+  artifact.identity = {
+    algorithm: "sha256-canonical-json-without-identity",
+    sha256: admissionIdentity(artifact),
+  };
+  const admissionBytes = Buffer.from(`${JSON.stringify(artifact, null, 2)}\n`);
+  await writeFile(admissionPath, admissionBytes);
+  const actualExecution = {
+    execPath: execution.node.path,
+    cwd: execution.cwd,
+    controllerPath: execution.controller.path,
+    driverPath: execution.driver.path,
+    argv: execution.argv,
+  };
+  const claim = {
+    declaration: {
+      version: "snapback.r2-exclusive-host-lock-claim.v1",
+      runId: sourceConfig.runId,
+      cellId,
+      token: owner.token,
+      artifactSha256: artifact.identity.sha256,
+      pid: process.pid,
+      parentPid: process.ppid,
+      claimedAt: "2026-08-24T09:05:53.600Z",
+      execution: actualExecution,
+    },
+  };
+  await writeCampaignAttemptStart({
+    config: { harnessConfig: sourceConfig, cell: sourceCell },
+    configDirectory: privateCell,
+    artifact,
+    admissionPath,
+    claim,
+    now: () => new Date("2026-08-24T09:05:53.700Z"),
+  });
+  await cp(fileURLToPath(new URL(
+    `benchmarks/runs/2026-08-23-r2-published-0125/cells/${cellId}/`,
+    ROOT,
+  )), privateCell, { recursive: true, force: false });
+  const retainedManifest = JSON.parse(await readFile(join(privateCell, "metering-manifest.json"), "utf8"));
+  const ownershipPath = join(privateCell, "process-ownership.json");
+  const ownership = JSON.parse(await readFile(ownershipPath, "utf8"));
+  ownership.nativeHarnessPid = 424_242;
+  ownership.nativeHarnessStartedAt = "2026-08-24T09:05:53.900Z";
+  ownership.nativeHarness = {
+    pid: ownership.nativeHarnessPid,
+    harnessKey: sourceCell.harness,
+    adapter: retainedManifest.adapter,
+    sessions: retainedManifest.sessions.map((candidate) => ({
+      sourceId: candidate.sourceId,
+      parentSourceId: candidate.parentSourceId,
+      role: candidate.role,
+      nativeSessionId: candidate.nativeSessionId,
+      nativeAgentId: candidate.nativeAgentId ?? null,
+    })),
+    driverStartedAt: retainedManifest.driver.startedAt,
+    driverStampedAt: retainedManifest.driver.stampedAt,
+  };
+  ownership.updatedAt = retainedManifest.driver.stampedAt;
+  await writeFile(ownershipPath, `${JSON.stringify(ownership, null, 2)}\n`);
+  const expectedRecord = await readFile(join(privateCell, "record.json"));
+  const expectedMetering = await readFile(join(privateCell, "metering.json"));
+  await Promise.all([
+    rm(join(privateCell, "record.json")),
+    rm(join(privateCell, "metering.json")),
+    rm(join(privateCell, "cell.json")),
+  ]);
+  const pristineSlot = Buffer.from(`${JSON.stringify({
+    schemaVersion: "snapback.r2-cell-slot.v1",
+    cellId,
+    status: "not-started",
+  }, null, 2)}\n`);
+  await writeFile(join(targetCell, "cell.json"), pristineSlot);
+  const dependencies = {
+    repositoryRoot: ROOT_PATH,
+    assertCommittedConfig: () => {},
+    inspectSeriality: async () => ({ ...seriality, privateCellState: "retained-for-finalization" }),
+    probeLaunchQuiet: async () => ({ ok: true }),
+    currentHostIdentity: () => observedHost,
+  };
+  return {
+    temp,
+    registeredRunRoot,
+    publicationRunRoot,
+    cellId,
+    privateCell,
+    targetCell,
+    configPath,
+    harnessConfig: sourceConfig,
+    artifact,
+    expectedRecord,
+    expectedMetering,
+    pristineSlot,
+    dependencies,
+    async resetTarget() {
+      await rm(targetCell, { recursive: true, force: true });
+      await mkdir(targetCell, { recursive: true });
+      await writeFile(join(targetCell, "cell.json"), pristineSlot);
+    },
+    async cleanup() {
+      await execFileAsync("chmod", ["-R", "u+w", temp]).catch(() => {});
+      await rm(temp, { recursive: true, force: true });
+      await rm(registeredRunRoot, { recursive: true, force: true });
+    },
+  };
+}
+
+test("finalize-existing publishes the complete provenance graph and resumes every exact copy/slot interruption", async () => {
+  const fixture = await makeFinalizeExistingFixture();
   try {
-    await Promise.all([
-      cp(fileURLToPath(new URL(
-        `benchmarks/runs/2026-08-23-r2-published-0125/cells/${cellId}/`,
-        ROOT,
-      )), privateCell, { recursive: true }),
-      cp(fileURLToPath(new URL("benchmarks/schema/", ROOT)), join(temp, "benchmarks", "schema"), {
-        recursive: true,
-      }),
-      mkdir(join(temp, "committed", "cells", cellId), { recursive: true }),
-    ]);
-    const expectedRecord = await readFile(join(privateCell, "record.json"));
-    const expectedMetering = await readFile(join(privateCell, "metering.json"));
-    await Promise.all([
-      rm(join(privateCell, "record.json")),
-      rm(join(privateCell, "metering.json")),
-      rm(join(privateCell, "cell.json")),
-    ]);
-    await writeFile(join(privateCell, "attempt.json"), `${JSON.stringify({
-      version: "snapback.r2-private-cell-attempt.v1",
-      runId: "fixture-finalize-existing",
-      cellId,
-      attemptCount: 1,
-      campaignCellRerun: false,
-    }, null, 2)}\n`);
-    await writeFile(join(temp, "committed", "cells", cellId, "cell.json"), `${JSON.stringify({
-      schemaVersion: "snapback.r2-cell-slot.v1",
-      cellId,
-      status: "not-started",
-    }, null, 2)}\n`);
-    const harnessConfig = {
-      schemaVersion: "snapback.r2-harness-config.v1",
-      runId: "fixture-finalize-existing",
-      cellOrder: [cellId],
-      cells: [{ id: cellId, ports: [4880, 4880] }],
-      paths: {
-        committedRunRoot: "committed",
-        privateExecutionRoot: join(temp, "private"),
-      },
-      execution: {
-        milestones: ["M1", "M2", "M3"],
-        exclusiveHostLock: {
-          version: "snapback.r2-exclusive-host-lock.v1",
-          path: join(temp, "private", "locks", "host.lock"),
-        },
-      },
-    };
-    const configPath = join(temp, "harness-config.json");
-    await writeFile(configPath, `${JSON.stringify(harnessConfig, null, 2)}\n`);
-    await cp(
-      join(privateCell, "record-base.json"),
-      join(temp, "committed", "cells", cellId, "record-base.json"),
-    );
-    const result = await finalizeExisting({
-      harnessConfigPath: configPath,
-      cellId,
-      publish: true,
+    const baseOptions = {
+      harnessConfigPath: fixture.configPath,
+      cellId: fixture.cellId,
       reservedBy: "synthetic-post-run-join-failure-test",
-      dependencies: {
-        repositoryRoot: temp,
-        inspectSeriality: async () => ({
-          gitHead: "fixture-head",
-          committedPrefix: [],
-          requestedIndex: 0,
-          laterPristine: [],
-          privateCellState: "retained-for-finalization",
-        }),
-        probeLaunchQuiet: async () => ({ ok: true }),
-      },
-    });
-    assert.equal(result.published, true);
-    assert.deepEqual(await readFile(join(privateCell, "metering.json")), expectedMetering);
-    assert.deepEqual(await readFile(join(privateCell, "record.json")), expectedRecord);
-    assert.deepEqual(
-      await readFile(join(temp, "committed", "cells", cellId, "record.json")),
-      expectedRecord,
+      dependencies: fixture.dependencies,
+    };
+    await writeAttemptFailure(
+      fixture.privateCell,
+      new Error("production-shaped-post-model-record-finalization-failure"),
+      "record-finalization",
     );
-    const slot = JSON.parse(await readFile(
-      join(temp, "committed", "cells", cellId, "cell.json"),
-      "utf8",
-    ));
-    assert.equal(slot.status, "recorded-finalized");
-    assert.equal(slot.attemptCount, 1);
-    assert.equal(slot.campaignCellRerun, false);
+    const manifestOnly = await finalizeExisting({ ...baseOptions, publish: false });
+    assert.equal(manifestOnly.published, false);
+    const publication = JSON.parse(await readFile(join(fixture.privateCell, "publication-manifest.json"), "utf8"));
+    assert.ok(publication.files.some((file) => file.path === "rendered-prompt.md"));
+    assert.ok(publication.files.some((file) => file.path === "schema/social-messenger/assertions.json"));
+    assert.ok(publication.files.some((file) => file.path === "provenance/admission.json"));
+    assert.ok(publication.files.some((file) => file.path === "attempt-failure.json"));
+    const failure = JSON.parse(await readFile(join(fixture.privateCell, "attempt-failure.json"), "utf8"));
+    assert.equal(failure.modelOrProductLaunchStarted, true);
+    const steps = [
+      ...publication.files.map((file) => `copy:${file.path}`),
+      "copy:publication-manifest.json",
+      "copy:publication-transaction.json",
+      "slot:finalize-next",
+      "slot:finalized-last",
+    ];
+    for (const step of steps) {
+      await fixture.resetTarget();
+      await assert.rejects(finalizeExisting({
+        ...baseOptions,
+        publish: true,
+        dependencies: {
+          ...fixture.dependencies,
+          afterPublicationStep: (completed) => {
+            if (completed === step) throw new Error(`fault:${step}`);
+          },
+        },
+      }), /fault:/u);
+      const resumed = await finalizeExisting({ ...baseOptions, publish: true });
+      assert.equal(resumed.published, true);
+      await validateFinalizedCellSlot({
+        slotPath: join(fixture.targetCell, "cell.json"),
+        cellId: fixture.cellId,
+        repositoryRoot: ROOT_PATH,
+        expectedMilestones: ["M1", "M2", "M3"],
+        requireCommitted: false,
+      });
+    }
+    assert.deepEqual(await readFile(join(fixture.privateCell, "metering.json")), fixture.expectedMetering);
+    assert.deepEqual(await readFile(join(fixture.privateCell, "record.json")), fixture.expectedRecord);
   } finally {
-    await rm(temp, { recursive: true, force: true });
+    await fixture.cleanup();
+  }
+});
+
+test("a post-attempt pre-model prepare failure is honestly receipted but cannot launder prior native evidence", async () => {
+  const fixture = await makeFinalizeExistingFixture();
+  try {
+    const ownershipPath = join(fixture.privateCell, "process-ownership.json");
+    const ownership = JSON.parse(await readFile(ownershipPath, "utf8"));
+    ownership.nativeHarnessPid = null;
+    delete ownership.nativeHarnessStartedAt;
+    delete ownership.nativeHarness;
+    delete ownership.updatedAt;
+    await writeFile(ownershipPath, `${JSON.stringify(ownership, null, 2)}\n`);
+    await writeAttemptFailure(
+      fixture.privateCell,
+      new Error("production-shaped-driver-prepare-failure"),
+      "driver-prepare",
+    );
+    const failure = JSON.parse(await readFile(join(fixture.privateCell, "attempt-failure.json"), "utf8"));
+    assert.equal(failure.modelOrProductLaunchStarted, false);
+    await assert.rejects(finalizeExisting({
+      harnessConfigPath: fixture.configPath,
+      cellId: fixture.cellId,
+      publish: true,
+      reservedBy: "pre-model-prepare-failure-finalization-test",
+      dependencies: fixture.dependencies,
+    }), /session\/process identity/u);
+    assert.equal((await readFile(join(fixture.targetCell, "cell.json"), "utf8")).includes('"status": "not-started"'), true);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test("publication preflights a divergent later copy before creating any earlier target byte", async () => {
+  const fixture = await makeFinalizeExistingFixture();
+  try {
+    const options = {
+      harnessConfigPath: fixture.configPath,
+      cellId: fixture.cellId,
+      publish: false,
+      reservedBy: "divergent-later-preflight-test",
+      dependencies: fixture.dependencies,
+    };
+    await finalizeExisting(options);
+    const publication = JSON.parse(await readFile(join(fixture.privateCell, "publication-manifest.json"), "utf8"));
+    const earlier = publication.files[0].path;
+    const later = publication.files.at(-1).path;
+    await mkdir(dirname(join(fixture.targetCell, later)), { recursive: true });
+    await writeFile(join(fixture.targetCell, later), "foreign-divergent-partial\n");
+    await assert.rejects(finalizeExisting({ ...options, publish: true }), /target artifact differs/u);
+    await assert.rejects(stat(join(fixture.targetCell, earlier)), { code: "ENOENT" });
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test("finalize-existing refuses missing prompt/assertion evidence and escaped or symlinked publication targets", async (context) => {
+  for (const path of ["rendered-prompt.md", "schema/social-messenger/assertions.json"]) {
+    await context.test(`missing ${path}`, async () => {
+      const fixture = await makeFinalizeExistingFixture();
+      try {
+        await rm(join(fixture.privateCell, path));
+        await assert.rejects(finalizeExisting({
+          harnessConfigPath: fixture.configPath,
+          cellId: fixture.cellId,
+          publish: true,
+          reservedBy: "missing-validation-evidence-test",
+          dependencies: fixture.dependencies,
+        }), /ENOENT|evidence|artifact/u);
+      } finally {
+        await fixture.cleanup();
+      }
+    });
+  }
+
+  await context.test("registered run-root escape", async () => {
+    const fixture = await makeFinalizeExistingFixture({ targetOutsideRepository: true });
+    try {
+      await assert.rejects(finalizeExisting({
+        harnessConfigPath: fixture.configPath,
+        cellId: fixture.cellId,
+        publish: true,
+        reservedBy: "target-escape-test",
+        dependencies: fixture.dependencies,
+      }), /run root escapes/u);
+    } finally {
+      await fixture.cleanup();
+    }
+  });
+
+  await context.test("symlinked registered cell target", async () => {
+    const fixture = await makeFinalizeExistingFixture();
+    try {
+      const redirected = join(fixture.temp, "redirected-cell");
+      await mkdir(redirected);
+      await rm(fixture.targetCell, { recursive: true, force: true });
+      await symlink(redirected, fixture.targetCell);
+      await assert.rejects(finalizeExisting({
+        harnessConfigPath: fixture.configPath,
+        cellId: fixture.cellId,
+        publish: true,
+        reservedBy: "target-symlink-test",
+        dependencies: fixture.dependencies,
+      }), /canonically contained|symbolic/u);
+    } finally {
+      await fixture.cleanup();
+    }
+  });
+});
+
+test("finalize-existing rejects relabeled unavailable counts and forged attempt provenance", async (context) => {
+  const cases = [
+    ["attempt registration", async (fixture) => {
+      const path = join(fixture.privateCell, "attempt.json");
+      const value = JSON.parse(await readFile(path, "utf8"));
+      value.registeredCell.model = "forged-model";
+      await writeFile(path, `${JSON.stringify(value, null, 2)}\n`);
+    }],
+    ["admission bytes", async (fixture) => {
+      await writeFile(fixture.artifact.admissionPath ?? join(
+        fixture.registeredRunRoot,
+        "admissions",
+        `${fixture.cellId}.json`,
+      ), "{}\n");
+    }],
+    ["forged host graph", async (fixture) => {
+      const retainedPath = join(fixture.privateCell, "provenance/admission.json");
+      const admission = JSON.parse(await readFile(retainedPath, "utf8"));
+      admission.host.observed.hardwareModel = "forged-host";
+      admission.identity.sha256 = admissionIdentity(admission);
+      const bytes = Buffer.from(`${JSON.stringify(admission, null, 2)}\n`);
+      const originalPath = join(fixture.registeredRunRoot, "admissions", `${fixture.cellId}.json`);
+      await writeFile(retainedPath, bytes);
+      await writeFile(originalPath, bytes);
+      const attemptPath = join(fixture.privateCell, "attempt.json");
+      const attempt = JSON.parse(await readFile(attemptPath, "utf8"));
+      attempt.admission.sha256 = sha256(bytes);
+      attempt.admission.identitySha256 = admission.identity.sha256;
+      attempt.host = admission.host;
+      await writeFile(attemptPath, `${JSON.stringify(attempt, null, 2)}\n`);
+    }],
+    ["harness config bytes", async (fixture) => {
+      const config = JSON.parse(await readFile(fixture.configPath, "utf8"));
+      config.cells[0].model = "forged-config-model";
+      await writeFile(fixture.configPath, `${JSON.stringify(config, null, 2)}\n`);
+    }],
+    ["manifest identity", async (fixture) => {
+      const path = join(fixture.privateCell, "metering-manifest.json");
+      const manifest = JSON.parse(await readFile(path, "utf8"));
+      manifest.laneRunId = `${fixture.harnessConfig.runId}/forged-cell`;
+      await writeFile(path, `${JSON.stringify(manifest, null, 2)}\n`);
+    }],
+    ["unavailable relabeled as gpt-frontier", async (fixture) => {
+      const path = join(fixture.privateCell, "metering-manifest.json");
+      const manifest = JSON.parse(await readFile(path, "utf8"));
+      manifest.adapter = "unavailable";
+      manifest.capFamily = "gpt-frontier";
+      manifest.sessions = [];
+      manifest.unavailableReason = "forged-no-model-path";
+      await writeFile(path, `${JSON.stringify(manifest, null, 2)}\n`);
+    }],
+  ];
+  for (const [label, mutate] of cases) {
+    await context.test(label, async () => {
+      const fixture = await makeFinalizeExistingFixture();
+      try {
+        await mutate(fixture);
+        await assert.rejects(finalizeExisting({
+          harnessConfigPath: fixture.configPath,
+          cellId: fixture.cellId,
+          publish: true,
+          reservedBy: "forged-provenance-test",
+          dependencies: fixture.dependencies,
+        }));
+      } finally {
+        await fixture.cleanup();
+      }
+    });
   }
 });
 

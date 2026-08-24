@@ -77,12 +77,34 @@ function archivePath(lockPath, owner, nowMs, reason) {
 }
 
 function existingLockState(lockPath) {
+  const lockStat = statSync(lockPath);
   const ownerPath = join(lockPath, "owner.json");
   const ownerBytes = readRegular(ownerPath, "host lock owner");
   const owner = JSON.parse(ownerBytes.toString("utf8"));
   const claimPath = join(lockPath, "controller-claim.json");
-  const claim = existsSync(claimPath) ? readJson(claimPath, "host lock controller claim") : null;
-  return { ownerPath, ownerBytes, owner, claimPath, claim };
+  const claimBytes = existsSync(claimPath)
+    ? readRegular(claimPath, "host lock controller claim")
+    : null;
+  const claim = claimBytes === null ? null : JSON.parse(claimBytes.toString("utf8"));
+  return {
+    lockIdentity: { dev: lockStat.dev, ino: lockStat.ino },
+    ownerPath,
+    ownerBytes,
+    ownerSha256: digest(ownerBytes),
+    owner,
+    claimPath,
+    claimBytes,
+    claimSha256: claimBytes === null ? null : digest(claimBytes),
+    claim,
+  };
+}
+
+function sameLockSnapshot(left, right) {
+  return sameJson(left.lockIdentity, right.lockIdentity)
+    && left.ownerSha256 === right.ownerSha256
+    && left.claimSha256 === right.claimSha256
+    && sameJson(left.owner, right.owner)
+    && sameJson(left.claim, right.claim);
 }
 
 function lockIsLive({ owner, claim }, nowMs, processAlive) {
@@ -130,6 +152,7 @@ export function acquireExclusiveHostLock({
   recoverStale = false,
   mayRecoverOwner = () => false,
   processAlive = defaultProcessAlive,
+  beforeRecoveryCompare = () => {},
 }) {
   if (!new Set(["admission", "finalize-existing"]).has(purpose)) {
     throw new Error("R2_ADMISSION_LOCK: unsupported exclusive lock purpose");
@@ -150,7 +173,12 @@ export function acquireExclusiveHostLock({
     awaitingControllerUntil,
   });
   const ownerBytes = Buffer.from(`${JSON.stringify(owner, null, 2)}\n`);
+  const recoveryGuardPath = `${lockPath}.recovery-guard`;
+  if (existsSync(recoveryGuardPath)) {
+    throw new Error("R2_ADMISSION_LOCK_HELD: an exact stale-lock recovery transaction is in progress");
+  }
   const candidatePath = mkdtempSync(join(dirname(lockPath), `.${basename(lockPath)}.candidate-`));
+  let ownsRecoveryGuard = false;
   try {
     writeFileSync(join(candidatePath, "owner.json"), ownerBytes, { flag: "wx" });
     try {
@@ -171,11 +199,37 @@ export function acquireExclusiveHostLock({
           "R2_ADMISSION_LOCK_STALE: explicit stale recovery cannot authorize this owner/cell transition",
         );
       }
-      const archived = archivePath(lockPath, existing.owner, nowMs, "stale");
+      beforeRecoveryCompare({ lockPath, inspected: existing });
+      try {
+        mkdirSync(recoveryGuardPath);
+        ownsRecoveryGuard = true;
+      } catch (guardError) {
+        if (guardError.code === "EEXIST") {
+          throw new Error("R2_ADMISSION_LOCK_HELD: another stale-lock recovery transaction won the CAS guard");
+        }
+        throw guardError;
+      }
+      const current = existingLockState(lockPath);
+      if (!sameLockSnapshot(existing, current)) {
+        throw new Error("R2_ADMISSION_LOCK_CAS: stale-lock owner/token/inode/digest changed after inspection");
+      }
+      if (lockIsLive(current, nowMs, processAlive)) {
+        throw new Error("R2_ADMISSION_LOCK_HELD: the exact inspected lock became live before recovery");
+      }
+      if (!mayRecoverOwner(current.owner)) {
+        throw new Error("R2_ADMISSION_LOCK_STALE: exact stale owner is no longer recoverable");
+      }
+      const archived = archivePath(lockPath, current.owner, nowMs, "stale");
       renameSync(lockPath, archived);
-      renameSync(candidatePath, lockPath);
+      try {
+        renameSync(candidatePath, lockPath);
+      } catch (installError) {
+        if (!existsSync(lockPath) && existsSync(archived)) renameSync(archived, lockPath);
+        throw installError;
+      }
     }
   } finally {
+    if (ownsRecoveryGuard && existsSync(recoveryGuardPath)) rmSync(recoveryGuardPath, { recursive: true, force: true });
     if (existsSync(candidatePath)) rmSync(candidatePath, { recursive: true, force: true });
   }
   const ownerPath = join(lockPath, "owner.json");
@@ -220,7 +274,15 @@ export function verifyExclusiveHostLock(lock, harnessConfig, cellId) {
 }
 
 export function claimExclusiveHostLock({ lock, harnessConfig, cellId, artifactSha256, execution }) {
-  verifyExclusiveHostLock(lock, harnessConfig, cellId);
+  const transitionGuardPath = `${lock.path}.recovery-guard`;
+  try {
+    mkdirSync(transitionGuardPath);
+  } catch (error) {
+    if (error.code === "EEXIST") {
+      throw new Error("R2_ADMISSION_LOCK_HELD: stale recovery is already comparing the lock owner");
+    }
+    throw error;
+  }
   const claimPath = join(lock.path, "controller-claim.json");
   const claim = {
     version: CLAIM_VERSION,
@@ -233,15 +295,21 @@ export function claimExclusiveHostLock({ lock, harnessConfig, cellId, artifactSh
     claimedAt: new Date().toISOString(),
     execution,
   };
+  const claimBytes = Buffer.from(`${JSON.stringify(claim, null, 2)}\n`);
   try {
-    writeFileSync(claimPath, `${JSON.stringify(claim, null, 2)}\n`, { flag: "wx" });
-  } catch (error) {
-    if (error.code === "EEXIST") {
-      throw new Error("R2_ADMISSION_LOCK_HELD: this admission artifact is already claimed by a controller");
+    verifyExclusiveHostLock(lock, harnessConfig, cellId);
+    try {
+      writeFileSync(claimPath, claimBytes, { flag: "wx" });
+    } catch (error) {
+      if (error.code === "EEXIST") {
+        throw new Error("R2_ADMISSION_LOCK_HELD: this admission artifact is already claimed by a controller");
+      }
+      throw error;
     }
-    throw error;
+  } finally {
+    rmSync(transitionGuardPath, { recursive: true, force: true });
   }
-  return { path: claimPath, declaration: claim };
+  return { path: claimPath, sha256: digest(claimBytes), declaration: claim };
 }
 
 export function assertExclusiveHostLockHeld({ lock, harnessConfig, cellId, claim }) {

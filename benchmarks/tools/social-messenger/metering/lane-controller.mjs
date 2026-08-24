@@ -2,8 +2,8 @@
 
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { lstat, mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { lstat, mkdir, mkdtemp, readFile, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { joinUsageToMilestones } from "./joiner.mjs";
@@ -11,6 +11,7 @@ import { loadMeteringManifest } from "./manifest.mjs";
 import { composeRunRecord } from "./record-composer.mjs";
 import {
   inspectCommittedSeriality,
+  liveSourceClosure,
   loadPolicyForCell,
   probeLaunchQuiet,
   verifyAdmissionArtifact,
@@ -353,38 +354,118 @@ function processGroupId(pid) {
   return Number(execFileSync("ps", ["-o", "pgid=", "-p", String(pid)], { encoding: "utf8" }).trim());
 }
 
-async function writeCampaignAttemptStart({ config, configDirectory, artifact, admissionPath }) {
-  await mkdir(configDirectory);
+export async function writeCampaignAttemptStart({
+  config,
+  configDirectory,
+  artifact,
+  admissionPath,
+  claim,
+  now = () => new Date(),
+}) {
+  const admissionBytes = await readFile(resolve(admissionPath));
   const groupId = processGroupId(process.pid);
-  const attempt = {
-    version: "snapback.r2-private-cell-attempt.v1",
-    runId: config.harnessConfig.runId,
-    cellId: config.cell.id,
-    attemptCount: 1,
-    campaignCellRerun: false,
-    admission: {
-      path: resolve(admissionPath),
-      sha256: artifact.identity.sha256,
-    },
-    exclusiveHostLockOwnerSha256: artifact.exclusiveHostLock.owner.sha256,
-    startedAt: new Date().toISOString(),
-  };
+  const kernelStartedAt = execFileSync(
+    "ps",
+    ["-o", "lstart=", "-p", String(process.pid)],
+    { encoding: "utf8" },
+  ).trim();
+  const startedAt = now().toISOString();
   const ownership = {
-    version: "snapback.r2-process-ownership.v1",
+    version: "snapback.r2-process-ownership.v2",
     runId: config.harnessConfig.runId,
     cellId: config.cell.id,
     controllerPid: process.pid,
     controllerParentPid: process.ppid,
+    controllerKernelStartedAt: kernelStartedAt,
+    controllerExecPath: artifact.execution.node.path,
     processGroupId: groupId,
     processGroupIsolated: groupId === process.pid,
     nativeHarnessPid: null,
     childPids: [],
-    startedAt: attempt.startedAt,
+    startedAt,
+    admissionIdentitySha256: artifact.identity.sha256,
   };
-  await Promise.all([
-    writeFile(join(configDirectory, "attempt.json"), `${JSON.stringify(attempt, null, 2)}\n`, { flag: "wx" }),
-    writeFile(join(configDirectory, "process-ownership.json"), `${JSON.stringify(ownership, null, 2)}\n`, { flag: "wx" }),
-  ]);
+  const ownershipBytes = Buffer.from(`${JSON.stringify(ownership, null, 2)}\n`);
+  const claimBytes = Buffer.from(`${JSON.stringify(claim.declaration, null, 2)}\n`);
+  const ownerBytes = Buffer.from(`${JSON.stringify(artifact.exclusiveHostLock.owner.declaration, null, 2)}\n`);
+  const attempt = {
+    version: "snapback.r2-private-cell-attempt.v2",
+    runId: config.harnessConfig.runId,
+    cellId: config.cell.id,
+    attemptCount: 1,
+    campaignCellRerun: false,
+    state: "one-attempt-started",
+    admission: {
+      path: "provenance/admission.json",
+      originalPath: resolve(admissionPath),
+      sha256: digest(admissionBytes),
+      identitySha256: artifact.identity.sha256,
+    },
+    harnessConfig: artifact.harnessConfig,
+    registeredCell: artifact.registeredCell,
+    execution: artifact.execution,
+    instrument: artifact.instrument,
+    host: artifact.host,
+    exclusiveHostLock: {
+      version: artifact.exclusiveHostLock.version,
+      token: artifact.exclusiveHostLock.token,
+      owner: { path: "provenance/host-lock-owner.json", sha256: digest(ownerBytes) },
+      controllerClaim: { path: "provenance/controller-claim.json", sha256: digest(claimBytes) },
+    },
+    processOwnershipStart: { path: "process-ownership.start.json", sha256: digest(ownershipBytes) },
+    timestamps: {
+      admissionIssuedAt: artifact.issuedAt,
+      controllerClaimedAt: claim.declaration.claimedAt,
+      attemptStartedAt: startedAt,
+    },
+  };
+  await mkdir(dirname(configDirectory), { recursive: true });
+  const transactionRoot = await mkdtemp(join(dirname(configDirectory), `.${basename(configDirectory)}.attempt-`));
+  try {
+    await mkdir(join(transactionRoot, "provenance"));
+    await Promise.all([
+      writeFile(join(transactionRoot, "provenance/admission.json"), admissionBytes, { flag: "wx" }),
+      writeFile(join(transactionRoot, "provenance/host-lock-owner.json"), ownerBytes, { flag: "wx" }),
+      writeFile(join(transactionRoot, "provenance/controller-claim.json"), claimBytes, { flag: "wx" }),
+      writeFile(join(transactionRoot, "process-ownership.json"), ownershipBytes, { flag: "wx" }),
+      writeFile(join(transactionRoot, "process-ownership.start.json"), ownershipBytes, { flag: "wx" }),
+      writeFile(join(transactionRoot, "attempt.json"), `${JSON.stringify(attempt, null, 2)}\n`, { flag: "wx" }),
+    ]);
+    await rename(transactionRoot, configDirectory);
+  } finally {
+    await rm(transactionRoot, { recursive: true, force: true });
+  }
+  return attempt;
+}
+
+export async function writeAttemptFailure(configDirectory, error, phase) {
+  const ownership = JSON.parse(await readFile(join(configDirectory, "process-ownership.json"), "utf8"));
+  const failure = {
+    version: "snapback.r2-private-cell-attempt-failure.v1",
+    phase,
+    name: error?.name ?? "Error",
+    message: error?.message ?? String(error),
+    failedAt: new Date().toISOString(),
+    modelOrProductLaunchStarted: Number.isInteger(ownership.nativeHarnessPid),
+  };
+  await writeFile(join(configDirectory, "attempt-failure.json"), `${JSON.stringify(failure, null, 2)}\n`, { flag: "wx" });
+}
+
+export async function importAndPreflightR2Driver({
+  driverPath,
+  config,
+  configDirectory,
+  importModule = (path) => import(pathToFileURL(path).href),
+  onPhase = () => {},
+}) {
+  onPhase("driver-import");
+  const driver = await importModule(resolve(driverPath));
+  if (typeof driver.runMilestone !== "function" || typeof driver.preflight !== "function") {
+    throw new TypeError("R2 lane controller driver must export preflight and runMilestone");
+  }
+  onPhase("driver-preflight");
+  const preflight = await driver.preflight({ config, configDirectory });
+  return { driver, preflight };
 }
 
 async function main() {
@@ -400,6 +481,10 @@ async function main() {
   }
 
   let admissionGuard = null;
+  let attemptStarted = false;
+  let attemptPhase = "pre-attempt";
+  let driver = null;
+  let driverPreflight = null;
   let result = null;
   let runError = null;
   try {
@@ -460,12 +545,42 @@ async function main() {
         actualExecution,
         requireControllerClaim: claim,
       });
-      await writeCampaignAttemptStart({ config, configDirectory, artifact, admissionPath });
+      liveSourceClosure({ harnessConfig: config.harnessConfig, repositoryRoot: config.repositoryRoot });
+      ({ driver, preflight: driverPreflight } = await importAndPreflightR2Driver({
+        driverPath: options.driverPath,
+        config,
+        configDirectory,
+        onPhase: (phase) => { attemptPhase = phase; },
+      }));
+
+      // Driver loading and every safe read/validation complete before the
+      // one-attempt capsule exists. Rebind seriality, admission, lock, and the
+      // complete executing source graph immediately before the atomic first
+      // private-cell write.
+      campaignState = await inspectCommittedSeriality({
+        harnessConfig: config.harnessConfig,
+        cellId: config.cell.id,
+      });
+      verifyAdmissionArtifact({
+        artifact,
+        harnessConfig: config.harnessConfig,
+        harnessConfigPath: resolve(options.harnessConfigPath),
+        cellId: config.cell.id,
+        admissionPath,
+        campaignState,
+        actualExecution,
+        requireControllerClaim: claim,
+      });
+      liveSourceClosure({ harnessConfig: config.harnessConfig, repositoryRoot: config.repositoryRoot });
+      attemptPhase = "attempt-capsule";
+      await writeCampaignAttemptStart({ config, configDirectory, artifact, admissionPath, claim });
+      attemptStarted = true;
+      attemptPhase = "controller-initialize";
     } else if (options.admissionPath) {
       throw new Error("--admission is only valid with --harness-config");
     }
 
-    const driver = await import(pathToFileURL(resolve(options.driverPath)).href);
+    if (driver === null) driver = await import(pathToFileURL(resolve(options.driverPath)).href);
     if (typeof driver.runMilestone !== "function") {
       throw new TypeError("lane controller driver must export runMilestone");
     }
@@ -481,10 +596,14 @@ async function main() {
     let finalizationError = null;
     let patch = null;
     let record = null;
+    let prepared = false;
     try {
       if (typeof driver.prepare === "function") {
-        await driver.prepare({ config, configDirectory });
+        attemptPhase = "driver-prepare";
+        await driver.prepare({ config, configDirectory, preflight: driverPreflight });
       }
+      prepared = true;
+      attemptPhase = "model-product-execution";
       for (const milestone of config.milestones) {
         const claimOptions = typeof driver.claimOptions === "function"
           ? await driver.claimOptions({ milestone, config, configDirectory })
@@ -503,41 +622,45 @@ async function main() {
     } catch (error) {
       cellError = error;
     } finally {
-      try {
-        if (typeof driver.finalize === "function") {
-          await driver.finalize({ config, configDirectory, error: cellError });
+      if (prepared) {
+        try {
+          if (typeof driver.finalize === "function") {
+            attemptPhase = "driver-finalize";
+            await driver.finalize({ config, configDirectory, error: cellError });
+          }
+        } catch (error) {
+          finalizationError = error;
         }
-      } catch (error) {
-        finalizationError = error;
-      }
-      try {
-        const driverSources = typeof driver.observationSources === "function"
-          ? await driver.observationSources({ config, configDirectory })
-          : [];
-        patch = await controller.writeRecordPatch({
-          manifestPath: configPath(configDirectory, config.manifestPath, "manifestPath"),
-          outPath: configPath(configDirectory, config.recordPatchPath, "recordPatchPath"),
-          additionalObservationSources: [
-            ...(config.observationSources ?? []),
-            ...driverSources,
-          ].map((source) => ({
-            sourceId: source.sourceId,
-            path: configPath(configDirectory, source.path, "observation source path"),
-          })),
-        });
-        record = await controller.writeCompleteRecord({
-          patch,
-          recordBasePath: configPath(configDirectory, config.recordBasePath, "recordBasePath"),
-          recordPath: configPath(configDirectory, config.recordPath, "recordPath"),
-          expectedMilestones: config.milestones,
-          baseSchemaPath: config.baseSchemaPath,
-          extensionSchemaPath: config.extensionSchemaPath,
-          composedSchemaPath: config.composedSchemaPath,
-        });
-      } catch (error) {
-        finalizationError = finalizationError === null
-          ? error
-          : new AggregateError([finalizationError, error], "cell finalization failed");
+        try {
+          attemptPhase = "record-finalization";
+          const driverSources = typeof driver.observationSources === "function"
+            ? await driver.observationSources({ config, configDirectory })
+            : [];
+          patch = await controller.writeRecordPatch({
+            manifestPath: configPath(configDirectory, config.manifestPath, "manifestPath"),
+            outPath: configPath(configDirectory, config.recordPatchPath, "recordPatchPath"),
+            additionalObservationSources: [
+              ...(config.observationSources ?? []),
+              ...driverSources,
+            ].map((source) => ({
+              sourceId: source.sourceId,
+              path: configPath(configDirectory, source.path, "observation source path"),
+            })),
+          });
+          record = await controller.writeCompleteRecord({
+            patch,
+            recordBasePath: configPath(configDirectory, config.recordBasePath, "recordBasePath"),
+            recordPath: configPath(configDirectory, config.recordPath, "recordPath"),
+            expectedMilestones: config.milestones,
+            baseSchemaPath: config.baseSchemaPath,
+            extensionSchemaPath: config.extensionSchemaPath,
+            composedSchemaPath: config.composedSchemaPath,
+          });
+        } catch (error) {
+          finalizationError = finalizationError === null
+            ? error
+            : new AggregateError([finalizationError, error], "cell finalization failed");
+        }
       }
     }
     if (cellError !== null || finalizationError !== null) {
@@ -554,6 +677,16 @@ async function main() {
       scorecardEligible: record.socialMessenger.efficiencyScorecardEligibility.eligible,
     };
   } catch (error) {
+    if (attemptStarted) {
+      try {
+        await writeAttemptFailure(configDirectory, error, attemptPhase);
+      } catch (failureReceiptError) {
+        error = new AggregateError(
+          [error, failureReceiptError],
+          "controller failed and could not retain its deterministic attempt-failure receipt",
+        );
+      }
+    }
     runError = error;
   } finally {
     if (admissionGuard !== null) {

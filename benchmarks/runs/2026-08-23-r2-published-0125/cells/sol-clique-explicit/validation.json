@@ -37,6 +37,24 @@
     "finalizeExistingRecoveryTestValid": true,
     "immutableMaterializationTestValid": true
   },
+  "finalBlockerRemediation": {
+    "version": "snapback.r2-cell1-final-blocker-validation.v1",
+    "scopedReviewBaseline": "a5147ca6c4509ff0074fe32c3d43a5e9a68e5bae",
+    "recordAndMeteringReplay": "validator-clean-under-current-production-replay",
+    "protectedEvidenceHashesVerified": true,
+    "publicationProtocolApplicability": "recovered-finalized-v3-is-preserved; recorded-finalized-v2 provenance applies only to later production attempts",
+    "sourceClosureMutationTestsValid": true,
+    "attemptProvenanceMutationTestsValid": true,
+    "nativeSessionProcessBindingTestsValid": true,
+    "completePublicationGraphTestsValid": true,
+    "publicationFaultInjectionResumeTestsValid": true,
+    "publicationPreflightZeroWriteTestsValid": true,
+    "staleLockCasRegressionValid": true,
+    "preModelImportAndPrepareOrderingTestsValid": true,
+    "publishedSlotProductionValidatorReplayValid": true,
+    "campaignCellRerun": false,
+    "protectedEvidenceRewritten": false
+  },
   "hashLinkedArtifacts": [
     {
       "path": "acceptance/m1.json",

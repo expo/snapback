@@ -431,7 +431,8 @@ async function launchHarness(state) {
   try {
     const ownership = JSON.parse(await readFile(ownershipPath, "utf8"));
     ownership.nativeHarnessPid = child.pid;
-    ownership.updatedAt = new Date().toISOString();
+    ownership.nativeHarnessStartedAt = new Date().toISOString();
+    ownership.updatedAt = ownership.nativeHarnessStartedAt;
     const nextPath = `${ownershipPath}.next`;
     await writeFile(nextPath, `${JSON.stringify(ownership, null, 2)}\n`, { flag: "wx" });
     await rename(nextPath, ownershipPath);
@@ -768,6 +769,7 @@ async function writeTerminalArtifacts(state, error) {
   base.socialMessenger.coverageManifest.validated = markers.every((marker) => marker.status === "green");
   base.correctionLoops = state.correctionLoops;
   await writeFile(join(state.root, "record-base.json"), `${JSON.stringify(base, null, 2)}\n`);
+  const manifestStampedAt = new Date().toISOString();
   const manifest = {
     manifestVersion: "social-messenger-metering-manifest.v1",
     laneRunId: state.config.laneRunId,
@@ -788,7 +790,7 @@ async function writeTerminalArtifacts(state, error) {
     driver: {
       id: DRIVER_ID,
       startedAt: state.startedAt,
-      stampedAt: new Date().toISOString(),
+      stampedAt: manifestStampedAt,
       instrumentationCommandsObserved: false,
     },
     clockCorrelation: {
@@ -799,34 +801,91 @@ async function writeTerminalArtifacts(state, error) {
         : "native CLI and controller stamps use the shared host system clock; closing terminalAt is stamped only after the native process and stream have closed",
     },
   };
+  const ownershipPath = join(state.root, "process-ownership.json");
+  const ownership = JSON.parse(await readFile(ownershipPath, "utf8"));
+  if (!Number.isInteger(ownership.nativeHarnessPid) || ownership.nativeHarnessPid <= 0) {
+    throw new Error("R2 driver cannot finalize without its launched native process identity");
+  }
+  ownership.nativeHarness = {
+    pid: ownership.nativeHarnessPid,
+    harnessKey: state.config.cell.harness,
+    adapter,
+    sessions: manifest.sessions.map((candidate) => ({
+      sourceId: candidate.sourceId,
+      parentSourceId: candidate.parentSourceId,
+      role: candidate.role,
+      nativeSessionId: candidate.nativeSessionId,
+      nativeAgentId: candidate.nativeAgentId ?? null,
+    })),
+    driverStartedAt: state.startedAt,
+    driverStampedAt: manifestStampedAt,
+  };
+  ownership.updatedAt = manifestStampedAt;
+  const ownershipNextPath = `${ownershipPath}.next`;
+  await writeFile(ownershipNextPath, `${JSON.stringify(ownership, null, 2)}\n`, { flag: "wx" });
+  await rename(ownershipNextPath, ownershipPath);
   await writeFile(join(state.root, "metering-manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
   state.terminalMarkers = markers;
 }
 
-export async function prepare({ config, configDirectory }) {
+export async function preflight({ config, configDirectory }) {
   const root = resolve(configDirectory);
-  await mkdir(join(root, "events"), { recursive: true });
-  await mkdir(join(root, "receipts"), { recursive: true });
-  await mkdir(join(root, "gates"), { recursive: true });
   const renderedPrompt = await renderPrompt(config, root);
   const promptPath = join(root, "rendered-prompt.md");
-  await writeFile(promptPath, renderedPrompt, "utf8");
   const instrumentManifestPath = join(config.repositoryRoot, "benchmarks/instrument.manifest.json");
   const instrumentManifestText = await readFile(instrumentManifestPath, "utf8");
   const instrumentManifest = JSON.parse(instrumentManifestText);
   if (instrumentManifest.instrumentPin !== CURRENT_INSTRUMENT_PIN) {
     throw new Error(`production driver requires ${CURRENT_INSTRUMENT_PIN}`);
   }
+  const assertionPath = resolve(config.repositoryRoot, "benchmarks", instrumentManifest.artifacts.assertions.path);
+  const assertionBytes = await readFile(assertionPath);
+  if (sha256(assertionBytes) !== instrumentManifest.artifacts.assertions.sha256) {
+    throw new Error("production driver assertion manifest differs from the instrument registration");
+  }
+  const base = recordBase(
+    config,
+    renderedPrompt,
+    promptPath,
+    instrumentManifest,
+    instrumentManifestText,
+  );
+  return {
+    version: "social-messenger-r2-driver-preflight.v1",
+    root,
+    renderedPrompt,
+    promptPath,
+    instrumentManifest,
+    instrumentManifestText,
+    assertionPath,
+    assertionBytes,
+    recordBase: base,
+  };
+}
+
+export async function prepare({ config, configDirectory, preflight: prepared = null }) {
+  const plan = prepared ?? await preflight({ config, configDirectory });
+  const root = resolve(configDirectory);
+  if (plan.version !== "social-messenger-r2-driver-preflight.v1" || plan.root !== root) {
+    throw new Error("R2 production driver requires its exact pre-attempt preflight result");
+  }
+  await mkdir(join(root, "events"), { recursive: true });
+  await mkdir(join(root, "receipts"), { recursive: true });
+  await mkdir(join(root, "gates"), { recursive: true });
+  const {
+    renderedPrompt,
+    promptPath,
+    instrumentManifest,
+    instrumentManifestText,
+  } = plan;
+  await writeFile(promptPath, renderedPrompt, "utf8");
   await writeFile(join(root, "instrument.manifest.json"), instrumentManifestText, "utf8");
+  const retainedAssertionPath = join(root, instrumentManifest.artifacts.assertions.path);
+  await mkdir(dirname(retainedAssertionPath), { recursive: true });
+  await writeFile(retainedAssertionPath, plan.assertionBytes, { flag: "wx" });
   await writeFile(
     join(root, "record-base.json"),
-    `${JSON.stringify(recordBase(
-      config,
-      renderedPrompt,
-      promptPath,
-      instrumentManifest,
-      instrumentManifestText,
-    ), null, 2)}\n`,
+    `${JSON.stringify(plan.recordBase, null, 2)}\n`,
   );
   states.set(config.laneRunId, {
     config,
