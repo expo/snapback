@@ -81,6 +81,31 @@ Practical requirement: before writing assertions, list the role pairs in the fix
 caller, grantor vs owner, subject vs session-owner — and state for each whether they are distinct.
 Any pair left equal is an axis the tests cannot see.
 
+## Round 6: a readback cannot see a column it does not project
+
+Round 5 required varying every derived axis. A further review found a mutation surviving even that,
+because the *projection* was narrower than the write.
+
+Production wrote all eleven `_auth_grants` columns; the test's readback projected five. So this
+mutation stayed green:
+
+```rust
+let expires_at_ms = now_ms;
+```
+
+Every grant becomes immediately expired. It changes the durable value and the returned value
+**consistently**, and the test asserted only returned identity — so nothing could observe it. The
+authorization-clock write to `_snapback_meta` was likewise unprojected.
+
+> **A readback that omits a column the production path writes cannot see mutations to that column.**
+> Before asserting, enumerate every column the code under test writes and show each appears in the
+> projection. Where a column is deliberately excluded, say why and what else covers it.
+
+For inherently variable columns — timestamps, generated ids, digests — assert the *relationship*
+that makes them meaningful rather than mere presence: `expires_at_ms == created_at_ms + TTL`,
+`revoked_at_ms IS NULL`, or a digest computed independently in the test. "The column is populated"
+is not an assertion about correctness.
+
 ## The rule this yields
 
 > **For every assertion, ask where the expected value comes from.** If it comes from the same read
