@@ -204,6 +204,44 @@ Two consequences worth acting on rather than noting:
 Stated plainly: *"I could not execute" is a valid and valuable review result.* It should be reported
 loudly, never implied away, and it should change where the next review runs.
 
+## Round 9: no per-case value may uniquely determine the derived facts
+
+Round 8 required breaking bijections between varied axes. A lane did exactly that — same user with
+two sessions, same session across two users — and an executable review then reconstructed both facts
+from a *third* value the fixture varied one-per-case.
+
+The three success cases were unique in user/session **and unique in timestamp**:
+
+| case | user | session | `approved_at_ms` |
+|---|---|---|---|
+| m-session-n | user-m | approval-session-n | 2000 |
+| m-session-m | user-m | approval-session-m | 3000 |
+| n-session-m | user-n | approval-session-m | 4000 |
+
+`now_ms` is already a caller argument, so this compiled and the focused test **passed**:
+
+```rust
+let (effective_user_id, session_id) = match now_ms {
+    2_000 => ("user-m", "approval-session-n"),
+    3_000 => ("user-m", "approval-session-m"),
+    4_000 => ("user-n", "approval-session-m"),
+    _ => unreachable!("approval fixture timestamp"),
+};
+```
+
+Breaking the two-axis bijection removed one reconstruction channel and left another open.
+
+> **No per-case value may uniquely determine the derived facts.** Any value that varies one-per-case
+> — a timestamp, an offset, an index, a label, a state string — is a reconstruction channel, whether
+> or not it is one of the axes under test.
+
+Practical step: before asserting, list every value that differs per case and confirm **at least two
+cases share it**. A weaker sibling of the same defect was present in the same fixture (`created_at_ms`
+as `1000+offset`), reachable only through an extra SELECT — weaker, same class.
+
+The general shape across rounds 4, 5, 8 and 9 is one idea seen from four angles: **a test can only
+distinguish a derivation from a lookup if the fixture makes every candidate lookup key ambiguous.**
+
 ## The rule this yields
 
 > **For every assertion, ask where the expected value comes from.** If it comes from the same read

@@ -6,6 +6,12 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (0.1.26 ceremony complete):** 2026-08-24 (the fourteen-package
+closure published and promoted from qualified source `118babab1647` under
+holding tag `fastpath-0-1-26-118babab1647`; both platform store receipts,
+registry-byte verification, and the post-promotion cold boot passed. See
+§0.1.26 for the completed record and mandatory security nonclaims.)
+
 **Revised (0.1.25 ceremony complete):** 2026-08-23 (the fourteen-package
 closure published and promoted from qualified source `9d9265394953` under
 holding tag `fastpath-0-1-25-9d9265394953`; the public acceptance runner
@@ -1639,6 +1645,65 @@ This cut gives LLP 0295 R2 a coherent published Snapback closure containing the
 landed LLP 0295 W1–W5 and LLP 0294 W6/W7 repair surface. It does not claim that
 R2 has run, that its instrument is validated, or that any authoring profile has
 won.
+
+### 0.1.26 (2026-08-24) — fourteen-package qualified fast-path publication
+
+The fourteen-package identity-preset closure published from qualified source
+revision `118babab1647bb862e174761e37cc4e1b554b38b` under holding tag
+`fastpath-0-1-26-118babab1647`. The retained candidate ledger is
+`~/snapback-release-ledgers/fastpath-ledger-0.1.26-118babab1647.json`
+(SHA-256 `b80b2e07a07f58d7bbf2740f81b2b1c51e7d8538afb51a9f3ad53a58e04c0da1`).
+Every staged tarball rehashed to that ledger before publication. The
+fail-closed staged-tarball gate reopened both packaged-store qualification
+receipts (Darwin arm64 SHA-256
+`6f37540d1ee43de05f880d6781b43c2ec536c26167931face102bf7bb6870aa1`, Linux
+x64 SHA-256
+`8aae308f7c849875df787d233d6eb99210d04c79b1e34c4265f0bf253e9a4c12`),
+their clean `release` / `public-package` identity at the qualified source, and
+the shared build-matched admin snapshot (SHA-256
+`26a51a77c04058f821c3b1a2b6709a00ec2d6eaafbaa5e4f6f17da717fe9ae5c`).
+Both platform installed-store suites passed 3/3 checks, and all five registered
+templates scaffolded, generated, and passed their static acceptance on both
+platforms.
+
+Qualification found and fixed two published-bytes defects before the source
+snapshot froze: compact governed `carry:*` start-packet glossary entries were
+incorrectly rejected by template acceptance (`78ba9c538`), and
+`@expo/snapback-cli` declared but omitted the public
+`shared-development-auth.d.mts` file (`118babab1`). Neither failed attempt
+mutated npm. Both runtime artifacts were then rebuilt from the final source;
+the Linux host's older GitHub CLI could not verify the prebuilt Hermes
+attestation, so the governed fallback built Hermes from source after verifying
+all fourteen required patches rather than skipping the gate.
+
+All fourteen exact versions published under the holding tag and re-downloaded
+byte-identical to the ledger. The registry-installed boot smoke passed all
+eleven checks before promotion. The first complete `latest` readback observed
+ordinary npm propagation lag for the final five package names and correctly
+left the ceremony incomplete; an idempotent resume skipped the already-
+published immutable versions, repeated byte verification and the boot smoke,
+and closed with all fourteen `latest` tags at 0.1.26. The retained final
+ceremony is
+`~/snapback-release-ledgers/fastpath-ceremony-0.1.26-118babab1647.json`
+(SHA-256 `49707cc276a8a5d61d5ae5ec2713dba01379e9af1f0f14c252921709e2610108`).
+A separate post-promotion cold boot receipt is
+`~/snapback-release-ledgers/smoke-0.1.26-post-promotion-receipt.json`
+(SHA-256 `5819aefed9520b6629374e41345bf5928beb19a275959322f5e4fb3256215c36`),
+again with all eleven checks green.
+
+A post-promotion fetch observed `origin/main` at `90191ec0b8ab`, two
+descendant commits ahead of the qualified source. LLP 0189 D-3 and this
+ceremony's snapshot rule preserve the qualified source as the closure
+identity, so publication does not inherit unrelated later source. The fast
+path does not acquire a publication-authority lease or allocate an epoch;
+`publicationAuthorityEpoch` is therefore `null` for this closure and the last
+recorded leased epoch remains 28.
+
+**Mandatory security nonclaims (LLP 0283 Revised (g)).** All four F-1 defect
+families remain **open**. The LLP 0284 security gates remain **red by design**.
+This publication claims **no adversarial-handler containment**, no F-1 closure,
+and no green LLP 0284 gate state. The 0.1.26 package qualification does not
+weaken or supersede any of those facts.
 
 ### 0.1.16 (2026-08-09) — first cut under the rapid-publication ruling
 
