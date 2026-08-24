@@ -57,3 +57,27 @@ lease and the resolved authority as independent parameters, so one lease can pre
 authorities (`issues/20260824-unverified-findings-backlog-resolved.md`, V5). That was filed as
 evidence against a lease-keyed correlation predicate. It was also evidence that authority
 construction is unsealed, and that implication was missed at the time.
+
+
+## What the per-row fixes actually prove — a precision worth keeping
+
+A reviewer that compiled and ran the mutants drew a distinction the program should adopt verbatim,
+because it is the exact boundary of every claim landed under LLP 0303:
+
+> A mismatched user/session on a **constructed** authority is easy — the tests do it. Whether a
+> **live admitted** session can carry a user other than the session owner is a different claim, is
+> not proven here, and is not claimed.
+
+So each per-row fix proves: *given an authority value, the subject is derived from it rather than
+supplied beside it.* It does not prove that a genuine admitted session is internally consistent —
+that its user really is the session's owner. That second property is what the authority-provenance
+seal is for.
+
+Two consequences:
+
+1. **Landing wording.** A row may say "derives the subject from the prepared authority". It may not
+   say the mismatch is unconstructible, because the tests themselves construct mismatched
+   authorities via `InvocationGate::prepare_authority`.
+2. **The seal is not optional cleanup.** Until it lands, the per-row fixes close the
+   *supplied-beside-it* half of the defect and leave the *forged-authority* half open. Anyone
+   reading the landed rows should understand they are half of a pair.
