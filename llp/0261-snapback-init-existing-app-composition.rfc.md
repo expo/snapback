@@ -5,6 +5,11 @@
 **Systems:** CLI, Templates, React/Expo, Packaging, Code generation, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-15
+**Revised:** 2026-08-24 (f — detection evidence from current
+`create-expo-app`: an absent `tsconfig.json` `include` is authored rather than
+refused, both `app/` and `src/app/` Router roots are detected with the selected
+root carried through every seam, and pristine entry comparison ignores the
+template's own comments. See the dated amendment.)
 **Revised:** 2026-08-21 (e — D0.1 lifecycle cross-reference: LLP 0295 D0.1's
 canonical-lifecycle ruling is recorded in LLP 0223's 2026-08-21 dated
 amendment; design point 5 ("exit into the ordinary lifecycle") now binds to
@@ -162,3 +167,56 @@ composition half, and the binding here is deliberately small:
   Expo/React fixtures the same as scaffolded ones once the `init` path is
   qualified. Execution ticket:
   `issues/closed/20260821-fixed-origin-external-client-dev-lifecycle.md`.
+
+## Dated amendment — 2026-08-24: what current `create-expo-app` roots actually look like
+
+Design point 1 said the detection matrix "widens by evidence, not
+speculation." Running `create-expo-app@4.0.0` on 2026-08-24 produced that
+evidence: both of its advertised templates refused.
+
+- **The pristine `blank-typescript` `tsconfig.json` has no `include` field.**
+  Design point 4 narrows the typecheck boundary, and the implementation read
+  every non-array `include` as a boundary a person had chosen, so an absent
+  one refused with `SNAPBACK_INIT_COLLISION` at the `typecheck-boundary` seam.
+  **An absent `include` is now authored.** No field means *implicitly the
+  whole root* — a default, not a decision — so narrowing it is the same edit
+  as replacing the `**/*.ts` projection, and the pristine template reaches the
+  same authored boundary as an `include`-bearing one. Every explicitly
+  authored non-array `include` (string, number, mixed array) still refuses,
+  and so do `files` and `references`.
+- **The default Router template puts routes under `src/app/`, not `app/`.**
+  This refused with `SNAPBACK_INIT_ROOT_UNRECOGNIZED`. **Both Router roots are
+  now detected**, and the selected root — not a hard-coded `app` — carries
+  through the required-path preflight, the entry read, the entry rewrite, the
+  authored `include`, and every diagnostic path. The generated-descriptor
+  specifier is derived from the selected root's depth, so a `src/app/`
+  layout imports `../../snapback/generated/app.mjs`. A root carrying a
+  `_layout.tsx` under *both* candidates is a new typed collision
+  (`router-root ambiguity`) rather than a guess.
+- **Pristine entry files carry the template's own explanatory comments.**
+  `index.ts` ships three comment lines between the `App` import and
+  `registerRootComponent(App)`. Pristine comparison now drops comments while
+  keeping string literals, so the seam still pins the exact module specifier
+  it rewrites and still refuses a customized registration.
+
+**Qualification bar progress.** The two fresh roots above now adopt, rerun as
+`already-initialized`, and preserve their unrelated manifest, config, and
+`@/*` path aliases. That is the *detection and authoring* half of the bar.
+The published-package half is unchanged and still open: this evidence was
+collected against published `create-expo-app` and `@expo/snapback-cli@0.1.25`
+but the fix is verified against the working tree, so the guide GAP row and the
+sibling-scaffold workaround page stand until a publication carries it.
+
+**One further papercut, fixed at the lifecycle seam rather than here.** A
+freshly scaffolded app's first `snapback verify` refused because no runtime
+readiness receipt existed yet for the packaged runtime it had just installed
+(LLP 0115 CV-3), which made the advertised lifecycle fail on its first proof.
+`verify` now acquires the receipt itself when the refusal reason is `absent`,
+`binary-drift`, or `framework-drift` — the live restricted-VM qualification is
+authoritative and a failed qualification still refuses, so this obtains
+evidence rather than assuming it. `malformed`, `unqualified`,
+`probe-contract-drift`, and `binary-missing` stay loud, because those want a
+person. Related fix: readiness digests now follow the Hermes layout that
+actually sits beside the selected binary instead of the `runtime.source`
+label, which had bound an empty artifact set to an explicitly overridden
+packaged runtime and made framework drift undetectable for it.

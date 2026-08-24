@@ -1,4 +1,4 @@
-# LLP 0297: Agent-safe schema authoring
+# LLP 0304: Agent-safe schema authoring
 
 **Type:** Decision
 **Status:** Draft

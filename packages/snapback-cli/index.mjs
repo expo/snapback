@@ -481,12 +481,17 @@ function runtimeReadinessRoot(runtime) {
   return dirname(dirname(resolve(runtime.binary)));
 }
 
+// @ref LLP 0010#native-runtime-bootstrap — the digest binding follows the
+// Hermes layout that actually sits beside the selected binary. Selecting the
+// candidate set from the `runtime.source` label instead bound a source-checkout
+// layout to an explicitly overridden packaged runtime, recorded an empty
+// artifact list, and made framework drift undetectable for that binary.
 function runtimeReadinessArtifacts(runtime, runtimeRoot) {
-  if (['source-checkout', 'override', 'qualified-override'].includes(runtime.source)) {
-    return digestRuntimeArtifacts(runtimeRoot);
-  }
-  const candidates = packagedRuntimeArtifactCandidates(runtimeRoot);
-  return digestRuntimeArtifacts(runtimeRoot, { candidates });
+  const checkoutLayout = digestRuntimeArtifacts(runtimeRoot);
+  if (checkoutLayout.length > 0) return checkoutLayout;
+  return digestRuntimeArtifacts(runtimeRoot, {
+    candidates: packagedRuntimeArtifactCandidates(runtimeRoot),
+  });
 }
 
 // @ref LLP 0010#native-runtime-bootstrap — packaged consumers persist the
@@ -508,6 +513,19 @@ export function packagedRuntimeReadiness(options = {}) {
       receiptPath,
       artifacts,
     });
+    // @ref LLP 0115#cv-3-a-persisted-readiness-receipt-across-doctor-bootstrap-and-harness — a packaged app's first proof, and every proof after
+    // a runtime upgrade, has no receipt for the binary in front of it. Running
+    // the authoritative live qualification is the honest way to obtain one; a
+    // failed qualification still refuses. Tampered, unqualified, and
+    // contract-drifted receipts stay loud because a person must read them.
+    if (!verdict.ok
+        && options.acquire === true
+        && ['absent', 'binary-drift', 'framework-drift'].includes(verdict.reason)) {
+      return {
+        ...packagedRuntimeReadiness({ ...options, verify: false, acquire: false }),
+        acquired: verdict.reason,
+      };
+    }
     return {
       schemaVersion: 'snapback.runtime-readiness-verification.v1',
       operation: 'verify',
@@ -2077,10 +2095,23 @@ function initContainedPath(root, path, label) {
   return join(canonical, relative(cursor, path));
 }
 
+// @ref LLP 0261#design — create-expo-app has shipped both a root `app/` and a
+// `src/app/` Router root; each is recognized, and a root carrying both stays
+// ambiguous rather than guessing which one owns the layout.
+const INIT_EXPO_ROUTER_ROOTS = Object.freeze(['app', 'src/app']);
+
+function detectInitRouterRoots(root) {
+  return INIT_EXPO_ROUTER_ROOTS.filter((candidate) => (
+    initFileExists(root, candidate, 'directory')
+      && initFileExists(root, `${candidate}/_layout.tsx`)
+  ));
+}
+
 // @ref LLP 0261#design — v1 recognizes only the two evidence-backed root
 // shapes; every other frontend refuses instead of receiving guessed edits.
 function detectInitApp(root, manifest) {
   const dependencies = initDependencies(manifest);
+  const routerRoots = detectInitRouterRoots(root);
   const expoFacts = {
     expoDependency: typeof dependencies.expo === 'string',
     reactNativeDependency: typeof dependencies['react-native'] === 'string',
@@ -2088,8 +2119,7 @@ function detectInitApp(root, manifest) {
     appEntry: initFileExists(root, 'App.tsx'),
     registrationEntry: initFileExists(root, 'index.ts'),
     routerDependency: typeof dependencies['expo-router'] === 'string',
-    routerDirectory: initFileExists(root, 'app', 'directory'),
-    routerLayout: initFileExists(root, 'app/_layout.tsx'),
+    routerRoots,
     typecheckConfig: initFileExists(root, 'tsconfig.json'),
   };
   const reactFacts = {
@@ -2107,33 +2137,39 @@ function detectInitApp(root, manifest) {
     && expoFacts.appConfig
     && expoFacts.typecheckConfig;
   const classicShape = expoCommon && expoFacts.appEntry && expoFacts.registrationEntry;
-  const routerShape = expoCommon
-    && expoFacts.routerDependency
-    && expoFacts.routerDirectory
-    && expoFacts.routerLayout;
+  if (expoCommon && expoFacts.routerDependency && routerRoots.length > 1) {
+    initCollision(
+      root,
+      'router-root ambiguity',
+      'tsconfig.json',
+      `Both ${routerRoots.join(' and ')} carry a _layout.tsx, so init cannot tell which one owns the route tree. Remove the unused Router root before rerunning.`,
+    );
+  }
+  const routerRoot = routerRoots[0] ?? null;
+  const routerShape = expoCommon && expoFacts.routerDependency && routerRoot !== null;
   const declaredMain = typeof manifest.main === 'string' ? manifest.main : null;
   const routerMain = declaredMain === 'expo-router/entry';
   const classicMain = declaredMain === 'index.ts' || declaredMain === './index.ts';
-  if (routerMain && routerShape) return { kind: 'expo-router', facts: expoFacts };
+  if (routerMain && routerShape) return { kind: 'expo-router', routerRoot, facts: expoFacts };
   if (classicMain && classicShape) return { kind: 'expo', facts: expoFacts };
   if (classicShape && routerShape) {
     initCollision(
       root,
       'app-entry ambiguity',
       'package.json',
-      `Both the classic App.tsx/index.ts and expo-router app/_layout.tsx shapes are present, but package.json main (${JSON.stringify(declaredMain)}) selects neither. Set main to "index.ts" or "expo-router/entry" before rerunning.`,
+      `Both the classic App.tsx/index.ts and expo-router ${routerRoot}/_layout.tsx shapes are present, but package.json main (${JSON.stringify(declaredMain)}) selects neither. Set main to "index.ts" or "expo-router/entry" before rerunning.`,
     );
   }
   if (!routerMain && classicShape) {
     return { kind: 'expo', facts: expoFacts };
   }
   if (!classicMain && routerShape) {
-    return { kind: 'expo-router', facts: expoFacts };
+    return { kind: 'expo-router', routerRoot, facts: expoFacts };
   }
   if (Object.values(reactFacts).every(Boolean)) return { kind: 'react', facts: reactFacts };
   throw initRefusal(
     'SNAPBACK_INIT_ROOT_UNRECOGNIZED',
-    `snapback init looked for create-expo-app (classic App.tsx/index.ts or default expo-router app/_layout.tsx) or the packaged React scaffold shape, but this root matched neither. Use the sibling-scaffold workaround: ${initSiblingScaffoldWorkaround()}`,
+    `snapback init looked for create-expo-app (classic App.tsx/index.ts or default expo-router app/_layout.tsx or src/app/_layout.tsx) or the packaged React scaffold shape, but this root matched neither. Use the sibling-scaffold workaround: ${initSiblingScaffoldWorkaround()}`,
     root,
     {
       lookedFor: ['create-expo-app', 'packaged-react-scaffold'],
@@ -2147,7 +2183,7 @@ function initProfile(detected) {
 }
 
 function initTypecheckInclude(detected) {
-  if (detected.kind === 'expo-router') return ['app', 'snapback/generated/*.d.ts'];
+  if (detected.kind === 'expo-router') return [detected.routerRoot, 'snapback/generated/*.d.ts'];
   if (detected.kind === 'expo') return ['App.tsx', 'index.ts', 'snapback/generated/*.d.ts'];
   return ['src', 'snapback/generated/*.d.ts', 'vite.config.ts'];
 }
@@ -2423,11 +2459,13 @@ function readInitConfigs(root, detected) {
     };
   }
   if (detected.kind === 'expo-router') {
+    const entryRelativePath = `${detected.routerRoot}/_layout.tsx`;
+    const entryPath = join(root, ...detected.routerRoot.split('/'), '_layout.tsx');
     return {
       tsconfig,
-      entryPath: join(root, 'app', '_layout.tsx'),
-      entryRelativePath: 'app/_layout.tsx',
-      entrySource: readFileSync(join(root, 'app', '_layout.tsx'), 'utf8'),
+      entryPath,
+      entryRelativePath,
+      entrySource: readFileSync(entryPath, 'utf8'),
       appConfig: readInitJson(join(root, 'app.json'), root, 'app.json', { jsonc: true }),
     };
   }
@@ -2492,7 +2530,12 @@ function plannedInitTypecheck(root, detected, configs) {
       `Preserve files/references and add ${JSON.stringify(initTypecheckInclude(detected))} to the appropriate project boundary manually.`,
     );
   }
-  const include = configs.tsconfig.value?.include;
+  // @ref LLP 0261#design — the pristine blank-typescript template omits
+  // `include` entirely, which is an implicit whole-root boundary rather than a
+  // deliberate one; narrowing it is the same edit as replacing `**/*.ts`.
+  const include = Object.hasOwn(configs.tsconfig.value, 'include')
+    ? configs.tsconfig.value.include
+    : [];
   if (typeof include === 'string') {
     initCollision(
       root,
@@ -2539,7 +2582,7 @@ function plannedInitTypecheck(root, detected, configs) {
   };
 }
 
-function maskInitSourceCommentsAndStrings(source) {
+function maskInitSourceCommentsAndStrings(source, maskStrings = true) {
   let output = '';
   let state = 'code';
   let quote = null;
@@ -2563,7 +2606,7 @@ function maskInitSourceCommentsAndStrings(source) {
       continue;
     }
     if (state === 'string') {
-      output += character === '\n' || character === '\r' ? character : ' ';
+      output += !maskStrings || character === '\n' || character === '\r' ? character : ' ';
       if (escaped) escaped = false;
       else if (character === '\\') escaped = true;
       else if (character === quote) {
@@ -2581,7 +2624,7 @@ function maskInitSourceCommentsAndStrings(source) {
       index += 1;
       state = 'block-comment';
     } else if (character === "'" || character === '"' || character === '`') {
-      output += ' ';
+      output += maskStrings ? ' ' : character;
       state = 'string';
       quote = character;
     } else output += character;
@@ -2628,8 +2671,11 @@ function assertInitBindingsAvailable(root, source, path, names) {
   }
 }
 
+// @ref LLP 0261#design — create-expo-app ships explanatory comments inside its
+// pristine entry files, so pristine comparison drops comments while keeping
+// string literals, which still pin the module specifier the seam rewrites.
 function normalizeInitPristineSource(source) {
-  return source.replace(/[\s;]/gu, '');
+  return maskInitSourceCommentsAndStrings(source, false).replace(/[\s;]/gu, '');
 }
 
 function initClassicExpoEntries() {
@@ -2641,18 +2687,24 @@ registerRootComponent(App);
 `);
 }
 
-function initExpoEntryImports(router = false) {
+// @ref LLP 0261#design — the descriptor specifier is derived from the Router
+// root's depth, so a `src/app/` layout reaches the same `snapback/generated`
+// directory as a root `app/` layout instead of one level short.
+function initGeneratedAppSpecifier(routerRoot) {
+  if (routerRoot === null) return './snapback/generated/app.mjs';
+  return `${'../'.repeat(routerRoot.split('/').length)}snapback/generated/app.mjs`;
+}
+
+function initExpoEntryImports(routerRoot = null) {
   return [
     `// ${INIT_SEAM_MARKER}`,
-    ...(router ? [] : ["import { createElement } from 'react';"]),
+    ...(routerRoot === null ? ["import { createElement } from 'react';"] : []),
     "import { Platform } from 'react-native';",
     "import * as FileSystem from 'expo-file-system';",
     "import * as Crypto from 'expo-crypto';",
     "import { registerExpoFileSystemRqsFiles } from '@expo/snapback-client';",
     "import { SnapbackExpoProvider } from '@expo/snapback-expo';",
-    router
-      ? "import { app as snapbackApp } from '../snapback/generated/app.mjs';"
-      : "import { app as snapbackApp } from './snapback/generated/app.mjs';",
+    `import { app as snapbackApp } from '${initGeneratedAppSpecifier(routerRoot)}';`,
   ].join('\n');
 }
 
@@ -2691,12 +2743,12 @@ export default function RootLayout() {
 `;
 }
 
-function initExpoEntryOwned(source, router = false) {
+function initExpoEntryOwned(source, routerRoot = null) {
   const newline = initSourceNewline(source);
-  const imports = renderInitSourceFragment(source, initExpoEntryImports(router));
+  const imports = renderInitSourceFragment(source, initExpoEntryImports(routerRoot));
   if (!source.startsWith(`${imports}${newline}`)) return false;
   let remainder = source.slice(imports.length + newline.length);
-  if (router) {
+  if (routerRoot !== null) {
     const tail = renderInitSourceFragment(source, initRouterExpoTail());
     if (!remainder.endsWith(`${newline}${newline}${tail}`)) return false;
     remainder = remainder.slice(0, -(`${newline}${newline}${tail}`).length);
@@ -2754,19 +2806,19 @@ function plannedClassicExpoEntry(root, configs) {
   return renderExpoEntry(configs.entrySource, appImport[1]);
 }
 
-function plannedRouterExpoEntry(root, configs) {
-  if (initExpoEntryOwned(configs.entrySource, true)) return null;
+function plannedRouterExpoEntry(root, configs, routerRoot) {
+  if (initExpoEntryOwned(configs.entrySource, routerRoot)) return null;
   if (configs.entrySource.includes('@expo/snapback-expo')
       || configs.entrySource.includes('SnapbackExpoProvider')
       || configs.entrySource.includes(INIT_SEAM_MARKER)) {
     initCollision(
       root,
       'provider',
-      'app/_layout.tsx',
+      configs.entryRelativePath,
       'Keep the existing router provider ownership and wrap its root layout with SnapbackExpoProvider manually.',
     );
   }
-  assertInitBindingsAvailable(root, configs.entrySource, 'app/_layout.tsx', [
+  assertInitBindingsAvailable(root, configs.entrySource, configs.entryRelativePath, [
     'Platform',
     'FileSystem',
     'Crypto',
@@ -2785,11 +2837,11 @@ function plannedRouterExpoEntry(root, configs) {
     initCollision(
       root,
       'provider',
-      'app/_layout.tsx',
+      configs.entryRelativePath,
       'The automatic seam expects the pristine Expo 57 create-expo-app TabLayout (ThemeProvider, AnimatedSplashOverlay, AppTabs) or its pristine blank Stack layout. Wrap a customized layout with SnapbackExpoProvider manually.',
     );
   }
-  return renderRouterExpoLayout(configs.entrySource, pristine.functionName);
+  return renderRouterExpoLayout(configs.entrySource, pristine.functionName, routerRoot);
 }
 
 function initReactEntryOwned(source) {
@@ -2880,9 +2932,9 @@ function renderExpoEntry(source, appIdentifier) {
   return `${imports}${newline}${source.replace(registration, replacement)}`;
 }
 
-function renderRouterExpoLayout(source, functionName) {
+function renderRouterExpoLayout(source, functionName, routerRoot) {
   const newline = initSourceNewline(source);
-  const imports = renderInitSourceFragment(source, initExpoEntryImports(true));
+  const imports = renderInitSourceFragment(source, initExpoEntryImports(routerRoot));
   const content = source.replace(
     new RegExp(`export\\s+default\\s+function\\s+${functionName}\\s*\\(\\s*\\)\\s*\\{`, 'u'),
     'function SnapbackInitRouterContent() {',
@@ -3086,7 +3138,7 @@ function initRequiredPaths(root, detected) {
     return [...common, 'src', 'src/App.tsx', 'src/main.tsx', 'vite.config.ts'];
   }
   if (detected.kind === 'expo-router') {
-    return [...common, 'app.json', 'app', 'app/_layout.tsx'];
+    return [...common, 'app.json', detected.routerRoot, `${detected.routerRoot}/_layout.tsx`];
   }
   return [...common, 'app.json', 'App.tsx', 'index.ts'];
 }
@@ -3383,7 +3435,7 @@ export function initApp(target = process.cwd(), options = {}) {
       );
     }
     const nextEntry = detected.kind === 'expo-router'
-      ? plannedRouterExpoEntry(root, configs)
+      ? plannedRouterExpoEntry(root, configs, detected.routerRoot)
       : plannedClassicExpoEntry(root, configs);
     if (nextEntry === null) plan.unchanged.add(configs.entryRelativePath);
     else planInitUpdate(plan, configs.entryRelativePath, configs.entrySource, nextEntry);
@@ -7382,6 +7434,7 @@ export async function runCli(argv, options = {}) {
         const verdict = packagedRuntimeReadiness({
           ...options,
           verify: true,
+          acquire: true,
           ...(runtimeBinary === null ? {} : { runtimeBinary }),
           ...(runtimeReceiptPath === null ? {} : { receiptPath: runtimeReceiptPath }),
         });
@@ -7390,6 +7443,7 @@ export async function runCli(argv, options = {}) {
           receipt: verdict.ok ? {
             receiptPath: verdict.receiptPath,
             receipt: verdict.receipt,
+            ...(verdict.acquired === undefined ? {} : { acquiredBecause: verdict.acquired }),
           } : null,
           diagnostics: verdict.ok || verdict.diagnostic === null ? [] : [verdict.diagnostic],
         };

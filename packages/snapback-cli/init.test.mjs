@@ -75,11 +75,14 @@ function createExpoFixture(options = {}) {
       extra: { retain: true },
     },
   });
-  writeJson(join(root, 'tsconfig.json'), {
+  const tsconfig = {
     extends: 'expo/tsconfig.base',
     compilerOptions: { strict: true, noUncheckedIndexedAccess: true },
-    include: options.include ?? ['**/*.ts', '**/*.tsx', '.expo/types/**/*.ts', 'expo-env.d.ts'],
-  });
+    ...(options.omitInclude === true
+      ? {}
+      : { include: options.include ?? ['**/*.ts', '**/*.tsx', '.expo/types/**/*.ts', 'expo-env.d.ts'] }),
+  };
+  writeJson(join(root, 'tsconfig.json'), tsconfig);
   writeFileSync(join(root, 'App.tsx'), options.appSource ?? `
 import { Text } from 'react-native';
 export default function App() { return <Text>Existing app</Text>; }
@@ -158,7 +161,8 @@ export default defineConfig({ plugins: [react()] });
 
 function createExpoRouterFixture(options = {}) {
   const root = temporaryRoot('snapback-init-expo-router-');
-  mkdirSync(join(root, 'app'));
+  const routerRoot = options.routerRoot ?? 'app';
+  mkdirSync(join(root, routerRoot), { recursive: true });
   writeJson(join(root, 'package.json'), {
     name: 'existing-expo-router-app',
     private: true,
@@ -179,7 +183,7 @@ function createExpoRouterFixture(options = {}) {
     compilerOptions: { strict: true },
     include: ['**/*.ts', '**/*.tsx', '.expo/types/**/*.ts', 'expo-env.d.ts'],
   });
-  writeFileSync(join(root, 'app', '_layout.tsx'), options.layoutSource ?? `import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+  writeFileSync(join(root, routerRoot, '_layout.tsx'), options.layoutSource ?? `import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme } from 'react-native';
 
@@ -199,8 +203,8 @@ export default function TabLayout() {
   );
 }
 `);
-  writeFileSync(join(root, 'app', 'index.tsx'), 'export default function Home() { return null; }\n');
-  return { root };
+  writeFileSync(join(root, routerRoot, 'index.tsx'), 'export default function Home() { return null; }\n');
+  return { root, routerRoot };
 }
 
 function addClassicExpoShape(root) {
@@ -325,6 +329,34 @@ test('init adopts a create-expo-app root and preserves unrelated manifest/config
   assert.match(entry, /registerRootComponent\(SnapbackInitRoot\)/u);
 });
 
+test('init adopts the pristine blank-typescript tsconfig with no include field', () => {
+  const { root } = createExpoFixture({ omitInclude: true });
+  const result = initApp(root);
+  assert.equal(result.state, 'initialized');
+  assert.deepEqual(JSON.parse(readFileSync(join(root, 'tsconfig.json'), 'utf8')).include, [
+    'App.tsx',
+    'index.ts',
+    'snapback/generated/*.d.ts',
+  ]);
+});
+
+test('init adopts the current create-expo-app Router layout under src/app', () => {
+  const { root } = createExpoRouterFixture({ routerRoot: 'src/app' });
+  const result = initApp(root);
+  assert.equal(result.state, 'initialized');
+  assert.ok(result.filesUpdated.includes('src/app/_layout.tsx'));
+  const layout = readFileSync(join(root, 'src/app/_layout.tsx'), 'utf8');
+  assert.match(layout, /SnapbackInitRouterContent/u);
+  assert.match(layout, /from '\.\.\/\.\.\/snapback\/generated\/app\.mjs'/u);
+  assert.equal(initApp(root).state, 'already-initialized');
+  assert.deepEqual(JSON.parse(readFileSync(join(root, 'tsconfig.json'), 'utf8')).include, [
+    'src/app',
+    'snapback/generated/*.d.ts',
+    '.expo/types/**/*.ts',
+    'expo-env.d.ts',
+  ]);
+});
+
 test('init adopts the packaged React scaffold shape with its Vite/provider seams', () => {
   const { root, manifest: before } = createReactFixture();
   const result = initApp(root);
@@ -388,6 +420,20 @@ registerRootComponent(App);
   await t.test('conflicting typecheck boundary', () => {
     const { root } = createExpoFixture({ include: ['custom/**/*.ts'] });
     assertInitCollision(() => initApp(root), 'typecheck-boundary');
+    assert.equal(existsSync(join(root, 'snapback')), false);
+  });
+
+  await t.test('non-string include entries stay refused', () => {
+    const { root } = createExpoFixture({ include: 42 });
+    assertInitCollision(() => initApp(root), 'typecheck-boundary');
+    assert.equal(existsSync(join(root, 'snapback')), false);
+  });
+
+  await t.test('two Router roots stay ambiguous', () => {
+    const { root } = createExpoRouterFixture({ routerRoot: 'src/app' });
+    mkdirSync(join(root, 'app'));
+    writeFileSync(join(root, 'app', '_layout.tsx'), 'export default function Layout() { return null; }\n');
+    assertInitCollision(() => initApp(root), 'router-root ambiguity');
     assert.equal(existsSync(join(root, 'snapback')), false);
   });
 });
