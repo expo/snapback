@@ -13,7 +13,12 @@
   "bugs": {
     "url": "https://github.com/expo/snapback/issues"
   },
-  "keywords": ["snapback", "backend", "client", "local-first"],
+  "keywords": [
+    "snapback",
+    "backend",
+    "client",
+    "local-first"
+  ],
   "files": [
     "README.md",
     "agent-authority-brand.mjs",
@@ -21,20 +26,20 @@
     "agent-authority.mjs",
     "answer-classes.d.mts",
     "answer-classes.mjs",
-    "app-data.d.mts",
-    "app-data.mjs",
     "app-client-defaults.d.mts",
     "app-client-defaults.mjs",
-    "app-client.d.mts",
     "app-client-internal.d.mts",
     "app-client-internal.mjs",
+    "app-client.d.mts",
     "app-client.mjs",
+    "app-data.d.mts",
+    "app-data.mjs",
     "argument-normalization.d.mts",
     "argument-normalization.mjs",
-    "authority-transition.d.mts",
-    "authority-transition.mjs",
     "assets.d.mts",
     "assets.mjs",
+    "authority-transition.d.mts",
+    "authority-transition.mjs",
     "canonical-client-value.d.mts",
     "canonical-client-value.mjs",
     "client-diagnostics.d.mts",
@@ -43,9 +48,9 @@
     "commands.mjs",
     "demand-broker.mjs",
     "dev-identity-capability.mjs",
+    "diagnostic-codes.d.mts",
     "diagnostic-error.d.mts",
     "diagnostic-error.mjs",
-    "diagnostic-codes.d.mts",
     "evaluation-floor.d.mts",
     "evaluation-floor.mjs",
     "external-store.d.mts",
@@ -63,10 +68,10 @@
     "live-wire-core.mjs",
     "local-read-admission.d.mts",
     "local-read-admission.mjs",
+    "materialization-bridge.mjs",
+    "materialization-store-runtime.mjs",
     "materialization-store.d.mts",
     "materialization-store.mjs",
-    "materialization-store-runtime.mjs",
-    "materialization-bridge.mjs",
     "micro-core.d.mts",
     "micro-core.mjs",
     "micro-live.d.mts",
@@ -80,6 +85,8 @@
     "outbox-shared.d.mts",
     "outbox-shared.mjs",
     "protected-query-retention.mjs",
+    "provider-entry.d.mts",
+    "provider-entry.mjs",
     "push-installation-expo.d.mts",
     "push-installation-expo.mjs",
     "push-registry.d.mts",
@@ -95,10 +102,10 @@
     "remediation.mjs",
     "result-transform.d.mts",
     "result-transform.mjs",
-    "rqs-preload.d.mts",
-    "rqs-preload.mjs",
     "rqs-preload-core.d.mts",
     "rqs-preload-core.mjs",
+    "rqs-preload.d.mts",
+    "rqs-preload.mjs",
     "rqs-store-default.d.mts",
     "rqs-store-default.mjs",
     "rqs-store-expo.d.mts",
@@ -118,6 +125,8 @@
     "search.mjs",
     "sender-proof.mjs",
     "settlement-id-resolution.mjs",
+    "shared-development-auth.d.mts",
+    "shared-development-auth.mjs",
     "store-policy.mjs",
     "store-runtime.mjs",
     "vector-search.d.mts",
@@ -284,6 +293,14 @@
     "./push-installation-expo": {
       "types": "./push-installation-expo.d.mts",
       "import": "./push-installation-expo.mjs"
+    },
+    "./provider-entry": {
+      "types": "./provider-entry.d.mts",
+      "import": "./provider-entry.mjs"
+    },
+    "./shared-development-auth": {
+      "types": "./shared-development-auth.d.mts",
+      "import": "./shared-development-auth.mjs"
     }
   },
   "dependencies": {
@@ -294,6 +311,6 @@
   },
   "scripts": {
     "pretest": "node authority-transition-conformance.test.mjs && node generated-mutation-ir.test.mjs && node generated-optimistic-default.test.mjs && node commands.test.mjs && node reference-kind.test.mjs && node remediation.test.mjs",
-    "test": "node app-client-module-graph.test.mjs && node package.test.mjs && node export-parity.test.mjs && node client-diagnostics.test.mjs && node diagnostic-error.test.mjs && node ir-evaluator.test.mjs && node local-read-admission.test.mjs && node optimistic-rebase.test.mjs && node optimistic-rebase-acceptance.test.mjs && node result-transform.test.mjs && node micro.test.mjs && node micro-operational.test.mjs && node push-registry.test.mjs && node attribution.test.mjs && node app-data.test.mjs && node assets.test.mjs && node assets-watch-authorization.test.mjs && node authorization-invalidation.test.mjs && node lifecycle-disposal.test.mjs && node bearer-rotation.test.mjs && node unrecognized-authority-recovery.test.mjs && node auth-anonymous-read-recovery.test.mjs && node auth-exchange-concurrency.test.mjs && node password-auth.test.mjs && node app-client.test.mjs && node webcrypto-fallback.test.mjs && node argument-validation.test.mjs && node argument-normalization.test.mjs && node reservation-retry.test.mjs && node search.test.mjs && node external-store.test.mjs && node evaluation-floor.test.mjs && node sender-proof.test.mjs && node sender-transport.test.mjs && node connection-open-stream-reset-retry.test.mjs && node hosted-browser.test.mjs && node hosted-ephemeral.test.mjs && node ephemeral-room.test.mjs && node rqs-digest-parity.test.mjs && node mixed-route-v2.test.mjs && node rqs-store.test.mjs && node rqs-store-file.test.mjs && node rqs-store-sqlite.test.mjs && node rqs-store-v3.test.mjs && node logout-v3-bridge.test.mjs && node materialization-store.test.mjs && node materialization-bridge.test.mjs && node registration-ledger.test.mjs && node answer-classes.test.mjs && node carrier-capability-honesty.test.mjs && node demand-broker.test.mjs && node store-policy.test.mjs && node store-runtime-wiring.test.mjs && node lease-convergence.test.mjs && node outbox-store.test.mjs && node outbox-custody.test.mjs && node outbox-drain.test.mjs && node outbox-quarantine.test.mjs && node rqs-resume.test.mjs && node rqs-resume-native.test.mjs && node rqs-resume-memory.test.mjs && node rqs-store-expo.test.mjs && node rqs-resume-expo.test.mjs && node subscribe-retry.test.mjs && node bundle.test.mjs && node browser-closure.test.mjs && node wire-version.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler exact-reference-types.fixture.ts push-registry-types.fixture.ts auth-identity-types.fixture.ts app-client-types.fixture.ts"
+    "test": "node app-client-module-graph.test.mjs && node package.test.mjs && node export-parity.test.mjs && node client-diagnostics.test.mjs && node diagnostic-error.test.mjs && node ir-evaluator.test.mjs && node local-read-admission.test.mjs && node optimistic-rebase.test.mjs && node optimistic-rebase-acceptance.test.mjs && node result-transform.test.mjs && node micro.test.mjs && node micro-operational.test.mjs && node push-registry.test.mjs && node attribution.test.mjs && node app-data.test.mjs && node assets.test.mjs && node assets-watch-authorization.test.mjs && node authorization-invalidation.test.mjs && node lifecycle-disposal.test.mjs && node bearer-rotation.test.mjs && node unrecognized-authority-recovery.test.mjs && node auth-anonymous-read-recovery.test.mjs && node auth-exchange-concurrency.test.mjs && node password-auth.test.mjs && node provider-entry.test.mjs && node shared-development-auth.test.mjs && node app-client.test.mjs && node webcrypto-fallback.test.mjs && node argument-validation.test.mjs && node argument-normalization.test.mjs && node reservation-retry.test.mjs && node search.test.mjs && node external-store.test.mjs && node evaluation-floor.test.mjs && node sender-proof.test.mjs && node sender-transport.test.mjs && node connection-open-stream-reset-retry.test.mjs && node hosted-browser.test.mjs && node hosted-ephemeral.test.mjs && node ephemeral-room.test.mjs && node rqs-digest-parity.test.mjs && node mixed-route-v2.test.mjs && node rqs-store.test.mjs && node rqs-store-file.test.mjs && node rqs-store-sqlite.test.mjs && node rqs-store-v3.test.mjs && node logout-v3-bridge.test.mjs && node materialization-store.test.mjs && node materialization-bridge.test.mjs && node registration-ledger.test.mjs && node answer-classes.test.mjs && node carrier-capability-honesty.test.mjs && node demand-broker.test.mjs && node store-policy.test.mjs && node store-runtime-wiring.test.mjs && node lease-convergence.test.mjs && node outbox-store.test.mjs && node outbox-custody.test.mjs && node outbox-drain.test.mjs && node outbox-quarantine.test.mjs && node rqs-resume.test.mjs && node rqs-resume-native.test.mjs && node rqs-resume-memory.test.mjs && node rqs-store-expo.test.mjs && node rqs-resume-expo.test.mjs && node subscribe-retry.test.mjs && node bundle.test.mjs && node browser-closure.test.mjs && node wire-version.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler exact-reference-types.fixture.ts push-registry-types.fixture.ts auth-identity-types.fixture.ts app-client-types.fixture.ts"
   }
 }

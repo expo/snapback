@@ -13,7 +13,12 @@
   "bugs": {
     "url": "https://github.com/expo/snapback/issues"
   },
-  "keywords": ["snapback", "backend", "cli", "local-first"],
+  "keywords": [
+    "snapback",
+    "backend",
+    "cli",
+    "local-first"
+  ],
   "files": [
     "README.md",
     "adapters/fly-machines-vm-driver.mjs",
@@ -57,7 +62,11 @@
     "verify.d.mts",
     "verify.mjs",
     "verify-receipt.schema.json",
-    "templates"
+    "templates",
+    "shared-development-auth.mjs",
+    "shared-development-auth.d.mts",
+    "shared-development-broker.mjs",
+    "auth-setup.mjs"
   ],
   "bin": {
     "snapback": "./cli.mjs"
@@ -113,7 +122,11 @@
       "default": "./verify.mjs"
     },
     "./verify-receipt.schema.json": "./verify-receipt.schema.json",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./shared-development-auth": {
+      "types": "./shared-development-auth.d.mts",
+      "default": "./shared-development-auth.mjs"
+    }
   },
   "dependencies": {
     "@expo/snapback-acceptance": "workspace:*",

@@ -872,6 +872,14 @@ export interface AuthRecoveryPolicyV1 {
   };
   readonly lastAuthenticator: 'enforce';
 }
+/**
+ * How a provider's credentials are selected. `auto` asks for deployment-
+ * specific resolution: app-owned when both provider configuration and the
+ * installed native build verify, otherwise the Snapback shared development
+ * profile. It is not permission for the client to choose or to retry through a
+ * second identity realm.
+ */
+export type AuthCredentialMode = 'auto' | 'shared' | 'app-owned';
 export interface AuthProgramV1 {
   readonly version: 1;
   /** Client authority custody policy. Omission normalizes to durable-required. */
@@ -879,7 +887,16 @@ export interface AuthProgramV1 {
   /** Explicitly admit the advanced external-session entry seam. */
   readonly externalSessionEntry?: true;
   readonly mechanisms: Readonly<Record<string, AuthMechanism>>;
-  readonly providers?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+  /**
+   * First-party identity providers, declared by name and credential policy.
+   * The key is exactly the name `auth.signIn({ provider })` takes. Client ids,
+   * callback secrets, and signing keys are deployment configuration, never
+   * part of this declaration.
+   */
+  readonly providers?: {
+    readonly apple?: { readonly kind: 'apple'; readonly credentials?: AuthCredentialMode };
+    readonly google?: { readonly kind: 'oidc'; readonly preset: 'google'; readonly credentials?: AuthCredentialMode };
+  };
   readonly assuranceRequirements: Readonly<Record<string, { readonly allOf: readonly string[] }>>;
   readonly recoveryPolicy: AuthRecoveryPolicyV1;
   readonly guestPolicy: {
@@ -908,6 +925,9 @@ export interface AuthProgramV1 {
 export declare const AUTH_DEFAULT_UNCLAIMED_GUEST_RETENTION_MS: number;
 export declare const AUTH_PROGRAM_FIELDS: ReadonlySet<string>;
 export declare const AUTH_PROGRAM_MECHANISM_KINDS: readonly ['guest', 'password', 'email-code', 'passkey'];
+export declare const AUTH_PROVIDER_KINDS: readonly ['apple', 'oidc'];
+export declare const AUTH_PROVIDER_OIDC_PRESETS: readonly ['google'];
+export declare const AUTH_PROVIDER_CREDENTIAL_MODES: readonly ['auto', 'shared', 'app-owned'];
 export declare function defineAuth(program: AuthProgramV1): AuthProgramV1;
 export interface VisibilityOverrideDeclarationV1 {
   readonly schemaVersion?: 'snapback.visibility-override-declaration.v1';

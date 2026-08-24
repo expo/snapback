@@ -66,6 +66,13 @@ const AUTH_CUSTODY_GRADES = new Set(['durable-required', 'volatile-explicit']);
 export const AUTH_PROGRAM_MECHANISM_KINDS = Object.freeze([
   'guest', 'password', 'email-code', 'passkey',
 ]);
+// @ref LLP 0151#default-development-provider-profiles — a provider is declared
+// by name and credential policy only. Client ids, callback secrets, and signing
+// keys are deployment configuration (LLP 0036) written by `snapback auth
+// configure`; the declaration is the source of *policy*, never of credentials.
+export const AUTH_PROVIDER_KINDS = Object.freeze(['apple', 'oidc']);
+export const AUTH_PROVIDER_OIDC_PRESETS = Object.freeze(['google']);
+export const AUTH_PROVIDER_CREDENTIAL_MODES = Object.freeze(['auto', 'shared', 'app-owned']);
 export const AUTH_PROGRAM_FIELDS = new Set([
   'version', 'mechanisms', 'providers', 'assuranceRequirements', 'guestPolicy',
   'secretReferences', 'verifiedProvisioning', 'custody', 'externalSessionEntry',
@@ -2139,9 +2146,53 @@ export function defineAuth(program) {
     assert(typeof reference.config === 'string' && reference.config.length > 0, `defineAuth secretReferences.${name}.config is required`);
     secretReferences[name] = { config: reference.config };
   }
+  const providers = {};
   if (program.providers !== undefined) {
     assert(program.providers && typeof program.providers === 'object' && !Array.isArray(program.providers), 'defineAuth providers must be an object');
     rejectLiteralAuthSecrets(program.providers, 'defineAuth providers');
+    for (const [name, declaration] of Object.entries(program.providers)) {
+      const where = `defineAuth providers.${name}`;
+      assert(
+        declaration && typeof declaration === 'object' && !Array.isArray(declaration),
+        `${where} must be an object`,
+        'SNAPBACK_AUTH_PROVIDER_DECLARATION_INVALID',
+      );
+      assert(
+        AUTH_PROVIDER_KINDS.includes(declaration.kind),
+        `${where}.kind must be one of ${AUTH_PROVIDER_KINDS.join(', ')}`,
+        'SNAPBACK_AUTH_PROVIDER_DECLARATION_INVALID',
+      );
+      const fields = declaration.kind === 'oidc'
+        ? new Set(['kind', 'preset', 'credentials'])
+        : new Set(['kind', 'credentials']);
+      exactObject(declaration, where, fields, 'SNAPBACK_AUTH_PROVIDER_DECLARATION_INVALID');
+      const credentials = declaration.credentials ?? 'auto';
+      assert(
+        AUTH_PROVIDER_CREDENTIAL_MODES.includes(credentials),
+        `${where}.credentials must be one of ${AUTH_PROVIDER_CREDENTIAL_MODES.join(', ')}`,
+        'SNAPBACK_AUTH_PROVIDER_DECLARATION_INVALID',
+      );
+      if (declaration.kind === 'oidc') {
+        assert(
+          AUTH_PROVIDER_OIDC_PRESETS.includes(declaration.preset),
+          `${where}.preset must be one of ${AUTH_PROVIDER_OIDC_PRESETS.join(', ')}`,
+          'SNAPBACK_AUTH_PROVIDER_DECLARATION_INVALID',
+        );
+      }
+      // @ref LLP 0151#default-development-provider-profiles — the declaration
+      // key is exactly the name the app passes to `auth.signIn({ provider })`,
+      // so v1 refuses an alias rather than inventing a second namespace that
+      // the resolved entry and the CLI would both have to carry.
+      const identity = declaration.kind === 'apple' ? 'apple' : declaration.preset;
+      assert(
+        name === identity,
+        `${where} must be declared under the provider name ${identity}`,
+        'SNAPBACK_AUTH_PROVIDER_DECLARATION_INVALID',
+      );
+      providers[name] = declaration.kind === 'oidc'
+        ? { kind: 'oidc', preset: declaration.preset, provider: identity, credentials }
+        : { kind: 'apple', provider: identity, credentials };
+    }
   }
 
   const guestPolicy = program.guestPolicy;
@@ -2243,7 +2294,7 @@ export function defineAuth(program) {
     custody: program.custody ?? 'durable-required',
     ...(program.externalSessionEntry === true ? { externalSessionEntry: true } : {}),
     mechanisms,
-    ...(program.providers === undefined ? {} : { providers: { ...program.providers } }),
+    ...(program.providers === undefined ? {} : { providers }),
     assuranceRequirements,
     recoveryPolicy: normalizedRecoveryPolicy,
     guestPolicy: { enabled: guestPolicy.enabled, claiming: [...claiming], ...(reaping ? { reaping } : {}) },
