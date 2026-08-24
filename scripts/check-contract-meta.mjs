@@ -11,7 +11,7 @@ function propertyName(node) {
   return ts.isIdentifier(node) || ts.isStringLiteral(node) ? node.text : null;
 }
 
-function exportedFunctionParams(sourceText, fileName) {
+function exportedPureParams(sourceText, fileName) {
   const source = ts.createSourceFile(fileName, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   const result = new Map();
   for (const statement of source.statements) {
@@ -25,15 +25,16 @@ function exportedFunctionParams(sourceText, fileName) {
     }
     if (ts.isVariableStatement(statement)) {
       for (const declaration of statement.declarationList.declarations) {
-        if (
-          ts.isIdentifier(declaration.name)
-          && declaration.initializer
-          && (ts.isArrowFunction(declaration.initializer) || ts.isFunctionExpression(declaration.initializer))
-        ) {
-          result.set(declaration.name.text, declaration.initializer.parameters.map((param) =>
-            ts.isIdentifier(param.name) ? param.name.text : null
-          ));
-        }
+        if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue;
+        const initializer = declaration.initializer;
+        result.set(
+          declaration.name.text,
+          ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer)
+            ? initializer.parameters.map((param) => (
+                ts.isIdentifier(param.name) ? param.name.text : null
+              ))
+            : [],
+        );
       }
     }
   }
@@ -83,7 +84,7 @@ function mirroredPureParamEntries(metaText, fileName) {
 }
 
 export function checkContractMetaPair(sourcePath, metaPath) {
-  const sourceParams = exportedFunctionParams(readFileSync(sourcePath, 'utf8'), sourcePath);
+  const sourceParams = exportedPureParams(readFileSync(sourcePath, 'utf8'), sourcePath);
   const mirroredParams = mirroredPureParams(readFileSync(metaPath, 'utf8'), metaPath);
   const diagnostics = [];
   for (const [name, params] of mirroredParams) {
@@ -94,7 +95,7 @@ export function checkContractMetaPair(sourcePath, metaPath) {
         source: sourcePath,
         sidecar: metaPath,
         exportName: name,
-        message: `${name} is declared pure in the sidecar but is not an exported function in ${sourcePath}`,
+        message: `${name} is declared pure in the sidecar but is not an exported function or initialized value in ${sourcePath}`,
       });
       continue;
     }
@@ -150,7 +151,7 @@ export function discoverContractMetaPairs(root = ROOT) {
 export function refreshContractMetaPair(sourcePath, metaPath) {
   const sourceText = readFileSync(sourcePath, 'utf8');
   const metaText = readFileSync(metaPath, 'utf8');
-  const sourceParams = exportedFunctionParams(sourceText, sourcePath);
+  const sourceParams = exportedPureParams(sourceText, sourcePath);
   const replacements = [];
   for (const entry of mirroredPureParamEntries(metaText, metaPath)) {
     const actual = sourceParams.get(entry.name);
