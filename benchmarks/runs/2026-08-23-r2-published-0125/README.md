@@ -213,3 +213,19 @@ blockers. The campaign still waits for materialization of the new private
 instrument archive, Grok authentication, absent raw 0.1.24 event streams or a
 governing pre-wave ruling, and an actually reserved/quiet host. The Claude
 effort, load ceiling, and Codex 0.149.0 rulings are resolved and frozen above.
+
+
+## Orchestrator rulings — final (2026-08-24)
+
+- **Comparator posture:** the twelve retained 0.1.24 raw event streams were not
+  recoverable on any fleet machine at campaign start; per LLP 0186's rule this
+  run executes as the **D0.6-only pre-wave** — it establishes the annotated
+  baseline, and the 40/20/30 targets adjudicate at R3 against it. No estimated
+  baselines are used.
+- **Host split (documented deviation):** cells run on two reserved hosts, each
+  under its own load ceiling and serial execution — codex and grok cells on
+  `charlies-mac-mini--durand` (M4 Pro, 12c/24GB, dedicated), Claude cells on
+  `charlies-macbook-pro-2` (M1 Max, 10c/64GB) admission-gated around fleet
+  load. Host identity, load samples, and contamination flags are recorded per
+  cell; the plan's "reserved machines or enforced load ceilings" language
+  admits both mechanisms.
