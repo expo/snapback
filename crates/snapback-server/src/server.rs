@@ -17511,7 +17511,7 @@ async fn auth_grant_revoke(
         with_snapback(&runtime.snapback, move |snapback| {
             let token_ids = snapback.plan_grant_revocation_service_terminal(
                 &planning_authority,
-                &user_id,
+                // The planner derives the effective user from this authority.
                 &grant_id,
                 now_ms,
             )?;
@@ -17564,7 +17564,7 @@ async fn auth_grants_revoke_by_actor(
         with_snapback(&runtime.snapback, move |snapback| {
             let token_ids = snapback.plan_bulk_grant_revocation_service_terminal(
                 &planning_authority,
-                &user_id,
+                // The planner derives the effective user from this authority.
                 &actor_id,
                 now_ms,
             )?;
