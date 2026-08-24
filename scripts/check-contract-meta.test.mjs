@@ -44,6 +44,29 @@ export default defineContractModule('./data.ts', {
   assert.equal(valueDiagnostics[0].code, 'SNAPBACK_CONTRACT_META_PARAMS_DRIFT');
   assert.deepEqual(valueDiagnostics[0].actual, []);
   assert.deepEqual(valueDiagnostics[0].mirrored, ['invented']);
+
+  writeFileSync(source, `
+declare function makeThing(): () => void;
+export const wrappedHelper = (((stationId: string) => stationId));
+export const CONST_OPTIONS = ([{ id: 'image-1' }] as const);
+export const factoryThing = makeThing();
+`);
+  writeFileSync(sidecar, `
+import { defineContractModule, pure } from '@exact/contract/exports';
+export default defineContractModule('./data.ts', {
+  wrappedHelper: pure({ params: [], result: 'string', depends: 'args' }),
+  CONST_OPTIONS: pure({ params: [], result: 'MediaOption[]', depends: 'args' }),
+  factoryThing: pure({ params: [], result: 'unknown', depends: 'args' }),
+});
+`);
+  const classificationDiagnostics = checkContractMetaPair(source, sidecar);
+  assert.equal(classificationDiagnostics.length, 2);
+  assert.equal(classificationDiagnostics[0].exportName, 'wrappedHelper');
+  assert.equal(classificationDiagnostics[0].code, 'SNAPBACK_CONTRACT_META_PARAMS_DRIFT');
+  assert.deepEqual(classificationDiagnostics[0].actual, ['stationId']);
+  assert.deepEqual(classificationDiagnostics[0].mirrored, []);
+  assert.equal(classificationDiagnostics[1].exportName, 'factoryThing');
+  assert.equal(classificationDiagnostics[1].code, 'SNAPBACK_CONTRACT_META_EXPORT_MISSING');
 } finally {
   rmSync(directory, { recursive: true, force: true });
 }

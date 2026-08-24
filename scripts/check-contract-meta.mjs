@@ -11,6 +11,44 @@ function propertyName(node) {
   return ts.isIdentifier(node) || ts.isStringLiteral(node) ? node.text : null;
 }
 
+function unwrapExpression(node) {
+  let expression = node;
+  while (
+    ts.isParenthesizedExpression(expression)
+    || ts.isAsExpression(expression)
+    || ts.isSatisfiesExpression(expression)
+    || ts.isTypeAssertionExpression(expression)
+  ) {
+    expression = expression.expression;
+  }
+  return expression;
+}
+
+function isPlainValueInitializer(node) {
+  const expression = unwrapExpression(node);
+  if (
+    ts.isArrayLiteralExpression(expression)
+    || ts.isObjectLiteralExpression(expression)
+    || ts.isStringLiteralLike(expression)
+    || ts.isNumericLiteral(expression)
+    || ts.isTemplateExpression(expression)
+    || expression.kind === ts.SyntaxKind.TrueKeyword
+    || expression.kind === ts.SyntaxKind.FalseKeyword
+    || expression.kind === ts.SyntaxKind.NullKeyword
+  ) {
+    return true;
+  }
+  return (
+    ts.isCallExpression(expression)
+    && expression.arguments.length === 1
+    && ts.isPropertyAccessExpression(expression.expression)
+    && ts.isIdentifier(expression.expression.expression)
+    && expression.expression.expression.text === 'Object'
+    && expression.expression.name.text === 'freeze'
+    && isPlainValueInitializer(expression.arguments[0])
+  );
+}
+
 function exportedPureParams(sourceText, fileName) {
   const source = ts.createSourceFile(fileName, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   const result = new Map();
@@ -26,15 +64,14 @@ function exportedPureParams(sourceText, fileName) {
     if (ts.isVariableStatement(statement)) {
       for (const declaration of statement.declarationList.declarations) {
         if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue;
-        const initializer = declaration.initializer;
-        result.set(
-          declaration.name.text,
-          ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer)
-            ? initializer.parameters.map((param) => (
-                ts.isIdentifier(param.name) ? param.name.text : null
-              ))
-            : [],
-        );
+        const initializer = unwrapExpression(declaration.initializer);
+        if (ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer)) {
+          result.set(declaration.name.text, initializer.parameters.map((param) => (
+            ts.isIdentifier(param.name) ? param.name.text : null
+          )));
+        } else if (isPlainValueInitializer(initializer)) {
+          result.set(declaration.name.text, []);
+        }
       }
     }
   }
@@ -95,7 +132,7 @@ export function checkContractMetaPair(sourcePath, metaPath) {
         source: sourcePath,
         sidecar: metaPath,
         exportName: name,
-        message: `${name} is declared pure in the sidecar but is not an exported function or initialized value in ${sourcePath}`,
+        message: `${name} is declared pure in the sidecar but is not a directly classifiable exported function or plain initialized value in ${sourcePath}`,
       });
       continue;
     }
