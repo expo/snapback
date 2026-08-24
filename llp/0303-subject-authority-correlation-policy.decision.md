@@ -6,7 +6,7 @@
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-24
-**Revised:** 2026-08-24 (d — VERIFY-vs-DERIVE root cause of coverage leaks)
+**Revised:** 2026-08-24 (e — artifact question restated by shape; Clone/linearity added)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
 `issues/20260824-liveness-row-bucket-assignment.md`,
 `issues/20260824-entitlement-predicates-for-the-live-sites.md`
@@ -58,11 +58,35 @@ second instances generally can be.
 > **Any artifact introduced to carry a derivation must identify the instance that produced it, and
 > the consumer must verify that it is the instance now consuming it.**
 
-Three questions settle it, and a lane that introduces such an artifact answers all three explicitly:
+**Ask it by shape, not by intent.** Two lanes reported "no new seal, witness, marker, token, or
+provenance identity was introduced" while introducing several — one added `AuthenticatedHostedTarget`,
+the other eight `Prepared*` and `Retained*` carriers. Neither was being careless: those words name a
+category of *purpose*, and a `PreparedEffectApproval` does not feel like a seal to the person who
+wrote it. The question that cannot be mis-answered is:
+
+> **Does your diff add or modify any type that travels between a verification and an effect?**
+
+If yes, it is an artifact under this corollary, whatever it is called.
+
+Four questions settle it, and a lane that introduces such an artifact answers all four explicitly:
 
 1. Which instance produced this?
 2. Can a second instance of the same type produce an equal one?
 3. Can `test-support` staple it to an outcome it did not come from?
+4. **Is it `Clone`, and if so what stops a clone being used twice?**
+
+Question 4 was added after a reviewer defeated a lane whose artifact *was* consumed by value:
+
+```rust
+verified2 = verified.clone();
+install(verified, db0);
+install(verified2, db1);
+```
+
+Both installs succeeded and wrote `(id, epoch, floor) = (1, 4, 9)` to both databases. **Consumption
+by value is not linearity when the type derives `Clone`.** Ask question 4 of every type in the diff,
+including types the lane did not author but did make reachable — and check whether consumers take the
+artifact by reference, since then a second use needs no clone at all.
 
 Question 3 is not a lesser one. `test-support` is not a safety boundary in this repository: a
 feature-enabled public API is part of the surface, so "only tests can do that" does not answer it.
