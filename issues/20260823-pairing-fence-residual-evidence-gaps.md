@@ -2,7 +2,7 @@
 
 Status: Open — evidence only; no production defect
 Created: 2026-08-23
-Related: LLP 0297, `issues/20260823-remeasurement-after-detached-action-fence.md`
+Related: LLP 0298, `issues/20260823-remeasurement-after-detached-action-fence.md`
 
 ## Why these landed open
 

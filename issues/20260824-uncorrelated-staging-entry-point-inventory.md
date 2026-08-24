@@ -7,7 +7,7 @@ Systems: snapback-sync, snapback-engine, snapback-kernel, snapback-services,
 Related: issues/20260823-mandatory-authority-correlation-design.md,
   issues/20260823-two-landed-fences-do-not-correlate-the-authority-axes.md,
   issues/20260823-origin-bound-commit-capsule-design.md, LLP 0058, LLP 0059,
-  LLP 0290, LLP 0293, LLP 0297
+  LLP 0290, LLP 0293, LLP 0298
 
 ## Result
 
@@ -60,7 +60,7 @@ be a duplicate row for the same cut.
 The search boundary was production Rust under `crates/`. I excluded `#[cfg(test)]`,
 `test-support`, compile-fail examples, acceptance fixtures, generated output,
 JavaScript/TypeScript clients, and `vendor/`. I included filesystem/object-store
-writes and durable trigger/receipt state, following LLP 0297 rather than looking
+writes and durable trigger/receipt state, following LLP 0298 rather than looking
 only for SQLite names. Pure reads, authority preparation/validation, ephemeral
 socket state, and value projections from `ResolvedAppAuthority` are near-misses,
 not rows.

@@ -12,7 +12,7 @@ the individual documents do not say where the program stands.
 > An ordinary session or scoped-service caller cannot commit a durable write after their own
 > authority has gone terminal.
 
-LLP 0297 now defines “durable write” here as a caller-attributable durable
+LLP 0298 now defines “durable write” here as a caller-attributable durable
 effect, with a closed, enumerated, gated boundary for genuinely auxiliary
 writes. It resolves the former literal-versus-effect-based ambiguity without
 silently reclassifying any existing exposure.

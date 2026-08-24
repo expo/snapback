@@ -1,4 +1,4 @@
-# LLP 0297: What counts as a durable write — the authorized-effect completion criterion
+# LLP 0298: What counts as a durable write — the authorized-effect completion criterion
 
 **Type:** Decision
 **Status:** Accepted

@@ -3,7 +3,7 @@
 Status: open
 Date: 2026-08-23
 Systems: snapback-engine, snapback-sync
-Related: LLP 0283 F-1, LLP 0297, issues/20260822-claims-versus-enforcement-is-endemic.md
+Related: LLP 0283 F-1, LLP 0298, issues/20260822-claims-versus-enforcement-is-endemic.md
 
 ## Summary
 

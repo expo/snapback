@@ -1,8 +1,8 @@
-# Re-measurement under LLP 0297: the property is reachable, and not yet true
+# Re-measurement under LLP 0298: the property is reachable, and not yet true
 
 Status: Open — measurement
 Created: 2026-08-23
-Related: llp/0297-durable-effect-scope.decision.md,
+Related: llp/0298-durable-effect-scope.decision.md,
 issues/20260823-remeasurement-after-detached-action-fence.md (prior measurement),
 issues/20260823-pairing-fence-residual-evidence-gaps.md
 
@@ -10,7 +10,7 @@ issues/20260823-pairing-fence-residual-evidence-gaps.md
 
 **FALSE — but for the first time the program has a finite, enumerable path to TRUE.**
 
-LLP 0297 was ruled specifically to answer whether this property has a reachable end state. It does:
+LLP 0298 was ruled specifically to answer whether this property has a reachable end state. It does:
 
 > "The ruling therefore makes the property **reachable, but not currently true**."
 
@@ -61,14 +61,14 @@ watch-creation, stream, or structural residuals. Worth stating plainly against t
 
 ## 2. Auxiliary-write enumeration
 
-LLP 0297’s four criteria are applied individually below ([LLP 0297:34](llp/0297-durable-effect-scope.decision.md:34)). “PASS” means the criterion is satisfied; one failure keeps the write in scope.
+LLP 0298’s four criteria are applied individually below ([LLP 0298:34](llp/0298-durable-effect-scope.decision.md:34)). “PASS” means the criterion is satisfied; one failure keeps the write in scope.
 
 | Write argued to be auxiliary | Criterion 1: no capability/auth decision | Criterion 2: idempotent/monotonic | Criterion 3: another caller would cause it | Criterion 4: processing, not requested outcome | Result |
 |---|---|---|---|---|---|
 | **Authorization-clock high-water writes**, including the clock advance now inside pairing mint. The standalone transaction is at [auth_agent_credentials.rs:1443](crates/snapback-kernel/src/storage/auth_agent_credentials.rs:1443); the monotonic update is at [auth_agent_credentials.rs:1602](crates/snapback-kernel/src/storage/auth_agent_credentials.rs:1602); pairing uses it in its guarded transaction at [auth_grants.rs:528](crates/snapback-kernel/src/storage/auth_grants.rs:528). | **PASS.** It grants no principal capability and records host-time rollback protection rather than deciding a principal, scope, grant, or consent. | **PASS.** The stored high-water value can only stay equal or advance; rollback is refused. | **PASS.** The next clock-observing auth operation from another principal advances the same global high-water mark. | **PASS.** Callers ask for pairing, listing, approval, denial, revocation, or OAuth processing—not a clock write. | **EXCLUDED as auxiliary.** |
 | **Pending-effect inbox lazy expiry**, including its journal update. It conditionally changes only already-expired `pending` rows and appends one terminal journal entry ([pending_effects.rs:475](crates/snapback-kernel/src/storage/pending_effects.rs:475), [pending_effects.rs:601](crates/snapback-kernel/src/storage/pending_effects.rs:601)). | **PASS.** The timestamp has already ended approvability; materialization grants nothing and does not alter the pre-existing expiry decision. | **PASS.** `pending → expired` is one-way, conditionally applied, and the journal is appended only with that transition. | **PASS.** The next inbox request by another approver runs the same global expiry pass. | **PASS.** The caller asked to list effects, not expire them. | **EXCLUDED as auxiliary.** |
 | **Pending-effect pre-approve lookup expiry**, including its journal update ([pending_effects.rs:593](crates/snapback-kernel/src/storage/pending_effects.rs:593), [effects.rs:253](crates/snapback-server/src/server/effects.rs:253)). | **PASS.** As above, the durable expiry follows an already-terminal timestamp. | **PASS.** The guarded predicate makes the exact row transition and journal append one-shot. | **PASS.** A later management session processing that effect ID would perform the same expiry before deciding it. | **PASS.** Expiry is lookup processing; the requested outcome is approval. | **EXCLUDED as auxiliary.** |
-| **Global OAuth/pairing sweep** reached by pairing creation, presentation, and the grant inbox. The DELETE has no user predicate ([auth_grants.rs:1752](crates/snapback-kernel/src/storage/auth_grants.rs:1752), [auth_grants.rs:1783](crates/snapback-kernel/src/storage/auth_grants.rs:1783)). | **FAIL.** Controlling calibration: one expired OAuth parent can change whether pairing mint, presentation, or inbox access succeeds for every user. | **FAIL.** LLP 0297 expressly rules the mixed OAuth sweep non-monotonic ([LLP 0297:58](llp/0297-durable-effect-scope.decision.md:58)). The current child FK remains `ON DELETE RESTRICT` ([auth_integrations.rs:52](crates/snapback-kernel/src/storage/auth_integrations.rs:52), [auth_integrations.rs:72](crates/snapback-kernel/src/storage/auth_integrations.rs:72)). | **PASS.** It is global and the next pairing create/present or grant-inbox caller runs it. | **PASS.** It is automatic cleanup before the requested operation. | **IN SCOPE; OPEN EXPOSURE.** Ordinary expired parents can be deleted and committed after terminal authority; OAuth children additionally preserve the global wedge. |
+| **Global OAuth/pairing sweep** reached by pairing creation, presentation, and the grant inbox. The DELETE has no user predicate ([auth_grants.rs:1752](crates/snapback-kernel/src/storage/auth_grants.rs:1752), [auth_grants.rs:1783](crates/snapback-kernel/src/storage/auth_grants.rs:1783)). | **FAIL.** Controlling calibration: one expired OAuth parent can change whether pairing mint, presentation, or inbox access succeeds for every user. | **FAIL.** LLP 0298 expressly rules the mixed OAuth sweep non-monotonic ([LLP 0298:58](llp/0298-durable-effect-scope.decision.md:58)). The current child FK remains `ON DELETE RESTRICT` ([auth_integrations.rs:52](crates/snapback-kernel/src/storage/auth_integrations.rs:52), [auth_integrations.rs:72](crates/snapback-kernel/src/storage/auth_integrations.rs:72)). | **PASS.** It is global and the next pairing create/present or grant-inbox caller runs it. | **PASS.** It is automatic cleanup before the requested operation. | **IN SCOPE; OPEN EXPOSURE.** Ordinary expired parents can be deleted and committed after terminal authority; OAuth children additionally preserve the global wedge. |
 | **OAuth proposal creation:** the pairing-parent and OAuth-child inserts ([auth_integrations.rs:821](crates/snapback-kernel/src/storage/auth_integrations.rs:821), [auth_integrations.rs:874](crates/snapback-kernel/src/storage/auth_integrations.rs:874), [auth_integrations.rs:891](crates/snapback-kernel/src/storage/auth_integrations.rs:891)). | **FAIL, conservatively.** It establishes a new pending authorization opportunity and changes which proposal can later be approved. | **FAIL.** Each request allocates fresh rows and identifiers; retrying is not an idempotent update to one monotonic fact. | **FAIL.** Another caller would not create this caller’s client, redirect, scopes, PKCE, and state proposal. | **FAIL.** Creating the proposal is the purpose of `GET /auth/oauth/authorize` ([oauth.rs:337](crates/snapback-server/src/server/oauth.rs:337)). | **IN SCOPE; OPEN EXPOSURE.** |
 | **Pairing hash/consent row** produced by `POST /auth/pairing-codes` ([auth_grants.rs:518](crates/snapback-kernel/src/storage/auth_grants.rs:518), [auth_grants.rs:534](crates/snapback-kernel/src/storage/auth_grants.rs:534)). | **FAIL, conservatively.** The row is the server-recognized half of the short-lived pairing bearer. | **FAIL.** Each call generates a fresh secret, hash, request ID, and expiring row. | **FAIL.** Another caller would not mint this pairing capability. | **FAIL.** Pairing-code mint is exactly what the caller requested. | **IN SCOPE, but now ROUTE-CLOSED.** It is not excluded merely because the new fence protects it. |
 | **Operation epoch/range registration** ([operation_ledger.rs:1251](crates/snapback-kernel/src/operation_ledger.rs:1251), [operation_ledger.rs:1371](crates/snapback-kernel/src/operation_ledger.rs:1371), [operation_ledger.rs:1405](crates/snapback-kernel/src/operation_ledger.rs:1405)). | **FAIL.** It grants a finite server-authenticated operation-identity range. | **PASS.** Epoch sequence and range endpoints advance monotonically; lost-response replay can return the exact existing successor. | **FAIL.** An unrelated caller would neither allocate nor own this authority/audience range. | **FAIL.** Range issuance is the requested result. | **IN SCOPE; OPEN EXPOSURE.** |
@@ -113,7 +113,7 @@ Aside from pairing-code mint, every prior effect exposure remains:
 
 - **Caller-backed stream start, cursor premark, terminal settlement, and cancellation** still persist without caller-authority reservation. The engine API accepts only the batch, and production’s R2 callback is a no-op ([engine.rs:7750](crates/snapback-engine/src/local/engine.rs:7750), [settlement.rs:114](crates/snapback-kernel/src/storage/settlement.rs:114), [server.rs:31288](crates/snapback-server/src/server.rs:31288)). R1 expressly says persistence does not acquire the runner gate ([stream_attempt.rs:332](crates/snapback-sync/src/stream_attempt.rs:332)).
 
-- **OAuth proposal creation, operation ranges, and the global pairing sweep** remain unfenced. LLP 0297 now establishes explicitly that these are not all excludable as auxiliary.
+- **OAuth proposal creation, operation ranges, and the global pairing sweep** remain unfenced. LLP 0298 now establishes explicitly that these are not all excludable as auxiliary.
 
 - **Structural residuals** remain: independently installable publication carriers ([invocation.rs:1212](crates/snapback-sync/src/auth/invocation.rs:1212), [invocation.rs:1918](crates/snapback-sync/src/auth/invocation.rs:1918)); authority/reservation substitution; open `PendingCommit` implementations and captured commit authority ([commit_capsule.rs:159](crates/snapback-server/src/server/commit_capsule.rs:159), [commit_capsule.rs:187](crates/snapback-server/src/server/commit_capsule.rs:187)); and same-ID semantic replay ([storage.rs:857](crates/snapback-kernel/src/storage.rs:857), [storage.rs:903](crates/snapback-kernel/src/storage.rs:903)).
 
@@ -137,7 +137,7 @@ Aside from pairing-code mint, every prior effect exposure remains:
 
 No property-qualifying **remote unauthenticated** counterexample was found.
 
-## 6. Does LLP 0297 make the property reachable?
+## 6. Does LLP 0298 make the property reachable?
 
 **Yes—in the engineering sense the ruling was intended to establish.** It removes the unbounded obligation to fence every harmless clock or already-decided lazy lifecycle materialization. Under the current source census, the remaining in-scope effects form a finite, enumerable closure set:
 
@@ -150,7 +150,7 @@ No property-qualifying **remote unauthenticated** counterexample was found.
 7. Fence watch creation.
 8. Finish caller-authority fencing for stream start/premark/settlement/cancellation.
 9. Seal the finite carrier/capsule structural residuals if the claim includes in-process embedding.
-10. Land the auxiliary-site enumeration gate required by LLP 0297; no mechanical source gate for that closed list is present yet.
+10. Land the auxiliary-site enumeration gate required by LLP 0298; no mechanical source gate for that closed list is present yet.
 
 Nothing structural makes this set infinite or the effect-based property permanently unprovable. The open carrier/capsule seams weaken current closures from structural impossibility to route closure, but they are themselves finite and sealable.
 

@@ -1,6 +1,6 @@
 # Implementation sequencing, and a correction to how this program has been run
 
-Status: Open — process change adopted; auxiliary-write scope resolved by LLP 0297
+Status: Open — process change adopted; auxiliary-write scope resolved by LLP 0298
 Created: 2026-08-23
 Related: issues/20260823-remeasurement-property-still-false.md,
 issues/20260822-authority-publication-binding-implementation-plan.md,
@@ -160,7 +160,7 @@ Genuine blockers:
   `issues/20260822-author-rulings-fence-program.md`.
 - A stream caller-authority fence requires R4.
 - Binding Step 8 requires Steps 5–7.
-- LLP 0297 formally selected the effect-based boundary and requires every
+- LLP 0298 formally selected the effect-based boundary and requires every
   excluded auxiliary site to satisfy all four criteria and appear in a gated
   enumeration. The next measurement, rather than this pre-ruling plan, owns
   the resulting completion verdict.

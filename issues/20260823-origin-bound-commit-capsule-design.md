@@ -2,7 +2,7 @@
 
 Status: Proposed — design complete, implementation not dispatched
 Created: 2026-08-23
-Related: llp/0297-durable-effect-scope.decision.md,
+Related: llp/0298-durable-effect-scope.decision.md,
 issues/20260823-remeasurement-under-llp-0297.md (the nine-item closure set),
 issues/20260822-capsule-structural-residuals.md (why the previous attempt failed),
 issues/20260823-detached-action-nested-mutation-fence-design.md
@@ -15,7 +15,7 @@ retained past commit, terminal cause reconstructed from diagnostic strings, a bl
 `From<SnapbackError>` silently downgrading terminal causes, a deadline that stops applying after a
 handoff, and tests passing for the wrong reason.
 
-The measurement under LLP 0297 then established that **nine in-scope items remain**. Five of them
+The measurement under LLP 0298 then established that **nine in-scope items remain**. Five of them
 are routes that could reuse one lifecycle. That is the amortisation case.
 
 ## The decision
@@ -231,7 +231,7 @@ Change these parts:
 
 The existing watch adopter becomes a sealed `WatchManagement` operation over this same core. A temporary module-private compatibility wrapper is acceptable only if it delegates immediately and exposes none of the old callbacks or traits. It is not a second implementation.
 
-The five successfully landed hand-written fences remain unchanged. Retrofitting them would add structural-prerequisite risk without moving LLP 0297’s property.
+The five successfully landed hand-written fences remain unchanged. Retrofitting them would add structural-prerequisite risk without moving LLP 0298’s property.
 
 ## 4. Terminal errors and deadline ownership
 

@@ -3,7 +3,7 @@
 Status: Proposed design — no implementation or capability claim
 Date: 2026-08-23
 Systems: snapback-auth, snapback-sync, snapback-engine, snapback-kernel, snapback-server
-Related: LLP 0058, LLP 0059, LLP 0283 F-1, LLP 0290, LLP 0293, LLP 0297,
+Related: LLP 0058, LLP 0059, LLP 0283 F-1, LLP 0290, LLP 0293, LLP 0298,
   issues/20260823-uncorrelated-authority-axes-are-systemic-153-sites.md,
   issues/20260823-two-landed-fences-do-not-correlate-the-authority-axes.md,
   issues/20260823-origin-bound-commit-capsule-design.md
@@ -110,11 +110,11 @@ epoch, or Rust `PreparedAuthority` value. It means descent from one root prepara
 The subject may be a clone or a sanctioned reclassification of that root. A separately
 prepared value is a different origin even when all visible facts are equal.
 
-This is an effect property, not a function-name property. LLP 0297 includes any path
+This is an effect property, not a function-name property. LLP 0298 includes any path
 whose successful execution can change state surviving process restart and allows an
 auxiliary classification only when the operation is non-durable, non-authoritative,
 non-future-affecting, and has no trigger/output side effect
-(`llp/0297-durable-effect-scope.decision.md:14-45`).
+(`llp/0298-durable-effect-scope.decision.md:14-45`).
 An unclassified site remains in scope (`:68-83`).
 
 ## The comparison predicate
@@ -320,7 +320,7 @@ Every one of the 99 signatures must end in one of these exact forms:
 - a closed mode/system final cut;
 - a terminal-accounting final cut;
 - a durable-handoff claim final cut; or
-- a named auxiliary/non-durable operation outside LLP 0297's four durability criteria.
+- a named auxiliary/non-durable operation outside LLP 0298's four durability criteria.
 
 There is no generic `BeforeCommit`, generic `G`, or closure returning an unconstrained
 type. Pure forwarding helpers carry the same opaque pending/final-cut object; they do not
@@ -455,7 +455,7 @@ only the leaf recreates caller discipline at the seam.
 ### Phase 0 — freeze the population
 
 Add a checked-in registry with one row for each of the established 153 signatures and
-every LLP 0297 in-scope durable commit leaf. Each row records file/symbol, production vs
+every LLP 0298 in-scope durable commit leaf. Each row records file/symbol, production vs
 test, effect class, subject source, kernel leaf, and migration state. A generator/checker
 must fail on unregistered guarded/transaction signatures and on count increases. The
 existing issue is not a sufficient registry because it has no per-site table.
@@ -508,7 +508,7 @@ rows.
 
 Delete the temporary two-argument API if independent axes remain possible, delete all
 generic `BeforeCommit` and legacy/raw guard allowances, require a classification for
-every LLP 0297 durable commit, run the mutation evidence below, and inspect the generated
+every LLP 0298 durable commit, run the mutation evidence below, and inspect the generated
 zero-legacy registry.
 
 Only then may the project claim:
@@ -521,13 +521,13 @@ That is a structural claim about a frozen surface, not a mathematical claim that
 future code change can add a new commit path. If the registry checker recognizes only a
 finite spelling set, say so in the evidence rather than calling discovery complete.
 
-## LLP 0283 F-1 and LLP 0297
+## LLP 0283 F-1 and LLP 0298
 
-This work adopts LLP 0297's effect-based scope unchanged. It does not narrow “durable
+This work adopts LLP 0298's effect-based scope unchanged. It does not narrow “durable
 effect” to SQLite helper names and does not use “auxiliary” as an escape hatch. The
 registry must include publications, queues, receipts, filesystem/object-store effects,
-and trigger-state changes when they meet LLP 0297's criteria
-(`llp/0297-durable-effect-scope.decision.md:14-66`).
+and trigger-state changes when they meet LLP 0298's criteria
+(`llp/0298-durable-effect-scope.decision.md:14-66`).
 
 This design **does not supersede LLP 0283 F-1 itself**. F-1 records four authority-
 transition/reachability defects and forbids capability-downgrade closure factories
@@ -638,7 +638,7 @@ lock-free (`admission.rs:999-1012`).
 Generate the registry from all known transaction/commit spellings and compare it with the
 checked-in classification. Fail on a new generic `BeforeCommit`, raw
 `AdmissionEffectGuard` durable parameter, one- or two-axis reservation sink, direct SQLite
-commit outside a registered final cut, unclassified LLP 0297 effect, or an allowlist count
+commit outside a registered final cut, unclassified LLP 0298 effect, or an allowlist count
 increase. Require zero legacy rows before the final claim.
 
 - Shortest mutation that can keep this gate green: spell a commit through a mechanism the
