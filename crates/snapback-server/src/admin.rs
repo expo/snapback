@@ -2821,9 +2821,10 @@ impl AppState {
             SecretReadLeaseRegistry::new(read.secret_read_reset_generation());
         let telemetry_export_continuation_key = telemetry_export_continuation_key()?;
         let connections = ConnectionRegistry::default();
-        let mut preclaimed_bindings = preclaimed;
+        let preclaimed_bindings = preclaimed;
         let (
             commit_capsule_runtime,
+            auth_admission,
             telemetry,
             derived_instance_identity,
             connected_clients,
@@ -2831,38 +2832,36 @@ impl AppState {
             operator_authority,
             auth_coordinator,
         ) = {
-            let mut instance = snapback.try_lock().map_err(|_| {
-                SnapbackError::error(
-                    "SNAPBACK_EMBED_APP_STATE_BUSY",
-                    "embed",
-                    "the SharedSnapback graph is busy; release its write lock before constructing AppState",
-                )
-            })?;
-            let bindings = match preclaimed_bindings.take() {
+            let bindings = match preclaimed_bindings {
                 Some(bindings) => bindings,
-                None => instance.claim_app_state_graph(server_profile, auth_deployment)?,
+                None => {
+                    let mut instance = snapback.try_lock().map_err(|_| {
+                        SnapbackError::error(
+                            "SNAPBACK_EMBED_APP_STATE_BUSY",
+                            "embed",
+                            "the SharedSnapback graph is busy; release its write lock before constructing AppState",
+                        )
+                    })?;
+                    instance.claim_app_state_graph(server_profile, auth_deployment)?
+                }
             };
             let (
+                engine_runtime,
                 admission,
-                commit_capsule_origin,
-                graph_identity,
                 telemetry,
                 derived,
                 clients,
                 profiles,
                 operator,
-            ) = bindings.into_parts_for_app_state(&instance)?;
+                coordinator,
+            ) = bindings.into_runtime_parts_for_app_state(snapback.clone())?;
             let commit_capsule_runtime =
-                crate::server::commit_capsule::CommitCapsuleRuntimeBinding::new(
-                    snapback.clone(),
-                    admission,
-                    graph_identity,
-                    commit_capsule_origin,
+                crate::server::commit_capsule::CommitCapsuleRuntimeBinding::from_engine(
+                    engine_runtime,
                 );
-            let coordinator = instance.build_stream_auth_coordinator()?;
-            instance.bind_auth_coordinator(coordinator.as_ref())?;
             (
                 commit_capsule_runtime,
+                admission,
                 telemetry,
                 derived,
                 clients,
@@ -2871,7 +2870,6 @@ impl AppState {
                 coordinator,
             )
         };
-        let auth_admission = commit_capsule_runtime.admission().clone();
         let auth_terminal_lifecycle = AuthTerminalLifecycle::new(
             connections.clone(),
             connected_clients.clone(),

@@ -25516,8 +25516,8 @@ fn claim_config_verify_operator(snapback: &mut LocalSnapback) -> EngineOperatorA
             crate::auth::deployment::AuthDeploymentTarget::Local,
         )
         .expect("claim config verify composition graph");
-    let (_, _, _, _, _, _, _, operator) = bindings
-        .into_parts_for_app_state(snapback)
+    let operator = bindings
+        .into_operator_authority_for_test(snapback)
         .expect("bind config verify composition graph");
     operator
 }

@@ -32,6 +32,15 @@ test does not structurally distinguish FIFO participation from polling. Acceptan
 guarantee stops here under the design's abandonment rule; the verbatim run is retained with the
 Landing 1 mutation evidence.
 
+A corrective audit on 2026-08-23 found that Landing 1 had widened the runtime binding constructor
+to accept shared state, admission, graph identity, and commit origin independently. Two fully
+provisioned watch fixtures proved the resulting `{state B, graph B, origin B, admission A,
+authority A}` commit. The corrected construction path consumes one engine-minted opaque carrier;
+the graph identity and former parts decomposer are private or removed. The same audit moved
+retained watch-intent recovery behind a private operation-specific owner, so neither intended rows
+nor an exact reconciliation witness cross into production route code. The fail-first and
+compile-fail transition is recorded in the Landing 1 mutation evidence.
+
 ## Why this was commissioned
 
 The caller-authority fence pattern has been hand-implemented **five times**, each taking 3–6 review

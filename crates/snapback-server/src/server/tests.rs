@@ -159,8 +159,8 @@ async fn network_profile_http_release_marks_delay_and_keeps_normal_identity() {
             crate::auth::deployment::AuthDeploymentTarget::Local,
         )
         .expect("claim network profile graph");
-    let (_, _, _, _, _, _, profiles, _) = bindings
-        .into_parts_for_app_state(&snapback)
+    let profiles = bindings
+        .into_network_profiles_for_test(&snapback)
         .expect("bind network profile graph");
     snapback
         .activate_startup_network_profile(crate::network_profile::NetworkConditionProfile {
@@ -210,8 +210,8 @@ async fn network_profile_http_release_marks_delay_and_keeps_normal_identity() {
             crate::auth::deployment::AuthDeploymentTarget::Local,
         )
         .expect("claim normal network profile graph");
-    let (_, _, _, _, _, _, profiles, _) = bindings
-        .into_parts_for_app_state(&normal_snapback)
+    let profiles = bindings
+        .into_network_profiles_for_test(&normal_snapback)
         .expect("bind normal network profile graph");
     let started = Instant::now();
     let normal = super::release_network_profiled_response(
@@ -40683,143 +40683,6 @@ async fn origin_bound_watch_returns_the_typed_terminal_cause_without_string_reco
     ));
     let after = watch_management_facts(&fixture).await;
     assert_eq!(after.watch.status, crate::watches::WatchStatus::Active);
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn origin_bound_watch_currently_allows_state_b_graph_b_origin_b_admission_a_authority_a() {
-    let fixture = watch_management_race_fixture(WatchManagementRaceSite::Suspend).await;
-    let authority = prepared_test_session_route_authority(
-        &fixture.state,
-        InvocationSource::WatchManagement,
-        &fixture.bearer,
-    );
-    let crate::auth::invocation::ResolvedAppAuthority::Session { user_id, .. } =
-        authority.resolved()
-    else {
-        panic!("watch authority A must be a session")
-    };
-    let owner_a = user_id.clone();
-    let admission_a = fixture.state.auth_admission_controller();
-    let profile = fixture.state.server.profile;
-    let auth_deployment = fixture.state.server.auth_deployment;
-    let watch_id_b = crate::ids::mint_time_ordered(crate::ids::Kind::Watch);
-    let seed_watch_id_b = watch_id_b.clone();
-    let schema_b = with_snapback(&fixture.state.snapback, |local| {
-        local.served_schema_manifest().clone()
-    })
-    .await;
-    let (state_b, graph_b, origin_b) = tokio::task::spawn_blocking(move || {
-        let _sanction = crate::exec_guard::BlockingSanction::acquire();
-        let mut local_b = LocalSnapback::memory().expect("open graph B");
-        let diagnostics = local_b
-            .apply_schema(schema_b)
-            .expect("enable durable watches in graph B");
-        assert!(diagnostics.iter().all(|diagnostic| !matches!(
-            diagnostic.severity,
-            crate::diagnostic::DiagnosticSeverity::Error
-                | crate::diagnostic::DiagnosticSeverity::Fatal
-        )));
-        let now_ms = super::now_millis();
-        local_b
-            .remainder_auth_database_mut()
-            .create_watch(crate::storage::watches::CreateWatchRecord {
-                id: seed_watch_id_b,
-                owner_kind: crate::watches::WatchOwnerKind::User,
-                owner_principal_id: owner_a,
-                owner_authority_instance_id: "authority-a".to_owned(),
-                authority_mode: crate::watches::WatchAuthorityMode::RevalidatePrincipal,
-                anchor_grant_id: None,
-                installation_grant_id: None,
-                anchor_effective_user_id: None,
-                anchor_scopes: Vec::new(),
-                anchor_expires_at_ms: 0,
-                query_function_id: "cross-carrier-query".to_owned(),
-                query_function_name: "liveItems".to_owned(),
-                query_basis: 1,
-                query_args_json: "{}".to_owned(),
-                query_args_digest: "cross-carrier-query-args".to_owned(),
-                read_dependencies: Vec::new(),
-                predicate_json: "{\"path\":\"/rows\",\"op\":\"exists\"}".to_owned(),
-                reaction_kind: crate::watches::WatchReactionKind::Function,
-                reaction_function_id: "cross-carrier-reaction".to_owned(),
-                reaction_function_name: "listItems".to_owned(),
-                reaction_function_kind: crate::watches::WatchFunctionKind::Action,
-                reaction_basis: 1,
-                reaction_args_json: "{}".to_owned(),
-                reaction_args_digest: "cross-carrier-reaction-args".to_owned(),
-                webhook_url: None,
-                webhook_secret_ref: None,
-                daily_firing_budget: crate::watches::DEFAULT_DAILY_FIRING_BUDGET,
-                debounce_ms: crate::watches::DEFAULT_DEBOUNCE_MS,
-                initial_predicate_state: false,
-                now_ms,
-            })
-            .expect("seed graph B watch");
-        let bindings_b = local_b
-            .claim_app_state_graph(profile, auth_deployment)
-            .expect("claim graph B");
-        let state_b = Arc::new(tokio::sync::Mutex::new(local_b));
-        let (
-            _admission_b,
-            origin_b,
-            graph_b,
-            _telemetry_b,
-            _derived_b,
-            _clients_b,
-            _profiles_b,
-            _operator_b,
-        ) = bindings_b
-            .into_parts_for_app_state(
-                &state_b
-                    .try_lock()
-                    .expect("graph B remains held only by this constructor"),
-            )
-            .expect("split graph B destination parts");
-        (state_b, graph_b, origin_b)
-    })
-    .await
-    .expect("join graph B construction");
-
-    let mut hybrid = fixture.state.clone();
-    hybrid.snapback = state_b;
-    hybrid.commit_capsule_runtime =
-        super::commit_capsule::CommitCapsuleRuntimeBinding::new(
-            hybrid.snapback.clone(),
-            admission_a,
-            graph_b,
-            origin_b,
-        );
-    let destination = super::CommitCapsuleDestination::bind(&hybrid, authority)
-        .expect("the vulnerable constructor accepts admission A with graph/origin B");
-    let outcome = destination
-        .execute_watch_management(
-            direct_watch_suspend_intent(
-                &watch_id_b,
-                &format!("origin-bound-cross-carrier:{watch_id_b}"),
-            ),
-            None,
-        )
-        .await;
-    assert!(matches!(
-        outcome,
-        super::CommitCapsuleOutcome::Committed {
-            reconciled: false,
-            ..
-        }
-    ));
-    let watch_id_b_for_read = watch_id_b.clone();
-    let committed_b = with_snapback(&hybrid.snapback, move |local| {
-        local
-            .remainder_auth_database_mut()
-            .watch_management_facts_for_test(&watch_id_b_for_read)
-    })
-    .await
-    .expect("read graph B after authority A commit");
-    assert_eq!(
-        committed_b.watch.status,
-        crate::watches::WatchStatus::Suspended,
-        "authority A committed database B"
-    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

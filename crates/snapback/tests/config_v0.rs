@@ -376,8 +376,8 @@ fn verify_runs_the_probe_records_the_outcome_and_cooldown_blocks() {
             snapback::auth::deployment::AuthDeploymentTarget::Local,
         )
         .expect("claim config verify composition graph");
-    let (_, _, _, _, _, _, _, operator) = bindings
-        .into_parts_for_app_state(&snapback)
+    let operator = bindings
+        .into_operator_authority_for_test(&snapback)
         .expect("bind config verify composition graph");
     // Unset → verify refuses before running any probe.
     let error = snapback
@@ -435,8 +435,8 @@ fn verify_rejects_an_authenticated_only_probe() {
             snapback::auth::deployment::AuthDeploymentTarget::Local,
         )
         .expect("claim config verify composition graph");
-    let (_, _, _, _, _, _, _, operator) = bindings
-        .into_parts_for_app_state(&snapback)
+    let operator = bindings
+        .into_operator_authority_for_test(&snapback)
         .expect("bind config verify composition graph");
 
     let outcome = snapback
@@ -476,8 +476,8 @@ fn verify_grants_only_the_exact_entry_to_a_shared_probe() {
             snapback::auth::deployment::AuthDeploymentTarget::Local,
         )
         .expect("claim config verify composition graph");
-    let (_, _, _, _, _, _, _, operator) = bindings
-        .into_parts_for_app_state(&snapback)
+    let operator = bindings
+        .into_operator_authority_for_test(&snapback)
         .expect("bind config verify composition graph");
 
     let outcome = snapback

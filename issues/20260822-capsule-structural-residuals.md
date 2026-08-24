@@ -39,6 +39,29 @@ is only detected by the worker graph recheck plus rejected by the kernel origin 
 the explicit Landing 1 boundary in
 `issues/20260823-origin-bound-commit-capsule-design.md`.
 
+### Resolved 2026-08-23 — Landing 1 runtime-axis splice and reconciliation escape
+
+Landing 1 initially moved the runtime binding from a private constructor in `admin.rs` to a
+`pub(crate)` four-argument constructor in `server/commit_capsule.rs`. Safe in-crate code could take
+state, graph identity, and commit origin from fully provisioned graph B while supplying admission
+and prepared authority from fully provisioned graph A. All three runtime checks passed and the
+watch-management commit landed in database B under authority A.
+
+Closure: engine graph claiming now consumes the exact shared state itself and returns one opaque
+`EngineCommitCapsuleRuntimeBinding`. The server wrapper accepts only that carrier. The graph
+identity is private and the former `into_parts_for_app_state` decomposer no longer exists, so the
+four runtime axes cannot be independently supplied at any production visibility. Narrow
+test-support accessors return only a network-profile view or operator authority, never capsule
+parts.
+
+The same audit found that the generic retention handle remained `pub(crate)` in production even
+though its re-export was test-only. Route code could fully qualify it, remove retained
+`WatchManagementIntendedRows`, and use Local's reconciliation method to obtain an
+`ExactCommitRows` witness. The generic key and removal methods are now module-private; production
+retention flows only through private `WatchManagementRecoveryOwner`, which consumes both intended
+rows and exact witnesses internally and returns at most a settled watch commit. A generic
+inspection facade remains `cfg(test)` solely for the capsule prototype tests.
+
 ### High — post-construction aliasing can recreate `{B,A,A}` (found in review of the closure itself)
 
 `AppState` exposes its `Arc<Mutex<LocalSnapback>>` publicly
@@ -88,12 +111,11 @@ prepared authority from A: the admission comparison succeeds, so the cross-origi
 accepted. Replacing fields after construction is not required.
 
 Closure: `LocalSnapback` now mints an opaque AppState graph identity with its one-shot engine
-bindings. While holding the exact supplied `SharedSnapback` B, AppState construction consumes the
-bindings only through `into_parts_for_app_state(&B)`, which compares that identity before it can
-mint the private `CommitCapsuleRuntimeBinding`. That binding retains the exact SharedSnapback,
-admission controller, graph identity, and commit authority; the destination no longer assembles
-those parts independently. Watch staging also derives its authority view from the capsule's
-reservation instead of a separately cloned authority.
+bindings. Engine construction locks the exact supplied `SharedSnapback` B and consumes the
+bindings through `into_runtime_parts_for_app_state(B)`, which compares that identity before
+returning one opaque correlated runtime carrier. The graph identity is private and no parts
+decomposer remains. Watch staging also derives its authority view from the capsule's reservation
+instead of a separately cloned authority.
 
 Evidence: `bounded_commit_capsule_rejects_preclaimed_graph_a_with_shared_snapback_b` exercises two
 complementary actual `{state B, admission A, authority A}` inputs. One copies a closed database
@@ -125,8 +147,8 @@ Files: `crates/snapback-server/src/admin.rs:2621`,
 `crates/snapback-engine/src/local/engine.rs:3314-3334,24483-24514`, and
 `crates/snapback-kernel/src/storage/watches.rs:307-337`.
 
-Shortest path: obtain a cloneable `CommitCapsuleAuthority` through
-`CommitCapsuleRuntimeBinding::authority()` or
+Historical shortest path: obtain a cloneable `CommitCapsuleAuthority` through
+`CommitCapsuleRuntimeBinding::authority()` or the former
 `EngineAppStateBindings::into_parts_for_app_state()`. In a closure that
 already has mutable Local access, capture that authority, call public `stage_watch_management`,
 then call public `WatchManagementPending::commit(&captured_authority)` directly. The durable
@@ -134,8 +156,9 @@ transaction commits without an `AuthorizedEffectReservation` and without `FinalC
 Narrowing the capsule closure's parameter list does not constrain closure captures or other Local
 closures.
 
-Landing 1 disposition: `CommitCapsuleAuthority` is kernel-private. Engine/server bindings carry
-only `CommitCapsuleOrigin`; it exposes neither the raw binding nor a generic commit method. Watch
+Landing 1 disposition, corrected by the 2026-08-23 audit: `CommitCapsuleAuthority` is
+kernel-private. The engine runtime carrier exposes only closed watch commit/reconciliation
+operations; neither the raw binding nor a generic commit method or parts decomposer exists. Watch
 pending commit is private and the staging authority view is derived inside the executor from the
 same reservation. External attacks separately pin raw-authority naming and origin-field extraction.
 

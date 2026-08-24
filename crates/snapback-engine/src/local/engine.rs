@@ -3144,9 +3144,9 @@ impl AssetStoreConfig {
 
 /// One-shot result of claiming a LocalSnapback graph for the old public
 /// `AppState::try_new` composition seam. Authority-bearing registries remain
-/// inside the engine; besides the pre-existing admission controller, the only
-/// delegated write capability is opaque database identity for the bounded
-/// commit capsule. The kernel commit root never leaves storage.
+/// inside the engine, and capsule authority can be consumed only into one
+/// already-correlated runtime carrier. Ordinary AppState projections do not
+/// decompose that carrier. The kernel commit root never leaves storage.
 pub struct EngineAppStateBindings {
     admission: AdmissionController,
     commit_capsule_origin: crate::storage::CommitCapsuleOrigin,
@@ -3158,18 +3158,76 @@ pub struct EngineAppStateBindings {
     operator_authority: EngineOperatorAuthority,
 }
 
+/// One already-correlated runtime carrier for the bounded commit capsule.
+///
+/// Construction locks the exact shared graph, verifies the one-shot claim
+/// beside that graph, and packages the shared state, admission controller,
+/// graph identity, and closed kernel origin together. Higher crates may use
+/// only the operation-shaped methods below; there is no parts constructor or
+/// decomposition API.
+///
+/// @ref LLP 0225#3-transaction-and-commit-boundaries--who-may-commit-what —
+/// app-state construction receives one opaque engine carrier rather than
+/// independently composable database and admission authority.
+#[derive(Clone)]
+pub struct EngineCommitCapsuleRuntimeBinding {
+    state: Arc<tokio::sync::Mutex<LocalSnapback>>,
+    admission: AdmissionController,
+    graph_identity: EngineAppStateGraphIdentity,
+    origin: crate::storage::CommitCapsuleOrigin,
+}
+
+impl EngineCommitCapsuleRuntimeBinding {
+    pub fn shared_state(&self) -> &Arc<tokio::sync::Mutex<LocalSnapback>> {
+        &self.state
+    }
+
+    pub fn owns_admission_lease(&self, lease: &AdmissionLease) -> bool {
+        self.admission.owns_lease(lease)
+    }
+
+    pub fn matches_local(&self, local: &LocalSnapback) -> bool {
+        self.graph_identity.matches_local(local)
+    }
+
+    pub fn commit_watch_management(
+        &self,
+        pending: crate::storage::watches::WatchManagementPending<'_>,
+    ) -> SnapbackResult<crate::storage::watches::WatchManagementCommit> {
+        self.origin.commit_watch_management(pending)
+    }
+
+    pub fn accept_watch_management_reconciliation(
+        &self,
+        witness: crate::storage::ExactCommitRows<
+            crate::storage::watches::WatchManagementIntendedRows,
+            crate::storage::watches::WatchManagementCommit,
+        >,
+        intended: &crate::storage::watches::WatchManagementIntendedRows,
+    ) -> SnapbackResult<crate::storage::watches::WatchManagementCommit> {
+        self.origin
+            .accept_watch_management_reconciliation(witness, intended)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn origin_for_capsule_prototype_test(&self) -> crate::storage::CommitCapsuleOrigin {
+        self.origin.clone()
+    }
+}
+
 /// Opaque identity for the exact `LocalSnapback` graph claimed by one
 /// `AppState`. The server retains this inside its commit-capsule runtime
 /// binding; copied durable incarnation text is not process-graph identity.
 #[derive(Clone)]
-pub struct EngineAppStateGraphIdentity {
+struct EngineAppStateGraphIdentity {
     identity: Arc<()>,
 }
 
 impl EngineAppStateGraphIdentity {
     /// Recheck that a managed worker still owns the process-local graph that
     /// was sealed into its `AppState` binding.
-    pub fn matches_local(&self, local: &LocalSnapback) -> bool {
+    fn matches_local(&self, local: &LocalSnapback) -> bool {
         Arc::ptr_eq(&self.identity, &local.app_state_graph_identity)
     }
 }
@@ -3424,26 +3482,31 @@ impl ExpiredServiceAuthorityPlan {
 }
 
 impl EngineAppStateBindings {
-    /// Consume a preclaimed graph only beside the exact `LocalSnapback` that
-    /// minted it. This comparison happens before the server can assemble its
-    /// private runtime binding, so independently supplied graph claims cannot
-    /// redirect database or commit authority at `AppState` construction.
-    pub fn into_parts_for_app_state(
+    /// Consume the one-shot engine claim into one opaque, already-correlated
+    /// capsule carrier plus the non-capsule AppState projections.
+    ///
+    /// The method locks `state` itself before comparing the claim identity, so
+    /// no caller can validate against Local A while packaging shared state B.
+    pub fn into_runtime_parts_for_app_state(
         self,
-        local: &LocalSnapback,
+        state: Arc<tokio::sync::Mutex<LocalSnapback>>,
     ) -> SnapbackResult<(
+        EngineCommitCapsuleRuntimeBinding,
         AdmissionController,
-        crate::storage::CommitCapsuleOrigin,
-        EngineAppStateGraphIdentity,
         crate::telemetry::Telemetry,
         Option<crate::instance_fork::DerivedForkLineageV1>,
         ConnectedClientObserver,
         NetworkProfileView,
         EngineOperatorAuthority,
+        Arc<crate::auth::coordinator::AuthCoordinator>,
     )> {
-        // @ref LLP 0225#3-transaction-and-commit-boundaries--who-may-commit-what —
-        // AppState destination origin is opaque process-graph identity, not
-        // copied durable incarnation text.
+        let mut local = state.try_lock().map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_EMBED_APP_STATE_BUSY",
+                "embed",
+                "the SharedSnapback graph is busy; release its write lock before constructing AppState",
+            )
+        })?;
         if !Arc::ptr_eq(
             &self.graph_identity.identity,
             &local.app_state_graph_identity,
@@ -3454,16 +3517,58 @@ impl EngineAppStateBindings {
                 "the preclaimed AppState bindings do not belong to the supplied SharedSnapback graph",
             ));
         }
+        let coordinator = local.build_stream_auth_coordinator()?;
+        local.bind_auth_coordinator(coordinator.as_ref())?;
+        let admission = self.admission.clone();
+        let runtime = EngineCommitCapsuleRuntimeBinding {
+            state: state.clone(),
+            admission: self.admission,
+            graph_identity: self.graph_identity,
+            origin: self.commit_capsule_origin,
+        };
         Ok((
-            self.admission,
-            self.commit_capsule_origin,
-            self.graph_identity,
+            runtime,
+            admission,
             self.telemetry,
             self.derived_instance_identity,
             self.connected_clients,
             self.network_profiles,
             self.operator_authority,
+            coordinator,
         ))
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn into_network_profiles_for_test(
+        self,
+        local: &LocalSnapback,
+    ) -> SnapbackResult<NetworkProfileView> {
+        self.ensure_matches_local(local)?;
+        Ok(self.network_profiles)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn into_operator_authority_for_test(
+        self,
+        local: &LocalSnapback,
+    ) -> SnapbackResult<EngineOperatorAuthority> {
+        self.ensure_matches_local(local)?;
+        Ok(self.operator_authority)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    fn ensure_matches_local(&self, local: &LocalSnapback) -> SnapbackResult<()> {
+        if self.graph_identity.matches_local(local) {
+            Ok(())
+        } else {
+            Err(SnapbackError::error(
+                "SNAPBACK_COMMIT_CAPSULE_DESTINATION_MISMATCH",
+                "server",
+                "the preclaimed AppState bindings do not belong to the supplied SharedSnapback graph",
+            ))
+        }
     }
 }
 

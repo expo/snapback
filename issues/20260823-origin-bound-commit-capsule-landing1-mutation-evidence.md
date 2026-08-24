@@ -316,6 +316,41 @@ test server::tests::bounded_commit_capsule_queue_timeout_preserves_fifo_and_drai
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 592 filtered out; finished in 1.37s
 ```
 
+## Corrective carrier and recovery audit
+
+The first Landing 1 implementation exposed a four-argument `pub(crate)`
+`CommitCapsuleRuntimeBinding::new`. The fail-first reproduction used two complete
+`watch_management_race_fixture(Suspend)` graphs. It took shared state, graph identity, and commit
+origin from fixture B, admission and prepared authority from fixture A, seeded a B watch owned by
+A's principal, then committed through the cross-wired destination. The assertion read database B
+and proved its watch was suspended. The exact verdict was:
+
+```text
+running 1 test
+test server::tests::origin_bound_watch_currently_allows_state_b_graph_b_origin_b_admission_a_authority_a ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 593 filtered out; finished in 0.26s
+```
+
+After construction was changed to consume one opaque engine-correlated carrier and the old parts
+decomposer was removed, the unchanged reproduction stopped compiling at both deliberate splice
+points:
+
+```text
+error[E0599]: no method named `destination_parts_for_cross_wire_test` found
+error[E0599]: no function or associated item named `new` found for struct `CommitCapsuleRuntimeBinding`
+```
+
+The same audit removed the production generic retention handle. Its key and exact removal are now
+module-private, while retained watch recovery is owned by private
+`WatchManagementRecoveryOwner`; only the prototype tests receive a `cfg(test)` generic facade.
+
+The source audit of the eight Landing 1 attack bins found seven that named the item each claimed to
+fence. `supply_capsule_destination_parts.rs` was the exception: it named only
+`CommitCapsuleDestination`, so its E0603 was unrelated to runtime construction. The repaired attack
+now names `CommitCapsuleRuntimeBinding` and invokes the removed four-part constructor. All eight
+post-correction verdicts are quoted below.
+
 ## Compile-fail enforcement
 
 These are enforced by `scripts/check-security-boundaries.mjs`, which compiles each inventoried
@@ -324,7 +359,7 @@ Rustdoc does not enforce the pinned diagnostic code. The eight Landing 1 attacks
 
 ```text
 [security-boundary] PASS name-capsule-internal-phase: E0603 at src/bin/name_capsule_internal_phase.rs:3:44 under features []
-[security-boundary] PASS supply-capsule-destination-parts: E0603 at src/bin/supply_capsule_destination_parts.rs:3:44 under features []
+[security-boundary] PASS supply-capsule-destination-parts: E0603 at src/bin/supply_capsule_destination_parts.rs:3:38 under features []
 [security-boundary] PASS implement-capsule-pending: E0405 at src/bin/implement_capsule_pending.rs:4:31 under features []
 [security-boundary] PASS fake-watch-pending: E0308 at src/bin/fake_watch_pending.rs:7:44 under features []
 [security-boundary] PASS construct-exact-commit-rows: E0451 at src/bin/construct_exact_commit_rows.rs:9:9 under features []

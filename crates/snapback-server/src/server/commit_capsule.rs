@@ -49,41 +49,48 @@ const WATCH_MANAGEMENT_COMMIT_BUDGET: std::time::Duration = std::time::Duration:
 /// database and admission authority independently.
 #[derive(Clone)]
 pub(crate) struct CommitCapsuleRuntimeBinding {
-    state: super::SharedSnapback,
-    admission: crate::auth::admission::AuthAdmissionController,
-    graph_identity: crate::local::EngineAppStateGraphIdentity,
-    origin: crate::storage::CommitCapsuleOrigin,
+    engine: crate::local::EngineCommitCapsuleRuntimeBinding,
 }
 
 impl CommitCapsuleRuntimeBinding {
-    pub(crate) fn new(
-        state: super::SharedSnapback,
-        admission: crate::auth::admission::AuthAdmissionController,
-        graph_identity: crate::local::EngineAppStateGraphIdentity,
-        origin: crate::storage::CommitCapsuleOrigin,
-    ) -> Self {
-        Self {
-            state,
-            admission,
-            graph_identity,
-            origin,
-        }
+    pub(crate) fn from_engine(engine: crate::local::EngineCommitCapsuleRuntimeBinding) -> Self {
+        Self { engine }
     }
 
     fn state(&self) -> &super::SharedSnapback {
-        &self.state
+        self.engine.shared_state()
     }
 
-    pub(crate) fn admission(&self) -> &crate::auth::admission::AuthAdmissionController {
-        &self.admission
-    }
-
-    fn origin(&self) -> &crate::storage::CommitCapsuleOrigin {
-        &self.origin
+    fn owns_admission_lease(&self, lease: &crate::auth::admission::AdmissionLease) -> bool {
+        self.engine.owns_admission_lease(lease)
     }
 
     fn matches_local(&self, local: &crate::local::LocalSnapback) -> bool {
-        self.graph_identity.matches_local(local)
+        self.engine.matches_local(local)
+    }
+
+    fn commit_watch_management(
+        &self,
+        pending: crate::storage::watches::WatchManagementPending<'_>,
+    ) -> SnapbackResult<crate::storage::watches::WatchManagementCommit> {
+        self.engine.commit_watch_management(pending)
+    }
+
+    fn accept_watch_management_reconciliation(
+        &self,
+        witness: crate::storage::ExactCommitRows<
+            crate::storage::watches::WatchManagementIntendedRows,
+            crate::storage::watches::WatchManagementCommit,
+        >,
+        intended: &crate::storage::watches::WatchManagementIntendedRows,
+    ) -> SnapbackResult<crate::storage::watches::WatchManagementCommit> {
+        self.engine
+            .accept_watch_management_reconciliation(witness, intended)
+    }
+
+    #[cfg(test)]
+    fn origin_for_capsule_prototype_test(&self) -> crate::storage::CommitCapsuleOrigin {
+        self.engine.origin_for_capsule_prototype_test()
     }
 }
 
@@ -237,7 +244,7 @@ pub(crate) struct CommitCapsuleDestination {
 impl CommitCapsuleDestination {
     pub(crate) fn bind(runtime: &AppState, authority: PreparedAuthority) -> SnapbackResult<Self> {
         let runtime = runtime.commit_capsule_runtime.clone();
-        if !runtime.admission().owns_lease(authority.admission_lease()) {
+        if !runtime.owns_admission_lease(authority.admission_lease()) {
             return Err(SnapbackError::error(
                 "SNAPBACK_COMMIT_CAPSULE_DESTINATION_MISMATCH",
                 "server",
@@ -263,7 +270,8 @@ impl CommitCapsuleDestination {
             #[cfg(test)]
             test_probe: take_watch_capsule_probe_for_test(&operation_identity),
         };
-        let (retention, recovery) = match CommitUncertainRetention::new(&operation_identity) {
+        let (retention, recovery) = match WatchManagementRecoveryOwner::reserve(&operation_identity)
+        {
             Ok(pair) => pair,
             Err(error) => return CommitCapsuleOutcome::Rejected(error),
         };
@@ -329,7 +337,7 @@ struct Bound {
     deadline: Instant,
     terminal: CommitTerminalLatch,
     retention: CommitUncertainRetention<crate::storage::watches::WatchManagementIntendedRows>,
-    recovery: CommitUncertainRetentionHandle<crate::storage::watches::WatchManagementIntendedRows>,
+    recovery: WatchManagementRecoveryOwner,
 }
 
 impl Bound {
@@ -337,9 +345,7 @@ impl Bound {
         destination: CommitCapsuleDestination,
         request: WatchManagementRequest,
         retention: CommitUncertainRetention<crate::storage::watches::WatchManagementIntendedRows>,
-        recovery: CommitUncertainRetentionHandle<
-            crate::storage::watches::WatchManagementIntendedRows,
-        >,
+        recovery: WatchManagementRecoveryOwner,
     ) -> Self {
         #[cfg(test)]
         let budget = request
@@ -442,7 +448,7 @@ struct Reserved {
     terminal: CommitTerminalLatch,
     reservation: CommitCapsuleReservation,
     retention: CommitUncertainRetention<crate::storage::watches::WatchManagementIntendedRows>,
-    recovery: CommitUncertainRetentionHandle<crate::storage::watches::WatchManagementIntendedRows>,
+    recovery: WatchManagementRecoveryOwner,
 }
 
 impl Reserved {
@@ -465,7 +471,7 @@ struct WorkerOwned<'local> {
     terminal: CommitTerminalLatch,
     reservation: CommitCapsuleReservation,
     retention: CommitUncertainRetention<crate::storage::watches::WatchManagementIntendedRows>,
-    recovery: CommitUncertainRetentionHandle<crate::storage::watches::WatchManagementIntendedRows>,
+    recovery: WatchManagementRecoveryOwner,
 }
 
 impl<'local> WorkerOwned<'local> {
@@ -578,7 +584,7 @@ impl<'local> WorkerOwned<'local> {
         let guarded = Guarded {
             pending,
             guard,
-            origin: runtime.origin(),
+            runtime: &runtime,
             retention: &mut retention,
             #[cfg(test)]
             probe: request.test_probe.as_ref(),
@@ -603,20 +609,11 @@ impl<'local> WorkerOwned<'local> {
                 Finished::committed(committed, false)
             }
             GuardedAttempt::CommitUncertain { intended, cause } => {
-                match local.reconcile_watch_management(&intended) {
-                    Ok(Some(witness)) => match runtime
-                        .origin()
-                        .accept_watch_management_reconciliation(witness, &intended)
-                    {
-                        Ok(committed) => {
-                            local.observe_watch_management_commit(&committed);
-                            Finished::committed(committed, true)
-                        }
-                        Err(error) => {
-                            retention.retain(intended);
-                            Finished::uncertain_and_report(error, recovery)
-                        }
-                    },
+                match recovery.reconcile_intended(&runtime, local, &intended) {
+                    Ok(Some(committed)) => {
+                        local.observe_watch_management_commit(&committed);
+                        Finished::committed(committed, true)
+                    }
                     Ok(None) => {
                         retention.retain(intended);
                         Finished::uncertain_and_report(
@@ -648,7 +645,7 @@ impl<'local> WorkerOwned<'local> {
 struct Guarded<'guard, 'connection> {
     pending: crate::storage::watches::WatchManagementPending<'connection>,
     guard: crate::auth::invocation::AuthorizedEffectCommitGuard<'guard>,
-    origin: &'guard crate::storage::CommitCapsuleOrigin,
+    runtime: &'guard CommitCapsuleRuntimeBinding,
     retention:
         &'guard mut CommitUncertainRetention<crate::storage::watches::WatchManagementIntendedRows>,
     #[cfg(test)]
@@ -672,7 +669,7 @@ impl Guarded<'_, '_> {
         let Guarded {
             pending,
             guard,
-            origin,
+            runtime,
             retention,
             #[cfg(test)]
             probe,
@@ -680,7 +677,9 @@ impl Guarded<'_, '_> {
             operation,
         } = self;
         let intended = pending.intended_rows().clone();
-        let result = catch_unwind(AssertUnwindSafe(|| origin.commit_watch_management(pending)));
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            runtime.commit_watch_management(pending)
+        }));
         #[cfg(test)]
         if let Some(probe) = probe {
             assert!(probe.0.scope.is_active_for(operation));
@@ -739,12 +738,7 @@ impl<T> Finished<T> {
         }
     }
 
-    fn uncertain_and_report(
-        error: SnapbackError,
-        recovery: CommitUncertainRetentionHandle<
-            crate::storage::watches::WatchManagementIntendedRows,
-        >,
-    ) -> Self {
+    fn uncertain_and_report(error: SnapbackError, recovery: WatchManagementRecoveryOwner) -> Self {
         let retained = recovery.snapshot();
         eprintln!(
             "{}",
@@ -1011,22 +1005,22 @@ fn commit_uncertain_retention_registry() -> &'static Mutex<CommitUncertainRetent
         .get_or_init(|| Mutex::new(CommitUncertainRetentionRegistry::default()))
 }
 
-/// Identity-only inspection and recovery authority for one retained ambiguity.
-///
-/// This handle owns no storage. The process registry is the independent owner,
-/// and exact removal is refused until the capsule has left its retain step.
+/// Module-private identity for one retained ambiguity. The process registry is
+/// the independent owner, and exact removal is refused until the capsule has
+/// left its retain step. Production callers never receive this key.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct CommitUncertainRetentionHandle<U> {
+struct CommitUncertainRetentionKey<U> {
     id: CommitUncertainRetentionId,
     marker: PhantomData<fn() -> U>,
 }
 
-impl<U: Send + 'static> CommitUncertainRetentionHandle<U> {
-    pub(crate) fn id(&self) -> CommitUncertainRetentionId {
+impl<U: Send + 'static> CommitUncertainRetentionKey<U> {
+    #[cfg(test)]
+    fn id(&self) -> CommitUncertainRetentionId {
         self.id
     }
 
-    pub(crate) fn snapshot(&self) -> Option<CommitUncertainRetentionSnapshot> {
+    fn snapshot(&self) -> Option<CommitUncertainRetentionSnapshot> {
         let registry = commit_uncertain_retention_registry()
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -1045,7 +1039,7 @@ impl<U: Send + 'static> CommitUncertainRetentionHandle<U> {
     /// More than one exact retention id may exist when overlapping attempts
     /// carry the same logical operation identity, so recovery must inspect
     /// every returned snapshot rather than assuming identity uniqueness.
-    pub(crate) fn snapshots_by_operation_identity(
+    fn snapshots_by_operation_identity(
         operation_identity: &str,
     ) -> Vec<CommitUncertainRetentionSnapshot> {
         let registry = commit_uncertain_retention_registry()
@@ -1065,7 +1059,7 @@ impl<U: Send + 'static> CommitUncertainRetentionHandle<U> {
 
     /// Rediscover typed recovery authority from the stable operation identity
     /// and one exact id returned by `snapshots_by_operation_identity`.
-    pub(crate) fn lookup_by_operation_identity(
+    fn lookup_by_operation_identity(
         operation_identity: &str,
         id: CommitUncertainRetentionId,
     ) -> SnapbackResult<Self> {
@@ -1091,15 +1085,54 @@ impl<U: Send + 'static> CommitUncertainRetentionHandle<U> {
         })
     }
 
-    pub(crate) fn is_empty(&self) -> bool {
+    #[cfg(test)]
+    fn is_empty(&self) -> bool {
         self.snapshot()
             .is_none_or(|snapshot| snapshot.state == CommitUncertainRetentionState::Reserved)
+    }
+
+    fn clone_after_capsule(&self, operation_identity: &str) -> SnapbackResult<U>
+    where
+        U: Clone,
+    {
+        let registry = commit_uncertain_retention_registry()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let Some(entry) = registry.entries.get(&self.id) else {
+            return Err(retention_not_found());
+        };
+        if entry.operation_identity != operation_identity {
+            return Err(retention_identity_mismatch());
+        }
+        if entry.state != CommitUncertainRetentionState::Recoverable {
+            return Err(SnapbackError::error(
+                "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_ACTIVE",
+                "server",
+                "commit-uncertain retention cannot be recovered while its capsule is active",
+            ));
+        }
+        let slot = Arc::downcast::<CommitUncertainRetentionSlot<U>>(Arc::clone(&entry.slot))
+            .map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_TYPE_MISMATCH",
+                    "server",
+                    "the commit-uncertain retention carrier type does not match its recovery owner",
+                )
+            })?;
+        let carrier = slot
+            .carrier
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .as_ref()
+            .expect("a recoverable commit-uncertain entry owns its carrier")
+            .clone();
+        Ok(carrier)
     }
 
     /// Remove one exact carrier only after its capsule has stopped using it.
     /// The operation-specific recovery owner must first prove the durable
     /// predecessor or successor and then settle the returned carrier.
-    pub(crate) fn remove_after_recovery(&self, operation_identity: &str) -> SnapbackResult<U> {
+    fn remove_after_recovery(&self, operation_identity: &str) -> SnapbackResult<U> {
         let mut registry = commit_uncertain_retention_registry()
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -1135,6 +1168,46 @@ impl<U: Send + 'static> CommitUncertainRetentionHandle<U> {
     }
 }
 
+/// Test-only inspection facade for the generic retention machinery. The
+/// production build exposes only the private, operation-specific watch owner
+/// below, so route code cannot extract intended rows or a reconciliation
+/// witness.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct CommitUncertainRetentionHandle<U>(CommitUncertainRetentionKey<U>);
+
+#[cfg(test)]
+impl<U: Send + 'static> CommitUncertainRetentionHandle<U> {
+    pub(crate) fn id(&self) -> CommitUncertainRetentionId {
+        self.0.id()
+    }
+
+    pub(crate) fn snapshot(&self) -> Option<CommitUncertainRetentionSnapshot> {
+        self.0.snapshot()
+    }
+
+    pub(crate) fn snapshots_by_operation_identity(
+        operation_identity: &str,
+    ) -> Vec<CommitUncertainRetentionSnapshot> {
+        CommitUncertainRetentionKey::<U>::snapshots_by_operation_identity(operation_identity)
+    }
+
+    pub(crate) fn lookup_by_operation_identity(
+        operation_identity: &str,
+        id: CommitUncertainRetentionId,
+    ) -> SnapbackResult<Self> {
+        CommitUncertainRetentionKey::lookup_by_operation_identity(operation_identity, id).map(Self)
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub(crate) fn remove_after_recovery(&self, operation_identity: &str) -> SnapbackResult<U> {
+        self.0.remove_after_recovery(operation_identity)
+    }
+}
+
 fn retention_not_found() -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_COMMIT_UNCERTAIN_RETENTION_NOT_FOUND",
@@ -1154,8 +1227,9 @@ fn retention_identity_mismatch() -> SnapbackError {
 /// Capsule-owned write authority for one bounded commit-uncertain slot.
 ///
 /// Construction reserves one of the process-wide bounded slots and registers
-/// an independent owner before the capsule can reach COMMIT. Callers receive
-/// only an identity-based inspection/recovery handle, never mutable storage.
+/// an independent owner before the capsule can reach COMMIT. Production
+/// capsule code receives only a module-private operation-specific owner;
+/// generic inspection exists solely through the test facade above.
 pub(crate) struct CommitUncertainRetention<U> {
     id: CommitUncertainRetentionId,
     slot: Arc<CommitUncertainRetentionSlot<U>>,
@@ -1164,9 +1238,9 @@ pub(crate) struct CommitUncertainRetention<U> {
 }
 
 impl<U: Send + 'static> CommitUncertainRetention<U> {
-    pub(crate) fn new(
+    fn reserve(
         operation_identity: impl Into<String>,
-    ) -> SnapbackResult<(Self, CommitUncertainRetentionHandle<U>)> {
+    ) -> SnapbackResult<(Self, CommitUncertainRetentionKey<U>)> {
         let operation_identity = operation_identity.into();
         assert!(
             !operation_identity.is_empty(),
@@ -1211,11 +1285,19 @@ impl<U: Send + 'static> CommitUncertainRetention<U> {
                 #[cfg(test)]
                 after_store_for_test: None,
             },
-            CommitUncertainRetentionHandle {
+            CommitUncertainRetentionKey {
                 id,
                 marker: PhantomData,
             },
         ))
+    }
+
+    #[cfg(test)]
+    pub(crate) fn new(
+        operation_identity: impl Into<String>,
+    ) -> SnapbackResult<(Self, CommitUncertainRetentionHandle<U>)> {
+        Self::reserve(operation_identity)
+            .map(|(retention, key)| (retention, CommitUncertainRetentionHandle(key)))
     }
 
     #[cfg(test)]
@@ -1277,6 +1359,92 @@ impl<U> Drop for CommitUncertainRetention<U> {
         } else {
             registry.entries.remove(&self.id);
         }
+    }
+}
+
+/// The only production owner of retained watch-management intent. It keeps
+/// both the generic retention key and the exact-row reconciliation witness
+/// inside this module; recovery callers can receive only the settled commit.
+///
+/// @ref LLP 0059#rollback-and-ambiguous-commit — exact reconciliation proves
+/// the complete intended successor before the retained ambiguity is removed.
+#[derive(Debug)]
+struct WatchManagementRecoveryOwner {
+    key: CommitUncertainRetentionKey<crate::storage::watches::WatchManagementIntendedRows>,
+}
+
+impl WatchManagementRecoveryOwner {
+    fn reserve(
+        operation_identity: &str,
+    ) -> SnapbackResult<(
+        CommitUncertainRetention<crate::storage::watches::WatchManagementIntendedRows>,
+        Self,
+    )> {
+        CommitUncertainRetention::reserve(operation_identity)
+            .map(|(retention, key)| (retention, Self { key }))
+    }
+
+    fn snapshot(&self) -> Option<CommitUncertainRetentionSnapshot> {
+        self.key.snapshot()
+    }
+
+    #[allow(dead_code)]
+    fn snapshots_by_operation_identity(
+        operation_identity: &str,
+    ) -> Vec<CommitUncertainRetentionSnapshot> {
+        CommitUncertainRetentionKey::<
+            crate::storage::watches::WatchManagementIntendedRows,
+        >::snapshots_by_operation_identity(operation_identity)
+    }
+
+    #[allow(dead_code)]
+    fn lookup_by_operation_identity(
+        operation_identity: &str,
+        id: CommitUncertainRetentionId,
+    ) -> SnapbackResult<Self> {
+        CommitUncertainRetentionKey::lookup_by_operation_identity(operation_identity, id)
+            .map(|key| Self { key })
+    }
+
+    fn reconcile_intended(
+        &self,
+        runtime: &CommitCapsuleRuntimeBinding,
+        local: &mut LocalSnapback,
+        intended: &crate::storage::watches::WatchManagementIntendedRows,
+    ) -> SnapbackResult<Option<crate::storage::watches::WatchManagementCommit>> {
+        if !runtime.matches_local(local) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_COMMIT_CAPSULE_DESTINATION_MISMATCH",
+                "server",
+                "watch-management recovery does not own the bound AppState graph",
+            ));
+        }
+        let Some(witness) = local.reconcile_watch_management(intended)? else {
+            return Ok(None);
+        };
+        runtime
+            .accept_watch_management_reconciliation(witness, intended)
+            .map(Some)
+    }
+
+    /// A future recovery sweep enters through this operation-specific method.
+    /// The retained intended rows and `ExactCommitRows` witness never cross
+    /// the owner boundary.
+    #[allow(dead_code)]
+    fn recover_retained(
+        &self,
+        runtime: &CommitCapsuleRuntimeBinding,
+        local: &mut LocalSnapback,
+        operation_identity: &str,
+    ) -> SnapbackResult<Option<crate::storage::watches::WatchManagementCommit>> {
+        let intended = self.key.clone_after_capsule(operation_identity)?;
+        let Some(committed) = self.reconcile_intended(runtime, local, &intended)? else {
+            return Ok(None);
+        };
+        let removed = self.key.remove_after_recovery(operation_identity)?;
+        drop(removed);
+        local.observe_watch_management_commit(&committed);
+        Ok(Some(committed))
     }
 }
 
@@ -1535,7 +1703,7 @@ where
         let mut final_cut = FinalCommitCut::new(
             spec.operation,
             spec.deadline,
-            runtime.origin().clone(),
+            runtime.origin_for_capsule_prototype_test(),
             uncertain_retention,
         );
         let mut transaction = CommitCapsuleTransaction::new(&mut guard);
