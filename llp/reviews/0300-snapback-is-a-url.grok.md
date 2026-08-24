@@ -176,3 +176,30 @@ No PRE-EXISTING findings. No PRE-EXISTING MATERIAL findings.
 Receipt posture encoding and old/new attach parse behavior; URL canonicalization (`localhost` vs `127.0.0.1`, `[::1]` brackets, `http` vs `https`); discovery path/shape (OQ2); production Provider behavior when `url` is passed; re-verify cadence; per-bundler exclusion of the dev artifact; whether an explicit origin list must restate loopback (finding 6 is the RFC sentence; mechanics stay Spec).
 
 NOT READY
+
+## Round 3 — final delta round — 2026-08-24
+
+- Target: llp/0300-snapback-is-a-url.rfc.md @ revision (d), landed f71e2bbcd, sha256 28c83068f29db02982c1241ae0a2f7e104d2bc508c50291709a5bd2325d8f96c
+- Capsule: refine-0300/capsule-r3 (revision d + c→d diff + LLP 0299 + 2 tickets), dirhash 1aa49357234b631b8438df182b6dc6af677fc913c0866f372e9f08ff473082c2
+- Blindness: structural; fresh session
+- Received: complete response; verbatim body follows
+
+The prompt was truncated; I’ll read the offloaded full request so the review covers the complete document and diff.The c→d resolutions are sound. The nine enumerated edits fix the round-2 holes they target (false “gains nothing” lemma, first-use-only discovery, host/scope mismatch, “supervised territory” overclaim, `NODE_ENV`-flavored lead-in, weak Acceptance 5, replace-vs-narrow allowlist, library env precedence, DCE-as-gate). None of those replacements is a defective decision.
+
+**Trust-model / accepted regression — no MATERIAL findings.**  
+**Discovery invariant — no MATERIAL findings.**  
+**Host admission and scope — no MATERIAL findings.**  
+**Production gating, allowlist, OQ1, Spec obligations — no MATERIAL findings.**  
+**Internal consistency of the delta — no MATERIAL findings.**  
+**Altitude — no MATERIAL findings.**  
+**PRE-EXISTING material — no MATERIAL findings.**
+
+1. **SUGGESTION, IN-DELTA, P1 (discovery gate) / Security analysis / Acceptance 4.** The standing-invariant rewrite dropped c’s “no bearer, session, mint, or any other client call” and now only sequences the identity exchange before **credentialed** traffic. P2 still classifies signup as unauthenticated, so a reading exists in which ordinary signup/login (Acceptance 1) runs against whoever is on the port before mix-up detection. That reading would send passwords and a freshly minted token to a wrong-app occupant — the case the gate exists to stop — and would contradict “refused before it sees a credential.” This is not a decision to exempt signup; it is a wording hole opened while promoting first-use to a standing invariant. **Concrete change:** state that the identity exchange precedes every other client call to that URL, including unauthenticated signup/login; only the identity fetch itself is exempt. Leave cadence in Spec.
+
+2. **SUGGESTION, IN-DELTA, P1 (discovery gate).** c matched the returned deployment identity to the generated `app` export. d only says “identity match” / “naming both identities,” so the client’s reference identity is implicit. **Concrete change:** one clause restoring the reference (returned identity vs generated `app` identity/generation). Path/shape stays OQ2/Spec.
+
+3. **NIT, IN-DELTA, Acceptance 5.** “URL env var and provider prop set” is the right adversarial condition for Expo/Vite, but headless has no provider prop. **Concrete change:** “url argument set” (env remains application-owned).
+
+Delta (1) is an honest warrant plus a stated single-user trust boundary; shared-host direction to supervised issuance or signed discovery matches the gains table and the middle alternative. Delta (2) correctly makes mix-up detection a standing fail-closed invariant and pushes only cadence to Spec. Deltas (3)–(4) make P1 hosts, P5 listeners, and paved device transports the same set; `host.docker.internal` is rightly refused as a non-loopback interface. Deltas (5)–(9) align lead-in, Acceptance 5, allowlist replacement, library `url`, and Spec obligations with decisions already on the page. Remaining underspecification (connect-episode definition, exclusion mechanics, canonicalization) identifies no defective RFC decision and stays Spec-phase.
+
+READY

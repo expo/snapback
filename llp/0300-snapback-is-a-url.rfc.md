@@ -11,6 +11,13 @@ seem to run into the same issues"; "maybe we should just try to be more like
 them"; "Let's make an LLP/RFC about this, then refine it, then make a spec,
 then implement")
 **Date:** 2026-08-24
+**Revised:** 2026-08-24 (e — post-convergence wording repairs, applied
+verbatim from the round-3 reviews and UNREVIEWED by the loop; the loop's
+dual-READY verdicts bind to revision (d): the discovery gate precedes every
+client call including unauthenticated signup/login (only the identity fetch
+is exempt); the match reference is the generated `app` export's identity;
+Acceptance 5 says "url argument" for headless; the scope ruling separates
+the Android emulator from physical-device transports)
 **Revised:** 2026-08-24 (d — round-2 delta revision: same-UID lemma recast
 and a shared-host trust boundary stated; discovery gate made a standing
 invariant with an origin-reassignment acceptance case; P1 host list aligned
@@ -107,12 +114,15 @@ its single `url` argument. Admission rules:
 - **Credential-free discovery gate — a standing invariant, not a
   first-use step.** No credentialed call is ever issued without a
   successful identity match against the backend *currently* at the URL:
-  the unauthenticated identity exchange precedes credentialed traffic on
-  every new connect episode — initial use, reconnect after transport
-  loss, and backend generation change included — so a different app or
-  generation taking the same stable port is refused before it sees a
+  the unauthenticated identity exchange precedes **every other client
+  call to that URL — unauthenticated signup and login included; only the
+  identity fetch itself is exempt** — on every new connect episode:
+  initial use, reconnect after transport loss, and backend generation
+  change included. A different app or generation taking the same stable
+  port is therefore refused before it sees a password, a mint, or a
   credential. Re-verification cadence mechanics are Spec material; the
-  invariant is not. Mismatch fails with
+  invariant is not. The match reference is the generated `app`
+  export's deployment identity; mismatch fails with
   `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` naming both identities; any
   other failure is an ordinary connect refusal, never a binding.
 - **What this does and does not provide (honest classification).**
@@ -224,8 +234,9 @@ batteries, and Android polish.
 iOS simulator, Android emulator (via `10.0.2.2`), SSH/devcontainer
 port-forwards (literal-loopback URLs across a forward), and non-loopback
 *client* origins admitted via `SNAPBACK_DEV_AUTH_ORIGINS`. The supervised
-path's established physical-device transports are exactly: Android
-emulator and Android USB via verified `adb reverse` (iOS USB forwarding is
+path's established mobile transports are exactly: the Android emulator
+and — the sole physical-device transport — Android USB, both via verified
+`adb reverse` (iOS USB forwarding is
 refused today — `SNAPBACK_EXPO_IOS_USB_REVERSE_FORWARD_UNAVAILABLE`).
 Everything else — other physical-device transports, any non-loopback
 backend listener, a backend reached through an operator-run public
@@ -298,7 +309,7 @@ table below is scoped accordingly.
 5. Release admission is **behaviorally** unchanged: a production Expo
    build, a production Vite build (including with a misleading
    `NODE_ENV`), and an unbundled headless Node process — each **with the
-   URL env var and provider prop set** — can none of them select
+   URL env var and `url` argument set** — can none of them select
    `declared-dev`; release target-tuple admission behaves exactly as
    before.
 6. The `--expo` battery passes; supervised receipts keep exact origins;

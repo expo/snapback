@@ -71,3 +71,18 @@ The structural production gate, application-owned bundler reads, compatibility p
 **Entry-point-gating dimension:** no MATERIAL findings.
 
 NOT READY
+## Round 3 — final delta round — 2026-08-24
+
+- Target: llp/0300-snapback-is-a-url.rfc.md @ revision (d), landed f71e2bbcd, sha256 28c83068f29db02982c1241ae0a2f7e104d2bc508c50291709a5bd2325d8f96c
+- Capsule: refine-0300/capsule-r3 (revision d + c→d diff + LLP 0299 + 2 tickets), dirhash 1aa49357234b631b8438df182b6dc6af677fc913c0866f372e9f08ff473082c2
+- Blindness: structural; fresh session
+- Received: complete response; verbatim body follows
+
+All nine c→d resolutions are sound at RFC altitude. The remaining cadence, signed-discovery, allowlist-encoding, and bundler-exclusion mechanics are properly deferred to the Spec.
+
+1. **MINOR — IN-DELTA — P5, Scope ruling.** “Physical-device transports” incorrectly includes the Android emulator. Concrete change: rename this to “mobile transports,” or separately state Android emulator support and Android USB as the sole established physical-device transport.
+
+**IN-DELTA:** No MATERIAL findings.  
+**PRE-EXISTING:** No MATERIAL findings.
+
+READY
