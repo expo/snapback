@@ -168,6 +168,24 @@ actually ran:
 Whether Q-a rides LLP 0295's R2 machinery or runs standalone is OQ1
 (ruled: standalone).
 
+**Q-a executed 2026-08-24** against published 0.1.26
+(`benchmarks/runs/2026-08-24-qa-ports-probe-0126/record.md`). Verdict:
+**LLP 0299's ports contract qualifies clean** — all three pinned ports
+landed exactly, Metro's range walk behaved correctly under real
+contention, no false `SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER`, help
+documents the surface. Except-for findings, all routed off-0299: the
+supervised Expo *web* bundle is broken at published 0.1.26
+(`issues/20260824-expo-web-bundling-import-specifier-blocker.md`, wave
+lane I); the shipped template's done-oracle is red at guest bootstrap
+(`issues/20260824-template-guest-bootstrap-done-oracle-red.md`);
+`snapback run` refuses public queries on sessions targets
+(`issues/20260824-snapback-run-sessions-target-public-query-refusal.md`);
+Metro freshness reproduced with the closure's own
+`SNAPBACK_EXPO_METRO_WATCH_INERT` warning corroborating lane T1's
+CI-passthrough diagnosis; and no shortened binding term exists (the
+term-crossing obligation stands). The next publication should carry the
+lane-I fix before any full pin.
+
 ### Track T — tickets filed with this RFC
 
 1. `issues/20260824-metro-generated-module-freshness.md` —
