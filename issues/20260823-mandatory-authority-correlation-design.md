@@ -1,9 +1,10 @@
-# Mandatory authority/subject/effect correlation — revised design
+# Mandatory authority/subject correlation — enumeration-bound design, revision 3
 
 Status: Revised proposed design — requires fresh independent review; no implementation or
 capability claim
 Date: 2026-08-23
-Revised: 2026-08-24
+Revised: 2026-08-24 (revision 3 — factory enumeration makes ownership/entitlement verification
+the primary control; consuming products preserve a verified association but do not create one)
 Systems: snapback-auth, snapback-sync, snapback-engine, snapback-kernel, snapback-server
 Related: LLP 0058, LLP 0059, LLP 0283 F-1, LLP 0290, LLP 0293, LLP 0298,
   issues/20260823-uncorrelated-authority-axes-are-systemic-153-sites.md,
@@ -11,771 +12,773 @@ Related: LLP 0058, LLP 0059, LLP 0283 F-1, LLP 0290, LLP 0293, LLP 0298,
   issues/20260823-origin-bound-commit-capsule-design.md,
   issues/20260824-authority-validated-subject-supplied-separately.md,
   issues/20260824-correlation-design-review-synthesis.md,
+  issues/20260824-sealed-plan-protocol-already-exists-and-is-already-broken.md,
+  issues/20260824-wide-predicate-sweep-inverse-variant-confirmed.md,
+  issues/20260824-authority-minting-factory-inventory.md,
   issues/20260824-uncorrelated-staging-entry-point-inventory.md
+
+## Decision
+
+Reject revision 2's universal sealed, consuming operation product as the primary security
+control. The product can preserve a relationship only after some factory has established it.
+It cannot prove that a sanctioned factory checked the relationship in the first place.
+
+The primary control is now **factory-local ownership or entitlement verification over an
+enumerated factory population**. The secondary control is **row-scoped association preservation
+through an enumerated staging/consumer population**:
+
+```text
+presented authority or proof + requested subject and exact operation
+  -> enumerated factory performs the ownership/entitlement predicate
+  -> factory derives the canonical subject and exact operation scope
+  -> optional opaque carrier preserves that checked association
+  -> enumerated staging/consumer rows cannot replace either side
+  -> final liveness fence is acquired for that same association
+  -> durable effect or returned authority
+```
+
+This is deliberately not one generic `AuthorizedEffect<K>` imposed on 326 current factory rows.
+The 95 checked-in `OWNERSHIP-CHECKED` factory/direct-construction rows are prior art for the
+load-bearing control. The 134 checked-in `LIVENESS-ONLY` rows show that subject-specific checks
+must be repaired row by row. A consuming carrier remains appropriate where work crosses a
+stage/commit, async, database, or crate boundary, but sealing that carrier or its consumer is
+transport hardening, not authorization.
+
+The corrected scope is:
+
+> An authority is validated, the subject it acts on is supplied independently, and nothing
+> structurally ties them together.
+
+“Acts on” includes both directions:
+
+- the output is a durable row, object/file write, receipt, queue/trigger state, publication, or
+  another LLP 0298 durable effect; and
+- the output is itself an authority, permit, credential, ticket, plan, fence, reservation,
+  projection, or other value later trusted as authority.
+
+It also includes sites with no reservation or guard at all. A plain identifier string captured
+in a closure or plan is a subject axis. An admission lease is liveness, not subject ownership.
+
+## Evidence and claim vocabulary
+
+This revision reasons from the checked-in inventory rows and inspected bodies, not from names or
+doc comments. The `LocalSnapback::execute_auth_plan` comment is the cautionary example: its claim
+about preventing adapter-supplied closures is true, while the security property is still false
+because sanctioned factory F053 captures a caller-selected session.
+
+The following terms are exact:
+
+- **VERIFIED CODE FACT** — the cited body was inspected at this branch's starting commit,
+  `87e274fe0`.
+- **ENUMERATED ROW FACT** — the cited row exists in one of the two checked-in inventories. Its
+  classification is evidence about that row only.
+- **PREDICATE-VERIFIED** — the named factory body checks the named ownership/entitlement relation,
+  and a named mutation or negative test makes that check load-bearing. This is an empirical code
+  claim, not a type-theoretic impossibility claim.
+- **STRUCTURALLY IMPOSSIBLE THROUGH ROWS {...}** — named compile-fail fixtures establish that safe
+  callers cannot express the stated substitution through those exact post-factory APIs. This
+  says nothing about the factory predicate's semantic sufficiency.
+- **NO CONSTRUCTION FOUND** — an adversarial attempt did not produce a violation. This never
+  means impossible.
+- **DETECTION BOUND** — a registry, source scan, test, or review can detect a future violation but
+  cannot make a new spelling, FFI path, unsafe fabrication, or unrecognized storage mechanism
+  impossible.
+
+No phase may shorten one of those labels to `SAFE`, `CLOSED`, `PROPERTY TRUE`, or an unqualified
+repository-wide claim.
 
 ## Review disposition
 
-The first revision is rejected. Its useful direction survives, but its chosen origin mint,
-separate pending/guard protocol, and non-caller-carrier story do not.
-
-Two mutually blind reviews returned **adopt with changes**. A later adversarial review assumed
-the proposal had been implemented faithfully and produced working compositions against R1, R4,
-and R5. The following findings are verified against the current tree:
-
-1. Authority publication, finite-service publication, and rehearsal state can be attached after
-   root authority preparation. An origin minted at root preparation therefore identifies an
-   incomplete authority.
-2. Function preparation mutates elevation-root provenance, evaluates the exact function policy,
-   and retains the function identity, requirement, consent, and matched service-grant scope only
-   in `PreparedInvocation`. Two function preparations from one prepared root are not the same
-   authorized operation.
-3. A root-origin comparison at the final cut cannot distinguish those two function/effect
-   instances. A guard for F1 can satisfy a pending value staged for F2 if both carry only the
-   root origin.
-4. Grant-revocation planning validates admission but accepts the affected user and grant as
-   independent strings. The legitimate public plan/gate factory can therefore produce the
-   supposedly closed terminal carrier for the wrong caller.
-5. `persist_service_deadline_if_due` performs a durable terminal write outside the proposed
-   eight generic kernel cuts.
-
-The coherent head and tail of Grok's review are incorporated below. Its middle was corrupted and
-is **unread, not cleared**. This revision therefore cannot claim that the complete Grok review was
-incorporated or that independent review is complete.
-
-This document uses three confidence terms:
-
-- **VERIFIED FACT** means the cited current code was inspected.
-- **TYPE RULE** means the proposed reachable safe-Rust surface has the stated construction rule.
-- **DETECTION BOUND** means the rule cannot make a future source edit impossible; a named gate or
-  review detects expansion instead.
-
-“I could not construct a violation” is never used as a synonym for “a violation is impossible.”
-
-## Decision: replace origin-pair comparison with one operation product
-
-Adopt a sealed, operation-scoped product protocol. Do not implement the first revision's early
-`AuthorityOrigin`, independent `PendingAuthorizedCommit`, or generic
-`CorrelatedCommitGuard<R>` design.
-
-The end state has two identities with different jobs:
-
-1. A private **final-authority origin** is minted only after the complete publication/service/
-   rehearsal authority and exact operation or function policy have been fixed. It prevents an
-   independently assembled authority from masquerading as that final preparation.
-2. A private **effect-instance identity** is minted when one exact authority, subject tuple,
-   intent/plan, and liveness reservation become one product. It distinguishes F1 from F2 and one
-   effect from another even when both descend from the same final authority.
-
-The effect identity is the commit correlation identity. Root equality alone is never sufficient.
-
-The durable staging operation consumes the product and returns a new staged state of that same
-product. The commit operation consumes the staged product. No supported signature accepts a
-pending value, subject, plan, reservation, terminal gate, admission guard, or final guard as a
-second independently selectable argument.
-
-The governing property is wider than the original design:
-
-> For every in-scope durable effect, the authority class, exact subject tuple, operation scope,
-> staged intent/plan/ticket, and final liveness retention are constructed as one opaque product
-> from one verification cut. Safe code in the supported caller class cannot select any of those
-> axes independently at staging or commit.
-
-This is not merely “subject authority matches reservation authority.” It covers the case where an
-authority is validated while the user, grant, actor, session, function, asset, watch, batch,
-ticket, plan, or other subject it acts on is supplied independently and nothing binds them.
-
-## Verified breaks in the first revision
-
-### R1 — the proposed mint was before authority assembly
-
-**VERIFIED FACT.** `PreparedAuthority` root construction sets `publication`,
-`service_publication`, `authorization_stream_incarnation`, and `rehearsal_fence` to `None`
-(`crates/snapback-sync/src/auth/invocation.rs:2814-2832`). The current public attachment surface
-includes:
-
-- `PreparedAuthority::with_fenced_publication` (`invocation.rs:1918`);
-- `PreparedAuthority::with_service_publication` (`invocation.rs:1952`); and
-- `RehearsalAuthorityBinding::bind` (`invocation.rs:1745`).
-
-Production attaches connection publication after preparation
-(`crates/snapback-server/src/server.rs:16418-16435`) and attaches both stream and service
-publication after service preparation (`crates/snapback-engine/src/local/engine.rs:8250-8274`).
-
-**VERIFIED FACT.** `AuthCoordinator::prepare_anonymous_publication` is public and returns a
-`FencedPublication` containing the stream fence but no session fence
-(`crates/snapback-sync/src/auth/coordinator.rs:1569-1577`). A session-resolved authority can accept
-that value through the same public setter. `FencedPublication` skips session generation,
-terminal, pending-ticket, and deadline checks when its session field is absent
-(`crates/snapback-sync/src/auth/session_projection.rs:644-676`). Therefore this composition is
-valid through the current API:
-
-```text
-prepare session authority A
--> attach anonymous publication B for the same stream O
--> reserve effect from the assembled value
--> terminate session A
--> stage subject A
--> B keeps only stream O live
--> commit succeeds
-```
-
-Subject and reservation can be internally coherent in that attack. A later subject/reservation
-origin comparison does not repair the missing session fence.
-
-**VERIFIED FACT.** The service variant is caller-constructible too:
-`ServiceAuthorityFenceRegistry` is public and implements `Default`
-(`crates/snapback-auth/src/auth/service_fence.rs:647-669`); its public `register` accepts a
-`ServiceAuthorityWitness` (`:817-826`); and every witness field is public
-(`crates/snapback-types/src/auth/service_authority_contract.rs:17-27`).
-
-**Conclusion.** Minting an origin at root preparation is wrong.
-
-### Function scope and R4 — root identity is too coarse
-
-**VERIFIED FACT.** `InvocationGate::prepare_function_classified`:
-
-- mutates `elevation_root_provenance` (`invocation.rs:1794-1817`, `:2999`);
-- evaluates the exact function requirement, consent, and service-grant scope
-  (`:2999-3001`, `:3058` onward); and
-- stores the function ID, kind, requirement, consent, matched scope, and invocation ID only in
-  `PreparedInvocation` (`:2491-2536`, `:3002-3025`).
-
-If a root-preparation origin were preserved through this function, F1 and F2 prepared from clones
-of one root would share it even when their requirements and matched scopes differed. The proposed
-R4 comparison of pending origin to guard origin would accept pending F2 plus guard F1.
-
-**TYPE RULE.** A new function or operation preparation never preserves a final-authority origin.
-It consumes an originless draft and mints a fresh final origin only after the exact policy result
-has been stored. F1 and F2 therefore have distinct final origins. Independently, every effect
-product minted from either function gets its own effect-instance identity, so two effects for F1
-cannot be swapped either.
-
-The current capsule exposes the same structural R4 class without hypothetical origins:
-`PendingCommit` is an open `pub(crate)` trait, `FinalCommitCut::commit` accepts any implementing
-pending value beside a reservation, and `WatchManagementPending::commit` checks only database
-binding (`crates/snapback-server/src/server/commit_capsule.rs:159-192`, `:630-690`;
-`crates/snapback-kernel/src/storage/watches.rs:300-338`). The inventory demonstrates B-pending +
-A-capsule composition. Those separate surfaces are deleted below.
-
-### R5 — a privately constructed terminal carrier is still caller-reachable
-
-**VERIFIED FACT.** `LocalSnapback::plan_grant_revocation_service_terminal` performs only
-`authority.validate_admission(...)`, then passes the independent `user_id` and `grant_id` to the
-kernel (`crates/snapback-engine/src/local/engine.rs:5940-5955`). The bulk twin has the same shape
-(`:5969-5984`). The kernel queries the supplied identifiers
-(`crates/snapback-kernel/src/storage/auth_grants.rs:1020` region). The plan publicly exposes
-`acquire_gate()` (`engine.rs:3302-3313`), while the write sink accepts the acquired admission
-effect separately from the affected identifiers (`engine.rs:5958-5967`; kernel write at
-`auth_grants.rs:1052` region).
-
-The production route is correct only because it derives the user from the authority
-(`crates/snapback-server/src/server.rs:17499` region). That is caller discipline, not closure.
-
-**TYPE RULE.** Caller-initiated grant revocation has one product,
-`CallerGrantRevocation`, whose only successful constructor:
-
-1. consumes `FinalCallerAuthority<GrantManagement>`;
-2. derives the owner from that authority—there is no `user_id` parameter;
-3. asks the kernel for an owner-keyed exact `OwnedGrantRevocationPlan`;
-4. reserves the caller-bound effect and closes the service-token set while both remain inside the
-   same product; and
-5. returns no plan, gate, token set, admission guard, or subject accessor.
-
-The bulk form is a distinct `CallerBulkGrantRevocation` product with the same owner derivation.
-The actor selector is intent data stored inside that product; it is not accepted again at commit.
-
-**TYPE RULE.** The only durable consumers are
-`commit(CallerGrantRevocation)` and `commit(CallerBulkGrantRevocation)`. They accept no authority,
-owner ID, grant/actor ID, plan, terminal gate, or guard argument. A separate terminal carrier is
-not accepted.
-
-“Closed” means unreachable to code whose only capability is an ordinary caller authority. A
-private struct with a public, `pub(crate)`, leaf-server, or kernel factory that an ordinary caller
-can invoke is not closed.
-
-### Durable write outside the proposed final cut
-
-**VERIFIED FACT.** `persist_and_validate_prepared_service_authority_classified` calls
-`persist_service_deadline_if_due` before its read-only validation
-(`crates/snapback-engine/src/local/engine.rs:7626-7641`). The latter is public and, for unmanaged
-embedders, directly calls `terminalize_expired_service_authority` (`:7643-7671`). This is a durable
-write outside all eight `before_commit()` cuts. The managed server's owned expiry choreography is
-better composed, but the lower public plan/gate/commit pieces remain reachable
-(`server.rs:18179-18204`; `engine.rs:6151-6189`).
-
-**TYPE RULE.** Managed and embedded expiry both consume one
-`ExpiredServiceAuthorityCommit` product. Its constructor derives the deadline and token set from
-one opaque service publication, owns the terminal premark/drain state, and returns no independent
-plan or gate. The current direct persistence and separate commit APIs are deleted. Therefore the
-unmanaged path is not retained as an exception.
-
-## Final authority assembly
-
-### Type state and corrected mint point
-
-The authority owner defines two disjoint states:
-
-```rust
-// Schematic names. Fields and constructors are private to the authority owner.
-struct AuthorityDraft<K> { /* resolved authority plus incomplete assembly */ }
-struct FinalCallerAuthority<K> {
-    origin: FinalAuthorityOrigin,
-    scope: ExactOperationScope<K>,
-    retention: FinalAuthorityRetention,
-}
-```
-
-**TYPE RULE.** `AuthorityDraft<K>` has no origin. Only the authority-owner module can attach or
-replace stream/session publication, finite-service publication, rehearsal state, attribution, or
-elevation provenance on a draft.
-
-**TYPE RULE.** `FinalAuthorityOrigin` is minted as the last step of the consuming transition from
-`AuthorityDraft<K>` to `FinalCallerAuthority<K>`:
-
-- for a function-backed operation, after function kind, ID, requirement, consent, matched grant
-  scope, elevation provenance, and every publication/rehearsal carrier are fixed;
-- for an authority-only operation, after the exact closed route/operation kind and every
-  publication/rehearsal carrier are fixed.
-
-This is the corrected mint point.
-
-**TYPE RULE.** `FinalCallerAuthority<K>` exposes no attachment, replacement, `into_parts`, origin,
-raw publication, raw service witness, raw admission lease, raw guard, or general-purpose
-reclassification operation. Its fields are private. It is not `Copy`, `Default`, serializable,
-deserializable, or constructible through `Clone`/`From`/`TryFrom`/`FromStr`. An exact multi-cut
-workflow consumes one final authority into a parent product and privately mints one child effect
-instance per durable transaction; it does not clone the final authority back into caller custody.
-
-**TYPE RULE.** The final type does not implement the draft's attachment methods. The draft has no
-origin to preserve. Attachment-after-origin is therefore unrepresentable through the supported
-safe API, rather than discouraged by comments.
-
-**TYPE RULE.** Session, anonymous, service, rehearsal, and internal authority assembly use
-different opaque input products. An `AnonymousRouteAuthority` cannot satisfy the session or
-service finalizer's parameter type. A session finalizer receives one coordinator-minted product
-that already contains the exact resolved session and its session-bearing publication; it does not
-accept `ResolvedAppAuthority` and `FencedPublication` separately. A service finalizer likewise
-receives one resolver-minted product containing the resolved service identity, stream publication,
-and finite-service publication; it accepts none of those three values separately.
-
-**TYPE RULE.** `NestedMutation`, ask re-entry, watch-function preparation, and `LiveRerun` are new
-operation preparations and mint fresh final origins. `inherit_for(LiveRerun)` is removed as an
-origin-preserving operation; the existing fresh admission behavior of `prepare_rerun` remains and
-now also produces a fresh final origin. Ordinary continuation inside the same already-finalized
-operation may borrow the final authority but cannot reclassify it.
-
-### Assembly surfaces deleted or narrowed
-
-The same landing that introduces final assembly removes these current surfaces:
-
-1. `PreparedAuthority::with_fenced_publication` as a public post-preparation method.
-2. `PreparedAuthority::with_service_publication` as a public post-preparation method.
-3. `RehearsalAuthorityBinding::bind(PreparedAuthority, ...)` as a public post-preparation method.
-4. `AuthCoordinator::prepare_anonymous_publication() -> FencedPublication` as a value accepted by
-   caller-authority assembly; its replacement returns an anonymous-only product.
-5. Public/default construction of `ServiceAuthorityFenceRegistry` outside its one composition
-   owner.
-6. Public `ServiceAuthorityFenceRegistry::register(ServiceAuthorityWitness, ...)`.
-7. Public fields and caller construction of `ServiceAuthorityWitness`.
-8. Any public or cross-crate `AuthorityOrigin::mint`, origin constructor, inner-`Arc` accessor,
-   equality-derived token field, serialization, or conversion.
-
-Making these functions `pub(crate)` in a broad crate does not satisfy the deletion. The surviving
-draft assembly operations are private to the module that obtains the relevant coordinator/kernel
-evidence and are absent from caller-class reachability.
-
-## One exact effect product
-
-### Product state machine
-
-Each durable operation kind `K` has one product state machine:
-
-```text
-FinalCallerAuthority<K> + ExactIntent<K>
-  -- exact owner factory; subject derived/verified; reserve liveness;
-     mint EffectInstance --> AuthorizedEffect<K, Unstaged>
-
-AuthorizedEffect<K, Unstaged>
-  -- consuming stage --> AuthorizedEffect<'tx, K, Staged>
-
-AuthorizedEffect<'tx, K, Staged>
-  -- consuming final cut; one admission acquire last --> CommitOutcome<K>
-```
-
-The names are schematic. The custody rules are not.
-
-**TYPE RULE.** The exact owner factory consumes the final authority and complete exact intent or
-plan. It derives the subject tuple from the final authority where possible. When a target selector
-must come from the request, the kernel lookup is keyed by both the authority-derived owner and the
-selector and returns a private owner-bound value. No product constructor accepts a caller-supplied
-user/owner ID as evidence.
-
-**TYPE RULE.** `EffectInstance` has one private mint site inside that exact product factory. It has
-no public constructor, accessor, clone-independent reconstruction, string form, serde, conversion,
-or caller-visible equality operation.
-
-**TYPE RULE.** `AuthorizedEffect<K, Unstaged>` privately owns the exact final authority, subject
-tuple, complete intent/plan, publication/service/rehearsal permits, and effect identity. There is
-no standalone `AuthorizedEffectReservation` in a migrated family.
-
-**TYPE RULE.** Staging is a consuming method on that carrier. Every carrier-independent sibling
-that can stage, prepare, preview, plan, return, or mutate the same intent is deleted in the same
-landing. It is not retained as a wrapper.
-
-**TYPE RULE.** The staged state owns the pending transaction/buffer/ticket and the still-unarmed
-final liveness retention. Neither half is returned or accessible. The staged product is not
-`Clone`, `Copy`, `Default`, serde-capable, convertible, or decomposable.
-
-**TYPE RULE.** Commit consumes the staged product. No supported commit signature accepts a second
-authority, subject, intent, plan, ticket, pending value, reservation, terminal gate, raw admission
-guard, callback, or generic return value.
-
-**TYPE RULE.** If an internal implementation splits a staged transaction from retention to satisfy
-borrowing, both halves carry the same private `EffectInstance` and can be reunited only by one
-private consuming function. Neither half crosses the owner-module boundary. The leaf compares the
-effect identities before arming. Final-authority equality is not accepted as a substitute.
-
-This makes F1-guard + F2-pending unrepresentable through the supported product API even when both
-effects share a caller, session, root preparation, or final function authority.
-
-### The final admission cut
-
-The first revision's `CorrelatedCommitGuard<R>` is removed. A generic retention parameter creates
-the forbidden `CorrelatedCommitGuard<()>` and caller-selected-retention class unless its complete
-inhabitant set is sealed. This revision uses a concrete private retention type instead:
-
-```rust
-struct CommitRetention<'a, K> {
-    admission: AdmissionEffectGuard<'a>,
-    authority: FinalAuthorityRetention,
-    effect: EffectInstance,
-    operation: PhantomData<K>,
-}
-```
-
-**TYPE RULE.** `CommitRetention<'a, K>` is private to the final-cut owner, has no public
-constructor, no generic `R`, no unit inhabitant, and no conversion from an already-held
-`AdmissionEffectGuard`. Its lifetime `'a` is tied to the exact admission lease retained by the
-product.
-
-**TYPE RULE.** The only transition into the armed state performs, in order:
-
-1. pure final-origin/effect-identity checks;
-2. all fallible policy, rehearsal, service, publication, database-binding, liveness, deadline,
-   and commit-readiness checks;
-3. any uncertainty-carrier preparation that does not enter admission; and
-4. exactly one acquisition of the admission effect guard, last.
-
-**TYPE RULE.** The armed state has exactly one consuming method: issue the already-prepared SQLite
-or other durable commit while `CommitRetention<'a, K>` is a field of that state. No callback,
-`check_live`, validation, mode transition, caller code, or other admission-entering operation is
-callable from the armed state. Guard drop precedes post-commit publication/finalization.
-
-The current two mutation leaves call `check_live()` after `before_commit()`
-(`crates/snapback-kernel/src/storage.rs:6292-6294`, `:7247-7249`). Their migrated types compute a
-private `CommitReady<K>` before arming; there is no post-arm `Check` type parameter.
-
-## Kernel and durable final-cut surface
-
-The 99 kernel matches in the earlier census are forwarding occurrences, not 99 semantic seams.
-The current generic protocol converges on eight `before_commit()` invocations:
-
-1. HostPlan mutation at `crates/snapback-kernel/src/storage.rs:6292`.
-2. Buffered mutation at `storage.rs:7247`.
-3. Asset-attempt/publication transaction at `storage/asset_attempts.rs:485`.
-4. Stream-attempt persistence at `storage/settlement.rs:148`.
-5. Client-mutation acknowledgement at `storage/settlement.rs:510`.
-6. Asset-read/lifecycle transaction at `storage/asset_reads.rs:225`.
-7. Direct auth transaction at `storage/auth.rs:1740`.
-8. Commit-certainty auth transaction at `storage/auth.rs:1791`.
-
-**TYPE RULE.** Each family accepts only its exact staged operation product or an exact closed-class
-product. Pure forwarders carry that opaque product unchanged. They are not generic over `G`,
-`BeforeCommit`, a proof trait, a callback, or a retention type.
-
-**TYPE RULE.** A family is not migrated until every raw/generic sibling that reaches the same
-transaction primitive is deleted in the same landing. Replacing one signature while an alternate
-raw or generic route reaches the same commit earns no closure claim.
-
-The eight cuts are not the complete durable-effect population. The public service-deadline write
-verified above proves that. Every direct commit/stage/plan/ticket surface in the staging inventory
-is part of the migration even when it never reaches `before_commit()`.
-
-The following current lower-level surfaces are specifically deleted, not wrapped:
-
-1. `PendingCommit` as an implementable trait.
-2. `FinalCommitCut::commit(reservation, pending)`.
-3. `WatchManagementPending::commit(&CommitCapsuleAuthority)`.
-4. Public/clonable `CommitCapsuleAuthority` access usable outside one consumed product.
-5. Every generic `BeforeCommit: FnOnce() -> SnapbackResult<G>` in the eight families and their
-   forwarding siblings.
-6. Every `|| Ok(())` final-cut path.
-7. Public `AuthorizedEffectReservation::commit_guard` and
-   `commit_guard_classified` in migrated families.
-8. A raw `tx.commit()` or equivalent durable cut reachable around the exact product consumer for
-   a migrated family.
-9. `persist_service_deadline_if_due`,
-   `persist_and_validate_prepared_service_authority{,_classified}` as write-bearing validation,
-   and `commit_expired_service_authority` as independently callable expiry writes.
-
-The two commit-capsule guard acquisitions remain useful correlated prior art, but not proof of the
-pending/guard product. Their current open pending surface is deleted by items 1–4.
-
-## Closed products for every authority class
-
-There is no shared public `CommitProof` trait, public proof enum, claimable mint root, generic
-`System`, `unchecked`, `assume_correlated`, optional reservation, or unit fallback.
-
-### Caller-bound ordinary effects
-
-**TYPE RULE.** Caller-backed operations consume `FinalCallerAuthority<K>` and return only the exact
-`AuthorizedEffect<K, State>` product. A sink that also accepts `&PreparedAuthority`,
-`&PreparedInvocation`, a subject ID, or a standalone reservation is deleted.
-
-### Caller-initiated terminal effects
-
-**TYPE RULE.** An operation that both requires caller authority and terminalizes another authority
-uses one product that contains the caller-bound effect and exact terminal plan. Grant revocation
-and bulk revocation use the products specified under R5. Session/password plans and other
-caller-initiated terminal families receive their own exact product types; no generic terminal
-carrier is accepted.
-
-The following R5 surfaces are deleted together:
-
-1. `plan_grant_revocation_service_terminal(authority, user_id, grant_id, ...)`.
-2. `plan_bulk_grant_revocation_service_terminal(authority, user_id, actor_id, ...)`.
-3. Public `ServiceAuthorityTerminalPlan::acquire_gate()` for either caller path.
-4. `revoke_grant_for_user(effect, user_id, grant_id, ...)`.
-5. `revoke_grants_by_actor_for_user(effect, user_id, actor_id, ...)`.
-6. Any kernel planner or writer that accepts the same owner/target strings without the private
-   owner-bound product.
-
-### Credential ceremonies
-
-**TYPE RULE.** Pairing presentation and agent registration each have a named operation product.
-The product constructor consumes the route admission and the verified credential/invitation
-result in one owner module. Only that exact operation's stage/commit methods accept it. The raw
-`AdmissionEffectGuard` entry points are deleted.
-
-The eight raw engine entry points deleted in this migration are:
-
-1. `register_agent_principal(effect, ...)`.
-2. `mint_agent_invitation(effect, ...)`.
-3. `mint_pairing_code(effect, ...)`.
-4. `present_pairing_code(effect, ...)`.
-5. `approve_grant_request(effect, ...)`.
-6. `deny_grant_request(effect, ...)`.
-7. `revoke_grant_for_user(effect, ...)`.
-8. `revoke_grants_by_actor_for_user(effect, ...)`.
-
-### Operator, durable handoff, and genuinely non-caller terminal work
-
-**TYPE RULE.** Each class has a distinct exact product whose constructor is private to the module
-that verifies its process identity, cryptographic artifact, or durable work claim. A constructor
-is not `pub(crate)` in kernel and is not placed in a leaf server module callable by ordinary
-caller code. No product is constructible from a caller authority or caller-supplied IDs alone.
-
-**TYPE RULE.** Durable handoff products are bound to one durable work object and lease generation.
-Operator products are bound to one process identity and operation. Non-caller terminal products
-derive the affected subject from durable state or the opaque terminal observation. None can be
-converted into another class or authorize an arbitrary application write.
-
-The accepted LLP 0293 pattern is controlling: evidence mint and consumption remain in one private
-owner; a public or cross-module factory accepting an evidence value is a capability downgrade
-(`llp/0293-authority-transition-chokepoint.spec.md:50-153`, `:155-217`).
-
-## Population and concrete work list
-
-The old “two authority axes” and guard-call census are not the semantic population. The wider
-predicate includes every production function that does any of the following:
-
-1. validates or retains an authority/lease/guard while accepting a subject identifier, operation
-   scope, intent, plan, pending value, ticket, buffered effect, or durable claim independently;
-2. erases authority into strings or a ticket that a later durable consumer accepts;
-3. constructs a plan/carrier/gate from independently supplied subject identifiers;
-4. consumes such a plan/carrier/gate beside a separately supplied authority or subject; or
-5. performs an LLP 0298 durable effect without an exact operation product.
-
-That predicate includes no-reservation sites such as grant-revocation planning. A sweep limited to
-`commit_guard` calls cannot establish completeness.
-
-`issues/20260824-uncorrelated-staging-entry-point-inventory.md` is the concrete Phase-3 work list
-and completion criterion. Implementation does not replace it with prose categories. For every
-exact row identity in that file:
-
-- `MOVE` means the product-consuming replacement lands and the old signature is deleted in the
-  same change;
-- `DELETE` means the listed surface is absent after the change;
-- `KEEP` is retained only when its reachable signature itself makes independent subject selection
-  impossible; a body that merely performs the expected check is insufficient and causes the row
-  to be reclassified `MOVE` or `DELETE`; and
-- `UNCLEAR` is resolved before any claim for its family.
-
-The review packet describes that work list as 279 rows with 159 `MOVE`, 41 `DELETE`, 57 `KEEP`,
-and one `UNCLEAR`. Those category figures total 258. At this branch's checked-in inventory, the
-rendered classification labels are 158 `MOVE`, 41 `DELETE`, and 50 `KEEP`, with no `UNCLEAR`.
-Therefore neither count set is a permitted completion checksum. Phase 0 must reconcile the receipt
-and category totals; until then the exact checked-in row identifiers plus the file's re-derivation
-procedure are authoritative. This discrepancy does not permit dropping a row or delaying the R1,
-R4, or R5 design corrections.
-
-The corrected mechanical measurements remain separate facts, not one semantic population:
-
-- approximately 45 production `commit_guard`/`commit_guard_classified` calls in `engine.rs`;
-- two server calls, including the previously missed `server.rs:932` nested-action call;
-- eight raw `AdmissionEffectGuard` engine parameters;
-- eight kernel final cuts; and
-- 99 kernel forwarding occurrences, which are migration propagation, not seams.
-
-`let _ = effect` in the raw engine bodies does not discard the guard: `effect` is a borrowed
-reference and the caller's RAII guard remains live. Those sites lack correlation; they do not lack
-retention. The prior feasibility buckets A=40, B=90, C=23, D=0 are planning counts only and are not
-used as an inventory checksum.
-
-## Migration phases and exact claim available at each phase
-
-Every phase lists the strongest claim permitted immediately after that phase. No later-phase
-property is borrowed early.
-
-### Phase 0 — freeze and reconcile the population
-
-Check in or correct the row-addressable registry generated from the staging inventory's
-re-derivation procedure. Record each exact surface, production reachability, caller class, subject
-source, durable effect, final cut, classification, replacement type, and deletion state. Reconcile
-the count discrepancy above. Register the wider authority-plus-independent-subject predicate, not
-“153 sites” as one population.
-
-**Permitted claim:** **the exact recorded work list is frozen at the detector's declared search
-boundary**.
-
-**Why true then:** the checker compares stable row identities and rejects an unregistered change
-to recognized authority/subject/staging/final-cut shapes.
-
-**Not permitted:** semantic completeness, route closure, structural impossibility, or the durable
-property. A new spelling, FFI path, or unrecognized authority erasure can evade the detector. That
-is a **DETECTION BOUND**, not a type guarantee.
-
-### Phase 1 — close final authority assembly
-
-Introduce `AuthorityDraft<K>` and `FinalCallerAuthority<K>`, move all assembly before the final
-mint, give new function/operation preparations fresh origins, and delete the eight assembly
-surfaces listed above. Add downstream compile-fail fixtures for anonymous/session substitution,
-service-witness construction, post-finalization attachment, public origin mint, and
-origin-preserving `LiveRerun`.
-
-Do not add the old two-argument `commit_guard(effect, subject)` as a durable acquisition API. If a
-short-lived migration comparison exists on an unmigrated family, it is validation-only and is
-deleted before that family begins Phase 2; it never returns or acquires an admission guard.
-
-**Permitted claim:** **FINAL-AUTHORITY-ASSEMBLY-CLOSED for the named finalizer constructors**.
-
-**Why true then:** only drafts have attachment operations, drafts have no origin, each exact
-finalizer mints after scope/fences are fixed, and the listed post-origin construction surfaces no
-longer compile.
-
-**Not permitted:** any durable effect or route is correlated. Old staging and commit paths still
-exist.
-
-### Phase 2 — migrate kernel families one at a time
-
-Introduce the consuming operation product and migrate one of the eight kernel families end to end.
-In the same landing, delete every alternate raw/generic stage, forwarder, callback, commit, and
-direct-transaction entry for that family. Delete any validation-only two-argument comparison for
-that family before the new one-acquire final cut becomes reachable.
-
-**Permitted claim per landing:** **EXACT-FINAL-CUT-CLOSED for the enumerated family surfaces**.
-
-**Why true then:** the only reachable family commit consumes its exact staged product; `()`, an
-arbitrary `G`, a caller callback, a second pending value, and an already-held raw guard do not
-satisfy any remaining signature; the private armed state acquires one admission guard last.
-
-**Not permitted:** closure of another family or the wider authority/subject population.
-
-### Phase 3 — execute the complete row-addressed work list
-
-Process every exact row in
-`issues/20260824-uncorrelated-staging-entry-point-inventory.md`. A vertical-slice landing includes
-all `MOVE` replacements and `DELETE` siblings that reach the same effect. Re-audit every `KEEP`
-against the signature-level rule above and resolve every `UNCLEAR`. The registry records the exact
-row IDs closed by each landing and rejects a surviving old surface.
-
-**Permitted claim per landing:** **PRODUCT-CLOSED for the enumerated row IDs and operation kinds**.
-
-**Why true then:** each named staging operation consumes one exact product, each named commit
-consumes its staged state, and every listed carrier-independent sibling for those row IDs has been
-deleted.
-
-**Not permitted:** “all 279,” “all guarded writes,” “systemic fix,” or the repository property
-until the reconciled registry has no unresolved/move/delete legacy row and the non-caller products
-below are complete.
-
-### Phase 4 — close caller-terminal, ceremony, operator, and handoff products
-
-Land `CallerGrantRevocation`, `CallerBulkGrantRevocation`,
-`ExpiredServiceAuthorityCommit`, named credential-ceremony products, operator products, and
-durable-handoff products. Delete the R5 surfaces, the eight raw engine entry points, the direct
-service-deadline surfaces, public/default service registry construction, and every generic
-mode/system proof factory.
-
-**Permitted claim per product:** **CALLER-CLASS-CLOSED for the enumerated operation product and its
-deleted factory/sink list**.
-
-**Why true then:** the exact commit accepts one product; its only constructor derives or verifies
-the subject in the authorizing owner; ordinary caller authority cannot obtain a different-class
-product; and the old plan/gate/guard paths are absent.
-
-**Not permitted:** closure of an unenumerated class or a repository-wide structural claim.
-
-### Phase 5 — claim gate; not currently supportable
-
-Phase 5 is not supportable from the current tree or current review record. It becomes eligible
-only after all of the following are true:
-
-1. Phase 1's publication/service/rehearsal substitution surfaces are deleted.
-2. The inventory receipt/count discrepancy is reconciled and every exact row has a final state.
-3. All eight kernel families have no raw/generic sibling.
-4. Every LLP 0298 durable effect is classified as an exact caller product, exact caller-terminal
-   product, exact closed non-caller product, or an enumerated auxiliary effect satisfying all four
-   LLP 0298 criteria.
-5. The mutation/compile-fail evidence below is green on the exact integrated content.
-6. Grok's corrupted middle is re-requested or explicitly waived by the author, and a fresh
-   independent adversarial review finds no material construction path.
-
-**Permitted claim before all six conditions:** none beyond the exact Phase 1–4 claims.
+Revision 1 is rejected. Revision 2 closes the previously known late-assembly, function-scope,
+pending/guard, caller-terminal, and service-deadline attacks on paper, but B4 proves that its
+primary mechanism already exists and is already defeated. Revision 3 keeps only the part the
+evidence supports: a carrier may preserve an association after a correct factory check.
+
+The coherent head and tail of Grok's revision-1 review were incorporated into revision 2 and
+remain relevant. Grok's middle was corrupted and is **unread, not cleared**. This document does
+not represent that review as fully incorporated, and Phase 5 requires a replacement review or an
+explicit author waiver.
+
+## The two enumerations are normative — and currently disagree with the requested receipts
+
+### Authority factories
+
+The checked-in `issues/20260824-authority-minting-factory-inventory.md` names function factories
+F001–F312 and direct construction surfaces C001–C014. Its own class totals are:
+
+| Population | OWNERSHIP-CHECKED | LIVENESS-ONLY | NO-SUBJECT | UNCLEAR | Total |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Function factories F001–F312 | 92 | 123 | 94 | 3 | 312 |
+| Direct construction C001–C014 | 3 | 11 | 0 | 0 | 14 |
+| Checked-in combined population | 95 | 134 | 94 | 3 | 326 |
+
+The commissioning receipt says 98/137/97/6 and “312 function factories + 14 direct-construction
+surfaces.” Those four class figures total 338, not 326. The checked-in file names only three
+`UNCLEAR` rows: F208, F256, and F266. There are no row identities for the other three requested
+`UNCLEAR` factories. This design does not invent them or silently absorb them into another class.
+
+Until the factory inventory is reconciled, its exact F/C row identities are the addressable
+baseline and the conflicting aggregate receipts permit no population-wide claim. Phase 0 must
+either add the missing rows or correct the receipt with a reviewed derivation diff.
+
+### Staging and consumption
+
+The checked-in `issues/20260824-uncorrelated-staging-entry-point-inventory.md` has no stable row-ID
+column. Its classified table rows are currently 157 `MOVE`, 40 `DELETE`, 50 `KEEP`, and zero
+`UNCLEAR`—247 classified rows. Two additional bold classification words occur in prose, which is
+why a raw label count yields 158/41/50. The commissioning receipt says 279 rows with
+159/41/57/1; those category figures total 258, and the requested `UNCLEAR` row has no checked-in
+identity. Production-root reachability lists may explain some population difference, but this
+revision does not infer a mapping the inventory does not state.
+
+Phase 0 must assign stable staging IDs, decide whether reachability roots are rows or edges, and
+reconcile both totals. Until then, the exact first-column location plus normalized signature is a
+row's temporary identity. The missing requested `UNCLEAR` staging row is unresolved and blocks
+the final claim; it is not treated as `KEEP`.
+
+Counts are never completion criteria. Exact row identities and a derivation receipt are.
+
+## Enumerated factory dispositions at the checked-in baseline
+
+The full lists below make the design's current claims independent of prose characterizations such
+as “private owner,” “not a leaf server factory,” or “well-written constructor.” They snapshot the
+checked-in inventory; Phase 0 binds the implementation registry to a commit and derivation digest.
+
+### `OWNERSHIP-CHECKED` candidates — exact rows only
+
+The only permitted baseline claim is: **the inventory reports a subject-specific check for these
+95 rows**. It is not a claim that downstream consumers preserve the relationship or that each
+predicate is semantically sufficient:
+
+F003, F008, F026, F027, F028, F029, F030, F031, F033, F034, F038, F039, F042,
+F045, F046, F047, F048, F049, F057, F058, F059, F060, F064, F065, F066, F074,
+F076, F083, F085, F086, F087, F088, F090, F092, F093, F098, F103, F147, F148,
+F152, F153, F154, F163, F168, F174, F176, F177, F178, F179, F180, F181, F184,
+F186, F192, F193, F194, F195, F196, F197, F198, F199, F209, F214, F217, F218,
+F219, F230, F234, F235, F239, F247, F254, F255, F261, F267, F268, F269, F271,
+F274, F289, F290, F291, F292, F293, F295, F296, F300, F303, F307, F308, F309,
+F310, C008, C010, C011.
+
+F003's exact lease MAC/expectation comparison, F098's ticket-to-session comparisons,
+F147/F148's exact function ID **and kind** scope selection, F152–F154's bearer-derived session
+binding, F174's code/client/redirect/PKCE verification, F214's consumed bearer preparation, and
+F261's exact app-graph/lease check are examples to reuse. They are not a license to classify a
+similar-looking factory without inspecting its body.
+
+### `LIVENESS-ONLY` defect population — exact rows only
+
+These 134 rows have no permitted ownership/correlation claim. Each must be deleted, lose the
+subject axis, or become PREDICATE-VERIFIED for its exact subject and entitlement before Phase 5:
+
+F001, F002, F005, F006, F011, F014, F019, F020, F022, F032, F037, F043, F044,
+F053, F054, F055, F056, F061, F062, F063, F067, F068, F069, F070, F073, F075,
+F078, F081, F082, F084, F089, F091, F094, F095, F096, F097, F100, F101, F102,
+F112, F113, F115, F117, F118, F119, F120, F121, F122, F126, F127, F128, F129,
+F133, F143, F144, F145, F146, F149, F150, F157, F160, F161, F162, F170, F171,
+F172, F173, F175, F182, F183, F185, F187, F188, F189, F190, F191, F202, F203,
+F204, F205, F210, F211, F212, F213, F215, F220, F224, F227, F232, F233, F236,
+F237, F238, F240, F242, F243, F244, F257, F258, F259, F260, F264, F265, F270,
+F272, F273, F279, F280, F281, F282, F283, F284, F285, F286, F287, F288, F297,
+F298, F299, F302, F305, F306, F312, C001, C002, C003, C004, C005, C006, C007,
+C009, C012, C013, C014.
+
+An ambient operator, system, maintenance, or management root does not automatically move a row
+out of this set. If policy intends that root to choose subjects, the row must enforce the exact
+entitlement and operation scope. “Ambient by design” without an executable entitlement predicate
+is still LIVENESS-ONLY.
+
+### `NO-SUBJECT` rows — exact rows and a narrow claim
+
+The only permitted claim for these 94 rows is **NO-SUBJECT-INTRODUCED-AT-THIS-ROW**:
+
+F004, F007, F009, F010, F012, F013, F015, F016, F017, F018, F021, F023, F024,
+F025, F035, F036, F040, F041, F050, F051, F052, F071, F072, F077, F079, F080,
+F099, F104, F105, F106, F107, F108, F109, F110, F111, F114, F116, F123, F124,
+F125, F130, F131, F132, F134, F135, F136, F137, F138, F139, F140, F141, F142,
+F151, F155, F156, F158, F159, F164, F165, F166, F167, F169, F200, F201, F206,
+F207, F216, F221, F222, F223, F225, F226, F228, F229, F231, F241, F245, F246,
+F248, F249, F250, F251, F252, F253, F262, F263, F275, F276, F277, F278, F294,
+F301, F304, F311.
+
+`NO-SUBJECT` is not a safe class. F004 (`AuthProvider::admit`) names no subject, but F053 can use
+the resulting admission to name any live session. F155 produces an anonymous stream publication
+with no principal subject, but F127 can attach it to a separately prepared session authority.
+Each later join has its own row and must be audited.
+
+### `UNCLEAR` rows
+
+The checked-in rows are F208, F256, and F266:
+
+- F208 and F256 are the engine/kernel halves of push-send reservation. Immediate user audience
+  appears checked; the System/Deferred/other audience matrix has not been exhaustively traced.
+- F266 is the bounded commit capsule. F261 and F262 correlate destination authority and
+  reservation, but caller-constructible operation identity and separately supplied uncertainty
+  retention leave semantic subject correlation unproved.
+- The other three `UNCLEAR` factories named only by the commissioning count have no checked-in row
+  identity. Phase 0 must name them before work or claims can proceed.
+
+Every `UNCLEAR` row stays in scope. It may become `OWNERSHIP-CHECKED`, `NO-SUBJECT`, or
+`LIVENESS-ONLY` only after the inventory records the inspected predicate and exact evidence. It
+cannot be accepted by absence of a constructed attack.
+
+## Staging `KEEP` is an enumerated candidate set, not a safe class
+
+The staging inventory currently marks the following 50 temporary row keys `KEEP`:
+
+- `crates/snapback-server/src/server/commit_capsule.rs:206`
+- `crates/snapback-server/src/server/commit_capsule.rs:78`
+- `crates/snapback-server/src/server/commit_capsule.rs:100`
+- `crates/snapback-server/src/server/commit_capsule.rs:705`
+- `crates/snapback-server/src/server.rs:29193`
+- `crates/snapback-server/src/server.rs:29409`
+- `crates/snapback-server/src/server.rs:29450`
+- `engine.rs:4517`
+- `engine.rs:28483`
+- `engine.rs:28583`
+- `crates/snapback-server/src/server.rs:4394`
+- `crates/snapback-server/src/server.rs:18179`
+- `engine.rs:5069`
+- `engine.rs:5094`
+- `engine.rs:5107`
+- `engine.rs:5127`
+- `engine.rs:5173`
+- `engine.rs:5183`
+- `engine.rs:5237`
+- `engine.rs:5250`
+- `engine.rs:5328`
+- `engine.rs:5341`
+- `engine.rs:5865`
+- `engine.rs:5908`
+- `engine.rs:6391`
+- `engine.rs:6443`
+- `engine.rs:6456`
+- `engine.rs:6479`
+- `engine.rs:6511`
+- `engine.rs:6523`
+- `engine.rs:6696`
+- `engine.rs:6723`
+- `engine.rs:7141`
+- `engine.rs:7219`
+- `engine.rs:7292`
+- `engine.rs:11338`
+- `engine.rs:16533`
+- `engine.rs:16546`
+- `engine.rs:16674`
+- `engine.rs:16696`
+- `engine.rs:16725`
+- `engine.rs:16747`
+- `engine.rs:16839`
+- `engine.rs:16894`
+- `engine.rs:18124`
+- `engine.rs:18149`
+- `engine.rs:21770`
+- `engine.rs:24618`
+- `engine.rs:24933`
+- `engine.rs:25016`
+
+The permitted baseline claim is only: **the inventoried signature/body at each listed location
+does not itself expose the specific independently selectable staging pair the inventory tests**.
+This is not an end-to-end claim. A `KEEP` row fed by F053, F143, F175, another LIVENESS-ONLY
+factory, or a free C-construction surface remains vulnerable upstream. Conversely, a correct
+factory does not make a later `MOVE` or `DELETE` row acceptable.
+
+All `MOVE` and `DELETE` staging rows remain work. Because the file lacks stable IDs, each landing
+must name the exact temporary location/signature keys it changes; after Phase 0 it must name their
+assigned stable IDs. The missing requested `UNCLEAR` row blocks the final claim until named and
+resolved.
+
+## Verified adversarial breaks and their row-level consequences
+
+### B4 — the sealed consuming protocol already exists and is already defeated
+
+**VERIFIED CODE FACT.** `AuthProvider::admit` is public and only acquires shared maintenance
+(`crates/snapback-auth/src/auth/provider.rs:3080-3085`). It is F004, correctly classified
+`NO-SUBJECT`.
+
+**VERIFIED CODE FACT.** `AuthAdmission::record_authenticated_use_plan` is public and captures a
+caller-supplied `session_id` and generation in a sealed closure
+(`provider.rs:3383-3394`). The closure's durable leaf proves only that the selected session is
+live/current. This is F053, `LIVENESS-ONLY`.
+
+**VERIFIED CODE FACT.** `LocalSnapback::execute_auth_plan` publicly executes any sanctioned sealed
+`AuthDatabasePlan` against the private database
+(`crates/snapback-engine/src/local/engine.rs:6749-6756`). The trait is genuinely sealed. F001 is
+the crate-visible closure-plan factory used by F053. Sealing prevents an external implementation;
+it does not authenticate the subject captured by a sanctioned factory.
+
+**Required row disposition.** F053 must derive the session from a verified bearer/exact
+predecessor or verify a caller's exact session ownership in the plan's protected transaction.
+F001 cannot verify an arbitrary closure and therefore cannot remain as the current production-
+reachable `pub(crate)` factory. That exact row is deleted; a private implementation detail may
+remain only behind individually enumerated, subject-specific factories, and the factory detector
+must flag every new use. F004 may remain only with its narrow no-subject claim.
+`execute_auth_plan`'s seal is defense in depth and earns no ownership claim.
+
+### B5 — the inverse direction returns authority for an independent subject
+
+**VERIFIED CODE FACT.** F175,
+`LocalSnapback::resolve_retained_effect_service_authority`, uses `management` only to acquire
+`management.effect_guard(...)`, then sends caller-selected actor/credential/grant/token/effective
+user facts to the database, registers their service witness, and returns a live
+`ResolvedServiceAuthority` (`crates/snapback-engine/src/local/engine.rs:5194-5234`). The database
+checks that B's rows are live, not that management authority A owns or may reanimate B.
+
+**Required row disposition.** F175 must load an exact pending-effect/durable-work record owned or
+actionable by the presented management authority and derive the retained service tuple from that
+record, or enforce an equivalent exact entitlement over the tuple before returning authority.
+The output carrier must preserve that verified association. A successful row-liveness lookup is
+not ownership, and a returned authority is in scope even if no later write occurs in this call.
+
+### B6 — an admission lease cannot be the correlation identity
+
+**VERIFIED CODE FACT.** `AdmissionLease` derives `Clone`, and every clone shares one
+`Arc<LeaseToken>` (`crates/snapback-auth/src/auth/admission.rs:816-820`). F143
+`prepare_admitted_authority` accepts that lease independently from a publicly constructible
+`ResolvedAppAuthority`; F144 performs only admission/mode/source-class checks before joining them
+(`crates/snapback-sync/src/auth/invocation.rs:2714-2765`). C005 makes the resolved enum directly
+constructible. One cloned lease can therefore prepare multiple subjects.
+
+**Required row disposition.** F143, F144, and C005 cannot use lease equality, pointer equality,
+transition generation, or admission epoch as subject correlation. General loose pairing is
+deleted or replaced by an owner-minted carrier containing a subject established by a factory
+predicate. The admission lease remains inside that carrier solely for liveness.
+
+**VERIFIED CODE FACT.** F147/F148 select service scope using both function ID and `FunctionKind`
+(`invocation.rs:3029-3032`) and store both in `PreparedInvocation` (`:2949-2956`). These rows are
+`OWNERSHIP-CHECKED` prior art. Any post-check association identity for a function operation is
+minted after F147/F148 and includes both ID and kind. An origin minted at root preparation, or an
+identity containing only function ID, is insufficient.
+
+### Earlier late-assembly break — still closed only by exact row work
+
+The earlier fix does not regress, but it is now stated as a row set rather than a description of
+“final authority assembly”:
+
+- F126 joins rehearsal binding and authority.
+- F127 joins a separately produced publication to an authority; F155 is the no-subject anonymous
+  publication producer involved in the verified substitution.
+- F128 joins a service publication; F111/F113/C006 are the registry/register/witness construction
+  chain involved in the verified service variant.
+- F129 and F133 attach attribution and stream incarnation.
+- F143–F146 construct admitted authority from independent liveness and subject inputs.
+- F149/F150 create durable descriptors from independently supplied stream incarnation.
+- F157 and F160 rebuild session/bearer authority from caller-selected subject facts; F161/F162
+  separately mint room/preflight authority from caller-selected room-impact subjects.
+- F210–F215 are engine assembly rows; F214 is currently `OWNERSHIP-CHECKED`, F210–F213/F215 are
+  not, and F216's no-subject result does not prove its upstream resolution.
+- C001–C006 and C012 are freely constructible subject/authority/witness/descriptor carriers used
+  by this cohort.
+
+No “mint origin last” claim is available for that cohort today. The row-level remedy is to reuse
+the exact bearer/database-check shape of F152–F154 and F214 where applicable, delete loose joins,
+and mint any private association token only after the row's exact predicate and complete
+publication/rehearsal/service/function scope are fixed. Compile-fail tests may then prove that the
+named replacement joins cannot be expressed; they do not prove the predicates inside the
+replacement factories.
+
+### Earlier function/effect and open-pending break — staging remains a separate axis
+
+F147/F148 fix function selection only. They do not make a later pending value and final guard
+correlated. The staging inventory still names these exact watch/capsule rows:
+
+- `crates/snapback-engine/src/local/engine.rs:24960`
+- `crates/snapback-kernel/src/storage/watches.rs:685`
+- `crates/snapback-kernel/src/storage/watches.rs:322`
+- `crates/snapback-server/src/server/commit_capsule.rs:181`
+- `crates/snapback-server/src/server/commit_capsule.rs:630`
+- `crates/snapback-server/src/server/commit_capsule.rs:760`
+
+The first five remain `MOVE`; the wrapper at `:760` also remains `MOVE` in the staging inventory
+and F266 remains `UNCLEAR` in the factory inventory. F261/F262 and staging rows
+`commit_capsule.rs:78`, `:100`, and `:206` are useful exact prior art but cannot justify F266 or
+the open `PendingCommit` consumer.
+
+The remedy remains consuming association preservation: staging accepts the checked carrier, the
+pending state retains its private association identity, and final commit consumes that state.
+Every independently accepting pending/guard/callback sibling named by the staging inventory is
+moved or deleted. The identity is factory-minted after the predicate and exact operation scope;
+it is not a root origin or admission lease.
+
+### Earlier reservation-free and direct-write breaks remain in scope
+
+F190/F191 are the grant/bulk-grant terminal planners that validate admission while accepting
+owner and grant/actor identifiers independently. Their staging rows at `engine.rs:5940` and
+`:5969`, along with their separate acquire/write rows, remain `MOVE`. A per-site fix may derive the
+owner from the caller authority or perform an owner-keyed lookup and return one exact terminal
+carrier. The fix is complete for those rows only when the inventory reclassifies F190/F191 and the
+linked staging rows no longer permit a split.
+
+The service-deadline rows `engine.rs:7626`, `:7634`, and `:7643` remain `MOVE` in the staging
+inventory. They prove that the eight generic `before_commit()` cuts are not the population. The
+remedy must preserve the exact terminal observation/plan through the direct durable write; a
+generic product census limited to those eight cuts cannot claim completion.
+
+## Required control model
+
+### 1. Verify ownership or entitlement at every subject-bearing factory
+
+For every F/C row that introduces, selects, joins, or returns a subject-bearing authority value,
+the row-specific verifier must establish one of these exact relationships before the minted value
+is honored:
+
+1. **Possession-derived subject:** a bearer, password, recovery code, delivery proof, PKCE
+   verifier, MAC, or other exact opaque proof selects the subject; the caller cannot name a
+   different subject beside it.
+2. **Authority-owned subject:** the subject is derived from the presented authority, or a durable
+   lookup is keyed by both the authority-derived owner and caller selector.
+3. **Exact predecessor/work ownership:** the subject comes from a durable row/ticket/work claim
+   whose opaque identity, generation, database binding, and owner/entitlement are verified.
+4. **Explicit ambient entitlement:** a real operator/internal/system root is authenticated and the
+   executable policy authorizes that exact root, subject tuple, purpose, and operation scope.
+
+A liveness/admission/epoch/mode check, a successful lookup of the selected subject, value-shape
+validation, database binding alone, private fields, a sealed trait, a doc comment, or current
+caller discipline satisfies none of these relationships.
+
+When an authority-increasing durable write is involved, LLP 0293's stronger rule still applies:
+the durable or cryptographic predecessor is re-read at the protected resolution/transaction cut;
+an earlier in-memory carrier is not evidence for the write. LLP 0293 is Review, so this design
+uses its verified-subject/purpose invariant as a constraint, not as an implementation claim.
+
+### 2. Preserve the checked association only where a boundary requires it
+
+After a factory predicate succeeds, a row may return an exact opaque carrier. The carrier contains
+or commits to:
+
+- database/owner identity when relevant;
+- authority class;
+- canonical subject tuple;
+- purpose and exact operation scope;
+- function ID **and kind** for a function operation;
+- durable predecessor/generation or opaque work identity;
+- required publication, session, service, and rehearsal state; and
+- a private association identity minted after all of the above are fixed.
+
+The carrier is not a universal authority root and is not accepted as evidence for a new
+authority-increasing write. It is scoped to one named factory row and named consumers. It need not
+be introduced where an existing exact proof is already consumed in one function.
+
+Non-`Clone`, private fields, no serde/conversions, and a consuming API can make post-factory
+substitution structurally impossible through named safe-Rust surfaces. They do not make a missing
+or incorrect factory predicate impossible. B4 is the permanent counterexample.
+
+### 3. Close each enumerated staging/consumer row
+
+For a staging row that crosses a boundary, the checked carrier—not a fresh authority, subject,
+reservation, plan, ticket, guard, or callback—is the only authority-bearing input. Staging returns
+a state carrying the same private association. Commit consumes it and accepts no independently
+selectable security input.
+
+If borrowing requires internal halves, both halves carry the same private association and can be
+rejoined only inside one owner module. Compile-fail evidence must target the exact staging row.
+A generic `PendingCommit`, generic `BeforeCommit -> G`, `G = ()`, raw
+`AdmissionEffectGuard`, optional reservation, or independently supplied terminal gate remains a
+split unless its exact row proves otherwise.
+
+Final liveness acquisition remains last, after fallible policy/database/rehearsal/publication
+checks and immediately before the durable cut. That is LLP 0058/0059 ordering, not subject proof.
+No correlation identity is derived from the admission lease.
+
+### 4. Direct construction surfaces are part of the producer population
+
+C001–C014 cannot be dismissed as “just data types.” For C001–C007, C009, and C012–C014, either
+construction becomes unavailable to the caller class or every honoring factory re-verifies the
+complete subject/proof relation before returning authority or committing an effect. C008, C010,
+and C011 remain only because their consumers verify the MAC/registry relationship; free
+construction itself provides no power.
+
+### 5. Detectors ratchet the enumerations; they do not prove semantic checks
+
+The factory detector covers factory-like names, authority-shaped return types, conversions/direct
+construction, sealed protocols, and later consumers. The staging detector covers authority plus
+independent subject signatures, plans/tickets/pending carriers, direct durable effects, returned
+authorities, generic final callbacks, and raw guards. LLP 0298 auxiliary effects remain explicitly
+enumerated against all four accepted criteria.
+
+Those searches cannot prove that a predicate is sufficient, that a renamed helper is in scope,
+or that an FFI/unsafe/dynamic-storage path is absent. Required body review, predicate mutation,
+negative runtime tests, compile-fail fixtures, and independent adversarial review carry that
+residual.
+
+Three rules cannot be expressed as a current row set: that each row's semantic predicate is
+sufficient, that the derivations found every relevant source spelling, and that future code will
+continue to fit either inventory schema. Predicate mutations/foreign-subject tests detect the
+first; redundant factory/staging/storage derivations detect the second; and the registry ratchet
+plus independent source review detect the third. None is upgraded to structural impossibility.
+
+## Relationship to parallel per-site ownership fixes
+
+The parallel per-site work is the primary remediation, not a temporary patch this design
+supersedes.
+
+- This design **runs beside** those fixes by defining their row-addressed acceptance evidence and
+  the downstream staging rules that keep a correct predicate from being separated later.
+- The final claim **depends on** every affected factory row being deleted, reclassified with
+  evidence, or proved no-subject. It does not assume this design lands first.
+- If a correct ownership/entitlement fix lands first, Phase 0/1 re-derives the inventory and
+  credits that exact row. No product rewrite is repeated merely to conform to an architectural
+  aesthetic.
+- A per-site factory fix does not subsume a linked staging `MOVE`/`DELETE` row. Conversely, a
+  carrier migration does not subsume its factory predicate.
+- Existing F003/F098/F147/F148/F152–F154/F174/F214-style checks should be reused where they match
+  the exact subject/purpose. New abstractions are justified only for repeated transport and
+  final-cut choreography after verification.
+
+Given the checked-in 134 LIVENESS-ONLY rows, per-site checks are better than a single universal
+product architecture. The universal product would still need 134 correct constructors and would
+add another powerful shared protocol whose factories could repeat B4. Row-specific predicates
+plus narrowly scoped carriers minimize the amount of code trusted for each authority relationship.
+
+## Migration phases and the exact claim permitted after each
+
+Every claim is bound to an integrated commit, inventory derivation digest, and explicit row set.
+No phase borrows a later phase's property.
+
+### Phase 0 — reconcile and freeze both row-addressable registries
+
+Re-run both inventory derivations on the implementation base. Reconcile 326 versus 338 authority
+surfaces and 247/258/279 staging figures. Name all six requested factory `UNCLEAR` rows and the
+one requested staging `UNCLEAR` row, or correct the receipts with reviewed evidence. Assign stable
+IDs to every staging row and distinguish semantic rows from reachability edges.
+
+**Permitted claim:**
+
+> `INVENTORIES-ADDRESSABLE@<digest>`: every surface found by the declared factory and staging
+> derivations at `<commit>` has one stable row identity, one production-reachability record, and
+> one explicit unresolved/disposition state.
+
+**Why true then:** the checker's output and checked-in rows have a one-to-one key/digest mapping,
+and arithmetic totals are generated from those keys rather than copied from prose.
+
+**Not permitted:** semantic completeness, factory correctness, staging closure, route closure,
+structural impossibility, or either durable/returned-authority property. New spellings and detector
+blind spots remain a DETECTION BOUND.
+
+### Phase 1 — repair factories row by row
+
+Process LIVENESS-ONLY and direct-construction rows in any order, including fixes that landed before
+this design. Resolve UNCLEAR rows rather than treating them as safe. Re-audit each retained
+OWNERSHIP-CHECKED row against its exact code and add a predicate mutation/negative test.
+
+Every landing receipt names the exact F/C IDs, authority/proof input, subject tuple, operation
+scope, predicate location, negative test, mutation, and resulting classification.
+
+**Permitted claim per landing:**
+
+> `PREDICATE-VERIFIED {F/C row IDs} @ <commit>`: at the named rows, the named authority/proof owns
+> or is entitled to the named subject and purpose before the returned value can be honored.
+
+**Why true then:** the row bodies perform the recorded derivation/check, success and foreign-
+subject negatives exercise the exact path, and removing or widening the predicate makes the named
+mutation test fail.
+
+**Not permitted:** structural impossibility, correctness of another row, downstream association
+preservation, or a population-wide claim. Semantic sufficiency remains review/test evidence, not a
+type theorem.
+
+### Phase 2 — preserve verified associations across named boundaries
+
+For exact Phase-1 rows whose results cross staging, async, database, or crate boundaries, add or
+reuse a narrow carrier minted after the verified predicate and complete operation scope. Delete
+loose subject/authority joins for those same named paths. B4's F001/F004/F053 chain, B5's F175,
+B6's F143/F144/C005, the late-assembly cohort, and F190/F191 are mandatory early slices.
+
+Every landing receipt names both its factory IDs and all producer/consumer/staging IDs it exposes.
+
+**Permitted claim per landing:**
+
+> `ASSOCIATION-PRESERVED {factory IDs -> consumer/staging IDs} @ <commit>`: after the named factory
+> predicate succeeds, safe callers through the named replacement APIs cannot replace the subject,
+> purpose, exact function `(id, kind)`, predecessor, or required publication/fence association.
+
+**Why true then:** the association is minted only after the named predicate, private fields and
+consuming transitions preserve it, the old loose joins are absent for the named rows, and exact
+compile-fail substitutions fail at the recorded spans.
+
+**Not permitted:** that the factory predicate is logically infallible, that an unlisted consumer
+does not exist, or that another factory/staging row is closed.
+
+### Phase 3 — execute the complete staging `MOVE`/`DELETE` ledger
+
+For each stable staging ID, migrate the complete vertical slice. A `MOVE` replacement and every
+alternate `DELETE` sibling reaching the same effect land together. Re-audit the 50 current `KEEP`
+keys named above after stable IDs exist; their exact factory provenance must also be
+PREDICATE-VERIFIED or NO-SUBJECT at that point. Resolve the requested missing `UNCLEAR` row.
+
+**Permitted claim per landing:**
+
+> `STAGING-CLOSED {staging row IDs} FROM {factory row IDs} @ <commit>`: the named staging and
+> durable-consumer paths preserve the named verified association, and the named legacy split
+> signatures are absent.
+
+**Why true then:** each named stage/commit consumes one association-preserving state, all alternate
+named raw/generic/direct siblings for that effect are deleted, and B/A, F1/F2, replay, and
+double-use compile/runtime attacks fail for those exact rows.
+
+**Not permitted:** “all staging,” “all guarded writes,” “all 279,” or the repository property until
+the exact reconciled registry has no unresolved legacy row.
+
+### Phase 4 — close the enumerated population and auxiliary boundary
+
+Require all reconciled factory rows to be PREDICATE-VERIFIED, narrowly NO-SUBJECT with honoring
+consumers audited, or deleted. Require every staging row to have a final disposition and evidence.
+Require every returned authority and every LLP 0298 durable effect found by the registered search
+to point to its exact factory and consumer row. Enumerate every auxiliary exclusion against all
+four LLP 0298 criteria. Run the complete adversarial mutation matrix.
+
+**Permitted claim:**
+
+> `ENUMERATED-ROWS-RESOLVED@<digest>`: every exact row in the two reconciled registries has the
+> recorded final disposition and required row-local evidence; no present row remains
+> `LIVENESS-ONLY`, `MOVE`, or `UNCLEAR`, and every row whose final disposition is `DELETE` is absent
+> from the integrated production surface.
+
+**Why true then:** the registry checker compares exact keys and signatures, all dispositions have
+evidence references, re-derivation adds no unregistered candidate inside the declared boundary,
+and the staging/auxiliary checks are green.
+
+**Not permitted:** that detector completeness or semantic predicate sufficiency is structurally
+impossible to violate. This phase is still a DETECTION BOUND.
+
+### Phase 5 — scoped claim gate; not currently supportable
+
+Phase 5 additionally requires:
+
+1. Phase 0's counts and missing `UNCLEAR` identities are reconciled.
+2. Every Phase 1–4 receipt binds the exact integrated code, tests, inventory rows, and derivation
+   digest.
+3. B4, B5, B6, anonymous/session publication substitution, service-witness construction,
+   rehearsal substitution, F1/F2 function-kind substitution, grant/bulk-grant foreign owner,
+   open pending/capsule, service-deadline, raw-guard, no-reservation, and returned-authority
+   mutations are green.
+4. The LLP 0298 auxiliary-effect registry is complete at the declared detector boundary.
+5. Grok's corrupted middle is re-requested or explicitly waived by the author.
+6. A fresh independent adversarial review examines factory predicates and downstream transport as
+   separate questions and finds no material construction path.
+
+**Permitted claim before all six conditions:** none beyond exact earlier-phase row claims.
 
 **Permitted claim after all six conditions:**
 
-> Through the reconciled supported production surface, a durable effect cannot be constructed
-> with independently selected authority, subject, operation scope, staged intent/plan, and final
-> liveness retention; every non-caller durable effect consumes an exact product closed to the
-> caller class.
+> At `<commit>` and within the reconciled production-Rust, feature, storage, and caller-class
+> boundaries named by inventory digest `<digest>`, every enumerated subject-bearing factory checks
+> the presented authority/proof's ownership or exact entitlement before its result is honored,
+> and every enumerated downstream staging/consumer path preserves that checked association through
+> its durable effect or returned authority. The named safe-Rust post-factory substitution attacks
+> are structurally impossible through the enumerated replacement APIs; the named semantic
+> predicate mutations and adversarial executions found no passing foreign-subject construction.
 
-**Why true then:** every recorded producer/consumer has one consuming product signature and every
-enumerated alternate construction/commit surface is deleted, with compile-fail and adversarial
-mutation evidence for the reachable API.
+**Why true then:** exact row evidence establishes each predicate; exact type/compile-fail evidence
+establishes post-factory non-substitutability for each carrier path; exact runtime mutations cover
+the durable and inverse returned-authority outcomes; and re-derivation/review found no unregistered
+surface within the declared boundary.
 
-This remains a **DETECTION BOUND** with respect to future source edits, unrecognized FFI/storage
-mechanisms, unsafe memory fabrication, or detector blind spots. The type system makes violations
-through the completed supported safe surface impossible; the registry and review detect attempts
-to expand that surface.
+The final sentence intentionally says “found no” for semantic attacks and “structurally
+impossible” only for named post-factory safe-Rust substitutions. Future edits, unsafe memory
+fabrication, unrecognized FFI/dynamic storage, detector blind spots, and the semantic completeness
+of a new predicate remain detection/review residuals. No stronger global impossibility claim is
+authorized.
 
-## Required deletion and compile-fail evidence
+## Required evidence matrix
 
-Evidence is scoped. A passing test for one product never proves another product or the registry.
+### Factory-predicate attacks
 
-### Final assembly attacks
+For every subject-bearing factory row:
 
-Downstream fixtures must fail to compile when attempting to:
+1. A positive control uses the exact owner/proof and produces a non-empty authority/effect witness.
+2. A foreign subject with the same live epoch/generation is refused.
+3. A same-ID/different-kind function scope is refused where functions are involved.
+4. A stale/revoked/wrong-database/wrong-generation predecessor is refused as applicable.
+5. Removing the owner/entitlement comparison turns the negative red.
+6. The test observes the exact factory and honoring consumer, not a route precheck.
 
-1. attach anonymous publication to a session authority;
-2. attach session/service/rehearsal state after final-origin mint;
-3. construct or default a service registry/witness and install it;
-4. mint, clone independently, serialize, or extract a final origin;
-5. preserve a final origin through F1 -> F2, nested-function preparation, or `LiveRerun`; or
-6. finalize a session/service authority from loose resolved and publication arguments.
+B4 additionally mutates F053's session ownership while keeping F001's seal intact. B5 observes
+that F175 returns no live service authority for the foreign tuple. B6 uses two clones of one
+`AdmissionLease` against two resolved subjects and must fail at the factory association, not at an
+unrelated later route rule.
 
-Runtime mutation tests remove each finalizer's exact publication/scope binding and must turn red.
-Compile failure proves only surface closure; the runtime mutations prove the private constructor's
-checks are load-bearing.
+### Association-preservation attacks
 
-### Effect-product and R4 attacks
+For every carrier boundary, fixtures attempt to:
 
-Fixtures must fail to compile when attempting to:
+1. construct the carrier from authority A and subject B;
+2. pair a verified B product with A's lease, publication, service witness, rehearsal binding,
+   terminal gate, pending transaction, uncertainty retention, or final guard;
+3. extract/replace/clone/serialize/reconstruct the association identity;
+4. use function F1's ID with F2's kind, or F1 `(id, kind)` with F2's staged state;
+5. reuse consumed unstaged/staged state;
+6. implement or invoke a raw pending/proof/callback sibling; and
+7. commit through a direct storage path around the carrier.
 
-1. construct a product from authority A plus subject/plan B;
-2. stage through a carrier-independent sibling;
-3. extract or replace the subject, intent, reservation, pending value, or effect identity;
-4. stage F2 and commit with F1's product or retention;
-5. reuse the unstaged or staged product after its consuming transition;
-6. implement a pending/commit-proof trait;
-7. create `CorrelatedCommitGuard<()>` or another arbitrary retention inhabitant; or
-8. call a raw/direct commit beside the product.
+Compile failure supports only the named API closure. Owner-module runtime tests deliberately
+construct internal mismatches and require refusal/rollback plus no durable or returned-authority
+witness.
 
-An owner-module runtime test creates two child effects inside one exact multi-cut parent product;
-a second test creates F1 and F2 through two different function preparations from equivalent former
-root inputs. Each attempts the internal cross-pair and asserts rollback plus no durable witness
-after reopen. Positive controls commit non-empty effects. These private tests exercise the
-defense-in-depth identity comparisons without adding a production constructor for forbidden
-states.
+### Final liveness and durable-cut attacks
 
-### R5 ownership attacks
+For each applicable staging row, instrumentation proves zero final admission guards before arm,
+one exact guard immediately before the durable cut, retention through that cut, and drop before
+post-commit publication. Mutations acquire early/twice, use another controller, restore post-arm
+fallible work, restore `FnOnce() -> Result<G>`/`()`, or drop the guard before commit.
 
-Fixtures must fail to compile for a separate terminal plan/gate/raw-effect composition. Runtime
-tests attempt session A + victim B grant ID through the sole constructor and verify that no product
-is returned, no terminal premark is installed, and no durable row changes. Mutation tests replace
-the owner-keyed lookup with a grant-ID-only lookup and must turn red.
+This evidence is about liveness ordering. It does not substitute for the factory predicate or
+association-preservation evidence.
 
-That evidence supports the exact grant-revocation product. It does not prove other terminal
-products.
+### Inventory attacks
 
-### Single-acquire and final-cut attacks
+The registry checker fails on an unregistered:
 
-For every migrated final-cut shape, instrumentation must establish:
+- authority-shaped factory, sealed-plan factory, conversion, or direct construction surface;
+- authority validation plus independent subject/selector/plan/ticket parameter;
+- output authority derived from an independently supplied subject;
+- generic callback/proof/pending carrier, raw guard, optional reservation, or public authority
+  join;
+- durable SQLite/object-store/filesystem/receipt/queue/trigger/publication cut; or
+- auxiliary-effect classification lacking all four LLP 0298 criteria.
 
-1. zero admission guards before the private arm transition;
-2. exactly one guard after it;
-3. the exact controller/epoch and product effect identity at the durable cut;
-4. no admission-entering callback below arm;
-5. guard retention through the durable cut; and
-6. guard drop before post-commit publication/finalization.
+The shortest gate-preserving violation remains a new spelling or unrecognized FFI/storage path.
+The registry is a ratchet and addressable work list, not a proof by itself.
 
-Required production mutations remove retention, acquire twice, acquire early, use another
-controller, restore post-guard `check_live`, or restore `FnOnce() -> Result<G>`/`()`. Each must
-turn the relevant evidence red.
+## Relationship to governing LLPs
 
-### Inventory and alternate-surface attacks
+This design does not supersede LLP 0283 F-1. Factory correlation does not close public raw SQLite,
+caller-claimable universal roots, self-implementable/callback authority factories, or forgeable
+membership provenance. F-1 remains open.
 
-The registry checker fails on:
+LLP 0058/0059 still govern admission, publication, ticket, drain, and final-cut ordering. Those
+fences answer whether already-authorized work remains live; they do not answer who owns the
+subject. Admission-lease equality is expressly non-authoritative for correlation.
 
-1. a new authority-plus-independent-subject signature;
-2. a new staging/plan/ticket type carrying authority-derived subject data without an exact product;
-3. a new generic `BeforeCommit`, generic `G`, raw durable `AdmissionEffectGuard` parameter, open
-   pending/proof trait, or optional reservation;
-4. a new direct SQLite/object-store/filesystem/receipt/queue/trigger cut outside a registered exact
-   product consumer;
-5. a reintroduced deleted surface from this document or an inventory `DELETE` row; or
-6. an auxiliary classification not enumerated against all four LLP 0298 criteria.
+LLP 0290 remains database-bound participant prior art. Its exact database/registry/generation
+checks prevent A-database/B-participant substitution, but database binding alone does not prove a
+principal owns a subject.
 
-The shortest gate-preserving violation is a new storage spelling or unrecognized FFI path. Hence
-this checker is a ratchet and population map, not proof by itself. Independent source review and
-durable mutation tests remain required.
+LLP 0293 states the stronger invariant for authority-increasing writes and returned authorities:
+the protected resolution cut derives subject, class, purpose, predecessors, and time. Its own
+§8.2–8.3 correctly says source gates cannot prove semantic verifier sufficiency. Because LLP 0293
+is still Review, this document does not claim its proposed chokepoint is implemented or
+authoritative.
 
-## Relationship to LLP 0283 F-1 and LLP 0298
+LLP 0298's durable-effect boundary is unchanged. Publications, object/file writes, queues,
+receipts, and trigger state remain in scope. An effect is auxiliary only when its exact enumerated
+row satisfies all four accepted criteria. An unclassified or unclear effect stays in scope.
 
-This design does not supersede LLP 0283 F-1. Correlating a durable operation product does not prove
-authority-root custody, close public raw SQLite, or repair a caller-claimable authority root. The
-design adopts F-1's stronger rule: an authority or commit capability is not closed when it is
-available through a public enum, `Default`, self-implementable trait, closure factory, public
-constructor, `pub(crate)` cross-module factory, or caller-supplied evidence.
+## Stop rules
 
-This design adopts LLP 0298's effect scope unchanged. Publications, object/file writes, queues,
-receipts, and future-affecting trigger state remain in scope. An auxiliary effect is excluded only
-when it satisfies all four accepted criteria and appears in the checked-in enumeration. An
-unclassified effect remains in scope.
+Stop and return to design review when:
 
-## Open implementation questions and stop rules
+1. a factory cannot state its authority/proof-to-subject entitlement as an executable predicate;
+2. an ambient root would need “trusted by convention” or a caller-supplied `verified` fact;
+3. a carrier must be minted before the factory predicate or before exact function ID and kind are
+   fixed;
+4. a proposed correlation identity is the admission lease, its `LeaseToken`, epoch, generation,
+   or another clonable liveness value;
+5. an implementation preserves a sealed consumer but leaves a sanctioned LIVENESS-ONLY factory;
+6. a staging migration leaves an alternate raw/generic/direct sibling for the same effect;
+7. a requested `UNCLEAR` row still lacks an identity or evidence;
+8. a count cannot be regenerated from exact row keys; or
+9. a claim would need “we could not construct a violation” to mean “impossible.”
 
-1. **Owner/dependency placement.** The final-authority mint, effect-product mint, concrete
-   retention, and durable consumer must share one ownership boundary that both authority and
-   kernel code can use without an upward kernel dependency. A new leaf crate or a kernel-owned
-   subtree after moving the relevant admission/fence core are candidate placements. If a compile
-   spike cannot preserve the private mint and single-product rules, stop and return to design
-   review. A public origin mint, public trait, generic callback, or caller-supplied evidence is not
-   a fallback.
-2. **Borrowing across staged SQLite transactions.** The concrete staged product must retain its
-   `'tx` and admission lifetimes without exposing pending/retention halves. If Rust cannot express
-   the proposed state directly, a private owner-module enum is allowed. A cross-module
-   `CorrelatedCommitGuard<R>`, `PendingCommit`, or raw transaction is not.
-3. **Exact operation scopes.** Every function and authority-only route needs an exact `K` and
-   subject tuple. If a current batch combines multiple caller origins, partition it or commit a
-   durable handoff per origin. Widening an origin to a set or using the first/system authority is
-   rejected. No mixed-origin batch was proved absent in this revision; absence remains an open
-   inventory question, not an impossibility claim.
-4. **Inventory receipt discrepancy.** Reconcile the row and classification totals before any
-   count-based phase claim. The row-addressed file remains the work list meanwhile.
-5. **Unread review material.** Re-request Grok's corrupted middle before Phase 5 or obtain an
-   explicit author waiver. Do not describe it as incorporated.
-
-These questions can change placement or migration order. They cannot weaken the type rules or
-authorize an exception. If a real operation cannot be expressed as one exact consuming product,
-stop and revise this design before implementing that operation.
+If a row cannot be expressed as one of the two inventory row types, say so and extend the detector
+and registry before implementation. Prose characterizations of good factories or trustworthy
+modules are not a fallback.
