@@ -28914,14 +28914,20 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
     };
 
     const NOW_MS: u64 = 2_000;
-    const CALLER: &str = "user-m";
-    const CALLER_SESSION: &str = "session-m";
-    const AGENT: &str = "agent-grant-approval";
+    const FIRST_GRANTOR: &str = "user-m";
+    const FIRST_GRANTOR_SESSION: &str = "session-m";
+    const SECOND_GRANTOR: &str = "user-x";
+    const SECOND_GRANTOR_SESSION: &str = "session-x";
+    const FIRST_AGENT_OWNER: &str = "user-owner-a";
+    const SECOND_AGENT_OWNER: &str = "user-owner-b";
+    const FIRST_AGENT: &str = "agent-grant-approval-a";
+    const SECOND_AGENT: &str = "agent-grant-approval-b";
 
     struct Fixture {
         snapback: LocalSnapback,
         lower_request_id: String,
-        caller_request_id: String,
+        first_grantor_request_id: String,
+        second_grantor_request_id: String,
         upper_request_id: String,
     }
 
@@ -28934,27 +28940,42 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                 database
                     .activate_current_auth_catalog()
                     .expect("activate grant approval auth catalog");
-                for user_id in ["user-a", CALLER, "user-z"] {
+                for user_id in [
+                    "user-a",
+                    FIRST_GRANTOR,
+                    FIRST_AGENT_OWNER,
+                    SECOND_AGENT_OWNER,
+                    SECOND_GRANTOR,
+                    "user-z",
+                ] {
                     database
                         .auth_catalog()
                         .insert_human_user_for_test(user_id, 1_000)
                         .expect("create grantor fixture user");
                 }
-                database
-                    .create_agent_principal(
-                        AGENT,
-                        1_000,
-                        &AgentRegistration {
-                            display_name: Some("Grant Approval Agent".to_owned()),
-                            operator_contact: None,
-                            registration_provenance: "grant-approval-authority-test".to_owned(),
-                            owner_user_id: Some(CALLER.to_owned()),
-                        },
-                    )
-                    .expect("create grant approval agent");
-                let credential = database
-                    .issue_initial_agent_credential(AGENT, 1_001, &random)
-                    .expect("issue grant approval agent credential");
+                for (agent, owner) in [
+                    (FIRST_AGENT, FIRST_AGENT_OWNER),
+                    (SECOND_AGENT, SECOND_AGENT_OWNER),
+                ] {
+                    database
+                        .create_agent_principal(
+                            agent,
+                            1_000,
+                            &AgentRegistration {
+                                display_name: Some(format!("Grant Approval Agent {agent}")),
+                                operator_contact: None,
+                                registration_provenance: "grant-approval-authority-test".to_owned(),
+                                owner_user_id: Some(owner.to_owned()),
+                            },
+                        )
+                        .expect("create grant approval agent");
+                }
+                let first_credential = database
+                    .issue_initial_agent_credential(FIRST_AGENT, 1_001, &random)
+                    .expect("issue first grant approval agent credential");
+                let second_credential = database
+                    .issue_initial_agent_credential(SECOND_AGENT, 1_002, &random)
+                    .expect("issue second grant approval agent credential");
                 let function_runtime = FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
                     table_visibility: None,
                     table: "unused".to_owned(),
@@ -28975,38 +28996,49 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                     })
                     .expect("install grant approval scope basis");
 
-                ["user-a", CALLER, "user-z"]
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, user_id)| {
-                        let minted_at_ms = 1_100 + (index as u64 * 10);
-                        let pairing = database
-                            .mint_pairing_code(user_id, minted_at_ms, &random)
-                            .expect("mint grant approval pairing code");
-                        let presentation = database
-                            .present_pairing_code(
-                                &credential.secret,
-                                &pairing.request_id,
-                                &pairing.secret,
-                                &[GrantScopeRequest::Exact {
-                                    function_id: "fn:grantApprovalRead".to_owned(),
-                                    kind: ScopedFunctionKind::Query,
-                                }],
-                                minted_at_ms + 1,
-                            )
-                            .expect("present grant approval pairing code");
-                        assert!(matches!(presentation, PairingPresentation::Created(_)));
-                        pairing.request_id
-                    })
-                    .collect::<Vec<_>>()
+                [
+                    ("user-a", &first_credential.secret),
+                    (FIRST_GRANTOR, &first_credential.secret),
+                    (SECOND_GRANTOR, &second_credential.secret),
+                    ("user-z", &first_credential.secret),
+                ]
+                .into_iter()
+                .enumerate()
+                .map(|(index, (user_id, credential))| {
+                    let minted_at_ms = 1_100 + (index as u64 * 10);
+                    let pairing = database
+                        .mint_pairing_code(user_id, minted_at_ms, &random)
+                        .expect("mint grant approval pairing code");
+                    let presentation = database
+                        .present_pairing_code(
+                            credential,
+                            &pairing.request_id,
+                            &pairing.secret,
+                            &[GrantScopeRequest::Exact {
+                                function_id: "fn:grantApprovalRead".to_owned(),
+                                kind: ScopedFunctionKind::Query,
+                            }],
+                            minted_at_ms + 1,
+                        )
+                        .expect("present grant approval pairing code");
+                    assert!(matches!(presentation, PairingPresentation::Created(_)));
+                    pairing.request_id
+                })
+                .collect::<Vec<_>>()
             };
-            let [lower_request_id, caller_request_id, upper_request_id]: [String; 3] = request_ids
+            let [
+                lower_request_id,
+                first_grantor_request_id,
+                second_grantor_request_id,
+                upper_request_id,
+            ]: [String; 4] = request_ids
                 .try_into()
-                .expect("three grant approval requests");
+                .expect("four grant approval requests");
             Self {
                 snapback,
                 lower_request_id,
-                caller_request_id,
+                first_grantor_request_id,
+                second_grantor_request_id,
                 upper_request_id,
             }
         }
@@ -29027,8 +29059,14 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                     grant_id: None,
                 },
                 GrantApprovalPairingRowForTest {
-                    request_id: self.caller_request_id.clone(),
-                    minted_by_user_id: CALLER.to_owned(),
+                    request_id: self.first_grantor_request_id.clone(),
+                    minted_by_user_id: FIRST_GRANTOR.to_owned(),
+                    state: "pending".to_owned(),
+                    grant_id: None,
+                },
+                GrantApprovalPairingRowForTest {
+                    request_id: self.second_grantor_request_id.clone(),
+                    minted_by_user_id: SECOND_GRANTOR.to_owned(),
                     state: "pending".to_owned(),
                     grant_id: None,
                 },
@@ -29046,7 +29084,8 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
 
     #[derive(Clone, Copy)]
     enum Case {
-        Exact,
+        FirstExact,
+        SecondExact,
         WrongSource,
         LowerSubject,
         UpperSubject,
@@ -29055,10 +29094,32 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
     impl Case {
         fn name(self) -> &'static str {
             match self {
-                Self::Exact => "exact",
+                Self::FirstExact => "first-exact",
+                Self::SecondExact => "second-exact",
                 Self::WrongSource => "wrong-source",
                 Self::LowerSubject => "lower-subject",
                 Self::UpperSubject => "upper-subject",
+            }
+        }
+
+        fn expected_grantor(self) -> &'static str {
+            match self {
+                Self::SecondExact => SECOND_GRANTOR,
+                _ => FIRST_GRANTOR,
+            }
+        }
+
+        fn expected_session(self) -> &'static str {
+            match self {
+                Self::SecondExact => SECOND_GRANTOR_SESSION,
+                _ => FIRST_GRANTOR_SESSION,
+            }
+        }
+
+        fn expected_agent(self) -> &'static str {
+            match self {
+                Self::SecondExact => SECOND_AGENT,
+                _ => FIRST_AGENT,
             }
         }
     }
@@ -29072,7 +29133,8 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
     }
 
     let observations = [
-        Case::Exact,
+        Case::FirstExact,
+        Case::SecondExact,
         Case::WrongSource,
         Case::LowerSubject,
         Case::UpperSubject,
@@ -29081,31 +29143,43 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
     .map(|case| {
         let mut fixture = Fixture::new();
         let (authority, selected_request_id) = match case {
-            Case::Exact => (
+            Case::FirstExact => (
                 test_grant_session_authority(
                     InvocationSource::AgentGrantManagement,
-                    CALLER,
-                    CALLER_SESSION,
+                    FIRST_GRANTOR,
+                    FIRST_GRANTOR_SESSION,
                 ),
-                fixture.caller_request_id.clone(),
+                fixture.first_grantor_request_id.clone(),
+            ),
+            Case::SecondExact => (
+                test_grant_session_authority(
+                    InvocationSource::AgentGrantManagement,
+                    SECOND_GRANTOR,
+                    SECOND_GRANTOR_SESSION,
+                ),
+                fixture.second_grantor_request_id.clone(),
             ),
             Case::WrongSource => (
-                test_grant_session_authority(InvocationSource::HttpQuery, CALLER, CALLER_SESSION),
-                fixture.caller_request_id.clone(),
+                test_grant_session_authority(
+                    InvocationSource::HttpQuery,
+                    FIRST_GRANTOR,
+                    FIRST_GRANTOR_SESSION,
+                ),
+                fixture.first_grantor_request_id.clone(),
             ),
             Case::LowerSubject => (
                 test_grant_session_authority(
                     InvocationSource::AgentGrantManagement,
-                    CALLER,
-                    CALLER_SESSION,
+                    FIRST_GRANTOR,
+                    FIRST_GRANTOR_SESSION,
                 ),
                 fixture.lower_request_id.clone(),
             ),
             Case::UpperSubject => (
                 test_grant_session_authority(
                     InvocationSource::AgentGrantManagement,
-                    CALLER,
-                    CALLER_SESSION,
+                    FIRST_GRANTOR,
+                    FIRST_GRANTOR_SESSION,
                 ),
                 fixture.upper_request_id.clone(),
             ),
@@ -29148,7 +29222,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                 .map(|code| (observation.case.name(), code.as_str()))
         })
         .collect::<Vec<_>>();
-    assert_eq!(accepted, vec!["exact"]);
+    assert_eq!(accepted, vec!["first-exact", "second-exact"]);
     assert_eq!(
         refused,
         vec![
@@ -29161,6 +29235,9 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
     for observation in observations {
         match observation.approval {
             Ok(grant) => {
+                assert_eq!(grant.request_id, observation.selected_request_id);
+                assert_eq!(grant.actor_user_id, observation.case.expected_agent());
+                assert_eq!(grant.effective_user_id, observation.case.expected_grantor());
                 let mut expected_pairing_rows = observation.pending_rows;
                 let approved = expected_pairing_rows
                     .iter_mut()
@@ -29173,9 +29250,9 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                     observation.rows.grants,
                     vec![GrantApprovalGrantRowForTest {
                         grant_id: grant.grant_id,
-                        actor_user_id: AGENT.to_owned(),
-                        effective_user_id: CALLER.to_owned(),
-                        created_by: format!("session:{CALLER_SESSION}"),
+                        actor_user_id: observation.case.expected_agent().to_owned(),
+                        effective_user_id: observation.case.expected_grantor().to_owned(),
+                        created_by: format!("session:{}", observation.case.expected_session()),
                         request_id: observation.selected_request_id,
                     }]
                 );

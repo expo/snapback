@@ -5888,7 +5888,7 @@ impl LocalSnapback {
         authority: &PreparedAuthority,
         user_id: &str,
     ) -> SnapbackResult<()> {
-        let authority_user_id = Self::require_agent_grant_management_session(
+        let (authority_user_id, _) = Self::require_agent_grant_management_session(
             authority,
             "pairing-code minting authorization",
         )?;
@@ -5903,7 +5903,8 @@ impl LocalSnapback {
     }
 
     /// Require a currently admitted `PreparedAuthority` resolving to a session
-    /// with `AgentGrantManagement` source, then return that session's user.
+    /// with `AgentGrantManagement` source, then return that session's user and
+    /// session id.
     /// Admission validates the lease and rehearsal authority; it does not
     /// inspect `session_not_after_ms` or re-read the durable session.
     /// For revocation, that statement is scoped to the two planners below and
@@ -5915,7 +5916,7 @@ impl LocalSnapback {
     fn require_agent_grant_management_session<'a>(
         authority: &'a PreparedAuthority,
         effect: &'static str,
-    ) -> SnapbackResult<&'a str> {
+    ) -> SnapbackResult<(&'a str, &'a str)> {
         authority.validate_admission(effect)?;
         if authority.source() != InvocationSource::AgentGrantManagement {
             return Err(SnapbackError::error(
@@ -5924,14 +5925,19 @@ impl LocalSnapback {
                 "agent grant management requires its registered invocation source",
             ));
         }
-        let ResolvedAppAuthority::Session { user_id, .. } = authority.resolved() else {
+        let ResolvedAppAuthority::Session {
+            user_id,
+            session_id,
+            ..
+        } = authority.resolved()
+        else {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_REQUIRED",
                 "auth",
                 "agent grant management requires session authority",
             ));
         };
-        Ok(user_id)
+        Ok((user_id, session_id))
     }
 
     pub fn present_pairing_code(
@@ -5972,8 +5978,8 @@ impl LocalSnapback {
         proof: Option<&crate::auth::crypto::StepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::auth_grants::GrantApproval> {
-        let user_id = Self::require_agent_grant_management_session(authority, "grant approval")?;
-        let session_id = authority.resolved().session_id().expect("session helper");
+        let (user_id, session_id) =
+            Self::require_agent_grant_management_session(authority, "grant approval")?;
         let _effect = authority.effect_guard("grant approval transaction")?;
         self.db.approve_grant_request(
             user_id,
@@ -6035,7 +6041,7 @@ impl LocalSnapback {
         grant_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
-        let user_id =
+        let (user_id, _) =
             Self::require_agent_grant_management_session(authority, "grant revocation planning")?;
         self.db
             .plan_grant_revocation_service_terminal(user_id, grant_id, now_ms)
@@ -6065,7 +6071,7 @@ impl LocalSnapback {
         actor_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
-        let user_id = Self::require_agent_grant_management_session(
+        let (user_id, _) = Self::require_agent_grant_management_session(
             authority,
             "bulk grant revocation planning",
         )?;
