@@ -31,6 +31,8 @@ const PAIRED_FIXTURES_PATH = join(GRAPH_ROOT, 'paired-world-fixtures.v1.json');
 const RUNTIME_CAPTURES_PATH = join(GRAPH_ROOT, 'runtime-captures.g2-b.v1.json');
 const SERVED_OBSERVATIONS_PATH = join(GRAPH_ROOT, 'served-observations.g2-c.v1.json');
 const ZERO_HASH = `sha256:${'0'.repeat(64)}`;
+const GRAPH_CORPUS_AUTHORIZATION_INCARNATION = '01890f3c-9d5b-7000-8000-000000000001';
+const GRAPH_CORPUS_DATA_VERSION_STREAM = '01890f3c-9d5b-7000-8000-000000000002';
 const OWNER_SCOPE_DOMAIN = 'snapback:g0-corpus-authority-scope:v1:';
 const LARGE_SPOT_CHECK_COMMAND = 'ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs';
 const HOT_SPOT_CHECK_COMMAND = 'ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v11 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-hot.mjs';
@@ -1546,7 +1548,13 @@ function normalizeCommentTiesForGraph(value, commentRows) {
 }
 
 function pendingCases(carrier, baseInvocation) {
-  const withEpoch = epoch => ({ ...deepClone(baseInvocation), authorizationVersion: { incarnation: 'g0-corpus-authorization-v1', epoch } });
+  const withEpoch = epoch => {
+    const call = deepClone(baseInvocation);
+    call.authorizationVersion = {incarnation: GRAPH_CORPUS_AUTHORIZATION_INCARNATION, epoch};
+    call.partition.class3.principalDataScope.authorizationStreamIncarnation = GRAPH_CORPUS_AUTHORIZATION_INCARNATION;
+    call.materialization.databaseId = GRAPH_CORPUS_DATA_VERSION_STREAM;
+    return call;
+  };
   const withPrincipal = principal => invocation(
     carrier, deepClone(baseInvocation.args), principal, 0, 'listIssueByID',
   );
@@ -1556,8 +1564,8 @@ function pendingCases(carrier, baseInvocation) {
   return [
     { caseKind: 'audienceParity', id: 'zerobugs-audience-parity-g2', plan: carrier, invocations: [baseInvocation, withPrincipal('principal_crew')], principals: ['principal_ordinary', 'principal_crew'], expect: { establishment: ['allow', 'allow'], strict: ['allow', 'allow'] } },
     { caseKind: 'scopeMismatch', id: 'zerobugs-scope-mismatch-g2', plan: carrier, invocations: { memberScope: baseInvocation, presentedInstance: outsideScope }, principal: 'principal_ordinary', expect: { classification: 'query-shaped', reason: 'scope-unbound', resultBytes: null } },
-    { caseKind: 'authorityTransition', id: 'zerobugs-authority-transition-g2', plan: carrier, invocations: { before: withEpoch(0), after: withEpoch(1) }, principal: 'principal_ordinary', commit: { dataChanges: [], authorityEvents: [{ kind: 'authorization-incarnation-change', cause: 'app-reset' }], afterAuthorizationVersion: { incarnation: 'g0-corpus-authorization-v1', epoch: 1 } }, observed: [{ ordinal: 0, kind: 'fence', authorizationVersion: { incarnation: 'g0-corpus-authorization-v1', epoch: 1 } }, { ordinal: 1, kind: 'delivery', authorizationVersion: { incarnation: 'g0-corpus-authorization-v1', epoch: 1 } }] },
-    { caseKind: 'mixedCommit', id: 'zerobugs-mixed-commit-g2', plan: carrier, invocations: { before: withEpoch(0), after: withEpoch(1) }, principal: 'principal_ordinary', commit: { dataChanges: [{ table: 'issue', rowId: '__corpus_issue__' }], authorityEvents: [{ kind: 'authorization-incarnation-change', cause: 'app-reset' }], afterAuthorizationVersion: { incarnation: 'g0-corpus-authorization-v1', epoch: 1 } }, observed: [{ ordinal: 0, kind: 'fence', authorizationVersion: { incarnation: 'g0-corpus-authorization-v1', epoch: 1 } }, { ordinal: 1, kind: 'delivery', authorizationVersion: { incarnation: 'g0-corpus-authorization-v1', epoch: 1 } }] },
+    { caseKind: 'authorityTransition', id: 'zerobugs-authority-transition-g2', plan: carrier, invocations: { before: withEpoch(0), after: withEpoch(1) }, principal: 'principal_ordinary', commit: { dataChanges: [], authorityEvents: [{ kind: 'authorization-epoch-change', cause: 'permission-backing-write' }], afterAuthorizationVersion: { incarnation: GRAPH_CORPUS_AUTHORIZATION_INCARNATION, epoch: 1 } } },
+    { caseKind: 'mixedCommit', id: 'zerobugs-mixed-commit-g2', plan: carrier, invocations: { before: withEpoch(0), after: withEpoch(1) }, principal: 'principal_ordinary', commit: { dataChanges: [{ table: 'issue', rowId: 'issue_ded0c2976675c34f4756035d' }], authorityEvents: [{ kind: 'authorization-epoch-change', cause: 'permission-backing-write' }], afterAuthorizationVersion: { incarnation: GRAPH_CORPUS_AUTHORIZATION_INCARNATION, epoch: 1 } } },
   ];
 }
 
@@ -2515,9 +2523,33 @@ async function main() {
     sourceIssueID: internalIssue.id, selectedLabelIDs: [],
   }, ordinaryPrincipal, 0, 'listIssueByID');
   const pendingCasesV1 = pendingCases(carriers.listIssueByID, pendingBaseInvocation);
+  const servedArtifact = existsSync(SERVED_OBSERVATIONS_PATH)
+    ? readJson(SERVED_OBSERVATIONS_PATH)
+    : null;
+  const servedSchedulerCases = new Map(
+    (servedArtifact?.format === 'snapback.graph-served-observations.g2-c.v1'
+      ? servedArtifact.schedulerCases ?? []
+      : []).map(row => [row.id, row]),
+  );
   const schedulerCases = pendingCasesV1.filter(({caseKind}) => (
     caseKind === 'authorityTransition' || caseKind === 'mixedCommit'
-  ));
+  )).map(row => {
+    const served = servedSchedulerCases.get(row.id);
+    if (!served) return row;
+    assert.equal(served.caseKind, row.caseKind, `${row.id} served case kind`);
+    assert.deepEqual(served.commit, row.commit, `${row.id} served commit carrier`);
+    for (const phase of ['before', 'after']) {
+      assert.equal(served.invocations[phase].planHash, row.invocations[phase].planHash, `${row.id} ${phase} plan`);
+      assert.deepEqual(served.invocations[phase].args, row.invocations[phase].args, `${row.id} ${phase} args`);
+      assert.deepEqual(served.invocations[phase].windows, row.invocations[phase].windows, `${row.id} ${phase} windows`);
+      assert.equal(served.invocations[phase].advancedNodeId, row.invocations[phase].advancedNodeId, `${row.id} ${phase} advanced node`);
+    }
+    return {...row, invocations: served.invocations, observed: served.observed};
+  });
+  if (checkOnly) {
+    assert.equal(servedSchedulerCases.size, 2, 'served scheduler artifact must carry both frozen cases');
+    assert(schedulerCases.every(row => Array.isArray(row.observed)), 'scheduler observed rows must come from served frames');
+  }
   const pendingCorpus = {
     format: 'snapback.graph-broadcast-cases.g2-pending.v1', version: 1,
     description: 'G2-C discharged all formerly sidecarred case kinds through the executable corpus; no residual rows remain.',
@@ -2738,6 +2770,10 @@ async function main() {
   const g0ExitObservations = [];
   const g0ExitObservationEvidence = [];
   const g0ExitObservationGaps = [];
+  const servedGroupMeasurements = new Map(
+    (servedArtifact?.normalServingGroupMeasurements ?? [])
+      .map(row => [row.graphPlanHash, row]),
+  );
   const observationGraphArgs = {
     issueListV2: {projectID: internalIssue.projectID, selectedLabelIDs: []},
     issueDetail: {sourceIssueID: publicIssue.id},
@@ -2760,8 +2796,6 @@ async function main() {
       authorizationVersion: call.authorizationVersion, evaluationCut: call.evaluationCut,
     };
     const groupState = {result: JSON.parse(resultBytes), proofTuple};
-    const dependencyVectorBytes = JSON.stringify(capturedDependencies);
-    const groupStateBytes = JSON.stringify(groupState);
     const evidence = {
       fixture: 'normal-seed-v1', graphPlanHash: carrier.planHash,
       invocation: call, resultBytes,
@@ -2772,16 +2806,19 @@ async function main() {
       groupStateDigest: digestBytes(canonical(groupState)),
     };
     g0ExitObservationEvidence.push(evidence);
-    g0ExitObservations.push({
-      format: 'snapback.graph-g0-exit-observation.v1', fixture: 'normal-seed-v1',
-      graphPlanHash: carrier.planHash, groupCount: 1, subscriberFanout: 1,
-      groups: [{
-        groupOrdinal: 0,
-        resultBytes: Buffer.byteLength(resultBytes),
-        dependencyBytes: Buffer.byteLength(dependencyVectorBytes),
-        groupStateBytes: Buffer.byteLength(groupStateBytes),
-      }],
-    });
+    const servedMeasurement = servedGroupMeasurements.get(carrier.planHash);
+    if (servedMeasurement) {
+      assert.equal(servedMeasurement.fixture, 'normal-seed-v1', `${query} served group fixture`);
+      assert.equal(servedMeasurement.measurementSource, 'served-retained-live-evaluation-memo', `${query} served group source`);
+      g0ExitObservations.push({
+        format: servedMeasurement.format,
+        fixture: servedMeasurement.fixture,
+        graphPlanHash: servedMeasurement.graphPlanHash,
+        groupCount: servedMeasurement.groupCount,
+        subscriberFanout: servedMeasurement.subscriberFanout,
+        groups: servedMeasurement.groups,
+      });
+    }
     for (const fixtureName of ['large-seed42-v1', 'hot-recent-v1']) {
       g0ExitObservationGaps.push({
         fixture: fixtureName, query, graphPlanHash: carrier.planHash,
@@ -2790,6 +2827,9 @@ async function main() {
         command: fixtureName === 'large-seed42-v1' ? LARGE_SPOT_CHECK_COMMAND : HOT_SPOT_CHECK_COMMAND,
       });
     }
+  }
+  if (checkOnly) {
+    assert.equal(g0ExitObservations.length, 3, 'all normal G0 exit observations must come from the actual served group path');
   }
   const corpus = {
     format: 'snapback.graph-conformance-corpus.v1', version: 1,
@@ -2832,7 +2872,7 @@ async function main() {
       { label: 'G0-BCAST-INVALIDATION', status: 'SATISFIED', missingCarrier: null, artifact: 'publicRooms establishment.invalidation + executable G2-C served scheduler observations', caseKinds: ['authorityTransition', 'mixedCommit'] },
       { label: 'G0-BCAST-IDENTITY', status: 'SATISFIED', missingCarrier: null, artifact: 'full plan/instance/materialization/partition/version/cut preimages, installed-owner schema/policy digest, and Rust reconstruction', caseKinds: ['pairedWorld', 'audienceParity'] },
       { label: 'G0-BCAST-CORPUS', status: 'SATISFIED', missingCarrier: null, artifact: 'seven-kind executable corpus + empty broadcast-cases.g2-pending.v1.json + final broadcast-prover-dispositions.v1.json', caseKinds: ['pairedWorld', 'allowDeny', 'audienceParity', 'scopeMismatch', 'authorityTransition', 'mixedCommit', 'refusal'] },
-      { label: 'G0-BCAST-BOUNDS', status: 'SATISFIED', missingCarrier: null, artifact: 'served-observations.g2-c.v1.json + bound-derivation.v1.json normal observations + typed large/hot gaps and rerun commands', caseKinds: ['audienceParity', 'pairedWorld', 'authorityTransition', 'mixedCommit'] },
+      { label: 'G0-BCAST-BOUNDS', status: 'PARTIAL', missingCarrier: `large-seed42-v1 GraphG0ExitObservationV1 rows are absent; run ${LARGE_SPOT_CHECK_COMMAND}; hot-recent-v1 GraphG0ExitObservationV1 rows are absent; run ${HOT_SPOT_CHECK_COMMAND}`, artifact: 'served-observations.g2-c.v1.json + bound-derivation.v1.json actual normal serving/group observations; large/hot observations remain absent', caseKinds: ['audienceParity', 'pairedWorld', 'authorityTransition', 'mixedCommit'] },
     ],
     g0ExitObservations, g0ExitObservationEvidence, g0ExitObservationGaps,
     requestedFixtures,

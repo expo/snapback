@@ -20,6 +20,41 @@ use std::collections::BTreeMap;
 pub const AUTHORIZATION_EPOCH_META_KEY: &str = "authorization_epoch_v1";
 
 impl LocalDatabase {
+    /// Pin the two durable stream identities used by the cross-crate graph
+    /// conformance corpus. This is deliberately feature-gated test support:
+    /// production startup remains the sole owner of minting these identities.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn install_graph_corpus_streams_for_test(
+        &mut self,
+        authorization: &AuthorizationVersion,
+        data_version_stream: &str,
+    ) -> SnapbackResult<()> {
+        let incarnation = AuthorizationStreamIncarnation::parse(&authorization.incarnation)?;
+        let data_stream = uuid::Uuid::parse_str(data_version_stream)
+            .ok()
+            .filter(|stream| stream.get_version_num() == 7)
+            .filter(|stream| stream.hyphenated().to_string() == data_version_stream)
+            .ok_or_else(|| {
+                stream_corrupt("graph corpus data-version stream is not a canonical UUIDv7")
+            })?;
+        if authorization.epoch > super::MAX_AUTHORIZATION_EPOCH {
+            return Err(authorization_version_corrupt(
+                "graph corpus authorization epoch exceeds the JavaScript-safe range",
+            ));
+        }
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        write_authorization_stream_incarnation_in(&tx, &incarnation)?;
+        write_authorization_epoch_in(&tx, authorization.epoch)?;
+        super::auth_invalidation::write_data_version_stream_for_test(
+            &tx,
+            &data_stream.hyphenated().to_string(),
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
+
     /// Create a missing format-1 record in one explicit migration transaction,
     /// or preserve and return the exact existing incarnation. Corrupt state is
     /// never repaired in place.

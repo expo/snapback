@@ -156,6 +156,54 @@ pub fn subscribe_live_host_plan_with_invalidation(
     snapback.subscribe_live_with_invalidation(name, input, invalidation)
 }
 
+/// Install the deterministic stream identities and real retained-live
+/// scheduler used by LLP 0209's frozen cross-crate corpus.
+pub fn configure_graph_corpus_scheduler(
+    snapback: &mut LocalSnapback,
+    authorization: crate::storage::AuthorizationVersion,
+    data_version_stream: &str,
+) -> SnapbackResult<crate::auth::invalidation::AuthorizationInvalidationConnection> {
+    snapback.configure_graph_corpus_scheduler_for_test(authorization, data_version_stream)
+}
+
+/// Establish a corpus graph with the real sessions-mode retained authority
+/// and invalidation protocol. Caller-loaded JavaScript remains refused.
+pub fn subscribe_graph_corpus_case(
+    snapback: &mut LocalSnapback,
+    name: &str,
+    input: LiveSubscribeInput,
+    connection: crate::auth::invalidation::AuthorizationInvalidationConnection,
+) -> SnapbackResult<LiveSubscribeOutput> {
+    snapback.require_host_plan_for_test_support(name)?;
+    snapback.subscribe_graph_corpus_case_for_test(name, input, connection)
+}
+
+/// Commit one declarative corpus mutation through the ordinary mutation and
+/// post-commit fan-out path. Caller-loaded JavaScript remains refused.
+pub fn invoke_graph_corpus_mutation(
+    snapback: &mut LocalSnapback,
+    name: &str,
+    input: HandlerInput,
+) -> SnapbackResult<crate::manifest::MutationOutput> {
+    snapback.require_host_plan_for_test_support(name)?;
+    snapback.invoke_graph_corpus_mutation_for_test(name, input)
+}
+
+pub fn graph_corpus_authorization_frames(
+    snapback: &mut LocalSnapback,
+    connection_id: &str,
+) -> SnapbackResult<Vec<String>> {
+    snapback.graph_corpus_authorization_frames_for_test(connection_id)
+}
+
+/// Refresh every served graph through the production memo/group path and
+/// return measurements read from the retained memo entries themselves.
+pub fn measure_graph_serving_groups(
+    snapback: &mut LocalSnapback,
+) -> SnapbackResult<serde_json::Value> {
+    snapback.measure_graph_serving_groups_for_test()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

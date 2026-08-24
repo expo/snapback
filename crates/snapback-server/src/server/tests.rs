@@ -25563,10 +25563,18 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID",
     "SNAPBACK_GRAPH_CURSOR_UNBOUND",
     "SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH",
+    "SNAPBACK_GRAPH_DEMAND_INVALID",
+    "SNAPBACK_GRAPH_DEMAND_REQUIRED",
+    "SNAPBACK_GRAPH_AUTHORITY_CONTEXT_UNAVAILABLE",
+    "SNAPBACK_GRAPH_EXEC_DISABLED",
+    "SNAPBACK_GRAPH_MATERIALIZATION_INVALID",
+    "SNAPBACK_GRAPH_QUALIFICATION_CORPUS_MISMATCH",
+    "SNAPBACK_GRAPH_QUALIFICATION_DERIVATION_MISSING",
     // G2-A's required-edge miss is an evaluation-time materialized refusal,
     // but it still reports a caller-visible graph shape/data mismatch in the
     // reviewed 4xx family rather than inheriting the fail-safe 500 default.
     "SNAPBACK_GRAPH_REQUIRED_EDGE_MISSING",
+    "SNAPBACK_GRAPH_RESULT_INVALID",
     "SNAPBACK_QUERY_COST_CLIENT_UNSUPPORTED",
     // These closed terminal-protocol ids are produced by the mapper's
     // dedicated registry rather than a match arm, but retain the same reviewed

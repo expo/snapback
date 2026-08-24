@@ -23,7 +23,7 @@ and the served executor remains controlled by
 | `G0-BCAST-INVALIDATION` | **SATISFIED** | The 18-selector host map is unchanged. `authorityTransition` now executes an authority-only commit through a served graph subscription and observes fence ordinal 0 before delivery ordinal 1. `mixedCommit` executes one data+authority commit and observes the same order with exactly one post-commit delivery. | LLP 0200 §2.4 fencing, write priority, coalescing, and auth-lane classification are reused unchanged. |
 | `G0-BCAST-IDENTITY` | **SATISFIED** | Plan/instance/materialization/partition/version/cut and installed-owner identities remain reconstructed and exact-checked. | No identity weakening in G2-C. |
 | `G0-BCAST-CORPUS` | **SATISFIED** | All seven case kinds are executable in `corpus.v1.json`, including `authorityTransition` and `mixedCommit`; `broadcast-cases.g2-pending.v1.json` has an empty `cases` array and records why. | The retained sidecar is an empty historical seam, not a pending arm. |
-| `G0-BCAST-BOUNDS` | **SATISFIED** | Normal-fixture `GraphG0ExitObservationV1` rows record group count, subscriber fan-out, result bytes, dependency bytes, and group-state bytes for all three graphs. Real served `StructuralWorkV1` and window ledgers fit every `[G2 measures]` declaration. Large/hot rows remain typed gaps with exact rerun commands below. | This satisfies the named input-carrier re-record, not LLP 0268 B3 performance acceptance. Large/hot magnitude and N≥3 publication evidence remain unclaimed. |
+| `G0-BCAST-BOUNDS` | **PARTIAL** | Normal-fixture `GraphG0ExitObservationV1` rows record group count, subscriber fan-out, result bytes, dependency bytes, and retained group-state bytes from the actual serving/group path for all three graphs. Real served `StructuralWorkV1` and window ledgers fit every `[G2 measures]` declaration. | Large/hot observations are absent. The corpus row carries the exact missing carrier and both `zb5` commands below; no pseudo-observation is recorded. |
 
 ## Executable scheduler cases
 
@@ -32,10 +32,16 @@ and the served executor remains controlled by
 | `authorityTransition` | authority event only; no data changes | `0 fence → 1 delivery`, both on the successor authorization version | `graph_scheduler_case_authority_transition_fences_before_delivery` |
 | `mixedCommit` | one data change plus one authority event in the same commit | `0 fence → 1 delivery`; exactly one fenced post-commit replacement | `graph_scheduler_case_mixed_commit_has_one_fenced_delivery` |
 
-The tests consume the corresponding main-corpus rows and establish an admitted
-graph subscription through the same LLP 0200 turn/frame machinery used by
-ordinary live delivery. The committed default target still withholds
-`graph_query_v1`; the test instance must explicitly declare it.
+The corpus runner consumes each corresponding main-corpus row, establishes an
+admitted graph subscription, executes its exact mutation plan and contextual
+authority through the same LLP 0200 turn/frame machinery used by ordinary live
+delivery, and derives `observed` solely from emitted frames. The substitute
+fixture tests remain unit coverage only.
+
+Follow-up: `declare_graph_query_v1_capability` remains test-support-only until a
+production class-2 authority-resolver seam exists. A stock production instance
+must not be able to declare the capability into a state that refuses every
+class-2 evaluation.
 
 ## Normal group-state and fan-out observations
 
@@ -46,9 +52,9 @@ ratchet.
 
 | Graph | Group count | Subscriber fan-out | Result bytes | Dependency bytes | Group-state bytes |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `issueListV2` | 1 | 1 | 436,163 | 1,647,928 | 436,471 |
-| `issueDetail` | 1 | 1 | 20,261 | 8,740 | 20,569 |
-| `listIssueByID` | 1 | 1 | 6,479 | 5,882 | 6,787 |
+| `issueListV2` | 1 | 1 | 436,163 | 2,754,464 | 3,192,038 |
+| `issueDetail` | 1 | 1 | 20,261 | 16,672 | 38,512 |
+| `listIssueByID` | 1 | 1 | 6,479 | 9,647 | 17,488 |
 
 The source rows are `corpus.v1.json.g0ExitObservations`; the served physical
 counter source is `served-observations.g2-c.v1.json`, and its declaration
@@ -82,7 +88,7 @@ cd demos/zerobugs/control && zsh scripts/run-p1-ab.sh
 
 ## Re-record boundary
 
-The three v0.8 `PARTIAL` labels are now re-dispositioned as `SATISFIED` for the
-§7 input-carrier gate. This unblocks the 0268 B1 dependency described by the
-commission packet. It does not unblock B3, flip default capability support,
-or modify LLP 0183 §D2's publication gate.
+Eight labels are `SATISFIED`; `G0-BCAST-BOUNDS` remains `PARTIAL`. The 0268 B1
+dependency is gated solely on the large/hot `G0-BCAST-BOUNDS` observations.
+This does not unblock B3, flip default capability support, or modify LLP 0183
+§D2's publication gate.

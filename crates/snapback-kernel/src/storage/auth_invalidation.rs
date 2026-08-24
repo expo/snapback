@@ -1242,6 +1242,14 @@ fn write_text_meta(tx: &Transaction<'_>, key: &str, value: &str) -> SnapbackResu
     Ok(())
 }
 
+#[cfg(any(test, feature = "test-support"))]
+pub(super) fn write_data_version_stream_for_test(
+    tx: &Transaction<'_>,
+    value: &str,
+) -> SnapbackResult<()> {
+    write_text_meta(tx, DATA_VERSION_STREAM_META_KEY, value)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

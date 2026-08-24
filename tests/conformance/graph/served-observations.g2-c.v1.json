@@ -369,5 +369,620 @@
       }
     }
   ],
-  "contentDigest": "sha256:abb1ebc43362f540291a33c6551c07defdb1a6e89bdd75e93a4b87497f26be23"
+  "normalServingGroupMeasurements": [
+    {
+      "format": "snapback.graph-g0-exit-observation.v1",
+      "fixture": "normal-seed-v1",
+      "graphPlanHash": "sha256:17d314bfadbb58edf5185df72d2e66cbe99571e1d6f97f784cbf746be9285f20",
+      "groupCount": 1,
+      "subscriberFanout": 1,
+      "groups": [
+        {
+          "groupOrdinal": 0,
+          "resultBytes": 436163,
+          "dependencyBytes": 2754464,
+          "groupStateBytes": 3192038
+        }
+      ],
+      "measurementSource": "served-retained-live-evaluation-memo"
+    },
+    {
+      "format": "snapback.graph-g0-exit-observation.v1",
+      "fixture": "normal-seed-v1",
+      "graphPlanHash": "sha256:25f4e4680f4c7eae9c675c2c06adcbf23cce5fdbdc16bcb0bf830986268a6dfb",
+      "groupCount": 1,
+      "subscriberFanout": 1,
+      "groups": [
+        {
+          "groupOrdinal": 0,
+          "resultBytes": 6479,
+          "dependencyBytes": 9647,
+          "groupStateBytes": 17488
+        }
+      ],
+      "measurementSource": "served-retained-live-evaluation-memo"
+    },
+    {
+      "format": "snapback.graph-g0-exit-observation.v1",
+      "fixture": "normal-seed-v1",
+      "graphPlanHash": "sha256:d4425b76b047783be76990f73e92087daf371b38bd6a935755be1a6801056a04",
+      "groupCount": 1,
+      "subscriberFanout": 1,
+      "groups": [
+        {
+          "groupOrdinal": 0,
+          "resultBytes": 20261,
+          "dependencyBytes": 16672,
+          "groupStateBytes": 38512
+        }
+      ],
+      "measurementSource": "served-retained-live-evaluation-memo"
+    }
+  ],
+  "schedulerCases": [
+    {
+      "id": "zerobugs-authority-transition-g2",
+      "caseKind": "authorityTransition",
+      "invocations": {
+        "before": {
+          "planHash": "sha256:25f4e4680f4c7eae9c675c2c06adcbf23cce5fdbdc16bcb0bf830986268a6dfb",
+          "args": {
+            "sourceIssueID": "zbav1_internal_issue",
+            "selectedLabelIDs": []
+          },
+          "windows": [
+            {
+              "nodeId": "n0",
+              "intervals": [
+                {
+                  "parentKey": null,
+                  "window": {
+                    "order": [
+                      {
+                        "direction": "Asc",
+                        "field": "sourceIssueID"
+                      }
+                    ],
+                    "direction": "forward",
+                    "lower": {
+                      "kind": "unbounded"
+                    },
+                    "upper": {
+                      "kind": "unbounded"
+                    },
+                    "take": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "advancedNodeId": "n0",
+          "materialization": {
+            "format": "snapback.graph-materialization.v1",
+            "appId": "zerobugs-graph-g2-corpus",
+            "databaseId": "01890f3c-9d5b-7000-8000-000000000002",
+            "deploymentId": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+            "targetProfileId": "local-dev-sqlite-ibex",
+            "activationHash": "sha256:31ff85c3ec0ee4466ee46dbcfa16a662b54df3a279491c20808a2d36413855f5",
+            "function": {
+              "artifactKind": "functionReference",
+              "schemaVersion": "snapback.v0",
+              "appId": "zerobugs-graph-g2-corpus",
+              "id": "fn:listIssueByID",
+              "name": "listIssueByID",
+              "kind": "LiveQuery",
+              "implementationHash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "argsContractHash": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "resultContractHash": "sha256:6856097586d412076f1a8e57d952eccb84782dff3abe0be554da0361bdceda58",
+              "expectedGeneration": {
+                "schemaVersion": "snapback.v0",
+                "appId": "zerobugs-graph-g2-corpus",
+                "schemaHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                "bundleHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+                "inputsHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+              }
+            },
+            "graphInstanceHash": "sha256:7dac1bdf75d160dc4a9eafc0dfef90db186824b674db296ee07abb815d3e6b7a"
+          },
+          "partition": {
+            "format": "snapback.graph-authority-partition.v1",
+            "graphPlanHash": "sha256:25f4e4680f4c7eae9c675c2c06adcbf23cce5fdbdc16bcb0bf830986268a6dfb",
+            "class2": [
+              {
+                "nodeId": "n0",
+                "declarationId": "issueListRead",
+                "scopeIdentity": "sha256:2993e03c84a340d4d2fee103ae42fc95deecd7d8605df59caf9b666993031e07",
+                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
+              },
+              {
+                "nodeId": "n1",
+                "declarationId": "issue",
+                "scopeIdentity": "sha256:f9508eb116c28ba330d543a0bf0077cac974dec0b14f5e378aa3a12a32bc9067",
+                "policyIdentity": "sha256:9cd32697e82556ebf2b07a8e7614dcc1e2b091d8c8e090ab86007353f7bc20d8"
+              },
+              {
+                "nodeId": "n1",
+                "declarationId": "issueListRead",
+                "scopeIdentity": "sha256:69c00a60f8b53135b980121f21f2ea58cd07dc0f6496a00731a19b48b7737b47",
+                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
+              },
+              {
+                "nodeId": "n2",
+                "declarationId": "issueListRead",
+                "scopeIdentity": "sha256:471c5329acf3352a695fc3c340f7a71e9b45429a76a6293fea3faa8d7903c768",
+                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
+              },
+              {
+                "nodeId": "n3",
+                "declarationId": "issueListRead",
+                "scopeIdentity": "sha256:3ec72d9e1f70da2de20cd10c0cee8c69866eb6b0bad2438e56633d55fd87905d",
+                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
+              },
+              {
+                "nodeId": "n4",
+                "declarationId": "issueListRead",
+                "scopeIdentity": "sha256:2740a37e6274270e864c42cf80fa4b16cc716ac4057c94f3c4487a234640678f",
+                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
+              }
+            ],
+            "class3": {
+              "format": "snapback.authority-partition.v1",
+              "principalDataScope": {
+                "authMode": "sessions",
+                "userId": "principal_ordinary",
+                "authorizationStreamIncarnation": "01890f3c-9d5b-7000-8000-000000000001"
+              },
+              "authorityInstanceId": "graph-corpus-authority",
+              "authFingerprint": "sha256:1a162f2ca25cb8e1c59ba53148e502831a48f35fec4e6b7cfb41b9e6e810ad38",
+              "tenantId": null,
+              "providerId": "email-code",
+              "delegation": null
+            }
+          },
+          "authorizationVersion": {
+            "incarnation": "01890f3c-9d5b-7000-8000-000000000001",
+            "epoch": 0
+          },
+          "evaluationCut": 1
+        },
+        "after": {
+          "planHash": "sha256:25f4e4680f4c7eae9c675c2c06adcbf23cce5fdbdc16bcb0bf830986268a6dfb",
+          "args": {
+            "sourceIssueID": "zbav1_internal_issue",
+            "selectedLabelIDs": []
+          },
+          "windows": [
+            {
+              "nodeId": "n0",
+              "intervals": [
+                {
+                  "parentKey": null,
+                  "window": {
+                    "order": [
+                      {
+                        "direction": "Asc",
+                        "field": "sourceIssueID"
+                      }
+                    ],
+                    "direction": "forward",
+                    "lower": {
+                      "kind": "unbounded"
+                    },
+                    "upper": {
+                      "kind": "unbounded"
+                    },
+                    "take": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "advancedNodeId": "n0",
+          "materialization": {
+            "format": "snapback.graph-materialization.v1",
+            "appId": "zerobugs-graph-g2-corpus",
+            "databaseId": "01890f3c-9d5b-7000-8000-000000000002",
+            "deploymentId": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+            "targetProfileId": "local-dev-sqlite-ibex",
+            "activationHash": "sha256:31ff85c3ec0ee4466ee46dbcfa16a662b54df3a279491c20808a2d36413855f5",
+            "function": {
+              "artifactKind": "functionReference",
+              "schemaVersion": "snapback.v0",
+              "appId": "zerobugs-graph-g2-corpus",
+              "id": "fn:listIssueByID",
+              "name": "listIssueByID",
+              "kind": "LiveQuery",
+              "implementationHash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "argsContractHash": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "resultContractHash": "sha256:6856097586d412076f1a8e57d952eccb84782dff3abe0be554da0361bdceda58",
+              "expectedGeneration": {
+                "schemaVersion": "snapback.v0",
+                "appId": "zerobugs-graph-g2-corpus",
+                "schemaHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                "bundleHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+                "inputsHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+              }
+            },
+            "graphInstanceHash": "sha256:7dac1bdf75d160dc4a9eafc0dfef90db186824b674db296ee07abb815d3e6b7a"
+          },
+          "partition": {
+            "format": "snapback.graph-authority-partition.v1",
+            "graphPlanHash": "sha256:25f4e4680f4c7eae9c675c2c06adcbf23cce5fdbdc16bcb0bf830986268a6dfb",
+            "class2": [
+              {
+                "nodeId": "n0",
+                "declarationId": "issueListRead",
+                "scopeIdentity": "sha256:2993e03c84a340d4d2fee103ae42fc95deecd7d8605df59caf9b666993031e07",
+                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
+              },
+              {
+                "nodeId": "n1",
+                "declarationId": "issue",
+                "scopeIdentity": "sha256:f9508eb116c28ba330d543a0bf0077cac974dec0b14f5e378aa3a12a32bc9067",
+                "policyIdentity": "sha256:9cd32697e82556ebf2b07a8e7614dcc1e2b091d8c8e090ab86007353f7bc20d8"
+              },
+              {
+                "nodeId": "n1",
+                "declarationId": "issueListRead",
+                "scopeIdentity": "sha256:69c00a60f8b53135b980121f21f2ea58cd07dc0f6496a00731a19b48b7737b47",
+                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
+              },
+              {
+                "nodeId": "n2",
+                "declarationId": "issueListRead",
+                "scopeIdentity": "sha256:471c5329acf3352a695fc3c340f7a71e9b45429a76a6293fea3faa8d7903c768",
+                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
+              },
+              {
+                "nodeId": "n3",
+                "declarationId": "issueListRead",
+                "scopeIdentity": "sha256:3ec72d9e1f70da2de20cd10c0cee8c69866eb6b0bad2438e56633d55fd87905d",
+                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
+              },
+              {
+                "nodeId": "n4",
+                "declarationId": "issueListRead",
+                "scopeIdentity": "sha256:2740a37e6274270e864c42cf80fa4b16cc716ac4057c94f3c4487a234640678f",
+                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
+              }
+            ],
+            "class3": {
+              "format": "snapback.authority-partition.v1",
+              "principalDataScope": {
+                "authMode": "sessions",
+                "userId": "principal_ordinary",
+                "authorizationStreamIncarnation": "01890f3c-9d5b-7000-8000-000000000001"
+              },
+              "authorityInstanceId": "graph-corpus-authority",
+              "authFingerprint": "sha256:1a162f2ca25cb8e1c59ba53148e502831a48f35fec4e6b7cfb41b9e6e810ad38",
+              "tenantId": null,
+              "providerId": "email-code",
+              "delegation": null
+            }
+          },
+          "authorizationVersion": {
+            "incarnation": "01890f3c-9d5b-7000-8000-000000000001",
+            "epoch": 1
+          },
+          "evaluationCut": 2
+        }
+      },
+      "commit": {
+        "dataChanges": [],
+        "authorityEvents": [
+          {
+            "kind": "authorization-epoch-change",
+            "cause": "permission-backing-write"
+          }
+        ],
+        "afterAuthorizationVersion": {
+          "incarnation": "01890f3c-9d5b-7000-8000-000000000001",
+          "epoch": 1
+        }
+      },
+      "observed": [
+        {
+          "ordinal": 0,
+          "kind": "fence",
+          "authorizationVersion": {
+            "incarnation": "01890f3c-9d5b-7000-8000-000000000001",
+            "epoch": 1
+          }
+        },
+        {
+          "ordinal": 1,
+          "kind": "delivery",
+          "authorizationVersion": {
+            "incarnation": "01890f3c-9d5b-7000-8000-000000000001",
+            "epoch": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "zerobugs-mixed-commit-g2",
+      "caseKind": "mixedCommit",
+      "invocations": {
+        "before": {
+          "planHash": "sha256:25f4e4680f4c7eae9c675c2c06adcbf23cce5fdbdc16bcb0bf830986268a6dfb",
+          "args": {
+            "sourceIssueID": "zbav1_internal_issue",
+            "selectedLabelIDs": []
+          },
+          "windows": [
+            {
+              "nodeId": "n0",
+              "intervals": [
+                {
+                  "parentKey": null,
+                  "window": {
+                    "order": [
+                      {
+                        "direction": "Asc",
+                        "field": "sourceIssueID"
+                      }
+                    ],
+                    "direction": "forward",
+                    "lower": {
+                      "kind": "unbounded"
+                    },
+                    "upper": {
+                      "kind": "unbounded"
+                    },
+                    "take": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "advancedNodeId": "n0",
+          "materialization": {
+            "format": "snapback.graph-materialization.v1",
+            "appId": "zerobugs-graph-g2-corpus",
+            "databaseId": "01890f3c-9d5b-7000-8000-000000000002",
+            "deploymentId": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+            "targetProfileId": "local-dev-sqlite-ibex",
+            "activationHash": "sha256:31ff85c3ec0ee4466ee46dbcfa16a662b54df3a279491c20808a2d36413855f5",
+            "function": {
+              "artifactKind": "functionReference",
+              "schemaVersion": "snapback.v0",
+              "appId": "zerobugs-graph-g2-corpus",
+              "id": "fn:listIssueByID",
+              "name": "listIssueByID",
+              "kind": "LiveQuery",
+              "implementationHash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "argsContractHash": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "resultContractHash": "sha256:6856097586d412076f1a8e57d952eccb84782dff3abe0be554da0361bdceda58",
+              "expectedGeneration": {
+                "schemaVersion": "snapback.v0",
+                "appId": "zerobugs-graph-g2-corpus",
+                "schemaHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                "bundleHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+                "inputsHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+              }
+            },
+            "graphInstanceHash": "sha256:7dac1bdf75d160dc4a9eafc0dfef90db186824b674db296ee07abb815d3e6b7a"
+          },
+          "partition": {
+            "format": "snapback.graph-authority-partition.v1",
+            "graphPlanHash": "sha256:25f4e4680f4c7eae9c675c2c06adcbf23cce5fdbdc16bcb0bf830986268a6dfb",
+            "class2": [
+              {
+                "nodeId": "n0",
+                "declarationId": "issueListRead",
+                "scopeIdentity": "sha256:2993e03c84a340d4d2fee103ae42fc95deecd7d8605df59caf9b666993031e07",
+                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
+              },
+              {
+                "nodeId": "n1",
+                "declarationId": "issue",
+                "scopeIdentity": "sha256:f9508eb116c28ba330d543a0bf0077cac974dec0b14f5e378aa3a12a32bc9067",
+                "policyIdentity": "sha256:9cd32697e82556ebf2b07a8e7614dcc1e2b091d8c8e090ab86007353f7bc20d8"
+              },
+              {
+                "nodeId": "n1",
+                "declarationId": "issueListRead",
+                "scopeIdentity": "sha256:69c00a60f8b53135b980121f21f2ea58cd07dc0f6496a00731a19b48b7737b47",
+                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
+              },
+              {
+                "nodeId": "n2",
+                "declarationId": "issueListRead",
+                "scopeIdentity": "sha256:471c5329acf3352a695fc3c340f7a71e9b45429a76a6293fea3faa8d7903c768",
+                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
+              },
+              {
+                "nodeId": "n3",
+                "declarationId": "issueListRead",
+                "scopeIdentity": "sha256:3ec72d9e1f70da2de20cd10c0cee8c69866eb6b0bad2438e56633d55fd87905d",
+                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
+              },
+              {
+                "nodeId": "n4",
+                "declarationId": "issueListRead",
+                "scopeIdentity": "sha256:2740a37e6274270e864c42cf80fa4b16cc716ac4057c94f3c4487a234640678f",
+                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
+              }
+            ],
+            "class3": {
+              "format": "snapback.authority-partition.v1",
+              "principalDataScope": {
+                "authMode": "sessions",
+                "userId": "principal_ordinary",
+                "authorizationStreamIncarnation": "01890f3c-9d5b-7000-8000-000000000001"
+              },
+              "authorityInstanceId": "graph-corpus-authority",
+              "authFingerprint": "sha256:1a162f2ca25cb8e1c59ba53148e502831a48f35fec4e6b7cfb41b9e6e810ad38",
+              "tenantId": null,
+              "providerId": "email-code",
+              "delegation": null
+            }
+          },
+          "authorizationVersion": {
+            "incarnation": "01890f3c-9d5b-7000-8000-000000000001",
+            "epoch": 0
+          },
+          "evaluationCut": 1
+        },
+        "after": {
+          "planHash": "sha256:25f4e4680f4c7eae9c675c2c06adcbf23cce5fdbdc16bcb0bf830986268a6dfb",
+          "args": {
+            "sourceIssueID": "zbav1_internal_issue",
+            "selectedLabelIDs": []
+          },
+          "windows": [
+            {
+              "nodeId": "n0",
+              "intervals": [
+                {
+                  "parentKey": null,
+                  "window": {
+                    "order": [
+                      {
+                        "direction": "Asc",
+                        "field": "sourceIssueID"
+                      }
+                    ],
+                    "direction": "forward",
+                    "lower": {
+                      "kind": "unbounded"
+                    },
+                    "upper": {
+                      "kind": "unbounded"
+                    },
+                    "take": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "advancedNodeId": "n0",
+          "materialization": {
+            "format": "snapback.graph-materialization.v1",
+            "appId": "zerobugs-graph-g2-corpus",
+            "databaseId": "01890f3c-9d5b-7000-8000-000000000002",
+            "deploymentId": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+            "targetProfileId": "local-dev-sqlite-ibex",
+            "activationHash": "sha256:31ff85c3ec0ee4466ee46dbcfa16a662b54df3a279491c20808a2d36413855f5",
+            "function": {
+              "artifactKind": "functionReference",
+              "schemaVersion": "snapback.v0",
+              "appId": "zerobugs-graph-g2-corpus",
+              "id": "fn:listIssueByID",
+              "name": "listIssueByID",
+              "kind": "LiveQuery",
+              "implementationHash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "argsContractHash": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "resultContractHash": "sha256:6856097586d412076f1a8e57d952eccb84782dff3abe0be554da0361bdceda58",
+              "expectedGeneration": {
+                "schemaVersion": "snapback.v0",
+                "appId": "zerobugs-graph-g2-corpus",
+                "schemaHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                "bundleHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+                "inputsHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+              }
+            },
+            "graphInstanceHash": "sha256:7dac1bdf75d160dc4a9eafc0dfef90db186824b674db296ee07abb815d3e6b7a"
+          },
+          "partition": {
+            "format": "snapback.graph-authority-partition.v1",
+            "graphPlanHash": "sha256:25f4e4680f4c7eae9c675c2c06adcbf23cce5fdbdc16bcb0bf830986268a6dfb",
+            "class2": [
+              {
+                "nodeId": "n0",
+                "declarationId": "issueListRead",
+                "scopeIdentity": "sha256:2993e03c84a340d4d2fee103ae42fc95deecd7d8605df59caf9b666993031e07",
+                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
+              },
+              {
+                "nodeId": "n1",
+                "declarationId": "issue",
+                "scopeIdentity": "sha256:f9508eb116c28ba330d543a0bf0077cac974dec0b14f5e378aa3a12a32bc9067",
+                "policyIdentity": "sha256:9cd32697e82556ebf2b07a8e7614dcc1e2b091d8c8e090ab86007353f7bc20d8"
+              },
+              {
+                "nodeId": "n1",
+                "declarationId": "issueListRead",
+                "scopeIdentity": "sha256:69c00a60f8b53135b980121f21f2ea58cd07dc0f6496a00731a19b48b7737b47",
+                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
+              },
+              {
+                "nodeId": "n2",
+                "declarationId": "issueListRead",
+                "scopeIdentity": "sha256:471c5329acf3352a695fc3c340f7a71e9b45429a76a6293fea3faa8d7903c768",
+                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
+              },
+              {
+                "nodeId": "n3",
+                "declarationId": "issueListRead",
+                "scopeIdentity": "sha256:3ec72d9e1f70da2de20cd10c0cee8c69866eb6b0bad2438e56633d55fd87905d",
+                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
+              },
+              {
+                "nodeId": "n4",
+                "declarationId": "issueListRead",
+                "scopeIdentity": "sha256:2740a37e6274270e864c42cf80fa4b16cc716ac4057c94f3c4487a234640678f",
+                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
+              }
+            ],
+            "class3": {
+              "format": "snapback.authority-partition.v1",
+              "principalDataScope": {
+                "authMode": "sessions",
+                "userId": "principal_ordinary",
+                "authorizationStreamIncarnation": "01890f3c-9d5b-7000-8000-000000000001"
+              },
+              "authorityInstanceId": "graph-corpus-authority",
+              "authFingerprint": "sha256:1a162f2ca25cb8e1c59ba53148e502831a48f35fec4e6b7cfb41b9e6e810ad38",
+              "tenantId": null,
+              "providerId": "email-code",
+              "delegation": null
+            }
+          },
+          "authorizationVersion": {
+            "incarnation": "01890f3c-9d5b-7000-8000-000000000001",
+            "epoch": 1
+          },
+          "evaluationCut": 2
+        }
+      },
+      "commit": {
+        "dataChanges": [
+          {
+            "table": "issue",
+            "rowId": "issue_ded0c2976675c34f4756035d"
+          }
+        ],
+        "authorityEvents": [
+          {
+            "kind": "authorization-epoch-change",
+            "cause": "permission-backing-write"
+          }
+        ],
+        "afterAuthorizationVersion": {
+          "incarnation": "01890f3c-9d5b-7000-8000-000000000001",
+          "epoch": 1
+        }
+      },
+      "observed": [
+        {
+          "ordinal": 0,
+          "kind": "fence",
+          "authorizationVersion": {
+            "incarnation": "01890f3c-9d5b-7000-8000-000000000001",
+            "epoch": 1
+          }
+        },
+        {
+          "ordinal": 1,
+          "kind": "delivery",
+          "authorizationVersion": {
+            "incarnation": "01890f3c-9d5b-7000-8000-000000000001",
+            "epoch": 1
+          }
+        }
+      ]
+    }
+  ],
+  "contentDigest": "sha256:5b50018d90acb58afcb75122b71906c291723268e5ffe8c9f85e0ca01c5bcc8f"
 }

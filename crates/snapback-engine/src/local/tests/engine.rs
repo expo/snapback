@@ -318,6 +318,15 @@ fn graph_plan_mut(function: &mut FunctionDefinition) -> &mut crate::manifest::Gr
     &mut carrier.normalized_plan
 }
 
+fn refresh_graph_plan_identity(function: &mut FunctionDefinition) {
+    let carrier = crate::manifest::graph_plan_identity_v1(graph_plan_mut(function))
+        .expect("refreshed graph plan identity");
+    let FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(actual)) = &mut function.runtime else {
+        unreachable!("graph fixture runtime")
+    };
+    *actual = carrier;
+}
+
 fn public_graph_admission_error(function: FunctionDefinition) -> String {
     let mut snapback = LocalSnapback::memory().expect("graph public-admission fixture");
     snapback
@@ -623,6 +632,7 @@ fn graph_to_one_result_contract_is_nullable_independent_of_presence() {
         unreachable!()
     };
     *presence = GraphToOnePresenceV1::Optional;
+    refresh_graph_plan_identity(&mut retained_required);
     assert!(graph_fault_reasons(&retained_required).is_empty());
 
     let mut retained_optional = graph_to_one_function(GraphToOnePresenceV1::Optional);
@@ -632,6 +642,7 @@ fn graph_to_one_result_contract_is_nullable_independent_of_presence() {
         unreachable!()
     };
     *presence = GraphToOnePresenceV1::Required;
+    refresh_graph_plan_identity(&mut retained_optional);
     assert!(graph_fault_reasons(&retained_optional).is_empty());
 }
 

@@ -4469,6 +4469,10 @@ struct GraphServingRegistration {
     matcher_input: HandlerInput,
     structural_work: crate::graph_evaluator::StructuralWorkV1,
     window_ledgers: Vec<crate::graph_evaluator::GraphWindowLedgerV1>,
+    materialization: crate::manifest::GraphMaterializationIdentityV1,
+    partition: crate::manifest::GraphAuthorityPartitionIdentityV1,
+    authorization_version: crate::storage::AuthorizationVersion,
+    evaluation_cut: crate::manifest::GraphEvaluationCutV1,
 }
 
 impl QueryInvocation {
@@ -11887,9 +11891,11 @@ impl LocalSnapback {
         manifest
     }
 
-    /// Explicitly register the experimental graph executor on this process.
-    /// This changes only the instance-live target manifest; the committed
-    /// local declaration and LLP 0183 publication gate stay conservative.
+    /// Register the experimental graph executor for unit and conformance
+    /// targets. Production targets must not acquire this seam until they own
+    /// a class-2 authority resolver; otherwise a stock instance could declare
+    /// support while refusing every class-2 graph at evaluation time.
+    #[cfg(any(test, feature = "test-support"))]
     pub fn declare_graph_query_v1_capability(&mut self) {
         self.graph_query_v1_target_declared
             .store(true, Ordering::Release);
@@ -11948,7 +11954,225 @@ impl LocalSnapback {
             "instanceHash": graph.dependencies.instance_hash(),
             "materializationHash": graph.dependencies.materialization_hash(),
             "partitionHash": graph.dependencies.partition_hash(),
+            "materialization": graph.materialization.preimage,
+            "partition": graph.partition.preimage,
+            "authorizationVersion": graph.authorization_version,
+            "evaluationCut": graph.evaluation_cut,
         }))
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub(crate) fn configure_graph_corpus_scheduler_for_test(
+        &mut self,
+        authorization: crate::storage::AuthorizationVersion,
+        data_version_stream: &str,
+    ) -> SnapbackResult<AuthorizationInvalidationConnection> {
+        {
+            let database = self.auth_database_mut();
+            database.activate_current_auth_catalog()?;
+            database.auth_catalog().insert_email_session_for_test(
+                "principal_ordinary",
+                "graph-corpus-identity",
+                "graph-corpus-session",
+                "graph-corpus-authority",
+                "graph-corpus@example.invalid",
+                &[0x47; 32],
+                1,
+                1,
+                4_000_000_000_000,
+                4_000_000_000_000,
+            )?;
+            database.install_graph_corpus_streams_for_test(&authorization, data_version_stream)?;
+        }
+        let digest = |prefix: &str, byte: char| format!("{prefix}{}", byte.to_string().repeat(64));
+        let deployment = DeploymentIdentity {
+            schema_version: "snapback.v1".to_owned(),
+            auth_mode: AuthMode::Sessions,
+            app_id: self.db.schema().app_id.clone(),
+            schema_hash: digest("snapback.v1:sessions:schema:sha256:", 'a'),
+            bundle_hash: digest("snapback.v1:sessions:function:sha256:", 'b'),
+            inputs_hash: digest("snapback.v1:sessions:inputs:sha256:", 'c'),
+        };
+        let mut mode_state = AuthModeStateRecord::initial_dev(Some(deployment.clone()));
+        mode_state.transition_generation = 1;
+        mode_state.active = AuthMode::Sessions;
+        mode_state.desired = AuthMode::Sessions;
+        mode_state.sessions_ever_activated = true;
+        mode_state.active_deployment = Some(deployment);
+        mode_state.validate_shape()?;
+        self.synchronize_auth_mode_admission(&mode_state)?;
+        // Pin the sole activation input that is process-global rather than
+        // corpus-owned so both freeze passes observe identical materialization.
+        self.app_generation = 1;
+        self.install_live_fanout_coalescer(Arc::new(
+            crate::live_coalesce::LiveFanoutCoalescer::new(),
+        ));
+        self.pending_live_fanout.evaluation_memo.disabled = false;
+
+        let (reserved, version_stream, boot_sequence) = self
+            .auth_database_mut()
+            .reserve_invalidation_boot_issuer()?;
+        if reserved != authorization || version_stream != data_version_stream {
+            return Err(SnapbackError::error(
+                "SNAPBACK_TEST_FIXTURE_INVALID",
+                "query",
+                "the graph corpus scheduler did not reserve its exact frozen stream identities",
+            ));
+        }
+        let issuer_id = crate::auth::invalidation::IssuerId::fresh(
+            authorization.incarnation.clone(),
+            boot_sequence,
+        )?;
+        let authenticator = crate::auth::invalidation::IssuerAuthenticator::new(
+            "graph-corpus-protocol-key",
+            [0x47; 32],
+        )?;
+        let authenticated = authenticator.authenticate(
+            issuer_id,
+            TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+            self.db.schema().app_id.as_str(),
+        )?;
+        let issuer = LiveInvalidationIssuer::with_authenticator(
+            authenticated,
+            authenticator,
+            TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+            self.db.schema().app_id.as_str(),
+        )?;
+        let connection = AuthorizationInvalidationConnection {
+            protocol_version: crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION,
+            issuer_id: issuer.authenticated().issuer_id.clone(),
+            connection_generation: issuer.reserve_connection_generation()?,
+            authorization: authorization.clone(),
+            version_stream: data_version_stream.to_owned(),
+            issuer_retirement: None,
+        };
+        self.install_auth_invalidation(issuer, authorization, data_version_stream.to_owned())?;
+        Ok(connection)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    fn graph_corpus_session_authority_for_test(
+        source: InvocationSource,
+    ) -> SnapbackResult<PreparedAuthority> {
+        InvocationGate::prepare_authority(
+            source,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            0,
+            0,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::Session {
+                user_id: "principal_ordinary".to_owned(),
+                session_id: "graph-corpus-session".to_owned(),
+                provider: "email-code".to_owned(),
+                generation: 1,
+                authority_instance_id: "graph-corpus-authority".to_owned(),
+                session_not_after_ms: 4_000_000_000_000,
+                provider_not_after_ms: None,
+                rehearsal_provenance: None,
+            },
+        )
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub(crate) fn subscribe_graph_corpus_case_for_test(
+        &mut self,
+        name: &str,
+        input: LiveSubscribeInput,
+        connection: AuthorizationInvalidationConnection,
+    ) -> SnapbackResult<LiveSubscribeOutput> {
+        self.subscribe_live_prepared_with_invalidation(
+            name,
+            input,
+            Self::graph_corpus_session_authority_for_test(InvocationSource::LiveInitialQuery)?,
+            LiveInvalidationAdmission {
+                session_mode: true,
+                connection: Some(connection),
+                effect_fence: None,
+            },
+        )
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub(crate) fn invoke_graph_corpus_mutation_for_test(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+    ) -> SnapbackResult<MutationOutput> {
+        self.invoke_mutation_with_authority(
+            name,
+            input,
+            Self::graph_corpus_session_authority_for_test(InvocationSource::HttpMutation)?,
+        )
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub(crate) fn graph_corpus_authorization_frames_for_test(
+        &mut self,
+        connection_id: &str,
+    ) -> SnapbackResult<Vec<String>> {
+        let admission =
+            Self::graph_corpus_session_authority_for_test(InvocationSource::LiveInitialQuery)?
+                .admission_lease()
+                .clone();
+        self.authorization_invalidation_frames(connection_id, &admission)
+            .map(|frames| {
+                frames
+                    .into_iter()
+                    .map(|frame| String::from_utf8_lossy(&frame.payload).into_owned())
+                    .collect()
+            })
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub(crate) fn measure_graph_serving_groups_for_test(&mut self) -> SnapbackResult<Value> {
+        if self.live_coalescer.is_none() {
+            self.install_live_fanout_coalescer(Arc::new(
+                crate::live_coalesce::LiveFanoutCoalescer::new(),
+            ));
+        }
+        self.pending_live_fanout.evaluation_memo.disabled = false;
+        self.notify_live_subscriptions(&[]);
+        if !self.flush_pending_live_fanout() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_TEST_FIXTURE_INVALID",
+                "query",
+                "the graph serving measurement scheduled no retained-live work",
+            ));
+        }
+        let measurements = self
+            .subscriptions
+            .values()
+            .filter_map(|subscription| {
+                let graph = subscription.graph_serving.as_ref()?;
+                let groups = self
+                    .pending_live_fanout
+                    .evaluation_memo
+                    .entries
+                    .iter()
+                    .filter(|(key, _)| key.function == subscription.function)
+                    .map(|(_, entry)| {
+                        json!({
+                            "resultBytes": serialized_json_estimated_bytes(&entry.result.output.rows),
+                            "dependencyBytes": serialized_json_estimated_bytes(&entry.result.read_dependencies),
+                            "retainedGroupStateBytes": entry.estimated_bytes,
+                            "subscriberFanout": entry.holders.len(),
+                        })
+                    })
+                    .collect::<Vec<_>>();
+                Some(json!({
+                    "graphPlanHash": graph.dependencies.reads().iter()
+                        .find_map(|read| read.graph.as_ref())
+                        .map(|read| read.graph_plan_hash.clone()),
+                    "groupCount": groups.len(),
+                    "subscriberFanout": groups.iter()
+                        .filter_map(|group| group["subscriberFanout"].as_u64())
+                        .sum::<u64>(),
+                    "groups": groups,
+                }))
+            })
+            .collect::<Vec<_>>();
+        Ok(Value::Array(measurements))
     }
 
     /// Replay one committed change shape against the exact attested
@@ -40475,8 +40699,8 @@ fn execute_query_invocation(
                             )
                         })
                         .collect(),
-                    materialization,
-                    partition,
+                    materialization: materialization.clone(),
+                    partition: partition.clone(),
                 };
             let dependencies =
                 snapback_sync::graph_captured_read::register_graph_subscription_dependencies(
@@ -40505,6 +40729,10 @@ fn execute_query_invocation(
                     matcher_input,
                     structural_work: evaluated.structural_work,
                     window_ledgers: evaluated.window_ledgers,
+                    materialization,
+                    partition,
+                    authorization_version: request.authorization_version,
+                    evaluation_cut: request.evaluation_cut,
                 }),
             })
         }
