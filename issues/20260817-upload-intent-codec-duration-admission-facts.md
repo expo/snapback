@@ -23,12 +23,23 @@ caveat in Diary 0086 is retired by a rerun.
 
 ## Design update — 2026-08-24
 
-The review-ready design landed in LLP 0269
-§Dated design addition: trusted video admission facts. It specifies the
-additive `accept.video` authoring shape, byte-authoritative bounded ISO BMFF
-detection, stable container/codec/duration refusal codes, capability and
-SQLite→Postgres→cell portability posture, and the Coterie M2 rerun gate.
+The two hostile design reviews converged on the trust-boundary, duration,
+fragment, brand, deterministic-bound, parser-version, and document-home
+corrections. The revised design landed as dedicated **Review-status**
+[LLP 0304](../llp/0304-declared-video-admission.spec.md), under LLP 0044's
+asset-pipeline authority. LLP 0269 now retains only the
+SQLite → Postgres → transactional-cell portability/graduation obligations and
+links to the Spec.
 
-This ticket remains open. Next step: dual-review the design, implement it,
-rerun Coterie M2 with the declared MP4/H.264/AAC/60-second policy, and only
-then retire Diary 0086's honesty caveat and close this ticket.
+LLP 0304 deliberately proves declared ISO BMFF sample-entry/decoder
+configuration, same-file sample extents, and bounded sample-timeline duration;
+it does not decode `mdat` or claim elementary H.264/AAC bitstream identity.
+Its acceptance adds the converged adversarial fixtures and requires a pinned
+independent FFmpeg `ffprobe` plus decode-to-null codec/timeline oracle for the
+Coterie rerun.
+
+This ticket remains open. The design has landed at Review status; the next
+lane is implementation, affected qualification, and the real-server Coterie
+M2 rerun. Only that evidence may retire Diary 0086's broad caveat for the
+declared facts, while retaining an explicit elementary-stream caveat, and
+close this ticket.
