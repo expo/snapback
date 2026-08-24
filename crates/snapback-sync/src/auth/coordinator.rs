@@ -20,10 +20,10 @@ use super::provider::{
 };
 use super::session_projection::{
     AUTH_LOCK_RANK_TOPOLOGY, AuthorityWorkDrain, BoundConnectionSessionIdentity, DueExpiryBatch,
-    DueExpiryFinalization, FencedPublication, FinalizedRotationPublicationCut, MutationTicket,
-    PendingMutationKind, ProjectedBoundSessionResolution, ProjectedConnectionTokenResolution,
-    ProjectedSessionAuthority, ProjectedTokenResolution, RankedMutexGuard, SessionProjection,
-    ranked_mutex_lock,
+    DueExpiryFinalization, DurablyAdmittedDueExpiryBatch, FencedPublication,
+    FinalizedRotationPublicationCut, MutationTicket, ProjectedBoundSessionResolution,
+    ProjectedConnectionTokenResolution, ProjectedSessionAuthority, ProjectedTokenResolution,
+    RankedMutexGuard, SessionProjection, ranked_mutex_lock,
 };
 use crate::contract_types::{
     AuthorizationStreamIncarnation, RevocationReason, ServerProfile, TokenDigest,
@@ -681,13 +681,7 @@ impl AuthCoordinator {
                 session_id: plan.session_id().to_owned(),
                 predecessor_generation: plan.expected_generation(),
             };
-            let premarked = topology.projection.begin_session_mutation(
-                plan.session_id(),
-                plan.expected_generation(),
-                PendingMutationKind::Revoke {
-                    reason: plan.reason(),
-                },
-            )?;
+            let premarked = topology.projection.begin_revocation(&plan)?;
             (premarked.ticket, premarked.drain, terminal_target)
         };
         let mut rollback = PendingDrainRollback::new(
@@ -713,15 +707,7 @@ impl AuthCoordinator {
         let (ticket, drain) = {
             let mut topology = self.lock_topology()?;
             topology.require_session_available(plan.session_id())?;
-            let premarked = topology.projection.begin_session_mutation(
-                plan.session_id(),
-                plan.expected_generation(),
-                PendingMutationKind::TokenSupersede {
-                    predecessor: plan.predecessor_digest(),
-                    successor: plan.successor_digest(),
-                    superseded_at_ms: plan.superseded_at_ms(),
-                },
-            )?;
+            let premarked = topology.projection.begin_rotation(&plan)?;
             (premarked.ticket, premarked.drain)
         };
         let mut rollback = PendingDrainRollback::new(
@@ -761,18 +747,11 @@ impl AuthCoordinator {
                     predecessor_generation: revocation.expected_generation(),
                 })
                 .collect::<Vec<_>>();
-            let insert = plan.projected_insert();
-            let issuance_ticket = topology.projection.begin_issuance(insert)?;
+            let issuance_ticket = topology.projection.begin_issuance(&plan)?;
             let mut revocation_tickets = Vec::with_capacity(plan.revocations().len());
             let mut revocation_drains = Vec::with_capacity(plan.revocations().len());
             for revocation in plan.revocations() {
-                match topology.projection.begin_session_mutation(
-                    revocation.session_id(),
-                    revocation.expected_generation(),
-                    PendingMutationKind::Revoke {
-                        reason: revocation.reason(),
-                    },
-                ) {
+                match topology.projection.begin_revocation(revocation) {
                     Ok(premarked) => {
                         revocation_tickets.push(premarked.ticket);
                         revocation_drains.push(premarked.drain);
@@ -839,25 +818,11 @@ impl AuthCoordinator {
             for revocation in plan.revocations() {
                 topology.require_session_available(revocation.session_id())?;
             }
-            let rotation = topology.projection.begin_session_mutation(
-                plan.rotation().session_id(),
-                plan.rotation().expected_generation(),
-                PendingMutationKind::TokenSupersede {
-                    predecessor: plan.rotation().predecessor_digest(),
-                    successor: plan.rotation().successor_digest(),
-                    superseded_at_ms: plan.rotation().superseded_at_ms(),
-                },
-            )?;
+            let rotation = topology.projection.begin_rotation(plan.rotation())?;
             let mut revocation_tickets = Vec::with_capacity(plan.revocations().len());
             let mut revocation_drains = Vec::with_capacity(plan.revocations().len());
             for revocation in plan.revocations() {
-                match topology.projection.begin_session_mutation(
-                    revocation.session_id(),
-                    revocation.expected_generation(),
-                    PendingMutationKind::Revoke {
-                        reason: revocation.reason(),
-                    },
-                ) {
+                match topology.projection.begin_revocation(revocation) {
                     Ok(premarked) => {
                         revocation_tickets.push(premarked.ticket);
                         revocation_drains.push(premarked.drain);
@@ -1795,7 +1760,7 @@ impl AuthCoordinator {
 
     pub async fn expire_sampled_due(
         self: &Arc<Self>,
-        batch: DueExpiryBatch,
+        batch: DurablyAdmittedDueExpiryBatch,
     ) -> SnapbackResult<DueExpiryFinalization> {
         let premarked = {
             let mut topology = self.lock_topology()?;
@@ -2570,7 +2535,11 @@ mod tests {
             .unwrap()
             .expect("one due expiry");
         let coordinator = fixture.coordinator.clone();
-        let pending = tokio::spawn(async move { coordinator.expire_sampled_due(batch).await });
+        let pending = tokio::spawn(async move {
+            coordinator
+                .expire_sampled_due(batch.durably_admit_for_test())
+                .await
+        });
         wait_until_publication_closed(&publication, 999, fixture.monotonic_start).await;
         pending.abort();
         assert!(pending.await.unwrap_err().is_cancelled());
@@ -2793,16 +2762,13 @@ mod tests {
         let carrier = fixture.coordinator.premark_rotation(plan).await.unwrap();
         {
             let topology = fixture.coordinator.topology.lock().unwrap();
-            assert_eq!(
-                topology
-                    .projection
-                    .pending_kind_for_test(&fixture.session_id, &carrier.ticket),
-                Some(PendingMutationKind::TokenSupersede {
-                    predecessor: fixture.digest,
-                    successor: successor_digest,
-                    superseded_at_ms: 250,
-                })
-            );
+            assert!(topology.projection.pending_rotation_matches_for_test(
+                &fixture.session_id,
+                &carrier.ticket,
+                fixture.digest,
+                successor_digest,
+                250,
+            ));
         }
         assert!(fixture.coordinator.topology.try_lock().is_ok());
         let error = fixture

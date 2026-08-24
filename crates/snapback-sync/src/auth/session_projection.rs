@@ -8,6 +8,51 @@
 //! only durable identifiers, token digests, deadlines, and shared fences.
 //! @ref LLP 0059#two-phase-mutation-protocol — unique tickets, rather than a
 //! saved session snapshot, own every reversible pre-commit marker.
+//!
+//! Provider plans, not caller-authored projected subjects, own reservations:
+//!
+//! ```compile_fail
+//! use snapback_sync::auth::session_projection::{ProjectedSessionInsert, SessionProjection};
+//!
+//! fn reserve_arbitrary_issuance(
+//!     projection: &mut SessionProjection,
+//!     insert: ProjectedSessionInsert,
+//! ) {
+//!     let _ = projection.begin_issuance(insert);
+//! }
+//! ```
+//!
+//! ```compile_fail
+//! use snapback_sync::auth::session_projection::SessionProjection;
+//!
+//! fn reserve_arbitrary_revocation(
+//!     projection: &mut SessionProjection,
+//!     session_id: &str,
+//!     generation: u64,
+//! ) {
+//!     let _ = projection.begin_session_mutation(
+//!         session_id,
+//!         generation,
+//!         todo!("caller-selected mutation kind"),
+//!     );
+//! }
+//! ```
+//!
+//! A sampled batch without its exact durable-floor admission cannot reach the
+//! coordinator's expiry operation:
+//!
+//! ```compile_fail
+//! use snapback_sync::auth::coordinator::AuthCoordinator;
+//! use snapback_sync::auth::session_projection::DueExpiryBatch;
+//! use std::sync::Arc;
+//!
+//! fn expire_without_durable_floor(
+//!     coordinator: &Arc<AuthCoordinator>,
+//!     batch: DueExpiryBatch,
+//! ) {
+//!     let _ = coordinator.expire_sampled_due(batch);
+//! }
+//! ```
 
 pub use crate::contract_types::TerminalAuthorityDisposition;
 use crate::contract_types::{
@@ -19,6 +64,9 @@ pub use snapback_auth::auth::lock_rank::{
     AUTH_LOCK_RANK_CONNECTION_REGISTRY, AUTH_LOCK_RANK_MODE_ADMISSION, AUTH_LOCK_RANK_SESSION,
     AUTH_LOCK_RANK_STREAM, AUTH_LOCK_RANK_TOPOLOGY, AuthLockRankGuard, RankedMutexGuard,
     ranked_mutex_lock, ranked_mutex_lock_unpoisoned,
+};
+use snapback_auth::auth::provider::{
+    ProviderRevocationPlan, ProviderSessionIssuancePlan, ProviderTokenRotationPlan,
 };
 pub use snapback_kernel::auth::session_projection::{
     AUTHORIZATION_STREAM_META_KEY, AdmittedProjectionSnapshot, AuthorizationStreamRecord,
@@ -99,7 +147,7 @@ pub(crate) enum ProjectedSessionState {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum PendingMutationKind {
+enum PendingMutationKind {
     Revoke {
         reason: RevocationReason,
     },
@@ -200,21 +248,77 @@ pub struct ExpiredSession {
     pub close_by: Instant,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct DueExpiryBatch {
-    sampled_epoch_ms: u64,
-    sampled_monotonic: Instant,
+    authorization_stream_incarnation: AuthorizationStreamIncarnation,
+    batch_identity: String,
+    sample_clock: DueExpirySampleClock,
     durable_frontier_ms: u64,
     entries: Vec<SampledDueExpiry>,
 }
 
 impl DueExpiryBatch {
-    pub fn durable_frontier_ms(&self) -> u64 {
-        self.durable_frontier_ms
+    pub fn into_floor_plan(self) -> DueExpiryFloorPlan {
+        DueExpiryFloorPlan { batch: self }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn durably_admit_for_test(self) -> DurablyAdmittedDueExpiryBatch {
+        DurablyAdmittedDueExpiryBatch { batch: self }
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
+struct DueExpirySampleClock {
+    epoch_ms: u64,
+    monotonic: Instant,
+}
+
+#[derive(Debug)]
+pub struct DueExpiryFloorPlan {
+    batch: DueExpiryBatch,
+}
+
+impl DueExpiryFloorPlan {
+    #[doc(hidden)]
+    pub fn batch_identity(&self) -> &str {
+        &self.batch.batch_identity
+    }
+
+    #[doc(hidden)]
+    pub fn authorization_stream_incarnation(&self) -> &AuthorizationStreamIncarnation {
+        &self.batch.authorization_stream_incarnation
+    }
+
+    #[doc(hidden)]
+    pub fn durable_frontier_ms(&self) -> u64 {
+        self.batch.durable_frontier_ms
+    }
+
+    #[doc(hidden)]
+    pub fn admit(
+        self,
+        receipt: snapback_kernel::storage::auth::DurableAuthSessionClockFloor,
+    ) -> SnapbackResult<DurablyAdmittedDueExpiryBatch> {
+        if !receipt.admits_due_batch(
+            &self.batch.batch_identity,
+            &self.batch.authorization_stream_incarnation,
+            self.batch.durable_frontier_ms,
+        ) {
+            return Err(projection_unavailable(
+                "the durable due-expiry receipt does not admit the sampled batch",
+            ));
+        }
+        Ok(DurablyAdmittedDueExpiryBatch { batch: self.batch })
+    }
+}
+
+#[derive(Debug)]
+pub struct DurablyAdmittedDueExpiryBatch {
+    batch: DueExpiryBatch,
+}
+
+#[derive(Debug)]
 struct SampledDueExpiry {
     session_id: String,
     generation: u64,
@@ -1273,8 +1377,12 @@ impl SessionProjection {
             return Ok(None);
         };
         Ok(Some(DueExpiryBatch {
-            sampled_epoch_ms: epoch_now_ms,
-            sampled_monotonic: monotonic_now,
+            authorization_stream_incarnation: self.incarnation.clone(),
+            batch_identity: Uuid::now_v7().to_string(),
+            sample_clock: DueExpirySampleClock {
+                epoch_ms: epoch_now_ms,
+                monotonic: monotonic_now,
+            },
             durable_frontier_ms: deadline_frontier_ms.max(epoch_now_ms),
             entries,
         }))
@@ -1285,8 +1393,14 @@ impl SessionProjection {
     /// is skipped; it is never confused with the sampled generation/deadline.
     pub fn begin_sampled_due_expiries(
         &mut self,
-        batch: DueExpiryBatch,
+        admitted: DurablyAdmittedDueExpiryBatch,
     ) -> SnapbackResult<PremarkedDueExpiryBatch> {
+        let batch = admitted.batch;
+        if batch.authorization_stream_incarnation != self.incarnation {
+            return Err(projection_unavailable(
+                "the durably admitted expiry batch belongs to another authorization stream",
+            ));
+        }
         let mut premarked: Vec<PremarkedDueExpiry> = Vec::with_capacity(batch.entries.len());
         for entry in batch.entries {
             let still_matches = self
@@ -1300,12 +1414,7 @@ impl SessionProjection {
             if !still_matches {
                 continue;
             }
-            let premarked_expiry = match self.begin_expiry(
-                &entry.session_id,
-                entry.generation,
-                batch.sampled_epoch_ms,
-                batch.sampled_monotonic,
-            ) {
+            let premarked_expiry = match self.begin_expiry(&entry, &batch.sample_clock) {
                 Ok(premarked) => premarked,
                 Err(error) => {
                     for prior in premarked.iter().rev() {
@@ -1325,8 +1434,8 @@ impl SessionProjection {
         }
         Ok(PremarkedDueExpiryBatch {
             entries: premarked,
-            sampled_epoch_ms: batch.sampled_epoch_ms,
-            sampled_monotonic: batch.sampled_monotonic,
+            sampled_epoch_ms: batch.sample_clock.epoch_ms,
+            sampled_monotonic: batch.sample_clock.monotonic,
         })
     }
 
@@ -1434,12 +1543,9 @@ impl SessionProjection {
             && session.deadline == entry.deadline)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn expire_sampled_due(
-        &mut self,
-        batch: DueExpiryBatch,
-    ) -> SnapbackResult<Vec<ExpiredSession>> {
-        let premarked = self.begin_sampled_due_expiries(batch)?;
+    #[cfg(test)]
+    fn expire_sampled_due(&mut self, batch: DueExpiryBatch) -> SnapbackResult<Vec<ExpiredSession>> {
+        let premarked = self.begin_sampled_due_expiries(batch.durably_admit_for_test())?;
         if premarked
             .entries
             .iter()
@@ -1808,7 +1914,17 @@ impl SessionProjection {
     /// Reserve the exact new session/token identity before its durable insert.
     /// This ticket blocks reset but no existing session leaf, so unrelated
     /// finite acts remain independent while the SQLite transaction runs.
-    pub fn begin_issuance(
+    pub(crate) fn begin_issuance(
+        &mut self,
+        plan: &ProviderSessionIssuancePlan,
+    ) -> SnapbackResult<MutationTicket> {
+        // @ref LLP 0303#ruling
+        // — the reservation subject is copied from the exact provider plan.
+        let insert = plan.projected_insert();
+        self.begin_issuance_insert(insert)
+    }
+
+    fn begin_issuance_insert(
         &mut self,
         insert: ProjectedSessionInsert,
     ) -> SnapbackResult<MutationTicket> {
@@ -1964,7 +2080,39 @@ impl SessionProjection {
 
     /// Install a unique marker in both topology and leaf indexes. A sibling
     /// marker is allowed; it cannot be erased by this ticket's rollback.
-    pub fn begin_session_mutation(
+    pub(crate) fn begin_revocation(
+        &mut self,
+        plan: &ProviderRevocationPlan,
+    ) -> SnapbackResult<PremarkedAuthorityMutation> {
+        // @ref LLP 0303#ruling
+        // — every revocation reservation fact comes from the provider plan.
+        self.begin_session_mutation(
+            plan.session_id(),
+            plan.expected_generation(),
+            PendingMutationKind::Revoke {
+                reason: plan.reason(),
+            },
+        )
+    }
+
+    pub(crate) fn begin_rotation(
+        &mut self,
+        plan: &ProviderTokenRotationPlan,
+    ) -> SnapbackResult<PremarkedAuthorityMutation> {
+        // @ref LLP 0303#ruling
+        // — every rotation reservation fact comes from the provider plan.
+        self.begin_session_mutation(
+            plan.session_id(),
+            plan.expected_generation(),
+            PendingMutationKind::TokenSupersede {
+                predecessor: plan.predecessor_digest(),
+                successor: plan.successor_digest(),
+                superseded_at_ms: plan.superseded_at_ms(),
+            },
+        )
+    }
+
+    fn begin_session_mutation(
         &mut self,
         session_id: &str,
         expected_generation: u64,
@@ -2054,13 +2202,15 @@ impl SessionProjection {
     /// unique terminal ticket. A wall-clock jump or the monotonic deadline may
     /// independently prove due; once marked, later clock movement cannot make
     /// the session transiently live again.
-    pub(crate) fn begin_expiry(
+    fn begin_expiry(
         &mut self,
-        session_id: &str,
-        expected_generation: u64,
-        epoch_now_ms: u64,
-        monotonic_now: Instant,
+        sampled: &SampledDueExpiry,
+        clock: &DueExpirySampleClock,
     ) -> SnapbackResult<PremarkedAuthorityMutation> {
+        let session_id = &sampled.session_id;
+        let expected_generation = sampled.generation;
+        let epoch_now_ms = clock.epoch_ms;
+        let monotonic_now = clock.monotonic;
         validate_timestamp_u64(epoch_now_ms)?;
         let stream_fence = Arc::clone(&self.stream_fence);
         let stream_state = stream_fence.lock()?;
@@ -2730,17 +2880,30 @@ impl SessionProjection {
         self.next_ticket = sequence;
     }
 
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn pending_kind_for_test(
+    #[cfg(test)]
+    pub(crate) fn pending_rotation_matches_for_test(
         &self,
         session_id: &str,
         ticket: &MutationTicket,
-    ) -> Option<PendingMutationKind> {
+        predecessor: TokenDigest,
+        successor: TokenDigest,
+        superseded_at_ms: u64,
+    ) -> bool {
         self.by_session
-            .get(session_id)?
-            .pending
-            .get(ticket)
-            .map(|pending| pending.kind.clone())
+            .get(session_id)
+            .and_then(|session| session.pending.get(ticket))
+            .is_some_and(|pending| {
+                matches!(
+                    pending.kind,
+                    PendingMutationKind::TokenSupersede {
+                        predecessor: actual_predecessor,
+                        successor: actual_successor,
+                        superseded_at_ms: actual_superseded_at_ms,
+                    } if actual_predecessor == predecessor
+                        && actual_successor == successor
+                        && actual_superseded_at_ms == superseded_at_ms
+                )
+            })
     }
 
     #[cfg(test)]
@@ -2824,8 +2987,21 @@ fn projection_unavailable(message: &str) -> SnapbackError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth::crypto::{CryptoError, RandomSource, SessionBearer};
+    use snapback_types::auth::rehearsal::{
+        AuthRehearsalProvenanceV1, RehearsalGoverningAuthorityV1,
+    };
 
     const EPOCH_NOW_MS: u64 = 100;
+
+    struct FixedRandom(u8);
+
+    impl RandomSource for FixedRandom {
+        fn fill(&self, destination: &mut [u8]) -> Result<(), CryptoError> {
+            destination.fill(self.0);
+            Ok(())
+        }
+    }
 
     fn uuid_v7(timestamp_ms: u64, byte: u8) -> String {
         uuid::Builder::from_unix_timestamp_millis(timestamp_ms, &[byte; 10])
@@ -2902,8 +3078,299 @@ mod tests {
         projection.by_session.keys().next().unwrap().clone()
     }
 
+    fn projected_rows(projection: &SessionProjection) -> String {
+        format!(
+            "{:#?}",
+            (
+                &projection.by_session,
+                &projection.token_index,
+                &projection.deadline_index,
+                &projection.ticket_index,
+                &projection.pending_issuances,
+                &projection.stream_pending,
+            )
+        )
+    }
+
+    fn rehearsal_provenance(byte: u8) -> AuthRehearsalProvenanceV1 {
+        AuthRehearsalProvenanceV1::from_governing_authority(
+            RehearsalGoverningAuthorityV1::Grant {
+                grant_id: uuid_v7(80 + u64::from(byte), byte),
+            },
+            format!("sha256:{:064x}", byte),
+            format!("sha256:{:064x}", byte + 1),
+        )
+        .unwrap()
+    }
+
     fn assert_code(error: SnapbackError, expected: &str) {
         assert_eq!(error.diagnostic.code, expected);
+    }
+
+    #[test]
+    fn issuance_reservations_derive_every_projected_column_and_break_subject_bijections() {
+        let monotonic_now = Instant::now();
+        let user_alpha = uuid_v7(30, 30);
+        let user_beta = uuid_v7(31, 31);
+        let session_low = uuid_v7(40, 40);
+        let session_high = uuid_v7(41, 41);
+
+        // Role audit: cases 0/1 share user_alpha but have DISTINCT sessions;
+        // cases 0/2 share session_low but have DISTINCT users. Every authority
+        // instance, bearer digest, provider, generation, and timestamp tuple is
+        // DISTINCT. This deliberately breaks both subject bijections.
+        let subjects = [
+            (
+                user_alpha.clone(),
+                session_low.clone(),
+                "email-code",
+                3,
+                300,
+                900,
+                1_300,
+                None,
+            ),
+            (
+                user_alpha,
+                session_high,
+                "password",
+                7,
+                400,
+                1_100,
+                1_600,
+                Some(rehearsal_provenance(1)),
+            ),
+            (
+                user_beta,
+                session_low,
+                "oidc:fixture",
+                11,
+                500,
+                1_300,
+                1_900,
+                Some(rehearsal_provenance(3)),
+            ),
+        ];
+
+        for (index, subject) in subjects.into_iter().enumerate() {
+            let (
+                expected_user,
+                expected_session,
+                expected_provider,
+                expected_generation,
+                expected_created,
+                expected_expires,
+                expected_absolute,
+                expected_provenance,
+            ) = subject;
+            let expected_authority = uuid_v7(50 + index as u64, 50 + index as u8);
+            let bearer = SessionBearer::generate(&FixedRandom(60 + index as u8)).unwrap();
+            let expected_digest = TokenDigest::from_token_hash(&bearer.token_hash());
+            let expected = ProjectedSessionInsert {
+                session_id: expected_session.clone(),
+                user_id: expected_user.clone(),
+                provider: expected_provider.to_owned(),
+                authority_instance_id: expected_authority.clone(),
+                generation: expected_generation,
+                token_digest: expected_digest,
+                created_at_ms: expected_created,
+                expires_at_ms: expected_expires,
+                absolute_expires_at_ms: expected_absolute,
+                rehearsal_provenance: expected_provenance.clone(),
+            };
+            let plan = ProviderSessionIssuancePlan::for_test(expected, bearer);
+            let mut projection = rebuild_at(source(), monotonic_now);
+            let ticket = projection.begin_issuance(&plan).unwrap();
+            let reserved = projection.pending_issuances.get(&ticket).unwrap();
+
+            assert_eq!(reserved.session_id, expected_session);
+            assert_eq!(reserved.user_id, expected_user);
+            assert_eq!(reserved.provider, expected_provider);
+            assert_eq!(reserved.authority_instance_id, expected_authority);
+            assert_eq!(reserved.generation, expected_generation);
+            assert_eq!(reserved.token_digest, expected_digest);
+            assert_eq!(reserved.created_at_ms, expected_created);
+            assert_eq!(reserved.expires_at_ms, expected_expires);
+            assert_eq!(reserved.absolute_expires_at_ms, expected_absolute);
+            assert_eq!(reserved.rehearsal_provenance, expected_provenance);
+            assert!(expected_created < expected_expires);
+            assert!(expected_expires < expected_absolute);
+            assert!(
+                projection
+                    .compare_unmark_issuance(&ticket, &expected_session)
+                    .unwrap()
+            );
+            assert!(projection.pending_issuances.is_empty());
+            projection.check_invariants().unwrap();
+        }
+    }
+
+    #[test]
+    fn typed_mutation_plans_derive_exact_subjects_and_refuse_every_projection_mismatch() {
+        use crate::auth::provider::PlannedTokenSource;
+
+        let monotonic_now = Instant::now();
+        let low_session = uuid_v7(4, 4);
+        let high_session = uuid_v7(6, 6);
+        let low_digest = TokenDigest::from_slice(&[11; 32]).unwrap();
+        let high_digest = TokenDigest::from_slice(&[12; 32]).unwrap();
+        let rotation_bearer = SessionBearer::generate(&FixedRandom(73)).unwrap();
+        let rotation_successor = TokenDigest::from_token_hash(&rotation_bearer.token_hash());
+
+        // Accepted set: one high lexical subject revocation and one low lexical
+        // subject rotation. The subjects, facts, and ticket owners are all
+        // independently asserted from fixed fixture inputs.
+        let mut revocation_projection = rebuild_at(two_session_source(), monotonic_now);
+        let revocation_baseline = projected_rows(&revocation_projection);
+        let revocation = ProviderRevocationPlan::for_test(
+            high_session.clone(),
+            1,
+            high_digest,
+            PlannedTokenSource::Current,
+            RevocationReason::FamilyAlarm,
+        );
+        let revocation_ticket = revocation_projection.begin_revocation(&revocation).unwrap();
+        let revocation_pending = revocation_projection
+            .by_session
+            .get(&high_session)
+            .unwrap()
+            .pending
+            .get(&revocation_ticket.ticket)
+            .unwrap();
+        assert_eq!(revocation_pending.expected_generation, 1);
+        assert_eq!(
+            revocation_pending.kind,
+            PendingMutationKind::Revoke {
+                reason: RevocationReason::FamilyAlarm
+            }
+        );
+        assert_eq!(
+            revocation_projection.ticket_index[&revocation_ticket.ticket],
+            TicketOwner::Session(high_session.clone())
+        );
+        assert!(
+            revocation_projection
+                .compare_unmark_session(&revocation_ticket.ticket, &high_session)
+                .unwrap()
+        );
+        revocation_projection.check_invariants().unwrap();
+        assert_eq!(projected_rows(&revocation_projection), revocation_baseline);
+
+        let mut rotation_projection = rebuild_at(two_session_source(), monotonic_now);
+        let rotation_baseline = projected_rows(&rotation_projection);
+        let rotation = ProviderTokenRotationPlan::for_test(
+            low_session.clone(),
+            1,
+            low_digest,
+            rotation_bearer,
+            777,
+        );
+        let rotation_ticket = rotation_projection.begin_rotation(&rotation).unwrap();
+        let rotation_pending = rotation_projection
+            .by_session
+            .get(&low_session)
+            .unwrap()
+            .pending
+            .get(&rotation_ticket.ticket)
+            .unwrap();
+        assert_eq!(rotation_pending.expected_generation, 1);
+        assert_eq!(
+            rotation_pending.kind,
+            PendingMutationKind::TokenSupersede {
+                predecessor: low_digest,
+                successor: rotation_successor,
+                superseded_at_ms: 777,
+            }
+        );
+        assert_eq!(
+            rotation_projection.ticket_index[&rotation_ticket.ticket],
+            TicketOwner::Session(low_session.clone())
+        );
+        assert!(
+            rotation_projection
+                .compare_unmark_session(&rotation_ticket.ticket, &low_session)
+                .unwrap()
+        );
+        rotation_projection.check_invariants().unwrap();
+        assert_eq!(projected_rows(&rotation_projection), rotation_baseline);
+
+        // Refused set: absent/stale revocation and absent/stale/predecessor/
+        // successor-collision rotation. Every refusal is the typed projection
+        // code and leaves the complete projected row/index snapshot unchanged.
+        for refused in [
+            ProviderRevocationPlan::for_test(
+                uuid_v7(90, 90),
+                1,
+                high_digest,
+                PlannedTokenSource::Current,
+                RevocationReason::Logout,
+            ),
+            ProviderRevocationPlan::for_test(
+                high_session.clone(),
+                2,
+                high_digest,
+                PlannedTokenSource::Current,
+                RevocationReason::Logout,
+            ),
+        ] {
+            let mut projection = rebuild_at(two_session_source(), monotonic_now);
+            let baseline = projected_rows(&projection);
+            assert_code(
+                projection.begin_revocation(&refused).unwrap_err(),
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+            );
+            assert_eq!(projected_rows(&projection), baseline);
+            projection.check_invariants().unwrap();
+        }
+
+        let refused_rotations = [
+            ProviderTokenRotationPlan::for_test(
+                uuid_v7(91, 91),
+                1,
+                low_digest,
+                SessionBearer::generate(&FixedRandom(81)).unwrap(),
+                800,
+            ),
+            ProviderTokenRotationPlan::for_test(
+                low_session.clone(),
+                2,
+                low_digest,
+                SessionBearer::generate(&FixedRandom(82)).unwrap(),
+                801,
+            ),
+            ProviderTokenRotationPlan::for_test(
+                low_session.clone(),
+                1,
+                TokenDigest::from_slice(&[99; 32]).unwrap(),
+                SessionBearer::generate(&FixedRandom(83)).unwrap(),
+                802,
+            ),
+        ];
+        for refused in refused_rotations {
+            let mut projection = rebuild_at(two_session_source(), monotonic_now);
+            let baseline = projected_rows(&projection);
+            assert_code(
+                projection.begin_rotation(&refused).unwrap_err(),
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+            );
+            assert_eq!(projected_rows(&projection), baseline);
+            projection.check_invariants().unwrap();
+        }
+
+        let collision_bearer = SessionBearer::generate(&FixedRandom(84)).unwrap();
+        let collision_digest = TokenDigest::from_token_hash(&collision_bearer.token_hash());
+        let mut collision_source = two_session_source();
+        collision_source.sessions[1].token_hash = collision_digest.as_bytes().to_vec();
+        let mut collision_projection = rebuild_at(collision_source, monotonic_now);
+        let collision_baseline = projected_rows(&collision_projection);
+        let collision =
+            ProviderTokenRotationPlan::for_test(low_session, 1, low_digest, collision_bearer, 803);
+        assert_code(
+            collision_projection.begin_rotation(&collision).unwrap_err(),
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+        );
+        assert_eq!(projected_rows(&collision_projection), collision_baseline);
+        collision_projection.check_invariants().unwrap();
     }
 
     #[test]
@@ -3248,13 +3715,14 @@ mod tests {
             .unwrap()
             .expect("work starts immediately before the exact deadline");
 
+        let sampled = projection
+            .sample_due_expiries(200, monotonic_now + Duration::from_millis(100))
+            .unwrap()
+            .expect("the exact deadline is sampled");
+        let sample_clock = sampled.sample_clock;
+        let sampled_entry = sampled.entries.into_iter().next().unwrap();
         let expiry = projection
-            .begin_expiry(
-                &session_id,
-                1,
-                200,
-                monotonic_now + Duration::from_millis(100),
-            )
+            .begin_expiry(&sampled_entry, &sample_clock)
             .expect("expiry marker closes admission before existing work drains");
         assert!(!expiry.drain.is_drained());
         assert!(
@@ -3461,7 +3929,9 @@ mod tests {
                 .unwrap()
                 .expect("both sessions are sampled due");
             assert_eq!(due.entries.len(), 2);
-            let premarked = projection.begin_sampled_due_expiries(due).unwrap();
+            let premarked = projection
+                .begin_sampled_due_expiries(due.durably_admit_for_test())
+                .unwrap();
             assert_eq!(premarked.entries.len(), 2);
 
             let sibling = projection
@@ -3522,7 +3992,9 @@ mod tests {
             .sample_due_expiries(200, monotonic_now + Duration::from_millis(50))
             .unwrap()
             .expect("both sessions are sampled due");
-        let premarked = projection.begin_sampled_due_expiries(due).unwrap();
+        let premarked = projection
+            .begin_sampled_due_expiries(due.durably_admit_for_test())
+            .unwrap();
         assert_eq!(premarked.entries[0].session_id, expired_session_id);
         assert_eq!(premarked.entries[1].session_id, contradictory_session_id);
         let contradictory_ticket = premarked.entries[1].ticket.clone();

@@ -8,7 +8,8 @@
 use super::{LocalDatabase, is_auth_reserved_identifier};
 use crate::auth::mode::{PASSWORD_PROVIDER_REQUIRES_V4_CODE, PasswordProviderReadiness};
 use crate::contract_types::{
-    RevocationReason, SESSION_TERMINAL_CAUSE_META_PREFIX, SessionTerminalCauseRecord,
+    AuthorizationStreamIncarnation, RevocationReason, SESSION_TERMINAL_CAUSE_META_PREFIX,
+    SessionTerminalCauseRecord,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use rusqlite::{
@@ -46,6 +47,46 @@ pub(super) const META_AUTH_RESTORE_DECLARATION_ID: &str = "auth_restore_declarat
 /// @ref LLP 0059#durable-session-clock-floor
 const META_AUTH_SESSION_CLOCK_FLOOR_MS: &str = "auth_session_clock_floor_ms";
 const MAX_SAFE_TIMESTAMP_MS: u64 = 9_007_199_254_740_991;
+
+/// Opaque proof of one committed durable auth-session clock frontier.
+///
+/// The private due-batch binding is populated only by the transaction that
+/// verifies the exact authorization-stream incarnation and advances the
+/// clock floor. A sampled batch therefore cannot be paired with a receipt
+/// from another stream, batch, or frontier.
+#[derive(Debug)]
+pub struct DurableAuthSessionClockFloor {
+    floor_ms: u64,
+    due_batch: Option<DurableDueExpiryFloorBinding>,
+}
+
+#[derive(Debug)]
+struct DurableDueExpiryFloorBinding {
+    batch_identity: String,
+    authorization_stream_incarnation: AuthorizationStreamIncarnation,
+    committed_frontier_ms: u64,
+}
+
+impl DurableAuthSessionClockFloor {
+    pub fn floor_ms(&self) -> u64 {
+        self.floor_ms
+    }
+
+    #[doc(hidden)]
+    pub fn admits_due_batch(
+        &self,
+        batch_identity: &str,
+        authorization_stream_incarnation: &AuthorizationStreamIncarnation,
+        durable_frontier_ms: u64,
+    ) -> bool {
+        self.due_batch.as_ref().is_some_and(|binding| {
+            binding.batch_identity == batch_identity
+                && &binding.authorization_stream_incarnation == authorization_stream_incarnation
+                && binding.committed_frontier_ms == durable_frontier_ms
+                && self.floor_ms >= durable_frontier_ms
+        })
+    }
+}
 #[cfg(any(test, feature = "test-support"))]
 fn auth_activation_steps() -> usize {
     catalog_tables(CURRENT_CATALOG).count() + catalog_indexes(CURRENT_CATALOG).count() + 2
@@ -1906,13 +1947,60 @@ impl LocalDatabase {
     ///
     /// @ref LLP 0059#durable-session-clock-floor — every startup and every
     /// maintenance pass advances this monotone floor.
-    pub fn advance_auth_session_clock_floor(&mut self, observed_ms: u64) -> SnapbackResult<u64> {
+    pub fn advance_auth_session_clock_floor(
+        &mut self,
+        observed_ms: u64,
+    ) -> SnapbackResult<DurableAuthSessionClockFloor> {
         if observed_ms > MAX_SAFE_TIMESTAMP_MS {
             return Err(corrupt(
                 "auth session clock floor time is outside the portable timestamp range",
             ));
         }
-        self.with_auth_transaction(|tx| advance_session_clock_floor_on(tx, observed_ms))
+        self.with_auth_transaction(|tx| {
+            Ok(DurableAuthSessionClockFloor {
+                floor_ms: advance_session_clock_floor_on(tx, observed_ms)?,
+                due_batch: None,
+            })
+        })
+    }
+
+    /// Atomically verify one sampled due-expiry batch against the exact
+    /// durable authorization stream and persist its complete frontier.
+    ///
+    /// @ref LLP 0303#ruling
+    /// — only the transaction that observes the exact stream and commits the
+    /// due frontier may mint the receipt consumed by projection expiry.
+    pub fn advance_auth_session_clock_floor_for_due_batch(
+        &mut self,
+        batch_identity: &str,
+        expected_incarnation: &AuthorizationStreamIncarnation,
+        observed_ms: u64,
+    ) -> SnapbackResult<DurableAuthSessionClockFloor> {
+        if batch_identity.is_empty() || observed_ms > MAX_SAFE_TIMESTAMP_MS {
+            return Err(projection_unavailable(
+                "the sampled due-expiry batch is not durably admissible",
+            ));
+        }
+        self.with_auth_transaction(|tx| {
+            let stream =
+                super::auth_stream::read_authorization_stream_record_on(tx)?.ok_or_else(|| {
+                    projection_unavailable("the sampled due-expiry authorization stream is absent")
+                })?;
+            if stream.incarnation() != expected_incarnation.clone() {
+                return Err(projection_unavailable(
+                    "the sampled due-expiry authorization stream changed",
+                ));
+            }
+            let floor_ms = advance_session_clock_floor_on(tx, observed_ms)?;
+            Ok(DurableAuthSessionClockFloor {
+                floor_ms,
+                due_batch: Some(DurableDueExpiryFloorBinding {
+                    batch_identity: batch_identity.to_owned(),
+                    authorization_stream_incarnation: expected_incarnation.clone(),
+                    committed_frontier_ms: observed_ms,
+                }),
+            })
+        })
     }
 
     /// Delete expired durable auth state in bounded direct-path batches. The
@@ -3729,6 +3817,10 @@ fn corrupt(message: &str) -> SnapbackError {
     SnapbackError::error("SNAPBACK_AUTH_CATALOG_CORRUPT", "auth", message)
 }
 
+fn projection_unavailable(message: &str) -> SnapbackError {
+    SnapbackError::error("SNAPBACK_AUTH_PROJECTION_UNAVAILABLE", "auth", message)
+}
+
 fn corrupt_with_object(message: &str, kind: &str, name: &str) -> SnapbackError {
     corrupt(message).with_details(json!({ "objectKind": kind, "objectName": name }))
 }
@@ -4051,16 +4143,25 @@ mod tests {
             "an unrecorded floor reads as zero"
         );
 
-        assert_eq!(db.advance_auth_session_clock_floor(250).unwrap(), 250);
+        assert_eq!(
+            db.advance_auth_session_clock_floor(250).unwrap().floor_ms(),
+            250
+        );
         assert_eq!(db.auth_session_clock_floor().unwrap(), 250);
 
         // A lower observation (a backward wall-clock sample) never lowers the
         // durable floor and still reports the higher persisted value.
-        assert_eq!(db.advance_auth_session_clock_floor(150).unwrap(), 250);
+        assert_eq!(
+            db.advance_auth_session_clock_floor(150).unwrap().floor_ms(),
+            250
+        );
         assert_eq!(db.auth_session_clock_floor().unwrap(), 250);
 
         // Forward progress advances it.
-        assert_eq!(db.advance_auth_session_clock_floor(400).unwrap(), 400);
+        assert_eq!(
+            db.advance_auth_session_clock_floor(400).unwrap().floor_ms(),
+            400
+        );
         assert_eq!(db.auth_session_clock_floor().unwrap(), 400);
 
         // GC also advances the same durable floor.
@@ -4094,6 +4195,60 @@ mod tests {
             db.auth_session_clock_floor().unwrap_err().diagnostic.code,
             "SNAPBACK_AUTH_CATALOG_CORRUPT"
         );
+    }
+
+    #[test]
+    fn due_expiry_floor_receipt_binds_exact_batch_stream_and_frontier() {
+        let mut db = catalog_database();
+        let exact_stream = db.ensure_authorization_stream_incarnation().unwrap();
+        let other_stream = AuthorizationStreamIncarnation::fresh();
+        let read_floor_row = |database: &LocalDatabase| {
+            database
+                .conn
+                .query_row(
+                    "SELECT key, value FROM _snapback_meta
+                     WHERE key = 'auth_session_clock_floor_ms'",
+                    [],
+                    |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+                )
+                .optional()
+                .unwrap()
+        };
+
+        let receipt = db
+            .advance_auth_session_clock_floor_for_due_batch("due-batch-alpha", &exact_stream, 700)
+            .expect("the exact durable stream admits its due batch");
+        assert_eq!(receipt.floor_ms(), 700);
+        assert_eq!(db.auth_session_clock_floor().unwrap(), 700);
+        assert_eq!(
+            read_floor_row(&db),
+            Some(("auth_session_clock_floor_ms".to_owned(), "700".to_owned()))
+        );
+        assert!(receipt.admits_due_batch("due-batch-alpha", &exact_stream, 700));
+        assert!(!receipt.admits_due_batch("due-batch-beta", &exact_stream, 700));
+        assert!(!receipt.admits_due_batch("due-batch-alpha", &other_stream, 700));
+        assert!(!receipt.admits_due_batch("due-batch-alpha", &exact_stream, 699));
+        assert!(!receipt.admits_due_batch("due-batch-alpha", &exact_stream, 701));
+
+        let before_refusal = read_floor_row(&db);
+        let error = db
+            .advance_auth_session_clock_floor_for_due_batch("due-batch-gamma", &other_stream, 900)
+            .expect_err("a different stream cannot advance the sampled frontier");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
+        assert_eq!(read_floor_row(&db), before_refusal);
+
+        let before_empty_refusal = read_floor_row(&db);
+        let error = db
+            .advance_auth_session_clock_floor_for_due_batch("", &exact_stream, 1_000)
+            .expect_err("an unbound batch identity is refused");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
+        assert_eq!(read_floor_row(&db), before_empty_refusal);
     }
 
     #[cfg(any(target_vendor = "apple", target_os = "linux"))]
@@ -5089,8 +5244,24 @@ mod tests {
     }
 }
 impl super::ServingDatabase {
-    pub fn advance_auth_session_clock_floor(&mut self, observed_ms: u64) -> SnapbackResult<u64> {
+    pub fn advance_auth_session_clock_floor(
+        &mut self,
+        observed_ms: u64,
+    ) -> SnapbackResult<DurableAuthSessionClockFloor> {
         self.db.advance_auth_session_clock_floor(observed_ms)
+    }
+
+    pub fn advance_auth_session_clock_floor_for_due_batch(
+        &mut self,
+        batch_identity: &str,
+        expected_incarnation: &AuthorizationStreamIncarnation,
+        observed_ms: u64,
+    ) -> SnapbackResult<DurableAuthSessionClockFloor> {
+        self.db.advance_auth_session_clock_floor_for_due_batch(
+            batch_identity,
+            expected_incarnation,
+            observed_ms,
+        )
     }
 }
 

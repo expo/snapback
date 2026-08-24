@@ -4982,7 +4982,7 @@ impl LocalSnapback {
         let floor = self
             .db
             .advance_auth_session_clock_floor(provider.now_ms())?;
-        provider.seed_session_clock_floor(floor);
+        provider.seed_session_clock_floor(floor.floor_ms());
         Ok(())
     }
 
@@ -5038,13 +5038,19 @@ impl LocalSnapback {
     pub fn advance_auth_session_clock_floor_for_due_batch(
         &mut self,
         provider: &crate::auth::provider::AuthProvider,
-        batch: &snapback_sync::auth::session_projection::DueExpiryBatch,
-    ) -> SnapbackResult<()> {
-        let floor = self
-            .db
-            .advance_auth_session_clock_floor(batch.durable_frontier_ms())?;
-        provider.seed_session_clock_floor(floor);
-        Ok(())
+        plan: snapback_sync::auth::session_projection::DueExpiryFloorPlan,
+    ) -> SnapbackResult<snapback_sync::auth::session_projection::DurablyAdmittedDueExpiryBatch>
+    {
+        // @ref LLP 0303#ruling
+        // — the exact consuming plan supplies the stream, batch identity, and
+        // complete frontier committed by the kernel transaction.
+        let receipt = self.db.advance_auth_session_clock_floor_for_due_batch(
+            plan.batch_identity(),
+            plan.authorization_stream_incarnation(),
+            plan.durable_frontier_ms(),
+        )?;
+        provider.seed_session_clock_floor(receipt.floor_ms());
+        plan.admit(receipt)
     }
 
     pub fn initialize_hosted_serving_authority(

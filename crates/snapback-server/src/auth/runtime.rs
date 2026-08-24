@@ -521,14 +521,14 @@ where
     };
     after_sample();
     let durable_provider = provider.clone();
-    let durable_batch = batch.clone();
-    crate::server::with_snapback(state, move |snapback| {
-        snapback.advance_auth_session_clock_floor_for_due_batch(&durable_provider, &durable_batch)
+    let floor_plan = batch.into_floor_plan();
+    let admitted = crate::server::with_snapback(state, move |snapback| {
+        snapback.advance_auth_session_clock_floor_for_due_batch(&durable_provider, floor_plan)
     })
     .await
     .map_err(ProviderError::from)?;
     let finalized = coordinator
-        .expire_sampled_due(batch)
+        .expire_sampled_due(admitted)
         .await
         .map_err(ProviderError::from)?;
     consume_due_expiry_finalization(terminal_sink, finalized)

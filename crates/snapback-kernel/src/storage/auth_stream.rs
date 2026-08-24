@@ -391,7 +391,7 @@ pub(super) fn write_authorization_stream_incarnation_in(
     Ok(())
 }
 
-fn read_authorization_stream_record_on(
+pub(super) fn read_authorization_stream_record_on(
     conn: &Connection,
 ) -> SnapbackResult<Option<AuthorizationStreamRecord>> {
     raw_text_meta_on(
