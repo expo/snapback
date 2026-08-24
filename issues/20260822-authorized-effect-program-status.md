@@ -248,3 +248,72 @@ TEMP-shadow escape where `pragma_foreign_key_list` resolves TEMP-first). Recorde
 `issues/20260823-oauth-pairing-fk-wedge-deferred.md` with the open design question: enumerate-and-
 refuse has now failed twice, so the next attempt should consider failing **closed** on any
 unexpected schema object.
+
+---
+
+## Status update — 2026-08-24
+
+The program changed shape twice today. Anyone reading this ticket as the entry point should read
+this section before the older material above, which predates all of it.
+
+### The defect class is wider than "two authority axes"
+
+Originally recorded as: a subject authority and a commit authority supplied independently and
+never compared. Two corrections since:
+
+1. **Count.** "153 sites" conflated generic-bound occurrences with guard acquisitions. The 99
+   kernel entries are forwarding occurrences converging on **eight** real `before_commit()` points.
+   Real population is ~45 engine guard calls + 8 raw-guard paths + 8 kernel cuts. Also corrected:
+   `let _ = effect` does **not** discard the guard (borrowed reference; the RAII guard stays alive)
+   — only correlation is missing. A guard call at `server.rs:932` was missed entirely.
+   See issues/20260823-uncorrelated-authority-axes-are-systemic-153-sites.md (Correction section).
+
+2. **Kind.** The predicate itself was too narrow. The real class is:
+   **an authority is validated, the subject it acts on is supplied independently, and nothing
+   structurally ties the two together.** Sites with no reservation at all belong to it.
+   See issues/20260824-authority-validated-subject-supplied-separately.md.
+
+A third shape was then confirmed: the **inverse variant**, where the authority is *derived from*
+the subject rather than the subject checked against the authority.
+See issues/20260824-wide-predicate-sweep-inverse-variant-confirmed.md.
+
+### Live findings verified in code (all in-crate reachable only; none remotely exploitable)
+
+- `plan_grant_revocation_service_terminal` (engine.rs:5940) + bulk twin (:5969) — validates the
+  caller's admission, then acts on separately supplied `user_id`/`grant_id` with no ownership check.
+- `resolve_retained_effect_service_authority` (engine.rs:5194) — uses the management authority only
+  for `effect_guard(...)`, then returns a **live service authority for the caller-named principal**.
+- `record_authenticated_use_plan` (provider.rs:3383) reached via public unauthenticated
+  `AuthProvider::admit` (:3080) and public `execute_auth_plan` (engine.rs:6749) — durably extends a
+  caller-chosen session.
+- Detached-action fence: `MutationEffectPosture::bind` discards `prepared` for both authorized
+  variants (engine.rs:1433).
+- Pairing-code fence: static facts checked on one authority, guard taken from another (engine.rs:5819/5805).
+
+### Claims withdrawn
+
+The detached-action and pairing-code fences were landed claiming **PROPERTY**. Both claims were
+false — the measurements confirmed the measured path, not the property. Downgraded to
+route-closed-for-measured-callers. The origin-bound commit capsule was **not landed**; three
+successive fix rounds each closed one door and opened another.
+
+### Design status: two adversarial rounds, two breaks
+
+The mandatory-correlation design (issues/20260823-mandatory-authority-correlation-design.md, now
+revised) passed two independent reviews and then failed two adversarial passes. Both breaks had the
+same cause: the design **characterizes** which surfaces are safe rather than **enumerating** them,
+so each attack found a sanctioned factory the characterization missed. Round two's break is the
+sharpest available lesson — the sealed consuming plan protocol the design proposes **already exists
+in the tree and is already defeated**, behind a doc comment stating a true but insufficient property.
+See issues/20260824-sealed-plan-protocol-already-exists-and-is-already-broken.md.
+
+The response is not a third revision. It is to build the enumeration first, as was done
+successfully for staging (issues/20260824-uncorrelated-staging-entry-point-inventory.md, 279 rows),
+and now for authority-minting factories.
+
+### What is NOT claimed
+
+No population is closed. The enumeration has been corrected for count and for kind, and widened
+again by the wide-predicate sweep. Several reported findings remain **unverified** and are marked as
+such in their tickets rather than being relied on. Grok's review of the first design was corrupted
+mid-file and its middle findings are **unread, not cleared**.
