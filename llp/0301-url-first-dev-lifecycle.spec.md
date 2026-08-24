@@ -12,6 +12,15 @@ implementation)
 applies acceptance — this transition is applied by the orchestrator under
 the author's standing overnight directive of 2026-08-24, after the
 cluster's dual READY per-target and set verdicts)
+**Revised:** 2026-08-24 (g — post-freeze implementation correction: the
+shipped legacy receipt reader is strict (`exactRecordKeys`), so an
+already-shipped CLI refuses ANY receipt carrying the new field with its
+existing typed unknown-field error — safe, no adoption. The §3 matrix's
+legacy-tolerance cells claimed behavior legacy readers do not have; the
+corrected cells: old-CLI x new-supervised and old-CLI x new-plain both
+REFUSE via the existing unknown-field refusal; new-CLI cells unchanged.
+Cross-version dev attach is resolved by using one CLI version, stated in
+the migration text.)
 **Revised:** 2026-08-24 (f — punch-list round-4 corrections: `localhost.`
 reclassified from the syntax set to the host-policy set (a canonical
 trailing-dot origin is admissible in an explicit allowlist); §8.2 worded
@@ -201,9 +210,8 @@ the cells below claim nothing a legacy CLI cannot execute:
 | CLI | Receipt | Attach outcome |
 | --- | --- | --- |
 | old | old | today's behavior |
-| old | new supervised | succeeds (additive field ignored; origin lists match as today) |
-| old, no declarations | new plain (`loopback-any`, `clientOrigins: []`) | **succeeds** by the old empty-vs-empty list comparison, with degraded semantics: the old CLI models an exact empty list while the server admits loopback-any. Safety analysis, stated: the server admits *more* browser origins than the old CLI's model — the exposure is exactly LLP 0300 P2's accepted dev posture, and no origin the old CLI believed admitted is dropped. Dev-only; accepted. |
-| old, with declarations | new plain | refuses via the old list comparison (non-empty requested vs `[]` recorded) |
+| old | new supervised | **refuses** — the shipped legacy reader is strict (`exactRecordKeys`) and rejects the unknown `admissionPosture` field with its existing typed error; safe, no adoption (corrected, revision g) |
+| old | new plain | **refuses** — same strict-reader refusal (corrected, revision g) |
 | new, no declarations (requests `loopback-any`) | old (`explicit-list`) | refuses (`SNAPBACK_DEV_ATTACH_ADMISSION_MISMATCH`); deliberate restart is the operator's move |
 | new, declarations matching the recorded list | old | succeeds |
 

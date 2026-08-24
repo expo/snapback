@@ -160,6 +160,26 @@ try {
     .map((entry) => entry.name)
     .sort();
   assert.ok(templateNames.length > 0, 'the CLI package must ship at least one scaffold template');
+  const urlFirstScripts = Object.freeze({
+    'crud-dashboard': {
+      dev: 'snapback dev snapback --write-env',
+      'dev:client': 'vite',
+    },
+    react: {
+      dev: 'snapback dev snapback --write-env',
+      'dev:client': 'vite',
+    },
+    'expo-chat': {
+      dev: 'snapback dev snapback --write-env',
+      'dev:client': 'expo start',
+      'dev:supervised': 'snapback dev snapback --expo --expo-platform web',
+    },
+    'media-feed': {
+      dev: 'snapback dev snapback --write-env',
+      'dev:client': 'expo start',
+      'dev:supervised': 'snapback dev snapback --expo',
+    },
+  });
   for (const templateName of templateNames) {
     assert.equal(
       existsSync(join(templatesRoot, templateName, 'gitignore.template')),
@@ -186,6 +206,20 @@ try {
         ignoreRules.includes(rule),
         `template ${templateName} must ignore ${rule} — both local-state forms, per guide/clients/react-expo.md`,
       );
+    }
+    if (Object.hasOwn(urlFirstScripts, templateName)) {
+      const templateManifest = JSON.parse(
+        readFileSync(join(templatesRoot, templateName, 'package.json'), 'utf8'),
+      );
+      for (const [name, command] of Object.entries(urlFirstScripts[templateName])) {
+        assert.equal(
+          templateManifest.scripts?.[name],
+          command,
+          `${templateName} ${name} must use the LLP 0301 two-process URL-first shape`,
+        );
+      }
+      assert.equal(templateManifest.scripts?.['snapback:dev'], undefined);
+      assert.equal(templateManifest.scripts?.['client:dev'], undefined);
     }
   }
 

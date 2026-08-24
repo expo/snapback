@@ -5,9 +5,8 @@
   "packageManager": "bun@1.3.12",
   "scripts": {
     "generate": "snapback generate snapback",
-    "dev": "snapback dev snapback --client . --client-command vite",
-    "client:dev": "vite",
-    "snapback:dev": "snapback dev snapback --client . --client-command vite",
+    "dev": "snapback dev snapback --write-env",
+    "dev:client": "vite",
     "carry:headless": "node carrier.mjs headless",
     "carry:web-browser": "node carrier.mjs web-browser",
     "carry:self-check": "node carrier.mjs --self-check --json",

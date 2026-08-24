@@ -1,7 +1,7 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin crud-dashboard digest=sha256:b9b223617be3226522a90ebf538cb4c43dcae40e5dd3462fa83dc3265e8b321c -->
+<!-- start-packet:begin crud-dashboard digest=sha256:80a65071e71bae0aefad443538b0932f3aca8e0c7333dc1ded27f8fcb323a5fc -->
 Mental model: [Snapback in one screen](/_snapback/guide/start/mental-model.md); with this stub it is
 the whole first read.
 
@@ -16,7 +16,8 @@ receipt (acceptance evidence, not formal proof). `npm test`: unwrapped
 <!-- script-glossary:end -->
 
 Edit `snapback/{schema,functions}.mjs`, `seed.json`, `src/App.tsx` →
-`generate` → `dev` → `prove`; generated files are codegen-owned. The consumer
+`generate` → run `dev` (backend) and `dev:client` (Vite) in separate terminals
+→ `prove`; generated files are codegen-owned. The consumer
 uses `useSnapbackQuery` / `useSnapbackMutation`. Keep `projectDirectory`'s
 team-join uniqueness. Sample data/mutations are public for sign-in-free demos,
 not a production auth pattern. Escalate: `snapback guide <query>`.

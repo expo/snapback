@@ -451,6 +451,9 @@ export function mintSupervisedOrdinarySession({
       status: 'ready',
       tokenType: 'Bearer',
       token: envelope.data.token,
+      expiresAt: Number.isSafeInteger(envelope.data.session?.expiresAt)
+        ? envelope.data.session.expiresAt
+        : null,
     });
   }
   const source = envelope?.diagnostics?.[0] ?? envelope?.diagnostic ?? null;
@@ -2031,6 +2034,7 @@ function publicApplicationReceipt(path, receipt) {
     formatVersion: receipt.formatVersion,
     startupNonce: receipt.startupNonce,
     hostReadyDescriptorDigest: receipt.hostReadyDescriptorDigest,
+    admissionPosture: receipt.admissionPosture,
     binding: publicBinding(receipt.binding),
     clientOrigins: Object.freeze([...receipt.clientOrigins]),
     runtimeIdentity: structuredClone(receipt.runtimeIdentity),
@@ -2378,6 +2382,7 @@ export async function runExpoDev(options = {}) {
       readyFile: options.readyFile,
       applicationReadyFile: options.applicationReadyFile,
       database,
+      ...(options.writeEnvFile === undefined ? {} : { writeEnvFile: options.writeEnvFile }),
       runtimeBinary: options.runtimeBinary,
       env: backendEnv,
       portPlan,
@@ -2390,7 +2395,18 @@ export async function runExpoDev(options = {}) {
       serverStdio: options.serverStdio ?? ['ignore', 'ignore', 'ignore'],
       onEvent(event) {
         const bindingRotation = rotateBindingAfterLoad(event);
-        emit({ ok: event.ok !== false, state: 'backend-event', backend: event });
+        emit({
+          ok: event.ok !== false,
+          state: 'backend-event',
+          backend: event,
+          ...(typeof event.snapbackUrl === 'string' ? {
+            snapbackUrl: event.snapbackUrl,
+            androidEmulatorUrl: event.androidEmulatorUrl,
+          } : {}),
+          ...(event.environmentFile === undefined ? {} : {
+            environmentFile: event.environmentFile,
+          }),
+        });
         if (bindingRotation !== null) emit(bindingRotation);
       },
       onServerExit(code, signal) {
@@ -2872,6 +2888,9 @@ export async function runExpoDev(options = {}) {
         ? { status: 'ready', kind: 'session', authMode: 'sessions' }
         : authority,
       backend: { pid: dev.child?.pid ?? null, origin: backendRoute.origin },
+      snapbackUrl: dev.snapbackUrl,
+      androidEmulatorUrl: dev.androidEmulatorUrl,
+      ...(dev.environmentFile === null ? {} : { environmentFile: dev.environmentFile }),
       metro: metroReadiness,
       bootstrap: bootstrapReadiness,
       portPlan,
@@ -2968,6 +2987,9 @@ export async function runExpoDev(options = {}) {
       },
       exchangeOrigin: bootstrap.origin,
       metroOrigin: `http://${LOOPBACK_HOST}:${metroPort}`,
+      get snapbackUrl() { return dev.snapbackUrl; },
+      get androidEmulatorUrl() { return dev.androidEmulatorUrl; },
+      get environmentFile() { return dev.environmentFile; },
       get portPlan() { return portPlan; },
       get listeners() { return listeners; },
       verbs: dev.verbs,

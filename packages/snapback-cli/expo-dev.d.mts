@@ -316,6 +316,7 @@ export interface ExpoApplicationReadyProjection {
   readonly startupNonce: string;
   readonly hostReadyDescriptorDigest: string;
   readonly binding: Readonly<Record<string, unknown>>;
+  readonly admissionPosture: 'loopback-any' | 'explicit-list';
   readonly clientOrigins: readonly string[];
   readonly runtimeIdentity: Readonly<Record<string, unknown>>;
 }
@@ -332,6 +333,9 @@ export interface ExpoDevSupervisor {
   readonly applicationReady: ExpoApplicationReadyProjection;
   readonly exchangeOrigin: string;
   readonly metroOrigin: string;
+  readonly snapbackUrl: string;
+  readonly androidEmulatorUrl: string;
+  readonly environmentFile: Readonly<Record<string, unknown>> | null;
   readonly portPlan: DevPortPlan;
   readonly listeners: readonly ExpoOwnedListener[];
   readonly verbs: Readonly<Record<string, (...args: any[]) => Promise<unknown>>>;
@@ -342,6 +346,7 @@ export interface ExpoDevSupervisor {
 }
 
 export interface RunExpoDevOptions extends Readonly<Record<string, unknown>> {
+  readonly writeEnvFile?: string;
   readonly clientPort?: number;
   readonly bootstrapPort?: number;
   readonly portRange?: string;

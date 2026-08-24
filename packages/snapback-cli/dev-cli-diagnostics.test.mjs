@@ -38,6 +38,7 @@ let envPinnedRunDevOptions = null;
 assert.equal(await runCli([
   'dev', 'snapback', '--no-watch',
   '--external-client-origin', 'http://127.0.0.1:5173',
+  '--write-env', 'config/dev.env',
 ], {
   env: { SNAPBACK_DEV_PORT: '48100' },
   async runDev(options) {
@@ -50,6 +51,7 @@ assert.deepEqual(
   [{ owner: 'backend', port: 48100, source: 'pinned', declaredBy: 'env' }],
 );
 assert.equal(envPinnedRunDevOptions.externalClientOrigin, 'http://127.0.0.1:5173');
+assert.equal(envPinnedRunDevOptions.writeEnvFile, 'config/dev.env');
 
 let unpinnedRunDevCalled = false;
 await assert.rejects(

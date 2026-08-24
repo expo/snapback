@@ -39,6 +39,8 @@ assert.doesNotMatch(main, /new SnapbackClient|createSnapbackReactProvider|AuthCo
 assert.match(schemaSource, /kind:\s*'password'/u);
 assert.equal(descriptor.authBootstrap.format, 'snapback.application-auth-bootstrap.v1');
 assert(descriptor.capabilities.required.includes('auth.application-bootstrap.v1'));
+assert.equal(packageManifest.scripts.dev, 'snapback dev snapback --write-env');
+assert.equal(packageManifest.scripts['dev:client'], 'vite');
 assert.match(packageManifest.scripts.prove, /^snapback verify snapback /);
 assert.match(agentInstructions, /only done-oracle/);
 assert.equal(packageManifest.scripts['test:live'], undefined);

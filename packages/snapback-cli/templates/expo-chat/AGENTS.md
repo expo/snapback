@@ -1,7 +1,7 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin expo-chat digest=sha256:1a88ada3b13b4b7605f4067e469acd35201643c7844787fae9b9b35913ed2299 -->
+<!-- start-packet:begin expo-chat digest=sha256:26776dd44011c8f25d024bcfe5a96cebfba7444aa64cd816b3e7612a1e48cbf2 -->
 This packet is the whole required first read for this app (LLP 0259
 Rung A). Open the edit targets below and work; open one further Guide page
 only via `snapback guide <query>` or on a trigger — the brief is outside
@@ -10,9 +10,9 @@ this packet, a structured `SNAPBACK_*` refusal, or a failed `prove`.
 ## The loop
 
 Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
-→ `bun run generate` → `bun run dev` (supervises the Expo client; it never
-launches a device or simulator — Expo Go, a dev client, or
-`expo run:ios|android` is your job) → `bun run prove`.
+→ `bun run generate` → in two terminals, `bun run dev` (backend; writes
+`.env.local`) and `bun run dev:client` (Expo) → `bun run prove`. Use
+`bun run dev:supervised` for the optional Expo web supervisor.
 
 Before extending or ejecting the proof runner, read
 `node_modules/@expo/snapback-acceptance/README.md`; it is the supported
@@ -31,7 +31,7 @@ Migration: `test:live` was removed; use `npm test` for the same raw acceptance c
 <!-- script-glossary:end -->
 
 The native carrier owns simulator boot, drive, and screenshots. Self-started
-Metro must not inherit `CI=1` (it disables watching); prefer `bun run dev`.
+Metro must not inherit `CI=1` (it disables watching); use `bun run dev:client`.
 
 ## Edit targets (work files — listed, not charged to the first read)
 

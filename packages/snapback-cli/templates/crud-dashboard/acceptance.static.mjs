@@ -29,6 +29,8 @@ assert.match(appSource, /optimistic:\s*\{/);
 assert.match(appSource, /createProject/);
 assert.match(appSource, /updateProject/);
 assert.match(appSource, /deleteProject/);
+assert.equal(packageManifest.scripts.dev, 'snapback dev snapback --write-env');
+assert.equal(packageManifest.scripts['dev:client'], 'vite');
 assert.match(packageManifest.scripts.prove, /^snapback verify snapback /);
 assert.match(instructions, /only done-oracle/);
 assert.equal(packageManifest.scripts['test:live'], undefined);

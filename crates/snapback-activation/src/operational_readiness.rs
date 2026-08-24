@@ -183,6 +183,10 @@ pub struct ApplicationReadyReceiptV1 {
     pub auth: ApplicationReadyAuthV1,
     pub binding: AppBindingV1,
     pub client_origins: Vec<String>,
+    /// Optional reader-before-writer admission contract. A missing field is
+    /// read as the legacy explicit-list posture.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub admission_posture: Option<DevAdmissionPostureV1>,
     pub runtime_identity: ApplicationReadyRuntimeIdentityV1,
     pub capability_manifest_digest: String,
     pub network_profile: String,

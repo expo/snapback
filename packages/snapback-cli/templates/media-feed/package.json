@@ -6,7 +6,9 @@
   "packageManager": "bun@1.3.12",
   "scripts": {
     "generate": "snapback generate snapback",
-    "dev": "snapback dev snapback --expo",
+    "dev": "snapback dev snapback --write-env",
+    "dev:client": "expo start",
+    "dev:supervised": "snapback dev snapback --expo",
     "start": "expo start",
     "web": "expo start --web",
     "carry:headless": "node carrier.mjs headless",

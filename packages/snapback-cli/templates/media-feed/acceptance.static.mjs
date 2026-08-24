@@ -46,6 +46,9 @@ assert.equal(new Set([...nextHead, ...rolledArchive].map((row) => row._id)).size
 assert.equal(mergePagedArchive({ archive: rolledArchive, head: nextHead }), rolledArchive, 'stable deliveries preserve archive identity');
 assert.match(appSource, /registerExpoFileSystemRqsFiles/);
 assert.deepEqual(expoManifest.expo.platforms, ['ios', 'android', 'web']);
+assert.equal(packageManifest.scripts.dev, 'snapback dev snapback --write-env');
+assert.equal(packageManifest.scripts['dev:client'], 'expo start');
+assert.equal(packageManifest.scripts['dev:supervised'], 'snapback dev snapback --expo');
 assert.match(packageManifest.scripts.prove, /^snapback verify snapback /);
 assert.match(instructions, /only done-oracle/);
 assert.equal(packageManifest.scripts['test:live'], undefined);

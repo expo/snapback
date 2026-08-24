@@ -72,9 +72,12 @@ export const PACKAGE_TEST_INVENTORIES = [
       'cli-help.test.mjs',
       'comparator-profile.test.mjs',
       'declaration-suggestion-cli.test.mjs',
+      'dev-admission-posture.test.mjs',
       'dev-cli-diagnostics.test.mjs',
+      'dev-env-writer.test.mjs',
       'dev-loop.test.mjs',
       'dev-port-range.test.mjs',
+      'dev-session.test.mjs',
       'expo-bootstrap-exchange.test.mjs',
       'expo-dev-identity-checkout.test.mjs',
       'expo-device-forwarding.test.mjs',
@@ -584,7 +587,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 338,
+  expectedTotal = 341,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1087,6 +1090,10 @@ export function checkPackageTestInventories(options = {}) {
 // plan matrix, plain ranged-backend proof, and supervised refusal/allocation proof.
 // 335 -> 338 (2026-08-24, LLP 0302 Lane C): codegen, Expo admission/source
 // precedence, and client transport-episode batteries cover declared-dev.
+// 335 -> 338 (2026-08-24, LLP 0301 Lane B): @expo/snapback-cli gains the
+// admission-posture matrix, atomic env writer, and explicit dev-session suites.
+// 338 -> 341 (2026-08-24, LLP 0301+0302 integration): the union of both
+// lanes' suites — posture/writer/dev-session and the declared-dev batteries.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

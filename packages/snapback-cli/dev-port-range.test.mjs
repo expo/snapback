@@ -80,10 +80,11 @@ try {
   }
   assert.notEqual(spawnedEnvironment, null, 'managed runtime spawn was inspected');
   assert.equal(
-    Object.hasOwn(spawnedEnvironment, 'SNAPBACK_DEV_ADMISSION_POSTURE'),
-    false,
-    'a polluted parent posture must not reach the managed runtime child',
+    spawnedEnvironment.SNAPBACK_DEV_ADMISSION_POSTURE,
+    'loopback-any',
+    'a polluted parent posture must be overwritten by the managed lifecycle owner',
   );
+  assert.equal(Object.hasOwn(spawnedEnvironment, 'SNAPBACK_DEV_AUTH_ORIGINS'), false);
   assert.equal(dev.ok, true);
   const backendPort = Number(new URL(dev.serverUrl).port);
   assert.ok(backendPort >= range.lo && backendPort <= range.hi);

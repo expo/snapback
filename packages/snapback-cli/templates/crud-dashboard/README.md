@@ -7,7 +7,8 @@ Snapback backend.
 ```sh
 bun install
 bun run generate  # regenerate after editing snapback/schema.mjs or functions.mjs
-bun run dev       # supervised backend + Vite client
+bun run dev         # terminal 1: backend; writes .env.local
+bun run dev:client  # terminal 2: Vite client
 bun run prove     # registered acceptance; writes .snapback/verify-receipt.json
 ```
 
