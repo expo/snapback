@@ -49,6 +49,38 @@ Stated generally:
 This applies well beyond hashes: any derived identifier, fingerprint, digest, correlation token, or
 computed key.
 
+## Round 5: vary every axis the code derives from — and check for fixture collapse
+
+Round 4's rule was still too narrow. It said "exercise two distinct inputs" for a derived *value*.
+A later review found the same defect on a different axis, in a fix that had met every previously
+stated bar item on its first attempt.
+
+The production code derived **both** the user and the session from the authority. The test varied
+the *selected request* across lower/caller/upper — but every authority in the test was the same
+`user-m` / `session-m` pair. So this mutation, which discards the derivation entirely, stayed green:
+
+```rust
+let _ = Self::require_agent_grant_management_session(authority, "grant approval")?;
+let user_id = "user-m";
+```
+
+Every test authority *was* `user-m`, so all accepted/refused outcomes and every durable row were
+identical. In production, any valid management session could have approved that user's request.
+
+**Fixture collapse** is the second half of the same problem. The same fixture made the agent owner
+equal to the caller, so a mutation writing the agent owner as `effective_user_id` was also
+indistinguishable — grants would misbind in production wherever owner and grantor differ.
+
+Stated generally:
+
+> **Vary every axis the production code derives from, and make every role in the fixture distinct.**
+> If the code derives N facts from an input, a test holding that input constant proves none of them.
+> If two roles in a fixture happen to be equal, a mutation swapping them is invisible.
+
+Practical requirement: before writing assertions, list the role pairs in the fixture — owner vs
+caller, grantor vs owner, subject vs session-owner — and state for each whether they are distinct.
+Any pair left equal is an axis the tests cannot see.
+
 ## The rule this yields
 
 > **For every assertion, ask where the expected value comes from.** If it comes from the same read
