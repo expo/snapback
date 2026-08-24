@@ -83,12 +83,12 @@
     {
       "id": "d0-6-metering-tests",
       "status": "pass",
-      "observed": "68/68 metering tests pass, covering complete replay, exact executing-source closure and dependency/schema mutation negatives, live process/port re-probes, CAS-safe exclusive ownership, invalid-prefix and second-attempt refusals, all-step crash-resumable finalize-existing publication, real published-slot validation, provenance/target negatives, pre-attempt import ordering, no-launch evidence-laundering refusal, and immutable materialization."
+      "observed": "80/80 metering tests pass, covering complete replay, exact executing-source closure and dependency/schema mutation negatives, inherited loader/preload refusal and scrubbing, a second live post-preflight process/port probe, CAS-safe exclusive ownership, canonical private-path refusal, invalid-prefix and second-attempt refusals, exact coverage-manifest binding, all-step crash-resumable finalize-existing publication, real published-slot validation, provenance/target negatives, raw-manifest zero-write validation, pre-attempt import ordering, no-launch evidence-laundering refusal, and immutable materialization."
     },
     {
       "id": "versioned-instrument-materialization",
       "status": "fail",
-      "observed": "Recovered cell 1 remains bound to immutable instrument manifest 8a13dcc5. Continuation requires a new non-overwriting snapshot at /Users/ccheever/bench-matrix-20260823-r2/instrument-resume-20260824, materialized from resume manifest sha256:a065634564c901ae9e2665e0dde18e4ebe8aa4b2ec337c0a6b966b2ea35024e4 by the registered refusal-on-overwrite tool.",
+      "observed": "Recovered cell 1 remains bound to immutable instrument manifest 8a13dcc5. Continuation requires a new non-overwriting snapshot at /Users/ccheever/bench-matrix-20260823-r2/instrument-resume-20260824, materialized from resume manifest sha256:7934976c3bbd93869da20f8f379e7fd259e3a400457ebe27c22d16f04501957e by the registered refusal-on-overwrite tool.",
       "detail": "Run the recovery-resume.v4 materializationCommand after this commit lands and before admission. The old /instrument archive and cell-1 snapshot remain untouched."
     },
     {
@@ -124,7 +124,7 @@
       "id": "production-controller-driver",
       "status": "pass",
       "observed": "All twelve cells carry an exact lane-controller --driver command; validate-plan resolves every command, CLI binary, cell, and 0.3.3-m8 pin.",
-      "detail": "Admission binds the exact Node/controller/argv/driver, instrument, host, adapter policy, source closure, and exclusive lock. The controller imports and preflights the driver before minting an attempt, then immediately rechecks the closure and atomic claim before its first private write."
+      "detail": "Admission binds the exact Node/controller/argv/driver, clean no-loader/preload environment, instrument, host, adapter policy, source closure, and exclusive lock. The controller imports and preflights the driver before minting an attempt, then immediately rechecks the closure, atomic claim, and actual process/port quiet before its first private write; the native harness receives the loader environment scrubbed."
     },
     {
       "id": "dry-run-lifecycle",

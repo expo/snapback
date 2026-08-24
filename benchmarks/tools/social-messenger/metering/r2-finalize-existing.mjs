@@ -19,6 +19,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { validateSocialMessengerRunRecord } from "../record-validator.mjs";
+import { validateCoverageManifestBytes } from "./coverage-manifest.mjs";
 import {
   admissionIdentity,
   allCampaignPorts,
@@ -37,6 +38,7 @@ import {
 import { joinUsageToMilestones } from "./joiner.mjs";
 import { loadMeteringManifest } from "./manifest.mjs";
 import { composeRunRecord } from "./record-composer.mjs";
+import { inspectPrivateCellPath } from "./r2-private-paths.mjs";
 import {
   collectHashDescriptors,
   isFinalizedStatus,
@@ -171,8 +173,11 @@ function observationSourcesFromRetainedEvidence(cellRoot, manifest) {
   return [...byId.values()];
 }
 
-function updateManifestObservations(cellRoot, manifestPath) {
+function updateManifestObservations(cellRoot, manifestPath, expectedBytes) {
   const bytes = readRegular(manifestPath, cellRoot, "metering manifest");
+  if (!bytes.equals(expectedBytes)) {
+    throw new Error("R2_FINALIZE_REFUSAL: retained metering manifest changed after pre-write identity validation");
+  }
   const manifest = JSON.parse(bytes.toString("utf8"));
   const observations = observationSourcesFromRetainedEvidence(cellRoot, manifest);
   if (sameJson(manifest.observations ?? [], observations)) return manifest;
@@ -206,10 +211,119 @@ function checkedRetainedDescriptor(cellRoot, value, label, expectedPath) {
   if (actual.sha256 !== expectedSha256) {
     throw new Error(`R2_FINALIZE_REFUSAL: ${label} digest mismatch`);
   }
-  return {
-    ...actual,
-    value: JSON.parse(readRegular(resolve(cellRoot, expectedPath), cellRoot, label).toString("utf8")),
-  };
+  const bytes = readRegular(resolve(cellRoot, expectedPath), cellRoot, label);
+  return { ...actual, bytes, value: JSON.parse(bytes.toString("utf8")) };
+}
+
+function validateRetainedCoverage({ cellRoot, base, manifest, expectedMilestones }) {
+  const coverage = base.socialMessenger?.coverageManifest;
+  const manifestCoverage = manifest.coverageManifest ?? null;
+  if (coverage?.validated !== true && coverage?.sha256 === null && manifestCoverage === null) return null;
+  if (coverage?.path !== "coverage-manifest.json" || coverage.validated !== true) {
+    throw new Error("R2_FINALIZE_REFUSAL: retained coverage manifest is not validation-qualified");
+  }
+  const coverageBytes = readRegular(
+    resolve(cellRoot, coverage.path),
+    cellRoot,
+    "retained coverage manifest",
+  );
+  const assertion = checkedRetainedDescriptor(
+    cellRoot,
+    base.socialMessenger?.assertionManifest,
+    "retained assertion manifest",
+    "schema/social-messenger/assertions.json",
+  );
+  const validated = validateCoverageManifestBytes({
+    coverageBytes,
+    assertionBytes: assertion.bytes,
+    expectedMilestones,
+    runScope: base.socialMessenger.runScope,
+    instrumentPin: base.socialMessenger.instrumentVersion,
+  });
+  if (
+    (coverage.sha256 !== null && coverage.sha256 !== validated.sha256)
+    || (manifestCoverage !== null && (
+      manifestCoverage.path !== coverage.path || manifestCoverage.sha256 !== validated.sha256
+    ))
+  ) {
+    throw new Error("R2_FINALIZE_REFUSAL: retained coverage digest differs from its record/manifest binding");
+  }
+  return { path: coverage.path, sha256: validated.sha256 };
+}
+
+function assertRawRetainedManifestIdentity({
+  harnessConfig,
+  cell,
+  attempt,
+  ownershipFinal,
+  cellRoot,
+  manifestBytes,
+}) {
+  const manifest = JSON.parse(manifestBytes.toString("utf8"));
+  const expected = registeredCellExpectations(harnessConfig, cell);
+  const baseArtifact = checkedRetainedDescriptor(
+    cellRoot,
+    manifest.recordBase,
+    "retained record base",
+    "record-base.json",
+  );
+  const base = baseArtifact.value;
+  const attemptStartedAt = Date.parse(attempt.timestamps?.attemptStartedAt);
+  const driverStartedAt = Date.parse(manifest.driver?.startedAt);
+  const nativeStartedAt = Date.parse(ownershipFinal.nativeHarnessStartedAt);
+  const driverStampedAt = Date.parse(manifest.driver?.stampedAt);
+  if (
+    manifest.laneRunId !== expected.laneRunId
+    || manifest.driver?.id !== "social-messenger-r2-native-cli-driver.v1"
+    || manifest.capFamily !== expected.capFamily
+    || manifest.adapter !== expected.adapter
+    || base.harness?.model !== expected.model
+    || base.socialMessenger?.capFamily !== expected.capFamily
+    || !sameJson(attempt.registeredCell, expected)
+    || !Number.isInteger(ownershipFinal.nativeHarnessPid)
+    || ownershipFinal.nativeHarnessPid <= 0
+    || ownershipFinal.nativeHarness?.pid !== ownershipFinal.nativeHarnessPid
+    || ownershipFinal.nativeHarness?.harnessKey !== expected.harnessKey
+    || ownershipFinal.nativeHarness?.adapter !== manifest.adapter
+    || !sameJson(ownershipFinal.nativeHarness?.sessions, retainedSessionOwnership(manifest))
+    || ownershipFinal.nativeHarness?.driverStartedAt !== manifest.driver.startedAt
+    || ownershipFinal.nativeHarness?.driverStampedAt !== manifest.driver.stampedAt
+    || ownershipFinal.updatedAt !== manifest.driver.stampedAt
+    || !Number.isFinite(attemptStartedAt)
+    || !Number.isFinite(driverStartedAt)
+    || !Number.isFinite(nativeStartedAt)
+    || !Number.isFinite(driverStampedAt)
+    || attemptStartedAt > driverStartedAt
+    || driverStartedAt > nativeStartedAt
+    || nativeStartedAt > driverStampedAt
+    || (expected.nativeCounts === "required" && (
+      manifest.adapter === "unavailable" || !Array.isArray(manifest.sessions) || manifest.sessions.length === 0
+    ))
+    || (expected.nativeCounts === "registered-unavailable" && (
+      expected.harnessKey !== "grok-46"
+      || manifest.adapter !== "unavailable"
+      || manifest.sessions?.length !== 0
+      || manifest.unavailableReason !== expected.unavailableReason
+    ))
+  ) {
+    throw new Error("R2_FINALIZE_REFUSAL: retained raw manifest/base/session/process identity differs from the registered attempt");
+  }
+  for (const [path, expectedSha256] of collectHashDescriptors(manifest)) {
+    const actualSha256 = digest(readRegular(resolve(cellRoot, path), cellRoot, `retained manifest evidence ${path}`));
+    const normalizedExpected = expectedSha256.startsWith("sha256:")
+      ? expectedSha256
+      : `sha256:${expectedSha256}`;
+    if (actualSha256 !== normalizedExpected) {
+      throw new Error(`R2_FINALIZE_REFUSAL: retained raw manifest evidence digest differs at ${path}`);
+    }
+  }
+  const coverage = validateRetainedCoverage({
+    cellRoot,
+    base,
+    manifest,
+    expectedMilestones: harnessConfig.execution.milestones,
+  });
+  return { manifest, base, coverage };
 }
 
 function assertAttemptProvenance({
@@ -277,6 +391,7 @@ function assertAttemptProvenance({
     controllerPath: liveExecution.controller.path,
     driverPath: liveExecution.driver.path,
     argv: liveExecution.argv,
+    environment: liveExecution.environment,
   };
   const harness = harnessConfig.harnesses?.[cell.harness];
   const instrumentManifestPath = resolve(repositoryRoot, harnessConfig.pins.instrument.manifestPath);
@@ -513,8 +628,9 @@ function assertRetainedCellIdentity({
   }
 }
 
-function publicationEvidence(record, manifest, provenance) {
+function publicationEvidence(record, manifest, provenance, coverage) {
   const paths = collectHashDescriptors({ record, manifest, provenance });
+  if (coverage !== null) paths.set(coverage.path, coverage.sha256);
   for (const path of ["metering-manifest.json", "record-base.json", "metering.json", "record.json"]) {
     paths.set(path, null);
   }
@@ -535,9 +651,9 @@ function publicationProvenance(cellRoot, attempt) {
   };
 }
 
-function makePublicationManifest(cellRoot, cellId, record, manifest, attempt) {
+function makePublicationManifest(cellRoot, cellId, record, manifest, attempt, coverage) {
   const provenance = publicationProvenance(cellRoot, attempt);
-  const expected = publicationEvidence(record, manifest, provenance);
+  const expected = publicationEvidence(record, manifest, provenance, coverage);
   const files = [];
   for (const [path, registeredSha256] of [...expected].sort(([left], [right]) => left.localeCompare(right))) {
     const value = descriptor(cellRoot, path);
@@ -780,13 +896,12 @@ export async function finalizeExisting({
   liveSourceClosure({ harnessConfig, repositoryRoot });
   const cell = harnessConfig.cells.find((candidate) => candidate.id === cellId);
   if (!cell) throw new Error(`R2_FINALIZE_REFUSAL: unknown cell ${cellId}`);
-  const cellRoot = resolve(harnessConfig.paths.privateExecutionRoot, "cells", cellId);
-  if (
-    !inside(resolve(harnessConfig.paths.privateExecutionRoot), cellRoot)
-    || lstatSync(cellRoot).isSymbolicLink()
-  ) {
-    throw new Error("R2_FINALIZE_REFUSAL: private cell is not canonically contained in the registered private root");
-  }
+  const cellRoot = inspectPrivateCellPath({
+    harnessConfig,
+    cellId,
+    requireCells: true,
+    requireCell: true,
+  }).cellRoot;
   const attempt = JSON.parse(
     readRegular(join(cellRoot, "attempt.json"), cellRoot, "private attempt").toString("utf8"),
   );
@@ -800,6 +915,16 @@ export async function finalizeExisting({
     configBytes,
     repositoryRoot,
     observedHostIdentity,
+  });
+  const manifestPath = join(cellRoot, "metering-manifest.json");
+  const retainedManifestBytes = readRegular(manifestPath, cellRoot, "retained metering manifest");
+  const retainedIdentity = assertRawRetainedManifestIdentity({
+    harnessConfig,
+    cell,
+    attempt,
+    ownershipFinal: provenance.ownershipFinal,
+    cellRoot,
+    manifestBytes: retainedManifestBytes,
   });
   const seriality = await (dependencies.inspectSeriality ?? inspectFinalizationSeriality)({
     harnessConfig,
@@ -835,8 +960,7 @@ export async function finalizeExisting({
     // No derived/private or publication write occurs until the finalizer has
     // rebound the exact executing closure immediately after the quiet probe.
     liveSourceClosure({ harnessConfig, repositoryRoot });
-    const manifestPath = join(cellRoot, "metering-manifest.json");
-    const manifest = updateManifestObservations(cellRoot, manifestPath);
+    const manifest = updateManifestObservations(cellRoot, manifestPath, retainedManifestBytes);
     const metering = joinUsageToMilestones(await loadMeteringManifest(realpathSync(manifestPath)));
     const meteringBytes = Buffer.from(`${JSON.stringify(metering, null, 2)}\n`);
     const base = JSON.parse(readRegular(
@@ -866,7 +990,14 @@ export async function finalizeExisting({
     });
     writeExactOrAbsent(join(cellRoot, "metering.json"), meteringBytes);
     writeExactOrAbsent(join(cellRoot, "record.json"), recordBytes);
-    const publication = makePublicationManifest(cellRoot, cellId, record, manifest, attempt);
+    const publication = makePublicationManifest(
+      cellRoot,
+      cellId,
+      record,
+      manifest,
+      attempt,
+      retainedIdentity.coverage,
+    );
     const publicationBytes = Buffer.from(`${JSON.stringify(publication, null, 2)}\n`);
     writeExactOrAbsent(join(cellRoot, "publication-manifest.json"), publicationBytes);
     const published = shouldPublish

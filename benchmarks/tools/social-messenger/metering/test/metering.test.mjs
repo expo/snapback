@@ -8,6 +8,9 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
+  realpath,
+  rename,
   rm,
   stat,
   symlink,
@@ -15,7 +18,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import test from "node:test";
 
@@ -44,6 +47,7 @@ import {
   R2_DRIVER_V1_TERMINAL_RULE,
 } from "../manifest.mjs";
 import {
+  completeAdmittedDriverPreflight,
   importAndPreflightR2Driver,
   loadLaneControllerConfig,
   R2LaneController,
@@ -68,6 +72,10 @@ import {
   claimExclusiveHostLock,
   releaseExclusiveHostLock,
 } from "../r2-host-lock.mjs";
+import {
+  assertR2ExecutionEnvironment,
+  scrubR2NodeLoaderEnvironment,
+} from "../r2-execution-environment.mjs";
 import { materializeInstrumentSnapshot } from "../../../materialize-instrument.mjs";
 import {
   OBSERVABILITY_BLOCKS,
@@ -140,6 +148,28 @@ function nullCounts() {
 
 function sha256(text) {
   return `sha256:${createHash("sha256").update(text).digest("hex")}`;
+}
+
+async function snapshotTree(root) {
+  const snapshot = {};
+  async function visit(directory) {
+    const entries = (await readdir(directory, { withFileTypes: true }))
+      .sort((left, right) => left.name.localeCompare(right.name));
+    for (const entry of entries) {
+      const path = join(directory, entry.name);
+      const logical = relative(root, path).split("/").join("/");
+      if (entry.isDirectory()) {
+        snapshot[`${logical}/`] = "directory";
+        await visit(path);
+      } else if (entry.isFile()) {
+        snapshot[logical] = sha256(await readFile(path));
+      } else {
+        snapshot[logical] = "non-regular";
+      }
+    }
+  }
+  await visit(root);
+  return snapshot;
 }
 
 function immediateController(id = "fixture-enforcer") {
@@ -721,7 +751,7 @@ test("retained real Claude descendant tree is hash-bound and fully aggregated", 
 });
 
 test("lane manifest rejects source-hash and receipt-identity mismatches", async (t) => {
-  const directory = await mkdtemp(join(tmpdir(), "snapback-metering-manifest-"));
+  const directory = await realpath(await mkdtemp(join(tmpdir(), "snapback-metering-manifest-")));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const artifactNames = [
     "real-claude-tree-parent.jsonl",
@@ -760,7 +790,7 @@ test("lane manifest rejects source-hash and receipt-identity mismatches", async 
 });
 
 test("meter binds suite-status bytes to receipts at record-write time", async (t) => {
-  const directory = await mkdtemp(join(tmpdir(), "snapback-suite-binding-"));
+  const directory = await realpath(await mkdtemp(join(tmpdir(), "snapback-suite-binding-")));
   t.after(() => rm(directory, { recursive: true, force: true }));
 
   const r2HarnessPath = join(directory, "harness-config.json");
@@ -929,7 +959,7 @@ test("meter binds suite-status bytes to receipts at record-write time", async (t
 });
 
 test("lane observation harness samples load and records lifecycle and API retries", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "lane-observation-harness-"));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "lane-observation-harness-")));
   t.after(() => rm(root, { recursive: true, force: true }));
   const path = join(root, "driver-observations.jsonl");
   let tick = 0;
@@ -1513,7 +1543,7 @@ test("recovered signal handoff cannot be replaced by an arbitrary overlapping pr
     "benchmarks/runs/2026-08-23-r2-published-0125/cells/sol-clique-explicit/",
     ROOT,
   ));
-  const temp = await mkdtemp(join(tmpdir(), "r2-handoff-mutation-"));
+  const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-handoff-mutation-")));
   await cp(sourceRoot, temp, { recursive: true });
   try {
     const eventPath = join(temp, "events/lane-controller-observations.jsonl");
@@ -1588,7 +1618,7 @@ test("current R2 validates the complete immutable commandless FileChange set", a
   ];
   for (const [label, mutate, mutateSourceId = false] of mutations) {
     await context.test(label, async () => {
-      const temp = await mkdtemp(join(tmpdir(), "r2-file-change-mutation-"));
+      const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-file-change-mutation-")));
       await cp(sourceRoot, temp, { recursive: true });
       try {
         const eventPath = join(temp, "events/codex-file-change-observations.jsonl");
@@ -1644,7 +1674,7 @@ test("direct campaign controller command refuses before any prepare or native la
 });
 
 test("production driver import and preflight failures precede the attempt/private-cell boundary", async () => {
-  const temp = await mkdtemp(join(tmpdir(), "r2-pre-attempt-import-"));
+  const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-pre-attempt-import-")));
   const configDirectory = join(temp, "never-created-cell");
   try {
     const loaded = await loadLaneControllerConfig({
@@ -1688,11 +1718,150 @@ test("production driver import and preflight failures precede the attempt/privat
   }
 });
 
+test("controller re-probes actual process and port quiet after driver preflight and before attempt creation", async () => {
+  const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-second-quiet-probe-")));
+  const configDirectory = join(temp, "private", "cells", "cell-1");
+  await mkdir(join(temp, "private"));
+  const config = {
+    repositoryRoot: temp,
+    harnessConfig: {
+      runId: "fixture-r2",
+      paths: { privateExecutionRoot: join(temp, "private") },
+    },
+    cell: { id: "cell-1" },
+  };
+  const seriality = {
+    gitHead: "fixture-head",
+    committedPrefix: [],
+    requestedIndex: 0,
+    laterPristine: [],
+    privateCellState: "absent",
+  };
+  let contaminated = false;
+  let probes = 0;
+  const dependencies = {
+    inspectSeriality: async () => seriality,
+    verifyAdmission: () => {},
+    liveSourceClosure: () => {},
+    importDriver: async () => {
+      contaminated = true;
+      return { driver: { runMilestone: async () => {} }, preflight: { ok: true } };
+    },
+    probeLaunchQuiet: async () => {
+      probes += 1;
+      if (contaminated) throw new Error("R2_ADMISSION_PORTS: preflight-bound registered port");
+      return { ok: true };
+    },
+  };
+  try {
+    await assert.rejects(completeAdmittedDriverPreflight({
+      config,
+      configDirectory,
+      artifact: {},
+      harnessConfigPath: join(temp, "harness-config.json"),
+      admissionPath: join(temp, "admission.json"),
+      actualExecution: {},
+      claim: {},
+      driverPath: join(temp, "driver.mjs"),
+      dependencies,
+    }), /preflight-bound registered port/u);
+    assert.equal(probes, 2);
+    await assert.rejects(stat(configDirectory), { code: "ENOENT" });
+
+    contaminated = false;
+    probes = 0;
+    const retry = await completeAdmittedDriverPreflight({
+      config,
+      configDirectory,
+      artifact: {},
+      harnessConfigPath: join(temp, "harness-config.json"),
+      admissionPath: join(temp, "admission.json"),
+      actualExecution: {},
+      claim: {},
+      driverPath: join(temp, "driver.mjs"),
+      dependencies: {
+        ...dependencies,
+        importDriver: async () => ({
+          driver: { runMilestone: async () => {} },
+          preflight: { ok: true },
+        }),
+      },
+    });
+    assert.equal(retry.preflight.ok, true);
+    assert.equal(probes, 2);
+    await assert.rejects(stat(configDirectory), { code: "ENOENT" });
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
+test("R2 controller rejects inherited Node loaders before state and accepts the scrubbed posture", async () => {
+  const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-node-loader-environment-")));
+  const privateRoot = join(temp, "private");
+  const configPath = join(temp, "harness-config.json");
+  const preloadPath = join(temp, "preload.mjs");
+  const markerPath = join(temp, "preload-ran.txt");
+  const config = JSON.parse(await readFile(new URL(
+    "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json",
+    ROOT,
+  ), "utf8"));
+  config.paths.privateExecutionRoot = privateRoot;
+  config.execution.exclusiveHostLock.path = join(privateRoot, "locks", "host.lock");
+  await mkdir(privateRoot);
+  await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`);
+  await writeFile(preloadPath, [
+    'import { appendFileSync } from "node:fs";',
+    'appendFileSync(process.env.R2_PRELOAD_MARKER, "loaded\\n");',
+    "",
+  ].join("\n"));
+  const argv = [
+    "benchmarks/tools/social-messenger/metering/lane-controller.mjs",
+    "--harness-config", configPath,
+    "--cell", "sol-clique-familiar",
+    "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs",
+  ];
+  const cleanEnvironment = scrubR2NodeLoaderEnvironment(process.env);
+  try {
+    await assert.rejects(execFileAsync(process.execPath, argv, {
+      cwd: ROOT_PATH,
+      env: {
+        ...cleanEnvironment,
+        NODE_OPTIONS: `--import=${pathToFileURL(preloadPath).href}`,
+        R2_PRELOAD_MARKER: markerPath,
+      },
+    }), (error) => {
+      assert.match(error.stderr, /R2_EXECUTION_ENVIRONMENT/u);
+      return true;
+    });
+    assert.equal(await readFile(markerPath, "utf8"), "loaded\n");
+    await assert.rejects(stat(join(privateRoot, "cells")), { code: "ENOENT" });
+
+    await assert.rejects(execFileAsync(process.execPath, argv, {
+      cwd: ROOT_PATH,
+      env: cleanEnvironment,
+    }), (error) => {
+      assert.match(error.stderr, /R2_ADMISSION_REQUIRED/u);
+      assert.doesNotMatch(error.stderr, /R2_EXECUTION_ENVIRONMENT/u);
+      return true;
+    });
+    await assert.rejects(stat(join(privateRoot, "cells")), { code: "ENOENT" });
+    assert.throws(
+      () => assertR2ExecutionEnvironment({ harnessConfig: config, environment: { NODE_PATH: "/tmp/foreign" } }),
+      /R2_EXECUTION_ENVIRONMENT/u,
+    );
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
 test("admission refuses an unrecorded private cell instead of permitting a rerun", async () => {
-  const temp = await mkdtemp(join(tmpdir(), "r2-admission-pristine-"));
+  const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-admission-pristine-")));
   try {
     const committedRoot = join(temp, "run");
-    await mkdir(join(committedRoot, "cells/cell-2"), { recursive: true });
+    await Promise.all([
+      mkdir(join(committedRoot, "cells/cell-2"), { recursive: true }),
+      mkdir(join(temp, "private")),
+    ]);
     await writeFile(join(committedRoot, "cells/cell-2/cell.json"), JSON.stringify({
       schemaVersion: "snapback.r2-cell-slot.v1",
       cellId: "cell-2",
@@ -1718,7 +1887,7 @@ test("admission refuses an unrecorded private cell instead of permitting a rerun
 });
 
 async function makeFinalizedPrefixFixture() {
-  const temp = await mkdtemp(join(tmpdir(), "r2-finalized-prefix-"));
+  const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-finalized-prefix-")));
   const cellId = "sol-clique-explicit";
   const cellRoot = join(temp, "run", "cells", cellId);
   await Promise.all([
@@ -1730,6 +1899,7 @@ async function makeFinalizedPrefixFixture() {
       recursive: true,
     }),
     mkdir(join(temp, "run", "cells", "next-cell"), { recursive: true }),
+    mkdir(join(temp, "private")),
   ]);
   await writeFile(join(temp, "run", "cells", "next-cell", "cell.json"), `${JSON.stringify({
     schemaVersion: "snapback.r2-cell-slot.v1",
@@ -1864,8 +2034,9 @@ test("launch quiet re-probe catches delayed campaign process and port appearance
 });
 
 test("stale host-lock recovery is explicit and scoped without authorizing a rerun", async () => {
-  const temp = await mkdtemp(join(tmpdir(), "r2-stale-lock-"));
+  const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-stale-lock-")));
   try {
+    await mkdir(join(temp, "private"));
     const harnessConfig = {
       runId: "fixture-run",
       paths: { privateExecutionRoot: join(temp, "private") },
@@ -1911,8 +2082,9 @@ test("stale host-lock recovery is explicit and scoped without authorizing a reru
 });
 
 test("stale recovery cannot overwrite a controller claim acquired after its inspected snapshot", async () => {
-  const temp = await mkdtemp(join(tmpdir(), "r2-stale-lock-cas-"));
+  const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-stale-lock-cas-")));
   try {
+    await mkdir(join(temp, "private"));
     const harnessConfig = {
       runId: "fixture-run",
       paths: { privateExecutionRoot: join(temp, "private") },
@@ -1974,8 +2146,9 @@ test("stale recovery cannot overwrite a controller claim acquired after its insp
 });
 
 test("per-cell admission binds exact execution, probes after sampling, and owns one exclusive lock", async () => {
-  const temp = await mkdtemp(join(tmpdir(), "r2-admission-"));
+  const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-admission-")));
   try {
+    await mkdir(join(temp, "private"));
     const materializedRoot = join(temp, "instrument");
     materializeInstrumentSnapshot({
       sourceRoot: fileURLToPath(new URL("benchmarks/", ROOT)),
@@ -2083,6 +2256,7 @@ test("per-cell admission binds exact execution, probes after sampling, and owns 
       controllerPath: artifact.execution.controller.path,
       driverPath: artifact.execution.driver.path,
       argv: artifact.execution.argv,
+      environment: artifact.execution.environment,
     };
     for (const [label, mutate] of [
       ["Node", (value) => { value.execPath = artifact.execution.controller.path; }],
@@ -2232,7 +2406,7 @@ test("executing source closure refuses dirty imported dependency and schema byte
     "benchmarks/tools/social-messenger/metering/counts.mjs",
     "benchmarks/schema/social-messenger/run-record.schema.json",
   ]) {
-    const temp = await mkdtemp(join(tmpdir(), "r2-source-closure-mutation-"));
+    const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-source-closure-mutation-")));
     try {
       await cp(
         join(ROOT_PATH, "benchmarks/tools/social-messenger/metering"),
@@ -2265,7 +2439,7 @@ test("executing source closure refuses dirty imported dependency and schema byte
 });
 
 async function makeFinalizeExistingFixture({ targetOutsideRepository = false } = {}) {
-  const temp = await mkdtemp(join(tmpdir(), "r2-finalize-existing-"));
+  const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-finalize-existing-")));
   const registeredRunRoot = await mkdtemp(join(ROOT_PATH, "benchmarks/runs/.r2-finalize-existing-"));
   const publicationRunRoot = targetOutsideRepository ? join(temp, "escaped-run") : registeredRunRoot;
   const cellId = "sol-clique-explicit";
@@ -2313,6 +2487,7 @@ async function makeFinalizeExistingFixture({ targetOutsideRepository = false } =
   await Promise.all([
     mkdir(dirname(admissionPath), { recursive: true }),
     mkdir(targetCell, { recursive: true }),
+    mkdir(join(temp, "private")),
   ]);
   const configBytes = Buffer.from(`${JSON.stringify(sourceConfig, null, 2)}\n`);
   await writeFile(configPath, configBytes);
@@ -2425,6 +2600,7 @@ async function makeFinalizeExistingFixture({ targetOutsideRepository = false } =
     controllerPath: execution.controller.path,
     driverPath: execution.driver.path,
     argv: execution.argv,
+    environment: execution.environment,
   };
   const claim = {
     declaration: {
@@ -2538,6 +2714,7 @@ test("finalize-existing publishes the complete provenance graph and resumes ever
     const publication = JSON.parse(await readFile(join(fixture.privateCell, "publication-manifest.json"), "utf8"));
     assert.ok(publication.files.some((file) => file.path === "rendered-prompt.md"));
     assert.ok(publication.files.some((file) => file.path === "schema/social-messenger/assertions.json"));
+    assert.ok(publication.files.some((file) => file.path === "coverage-manifest.json"));
     assert.ok(publication.files.some((file) => file.path === "provenance/admission.json"));
     assert.ok(publication.files.some((file) => file.path === "attempt-failure.json"));
     const failure = JSON.parse(await readFile(join(fixture.privateCell, "attempt-failure.json"), "utf8"));
@@ -2571,6 +2748,27 @@ test("finalize-existing publishes the complete provenance graph and resumes ever
         requireCommitted: false,
       });
     }
+    const publishedCoveragePath = join(fixture.targetCell, "coverage-manifest.json");
+    const publishedCoverageBytes = await readFile(publishedCoveragePath);
+    await writeFile(publishedCoveragePath, Buffer.concat([
+      publishedCoverageBytes,
+      Buffer.from("\n"),
+    ]));
+    await assert.rejects(validateFinalizedCellSlot({
+      slotPath: join(fixture.targetCell, "cell.json"),
+      cellId: fixture.cellId,
+      repositoryRoot: ROOT_PATH,
+      expectedMilestones: ["M1", "M2", "M3"],
+      requireCommitted: false,
+    }), /coverage|digest|hash-linked|validation-required evidence graph/u);
+    await writeFile(publishedCoveragePath, publishedCoverageBytes);
+    await validateFinalizedCellSlot({
+      slotPath: join(fixture.targetCell, "cell.json"),
+      cellId: fixture.cellId,
+      repositoryRoot: ROOT_PATH,
+      expectedMilestones: ["M1", "M2", "M3"],
+      requireCommitted: false,
+    });
     assert.deepEqual(await readFile(join(fixture.privateCell, "metering.json")), fixture.expectedMetering);
     assert.deepEqual(await readFile(join(fixture.privateCell, "record.json")), fixture.expectedRecord);
   } finally {
@@ -2631,8 +2829,12 @@ test("publication preflights a divergent later copy before creating any earlier 
   }
 });
 
-test("finalize-existing refuses missing prompt/assertion evidence and escaped or symlinked publication targets", async (context) => {
-  for (const path of ["rendered-prompt.md", "schema/social-messenger/assertions.json"]) {
+test("finalize-existing refuses missing prompt/assertion/coverage evidence and escaped or symlinked publication targets", async (context) => {
+  for (const path of [
+    "rendered-prompt.md",
+    "schema/social-messenger/assertions.json",
+    "coverage-manifest.json",
+  ]) {
     await context.test(`missing ${path}`, async () => {
       const fixture = await makeFinalizeExistingFixture();
       try {
@@ -2649,6 +2851,29 @@ test("finalize-existing refuses missing prompt/assertion evidence and escaped or
       }
     });
   }
+
+  await context.test("altered coverage-manifest.json", async () => {
+    const fixture = await makeFinalizeExistingFixture();
+    try {
+      const path = join(fixture.privateCell, "coverage-manifest.json");
+      const coverage = JSON.parse(await readFile(path, "utf8"));
+      coverage.milestones.m1 = coverage.milestones.m1.slice(1);
+      await writeFile(path, `${JSON.stringify(coverage, null, 2)}\n`);
+      await assert.rejects(finalizeExisting({
+        harnessConfigPath: fixture.configPath,
+        cellId: fixture.cellId,
+        publish: true,
+        reservedBy: "altered-coverage-evidence-test",
+        dependencies: fixture.dependencies,
+      }), /R2_COVERAGE_MANIFEST|coverage/u);
+      assert.equal(
+        (await readFile(join(fixture.targetCell, "cell.json"), "utf8")).includes('"status": "not-started"'),
+        true,
+      );
+    } finally {
+      await fixture.cleanup();
+    }
+  });
 
   await context.test("registered run-root escape", async () => {
     const fixture = await makeFinalizeExistingFixture({ targetOutsideRepository: true });
@@ -2756,8 +2981,150 @@ test("finalize-existing rejects relabeled unavailable counts and forged attempt 
   }
 });
 
+test("finalize-existing validates the raw retained manifest before any private derived write", async () => {
+  const fixture = await makeFinalizeExistingFixture();
+  try {
+    const manifestPath = join(fixture.privateCell, "metering-manifest.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    manifest.laneRunId = `${fixture.harnessConfig.runId}/forged-cell`;
+    manifest.observations = manifest.observations.slice(1);
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    const privateRoot = join(fixture.temp, "private");
+    const before = await snapshotTree(privateRoot);
+    await assert.rejects(finalizeExisting({
+      harnessConfigPath: fixture.configPath,
+      cellId: fixture.cellId,
+      publish: true,
+      reservedBy: "raw-manifest-zero-write-test",
+      dependencies: fixture.dependencies,
+    }), /raw manifest|registered attempt/u);
+    assert.deepEqual(await snapshotTree(privateRoot), before);
+    await assert.rejects(stat(join(fixture.privateCell, "recovery/metering-manifest.before-finalize.json")), {
+      code: "ENOENT",
+    });
+    await assert.rejects(stat(join(fixture.privateCell, "cell.json.finalize-next")), { code: "ENOENT" });
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test("private attempt, lock, and finalizer paths reject symlink ancestors without outside writes", async (context) => {
+  for (const pathKind of ["private-root", "cells-parent", "cell"]) {
+    await context.test(`attempt ${pathKind}`, async () => {
+      const temp = await realpath(await mkdtemp(join(tmpdir(), `r2-private-${pathKind}-`)));
+      const outside = join(temp, "outside");
+      const privateRoot = join(temp, "private");
+      await mkdir(outside);
+      if (pathKind === "private-root") {
+        await symlink(outside, privateRoot);
+      } else {
+        await mkdir(privateRoot);
+        if (pathKind === "cells-parent") {
+          await symlink(outside, join(privateRoot, "cells"));
+        } else {
+          await mkdir(join(privateRoot, "cells"));
+          await symlink(outside, join(privateRoot, "cells", "cell-1"));
+        }
+      }
+      const admissionPath = join(temp, "admission.json");
+      await writeFile(admissionPath, "{}\n");
+      const config = {
+        harnessConfig: {
+          runId: "fixture-r2",
+          paths: { privateExecutionRoot: privateRoot },
+        },
+        cell: { id: "cell-1" },
+      };
+      const artifact = {
+        issuedAt: "2026-08-24T12:00:00.000Z",
+        identity: { sha256: `sha256:${"a".repeat(64)}` },
+        execution: { node: { path: process.execPath } },
+        harnessConfig: {},
+        registeredCell: {},
+        instrument: {},
+        host: {},
+        exclusiveHostLock: {
+          version: "snapback.r2-exclusive-host-lock.v1",
+          token: "fixture-token",
+          owner: { declaration: { owner: "fixture" } },
+        },
+      };
+      const claim = { declaration: { claimedAt: "2026-08-24T12:00:00.100Z" } };
+      try {
+        const before = await snapshotTree(outside);
+        await assert.rejects(writeCampaignAttemptStart({
+          config,
+          configDirectory: join(privateRoot, "cells", "cell-1"),
+          artifact,
+          admissionPath,
+          claim,
+        }), /R2_PRIVATE_PATH/u);
+        assert.deepEqual(await snapshotTree(outside), before);
+      } finally {
+        await rm(temp, { recursive: true, force: true });
+      }
+    });
+  }
+
+  for (const pathKind of ["lock-parent", "lock-path"]) {
+    await context.test(pathKind, async () => {
+      const temp = await realpath(await mkdtemp(join(tmpdir(), `r2-private-${pathKind}-`)));
+      const privateRoot = join(temp, "private");
+      const outside = join(temp, "outside");
+      const lockParent = join(privateRoot, "locks");
+      const lockPath = join(lockParent, "host.lock");
+      await Promise.all([mkdir(privateRoot), mkdir(outside)]);
+      if (pathKind === "lock-parent") {
+        await symlink(outside, lockParent);
+      } else {
+        await mkdir(lockParent);
+        await symlink(outside, lockPath);
+      }
+      const harnessConfig = {
+        runId: "fixture-r2",
+        paths: { privateExecutionRoot: privateRoot },
+        execution: { exclusiveHostLock: { path: lockPath } },
+      };
+      try {
+        const before = await snapshotTree(outside);
+        assert.throws(() => acquireExclusiveHostLock({
+          harnessConfig,
+          cellId: "cell-1",
+          purpose: "admission",
+          reservedBy: "symlink-negative",
+        }), /R2_PRIVATE_PATH/u);
+        assert.deepEqual(await snapshotTree(outside), before);
+      } finally {
+        await rm(temp, { recursive: true, force: true });
+      }
+    });
+  }
+
+  await context.test("finalizer retained-cell ancestor", async () => {
+    const fixture = await makeFinalizeExistingFixture();
+    try {
+      const cellsRoot = dirname(fixture.privateCell);
+      const escapedCells = join(fixture.temp, "escaped-private-cells");
+      await rm(escapedCells, { recursive: true, force: true });
+      await rename(cellsRoot, escapedCells);
+      await symlink(escapedCells, cellsRoot);
+      const before = await snapshotTree(escapedCells);
+      await assert.rejects(finalizeExisting({
+        harnessConfigPath: fixture.configPath,
+        cellId: fixture.cellId,
+        publish: true,
+        reservedBy: "retained-parent-symlink-negative",
+        dependencies: fixture.dependencies,
+      }), /R2_PRIVATE_PATH/u);
+      assert.deepEqual(await snapshotTree(escapedCells), before);
+    } finally {
+      await fixture.cleanup();
+    }
+  });
+});
+
 test("instrument materialization succeeds once, is immutable, and refuses overwrite", async () => {
-  const temp = await mkdtemp(join(tmpdir(), "r2-instrument-materialize-"));
+  const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-instrument-materialize-")));
   const outPath = join(temp, "instrument-resume");
   try {
     const result = materializeInstrumentSnapshot({
@@ -3094,7 +3461,7 @@ async function addD06Observability(record, root, { allClaimed = true } = {}) {
 }
 
 test("D0.6 observability is produced from real sidecars and tampering fails closed", async () => {
-  const root = await mkdtemp(join(tmpdir(), "d06-observability-"));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "d06-observability-")));
   const record = await addD06Observability(composedRecord({
       capFamily: "gpt-frontier",
       source: "codex-rollout-token-count",
@@ -3312,7 +3679,7 @@ test("D0.6 observability is produced from real sidecars and tampering fails clos
 });
 
 test("semantic and episode non-claims make the correction-action target ineligible", async () => {
-  const root = await mkdtemp(join(tmpdir(), "d06-nonclaim-"));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "d06-nonclaim-")));
   const record = await addD06Observability(composedRecord({
     capFamily: "gpt-frontier",
     source: "codex-rollout-token-count",

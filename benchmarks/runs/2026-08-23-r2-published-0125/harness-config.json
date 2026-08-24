@@ -6,7 +6,7 @@
   "recoveryResume": {
     "version": "snapback.r2-recovery-resume.v4",
     "path": "recovery-resume.v4.json",
-    "sha256": "1a0cd1dbf2ec63e5c1080bbd5566cc724119a26551e12b05deb920ab9d255b36",
+    "sha256": "26e1298edbaa1c7abe374ce1bad048f2e4f9b83cf38813cee834e1c02ebc9f9a",
     "nextCell": "sol-clique-familiar"
   },
   "governing": [
@@ -70,7 +70,7 @@
       "meteringRoot": {
         "kind": "directory",
         "path": "benchmarks/tools/social-messenger/metering",
-      "sha256": "sha256:8ba7693b9d42705f058d2683039152e02b2847839cace608f4417dbd6fd454d2"
+      "sha256": "sha256:dc62b9c6876b34b29d468e3642cea2564fc40714b545770a1ed615536e6fb5bf"
       },
       "files": [
         {
@@ -109,6 +109,24 @@
           "sha256": "sha256:4986ba54b0bb7872840211b4a88530d8f2155b8a4ed41ff61d3b85e2252ee93b"
         }
       ]
+    },
+    "environment": {
+      "version": "snapback.r2-execution-environment.v1",
+      "inheritedNodeLoaderHooks": "forbidden-and-absent",
+      "forbiddenVariables": [
+        "DYLD_FALLBACK_FRAMEWORK_PATH",
+        "DYLD_FALLBACK_LIBRARY_PATH",
+        "DYLD_FRAMEWORK_PATH",
+        "DYLD_INSERT_LIBRARIES",
+        "DYLD_LIBRARY_PATH",
+        "LD_PRELOAD",
+        "NODE_COMPILE_CACHE",
+        "NODE_OPTIONS",
+        "NODE_PATH",
+        "NODE_PRESERVE_SYMLINKS",
+        "NODE_REPL_EXTERNAL_MODULE"
+      ],
+      "nativeHarnessEnvironment": "scrub-forbidden-variables"
     },
     "coldContextPerCell": true,
     "reuseAcrossCells": [],
@@ -201,7 +219,7 @@
       "manifestPath": "benchmarks/instrument.manifest.json",
       "semanticSnapshotRevision": "e8048d8238b3abe1fe3d6553bd12f334affbf88f",
       "instrumentPin": "social-messenger@0.3.3-m8",
-    "manifestSha256": "a065634564c901ae9e2665e0dde18e4ebe8aa4b2ec337c0a6b966b2ea35024e4",
+    "manifestSha256": "7934976c3bbd93869da20f8f379e7fd259e3a400457ebe27c22d16f04501957e",
       "fixtureVersion": "0.2.0-m8",
       "schemaVersion": "0.3.0-m8",
       "uiVersion": "0.3.1-m8",
@@ -215,8 +233,8 @@
       "recordValidatorSha256": "4986ba54b0bb7872840211b4a88530d8f2155b8a4ed41ff61d3b85e2252ee93b",
         "meterSha256": "d19aa6764c513af489e43b00ef15f8560d347dc84998254d1cceb4bf9e4d5a62",
         "laneSetupSha256": "b46ddce548b4415dfd791eb32c97eba581adb0d9794da557f314fd2b34c9e71f",
-      "laneControllerSha256": "b8a2f688ccee5347f7465dbff93fdb10c6b13243e7f3c7cbb7f5ebc36c74826b",
-      "productionDriverSha256": "0ed43a03dbf39cea9fe1f58eb3c4e791c376e10f12ee0a36ba2739b482b0b525",
+      "laneControllerSha256": "c5e3d424ae9dd1c72ad9fec51129bb68f60071d7fca15421482db57dcce0c368",
+      "productionDriverSha256": "18c12e498f22753041308e658bb029b67ba7573635c6b1df64111bbd4480bdfc",
         "signalSha256": "f2f835538bc92cd5ea2af0098e43ca0e97cf3934101c713f6c13ede55066a712",
       "manifestLoaderSha256": "c51e7909d2b3bb782a58da86a18dd2eb91bc295ceab0e27cf4a027a966ed6ad6",
       "joinerSha256": "152fd1a89e30d96ac2b4b4fcb2a246b2722da3cd68e51fde8cd4ee3fa3636f85",
@@ -224,10 +242,10 @@
         "codexAdapterSha256": "3afd75d48389dff2d8c307016638927e38bcf8c8600242113a613ca1fe509db8",
       "codexNativeEvidenceSha256": "d510466a1dbf897ce4091a4ccb59fc5d31dbd50be7652e5f63ec22a1306fc744",
       "recordComposerSha256": "66868a4513a682b411e219927752edc16b7ee0cb85bb01b11f0c5dea56a5b98e",
-      "admissionToolSha256": "c78a6686e6ce395b23308fff966ed149e202e0b675708b409ae4b87817666b78",
-      "finalizedCellValidatorSha256": "b9bc2967a342e1458a73c0be18bb596a4990b9ef40f74cf8e265ac44f794e767",
-      "hostLockSha256": "cbb51585aa62e580521fef0cdcbd83ccc2cbc5d7d6ffd67b678191a9fec5e60a",
-      "finalizeExistingSha256": "7aa640eb5afa5ad6f6a04785c49bfcc179f73ea8dcfc27a01cbd577f1312af4d",
+      "admissionToolSha256": "1531082d27a08e699515b08fd1ae5ea863efe20dff6bb48ad3b7fc85e37ce861",
+      "finalizedCellValidatorSha256": "fb84f64839623bc7d7fcfe2170a0b8c5b1128b604e2f848eb5f34cb2f7b22e21",
+      "hostLockSha256": "55a4c8cb77d13658f7e5a4aae73c3aefd1826408124e4cc60bb70d972f57a6fb",
+      "finalizeExistingSha256": "ac8314c923c7a526bfc2d8c138f3d7555ef0df22c7d7541b0b45636107cdcbe0",
       "instrumentMaterializerSha256": "1ac7cd354d22e67c4b1eb19d96ac395a0ab62e0ecd3506bdf13844952c65306a"
       },
       "observabilityBump": {

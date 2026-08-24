@@ -26,6 +26,8 @@ import {
   releaseExclusiveHostLock,
   verifyExclusiveHostLock,
 } from "./r2-host-lock.mjs";
+import { assertR2ExecutionEnvironment } from "./r2-execution-environment.mjs";
+import { inspectPrivateCellPath } from "./r2-private-paths.mjs";
 
 export const R2_ADMISSION_VERSION = "snapback.r2-cell-admission.v2";
 export const R2_SOURCE_CLOSURE_VERSION = "snapback.r2-executing-source-closure.v1";
@@ -239,6 +241,7 @@ export async function inspectCommittedSeriality({
 }) {
   const requestedIndex = harnessConfig.cellOrder.indexOf(cellId);
   if (requestedIndex < 0) throw new Error(`R2_ADMISSION_INVALID: unknown cell ${cellId}`);
+  inspectPrivateCellPath({ harnessConfig, cellId });
   const committedRoot = resolve(repositoryRoot, harnessConfig.paths.committedRunRoot);
   const privateRoot = resolve(harnessConfig.paths.privateExecutionRoot);
   const committedPrefix = [];
@@ -350,7 +353,13 @@ function optionValue(argv, option) {
   return argv[indexes[0] + 1];
 }
 
-export function configuredExecutionBinding({ harnessConfig, cell, repositoryRoot = REPOSITORY_ROOT }) {
+export function configuredExecutionBinding({
+  harnessConfig,
+  cell,
+  repositoryRoot = REPOSITORY_ROOT,
+  environment = process.env,
+}) {
+  const executionEnvironment = assertR2ExecutionEnvironment({ harnessConfig, environment });
   const command = cell.controllerCommand;
   if (!Array.isArray(command) || command.length < 2) {
     throw new Error("R2_ADMISSION_COMMAND: controller command is absent");
@@ -379,6 +388,7 @@ export function configuredExecutionBinding({ harnessConfig, cell, repositoryRoot
     node,
     controller: { ...controller, configuredArg: command[1] },
     driver: { ...driver, configuredArg: driverArg },
+    environment: executionEnvironment,
     sourceClosure: liveSourceClosure({ harnessConfig, repositoryRoot }),
   };
 }
@@ -470,8 +480,9 @@ function assertActualExecution(expected, actual) {
     || actualControllerPath !== expected.controller.path
     || actualDriverPath !== expected.driver.path
     || JSON.stringify(actual.argv) !== JSON.stringify(expected.argv)
+    || !sameJson(actual.environment, expected.environment)
   ) {
-    throw new Error("R2_ADMISSION_COMMAND: actual Node/controller/argv/driver execution differs from the admitted command");
+    throw new Error("R2_ADMISSION_COMMAND: actual Node/controller/argv/driver/environment execution differs from the admitted command");
   }
 }
 
@@ -1013,10 +1024,14 @@ export async function createAdmissionArtifact({
       resolveInstrument: dependencies.resolveInstrument ?? resolveInstrumentArtifacts,
     });
     mkdirSync(dirname(resolve(admissionPath)), { recursive: true });
+    const privateCell = inspectPrivateCellPath({ harnessConfig, cellId });
+    if (existsSync(privateCell.cellRoot)) {
+      throw new Error("R2_ADMISSION_EXISTING_UNRECORDED_EVIDENCE: private cell appeared before admission publication");
+    }
     publishAdmissionArtifact({
       admissionPath,
       artifact,
-      privateCellPath: resolve(harnessConfig.paths.privateExecutionRoot, "cells", cellId),
+      privateCellPath: privateCell.cellRoot,
       issuedAtMs,
     });
     return artifact;

@@ -199,13 +199,19 @@ failure.
 For R2 campaign cells, admission binds the actual Node executable bytes,
 controller and production-driver paths and bytes, exact ordered argv, harness
 config, immutable materialized instrument, the entire actually imported source
-closure, non-sensitive allowed-host hardware identity, the complete committed
+closure, a canonical no-loader/preload Node environment posture, non-sensitive
+allowed-host hardware identity, the complete committed
 prefix replay, and an atomic campaign-private exclusive host lock. Process and
 every campaign port are probed after the three load samples. The controller
 atomically claims that same lock, imports and preflights the driver without
-writing an attempt, and repeats the process, port, prefix, command, config,
+writing an attempt, and performs a second actual process/port probe while it
+repeats the prefix, command, config,
 instrument, and source-closure checks immediately before its first atomic
-private-cell write; it holds the lock through finalization. Explicit stale-lock
+private-cell write. Node module-loader/preload environment variables are
+forbidden for admission/controller execution and scrubbed from the native
+harness child. Every private-root, cells, cell, lock, and transaction path is
+canonically contained with no symbolic-link ancestor. The controller holds the
+lock through finalization. Explicit stale-lock
 recovery uses an exact snapshot/CAS guard, archives only the owner it inspected,
 and still refuses any cell with existing private evidence.
 
@@ -226,7 +232,8 @@ only from the hash-bound native graph, validates the composed record, and
 writes a deterministic publication manifest. `--publish` preflights every
 target conflict before its first write, resumes only byte-identical partials
 from the same transaction, copies the whole validation graph (including prompt,
-assertions, and provenance), writes `cell.json` last, and runs the production
+assertions, exact validated coverage manifest, and provenance), writes
+`cell.json` last, and runs the production
 finalized-slot validator against the published slot. Missing counts outside the
 registered Grok-unavailable path, divergent derived or partial bytes, a target
 escape/symlink, or a second attempt fail closed; retained private evidence is

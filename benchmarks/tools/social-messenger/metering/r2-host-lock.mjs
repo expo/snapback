@@ -12,7 +12,9 @@ import {
   writeFileSync,
 } from "node:fs";
 import { hostname } from "node:os";
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
+
+import { configuredPrivateLockPath } from "./r2-private-paths.mjs";
 
 export const R2_HOST_LOCK_VERSION = "snapback.r2-exclusive-host-lock.v1";
 const CLAIM_VERSION = "snapback.r2-exclusive-host-lock-claim.v1";
@@ -33,25 +35,17 @@ function digest(bytes) {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
 
-function inside(root, path) {
-  const logical = relative(resolve(root), resolve(path));
-  return logical === ""
-    || (logical !== ".." && !logical.startsWith(`..${sep}`) && !isAbsolute(logical));
-}
-
-function configuredLockPath(harnessConfig) {
-  const privateRoot = resolve(harnessConfig.paths?.privateExecutionRoot ?? "");
-  const path = resolve(harnessConfig.execution?.exclusiveHostLock?.path ?? "");
-  if (!inside(privateRoot, path) || path === privateRoot) {
-    throw new Error("R2_ADMISSION_LOCK: exclusive host lock must be a narrow path under the campaign private root");
-  }
-  return path;
+function configuredLockPath(harnessConfig, options = {}) {
+  return configuredPrivateLockPath(harnessConfig, options).lockPath;
 }
 
 function readRegular(path, label) {
-  if (lstatSync(path).isSymbolicLink()) throw new Error(`${label} cannot be a symbolic link`);
+  const absolute = resolve(path);
+  if (lstatSync(absolute).isSymbolicLink()) throw new Error(`${label} cannot be a symbolic link`);
   const canonicalPath = realpathSync(path);
-  if (!statSync(canonicalPath).isFile()) throw new Error(`${label} must be a regular file`);
+  if (canonicalPath !== absolute || !statSync(canonicalPath).isFile()) {
+    throw new Error(`${label} must be a canonical regular file without symbolic-link ancestors`);
+  }
   return readFileSync(canonicalPath);
 }
 
@@ -71,7 +65,16 @@ function defaultProcessAlive(pid) {
 
 function archivePath(lockPath, owner, nowMs, reason) {
   const historyRoot = join(dirname(lockPath), `${basename(lockPath)}.history`);
-  mkdirSync(historyRoot, { recursive: true });
+  if (existsSync(historyRoot)) {
+    if (lstatSync(historyRoot).isSymbolicLink() || realpathSync(historyRoot) !== resolve(historyRoot)) {
+      throw new Error("R2_PRIVATE_PATH: exclusive host-lock history has a symbolic-link component");
+    }
+    if (!statSync(historyRoot).isDirectory()) {
+      throw new Error("R2_PRIVATE_PATH: exclusive host-lock history is not a directory");
+    }
+  } else {
+    mkdirSync(historyRoot);
+  }
   const stamp = new Date(nowMs).toISOString().replaceAll(":", "-");
   return join(historyRoot, `${stamp}-${owner.token.slice(0, 12)}-${reason}`);
 }
@@ -160,8 +163,7 @@ export function acquireExclusiveHostLock({
   if (typeof reservedBy !== "string" || reservedBy.length === 0) {
     throw new Error("R2_ADMISSION_LOCK: reservedBy must be a non-empty operator identity");
   }
-  const lockPath = configuredLockPath(harnessConfig);
-  mkdirSync(dirname(lockPath), { recursive: true });
+  const lockPath = configuredLockPath(harnessConfig, { ensureParent: true });
   const owner = createOwner({
     harnessConfig,
     cellId,
@@ -246,7 +248,7 @@ export function acquireExclusiveHostLock({
 }
 
 export function verifyExclusiveHostLock(lock, harnessConfig, cellId) {
-  const expectedPath = configuredLockPath(harnessConfig);
+  const expectedPath = configuredLockPath(harnessConfig, { requireLock: true });
   if (
     lock?.version !== R2_HOST_LOCK_VERSION
     || lock.path !== expectedPath

@@ -898,6 +898,16 @@ uses an exact owner/token/inode/digest compare-and-swap guard and cannot replace
 a lock newly claimed while recovery was paused. Existing private cell evidence
 always makes the cell finalization-only and never authorizes a rerun.
 
+Admission and controller execution also require the exact registered clean
+environment posture: inherited Node module-loader/preload controls (including
+`NODE_OPTIONS`, `NODE_PATH`, and platform dynamic-loader injection paths) are
+absent, that posture is bound into admission and attempt provenance, and the
+native harness child receives the same variables scrubbed. The post-preflight
+process/port check is a second live probe, not replay of admission evidence.
+Every private root, cells parent/cell, attempt transaction, and exclusive-lock
+path must be canonically contained without a symbolic-link component; retained
+finalization applies the same rule before reading or writing private evidence.
+
 Codex and Grok continuation is allowed only on `Mac.lan`, a `Mac16,11` Mac mini
 with Apple M4 Pro, 12 physical/logical cores, and 24 GB. Claude retains its
 separate registered MacBook Pro policy. No serial number, UUID, or similarly
@@ -921,7 +931,8 @@ unavailable path, divergent derived files, and any second attempt. Its optional
 publisher preflights every target conflict before writing, resumes only exact
 hash-bound partials from the same versioned transaction, copies the complete
 record/manifest/provenance graph (including rendered prompt and assertion
-manifest), writes the exact one-attempt cell slot last, and replays the real
+manifest plus the exact coverage manifest whose assertion mapping was
+validated), writes the exact one-attempt cell slot last, and replays the real
 finalized-slot validator before reporting success. Retained private evidence
 is never deleted.
 

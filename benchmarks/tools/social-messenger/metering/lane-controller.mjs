@@ -16,6 +16,11 @@ import {
   probeLaunchQuiet,
   verifyAdmissionArtifact,
 } from "./r2-cell-admission.mjs";
+import { assertR2ExecutionEnvironment } from "./r2-execution-environment.mjs";
+import {
+  ensurePrivateCellTransactionParent,
+  inspectPrivateCellPath,
+} from "./r2-private-paths.mjs";
 import {
   claimExclusiveHostLock,
   releaseExclusiveHostLock,
@@ -311,7 +316,7 @@ export async function loadLaneControllerConfig({ configPath: path, harnessConfig
     harnessConfig.paths?.privateExecutionRoot,
     "harness paths.privateExecutionRoot",
   ));
-  const cellRoot = join(privateRoot, "cells", cell.id);
+  const cellRoot = inspectPrivateCellPath({ harnessConfig, cellId: cell.id }).cellRoot;
   const loadIsolation = loadPolicyForCell(harnessConfig, cell);
   const sampleEverySeconds = loadIsolation.sampleEverySeconds;
   if (typeof sampleEverySeconds !== "number" || sampleEverySeconds <= 0) {
@@ -419,8 +424,12 @@ export async function writeCampaignAttemptStart({
       attemptStartedAt: startedAt,
     },
   };
-  await mkdir(dirname(configDirectory), { recursive: true });
-  const transactionRoot = await mkdtemp(join(dirname(configDirectory), `.${basename(configDirectory)}.attempt-`));
+  const privatePath = ensurePrivateCellTransactionParent({
+    harnessConfig: config.harnessConfig,
+    cellId: config.cell.id,
+    configDirectory,
+  });
+  const transactionRoot = await mkdtemp(join(privatePath.cellsRoot, `.${basename(configDirectory)}.attempt-`));
   try {
     await mkdir(join(transactionRoot, "provenance"));
     await Promise.all([
@@ -468,8 +477,68 @@ export async function importAndPreflightR2Driver({
   return { driver, preflight };
 }
 
+export async function completeAdmittedDriverPreflight({
+  config,
+  configDirectory,
+  artifact,
+  harnessConfigPath,
+  admissionPath,
+  actualExecution,
+  claim,
+  driverPath,
+  onPhase = () => {},
+  dependencies = {},
+}) {
+  const inspectSeriality = dependencies.inspectSeriality ?? inspectCommittedSeriality;
+  const verifyAdmission = dependencies.verifyAdmission ?? verifyAdmissionArtifact;
+  const verifySourceClosure = dependencies.liveSourceClosure ?? liveSourceClosure;
+  const quietProbe = dependencies.probeLaunchQuiet ?? probeLaunchQuiet;
+  const importDriver = dependencies.importDriver ?? importAndPreflightR2Driver;
+  let campaignState = await inspectSeriality({
+    harnessConfig: config.harnessConfig,
+    cellId: config.cell.id,
+  });
+  await quietProbe({ harnessConfig: config.harnessConfig, seriality: campaignState });
+  verifyAdmission({
+    artifact,
+    harnessConfig: config.harnessConfig,
+    harnessConfigPath: resolve(harnessConfigPath),
+    cellId: config.cell.id,
+    admissionPath,
+    campaignState,
+    actualExecution,
+    requireControllerClaim: claim,
+  });
+  verifySourceClosure({ harnessConfig: config.harnessConfig, repositoryRoot: config.repositoryRoot });
+  const loaded = await importDriver({
+    driverPath,
+    config,
+    configDirectory,
+    onPhase,
+  });
+
+  campaignState = await inspectSeriality({
+    harnessConfig: config.harnessConfig,
+    cellId: config.cell.id,
+  });
+  verifyAdmission({
+    artifact,
+    harnessConfig: config.harnessConfig,
+    harnessConfigPath: resolve(harnessConfigPath),
+    cellId: config.cell.id,
+    admissionPath,
+    campaignState,
+    actualExecution,
+    requireControllerClaim: claim,
+  });
+  verifySourceClosure({ harnessConfig: config.harnessConfig, repositoryRoot: config.repositoryRoot });
+  await quietProbe({ harnessConfig: config.harnessConfig, seriality: campaignState });
+  return { ...loaded, campaignState };
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
+  if (options.harnessConfigPath) assertR2ExecutionEnvironment();
   if (options.help) {
     process.stdout.write(`${usage()}\n`);
     return;
@@ -500,6 +569,7 @@ async function main() {
         controllerPath: fileURLToPath(import.meta.url),
         driverPath: resolve(options.driverPath),
         argv: process.argv.slice(1),
+        environment: assertR2ExecutionEnvironment({ harnessConfig: config.harnessConfig }),
       };
       let campaignState = await inspectCommittedSeriality({
         harnessConfig: config.harnessConfig,
@@ -523,55 +593,17 @@ async function main() {
       });
       admissionGuard = { artifact, claim };
 
-      // This is the launch-time TOCTOU boundary: after the load window and
-      // after the controller owns the atomic lock, re-probe process/port state,
-      // seriality, command bytes, and instrument bytes immediately before the
-      // first private cell write and production-driver import.
-      await probeLaunchQuiet({
-        harnessConfig: config.harnessConfig,
-        seriality: campaignState,
-      });
-      campaignState = await inspectCommittedSeriality({
-        harnessConfig: config.harnessConfig,
-        cellId: config.cell.id,
-      });
-      verifyAdmissionArtifact({
+      ({ driver, preflight: driverPreflight, campaignState } = await completeAdmittedDriverPreflight({
         artifact,
-        harnessConfig: config.harnessConfig,
-        harnessConfigPath: resolve(options.harnessConfigPath),
-        cellId: config.cell.id,
+        harnessConfigPath: options.harnessConfigPath,
         admissionPath,
-        campaignState,
         actualExecution,
-        requireControllerClaim: claim,
-      });
-      liveSourceClosure({ harnessConfig: config.harnessConfig, repositoryRoot: config.repositoryRoot });
-      ({ driver, preflight: driverPreflight } = await importAndPreflightR2Driver({
+        claim,
         driverPath: options.driverPath,
         config,
         configDirectory,
         onPhase: (phase) => { attemptPhase = phase; },
       }));
-
-      // Driver loading and every safe read/validation complete before the
-      // one-attempt capsule exists. Rebind seriality, admission, lock, and the
-      // complete executing source graph immediately before the atomic first
-      // private-cell write.
-      campaignState = await inspectCommittedSeriality({
-        harnessConfig: config.harnessConfig,
-        cellId: config.cell.id,
-      });
-      verifyAdmissionArtifact({
-        artifact,
-        harnessConfig: config.harnessConfig,
-        harnessConfigPath: resolve(options.harnessConfigPath),
-        cellId: config.cell.id,
-        admissionPath,
-        campaignState,
-        actualExecution,
-        requireControllerClaim: claim,
-      });
-      liveSourceClosure({ harnessConfig: config.harnessConfig, repositoryRoot: config.repositoryRoot });
       attemptPhase = "attempt-capsule";
       await writeCampaignAttemptStart({ config, configDirectory, artifact, admissionPath, claim });
       attemptStarted = true;

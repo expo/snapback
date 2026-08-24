@@ -55,6 +55,25 @@
     "campaignCellRerun": false,
     "protectedEvidenceRewritten": false
   },
+  "followupReviewRemediation": {
+    "version": "snapback.r2-cell1-followup-review-validation.v1",
+    "implementationBaseline": "2f7f0045418f52c4fd17129fbcb395cc06f08fc4",
+    "coverageManifest": {
+      "path": "coverage-manifest.json",
+      "bytes": 509,
+      "sha256": "sha256:2fc5256eb6f733b9368d440f7a2ebcb119e8a054e5bf4eb3a256f140e1819f60",
+      "validatedAgainstExactAssertionManifest": true,
+      "legacyNullDigestDisposition": "protected record-base remains byte-identical; current finalizer and finalized-slot validator require and hash the exact retained coverage bytes"
+    },
+    "secondPostPreflightProcessPortProbeValid": true,
+    "nodeLoaderEnvironmentRefusalAndScrubValid": true,
+    "canonicalPrivatePathSymlinkAncestorTestsValid": true,
+    "rawManifestValidationBeforePrivateWriteValid": true,
+    "completePublicationGraphAndValidatorReplayValid": true,
+    "protectedEvidenceHashesVerified": true,
+    "campaignCellRerun": false,
+    "protectedEvidenceRewritten": false
+  },
   "hashLinkedArtifacts": [
     {
       "path": "acceptance/m1.json",

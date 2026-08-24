@@ -7,7 +7,7 @@
   "transition": "recovered-cell-1-v3-to-immutable-instrument-host-bound-locked-per-cell-admission",
   "integrity": {
     "algorithm": "sha256-canonical-json-without-integrity",
-    "sha256": "sha256:af474c4020a1fe46943e00d47aed1ad9414a879f19ed1ae00977401d9f9972d3"
+    "sha256": "sha256:8ddaebff6d4af8262683bd434f58857d1bd73ecca71def9801400438e46225bb"
   },
   "completedCell": "sol-clique-explicit",
   "completedCellRecoveryVersion": "snapback.r2-recovery-resume.v3",
@@ -39,7 +39,7 @@
     "version": "snapback.r2-cell1-recovery-validation.v1",
     "metadata": {
       "path": "cells/sol-clique-explicit/validation.json",
-      "sha256": "sha256:82e97d3a405a11754d584ececd25c166de0b2ffd0fb9d33a37f59252d06ea0c2"
+      "sha256": "sha256:849f54ed6e4ca6b30ab15b62257daa2fcb7f8d2c6b878a8f136ee04e8e964a2e"
     },
     "recordAndMeteringReplay": "validator-clean-under-current-production-replay",
     "protectedEvidenceHashesVerified": true,
@@ -48,7 +48,7 @@
   },
   "resumeInstrument": {
     "path": "../../instrument.manifest.json",
-    "sha256": "sha256:a065634564c901ae9e2665e0dde18e4ebe8aa4b2ec337c0a6b966b2ea35024e4",
+    "sha256": "sha256:7934976c3bbd93869da20f8f379e7fd259e3a400457ebe27c22d16f04501957e",
     "materializedRoot": "/Users/ccheever/bench-matrix-20260823-r2/instrument-resume-20260824",
     "materializationCommand": "node benchmarks/tools/materialize-instrument.mjs --out /Users/ccheever/bench-matrix-20260823-r2/instrument-resume-20260824",
     "transition": "new immutable non-overwriting snapshot; the old /instrument archive remains cell-1-only"

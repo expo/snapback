@@ -20,8 +20,10 @@ import {
   recoverCodexFileChanges,
   recoverCodexSignalSettlements,
 } from "./codex-native-evidence.mjs";
+import { validateCoverageManifestBytes } from "./coverage-manifest.mjs";
 import { parseJsonLines } from "./jsonl.mjs";
 import { CURRENT_INSTRUMENT_PIN } from "./observations.mjs";
+import { scrubR2NodeLoaderEnvironment } from "./r2-execution-environment.mjs";
 
 // @ref LLP 0295#r2-load-isolated-calibration-rerun — each preregistered cell
 // runs one exact native harness session behind controller-owned milestone gates.
@@ -407,7 +409,10 @@ async function launchHarness(state) {
   await writeFile(stderrPath, "", "utf8");
   const child = spawn(invocation.binary, invocation.argv, {
     cwd: state.root,
-    env: { ...process.env, R2_LANE_RUN_ID: state.config.laneRunId },
+    env: {
+      ...scrubR2NodeLoaderEnvironment(process.env),
+      R2_LANE_RUN_ID: state.config.laneRunId,
+    },
     stdio: ["pipe", "pipe", "pipe"],
   });
   state.child = child;
@@ -766,7 +771,25 @@ async function writeTerminalArtifacts(state, error) {
   }
   await writeFile(join(state.root, suiteStatusPath), `${JSON.stringify(statuses, null, 2)}\n`);
   const base = JSON.parse(await readFile(join(state.root, "record-base.json"), "utf8"));
-  base.socialMessenger.coverageManifest.validated = markers.every((marker) => marker.status === "green");
+  let coverage = null;
+  const assertionBytes = await readFile(join(state.root, "schema/social-messenger/assertions.json"));
+  try {
+    const coverageBytes = await readFile(join(state.root, "coverage-manifest.json"));
+    coverage = validateCoverageManifestBytes({
+      coverageBytes,
+      assertionBytes,
+      expectedMilestones: state.config.milestones,
+      runScope: base.socialMessenger.runScope,
+      instrumentPin: CURRENT_INSTRUMENT_PIN,
+    });
+  } catch (coverageError) {
+    if (coverageError.code !== "ENOENT" || markers.every((marker) => marker.status === "green")) {
+      throw coverageError;
+    }
+  }
+  base.socialMessenger.coverageManifest = coverage === null
+    ? { path: "coverage-manifest.json", sha256: null, validated: false }
+    : { path: "coverage-manifest.json", sha256: coverage.sha256, validated: true };
   base.correctionLoops = state.correctionLoops;
   await writeFile(join(state.root, "record-base.json"), `${JSON.stringify(base, null, 2)}\n`);
   const manifestStampedAt = new Date().toISOString();
@@ -786,6 +809,9 @@ async function writeTerminalArtifacts(state, error) {
     firstProductEdit: firstProductEdit === null
       ? null
       : await retainedDescriptor(state.root, "first-product-edit.json"),
+    coverageManifest: coverage === null
+      ? null
+      : { path: "coverage-manifest.json", sha256: coverage.sha256 },
     recordBase: await retainedDescriptor(state.root, "record-base.json"),
     driver: {
       id: DRIVER_ID,

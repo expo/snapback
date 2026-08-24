@@ -8,9 +8,11 @@ import {
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
 import { validateSocialMessengerRunRecord } from "../record-validator.mjs";
+import { validateCoverageManifestBytes } from "./coverage-manifest.mjs";
 import { joinUsageToMilestones } from "./joiner.mjs";
 import { loadMeteringManifest } from "./manifest.mjs";
 import { composeRunRecord } from "./record-composer.mjs";
+import { validateR2ExecutionEnvironmentPolicy } from "./r2-execution-environment.mjs";
 
 const FINAL_STATUSES = new Set(["recovered-finalized", "recorded-finalized"]);
 const SHA256 = /^(?:sha256:)?[a-f0-9]{64}$/u;
@@ -195,6 +197,41 @@ function retainedSessionOwnership(manifest) {
   }));
 }
 
+function validatedCoverageManifest({ cellRoot, record, manifest, expectedMilestones, cellId }) {
+  const coverage = record.socialMessenger?.coverageManifest;
+  const manifestCoverage = manifest.coverageManifest ?? null;
+  if (coverage?.validated !== true && coverage?.sha256 === null && manifestCoverage === null) return null;
+  if (coverage?.path !== "coverage-manifest.json" || coverage.validated !== true) {
+    throw new Error(`${cellId} finalized coverage manifest is not validation-qualified`);
+  }
+  const coverageBytes = readRegular(
+    resolve(cellRoot, coverage.path),
+    cellRoot,
+    `${cellId} coverage manifest`,
+  );
+  const assertion = checkedDescriptor(
+    cellRoot,
+    record.socialMessenger?.assertionManifest,
+    `${cellId} assertion manifest`,
+  );
+  const validated = validateCoverageManifestBytes({
+    coverageBytes,
+    assertionBytes: assertion.bytes,
+    expectedMilestones,
+    runScope: record.socialMessenger.runScope,
+    instrumentPin: record.socialMessenger.instrumentVersion,
+  });
+  if (
+    (coverage.sha256 !== null && coverage.sha256 !== validated.sha256)
+    || (manifestCoverage !== null && (
+      manifestCoverage.path !== coverage.path || manifestCoverage.sha256 !== validated.sha256
+    ))
+  ) {
+    throw new Error(`${cellId} coverage manifest digest differs from its record/manifest binding`);
+  }
+  return { path: coverage.path, sha256: validated.sha256 };
+}
+
 function checkedWaveConfig({ repositoryRoot, cellRoot, slot, attempt, cellId, gitRead, requireCommitted }) {
   if (slot.waveConfig !== "../../harness-config.json") {
     throw new Error(`${cellId} finalized slot does not name the registered harness config`);
@@ -224,6 +261,10 @@ function checkedWaveConfig({ repositoryRoot, cellRoot, slot, attempt, cellId, gi
   if (!sameJson(attempt.registeredCell, configuredRegisteredCell(config, cell))) {
     throw new Error(`${cellId} attempt registration differs from its published harness cell`);
   }
+  const environmentPolicy = validateR2ExecutionEnvironmentPolicy(config.execution?.environment);
+  if (!sameJson(attempt.execution?.environment, environmentPolicy)) {
+    throw new Error(`${cellId} attempt execution environment differs from its published harness policy`);
+  }
   if (!sameJson(
     sourceClosureRegistration(attempt.execution?.sourceClosure),
     sourceClosureRegistration(config.execution?.sourceClosure),
@@ -241,6 +282,7 @@ function assertRecordedProvenance({
   record,
   metering,
   manifest,
+  coverage,
   gitRead,
   requireCommitted,
 }) {
@@ -260,6 +302,7 @@ function assertRecordedProvenance({
     throw new Error(`${cellId} publication manifest is not the registered one-attempt graph`);
   }
   const expected = collectHashDescriptors({ record, manifest, provenance: publication.provenance });
+  if (coverage !== null) expected.set(coverage.path, coverage.sha256);
   for (const [path, bytes] of [
     ["metering-manifest.json", readFileSync(resolve(cellRoot, "metering-manifest.json"))],
     ["record-base.json", readFileSync(resolve(cellRoot, "record-base.json"))],
@@ -534,6 +577,13 @@ export async function validateFinalizedCellSlot({
     cellRoot,
     `${cellId} metering manifest`,
   ).toString("utf8"));
+  const coverage = validatedCoverageManifest({
+    cellRoot,
+    record,
+    manifest,
+    expectedMilestones,
+    cellId,
+  });
   const meteringInput = await loadMeteringManifest(realpathSync(manifestPath));
   const replayedMetering = joinUsageToMilestones(meteringInput);
   if (!sameJson(metering, replayedMetering)) {
@@ -563,6 +613,7 @@ export async function validateFinalizedCellSlot({
       record,
       metering,
       manifest,
+      coverage,
       gitRead,
       requireCommitted,
     });
@@ -572,6 +623,7 @@ export async function validateFinalizedCellSlot({
   descriptors.set("record.json", recordArtifact.sha256);
   descriptors.set("metering.json", meteringArtifact.sha256);
   descriptors.set("metering-manifest.json", digest(readFileSync(manifestPath)));
+  if (coverage !== null) descriptors.set(coverage.path, coverage.sha256);
   descriptors.set(relative(cellRoot, resolve(slotPath)).split(sep).join("/"), digest(slotBytes));
   for (const [path, expectedSha256] of descriptors) {
     const absolute = resolve(cellRoot, path);
