@@ -1076,12 +1076,79 @@ function materializedRefusalResult(carrier, call, reason) {
     ...tuple, kind: 'graph-composition', label: 'refused', nodes: citations,
     primaryReason: reason,
   };
+  const projection = carrier.normalizedPlan.nodes.find(node => node.kind === 'closed-projection');
+  nodes.push({
+    nodeId: projection.nodeId, nodeKind: projection.kind, label: 'refused', proofClass: 'refusal',
+    proof: {...tuple, kind: 'closed-projection', label: 'refused', reason, composition},
+  });
   return {
     kind: 'result', label: 'refused', resultBytes: null, orderedRootIds: [],
     resultLength: 0, nodeCompleteness: nodes,
     graphCompleteness: {...tuple, label: 'refused', proofClass: 'refusal', proof: composition},
     refusalReason: reason,
   };
+}
+
+function frozenExecutionWork(
+  rootRows, examined, lookups, fanout, argumentItems, expansion, windowLedgers,
+) {
+  const observed = (prefix, values) => values.map((value, index) => ({
+    [`${prefix}Id`]: `${prefix === 'argument' ? 'a' : 'n'}${index}`,
+    observed: value,
+  }));
+  return {
+    structuralWork: {
+      rootRowsByNode: observed('node', [rootRows]),
+      examinedEntriesByNode: observed('node', examined),
+      relationshipLookupsByNode: lookups.map((value, index) => ({nodeId: `n${index + 1}`, observed: value})),
+      maxFanoutByNode: fanout.map(([node, value]) => ({nodeId: `n${node}`, observed: value})),
+      argumentItemsByArgument: observed('argument', argumentItems),
+      argumentItems: argumentItems.reduce((sum, value) => sum + value, 0),
+      argumentExpansionByNode: expansion.map(([node, value]) => ({nodeId: `n${node}`, observed: value})),
+    },
+    windowLedgers,
+  };
+}
+
+function attachFrozenExecutionWork(cases) {
+  const ledger = (nodeId, pages, rootRows, scannedRows, resultRows, resultBytes, indexRanges) => ({
+    nodeId, pages, rootRows, scannedRows, resultRows, resultBytes, indexRanges,
+  });
+  const byId = {
+    'g0-pair-list-hidden-internal-root': frozenExecutionWork(
+      516, [516, 516, 603, 603, 0, 1], [516, 516, 603, 0, 517], [[2, 5], [4, 0]],
+      [1, 0], [[4, 0]], [ledger('n0', 1, 516, 2239, 516, 436163, 2153)],
+    ),
+    'g0-pair-point-hidden-internal-root': frozenExecutionWork(
+      0, [0, 0, 0, 0, 0, 1], [0, 0, 0, 0, 1], [[2, 0], [4, 0]],
+      [0, 1], [[4, 0]], [ledger('n0', 1, 0, 1, 0, 2, 2)],
+    ),
+    'g0-pair-detail-hidden-root-empty-child-demand': frozenExecutionWork(
+      0, [0, 0, 0, 0, 0, 0, 1, 0, 1], [0, 0, 0, 0, 0, 1, 0, 1], [[2, 0], [4, 0]],
+      [1], [], [ledger('n0', 1, 0, 2, 0, 2, 3), ledger('n2', 1, 0, 0, 0, 2, 0)],
+    ),
+    'g0-pair-detail-notification-principal': frozenExecutionWork(
+      1, [1, 0, 21, 1, 2, 2, 1, 1, 1], [1, 1, 1, 1, 2, 2, 1, 2], [[2, 21], [4, 2]],
+      [1], [], [ledger('n0', 1, 1, 30, 1, 20261, 11), ledger('n2', 1, 0, 21, 1, 20261, 1)],
+    ),
+    'g0-pair-point-view-state-principal': frozenExecutionWork(
+      1, [1, 1, 2, 2, 0, 1], [1, 1, 2, 0, 2], [[2, 2], [4, 0]],
+      [0, 1], [[4, 0]], [ledger('n0', 1, 1, 7, 1, 6479, 7)],
+    ),
+    'g0-allow-deny-point-crew-internal-root': frozenExecutionWork(
+      1, [1, 1, 0, 0, 0, 2], [1, 1, 0, 0, 2], [[2, 0], [4, 0]],
+      [0, 1], [[4, 0]], [ledger('n0', 1, 1, 4, 1, 274, 5)],
+    ),
+    'listIssueByID-required-issue-edge-missing': frozenExecutionWork(
+      1, [1, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0], [[2, 0], [4, 0]],
+      [0, 1], [[4, 0]], [],
+    ),
+  };
+  for (const testCase of cases) {
+    const work = byId[testCase.id];
+    if (work && testCase.expect?.kind === 'result') Object.assign(testCase.expect, work);
+    if (work && testCase.expect?.allowed?.kind === 'result') Object.assign(testCase.expect.allowed, work);
+  }
 }
 
 function countDeclaredTieGroups(items, field) {
@@ -1907,7 +1974,74 @@ async function main() {
       ),
     },
   ];
+  const listNode = carriers.issueListV2.normalizedPlan.nodes.find(node => node.nodeId === 'n0');
+  const labelNode = carriers.issueListV2.normalizedPlan.nodes.find(node => node.nodeId === 'n2');
+  const listRows = graphSortRows(
+    tables.issueListRead.filter(row => row.projectID === internalIssue.projectID),
+    listNode.order,
+  );
+  const keyset = (row, order) => ({
+    entries: order.map(component => [component.field, row[component.field]]), id: row._id,
+  });
+  const namedInterval = (first, last, order) => ({
+    lower: {kind: 'inclusive', key: keyset(first, order)},
+    upper: {kind: 'inclusive', key: keyset(last, order)},
+  });
+  const mixedParents = listRows.slice(7, 9);
+  const mixedChildren = mixedParents.map(parent => graphSortRows(
+    tables.issueLabelRead.filter(row => row.issueID === parent.issueID), labelNode.order,
+  ));
+  assert.deepEqual(mixedChildren.map(rows => rows.length), [1, 2]);
+  const evaluatorEdgeCases = [
+    {
+      id: 'g2-bounded-root-named-truncation', baseCaseId: 'g0-pair-list-hidden-internal-root',
+      query: 'issueListV2', nodeId: 'n0', take: 1,
+      interval: namedInterval(listRows[0], listRows.at(-1), listNode.order),
+      expect: {
+        label: 'prefix', hasMore: true,
+        ...frozenExecutionWork(
+          1, [2, 1, 0, 0, 0, 1], [1, 1, 0, 0, 2], [[2, 0], [4, 0]],
+          [1, 0], [[4, 0]], [{nodeId: 'n0', pages: 1, rootRows: 1, scannedRows: 4, resultRows: 1, resultBytes: 1326, indexRanges: 5}],
+        ),
+      },
+    },
+    {
+      id: 'g2-mixed-parent-named-child-ranges', baseCaseId: 'g0-pair-list-hidden-internal-root',
+      query: 'issueListV2', nodeId: 'n2', planMutation: 'literal-page-to-demand-with-derived-window-costs',
+      rootInterval: namedInterval(mixedParents[0], mixedParents[1], listNode.order),
+      parentIntervals: mixedParents.map((parent, index) => ({
+        parentKey: {table: listNode.table, id: parent._id},
+        ...namedInterval(mixedChildren[index][0], mixedChildren[index].at(-1), labelNode.order),
+        take: 1,
+      })),
+      expect: {
+        label: 'window', parentHasMore: [false, true],
+        ...frozenExecutionWork(
+          2, [2, 2, 3, 2, 0, 1], [2, 2, 2, 0, 3], [[2, 1], [4, 0]],
+          [1, 0], [[4, 0]], [
+            {nodeId: 'n0', pages: 1, rootRows: 2, scannedRows: 10, resultRows: 2, resultBytes: 1145, indexRanges: 10},
+            {nodeId: 'n2', pages: 1, rootRows: 0, scannedRows: 5, resultRows: 2, resultBytes: 1145, indexRanges: 4},
+          ],
+        ),
+      },
+    },
+    {
+      id: 'g2-window-page-overflow-refusal', baseCaseId: 'g0-pair-list-hidden-internal-root',
+      query: 'issueListV2', nodeId: 'n0', priorLedger: {
+        nodeId: 'n0', pages: 1, rootRows: 0, scannedRows: 0,
+        resultRows: 0, resultBytes: 0, indexRanges: 0,
+      },
+      expect: {
+        label: 'refused', reason: 'SNAPBACK_QUERY_COST_BOUND_EXCEEDED',
+        ...frozenExecutionWork(
+          0, [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [[2, 0], [4, 0]],
+          [1, 0], [[4, 0]], [{nodeId: 'n0', pages: 1, rootRows: 0, scannedRows: 0, resultRows: 0, resultBytes: 0, indexRanges: 0}],
+        ),
+      },
+    },
+  ];
   const cases = [...pairedWorlds, ...allowDenyCases, ...refusalCases];
+  attachFrozenExecutionWork(cases);
   assert.deepEqual(
     freezerProofSelfChecks,
     {consumed: true, found: true, parentLinkage: true},
@@ -1987,7 +2121,7 @@ async function main() {
       },
     })),
     authorityOwner: corpusAuthorityOwner,
-    oracleCases, oracleTranslationCoverage: translationCoverage, cases,
+    oracleCases, oracleTranslationCoverage: translationCoverage, cases, evaluatorEdgeCases,
     caseKinds: ['pairedWorld', 'allowDeny', 'audienceParity', 'scopeMismatch', 'authorityTransition', 'mixedCommit', 'refusal'],
     executableCaseKinds: ['pairedWorld', 'allowDeny', 'refusal'],
     pendingBroadcastCases: 'tests/conformance/graph/broadcast-cases.g2-pending.v1.json',
@@ -2022,7 +2156,7 @@ async function main() {
     writeFileSync(PENDING_CASES_PATH, pretty(pendingCorpus));
     writeFileSync(PAIRED_FIXTURES_PATH, pretty(pairedFixtureCorpus));
   }
-  console.log(`graph-g0-oracle-freeze: PASS normal-seed-v1 queries=3 oracleCases=${oracleCases.length} pairedWorlds=${pairedWorlds.length} allowDeny=${allowDenyCases.length} refusals=${refusalCases.length}`);
+  console.log(`graph-g0-oracle-freeze: PASS normal-seed-v1 queries=3 oracleCases=${oracleCases.length} pairedWorlds=${pairedWorlds.length} allowDeny=${allowDenyCases.length} refusals=${refusalCases.length} corpusDigest=${corpus.contentDigest} boundsDigest=${bounds.contentDigest}`);
   if (!existsSync(LARGE_ROOT)) console.log('graph-g0-large-spot-check: DEFERRED receipt-only; rerun zb5 command recorded in bound-derivation.v1.json');
 }
 

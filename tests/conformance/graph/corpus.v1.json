@@ -42740,7 +42740,101 @@
             "allComplete": true
           }
         },
-        "refusalReason": null
+        "refusalReason": null,
+        "structuralWork": {
+          "rootRowsByNode": [
+            {
+              "nodeId": "n0",
+              "observed": 516
+            }
+          ],
+          "examinedEntriesByNode": [
+            {
+              "nodeId": "n0",
+              "observed": 516
+            },
+            {
+              "nodeId": "n1",
+              "observed": 516
+            },
+            {
+              "nodeId": "n2",
+              "observed": 603
+            },
+            {
+              "nodeId": "n3",
+              "observed": 603
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            },
+            {
+              "nodeId": "n5",
+              "observed": 1
+            }
+          ],
+          "relationshipLookupsByNode": [
+            {
+              "nodeId": "n1",
+              "observed": 516
+            },
+            {
+              "nodeId": "n2",
+              "observed": 516
+            },
+            {
+              "nodeId": "n3",
+              "observed": 603
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            },
+            {
+              "nodeId": "n5",
+              "observed": 517
+            }
+          ],
+          "maxFanoutByNode": [
+            {
+              "nodeId": "n2",
+              "observed": 5
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            }
+          ],
+          "argumentItemsByArgument": [
+            {
+              "argumentId": "a0",
+              "observed": 1
+            },
+            {
+              "argumentId": "a1",
+              "observed": 0
+            }
+          ],
+          "argumentItems": 1,
+          "argumentExpansionByNode": [
+            {
+              "nodeId": "n4",
+              "observed": 0
+            }
+          ]
+        },
+        "windowLedgers": [
+          {
+            "nodeId": "n0",
+            "pages": 1,
+            "rootRows": 516,
+            "scannedRows": 2239,
+            "resultRows": 516,
+            "resultBytes": 436163,
+            "indexRanges": 2153
+          }
+        ]
       }
     },
     {
@@ -43898,7 +43992,101 @@
             "allComplete": true
           }
         },
-        "refusalReason": null
+        "refusalReason": null,
+        "structuralWork": {
+          "rootRowsByNode": [
+            {
+              "nodeId": "n0",
+              "observed": 0
+            }
+          ],
+          "examinedEntriesByNode": [
+            {
+              "nodeId": "n0",
+              "observed": 0
+            },
+            {
+              "nodeId": "n1",
+              "observed": 0
+            },
+            {
+              "nodeId": "n2",
+              "observed": 0
+            },
+            {
+              "nodeId": "n3",
+              "observed": 0
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            },
+            {
+              "nodeId": "n5",
+              "observed": 1
+            }
+          ],
+          "relationshipLookupsByNode": [
+            {
+              "nodeId": "n1",
+              "observed": 0
+            },
+            {
+              "nodeId": "n2",
+              "observed": 0
+            },
+            {
+              "nodeId": "n3",
+              "observed": 0
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            },
+            {
+              "nodeId": "n5",
+              "observed": 1
+            }
+          ],
+          "maxFanoutByNode": [
+            {
+              "nodeId": "n2",
+              "observed": 0
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            }
+          ],
+          "argumentItemsByArgument": [
+            {
+              "argumentId": "a0",
+              "observed": 0
+            },
+            {
+              "argumentId": "a1",
+              "observed": 1
+            }
+          ],
+          "argumentItems": 1,
+          "argumentExpansionByNode": [
+            {
+              "nodeId": "n4",
+              "observed": 0
+            }
+          ]
+        },
+        "windowLedgers": [
+          {
+            "nodeId": "n0",
+            "pages": 1,
+            "rootRows": 0,
+            "scannedRows": 1,
+            "resultRows": 0,
+            "resultBytes": 2,
+            "indexRanges": 2
+          }
+        ]
       }
     },
     {
@@ -45412,7 +45600,125 @@
             "allComplete": true
           }
         },
-        "refusalReason": null
+        "refusalReason": null,
+        "structuralWork": {
+          "rootRowsByNode": [
+            {
+              "nodeId": "n0",
+              "observed": 0
+            }
+          ],
+          "examinedEntriesByNode": [
+            {
+              "nodeId": "n0",
+              "observed": 0
+            },
+            {
+              "nodeId": "n1",
+              "observed": 0
+            },
+            {
+              "nodeId": "n2",
+              "observed": 0
+            },
+            {
+              "nodeId": "n3",
+              "observed": 0
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            },
+            {
+              "nodeId": "n5",
+              "observed": 0
+            },
+            {
+              "nodeId": "n6",
+              "observed": 1
+            },
+            {
+              "nodeId": "n7",
+              "observed": 0
+            },
+            {
+              "nodeId": "n8",
+              "observed": 1
+            }
+          ],
+          "relationshipLookupsByNode": [
+            {
+              "nodeId": "n1",
+              "observed": 0
+            },
+            {
+              "nodeId": "n2",
+              "observed": 0
+            },
+            {
+              "nodeId": "n3",
+              "observed": 0
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            },
+            {
+              "nodeId": "n5",
+              "observed": 0
+            },
+            {
+              "nodeId": "n6",
+              "observed": 1
+            },
+            {
+              "nodeId": "n7",
+              "observed": 0
+            },
+            {
+              "nodeId": "n8",
+              "observed": 1
+            }
+          ],
+          "maxFanoutByNode": [
+            {
+              "nodeId": "n2",
+              "observed": 0
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            }
+          ],
+          "argumentItemsByArgument": [
+            {
+              "argumentId": "a0",
+              "observed": 1
+            }
+          ],
+          "argumentItems": 1,
+          "argumentExpansionByNode": []
+        },
+        "windowLedgers": [
+          {
+            "nodeId": "n0",
+            "pages": 1,
+            "rootRows": 0,
+            "scannedRows": 2,
+            "resultRows": 0,
+            "resultBytes": 2,
+            "indexRanges": 3
+          },
+          {
+            "nodeId": "n2",
+            "pages": 1,
+            "rootRows": 0,
+            "scannedRows": 0,
+            "resultRows": 0,
+            "resultBytes": 2,
+            "indexRanges": 0
+          }
+        ]
       }
     },
     {
@@ -47028,7 +47334,125 @@
             "allComplete": true
           }
         },
-        "refusalReason": null
+        "refusalReason": null,
+        "structuralWork": {
+          "rootRowsByNode": [
+            {
+              "nodeId": "n0",
+              "observed": 1
+            }
+          ],
+          "examinedEntriesByNode": [
+            {
+              "nodeId": "n0",
+              "observed": 1
+            },
+            {
+              "nodeId": "n1",
+              "observed": 0
+            },
+            {
+              "nodeId": "n2",
+              "observed": 21
+            },
+            {
+              "nodeId": "n3",
+              "observed": 1
+            },
+            {
+              "nodeId": "n4",
+              "observed": 2
+            },
+            {
+              "nodeId": "n5",
+              "observed": 2
+            },
+            {
+              "nodeId": "n6",
+              "observed": 1
+            },
+            {
+              "nodeId": "n7",
+              "observed": 1
+            },
+            {
+              "nodeId": "n8",
+              "observed": 1
+            }
+          ],
+          "relationshipLookupsByNode": [
+            {
+              "nodeId": "n1",
+              "observed": 1
+            },
+            {
+              "nodeId": "n2",
+              "observed": 1
+            },
+            {
+              "nodeId": "n3",
+              "observed": 1
+            },
+            {
+              "nodeId": "n4",
+              "observed": 1
+            },
+            {
+              "nodeId": "n5",
+              "observed": 2
+            },
+            {
+              "nodeId": "n6",
+              "observed": 2
+            },
+            {
+              "nodeId": "n7",
+              "observed": 1
+            },
+            {
+              "nodeId": "n8",
+              "observed": 2
+            }
+          ],
+          "maxFanoutByNode": [
+            {
+              "nodeId": "n2",
+              "observed": 21
+            },
+            {
+              "nodeId": "n4",
+              "observed": 2
+            }
+          ],
+          "argumentItemsByArgument": [
+            {
+              "argumentId": "a0",
+              "observed": 1
+            }
+          ],
+          "argumentItems": 1,
+          "argumentExpansionByNode": []
+        },
+        "windowLedgers": [
+          {
+            "nodeId": "n0",
+            "pages": 1,
+            "rootRows": 1,
+            "scannedRows": 30,
+            "resultRows": 1,
+            "resultBytes": 20261,
+            "indexRanges": 11
+          },
+          {
+            "nodeId": "n2",
+            "pages": 1,
+            "rootRows": 0,
+            "scannedRows": 21,
+            "resultRows": 1,
+            "resultBytes": 20261,
+            "indexRanges": 1
+          }
+        ]
       }
     },
     {
@@ -48238,7 +48662,101 @@
             "allComplete": true
           }
         },
-        "refusalReason": null
+        "refusalReason": null,
+        "structuralWork": {
+          "rootRowsByNode": [
+            {
+              "nodeId": "n0",
+              "observed": 1
+            }
+          ],
+          "examinedEntriesByNode": [
+            {
+              "nodeId": "n0",
+              "observed": 1
+            },
+            {
+              "nodeId": "n1",
+              "observed": 1
+            },
+            {
+              "nodeId": "n2",
+              "observed": 2
+            },
+            {
+              "nodeId": "n3",
+              "observed": 2
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            },
+            {
+              "nodeId": "n5",
+              "observed": 1
+            }
+          ],
+          "relationshipLookupsByNode": [
+            {
+              "nodeId": "n1",
+              "observed": 1
+            },
+            {
+              "nodeId": "n2",
+              "observed": 1
+            },
+            {
+              "nodeId": "n3",
+              "observed": 2
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            },
+            {
+              "nodeId": "n5",
+              "observed": 2
+            }
+          ],
+          "maxFanoutByNode": [
+            {
+              "nodeId": "n2",
+              "observed": 2
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            }
+          ],
+          "argumentItemsByArgument": [
+            {
+              "argumentId": "a0",
+              "observed": 0
+            },
+            {
+              "argumentId": "a1",
+              "observed": 1
+            }
+          ],
+          "argumentItems": 1,
+          "argumentExpansionByNode": [
+            {
+              "nodeId": "n4",
+              "observed": 0
+            }
+          ]
+        },
+        "windowLedgers": [
+          {
+            "nodeId": "n0",
+            "pages": 1,
+            "rootRows": 1,
+            "scannedRows": 7,
+            "resultRows": 1,
+            "resultBytes": 6479,
+            "indexRanges": 7
+          }
+        ]
       }
     },
     {
@@ -49546,7 +50064,101 @@
               "allComplete": true
             }
           },
-          "refusalReason": null
+          "refusalReason": null,
+          "structuralWork": {
+            "rootRowsByNode": [
+              {
+                "nodeId": "n0",
+                "observed": 1
+              }
+            ],
+            "examinedEntriesByNode": [
+              {
+                "nodeId": "n0",
+                "observed": 1
+              },
+              {
+                "nodeId": "n1",
+                "observed": 1
+              },
+              {
+                "nodeId": "n2",
+                "observed": 0
+              },
+              {
+                "nodeId": "n3",
+                "observed": 0
+              },
+              {
+                "nodeId": "n4",
+                "observed": 0
+              },
+              {
+                "nodeId": "n5",
+                "observed": 2
+              }
+            ],
+            "relationshipLookupsByNode": [
+              {
+                "nodeId": "n1",
+                "observed": 1
+              },
+              {
+                "nodeId": "n2",
+                "observed": 1
+              },
+              {
+                "nodeId": "n3",
+                "observed": 0
+              },
+              {
+                "nodeId": "n4",
+                "observed": 0
+              },
+              {
+                "nodeId": "n5",
+                "observed": 2
+              }
+            ],
+            "maxFanoutByNode": [
+              {
+                "nodeId": "n2",
+                "observed": 0
+              },
+              {
+                "nodeId": "n4",
+                "observed": 0
+              }
+            ],
+            "argumentItemsByArgument": [
+              {
+                "argumentId": "a0",
+                "observed": 0
+              },
+              {
+                "argumentId": "a1",
+                "observed": 1
+              }
+            ],
+            "argumentItems": 1,
+            "argumentExpansionByNode": [
+              {
+                "nodeId": "n4",
+                "observed": 0
+              }
+            ]
+          },
+          "windowLedgers": [
+            {
+              "nodeId": "n0",
+              "pages": 1,
+              "rootRows": 1,
+              "scannedRows": 4,
+              "resultRows": 1,
+              "resultBytes": 274,
+              "indexRanges": 5
+            }
+          ]
         },
         "denied": "deny",
         "deniedResultBytes": null
@@ -57308,6 +57920,74 @@
               "label": "refused",
               "reason": "SNAPBACK_GRAPH_REQUIRED_EDGE_MISSING"
             }
+          },
+          {
+            "nodeId": "n6",
+            "nodeKind": "closed-projection",
+            "label": "refused",
+            "proofClass": "refusal",
+            "proof": {
+              "materializationHash": "sha256:49fb2a9d7d77f8118f72c4abe46ceedc9bb235e1346058316b22897df155a214",
+              "partitionHash": "sha256:c84f35bd9bec341851bef6ddf72b1406b5bd4f6a586e2b2d1ba4aae3719569d6",
+              "authorizationVersion": {
+                "incarnation": "g0-corpus-authorization-v1",
+                "epoch": 0
+              },
+              "evaluationCut": 1,
+              "kind": "closed-projection",
+              "label": "refused",
+              "reason": "SNAPBACK_GRAPH_REQUIRED_EDGE_MISSING",
+              "composition": {
+                "materializationHash": "sha256:49fb2a9d7d77f8118f72c4abe46ceedc9bb235e1346058316b22897df155a214",
+                "partitionHash": "sha256:c84f35bd9bec341851bef6ddf72b1406b5bd4f6a586e2b2d1ba4aae3719569d6",
+                "authorizationVersion": {
+                  "incarnation": "g0-corpus-authorization-v1",
+                  "epoch": 0
+                },
+                "evaluationCut": 1,
+                "kind": "graph-composition",
+                "label": "refused",
+                "nodes": [
+                  {
+                    "nodeId": "n0",
+                    "nodeKind": "root-window",
+                    "label": "refused",
+                    "proofHash": "sha256:2b7a83cd8de285b56d3c35482b0efb31e6a09258aa516caf340d51cc8464a71c"
+                  },
+                  {
+                    "nodeId": "n1",
+                    "nodeKind": "equality-to-one",
+                    "label": "refused",
+                    "proofHash": "sha256:f730282ba0abbf055b317d92926ec66c870cdb8b9c17e034be0ac3f527a8ce3d"
+                  },
+                  {
+                    "nodeId": "n2",
+                    "nodeKind": "bounded-to-many",
+                    "label": "refused",
+                    "proofHash": "sha256:148134a15926b58f252e2d6a075285848b4d958ec0ac579acfd2de89bbf02255"
+                  },
+                  {
+                    "nodeId": "n3",
+                    "nodeKind": "equality-to-one",
+                    "label": "refused",
+                    "proofHash": "sha256:867ac52bf9039cb2e1e99b510d5b399462ed85f53e34d7ad4df1f98f4198c65f"
+                  },
+                  {
+                    "nodeId": "n4",
+                    "nodeKind": "exists-semi-join",
+                    "label": "refused",
+                    "proofHash": "sha256:8ab78d234e0307ecca0f5ae12d35e7502164330ef15980b6884682bc0817a3dd"
+                  },
+                  {
+                    "nodeId": "n5",
+                    "nodeKind": "principal-bound",
+                    "label": "refused",
+                    "proofHash": "sha256:f15c54e21d274e409b51304a873afd0bdca305686ef6970566fb901c4a52e6de"
+                  }
+                ],
+                "primaryReason": "SNAPBACK_GRAPH_REQUIRED_EDGE_MISSING"
+              }
+            }
           }
         ],
         "graphCompleteness": {
@@ -57371,7 +58051,560 @@
             "primaryReason": "SNAPBACK_GRAPH_REQUIRED_EDGE_MISSING"
           }
         },
-        "refusalReason": "SNAPBACK_GRAPH_REQUIRED_EDGE_MISSING"
+        "refusalReason": "SNAPBACK_GRAPH_REQUIRED_EDGE_MISSING",
+        "structuralWork": {
+          "rootRowsByNode": [
+            {
+              "nodeId": "n0",
+              "observed": 1
+            }
+          ],
+          "examinedEntriesByNode": [
+            {
+              "nodeId": "n0",
+              "observed": 1
+            },
+            {
+              "nodeId": "n1",
+              "observed": 0
+            },
+            {
+              "nodeId": "n2",
+              "observed": 0
+            },
+            {
+              "nodeId": "n3",
+              "observed": 0
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            },
+            {
+              "nodeId": "n5",
+              "observed": 0
+            }
+          ],
+          "relationshipLookupsByNode": [
+            {
+              "nodeId": "n1",
+              "observed": 1
+            },
+            {
+              "nodeId": "n2",
+              "observed": 0
+            },
+            {
+              "nodeId": "n3",
+              "observed": 0
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            },
+            {
+              "nodeId": "n5",
+              "observed": 0
+            }
+          ],
+          "maxFanoutByNode": [
+            {
+              "nodeId": "n2",
+              "observed": 0
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            }
+          ],
+          "argumentItemsByArgument": [
+            {
+              "argumentId": "a0",
+              "observed": 0
+            },
+            {
+              "argumentId": "a1",
+              "observed": 1
+            }
+          ],
+          "argumentItems": 1,
+          "argumentExpansionByNode": [
+            {
+              "nodeId": "n4",
+              "observed": 0
+            }
+          ]
+        },
+        "windowLedgers": []
+      }
+    }
+  ],
+  "evaluatorEdgeCases": [
+    {
+      "id": "g2-bounded-root-named-truncation",
+      "baseCaseId": "g0-pair-list-hidden-internal-root",
+      "query": "issueListV2",
+      "nodeId": "n0",
+      "take": 1,
+      "interval": {
+        "lower": {
+          "kind": "inclusive",
+          "key": {
+            "entries": [
+              [
+                "modified",
+                1785888000001
+              ],
+              [
+                "sourceIssueID",
+                "zbav1_internal_issue"
+              ]
+            ],
+            "id": "issueListRead_81d6add76ae81eaf71180cfd"
+          }
+        },
+        "upper": {
+          "kind": "inclusive",
+          "key": {
+            "entries": [
+              [
+                "modified",
+                1677090538000
+              ],
+              [
+                "sourceIssueID",
+                "4wBDlh9b774qfGD3pWe6d"
+              ]
+            ],
+            "id": "issueListRead_a5e0101240728128902ba792"
+          }
+        }
+      },
+      "expect": {
+        "label": "prefix",
+        "hasMore": true,
+        "structuralWork": {
+          "rootRowsByNode": [
+            {
+              "nodeId": "n0",
+              "observed": 1
+            }
+          ],
+          "examinedEntriesByNode": [
+            {
+              "nodeId": "n0",
+              "observed": 2
+            },
+            {
+              "nodeId": "n1",
+              "observed": 1
+            },
+            {
+              "nodeId": "n2",
+              "observed": 0
+            },
+            {
+              "nodeId": "n3",
+              "observed": 0
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            },
+            {
+              "nodeId": "n5",
+              "observed": 1
+            }
+          ],
+          "relationshipLookupsByNode": [
+            {
+              "nodeId": "n1",
+              "observed": 1
+            },
+            {
+              "nodeId": "n2",
+              "observed": 1
+            },
+            {
+              "nodeId": "n3",
+              "observed": 0
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            },
+            {
+              "nodeId": "n5",
+              "observed": 2
+            }
+          ],
+          "maxFanoutByNode": [
+            {
+              "nodeId": "n2",
+              "observed": 0
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            }
+          ],
+          "argumentItemsByArgument": [
+            {
+              "argumentId": "a0",
+              "observed": 1
+            },
+            {
+              "argumentId": "a1",
+              "observed": 0
+            }
+          ],
+          "argumentItems": 1,
+          "argumentExpansionByNode": [
+            {
+              "nodeId": "n4",
+              "observed": 0
+            }
+          ]
+        },
+        "windowLedgers": [
+          {
+            "nodeId": "n0",
+            "pages": 1,
+            "rootRows": 1,
+            "scannedRows": 4,
+            "resultRows": 1,
+            "resultBytes": 1326,
+            "indexRanges": 5
+          }
+        ]
+      }
+    },
+    {
+      "id": "g2-mixed-parent-named-child-ranges",
+      "baseCaseId": "g0-pair-list-hidden-internal-root",
+      "query": "issueListV2",
+      "nodeId": "n2",
+      "planMutation": "literal-page-to-demand-with-derived-window-costs",
+      "rootInterval": {
+        "lower": {
+          "kind": "inclusive",
+          "key": {
+            "entries": [
+              [
+                "modified",
+                1722332514000
+              ],
+              [
+                "sourceIssueID",
+                "dSHOxE86nkbGafajdd1ew"
+              ]
+            ],
+            "id": "issueListRead_05b6226a6690cd98001777cc"
+          }
+        },
+        "upper": {
+          "kind": "inclusive",
+          "key": {
+            "entries": [
+              [
+                "modified",
+                1719261305000
+              ],
+              [
+                "sourceIssueID",
+                "Fv76FHJw6xEfMDZfRd0uv"
+              ]
+            ],
+            "id": "issueListRead_0941f7b18c9e6bd927f9c558"
+          }
+        }
+      },
+      "parentIntervals": [
+        {
+          "parentKey": {
+            "table": "issueListRead",
+            "id": "issueListRead_05b6226a6690cd98001777cc"
+          },
+          "lower": {
+            "kind": "inclusive",
+            "key": {
+              "entries": [
+                [
+                  "labelID",
+                  "label_1a58bd2107ccb27cffd832c7"
+                ]
+              ],
+              "id": "issueLabelRead_5df99eb31323eca1f6918993"
+            }
+          },
+          "upper": {
+            "kind": "inclusive",
+            "key": {
+              "entries": [
+                [
+                  "labelID",
+                  "label_1a58bd2107ccb27cffd832c7"
+                ]
+              ],
+              "id": "issueLabelRead_5df99eb31323eca1f6918993"
+            }
+          },
+          "take": 1
+        },
+        {
+          "parentKey": {
+            "table": "issueListRead",
+            "id": "issueListRead_0941f7b18c9e6bd927f9c558"
+          },
+          "lower": {
+            "kind": "inclusive",
+            "key": {
+              "entries": [
+                [
+                  "labelID",
+                  "label_0305a3060180d17741ec8edd"
+                ]
+              ],
+              "id": "issueLabelRead_2fd8d8d2c6c975ceccca7592"
+            }
+          },
+          "upper": {
+            "kind": "inclusive",
+            "key": {
+              "entries": [
+                [
+                  "labelID",
+                  "label_a8bf0091490f728ca1d433a8"
+                ]
+              ],
+              "id": "issueLabelRead_5cd424d7aa2b45d78cd21205"
+            }
+          },
+          "take": 1
+        }
+      ],
+      "expect": {
+        "label": "window",
+        "parentHasMore": [
+          false,
+          true
+        ],
+        "structuralWork": {
+          "rootRowsByNode": [
+            {
+              "nodeId": "n0",
+              "observed": 2
+            }
+          ],
+          "examinedEntriesByNode": [
+            {
+              "nodeId": "n0",
+              "observed": 2
+            },
+            {
+              "nodeId": "n1",
+              "observed": 2
+            },
+            {
+              "nodeId": "n2",
+              "observed": 3
+            },
+            {
+              "nodeId": "n3",
+              "observed": 2
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            },
+            {
+              "nodeId": "n5",
+              "observed": 1
+            }
+          ],
+          "relationshipLookupsByNode": [
+            {
+              "nodeId": "n1",
+              "observed": 2
+            },
+            {
+              "nodeId": "n2",
+              "observed": 2
+            },
+            {
+              "nodeId": "n3",
+              "observed": 2
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            },
+            {
+              "nodeId": "n5",
+              "observed": 3
+            }
+          ],
+          "maxFanoutByNode": [
+            {
+              "nodeId": "n2",
+              "observed": 1
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            }
+          ],
+          "argumentItemsByArgument": [
+            {
+              "argumentId": "a0",
+              "observed": 1
+            },
+            {
+              "argumentId": "a1",
+              "observed": 0
+            }
+          ],
+          "argumentItems": 1,
+          "argumentExpansionByNode": [
+            {
+              "nodeId": "n4",
+              "observed": 0
+            }
+          ]
+        },
+        "windowLedgers": [
+          {
+            "nodeId": "n0",
+            "pages": 1,
+            "rootRows": 2,
+            "scannedRows": 10,
+            "resultRows": 2,
+            "resultBytes": 1145,
+            "indexRanges": 10
+          },
+          {
+            "nodeId": "n2",
+            "pages": 1,
+            "rootRows": 0,
+            "scannedRows": 5,
+            "resultRows": 2,
+            "resultBytes": 1145,
+            "indexRanges": 4
+          }
+        ]
+      }
+    },
+    {
+      "id": "g2-window-page-overflow-refusal",
+      "baseCaseId": "g0-pair-list-hidden-internal-root",
+      "query": "issueListV2",
+      "nodeId": "n0",
+      "priorLedger": {
+        "nodeId": "n0",
+        "pages": 1,
+        "rootRows": 0,
+        "scannedRows": 0,
+        "resultRows": 0,
+        "resultBytes": 0,
+        "indexRanges": 0
+      },
+      "expect": {
+        "label": "refused",
+        "reason": "SNAPBACK_QUERY_COST_BOUND_EXCEEDED",
+        "structuralWork": {
+          "rootRowsByNode": [
+            {
+              "nodeId": "n0",
+              "observed": 0
+            }
+          ],
+          "examinedEntriesByNode": [
+            {
+              "nodeId": "n0",
+              "observed": 0
+            },
+            {
+              "nodeId": "n1",
+              "observed": 0
+            },
+            {
+              "nodeId": "n2",
+              "observed": 0
+            },
+            {
+              "nodeId": "n3",
+              "observed": 0
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            },
+            {
+              "nodeId": "n5",
+              "observed": 0
+            }
+          ],
+          "relationshipLookupsByNode": [
+            {
+              "nodeId": "n1",
+              "observed": 0
+            },
+            {
+              "nodeId": "n2",
+              "observed": 0
+            },
+            {
+              "nodeId": "n3",
+              "observed": 0
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            },
+            {
+              "nodeId": "n5",
+              "observed": 0
+            }
+          ],
+          "maxFanoutByNode": [
+            {
+              "nodeId": "n2",
+              "observed": 0
+            },
+            {
+              "nodeId": "n4",
+              "observed": 0
+            }
+          ],
+          "argumentItemsByArgument": [
+            {
+              "argumentId": "a0",
+              "observed": 1
+            },
+            {
+              "argumentId": "a1",
+              "observed": 0
+            }
+          ],
+          "argumentItems": 1,
+          "argumentExpansionByNode": [
+            {
+              "nodeId": "n4",
+              "observed": 0
+            }
+          ]
+        },
+        "windowLedgers": [
+          {
+            "nodeId": "n0",
+            "pages": 1,
+            "rootRows": 0,
+            "scannedRows": 0,
+            "resultRows": 0,
+            "resultBytes": 0,
+            "indexRanges": 0
+          }
+        ]
       }
     }
   ],
@@ -134696,5 +135929,5 @@
     "large-seed42-v1",
     "hot-recent-v1"
   ],
-  "contentDigest": "sha256:39cc99847be824a7bb9a2328f117bcc5b62164402fc647b1fbcd1e65e4412177"
+  "contentDigest": "sha256:064fac71835e0cbe0fdc27802bae0859783c35db4930e6c3c8311465265294c1"
 }

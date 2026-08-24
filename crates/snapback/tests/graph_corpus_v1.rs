@@ -1792,6 +1792,40 @@ fn assert_evaluator_matches_frozen_result(
     exact_proofs: bool,
 ) {
     let actual = serde_json::to_value(actual).expect("serialize evaluator output");
+    let mut expected = expected.clone();
+    fn normalize_snapshot_tuple(value: &mut Value) {
+        match value {
+            Value::Object(object) => {
+                if object.contains_key("materializationHash")
+                    && object.contains_key("partitionHash")
+                {
+                    object.insert(
+                        "authorizationVersion".to_owned(),
+                        Value::String("snapshot-bound".to_owned()),
+                    );
+                    object.insert(
+                        "evaluationCut".to_owned(),
+                        Value::String("snapshot-bound".to_owned()),
+                    );
+                }
+                if object.contains_key("proofHash") {
+                    object.insert(
+                        "proofHash".to_owned(),
+                        Value::String("snapshot-bound-proof-hash".to_owned()),
+                    );
+                }
+                for child in object.values_mut() {
+                    normalize_snapshot_tuple(child);
+                }
+            }
+            Value::Array(values) => {
+                for child in values {
+                    normalize_snapshot_tuple(child);
+                }
+            }
+            _ => {}
+        }
+    }
     for field in [
         "kind",
         "label",
@@ -1803,22 +1837,426 @@ fn assert_evaluator_matches_frozen_result(
         assert_eq!(actual[field], expected[field], "{case_id} field {field}");
     }
     if exact_proofs {
+        let mut actual_proofs = actual.clone();
+        normalize_snapshot_tuple(&mut actual_proofs);
+        normalize_snapshot_tuple(&mut expected);
         assert_eq!(
-            actual["nodeCompleteness"], expected["nodeCompleteness"],
+            actual_proofs["nodeCompleteness"], expected["nodeCompleteness"],
             "{case_id} node proofs"
         );
         assert_eq!(
-            actual["graphCompleteness"], expected["graphCompleteness"],
+            actual_proofs["graphCompleteness"], expected["graphCompleteness"],
             "{case_id} graph proof"
         );
     }
-    assert!(
-        actual["structuralWork"].is_object(),
-        "{case_id} emits structural work"
+    assert_eq!(
+        actual["structuralWork"], expected["structuralWork"],
+        "{case_id} structural work"
     );
+    assert_eq!(
+        actual["windowLedgers"], expected["windowLedgers"],
+        "{case_id} window ledgers"
+    );
+}
+
+fn executable_case<'a>(corpus: &'a Value, id: &str) -> &'a Value {
+    corpus["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| case["id"] == id)
+        .unwrap_or_else(|| panic!("missing executable corpus case {id}"))
+}
+
+fn evaluator_edge_case<'a>(corpus: &'a Value, id: &str) -> &'a Value {
+    corpus["evaluatorEdgeCases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| case["id"] == id)
+        .unwrap_or_else(|| panic!("missing evaluator edge corpus case {id}"))
+}
+
+fn request_for_case(
+    corpus: &Value,
+    case: &Value,
+) -> (GraphQueryCarrierV1, GraphEvaluationRequestV1) {
+    let carrier: GraphQueryCarrierV1 = serde_json::from_value(case["plan"].clone()).unwrap();
+    let call = &case["invocation"];
+    let (materialization, partition) =
+        validate_corpus_invocation(&carrier, call, case["query"].as_str().unwrap());
+    let request = evaluation_request(corpus, call, &materialization, &partition);
+    (carrier, request)
+}
+
+/// @ref LLP 0209#4-completeness-vocabulary — a named interval that is
+/// take-truncated is an ordered prefix, never a terminal named window.
+#[test]
+fn bounded_root_lookahead_is_prefix_and_window_page_overflow_refuses() {
+    let corpus = graph_corpus();
+    let case = executable_case(&corpus, "g0-pair-list-hidden-internal-root");
+    let (carrier, mut request) = request_for_case(&corpus, case);
+    let project = request.args["projectID"].clone();
+    let seed_tables = corpus_seed_tables(&corpus);
+    let mut candidates = seed_tables["issueListRead"]
+        .iter()
+        .filter(|row| row["projectID"] == project)
+        .collect::<Vec<_>>();
+    candidates.sort_by(|left, right| {
+        right["modified"]
+            .as_i64()
+            .cmp(&left["modified"].as_i64())
+            .then_with(|| {
+                right["sourceIssueID"]
+                    .as_str()
+                    .cmp(&left["sourceIssueID"].as_str())
+            })
+            .then_with(|| left["_id"].as_str().cmp(&right["_id"].as_str()))
+    });
+    let end = |row: &Map<String, Value>| {
+        serde_json::from_value(json!({
+            "kind":"inclusive",
+            "key":{
+                "entries":[["modified",row["modified"]],["sourceIssueID",row["sourceIssueID"]]],
+                "id":row["_id"],
+            }
+        }))
+        .unwrap()
+    };
+    let root_window = &mut request.windows[0].intervals[0].window;
+    root_window.lower = end(candidates.first().unwrap());
+    root_window.upper = end(candidates.last().unwrap());
+    root_window.take = 1;
+    let output = graph_store(&corpus, None)
+        .evaluate_graph_query(&carrier.normalized_plan, &request)
+        .expect("bounded root demand evaluates");
+    let output = serde_json::to_value(output).unwrap();
+    let bounded_case = evaluator_edge_case(&corpus, "g2-bounded-root-named-truncation");
+    assert_eq!(
+        output["nodeCompleteness"][0]["label"],
+        bounded_case["expect"]["label"]
+    );
+    assert_eq!(output["nodeCompleteness"][0]["proof"]["hasMore"], true);
+    assert_eq!(output["graphCompleteness"]["label"], "prefix");
+    assert_eq!(
+        output["structuralWork"],
+        bounded_case["expect"]["structuralWork"]
+    );
+    assert_eq!(
+        output["windowLedgers"],
+        bounded_case["expect"]["windowLedgers"]
+    );
+
+    let (_, mut overflow) = request_for_case(&corpus, case);
+    overflow.prior_window_ledgers = vec![
+        serde_json::from_value(json!({
+            "nodeId":"n0","pages":1,"rootRows":0,"scannedRows":0,
+            "resultRows":0,"resultBytes":0,"indexRanges":0
+        }))
+        .unwrap(),
+    ];
+    let refused = graph_store(&corpus, None)
+        .evaluate_graph_query(&carrier.normalized_plan, &overflow)
+        .expect("window-page overflow materializes");
+    let refused = serde_json::to_value(refused).unwrap();
+    let overflow_case = evaluator_edge_case(&corpus, "g2-window-page-overflow-refusal");
+    assert_eq!(
+        refused["refusalReason"],
+        "SNAPBACK_QUERY_COST_BOUND_EXCEEDED"
+    );
+    assert_eq!(
+        refused["windowLedgers"],
+        json!([{
+            "nodeId":"n0","pages":1,"rootRows":0,"scannedRows":0,
+            "resultRows":0,"resultBytes":0,"indexRanges":0
+        }])
+    );
+    assert_eq!(
+        refused["structuralWork"],
+        overflow_case["expect"]["structuralWork"]
+    );
+    assert_eq!(
+        refused["windowLedgers"],
+        overflow_case["expect"]["windowLedgers"]
+    );
+    assert_eq!(
+        refused["nodeCompleteness"].as_array().unwrap().len(),
+        carrier.normalized_plan.nodes.len(),
+        "evaluation-time refusal includes the projection node"
+    );
+}
+
+/// @ref LLP 0209#41-per-node-production-rules — each parent range retains
+/// its own interval and lookahead fact; a mixed exhausted/truncated set of
+/// named ranges composes to the node's window arm.
+#[test]
+fn mixed_parent_named_child_ranges_keep_per_parent_has_more() {
+    let corpus = graph_corpus();
+    let case = executable_case(&corpus, "g0-pair-list-hidden-internal-root");
+    let (carrier, mut request) = request_for_case(&corpus, case);
+    let mut plan_value = serde_json::to_value(&carrier.normalized_plan).unwrap();
+    plan_value["nodes"][2]["page"] = json!({"kind":"demand"});
+    Map::from_iter([
+        ("maxWindowPages".to_owned(), json!(1)),
+        ("maxWindowRootRows".to_owned(), json!(0)),
+        ("maxWindowScannedRows".to_owned(), json!(33792)),
+        ("maxWindowResultRows".to_owned(), json!(1024)),
+        ("maxWindowResultBytes".to_owned(), json!(33554432)),
+        ("maxWindowIndexRanges".to_owned(), json!(17408)),
+    ])
+    .into_iter()
+    .for_each(|(key, value)| {
+        plan_value["queryCost"]["graph"]["nodes"][2][key] = value;
+    });
+    plan_value["queryCost"]["graph"]["windowRollup"] = json!({
+        "maxWindowPages":2,"maxWindowRootRows":1024,"maxWindowScannedRows":88065,
+        "maxWindowResultRows":2048,"maxWindowResultBytes":67108864,
+        "maxWindowIndexRanges":54273
+    });
+    let plan: GraphQueryPlanV1 = serde_json::from_value(plan_value.clone()).unwrap();
     assert!(
-        actual["windowLedgers"].is_array(),
-        "{case_id} emits window ledgers"
+        graph_query_plan_faults_v1(&plan).is_empty(),
+        "demand-paged mutation remains a fully bounded admitted plan: {:?}",
+        graph_query_plan_faults_v1(&plan)
+    );
+
+    let tables = corpus_seed_tables(&corpus);
+    let project = request.args["projectID"].clone();
+    let mut roots = tables["issueListRead"]
+        .iter()
+        .filter(|row| row["projectID"] == project)
+        .collect::<Vec<_>>();
+    roots.sort_by(|left, right| {
+        right["modified"]
+            .as_i64()
+            .cmp(&left["modified"].as_i64())
+            .then_with(|| {
+                right["sourceIssueID"]
+                    .as_str()
+                    .cmp(&left["sourceIssueID"].as_str())
+            })
+            .then_with(|| left["_id"].as_str().cmp(&right["_id"].as_str()))
+    });
+    let selected = [&roots[7], &roots[8]];
+    let root_end = |row: &Map<String, Value>| {
+        json!({
+            "kind":"inclusive","key":{
+                "entries":[["modified",row["modified"]],["sourceIssueID",row["sourceIssueID"]]],
+                "id":row["_id"]
+            }
+        })
+    };
+    request.windows[0].intervals[0].window.lower =
+        serde_json::from_value(root_end(selected[0])).unwrap();
+    request.windows[0].intervals[0].window.upper =
+        serde_json::from_value(root_end(selected[1])).unwrap();
+    request.windows[0].intervals[0].window.take = 2;
+
+    let intervals = selected
+        .iter()
+        .map(|root| {
+            let mut labels = tables["issueLabelRead"]
+                .iter()
+                .filter(|row| row["issueID"] == root["issueID"])
+                .collect::<Vec<_>>();
+            labels.sort_by(|left, right| {
+                left["labelID"]
+                    .as_str()
+                    .cmp(&right["labelID"].as_str())
+                    .then_with(|| left["_id"].as_str().cmp(&right["_id"].as_str()))
+            });
+            assert!(!labels.is_empty());
+            let child_end = |row: &Map<String, Value>| {
+                json!({
+                    "kind":"inclusive","key":{
+                        "entries":[["labelID",row["labelID"]]],"id":row["_id"]
+                    }
+                })
+            };
+            json!({
+                "parentKey":{"table":"issueListRead","id":root["_id"]},
+                "window":{
+                    "order":plan_value["nodes"][2]["order"],"direction":"forward",
+                    "lower":child_end(labels.first().unwrap()),
+                    "upper":child_end(labels.last().unwrap()),"take":1
+                }
+            })
+        })
+        .collect::<Vec<_>>();
+    request
+        .windows
+        .push(serde_json::from_value(json!({"nodeId":"n2","intervals":intervals})).unwrap());
+    let output = graph_store(&corpus, None)
+        .evaluate_graph_query(&plan, &request)
+        .expect("mixed named child ranges evaluate");
+    let output = serde_json::to_value(output).unwrap();
+    let mixed_case = evaluator_edge_case(&corpus, "g2-mixed-parent-named-child-ranges");
+    let proof = &output["nodeCompleteness"][2]["proof"];
+    assert_eq!(output["nodeCompleteness"][2]["label"], "window");
+    let ranges = proof["ranges"].as_array().unwrap();
+    assert_eq!(ranges.len(), 2);
+    assert_eq!(
+        ranges
+            .iter()
+            .map(|range| range["hasMore"].as_bool().unwrap())
+            .collect::<BTreeSet<_>>(),
+        BTreeSet::from([false, true])
+    );
+    assert!(ranges.iter().all(|range| range["interval"].is_object()));
+    assert_eq!(
+        output["structuralWork"],
+        mixed_case["expect"]["structuralWork"]
+    );
+    assert_eq!(
+        output["windowLedgers"],
+        mixed_case["expect"]["windowLedgers"]
+    );
+}
+
+/// @ref LLP 0209#23-closure-admission-demand-time-evaluation-time-and-qualification-registers —
+/// the evaluator owns the demand-time validation ladder and class-2 reads
+/// fail closed when the materialized permission context is incomplete.
+#[test]
+fn evaluator_validates_demands_and_class_two_context_before_reads() {
+    let corpus = graph_corpus();
+    let case = executable_case(&corpus, "g0-pair-list-hidden-internal-root");
+    let (carrier, request) = request_for_case(&corpus, case);
+
+    let mut unknown = request.clone();
+    let mut extra = unknown.windows[0].clone();
+    extra.node_id = "n999".to_owned();
+    unknown.windows.push(extra);
+    assert_eq!(
+        graph_store(&corpus, None)
+            .evaluate_graph_query(&carrier.normalized_plan, &unknown)
+            .unwrap_err()
+            .diagnostic
+            .code,
+        "SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID"
+    );
+
+    let mut duplicate = request.clone();
+    duplicate.windows.push(duplicate.windows[0].clone());
+    assert_eq!(
+        graph_store(&corpus, None)
+            .evaluate_graph_query(&carrier.normalized_plan, &duplicate)
+            .unwrap_err()
+            .diagnostic
+            .code,
+        "SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID"
+    );
+
+    let mut order_mismatch = request.clone();
+    order_mismatch.windows[0].intervals[0].window.order[0].direction = OrderDirection::Asc;
+    assert_eq!(
+        graph_store(&corpus, None)
+            .evaluate_graph_query(&carrier.normalized_plan, &order_mismatch)
+            .unwrap_err()
+            .diagnostic
+            .code,
+        "SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH"
+    );
+
+    let mut missing_permission = request;
+    missing_permission
+        .authority
+        .permission_values_by_table
+        .clear();
+    let refused = graph_store(&corpus, None)
+        .evaluate_graph_query(&carrier.normalized_plan, &missing_permission)
+        .expect("missing class-2 context materializes a denial");
+    assert_eq!(
+        serde_json::to_value(refused).unwrap()["refusalReason"],
+        "SNAPBACK_AUTH_STALE_RESULT"
+    );
+}
+
+/// @ref LLP 0209#24-plan-instance-and-contextual-materialization-identity —
+/// the reported evaluation cut is sampled from the already-pinned read view,
+/// even when a successor commits before evaluation continues.
+#[test]
+fn graph_evaluation_tuple_uses_the_pinned_snapshot_cut() {
+    let corpus = graph_corpus();
+    let case = executable_case(&corpus, "g0-pair-point-hidden-internal-root");
+    let (carrier, mut request) = request_for_case(&corpus, case);
+    request.evaluation_cut = GraphEvaluationCutV1(u64::MAX);
+
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("graph-snapshot.sqlite3");
+    let tables = corpus_seed_tables(&corpus);
+    let mut reader = LocalSnapback::open(&path).unwrap();
+    let diagnostics = reader.apply_schema(corpus_schema(&tables)).unwrap();
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error)
+    );
+    reader
+        .seed(SeedData {
+            tables: tables.clone(),
+        })
+        .unwrap();
+    let lane = reader.read_lane();
+
+    let (reached_tx, reached_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let _hook = reader.set_graph_evaluation_snapshot_debug_hook(reached_tx, release_rx);
+    let writer_thread = std::thread::spawn(move || {
+        let pinned = reached_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("graph evaluator pins its predecessor snapshot");
+        let mut successor_row = tables["comment"][0].clone();
+        successor_row.insert("_id".to_owned(), json!("graph_snapshot_successor"));
+        successor_row.insert("id".to_owned(), json!("graph_snapshot_successor"));
+        reader
+            .seed(SeedData {
+                tables: BTreeMap::from([("comment".to_owned(), vec![successor_row])]),
+            })
+            .expect("interleaved successor commit succeeds");
+        release_tx.send(()).unwrap();
+        pinned
+    });
+
+    let output = lane
+        .evaluate_graph_query(&carrier.normalized_plan, &request)
+        .expect("pinned graph evaluation completes");
+    let pinned = writer_thread.join().unwrap();
+    assert_ne!(pinned, u64::MAX, "caller-supplied cut was not trusted");
+    assert_eq!(output.graph_completeness.evaluation_cut.0, pinned);
+    assert!(
+        output
+            .node_completeness
+            .iter()
+            .all(|node| { node.proof["evaluationCut"].as_u64() == Some(pinned) })
+    );
+}
+
+#[test]
+fn all_semijoin_admission_requires_its_declared_collection_argument_filter() {
+    let corpus = graph_corpus();
+    let case = executable_case(&corpus, "g0-pair-list-hidden-internal-root");
+    let carrier: GraphQueryCarrierV1 = serde_json::from_value(case["plan"].clone()).unwrap();
+    for replacement in [
+        json!({"Literal":["literal-must-not-bind"]}),
+        json!({"Arg":"a0"}),
+    ] {
+        let mut value = serde_json::to_value(&carrier.normalized_plan).unwrap();
+        value["nodes"][4]["filters"][0]["value"] = replacement;
+        let plan: GraphQueryPlanV1 = serde_json::from_value(value).unwrap();
+        assert!(
+            graph_query_plan_faults_v1(&plan)
+                .iter()
+                .any(|fault| fault.reason == GraphAdmissionRefusalReasonV1::ArgumentUnbound)
+        );
+    }
+
+    let mut value = serde_json::to_value(&carrier.normalized_plan).unwrap();
+    value["arguments"][1]["contract"]["value"] = json!({"kind":"string","maxBytes":128});
+    let plan: GraphQueryPlanV1 = serde_json::from_value(value).unwrap();
+    assert!(
+        graph_query_plan_faults_v1(&plan)
+            .iter()
+            .any(|fault| fault.reason == GraphAdmissionRefusalReasonV1::ArgumentUnbound)
     );
 }
 

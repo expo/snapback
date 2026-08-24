@@ -6,14 +6,14 @@
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
-    AuthInput, FilterExpr, FilterOp, GraphChildPageV1, GraphCompletenessLabelV1,
-    GraphCompositionProofV1, GraphDataNodeKindV1, GraphEvaluationCutV1, GraphExistsModeV1,
-    GraphIntervalEndV1, GraphLiteralPageV1, GraphMaterializedRefusalReasonV1,
+    AuthInput, FilterExpr, FilterOp, GraphAuthorityClassV1, GraphChildPageV1,
+    GraphCompletenessLabelV1, GraphCompositionProofV1, GraphDataNodeKindV1, GraphEvaluationCutV1,
+    GraphExistsModeV1, GraphIntervalEndV1, GraphLiteralPageV1, GraphMaterializedRefusalReasonV1,
     GraphNodeCompletenessProofClassV1, GraphNodeCompletenessProofV1, GraphNodeKindV1, GraphNodeV1,
     GraphNodeWindowIdentityV1, GraphProjectionLiteralV1, GraphProjectionObjectV1,
     GraphProjectionValueV1, GraphQueryPlanV1, GraphRowKeyV1, GraphToOnePresenceV1,
-    GraphWindowIdentityV1, HandlerInput, OrderExpr, QueryPlan, Sha256V1, TableVisibilityV1,
-    ValueExpr,
+    GraphWindowIdentityV1, HandlerInput, OrderDirection, OrderExpr, QueryPlan, Sha256V1,
+    TableVisibilityV1, ValueExpr, validate_graph_arguments_v1, validate_graph_window_vector_v1,
 };
 use crate::storage::DbRead;
 use serde::{Deserialize, Serialize};
@@ -163,31 +163,160 @@ struct Work {
 }
 
 impl Work {
-    fn observation(&self) -> StructuralWorkV1 {
-        fn nodes(values: &BTreeMap<String, u64>) -> Vec<GraphObservedNodeWorkV1> {
-            values
-                .iter()
-                .map(|(node_id, observed)| GraphObservedNodeWorkV1 {
-                    node_id: node_id.clone(),
-                    observed: *observed,
+    fn prepare(
+        &mut self,
+        plan: &GraphQueryPlanV1,
+        request: &GraphEvaluationRequestV1,
+    ) -> SnapbackResult<()> {
+        let supplied = request.args.as_object().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_GRAPH_ARGUMENT_INVALID",
+                "query",
+                "graph arguments must be an object",
+            )
+        })?;
+        for argument in &plan.arguments {
+            let observed = supplied
+                .get(&argument.name)
+                .map(|value| match value {
+                    Value::Array(values) => values.len() as u64,
+                    _ => 1,
                 })
-                .collect()
+                .unwrap_or(0);
+            self.argument_items
+                .insert(argument.argument_id.clone(), observed);
+        }
+        for cost in &plan.query_cost.graph.nodes {
+            self.examined.insert(cost.node_id.clone(), 0);
+            if cost.max_root_rows_per_page.is_some() {
+                self.root.insert(cost.node_id.clone(), 0);
+            }
+            if cost.max_relationship_lookups_per_execution.is_some() {
+                self.lookups.insert(cost.node_id.clone(), 0);
+            }
+            if cost.max_children_per_parent.is_some() {
+                self.fanout.insert(cost.node_id.clone(), 0);
+            }
+            if cost.max_argument_expansion.is_some() {
+                let node = plan
+                    .nodes
+                    .iter()
+                    .find(|node| node.node_id() == cost.node_id)
+                    .expect("admission aligns graph node costs");
+                let mut argument_ids = std::collections::BTreeSet::new();
+                let filters = match node {
+                    GraphNodeV1::RootWindow { filters, .. } => filters.as_slice(),
+                    GraphNodeV1::EqualityToOne { filters, .. }
+                    | GraphNodeV1::BoundedToMany { filters, .. }
+                    | GraphNodeV1::ExistsSemiJoin { filters, .. }
+                    | GraphNodeV1::PrincipalBound { filters, .. } => {
+                        filters.as_deref().unwrap_or_default()
+                    }
+                    GraphNodeV1::SearchMembership {
+                        argument_ids: search_argument_ids,
+                        ..
+                    } => {
+                        search_argument_ids
+                            .iter()
+                            .flatten()
+                            .for_each(|argument_id| {
+                                argument_ids.insert(argument_id.clone());
+                            });
+                        &[]
+                    }
+                    GraphNodeV1::ClosedProjection { .. } => &[],
+                };
+                for filter in filters {
+                    if filter.op == FilterOp::In {
+                        if let ValueExpr::Arg(argument_id) = &filter.value {
+                            argument_ids.insert(argument_id.clone());
+                        }
+                    }
+                }
+                let expansion = argument_ids
+                    .into_iter()
+                    .try_fold(1_u64, |product, id| {
+                        product.checked_mul(self.argument_items.get(&id).copied().unwrap_or(0))
+                    })
+                    .unwrap_or(u64::MAX);
+                self.expansion.insert(cost.node_id.clone(), expansion);
+            }
+        }
+        Ok(())
+    }
+
+    fn observation(&self, plan: &GraphQueryPlanV1) -> StructuralWorkV1 {
+        fn nodes<'a>(
+            ids: impl Iterator<Item = &'a str>,
+            values: &BTreeMap<String, u64>,
+        ) -> Vec<GraphObservedNodeWorkV1> {
+            ids.map(|node_id| GraphObservedNodeWorkV1 {
+                node_id: node_id.to_owned(),
+                observed: values.get(node_id).copied().unwrap_or(0),
+            })
+            .collect()
         }
         StructuralWorkV1 {
-            root_rows_by_node: nodes(&self.root),
-            examined_entries_by_node: nodes(&self.examined),
-            relationship_lookups_by_node: nodes(&self.lookups),
-            max_fanout_by_node: nodes(&self.fanout),
-            argument_items_by_argument: self
-                .argument_items
+            root_rows_by_node: nodes(
+                plan.query_cost.graph.nodes.iter().filter_map(|cost| {
+                    cost.max_root_rows_per_page
+                        .is_some()
+                        .then_some(cost.node_id.as_str())
+                }),
+                &self.root,
+            ),
+            examined_entries_by_node: nodes(
+                plan.query_cost
+                    .graph
+                    .nodes
+                    .iter()
+                    .map(|cost| cost.node_id.as_str()),
+                &self.examined,
+            ),
+            relationship_lookups_by_node: nodes(
+                plan.query_cost.graph.nodes.iter().filter_map(|cost| {
+                    cost.max_relationship_lookups_per_execution
+                        .is_some()
+                        .then_some(cost.node_id.as_str())
+                }),
+                &self.lookups,
+            ),
+            max_fanout_by_node: nodes(
+                plan.query_cost.graph.nodes.iter().filter_map(|cost| {
+                    cost.max_children_per_parent
+                        .is_some()
+                        .then_some(cost.node_id.as_str())
+                }),
+                &self.fanout,
+            ),
+            argument_items_by_argument: plan
+                .arguments
                 .iter()
-                .map(|(argument_id, observed)| GraphObservedArgumentWorkV1 {
-                    argument_id: argument_id.clone(),
-                    observed: *observed,
+                .map(|argument| GraphObservedArgumentWorkV1 {
+                    argument_id: argument.argument_id.clone(),
+                    observed: self
+                        .argument_items
+                        .get(&argument.argument_id)
+                        .copied()
+                        .unwrap_or(0),
                 })
                 .collect(),
-            argument_items: self.argument_items.values().sum(),
-            argument_expansion_by_node: nodes(&self.expansion),
+            argument_items: plan.arguments.iter().fold(0_u64, |sum, argument| {
+                sum.saturating_add(
+                    self.argument_items
+                        .get(&argument.argument_id)
+                        .copied()
+                        .unwrap_or(0),
+                )
+            }),
+            argument_expansion_by_node: nodes(
+                plan.query_cost.graph.nodes.iter().filter_map(|cost| {
+                    cost.max_argument_expansion
+                        .is_some()
+                        .then_some(cost.node_id.as_str())
+                }),
+                &self.expansion,
+            ),
         }
     }
 }
@@ -309,6 +438,138 @@ fn input_for(
         args: Value::Object(args),
         auth: request.authority.auth.clone(),
         ..HandlerInput::default()
+    })
+}
+
+fn demand_refusal(error: crate::manifest::GraphDemandTimeRefusalReasonV1) -> SnapbackError {
+    SnapbackError::error(error.code(), "query", "graph demand validation refused")
+}
+
+fn supplied_parent_sets(
+    request: &GraphEvaluationRequestV1,
+) -> BTreeMap<String, Vec<GraphRowKeyV1>> {
+    request
+        .windows
+        .iter()
+        .filter_map(|entry| {
+            let parents = entry
+                .intervals
+                .iter()
+                .map(|interval| interval.parent_key.clone())
+                .collect::<Option<Vec<_>>>()?;
+            Some((entry.node_id.clone(), parents))
+        })
+        .collect()
+}
+
+fn validate_demand(
+    plan: &GraphQueryPlanV1,
+    request: &GraphEvaluationRequestV1,
+    evaluated_parents: &BTreeMap<String, Vec<GraphRowKeyV1>>,
+) -> SnapbackResult<()> {
+    validate_graph_arguments_v1(plan, &request.args).map_err(demand_refusal)?;
+    validate_graph_window_vector_v1(plan, &request.windows, evaluated_parents)
+        .map_err(demand_refusal)
+}
+
+fn validate_child_demand(
+    plan: &GraphQueryPlanV1,
+    request: &GraphEvaluationRequestV1,
+    state: &EvaluationState,
+    node: &GraphNodeV1,
+) -> SnapbackResult<()> {
+    if !matches!(
+        node,
+        GraphNodeV1::BoundedToMany {
+            page: GraphChildPageV1::Demand(_),
+            ..
+        }
+    ) {
+        return Ok(());
+    }
+    let mut parents = supplied_parent_sets(request);
+    let parent_node_id = node.parent_node_id().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID",
+            "query",
+            "demand-paged child has no parent",
+        )
+    })?;
+    parents.insert(
+        node.node_id().to_owned(),
+        parent_instances(state, parent_node_id)
+            .iter()
+            .map(|parent| parent.key.clone())
+            .collect(),
+    );
+    validate_demand(plan, request, &parents)
+}
+
+fn class_two_context_is_complete(
+    plan: &GraphQueryPlanV1,
+    request: &GraphEvaluationRequestV1,
+) -> bool {
+    plan.nodes.iter().all(|node| {
+        if node.authority().declared_class != GraphAuthorityClassV1::PARTITION_SCOPED
+            || matches!(node, GraphNodeV1::ClosedProjection { .. })
+        {
+            return true;
+        }
+        let Some(proof) = node.authority().proof.as_ref() else {
+            return false;
+        };
+        let permission_backings = proof
+            .policy_inputs
+            .iter()
+            .filter(|input| {
+                matches!(
+                    input.kind,
+                    crate::manifest::GraphPolicyInputKindV1::PermissionBacking
+                )
+            })
+            .collect::<Vec<_>>();
+        if permission_backings.is_empty()
+            || permission_backings.iter().any(|input| {
+                !request
+                    .authority
+                    .permission_values_by_table
+                    .contains_key(&input.declaration_id)
+            })
+        {
+            return false;
+        }
+        let reads = match node {
+            GraphNodeV1::RootWindow {
+                table, visibility, ..
+            }
+            | GraphNodeV1::EqualityToOne {
+                table, visibility, ..
+            }
+            | GraphNodeV1::BoundedToMany {
+                table, visibility, ..
+            }
+            | GraphNodeV1::PrincipalBound {
+                table, visibility, ..
+            } => vec![(table, visibility)],
+            GraphNodeV1::ExistsSemiJoin { edge, .. } => match edge {
+                crate::manifest::GraphEdgeV1::Direct(edge) => {
+                    vec![(&edge.table, &edge.visibility)]
+                }
+                crate::manifest::GraphEdgeV1::Through(edge) => vec![
+                    (&edge.table, &edge.visibility),
+                    (&edge.target_table, &edge.target_visibility),
+                ],
+            },
+            GraphNodeV1::SearchMembership { .. } | GraphNodeV1::ClosedProjection { .. } => {
+                Vec::new()
+            }
+        };
+        reads.iter().all(|(table, visibility)| {
+            !permission_backings
+                .iter()
+                .any(|input| input.declaration_id == **table)
+                || matches!(visibility, TableVisibilityV1::PublicRead)
+        })
     })
 }
 
@@ -530,7 +791,7 @@ fn evaluate_root(
     let window = window_for(request, node_id, None, None)?;
     if window.order != *order {
         return Err(SnapbackError::error(
-            "SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID",
+            "SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH",
             "query",
             "root window order does not equal the admitted node order",
         ));
@@ -590,7 +851,7 @@ fn evaluate_root(
 
     let tuple = tuple_json(request);
     let consumed = state.roots.len() as u64;
-    let (label, class, evidence) = if has_more && unbounded(&window) {
+    let (label, class, evidence) = if has_more {
         (
             GraphCompletenessLabelV1::Prefix,
             GraphNodeCompletenessProofClassV1::OrderedPrefix,
@@ -658,7 +919,10 @@ fn evaluate_to_one(
     let mut output = Vec::new();
     let mut proof_rows = Vec::new();
     let mut lookups = 0_u64;
+    let mut consultations = 0_u64;
+    let mut examined = 0_u64;
     for parent in &parents {
+        lookups += 1;
         let Some(mut relation) = relation_filters(&parent.row, join_on) else {
             insert_child(state, parent_node_id, parent, node_id, Vec::new())?;
             proof_rows.push(json!({"parentKey":parent.key,"found":false}));
@@ -673,7 +937,7 @@ fn evaluate_to_one(
             continue;
         };
         relation.extend(filters.clone().unwrap_or_default());
-        lookups += 1;
+        consultations += 1;
         let query = query_plan(
             table,
             visibility,
@@ -683,6 +947,7 @@ fn evaluate_to_one(
             access_index,
         );
         let rows = read.query(&query, input)?.rows;
+        examined += rows.len() as u64;
         let found = !rows.is_empty();
         if !found && matches!(presence, GraphToOnePresenceV1::Required) {
             // Same register as the null-key path above; both physical miss
@@ -710,11 +975,8 @@ fn evaluate_to_one(
     }
     state.by_node.insert(node_id.clone(), output);
     state.work.lookups.insert(node_id.clone(), lookups);
-    state.work.examined.insert(node_id.clone(), lookups);
-    state
-        .work
-        .fanout
-        .insert(node_id.clone(), u64::from(!parents.is_empty()));
+    state.work.examined.insert(node_id.clone(), examined);
+    state.work.ranges.insert(node_id.clone(), consultations);
     sort_parent_proof_rows(&mut proof_rows);
     let proof = merge_json(
         tuple_json(request),
@@ -757,11 +1019,23 @@ fn evaluate_to_many(
         GraphChildPageV1::Literal(value) => Some(value),
         GraphChildPageV1::Demand(_) => None,
     };
+    #[derive(Clone, Copy, Eq, PartialEq)]
+    enum ParentRangeClass {
+        Complete,
+        Window,
+        Prefix,
+    }
+    #[derive(Clone, Copy)]
+    enum ParentRangeComposition {
+        Complete,
+        Window,
+        Prefix,
+        Mixed,
+    }
     let mut output = Vec::new();
-    let mut ranges = Vec::new();
-    let mut any_has_more = false;
-    let mut any_bounded = false;
+    let mut facts = Vec::new();
     let mut examined = 0_u64;
+    let mut consultations = 0_u64;
     for parent in &parents {
         let window = window_for(request, node_id, Some(&parent.key), literal)?;
         let mut effective = window.clone();
@@ -770,7 +1044,7 @@ fn evaluate_to_many(
         }
         if effective.order != *order {
             return Err(SnapbackError::error(
-                "SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID",
+                "SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH",
                 "query",
                 "child window order does not equal the admitted node order",
             ));
@@ -778,11 +1052,24 @@ fn evaluate_to_many(
         let cap = usize::try_from(effective.take).unwrap_or(usize::MAX);
         let Some(mut relation) = relation_filters(&parent.row, join_on) else {
             insert_child(state, parent_node_id, parent, node_id, Vec::new())?;
-            ranges.push(
+            let class = if unbounded(&effective) {
+                ParentRangeClass::Complete
+            } else {
+                ParentRangeClass::Window
+            };
+            facts.push((
+                class,
                 json!({"parentKey":parent.key,"consumed":0,"cap":effective.take,"hasMore":false}),
-            );
+                json!({
+                    "parentKey":parent.key,
+                    "interval":{"lower":effective.lower,"upper":effective.upper},
+                    "consumed":0,"cap":effective.take,"hasMore":false
+                }),
+                None,
+            ));
             continue;
         };
+        consultations += 1;
         relation.extend(filters.clone().unwrap_or_default());
         let query = query_plan(
             table,
@@ -804,8 +1091,6 @@ fn evaluate_to_many(
         let has_more = rows.len() > cap;
         examined += rows.len() as u64;
         rows.truncate(cap);
-        any_has_more |= has_more;
-        any_bounded |= !unbounded(&effective);
         let children = rows
             .into_iter()
             .map(|row| {
@@ -826,8 +1111,17 @@ fn evaluate_to_many(
         state
             .has_more
             .insert((node_id.clone(), parent.key.id.clone()), has_more);
-        let mut range = json!({"parentKey":parent.key,"consumed":children.len(),"cap":effective.take,"hasMore":has_more});
-        if has_more && unbounded(&effective) {
+        let complete_range = json!({
+            "parentKey":parent.key,"consumed":children.len(),
+            "cap":effective.take,"hasMore":false
+        });
+        let window_range = json!({
+            "parentKey":parent.key,
+            "interval":{"lower":effective.lower,"upper":effective.upper},
+            "consumed":children.len(),"cap":effective.take,"hasMore":has_more
+        });
+        let mut prefix_range = None;
+        let class = if has_more && unbounded(&effective) {
             let continuation = keyset_for(
                 &children.last().expect("lookahead implies a child").row,
                 order,
@@ -836,44 +1130,94 @@ fn evaluate_to_many(
                 (node_id.clone(), parent.key.id.clone()),
                 continuation.clone(),
             );
-            range["continuation"] = continuation;
-        } else if !unbounded(&effective) {
-            range["interval"] = json!({"lower":effective.lower,"upper":effective.upper});
-        }
-        ranges.push(range);
+            prefix_range = Some(json!({
+                "parentKey":parent.key,"consumed":children.len(),
+                "cap":effective.take,"hasMore":true,"continuation":continuation
+            }));
+            ParentRangeClass::Prefix
+        } else if unbounded(&effective) {
+            ParentRangeClass::Complete
+        } else {
+            ParentRangeClass::Window
+        };
+        facts.push((class, complete_range, window_range, prefix_range));
         output.extend(children.iter().cloned());
         insert_child(state, parent_node_id, parent, node_id, children)?;
     }
-    sort_parent_proof_rows(&mut ranges);
     state.by_node.insert(node_id.clone(), output);
     state
         .work
         .lookups
         .insert(node_id.clone(), parents.len() as u64);
     state.work.examined.insert(node_id.clone(), examined);
-    state
-        .work
-        .ranges
-        .insert(node_id.clone(), parents.len() as u64);
+    state.work.ranges.insert(node_id.clone(), consultations);
     let tuple = tuple_json(request);
-    let (label, class, evidence) = if any_has_more && !any_bounded {
-        (
-            GraphCompletenessLabelV1::Prefix,
-            GraphNodeCompletenessProofClassV1::OrderedPrefix,
-            json!({"kind":"bounded-to-many","label":"prefix","order":order,"stableOrderProof":"declared-order-with-id-tiebreak","ranges":ranges}),
-        )
-    } else if any_bounded {
-        (
-            GraphCompletenessLabelV1::Window,
-            GraphNodeCompletenessProofClassV1::ParentRanges,
-            json!({"kind":"bounded-to-many","label":"window","ranges":ranges}),
-        )
-    } else {
-        (
-            GraphCompletenessLabelV1::Complete,
-            GraphNodeCompletenessProofClassV1::ParentRanges,
-            json!({"kind":"bounded-to-many","label":"complete","ranges":ranges}),
-        )
+    let composition = facts.iter().fold(
+        ParentRangeComposition::Complete,
+        |composition, (parent, ..)| match (composition, parent) {
+            (value, ParentRangeClass::Complete) => value,
+            (
+                ParentRangeComposition::Complete | ParentRangeComposition::Window,
+                ParentRangeClass::Window,
+            ) => ParentRangeComposition::Window,
+            (
+                ParentRangeComposition::Complete | ParentRangeComposition::Prefix,
+                ParentRangeClass::Prefix,
+            ) => ParentRangeComposition::Prefix,
+            _ => ParentRangeComposition::Mixed,
+        },
+    );
+    let (label, class, evidence) = match composition {
+        ParentRangeComposition::Complete => {
+            let mut ranges = facts
+                .iter()
+                .map(|(_, complete, _, _)| complete.clone())
+                .collect::<Vec<_>>();
+            sort_parent_proof_rows(&mut ranges);
+            (
+                GraphCompletenessLabelV1::Complete,
+                GraphNodeCompletenessProofClassV1::ParentRanges,
+                json!({"kind":"bounded-to-many","label":"complete","ranges":ranges}),
+            )
+        }
+        ParentRangeComposition::Window => {
+            let mut ranges = facts
+                .iter()
+                .map(|(_, _, window, _)| window.clone())
+                .collect::<Vec<_>>();
+            sort_parent_proof_rows(&mut ranges);
+            (
+                GraphCompletenessLabelV1::Window,
+                GraphNodeCompletenessProofClassV1::ParentRanges,
+                json!({"kind":"bounded-to-many","label":"window","ranges":ranges}),
+            )
+        }
+        ParentRangeComposition::Prefix
+            if facts
+                .iter()
+                .all(|(parent, ..)| *parent == ParentRangeClass::Prefix) =>
+        {
+            let mut ranges = facts
+                .iter()
+                .filter_map(|(_, _, _, prefix)| prefix.clone())
+                .collect::<Vec<_>>();
+            sort_parent_proof_rows(&mut ranges);
+            (
+                GraphCompletenessLabelV1::Prefix,
+                GraphNodeCompletenessProofClassV1::OrderedPrefix,
+                json!({"kind":"bounded-to-many","label":"prefix","order":order,"stableOrderProof":"declared-order-with-id-tiebreak","ranges":ranges}),
+            )
+        }
+        ParentRangeComposition::Prefix => (
+            GraphCompletenessLabelV1::Unknown,
+            GraphNodeCompletenessProofClassV1::None,
+            json!({"kind":"bounded-to-many","label":"unknown","reason":"parent-range-unproved"}),
+        ),
+        ParentRangeComposition::Mixed => (
+            GraphCompletenessLabelV1::Unknown,
+            GraphNodeCompletenessProofClassV1::None,
+            json!({"kind":"bounded-to-many","label":"unknown","reason":"mixed-prefix-window"}),
+        ),
     };
     state.node_proofs.push(proof_entry(
         node_id,
@@ -888,7 +1232,9 @@ fn evaluate_to_many(
 #[derive(Default)]
 struct ProbeObservation {
     found: bool,
+    undecidable_over_cap: bool,
     lookups: u64,
+    ranges: u64,
     examined: u64,
     fanout: u64,
 }
@@ -902,7 +1248,10 @@ fn direct_probe(
     filters: &[FilterExpr],
 ) -> SnapbackResult<ProbeObservation> {
     let Some(mut relation) = relation_filters(parent, &edge.join_on) else {
-        return Ok(ProbeObservation::default());
+        return Ok(ProbeObservation {
+            lookups: 1,
+            ..ProbeObservation::default()
+        });
     };
     relation.extend_from_slice(filters);
     let query = query_plan(
@@ -916,7 +1265,9 @@ fn direct_probe(
     let rows = read.query(&query, input)?.rows;
     Ok(ProbeObservation {
         found: !rows.is_empty(),
+        undecidable_over_cap: false,
         lookups: 1,
+        ranges: 1,
         examined: rows.len() as u64,
         fanout: rows.len() as u64,
     })
@@ -932,33 +1283,80 @@ fn through_probe(
     edge_cap: usize,
 ) -> SnapbackResult<ProbeObservation> {
     let Some(mut relation) = relation_filters(parent, &edge.parent_join) else {
-        return Ok(ProbeObservation::default());
+        return Ok(ProbeObservation {
+            lookups: 1,
+            ..ProbeObservation::default()
+        });
     };
     // @ref LLP 0209#26-bounds-and-fixture-derivation — a through probe is one
     // filtered edge-range consultation followed by one target point per edge.
     // The G2-A ruling places GraphNode filters on that edge range; predicates
     // on target rows belong to a target node rather than moving across it.
     relation.extend_from_slice(edge_filters);
+    let edge_order = read
+        .schema()
+        .tables
+        .iter()
+        .find(|table| table.name == edge.table)
+        .and_then(|table| {
+            table
+                .indexes
+                .iter()
+                .find(|index| index.name == edge.parent_index)
+        })
+        .map(|index| {
+            index
+                .fields
+                .iter()
+                .filter(|field| field.as_str() != "_id")
+                .map(|field| OrderExpr {
+                    field: field.clone(),
+                    direction: OrderDirection::Asc,
+                    max_encoded_bytes: None,
+                })
+                .collect::<Vec<_>>()
+        })
+        .ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_QUERY_COST_INDEX_REQUIRED",
+                "query",
+                "through-edge parent index is absent from the pinned schema",
+            )
+        })?;
     let edge_query = query_plan(
         &edge.table,
         &edge.visibility,
         authorized_filters(&edge.table, &relation, request),
-        Vec::new(),
+        edge_order,
         edge_cap,
         &edge.parent_index,
     );
-    let edge_rows = read.query(&edge_query, input)?.rows;
+    let mut edge_rows = read
+        .query_graph_window_with_lookahead(
+            &edge_query,
+            input,
+            crate::manifest::GraphDirectionV1::Forward,
+            &GraphIntervalEndV1::Unbounded,
+            &GraphIntervalEndV1::Unbounded,
+        )?
+        .rows;
+    let has_more = edge_rows.len() > edge_cap;
+    let examined_edge_rows = edge_rows.len() as u64;
+    edge_rows.truncate(edge_cap);
     let mut observation = ProbeObservation {
         found: false,
         lookups: 1,
-        examined: edge_rows.len() as u64,
+        ranges: 1,
+        examined: examined_edge_rows,
         fanout: edge_rows.len() as u64,
+        undecidable_over_cap: false,
     };
     for edge_row in edge_rows {
         let Some(target_filters) = relation_filters(&edge_row, &edge.target_join) else {
             continue;
         };
         observation.lookups += 1;
+        observation.ranges += 1;
         let target_query = query_plan(
             &edge.target_table,
             &edge.target_visibility,
@@ -974,6 +1372,7 @@ fn through_probe(
             break;
         }
     }
+    observation.undecidable_over_cap = !observation.found && has_more;
     Ok(observation)
 }
 
@@ -1014,6 +1413,7 @@ fn evaluate_semi_join(
     let base_filters = filters.clone().unwrap_or_default();
     let mut rows = Vec::new();
     let mut lookups = 0_u64;
+    let mut consultations = 0_u64;
     let mut examined = 0_u64;
     let mut max_fanout = 0_u64;
     let edge_cap = plan
@@ -1041,16 +1441,6 @@ fn evaluate_semi_join(
         })?;
         canonical_arguments.entry(key).or_insert(value);
     }
-    if let Some(argument_id) = argument_id {
-        state
-            .work
-            .argument_items
-            .insert(argument_id.clone(), canonical_arguments.len() as u64);
-        state
-            .work
-            .expansion
-            .insert(node_id.clone(), canonical_arguments.len() as u64);
-    }
     for parent in &parents {
         let probes = if matches!(mode, GraphExistsModeV1::All) {
             canonical_arguments.values().cloned().collect::<Vec<_>>()
@@ -1061,12 +1451,7 @@ fn evaluate_semi_join(
         for argument in probes {
             let mut probe_filters = base_filters.clone();
             if matches!(mode, GraphExistsModeV1::All) {
-                for filter in &mut probe_filters {
-                    if matches!(filter.op, FilterOp::In) {
-                        filter.op = FilterOp::Eq;
-                        filter.value = ValueExpr::Literal(argument.clone());
-                    }
-                }
+                bind_declared_all_probe(&mut probe_filters, argument_id.as_deref(), &argument);
             }
             let observation = match edge {
                 crate::manifest::GraphEdgeV1::Direct(edge) => {
@@ -1083,12 +1468,21 @@ fn evaluate_semi_join(
                 )?,
             };
             lookups += observation.lookups;
+            consultations += observation.ranges;
             examined += observation.examined;
             max_fanout = max_fanout.max(observation.fanout);
+            if observation.undecidable_over_cap {
+                state.materialized_refusal =
+                    Some(GraphMaterializedRefusalReasonV1::QueryCostBoundExceeded);
+                break;
+            }
             if !observation.found {
                 matched = false;
                 break;
             }
+        }
+        if state.materialized_refusal.is_some() {
+            break;
         }
         state.exists.insert(
             (
@@ -1104,6 +1498,7 @@ fn evaluate_semi_join(
     state.work.lookups.insert(node_id.clone(), lookups);
     state.work.examined.insert(node_id.clone(), examined);
     state.work.fanout.insert(node_id.clone(), max_fanout);
+    state.work.ranges.insert(node_id.clone(), consultations);
 
     let projected_as_existence = plan.nodes.last().is_some_and(|projection| {
         matches!(projection, GraphNodeV1::ClosedProjection { object, .. } if projection_references_exists(object, node_id))
@@ -1155,6 +1550,20 @@ fn evaluate_semi_join(
     Ok(())
 }
 
+fn bind_declared_all_probe(filters: &mut [FilterExpr], argument_id: Option<&str>, value: &Value) {
+    let Some(argument_id) = argument_id else {
+        return;
+    };
+    for filter in filters {
+        if filter.op == FilterOp::In
+            && matches!(&filter.value, ValueExpr::Arg(bound) if bound == argument_id)
+        {
+            filter.op = FilterOp::Eq;
+            filter.value = ValueExpr::Literal(value.clone());
+        }
+    }
+}
+
 fn evaluate_principal(
     read: &DbRead<'_>,
     request: &GraphEvaluationRequestV1,
@@ -1180,9 +1589,11 @@ fn evaluate_principal(
     let parents = parent_instances(state, parent_node_id).to_vec();
     let mut principal = input.auth.user_id.clone();
     let mut binding_found = binding.is_none();
-    let mut binding_lookups = 0_u64;
+    let binding_lookups = u64::from(binding.is_some());
+    let mut binding_consultations = 0_u64;
+    let mut examined = 0_u64;
     if let (Some(binding), Some(raw_principal)) = (binding, principal.clone()) {
-        binding_lookups = 1;
+        binding_consultations = 1;
         let query = query_plan(
             &binding.table,
             &binding.visibility,
@@ -1200,6 +1611,7 @@ fn evaluate_principal(
             &binding.unique_index,
         );
         let row = read.query(&query, input)?.rows.into_iter().next();
+        examined += u64::from(row.is_some());
         binding_found = row.is_some();
         principal = row.and_then(|row| {
             row.get(&binding.value_field)
@@ -1209,7 +1621,8 @@ fn evaluate_principal(
     }
     let mut output = Vec::new();
     let mut proof_rows = Vec::new();
-    let mut target_lookups = 0_u64;
+    let target_lookups = parents.len() as u64;
+    let mut target_consultations = 0_u64;
     for parent in &parents {
         let mut found = false;
         let mut children_rows = Vec::new();
@@ -1223,7 +1636,7 @@ fn evaluate_principal(
                 value: ValueExpr::Literal(Value::String(principal.clone())),
             });
             relation.extend(filters.clone().unwrap_or_default());
-            target_lookups += 1;
+            target_consultations += 1;
             let query = query_plan(
                 table,
                 visibility,
@@ -1233,6 +1646,7 @@ fn evaluate_principal(
                 access_index,
             );
             let rows = read.query(&query, input)?.rows;
+            examined += rows.len() as u64;
             found = !rows.is_empty();
             children_rows = rows
                 .into_iter()
@@ -1257,14 +1671,11 @@ fn evaluate_principal(
         .work
         .lookups
         .insert(node_id.clone(), binding_lookups + target_lookups);
-    state
-        .work
-        .examined
-        .insert(node_id.clone(), binding_lookups + target_lookups);
-    state
-        .work
-        .fanout
-        .insert(node_id.clone(), u64::from(!parents.is_empty()));
+    state.work.examined.insert(node_id.clone(), examined);
+    state.work.ranges.insert(
+        node_id.clone(),
+        binding_consultations + target_consultations,
+    );
     let proof = merge_json(
         tuple_json(request),
         json!({"kind":"principal-bound","label":"complete","rows":proof_rows}),
@@ -1391,8 +1802,14 @@ fn composition(
     let data = plan
         .nodes
         .iter()
-        .zip(proofs)
-        .filter_map(|(node, proof)| data_node_kind(node).map(|kind| (kind, proof)))
+        .filter_map(|node| {
+            data_node_kind(node).and_then(|kind| {
+                proofs
+                    .iter()
+                    .find(|proof| proof.node_id == node.node_id())
+                    .map(|proof| (kind, proof))
+            })
+        })
         .collect::<Vec<_>>();
     let labels = data
         .iter()
@@ -1480,15 +1897,16 @@ fn composition(
 fn enforce_execution_bounds(
     plan: &GraphQueryPlanV1,
     state: &EvaluationState,
-    result_bytes: usize,
+    result_rows: u64,
+    result_bytes: u64,
 ) -> bool {
-    if result_bytes as u64 > plan.query_cost.graph.max_page_result_bytes {
-        return false;
-    }
     for cost in &plan.query_cost.graph.nodes {
         let node = &cost.node_id;
-        if state.work.examined.get(node).copied().unwrap_or(0)
-            > cost.max_examined_entries_per_execution
+        if cost
+            .max_root_rows_per_page
+            .is_some_and(|limit| state.work.root.get(node).copied().unwrap_or(0) > limit)
+            || state.work.examined.get(node).copied().unwrap_or(0)
+                > cost.max_examined_entries_per_execution
             || cost
                 .max_relationship_lookups_per_execution
                 .is_some_and(|limit| state.work.lookups.get(node).copied().unwrap_or(0) > limit)
@@ -1502,39 +1920,188 @@ fn enforce_execution_bounds(
             return false;
         }
     }
-    true
+    for argument in &plan.query_cost.graph.arguments {
+        if state
+            .work
+            .argument_items
+            .get(&argument.argument_id)
+            .copied()
+            .unwrap_or(0)
+            > argument.max_items
+        {
+            return false;
+        }
+    }
+    let argument_items = plan.arguments.iter().try_fold(0_u64, |sum, argument| {
+        sum.checked_add(
+            state
+                .work
+                .argument_items
+                .get(&argument.argument_id)
+                .copied()
+                .unwrap_or(0),
+        )
+    });
+    let scanned_rows = plan
+        .query_cost
+        .graph
+        .nodes
+        .iter()
+        .try_fold(0_u64, |sum, cost| {
+            sum.checked_add(state.work.examined.get(&cost.node_id).copied().unwrap_or(0))
+        });
+    let index_ranges = plan
+        .query_cost
+        .graph
+        .nodes
+        .iter()
+        .try_fold(0_u64, |sum, cost| {
+            sum.checked_add(state.work.ranges.get(&cost.node_id).copied().unwrap_or(0))
+        });
+    argument_items.is_some_and(|observed| observed <= plan.query_cost.graph.max_argument_items)
+        && scanned_rows.is_some_and(|observed| observed <= plan.query_cost.max_scanned_rows)
+        && index_ranges.is_some_and(|observed| observed <= plan.query_cost.max_index_ranges)
+        && result_rows <= plan.query_cost.max_result_rows
+        && result_bytes <= plan.query_cost.max_result_bytes
+        && result_bytes <= plan.query_cost.graph.max_page_result_bytes
 }
 
-fn ledgers(
+fn demand_costs(plan: &GraphQueryPlanV1) -> Vec<&crate::manifest::GraphNodeCostV1> {
+    plan.query_cost
+        .graph
+        .nodes
+        .iter()
+        .filter(|cost| cost.max_window_pages.is_some())
+        .collect()
+}
+
+fn validate_prior_ledgers(
+    plan: &GraphQueryPlanV1,
+    request: &GraphEvaluationRequestV1,
+) -> SnapbackResult<()> {
+    if request.prior_window_ledgers.is_empty() {
+        return Ok(());
+    }
+    let expected = demand_costs(plan);
+    if request.prior_window_ledgers.len() != expected.len()
+        || request
+            .prior_window_ledgers
+            .iter()
+            .zip(expected)
+            .any(|(ledger, cost)| ledger.node_id != cost.node_id)
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_GRAPH_CURSOR_UNBOUND",
+            "query",
+            "graph window ledger vector does not match demand lineages",
+        ));
+    }
+    Ok(())
+}
+
+fn prior_ledger_at_or_over_bound(
+    plan: &GraphQueryPlanV1,
+    request: &GraphEvaluationRequestV1,
+) -> bool {
+    request.prior_window_ledgers.iter().any(|ledger| {
+        let cost = plan
+            .query_cost
+            .graph
+            .nodes
+            .iter()
+            .find(|cost| cost.node_id == ledger.node_id)
+            .expect("prior ledger validation aligns demand costs");
+        ledger.pages >= cost.max_window_pages.unwrap_or(0)
+            || ledger.root_rows > cost.max_window_root_rows.unwrap_or(0)
+            || ledger.scanned_rows > cost.max_window_scanned_rows.unwrap_or(0)
+            || ledger.result_rows > cost.max_window_result_rows.unwrap_or(0)
+            || ledger.result_bytes > cost.max_window_result_bytes.unwrap_or(0)
+            || ledger.index_ranges > cost.max_window_index_ranges.unwrap_or(0)
+    })
+}
+
+fn node_is_in_subtree(plan: &GraphQueryPlanV1, node_id: &str, root_id: &str) -> bool {
+    let mut cursor = Some(node_id);
+    while let Some(current) = cursor {
+        if current == root_id {
+            return true;
+        }
+        cursor = plan
+            .nodes
+            .iter()
+            .find(|node| node.node_id() == current)
+            .and_then(GraphNodeV1::parent_node_id);
+    }
+    false
+}
+
+fn next_ledgers(
     plan: &GraphQueryPlanV1,
     request: &GraphEvaluationRequestV1,
     state: &EvaluationState,
     result_rows: u64,
     result_bytes: u64,
-) -> Vec<GraphWindowLedgerV1> {
+) -> Option<Vec<GraphWindowLedgerV1>> {
     let mut ledgers = request
         .prior_window_ledgers
         .iter()
         .map(|ledger| (ledger.node_id.clone(), ledger.clone()))
         .collect::<BTreeMap<_, _>>();
-    for cost in &plan.query_cost.graph.nodes {
-        if cost.max_window_pages.is_none() {
-            continue;
-        }
+    let mut output = Vec::new();
+    for cost in demand_costs(plan) {
         let ledger = ledgers
             .entry(cost.node_id.clone())
             .or_insert_with(|| GraphWindowLedgerV1 {
                 node_id: cost.node_id.clone(),
                 ..GraphWindowLedgerV1::default()
             });
-        ledger.pages += 1;
-        ledger.root_rows += state.work.root.get(&cost.node_id).copied().unwrap_or(0);
-        ledger.scanned_rows += state.work.examined.get(&cost.node_id).copied().unwrap_or(0);
-        ledger.result_rows += result_rows;
-        ledger.result_bytes += result_bytes;
-        ledger.index_ranges += state.work.ranges.get(&cost.node_id).copied().unwrap_or(0);
+        let is_root = plan.root_node_id == cost.node_id;
+        let scanned_rows = plan
+            .query_cost
+            .graph
+            .nodes
+            .iter()
+            .try_fold(0_u64, |sum, node| {
+                if node_is_in_subtree(plan, &node.node_id, &cost.node_id) {
+                    sum.checked_add(state.work.examined.get(&node.node_id).copied().unwrap_or(0))
+                } else {
+                    Some(sum)
+                }
+            })?;
+        let index_ranges = plan
+            .query_cost
+            .graph
+            .nodes
+            .iter()
+            .try_fold(0_u64, |sum, node| {
+                if node_is_in_subtree(plan, &node.node_id, &cost.node_id) {
+                    sum.checked_add(state.work.ranges.get(&node.node_id).copied().unwrap_or(0))
+                } else {
+                    Some(sum)
+                }
+            })?;
+        ledger.pages = ledger.pages.checked_add(1)?;
+        ledger.root_rows = ledger.root_rows.checked_add(if is_root {
+            state.work.root.get(&cost.node_id).copied().unwrap_or(0)
+        } else {
+            0
+        })?;
+        ledger.scanned_rows = ledger.scanned_rows.checked_add(scanned_rows)?;
+        ledger.result_rows = ledger.result_rows.checked_add(result_rows)?;
+        ledger.result_bytes = ledger.result_bytes.checked_add(result_bytes)?;
+        ledger.index_ranges = ledger.index_ranges.checked_add(index_ranges)?;
+        if ledger.pages > cost.max_window_pages?
+            || ledger.root_rows > cost.max_window_root_rows?
+            || ledger.scanned_rows > cost.max_window_scanned_rows?
+            || ledger.result_rows > cost.max_window_result_rows?
+            || ledger.result_bytes > cost.max_window_result_bytes?
+            || ledger.index_ranges > cost.max_window_index_ranges?
+        {
+            return None;
+        }
+        output.push(ledger.clone());
     }
-    ledgers.into_values().collect()
+    Some(output)
 }
 
 fn refused_output(
@@ -1552,7 +2119,7 @@ fn refused_output(
             GraphNodeKindV1::ClosedProjection=>"closed-projection",
         },"label":"refused","reason":reason});
         if matches!(node, GraphNodeV1::ClosedProjection { .. }) {
-            break;
+            continue;
         }
         node_proofs.push(proof_entry(
             node.node_id(),
@@ -1563,6 +2130,32 @@ fn refused_output(
         )?);
     }
     let (label, class, proof) = composition(plan, request, &node_proofs, Some(reason))?;
+    let projection = plan
+        .nodes
+        .iter()
+        .find(|node| matches!(node, GraphNodeV1::ClosedProjection { .. }))
+        .ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+                "query",
+                "graph plan has no projection",
+            )
+        })?;
+    node_proofs.push(proof_entry(
+        projection.node_id(),
+        node_kind(projection),
+        GraphCompletenessLabelV1::Refused,
+        GraphNodeCompletenessProofClassV1::Refusal,
+        merge_json(
+            tuple_json(request),
+            json!({
+                "kind":"closed-projection",
+                "label":"refused",
+                "reason":reason,
+                "composition":proof,
+            }),
+        ),
+    )?);
     let graph = GraphCompletenessV1 {
         materialization_hash: request.materialization_hash.clone(),
         partition_hash: request.partition_hash.clone(),
@@ -1581,8 +2174,9 @@ fn refused_output(
         node_completeness: node_proofs,
         graph_completeness: graph,
         refusal_reason: Some(reason),
-        structural_work: state.work.observation(),
-        window_ledgers: ledgers(plan, request, state, 0, 0),
+        structural_work: state.work.observation(plan),
+        // A refusal publishes no page, so it cannot advance any lineage.
+        window_ledgers: request.prior_window_ledgers.clone(),
     })
 }
 
@@ -1603,8 +2197,28 @@ pub(crate) fn evaluate_graph_query_on(
     plan: &GraphQueryPlanV1,
     request: &GraphEvaluationRequestV1,
 ) -> SnapbackResult<GraphEvaluationOutputV1> {
+    let supplied_parents = supplied_parent_sets(request);
+    validate_demand(plan, request, &supplied_parents)?;
     let input = input_for(plan, request)?;
     let mut state = EvaluationState::default();
+    state.work.prepare(plan, request)?;
+    validate_prior_ledgers(plan, request)?;
+    if prior_ledger_at_or_over_bound(plan, request) {
+        return refused_output(
+            plan,
+            request,
+            &state,
+            GraphMaterializedRefusalReasonV1::QueryCostBoundExceeded,
+        );
+    }
+    if !class_two_context_is_complete(plan, request) {
+        return refused_output(
+            plan,
+            request,
+            &state,
+            GraphMaterializedRefusalReasonV1::AuthStaleResult,
+        );
+    }
     for node in &plan.nodes {
         match node {
             GraphNodeV1::RootWindow { .. } => {
@@ -1617,10 +2231,14 @@ pub(crate) fn evaluate_graph_query_on(
                 }
             }
             GraphNodeV1::BoundedToMany { .. } => {
+                validate_child_demand(plan, request, &state, node)?;
                 evaluate_to_many(&read, request, &input, &mut state, node)?
             }
             GraphNodeV1::ExistsSemiJoin { .. } => {
-                evaluate_semi_join(&read, plan, request, &input, &mut state, node)?
+                evaluate_semi_join(&read, plan, request, &input, &mut state, node)?;
+                if let Some(reason) = state.materialized_refusal {
+                    return refused_output(plan, request, &state, reason);
+                }
             }
             GraphNodeV1::PrincipalBound { .. } => {
                 evaluate_principal(&read, request, &input, &mut state, node)?
@@ -1670,7 +2288,8 @@ pub(crate) fn evaluate_graph_query_on(
             error.to_string(),
         )
     })?;
-    if !enforce_execution_bounds(plan, &state, result_bytes.len()) {
+    let result_length = rows.len() as u64;
+    if !enforce_execution_bounds(plan, &state, result_length, result_bytes.len() as u64) {
         return refused_output(
             plan,
             request,
@@ -1704,14 +2323,20 @@ pub(crate) fn evaluate_graph_query_on(
         .iter()
         .map(|root| root.root_id.clone())
         .collect::<Vec<_>>();
-    let result_length = rows.len() as u64;
-    let window_ledgers = ledgers(
+    let Some(window_ledgers) = next_ledgers(
         plan,
         request,
         &state,
         result_length,
         result_bytes.len() as u64,
-    );
+    ) else {
+        return refused_output(
+            plan,
+            request,
+            &state,
+            GraphMaterializedRefusalReasonV1::QueryCostBoundExceeded,
+        );
+    };
     Ok(GraphEvaluationOutputV1 {
         kind: "result".to_owned(),
         label,
@@ -1721,7 +2346,40 @@ pub(crate) fn evaluate_graph_query_on(
         node_completeness: state.node_proofs,
         graph_completeness,
         refusal_reason: None,
-        structural_work: state.work.observation(),
+        structural_work: state.work.observation(plan),
         window_ledgers,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn all_probe_binds_only_the_declared_argument_filter() {
+        let mut filters = vec![
+            FilterExpr {
+                field: "declared".to_owned(),
+                op: FilterOp::In,
+                value: ValueExpr::Arg("a1".to_owned()),
+            },
+            FilterExpr {
+                field: "other".to_owned(),
+                op: FilterOp::In,
+                value: ValueExpr::Arg("a2".to_owned()),
+            },
+            FilterExpr {
+                field: "literal".to_owned(),
+                op: FilterOp::In,
+                value: ValueExpr::Literal(json!(["unchanged"])),
+            },
+        ];
+        bind_declared_all_probe(&mut filters, Some("a1"), &json!("probe"));
+        assert_eq!(filters[0].op, FilterOp::Eq);
+        assert_eq!(filters[0].value, ValueExpr::Literal(json!("probe")));
+        assert_eq!(filters[1].op, FilterOp::In);
+        assert_eq!(filters[1].value, ValueExpr::Arg("a2".to_owned()));
+        assert_eq!(filters[2].op, FilterOp::In);
+        assert_eq!(filters[2].value, ValueExpr::Literal(json!(["unchanged"])));
+    }
 }

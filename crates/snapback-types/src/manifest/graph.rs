@@ -3983,6 +3983,7 @@ fn validate_graph_query_plan_v1_first_fault(
                 parent_node_id,
                 edge,
                 mode,
+                filters,
                 argument_id,
                 ..
             } => {
@@ -4016,6 +4017,17 @@ fn validate_graph_query_plan_v1_first_fault(
                     return Err(GraphAdmissionRefusalReasonV1::ThroughTableUndeclared);
                 }
                 if matches!(mode, GraphExistsModeV1::Exists) != argument_id.is_none() {
+                    return Err(GraphAdmissionRefusalReasonV1::ArgumentUnbound);
+                }
+                if matches!(mode, GraphExistsModeV1::All)
+                    && !argument_id.as_ref().is_some_and(|argument_id| {
+                        all_semijoin_argument_is_bound(
+                            plan,
+                            filters.as_deref().unwrap_or_default(),
+                            argument_id,
+                        )
+                    })
+                {
                     return Err(GraphAdmissionRefusalReasonV1::ArgumentUnbound);
                 }
             }
@@ -4225,6 +4237,25 @@ fn graph_filter_faults(
     }
 }
 
+fn all_semijoin_argument_is_bound(
+    plan: &GraphQueryPlanV1,
+    filters: &[FilterExpr],
+    argument_id: &str,
+) -> bool {
+    let collection_typed = plan.arguments.iter().any(|argument| {
+        argument.argument_id == argument_id
+            && matches!(argument.contract.value, ResultValueContract::Array { .. })
+    });
+    let matching_filters = filters
+        .iter()
+        .filter(|filter| {
+            filter.op == FilterOp::In
+                && matches!(&filter.value, ValueExpr::Arg(bound) if bound == argument_id)
+        })
+        .count();
+    collection_typed && matching_filters == 1
+}
+
 /// Return every plan-local and normalization fault, ordered by the normative
 /// admission row. Callers must report only the first row, but later phases use
 /// this complete set when unioning installed-owner faults.
@@ -4431,6 +4462,17 @@ pub fn graph_query_plan_faults_v1(plan: &GraphQueryPlanV1) -> Vec<GraphAdmission
                     faults.insert(GraphAdmissionRefusalReasonV1::ThroughTableUndeclared);
                 }
                 if matches!(mode, GraphExistsModeV1::Exists) != argument_id.is_none() {
+                    faults.insert(GraphAdmissionRefusalReasonV1::ArgumentUnbound);
+                }
+                if matches!(mode, GraphExistsModeV1::All)
+                    && !argument_id.as_ref().is_some_and(|argument_id| {
+                        all_semijoin_argument_is_bound(
+                            plan,
+                            filters.as_deref().unwrap_or_default(),
+                            argument_id,
+                        )
+                    })
+                {
                     faults.insert(GraphAdmissionRefusalReasonV1::ArgumentUnbound);
                 }
                 graph_filter_faults(

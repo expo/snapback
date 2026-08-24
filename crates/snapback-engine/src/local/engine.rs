@@ -4819,14 +4819,32 @@ impl<R> DirectAuthorizationWrite<R> {
 impl LocalSnapback {
     /// Evaluate an already-admitted graph query without exposing it through a
     /// handler or serving dispatch. G2-C owns that integration boundary.
+    #[cfg(any(test, feature = "test-support"))]
     pub fn evaluate_graph_query(
         &self,
         plan: &crate::manifest::GraphQueryPlanV1,
         request: &crate::graph_evaluator::GraphEvaluationRequestV1,
     ) -> SnapbackResult<crate::graph_evaluator::GraphEvaluationOutputV1> {
         self.db.query_reads_read().with_pinned_read_view(|read| {
-            crate::graph_evaluator::evaluate_graph_query_on(read, plan, request)
+            // @ref LLP 0209#24-plan-instance-and-contextual-materialization-identity —
+            // the first reads after opening the transaction pin the snapshot;
+            // the proof tuple is then completed from that same read view.
+            let evaluation_cut = read.current_version()?;
+            let (authorization_version, _) = read.membership_cursor_custody_snapshot()?;
+            let mut effective = request.clone();
+            effective.evaluation_cut = crate::manifest::GraphEvaluationCutV1(evaluation_cut);
+            effective.authorization_version = authorization_version;
+            crate::graph_evaluator::evaluate_graph_query_on(read, plan, &effective)
         })
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn set_graph_evaluation_snapshot_debug_hook(
+        &self,
+        reached: std::sync::mpsc::Sender<u64>,
+        release: std::sync::mpsc::Receiver<()>,
+    ) -> crate::storage::StorageReadSnapshotDebugHookGuard {
+        crate::storage::set_storage_read_snapshot_debug_hook(&self.db, reached, release)
     }
 
     pub fn database_path(&self) -> Option<&std::path::Path> {
@@ -32595,6 +32613,24 @@ pub struct ReadHealth {
 }
 
 impl ReadLane {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn evaluate_graph_query(
+        &self,
+        plan: &crate::manifest::GraphQueryPlanV1,
+        request: &crate::graph_evaluator::GraphEvaluationRequestV1,
+    ) -> SnapbackResult<crate::graph_evaluator::GraphEvaluationOutputV1> {
+        let pool = self.pool.as_ref().ok_or_else(read_lane_unavailable)?;
+        let manifests = self.manifests();
+        pool.with_pinned_read(&manifests.schema, |read| {
+            let evaluation_cut = read.current_version()?;
+            let (authorization_version, _) = read.membership_cursor_custody_snapshot()?;
+            let mut effective = request.clone();
+            effective.evaluation_cut = crate::manifest::GraphEvaluationCutV1(evaluation_cut);
+            effective.authorization_version = authorization_version;
+            crate::graph_evaluator::evaluate_graph_query_on(read, plan, &effective)
+        })
+    }
+
     /// Whether this declared query needs the non-cloneable serving owner.
     /// Push-ledger authorization currently consumes a fact asserted by that
     /// owner, so it must never execute through a cloned read lane.
