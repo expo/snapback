@@ -495,6 +495,7 @@
       "allowedHostId": "mac-mini-durand",
       "loadCeilingId": "mac16-11-m4-pro-12core-loadavg-10-approved-20260824",
       "baseline": {"wallSeconds": 7631, "outputTokens": 152614},
+      "disposition": {"kind": "driver-failure-report", "path": "BLOCKED-sol-coterie-familiar-admission-seriality-finalization.md", "sha256": "sha256:d170ce12989fb5da25aa99d271b1c1b51e965560d216bdf7834352543acec43c"},
       "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "sol-coterie-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/sol-coterie-familiar.json"],
       "admissionArtifact": "admissions/sol-coterie-familiar.json",
       "meteringPolicy": {"adapter": "codex", "capFamily": "gpt-frontier", "nativeCounts": "required"}
