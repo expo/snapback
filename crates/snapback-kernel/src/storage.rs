@@ -745,6 +745,20 @@ pub struct VersionedChangedRow {
     pub change: ChangedRow,
 }
 
+/// Observation-only projection of every physical change-journal column for
+/// cross-crate durable-write tests. This type cannot authorize or commit work.
+#[cfg(any(test, feature = "test-support"))]
+#[derive(Clone, Debug, PartialEq)]
+pub struct PhysicalChangeJournalRowForTest {
+    pub id: i64,
+    pub version: i64,
+    pub table_name: String,
+    pub row_id: String,
+    pub op: String,
+    pub row_json: Option<String>,
+    pub changed_at_ms: i64,
+}
+
 /// One source-commit seam for all synchronous derived indexes. Query modules
 /// consume their own read paths; storage owns the write ordering so adding a
 /// later vector query executor cannot accidentally bypass atomic maintenance.
@@ -1669,6 +1683,21 @@ struct StreamAttemptStartupRecoveryCapability {
 }
 
 impl ServingDatabase {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn storage_version_physical_row_for_test(&self) -> SnapbackResult<(i64, i64)> {
+        self.db.storage_version_physical_row_for_test()
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn physical_change_journal_rows_for_test(
+        &self,
+        table_name: &str,
+        after_version: u64,
+    ) -> SnapbackResult<Vec<PhysicalChangeJournalRowForTest>> {
+        self.db
+            .physical_change_journal_rows_for_test(table_name, after_version)
+    }
+
     pub fn adopt(db: LocalDatabase) -> SnapbackResult<Self> {
         Self::adopt_with_optional_stream_attempt_verifier(db, None)
     }
@@ -2338,37 +2367,57 @@ impl ServingDatabase {
         self.db.create_pending_effect(command)
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub fn decide_pending_effect_admitted(
+    pub fn prepare_pending_effect_approval(
         &mut self,
         id: &str,
         approver_principal_id: &str,
-        approve: bool,
+        now_ms: u64,
+    ) -> SnapbackResult<pending_effects::PreparedPendingEffectApproval> {
+        self.db
+            .prepare_pending_effect_approval(id, approver_principal_id, now_ms)
+    }
+
+    pub fn approve_pending_effect_admitted(
+        &mut self,
+        approval: pending_effects::PreparedPendingEffectApproval,
         requires_step_up: bool,
         step_up: Option<&crate::auth::crypto::StepUpProof>,
         now_ms: u64,
-    ) -> SnapbackResult<pending_effects::PendingEffectRecord> {
-        let command = self.authority.admit_pending_effect_decision(
-            id,
-            approver_principal_id,
-            approve,
+    ) -> SnapbackResult<pending_effects::ApprovedPendingEffect> {
+        let command = self.authority.admit_pending_effect_approval(
+            approval,
             requires_step_up,
             step_up,
             now_ms,
         );
-        self.db.decide_pending_effect(command)
+        self.db.approve_pending_effect(command)
+    }
+
+    pub fn deny_pending_effect_admitted(
+        &mut self,
+        id: &str,
+        approver_principal_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<pending_effects::PendingEffectRecord> {
+        let command = self
+            .authority
+            .admit_pending_effect_denial(id, approver_principal_id, now_ms);
+        self.db.deny_pending_effect(command)
     }
 
     pub fn settle_pending_effect_admitted(
         &mut self,
-        id: &str,
+        execution: pending_effects::PendingEffectExecutionTicket,
         executed: bool,
         outcome_code: Option<&str>,
         now_ms: u64,
     ) -> SnapbackResult<pending_effects::PendingEffectRecord> {
-        let command =
-            self.authority
-                .admit_pending_effect_settlement(id, executed, outcome_code, now_ms);
+        let command = self.authority.admit_pending_effect_settlement(
+            execution,
+            executed,
+            outcome_code,
+            now_ms,
+        );
         self.db.settle_pending_effect(command)
     }
 
@@ -2832,6 +2881,44 @@ fn inspect_storage_for_open(conn: &Connection) -> SnapbackResult<()> {
 }
 
 impl LocalDatabase {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn storage_version_physical_row_for_test(&self) -> SnapbackResult<(i64, i64)> {
+        self.conn
+            .query_row("SELECT id, version FROM _snapback_version", [], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            })
+            .map_err(Into::into)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn physical_change_journal_rows_for_test(
+        &self,
+        table_name: &str,
+        after_version: u64,
+    ) -> SnapbackResult<Vec<PhysicalChangeJournalRowForTest>> {
+        let mut statement = self.conn.prepare(
+            "SELECT id, version, table_name, row_id, op, row_json, changed_at_ms
+               FROM _snapback_changes
+              WHERE table_name = ?1 AND version > ?2
+              ORDER BY version, id",
+        )?;
+        let rows = statement.query_map(
+            params![table_name, version_to_sql_integer(after_version)?],
+            |row| {
+                Ok(PhysicalChangeJournalRowForTest {
+                    id: row.get(0)?,
+                    version: row.get(1)?,
+                    table_name: row.get(2)?,
+                    row_id: row.get(3)?,
+                    op: row.get(4)?,
+                    row_json: row.get(5)?,
+                    changed_at_ms: row.get(6)?,
+                })
+            },
+        )?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
     pub(in crate::storage) fn replace_active_schema(&mut self, schema: SchemaManifest) {
         self.schema = schema;
         self.vector_quarantine_gate.set_schema(&self.schema);

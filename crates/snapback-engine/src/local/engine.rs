@@ -3578,6 +3578,66 @@ pub struct ResolvedServiceAuthority {
     publication: crate::auth::service_fence::ServiceAuthorityPublication,
 }
 
+/// Engine-owned approval preparation retaining the management authority and
+/// the exact database-bound pending row selected for its derived approver.
+#[derive(Clone)]
+pub struct PreparedEffectApproval {
+    pending: crate::storage::pending_effects::PreparedPendingEffectApproval,
+    management: PreparedAuthority,
+}
+
+impl PreparedEffectApproval {
+    pub fn effect_id(&self) -> &str {
+        self.pending.effect_id()
+    }
+
+    pub fn original_authority(
+        &self,
+    ) -> crate::storage::pending_effects::RetainedEffectOriginalAuthority<'_> {
+        self.pending.original_authority()
+    }
+}
+
+/// Prepared original authority for the exact pending effect named by an
+/// approval carrier. Its fields remain engine-private.
+pub struct PreparedEffectOriginalAuthority {
+    effect_id: String,
+    authority: PreparedAuthority,
+}
+
+impl PreparedEffectOriginalAuthority {
+    pub fn source(&self) -> InvocationSource {
+        self.authority.source()
+    }
+
+    pub fn projection(&self) -> &HandlerAuthProjection {
+        self.authority.projection()
+    }
+}
+
+pub struct PreparedEffectSettlement {
+    execution: crate::storage::pending_effects::PendingEffectExecutionTicket,
+    management: PreparedAuthority,
+}
+
+pub struct ApprovedEffectDispatch {
+    record: crate::storage::pending_effects::PendingEffectRecord,
+    original: PreparedAuthority,
+    settlement: PreparedEffectSettlement,
+}
+
+impl ApprovedEffectDispatch {
+    pub fn into_parts(
+        self,
+    ) -> (
+        crate::storage::pending_effects::PendingEffectRecord,
+        PreparedAuthority,
+        PreparedEffectSettlement,
+    ) {
+        (self.record, self.original, self.settlement)
+    }
+}
+
 impl ResolvedServiceAuthority {
     #[cfg(any(test, feature = "test-support"))]
     pub fn synthetic_for_test(
@@ -3597,6 +3657,14 @@ impl ResolvedServiceAuthority {
     pub fn publication(&self) -> &crate::auth::service_fence::ServiceAuthorityPublication {
         &self.publication
     }
+}
+
+fn effect_original_authority_mismatch() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_EFFECT_BINDING_STALE",
+        "effects",
+        "the reconstructed authority does not match the pending effect",
+    )
 }
 
 impl ExpiredServiceAuthorityPlan {
@@ -5605,72 +5673,41 @@ impl LocalSnapback {
         self.db.pending_effect(id, now_ms)
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub fn resolve_retained_effect_service_authority(
-        &mut self,
+    pub fn require_effect_management_session(
         management: &PreparedAuthority,
-        actor_user_id: &str,
-        credential_id: &str,
-        credential_generation: u64,
-        grant_id: &str,
-        token_id: &str,
-        effective_user_id: Option<&str>,
-        expected_expires_at_ms: u64,
-        now_ms: u64,
-        monotonic_now: Instant,
-        provider: Arc<crate::auth::provider::AuthProvider>,
-    ) -> SnapbackResult<ResolvedServiceAuthority> {
-        let _effect = management.effect_guard("pending-effect service authority revalidation")?;
-        let resolved = self.db.resolve_retained_service_authority(
-            crate::storage::auth_agent_credentials::RetainedServiceAuthority {
-                actor_user_id,
-                credential_id,
-                credential_generation,
-                grant_id,
-                token_id,
-                effective_user_id,
-            },
-            now_ms,
-        )?;
-        if resolved.expires_at_ms != expected_expires_at_ms {
+    ) -> SnapbackResult<(String, String)> {
+        management.validate_admission("pending-effect approval preparation")?;
+        if management.source() != InvocationSource::EffectManagement
+            || management.active_mode() != AuthMode::Sessions
+        {
             return Err(SnapbackError::error(
-                "SNAPBACK_EFFECT_BINDING_STALE",
-                "effects",
-                "the scoped-token deadline differs from the frozen authority",
+                "SNAPBACK_INVOCATION_SOURCE_INVALID",
+                "auth",
+                "effect management requires exact shared-gate session authority",
             ));
         }
-        let publication = self
-            .service_authority_fences
-            .register(resolved.service_authority_witness(), now_ms, monotonic_now)?
-            .with_provider_clock(provider);
-        Ok(ResolvedServiceAuthority {
-            resolved: ResolvedAppAuthority::from_scoped_token(resolved),
-            publication,
-        })
+        let ResolvedAppAuthority::Session {
+            user_id,
+            session_id,
+            ..
+        } = management.resolved()
+        else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_SOURCE_INVALID",
+                "auth",
+                "effect management requires exact shared-gate session authority",
+            ));
+        };
+        Ok((user_id.to_owned(), session_id.to_owned()))
     }
 
-    pub fn refuse_pending_effect(
+    fn validate_prepared_effect_current(
         &mut self,
-        authority: &PreparedAuthority,
-        id: &str,
-        outcome_code: &str,
+        approval: &PreparedEffectApproval,
+        original: Option<&PreparedAuthority>,
         now_ms: u64,
-    ) -> SnapbackResult<()> {
-        let _effect = authority.effect_guard("pending-effect refusal transaction")?;
-        self.db
-            .refuse_pending_effect_admitted(id, outcome_code, now_ms)
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn approve_pending_effect(
-        &mut self,
-        effect: &crate::storage::pending_effects::PendingEffectRecord,
-        original: &PreparedAuthority,
-        management: &PreparedAuthority,
-        approver_id: &str,
-        step_up: Option<&crate::auth::crypto::StepUpProof>,
-        now_ms: u64,
-    ) -> SnapbackResult<crate::storage::pending_effects::PendingEffectRecord> {
+    ) -> SnapbackResult<FunctionDefinition> {
+        let effect = approval.pending.effect();
         let function = self
             .function_definition(&effect.function_name)
             .cloned()
@@ -5707,7 +5744,9 @@ impl LocalSnapback {
         let mut approval_per_use = false;
         if let Some(link_id) = effect.link_origin_id.as_deref() {
             let link = self.db.capability_link_effect_origin(link_id, now_ms)?;
-            if link.minter_principal_id != approver_id || link.function_id != function.id {
+            if link.minter_principal_id != approval.pending.approver_principal_id()
+                || link.function_id != function.id
+            {
                 return Err(SnapbackError::error(
                     "SNAPBACK_EFFECT_BINDING_STALE",
                     "effects",
@@ -5727,30 +5766,250 @@ impl LocalSnapback {
             ));
         }
         crate::args_contract::validate_function_args(&function, &effect.args)?;
-        InvocationGate::validate_current_function_policy(original, &function)?;
-        InvocationGate::validate_current_function_policy(management, &function)?;
-        let _effect = management.effect_guard("pending-effect approval transaction")?;
-        self.db.decide_pending_effect_admitted(
-            &effect.id,
-            approver_id,
-            true,
+        InvocationGate::validate_current_function_policy(&approval.management, &function)?;
+        if let Some(original) = original {
+            InvocationGate::validate_current_function_policy(original, &function)?;
+        }
+        Ok(function)
+    }
+
+    /// @ref LLP 0303#the-governing-principle — the approver is derived from
+    /// the exact effect-management session and retained with the loaded row.
+    pub fn prepare_pending_effect_approval(
+        &mut self,
+        management: &PreparedAuthority,
+        effect_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<PreparedEffectApproval> {
+        let (approver_id, _) = Self::require_effect_management_session(management)?;
+        let _effect = management.effect_guard("pending-effect approval preparation")?;
+        let pending = self
+            .db
+            .prepare_pending_effect_approval(effect_id, &approver_id, now_ms)?;
+        let approval = PreparedEffectApproval {
+            pending,
+            management: management.clone(),
+        };
+        self.validate_prepared_effect_current(&approval, None, now_ms)?;
+        Ok(approval)
+    }
+
+    /// @ref LLP 0303#the-governing-principle — the caller no longer supplies
+    /// retained service coordinates independently at this boundary.
+    pub fn resolve_retained_effect_service_authority(
+        &mut self,
+        retained: &crate::storage::pending_effects::RetainedEffectServiceAuthority<'_>,
+        now_ms: u64,
+        monotonic_now: Instant,
+        provider: Arc<crate::auth::provider::AuthProvider>,
+    ) -> SnapbackResult<ResolvedServiceAuthority> {
+        let resolved = self
+            .db
+            .resolve_prepared_pending_effect_service_authority(retained, now_ms)?;
+        let publication = self
+            .service_authority_fences
+            .register(resolved.service_authority_witness(), now_ms, monotonic_now)?
+            .with_provider_clock(provider);
+        Ok(ResolvedServiceAuthority {
+            resolved: ResolvedAppAuthority::from_scoped_token(resolved),
+            publication,
+        })
+    }
+
+    fn effect_caller_attribution(
+        approval: &PreparedEffectApproval,
+    ) -> crate::telemetry::CallerAttributionV1 {
+        let effect = approval.pending.effect();
+        crate::telemetry::CallerAttributionV1::from_effect(
+            &effect.caller_lane,
+            effect.caller_key.clone(),
+        )
+        .with_approver(approval.pending.approver_principal_id().to_owned())
+    }
+
+    pub fn prepare_pending_effect_anonymous_original(
+        &mut self,
+        approval: &PreparedEffectApproval,
+        publication: crate::auth::session_projection::FencedPublication,
+        now_ms: u64,
+    ) -> SnapbackResult<PreparedEffectOriginalAuthority> {
+        if !matches!(
+            approval.original_authority(),
+            crate::storage::pending_effects::RetainedEffectOriginalAuthority::Anonymous
+        ) {
+            return Err(effect_original_authority_mismatch());
+        }
+        let authority = self
+            .prepare_anonymous_authority(
+                InvocationSource::EffectExecution,
+                AuthMode::Sessions,
+                approval.management.profile(),
+                approval.management.admission_lease().clone(),
+                &WireAuthorityFields::default(),
+                now_ms,
+                Some(publication),
+            )?
+            .with_caller_attribution(Self::effect_caller_attribution(approval));
+        Ok(PreparedEffectOriginalAuthority {
+            effect_id: approval.effect_id().to_owned(),
+            authority,
+        })
+    }
+
+    pub fn prepare_pending_effect_session_original(
+        &mut self,
+        approval: &PreparedEffectApproval,
+        prepared: crate::auth::coordinator::PreparedBearerAuthority,
+        now_ms: u64,
+    ) -> SnapbackResult<PreparedEffectOriginalAuthority> {
+        let crate::storage::pending_effects::RetainedEffectOriginalAuthority::Session(retained) =
+            approval.original_authority()
+        else {
+            return Err(effect_original_authority_mismatch());
+        };
+        if !matches!(
+            prepared.resolved(),
+            ResolvedAppAuthority::Session {
+                user_id,
+                session_id,
+                provider,
+                generation,
+                authority_instance_id,
+                ..
+            } if user_id == retained.user_id()
+                && session_id == retained.session_id()
+                && provider == retained.provider()
+                && *generation == retained.generation()
+                && authority_instance_id == retained.authority_instance_id()
+        ) {
+            return Err(effect_original_authority_mismatch());
+        }
+        let authority = self
+            .prepare_bearer_authority(
+                prepared,
+                InvocationSource::EffectExecution,
+                AuthMode::Sessions,
+                approval.management.profile(),
+                approval.management.admission_lease().clone(),
+                &WireAuthorityFields::default(),
+                now_ms,
+            )?
+            .with_caller_attribution(Self::effect_caller_attribution(approval));
+        Ok(PreparedEffectOriginalAuthority {
+            effect_id: approval.effect_id().to_owned(),
+            authority,
+        })
+    }
+
+    pub fn prepare_pending_effect_service_original(
+        &mut self,
+        approval: &PreparedEffectApproval,
+        resolution: ResolvedServiceAuthority,
+        stream_publication: crate::auth::session_projection::FencedPublication,
+        now_ms: u64,
+    ) -> SnapbackResult<PreparedEffectOriginalAuthority> {
+        let crate::storage::pending_effects::RetainedEffectOriginalAuthority::ServicePrincipal(
+            retained,
+        ) = approval.original_authority()
+        else {
+            return Err(effect_original_authority_mismatch());
+        };
+        if !matches!(
+            resolution.resolved(),
+            ResolvedAppAuthority::ServicePrincipal {
+                actor_user_id,
+                credential_id,
+                credential_generation,
+                grant_id,
+                token_id,
+                effective_user_id,
+                token_expires_at_ms,
+                ..
+            } if actor_user_id == retained.actor_user_id()
+                && credential_id == retained.credential_id()
+                && *credential_generation == retained.credential_generation()
+                && grant_id == retained.grant_id()
+                && token_id == retained.token_id()
+                && effective_user_id.as_deref() == retained.effective_user_id()
+                && *token_expires_at_ms == retained.token_expires_at_ms()
+        ) {
+            return Err(effect_original_authority_mismatch());
+        }
+        let authority = self
+            .prepare_service_authority(
+                resolution,
+                InvocationSource::EffectExecution,
+                AuthMode::Sessions,
+                approval.management.profile(),
+                approval.management.admission_lease().clone(),
+                &WireAuthorityFields::default(),
+                now_ms,
+                stream_publication,
+            )?
+            .with_caller_attribution(Self::effect_caller_attribution(approval));
+        Ok(PreparedEffectOriginalAuthority {
+            effect_id: approval.effect_id().to_owned(),
+            authority,
+        })
+    }
+
+    pub fn refuse_pending_effect(
+        &mut self,
+        authority: &PreparedAuthority,
+        id: &str,
+        outcome_code: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        let _effect = authority.effect_guard("pending-effect refusal transaction")?;
+        self.db
+            .refuse_pending_effect_admitted(id, outcome_code, now_ms)
+    }
+
+    pub fn approve_pending_effect(
+        &mut self,
+        approval: PreparedEffectApproval,
+        original: PreparedEffectOriginalAuthority,
+        step_up: Option<&crate::auth::crypto::StepUpProof>,
+        now_ms: u64,
+    ) -> SnapbackResult<ApprovedEffectDispatch> {
+        if original.effect_id != approval.effect_id() {
+            return Err(effect_original_authority_mismatch());
+        }
+        let function =
+            self.validate_prepared_effect_current(&approval, Some(&original.authority), now_ms)?;
+        let _effect = approval
+            .management
+            .effect_guard("pending-effect approval transaction")?;
+        let approved = self.db.approve_pending_effect_admitted(
+            approval.pending,
             function.authority_creating,
             step_up,
             now_ms,
-        )
+        )?;
+        drop(_effect);
+        let (record, execution) = approved.into_parts();
+        Ok(ApprovedEffectDispatch {
+            record,
+            original: original.authority,
+            settlement: PreparedEffectSettlement {
+                execution,
+                management: approval.management,
+            },
+        })
     }
 
     pub fn settle_pending_effect(
         &mut self,
-        authority: &PreparedAuthority,
-        id: &str,
+        settlement: PreparedEffectSettlement,
         executed: bool,
         outcome_code: Option<&str>,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::pending_effects::PendingEffectRecord> {
-        let _effect = authority.effect_guard("pending-effect settlement transaction")?;
+        let _effect = settlement
+            .management
+            .effect_guard("pending-effect settlement transaction")?;
         self.db
-            .settle_pending_effect_admitted(id, executed, outcome_code, now_ms)
+            .settle_pending_effect_admitted(settlement.execution, executed, outcome_code, now_ms)
     }
 
     pub fn deny_pending_effect(
@@ -5762,7 +6021,7 @@ impl LocalSnapback {
     ) -> SnapbackResult<crate::storage::pending_effects::PendingEffectRecord> {
         let _effect = authority.effect_guard("pending-effect denial transaction")?;
         self.db
-            .decide_pending_effect_admitted(id, approver_id, false, false, None, now_ms)
+            .deny_pending_effect_admitted(id, approver_id, now_ms)
     }
 
     pub fn resolve_scoped_token_route_authority(
@@ -28018,6 +28277,21 @@ impl LocalSnapback {
 
     pub fn change_journal_len(&self) -> SnapbackResult<u64> {
         self.db.versions_read().change_journal_len()
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn storage_version_physical_row_for_test(&self) -> SnapbackResult<(i64, i64)> {
+        self.db.storage_version_physical_row_for_test()
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn physical_change_journal_rows_for_test(
+        &self,
+        table_name: &str,
+        after_version: u64,
+    ) -> SnapbackResult<Vec<snapback_kernel::storage::PhysicalChangeJournalRowForTest>> {
+        self.db
+            .physical_change_journal_rows_for_test(table_name, after_version)
     }
 
     pub fn journal_floor_version(&self) -> SnapbackResult<u64> {

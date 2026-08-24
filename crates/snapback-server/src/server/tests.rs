@@ -5459,15 +5459,9 @@ async fn effect_approval_reprepares_original_session_with_catalog_claims() {
         .resolve_required_bearer(approver_bearer, provider.now_ms(), provider.monotonic_now())
         .expect("resolve effect approver session");
     let (resolved, publication) = prepared.into_parts();
-    let ResolvedAppAuthority::Session {
-        user_id: approver_user_id,
-        session_id,
-        ..
-    } = &resolved
-    else {
+    let ResolvedAppAuthority::Session { session_id, .. } = &resolved else {
         panic!("effect approver must resolve to session authority")
     };
-    let approver_user_id = approver_user_id.clone();
     let session_id = session_id.clone();
     let profile = state.server.profile;
     let claims_now_ms = provider.now_ms();
@@ -5490,15 +5484,153 @@ async fn effect_approval_reprepares_original_session_with_catalog_claims() {
     .unwrap()
     .with_fenced_publication(publication);
 
-    let execution =
-        super::effects::prepare_original_authority(&state, &management, &effect, &approver_user_id)
-            .await
-            .expect("effect approval must re-prepare original session authority");
+    let approval_management = management.clone();
+    let approval_effect_id = effect.id.clone();
+    let approval_now_ms = provider.now_ms();
+    let approval = with_snapback(&state.snapback, move |snapback| {
+        snapback.prepare_pending_effect_approval(
+            &approval_management,
+            &approval_effect_id,
+            approval_now_ms,
+        )
+    })
+    .await
+    .expect("prepare exact pending effect for the derived approver");
+    let execution = super::effects::prepare_original_authority(&state, &approval)
+        .await
+        .expect("effect approval must re-prepare original session authority");
     assert_eq!(execution.source(), InvocationSource::EffectExecution);
     let projection = serde_json::to_value(execution.projection()).unwrap();
     assert_eq!(
         projection["claims"]["identities"][0]["value"],
         "effect-claims-original@example.test"
+    );
+    drop(execution);
+
+    let (before_version, before_change_count) = with_snapback(&state.snapback, |snapback| {
+        Ok::<_, SnapbackError>((
+            snapback.migrate_head_version()?,
+            snapback.change_journal_len()?,
+        ))
+    })
+    .await
+    .expect("read the durable application head before approval execution");
+    let expected_approver = approver["session"]["userId"]
+        .as_str()
+        .expect("approver user id")
+        .to_owned();
+    let approved = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            &format!("/effects/{effect_id}/approve"),
+            br#"{}"#.to_vec(),
+            approver_bearer,
+        ))
+        .await
+        .expect("approve the exact pending effect through the HTTP route");
+    assert_eq!(approved.status(), StatusCode::OK);
+    assert_eq!(approved.headers()["x-snapback-effect-id"], effect_id);
+    let _approved_body = response_json(approved).await;
+
+    let durable_effect_id = effect_id.clone();
+    let (durable, items, version_row, changes, after_change_count) =
+        with_snapback(&state.snapback, move |snapback| {
+            let durable = snapback
+                .remainder_auth_database_mut()
+                .pending_effect(&durable_effect_id, super::now_millis())?;
+            Ok::<_, SnapbackError>((
+                durable,
+                snapback.scan_table("items", 100, 0)?,
+                snapback.storage_version_physical_row_for_test()?,
+                snapback.physical_change_journal_rows_for_test("items", before_version)?,
+                snapback.change_journal_len()?,
+            ))
+        })
+        .await
+        .expect("read every durable approval and application projection");
+
+    // All 23 pending-effect columns are sourced by this durable read. The
+    // immutable expectations come from the row read before approval; the
+    // approver expectation comes from the independently minted A session.
+    assert_eq!(durable.id, effect.id);
+    assert_eq!(durable.function_id, effect.function_id);
+    assert_eq!(durable.function_name, effect.function_name);
+    assert_eq!(durable.function_kind, effect.function_kind);
+    assert_eq!(durable.args, effect.args);
+    assert_eq!(durable.args_digest, effect.args_digest);
+    assert_eq!(durable.caller_lane, effect.caller_lane);
+    assert_eq!(durable.caller_key, effect.caller_key);
+    assert_eq!(durable.authority, effect.authority);
+    assert_eq!(durable.generation, effect.generation);
+    assert_eq!(durable.effect_class, effect.effect_class);
+    assert_eq!(durable.link_origin_id, effect.link_origin_id);
+    assert_eq!(durable.approver_principal_id, effect.approver_principal_id);
+    assert_eq!(durable.created_at_ms, effect.created_at_ms);
+    assert_eq!(durable.expires_at_ms, effect.expires_at_ms);
+    assert_eq!(
+        durable.status,
+        crate::storage::pending_effects::PendingEffectStatus::Executed
+    );
+    assert_eq!(
+        durable.approver_identity.as_deref(),
+        Some(expected_approver.as_str())
+    );
+    assert_eq!(durable.preview, effect.preview);
+    let decided_at_ms = durable
+        .decided_at_ms
+        .expect("approved effect stores its decision timestamp");
+    let executed_at_ms = durable
+        .executed_at_ms
+        .expect("executed effect stores its settlement timestamp");
+    assert!(decided_at_ms >= durable.created_at_ms);
+    assert!(executed_at_ms >= decided_at_ms);
+    assert_eq!(durable.outcome_code.as_deref(), Some("ok"));
+    assert_eq!(
+        durable
+            .journal
+            .iter()
+            .map(|entry| (
+                entry.transition.as_str(),
+                entry.actor.as_deref(),
+                entry.outcome_code.as_deref(),
+            ))
+            .collect::<Vec<_>>(),
+        [
+            ("created", None, None),
+            ("approved", Some(expected_approver.as_str()), None),
+            ("executed", None, Some("ok")),
+        ]
+    );
+
+    assert_eq!(
+        items.columns,
+        ["_id", "value", "_version", "_createdAt", "_updatedAt"]
+    );
+    let approved_rows = items
+        .rows
+        .iter()
+        .filter(|row| row["value"] == "claims-original")
+        .collect::<Vec<_>>();
+    assert_eq!(approved_rows.len(), 1);
+    let approved_row = approved_rows[0];
+    let after_version = before_version + 1;
+    assert_eq!(approved_row["_version"], after_version);
+    assert_eq!(approved_row["_createdAt"], approved_row["_updatedAt"]);
+    assert_eq!(version_row, (1, after_version as i64));
+    assert_eq!(after_change_count, before_change_count + 1);
+    assert_eq!(changes.len(), 1);
+    let change = &changes[0];
+    assert!(change.id > 0);
+    assert_eq!(change.version, after_version as i64);
+    assert_eq!(change.table_name, "items");
+    assert_eq!(change.row_id, approved_row["_id"].as_str().unwrap());
+    assert_eq!(change.op, "insert");
+    let change_row_json =
+        serde_json::from_str::<Value>(change.row_json.as_deref().unwrap()).unwrap();
+    assert_eq!(&change_row_json, approved_row);
+    assert_eq!(
+        change.changed_at_ms,
+        approved_row["_createdAt"].as_i64().unwrap()
     );
 }
 

@@ -182,19 +182,192 @@ pub struct CreatePendingEffectCommand {
     request: CreatePendingEffect,
 }
 
-pub struct DecidePendingEffectCommand {
+/// Exact durable pending row admitted for approval by its derived session
+/// principal. At this boundary the stored original-authority views are
+/// borrowed from the carrier rather than supplied as independent coordinates.
+///
+/// @ref LLP 0303#the-governing-principle — the approval subject and stored
+/// original authority are derived from one exact durable effect row.
+#[derive(Clone)]
+pub struct PreparedPendingEffectApproval {
     database_binding: crate::storage::DatabaseBinding,
-    id: String,
+    record: PendingEffectRecord,
     approver_principal_id: String,
-    approve: bool,
+}
+
+impl std::fmt::Debug for PreparedPendingEffectApproval {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("PreparedPendingEffectApproval(..)")
+    }
+}
+
+pub struct RetainedEffectSessionAuthority<'a> {
+    authorization_stream_incarnation: &'a str,
+    session_id: &'a str,
+    user_id: &'a str,
+    provider: &'a str,
+    generation: u64,
+    authority_instance_id: &'a str,
+}
+
+impl RetainedEffectSessionAuthority<'_> {
+    pub fn authorization_stream_incarnation(&self) -> &str {
+        self.authorization_stream_incarnation
+    }
+
+    pub fn session_id(&self) -> &str {
+        self.session_id
+    }
+
+    pub fn user_id(&self) -> &str {
+        self.user_id
+    }
+
+    pub fn provider(&self) -> &str {
+        self.provider
+    }
+
+    pub fn generation(&self) -> u64 {
+        self.generation
+    }
+
+    pub fn authority_instance_id(&self) -> &str {
+        self.authority_instance_id
+    }
+}
+
+pub struct RetainedEffectServiceAuthority<'a> {
+    actor_user_id: &'a str,
+    credential_id: &'a str,
+    credential_generation: u64,
+    grant_id: &'a str,
+    token_id: &'a str,
+    effective_user_id: Option<&'a str>,
+    token_expires_at_ms: u64,
+}
+
+impl RetainedEffectServiceAuthority<'_> {
+    pub fn actor_user_id(&self) -> &str {
+        self.actor_user_id
+    }
+
+    pub fn credential_id(&self) -> &str {
+        self.credential_id
+    }
+
+    pub fn credential_generation(&self) -> u64 {
+        self.credential_generation
+    }
+
+    pub fn grant_id(&self) -> &str {
+        self.grant_id
+    }
+
+    pub fn token_id(&self) -> &str {
+        self.token_id
+    }
+
+    pub fn effective_user_id(&self) -> Option<&str> {
+        self.effective_user_id
+    }
+
+    pub fn token_expires_at_ms(&self) -> u64 {
+        self.token_expires_at_ms
+    }
+}
+
+pub enum RetainedEffectOriginalAuthority<'a> {
+    Anonymous,
+    Session(RetainedEffectSessionAuthority<'a>),
+    ServicePrincipal(RetainedEffectServiceAuthority<'a>),
+}
+
+impl PreparedPendingEffectApproval {
+    pub fn effect(&self) -> &PendingEffectRecord {
+        &self.record
+    }
+
+    pub fn effect_id(&self) -> &str {
+        &self.record.id
+    }
+
+    pub fn approver_principal_id(&self) -> &str {
+        &self.approver_principal_id
+    }
+
+    pub fn original_authority(&self) -> RetainedEffectOriginalAuthority<'_> {
+        match &self.record.authority {
+            PendingEffectAuthority::Anonymous => RetainedEffectOriginalAuthority::Anonymous,
+            PendingEffectAuthority::Session {
+                user_id,
+                session_id,
+                provider,
+                generation,
+                authority_instance_id,
+                authorization_stream_incarnation,
+            } => RetainedEffectOriginalAuthority::Session(RetainedEffectSessionAuthority {
+                authorization_stream_incarnation,
+                session_id,
+                user_id,
+                provider,
+                generation: *generation,
+                authority_instance_id,
+            }),
+            PendingEffectAuthority::ServicePrincipal {
+                actor_user_id,
+                credential_id,
+                credential_generation,
+                grant_id,
+                token_id,
+                effective_user_id,
+                token_expires_at_ms,
+            } => {
+                RetainedEffectOriginalAuthority::ServicePrincipal(RetainedEffectServiceAuthority {
+                    actor_user_id,
+                    credential_id,
+                    credential_generation: *credential_generation,
+                    grant_id,
+                    token_id,
+                    effective_user_id: effective_user_id.as_deref(),
+                    token_expires_at_ms: *token_expires_at_ms,
+                })
+            }
+        }
+    }
+}
+
+pub struct ApprovePendingEffectCommand {
+    approval: PreparedPendingEffectApproval,
     requires_step_up: bool,
     step_up: Option<crate::auth::crypto::StepUpProof>,
     now_ms: u64,
 }
 
-pub struct SettlePendingEffectCommand {
+pub struct DenyPendingEffectCommand {
     database_binding: crate::storage::DatabaseBinding,
     id: String,
+    approver_principal_id: String,
+    now_ms: u64,
+}
+
+pub struct ApprovedPendingEffect {
+    pub record: PendingEffectRecord,
+    execution: PendingEffectExecutionTicket,
+}
+
+pub struct PendingEffectExecutionTicket {
+    database_binding: crate::storage::DatabaseBinding,
+    id: String,
+}
+
+impl ApprovedPendingEffect {
+    pub fn into_parts(self) -> (PendingEffectRecord, PendingEffectExecutionTicket) {
+        (self.record, self.execution)
+    }
+}
+
+pub struct SettlePendingEffectCommand {
+    execution: PendingEffectExecutionTicket,
     executed: bool,
     outcome_code: Option<String>,
     now_ms: u64,
@@ -218,37 +391,44 @@ impl crate::storage::KernelCommitAuthority {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub fn admit_pending_effect_decision(
+    pub fn admit_pending_effect_approval(
         &self,
-        id: &str,
-        approver_principal_id: &str,
-        approve: bool,
+        approval: PreparedPendingEffectApproval,
         requires_step_up: bool,
         step_up: Option<&crate::auth::crypto::StepUpProof>,
         now_ms: u64,
-    ) -> DecidePendingEffectCommand {
-        DecidePendingEffectCommand {
-            database_binding: self.binding(),
-            id: id.to_owned(),
-            approver_principal_id: approver_principal_id.to_owned(),
-            approve,
+    ) -> ApprovePendingEffectCommand {
+        ApprovePendingEffectCommand {
+            approval,
             requires_step_up,
             step_up: step_up.cloned(),
             now_ms,
         }
     }
 
-    pub fn admit_pending_effect_settlement(
+    pub fn admit_pending_effect_denial(
         &self,
         id: &str,
+        approver_principal_id: &str,
+        now_ms: u64,
+    ) -> DenyPendingEffectCommand {
+        DenyPendingEffectCommand {
+            database_binding: self.binding(),
+            id: id.to_owned(),
+            approver_principal_id: approver_principal_id.to_owned(),
+            now_ms,
+        }
+    }
+
+    pub fn admit_pending_effect_settlement(
+        &self,
+        execution: PendingEffectExecutionTicket,
         executed: bool,
         outcome_code: Option<&str>,
         now_ms: u64,
     ) -> SettlePendingEffectCommand {
         SettlePendingEffectCommand {
-            database_binding: self.binding(),
-            id: id.to_owned(),
+            execution,
             executed,
             outcome_code: outcome_code.map(str::to_owned),
             now_ms,
@@ -504,6 +684,37 @@ fn lazy_expire(tx: &Transaction<'_>, id: Option<&str>, now_ms: u64) -> SnapbackR
 }
 
 impl LocalDatabase {
+    /// Re-resolve every stored service coordinate borrowed from an exact
+    /// pending-effect approval, including the frozen token deadline.
+    ///
+    /// @ref LLP 0303#the-governing-principle — the retained service subject is
+    /// supplied as one derived borrow view, not as caller-selected fields.
+    pub fn resolve_prepared_pending_effect_service_authority(
+        &mut self,
+        retained: &RetainedEffectServiceAuthority<'_>,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::auth_agent_credentials::ResolvedScopedToken> {
+        let resolved = self.resolve_retained_service_authority(
+            crate::storage::auth_agent_credentials::RetainedServiceAuthority {
+                actor_user_id: retained.actor_user_id(),
+                credential_id: retained.credential_id(),
+                credential_generation: retained.credential_generation(),
+                grant_id: retained.grant_id(),
+                token_id: retained.token_id(),
+                effective_user_id: retained.effective_user_id(),
+            },
+            now_ms,
+        )?;
+        if resolved.expires_at_ms != retained.token_expires_at_ms() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_EFFECT_BINDING_STALE",
+                "effects",
+                "the scoped-token deadline differs from the frozen authority",
+            ));
+        }
+        Ok(resolved)
+    }
+
     pub fn create_pending_effect(
         &mut self,
         command: CreatePendingEffectCommand,
@@ -621,17 +832,127 @@ impl LocalDatabase {
             .collect()
     }
 
-    pub fn decide_pending_effect(
+    /// Load and bind the exact durable effect selected by a derived approver.
+    /// The carrier keeps the existing database binding for the decision sink;
+    /// retained original-authority coordinates are derived from the loaded row.
+    ///
+    /// @ref LLP 0303#corollary--the-artifact-must-carry-provenance-not-just-type —
+    /// the retained authority arm comes from the database-bound row.
+    pub fn prepare_pending_effect_approval(
         &mut self,
-        command: DecidePendingEffectCommand,
-    ) -> SnapbackResult<PendingEffectRecord> {
-        verify_command_identity(&command.database_binding, &self.binding())?;
-        let DecidePendingEffectCommand {
-            id,
-            approver_principal_id,
-            approve,
+        id: &str,
+        approver_principal_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<PreparedPendingEffectApproval> {
+        if !table_exists(&self.conn)? {
+            return Err(not_found());
+        }
+        self.with_auth_transaction(|tx| lazy_expire(tx, Some(id), now_ms))?;
+        let record = read_record(&self.conn, id)?.ok_or_else(not_found)?;
+        if record.status == PendingEffectStatus::Expired {
+            return Err(expired());
+        }
+        if record.status != PendingEffectStatus::Pending {
+            return Err(state_invalid());
+        }
+        if record
+            .approver_principal_id
+            .as_deref()
+            .is_some_and(|expected| expected != approver_principal_id)
+        {
+            return Err(approval_denied());
+        }
+        Ok(PreparedPendingEffectApproval {
+            database_binding: self.binding(),
+            record,
+            approver_principal_id: approver_principal_id.to_owned(),
+        })
+    }
+
+    pub fn approve_pending_effect(
+        &mut self,
+        command: ApprovePendingEffectCommand,
+    ) -> SnapbackResult<ApprovedPendingEffect> {
+        verify_command_identity(&command.approval.database_binding, &self.binding())?;
+        let ApprovePendingEffectCommand {
+            approval,
             requires_step_up,
             step_up,
+            now_ms,
+        } = command;
+        let PreparedPendingEffectApproval {
+            record: prepared,
+            approver_principal_id,
+            ..
+        } = approval;
+        let id = prepared.id.clone();
+        self.with_auth_transaction(|tx| {
+            lazy_expire(tx, Some(&id), now_ms)?;
+            let current = read_record(tx, &id)?.ok_or_else(not_found)?;
+            if current.status == PendingEffectStatus::Expired {
+                return Err(expired());
+            }
+            if current.status != PendingEffectStatus::Pending {
+                return Err(state_invalid());
+            }
+            if current != prepared {
+                return Err(state_invalid());
+            }
+            if requires_step_up {
+                let proof = step_up
+                    .as_ref()
+                    .ok_or_else(crate::auth::crypto::step_up_required_error)?;
+                if super::auth_catalog_ops::consume_step_up_proof_on(tx, proof, now_ms)?
+                    != crate::auth::crypto::StepUpConsumption::Verified
+                {
+                    return Err(crate::auth::crypto::step_up_required_error());
+                }
+            }
+            let changed = tx.execute(
+                "UPDATE _snapback_pending_effects
+                 SET status = ?1, approver_identity = ?2, decided_at_ms = ?3,
+                     outcome_code = ?4
+                 WHERE id = ?5 AND status = 'pending'",
+                params![
+                    "approved",
+                    approver_principal_id,
+                    now_ms as i64,
+                    None::<String>,
+                    id
+                ],
+            )?;
+            if changed != 1 {
+                return Err(state_invalid());
+            }
+            append_transition(
+                tx,
+                &id,
+                PendingEffectJournalEntry {
+                    at_ms: now_ms,
+                    transition: "approved".to_owned(),
+                    actor: Some(approver_principal_id.to_owned()),
+                    outcome_code: None,
+                },
+            )
+        })?;
+        let record = read_record(&self.conn, &id)?.ok_or_else(catalog_corrupt)?;
+        Ok(ApprovedPendingEffect {
+            record,
+            execution: PendingEffectExecutionTicket {
+                database_binding: self.binding(),
+                id,
+            },
+        })
+    }
+
+    pub fn deny_pending_effect(
+        &mut self,
+        command: DenyPendingEffectCommand,
+    ) -> SnapbackResult<PendingEffectRecord> {
+        verify_command_identity(&command.database_binding, &self.binding())?;
+        let DenyPendingEffectCommand {
+            id,
+            approver_principal_id,
             now_ms,
             ..
         } = command;
@@ -651,28 +972,13 @@ impl LocalDatabase {
             {
                 return Err(approval_denied());
             }
-            if approve && requires_step_up {
-                let proof = step_up
-                    .as_ref()
-                    .ok_or_else(crate::auth::crypto::step_up_required_error)?;
-                if super::auth_catalog_ops::consume_step_up_proof_on(tx, proof, now_ms)?
-                    != crate::auth::crypto::StepUpConsumption::Verified
-                {
-                    return Err(crate::auth::crypto::step_up_required_error());
-                }
-            }
-            let status = if approve { "approved" } else { "refused" };
-            let outcome = if approve {
-                None
-            } else {
-                Some("SNAPBACK_EFFECT_APPROVAL_DENIED")
-            };
+            let outcome = "SNAPBACK_EFFECT_APPROVAL_DENIED";
             let changed = tx.execute(
                 "UPDATE _snapback_pending_effects
-                 SET status = ?1, approver_identity = ?2, decided_at_ms = ?3,
-                     outcome_code = ?4
-                 WHERE id = ?5 AND status = 'pending'",
-                params![status, approver_principal_id, now_ms as i64, outcome, id],
+                 SET status = 'refused', approver_identity = ?1, decided_at_ms = ?2,
+                     outcome_code = ?3
+                 WHERE id = ?4 AND status = 'pending'",
+                params![approver_principal_id, now_ms as i64, outcome, id],
             )?;
             if changed != 1 {
                 return Err(state_invalid());
@@ -682,9 +988,9 @@ impl LocalDatabase {
                 &id,
                 PendingEffectJournalEntry {
                     at_ms: now_ms,
-                    transition: status.to_owned(),
+                    transition: "refused".to_owned(),
                     actor: Some(approver_principal_id.to_owned()),
-                    outcome_code: outcome.map(str::to_owned),
+                    outcome_code: Some(outcome.to_owned()),
                 },
             )
         })?;
@@ -695,14 +1001,14 @@ impl LocalDatabase {
         &mut self,
         command: SettlePendingEffectCommand,
     ) -> SnapbackResult<PendingEffectRecord> {
-        verify_command_identity(&command.database_binding, &self.binding())?;
+        verify_command_identity(&command.execution.database_binding, &self.binding())?;
         let SettlePendingEffectCommand {
-            id,
+            execution,
             executed,
             outcome_code,
             now_ms,
-            ..
         } = command;
+        let id = execution.id;
         let status = if executed { "executed" } else { "refused" };
         self.with_auth_transaction(|tx| {
             let changed = tx.execute(
@@ -811,6 +1117,23 @@ fn catalog_corrupt() -> SnapbackError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth::crypto::{CryptoError, RandomSource};
+    use std::sync::atomic::{AtomicU8, Ordering};
+
+    struct CounterRandom(AtomicU8);
+
+    impl CounterRandom {
+        fn new() -> Self {
+            Self(AtomicU8::new(1))
+        }
+    }
+
+    impl RandomSource for CounterRandom {
+        fn fill(&self, destination: &mut [u8]) -> Result<(), CryptoError> {
+            destination.fill(self.0.fetch_add(1, Ordering::SeqCst));
+            Ok(())
+        }
+    }
 
     fn ready() -> (LocalDatabase, crate::storage::KernelCommitAuthority) {
         let mut db = LocalDatabase::memory().expect("pending-effect database");
@@ -849,6 +1172,68 @@ mod tests {
         }
     }
 
+    fn seed_service_authority(
+        db: &mut LocalDatabase,
+        actor_user_id: &str,
+        effective_user_id: Option<&str>,
+        grant_id: &str,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> crate::auth::crypto::ScopedToken {
+        db.conn
+            .execute(
+                "INSERT INTO _auth_users(
+                   id, created_at_ms, kind, display_name, operator_contact,
+                   registration_provenance, deactivated_at_ms, owner_user_id
+                 ) VALUES(?1, 0, 'agent', NULL, NULL,
+                          'pending-effect-derivation-test', NULL, NULL)",
+                [actor_user_id],
+            )
+            .expect("create retained-effect agent");
+        if let Some(effective_user_id) = effective_user_id {
+            db.conn
+                .execute(
+                    "INSERT INTO _auth_users(
+                       id, created_at_ms, kind, display_name, operator_contact,
+                       registration_provenance, deactivated_at_ms, owner_user_id
+                     ) VALUES(?1, 0, 'human', NULL, NULL, NULL, NULL, NULL)",
+                    [effective_user_id],
+                )
+                .expect("create retained-effect effective user");
+        }
+        let credential = db
+            .issue_initial_agent_credential(actor_user_id, now_ms, random)
+            .expect("issue retained-effect credential");
+        db.conn
+            .execute(
+                "INSERT OR IGNORE INTO _auth_scope_bases(
+                   function_id, kind, generation, present, authority_creating
+                 ) VALUES('fn:write', 'mutation', 0, 1, 0)",
+                [],
+            )
+            .expect("seed retained-effect scope basis");
+        db.conn
+            .execute(
+                "INSERT INTO _auth_grants(
+                   id, actor_user_id, effective_user_id, scopes, created_at_ms,
+                   expires_at_ms, revoked_at_ms, created_by, request_id,
+                   consent_digest, last_used_at_ms
+                 ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, NULL, 'test', NULL, NULL, ?5)",
+                params![
+                    grant_id,
+                    actor_user_id,
+                    effective_user_id,
+                    r#"[{"fn":"fn:write","kind":"mutation","basis":0,"authorityCreating":false}]"#,
+                    now_ms as i64,
+                    (now_ms + 60_000) as i64,
+                ],
+            )
+            .expect("seed retained-effect grant");
+        db.mint_scoped_token(&credential.secret, grant_id, Some(60_000), now_ms, random)
+            .expect("mint retained-effect token")
+            .secret
+    }
+
     #[test]
     fn disclosed_intent_is_bounded_and_journals_approve_execute() {
         let (mut db, authority) = ready();
@@ -864,20 +1249,19 @@ mod tests {
         assert_eq!(created.preview.args_digest, created.args_digest);
         assert_eq!(created.journal[0].transition, "created");
 
-        let approved = db
-            .decide_pending_effect(authority.admit_pending_effect_decision(
-                &created.id,
-                "human-a",
-                true,
-                false,
-                None,
-                20,
-            ))
+        let approval = db
+            .prepare_pending_effect_approval(&created.id, "human-a", 20)
             .unwrap();
-        assert_eq!(approved.status, PendingEffectStatus::Approved);
+        let approved = db
+            .approve_pending_effect(
+                authority.admit_pending_effect_approval(approval, false, None, 20),
+            )
+            .unwrap();
+        assert_eq!(approved.record.status, PendingEffectStatus::Approved);
+        let (_, execution) = approved.into_parts();
         let executed = db
             .settle_pending_effect(authority.admit_pending_effect_settlement(
-                &created.id,
+                execution,
                 true,
                 Some("ok"),
                 21,
@@ -892,6 +1276,443 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["created", "approved", "executed"],
         );
+        let durable = db
+            .conn
+            .query_row(
+                "SELECT id, function_id, function_name, function_kind, args_json,
+                        args_digest, caller_lane, caller_key, authority_json,
+                        generation_json, effect_class, link_origin_id,
+                        approver_principal_id, created_at_ms, expires_at_ms, status,
+                        approver_identity, preview_kind, preview_json, decided_at_ms,
+                        executed_at_ms, outcome_code, journal_json
+                 FROM _snapback_pending_effects WHERE id = ?1",
+                [&created.id],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, String>(3)?,
+                        row.get::<_, String>(4)?,
+                        row.get::<_, String>(5)?,
+                        row.get::<_, String>(6)?,
+                        row.get::<_, String>(7)?,
+                        row.get::<_, String>(8)?,
+                        row.get::<_, String>(9)?,
+                        row.get::<_, String>(10)?,
+                        row.get::<_, Option<String>>(11)?,
+                        row.get::<_, Option<String>>(12)?,
+                        row.get::<_, i64>(13)?,
+                        row.get::<_, i64>(14)?,
+                        row.get::<_, String>(15)?,
+                        row.get::<_, Option<String>>(16)?,
+                        row.get::<_, String>(17)?,
+                        row.get::<_, String>(18)?,
+                        row.get::<_, Option<i64>>(19)?,
+                        row.get::<_, Option<i64>>(20)?,
+                        row.get::<_, Option<String>>(21)?,
+                        row.get::<_, String>(22)?,
+                    ))
+                },
+            )
+            .expect("read all 23 durable pending-effect columns");
+        assert_eq!(durable.0, created.id);
+        assert_eq!(durable.1, created.function_id);
+        assert_eq!(durable.2, created.function_name);
+        assert_eq!(durable.3, "mutation");
+        assert_eq!(durable.4, serde_json::to_string(&created.args).unwrap());
+        assert_eq!(durable.5, created.args_digest);
+        assert_eq!(durable.6, created.caller_lane);
+        assert_eq!(durable.7, created.caller_key);
+        assert_eq!(
+            durable.8,
+            serde_json::to_string(&created.authority).unwrap()
+        );
+        assert_eq!(
+            durable.9,
+            serde_json::to_string(&created.generation).unwrap()
+        );
+        assert_eq!(durable.10, created.effect_class);
+        assert_eq!(durable.11, created.link_origin_id);
+        assert_eq!(durable.12, created.approver_principal_id);
+        assert_eq!(durable.13, created.created_at_ms as i64);
+        assert_eq!(durable.14, created.expires_at_ms as i64);
+        assert_eq!(durable.15, "executed");
+        assert_eq!(durable.16.as_deref(), Some("human-a"));
+        assert_eq!(durable.17, created.preview.kind);
+        assert_eq!(durable.18, serde_json::to_string(&created.preview).unwrap());
+        assert_eq!(durable.19, Some(20));
+        assert_eq!(durable.20, Some(21));
+        assert_eq!(durable.21.as_deref(), Some("ok"));
+        assert_eq!(
+            durable.22,
+            serde_json::to_string(&executed.journal).unwrap()
+        );
+    }
+
+    #[test]
+    fn retained_effect_service_reconstruction_derives_the_stored_original_subject() {
+        const STORED_ORIGINAL_ACTOR: &str = "effect-derived-agent-b";
+        const SUBSTITUTED_LIVE_ACTOR: &str = "effect-substituted-agent-c";
+        let mut db = LocalDatabase::memory().expect("pending-effect service database");
+        db.activate_current_auth_catalog()
+            .expect("activate protected catalog");
+        db.conn.execute_batch(TABLE_SQL).unwrap();
+        db.conn.execute_batch(APPROVER_INDEX_SQL).unwrap();
+        db.conn.execute_batch(EXPIRY_INDEX_SQL).unwrap();
+        let random = CounterRandom::new();
+        let now_ms = (std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("fixture wall clock follows the Unix epoch")
+            .as_millis() as u64)
+            .checked_add(60_000)
+            .expect("fixture authorization clock can advance");
+        let stored_token = seed_service_authority(
+            &mut db,
+            STORED_ORIGINAL_ACTOR,
+            None,
+            "effect-derived-grant-b",
+            now_ms,
+            &random,
+        );
+        let substituted_token = seed_service_authority(
+            &mut db,
+            SUBSTITUTED_LIVE_ACTOR,
+            None,
+            "effect-substituted-grant-c",
+            now_ms,
+            &random,
+        );
+        let stored = db
+            .resolve_scoped_token(&stored_token, now_ms + 1)
+            .expect("resolve stored original service authority");
+        db.resolve_scoped_token(&substituted_token, now_ms + 1)
+            .expect("confirm the independently selectable substitute is live");
+        let authority = db
+            .claim_kernel_commit_authority()
+            .expect("kernel authority after service setup");
+        let mut effect_request = request(now_ms + 10, DEFAULT_TTL_MS);
+        effect_request.authority = PendingEffectAuthority::ServicePrincipal {
+            actor_user_id: stored.actor_user_id,
+            credential_id: stored.credential_id,
+            credential_generation: stored.credential_generation,
+            grant_id: stored.grant_id,
+            token_id: stored.token_id,
+            effective_user_id: stored.effective_user_id,
+            token_expires_at_ms: stored.expires_at_ms,
+        };
+        let created = db
+            .create_pending_effect(authority.admit_pending_effect_creation(effect_request))
+            .expect("store exact original service authority");
+        let approval = db
+            .prepare_pending_effect_approval(&created.id, "human-a", now_ms + 11)
+            .expect("derive the exact pending effect for its approver");
+        let RetainedEffectOriginalAuthority::ServicePrincipal(retained) =
+            approval.original_authority()
+        else {
+            panic!("stored service authority must produce the service borrow view")
+        };
+
+        let reconstructed = db
+            .resolve_prepared_pending_effect_service_authority(&retained, now_ms + 11)
+            .expect("reconstruct the stored original service authority");
+        assert_eq!(reconstructed.actor_user_id, STORED_ORIGINAL_ACTOR);
+        let observed_clock = db
+            .conn
+            .query_row(
+                "SELECT key, value FROM _snapback_meta WHERE key = ?1",
+                [crate::storage::auth_invalidation::AUTH_CLOCK_META_KEY],
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+            )
+            .expect("read back the retained-service authorization clock write");
+        assert_eq!(
+            observed_clock,
+            (
+                "auth_invalidation_clock_high_water_ms_v1".to_owned(),
+                (now_ms + 11).to_string(),
+            )
+        );
+
+        {
+            const ACTOR: &str = "effect-agent-m";
+            const EFFECTIVE_USER: &str = "effect-human-m";
+            const GRANT: &str = "effect-grant-m";
+            let mut db = LocalDatabase::memory().expect("retained service coordinate database");
+            db.activate_current_auth_catalog()
+                .expect("activate protected catalog");
+            db.conn.execute_batch(TABLE_SQL).unwrap();
+            db.conn.execute_batch(APPROVER_INDEX_SQL).unwrap();
+            db.conn.execute_batch(EXPIRY_INDEX_SQL).unwrap();
+            let random = CounterRandom::new();
+            let now_ms = (std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("fixture wall clock follows the Unix epoch")
+                .as_millis() as u64)
+                .checked_add(60_000)
+                .expect("fixture authorization clock can advance");
+            let token = seed_service_authority(
+                &mut db,
+                ACTOR,
+                Some(EFFECTIVE_USER),
+                GRANT,
+                now_ms,
+                &random,
+            );
+            let stored = db
+                .resolve_scoped_token(&token, now_ms + 1)
+                .expect("resolve the exact stored service authority");
+            assert!(stored.credential_generation > 0);
+            let exact = PendingEffectAuthority::ServicePrincipal {
+                actor_user_id: stored.actor_user_id.clone(),
+                credential_id: stored.credential_id.clone(),
+                credential_generation: stored.credential_generation,
+                grant_id: stored.grant_id.clone(),
+                token_id: stored.token_id.clone(),
+                effective_user_id: stored.effective_user_id.clone(),
+                token_expires_at_ms: stored.expires_at_ms,
+            };
+            let authority = db
+                .claim_kernel_commit_authority()
+                .expect("kernel authority after service setup");
+            let mut cases = Vec::new();
+            let mut add_case = |name: &'static str, mutate: fn(&mut PendingEffectAuthority)| {
+                let mut retained = exact.clone();
+                mutate(&mut retained);
+                cases.push((name, retained));
+            };
+            add_case("actor-lower", |authority| {
+                let PendingEffectAuthority::ServicePrincipal { actor_user_id, .. } = authority
+                else {
+                    unreachable!()
+                };
+                *actor_user_id = "effect-agent-a".to_owned();
+            });
+            add_case("actor-higher", |authority| {
+                let PendingEffectAuthority::ServicePrincipal { actor_user_id, .. } = authority
+                else {
+                    unreachable!()
+                };
+                *actor_user_id = "effect-agent-z".to_owned();
+            });
+            add_case("credential-lower", |authority| {
+                let PendingEffectAuthority::ServicePrincipal { credential_id, .. } = authority
+                else {
+                    unreachable!()
+                };
+                *credential_id = String::new();
+            });
+            add_case("credential-higher", |authority| {
+                let PendingEffectAuthority::ServicePrincipal { credential_id, .. } = authority
+                else {
+                    unreachable!()
+                };
+                *credential_id = "\u{10ffff}".to_owned();
+            });
+            add_case("credential-generation-lower", |authority| {
+                let PendingEffectAuthority::ServicePrincipal {
+                    credential_generation,
+                    ..
+                } = authority
+                else {
+                    unreachable!()
+                };
+                *credential_generation -= 1;
+            });
+            add_case("credential-generation-higher", |authority| {
+                let PendingEffectAuthority::ServicePrincipal {
+                    credential_generation,
+                    ..
+                } = authority
+                else {
+                    unreachable!()
+                };
+                *credential_generation += 1;
+            });
+            add_case("grant-lower", |authority| {
+                let PendingEffectAuthority::ServicePrincipal { grant_id, .. } = authority else {
+                    unreachable!()
+                };
+                *grant_id = "effect-grant-a".to_owned();
+            });
+            add_case("grant-higher", |authority| {
+                let PendingEffectAuthority::ServicePrincipal { grant_id, .. } = authority else {
+                    unreachable!()
+                };
+                *grant_id = "effect-grant-z".to_owned();
+            });
+            add_case("token-lower", |authority| {
+                let PendingEffectAuthority::ServicePrincipal { token_id, .. } = authority else {
+                    unreachable!()
+                };
+                *token_id = String::new();
+            });
+            add_case("token-higher", |authority| {
+                let PendingEffectAuthority::ServicePrincipal { token_id, .. } = authority else {
+                    unreachable!()
+                };
+                *token_id = "\u{10ffff}".to_owned();
+            });
+            add_case("effective-user-lower", |authority| {
+                let PendingEffectAuthority::ServicePrincipal {
+                    effective_user_id, ..
+                } = authority
+                else {
+                    unreachable!()
+                };
+                *effective_user_id = Some("effect-human-a".to_owned());
+            });
+            add_case("effective-user-higher", |authority| {
+                let PendingEffectAuthority::ServicePrincipal {
+                    effective_user_id, ..
+                } = authority
+                else {
+                    unreachable!()
+                };
+                *effective_user_id = Some("effect-human-z".to_owned());
+            });
+            add_case("deadline-lower", |authority| {
+                let PendingEffectAuthority::ServicePrincipal {
+                    token_expires_at_ms,
+                    ..
+                } = authority
+                else {
+                    unreachable!()
+                };
+                *token_expires_at_ms -= 1;
+            });
+            add_case("deadline-higher", |authority| {
+                let PendingEffectAuthority::ServicePrincipal {
+                    token_expires_at_ms,
+                    ..
+                } = authority
+                else {
+                    unreachable!()
+                };
+                *token_expires_at_ms += 1;
+            });
+            cases.push(("exact", exact.clone()));
+
+            let mut accepted = Vec::new();
+            let mut refused = Vec::new();
+            for (name, retained_authority) in cases {
+                let mut effect_request = request(now_ms + 10, DEFAULT_TTL_MS);
+                effect_request.authority = retained_authority;
+                let created = db
+                    .create_pending_effect(authority.admit_pending_effect_creation(effect_request))
+                    .expect("store one retained service coordinate case");
+                let approval = db
+                    .prepare_pending_effect_approval(&created.id, "human-a", now_ms + 11)
+                    .expect("derive the stored coordinate case");
+                let RetainedEffectOriginalAuthority::ServicePrincipal(retained) =
+                    approval.original_authority()
+                else {
+                    panic!("coordinate case must retain the service arm")
+                };
+                let result =
+                    db.resolve_prepared_pending_effect_service_authority(&retained, now_ms + 11);
+                if result.is_ok() {
+                    accepted.push(name);
+                } else {
+                    refused.push(name);
+                }
+            }
+            assert_eq!(accepted, ["exact"]);
+            assert_eq!(
+                refused,
+                [
+                    "actor-lower",
+                    "actor-higher",
+                    "credential-lower",
+                    "credential-higher",
+                    "credential-generation-lower",
+                    "credential-generation-higher",
+                    "grant-lower",
+                    "grant-higher",
+                    "token-lower",
+                    "token-higher",
+                    "effective-user-lower",
+                    "effective-user-higher",
+                    "deadline-lower",
+                    "deadline-higher",
+                ]
+            );
+
+            let mut revocation_request = request(now_ms + 10, DEFAULT_TTL_MS);
+            revocation_request.authority = exact;
+            let revocation_effect = db
+                .create_pending_effect(authority.admit_pending_effect_creation(revocation_request))
+                .expect("store exact authority for revocation cases");
+            let revocation_approval = db
+                .prepare_pending_effect_approval(&revocation_effect.id, "human-a", now_ms + 11)
+                .expect("derive exact authority for revocation cases");
+            let RetainedEffectOriginalAuthority::ServicePrincipal(revocation_retained) =
+                revocation_approval.original_authority()
+            else {
+                panic!("revocation cases must retain the service arm")
+            };
+            let revocation_cases = [
+                (
+                    "credential-revoked",
+                    "_auth_agent_credentials",
+                    stored.credential_id.as_str(),
+                ),
+                ("grant-revoked", "_auth_grants", stored.grant_id.as_str()),
+                (
+                    "token-revoked",
+                    "_auth_grant_tokens",
+                    stored.token_id.as_str(),
+                ),
+            ];
+            let mut revocation_accepted = Vec::new();
+            let mut revocation_refused = Vec::new();
+            for (name, table, id) in revocation_cases {
+                db.conn
+                    .execute(
+                        &format!("UPDATE {table} SET revoked_at_ms = ?1 WHERE id = ?2"),
+                        params![(now_ms + 2) as i64, id],
+                    )
+                    .expect("revoke exactly one retained service row");
+                if db
+                    .resolve_prepared_pending_effect_service_authority(
+                        &revocation_retained,
+                        now_ms + 11,
+                    )
+                    .is_ok()
+                {
+                    revocation_accepted.push(name);
+                } else {
+                    revocation_refused.push(name);
+                }
+                db.conn
+                    .execute(
+                        &format!("UPDATE {table} SET revoked_at_ms = NULL WHERE id = ?1"),
+                        [id],
+                    )
+                    .expect("restore the retained service row for the next independent case");
+            }
+            assert_eq!(revocation_accepted, Vec::<&str>::new());
+            assert_eq!(
+                revocation_refused,
+                ["credential-revoked", "grant-revoked", "token-revoked"]
+            );
+            db.resolve_prepared_pending_effect_service_authority(&revocation_retained, now_ms + 11)
+                .expect("the exact restored service rows remain accepted");
+            let observed_clock = db
+                .conn
+                .query_row(
+                    "SELECT key, value FROM _snapback_meta WHERE key = ?1",
+                    [crate::storage::auth_invalidation::AUTH_CLOCK_META_KEY],
+                    |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+                )
+                .expect("read authorization clock after accepted and refused service cases");
+            assert_eq!(
+                observed_clock,
+                (
+                    "auth_invalidation_clock_high_water_ms_v1".to_owned(),
+                    (now_ms + 11).to_string(),
+                )
+            );
+        }
     }
 
     #[test]
@@ -901,20 +1722,23 @@ mod tests {
             .create_pending_effect(authority.admit_pending_effect_creation(request(10, 100)))
             .unwrap();
         assert_eq!(
-            db.decide_pending_effect(
-                authority
-                    .admit_pending_effect_decision(&denied.id, "human-b", false, false, None, 20,)
+            db.deny_pending_effect(
+                authority.admit_pending_effect_denial(&denied.id, "human-b", 20)
             )
             .unwrap_err()
             .diagnostic
             .code,
             "SNAPBACK_EFFECT_APPROVAL_DENIED",
         );
+        assert_eq!(
+            db.prepare_pending_effect_approval(&denied.id, "human-b", 20)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_EFFECT_APPROVAL_DENIED",
+        );
         let refused = db
-            .decide_pending_effect(
-                authority
-                    .admit_pending_effect_decision(&denied.id, "human-a", false, false, None, 20),
-            )
+            .deny_pending_effect(authority.admit_pending_effect_denial(&denied.id, "human-a", 20))
             .unwrap();
         assert_eq!(refused.status, PendingEffectStatus::Refused);
 
@@ -925,17 +1749,10 @@ mod tests {
         assert_eq!(expired.status, PendingEffectStatus::Expired);
         assert_eq!(expired.journal.last().unwrap().transition, "expired");
         assert_eq!(
-            db.decide_pending_effect(authority.admit_pending_effect_decision(
-                &expiring.id,
-                "human-a",
-                true,
-                false,
-                None,
-                32,
-            ))
-            .unwrap_err()
-            .diagnostic
-            .code,
+            db.prepare_pending_effect_approval(&expiring.id, "human-a", 32)
+                .unwrap_err()
+                .diagnostic
+                .code,
             "SNAPBACK_EFFECT_EXPIRED",
         );
     }
@@ -957,6 +1774,15 @@ mod tests {
     }
 }
 impl super::ServingDatabase {
+    pub fn resolve_prepared_pending_effect_service_authority(
+        &mut self,
+        retained: &RetainedEffectServiceAuthority<'_>,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::auth_agent_credentials::ResolvedScopedToken> {
+        self.db
+            .resolve_prepared_pending_effect_service_authority(retained, now_ms)
+    }
+
     pub fn pending_effect(&mut self, id: &str, now_ms: u64) -> SnapbackResult<PendingEffectRecord> {
         self.db.pending_effect(id, now_ms)
     }

@@ -1725,29 +1725,33 @@ impl AuthCoordinator {
     /// return the same final-publication fence used by bearer resolution.
     /// Every durable identity coordinate and the stream incarnation must
     /// still be current; no bearer is recovered or retained.
-    #[allow(clippy::too_many_arguments)]
+    /// @ref LLP 0303#the-governing-principle — every retained session
+    /// coordinate is read from the pending-effect approval carrier.
     pub fn prepare_retained_effect_session(
         &self,
-        authorization_stream_incarnation: &str,
-        session_id: &str,
-        user_id: &str,
-        provider: &str,
-        generation: u64,
+        retained: &crate::storage::pending_effects::RetainedEffectSessionAuthority<'_>,
         epoch_now_ms: u64,
         monotonic_now: Instant,
     ) -> SnapbackResult<PreparedBearerAuthority> {
         let resolved = self.resolve_bound_connection_session(
-            authorization_stream_incarnation,
-            session_id,
-            user_id,
-            provider,
-            generation,
+            retained.authorization_stream_incarnation(),
+            retained.session_id(),
+            retained.user_id(),
+            retained.provider(),
+            retained.generation(),
             epoch_now_ms,
             monotonic_now,
         )?;
         let BoundSessionResolution::Current(authority) = resolved else {
             return Err(projection_unavailable());
         };
+        if !authority.matches_authority_instance_id(retained.authority_instance_id()) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_EFFECT_BINDING_STALE",
+                "effects",
+                "the original session authority instance is no longer current",
+            ));
+        }
         Ok(authority)
     }
 
@@ -2222,8 +2226,10 @@ mod tests {
         AuthorizationStreamRecord, ProjectedSessionInsert, ProjectionIdentityRow,
         ProjectionSessionRow, ProjectionSource, ProjectionUserRow,
     };
-    use crate::contract_types::{AuthorizationStreamIncarnation, RevocationReason, ServerProfile};
-    use crate::manifest::AuthMode;
+    use crate::contract_types::{
+        ApiManifest, AuthorizationStreamIncarnation, RevocationReason, ServerProfile,
+    };
+    use crate::manifest::{ArtifactGeneration, AuthMode, FunctionKind, SchemaManifest};
     use std::sync::Arc;
     use std::time::Duration;
 
@@ -2245,14 +2251,21 @@ mod tests {
     struct Fixture {
         coordinator: Arc<AuthCoordinator>,
         incarnation: String,
+        user_id: String,
         session_id: String,
         bearer: String,
         digest: TokenDigest,
         authority_instance_id: String,
+        substituted_user_id: String,
+        substituted_session_id: String,
         monotonic_start: Instant,
     }
 
     fn fixture() -> Fixture {
+        fixture_with_substituted_session(false)
+    }
+
+    fn fixture_with_substituted_session(include_substituted_session: bool) -> Fixture {
         let bearer = SessionBearer::generate(&FixedRandom(7)).unwrap();
         let bearer_text = bearer.expose_secret().to_owned();
         let token_hash = bearer.token_hash();
@@ -2262,29 +2275,53 @@ mod tests {
         let session_id = uuid_v7(4, 4);
         let authority_instance_id = uuid_v7(5, 5);
         let incarnation = uuid_v7(1, 1);
-        let source = ProjectionSource {
-            authorization_stream_value: AuthorizationStreamRecord::new(
-                AuthorizationStreamIncarnation::parse(&incarnation).unwrap(),
-            )
-            .encode_bytes()
-            .unwrap(),
-            restore_declaration_id: None,
-            users: vec![ProjectionUserRow {
-                id: user_id.clone(),
+        let substituted_bearer = SessionBearer::generate(&FixedRandom(8)).unwrap();
+        let substituted_user_id = uuid_v7(20, 20);
+        let substituted_identity_id = uuid_v7(21, 21);
+        let substituted_session_id = uuid_v7(22, 22);
+        let substituted_authority_instance_id = uuid_v7(23, 23);
+        let mut users = vec![ProjectionUserRow {
+            id: user_id.clone(),
+            created_at_ms: 1,
+        }];
+        let mut identities = vec![ProjectionIdentityRow {
+            id: identity_id.clone(),
+            user_id: user_id.clone(),
+            provider: "email-code".to_owned(),
+            verified_at_ms: 2,
+        }];
+        let mut sessions = vec![ProjectionSessionRow {
+            id: session_id.clone(),
+            user_id: user_id.clone(),
+            identity_id,
+            authority_instance_id: authority_instance_id.clone(),
+            token_hash: token_hash.as_bytes().to_vec(),
+            generation: 1,
+            created_at_ms: 3,
+            last_used_at_ms: 4,
+            expires_at_ms: 1_000,
+            absolute_expires_at_ms: 9_000_000_000,
+            revoked_at_ms: None,
+            terminal_cause: None,
+            rehearsal_provenance: None,
+        }];
+        if include_substituted_session {
+            users.push(ProjectionUserRow {
+                id: substituted_user_id.clone(),
                 created_at_ms: 1,
-            }],
-            identities: vec![ProjectionIdentityRow {
-                id: identity_id.clone(),
-                user_id: user_id.clone(),
+            });
+            identities.push(ProjectionIdentityRow {
+                id: substituted_identity_id.clone(),
+                user_id: substituted_user_id.clone(),
                 provider: "email-code".to_owned(),
                 verified_at_ms: 2,
-            }],
-            sessions: vec![ProjectionSessionRow {
-                id: session_id.clone(),
-                user_id,
-                identity_id,
-                authority_instance_id: authority_instance_id.clone(),
-                token_hash: token_hash.as_bytes().to_vec(),
+            });
+            sessions.push(ProjectionSessionRow {
+                id: substituted_session_id.clone(),
+                user_id: substituted_user_id.clone(),
+                identity_id: substituted_identity_id,
+                authority_instance_id: substituted_authority_instance_id,
+                token_hash: substituted_bearer.token_hash().as_bytes().to_vec(),
                 generation: 1,
                 created_at_ms: 3,
                 last_used_at_ms: 4,
@@ -2293,7 +2330,18 @@ mod tests {
                 revoked_at_ms: None,
                 terminal_cause: None,
                 rehearsal_provenance: None,
-            }],
+            });
+        }
+        let source = ProjectionSource {
+            authorization_stream_value: AuthorizationStreamRecord::new(
+                AuthorizationStreamIncarnation::parse(&incarnation).unwrap(),
+            )
+            .encode_bytes()
+            .unwrap(),
+            restore_declaration_id: None,
+            users,
+            identities,
+            sessions,
             superseded_tokens: Vec::new(),
         };
         let monotonic_start = Instant::now();
@@ -2302,10 +2350,13 @@ mod tests {
         Fixture {
             coordinator: Arc::new(AuthCoordinator::new(projection).unwrap()),
             incarnation,
+            user_id,
             session_id,
             bearer: bearer_text,
             digest,
             authority_instance_id,
+            substituted_user_id,
+            substituted_session_id,
             monotonic_start,
         }
     }
@@ -2430,6 +2481,256 @@ mod tests {
                 ..
             } if authority_instance_id == &fixture.authority_instance_id
         ));
+    }
+
+    #[test]
+    fn retained_effect_session_reconstruction_derives_the_stored_original_subject() {
+        let fixture = fixture_with_substituted_session(true);
+        let mut database = crate::storage::LocalDatabase::memory()
+            .expect("pending-effect session derivation database");
+        database
+            .activate_current_auth_catalog()
+            .expect("activate protected auth catalog");
+        let mut manifest = SchemaManifest::default();
+        manifest.api = Some(ApiManifest {
+            enabled: true,
+            ..ApiManifest::default()
+        });
+        database
+            .schema_seed()
+            .apply_schema(manifest)
+            .expect("activate pending-effect storage");
+        let mut database = crate::storage::ServingDatabase::adopt(database)
+            .expect("adopt pending-effect session derivation database");
+        let exact = crate::storage::pending_effects::PendingEffectAuthority::Session {
+            user_id: fixture.user_id.clone(),
+            session_id: fixture.session_id.clone(),
+            provider: "email-code".to_owned(),
+            generation: 1,
+            authority_instance_id: fixture.authority_instance_id.clone(),
+            authorization_stream_incarnation: fixture.incarnation.clone(),
+        };
+        let request = |authority| crate::storage::pending_effects::CreatePendingEffect {
+            function_id: "fn:write".to_owned(),
+            function_name: "write".to_owned(),
+            function_kind: FunctionKind::Mutation,
+            args: serde_json::json!({ "title": "derived" }),
+            caller_lane: "integration".to_owned(),
+            caller_key: "session-derivation-test".to_owned(),
+            authority,
+            generation: ArtifactGeneration {
+                schema_version: "snapback.v1".to_owned(),
+                app_id: "app".to_owned(),
+                schema_hash: "schema".to_owned(),
+                bundle_hash: "bundle".to_owned(),
+                inputs_hash: "inputs".to_owned(),
+            },
+            link_origin_id: None,
+            approver_principal_id: Some("approver-a".to_owned()),
+            declared_write_set: vec!["todos".to_owned()],
+            now_ms: 100,
+            ttl_ms: 1_000,
+        };
+        let created = database
+            .create_pending_effect_admitted(request(exact.clone()))
+            .expect("store original session authority B");
+        let approval = database
+            .prepare_pending_effect_approval(&created.id, "approver-a", 200)
+            .expect("derive the exact effect for approver A");
+        let crate::storage::pending_effects::RetainedEffectOriginalAuthority::Session(retained) =
+            approval.original_authority()
+        else {
+            panic!("stored session authority must produce the session borrow view")
+        };
+        fixture
+            .coordinator
+            .resolve_bound_connection_session(
+                &fixture.incarnation,
+                &fixture.substituted_session_id,
+                &fixture.substituted_user_id,
+                "email-code",
+                1,
+                200,
+                fixture.monotonic_start + Duration::from_millis(100),
+            )
+            .expect("confirm independently selectable substitute C is live");
+        let reconstructed = fixture
+            .coordinator
+            .prepare_retained_effect_session(
+                &retained,
+                200,
+                fixture.monotonic_start + Duration::from_millis(100),
+            )
+            .expect("reconstruct stored original session authority B");
+        let ResolvedAppAuthority::Session { user_id, .. } = reconstructed.authority() else {
+            panic!("retained session reconstruction must produce session authority")
+        };
+        assert_eq!(user_id, &uuid_v7(2, 2));
+
+        let mut cases = Vec::new();
+        let mut add_case =
+            |name: &'static str,
+             mutate: fn(&mut crate::storage::pending_effects::PendingEffectAuthority)| {
+                let mut retained = exact.clone();
+                mutate(&mut retained);
+                cases.push((name, retained));
+            };
+        add_case("stream-lower", |authority| {
+            let crate::storage::pending_effects::PendingEffectAuthority::Session {
+                authorization_stream_incarnation,
+                ..
+            } = authority
+            else {
+                unreachable!()
+            };
+            *authorization_stream_incarnation = String::new();
+        });
+        add_case("stream-higher", |authority| {
+            let crate::storage::pending_effects::PendingEffectAuthority::Session {
+                authorization_stream_incarnation,
+                ..
+            } = authority
+            else {
+                unreachable!()
+            };
+            *authorization_stream_incarnation = "\u{10ffff}".to_owned();
+        });
+        add_case("session-lower", |authority| {
+            let crate::storage::pending_effects::PendingEffectAuthority::Session {
+                session_id, ..
+            } = authority
+            else {
+                unreachable!()
+            };
+            *session_id = String::new();
+        });
+        add_case("session-higher", |authority| {
+            let crate::storage::pending_effects::PendingEffectAuthority::Session {
+                session_id, ..
+            } = authority
+            else {
+                unreachable!()
+            };
+            *session_id = "\u{10ffff}".to_owned();
+        });
+        add_case("user-lower", |authority| {
+            let crate::storage::pending_effects::PendingEffectAuthority::Session {
+                user_id, ..
+            } = authority
+            else {
+                unreachable!()
+            };
+            *user_id = String::new();
+        });
+        add_case("user-higher", |authority| {
+            let crate::storage::pending_effects::PendingEffectAuthority::Session {
+                user_id, ..
+            } = authority
+            else {
+                unreachable!()
+            };
+            *user_id = "\u{10ffff}".to_owned();
+        });
+        add_case("provider-lower", |authority| {
+            let crate::storage::pending_effects::PendingEffectAuthority::Session {
+                provider, ..
+            } = authority
+            else {
+                unreachable!()
+            };
+            *provider = String::new();
+        });
+        add_case("provider-higher", |authority| {
+            let crate::storage::pending_effects::PendingEffectAuthority::Session {
+                provider, ..
+            } = authority
+            else {
+                unreachable!()
+            };
+            *provider = "\u{10ffff}".to_owned();
+        });
+        add_case("generation-lower", |authority| {
+            let crate::storage::pending_effects::PendingEffectAuthority::Session {
+                generation, ..
+            } = authority
+            else {
+                unreachable!()
+            };
+            *generation = 0;
+        });
+        add_case("generation-higher", |authority| {
+            let crate::storage::pending_effects::PendingEffectAuthority::Session {
+                generation, ..
+            } = authority
+            else {
+                unreachable!()
+            };
+            *generation = 2;
+        });
+        add_case("instance-lower", |authority| {
+            let crate::storage::pending_effects::PendingEffectAuthority::Session {
+                authority_instance_id,
+                ..
+            } = authority
+            else {
+                unreachable!()
+            };
+            *authority_instance_id = String::new();
+        });
+        add_case("instance-higher", |authority| {
+            let crate::storage::pending_effects::PendingEffectAuthority::Session {
+                authority_instance_id,
+                ..
+            } = authority
+            else {
+                unreachable!()
+            };
+            *authority_instance_id = "\u{10ffff}".to_owned();
+        });
+        cases.push(("exact", exact));
+        let mut accepted = Vec::new();
+        let mut refused = Vec::new();
+        for (name, authority) in cases {
+            let created = database
+                .create_pending_effect_admitted(request(authority))
+                .expect("store one retained session coordinate case");
+            let approval = database
+                .prepare_pending_effect_approval(&created.id, "approver-a", 200)
+                .expect("derive one retained session coordinate case");
+            let crate::storage::pending_effects::RetainedEffectOriginalAuthority::Session(retained) =
+                approval.original_authority()
+            else {
+                panic!("coordinate case must retain the session arm")
+            };
+            let result = fixture.coordinator.prepare_retained_effect_session(
+                &retained,
+                200,
+                fixture.monotonic_start + Duration::from_millis(100),
+            );
+            if result.is_ok() {
+                accepted.push(name);
+            } else {
+                refused.push(name);
+            }
+        }
+        assert_eq!(accepted, ["exact"]);
+        assert_eq!(
+            refused,
+            [
+                "stream-lower",
+                "stream-higher",
+                "session-lower",
+                "session-higher",
+                "user-lower",
+                "user-higher",
+                "provider-lower",
+                "provider-higher",
+                "generation-lower",
+                "generation-higher",
+                "instance-lower",
+                "instance-higher",
+            ]
+        );
     }
 
     #[tokio::test]
