@@ -1,14 +1,17 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import {
   copyFile,
+  cp,
+  mkdir,
   mkdtemp,
   readFile,
   rm,
   writeFile,
 } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -43,6 +46,12 @@ import {
   R2LaneController,
 } from "../lane-controller.mjs";
 import {
+  admissionIdentity,
+  createAdmissionArtifact,
+  inspectCommittedSeriality,
+  verifyAdmissionArtifact,
+} from "../r2-cell-admission.mjs";
+import {
   OBSERVABILITY_BLOCKS,
   OBSERVATION_VERSION,
   ObservationWriter,
@@ -63,6 +72,7 @@ import {
   validateSocialMessengerRecordSemantics,
   validateSocialMessengerRunRecord,
 } from "../../record-validator.mjs";
+import { validateDryRunEvidence } from "../../../../runs/2026-08-23-r2-published-0125/validate-dry-run-evidence.mjs";
 
 const execFileAsync = promisify(execFile);
 const FIXTURES = new URL("./fixtures/", import.meta.url);
@@ -224,7 +234,7 @@ test("usage after the final terminal boundary fails closed instead of disappeari
       },
     },
     maxClockSkewMs: 100,
-  }), /completes after the final M1 terminal boundary/u);
+  }), /completes after the final M1 usage settlement/u);
 });
 
 test("recorded clock-skew bounds reject ambiguous timestamp joins", async () => {
@@ -380,6 +390,41 @@ test("Codex preserves an absent optional reasoning counter as null", () => {
   assert.equal(channel.turns[0].usage.reasoning, null);
 });
 
+test("optional null cache and reasoning orientation counters preserve measured orientation evidence", () => {
+  const joined = joinUsageToMilestones({
+    channel: {
+      source: "synthetic-native",
+      turns: [{
+        id: "orientation-turn",
+        completedAt: "2026-08-24T11:00:10.000Z",
+        usage: { input: 12, output: 3, cacheRead: null, cacheWrite: null, reasoning: null },
+      }],
+    },
+    boundaries: {
+      M1: {
+        status: "green",
+        firstGreenAt: "2026-08-24T11:00:20.000Z",
+        suitePassAt: "2026-08-24T11:00:20.000Z",
+        choreoPassAt: "2026-08-24T11:00:20.000Z",
+        terminalAt: "2026-08-24T11:00:20.000Z",
+        terminalSequence: 1,
+        terminalReason: "green",
+      },
+    },
+    firstProductEdit: {
+      at: "2026-08-24T11:00:10.000Z",
+      orientationBytes: 42,
+      selectedSkills: [],
+    },
+  });
+  assert.equal(
+    joined.efficiencyScorecardEligibility.ineligibilityReasons.includes(
+      "orientation-evidence-unavailable",
+    ),
+    false,
+  );
+});
+
 test("retained R2 Codex ordering settles signal usage without stealing the next milestone", async () => {
   const cellRoot = new URL(
     "benchmarks/runs/2026-08-23-r2-published-0125/cells/sol-clique-explicit/",
@@ -449,35 +494,39 @@ test("retained R2 Codex ordering settles signal usage without stealing the next 
   assert.deepEqual(
     Object.values(result.boundaryValue.milestones).map((boundary) => boundary.terminalAt),
     [
+      "2026-08-24T09:54:04.184Z",
+      "2026-08-24T10:01:49.197Z",
+      "2026-08-24T10:05:46.005Z",
+    ],
+  );
+  assert.equal(result.clockCorrelation.maxSkewMillis, 0);
+  assert.deepEqual(
+    result.compatibilityEvents[0].usageSettlements.map((adjustment) => ({
+      milestone: adjustment.milestone,
+      signalRecordOrdinal: adjustment.signalRecordOrdinal,
+      usageRecordOrdinal: adjustment.usageRecordOrdinal,
+      usageSettledAt: adjustment.usageSettledAt,
+      settlementKind: adjustment.settlementKind,
+    })),
+    [
+      { milestone: "M1", signalRecordOrdinal: 1229, usageRecordOrdinal: 1231, usageSettledAt: "2026-08-24T09:54:54.157Z", settlementKind: "signal-turn-token-count" },
+      { milestone: "M2", signalRecordOrdinal: 1413, usageRecordOrdinal: 1415, usageSettledAt: "2026-08-24T10:02:30.911Z", settlementKind: "signal-turn-token-count" },
+      { milestone: "M3", signalRecordOrdinal: 1557, usageRecordOrdinal: 1564, usageSettledAt: "2026-08-24T10:10:21.856Z", settlementKind: "final-native-token-count" },
+    ],
+  );
+  assert.equal(result.compatibilityEvents[0].ruleId, R2_DRIVER_V1_TERMINAL_RULE);
+  assert.deepEqual(
+    result.compatibilityEvents[0].observationHandoffExclusions.map((event) => event.sequence),
+    [209, 244],
+  );
+  assert.deepEqual(
+    result.compatibilityEvents[0].usageSettlements.map((event) => event.usageSettledAt),
+    [
       "2026-08-24T09:54:54.157Z",
       "2026-08-24T10:02:30.911Z",
       "2026-08-24T10:10:21.856Z",
     ],
   );
-  assert.equal(result.clockCorrelation.maxSkewMillis, 0);
-  assert.deepEqual(
-    result.compatibilityEvents[0].terminalAdjustments.map((adjustment) => ({
-      milestone: adjustment.milestone,
-      signalRecordOrdinal: adjustment.signalRecordOrdinal,
-      usageRecordOrdinal: adjustment.usageRecordOrdinal,
-      effectiveTerminalAt: adjustment.effectiveTerminalAt,
-      settlementKind: adjustment.settlementKind,
-    })),
-    [
-      { milestone: "M1", signalRecordOrdinal: 1229, usageRecordOrdinal: 1231, effectiveTerminalAt: "2026-08-24T09:54:54.157Z", settlementKind: "signal-turn-token-count" },
-      { milestone: "M2", signalRecordOrdinal: 1413, usageRecordOrdinal: 1415, effectiveTerminalAt: "2026-08-24T10:02:30.911Z", settlementKind: "signal-turn-token-count" },
-      { milestone: "M3", signalRecordOrdinal: 1557, usageRecordOrdinal: 1564, effectiveTerminalAt: "2026-08-24T10:10:21.856Z", settlementKind: "final-native-token-count" },
-    ],
-  );
-  assert.equal(result.compatibilityEvents[0].ruleId, R2_DRIVER_V1_TERMINAL_RULE);
-  assert.deepEqual(result.compatibilityEvents[0].excludedPostTerminalObservations, [{
-    observationSourceId: "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
-    milestone: "M3",
-    sequence: 268,
-    at: "2026-08-24T10:10:23.123Z",
-    type: "host-load-sample",
-    reason: "controller-finalization-sample-after-native-task-settlement",
-  }]);
 
   const joined = joinUsageToMilestones({
     channel: adaptCodexSessionTree([{
@@ -486,6 +535,7 @@ test("retained R2 Codex ordering settles signal usage without stealing the next 
       records,
     }]),
     boundaries: result.boundaryValue,
+    usageSettlements: result.usageSettlements,
     firstProductEdit: null,
     wallClockOrigin: manifest.driver.startedAt,
   });
@@ -504,7 +554,7 @@ test("retained R2 Codex ordering settles signal usage without stealing the next 
   assert.deepEqual(unversioned.compatibilityEvents, []);
 });
 
-test("closed Codex failure finalization uses the last settled native usage or fails closed", () => {
+test("closed Codex failure without a later native token_count is explicitly unavailable", () => {
   const records = [{
     ordinal: 0,
     timestamp: "2026-08-24T12:00:01.000Z",
@@ -517,8 +567,12 @@ test("closed Codex failure finalization uses the last settled native usage or fa
   const boundaryValue = {
     M1: {
       status: "aborted",
+      firstGreenAt: null,
+      suitePassAt: null,
+      choreoPassAt: null,
       terminalAt: "2026-08-24T12:00:02.000Z",
       terminalSequence: 1,
+      terminalReason: "abort",
     },
   };
   assert.throws(
@@ -530,17 +584,28 @@ test("closed Codex failure finalization uses the last settled native usage or fa
     boundaryValue,
     streamClosedAt: "2026-08-24T12:00:03.000Z",
   });
-  assert.deepEqual(recovered.terminalAdjustments[0], {
+  assert.deepEqual(recovered.usageSettlements[0], {
     milestone: "M1",
     originalTerminalAt: "2026-08-24T12:00:02.000Z",
     signalItemId: null,
     signalCompletedAt: "2026-08-24T12:00:03.000Z",
     signalRecordOrdinal: null,
-    usageSettledAt: "2026-08-24T12:00:01.000Z",
-    usageRecordOrdinal: 0,
-    effectiveTerminalAt: "2026-08-24T12:00:01.000Z",
-    settlementKind: "closed-failure-native-token-count",
+    usageSettledAt: null,
+    usageRecordOrdinal: null,
+    usageAvailable: false,
+    settlementKind: "closed-failure-native-usage-unavailable",
   });
+  const joined = joinUsageToMilestones({
+    channel: {
+      source: "synthetic",
+      turns: [{ id: "prior", completedAt: records[0].timestamp, usage: counts(10, 0) }],
+    },
+    boundaries: boundaryValue,
+    usageSettlements: recovered.usageSettlements,
+  });
+  assert.deepEqual(joined.milestones.M1.authoring.tokens, nullCounts());
+  assert.equal(joined.capAdjudicationEligible, false);
+  assert.match(joined.unavailableReason, /m1/u);
 });
 
 test("retained real Codex parent and subagent deltas checksum and aggregate independently", async () => {
@@ -1327,6 +1392,7 @@ test("current R2 compatibility provenance rejects deletion and fabrication", asy
   ));
   const record = JSON.parse(await readFile(join(root, "record.json"), "utf8"));
   assert.deepEqual(composedErrors(record, root), []);
+  assert.deepEqual(record.socialMessenger.firstProductEdit.selectedSkills, []);
 
   for (const mutate of [
     (candidate) => { delete candidate.socialMessenger.meteringProvenance.adapter; },
@@ -1354,9 +1420,17 @@ test("current R2 compatibility provenance rejects deletion and fabrication", asy
 
   const fabricatedDriver = structuredClone(record);
   fabricatedDriver.socialMessenger.meteringProvenance.driver.compatibilityEvents[0]
-    .terminalAdjustments[0].usageRecordOrdinal = 1230;
+    .usageSettlements[0].usageRecordOrdinal = 1230;
   assert.match(
     composedErrors(fabricatedDriver, root).join("\n"),
+    /driver.*native boundary replay/u,
+  );
+
+  const fabricatedHandoff = structuredClone(record);
+  fabricatedHandoff.socialMessenger.meteringProvenance.driver.compatibilityEvents[0]
+    .observationHandoffExclusions[0].sequence = 210;
+  assert.match(
+    composedErrors(fabricatedHandoff, root).join("\n"),
     /driver.*native boundary replay/u,
   );
 
@@ -1366,6 +1440,303 @@ test("current R2 compatibility provenance rejects deletion and fabrication", asy
     composedErrors(disguisedDriver, root),
     [],
     "a current R2 record cannot evade provenance replay by renaming its driver",
+  );
+});
+
+test("recovered signal handoff cannot be replaced by an arbitrary overlapping process event", async () => {
+  const sourceRoot = fileURLToPath(new URL(
+    "benchmarks/runs/2026-08-23-r2-published-0125/cells/sol-clique-explicit/",
+    ROOT,
+  ));
+  const temp = await mkdtemp(join(tmpdir(), "r2-handoff-mutation-"));
+  await cp(sourceRoot, temp, { recursive: true });
+  try {
+    const eventPath = join(temp, "events/lane-controller-observations.jsonl");
+    const events = parseObservationJsonLines(await readFile(eventPath, "utf8"), eventPath);
+    events.find((event) => event.sequence === 209).actionId = "arbitrary-product-process";
+    const eventText = `${events.map((event) => JSON.stringify(event)).join("\n")}\n`;
+    await writeFile(eventPath, eventText);
+    const manifestPath = join(temp, "metering-manifest.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    const descriptor = manifest.observations.find(
+      (item) => item.sourceId.endsWith("lane-controller"),
+    );
+    descriptor.sha256 = sha256(eventText);
+    const manifestText = `${JSON.stringify(manifest, null, 2)}\n`;
+    await writeFile(manifestPath, manifestText);
+    const record = JSON.parse(await readFile(join(temp, "record.json"), "utf8"));
+    record.socialMessenger.meteringProvenance.manifest.sha256 = sha256(manifestText);
+    record.socialMessenger.meteringProvenance.manifestSha256 = sha256(manifestText);
+    record.socialMessenger.meteringProvenance.observations.find(
+      (item) => item.sourceId.endsWith("lane-controller"),
+    ).sha256 = descriptor.sha256;
+    assert.match(
+      composedErrors(record, temp).join("\n"),
+      /exact versioned native\/observation handoff registration/u,
+    );
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
+test("current R2 complete replay rejects coordinated quantitative fabrication", async () => {
+  const root = fileURLToPath(new URL(
+    "benchmarks/runs/2026-08-23-r2-published-0125/cells/sol-clique-explicit/",
+    ROOT,
+  ));
+  const record = JSON.parse(await readFile(join(root, "record.json"), "utf8"));
+  const mutations = [
+    ["milestone tokens", (value) => { value.socialMessenger.milestones.M1.authoring.tokens.input += 1; }],
+    ["total tokens", (value) => { value.tokens.input += 1; }],
+    ["token phases", (value) => { value.tokens.phases.authoring += 1; }],
+    ["orientation prefix", (value) => { value.socialMessenger.firstProductEdit.orientationTokens.output += 1; }],
+    ["charging", (value) => { value.socialMessenger.milestones.M2.charging.chargedTokens += 1; }],
+    ["caps", (value) => { value.socialMessenger.milestones.M2.caps.wallCapSeconds += 1; }],
+    ["eligibility", (value) => { value.socialMessenger.efficiencyScorecardEligibility.eligible = true; }],
+    ["joined provenance", (value) => { value.socialMessenger.meteringProvenance.driver.startedAt = "2026-08-24T09:05:54.827Z"; }],
+  ];
+  for (const [label, mutate] of mutations) {
+    const candidate = structuredClone(record);
+    mutate(candidate);
+    assert.match(
+      composedErrors(candidate, root).join("\n"),
+      /complete hash-bound native metering replay|native boundary replay/u,
+      label,
+    );
+  }
+});
+
+test("current R2 validates the complete immutable commandless FileChange set", async (context) => {
+  const sourceRoot = fileURLToPath(new URL(
+    "benchmarks/runs/2026-08-23-r2-published-0125/cells/sol-clique-explicit/",
+    ROOT,
+  ));
+  const mutations = [
+    ["source ID", () => {}, true],
+    ["deletion", (events) => { events.splice(1, 1); }],
+    ["fabrication", (events) => { events.push({ ...events[0], sequence: 99_999, actionId: "fabricated" }); }],
+    ["action identity", (events) => { events[0].actionId = "fabricated"; }],
+    ["action class", (events) => { events[0].actionClass = "edit"; }],
+    ["milestone", (events) => { events[0].milestone = "M2"; }],
+    ["sequence", (events) => { events[0].sequence += 1; }],
+    ["timestamp", (events) => { events[0].at = "2026-08-24T09:12:15.377Z"; }],
+  ];
+  for (const [label, mutate, mutateSourceId = false] of mutations) {
+    await context.test(label, async () => {
+      const temp = await mkdtemp(join(tmpdir(), "r2-file-change-mutation-"));
+      await cp(sourceRoot, temp, { recursive: true });
+      try {
+        const eventPath = join(temp, "events/codex-file-change-observations.jsonl");
+        const events = parseObservationJsonLines(await readFile(eventPath, "utf8"), eventPath);
+        mutate(events);
+        const eventText = `${events.map((event) => JSON.stringify(event)).join("\n")}\n`;
+        await writeFile(eventPath, eventText);
+        const manifestPath = join(temp, "metering-manifest.json");
+        const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+        const descriptor = manifest.observations.find(
+          (item) => item.sourceId === "codex-file-change-observations",
+        );
+        if (mutateSourceId) descriptor.sourceId = "fabricated-file-change-source";
+        descriptor.sha256 = sha256(eventText);
+        const manifestText = `${JSON.stringify(manifest, null, 2)}\n`;
+        await writeFile(manifestPath, manifestText);
+        const record = JSON.parse(await readFile(join(temp, "record.json"), "utf8"));
+        record.socialMessenger.meteringProvenance.manifest.sha256 = sha256(manifestText);
+        record.socialMessenger.meteringProvenance.manifestSha256 = sha256(manifestText);
+        const source = record.socialMessenger.meteringProvenance.observations.find(
+          (item) => item.sourceId === "codex-file-change-observations",
+        );
+        source.sha256 = descriptor.sha256;
+        if (mutateSourceId) source.sourceId = descriptor.sourceId;
+        assert.match(
+          composedErrors(record, temp).join("\n"),
+          /commandless FileChange|complete hash-bound native metering replay/u,
+        );
+      } finally {
+        await rm(temp, { recursive: true, force: true });
+      }
+    });
+  }
+});
+
+test("direct campaign controller command refuses before any prepare or native launch without admission", async () => {
+  const repositoryRoot = fileURLToPath(ROOT);
+  await assert.rejects(
+    execFileAsync(process.execPath, [
+      "benchmarks/tools/social-messenger/metering/lane-controller.mjs",
+      "--harness-config",
+      "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json",
+      "--cell",
+      "sol-clique-familiar",
+      "--driver",
+      "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs",
+    ], { cwd: repositoryRoot }),
+    (error) => {
+      assert.match(error.stderr, /R2_ADMISSION_REQUIRED/u);
+      return true;
+    },
+  );
+});
+
+test("admission refuses an unrecorded private cell instead of permitting a rerun", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "r2-admission-pristine-"));
+  try {
+    const committedRoot = join(temp, "run");
+    await Promise.all([
+      mkdir(join(committedRoot, "cells/cell-1"), { recursive: true }),
+      mkdir(join(committedRoot, "cells/cell-2"), { recursive: true }),
+    ]);
+    await writeFile(join(committedRoot, "cells/cell-1/cell.json"), JSON.stringify({
+      status: "recovered-finalized",
+      record: { path: "record.json" },
+      metering: { path: "metering.json" },
+    }));
+    await writeFile(join(committedRoot, "cells/cell-1/record.json"), "{}\n");
+    await writeFile(join(committedRoot, "cells/cell-1/metering.json"), "{}\n");
+    await writeFile(join(committedRoot, "cells/cell-2/cell.json"), JSON.stringify({ status: "not-started" }));
+    const harnessConfig = {
+      cellOrder: ["cell-1", "cell-2"],
+      paths: { committedRunRoot: "run", privateExecutionRoot: join(temp, "private") },
+    };
+    assert.throws(() => inspectCommittedSeriality({
+      harnessConfig,
+      cellId: "cell-2",
+      repositoryRoot: temp,
+      privateExists: (path) => path.endsWith("cell-2"),
+      gitRead: (args) => {
+        if (args[0] === "rev-parse") return "fixture-head";
+        return readFileSync(join(temp, args[1].split(":").slice(1).join(":")));
+      },
+    }), /EXISTING_UNRECORDED_EVIDENCE/u);
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
+test("per-cell admission succeeds with an injected three-minute clock and rejects stale spacing", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "r2-admission-"));
+  try {
+    const sourceConfig = JSON.parse(await readFile(
+      new URL("benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", ROOT),
+      "utf8",
+    ));
+    const cell = sourceConfig.cells[1];
+    cell.admissionArtifact = "admission.json";
+    cell.controllerCommand = ["node", "fixture-controller", "--admission", join(temp, "admission.json")];
+    sourceConfig.pins.instrument.manifestPath = "benchmarks/instrument.manifest.json";
+    sourceConfig.paths.instrumentRoot = fileURLToPath(new URL("benchmarks/", ROOT));
+    const instrumentBytes = await readFile(new URL("benchmarks/instrument.manifest.json", ROOT));
+    sourceConfig.pins.instrument.manifestSha256 = sha256(instrumentBytes).replace(/^sha256:/u, "");
+    const configPath = join(temp, "harness-config.json");
+    await writeFile(configPath, `${JSON.stringify(sourceConfig, null, 2)}\n`);
+    let clock = Date.parse("2026-08-24T12:00:00.000Z");
+    const reservationPath = join(temp, "reservation.json");
+    await writeFile(reservationPath, `${JSON.stringify({
+      version: "snapback.r2-host-reservation.v1",
+      runId: sourceConfig.runId,
+      cellId: cell.id,
+      hostname: hostname(),
+      exclusive: true,
+      reservedBy: "metering-test",
+      reservedAt: new Date(clock).toISOString(),
+      expiresAt: new Date(clock + 600_000).toISOString(),
+    }, null, 2)}\n`);
+    const seriality = {
+      gitHead: "fixture-head",
+      committedPrefix: [sourceConfig.cellOrder[0]],
+      requestedIndex: 1,
+      laterPristine: sourceConfig.cellOrder.slice(2),
+      privateCellState: "absent",
+    };
+    const admissionPath = join(temp, "admission.json");
+    const injected = {
+      inspectSeriality: () => seriality,
+      activePriorProcesses: () => [],
+      portIsUnbound: async () => true,
+      harnessEvidence: (key, harness) => ({
+        key,
+        binary: harness.binary,
+        observedVersion: harness.observedVersion,
+        version: { ok: true, argv: ["--version"] },
+        auth: { ok: true, argv: ["fixture-auth"] },
+      }),
+      now: () => clock,
+      loadavg: () => [1, 2, 3],
+      sleep: async (millis) => { clock += millis; },
+    };
+    let samplesBeforeInstrument = 0;
+    await assert.rejects(createAdmissionArtifact({
+      harnessConfigPath: configPath,
+      cellId: cell.id,
+      reservationPath,
+      admissionPath,
+      dependencies: {
+        ...injected,
+        loadavg: () => { samplesBeforeInstrument += 1; return [1, 2, 3]; },
+        resolveInstrument: () => { throw new Error("stale materialized snapshot"); },
+      },
+    }), /R2_ADMISSION_INSTRUMENT/u);
+    assert.equal(samplesBeforeInstrument, 0, "instrument refusal must precede load sampling");
+    const artifact = await createAdmissionArtifact({
+      harnessConfigPath: configPath,
+      cellId: cell.id,
+      reservationPath,
+      admissionPath,
+      dependencies: injected,
+    });
+    assert.equal(artifact.loadIsolation.samples.length, 3);
+    assert.equal(artifact.instrument.source.sha256, artifact.instrument.materialized.sha256);
+    assert.equal(
+      Date.parse(artifact.loadIsolation.samples[2].sampledAt)
+        - Date.parse(artifact.loadIsolation.samples[0].sampledAt),
+      120_000,
+    );
+    const stale = structuredClone(artifact);
+    stale.loadIsolation.samples[1].sampledAt = new Date(
+      Date.parse(stale.loadIsolation.samples[0].sampledAt) + 59_999,
+    ).toISOString();
+    stale.identity.sha256 = admissionIdentity(stale);
+    assert.throws(() => verifyAdmissionArtifact({
+      artifact: stale,
+      harnessConfig: sourceConfig,
+      harnessConfigPath: configPath,
+      cellId: cell.id,
+      admissionPath,
+      nowMs: Date.parse(stale.issuedAt),
+      campaignState: seriality,
+    }), /once per minute/u);
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
+test("historical dry-run validation binds immutable Git commit and tree bytes", async () => {
+  const recovery = JSON.parse(await readFile(
+    new URL("benchmarks/runs/2026-08-23-r2-published-0125/recovery-resume.v3.json", ROOT),
+    "utf8",
+  ));
+  const evidence = fileURLToPath(new URL(
+    "benchmarks/runs/2026-08-23-r2-published-0125/dry-run-evidence/success/",
+    ROOT,
+  ));
+  const result = await validateDryRunEvidence(evidence, {
+    historicalValidatorBinding: recovery.historicalDryRunValidator,
+  });
+  assert.equal(result.validationMode, "immutable-git-object-validator-source-binding");
+  await assert.rejects(
+    validateDryRunEvidence(evidence, {
+      historicalValidatorBinding: {
+        ...recovery.historicalDryRunValidator,
+        sourceCommit: "0acfad7ae32357cf331b0f539c545f503163ce78",
+      },
+    }),
+    /source object digest disagrees|commit\/tree binding disagrees/u,
+  );
+  const incompleteBinding = structuredClone(recovery.historicalDryRunValidator);
+  delete incompleteBinding.sources.semantic;
+  await assert.rejects(
+    validateDryRunEvidence(evidence, { historicalValidatorBinding: incompleteBinding }),
+    /source inventory disagrees/u,
   );
 });
 

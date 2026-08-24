@@ -1,12 +1,12 @@
 {
   "schemaVersion": "snapback.r2-harness-config.v1",
   "runId": "2026-08-23-r2-published-0125",
-  "status": "recovered-cell-1-blocked",
+  "status": "serial-per-cell-admission",
   "noBenchmarkCellStarted": false,
   "recoveryResume": {
-    "version": "snapback.r2-recovery-resume.v2",
-    "path": "recovery-resume.v2.json",
-    "sha256": "cda2ab9c138691bee3efa8e5f2aa5c768bd28189516b85a1917e455b68633a90",
+    "version": "snapback.r2-recovery-resume.v3",
+    "path": "recovery-resume.v3.json",
+    "sha256": "908e47b76aee4be2fca596301ac37cf64e4b7e9851f82a992a515dc4f5ac26bf",
     "nextCell": "sol-clique-familiar"
   },
   "governing": [
@@ -113,30 +113,33 @@
       "status": "prepared-at-prompt-pinned-path"
     },
     "instrument": {
+      "manifestPath": "benchmarks/instrument.manifest.json",
       "semanticSnapshotRevision": "e8048d8238b3abe1fe3d6553bd12f334affbf88f",
       "instrumentPin": "social-messenger@0.3.3-m8",
-      "manifestSha256": "ed083eb715f6c043b78f7bd437102ab4a7b85ff9bf06880d61d269a0e71b60ae",
+    "manifestSha256": "11be58d47fb65831c39b3d3df4c6b41b0058a6bef4593b94888af8880b01c804",
       "fixtureVersion": "0.2.0-m8",
       "schemaVersion": "0.3.0-m8",
       "uiVersion": "0.3.1-m8",
       "choreographyVersion": "0.3.3-m8",
       "d06MeteringOverlay": {
-        "revision": "bdb49313050a9497c14b807e8c1ab58c4fef1385",
+      "revision": "final-scoped-review-remediation-after-0acfad7ae32357cf331b0f539c545f503163ce78",
         "status": "landed",
         "recordSchema": "benchmarks/schema/social-messenger/run-record.schema.json",
         "recordSchemaSha256": "3403455e98fad656125ea2ab0993f780bdb112849fb127bd8bcfcbcf6f2b8a64",
-        "extensionSchemaSha256": "acb473ea27085cf8915e8962b5c0b5388a17eeea9e1b2f13322f5d04c36a5293",
-        "recordValidatorSha256": "af8e33cd0c316e70107f3906906a934cef4fa26de1c8a9c2cda300dbdddfdba5",
+      "extensionSchemaSha256": "5d8a6f41d1f02d7fe8df4ef761bb7cd921d2fa2c711e938c553c903689e14c4b",
+      "recordValidatorSha256": "4986ba54b0bb7872840211b4a88530d8f2155b8a4ed41ff61d3b85e2252ee93b",
         "meterSha256": "d19aa6764c513af489e43b00ef15f8560d347dc84998254d1cceb4bf9e4d5a62",
         "laneSetupSha256": "b46ddce548b4415dfd791eb32c97eba581adb0d9794da557f314fd2b34c9e71f",
-        "laneControllerSha256": "e5fac8225f912b675081977ade585d2adbbdb22508e3d5983d4975231132f6f2",
-        "productionDriverSha256": "bb167416eec678bb5ba797ce0892309fbbbbc730c7a90acb2fc7e8eab960a07a",
+      "laneControllerSha256": "b79e5114b1be5b958ce87bdeae154b034bb003d569a61b1bccfa988f27d5763b",
+      "productionDriverSha256": "24ee6ba8dcb6c4860b1a573b2e02a78023ff63bd5d255157649ef706f44d5f0b",
         "signalSha256": "f2f835538bc92cd5ea2af0098e43ca0e97cf3934101c713f6c13ede55066a712",
-        "manifestLoaderSha256": "a8208b691094d7f098862860a9a4b738cac2429f0f26bfc0dff027cb3c40d92f",
-        "joinerSha256": "f371bd739d7efa0ba7e727a80abbad54fdc4b9c0679c05cfd2d753c2b84f6f76",
+      "manifestLoaderSha256": "0e3ebad453fea3e56412a338b2175cb03f49fae673b6c9d1f73ac90375a43d24",
+      "joinerSha256": "152fd1a89e30d96ac2b4b4fcb2a246b2722da3cd68e51fde8cd4ee3fa3636f85",
         "observationsSha256": "3299998fd77ba1ded4c3de613803e55cbcce79aed377ce526511fa97b749a3b9",
         "codexAdapterSha256": "3afd75d48389dff2d8c307016638927e38bcf8c8600242113a613ca1fe509db8",
-        "codexNativeEvidenceSha256": "6ceaa342c3951dee94c0cbda4393a54d1ecc7757c96e8860511f2793c2fb6229"
+      "codexNativeEvidenceSha256": "d510466a1dbf897ce4091a4ccb59fc5d31dbd50be7652e5f63ec22a1306fc744",
+      "recordComposerSha256": "66868a4513a682b411e219927752edc16b7ee0cb85bb01b11f0c5dea56a5b98e",
+      "admissionToolSha256": "2479b4b9a35e74c0e37b7ee45dcbae458a52bbb658e9256fda2e8af3ea2f46bc"
       },
       "observabilityBump": {
         "issue": "issues/20260821-clique-instrument-observability-version-bump.md",
@@ -191,6 +194,7 @@
     "entrypoint": "benchmarks/tools/social-messenger/metering/lane-controller.mjs",
     "driver": "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs",
     "signal": "benchmarks/tools/social-messenger/metering/r2-cell-signal.mjs",
+    "admission": "benchmarks/tools/social-messenger/metering/r2-cell-admission.mjs",
     "commandTemplate": [
       "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
       "benchmarks/tools/social-messenger/metering/lane-controller.mjs",
@@ -199,7 +203,9 @@
       "--cell",
       "{cellId}",
       "--driver",
-      "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"
+      "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs",
+      "--admission",
+      "benchmarks/runs/2026-08-23-r2-published-0125/admissions/{cellId}.json"
     ]
   },
   "harnesses": {
@@ -300,7 +306,8 @@
       "pins": ["snapback0125", "instrument"],
       "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 3720, "outputTokens": 120825},
-      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "sol-clique-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
+      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "sol-clique-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/sol-clique-explicit.json"],
+      "admissionArtifact": "admissions/sol-clique-explicit.json"
     },
     {
       "id": "sol-clique-familiar",
@@ -315,7 +322,8 @@
       "pins": ["snapback0125", "instrument"],
       "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 4748, "outputTokens": 139934},
-      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "sol-clique-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
+      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "sol-clique-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/sol-clique-familiar.json"],
+      "admissionArtifact": "admissions/sol-clique-familiar.json"
     },
     {
       "id": "sol-coterie-explicit",
@@ -330,7 +338,8 @@
       "pins": ["snapback0125", "instrument", "exact0124Comparator"],
       "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 5212, "outputTokens": 159445},
-      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "sol-coterie-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
+      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "sol-coterie-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/sol-coterie-explicit.json"],
+      "admissionArtifact": "admissions/sol-coterie-explicit.json"
     },
     {
       "id": "sol-coterie-familiar",
@@ -345,7 +354,8 @@
       "pins": ["snapback0125", "instrument", "exact0124Comparator"],
       "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 7631, "outputTokens": 152614},
-      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "sol-coterie-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
+      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "sol-coterie-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/sol-coterie-familiar.json"],
+      "admissionArtifact": "admissions/sol-coterie-familiar.json"
     },
     {
       "id": "grok-clique-explicit",
@@ -360,7 +370,8 @@
       "pins": ["snapback0125", "instrument"],
       "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 4336, "outputTokens": 141020},
-      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-clique-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
+      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-clique-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/grok-clique-explicit.json"],
+      "admissionArtifact": "admissions/grok-clique-explicit.json"
     },
     {
       "id": "grok-clique-familiar",
@@ -375,7 +386,8 @@
       "pins": ["snapback0125", "instrument"],
       "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 19346, "outputTokens": 188471, "contamination": ["host-load-contamination"]},
-      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-clique-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
+      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-clique-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/grok-clique-familiar.json"],
+      "admissionArtifact": "admissions/grok-clique-familiar.json"
     },
     {
       "id": "grok-coterie-explicit",
@@ -390,7 +402,8 @@
       "pins": ["snapback0125", "instrument", "exact0124Comparator"],
       "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 7664, "outputTokens": 263396},
-      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-coterie-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
+      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-coterie-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/grok-coterie-explicit.json"],
+      "admissionArtifact": "admissions/grok-coterie-explicit.json"
     },
     {
       "id": "grok-coterie-familiar",
@@ -405,7 +418,8 @@
       "pins": ["snapback0125", "instrument", "exact0124Comparator"],
       "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 7002, "outputTokens": 196650},
-      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-coterie-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
+      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "grok-coterie-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/grok-coterie-familiar.json"],
+      "admissionArtifact": "admissions/grok-coterie-familiar.json"
     },
     {
       "id": "opus-clique-explicit",
@@ -420,7 +434,8 @@
       "pins": ["snapback0125", "instrument"],
       "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 27282, "outputTokens": 387583, "contamination": ["host-load-contamination", "api-interruption"]},
-      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "opus-clique-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
+      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "opus-clique-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/opus-clique-explicit.json"],
+      "admissionArtifact": "admissions/opus-clique-explicit.json"
     },
     {
       "id": "opus-clique-familiar",
@@ -435,7 +450,8 @@
       "pins": ["snapback0125", "instrument"],
       "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 12367, "outputTokens": 430232},
-      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "opus-clique-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
+      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "opus-clique-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/opus-clique-familiar.json"],
+      "admissionArtifact": "admissions/opus-clique-familiar.json"
     },
     {
       "id": "opus-coterie-explicit",
@@ -450,7 +466,8 @@
       "pins": ["snapback0125", "instrument", "exact0124Comparator"],
       "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 13504, "outputTokens": 365823},
-      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "opus-coterie-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
+      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "opus-coterie-explicit", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/opus-coterie-explicit.json"],
+      "admissionArtifact": "admissions/opus-coterie-explicit.json"
     },
     {
       "id": "opus-coterie-familiar",
@@ -465,7 +482,8 @@
       "pins": ["snapback0125", "instrument", "exact0124Comparator"],
       "loadCeilingId": "host-10cpu-loadavg-10-approved",
       "baseline": {"wallSeconds": 8283, "outputTokens": 333058},
-      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "opus-coterie-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"]
+      "controllerCommand": ["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "benchmarks/tools/social-messenger/metering/lane-controller.mjs", "--harness-config", "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", "--cell", "opus-coterie-familiar", "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs", "--admission", "benchmarks/runs/2026-08-23-r2-published-0125/admissions/opus-coterie-familiar.json"],
+      "admissionArtifact": "admissions/opus-coterie-familiar.json"
     }
   ]
 }

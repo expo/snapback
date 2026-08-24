@@ -34,6 +34,11 @@ for `runRecordSchema` and `runRecordExtensionSchema` in the frozen
   `{at, orientationBytes, orientationTokens, selectedSkills}` shape. All five
   native counters remain present even when their values are null; those
   cumulative orientation tokens are not M1 authoring.
+  Current R2 provenance additionally binds `recordBase`; semantic validation
+  replays the complete native join and deterministic record composition rather
+  than accepting self-consistent quantitative fields. Optional native
+  cache/reasoning orientation counters may remain null without invalidating
+  otherwise measured input/output-and-byte evidence.
   Additive D0.6 fields on each milestone retain hash-linked
   semantic-action and failure-to-recovery streams, restart/reseed counts,
   suite/choreography assertion attempts and wait wall, host-load samples, and

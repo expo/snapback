@@ -1,7 +1,8 @@
 # LLP 0295 R2 — published 0.1.25 calibration rerun plan
 
-**Status:** BLOCKED after cell 1 — its retained attempt is deterministically
-recovered; no later cell has started.
+**Status:** cell 1 deterministically recovered; continuation is a serial,
+fresh per-cell admission transition. No later cell has started and no current
+admission artifact exists.
 
 This directory preregisters the load-isolated twelve-cell R2 calibration wave
 from LLP 0295 §R2. It repeats the retained 2026-08-17/18 published-0.1.24
@@ -51,8 +52,14 @@ claim.
 2. Freeze the single machine, Node 24 path, CLI versions, Exact checkout,
    instrument tree, package closure, and approved load ceiling in
    `harness-config.json`.
-3. Materialize each lane from a fresh directory with the landed lane setup and
-   its bounded start packet. Start its exact `controllerCommand` from
+3. Declare an exclusive host reservation for the requested run and cell, then
+   run `r2-cell-admission.mjs`. It verifies the exact command/instrument pin,
+   including the complete source and read-only materialized instrument trees,
+   committed prefix, prior process closure, unbound ports, harness version and
+   auth, and three one-minute load samples. It writes a self-hashed artifact
+   valid for 30 seconds. Materialize each lane from a fresh directory with the
+   landed lane setup and its bounded start packet. Start its exact
+   `controllerCommand` from
    `harness-config.json`; that command supplies the production native-CLI
    driver to `lane-controller.mjs`. The driver launches Codex, Grok, or Claude
    from the cell definition and keeps one cold session behind milestone gates.
@@ -87,12 +94,17 @@ The production command shape is frozen per cell, for example:
   benchmarks/tools/social-messenger/metering/lane-controller.mjs \
   --harness-config benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json \
   --cell sol-clique-explicit \
-  --driver benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs
+  --driver benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs \
+  --admission benchmarks/runs/2026-08-23-r2-published-0125/admissions/sol-clique-explicit.json
 ```
 
-`validate-plan.mjs` resolves all twelve concrete commands, imports the driver
-hooks, verifies each native CLI exists, and asks the lane controller to resolve
-every cell against the external 0.3.3-m8 pin.
+`validate-plan.mjs` resolves all twelve concrete commands and deterministic
+admission paths, accepts a contiguous committed prefix of finalized records,
+imports the driver hooks, verifies each native CLI exists, and resolves every
+later pristine cell against the external 0.3.3-m8 pin. The controller verifies
+admission before importing the driver, creating the private cell, writing a
+prompt, or launching a process. Existing private unrecorded evidence must be
+finalized; it can never be admitted as a rerun.
 
 ## Load-isolation ruling
 
@@ -201,9 +213,11 @@ Re-hash and revalidate them independently with:
 
 ```sh
 node benchmarks/runs/2026-08-23-r2-published-0125/validate-dry-run-evidence.mjs \
-  benchmarks/runs/2026-08-23-r2-published-0125/dry-run-evidence/success
+  benchmarks/runs/2026-08-23-r2-published-0125/dry-run-evidence/success \
+  --source-binding benchmarks/runs/2026-08-23-r2-published-0125/recovery-resume.v3.json
 node benchmarks/runs/2026-08-23-r2-published-0125/validate-dry-run-evidence.mjs \
-  benchmarks/runs/2026-08-23-r2-published-0125/dry-run-evidence/failure
+  benchmarks/runs/2026-08-23-r2-published-0125/dry-run-evidence/failure \
+  --source-binding benchmarks/runs/2026-08-23-r2-published-0125/recovery-resume.v3.json
 ```
 
 ## Start blockers
@@ -238,11 +252,15 @@ private retained root and was not rerun. The versioned metering repair recovers
 its complete native token join, and the committed cell directory now contains
 `metering.json`, a schema- and semantic-validator-clean `record.json`, and the
 minimal hash-linked evidence graph needed to revalidate both. Its recovery note
-records the exact Codex 0.149.0 advisory-total compatibility event, native
-signal-settled terminals, and the ordinal-222 first product edit. The recovered
+records the exact Codex 0.149.0 advisory-total compatibility event, separate
+protocol terminals and native usage settlements, exact signal-observation
+exclusions, and the ordinal-222 first product edit. The recovered
 record is scorecard-ineligible because orientation bytes were not measured;
 no counter is inferred from the prompt.
 
 This is a deterministic finalization of cell 1, not campaign continuation or a
-profile conclusion. No later Codex/Grok cell and no Claude cell ran. The
-instrument repair remains scoped-review-pending.
+profile conclusion. No later Codex/Grok cell and no Claude cell ran. Every
+later command is fail-closed behind a versioned per-cell admission artifact.
+Historical preflight reds are not weakened: the requested cell must satisfy
+its current reservation, auth, version, port, process-closure, instrument,
+seriality, and load conditions.

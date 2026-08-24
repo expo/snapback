@@ -31,6 +31,31 @@ const CURRENT_CHOREOGRAPHY_VERSION = "0.3.3-m8";
 const R2_DRIVER_V1_TERMINAL_RULE = R2_CODEX_SETTLED_TERMINAL_RULE;
 const R2_DRIVER_V1_CLOCK_EVIDENCE =
   "controller and native CLI use the same host clock; 5s covers receipt-to-final-sample handoff";
+const R2_RECOVERED_HANDOFF_REGISTRATION = Object.freeze({
+  ruleId: "social-messenger-r2-cell-1-signal-handoff-exclusions.v1",
+  laneRunId: "2026-08-23-r2-published-0125/sol-clique-explicit",
+  nativeStreamSha256: "sha256:f9838d32f9f1357eb40ed7661d350cc9e341431ab0fcc3df0dc6e280e2035c0d",
+  observationSourceId: "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
+  observationStreamSha256: "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363",
+  exclusions: Object.freeze([
+    Object.freeze({
+      priorMilestone: "M1",
+      nextMilestone: "M2",
+      nativeSignalItemId: "exec-99d072d0-74ea-481c-939e-ed8b90b63fb4",
+      nativeSignalRecordOrdinal: 1229,
+      observationSequence: 209,
+      observationEventSha256: "sha256:d92ea49111e98c37bcadf1728fdb0bbd7fd21fc1543f98c36203eea30d7a5a08",
+    }),
+    Object.freeze({
+      priorMilestone: "M2",
+      nextMilestone: "M3",
+      nativeSignalItemId: "exec-be790ed3-4d77-4fdd-b6e6-a908beba9560",
+      nativeSignalRecordOrdinal: 1413,
+      observationSequence: 244,
+      observationEventSha256: "sha256:d178e9e6ddd350036a188924392086b70507ce1af0356c8c1f77e6353c710d35",
+    }),
+  ]),
+});
 const RECEIPT_SCHEMA = JSON.parse(readFileSync(
   new URL("../choreography/receipts.schema.json", import.meta.url),
   "utf8",
@@ -233,10 +258,9 @@ async function loadObservations(manifestDirectory, observations, laneRunId) {
   return { events, provenance };
 }
 
-// @ref LLP 0201#d2--quantitative-instrument — a terminal must bound the
-// complete native usage prefix. Retained driver-v1 boundaries are recovered
-// from the successful native signal execution and its settled token_count,
-// never from an unrelated controller observation.
+// @ref LLP 0201#d2--quantitative-instrument — the protocol terminal and the
+// later native usage settlement are distinct. The former bounds wall time and
+// observations; the latter is provenance used only to select token prefixes.
 function applyR2DriverV1TerminalCompatibility({
   manifest,
   boundaryValue,
@@ -250,6 +274,7 @@ function applyR2DriverV1TerminalCompatibility({
       clockCorrelation,
       compatibilityEvents: [],
       observationEvents,
+      usageSettlements: null,
     };
   }
   if (manifest.adapter !== "codex") {
@@ -258,6 +283,7 @@ function applyR2DriverV1TerminalCompatibility({
       clockCorrelation,
       compatibilityEvents: [],
       observationEvents,
+      usageSettlements: null,
     };
   }
   if (
@@ -270,8 +296,7 @@ function applyR2DriverV1TerminalCompatibility({
   if (builder === undefined) {
     throw new Error("driver-v1 terminal recovery requires the hash-bound builder session");
   }
-  const effective = structuredClone(boundaryValue);
-  const boundaries = effective?.milestones ?? effective;
+  const boundaries = boundaryValue?.milestones ?? boundaryValue;
   const recovery = recoverCodexSignalSettlements({
     records: builder.records,
     boundaryValue,
@@ -280,80 +305,126 @@ function applyR2DriverV1TerminalCompatibility({
       ? manifest.driver.stampedAt
       : null,
   });
-  const latestObservationByMilestone = new Map();
-  for (const event of observationEvents) {
-    const previous = latestObservationByMilestone.get(event.milestone);
-    if (previous === undefined || Date.parse(event.at) > Date.parse(previous)) {
-      latestObservationByMilestone.set(event.milestone, event.at);
-    }
-  }
-  const terminalAdjustments = recovery.terminalAdjustments.map((adjustment) => ({
-    ...adjustment,
-    supersededObservationTerminalAt:
-      latestObservationByMilestone.get(adjustment.milestone) ?? null,
-  }));
-  for (const adjustment of terminalAdjustments) {
-    boundaries[adjustment.milestone].terminalAt = adjustment.effectiveTerminalAt;
-  }
   const effectiveClockCorrelation = {
     method: "rfc3339-with-bounded-skew",
     maxSkewMillis: 0,
     evidence: R2_CODEX_SHARED_HOST_CLOCK_EVIDENCE,
   };
-  const closingMilestone = terminalAdjustments.at(-1).milestone;
-  const excludedPostTerminalObservations = [];
-  const observationWindowOverlaps = [];
-  const effectiveObservations = [];
-  const orderedMilestones = terminalAdjustments.map((item) => item.milestone);
-  for (const event of observationEvents) {
-    const terminalAt = boundaries[event.milestone]?.terminalAt;
-    if (terminalAt === undefined || Date.parse(event.at) <= Date.parse(terminalAt)) {
-      effectiveObservations.push(event);
-      continue;
-    }
-    if (event.milestone !== closingMilestone || event.type !== "host-load-sample") {
+  const orderedMilestones = recovery.usageSettlements.map((item) => item.milestone);
+  const observationHandoffExclusions = [];
+  const instrumentationCommandsObserved = manifest.driver.instrumentationCommandsObserved !== false;
+  const observationDescriptor = manifest.observations?.find(
+    (item) => item.sourceId === R2_RECOVERED_HANDOFF_REGISTRATION.observationSourceId,
+  );
+  const recoveredHandoffRegistered =
+    manifest.laneRunId === R2_RECOVERED_HANDOFF_REGISTRATION.laneRunId
+    && builder.resolvedSha256 === R2_RECOVERED_HANDOFF_REGISTRATION.nativeStreamSha256
+    && observationDescriptor?.sha256 === R2_RECOVERED_HANDOFF_REGISTRATION.observationStreamSha256;
+  if (instrumentationCommandsObserved && !recoveredHandoffRegistered) {
+    throw new Error(
+      "observed R2 signal commands require an exact versioned native/observation handoff registration",
+    );
+  }
+  for (const [index, settlement] of recovery.usageSettlements.entries()) {
+    if (index === orderedMilestones.length - 1 || settlement.signalRecordOrdinal === null) continue;
+    const nextMilestone = orderedMilestones[index + 1];
+    const candidates = observationEvents.filter((event) => (
+      event.milestone === nextMilestone
+      && event.type === "semantic-action"
+      && event.actionClass === "process"
+      && event.disposition === "progress"
+      && Math.abs(Date.parse(event.at) - Date.parse(settlement.signalCompletedAt)) <= 1_000
+    ));
+    const expectedSignalObservations = instrumentationCommandsObserved ? 1 : 0;
+    if (candidates.length !== expectedSignalObservations) {
       throw new Error(
-        `${event.milestone} ${event.type} follows its native-settled terminal; recovery is ambiguous`,
+        `${settlement.milestone} native signal must map to ${expectedSignalObservations} next-milestone process observations; received ${candidates.length}`,
       );
     }
-    if (Date.parse(event.at) > Date.parse(manifest.driver.stampedAt)) {
-      throw new Error("post-terminal host-load sample follows the driver finalization stamp");
+    if (candidates.length === 0) continue;
+    const event = candidates[0];
+    const registration = R2_RECOVERED_HANDOFF_REGISTRATION.exclusions[index];
+    if (
+      registration?.priorMilestone !== settlement.milestone
+      || registration.nextMilestone !== nextMilestone
+      || registration.nativeSignalItemId !== settlement.signalItemId
+      || registration.nativeSignalRecordOrdinal !== settlement.signalRecordOrdinal
+      || registration.observationSequence !== event.sequence
+      || event.evidenceSourceId !== R2_RECOVERED_HANDOFF_REGISTRATION.observationSourceId
+      || digest(JSON.stringify(event)) !== registration.observationEventSha256
+    ) {
+      throw new Error(
+        `${settlement.milestone} handoff observation does not equal its immutable versioned registration`,
+      );
     }
-    excludedPostTerminalObservations.push({
+    observationHandoffExclusions.push({
       observationSourceId: event.evidenceSourceId,
       milestone: event.milestone,
       sequence: event.sequence,
       at: event.at,
       type: event.type,
-      reason: "controller-finalization-sample-after-native-task-settlement",
+      actionId: event.actionId,
+      actionClass: event.actionClass,
+      disposition: event.disposition,
+      priorMilestone: settlement.milestone,
+      nativeSignalItemId: settlement.signalItemId,
+      nativeSignalRecordOrdinal: settlement.signalRecordOrdinal,
+      registrationId: R2_RECOVERED_HANDOFF_REGISTRATION.ruleId,
+      reason: "native-r2-cell-signal-instrumentation-is-not-a-product-action",
     });
   }
-  for (const event of effectiveObservations) {
-    const index = orderedMilestones.indexOf(event.milestone);
-    if (index <= 0) continue;
-    const priorMilestone = orderedMilestones[index - 1];
-    const priorEffectiveAt = boundaries[priorMilestone].terminalAt;
-    if (Date.parse(event.at) >= Date.parse(priorEffectiveAt)) continue;
-    const priorOriginalAt = (boundaryValue?.milestones ?? boundaryValue)[priorMilestone].terminalAt;
-    if (Date.parse(event.at) < Date.parse(priorOriginalAt)) {
-      throw new Error(
-        `${event.milestone} ${event.type} predates both original and native-settled ${priorMilestone} handoffs`,
-      );
-    }
-    observationWindowOverlaps.push({
+  const excludedKeys = new Set(observationHandoffExclusions.map((event) => (
+    `${event.observationSourceId}\0${event.milestone}\0${event.sequence}\0${event.at}`
+  )));
+  const milestoneIndex = new Map(orderedMilestones.map((milestone, index) => [milestone, index]));
+  const observationTerminalInclusions = observationEvents
+    .filter((event) => {
+      const terminalAt = boundaries[event.milestone]?.terminalAt;
+      if (terminalAt === undefined) return false;
+      const lag = Date.parse(event.at) - Date.parse(terminalAt);
+      if (lag <= 0 || lag > 1_000) return false;
+      return (event.type === "semantic-action"
+          && event.actionClass === "retry"
+          && event.disposition === "correction")
+        || event.type === "recovery-episode"
+        || (event.type === "semantic-action"
+          && event.actionClass === "choreography"
+          && event.disposition === "progress");
+    })
+    .map((event) => ({
       observationSourceId: event.evidenceSourceId,
       milestone: event.milestone,
       sequence: event.sequence,
       at: event.at,
       type: event.type,
-      priorMilestone,
-      reason: "controller-armed-next-milestone-after-original-handoff-before-native-usage-settled",
-    });
-  }
+      terminalAt: boundaries[event.milestone].terminalAt,
+      eventSha256: digest(JSON.stringify(event)),
+      reason: "exact-protocol-terminal-observation-correlation-within-one-second",
+    }));
+  const terminalInclusionKeys = new Set(observationTerminalInclusions.map((event) => (
+    `${event.observationSourceId}\0${event.milestone}\0${event.sequence}\0${event.at}`
+  )));
+  const effectiveObservations = observationEvents.filter((event) => {
+    if (excludedKeys.has(`${event.evidenceSourceId}\0${event.milestone}\0${event.sequence}\0${event.at}`)) {
+      return false;
+    }
+    const index = milestoneIndex.get(event.milestone);
+    if (index === undefined) return true;
+    const upper = Date.parse(boundaries[event.milestone].terminalAt);
+    const lower = index === 0
+      ? Date.parse(manifest.driver.startedAt)
+      : Date.parse(boundaries[orderedMilestones[index - 1]].terminalAt);
+    const at = Date.parse(event.at);
+    return at >= lower && (
+      at <= upper
+      || terminalInclusionKeys.has(`${event.evidenceSourceId}\0${event.milestone}\0${event.sequence}\0${event.at}`)
+    );
+  });
   return {
-    boundaryValue: effective,
+    boundaryValue,
     clockCorrelation: effectiveClockCorrelation,
     observationEvents: effectiveObservations,
+    usageSettlements: recovery.usageSettlements,
     compatibilityEvents: [{
       ruleId: R2_DRIVER_V1_TERMINAL_RULE,
       originalClockCorrelation: clockCorrelation,
@@ -366,9 +437,13 @@ function applyR2DriverV1TerminalCompatibility({
       ...(recovery.streamClosedAt === null
         ? {}
         : { streamClosedAt: recovery.streamClosedAt }),
-      terminalAdjustments,
-      observationWindowOverlaps,
-      excludedPostTerminalObservations,
+      usageSettlements: recovery.usageSettlements,
+      observationWindowPolicy: "protocol-terminal-inclusive.v1",
+      observationHandoffRuleId: instrumentationCommandsObserved
+        ? R2_RECOVERED_HANDOFF_REGISTRATION.ruleId
+        : "r2-driver-signal-commands-filtered-at-ingestion.v1",
+      observationHandoffExclusions,
+      observationTerminalInclusions,
     }],
   };
 }
@@ -686,15 +761,28 @@ export async function loadMeteringManifest(manifestPath) {
     };
   }
 
+  const recordBaseArtifact = manifest.recordBase === undefined
+    ? null
+    : await readArtifact(
+        manifestDirectory,
+        manifest.recordBase,
+        "manifest.recordBase",
+      );
+  const recordBase = recordBaseArtifact === null
+    ? null
+    : JSON.parse(recordBaseArtifact.text);
+
   return {
     channel,
     boundaries,
+    usageSettlements: driverCompatibility.usageSettlements,
     firstProductEdit,
+    recordBase,
     observations: {
       events: driverCompatibility.observationEvents,
       evidence: observations.provenance.map(({ path, sha256 }) => ({ path, sha256 })),
       windowExceptions: driverCompatibility.compatibilityEvents
-        .flatMap((event) => event.observationWindowOverlaps ?? []),
+        .flatMap((event) => event.observationTerminalInclusions ?? []),
     },
     suiteStatusLinkage,
     maxClockSkewMs: driverCompatibility.clockCorrelation.maxSkewMillis,
@@ -741,6 +829,12 @@ export async function loadMeteringManifest(manifestPath) {
         sha256: boundaryArtifact.sha256,
       },
       firstProductEdit: firstProductEditProvenance,
+      ...(recordBaseArtifact === null
+        ? {}
+        : { recordBase: {
+            path: manifest.recordBase.path,
+            sha256: recordBaseArtifact.sha256,
+          } }),
     },
   };
 }

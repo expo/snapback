@@ -8,7 +8,10 @@ Ephemeral state, Memberships, Assets, Client integration, Exact/Contract
 integration, Guide, Benchmarks, Testing, Performance, Rust build
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-20
-**Revised:** 2026-08-23 (R2 orchestrator rulings preserve Claude's actually
+**Revised:** 2026-08-24 (R2 final scoped-review remediation separates protocol
+terminal wall from native usage settlement and makes continuation require a
+fresh hash-bound per-cell admission artifact without rerunning retained cells).
+2026-08-23 (R2 orchestrator rulings preserve Claude's actually
 executed 0.1.24 harness-default effort despite the frozen prompt text saying
 `xhigh`, approve the 1/5/15-minute load ceiling at 10.00 with three consecutive
 passing minute samples before admission, and accept Codex 0.149.0 as the same
@@ -863,6 +866,23 @@ The load-isolation ceiling is approved at loadavg-1/loadavg-5/loadavg-15 ≤
 10.00 with one-minute sampling and three consecutive passing samples before
 admission. Codex CLI 0.149.0 is accepted as the same harness as the recorded
 0.147.0 baseline, with that version change carried as an explicit flag.
+
+**R2 recovery/admission clarification (2026-08-24).** A recovered committed
+cell prefix does not waive original admission. Before the controller creates a
+later private cell or launches its native harness, a fresh per-cell artifact
+must bind the requested run/cell/command and instrument, exclusive host
+reservation, prior process closure, unbound registered ports, harness version
+and authentication, serial committed prefix plus pristine tail, and the three
+once-per-minute all-green load samples above. The controller rechecks artifact
+identity, freshness, sample spacing, seriality, and pristine private state.
+Existing unrecorded private evidence must be finalized and cannot be rerun.
+
+For Codex, the suite-and-choreography green timestamp remains the LLP 0201
+authoring terminal and wall boundary. A later native usage-settlement
+timestamp/ordinal is versioned provenance used only to select the token prefix.
+Native milestone-signal commands are instrumentation, not D0.6 product
+actions; any retained compatibility exclusion must bind the exact event and
+native signal identity.
 
 ### R3. Claim-eligible wave
 

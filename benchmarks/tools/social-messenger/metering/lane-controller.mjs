@@ -7,6 +7,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { joinUsageToMilestones } from "./joiner.mjs";
 import { loadMeteringManifest } from "./manifest.mjs";
+import { composeRunRecord } from "./record-composer.mjs";
+import {
+  inspectCommittedSeriality,
+  verifyAdmissionArtifact,
+} from "./r2-cell-admission.mjs";
 import {
   CURRENT_INSTRUMENT_PIN,
   LaneObservationHarness,
@@ -65,169 +70,7 @@ async function observationDescriptor(manifestDirectory, source) {
   };
 }
 
-function tokenTotal(counts) {
-  return Number.isInteger(counts?.input) && Number.isInteger(counts?.output)
-    ? counts.input + counts.output
-    : null;
-}
-
-function secondsBetween(startedAt, finishedAt) {
-  return Math.max(0, (Date.parse(finishedAt) - Date.parse(startedAt)) / 1_000);
-}
-
-function milestoneCharging({ status, authoring, caps }) {
-  const actualTokens = tokenTotal(authoring.tokens);
-  if (status === "green") {
-    return {
-      chargedWallSeconds: authoring.wallSeconds,
-      chargedTokens: actualTokens,
-      flags: [],
-    };
-  }
-  if (authoring.terminalReason === "token-cap") {
-    return {
-      chargedWallSeconds: authoring.wallSeconds,
-      chargedTokens: caps.tokenCap,
-      flags: ["capped-tokens"],
-    };
-  }
-  if (authoring.terminalReason === "wall-cap") {
-    return {
-      chargedWallSeconds: caps.wallCapSeconds,
-      chargedTokens: actualTokens,
-      flags: ["capped-wall"],
-    };
-  }
-  return {
-    chargedWallSeconds: caps.wallCapSeconds,
-    chargedTokens: actualTokens,
-    flags: ["aborted"],
-  };
-}
-
-export function composeRunRecord({ base, patch, expectedMilestones = [] }) {
-  if (base === null || typeof base !== "object" || Array.isArray(base)) {
-    throw new TypeError("record base must be an object");
-  }
-  const startedAt = patch.meteringProvenance?.driver?.startedAt;
-  requiredString(startedAt, "metering driver.startedAt");
-  const attempted = patch.executionOrder.map((milestone) => [
-    milestone,
-    patch.milestones[milestone],
-  ]);
-  const finishedAt = attempted.at(-1)?.[1]?.authoring?.terminalAt;
-  requiredString(finishedAt, "final milestone terminalAt");
-  const record = structuredClone(base);
-  const totalSeconds = secondsBetween(startedAt, finishedAt);
-  const firstGreenProofAt = attempted
-    .map(([, value]) => value.authoring.firstGreenAt)
-    .filter((value) => value !== null)
-    .sort()[0] ?? null;
-  const orientationAt = patch.firstProductEdit.at;
-  const orientationSeconds = orientationAt === null
-    ? 0
-    : Math.min(totalSeconds, secondsBetween(startedAt, orientationAt));
-  const totalTokens = tokenTotal(patch.totals);
-  const orientationTokens = tokenTotal(patch.firstProductEdit.orientationTokens);
-
-  record.timestamps = { startedAt, finishedAt };
-  record.firstGreenProofAt = firstGreenProofAt;
-  record.wallClock = {
-    totalSeconds,
-    phases: {
-      orientation: orientationSeconds,
-      authoring: totalSeconds - orientationSeconds,
-      verification: 0,
-      diagnosis: 0,
-    },
-  };
-  record.tokens = {
-    input: patch.totals.input,
-    output: patch.totals.output,
-    source: patch.source,
-    phases: {
-      orientation: orientationTokens,
-      authoring: totalTokens === null || orientationTokens === null
-        ? null
-        : totalTokens - orientationTokens,
-      verification: totalTokens === null ? null : 0,
-      diagnosis: totalTokens === null ? null : 0,
-    },
-  };
-
-  let previousAt = startedAt;
-  const milestones = {};
-  for (const [milestone, projected] of attempted) {
-    const baseMilestone = record.socialMessenger?.milestones?.[milestone] ?? {};
-    const authoring = {
-      ...baseMilestone.authoring,
-      ...projected.authoring,
-      wallSeconds: secondsBetween(previousAt, projected.authoring.terminalAt),
-    };
-    const caps = {
-      wallCapSeconds: baseMilestone.caps?.wallCapSeconds ?? null,
-      tokenCap: baseMilestone.caps?.tokenCap ?? null,
-    };
-    milestones[milestone] = {
-      ...baseMilestone,
-      ...projected,
-      authoring,
-      caps,
-      charging: milestoneCharging({ status: projected.status, authoring, caps }),
-    };
-    previousAt = projected.authoring.terminalAt;
-  }
-  const expected = expectedMilestones.length > 0 ? expectedMilestones : patch.executionOrder;
-  for (const milestone of expected) {
-    if (milestones[milestone] !== undefined) continue;
-    const baseMilestone = record.socialMessenger?.milestones?.[milestone] ?? {};
-    milestones[milestone] = {
-      ...baseMilestone,
-      status: "not-run",
-      authoring: {
-        wallSeconds: null,
-        tokens: {
-          input: null,
-          output: null,
-          cacheRead: null,
-          cacheWrite: null,
-          reasoning: null,
-        },
-        firstGreenAt: null,
-        suitePassAt: null,
-        choreoPassAt: null,
-        terminalAt: null,
-        terminalSequence: null,
-        terminalReason: null,
-      },
-      charging: {
-        chargedWallSeconds: null,
-        chargedTokens: null,
-        flags: [],
-      },
-    };
-  }
-  const terminatedEarly = patch.executionOrder.length < expected.length
-    || attempted.some(([, value]) => value.status !== "green");
-  record.socialMessenger = {
-    ...record.socialMessenger,
-    instrumentVersion: patch.instrumentVersion,
-    observabilityProtocol: patch.observabilityProtocol,
-    milestones,
-    termination: terminatedEarly
-      ? {
-          terminatedEarly: true,
-          reason: record.socialMessenger?.termination?.reason ?? "cell-driver-failure",
-          afterMilestone: patch.executionOrder.at(-1) ?? null,
-        }
-      : { terminatedEarly: false, reason: null, afterMilestone: null },
-    firstProductEdit: patch.firstProductEdit,
-    meteringProvenance: patch.meteringProvenance,
-    efficiencyScorecardEligibility: patch.efficiencyScorecardEligibility,
-    suiteStatusLinkage: patch.suiteStatusLinkage,
-  };
-  return record;
-}
+export { composeRunRecord } from "./record-composer.mjs";
 
 // @ref LLP 0295#d06--efficiency-instrument-and-target-registration — the
 // production lane owner starts sampling at each attempted milestone, records
@@ -389,7 +232,7 @@ export class R2LaneController {
 function usage() {
   return `Usage:
   node lane-controller.mjs --config <lane-controller.json> --driver <driver.mjs>
-  node lane-controller.mjs --harness-config <harness-config.json> --cell <cell-id> --driver <driver.mjs>
+  node lane-controller.mjs --harness-config <harness-config.json> --cell <cell-id> --driver <driver.mjs> --admission <admission.json>
 
 The config declares laneRunId, observationPath, loadCeilings, milestones,
 manifestPath, recordPatchPath, recordBasePath, recordPath, and optional
@@ -416,6 +259,7 @@ function parseArgs(argv) {
     else if (arg === "--harness-config") options.harnessConfigPath = value();
     else if (arg === "--cell") options.cellId = value();
     else if (arg === "--driver") options.driverPath = value();
+    else if (arg === "--admission") options.admissionPath = value();
     else if (arg === "--help" || arg === "-h") options.help = true;
     else throw new Error(`unknown argument: ${arg}`);
   }
@@ -507,6 +351,26 @@ async function main() {
   const { config, configDirectory } = await loadLaneControllerConfig(options);
   if (!Array.isArray(config.milestones) || config.milestones.length === 0) {
     throw new TypeError("lane controller config milestones must be non-empty");
+  }
+  if (options.harnessConfigPath) {
+    if (!options.admissionPath) {
+      throw new Error("R2_ADMISSION_REQUIRED: direct campaign launch requires a fresh per-cell admission artifact");
+    }
+    const artifact = JSON.parse(await readFile(resolve(options.admissionPath), "utf8"));
+    const campaignState = inspectCommittedSeriality({
+      harnessConfig: config.harnessConfig,
+      cellId: config.cell.id,
+    });
+    verifyAdmissionArtifact({
+      artifact,
+      harnessConfig: config.harnessConfig,
+      harnessConfigPath: resolve(options.harnessConfigPath),
+      cellId: config.cell.id,
+      admissionPath: resolve(options.admissionPath),
+      campaignState,
+    });
+  } else if (options.admissionPath) {
+    throw new Error("--admission is only valid with --harness-config");
   }
   const driver = await import(pathToFileURL(resolve(options.driverPath)).href);
   if (typeof driver.runMilestone !== "function") {

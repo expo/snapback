@@ -18,22 +18,24 @@ The recovery applies two narrow, replayable rules:
   advisory total on unchanged cumulative native record index 711 (zero-based
   ordinal 710). It creates no turn and no charge and does not apply outside
   that native version and exact shape.
-- `social-messenger-r2-native-cli-driver.v1-codex-signal-settlement.v2`
-  replaces the rejected observation-terminal projection with native ordering.
+- `social-messenger-r2-native-cli-driver.v1-codex-usage-settlement.v3`
+  keeps the original suite-and-choreography protocol terminals for authoring
+  walls and uses separate native ordering only for token-prefix selection.
   M1 uses successful signal ordinal 1229 and settled token-count ordinal 1231
   (`09:54:54.157Z`); M2 uses 1413/1415 (`10:02:30.911Z`); closing M3 uses its
   successful signal at 1557 and the final native token count at ordinal 1564
-  (`10:10:21.856Z`) before `task_complete` ordinal 1565. Next-milestone
-  controller setup overlaps are retained explicitly and do not move token
-  turns. The controller's `10:10:23.123Z` final host-load sample remains in the
-  immutable stream but is explicitly outside the native-settled authoring
-  window.
+  (`10:10:21.856Z`) before `task_complete` ordinal 1565. The authoring
+  terminals remain `09:54:04.184Z`, `10:01:49.197Z`, and `10:05:46.005Z`.
+  Exact next-milestone observations for the M1/M2 signal commands are excluded
+  from D0.6 as instrumentation; arbitrary handoff events receive no exception.
+  Post-terminal observations remain immutable but do not extend authoring.
 
 Commandless native `FileChange` completions are recovered into the additive
 `events/codex-file-change-observations.jsonl` stream as `edit` or `generate`
 actions. The first product edit is native ordinal 222 at
 `2026-08-24T09:12:14.377Z`, changing `package.json`; its item/session/stream
-provenance is hash-bound in `first-product-edit.json`. Orientation bytes were
+provenance is hash-bound in `first-product-edit.json`. The native carrier does
+not identify selected skills, so that field is empty. Orientation bytes were
 not measured, so the marker records `null` and LLP 0295 makes the efficiency
 scorecard ineligible. No orientation counter was fabricated.
 
@@ -44,7 +46,9 @@ stdout, application/build output, dependencies, stores, credentials, caches,
 and private runtime state are not copied.
 
 `cell.json` now truthfully records one recovered/finalized attempt. The parent
-`recovery-resume.v2.json` transition preserves the original instrument and
+`recovery-resume.v3.json` transition preserves the original instrument and
 controller registrations, identifies `sol-clique-familiar` as the next exact
-cell, and keeps all eleven later slots pristine. Historical BLOCKED reports
-remain immutable historical artifacts.
+cell, and moves continuation to fresh hash-bound per-cell admission. Its
+historical dry-run validator binding names and verifies an immutable Git
+commit/tree, rather than comparing two mutable declarations. Historical
+BLOCKED reports remain immutable historical artifacts.

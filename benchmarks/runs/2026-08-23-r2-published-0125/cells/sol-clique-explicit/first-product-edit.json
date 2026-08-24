@@ -2,9 +2,7 @@
   "laneRunId": "2026-08-23-r2-published-0125/sol-clique-explicit",
   "at": "2026-08-24T09:12:14.377Z",
   "orientationBytes": null,
-  "selectedSkills": [
-    "snapback-authoring"
-  ],
+  "selectedSkills": [],
   "nativeEvidence": {
     "sourceId": "builder",
     "nativeSessionId": "01a03304-e4e2-71d0-892e-bf0440eac5b2",

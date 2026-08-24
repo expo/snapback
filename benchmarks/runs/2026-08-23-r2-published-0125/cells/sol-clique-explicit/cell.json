@@ -4,18 +4,18 @@
   "status": "recovered-finalized",
   "attemptCount": 1,
   "campaignCellRerun": false,
-  "recoveryVersion": "snapback.r2-recovery-resume.v2",
+  "recoveryVersion": "snapback.r2-recovery-resume.v3",
   "waveConfig": "../../harness-config.json",
   "recordOutput": "record.json",
   "recordSchema": "../../../../schema/social-messenger/run-record.schema.json",
   "checkedValidator": "../../../../tools/social-messenger/record-validator.mjs",
   "record": {
     "path": "record.json",
-    "sha256": "sha256:d56f9477ff20e48306423cd4c697e1a481b686f3a81e5e06296becd149f5b64b"
+    "sha256": "sha256:c31661407b0f7fd3e45db9fdf345746d3a64ce31b2e23c75a7e39871da21ffec"
   },
   "metering": {
     "path": "metering.json",
-    "sha256": "sha256:3958ad4167a37708f4c6d8cea7fd62d10585a76c63b052a3ab4e3f191bb08ca7"
+    "sha256": "sha256:4195c94e8f459c64646dfa23da7adade33e3f4c6357295bfef43bf4ce6ecc832"
   },
   "retainedNativeStream": {
     "path": "events/codex-rollout.jsonl",

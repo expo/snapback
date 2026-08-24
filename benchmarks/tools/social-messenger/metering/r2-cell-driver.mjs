@@ -332,6 +332,9 @@ function handleNativeRecord(state, record) {
     return;
   }
   if (toolResult !== null) state.pendingNativeTools.delete(toolResult.tool_use_id);
+  // @ref LLP 0186#amendment-2026-08-21-d06--matrix-efficiency-targets-registered — the controller's
+  // milestone signal is instrumentation, not a product-process action.
+  if (/(?:^|[/\\])r2-cell-signal\.mjs(?:["']|\s)/u.test(command)) return;
   const nativeActionId = deepValues(record, new Set([
     "item_id",
     "itemId",
@@ -661,11 +664,11 @@ async function writeTerminalArtifacts(state, error) {
     const firstGreenAt = marker.status === "green"
       ? (receipt?.summary?.recordedAt ?? marker.recordedAt)
       : null;
-    const terminalAt = index === markers.length - 1 && adapter !== "codex"
-      ? driverFinalizedAt
+    const terminalAt = marker.status === "green"
+      ? firstGreenAt
       : terminalTimes.get(marker.milestone)
-      ?? marker.recordedAt
-      ?? driverFinalizedAt;
+        ?? marker.recordedAt
+        ?? driverFinalizedAt;
     if (firstGreenAt !== null && Date.parse(firstGreenAt) > Date.parse(terminalAt)) {
       throw new Error(`${marker.milestone} first-green evidence follows its controller terminal`);
     }
@@ -680,22 +683,18 @@ async function writeTerminalArtifacts(state, error) {
     };
   }
   let firstProductEdit = null;
-  const persistedBoundaries = structuredClone(boundaries);
   if (adapter === "codex") {
     const builder = session.sessions.find((candidate) => candidate.role === "builder");
     if (builder === undefined) throw new Error("Codex finalization lacks its builder session");
     const rolloutPath = resolve(state.root, builder.path);
     const records = parseJsonLines(await readFile(rolloutPath, "utf8"), builder.path);
-    const recovery = recoverCodexSignalSettlements({
+    recoverCodexSignalSettlements({
       records,
       boundaryValue: boundaries,
       streamClosedAt: markers.some((marker) => marker.status !== "green")
         ? driverFinalizedAt
         : null,
     });
-    for (const adjustment of recovery.terminalAdjustments) {
-      boundaries.milestones[adjustment.milestone].terminalAt = adjustment.effectiveTerminalAt;
-    }
     const recoveredFileChanges = recoverCodexFileChanges({
       records,
       boundaryValue: boundaries,
@@ -704,7 +703,6 @@ async function writeTerminalArtifacts(state, error) {
       sourceId: builder.sourceId,
       nativeSessionId: builder.nativeSessionId,
       nativeStreamSha256: builder.sha256,
-      selectedSkills: ["snapback-authoring"],
     });
     firstProductEdit = recoveredFileChanges.firstProductEdit;
     if (recoveredFileChanges.events.length > 0) {
@@ -722,7 +720,7 @@ async function writeTerminalArtifacts(state, error) {
   }
   await writeFile(
     join(state.root, "terminal-boundaries.json"),
-    `${JSON.stringify(persistedBoundaries, null, 2)}\n`,
+    `${JSON.stringify(boundaries, null, 2)}\n`,
   );
   if (firstProductEdit !== null) {
     await writeFile(
@@ -747,6 +745,10 @@ async function writeTerminalArtifacts(state, error) {
     }
   }
   await writeFile(join(state.root, suiteStatusPath), `${JSON.stringify(statuses, null, 2)}\n`);
+  const base = JSON.parse(await readFile(join(state.root, "record-base.json"), "utf8"));
+  base.socialMessenger.coverageManifest.validated = markers.every((marker) => marker.status === "green");
+  base.correctionLoops = state.correctionLoops;
+  await writeFile(join(state.root, "record-base.json"), `${JSON.stringify(base, null, 2)}\n`);
   const manifest = {
     manifestVersion: "social-messenger-metering-manifest.v1",
     laneRunId: state.config.laneRunId,
@@ -763,7 +765,13 @@ async function writeTerminalArtifacts(state, error) {
     firstProductEdit: firstProductEdit === null
       ? null
       : await retainedDescriptor(state.root, "first-product-edit.json"),
-    driver: { id: DRIVER_ID, startedAt: state.startedAt, stampedAt: new Date().toISOString() },
+    recordBase: await retainedDescriptor(state.root, "record-base.json"),
+    driver: {
+      id: DRIVER_ID,
+      startedAt: state.startedAt,
+      stampedAt: new Date().toISOString(),
+      instrumentationCommandsObserved: false,
+    },
     clockCorrelation: {
       method: "rfc3339-with-bounded-skew",
       maxSkewMillis: adapter === "codex" ? 5_000 : 0,
@@ -773,10 +781,6 @@ async function writeTerminalArtifacts(state, error) {
     },
   };
   await writeFile(join(state.root, "metering-manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
-  const base = JSON.parse(await readFile(join(state.root, "record-base.json"), "utf8"));
-  base.socialMessenger.coverageManifest.validated = markers.every((marker) => marker.status === "green");
-  base.correctionLoops = state.correctionLoops;
-  await writeFile(join(state.root, "record-base.json"), `${JSON.stringify(base, null, 2)}\n`);
   state.terminalMarkers = markers;
 }
 

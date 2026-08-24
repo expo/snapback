@@ -120,6 +120,14 @@ function firstProductEditSnapshot(turns, marker, maxClockSkewMs) {
   };
 }
 
+function orientationTokenEvidenceAvailable(counts) {
+  return Number.isInteger(counts?.input)
+    && Number.isInteger(counts?.output)
+    && (counts.cacheRead === null || Number.isInteger(counts.cacheRead))
+    && (counts.cacheWrite === null || Number.isInteger(counts.cacheWrite))
+    && (counts.reasoning === null || Number.isInteger(counts.reasoning));
+}
+
 // @ref LLP 0201#d2--quantitative-instrument — phases are exact deltas of
 // harness-native usage prefix sums at every attempted milestone's terminal
 // boundary. Failed and aborted attempts therefore cannot roll into a later
@@ -133,6 +141,7 @@ export function joinUsageToMilestones({
   provenance = null,
   observations = null,
   suiteStatusLinkage = null,
+  usageSettlements = null,
 }) {
   if (channel === null || typeof channel !== "object") {
     throw new TypeError("usage channel is required");
@@ -161,6 +170,32 @@ export function joinUsageToMilestones({
       left.boundary.terminalSequence - right.boundary.terminalSequence
     ));
   if (ordered.length === 0) throw new Error("at least one attempted milestone boundary is required");
+  let settlementByMilestone = null;
+  if (usageSettlements !== null) {
+    if (!Array.isArray(usageSettlements) || usageSettlements.length !== ordered.length) {
+      throw new Error("usage settlements must cover every attempted milestone exactly once");
+    }
+    settlementByMilestone = new Map();
+    for (const [index, settlement] of usageSettlements.entries()) {
+      const item = ordered[index];
+      if (
+        settlement?.milestone !== item.milestone
+        || settlement.originalTerminalAt !== item.boundary.terminalAt
+        || typeof settlement.usageAvailable !== "boolean"
+      ) {
+        throw new Error(`${item.milestone} usage settlement does not bind its protocol terminal`);
+      }
+      if (settlement.usageAvailable) {
+        timestampMillis(settlement.usageSettledAt, `${item.milestone}.usageSettledAt`);
+        if (!Number.isInteger(settlement.usageRecordOrdinal)) {
+          throw new TypeError(`${item.milestone}.usageRecordOrdinal must be an integer`);
+        }
+      } else if (settlement.usageSettledAt !== null || settlement.usageRecordOrdinal !== null) {
+        throw new Error(`${item.milestone} unavailable usage settlement must retain null time and ordinal`);
+      }
+      settlementByMilestone.set(item.milestone, settlement);
+    }
+  }
   const observationEvents = observations?.events ?? [];
   const observationEvidence = observations?.evidence ?? [];
   const observationWindowExceptions = observations?.windowExceptions ?? [];
@@ -179,19 +214,19 @@ export function joinUsageToMilestones({
     const eventAt = Date.parse(event.at);
     const upper = ordered[index].atMs;
     const lower = index === 0 ? originMs : ordered[index - 1].atMs;
-    if (eventAt > upper + maxClockSkewMs) {
-      throw new Error(
-        `${event.milestone} observation ${event.type} is after its terminal boundary`,
-      );
-    }
-    const retainedHandoffOverlap = observationWindowExceptions.some((exception) => (
+    const retainedExactException = observationWindowExceptions.some((exception) => (
       exception.observationSourceId === event.evidenceSourceId
       && exception.milestone === event.milestone
       && exception.sequence === event.sequence
       && exception.at === event.at
       && exception.type === event.type
     ));
-    if (lower !== null && eventAt < lower - maxClockSkewMs && !retainedHandoffOverlap) {
+    if (eventAt > upper + maxClockSkewMs && !retainedExactException) {
+      throw new Error(
+        `${event.milestone} observation ${event.type} is after its terminal boundary`,
+      );
+    }
+    if (lower !== null && eventAt < lower - maxClockSkewMs && !retainedExactException) {
       throw new Error(
         `${event.milestone} observation ${event.type} predates its milestone window`,
       );
@@ -201,12 +236,15 @@ export function joinUsageToMilestones({
     if (originMs !== null && item.atMs < originMs - maxClockSkewMs) {
       throw new Error(`${item.milestone} terminal boundary predates the lane wall-clock origin`);
     }
-    assertClockUnambiguous(
-      turns,
-      item.atMs,
-      maxClockSkewMs,
-      `${item.milestone} terminal boundary`,
-    );
+    const settlement = settlementByMilestone?.get(item.milestone);
+    if (settlement === undefined || settlement.usageAvailable) {
+      assertClockUnambiguous(
+        turns,
+        settlement === undefined ? item.atMs : Date.parse(settlement.usageSettledAt),
+        maxClockSkewMs,
+        `${item.milestone} usage boundary`,
+      );
+    }
     if (
       index > 0
       && item.atMs + maxClockSkewMs < ordered[index - 1].atMs
@@ -217,23 +255,38 @@ export function joinUsageToMilestones({
     }
   }
   const lastBoundary = ordered.at(-1);
-  const trailingTurn = turns?.find((turn) => (
-    turn.completedAtMs > lastBoundary.atMs + maxClockSkewMs
-  ));
-  if (trailingTurn !== undefined) {
-    throw new Error(
-      `usage turn ${trailingTurn.id} completes after the final ${lastBoundary.milestone} terminal boundary; restamp terminalAt after retained overshoot settles`,
-    );
+  const lastSettlement = settlementByMilestone?.get(lastBoundary.milestone);
+  if (lastSettlement === undefined || lastSettlement.usageAvailable) {
+    const usageUpperMs = lastSettlement === undefined
+      ? lastBoundary.atMs
+      : Date.parse(lastSettlement.usageSettledAt);
+    const trailingTurn = turns?.find((turn) => (
+      turn.completedAtMs > usageUpperMs + maxClockSkewMs
+    ));
+    if (trailingTurn !== undefined) {
+      throw new Error(
+        `usage turn ${trailingTurn.id} completes after the final ${lastBoundary.milestone} usage settlement`,
+      );
+    }
   }
 
   let previousPrefix = turns === null ? nullTokenCounts() : zeroTokenCounts();
+  let phaseUsageAvailable = turns !== null;
   const milestones = {};
   const boundarySnapshots = {};
   for (const item of ordered) {
-    const prefix = prefixAt(turns, item.atMs);
-    const tokens = turns === null
+    const settlement = settlementByMilestone?.get(item.milestone);
+    const usageAvailable = turns !== null && (settlement?.usageAvailable ?? true);
+    const usageAtMs = settlement === undefined
+      ? item.atMs
+      : settlement.usageAvailable
+      ? Date.parse(settlement.usageSettledAt)
+      : null;
+    const prefix = usageAvailable ? prefixAt(turns, usageAtMs) : nullTokenCounts();
+    const tokens = !usageAvailable
       ? nullTokenCounts()
       : subtractTokenCounts(prefix, previousPrefix);
+    if (!usageAvailable) phaseUsageAvailable = false;
     milestones[item.milestone] = {
       status: item.boundary.status,
       authoring: {
@@ -259,7 +312,7 @@ export function joinUsageToMilestones({
       status: item.boundary.status,
       tokens: prefix,
     };
-    previousPrefix = prefix;
+    previousPrefix = usageAvailable ? prefix : nullTokenCounts();
   }
 
   // @ref LLP 0295#d06--efficiency-instrument-and-target-registration — the
@@ -277,19 +330,24 @@ export function joinUsageToMilestones({
     instrumentVersion: CURRENT_INSTRUMENT_PIN,
     observabilityProtocol: OBSERVATION_VERSION,
     source: channel.source ?? null,
-    available: turns !== null,
-    unavailableReason: channel.unavailableReason ?? null,
-    capAdjudicationEligible: turns !== null,
+    available: phaseUsageAvailable,
+    unavailableReason: phaseUsageAvailable
+      ? (channel.unavailableReason ?? null)
+      : channel.unavailableReason
+        ?? `native-usage-settlement-unavailable-${(
+          usageSettlements?.find((item) => !item.usageAvailable)?.milestone ?? "attempt"
+        ).toLowerCase()}`,
+    capAdjudicationEligible: phaseUsageAvailable,
     capCounters: ["input", "output"],
     totals: previousPrefix,
     executionOrder: ordered.map((item) => item.milestone),
     milestones,
     efficiencyScorecardEligibility: scorecardEligibility({
       milestones,
-      phaseUsageAvailable: turns !== null,
+      phaseUsageAvailable,
       orientationEvidenceAvailable: firstEdit.at !== null
         && firstEdit.orientationBytes !== null
-        && Object.values(firstEdit.orientationTokens).every(Number.isInteger),
+        && orientationTokenEvidenceAvailable(firstEdit.orientationTokens),
     }),
     boundarySnapshots,
     firstProductEdit: firstEdit,

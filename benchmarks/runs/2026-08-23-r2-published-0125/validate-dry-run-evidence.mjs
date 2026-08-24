@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { lstat, readFile, realpath, stat } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -39,7 +40,7 @@ async function checkedFile(root, logicalPath) {
 
 export async function validateDryRunEvidence(
   evidenceRoot,
-  { historicalValidatorSources = null } = {},
+  { historicalValidatorBinding = null } = {},
 ) {
   const root = resolve(evidenceRoot);
   const disposition = JSON.parse(await readFile(
@@ -72,11 +73,29 @@ export async function validateDryRunEvidence(
     throw new Error("record digest disagrees with the validation disposition");
   }
 
-  for (const [sourceId, source] of Object.entries(disposition.validator.sources ?? {})) {
-    if (historicalValidatorSources !== null) {
-      const expected = historicalValidatorSources[sourceId];
-      if (expected?.path !== source.path || expected?.sha256 !== source.sha256) {
+  const dispositionSources = disposition.validator.sources ?? {};
+  if (historicalValidatorBinding !== null) {
+    const declaredIds = Object.keys(dispositionSources).sort();
+    const boundIds = Object.keys(historicalValidatorBinding.sources ?? {}).sort();
+    if (JSON.stringify(declaredIds) !== JSON.stringify(boundIds)) {
+      throw new Error("historical validator source inventory disagrees");
+    }
+  }
+  for (const [sourceId, source] of Object.entries(
+    historicalValidatorBinding?.sources ?? dispositionSources,
+  )) {
+    if (historicalValidatorBinding !== null) {
+      const declared = dispositionSources[sourceId];
+      if (declared?.path !== source.path || declared?.sha256 !== source.sha256) {
         throw new Error(`historical validator source transition disagrees: ${source.path}`);
+      }
+      const objectBytes = execFileSync(
+        "git",
+        ["show", `${historicalValidatorBinding.sourceCommit}:${source.path}`],
+        { cwd: repositoryRoot, encoding: null },
+      );
+      if (sha256(objectBytes) !== source.sha256) {
+        throw new Error(`historical validator source object digest disagrees: ${source.path}`);
       }
     } else {
       const bytes = await readFile(resolve(repositoryRoot, source.path));
@@ -85,7 +104,15 @@ export async function validateDryRunEvidence(
       }
     }
   }
-  if (historicalValidatorSources !== null) {
+  if (historicalValidatorBinding !== null) {
+    const tree = execFileSync(
+      "git",
+      ["rev-parse", `${historicalValidatorBinding.sourceCommit}^{tree}`],
+      { cwd: repositoryRoot, encoding: "utf8" },
+    ).trim();
+    if (tree !== historicalValidatorBinding.sourceTree) {
+      throw new Error("historical validator source commit/tree binding disagrees");
+    }
     return {
       ok: true,
       evidenceRoot: root,
@@ -94,7 +121,7 @@ export async function validateDryRunEvidence(
       status: disposition.status,
       failureProbe: disposition.failureProbe,
       validationErrors: disposition.validator.errors.length,
-      validationMode: "immutable-historical-validator-snapshot",
+      validationMode: "immutable-git-object-validator-source-binding",
     };
   }
   const [baseSchema, extensionSchema, composedSchema] = await Promise.all([
@@ -123,10 +150,14 @@ export async function validateDryRunEvidence(
 }
 
 async function main() {
-  if (process.argv.length !== 3) {
-    throw new Error("usage: validate-dry-run-evidence.mjs <evidence-root>");
+  const args = process.argv.slice(2);
+  if (args.length !== 3 || args[1] !== "--source-binding") {
+    throw new Error("usage: validate-dry-run-evidence.mjs <evidence-root> --source-binding <recovery-resume.v3.json>");
   }
-  process.stdout.write(`${JSON.stringify(await validateDryRunEvidence(process.argv[2]))}\n`);
+  const bindingDocument = JSON.parse(await readFile(resolve(args[2]), "utf8"));
+  process.stdout.write(`${JSON.stringify(await validateDryRunEvidence(args[0], {
+    historicalValidatorBinding: bindingDocument.historicalDryRunValidator,
+  }))}\n`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

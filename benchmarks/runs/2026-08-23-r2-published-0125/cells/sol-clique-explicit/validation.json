@@ -1,21 +1,21 @@
 {
   "schemaVersion": "snapback.r2-cell-validation.v1",
-  "recoveryVersion": "snapback.r2-recovery-resume.v2",
+  "recoveryVersion": "snapback.r2-recovery-resume.v3",
   "campaignCellRerun": false,
   "record": {
     "path": "record.json",
-    "bytes": 66541,
-    "sha256": "sha256:d56f9477ff20e48306423cd4c697e1a481b686f3a81e5e06296becd149f5b64b"
+    "bytes": 64217,
+    "sha256": "sha256:c31661407b0f7fd3e45db9fdf345746d3a64ce31b2e23c75a7e39871da21ffec"
   },
   "metering": {
     "path": "metering.json",
-    "bytes": 57803,
-    "sha256": "sha256:3958ad4167a37708f4c6d8cea7fd62d10585a76c63b052a3ab4e3f191bb08ca7"
+    "bytes": 55573,
+    "sha256": "sha256:4195c94e8f459c64646dfa23da7adade33e3f4c6357295bfef43bf4ce6ecc832"
   },
   "manifest": {
     "path": "metering-manifest.json",
-    "bytes": 3955,
-    "sha256": "sha256:8075db9e8edcb7cc03970155e382231154f2534e97fc98c970d2f079ec894d3e"
+    "bytes": 4098,
+    "sha256": "sha256:d83a317350830b8cd1583f9b053d46dc630583a93deb8ce6245d546254b1797a"
   },
   "checks": {
     "schemaErrors": 0,
@@ -23,7 +23,12 @@
     "manifestAndSourceHashesValid": true,
     "hashLinkedArtifactsValid": true,
     "nativeOrderingRegressionValid": true,
-    "compatibilityMutationTestsValid": true
+    "compatibilityMutationTestsValid": true,
+    "completeNativeReplayValid": true,
+    "quantitativeMutationTestsValid": true,
+    "fileChangeMutationTestsValid": true,
+    "admissionMutationTestsValid": true,
+    "historicalValidatorObjectBindingValid": true
   },
   "hashLinkedArtifacts": [
     {
@@ -44,7 +49,7 @@
     {
       "path": "events/codex-file-change-observations.jsonl",
       "bytes": 17822,
-      "sha256": "sha256:c9a9ffc79bad7199a55dbe7f98338ac202bc03c17cd6dd1ed8887cff6ec684e9"
+      "sha256": "sha256:9c0f6f70672a4cdb83c965d65e461c6f04855d2a5221a622eb55c32e2bc14b2e"
     },
     {
       "path": "events/codex-rollout.jsonl",
@@ -58,8 +63,8 @@
     },
     {
       "path": "first-product-edit.json",
-      "bytes": 595,
-      "sha256": "sha256:a20a3d304d7c0e796bc7e5fa1a063cd1dc34c7270ee9a2b0803e3f6244725959"
+      "bytes": 567,
+      "sha256": "sha256:4c8e8eab7a1f1d8338f555277f218e8f9a48f2811e1932e1da894cf5cd395ebb"
     },
     {
       "path": "instrument.manifest.json",
@@ -68,8 +73,13 @@
     },
     {
       "path": "metering-manifest.json",
-      "bytes": 3955,
-      "sha256": "sha256:8075db9e8edcb7cc03970155e382231154f2534e97fc98c970d2f079ec894d3e"
+      "bytes": 4098,
+      "sha256": "sha256:d83a317350830b8cd1583f9b053d46dc630583a93deb8ce6245d546254b1797a"
+    },
+    {
+      "path": "record-base.json",
+      "bytes": 7003,
+      "sha256": "sha256:8ee55d513cd10106f62a1a1acaeee375aeb3c81574104af1f1bfd9fb33f1c586"
     },
     {
       "path": "receipts/m1-choreography.jsonl",

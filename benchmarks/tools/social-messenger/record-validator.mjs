@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { lstatSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { dirname, isAbsolute, normalize, relative, resolve, sep } from "node:path";
 
 import { validateJsonSchema } from "../lib/json-schema.mjs";
@@ -13,6 +13,13 @@ import {
 import {
   applyR2DriverV1TerminalCompatibility,
 } from "./metering/manifest.mjs";
+import {
+  boundariesFromReceiptRecords,
+  mergeBoundaryMaps,
+  normalizeBoundaryMap,
+} from "./metering/boundaries.mjs";
+import { joinUsageToMilestones } from "./metering/joiner.mjs";
+import { composeRunRecord } from "./metering/record-composer.mjs";
 import {
   CURRENT_INSTRUMENT_PIN,
   OBSERVABILITY_BLOCKS,
@@ -87,6 +94,34 @@ function resolveArtifact(errors, artifactRoot, artifact, path) {
   return { absolute: canonical, contents, text: contents.toString("utf8") };
 }
 
+function retainedRelativeArtifact(errors, artifactRoot, relativePath, path) {
+  if (
+    !artifactRoot
+    || typeof relativePath !== "string"
+    || relativePath.length === 0
+    || isAbsolute(relativePath)
+  ) {
+    errors.push(`${path}: expected a retained relative artifact path`);
+    return null;
+  }
+  const absolute = resolve(artifactRoot, normalize(relativePath));
+  if (!inside(artifactRoot, absolute)) {
+    errors.push(`${path}: artifact escapes the record evidence directory`);
+    return null;
+  }
+  try {
+    if (lstatSync(absolute).isSymbolicLink()) throw new Error("symbolic links are forbidden");
+    const canonical = realpathSync(absolute);
+    if (!inside(realpathSync(artifactRoot), canonical)) throw new Error("canonical path escapes");
+    if (!statSync(canonical).isFile()) throw new Error("not a file");
+    const contents = readFileSync(canonical);
+    return { contents, text: contents.toString("utf8"), sha256: sha256(contents) };
+  } catch (error) {
+    errors.push(`${path}: cannot read retained artifact ${relativePath}: ${error.message}`);
+    return null;
+  }
+}
+
 function canonicalJson(value) {
   if (Array.isArray(value)) return value.map(canonicalJson);
   if (value && typeof value === "object") {
@@ -109,6 +144,31 @@ function parseArtifactJson(errors, loaded, path) {
     errors.push(`${path}: invalid JSON: ${error.message}`);
     return null;
   }
+}
+
+function physicalCurrentR2Identity(artifactRoot) {
+  if (!artifactRoot) return false;
+  // The retained native stream plus the R2 join manifest are physical campaign
+  // identity. Treat malformed metadata as current-R2 too, so record-declared
+  // versions cannot downgrade out of the complete replay validator.
+  if (
+    existsSync(resolve(artifactRoot, "events/codex-rollout.jsonl"))
+    && existsSync(resolve(artifactRoot, "metering-manifest.json"))
+  ) return true;
+  for (const name of ["metering-manifest.json", "instrument.manifest.json"]) {
+    try {
+      const value = JSON.parse(readFileSync(resolve(artifactRoot, name), "utf8"));
+      if (
+        value?.driver?.id === "social-messenger-r2-native-cli-driver.v1"
+        || value?.instrumentPin === CURRENT_INSTRUMENT_PIN
+        || /^2026-08-23-r2-published-0125\//u.test(value?.laneRunId ?? "")
+      ) return true;
+    } catch {
+      // Absence is ordinary for legacy/additive records. The physical R2
+      // identity above still routes malformed current evidence fail-closed.
+    }
+  }
+  return false;
 }
 
 function codexCliVersion(errors, records, nativeSessionId, path) {
@@ -138,7 +198,7 @@ function validateCurrentMeteringProvenance(errors, record, extension, artifactRo
     errors.push(`${path}: current instrument requires metering provenance`);
     return;
   }
-  for (const field of ["manifest", "adapter", "observations"]) {
+  for (const field of ["manifest", "adapter", "observations", "recordBase"]) {
     if (!Object.hasOwn(provenance, field)) {
       errors.push(`${path}/${field}: current instrument requires this derived provenance field`);
     }
@@ -221,6 +281,7 @@ function validateCurrentMeteringProvenance(errors, record, extension, artifactRo
   }
 
   const observationEvents = [];
+  const observationsBySource = new Map();
   const expectedObservations = [];
   for (const [index, descriptor] of (manifest.observations ?? []).entries()) {
     const observationPath = `${path}/manifest/observations/${index}`;
@@ -237,6 +298,7 @@ function validateCurrentMeteringProvenance(errors, record, extension, artifactRo
       ...event,
       evidenceSourceId: descriptor.sourceId,
     })));
+    observationsBySource.set(descriptor.sourceId, events);
     expectedObservations.push({
       sourceId: descriptor.sourceId,
       path: descriptor.path,
@@ -296,33 +358,25 @@ function validateCurrentMeteringProvenance(errors, record, extension, artifactRo
   if (!sameJson(provenance.receipts, expectedReceipts)) {
     errors.push(`${path}/receipts: provenance must equal the manifest's receipt set`);
   }
-  const recoveredBoundaries = recovery.boundaryValue?.milestones ?? recovery.boundaryValue;
-  for (const [milestone, boundary] of Object.entries(recoveredBoundaries ?? {})) {
-    requireEqual(
-      errors,
-      `$/socialMessenger/milestones/${milestone}/authoring/terminalAt`,
-      extension.milestones?.[milestone]?.authoring?.terminalAt,
-      boundary.terminalAt,
-      "terminal must equal the native-settled recovered boundary",
-    );
-  }
-
   const expectedFirstDescriptor = manifest.firstProductEdit === null
     ? null
     : { path: manifest.firstProductEdit.path, sha256: manifest.firstProductEdit.sha256 };
   if (!sameJson(provenance.firstProductEdit, expectedFirstDescriptor)) {
     errors.push(`${path}/firstProductEdit: descriptor must equal the metering manifest marker`);
   }
-  if (manifest.adapter === "codex" && manifest.firstProductEdit !== null) {
+  let firstProductEdit = null;
+  if (manifest.firstProductEdit !== null) {
     const markerLoaded = resolveArtifact(
       errors,
       artifactRoot,
       manifest.firstProductEdit,
       `${path}/manifest/firstProductEdit`,
     );
-    const marker = parseArtifactJson(errors, markerLoaded, `${path}/manifest/firstProductEdit`);
+    firstProductEdit = parseArtifactJson(errors, markerLoaded, `${path}/manifest/firstProductEdit`);
+  }
+  if (manifest.adapter === "codex") {
     const builder = loadedSessions.find((session) => session.role === "builder");
-    if (marker !== null && builder !== undefined) {
+    if (builder !== undefined) {
       try {
         const cellId = provenance.laneRunId.split("/").at(-1);
         const productRoot = inferCodexProductRoot(builder.records, cellId);
@@ -334,28 +388,143 @@ function validateCurrentMeteringProvenance(errors, record, extension, artifactRo
           sourceId: builder.sourceId,
           nativeSessionId: builder.nativeSessionId,
           nativeStreamSha256: builder.resolvedSha256,
-          selectedSkills: extension.orientation?.selectedSkills ?? [],
         });
-        if (!sameJson(marker, recovered.firstProductEdit)) {
+        if (!sameJson(firstProductEdit, recovered.firstProductEdit)) {
           errors.push(`${path}/firstProductEdit: marker must equal the first native product FileChange and its hash-bound provenance`);
         }
-        const expectedSnapshot = {
-          at: marker.at,
-          orientationBytes: marker.orientationBytes,
-          selectedSkills: marker.selectedSkills,
-        };
-        const actualSnapshot = {
-          at: extension.firstProductEdit?.at,
-          orientationBytes: extension.firstProductEdit?.orientationBytes,
-          selectedSkills: extension.firstProductEdit?.selectedSkills,
-        };
-        if (!sameJson(actualSnapshot, expectedSnapshot)) {
-          errors.push("$/socialMessenger/firstProductEdit: snapshot must equal the native-derived marker");
+        const retainedFileChanges = observationsBySource.get("codex-file-change-observations");
+        if (!sameJson(retainedFileChanges, recovered.events)) {
+          errors.push(
+            `${path}/observations: codex-file-change-observations must equal every commandless FileChange recovered from the immutable native rollout`,
+          );
         }
       } catch (error) {
         errors.push(`${path}/firstProductEdit: native FileChange recovery failed: ${error.message}`);
       }
     }
+  }
+
+  const recordBaseLoaded = resolveArtifact(
+    errors,
+    artifactRoot,
+    manifest.recordBase,
+    `${path}/manifest/recordBase`,
+  );
+  const recordBase = parseArtifactJson(errors, recordBaseLoaded, `${path}/manifest/recordBase`);
+  const expectedRecordBaseDescriptor = manifest.recordBase === undefined
+    ? null
+    : { path: manifest.recordBase.path, sha256: manifest.recordBase.sha256 };
+  if (!sameJson(provenance.recordBase, expectedRecordBaseDescriptor)) {
+    errors.push(`${path}/recordBase: descriptor must equal the hash-bound composition base`);
+  }
+  if (recordBase === null || channel === null) return;
+
+  try {
+    const receiptMaps = [];
+    for (const [index, descriptor] of (manifest.receipts ?? []).entries()) {
+      const receiptPath = `${path}/manifest/receipts/${index}`;
+      const loaded = resolveArtifact(errors, artifactRoot, descriptor, receiptPath);
+      if (loaded === null) throw new Error(`cannot load receipt ${descriptor.sourceId}`);
+      receiptMaps.push(boundariesFromReceiptRecords(
+        parseJsonLines(loaded.text, descriptor.path),
+        descriptor.sourceId,
+      ));
+    }
+    const boundaries = mergeBoundaryMaps(
+      ...receiptMaps,
+      normalizeBoundaryMap(recovery.boundaryValue),
+    );
+
+    let suiteStatusLinkage = null;
+    if (manifest.suiteStatus !== null && manifest.suiteStatus !== undefined) {
+      const loadedStatus = resolveArtifact(
+        errors,
+        artifactRoot,
+        manifest.suiteStatus,
+        `${path}/manifest/suiteStatus`,
+      );
+      const status = parseArtifactJson(errors, loadedStatus, `${path}/manifest/suiteStatus`);
+      if (status === null) throw new Error("suite-status replay failed");
+      suiteStatusLinkage = {
+        input: { path: manifest.suiteStatus.path, sha256: manifest.suiteStatus.sha256 },
+        milestones: Object.keys(boundaries)
+          .filter((milestone) => milestone !== "M7")
+          .map((milestone) => {
+            const segment = status[milestone.toLowerCase()];
+            if (!segment || typeof segment.pass !== "boolean") {
+              throw new Error(`suite-status lacks ${milestone.toLowerCase()}.pass`);
+            }
+            let receipt = null;
+            if (typeof segment.receipt === "string" && segment.receipt.length > 0) {
+              const relativePath = relative(
+                resolve(artifactRoot),
+                resolve(dirname(resolve(artifactRoot, manifest.suiteStatus.path)), segment.receipt),
+              ).split(sep).join("/");
+              const loadedReceipt = retainedRelativeArtifact(
+                errors,
+                artifactRoot,
+                relativePath,
+                `${path}/manifest/suiteStatus/${milestone}/receipt`,
+              );
+              if (loadedReceipt === null) throw new Error(`cannot load ${milestone} suite receipt`);
+              receipt = { path: relativePath, sha256: loadedReceipt.sha256 };
+            }
+            return { milestone, pass: segment.pass, receipt };
+          }),
+      };
+    }
+
+    const expectedProvenance = {
+      manifestVersion: manifest.manifestVersion,
+      laneRunId: manifest.laneRunId,
+      manifest: provenance.manifest,
+      driver: expectedDriver,
+      manifestSha256: provenance.manifest.sha256,
+      unavailableReason: channel.unavailableReason ?? null,
+      adapter: {
+        id: channel.adapter,
+        version: channel.adapterVersion,
+        compatibilityEvents: channel.compatibilityEvents ?? [],
+      },
+      clockCorrelation: recovery.clockCorrelation,
+      sessions: expectedSessions,
+      receipts: expectedReceipts,
+      observations: expectedObservations,
+      boundaries: { path: manifest.boundaries.path, sha256: manifest.boundaries.sha256 },
+      firstProductEdit: expectedFirstDescriptor,
+      recordBase: expectedRecordBaseDescriptor,
+    };
+    const patch = joinUsageToMilestones({
+      channel,
+      boundaries,
+      firstProductEdit,
+      observations: {
+        events: recovery.observationEvents,
+        evidence: expectedObservations.map(({ path: evidencePath, sha256: evidenceSha }) => ({
+          path: evidencePath,
+          sha256: evidenceSha,
+        })),
+        windowExceptions: recovery.compatibilityEvents
+          .flatMap((event) => event.observationTerminalInclusions ?? []),
+      },
+      suiteStatusLinkage,
+      maxClockSkewMs: recovery.clockCorrelation.maxSkewMillis,
+      wallClockOrigin: manifest.driver.startedAt,
+      provenance: expectedProvenance,
+      usageSettlements: recovery.usageSettlements,
+    });
+    const expectedRecord = composeRunRecord({
+      base: recordBase,
+      patch,
+      expectedMilestones: Object.keys(recordBase.socialMessenger?.milestones ?? {}),
+    });
+    if (!sameJson(record, expectedRecord)) {
+      errors.push(
+        "$: current-R2 record must equal the complete hash-bound native metering replay, including tokens, phases, walls, caps, charging, eligibility, and provenance",
+      );
+    }
+  } catch (error) {
+    errors.push(`${path}: complete native metering replay failed: ${error.message}`);
   }
 }
 
@@ -363,6 +532,14 @@ function tokenActual(counts) {
   return Number.isInteger(counts?.input) && Number.isInteger(counts?.output)
     ? counts.input + counts.output
     : null;
+}
+
+function orientationTokenEvidenceAvailable(counts) {
+  return Number.isInteger(counts?.input)
+    && Number.isInteger(counts?.output)
+    && (counts?.cacheRead === null || Number.isInteger(counts?.cacheRead))
+    && (counts?.cacheWrite === null || Number.isInteger(counts?.cacheWrite))
+    && (counts?.reasoning === null || Number.isInteger(counts?.reasoning));
 }
 
 function exactFlags(flags, expected) {
@@ -572,16 +749,19 @@ function validateObservationBinding(errors, record, extension, artifactRoot, cur
 
   const loaded = loadObservationEvidence(errors, extension, artifactRoot);
   const exclusions = extension.meteringProvenance?.driver?.compatibilityEvents
-    ?.flatMap((event) => event.excludedPostTerminalObservations ?? []) ?? [];
-  const effectiveEvents = loaded.events.filter((event) => !exclusions.some((excluded) => (
+    ?.flatMap((event) => event.observationHandoffExclusions ?? []) ?? [];
+  const withoutInstrumentation = loaded.events.filter((event) => !exclusions.some((excluded) => (
     excluded.observationSourceId === event.evidenceSourceId
     && excluded.milestone === event.milestone
     && excluded.sequence === event.sequence
     && excluded.at === event.at
     && excluded.type === event.type
+    && excluded.actionId === event.actionId
+    && excluded.actionClass === event.actionClass
+    && excluded.disposition === event.disposition
   )));
-  const handoffOverlaps = extension.meteringProvenance?.driver?.compatibilityEvents
-    ?.flatMap((event) => event.observationWindowOverlaps ?? []) ?? [];
+  const terminalInclusions = extension.meteringProvenance?.driver?.compatibilityEvents
+    ?.flatMap((event) => event.observationTerminalInclusions ?? []) ?? [];
   const observationSkewMillis = Number.isInteger(
     extension.meteringProvenance?.clockCorrelation?.maxSkewMillis,
   )
@@ -599,30 +779,25 @@ function validateObservationBinding(errors, record, extension, artifactRoot, cur
       upper: Date.parse(value.authoring.terminalAt),
     },
   ]));
-  for (const event of effectiveEvents) {
+  const effectiveEvents = [];
+  for (const event of withoutInstrumentation) {
     const window = observationWindow.get(event.milestone);
     if (!window) {
       errors.push(`$/socialMessenger/meteringProvenance/observations: ${event.type} names unattempted milestone ${event.milestone}`);
       continue;
     }
     const at = Date.parse(event.at);
-    if (at > window.upper + observationSkewMillis) {
-      errors.push(`$/socialMessenger/meteringProvenance/observations: ${event.milestone} ${event.type} is after its terminal boundary`);
-    }
-    const retainedHandoffOverlap = handoffOverlaps.some((overlap) => (
-      overlap.observationSourceId === event.evidenceSourceId
-      && overlap.milestone === event.milestone
-      && overlap.sequence === event.sequence
-      && overlap.at === event.at
-      && overlap.type === event.type
+    const retainedTerminalInclusion = terminalInclusions.some((included) => (
+      included.observationSourceId === event.evidenceSourceId
+      && included.milestone === event.milestone
+      && included.sequence === event.sequence
+      && included.at === event.at
+      && included.type === event.type
+      && included.eventSha256 === sha256(JSON.stringify(event))
     ));
-    if (
-      window.lower !== null
-      && at < window.lower - observationSkewMillis
-      && !retainedHandoffOverlap
-    ) {
-      errors.push(`$/socialMessenger/meteringProvenance/observations: ${event.milestone} ${event.type} predates its milestone window`);
-    }
+    if (at > window.upper + observationSkewMillis && !retainedTerminalInclusion) continue;
+    if (window.lower !== null && at < window.lower - observationSkewMillis) continue;
+    effectiveEvents.push(event);
   }
   for (const [milestone, value] of attempted) {
     const path = `$/socialMessenger/milestones/${milestone}`;
@@ -665,7 +840,7 @@ function validateObservationBinding(errors, record, extension, artifactRoot, cur
       && Number.isInteger(record.tokens?.output),
     orientationEvidenceAvailable: extension.firstProductEdit?.at !== null
       && Number.isInteger(extension.firstProductEdit?.orientationBytes)
-      && Object.values(extension.firstProductEdit?.orientationTokens ?? {}).every(Number.isInteger),
+      && orientationTokenEvidenceAvailable(extension.firstProductEdit?.orientationTokens),
   });
   if (!sameJson(extension.efficiencyScorecardEligibility, expectedEligibility)) {
     errors.push(
@@ -902,7 +1077,8 @@ export function validateSocialMessengerRecordSemantics(record, { artifactRoot = 
   const errors = [];
   const extension = record?.socialMessenger;
   if (extension === null || typeof extension !== "object") return errors;
-  const currentInstrument = extension.instrumentVersion === CURRENT_INSTRUMENT_PIN;
+  const currentInstrument = extension.instrumentVersion === CURRENT_INSTRUMENT_PIN
+    || physicalCurrentR2Identity(artifactRoot);
   const currentProtocolMarker = extension.observabilityProtocol === OBSERVATION_VERSION;
   const currentOrientationMarker = (
     extension.orientation?.instrument?.pin === CURRENT_INSTRUMENT_PIN
@@ -1037,15 +1213,7 @@ export function validateSocialMessengerRecordSemantics(record, { artifactRoot = 
     extension.firstProductEdit?.orientationTokens,
     "$/socialMessenger/firstProductEdit/orientationTokens",
   );
-  if (
-    currentInstrument
-    && (
-      extension.meteringProvenance?.driver?.id === "social-messenger-r2-native-cli-driver.v1"
-      || /^2026-08-23-r2-published-0125\//u.test(
-        extension.meteringProvenance?.laneRunId ?? "",
-      )
-    )
-  ) {
+  if (currentInstrument && physicalCurrentR2Identity(artifactRoot)) {
     validateCurrentMeteringProvenance(errors, record, extension, artifactRoot);
   }
   // @ref LLP 0201#d2--quantitative-instrument — current records either bind

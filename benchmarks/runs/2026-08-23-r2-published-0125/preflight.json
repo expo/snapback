@@ -5,11 +5,14 @@
   "noBenchmarkCellStarted": false,
   "waveStartAllowed": false,
   "campaignState": {
-    "recoveryVersion": "snapback.r2-recovery-resume.v2",
+    "recoveryVersion": "snapback.r2-recovery-resume.v3",
     "completedCells": ["sol-clique-explicit"],
     "nextCell": "sol-clique-familiar",
     "laterCellsPristine": true,
-    "continuationBlocked": true
+    "continuationBlocked": true,
+    "continuationMode": "fresh-hash-bound-per-cell-admission",
+    "continuationAuthority": "recovery-resume.v3.json",
+    "blockedUntilFreshAdmission": true
   },
   "checks": [
     {
@@ -80,13 +83,13 @@
     {
       "id": "d0-6-metering-tests",
       "status": "pass",
-      "observed": "25/25 review-remediation metering tests pass, including exact retained native ordering and omitted/fabricated compatibility mutations; the earlier lane-setup/schema battery remains historical evidence."
+      "observed": "41/41 final scoped-review metering tests pass, including complete replay, token/charging/phase/eligibility, FileChange, and exact handoff mutations, retained native ordering, admission refusal/success, and historical Git-object binding; the earlier lane-setup/schema battery remains historical evidence."
     },
     {
       "id": "versioned-instrument-materialization",
       "status": "fail",
-      "observed": "Recovered cell 1 remains bound to immutable instrument manifest 8a13dcc5; continuation pins the versioned repaired snapshot c242c675.",
-      "detail": "Materialize the digest-verified recovery/resume snapshot at the pinned private path before admitting cell 2. Historical dry-runs and cell 1 retain their original source snapshots."
+      "observed": "Recovered cell 1 remains bound to immutable instrument manifest 8a13dcc5; continuation binds resumeInstrument sha256:11be58d47fb65831c39b3d3df4c6b41b0058a6bef4593b94888af8880b01c804 through recovery-resume.v3.json and each per-cell admission.",
+      "detail": "The admission tool verifies the complete digest before creating a private cell. Historical dry-runs and cell 1 retain their original source snapshots."
     },
     {
       "id": "d2-record-schema",
@@ -102,7 +105,7 @@
     {
       "id": "cell-1-recovered-finalized",
       "status": "pass",
-      "observed": "The sole sol-clique-explicit attempt is recovered from immutable native/controller evidence under snapback.r2-recovery-resume.v2; no model or product command was rerun.",
+      "observed": "The sole sol-clique-explicit attempt is recovered from immutable native/controller evidence under snapback.r2-recovery-resume.v3; no model or product command was rerun.",
       "detail": "record.json passes composed schema and semantic validation; sol-clique-familiar remains the exact next registered command and all eleven later slots remain pristine."
     },
     {

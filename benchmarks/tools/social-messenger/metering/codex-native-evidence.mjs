@@ -4,7 +4,7 @@ import { OBSERVATION_VERSION } from "./observations.mjs";
 import { timestampMillis } from "./jsonl.mjs";
 
 export const R2_CODEX_SETTLED_TERMINAL_RULE =
-  "social-messenger-r2-native-cli-driver.v1-codex-signal-settlement.v2";
+  "social-messenger-r2-native-cli-driver.v1-codex-usage-settlement.v3";
 export const R2_CODEX_SHARED_HOST_CLOCK_EVIDENCE =
   "controller and Codex native events use the shared host system clock; native execution order, not receipt latency, determines terminal usage settlement";
 
@@ -63,11 +63,9 @@ function boundaryMap(boundaryValue) {
   return boundaries;
 }
 
-// @ref LLP 0201#d2--quantitative-instrument — an intermediate terminal is
-// the native token-count settlement immediately following its successful
-// signal handoff. The closing terminal is the final native usage settlement
-// before task completion, so neither boundary under-counts nor steals the
-// next milestone's first turn.
+// @ref LLP 0201#d2--quantitative-instrument — authoring terminals remain the
+// suite-and-choreography protocol boundary. A separate native token-count
+// settlement selects each usage prefix without moving that terminal or wall.
 export function recoverCodexSignalSettlements({
   records,
   boundaryValue,
@@ -138,14 +136,18 @@ export function recoverCodexSignalSettlements({
   }
   const taskComplete = taskCompletes[0] ?? null;
   if (streamClosedAt !== null) timestampMillis(streamClosedAt, "Codex streamClosedAt");
-  const terminalAdjustments = [];
+  const usageSettlements = [];
   for (const [index, signal] of orderedSignals.entries()) {
     const closing = index === orderedSignals.length - 1;
+    const boundary = boundaries[signal.milestone];
+    const boundaryAt = timestampMillis(boundary?.terminalAt, `${signal.milestone}.terminalAt`);
     const nextSignalIndex = closing
       ? (taskComplete?.index ?? records.length)
       : orderedSignals[index + 1].index;
     const lowerRecordIndex = signal.unsignaledClosedFailure
-      ? (terminalAdjustments.at(-1)?.usageRecordOrdinal ?? -1)
+      ? records.reduce((last, record, recordIndex) => (
+          Date.parse(record.timestamp) <= boundaryAt ? recordIndex : last
+        ), -1)
       : signal.index;
     if (nextSignalIndex <= lowerRecordIndex) {
       throw new Error(`${signal.milestone} has no closed native settlement window`);
@@ -157,48 +159,42 @@ export function recoverCodexSignalSettlements({
         && recordIndex < nextSignalIndex
         && tokenCountRecord(record)
       ));
-    let settled = closing ? settlements.at(-1) : settlements[0];
-    if (
-      settled === undefined
-      && signal.unsignaledClosedFailure
-      && terminalAdjustments.length > 0
-    ) {
-      const priorOrdinal = terminalAdjustments.at(-1).usageRecordOrdinal;
-      settled = { record: records[priorOrdinal], recordIndex: priorOrdinal };
-    }
-    if (settled === undefined) {
+    const settled = closing ? settlements.at(-1) : settlements[0];
+    if (settled === undefined && !signal.unsignaledClosedFailure) {
       throw new Error(`${signal.milestone} has no native token_count settlement after its signal`);
     }
     if (!closing && settlements[0].recordIndex >= orderedSignals[index + 1].index) {
       throw new Error(`${signal.milestone} settlement would steal the next milestone's first turn`);
     }
-    const boundary = boundaries[signal.milestone];
-    timestampMillis(boundary?.terminalAt, `${signal.milestone}.terminalAt`);
-    terminalAdjustments.push({
+    usageSettlements.push({
       milestone: signal.milestone,
       originalTerminalAt: boundary.terminalAt,
       signalItemId: signal.item?.id ?? null,
       signalCompletedAt: signal.record?.timestamp ?? streamClosedAt,
       signalRecordOrdinal: signal.record?.ordinal ?? null,
-      usageSettledAt: settled.record.timestamp,
-      usageRecordOrdinal: settled.record.ordinal,
-      effectiveTerminalAt: settled.record.timestamp,
-      settlementKind: signal.unsignaledClosedFailure
+      usageSettledAt: settled?.record.timestamp ?? null,
+      usageRecordOrdinal: settled?.record.ordinal ?? null,
+      usageAvailable: settled !== undefined,
+      settlementKind: signal.unsignaledClosedFailure && settled === undefined
+        ? "closed-failure-native-usage-unavailable"
+        : signal.unsignaledClosedFailure
         ? "closed-failure-native-token-count"
         : closing
         ? "final-native-token-count"
         : "signal-turn-token-count",
     });
   }
-  const lastSettlementOrdinal = terminalAdjustments.at(-1).usageRecordOrdinal;
-  const trailingUsage = records.find((record) => (
-    tokenCountRecord(record) && record.ordinal > lastSettlementOrdinal
-  ));
-  if (trailingUsage !== undefined) {
-    throw new Error("Codex native usage continues after the recovered closing settlement");
+  const closingSettlement = usageSettlements.at(-1);
+  if (closingSettlement.usageAvailable) {
+    const trailingUsage = records.find((record) => (
+      tokenCountRecord(record) && record.ordinal > closingSettlement.usageRecordOrdinal
+    ));
+    if (trailingUsage !== undefined) {
+      throw new Error("Codex native usage continues after the recovered closing settlement");
+    }
   }
   return {
-    terminalAdjustments,
+    usageSettlements,
     taskCompleteAt: taskComplete?.record.timestamp ?? null,
     taskCompleteRecordOrdinal: taskComplete?.record.ordinal ?? null,
     streamClosedAt,
@@ -242,10 +238,10 @@ function fileChangeClass(changes) {
 function milestoneAt(timestamp, orderedBoundaries) {
   const at = timestampMillis(timestamp, "FileChange timestamp");
   const match = orderedBoundaries.find(({ terminalAt }) => at <= Date.parse(terminalAt));
-  if (match === undefined) {
-    throw new Error(`FileChange at ${timestamp} follows the closing terminal`);
-  }
-  return match.milestone;
+  // Retain the complete immutable FileChange projection even when the native
+  // process continued after the protocol terminal. The authoring-window join
+  // excludes that tail from D0.6 counts without deleting native evidence.
+  return (match ?? orderedBoundaries.at(-1)).milestone;
 }
 
 // Commandless Codex FileChange completions are native semantic actions. Their
@@ -259,7 +255,6 @@ export function recoverCodexFileChanges({
   sourceId,
   nativeSessionId,
   nativeStreamSha256,
-  selectedSkills = [],
 }) {
   if (!Array.isArray(records)) throw new TypeError("records must be an array");
   records.forEach(requiredOrdinal);
@@ -301,7 +296,9 @@ export function recoverCodexFileChanges({
         laneRunId,
         at: record.timestamp,
         orientationBytes: null,
-        selectedSkills: [...new Set(selectedSkills)],
+        // Codex FileChange records do not carry skill-selection provenance.
+        // Keep this empty unless a future native carrier measures it directly.
+        selectedSkills: [],
         nativeEvidence: {
           sourceId,
           nativeSessionId,

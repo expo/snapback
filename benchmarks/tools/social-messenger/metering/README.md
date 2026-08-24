@@ -81,30 +81,32 @@ Each attempted entry carries:
 - the separate suite/choreography/first-green receipts where applicable.
 
 For a green attempt, the hash-bound segment summary stamps `suitePassAt`,
-`choreoPassAt`, and `firstGreenAt`. `terminalAt` may be later: the production
-driver stamps it from the native token-count settlement after the successful
-terminal signal. The closing milestone uses the final native token count before
-native task completion. This keeps first-green proof distinct
-from the terminal prefix used for complete charging. A first-green timestamp
-after the terminal is invalid.
+`choreoPassAt`, `firstGreenAt`, and the protocol `terminalAt`: authoring ends
+when suite and choreography are both green. Native CLI usage can settle later.
+That later timestamp and native ordinal live only in the versioned
+`usageSettlements` provenance and select the token prefix; they never extend
+the authoring wall. A first-green timestamp after the protocol terminal is
+invalid.
 
 Retained `social-messenger-r2-native-cli-driver.v1` manifests from before this
 repair stamped the segment-summary time as `terminalAt` and labeled a fixed
 five-second handoff allowance as clock skew. The loader has a version-bounded
 recovery for exactly that driver/evidence pair: it identifies the successful
-native `r2-cell-signal` completion and the corresponding settled native
-`token_count`, treats the shared host system clock as the effective zero-skew
-channel, and records the native ordinals and every original/effective value
-under `meteringProvenance.driver.compatibilityEvents`. It also records the
-small controller setup overlaps that armed the next milestone before the
-prior signal turn's usage settled, without moving any token turn across the
-boundary. A final host-load sample after native task settlement is retained
-but explicitly excluded from the authoring window. Other driver IDs, clock
-evidence, ambiguous native handoffs, and manifests remain unchanged or fail
-closed.
+native `r2-cell-signal` completion and corresponding native `token_count`,
+records their timestamps and ordinals under
+`meteringProvenance.driver.compatibilityEvents`, and leaves the protocol
+boundaries byte-for-byte authoritative. The two signal commands accidentally
+observed as next-milestone `process` actions are excluded by exact source,
+sequence, timestamp, action identity/class, and native signal ordinal. A
+separate exact, digest-bound sub-second correlation retains receipt-finalizing
+observations emitted just after the protocol timestamp. Neither rule excuses
+an arbitrary event. All remaining observations project only inside protocol
+windows. Other driver IDs, clock evidence, ambiguous native handoffs, and
+manifests remain unchanged or fail closed.
 
-The joiner orders attempts by `terminalSequence`, snapshots all usage completed
-at or before each `terminalAt`, and differences consecutive terminal prefixes.
+The joiner orders attempts by `terminalSequence`, snapshots usage at each
+separate available native settlement (or at `terminalAt` for drivers without
+that carrier), and differences consecutive prefixes.
 Thus cap/abort usage never folds into the next milestone and a final failed
 attempt never disappears. `firstGreenAt` is reserved for `green` and remains
 null for every non-green attempt. Equality at the timestamp boundary is
@@ -116,9 +118,10 @@ inside a nonzero ambiguity window, the join fails closed instead of guessing.
 Drivers must record a measured nonzero skew bound for uncorrelated or
 cross-host clocks. Zero is valid for separate processes only when hash-bound
 evidence establishes that both read the same host system clock and native
-execution order settles the join. The final terminal is
-stamped after in-flight/overshoot usage settles. A retained turn after it
-invalidates the join rather than disappearing from actuals.
+execution order settles the join. An available closing settlement rejects any
+retained usage after it. An unsignaled closing failure with no later native
+token count records null phase usage and explicit ineligibility; it never
+reuses an earlier milestone's settlement as though it were measured.
 
 The first-product-edit marker is also a hash-bound driver receipt:
 
@@ -127,25 +130,34 @@ The first-product-edit marker is also a hash-bound driver receipt:
   "laneRunId": "lane-r01",
   "at": "2026-08-21T12:34:56.000Z",
   "orientationBytes": null,
-  "selectedSkills": ["snapback-authoring"]
+  "selectedSkills": []
 }
 ```
 
-The driver records only measured bytes and observed selected skills. A native
-Codex `FileChange` completion provides the first-product-edit timestamp and
+The driver records only measured bytes and observed selected skills. Codex
+`FileChange` carries no skill-selection field, so its recovered marker keeps
+`selectedSkills` empty even when the separate orientation carrier records a
+delivered skill. A native Codex `FileChange` completion provides the first-product-edit timestamp and
 hash-bound ordinal/item/path provenance; commandless file changes also project
 as `edit` or `generate` semantic actions. The joiner takes the native usage
 prefix at `at`; it does not infer orientation from prose or shell commands.
 Missing orientation bytes or per-phase usage makes the LLP 0295 efficiency
 scorecard ineligible rather than estimated.
 
-For current R2 driver records, `meteringProvenance.manifest`, `adapter`,
-`driver.compatibilityEvents`, `observations`, and every session's
+For current R2 driver records, `meteringProvenance.manifest`, `recordBase`,
+`adapter`, `driver.compatibilityEvents`, `observations`, and every session's
 `nativeCliVersion` are mandatory. The semantic validator resolves the
-hash-bound manifest and replays the native adapter, terminal recovery,
-observation filtering, and first-edit derivation. Deleting or fabricating a
-compatibility claim therefore fails even if the edited JSON still has a valid
-shape. Older extension-v2 records retain their additive compatibility.
+hash-bound manifest, rebuilds the complete join, and composes the complete
+record from the hash-bound base. Milestone/total/orientation tokens, phases,
+walls, caps, charging, eligibility, all provenance, and the entire commandless
+FileChange projection must match that replay. Deleting or fabricating a claim
+therefore fails even if coordinated edits remain internally consistent. Older
+extension-v2 records retain their additive compatibility.
+
+Optional orientation cache/reasoning counters may honestly be null when the
+native carrier omits them. Measured input/output tokens plus measured bytes
+still establish orientation evidence; the optional nulls alone do not erase
+it.
 
 ## D0.6 observation producers
 

@@ -121,7 +121,7 @@
       "then": {
         "properties": {
           "meteringProvenance": {
-            "required": ["manifest", "adapter", "observations"],
+            "required": ["manifest", "adapter", "observations", "recordBase"],
             "properties": {
               "driver": {
                 "required": ["id", "compatibilityEvents"],
@@ -688,15 +688,19 @@
                 "required": [
                   "ruleId",
                   "originalClockCorrelation",
-                  "effectiveClockCorrelation",
-                  "terminalAdjustments"
+                  "effectiveClockCorrelation"
+                ],
+                "anyOf": [
+                  { "required": ["terminalAdjustments"] },
+                  { "required": ["usageSettlements", "observationWindowPolicy", "observationHandoffExclusions", "observationTerminalInclusions"] }
                 ],
                 "additionalProperties": false,
                 "properties": {
                   "ruleId": {
                     "enum": [
                       "social-messenger-r2-native-cli-driver.v1-observation-terminal.v1",
-                      "social-messenger-r2-native-cli-driver.v1-codex-signal-settlement.v2"
+                      "social-messenger-r2-native-cli-driver.v1-codex-signal-settlement.v2",
+                      "social-messenger-r2-native-cli-driver.v1-codex-usage-settlement.v3"
                     ]
                   },
                   "originalClockCorrelation": {
@@ -757,6 +761,43 @@
                             "signal-turn-token-count",
                             "final-native-token-count",
                             "closed-failure-native-token-count"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "usageSettlements": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "milestone",
+                        "originalTerminalAt",
+                        "signalItemId",
+                        "signalCompletedAt",
+                        "signalRecordOrdinal",
+                        "usageSettledAt",
+                        "usageRecordOrdinal",
+                        "usageAvailable",
+                        "settlementKind"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "milestone": { "enum": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"] },
+                        "originalTerminalAt": { "type": "string", "format": "date-time" },
+                        "signalItemId": { "type": ["string", "null"], "minLength": 1 },
+                        "signalCompletedAt": { "type": "string", "format": "date-time" },
+                        "signalRecordOrdinal": { "type": ["integer", "null"], "minimum": 0 },
+                        "usageSettledAt": { "type": ["string", "null"], "format": "date-time" },
+                        "usageRecordOrdinal": { "type": ["integer", "null"], "minimum": 0 },
+                        "usageAvailable": { "type": "boolean" },
+                        "settlementKind": {
+                          "enum": [
+                            "signal-turn-token-count",
+                            "final-native-token-count",
+                            "closed-failure-native-token-count",
+                            "closed-failure-native-usage-unavailable"
                           ]
                         }
                       }
@@ -831,6 +872,65 @@
                         "at": { "type": "string", "format": "date-time" },
                         "type": { "const": "host-load-sample" },
                         "reason": { "const": "controller-finalization-sample-after-native-task-settlement" }
+                      }
+                    }
+                  },
+                  "observationWindowPolicy": {
+                    "const": "protocol-terminal-inclusive.v1"
+                  },
+                  "observationHandoffRuleId": {
+                    "enum": [
+                      "social-messenger-r2-cell-1-signal-handoff-exclusions.v1",
+                      "r2-driver-signal-commands-filtered-at-ingestion.v1"
+                    ]
+                  },
+                  "observationHandoffExclusions": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "observationSourceId", "milestone", "sequence", "at", "type",
+                        "actionId", "actionClass", "disposition", "priorMilestone",
+                        "nativeSignalItemId", "nativeSignalRecordOrdinal", "reason"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "observationSourceId": { "type": "string", "minLength": 1 },
+                        "milestone": { "enum": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"] },
+                        "sequence": { "type": "integer", "minimum": 0 },
+                        "at": { "type": "string", "format": "date-time" },
+                        "type": { "const": "semantic-action" },
+                        "actionId": { "type": "string", "minLength": 1 },
+                        "actionClass": { "const": "process" },
+                        "disposition": { "const": "progress" },
+                        "priorMilestone": { "enum": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"] },
+                        "nativeSignalItemId": { "type": "string", "minLength": 1 },
+                        "nativeSignalRecordOrdinal": { "type": "integer", "minimum": 0 },
+                        "registrationId": {
+                          "const": "social-messenger-r2-cell-1-signal-handoff-exclusions.v1"
+                        },
+                        "reason": { "const": "native-r2-cell-signal-instrumentation-is-not-a-product-action" }
+                      }
+                    }
+                  },
+                  "observationTerminalInclusions": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "observationSourceId", "milestone", "sequence", "at", "type",
+                        "terminalAt", "eventSha256", "reason"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "observationSourceId": { "type": "string", "minLength": 1 },
+                        "milestone": { "enum": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"] },
+                        "sequence": { "type": "integer", "minimum": 0 },
+                        "at": { "type": "string", "format": "date-time" },
+                        "type": { "enum": ["semantic-action", "recovery-episode"] },
+                        "terminalAt": { "type": "string", "format": "date-time" },
+                        "eventSha256": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+                        "reason": { "const": "exact-protocol-terminal-observation-correlation-within-one-second" }
                       }
                     }
                   }
@@ -1096,6 +1196,10 @@
               "$ref": "#/$defs/hashedArtifact"
             }
           ]
+        },
+        "recordBase": {
+          "$ref": "#/$defs/hashedArtifact",
+          "description": "Hash-bound pre-join record base used for complete deterministic record replay."
         }
       }
     },
