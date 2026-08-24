@@ -145,7 +145,7 @@ if (
 const recoveryDescriptor = config.recoveryResume;
 if (
   recoveryDescriptor?.version !== 'snapback.r2-recovery-resume.v4'
-  || recoveryDescriptor.nextCell !== config.cellOrder?.[1]
+  || recoveryDescriptor.nextCell !== config.cellOrder?.[2]
   || sha256(recoveryDescriptor.path) !== recoveryDescriptor.sha256
 ) {
   fail('configuration lacks the exact versioned recovery/resume transition');
@@ -156,8 +156,9 @@ delete recoveryWithoutIntegrity.integrity;
 if (
   recovery.version !== recoveryDescriptor.version
   || recovery.completedCell !== config.cellOrder[0]
-  || recovery.nextCell !== config.cellOrder[1]
-  || recovery.completedCellRecoveryVersion !== 'snapback.r2-recovery-resume.v3'
+  || JSON.stringify(recovery.completedCells) !== JSON.stringify(config.cellOrder.slice(0, 2))
+  || recovery.nextCell !== config.cellOrder[2]
+  || recovery.completedCellRecoveryVersion !== 'snapback.r2-retained-corrupt-finalization.v1'
   || recovery.campaignCellRerun !== false
   || recovery.resumeInstrument.sha256 !== `sha256:${config.pins.instrument.manifestSha256}`
   || sha256(recovery.resumeInstrument.path) !== config.pins.instrument.manifestSha256
@@ -168,8 +169,9 @@ if (
   || recovery.cell1RecoveryValidation?.protectedEvidenceHashesVerified !== true
   || recovery.cell1RecoveryValidation?.campaignCellRerun !== false
   || JSON.stringify(recovery.initiallyPristineCells) !== JSON.stringify(config.cellOrder.slice(1))
+  || JSON.stringify(recovery.remainingPristineCells) !== JSON.stringify(config.cellOrder.slice(2))
 ) {
-  fail('recovery transition does not bind recovered cell 1 to pristine cell 2');
+  fail('recovery transition does not bind the recovered two-cell prefix to pristine cell 3');
 }
 const unresolvedRulings = preflight.checks.filter((check) => check.status === 'needs-ruling');
 if (unresolvedRulings.length > 0) {
@@ -439,13 +441,13 @@ for (const [cellIndex, cell] of config.cells.entries()) {
 
 const nextCell = config.cells[recordedPrefixLength] ?? null;
 if (
-  recordedPrefixLength === 1
+  recordedPrefixLength === recovery.completedCells.length
   && (JSON.stringify(recovery.nextControllerCommand) !== JSON.stringify(nextCell.controllerCommand)
   || recovery.loadAdmissionPolicyId !== nextCell.loadCeilingId
   || recovery.nextCellRule !== loadPolicyForCell(config, nextCell).nextCellRule
   || recovery.resumeAllowedHostId !== nextCell.allowedHostId)
 ) {
-  fail('recovery transition changed the registered cell-2 command or admission rules');
+  fail('recovery transition changed the registered next-cell command or admission rules');
 }
 
 process.stdout.write(`${JSON.stringify({

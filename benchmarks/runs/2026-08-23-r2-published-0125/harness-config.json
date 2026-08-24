@@ -6,8 +6,8 @@
   "recoveryResume": {
     "version": "snapback.r2-recovery-resume.v4",
     "path": "recovery-resume.v4.json",
-    "sha256": "9015bdb22773ad8918fbc0cbd1f46f34eaac68910d912952d522a68d2117a413",
-    "nextCell": "sol-clique-familiar"
+    "sha256": "0a93aa4d0d831403c3b550e21d38c662ca2d9fb5c320a27eb7b1bc555fcc9698",
+    "nextCell": "sol-coterie-explicit"
   },
   "governing": [
     "LLP 0295#r2-load-isolated-calibration-rerun",

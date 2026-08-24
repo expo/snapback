@@ -4,12 +4,16 @@
   "scopedReviewBaseline": "a5147ca6c4509ff0074fe32c3d43a5e9a68e5bae",
   "campaignCellRerun": false,
   "privateAttemptDisposition": "retained-read-only-no-model-or-product-rerun",
-  "transition": "recovered-cell-1-v3-to-immutable-instrument-host-bound-locked-per-cell-admission",
+  "transition": "recovered-cells-1-2-to-immutable-instrument-host-bound-locked-per-cell-admission",
   "integrity": {
     "algorithm": "sha256-canonical-json-without-integrity",
-    "sha256": "sha256:45c454551335977e3e09cac73f203e2d71f40f2ef51b9bba03360b1369a9d900"
+    "sha256": "sha256:7313424f6bdd1340730ba1e5b1239a70185930f67d6f02a185c950246c14e15a"
   },
   "completedCell": "sol-clique-explicit",
+  "completedCells": [
+    "sol-clique-explicit",
+    "sol-clique-familiar"
+  ],
   "completedCellRecoveryVersion": "snapback.r2-retained-corrupt-finalization.v1",
   "completedAttemptCount": 1,
   "recoveredCell": {
@@ -95,18 +99,18 @@
       }
     }
   },
-  "nextCell": "sol-clique-familiar",
+  "nextCell": "sol-coterie-explicit",
   "nextControllerCommand": [
     "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
     "benchmarks/tools/social-messenger/metering/lane-controller.mjs",
     "--harness-config",
     "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json",
     "--cell",
-    "sol-clique-familiar",
+    "sol-coterie-explicit",
     "--driver",
     "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs",
     "--admission",
-    "benchmarks/runs/2026-08-23-r2-published-0125/admissions/sol-clique-familiar.json"
+    "benchmarks/runs/2026-08-23-r2-published-0125/admissions/sol-coterie-explicit.json"
   ],
   "admissionTool": "benchmarks/tools/social-messenger/metering/r2-cell-admission.mjs",
   "finalizeExistingTool": "benchmarks/tools/social-messenger/metering/r2-finalize-existing.mjs",
@@ -114,6 +118,18 @@
   "nextCellRule": "Exclusive host lock held; prior campaign process tree closed; every registered campaign port unbound; three consecutive passing samples.",
   "initiallyPristineCells": [
     "sol-clique-familiar",
+    "sol-coterie-explicit",
+    "sol-coterie-familiar",
+    "grok-clique-explicit",
+    "grok-clique-familiar",
+    "grok-coterie-explicit",
+    "grok-coterie-familiar",
+    "opus-clique-explicit",
+    "opus-clique-familiar",
+    "opus-coterie-explicit",
+    "opus-coterie-familiar"
+  ],
+  "remainingPristineCells": [
     "sol-coterie-explicit",
     "sol-coterie-familiar",
     "grok-clique-explicit",
