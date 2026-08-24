@@ -1,0 +1,98 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "actions": [
+      {
+        "argumentsType": "{ \"title\": string }",
+        "effects": {
+          "writes": []
+        },
+        "name": "todos.createFromAction",
+        "resultType": "string"
+      }
+    ],
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"title\": string }",
+        "effects": {
+          "invalidates": [
+            "todos"
+          ],
+          "writes": [
+            "todos"
+          ]
+        },
+        "name": "todos.create",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "string"
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "{ \"completed\": boolean }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "todos"
+          ]
+        },
+        "name": "todos.list",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"completed\": boolean; \"title\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "todos"
+          ]
+        },
+        "name": "todos.listOrdered",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"completed\": boolean; \"title\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "b43e9e5e84fd20a1e8a439b6dbe491f0528a81d212d14ab301049646de1f95a6",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

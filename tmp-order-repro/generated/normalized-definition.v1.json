@@ -1,0 +1,518 @@
+{
+  "definition": {
+    "application": {
+      "assetUploadIntents": [],
+      "authorityProfile": null,
+      "memberships": [],
+      "migrations": null,
+      "retention": {
+        "operations": [
+          {
+            "operationName": "todos.create",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "todos.createFromAction",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "todos.list",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "todos.listOrdered",
+            "retainable": false,
+            "retentionClass": null
+          }
+        ],
+        "schema": null
+      },
+      "routes": null,
+      "schema": {
+        "api": null,
+        "assets": null,
+        "auth": null,
+        "authProgram": null,
+        "ephemeralCollections": [],
+        "portabilityFlags": [],
+        "pushSeam": null,
+        "requiredCapabilities": [],
+        "strictDeclarations": false,
+        "tables": [
+          {
+            "fields": [
+              {
+                "field_type": "String",
+                "name": "title",
+                "optional": false
+              },
+              {
+                "field_type": "Boolean",
+                "name": "completed",
+                "optional": false
+              }
+            ],
+            "indexes": [
+              {
+                "fields": [
+                  "completed"
+                ],
+                "name": "by_completed"
+              }
+            ],
+            "name": "todos",
+            "syncable": true,
+            "visibility": {
+              "kind": "public-read"
+            }
+          }
+        ],
+        "version": "snapback.v0"
+      }
+    },
+    "operations": [
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "public",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "ibex_ctx_db_host_bridge",
+          "inline_handler_v1",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "declared",
+          "hostOperations": [],
+          "reads": [],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "declared"
+              ],
+              "table": "todos"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "todos.create",
+        "plan": null,
+        "reads": {
+          "authScopeField": null,
+          "mode": "handlerDeclared",
+          "primaryTable": null,
+          "tables": []
+        },
+        "refusals": [],
+        "result": {
+          "kind": "value",
+          "value": {
+            "kind": "id",
+            "table": "todos"
+          }
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
+        "writes": {
+          "mode": "handlerDeclared",
+          "primaryTable": "todos",
+          "tables": [
+            "todos"
+          ]
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "public",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "cron_action_run_mutation",
+          "ibex_ctx_db_host_bridge",
+          "inline_handler_v1",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "declared",
+          "hostOperations": [],
+          "reads": [],
+          "version": "EffectCeilingV1",
+          "writes": []
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Action",
+        "operationName": "todos.createFromAction",
+        "plan": null,
+        "reads": {
+          "authScopeField": null,
+          "mode": "handlerDeclared",
+          "primaryTable": null,
+          "tables": []
+        },
+        "refusals": [],
+        "result": {
+          "kind": "value",
+          "value": {
+            "kind": "id",
+            "table": "todos"
+          }
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "action",
+        "trackedRefusals": [],
+        "writePolicy": null,
+        "writes": {
+          "mode": "handlerDeclared",
+          "primaryTable": null,
+          "tables": []
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "completed",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "public",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [
+            "opaque"
+          ],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "ibex_ctx_db_host_bridge",
+          "inline_handler_v1",
+          "live_subscriptions",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "declared",
+          "hostOperations": [],
+          "reads": [
+            {
+              "access": "query",
+              "table": "todos"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": []
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "LiveQuery",
+        "operationName": "todos.list",
+        "plan": null,
+        "reads": {
+          "authScopeField": null,
+          "mode": "handlerDeclared",
+          "primaryTable": "todos",
+          "tables": [
+            "todos"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "document": {
+            "allowExtra": false,
+            "fields": [
+              {
+                "name": "_id",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "todos"
+                }
+              },
+              {
+                "name": "_version",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_createdAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_updatedAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "title",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "completed",
+                "required": true,
+                "value": {
+                  "kind": "boolean"
+                }
+              }
+            ],
+            "kind": "object"
+          },
+          "kind": "documents",
+          "table": "todos"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "syncable-live",
+        "trackedRefusals": [],
+        "writePolicy": null,
+        "writes": {
+          "mode": "handlerDeclared",
+          "primaryTable": null,
+          "tables": []
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": []
+        },
+        "authority": {
+          "authRequirement": "public",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [
+            "opaque"
+          ],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "ibex_ctx_db_host_bridge",
+          "inline_handler_v1",
+          "live_subscriptions",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "declared",
+          "hostOperations": [],
+          "reads": [
+            {
+              "access": "query",
+              "table": "todos"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": []
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "LiveQuery",
+        "operationName": "todos.listOrdered",
+        "plan": null,
+        "reads": {
+          "authScopeField": null,
+          "mode": "handlerDeclared",
+          "primaryTable": "todos",
+          "tables": [
+            "todos"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "document": {
+            "allowExtra": false,
+            "fields": [
+              {
+                "name": "_id",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "todos"
+                }
+              },
+              {
+                "name": "_version",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_createdAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_updatedAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "title",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "completed",
+                "required": true,
+                "value": {
+                  "kind": "boolean"
+                }
+              }
+            ],
+            "kind": "object"
+          },
+          "kind": "documents",
+          "table": "todos"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "syncable-live",
+        "trackedRefusals": [],
+        "writePolicy": null,
+        "writes": {
+          "mode": "handlerDeclared",
+          "primaryTable": null,
+          "tables": []
+        }
+      }
+    ]
+  },
+  "excludedFields": [
+    "behavior",
+    "graphRecords",
+    "authoringProfile",
+    "appId"
+  ],
+  "normalizedContractId": "sha256:5ab982f52d7e82d57b3fdadb5e9043f64336c2da95edcbdca2ac9a33cb2b0fc0",
+  "normalizedSchemaId": "sha256:1215a502ea9d20eecd894a24e7c75c3a75867ae1d912cf2a742688be2b67e2bb",
+  "schemaVersion": "snapback.normalized-application-definition.v1"
+}

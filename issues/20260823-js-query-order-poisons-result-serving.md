@@ -42,3 +42,21 @@ evidence and record the fixing revision.
   decoding, not only generation.
 - No admitted variant reaches serving as downstream `SNAPBACK_UNKNOWN_FIELD`
   errors.
+
+## Revalidation on main — 2026-08-24 (LLP 0300 program close-out)
+
+Does **not** reproduce on main `78bcd5efc` for the ordinary JS-handler
+profile: a fresh fixture (familiar-todo dual-profile shape) with
+`.order("title", "asc"|"desc")` between `withIndex` and `collect` generated,
+activated, hot-reloaded, and **served correctly** with the landed binary —
+rows in the requested order both directions, no `SNAPBACK_UNKNOWN_FIELD`.
+The 2026-08-22 candidate-pin failure predates several codegen landings
+(G0 B2/B3, LLP 0302).
+
+Remaining scope: the strictly-Familiar dialect cannot be revalidated until
+the inherited `familiar-dev-loop` codegen red clears
+(`resolveExport` `kind` TypeError — G0 program owns, see
+issues/20260823-package-test-framework-drift-red.md). Familiar is
+experimental, non-default, and outside every template, so this ticket no
+longer gates publication; re-run the dialect check after the G0 fix.
+
