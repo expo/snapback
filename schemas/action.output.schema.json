@@ -797,6 +797,7 @@
     },
     "GraphRowKeyV1": {
       "additionalProperties": false,
+      "description": "Physical storage identity used by demand windows and completeness proofs.\n\n@ref LLP 0209#4-completeness-vocabulary — the id is always the row's\nphysical `_id`; application/source identities remain ordinary row fields.",
       "properties": {
         "id": {
           "type": "string"

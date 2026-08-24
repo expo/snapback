@@ -1161,7 +1161,7 @@ export interface GraphNodeCostSourceV1 {
   readonly maxWindowResultBytes?: number;
   readonly maxWindowIndexRanges?: number;
 }
-export interface GraphQuerySpec<Args extends Record<string, Validator> = Record<string, Validator>> {
+export interface GraphQuerySpecBase<Args extends Record<string, Validator> = Record<string, Validator>> {
   readonly nodes: readonly GraphDataNodeSourceV1[];
   readonly projection: {
     readonly nodeId: string;
@@ -1198,8 +1198,28 @@ export interface GraphQuerySpec<Args extends Record<string, Validator> = Record<
       readonly maxMaintainedWritesPerMutation: 0;
     };
   };
-  readonly broadcast: { readonly classification: 'query-shaped' };
 }
+export type GraphQuerySpec<Args extends Record<string, Validator> = Record<string, Validator>> =
+  GraphQuerySpecBase<Args> & (
+    | {
+        readonly membership?: readonly MembershipPredicate[];
+        readonly broadcast: { readonly classification: 'query-shaped' };
+      }
+    | {
+        readonly membership: readonly [MembershipPredicate];
+        readonly broadcast: {
+          readonly classification: 'broadcast';
+          readonly establishment: {
+            readonly predicate: {
+              readonly kind: 'membership';
+              readonly declaration: string;
+              readonly resourceField: string;
+              readonly roles?: readonly string[];
+            };
+          };
+        };
+      }
+  );
 export declare function defineGraphQuery<const Args extends Record<string, Validator>>(
   spec: GraphQuerySpec<Args>,
 ): unknown;

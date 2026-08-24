@@ -1,0 +1,26 @@
+{
+  "format": "snapback.graph-broadcast-fixture-data.v1",
+  "rooms": [
+    { "_id": "room_p", "scopeId": "room_p", "name": "Public P", "category": "public", "updatedAt": 2 },
+    { "_id": "room_q", "scopeId": "room_q", "name": "Public Q", "category": "public", "updatedAt": 1 }
+  ],
+  "roomMembers": [
+    { "_id": "member_p", "principal": "principal_p_member", "roomId": "room_p", "role": "member" },
+    { "_id": "member_q", "principal": "principal_q_member", "roomId": "room_q", "role": "member" }
+  ],
+  "principals": {
+    "pMember": "principal_p_member",
+    "qMember": "principal_q_member",
+    "outsider": "principal_outsider"
+  },
+  "expected": {
+    "scopeP": {
+      "roomId": "room_p",
+      "resultBytes": "[{\"scopeId\":\"room_p\",\"name\":\"Public P\"}]"
+    },
+    "scopeQ": {
+      "roomId": "room_q",
+      "resultBytes": "[{\"scopeId\":\"room_q\",\"name\":\"Public Q\"}]"
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "format": "snapback.graph-broadcast-prover-dispositions.v1",
+  "version": 1,
+  "description": "Additive G0 prover dispositions for the unchanged four-row G2 sidecar contract.",
+  "dispositions": [
+    {
+      "id": "zerobugs-audience-parity-g2",
+      "caseKind": "audienceParity",
+      "proverDisposition": "executable-in-g0-prover",
+      "reason": "the broadcast fixture evaluates establishment membership and strict function admission independently, then the G2-A evaluator executes and freezes the admitted delivered query; the shared G2 row remains structurally unchanged"
+    },
+    {
+      "id": "zerobugs-scope-mismatch-g2",
+      "caseKind": "scopeMismatch",
+      "proverDisposition": "executable-in-g0-prover",
+      "reason": "the broadcast fixture supplies an executable P/Q scope-mismatch carrier; the shared G2 row remains structurally unchanged"
+    },
+    {
+      "id": "zerobugs-authority-transition-g2",
+      "caseKind": "authorityTransition",
+      "proverDisposition": "pending-g2-delivery-ordering",
+      "reason": "requires the G2-C broadcast evaluator to observe an authority-only commit fence before any post-transition delivery; G0 plan admission cannot execute or order deliveries"
+    },
+    {
+      "id": "zerobugs-mixed-commit-g2",
+      "caseKind": "mixedCommit",
+      "proverDisposition": "pending-g2-delivery-ordering",
+      "reason": "requires the G2-C broadcast evaluator to coalesce data and authority invalidation in one commit and prove the fence precedes the single post-commit delivery; G0 has no delivery scheduler"
+    }
+  ],
+  "contentDigest": "sha256:1fa6a8a4875f23ea8854323a33eb2526f4c8df78ebb344e218e43577ea4a1604"
+}

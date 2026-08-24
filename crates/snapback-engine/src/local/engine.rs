@@ -34908,6 +34908,141 @@ fn validate_graph_query_schema_references(
             }
         }
     }
+
+    // @ref LLP 0209#33-the-nine-llp-0268-inputs-and-their-carriers — host
+    // admission recomputes the audience owner and function-establishment
+    // implication from active installed facts, never the manifest's copy.
+    if let crate::manifest::GraphBroadcastAdmissionV1::Broadcast { establishment, .. } =
+        &plan.broadcast
+    {
+        let crate::manifest::TableVisibilityV1::Membership {
+            declaration,
+            resource_field: _,
+            roles,
+        } = &establishment.predicate
+        else {
+            return Err(graph_admission_error(
+                crate::manifest::GraphAdmissionRefusalReasonV1::BroadcastSeparationUnprovable,
+                "broadcast establishment is not a closed membership predicate",
+            ));
+        };
+        let Some((membership_table, membership)) =
+            crate::manifest::find_membership_declaration(schema, declaration)
+        else {
+            return Err(graph_admission_error(
+                crate::manifest::GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable,
+                format!("broadcast names unknown membership declaration {declaration}"),
+            ));
+        };
+        let installed_owner_identity =
+            crate::manifest::graph_broadcast_installed_owner_identity_v1(schema, declaration)
+                .map_err(|reason| {
+                    graph_admission_error(
+                        reason,
+                        format!(
+                            "broadcast installed owner identity cannot be formed for {declaration}"
+                        ),
+                    )
+                })?;
+        if establishment.audience.installed_owner_identity != installed_owner_identity {
+            return Err(graph_admission_error(
+                crate::manifest::GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable,
+                "broadcast installed owner identity differs from the active schema and policy",
+            ));
+        }
+        // The plan-local invalidation proof intentionally names its backing
+        // table by declaration. A custom declaration id is therefore outside
+        // this first host-recomputable broadcast slice rather than silently
+        // weakening permission-write invalidation.
+        if membership_table.name != *declaration {
+            return Err(graph_admission_error(
+                crate::manifest::GraphAdmissionRefusalReasonV1::BroadcastInvalidationIncomplete,
+                format!(
+                    "broadcast declaration {declaration} does not identify its permission-backing table"
+                ),
+            ));
+        }
+        let Some(resource_table) = membership.resource_table.as_deref() else {
+            return Err(graph_admission_error(
+                crate::manifest::GraphAdmissionRefusalReasonV1::BroadcastScopeUnbound,
+                "broadcast membership declaration is not resource-scoped",
+            ));
+        };
+        if roles.as_ref().is_some_and(|requested| {
+            requested
+                .iter()
+                .any(|role| !membership.roles.iter().any(|declared| declared == role))
+        }) {
+            return Err(graph_admission_error(
+                crate::manifest::GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable,
+                "broadcast predicate names an undeclared membership role",
+            ));
+        }
+        let [function_membership] = plan.function_membership.as_slice() else {
+            return Err(graph_admission_error(
+                crate::manifest::GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable,
+                "broadcast function lacks its own exact membership admission",
+            ));
+        };
+        let crate::manifest::MembershipResourceRef::Arg {
+            path,
+            resource_table: function_resource_table,
+        } = &function_membership.resource
+        else {
+            return Err(graph_admission_error(
+                crate::manifest::GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable,
+                "broadcast function membership must bind the establishment scope argument",
+            ));
+        };
+        let scope_argument_matches = plan.arguments.iter().any(|argument| {
+            argument.name == *path
+                && establishment.scope.argument_ids == [argument.argument_id.clone()]
+        });
+        let function_roles = function_membership.roles.as_deref().unwrap_or_default();
+        let establishment_roles = roles.as_deref().unwrap_or_default();
+        if function_membership.declaration != *declaration
+            || function_resource_table.as_deref() != Some(resource_table)
+            || !scope_argument_matches
+            || function_roles != establishment_roles
+            || function_roles
+                .iter()
+                .any(|role| !membership.roles.iter().any(|installed| installed == role))
+        {
+            return Err(graph_admission_error(
+                crate::manifest::GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable,
+                "broadcast function membership does not imply and exactly equal the installed establishment predicate",
+            ));
+        }
+        for equality in &establishment.scope.resource_equalities {
+            let Some(row_table_name) = parent_table(&equality.node_id) else {
+                return Err(graph_admission_error(
+                    crate::manifest::GraphAdmissionRefusalReasonV1::BroadcastScopeUnbound,
+                    "broadcast resource equality references a non-row graph node",
+                ));
+            };
+            let row_table = table(row_table_name)?;
+            let nominal_resource_matches = if equality.field == "_id" {
+                row_table.name == resource_table
+            } else {
+                row_table.field(&equality.field).is_some_and(|field| {
+                    !field.optional
+                        && matches!(
+                            &field.field_type,
+                            crate::manifest::FieldType::Id { table } if table == resource_table
+                        )
+                })
+            };
+            if !nominal_resource_matches {
+                return Err(graph_admission_error(
+                    crate::manifest::GraphAdmissionRefusalReasonV1::BroadcastScopeUnbound,
+                    format!(
+                        "broadcast equality {}.{} is not a required Id<{resource_table}>",
+                        row_table.name, equality.field
+                    ),
+                ));
+            }
+        }
+    }
     Ok(())
 }
 
@@ -35296,6 +35431,14 @@ fn graph_query_admission_faults(
                 .into_iter()
                 .map(|fault| fault.reason),
         );
+        if matches!(
+            carrier.normalized_plan.broadcast,
+            crate::manifest::GraphBroadcastAdmissionV1::Broadcast { .. }
+        ) && function.effective_auth_requirement()
+            != crate::manifest::AuthRequirement::Authenticated
+        {
+            reasons.insert(GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable);
+        }
         reasons.extend(
             graph_query_schema_faults(&carrier.normalized_plan, schema)
                 .into_iter()

@@ -206,6 +206,117 @@ function removePath(root, path) {
   );
 }
 
+// A class-1 base plus a literal establishment-only membership predicate emits
+// the complete host-recomputable broadcast proof. The same authored request
+// falls back to query-shaped when its resource scope cannot be data-flow bound.
+{
+  const carrier = readJson(join(graphCorpus, 'minimal-carrier.v1.json'));
+  const root = clone(carrier.normalizedPlan.nodes[0]);
+  delete root.authority;
+  root.nodeId = 'rooms';
+  root.table = 'rooms';
+  root.authorityClass = 1;
+  root.filters = [{ field: 'scopeId', op: 'Eq', value: { Arg: 'roomId' } }];
+  const projection = clone(carrier.normalizedPlan.nodes[1]);
+  delete projection.authority;
+  projection.nodeId = 'projection';
+  projection.authorityClass = 1;
+  projection.object.scopeNodeId = 'rooms';
+  projection.object.fields[0].value.nodeId = 'rooms';
+  const queryCost = clone(carrier.normalizedPlan.queryCost);
+  queryCost.graph.nodes[0].nodeId = 'rooms';
+  queryCost.graph.maxArgumentItems = 1;
+  const source = {
+    nodes: [root], projection, queryCost, authorityScopes: {},
+    functionMembership: [{
+      declaration: 'roomMembers', resourceArg: 'roomId', roles: ['member'],
+    }],
+    broadcast: {
+      classification: 'broadcast',
+      establishment: {
+        predicate: {
+          kind: 'membership',
+          declaration: 'roomMembers',
+          resourceField: 'scopeId',
+          roles: ['member'],
+        },
+      },
+    },
+  };
+  const compile = (candidate) => compileGraphQueryV1({
+    source: candidate,
+    argsContract: {
+      fields: [{
+        name: 'roomId', required: true,
+        value: { kind: 'id', table: 'rooms' },
+      }],
+    },
+    resultContractHash: zeroHash,
+    tables: {
+      rooms: {
+        name: 'rooms', fields: [
+          { name: 'scopeId', field_type: { Id: { table: 'rooms' } }, optional: false },
+        ], indexes: [], visibility: { kind: 'public-read' },
+      },
+      roomMembers: {
+        name: 'roomMembers', fields: [
+          { name: 'principal', field_type: 'Principal', optional: false },
+          { name: 'roomId', field_type: { Id: { table: 'rooms' } }, optional: false },
+          { name: 'role', field_type: 'String', optional: false },
+        ], indexes: [],
+        membership: {
+          principal: 'principal', resource: 'roomId', resourceTable: 'rooms',
+          role: 'role', scope: 'resource', roles: ['member', 'admin'], transitions: [],
+        },
+        visibility: { kind: 'owner', field: 'principal' },
+      },
+    },
+  });
+  const identity = compile(source);
+  assert.equal(identity.normalizedPlan.broadcast.classification, 'broadcast');
+  assert.deepEqual(identity.normalizedPlan.functionMembership, [{
+    declaration: 'roomMembers',
+    resource: { arg: { path: 'roomId', resourceTable: 'rooms' } },
+    roles: ['member'],
+  }]);
+  assert.deepEqual(identity.normalizedPlan.broadcast.baseNodeIds, ['n0']);
+  assert.deepEqual(
+    identity.normalizedPlan.broadcast.establishment.scope.resourceEqualities,
+    [{ nodeId: 'n0', field: 'scopeId', argumentId: 'a0' }],
+  );
+  assert.equal(identity.normalizedPlan.broadcast.establishment.invalidation.length, 18);
+  assert.equal(
+    new Set(identity.normalizedPlan.broadcast.establishment.invalidation
+      .map(({ declarationId }) => declarationId)).size,
+    1,
+  );
+  assert.match(
+    identity.normalizedPlan.broadcast.establishment.audience.installedOwnerIdentity,
+    /^sha256:[0-9a-f]{64}$/u,
+  );
+  const bareAuth = clone(source);
+  delete bareAuth.functionMembership;
+  assert.equal(
+    compile(bareAuth).normalizedPlan.broadcast.reason,
+    'audience-parity-failed',
+    'bare authenticated function auth cannot qualify a broadcast audience',
+  );
+  const divergentAudience = clone(source);
+  divergentAudience.functionMembership[0].roles = ['admin'];
+  assert.equal(
+    compile(divergentAudience).normalizedPlan.broadcast.reason,
+    'audience-parity-failed',
+    'a stricter function audience is query-shaped until exact parity exists',
+  );
+  const unbound = clone(source);
+  unbound.nodes[0].filters = [];
+  assert.deepEqual(compile(unbound).normalizedPlan.broadcast, {
+    format: 'snapback.graph-broadcast-admission.v1',
+    classification: 'query-shaped',
+    reason: 'scope-unbound',
+  });
+}
+
 // Membership plus an explicit role subset derives both policy-input kinds;
 // the projection receives the same closed class-2 proof/input roll-up.
 {
@@ -624,6 +735,21 @@ function removePath(root, path) {
     }
     assert.deepEqual(actual, parityCase.expected, parityCase.name);
   }
+  const authoredBroadcastProof = baseSpec();
+  authoredBroadcastProof.broadcast = {
+    classification: 'broadcast',
+    establishment: {
+      predicate: {
+        kind: 'membership', declaration: 'members', resourceField: 'scopeId',
+      },
+      scope: { argumentIds: [], resourceEqualities: [] },
+    },
+  };
+  assert.throws(
+    () => defineGraphQuery(authoredBroadcastProof),
+    (error) => error.code === 'SNAPBACK_GRAPH_UNKNOWN_FIELD',
+    'authored broadcast proof fields are outside the source grammar',
+  );
 }
 
 // End-to-end: regenerate the committed authored fixture and byte-compare the

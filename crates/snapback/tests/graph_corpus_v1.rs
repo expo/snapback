@@ -30,6 +30,8 @@ use snapback_types::storage::{CapturedReadDependency, CapturedReadKind};
 const CORPUS_FILE: &str = "tests/conformance/graph/corpus.v1.json";
 const BOUNDS_FILE: &str = "tests/conformance/graph/bound-derivation.v1.json";
 const PENDING_CASES_FILE: &str = "tests/conformance/graph/broadcast-cases.g2-pending.v1.json";
+const PROVER_DISPOSITIONS_FILE: &str =
+    "tests/conformance/graph/broadcast-prover-dispositions.v1.json";
 const PAIRED_FIXTURES_FILE: &str = "tests/conformance/graph/paired-world-fixtures.v1.json";
 const OWNER_SCOPE_DOMAIN: &str = "snapback:g0-corpus-authority-scope:v1:";
 
@@ -57,6 +59,10 @@ fn pending_broadcast_cases() -> Value {
     load_json(PENDING_CASES_FILE)
 }
 
+fn broadcast_prover_dispositions() -> Value {
+    load_json(PROVER_DISPOSITIONS_FILE)
+}
+
 fn paired_world_fixtures() -> Value {
     load_json(PAIRED_FIXTURES_FILE)
 }
@@ -81,6 +87,18 @@ fn corpus_seed_tables(corpus: &Value) -> BTreeMap<String, Vec<Map<String, Value>
             (table.clone(), rows)
         })
         .collect::<BTreeMap<_, _>>();
+
+    for table in ["rooms", "roomMembers"] {
+        tables.insert(
+            table.to_owned(),
+            corpus["broadcastFixture"]["data"][table]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|row| row.as_object().unwrap().clone())
+                .collect(),
+        );
+    }
 
     // The paired fixture freezes the normalized read-model/policy-extension
     // worlds that the opaque oracle used. Use its present worlds as the
@@ -151,6 +169,10 @@ fn graph_index_manifest(table: &str) -> Vec<IndexManifest> {
         "issueLabelRead" => &[("by_issue_label", &["issueID", "labelID"], true)],
         "viewState" | "issueNotifications" => &[("by_issue_user", &["issueID", "userID"], true)],
         "identityBinding" => &[("by_principal", &["principal"], true)],
+        "rooms" => &[
+            ("by_scope_updated", &["scopeId", "updatedAt"], false),
+            ("by_category_updated", &["category", "updatedAt"], false),
+        ],
         _ => &[],
     };
     indexes
@@ -292,9 +314,10 @@ fn evaluation_request(
     materialization: &GraphMaterializationIdentityV1,
     partition: &GraphAuthorityPartitionIdentityV1,
 ) -> GraphEvaluationRequestV1 {
-    let principal = call["partition"]["class3"]["principalDataScope"]["userId"]
+    let authority = call["partition"]["class3"]["principalDataScope"]["userId"]
         .as_str()
-        .expect("corpus principal");
+        .map(|principal| corpus_authority(corpus, principal))
+        .unwrap_or_default();
     GraphEvaluationRequestV1 {
         args: call["args"].clone(),
         windows: serde_json::from_value(call["windows"].clone()).unwrap(),
@@ -307,7 +330,7 @@ fn evaluation_request(
         authorization_version: serde_json::from_value(call["authorizationVersion"].clone())
             .unwrap(),
         evaluation_cut: serde_json::from_value(call["evaluationCut"].clone()).unwrap(),
-        authority: corpus_authority(corpus, principal),
+        authority,
         prior_window_ledgers: Vec::new(),
     }
 }
@@ -640,6 +663,231 @@ fn validate_corpus_invocation_with_disposition(
     (materialization, partition)
 }
 
+fn validate_broadcast_invocation(
+    carrier: &GraphQueryCarrierV1,
+    call: &Value,
+    function_name: &str,
+) -> (
+    GraphMaterializationIdentityV1,
+    GraphAuthorityPartitionIdentityV1,
+) {
+    assert_eq!(call["planHash"], carrier.plan_hash.as_str());
+    assert_eq!(call["materialization"]["function"]["name"], function_name);
+    let windows: Vec<GraphNodeWindowIdentityV1> =
+        serde_json::from_value(call["windows"].clone()).expect("broadcast invocation windows");
+    let evaluated_parents = windows
+        .iter()
+        .filter_map(|window| {
+            let parents = window
+                .intervals
+                .iter()
+                .map(|interval| interval.parent_key.clone())
+                .collect::<Option<Vec<GraphRowKeyV1>>>()?;
+            Some((window.node_id.clone(), parents))
+        })
+        .collect::<BTreeMap<_, _>>();
+    let instance = graph_instance_identity_v1(carrier, &call["args"], windows, &evaluated_parents)
+        .expect("class-1 broadcast instance identity reconstructs");
+    let materialization_preimage: GraphMaterializationPreimageV1 =
+        serde_json::from_value(call["materialization"].clone())
+            .expect("broadcast materialization preimage");
+    assert_eq!(
+        materialization_preimage.graph_instance_hash,
+        instance.instance_hash
+    );
+    let materialization = graph_materialization_identity_v1(materialization_preimage)
+        .expect("broadcast materialization identity reconstructs");
+    let partition_preimage: GraphAuthorityPartitionPreimageV1 =
+        serde_json::from_value(call["partition"].clone()).expect("broadcast partition preimage");
+    assert!(partition_preimage.class2.is_empty());
+    assert!(partition_preimage.class3.is_none());
+    let partition = graph_authority_partition_identity_v1(partition_preimage)
+        .expect("class-1 broadcast authority partition reconstructs");
+    (materialization, partition)
+}
+
+fn fixture_membership_table<'a>(schema: &'a Value, declaration: &str) -> &'a Value {
+    schema["tables"]
+        .as_array()
+        .expect("broadcast schema tables")
+        .iter()
+        .find(|table| {
+            table["membership"].is_object()
+                && table["membership"]["id"]
+                    .as_str()
+                    .unwrap_or_else(|| table["name"].as_str().unwrap())
+                    == declaration
+        })
+        .unwrap_or_else(|| panic!("installed fixture membership {declaration}"))
+}
+
+/// The establishment seam performs its own installed membership lookup. It
+/// deliberately cannot consume a strict-evaluation result.
+fn fixture_establishment_evaluation(
+    carrier: &Value,
+    schema: &Value,
+    fixture: &Value,
+    args: &Value,
+    principal: &str,
+) -> Value {
+    let plan = &carrier["normalizedPlan"];
+    let establishment = &plan["broadcast"]["establishment"];
+    assert_eq!(plan["broadcast"]["classification"], "broadcast");
+    let predicate = &establishment["predicate"];
+    let declaration = predicate["declaration"].as_str().unwrap();
+    let table = fixture_membership_table(schema, declaration);
+    let membership = &table["membership"];
+    let scope_argument_id = establishment["scope"]["argumentIds"][0].as_str().unwrap();
+    let argument_name = plan["arguments"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|argument| argument["argumentId"] == scope_argument_id)
+        .and_then(|argument| argument["name"].as_str())
+        .expect("establishment scope argument");
+    let resource = &args[argument_name];
+    let roles = predicate["roles"].as_array().expect("establishment roles");
+    let allowed = fixture[declaration]
+        .as_array()
+        .expect("establishment membership rows")
+        .iter()
+        .any(|row| {
+            row[membership["principal"].as_str().unwrap()] == principal
+                && row[membership["resource"].as_str().unwrap()] == *resource
+                && roles.contains(&row[membership["role"].as_str().unwrap()])
+        });
+    json!({
+        "outcome": if allowed { "allow" } else { "deny" },
+        "declaration": declaration,
+        "resource": resource,
+    })
+}
+
+fn fixture_value_cmp(left: &Value, right: &Value) -> std::cmp::Ordering {
+    match (left, right) {
+        (Value::Number(left), Value::Number(right)) => left.as_i64().cmp(&right.as_i64()),
+        (Value::String(left), Value::String(right)) => left.cmp(right),
+        _ => snapback_types::rqs_contract::jcs(left)
+            .unwrap()
+            .cmp(&snapback_types::rqs_contract::jcs(right).unwrap()),
+    }
+}
+
+/// The fixture's strict-delivery seam independently performs function-level
+/// membership admission, then executes the closed class-1 root/projection. It
+/// never calls `fixture_establishment_evaluation` or copies its outcome.
+fn fixture_strict_delivery_evaluation(
+    carrier: &Value,
+    schema: &Value,
+    fixture: &Value,
+    args: &Value,
+    principal: &str,
+) -> Value {
+    let plan = &carrier["normalizedPlan"];
+    let Some(predicate) = plan["functionMembership"]
+        .as_array()
+        .and_then(|rows| (rows.len() == 1).then(|| &rows[0]))
+    else {
+        return json!({"outcome":"deny","resultBytes":null,"orderedRootIds":[],"resultLength":0,"existence":"withheld","completeness":null});
+    };
+    let declaration = predicate["declaration"].as_str().unwrap();
+    let table = fixture_membership_table(schema, declaration);
+    let membership = &table["membership"];
+    let argument_name = predicate["resource"]["arg"]["path"].as_str().unwrap();
+    let resource = &args[argument_name];
+    let roles = predicate["roles"].as_array().expect("strict roles");
+    let admitted = fixture[declaration]
+        .as_array()
+        .expect("strict membership rows")
+        .iter()
+        .any(|row| {
+            row[membership["principal"].as_str().unwrap()] == principal
+                && row[membership["resource"].as_str().unwrap()] == *resource
+                && roles.contains(&row[membership["role"].as_str().unwrap()])
+        });
+    if !admitted {
+        return json!({"outcome":"deny","resultBytes":null,"orderedRootIds":[],"resultLength":0,"existence":"withheld","completeness":null});
+    }
+
+    let nodes = plan["nodes"].as_array().unwrap();
+    let root = nodes
+        .iter()
+        .find(|node| node["kind"] == "root-window")
+        .expect("strict root");
+    let projection = nodes
+        .iter()
+        .find(|node| node["kind"] == "closed-projection")
+        .expect("strict projection");
+    let mut rows = fixture[root["table"].as_str().unwrap()]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|row| {
+            root["filters"].as_array().unwrap().iter().all(|filter| {
+                assert_eq!(filter["op"], "Eq");
+                let argument_id = filter["value"]["Arg"].as_str().unwrap();
+                let argument_name = plan["arguments"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|argument| argument["argumentId"] == argument_id)
+                    .and_then(|argument| argument["name"].as_str())
+                    .unwrap();
+                row[filter["field"].as_str().unwrap()] == args[argument_name]
+            })
+        })
+        .collect::<Vec<_>>();
+    rows.sort_by(|left, right| {
+        for order in root["order"].as_array().unwrap() {
+            let field = order["field"].as_str().unwrap();
+            let mut comparison = fixture_value_cmp(&left[field], &right[field]);
+            if order["direction"] == "Desc" {
+                comparison = comparison.reverse();
+            }
+            if !comparison.is_eq() {
+                return comparison;
+            }
+        }
+        left["_id"]
+            .as_str()
+            .unwrap()
+            .cmp(right["_id"].as_str().unwrap())
+    });
+    let root_id = root["nodeId"].as_str().unwrap();
+    let max_rows = plan["queryCost"]["graph"]["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|cost| cost["nodeId"] == root_id)
+        .and_then(|cost| cost["maxRootRowsPerPage"].as_u64())
+        .unwrap() as usize;
+    rows.truncate(max_rows);
+    let projected = rows
+        .iter()
+        .map(|row| {
+            let mut object = serde_json::Map::new();
+            for field in projection["object"]["fields"].as_array().unwrap() {
+                assert_eq!(field["value"]["kind"], "field");
+                assert_eq!(field["value"]["nodeId"], root_id);
+                object.insert(
+                    field["name"].as_str().unwrap().to_owned(),
+                    row[field["value"]["field"].as_str().unwrap()].clone(),
+                );
+            }
+            Value::Object(object)
+        })
+        .collect::<Vec<_>>();
+    let result_bytes = serde_json::to_string(&projected).unwrap();
+    json!({
+        "outcome":"allow",
+        "resultBytes":result_bytes,
+        "orderedRootIds":rows.iter().map(|row| row["_id"].clone()).collect::<Vec<_>>(),
+        "resultLength":projected.len(),
+        "existence":if projected.is_empty() { "absent" } else { "present" },
+        "completeness":"complete",
+    })
+}
+
 fn carrier() -> GraphQueryCarrierV1 {
     serde_json::from_str(include_str!(
         "../../../tests/conformance/graph/minimal-carrier.v1.json"
@@ -867,6 +1115,7 @@ fn identity_vectors() {
                 resource_equalities: Vec::new(),
             },
             audience: GraphBroadcastAudienceV1 {
+                installed_owner_identity: Sha256V1::new(zero_hash()).unwrap(),
                 strict_evaluator_identity: Sha256V1::new(zero_hash()).unwrap(),
             },
             invalidation: Vec::new(),
@@ -898,6 +1147,7 @@ fn identity_vectors() {
                 resource_equalities: Vec::new(),
             },
             audience: GraphBroadcastAudienceV1 {
+                installed_owner_identity: Sha256V1::new(zero_hash()).unwrap(),
                 strict_evaluator_identity: Sha256V1::new(zero_hash()).unwrap(),
             },
             invalidation: Vec::new(),
@@ -1528,8 +1778,8 @@ fn oracle_field_maps_and_refusals_are_closed() {
     }
 }
 
-/// Five corpus-local present/absent fixture pairs differ only by a named,
-/// wholly hidden slice and exact-match every oracle/result/proof observation.
+/// Seven corpus-local present/absent fixture pairs differ only by named,
+/// wholly hidden slices and exact-match every oracle/result/proof observation.
 #[test]
 fn paired_worlds() {
     let corpus = graph_corpus();
@@ -1549,11 +1799,12 @@ fn paired_worlds() {
         .iter()
         .filter(|case| case["caseKind"] == "pairedWorld")
         .collect::<Vec<_>>();
-    assert_eq!(cases.len(), 5, "five exact hidden-row graph-channel pairs");
+    assert_eq!(cases.len(), 7, "seven exact hidden-row graph-channel pairs");
     let fixture_pairs = fixtures["pairs"].as_array().expect("fixture pairs");
-    assert_eq!(fixture_pairs.len(), 5);
+    assert_eq!(fixture_pairs.len(), 7);
     let mut covered_classes = BTreeSet::new();
     let mut covered_queries = BTreeSet::new();
+    let mut broadcast_hidden_axes = BTreeSet::new();
     for case in cases {
         assert_eq!(
             case["oracleEvidence"]["presentDigest"], case["oracleEvidence"]["absentDigest"],
@@ -1565,12 +1816,46 @@ fn paired_worlds() {
         let call = &case["invocation"];
         let query = case["query"].as_str().expect("paired query");
         covered_queries.insert(query);
-        validate_corpus_invocation_with_disposition(
-            &carrier,
-            call,
-            query,
-            Some(&case["windowVectorDisposition"]),
-        );
+        if query == "publicRooms" {
+            validate_broadcast_invocation(&carrier, call, query);
+            broadcast_hidden_axes.extend(
+                case["hiddenAxes"]
+                    .as_array()
+                    .expect("class-1 hidden axes")
+                    .iter()
+                    .map(|axis| axis.as_str().unwrap()),
+            );
+            for field in [
+                "resultBytes",
+                "orderedRootIds",
+                "resultLength",
+                "existence",
+                "completeness",
+            ] {
+                assert_eq!(
+                    case["oracleEvidence"]["present"][field],
+                    case["oracleEvidence"]["absent"][field],
+                    "{} strict {field} ignores hidden slices",
+                    case["id"],
+                );
+            }
+        } else {
+            validate_corpus_invocation_with_disposition(
+                &carrier,
+                call,
+                query,
+                Some(&case["windowVectorDisposition"]),
+            );
+        }
+        if case["windowVectorDisposition"]["status"] == "BLOCKED" {
+            let child = call["windows"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|window| window["nodeId"] != carrier.normalized_plan.nodes[0].node_id())
+                .expect("hidden-root detail pair carries its child demand entry");
+            assert_eq!(child["intervals"], json!([]));
+        }
         assert_eq!(case["expect"]["label"], "complete");
         assert_eq!(
             case["expect"]["resultLength"].as_u64().unwrap() as usize,
@@ -1587,12 +1872,12 @@ fn paired_worlds() {
             pair["coveredAuthorityClasses"],
             case["coveredAuthorityClasses"]
         );
-        let slice_table = pair["namedSlice"]["table"].as_str().unwrap();
-        let slice_ids = pair["namedSlice"]["rowIds"]
-            .as_array()
-            .unwrap()
+        let slices = std::iter::once(&pair["namedSlice"])
+            .chain(pair["dependentSlices"].as_array().into_iter().flatten())
+            .collect::<Vec<_>>();
+        let slice_tables = slices
             .iter()
-            .map(|id| id.as_str().unwrap())
+            .map(|slice| slice["table"].as_str().unwrap())
             .collect::<BTreeSet<_>>();
         let present = &pair["present"];
         let absent = &pair["absent"];
@@ -1611,7 +1896,7 @@ fn paired_worlds() {
         );
         assert_eq!(present["inputDigest"], absent["inputDigest"]);
         for (table, present_digest) in present["tableDigests"].as_object().unwrap() {
-            if table != slice_table {
+            if !slice_tables.contains(table.as_str()) {
                 assert_eq!(
                     present_digest, &absent["tableDigests"][table],
                     "{} non-slice table {table} is byte-identical",
@@ -1637,27 +1922,42 @@ fn paired_worlds() {
                 Some(jcs_domain_hash("", &identity_preimage).as_str()),
             );
         }
-        let present_rows = present["sliceTableRows"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|row| (row["_id"].as_str().unwrap(), row))
-            .collect::<BTreeMap<_, _>>();
-        let absent_rows = absent["sliceTableRows"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|row| (row["_id"].as_str().unwrap(), row))
-            .collect::<BTreeMap<_, _>>();
-        let changed = present_rows
-            .keys()
-            .chain(absent_rows.keys())
-            .copied()
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .filter(|id| present_rows.get(id) != absent_rows.get(id))
-            .collect::<BTreeSet<_>>();
-        assert_eq!(changed, slice_ids, "only the named slice differs");
+        for slice in slices {
+            let table = slice["table"].as_str().unwrap();
+            let slice_ids = slice["rowIds"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|id| id.as_str().unwrap())
+                .collect::<BTreeSet<_>>();
+            let present_rows_value = present["sliceTableRowsByTable"]
+                .get(table)
+                .unwrap_or(&present["sliceTableRows"]);
+            let absent_rows_value = absent["sliceTableRowsByTable"]
+                .get(table)
+                .unwrap_or(&absent["sliceTableRows"]);
+            let present_rows = present_rows_value
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|row| (row["_id"].as_str().unwrap(), row))
+                .collect::<BTreeMap<_, _>>();
+            let absent_rows = absent_rows_value
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|row| (row["_id"].as_str().unwrap(), row))
+                .collect::<BTreeMap<_, _>>();
+            let changed = present_rows
+                .keys()
+                .chain(absent_rows.keys())
+                .copied()
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .filter(|id| present_rows.get(id) != absent_rows.get(id))
+                .collect::<BTreeSet<_>>();
+            assert_eq!(changed, slice_ids, "only the named/dependent slice differs");
+        }
 
         let node_classes = carrier
             .normalized_plan
@@ -1683,12 +1983,24 @@ fn paired_worlds() {
     }
     assert_eq!(
         covered_queries,
-        BTreeSet::from(["issueDetail", "issueListV2", "listIssueByID"])
+        BTreeSet::from(["issueDetail", "issueListV2", "listIssueByID", "publicRooms"])
+    );
+    assert_eq!(
+        broadcast_hidden_axes,
+        BTreeSet::from(["partition", "policy", "principal"]),
+        "class-1 pairs vary every principal-, partition-, and policy-hidden axis",
     );
     let declared_classes = corpus_queries(&corpus)
+        .chain(
+            corpus["broadcastFixture"]["queries"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|query| &query["carrier"]),
+        )
         .flat_map(|query| {
             let carrier: GraphQueryCarrierV1 =
-                serde_json::from_value(query["carrier"].clone()).unwrap();
+                serde_json::from_value(query.get("carrier").unwrap_or(query).clone()).unwrap();
             carrier
                 .normalized_plan
                 .nodes
@@ -2730,12 +3042,16 @@ fn executes_the_corpus_through_the_evaluator() {
     {
         let carrier: GraphQueryCarrierV1 = serde_json::from_value(case["plan"].clone()).unwrap();
         let query = case["query"].as_str().unwrap();
-        let (materialization, partition) = validate_corpus_invocation_with_disposition(
-            &carrier,
-            &case["invocation"],
-            query,
-            Some(&case["windowVectorDisposition"]),
-        );
+        let (materialization, partition) = if query == "publicRooms" {
+            validate_broadcast_invocation(&carrier, &case["invocation"], query)
+        } else {
+            validate_corpus_invocation_with_disposition(
+                &carrier,
+                &case["invocation"],
+                query,
+                Some(&case["windowVectorDisposition"]),
+            )
+        };
         let request =
             evaluation_request(&corpus, &case["invocation"], &materialization, &partition);
         let fixture = paired["pairs"]
@@ -2810,9 +3126,260 @@ fn executes_the_corpus_through_the_evaluator() {
     );
 }
 
-/// The four broadcast-specific graph-evaluator case kinds are outside G2-A's
-/// executable union. Their separate file is a closed structural carrier: every
-/// plan and invocation reconstructs, but this test makes no evaluation claim.
+/// The corpus-local class-1 graph executes two genuinely distinct evaluations
+/// per principal: the establishment lookup, and a fresh fail-closed function
+/// membership plus delivered-query evaluation.
+#[test]
+fn broadcast_prover_cases_are_executable() {
+    let corpus = graph_corpus();
+    let fixture = &corpus["broadcastFixture"]["data"];
+    let schema_value = &corpus["broadcastFixture"]["schema"];
+    let installed_schema: SchemaManifest =
+        serde_json::from_value(schema_value.clone()).expect("broadcast installed schema");
+    assert_eq!(
+        fixture["format"],
+        "snapback.graph-broadcast-fixture-data.v1"
+    );
+    let cases = corpus["cases"]
+        .as_array()
+        .expect("cases")
+        .iter()
+        .filter(|case| {
+            matches!(
+                case["caseKind"].as_str(),
+                Some("audienceParity" | "scopeMismatch")
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(cases.len(), 3, "two audience pairs plus one scope mismatch");
+    for case in cases {
+        let carrier: GraphQueryCarrierV1 =
+            serde_json::from_value(case["plan"].clone()).expect("broadcast carrier");
+        assert_eq!(
+            graph_plan_identity_v1(&carrier.normalized_plan).expect("broadcast plan identity"),
+            carrier,
+        );
+        validate_graph_query_plan_v1(&carrier.normalized_plan)
+            .expect("generated broadcast/query-shaped carrier admits");
+        match case["caseKind"].as_str().unwrap() {
+            "audienceParity" => {
+                assert_exact_object_keys(
+                    case,
+                    &[
+                        "caseKind",
+                        "id",
+                        "plan",
+                        "invocations",
+                        "principals",
+                        "evaluationEvidence",
+                        "expect",
+                    ],
+                    "audienceParity case",
+                );
+                let GraphBroadcastAdmissionV1::Broadcast { establishment, .. } =
+                    &carrier.normalized_plan.broadcast
+                else {
+                    panic!("audienceParity uses the admitted broadcast carrier")
+                };
+                assert_eq!(establishment.scope.resource_equalities.len(), 1);
+                assert_eq!(establishment.invalidation.len(), 18);
+                assert_eq!(
+                    establishment.audience.installed_owner_identity,
+                    graph_broadcast_installed_owner_identity_v1(&installed_schema, "roomMembers",)
+                        .expect("host recomputes installed audience owner"),
+                );
+                let invocations = case["invocations"]
+                    .as_array()
+                    .expect("audience invocations");
+                let principals = case["principals"].as_array().expect("audience principals");
+                assert_eq!(invocations.len(), 2);
+                assert_eq!(principals.len(), 2);
+                let mut establishment_evaluations = Vec::new();
+                let mut strict_evaluations = Vec::new();
+                let mut g2a_delivery_evaluations = 0;
+                for (invocation, principal) in invocations.iter().zip(principals) {
+                    let (materialization, partition) =
+                        validate_broadcast_invocation(&carrier, invocation, "publicRooms");
+                    let principal = principal.as_str().expect("principal");
+                    establishment_evaluations.push(fixture_establishment_evaluation(
+                        &case["plan"],
+                        schema_value,
+                        fixture,
+                        &invocation["args"],
+                        principal,
+                    ));
+                    let strict_evaluation = fixture_strict_delivery_evaluation(
+                        &case["plan"],
+                        schema_value,
+                        fixture,
+                        &invocation["args"],
+                        principal,
+                    );
+                    if strict_evaluation["outcome"] == "allow" {
+                        let request =
+                            evaluation_request(&corpus, invocation, &materialization, &partition);
+                        let result = graph_store(&corpus, None)
+                            .evaluate_graph_query(&carrier.normalized_plan, &request)
+                            .expect("strictly admitted class-1 delivery executes in G2-A");
+                        assert_evaluator_matches_frozen_result(
+                            case["id"].as_str().unwrap(),
+                            &result,
+                            &case["expect"]["allowedDelivery"],
+                            true,
+                        );
+                        g2a_delivery_evaluations += 1;
+                    } else {
+                        assert!(
+                            strict_evaluation["resultBytes"].is_null(),
+                            "strict denial never invokes the graph evaluator or yields bytes",
+                        );
+                    }
+                    strict_evaluations.push(strict_evaluation);
+                }
+                assert_eq!(
+                    g2a_delivery_evaluations, 1,
+                    "only the strictly admitted member reaches the G2-A evaluator",
+                );
+                assert_eq!(
+                    json!(establishment_evaluations),
+                    case["evaluationEvidence"]["establishment"],
+                );
+                assert_eq!(
+                    json!(strict_evaluations),
+                    case["evaluationEvidence"]["strict"],
+                );
+                let establishment_outcomes = establishment_evaluations
+                    .iter()
+                    .map(|row| row["outcome"].clone())
+                    .collect::<Vec<_>>();
+                let strict_outcomes = strict_evaluations
+                    .iter()
+                    .map(|row| row["outcome"].clone())
+                    .collect::<Vec<_>>();
+                assert_eq!(json!(establishment_outcomes), json!(["allow", "deny"]));
+                assert_eq!(strict_outcomes, establishment_outcomes);
+                assert_eq!(
+                    case["expect"]["establishment"],
+                    json!(establishment_outcomes)
+                );
+                assert_eq!(case["expect"]["strict"], json!(strict_outcomes));
+                assert!(
+                    strict_evaluations[1]["resultBytes"].is_null(),
+                    "authenticated outsider is denied end-to-end",
+                );
+            }
+            "scopeMismatch" => {
+                assert_exact_object_keys(
+                    case,
+                    &[
+                        "caseKind",
+                        "id",
+                        "plan",
+                        "invocations",
+                        "principal",
+                        "expect",
+                    ],
+                    "scopeMismatch case",
+                );
+                assert!(matches!(
+                    carrier.normalized_plan.broadcast,
+                    GraphBroadcastAdmissionV1::QueryShaped {
+                        reason: GraphQueryShapedReasonV1::ScopeUnbound,
+                        ..
+                    }
+                ));
+                validate_broadcast_invocation(
+                    &carrier,
+                    &case["invocations"]["memberScope"],
+                    "publicRoomsUnbound",
+                );
+                validate_broadcast_invocation(
+                    &carrier,
+                    &case["invocations"]["presentedInstance"],
+                    "publicRoomsUnbound",
+                );
+                assert_ne!(
+                    case["invocations"]["memberScope"]["materialization"]["graphInstanceHash"],
+                    case["invocations"]["presentedInstance"]["materialization"]["graphInstanceHash"],
+                );
+                let principal = case["principal"].as_str().unwrap();
+                let member_scope = case["invocations"]["memberScope"]["args"]["roomId"]
+                    .as_str()
+                    .unwrap();
+                let presented_scope = case["invocations"]["presentedInstance"]["args"]["roomId"]
+                    .as_str()
+                    .unwrap();
+                assert_ne!(
+                    member_scope, presented_scope,
+                    "P and Q are distinct resources"
+                );
+                assert!(
+                    fixture["roomMembers"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(|row| {
+                            row["principal"] == principal && row["roomId"] == member_scope
+                        })
+                );
+                assert!(
+                    !fixture["roomMembers"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(|row| {
+                            row["principal"] == principal && row["roomId"] == presented_scope
+                        }),
+                    "the selected principal is a member of P but not Q",
+                );
+                assert_eq!(case["expect"]["classification"], "query-shaped");
+                assert_eq!(case["expect"]["reason"], "scope-unbound");
+                assert!(case["expect"]["resultBytes"].is_null());
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    let query = |name: &str| {
+        &corpus["broadcastFixture"]["queries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|query| query["query"] == name)
+            .unwrap()["carrier"]
+    };
+    let divergence = &corpus["broadcastFixture"]["divergence"];
+    let establishment = fixture_establishment_evaluation(
+        query("publicRooms"),
+        schema_value,
+        fixture,
+        &divergence["args"],
+        divergence["principal"].as_str().unwrap(),
+    );
+    let strict = fixture_strict_delivery_evaluation(
+        query("publicRoomsDivergent"),
+        schema_value,
+        fixture,
+        &divergence["args"],
+        divergence["principal"].as_str().unwrap(),
+    );
+    assert_eq!(establishment, divergence["establishment"]);
+    assert_eq!(strict, divergence["strict"]);
+    assert_eq!(establishment["outcome"], "allow");
+    assert_eq!(strict["outcome"], "deny");
+    assert_eq!(
+        divergence["compilerDisposition"],
+        json!({
+            "classification":"query-shaped",
+            "format":"snapback.graph-broadcast-admission.v1",
+            "reason":"audience-parity-failed",
+        }),
+        "establishment/strict divergence is refused, never certified",
+    );
+}
+
+/// The shared G2 sidecar retains its exact four-row top-level contract. G0
+/// prover dispositions live in a separate additive artifact.
 #[test]
 fn g2_pending_broadcast_cases_are_structurally_frozen() {
     let pending = pending_broadcast_cases();
@@ -2872,17 +3439,12 @@ fn g2_pending_broadcast_cases_are_structurally_frozen() {
                         "principals",
                         "expect",
                     ],
-                    "audienceParity case",
+                    "audienceParity sidecar case",
                 );
-                let invocations = case["invocations"].as_array().expect("audience pair");
-                let principals = case["principals"].as_array().expect("principal pair");
-                assert_eq!(invocations.len(), 2);
-                assert_eq!(principals.len(), 2);
-                for invocation in invocations {
+                assert_eq!(case["invocations"].as_array().unwrap().len(), 2);
+                for invocation in case["invocations"].as_array().unwrap() {
                     validate_corpus_invocation(&carrier, invocation, "listIssueByID");
                 }
-                assert_eq!(case["expect"]["establishment"], json!(["allow", "allow"]));
-                assert_eq!(case["expect"]["strict"], json!(["allow", "allow"]));
             }
             "scopeMismatch" => {
                 assert_exact_object_keys(
@@ -2895,7 +3457,7 @@ fn g2_pending_broadcast_cases_are_structurally_frozen() {
                         "principal",
                         "expect",
                     ],
-                    "scopeMismatch case",
+                    "scopeMismatch sidecar case",
                 );
                 validate_corpus_invocation(
                     &carrier,
@@ -2907,14 +3469,6 @@ fn g2_pending_broadcast_cases_are_structurally_frozen() {
                     &case["invocations"]["presentedInstance"],
                     "listIssueByID",
                 );
-                assert_ne!(
-                    case["invocations"]["memberScope"]["materialization"]["graphInstanceHash"],
-                    case["invocations"]["presentedInstance"]["materialization"]["graphInstanceHash"],
-                    "scope mismatch must present a distinct instance identity",
-                );
-                assert_eq!(case["expect"]["classification"], "query-shaped");
-                assert_eq!(case["expect"]["reason"], "scope-unbound");
-                assert!(case["expect"]["resultBytes"].is_null());
             }
             "authorityTransition" | "mixedCommit" => {
                 assert_exact_object_keys(
@@ -2985,6 +3539,47 @@ fn g2_pending_broadcast_cases_are_structurally_frozen() {
     }
 }
 
+#[test]
+fn broadcast_prover_dispositions_are_additive() {
+    let pending = pending_broadcast_cases();
+    let artifact = broadcast_prover_dispositions();
+    assert_exact_object_keys(
+        &artifact,
+        &[
+            "format",
+            "version",
+            "description",
+            "dispositions",
+            "contentDigest",
+        ],
+        "broadcast prover dispositions",
+    );
+    let mut without_digest = artifact.clone();
+    without_digest
+        .as_object_mut()
+        .unwrap()
+        .remove("contentDigest");
+    assert_eq!(
+        artifact["contentDigest"].as_str(),
+        Some(jcs_domain_hash("", &without_digest).as_str()),
+    );
+    let dispositions = artifact["dispositions"].as_array().unwrap();
+    assert_eq!(dispositions.len(), 4);
+    for case in pending["cases"].as_array().unwrap() {
+        let disposition = dispositions
+            .iter()
+            .find(|row| row["id"] == case["id"])
+            .expect("each unchanged G2 row has one additive prover disposition");
+        assert_eq!(disposition["caseKind"], case["caseKind"]);
+        assert!(disposition["proverDisposition"].as_str().is_some());
+        assert!(
+            disposition["reason"]
+                .as_str()
+                .is_some_and(|reason| !reason.is_empty())
+        );
+    }
+}
+
 /// Every executable paired-world and allowed activation result carries one
 /// exact proof per normalized node, a typed composed proof, and citations
 /// hashing the complete outer NodeCompleteness record in canonical node order.
@@ -3011,12 +3606,12 @@ fn completeness_labels() {
                 None,
             )
         };
-        let (materialization, partition) = validate_corpus_invocation_with_disposition(
-            &plan,
-            call,
-            case["query"].as_str().expect("executable result query"),
-            disposition,
-        );
+        let query = case["query"].as_str().expect("executable result query");
+        let (materialization, partition) = if query == "publicRooms" {
+            validate_broadcast_invocation(&plan, call, query)
+        } else {
+            validate_corpus_invocation_with_disposition(&plan, call, query, disposition)
+        };
         let nodes = expected["nodeCompleteness"]
             .as_array()
             .expect("node proofs");
@@ -3306,10 +3901,9 @@ fn bounds_are_fixture_derived() {
     }
 }
 
-/// The corpus retains the seven-kind schema while executing allow/deny through
-/// the oracle and without pretending the four G2 records ran.
-/// All nine LLP 0268 labels are present with exact satisfied/not-satisfied
-/// posture, and only complete normal observation records inhabit the typed arm.
+/// The corpus retains the seven-kind schema, executes the prover-owned case
+/// kinds, and keeps the two delivery-order cases honestly partial.
+/// All nine LLP 0268 labels carry the extension re-record posture.
 #[test]
 fn broadcast_inputs_complete() {
     let corpus = graph_corpus();
@@ -3327,7 +3921,13 @@ fn broadcast_inputs_complete() {
     );
     assert_eq!(
         corpus["executableCaseKinds"],
-        json!(["pairedWorld", "allowDeny", "refusal"]),
+        json!([
+            "pairedWorld",
+            "allowDeny",
+            "audienceParity",
+            "scopeMismatch",
+            "refusal"
+        ]),
     );
     let kinds = corpus["cases"]
         .as_array()
@@ -3337,7 +3937,13 @@ fn broadcast_inputs_complete() {
         .collect::<BTreeSet<_>>();
     assert_eq!(
         kinds,
-        BTreeSet::from(["allowDeny", "pairedWorld", "refusal"]),
+        BTreeSet::from([
+            "allowDeny",
+            "audienceParity",
+            "pairedWorld",
+            "refusal",
+            "scopeMismatch"
+        ]),
     );
     for case in corpus["cases"].as_array().unwrap() {
         assert!(case.get("pending").is_none());
@@ -3368,11 +3974,21 @@ fn broadcast_inputs_complete() {
         .filter(|entry| entry["status"] == "SATISFIED")
         .map(|entry| entry["label"].as_str().unwrap())
         .collect::<BTreeSet<_>>();
-    assert_eq!(satisfied, BTreeSet::from(["G0-BCAST-IDENTITY"]),);
+    assert_eq!(
+        satisfied,
+        BTreeSet::from([
+            "G0-BCAST-AUDIENCE",
+            "G0-BCAST-CLASS",
+            "G0-BCAST-IDENTITY",
+            "G0-BCAST-SCOPE",
+            "G0-BCAST-SCOPE-BINDING",
+            "G0-BCAST-SEPARATION",
+        ]),
+    );
     for entry in input_rows {
         match entry["status"].as_str().unwrap() {
             "SATISFIED" => assert!(entry["missingCarrier"].is_null()),
-            "NOT SATISFIED" => assert!(
+            "PARTIAL" => assert!(
                 entry["missingCarrier"]
                     .as_str()
                     .is_some_and(|value| !value.is_empty())

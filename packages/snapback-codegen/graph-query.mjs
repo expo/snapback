@@ -493,6 +493,19 @@ export function normalizeGraphPlanV1(candidate) {
     return { ...cost, argumentId };
   }).sort((left, right) => argumentOrder.get(left.argumentId) - argumentOrder.get(right.argumentId));
 
+  if (plan.functionMembership !== undefined) {
+    for (const membership of plan.functionMembership) {
+      if (membership.roles !== undefined) {
+        membership.roles = [...new Set(membership.roles)].sort(compareCodeUnits);
+      }
+    }
+    plan.functionMembership = [...plan.functionMembership].sort((left, right) => (
+      compareCodeUnits(left.declaration, right.declaration)
+      || compareJcs(left.resource, right.resource)
+      || compareJcs(left.roles ?? null, right.roles ?? null)
+    ));
+  }
+
   for (const input of plan.authorityPartitionRule.class2Inputs) {
     input.nodeId = nodeIds.get(input.nodeId);
     input.scopeArgumentIds = [...new Set(input.scopeArgumentIds.map((argumentId) => {
@@ -508,10 +521,43 @@ export function normalizeGraphPlanV1(candidate) {
   ));
 
   if (plan.broadcast.classification === 'query-shaped') {
-    plan.broadcast.reason = normalizedNodes.slice(0, -1)
-      .some((node) => node.authority.declaredClass !== 1)
-      ? 'base-not-class-1'
-      : 'declared-query-shaped';
+    const baseIsClass1 = normalizedNodes.slice(0, -1)
+      .every((node) => node.authority.declaredClass === 1);
+    if (!baseIsClass1) plan.broadcast.reason = 'base-not-class-1';
+    else if (plan.broadcast.reason === 'base-not-class-1') {
+      plan.broadcast.reason = 'declared-query-shaped';
+    }
+  } else {
+    const establishment = plan.broadcast.establishment;
+    plan.broadcast.baseNodeIds = orderedIds.map((oldId) => nodeIds.get(oldId));
+    establishment.predicate = normalizeVisibility(establishment.predicate);
+    establishment.scope.argumentIds = [...new Set(establishment.scope.argumentIds.map((argumentId) => {
+      const rewritten = argumentNames.get(argumentId) ?? argumentIds.get(argumentId);
+      if (rewritten === undefined) graphError('SNAPBACK_GRAPH_ARGUMENT_UNBOUND', 'broadcast scope argument is unbound');
+      return rewritten;
+    }))].sort((left, right) => argumentOrder.get(left) - argumentOrder.get(right));
+    establishment.scope.resourceEqualities = establishment.scope.resourceEqualities.map((equality) => {
+      const nodeId = nodeIds.get(equality.nodeId);
+      const argumentId = argumentNames.get(equality.argumentId) ?? argumentIds.get(equality.argumentId);
+      if (nodeId === undefined || argumentId === undefined) {
+        graphError('SNAPBACK_GRAPH_ARGUMENT_UNBOUND', 'broadcast resource equality is unbound');
+      }
+      return { ...equality, nodeId, argumentId };
+    });
+    establishment.scope.resourceEqualities.sort((left, right) => (
+      compareCodeUnits(left.nodeId, right.nodeId)
+      || compareCodeUnits(left.field, right.field)
+      || compareCodeUnits(left.argumentId, right.argumentId)
+    ));
+    establishment.invalidation = establishment.invalidation.map((invalidation) => ({
+      ...invalidation,
+      event: normalizeEventSelector(invalidation.event),
+      affectedScopeArgumentIds: [...new Set(invalidation.affectedScopeArgumentIds.map((argumentId) => {
+        const rewritten = argumentNames.get(argumentId) ?? argumentIds.get(argumentId);
+        if (rewritten === undefined) graphError('SNAPBACK_GRAPH_ARGUMENT_UNBOUND', 'broadcast invalidation argument is unbound');
+        return rewritten;
+      }))].sort((left, right) => argumentOrder.get(left) - argumentOrder.get(right)),
+    })).sort(compareJcs);
   }
   plan.rootNodeId = 'n0';
   plan.nodes = normalizedNodes;
@@ -1061,14 +1107,255 @@ function eventSelectors(input) {
   return selectors.sort(compareJcs);
 }
 
+const BROADCAST_AUTHORITY_TRANSITIONS = Object.freeze([
+  'login', 'logout', 'user-switch', 'session-expiry',
+  'admin-session-revocation', 'lease-expiry', 'grant-issued', 'grant-ended',
+  'credential-issued', 'credential-ended', 'token-issued', 'token-ended',
+]);
+
+function graphBroadcastPolicyIdentityV1(predicate) {
+  return contentIdentity({
+    format: 'snapback.graph-broadcast-policy.v1',
+    predicate,
+  });
+}
+
+function graphBroadcastInstalledOwnerIdentityV1(table, declaration) {
+  return contentIdentity({
+    format: 'snapback.graph-broadcast-installed-owner.v1',
+    declaration,
+    schema: {
+      table: table.name,
+      fields: table.fields,
+    },
+    policy: {
+      membership: table.membership,
+      visibility: table.visibility ?? null,
+    },
+  });
+}
+
+function graphBroadcastStrictEvaluatorIdentityV1(
+  predicate,
+  functionMembership,
+  installedOwnerIdentity,
+) {
+  return contentIdentity({
+    format: 'snapback.graph-strict-audience-evaluator.v1',
+    installedOwnerIdentity,
+    functionMembership,
+    predicate,
+  });
+}
+
+function compileGraphFunctionMembershipV1(source, argsContract, tables) {
+  const declarations = source.functionMembership ?? [];
+  if (declarations.length === 0) return [];
+  if (declarations.length !== 1) return null;
+  const authored = declarations[0];
+  const table = Object.values(tables).find(
+    (candidate) => (candidate.membership?.id ?? candidate.name) === authored.declaration,
+  );
+  const argument = argsContract.fields?.find((field) => field.name === authored.resourceArg);
+  const roles = Array.isArray(authored.roles)
+    ? [...new Set(authored.roles)].sort(compareCodeUnits)
+    : [];
+  if (!table?.membership
+    || table.membership.scope !== 'resource'
+    || typeof table.membership.resourceTable !== 'string'
+    || argument?.value?.kind !== 'id'
+    || argument.value.table !== table.membership.resourceTable
+    || roles.length === 0
+    || roles.some((role) => !table.membership.roles.includes(role))) return null;
+  return [{
+    declaration: authored.declaration,
+    resource: {
+      arg: {
+        path: authored.resourceArg,
+        resourceTable: table.membership.resourceTable,
+      },
+    },
+    roles,
+  }];
+}
+
+function graphBroadcastInvalidationV1(predicate, scopeArgumentIds) {
+  const events = [{
+    kind: 'permission-backing-write',
+    table: predicate.declaration,
+    permissionFields: null,
+    scope: { kind: 'all-declaration-scopes' },
+  }, {
+    kind: 'authorization-metadata-activation',
+    declarationId: predicate.declaration,
+  }, ...['app-reset', 'logical-import', 'declared-physical-restore'].map((cause) => ({
+    kind: 'authorization-incarnation-change', cause,
+  })), {
+    kind: 'out-of-band-permission-revocation',
+    declarationId: predicate.declaration,
+  }, ...BROADCAST_AUTHORITY_TRANSITIONS.map((cause) => ({
+    kind: 'authority-transition', cause,
+  }))];
+  return events.map((event) => ({
+    declarationId: predicate.declaration,
+    event,
+    affectedScopeArgumentIds: [...scopeArgumentIds],
+  })).sort(compareJcs);
+}
+
+function graphBroadcastResourceEqualitiesV1(nodes, predicate) {
+  const bindingsByNode = new Map();
+  for (const node of nodes) {
+    if (node.kind === 'closed-projection') continue;
+    const bindings = new Map();
+    for (const filter of node.filters ?? []) {
+      if (filter.op === 'Eq' && typeof filter.value?.Arg === 'string') {
+        bindings.set(filter.field, filter.value.Arg);
+      }
+    }
+    if (node.kind === 'equality-to-one' || node.kind === 'bounded-to-many') {
+      const parent = bindingsByNode.get(node.parentNodeId);
+      if (!parent) return null;
+      for (const join of node.joinOn) {
+        const argumentId = parent.get(join.rootField);
+        if (argumentId !== undefined) bindings.set(join.joinedField, argumentId);
+      }
+    } else if (node.kind !== 'root-window') {
+      return null;
+    }
+    bindingsByNode.set(node.nodeId, bindings);
+  }
+  const root = nodes.find((node) => node.kind === 'root-window');
+  const scopeArgumentId = bindingsByNode.get(root?.nodeId)?.get(predicate.resourceField);
+  if (scopeArgumentId === undefined) return null;
+  const equalities = [];
+  for (const node of nodes) {
+    if (node.kind === 'closed-projection') continue;
+    const nodeEqualities = [...(bindingsByNode.get(node.nodeId) ?? [])]
+      .filter(([, argumentId]) => argumentId === scopeArgumentId)
+      .map(([field, argumentId]) => ({ nodeId: node.nodeId, field, argumentId }));
+    if (nodeEqualities.length === 0) return null;
+    equalities.push(...nodeEqualities);
+  }
+  equalities.sort((left, right) => (
+    compareCodeUnits(left.nodeId, right.nodeId)
+    || compareCodeUnits(left.field, right.field)
+    || compareCodeUnits(left.argumentId, right.argumentId)
+  ));
+  return { argumentIds: [scopeArgumentId], resourceEqualities: equalities };
+}
+
+// @ref LLP 0209#33-the-nine-llp-0268-inputs-and-their-carriers — the compiler derives every proof
+// field from the closed source walk, installed membership declaration, and
+// normalized graph data flow; authored broadcast proof fields do not exist.
+function compileGraphBroadcastV1(
+  source,
+  nodes,
+  tables,
+  projectionClass,
+  functionMembership,
+) {
+  if (source.broadcast.classification !== 'broadcast') {
+    return {
+      format: 'snapback.graph-broadcast-admission.v1',
+      classification: 'query-shaped',
+      reason: 'declared-query-shaped',
+    };
+  }
+  if (projectionClass !== 1) {
+    return {
+      format: 'snapback.graph-broadcast-admission.v1',
+      classification: 'query-shaped',
+      reason: 'base-not-class-1',
+    };
+  }
+  const predicate = normalizeVisibility(source.broadcast.establishment.predicate);
+  const membershipTable = Object.values(tables).find(
+    (table) => (table.membership?.id ?? table.name) === predicate.declaration,
+  );
+  if (predicate.kind !== 'membership'
+    || !membershipTable
+    || membershipTable.name !== predicate.declaration
+    || membershipTable.membership?.resource === undefined
+    || (predicate.roles ?? []).some((role) => !membershipTable.membership.roles.includes(role))) {
+    return {
+      format: 'snapback.graph-broadcast-admission.v1',
+      classification: 'query-shaped',
+      reason: 'separation-unprovable',
+    };
+  }
+  if (predicate.roles === undefined) {
+    predicate.roles = [...membershipTable.membership.roles].sort(compareCodeUnits);
+  }
+  const scope = graphBroadcastResourceEqualitiesV1(nodes, predicate);
+  if (!scope) {
+    return {
+      format: 'snapback.graph-broadcast-admission.v1',
+      classification: 'query-shaped',
+      reason: 'scope-unbound',
+    };
+  }
+  const functionPredicate = functionMembership?.[0];
+  const establishmentRoles = [...(predicate.roles ?? membershipTable.membership.roles)]
+    .sort(compareCodeUnits);
+  const functionRoles = [...(functionPredicate?.roles ?? [])].sort(compareCodeUnits);
+  const functionImpliesEstablishment = functionMembership?.length === 1
+    && functionPredicate.declaration === predicate.declaration
+    && functionPredicate.resource?.arg?.path === scope.argumentIds[0]
+    && functionPredicate.resource.arg.resourceTable === membershipTable.membership.resourceTable
+    && functionRoles.every((role) => establishmentRoles.includes(role));
+  const exactAudienceDeclaration = functionImpliesEstablishment
+    && graphCanonicalJson(functionRoles) === graphCanonicalJson(establishmentRoles);
+  if (!exactAudienceDeclaration) {
+    return {
+      format: 'snapback.graph-broadcast-admission.v1',
+      classification: 'query-shaped',
+      reason: 'audience-parity-failed',
+    };
+  }
+  const policyIdentity = graphBroadcastPolicyIdentityV1(predicate);
+  let installedOwnerIdentity;
+  try {
+    installedOwnerIdentity = graphBroadcastInstalledOwnerIdentityV1(
+      membershipTable,
+      predicate.declaration,
+    );
+  } catch {
+    return {
+      format: 'snapback.graph-broadcast-admission.v1',
+      classification: 'query-shaped',
+      reason: 'audience-parity-failed',
+    };
+  }
+  return {
+    format: 'snapback.graph-broadcast-admission.v1',
+    classification: 'broadcast',
+    baseNodeIds: nodes
+      .filter((node) => node.kind !== 'closed-projection')
+      .map((node) => node.nodeId),
+    establishment: {
+      effect: 'admit-only',
+      predicate,
+      overlayProjection: null,
+      scope: {
+        ...scope,
+        policyIdentity,
+      },
+      audience: {
+        installedOwnerIdentity,
+        strictEvaluatorIdentity: graphBroadcastStrictEvaluatorIdentityV1(
+          predicate,
+          functionMembership,
+          installedOwnerIdentity,
+        ),
+      },
+      invalidation: graphBroadcastInvalidationV1(predicate, scope.argumentIds),
+    },
+  };
+}
+
 /** Compile the pre-lowering defineGraphQuery carrier against installed schema/policy facts. */
 export function compileGraphQueryV1({ source, argsContract, resultContractHash, tables }) {
-  if (source.broadcast.classification !== 'query-shaped') {
-    graphError(
-      'SNAPBACK_GRAPH_BROADCAST_SEPARATION_UNPROVABLE',
-      'B2 emits no broadcast certificate; declare classification query-shaped',
-    );
-  }
   const argumentFields = argsContract.fields ?? [];
   const argumentsV1 = argumentFields.map((field) => ({
     argumentId: field.name,
@@ -1081,6 +1368,12 @@ export function compileGraphQueryV1({ source, argsContract, resultContractHash, 
     contractHash: ZERO_HASH,
   }));
   const nodes = copy(source.nodes);
+  const compiledFunctionMembership = compileGraphFunctionMembershipV1(
+    source,
+    argsContract,
+    tables,
+  );
+  const functionMembership = compiledFunctionMembership ?? [];
   if (nodes.some((node) => node.kind === 'search-membership')) {
     graphError(
       'SNAPBACK_GRAPH_SEARCH_UNADMITTED',
@@ -1206,11 +1499,14 @@ export function compileGraphQueryV1({ source, argsContract, resultContractHash, 
         ? 'partition-of-one'
         : 'none',
     },
-    broadcast: {
-      format: 'snapback.graph-broadcast-admission.v1',
-      classification: 'query-shaped',
-      reason: 'declared-query-shaped',
-    },
+    ...(functionMembership.length === 0 ? {} : { functionMembership }),
+    broadcast: compileGraphBroadcastV1(
+      source,
+      nodes,
+      tables,
+      projectionClass,
+      compiledFunctionMembership,
+    ),
     resultContractHash,
   };
   return graphPlanIdentityV1(candidate);

@@ -1,12 +1,1859 @@
 {
   "format": "snapback.graph-conformance-corpus.v1",
   "version": 1,
-  "description": "G2-A corpus: opaque G0 oracle evidence, evaluator-executed paired worlds and allowed activation, one evaluation-time refusal, and structural admission refusals plus pending broadcast cases.",
+  "description": "G2-A corpus plus the LLP 0268 broadcast-prover extension: opaque G0 oracle evidence, evaluator-executed paired worlds and allowed activation, class-1 exact-audience and scope-mismatch cases, one evaluation-time refusal, structural admission refusals, and pending G2-C broadcast fence cases.",
   "fixtures": {
     "normal": "demos/zerobugs/control/fixtures/normal-seed-v1",
     "policyExtension": "demos/zerobugs/control/fixtures/policy-extension-v1.json",
     "pairedWorlds": "tests/conformance/graph/paired-world-fixtures.v1.json",
+    "broadcast": "tests/conformance/graph/broadcast-fixture/data.v1.json",
     "large": "demos/zerobugs/manifest/large-seed42-v1.receipt.json"
+  },
+  "broadcastFixture": {
+    "source": "tests/conformance/graph/broadcast-fixture",
+    "data": {
+      "format": "snapback.graph-broadcast-fixture-data.v1",
+      "rooms": [
+        {
+          "_id": "room_p",
+          "scopeId": "room_p",
+          "name": "Public P",
+          "category": "public",
+          "updatedAt": 2
+        },
+        {
+          "_id": "room_q",
+          "scopeId": "room_q",
+          "name": "Public Q",
+          "category": "public",
+          "updatedAt": 1
+        }
+      ],
+      "roomMembers": [
+        {
+          "_id": "member_p",
+          "principal": "principal_p_member",
+          "roomId": "room_p",
+          "role": "member"
+        },
+        {
+          "_id": "member_q",
+          "principal": "principal_q_member",
+          "roomId": "room_q",
+          "role": "member"
+        }
+      ],
+      "principals": {
+        "pMember": "principal_p_member",
+        "qMember": "principal_q_member",
+        "outsider": "principal_outsider"
+      },
+      "expected": {
+        "scopeP": {
+          "roomId": "room_p",
+          "resultBytes": "[{\"scopeId\":\"room_p\",\"name\":\"Public P\"}]"
+        },
+        "scopeQ": {
+          "roomId": "room_q",
+          "resultBytes": "[{\"scopeId\":\"room_q\",\"name\":\"Public Q\"}]"
+        }
+      }
+    },
+    "schema": {
+      "appId": "graph-broadcast-corpus",
+      "artifactDiagnostics": [],
+      "artifactKind": "schemaManifest",
+      "auth": {
+        "mode": "sessions"
+      },
+      "authoredSourceHash": "sha256:3b61f10f27de912487e0789cf6279c2301e1a1d10153f45cff63770331e5f488",
+      "authoringProfile": "snapback-explicit-v1",
+      "ephemeralCollections": [],
+      "generatedAt": 0,
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:140d2d94705a329fa2052bab8a3f747303dc9a9b14af9c24f7aef46b6436c255",
+      "portabilityFlags": [],
+      "requiredCapabilities": [
+        "auth.sessions.v1"
+      ],
+      "schemaHash": "snapback.v1:sessions:schema:sha256:52c117d7a7b7ab7224d3d27fa8bf0bc43de7918c112a77de6c490b46aa923d01",
+      "schemaVersion": "snapback.v1",
+      "tables": [
+        {
+          "fields": [
+            {
+              "field_type": {
+                "Id": {
+                  "table": "rooms"
+                }
+              },
+              "name": "scopeId",
+              "optional": false
+            },
+            {
+              "field_type": "String",
+              "name": "name",
+              "optional": false
+            },
+            {
+              "field_type": "String",
+              "name": "category",
+              "optional": false
+            },
+            {
+              "field_type": "Integer",
+              "name": "updatedAt",
+              "optional": false
+            }
+          ],
+          "indexes": [
+            {
+              "fields": [
+                "scopeId",
+                "updatedAt"
+              ],
+              "name": "by_scope_updated"
+            },
+            {
+              "fields": [
+                "category",
+                "updatedAt"
+              ],
+              "name": "by_category_updated"
+            }
+          ],
+          "name": "rooms",
+          "syncable": false,
+          "visibility": {
+            "kind": "public-read"
+          }
+        },
+        {
+          "fields": [
+            {
+              "field_type": "Principal",
+              "name": "principal",
+              "optional": false
+            },
+            {
+              "field_type": {
+                "Id": {
+                  "table": "rooms"
+                }
+              },
+              "name": "roomId",
+              "optional": false
+            },
+            {
+              "field_type": "String",
+              "name": "role",
+              "optional": false
+            }
+          ],
+          "indexes": [],
+          "membership": {
+            "principal": "principal",
+            "resource": "roomId",
+            "resourceTable": "rooms",
+            "role": "role",
+            "roles": [
+              "member",
+              "moderator"
+            ],
+            "scope": "resource",
+            "transitions": []
+          },
+          "name": "roomMembers",
+          "syncable": false,
+          "visibility": {
+            "field": "principal",
+            "kind": "owner"
+          }
+        }
+      ],
+      "targetProfile": "local-dev-sqlite-ibex"
+    },
+    "functionManifest": {
+      "acknowledgedExperimentalCapabilities": [
+        "args_contract_v1",
+        "graph_query_v1",
+        "result_contract_v1"
+      ],
+      "appId": "graph-broadcast-corpus",
+      "artifactKind": "functionManifest",
+      "authoredSourceHash": "sha256:3b61f10f27de912487e0789cf6279c2301e1a1d10153f45cff63770331e5f488",
+      "authoringProfile": "snapback-explicit-v1",
+      "bundleHash": "snapback.v1:sessions:function:sha256:269a879c04e05c6ebbb6ed903f72d8f255b3ec85e457a0c781683f4bff0a4a86",
+      "config": [],
+      "cronJobs": [],
+      "functions": [
+        {
+          "argsContract": {
+            "fields": [
+              {
+                "name": "roomId",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "rooms"
+                }
+              }
+            ]
+          },
+          "argsContractHash": "sha256:ac69fab370bc35c8e6f3699764ee721a3ae3711567bcd85b84bda74666b458fa",
+          "authRequirement": "authenticated",
+          "authorizationDependence": [
+            "userId"
+          ],
+          "bundleEntrypoint": "publicRooms",
+          "effectCeiling": {
+            "authorizationInputs": [],
+            "basis": "static",
+            "hostOperations": [],
+            "reads": [
+              {
+                "access": "query",
+                "index": "by_scope_updated",
+                "table": "rooms"
+              }
+            ],
+            "version": "EffectCeilingV1",
+            "writes": []
+          },
+          "exportedName": "publicRooms",
+          "handlerForm": "plan",
+          "id": "graph-broadcast-corpus:publicRooms",
+          "implementationHash": "sha256:35e87a38f50d0afe07dca10c821735a07cd80d562968b283f602540cc23a2363",
+          "kind": "LiveQuery",
+          "name": "publicRooms",
+          "readSetSummary": {
+            "authScopeField": null,
+            "mode": "singleTable",
+            "primaryTable": "roomMembers",
+            "tables": [
+              "roomMembers",
+              "rooms"
+            ]
+          },
+          "requiredCapabilities": [
+            "live_subscriptions",
+            "host_plan_runtime",
+            "graph_query_v1",
+            "result_contract_v1",
+            "args_contract_v1"
+          ],
+          "resultContract": {
+            "kind": "records",
+            "record": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "scopeId",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "rooms"
+                  }
+                },
+                {
+                  "name": "name",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                }
+              ],
+              "kind": "object"
+            },
+            "rows": {
+              "maxItems": 2,
+              "minItems": 0
+            }
+          },
+          "resultContractHash": "sha256:e6880f691fcc43f290927c1efebeb5b4017ba78dc0754633895970236348ef99",
+          "runtime": {
+            "HostPlan": {
+              "GraphQuery": {
+                "normalizedPlan": {
+                  "arguments": [
+                    {
+                      "argumentId": "a0",
+                      "contract": {
+                        "format": "snapback.argument-binding-contract.v1",
+                        "required": true,
+                        "value": {
+                          "kind": "id",
+                          "table": "rooms"
+                        }
+                      },
+                      "contractHash": "sha256:bc3e77d415da29d492c874d44c4795288e1e3e9213d5bc391ceb4765f291d1e3",
+                      "name": "roomId"
+                    }
+                  ],
+                  "authorityPartitionRule": {
+                    "class2Inputs": [],
+                    "class3": "none",
+                    "format": "snapback.graph-authority-partition-rule.v1"
+                  },
+                  "broadcast": {
+                    "baseNodeIds": [
+                      "n0"
+                    ],
+                    "classification": "broadcast",
+                    "establishment": {
+                      "audience": {
+                        "installedOwnerIdentity": "sha256:c9080b642a2c36c9c76b351ca61fd14f8276ef42bd792f6fd0bb98c6d29e03f1",
+                        "strictEvaluatorIdentity": "sha256:104ed5b814ff7eb97f770c15dd5d99d94fff091f2718058424ce06c09338bd58"
+                      },
+                      "effect": "admit-only",
+                      "invalidation": [
+                        {
+                          "affectedScopeArgumentIds": [
+                            "a0"
+                          ],
+                          "declarationId": "roomMembers",
+                          "event": {
+                            "cause": "admin-session-revocation",
+                            "kind": "authority-transition"
+                          }
+                        },
+                        {
+                          "affectedScopeArgumentIds": [
+                            "a0"
+                          ],
+                          "declarationId": "roomMembers",
+                          "event": {
+                            "cause": "app-reset",
+                            "kind": "authorization-incarnation-change"
+                          }
+                        },
+                        {
+                          "affectedScopeArgumentIds": [
+                            "a0"
+                          ],
+                          "declarationId": "roomMembers",
+                          "event": {
+                            "cause": "credential-ended",
+                            "kind": "authority-transition"
+                          }
+                        },
+                        {
+                          "affectedScopeArgumentIds": [
+                            "a0"
+                          ],
+                          "declarationId": "roomMembers",
+                          "event": {
+                            "cause": "credential-issued",
+                            "kind": "authority-transition"
+                          }
+                        },
+                        {
+                          "affectedScopeArgumentIds": [
+                            "a0"
+                          ],
+                          "declarationId": "roomMembers",
+                          "event": {
+                            "cause": "declared-physical-restore",
+                            "kind": "authorization-incarnation-change"
+                          }
+                        },
+                        {
+                          "affectedScopeArgumentIds": [
+                            "a0"
+                          ],
+                          "declarationId": "roomMembers",
+                          "event": {
+                            "cause": "grant-ended",
+                            "kind": "authority-transition"
+                          }
+                        },
+                        {
+                          "affectedScopeArgumentIds": [
+                            "a0"
+                          ],
+                          "declarationId": "roomMembers",
+                          "event": {
+                            "cause": "grant-issued",
+                            "kind": "authority-transition"
+                          }
+                        },
+                        {
+                          "affectedScopeArgumentIds": [
+                            "a0"
+                          ],
+                          "declarationId": "roomMembers",
+                          "event": {
+                            "cause": "lease-expiry",
+                            "kind": "authority-transition"
+                          }
+                        },
+                        {
+                          "affectedScopeArgumentIds": [
+                            "a0"
+                          ],
+                          "declarationId": "roomMembers",
+                          "event": {
+                            "cause": "logical-import",
+                            "kind": "authorization-incarnation-change"
+                          }
+                        },
+                        {
+                          "affectedScopeArgumentIds": [
+                            "a0"
+                          ],
+                          "declarationId": "roomMembers",
+                          "event": {
+                            "cause": "login",
+                            "kind": "authority-transition"
+                          }
+                        },
+                        {
+                          "affectedScopeArgumentIds": [
+                            "a0"
+                          ],
+                          "declarationId": "roomMembers",
+                          "event": {
+                            "cause": "logout",
+                            "kind": "authority-transition"
+                          }
+                        },
+                        {
+                          "affectedScopeArgumentIds": [
+                            "a0"
+                          ],
+                          "declarationId": "roomMembers",
+                          "event": {
+                            "cause": "session-expiry",
+                            "kind": "authority-transition"
+                          }
+                        },
+                        {
+                          "affectedScopeArgumentIds": [
+                            "a0"
+                          ],
+                          "declarationId": "roomMembers",
+                          "event": {
+                            "cause": "token-ended",
+                            "kind": "authority-transition"
+                          }
+                        },
+                        {
+                          "affectedScopeArgumentIds": [
+                            "a0"
+                          ],
+                          "declarationId": "roomMembers",
+                          "event": {
+                            "cause": "token-issued",
+                            "kind": "authority-transition"
+                          }
+                        },
+                        {
+                          "affectedScopeArgumentIds": [
+                            "a0"
+                          ],
+                          "declarationId": "roomMembers",
+                          "event": {
+                            "cause": "user-switch",
+                            "kind": "authority-transition"
+                          }
+                        },
+                        {
+                          "affectedScopeArgumentIds": [
+                            "a0"
+                          ],
+                          "declarationId": "roomMembers",
+                          "event": {
+                            "declarationId": "roomMembers",
+                            "kind": "authorization-metadata-activation"
+                          }
+                        },
+                        {
+                          "affectedScopeArgumentIds": [
+                            "a0"
+                          ],
+                          "declarationId": "roomMembers",
+                          "event": {
+                            "declarationId": "roomMembers",
+                            "kind": "out-of-band-permission-revocation"
+                          }
+                        },
+                        {
+                          "affectedScopeArgumentIds": [
+                            "a0"
+                          ],
+                          "declarationId": "roomMembers",
+                          "event": {
+                            "kind": "permission-backing-write",
+                            "permissionFields": null,
+                            "scope": {
+                              "kind": "all-declaration-scopes"
+                            },
+                            "table": "roomMembers"
+                          }
+                        }
+                      ],
+                      "overlayProjection": null,
+                      "predicate": {
+                        "declaration": "roomMembers",
+                        "kind": "membership",
+                        "resourceField": "scopeId",
+                        "roles": [
+                          "member"
+                        ]
+                      },
+                      "scope": {
+                        "argumentIds": [
+                          "a0"
+                        ],
+                        "policyIdentity": "sha256:36e8140617e4f41425025e1c4d150892aeb58206b8aaaf768e9c83d724582941",
+                        "resourceEqualities": [
+                          {
+                            "argumentId": "a0",
+                            "field": "scopeId",
+                            "nodeId": "n0"
+                          }
+                        ]
+                      }
+                    },
+                    "format": "snapback.graph-broadcast-admission.v1"
+                  },
+                  "capabilityId": "graph_query_v1",
+                  "format": "snapback.graph-query-plan.v1",
+                  "functionMembership": [
+                    {
+                      "declaration": "roomMembers",
+                      "resource": {
+                        "arg": {
+                          "path": "roomId",
+                          "resourceTable": "rooms"
+                        }
+                      },
+                      "roles": [
+                        "member"
+                      ]
+                    }
+                  ],
+                  "nodes": [
+                    {
+                      "accessIndex": "by_scope_updated",
+                      "authority": {
+                        "declaredClass": 1,
+                        "proof": null
+                      },
+                      "edgeName": "$root",
+                      "filters": [
+                        {
+                          "field": "scopeId",
+                          "op": "Eq",
+                          "value": {
+                            "Arg": "a0"
+                          }
+                        }
+                      ],
+                      "kind": "root-window",
+                      "nodeId": "n0",
+                      "order": [
+                        {
+                          "direction": "Desc",
+                          "field": "updatedAt"
+                        }
+                      ],
+                      "page": {
+                        "kind": "demand"
+                      },
+                      "table": "rooms",
+                      "visibility": {
+                        "kind": "public-read"
+                      }
+                    },
+                    {
+                      "authority": {
+                        "declaredClass": 1,
+                        "proof": null
+                      },
+                      "edgeName": "$result",
+                      "kind": "closed-projection",
+                      "nodeId": "n1",
+                      "object": {
+                        "fields": [
+                          {
+                            "name": "scopeId",
+                            "value": {
+                              "field": "scopeId",
+                              "kind": "field",
+                              "nodeId": "n0"
+                            }
+                          },
+                          {
+                            "name": "name",
+                            "value": {
+                              "field": "name",
+                              "kind": "field",
+                              "nodeId": "n0"
+                            }
+                          }
+                        ],
+                        "scopeNodeId": "n0"
+                      }
+                    }
+                  ],
+                  "queryCost": {
+                    "graph": {
+                      "arguments": [],
+                      "maxArgumentItems": 1,
+                      "maxMaintainedWritesPerMutation": 0,
+                      "maxPageResultBytes": 512,
+                      "nodes": [
+                        {
+                          "maxExaminedEntriesPerExecution": 3,
+                          "maxRootRowsPerPage": 2,
+                          "maxWindowIndexRanges": 2,
+                          "maxWindowPages": 2,
+                          "maxWindowResultBytes": 1024,
+                          "maxWindowResultRows": 4,
+                          "maxWindowRootRows": 4,
+                          "maxWindowScannedRows": 6,
+                          "nodeId": "n0"
+                        }
+                      ],
+                      "windowRollup": {
+                        "maxWindowIndexRanges": 2,
+                        "maxWindowPages": 2,
+                        "maxWindowResultBytes": 1024,
+                        "maxWindowResultRows": 4,
+                        "maxWindowRootRows": 4,
+                        "maxWindowScannedRows": 6
+                      }
+                    },
+                    "maxDistinctEvaluationGroups": 4,
+                    "maxEstimatedLiveFanoutMs": 10,
+                    "maxEvaluationTurnMs": 10,
+                    "maxIndexRanges": 1,
+                    "maxObservers": 8,
+                    "maxResultBytes": 512,
+                    "maxResultRows": 2,
+                    "maxScannedRows": 3
+                  },
+                  "resultContractHash": "sha256:e6880f691fcc43f290927c1efebeb5b4017ba78dc0754633895970236348ef99",
+                  "rootNodeId": "n0"
+                },
+                "planHash": "sha256:49c8cf49bdaff1c1eaa8e179cd6c30d0555122e8fd7b9364086781e4d42c8cf1"
+              }
+            }
+          },
+          "sourceSpan": null,
+          "syncabilityClass": "syncable-live",
+          "uses": [],
+          "writeSetSummary": {
+            "mode": "none",
+            "primaryTable": null,
+            "tables": []
+          }
+        },
+        {
+          "argsContract": {
+            "fields": [
+              {
+                "name": "roomId",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "rooms"
+                }
+              }
+            ]
+          },
+          "argsContractHash": "sha256:ac69fab370bc35c8e6f3699764ee721a3ae3711567bcd85b84bda74666b458fa",
+          "authRequirement": "authenticated",
+          "authorizationDependence": [
+            "userId"
+          ],
+          "bundleEntrypoint": "publicRoomsDivergent",
+          "effectCeiling": {
+            "authorizationInputs": [],
+            "basis": "static",
+            "hostOperations": [],
+            "reads": [
+              {
+                "access": "query",
+                "index": "by_scope_updated",
+                "table": "rooms"
+              }
+            ],
+            "version": "EffectCeilingV1",
+            "writes": []
+          },
+          "exportedName": "publicRoomsDivergent",
+          "handlerForm": "plan",
+          "id": "graph-broadcast-corpus:publicRoomsDivergent",
+          "implementationHash": "sha256:e31b20ef049cf906e737776d1fa019078821358d080962ec2036b66c2df2cd31",
+          "kind": "LiveQuery",
+          "name": "publicRoomsDivergent",
+          "readSetSummary": {
+            "authScopeField": null,
+            "mode": "singleTable",
+            "primaryTable": "roomMembers",
+            "tables": [
+              "roomMembers",
+              "rooms"
+            ]
+          },
+          "requiredCapabilities": [
+            "live_subscriptions",
+            "host_plan_runtime",
+            "graph_query_v1",
+            "result_contract_v1",
+            "args_contract_v1"
+          ],
+          "resultContract": {
+            "kind": "records",
+            "record": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "scopeId",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "rooms"
+                  }
+                },
+                {
+                  "name": "name",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                }
+              ],
+              "kind": "object"
+            },
+            "rows": {
+              "maxItems": 2,
+              "minItems": 0
+            }
+          },
+          "resultContractHash": "sha256:e6880f691fcc43f290927c1efebeb5b4017ba78dc0754633895970236348ef99",
+          "runtime": {
+            "HostPlan": {
+              "GraphQuery": {
+                "normalizedPlan": {
+                  "arguments": [
+                    {
+                      "argumentId": "a0",
+                      "contract": {
+                        "format": "snapback.argument-binding-contract.v1",
+                        "required": true,
+                        "value": {
+                          "kind": "id",
+                          "table": "rooms"
+                        }
+                      },
+                      "contractHash": "sha256:bc3e77d415da29d492c874d44c4795288e1e3e9213d5bc391ceb4765f291d1e3",
+                      "name": "roomId"
+                    }
+                  ],
+                  "authorityPartitionRule": {
+                    "class2Inputs": [],
+                    "class3": "none",
+                    "format": "snapback.graph-authority-partition-rule.v1"
+                  },
+                  "broadcast": {
+                    "classification": "query-shaped",
+                    "format": "snapback.graph-broadcast-admission.v1",
+                    "reason": "audience-parity-failed"
+                  },
+                  "capabilityId": "graph_query_v1",
+                  "format": "snapback.graph-query-plan.v1",
+                  "functionMembership": [
+                    {
+                      "declaration": "roomMembers",
+                      "resource": {
+                        "arg": {
+                          "path": "roomId",
+                          "resourceTable": "rooms"
+                        }
+                      },
+                      "roles": [
+                        "moderator"
+                      ]
+                    }
+                  ],
+                  "nodes": [
+                    {
+                      "accessIndex": "by_scope_updated",
+                      "authority": {
+                        "declaredClass": 1,
+                        "proof": null
+                      },
+                      "edgeName": "$root",
+                      "filters": [
+                        {
+                          "field": "scopeId",
+                          "op": "Eq",
+                          "value": {
+                            "Arg": "a0"
+                          }
+                        }
+                      ],
+                      "kind": "root-window",
+                      "nodeId": "n0",
+                      "order": [
+                        {
+                          "direction": "Desc",
+                          "field": "updatedAt"
+                        }
+                      ],
+                      "page": {
+                        "kind": "demand"
+                      },
+                      "table": "rooms",
+                      "visibility": {
+                        "kind": "public-read"
+                      }
+                    },
+                    {
+                      "authority": {
+                        "declaredClass": 1,
+                        "proof": null
+                      },
+                      "edgeName": "$result",
+                      "kind": "closed-projection",
+                      "nodeId": "n1",
+                      "object": {
+                        "fields": [
+                          {
+                            "name": "scopeId",
+                            "value": {
+                              "field": "scopeId",
+                              "kind": "field",
+                              "nodeId": "n0"
+                            }
+                          },
+                          {
+                            "name": "name",
+                            "value": {
+                              "field": "name",
+                              "kind": "field",
+                              "nodeId": "n0"
+                            }
+                          }
+                        ],
+                        "scopeNodeId": "n0"
+                      }
+                    }
+                  ],
+                  "queryCost": {
+                    "graph": {
+                      "arguments": [],
+                      "maxArgumentItems": 1,
+                      "maxMaintainedWritesPerMutation": 0,
+                      "maxPageResultBytes": 512,
+                      "nodes": [
+                        {
+                          "maxExaminedEntriesPerExecution": 3,
+                          "maxRootRowsPerPage": 2,
+                          "maxWindowIndexRanges": 2,
+                          "maxWindowPages": 2,
+                          "maxWindowResultBytes": 1024,
+                          "maxWindowResultRows": 4,
+                          "maxWindowRootRows": 4,
+                          "maxWindowScannedRows": 6,
+                          "nodeId": "n0"
+                        }
+                      ],
+                      "windowRollup": {
+                        "maxWindowIndexRanges": 2,
+                        "maxWindowPages": 2,
+                        "maxWindowResultBytes": 1024,
+                        "maxWindowResultRows": 4,
+                        "maxWindowRootRows": 4,
+                        "maxWindowScannedRows": 6
+                      }
+                    },
+                    "maxDistinctEvaluationGroups": 4,
+                    "maxEstimatedLiveFanoutMs": 10,
+                    "maxEvaluationTurnMs": 10,
+                    "maxIndexRanges": 1,
+                    "maxObservers": 8,
+                    "maxResultBytes": 512,
+                    "maxResultRows": 2,
+                    "maxScannedRows": 3
+                  },
+                  "resultContractHash": "sha256:e6880f691fcc43f290927c1efebeb5b4017ba78dc0754633895970236348ef99",
+                  "rootNodeId": "n0"
+                },
+                "planHash": "sha256:060346dfe0698cd88c490dc8c8e40ce69d5a278b1418f4cad4cb534ead69538c"
+              }
+            }
+          },
+          "sourceSpan": null,
+          "syncabilityClass": "syncable-live",
+          "uses": [],
+          "writeSetSummary": {
+            "mode": "none",
+            "primaryTable": null,
+            "tables": []
+          }
+        },
+        {
+          "argsContract": {
+            "fields": [
+              {
+                "name": "roomId",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "rooms"
+                }
+              }
+            ]
+          },
+          "argsContractHash": "sha256:ac69fab370bc35c8e6f3699764ee721a3ae3711567bcd85b84bda74666b458fa",
+          "authRequirement": "authenticated",
+          "authorizationDependence": [
+            "userId"
+          ],
+          "bundleEntrypoint": "publicRoomsUnbound",
+          "effectCeiling": {
+            "authorizationInputs": [],
+            "basis": "static",
+            "hostOperations": [],
+            "reads": [
+              {
+                "access": "query",
+                "index": "by_category_updated",
+                "table": "rooms"
+              }
+            ],
+            "version": "EffectCeilingV1",
+            "writes": []
+          },
+          "exportedName": "publicRoomsUnbound",
+          "handlerForm": "plan",
+          "id": "graph-broadcast-corpus:publicRoomsUnbound",
+          "implementationHash": "sha256:5d8e527e3c7ac2c7db7311d0604f8fb1c3e96c0b383ac88909c63ef0ff5e84e2",
+          "kind": "LiveQuery",
+          "name": "publicRoomsUnbound",
+          "readSetSummary": {
+            "authScopeField": null,
+            "mode": "singleTable",
+            "primaryTable": "roomMembers",
+            "tables": [
+              "roomMembers",
+              "rooms"
+            ]
+          },
+          "requiredCapabilities": [
+            "live_subscriptions",
+            "host_plan_runtime",
+            "graph_query_v1",
+            "result_contract_v1",
+            "args_contract_v1"
+          ],
+          "resultContract": {
+            "kind": "records",
+            "record": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "scopeId",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "rooms"
+                  }
+                },
+                {
+                  "name": "name",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                }
+              ],
+              "kind": "object"
+            },
+            "rows": {
+              "maxItems": 2,
+              "minItems": 0
+            }
+          },
+          "resultContractHash": "sha256:e6880f691fcc43f290927c1efebeb5b4017ba78dc0754633895970236348ef99",
+          "runtime": {
+            "HostPlan": {
+              "GraphQuery": {
+                "normalizedPlan": {
+                  "arguments": [
+                    {
+                      "argumentId": "a0",
+                      "contract": {
+                        "format": "snapback.argument-binding-contract.v1",
+                        "required": true,
+                        "value": {
+                          "kind": "id",
+                          "table": "rooms"
+                        }
+                      },
+                      "contractHash": "sha256:bc3e77d415da29d492c874d44c4795288e1e3e9213d5bc391ceb4765f291d1e3",
+                      "name": "roomId"
+                    }
+                  ],
+                  "authorityPartitionRule": {
+                    "class2Inputs": [],
+                    "class3": "none",
+                    "format": "snapback.graph-authority-partition-rule.v1"
+                  },
+                  "broadcast": {
+                    "classification": "query-shaped",
+                    "format": "snapback.graph-broadcast-admission.v1",
+                    "reason": "scope-unbound"
+                  },
+                  "capabilityId": "graph_query_v1",
+                  "format": "snapback.graph-query-plan.v1",
+                  "functionMembership": [
+                    {
+                      "declaration": "roomMembers",
+                      "resource": {
+                        "arg": {
+                          "path": "roomId",
+                          "resourceTable": "rooms"
+                        }
+                      },
+                      "roles": [
+                        "member"
+                      ]
+                    }
+                  ],
+                  "nodes": [
+                    {
+                      "accessIndex": "by_category_updated",
+                      "authority": {
+                        "declaredClass": 1,
+                        "proof": null
+                      },
+                      "edgeName": "$root",
+                      "filters": [
+                        {
+                          "field": "category",
+                          "op": "Eq",
+                          "value": {
+                            "Literal": "public"
+                          }
+                        }
+                      ],
+                      "kind": "root-window",
+                      "nodeId": "n0",
+                      "order": [
+                        {
+                          "direction": "Desc",
+                          "field": "updatedAt"
+                        }
+                      ],
+                      "page": {
+                        "kind": "demand"
+                      },
+                      "table": "rooms",
+                      "visibility": {
+                        "kind": "public-read"
+                      }
+                    },
+                    {
+                      "authority": {
+                        "declaredClass": 1,
+                        "proof": null
+                      },
+                      "edgeName": "$result",
+                      "kind": "closed-projection",
+                      "nodeId": "n1",
+                      "object": {
+                        "fields": [
+                          {
+                            "name": "scopeId",
+                            "value": {
+                              "field": "scopeId",
+                              "kind": "field",
+                              "nodeId": "n0"
+                            }
+                          },
+                          {
+                            "name": "name",
+                            "value": {
+                              "field": "name",
+                              "kind": "field",
+                              "nodeId": "n0"
+                            }
+                          }
+                        ],
+                        "scopeNodeId": "n0"
+                      }
+                    }
+                  ],
+                  "queryCost": {
+                    "graph": {
+                      "arguments": [],
+                      "maxArgumentItems": 1,
+                      "maxMaintainedWritesPerMutation": 0,
+                      "maxPageResultBytes": 512,
+                      "nodes": [
+                        {
+                          "maxExaminedEntriesPerExecution": 3,
+                          "maxRootRowsPerPage": 2,
+                          "maxWindowIndexRanges": 2,
+                          "maxWindowPages": 2,
+                          "maxWindowResultBytes": 1024,
+                          "maxWindowResultRows": 4,
+                          "maxWindowRootRows": 4,
+                          "maxWindowScannedRows": 6,
+                          "nodeId": "n0"
+                        }
+                      ],
+                      "windowRollup": {
+                        "maxWindowIndexRanges": 2,
+                        "maxWindowPages": 2,
+                        "maxWindowResultBytes": 1024,
+                        "maxWindowResultRows": 4,
+                        "maxWindowRootRows": 4,
+                        "maxWindowScannedRows": 6
+                      }
+                    },
+                    "maxDistinctEvaluationGroups": 4,
+                    "maxEstimatedLiveFanoutMs": 10,
+                    "maxEvaluationTurnMs": 10,
+                    "maxIndexRanges": 1,
+                    "maxObservers": 8,
+                    "maxResultBytes": 512,
+                    "maxResultRows": 2,
+                    "maxScannedRows": 3
+                  },
+                  "resultContractHash": "sha256:e6880f691fcc43f290927c1efebeb5b4017ba78dc0754633895970236348ef99",
+                  "rootNodeId": "n0"
+                },
+                "planHash": "sha256:2be218c0949017e787b9ce61cde2409f9bde7d75044a4fb2b36f34b4b36a112e"
+              }
+            }
+          },
+          "sourceSpan": null,
+          "syncabilityClass": "syncable-live",
+          "uses": [],
+          "writeSetSummary": {
+            "mode": "none",
+            "primaryTable": null,
+            "tables": []
+          }
+        }
+      ],
+      "generatedAt": 0,
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:140d2d94705a329fa2052bab8a3f747303dc9a9b14af9c24f7aef46b6436c255",
+      "schemaVersion": "snapback.v1",
+      "unsupportedDependencyDiagnostics": []
+    },
+    "queries": [
+      {
+        "query": "publicRooms",
+        "carrier": {
+          "normalizedPlan": {
+            "arguments": [
+              {
+                "argumentId": "a0",
+                "contract": {
+                  "format": "snapback.argument-binding-contract.v1",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "rooms"
+                  }
+                },
+                "contractHash": "sha256:bc3e77d415da29d492c874d44c4795288e1e3e9213d5bc391ceb4765f291d1e3",
+                "name": "roomId"
+              }
+            ],
+            "authorityPartitionRule": {
+              "class2Inputs": [],
+              "class3": "none",
+              "format": "snapback.graph-authority-partition-rule.v1"
+            },
+            "broadcast": {
+              "baseNodeIds": [
+                "n0"
+              ],
+              "classification": "broadcast",
+              "establishment": {
+                "audience": {
+                  "installedOwnerIdentity": "sha256:c9080b642a2c36c9c76b351ca61fd14f8276ef42bd792f6fd0bb98c6d29e03f1",
+                  "strictEvaluatorIdentity": "sha256:104ed5b814ff7eb97f770c15dd5d99d94fff091f2718058424ce06c09338bd58"
+                },
+                "effect": "admit-only",
+                "invalidation": [
+                  {
+                    "affectedScopeArgumentIds": [
+                      "a0"
+                    ],
+                    "declarationId": "roomMembers",
+                    "event": {
+                      "cause": "admin-session-revocation",
+                      "kind": "authority-transition"
+                    }
+                  },
+                  {
+                    "affectedScopeArgumentIds": [
+                      "a0"
+                    ],
+                    "declarationId": "roomMembers",
+                    "event": {
+                      "cause": "app-reset",
+                      "kind": "authorization-incarnation-change"
+                    }
+                  },
+                  {
+                    "affectedScopeArgumentIds": [
+                      "a0"
+                    ],
+                    "declarationId": "roomMembers",
+                    "event": {
+                      "cause": "credential-ended",
+                      "kind": "authority-transition"
+                    }
+                  },
+                  {
+                    "affectedScopeArgumentIds": [
+                      "a0"
+                    ],
+                    "declarationId": "roomMembers",
+                    "event": {
+                      "cause": "credential-issued",
+                      "kind": "authority-transition"
+                    }
+                  },
+                  {
+                    "affectedScopeArgumentIds": [
+                      "a0"
+                    ],
+                    "declarationId": "roomMembers",
+                    "event": {
+                      "cause": "declared-physical-restore",
+                      "kind": "authorization-incarnation-change"
+                    }
+                  },
+                  {
+                    "affectedScopeArgumentIds": [
+                      "a0"
+                    ],
+                    "declarationId": "roomMembers",
+                    "event": {
+                      "cause": "grant-ended",
+                      "kind": "authority-transition"
+                    }
+                  },
+                  {
+                    "affectedScopeArgumentIds": [
+                      "a0"
+                    ],
+                    "declarationId": "roomMembers",
+                    "event": {
+                      "cause": "grant-issued",
+                      "kind": "authority-transition"
+                    }
+                  },
+                  {
+                    "affectedScopeArgumentIds": [
+                      "a0"
+                    ],
+                    "declarationId": "roomMembers",
+                    "event": {
+                      "cause": "lease-expiry",
+                      "kind": "authority-transition"
+                    }
+                  },
+                  {
+                    "affectedScopeArgumentIds": [
+                      "a0"
+                    ],
+                    "declarationId": "roomMembers",
+                    "event": {
+                      "cause": "logical-import",
+                      "kind": "authorization-incarnation-change"
+                    }
+                  },
+                  {
+                    "affectedScopeArgumentIds": [
+                      "a0"
+                    ],
+                    "declarationId": "roomMembers",
+                    "event": {
+                      "cause": "login",
+                      "kind": "authority-transition"
+                    }
+                  },
+                  {
+                    "affectedScopeArgumentIds": [
+                      "a0"
+                    ],
+                    "declarationId": "roomMembers",
+                    "event": {
+                      "cause": "logout",
+                      "kind": "authority-transition"
+                    }
+                  },
+                  {
+                    "affectedScopeArgumentIds": [
+                      "a0"
+                    ],
+                    "declarationId": "roomMembers",
+                    "event": {
+                      "cause": "session-expiry",
+                      "kind": "authority-transition"
+                    }
+                  },
+                  {
+                    "affectedScopeArgumentIds": [
+                      "a0"
+                    ],
+                    "declarationId": "roomMembers",
+                    "event": {
+                      "cause": "token-ended",
+                      "kind": "authority-transition"
+                    }
+                  },
+                  {
+                    "affectedScopeArgumentIds": [
+                      "a0"
+                    ],
+                    "declarationId": "roomMembers",
+                    "event": {
+                      "cause": "token-issued",
+                      "kind": "authority-transition"
+                    }
+                  },
+                  {
+                    "affectedScopeArgumentIds": [
+                      "a0"
+                    ],
+                    "declarationId": "roomMembers",
+                    "event": {
+                      "cause": "user-switch",
+                      "kind": "authority-transition"
+                    }
+                  },
+                  {
+                    "affectedScopeArgumentIds": [
+                      "a0"
+                    ],
+                    "declarationId": "roomMembers",
+                    "event": {
+                      "declarationId": "roomMembers",
+                      "kind": "authorization-metadata-activation"
+                    }
+                  },
+                  {
+                    "affectedScopeArgumentIds": [
+                      "a0"
+                    ],
+                    "declarationId": "roomMembers",
+                    "event": {
+                      "declarationId": "roomMembers",
+                      "kind": "out-of-band-permission-revocation"
+                    }
+                  },
+                  {
+                    "affectedScopeArgumentIds": [
+                      "a0"
+                    ],
+                    "declarationId": "roomMembers",
+                    "event": {
+                      "kind": "permission-backing-write",
+                      "permissionFields": null,
+                      "scope": {
+                        "kind": "all-declaration-scopes"
+                      },
+                      "table": "roomMembers"
+                    }
+                  }
+                ],
+                "overlayProjection": null,
+                "predicate": {
+                  "declaration": "roomMembers",
+                  "kind": "membership",
+                  "resourceField": "scopeId",
+                  "roles": [
+                    "member"
+                  ]
+                },
+                "scope": {
+                  "argumentIds": [
+                    "a0"
+                  ],
+                  "policyIdentity": "sha256:36e8140617e4f41425025e1c4d150892aeb58206b8aaaf768e9c83d724582941",
+                  "resourceEqualities": [
+                    {
+                      "argumentId": "a0",
+                      "field": "scopeId",
+                      "nodeId": "n0"
+                    }
+                  ]
+                }
+              },
+              "format": "snapback.graph-broadcast-admission.v1"
+            },
+            "capabilityId": "graph_query_v1",
+            "format": "snapback.graph-query-plan.v1",
+            "functionMembership": [
+              {
+                "declaration": "roomMembers",
+                "resource": {
+                  "arg": {
+                    "path": "roomId",
+                    "resourceTable": "rooms"
+                  }
+                },
+                "roles": [
+                  "member"
+                ]
+              }
+            ],
+            "nodes": [
+              {
+                "accessIndex": "by_scope_updated",
+                "authority": {
+                  "declaredClass": 1,
+                  "proof": null
+                },
+                "edgeName": "$root",
+                "filters": [
+                  {
+                    "field": "scopeId",
+                    "op": "Eq",
+                    "value": {
+                      "Arg": "a0"
+                    }
+                  }
+                ],
+                "kind": "root-window",
+                "nodeId": "n0",
+                "order": [
+                  {
+                    "direction": "Desc",
+                    "field": "updatedAt"
+                  }
+                ],
+                "page": {
+                  "kind": "demand"
+                },
+                "table": "rooms",
+                "visibility": {
+                  "kind": "public-read"
+                }
+              },
+              {
+                "authority": {
+                  "declaredClass": 1,
+                  "proof": null
+                },
+                "edgeName": "$result",
+                "kind": "closed-projection",
+                "nodeId": "n1",
+                "object": {
+                  "fields": [
+                    {
+                      "name": "scopeId",
+                      "value": {
+                        "field": "scopeId",
+                        "kind": "field",
+                        "nodeId": "n0"
+                      }
+                    },
+                    {
+                      "name": "name",
+                      "value": {
+                        "field": "name",
+                        "kind": "field",
+                        "nodeId": "n0"
+                      }
+                    }
+                  ],
+                  "scopeNodeId": "n0"
+                }
+              }
+            ],
+            "queryCost": {
+              "graph": {
+                "arguments": [],
+                "maxArgumentItems": 1,
+                "maxMaintainedWritesPerMutation": 0,
+                "maxPageResultBytes": 512,
+                "nodes": [
+                  {
+                    "maxExaminedEntriesPerExecution": 3,
+                    "maxRootRowsPerPage": 2,
+                    "maxWindowIndexRanges": 2,
+                    "maxWindowPages": 2,
+                    "maxWindowResultBytes": 1024,
+                    "maxWindowResultRows": 4,
+                    "maxWindowRootRows": 4,
+                    "maxWindowScannedRows": 6,
+                    "nodeId": "n0"
+                  }
+                ],
+                "windowRollup": {
+                  "maxWindowIndexRanges": 2,
+                  "maxWindowPages": 2,
+                  "maxWindowResultBytes": 1024,
+                  "maxWindowResultRows": 4,
+                  "maxWindowRootRows": 4,
+                  "maxWindowScannedRows": 6
+                }
+              },
+              "maxDistinctEvaluationGroups": 4,
+              "maxEstimatedLiveFanoutMs": 10,
+              "maxEvaluationTurnMs": 10,
+              "maxIndexRanges": 1,
+              "maxObservers": 8,
+              "maxResultBytes": 512,
+              "maxResultRows": 2,
+              "maxScannedRows": 3
+            },
+            "resultContractHash": "sha256:e6880f691fcc43f290927c1efebeb5b4017ba78dc0754633895970236348ef99",
+            "rootNodeId": "n0"
+          },
+          "planHash": "sha256:49c8cf49bdaff1c1eaa8e179cd6c30d0555122e8fd7b9364086781e4d42c8cf1"
+        }
+      },
+      {
+        "query": "publicRoomsDivergent",
+        "carrier": {
+          "normalizedPlan": {
+            "arguments": [
+              {
+                "argumentId": "a0",
+                "contract": {
+                  "format": "snapback.argument-binding-contract.v1",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "rooms"
+                  }
+                },
+                "contractHash": "sha256:bc3e77d415da29d492c874d44c4795288e1e3e9213d5bc391ceb4765f291d1e3",
+                "name": "roomId"
+              }
+            ],
+            "authorityPartitionRule": {
+              "class2Inputs": [],
+              "class3": "none",
+              "format": "snapback.graph-authority-partition-rule.v1"
+            },
+            "broadcast": {
+              "classification": "query-shaped",
+              "format": "snapback.graph-broadcast-admission.v1",
+              "reason": "audience-parity-failed"
+            },
+            "capabilityId": "graph_query_v1",
+            "format": "snapback.graph-query-plan.v1",
+            "functionMembership": [
+              {
+                "declaration": "roomMembers",
+                "resource": {
+                  "arg": {
+                    "path": "roomId",
+                    "resourceTable": "rooms"
+                  }
+                },
+                "roles": [
+                  "moderator"
+                ]
+              }
+            ],
+            "nodes": [
+              {
+                "accessIndex": "by_scope_updated",
+                "authority": {
+                  "declaredClass": 1,
+                  "proof": null
+                },
+                "edgeName": "$root",
+                "filters": [
+                  {
+                    "field": "scopeId",
+                    "op": "Eq",
+                    "value": {
+                      "Arg": "a0"
+                    }
+                  }
+                ],
+                "kind": "root-window",
+                "nodeId": "n0",
+                "order": [
+                  {
+                    "direction": "Desc",
+                    "field": "updatedAt"
+                  }
+                ],
+                "page": {
+                  "kind": "demand"
+                },
+                "table": "rooms",
+                "visibility": {
+                  "kind": "public-read"
+                }
+              },
+              {
+                "authority": {
+                  "declaredClass": 1,
+                  "proof": null
+                },
+                "edgeName": "$result",
+                "kind": "closed-projection",
+                "nodeId": "n1",
+                "object": {
+                  "fields": [
+                    {
+                      "name": "scopeId",
+                      "value": {
+                        "field": "scopeId",
+                        "kind": "field",
+                        "nodeId": "n0"
+                      }
+                    },
+                    {
+                      "name": "name",
+                      "value": {
+                        "field": "name",
+                        "kind": "field",
+                        "nodeId": "n0"
+                      }
+                    }
+                  ],
+                  "scopeNodeId": "n0"
+                }
+              }
+            ],
+            "queryCost": {
+              "graph": {
+                "arguments": [],
+                "maxArgumentItems": 1,
+                "maxMaintainedWritesPerMutation": 0,
+                "maxPageResultBytes": 512,
+                "nodes": [
+                  {
+                    "maxExaminedEntriesPerExecution": 3,
+                    "maxRootRowsPerPage": 2,
+                    "maxWindowIndexRanges": 2,
+                    "maxWindowPages": 2,
+                    "maxWindowResultBytes": 1024,
+                    "maxWindowResultRows": 4,
+                    "maxWindowRootRows": 4,
+                    "maxWindowScannedRows": 6,
+                    "nodeId": "n0"
+                  }
+                ],
+                "windowRollup": {
+                  "maxWindowIndexRanges": 2,
+                  "maxWindowPages": 2,
+                  "maxWindowResultBytes": 1024,
+                  "maxWindowResultRows": 4,
+                  "maxWindowRootRows": 4,
+                  "maxWindowScannedRows": 6
+                }
+              },
+              "maxDistinctEvaluationGroups": 4,
+              "maxEstimatedLiveFanoutMs": 10,
+              "maxEvaluationTurnMs": 10,
+              "maxIndexRanges": 1,
+              "maxObservers": 8,
+              "maxResultBytes": 512,
+              "maxResultRows": 2,
+              "maxScannedRows": 3
+            },
+            "resultContractHash": "sha256:e6880f691fcc43f290927c1efebeb5b4017ba78dc0754633895970236348ef99",
+            "rootNodeId": "n0"
+          },
+          "planHash": "sha256:060346dfe0698cd88c490dc8c8e40ce69d5a278b1418f4cad4cb534ead69538c"
+        }
+      },
+      {
+        "query": "publicRoomsUnbound",
+        "carrier": {
+          "normalizedPlan": {
+            "arguments": [
+              {
+                "argumentId": "a0",
+                "contract": {
+                  "format": "snapback.argument-binding-contract.v1",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "rooms"
+                  }
+                },
+                "contractHash": "sha256:bc3e77d415da29d492c874d44c4795288e1e3e9213d5bc391ceb4765f291d1e3",
+                "name": "roomId"
+              }
+            ],
+            "authorityPartitionRule": {
+              "class2Inputs": [],
+              "class3": "none",
+              "format": "snapback.graph-authority-partition-rule.v1"
+            },
+            "broadcast": {
+              "classification": "query-shaped",
+              "format": "snapback.graph-broadcast-admission.v1",
+              "reason": "scope-unbound"
+            },
+            "capabilityId": "graph_query_v1",
+            "format": "snapback.graph-query-plan.v1",
+            "functionMembership": [
+              {
+                "declaration": "roomMembers",
+                "resource": {
+                  "arg": {
+                    "path": "roomId",
+                    "resourceTable": "rooms"
+                  }
+                },
+                "roles": [
+                  "member"
+                ]
+              }
+            ],
+            "nodes": [
+              {
+                "accessIndex": "by_category_updated",
+                "authority": {
+                  "declaredClass": 1,
+                  "proof": null
+                },
+                "edgeName": "$root",
+                "filters": [
+                  {
+                    "field": "category",
+                    "op": "Eq",
+                    "value": {
+                      "Literal": "public"
+                    }
+                  }
+                ],
+                "kind": "root-window",
+                "nodeId": "n0",
+                "order": [
+                  {
+                    "direction": "Desc",
+                    "field": "updatedAt"
+                  }
+                ],
+                "page": {
+                  "kind": "demand"
+                },
+                "table": "rooms",
+                "visibility": {
+                  "kind": "public-read"
+                }
+              },
+              {
+                "authority": {
+                  "declaredClass": 1,
+                  "proof": null
+                },
+                "edgeName": "$result",
+                "kind": "closed-projection",
+                "nodeId": "n1",
+                "object": {
+                  "fields": [
+                    {
+                      "name": "scopeId",
+                      "value": {
+                        "field": "scopeId",
+                        "kind": "field",
+                        "nodeId": "n0"
+                      }
+                    },
+                    {
+                      "name": "name",
+                      "value": {
+                        "field": "name",
+                        "kind": "field",
+                        "nodeId": "n0"
+                      }
+                    }
+                  ],
+                  "scopeNodeId": "n0"
+                }
+              }
+            ],
+            "queryCost": {
+              "graph": {
+                "arguments": [],
+                "maxArgumentItems": 1,
+                "maxMaintainedWritesPerMutation": 0,
+                "maxPageResultBytes": 512,
+                "nodes": [
+                  {
+                    "maxExaminedEntriesPerExecution": 3,
+                    "maxRootRowsPerPage": 2,
+                    "maxWindowIndexRanges": 2,
+                    "maxWindowPages": 2,
+                    "maxWindowResultBytes": 1024,
+                    "maxWindowResultRows": 4,
+                    "maxWindowRootRows": 4,
+                    "maxWindowScannedRows": 6,
+                    "nodeId": "n0"
+                  }
+                ],
+                "windowRollup": {
+                  "maxWindowIndexRanges": 2,
+                  "maxWindowPages": 2,
+                  "maxWindowResultBytes": 1024,
+                  "maxWindowResultRows": 4,
+                  "maxWindowRootRows": 4,
+                  "maxWindowScannedRows": 6
+                }
+              },
+              "maxDistinctEvaluationGroups": 4,
+              "maxEstimatedLiveFanoutMs": 10,
+              "maxEvaluationTurnMs": 10,
+              "maxIndexRanges": 1,
+              "maxObservers": 8,
+              "maxResultBytes": 512,
+              "maxResultRows": 2,
+              "maxScannedRows": 3
+            },
+            "resultContractHash": "sha256:e6880f691fcc43f290927c1efebeb5b4017ba78dc0754633895970236348ef99",
+            "rootNodeId": "n0"
+          },
+          "planHash": "sha256:2be218c0949017e787b9ce61cde2409f9bde7d75044a4fb2b36f34b4b36a112e"
+        }
+      }
+    ],
+    "divergence": {
+      "id": "public-rooms-establishment-allow-strict-deny",
+      "principal": "principal_p_member",
+      "args": {
+        "roomId": "room_p"
+      },
+      "authorizationVersion": {
+        "incarnation": "broadcast-corpus-authorization-v1",
+        "epoch": 0
+      },
+      "establishment": {
+        "outcome": "allow",
+        "declaration": "roomMembers",
+        "resource": "room_p"
+      },
+      "strict": {
+        "outcome": "deny",
+        "resultBytes": null,
+        "orderedRootIds": [],
+        "resultLength": 0,
+        "existence": "withheld",
+        "completeness": null
+      },
+      "compilerDisposition": {
+        "classification": "query-shaped",
+        "format": "snapback.graph-broadcast-admission.v1",
+        "reason": "audience-parity-failed"
+      }
+    }
   },
   "queries": [
     {
@@ -48765,6 +50612,1297 @@
       }
     },
     {
+      "caseKind": "pairedWorld",
+      "id": "g0-pair-public-rooms-other-principal-membership",
+      "query": "publicRooms",
+      "plan": {
+        "normalizedPlan": {
+          "arguments": [
+            {
+              "argumentId": "a0",
+              "contract": {
+                "format": "snapback.argument-binding-contract.v1",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "rooms"
+                }
+              },
+              "contractHash": "sha256:bc3e77d415da29d492c874d44c4795288e1e3e9213d5bc391ceb4765f291d1e3",
+              "name": "roomId"
+            }
+          ],
+          "authorityPartitionRule": {
+            "class2Inputs": [],
+            "class3": "none",
+            "format": "snapback.graph-authority-partition-rule.v1"
+          },
+          "broadcast": {
+            "baseNodeIds": [
+              "n0"
+            ],
+            "classification": "broadcast",
+            "establishment": {
+              "audience": {
+                "installedOwnerIdentity": "sha256:c9080b642a2c36c9c76b351ca61fd14f8276ef42bd792f6fd0bb98c6d29e03f1",
+                "strictEvaluatorIdentity": "sha256:104ed5b814ff7eb97f770c15dd5d99d94fff091f2718058424ce06c09338bd58"
+              },
+              "effect": "admit-only",
+              "invalidation": [
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "admin-session-revocation",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "app-reset",
+                    "kind": "authorization-incarnation-change"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "credential-ended",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "credential-issued",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "declared-physical-restore",
+                    "kind": "authorization-incarnation-change"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "grant-ended",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "grant-issued",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "lease-expiry",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "logical-import",
+                    "kind": "authorization-incarnation-change"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "login",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "logout",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "session-expiry",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "token-ended",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "token-issued",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "user-switch",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "declarationId": "roomMembers",
+                    "kind": "authorization-metadata-activation"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "declarationId": "roomMembers",
+                    "kind": "out-of-band-permission-revocation"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "kind": "permission-backing-write",
+                    "permissionFields": null,
+                    "scope": {
+                      "kind": "all-declaration-scopes"
+                    },
+                    "table": "roomMembers"
+                  }
+                }
+              ],
+              "overlayProjection": null,
+              "predicate": {
+                "declaration": "roomMembers",
+                "kind": "membership",
+                "resourceField": "scopeId",
+                "roles": [
+                  "member"
+                ]
+              },
+              "scope": {
+                "argumentIds": [
+                  "a0"
+                ],
+                "policyIdentity": "sha256:36e8140617e4f41425025e1c4d150892aeb58206b8aaaf768e9c83d724582941",
+                "resourceEqualities": [
+                  {
+                    "argumentId": "a0",
+                    "field": "scopeId",
+                    "nodeId": "n0"
+                  }
+                ]
+              }
+            },
+            "format": "snapback.graph-broadcast-admission.v1"
+          },
+          "capabilityId": "graph_query_v1",
+          "format": "snapback.graph-query-plan.v1",
+          "functionMembership": [
+            {
+              "declaration": "roomMembers",
+              "resource": {
+                "arg": {
+                  "path": "roomId",
+                  "resourceTable": "rooms"
+                }
+              },
+              "roles": [
+                "member"
+              ]
+            }
+          ],
+          "nodes": [
+            {
+              "accessIndex": "by_scope_updated",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "$root",
+              "filters": [
+                {
+                  "field": "scopeId",
+                  "op": "Eq",
+                  "value": {
+                    "Arg": "a0"
+                  }
+                }
+              ],
+              "kind": "root-window",
+              "nodeId": "n0",
+              "order": [
+                {
+                  "direction": "Desc",
+                  "field": "updatedAt"
+                }
+              ],
+              "page": {
+                "kind": "demand"
+              },
+              "table": "rooms",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "$result",
+              "kind": "closed-projection",
+              "nodeId": "n1",
+              "object": {
+                "fields": [
+                  {
+                    "name": "scopeId",
+                    "value": {
+                      "field": "scopeId",
+                      "kind": "field",
+                      "nodeId": "n0"
+                    }
+                  },
+                  {
+                    "name": "name",
+                    "value": {
+                      "field": "name",
+                      "kind": "field",
+                      "nodeId": "n0"
+                    }
+                  }
+                ],
+                "scopeNodeId": "n0"
+              }
+            }
+          ],
+          "queryCost": {
+            "graph": {
+              "arguments": [],
+              "maxArgumentItems": 1,
+              "maxMaintainedWritesPerMutation": 0,
+              "maxPageResultBytes": 512,
+              "nodes": [
+                {
+                  "maxExaminedEntriesPerExecution": 3,
+                  "maxRootRowsPerPage": 2,
+                  "maxWindowIndexRanges": 2,
+                  "maxWindowPages": 2,
+                  "maxWindowResultBytes": 1024,
+                  "maxWindowResultRows": 4,
+                  "maxWindowRootRows": 4,
+                  "maxWindowScannedRows": 6,
+                  "nodeId": "n0"
+                }
+              ],
+              "windowRollup": {
+                "maxWindowIndexRanges": 2,
+                "maxWindowPages": 2,
+                "maxWindowResultBytes": 1024,
+                "maxWindowResultRows": 4,
+                "maxWindowRootRows": 4,
+                "maxWindowScannedRows": 6
+              }
+            },
+            "maxDistinctEvaluationGroups": 4,
+            "maxEstimatedLiveFanoutMs": 10,
+            "maxEvaluationTurnMs": 10,
+            "maxIndexRanges": 1,
+            "maxObservers": 8,
+            "maxResultBytes": 512,
+            "maxResultRows": 2,
+            "maxScannedRows": 3
+          },
+          "resultContractHash": "sha256:e6880f691fcc43f290927c1efebeb5b4017ba78dc0754633895970236348ef99",
+          "rootNodeId": "n0"
+        },
+        "planHash": "sha256:49c8cf49bdaff1c1eaa8e179cd6c30d0555122e8fd7b9364086781e4d42c8cf1"
+      },
+      "invocation": {
+        "planHash": "sha256:49c8cf49bdaff1c1eaa8e179cd6c30d0555122e8fd7b9364086781e4d42c8cf1",
+        "args": {
+          "roomId": "room_p"
+        },
+        "windows": [
+          {
+            "nodeId": "n0",
+            "intervals": [
+              {
+                "parentKey": null,
+                "window": {
+                  "order": [
+                    {
+                      "direction": "Desc",
+                      "field": "updatedAt"
+                    }
+                  ],
+                  "direction": "forward",
+                  "lower": {
+                    "kind": "unbounded"
+                  },
+                  "upper": {
+                    "kind": "unbounded"
+                  },
+                  "take": 1
+                }
+              }
+            ]
+          }
+        ],
+        "advancedNodeId": "n0",
+        "materialization": {
+          "format": "snapback.graph-materialization.v1",
+          "appId": "graph-broadcast-corpus",
+          "databaseId": "broadcast-fixture-v1",
+          "deploymentId": "g0-broadcast-prover",
+          "targetProfileId": "local",
+          "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "function": {
+            "artifactKind": "functionReference",
+            "schemaVersion": "snapback.v1",
+            "appId": "graph-broadcast-corpus",
+            "id": "graph-086781e4d42c8cf1",
+            "name": "publicRooms",
+            "kind": "LiveQuery",
+            "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "resultContractHash": "sha256:e6880f691fcc43f290927c1efebeb5b4017ba78dc0754633895970236348ef99",
+            "expectedGeneration": {
+              "schemaVersion": "snapback.v1",
+              "appId": "graph-broadcast-corpus",
+              "schemaHash": "broadcast-corpus-schema-v1",
+              "bundleHash": "broadcast-corpus-bundle-v1",
+              "inputsHash": "broadcast-corpus-inputs-v1"
+            }
+          },
+          "graphInstanceHash": "sha256:d15891f8b9e1ab885b0d7c65d6bc4cfae84ac477b651141c8049496377928331"
+        },
+        "partition": {
+          "format": "snapback.graph-authority-partition.v1",
+          "graphPlanHash": "sha256:49c8cf49bdaff1c1eaa8e179cd6c30d0555122e8fd7b9364086781e4d42c8cf1",
+          "class2": [],
+          "class3": null
+        },
+        "authorizationVersion": {
+          "incarnation": "broadcast-corpus-authorization-v1",
+          "epoch": 0
+        },
+        "evaluationCut": 1
+      },
+      "fixturePairId": "g0-pair-public-rooms-other-principal-membership",
+      "coveredNodeIds": [
+        "n0"
+      ],
+      "coveredAuthorityClasses": [
+        1
+      ],
+      "hiddenAxes": [
+        "principal",
+        "policy"
+      ],
+      "windowVectorDisposition": {
+        "status": "VALIDATED"
+      },
+      "worlds": {
+        "present": {
+          "fixture": "g0-pair-public-rooms-other-principal-membership-present-v1",
+          "fixtureDigest": "sha256:30a2f2585cf3325bbad770d9fd22aa554edc07e9ec14bf5ce6cc92d19bf757e5",
+          "hiddenSlice": [
+            {
+              "table": "roomMembers",
+              "rowIds": [
+                "member_q"
+              ]
+            }
+          ]
+        },
+        "absent": {
+          "fixture": "g0-pair-public-rooms-other-principal-membership-absent-v1",
+          "fixtureDigest": "sha256:79ffd46ff8565380d26891d0da07eb2eec20fa49d5a8b1d7cc090dfa528eed7a",
+          "hiddenSlice": []
+        }
+      },
+      "oracleEvidence": {
+        "presentDigest": "sha256:c3a36f622d9a0f001004bfd06ac95097b570d0c84484e57abe9c58ad788b79f8",
+        "absentDigest": "sha256:c3a36f622d9a0f001004bfd06ac95097b570d0c84484e57abe9c58ad788b79f8",
+        "present": {
+          "outcome": "allow",
+          "resultBytes": "[{\"scopeId\":\"room_p\",\"name\":\"Public P\"}]",
+          "orderedRootIds": [
+            "room_p"
+          ],
+          "resultLength": 1,
+          "existence": "present",
+          "completeness": "complete"
+        },
+        "absent": {
+          "outcome": "allow",
+          "resultBytes": "[{\"scopeId\":\"room_p\",\"name\":\"Public P\"}]",
+          "orderedRootIds": [
+            "room_p"
+          ],
+          "resultLength": 1,
+          "existence": "present",
+          "completeness": "complete"
+        }
+      },
+      "expect": {
+        "kind": "result",
+        "label": "complete",
+        "resultBytes": "[{\"scopeId\":\"room_p\",\"name\":\"Public P\"}]",
+        "orderedRootIds": [
+          "room_p"
+        ],
+        "resultLength": 1,
+        "nodeCompleteness": [
+          {
+            "nodeId": "n0",
+            "nodeKind": "root-window",
+            "label": "complete",
+            "proofClass": "whole-source",
+            "proof": {
+              "materializationHash": "sha256:ee12f2a794b23c61aafeab421082e86259c38b3010a8ec48e0068a5cd0ca8f25",
+              "partitionHash": "sha256:e8e639b713bdc83cc7269672eb63b0f598e2f9fbceebafa2c38151480060d994",
+              "authorizationVersion": {
+                "incarnation": "broadcast-corpus-authorization-v1",
+                "epoch": 0
+              },
+              "evaluationCut": 1,
+              "kind": "root-window",
+              "label": "complete",
+              "interval": {
+                "lower": {
+                  "kind": "unbounded"
+                },
+                "upper": {
+                  "kind": "unbounded"
+                }
+              },
+              "consumed": 1,
+              "hasMore": false,
+              "sourceExhausted": true
+            }
+          },
+          {
+            "nodeId": "n1",
+            "nodeKind": "closed-projection",
+            "label": "complete",
+            "proofClass": "projection-composition",
+            "proof": {
+              "materializationHash": "sha256:ee12f2a794b23c61aafeab421082e86259c38b3010a8ec48e0068a5cd0ca8f25",
+              "partitionHash": "sha256:e8e639b713bdc83cc7269672eb63b0f598e2f9fbceebafa2c38151480060d994",
+              "authorizationVersion": {
+                "incarnation": "broadcast-corpus-authorization-v1",
+                "epoch": 0
+              },
+              "evaluationCut": 1,
+              "kind": "closed-projection",
+              "label": "complete",
+              "composition": {
+                "materializationHash": "sha256:ee12f2a794b23c61aafeab421082e86259c38b3010a8ec48e0068a5cd0ca8f25",
+                "partitionHash": "sha256:e8e639b713bdc83cc7269672eb63b0f598e2f9fbceebafa2c38151480060d994",
+                "authorizationVersion": {
+                  "incarnation": "broadcast-corpus-authorization-v1",
+                  "epoch": 0
+                },
+                "evaluationCut": 1,
+                "kind": "graph-composition",
+                "label": "complete",
+                "nodes": [
+                  {
+                    "nodeId": "n0",
+                    "nodeKind": "root-window",
+                    "label": "complete",
+                    "proofHash": "sha256:2cf1d7c5789367b1b4b18db211f8f8144ddac651bacd92dad6ce35edee813d6e"
+                  }
+                ],
+                "allComplete": true
+              }
+            }
+          }
+        ],
+        "graphCompleteness": {
+          "materializationHash": "sha256:ee12f2a794b23c61aafeab421082e86259c38b3010a8ec48e0068a5cd0ca8f25",
+          "partitionHash": "sha256:e8e639b713bdc83cc7269672eb63b0f598e2f9fbceebafa2c38151480060d994",
+          "authorizationVersion": {
+            "incarnation": "broadcast-corpus-authorization-v1",
+            "epoch": 0
+          },
+          "evaluationCut": 1,
+          "label": "complete",
+          "proofClass": "all-complete",
+          "proof": {
+            "materializationHash": "sha256:ee12f2a794b23c61aafeab421082e86259c38b3010a8ec48e0068a5cd0ca8f25",
+            "partitionHash": "sha256:e8e639b713bdc83cc7269672eb63b0f598e2f9fbceebafa2c38151480060d994",
+            "authorizationVersion": {
+              "incarnation": "broadcast-corpus-authorization-v1",
+              "epoch": 0
+            },
+            "evaluationCut": 1,
+            "kind": "graph-composition",
+            "label": "complete",
+            "nodes": [
+              {
+                "nodeId": "n0",
+                "nodeKind": "root-window",
+                "label": "complete",
+                "proofHash": "sha256:2cf1d7c5789367b1b4b18db211f8f8144ddac651bacd92dad6ce35edee813d6e"
+              }
+            ],
+            "allComplete": true
+          }
+        },
+        "refusalReason": null,
+        "structuralWork": {
+          "rootRowsByNode": [
+            {
+              "nodeId": "n0",
+              "observed": 1
+            }
+          ],
+          "examinedEntriesByNode": [
+            {
+              "nodeId": "n0",
+              "observed": 1
+            }
+          ],
+          "relationshipLookupsByNode": [],
+          "maxFanoutByNode": [],
+          "argumentItemsByArgument": [
+            {
+              "argumentId": "a0",
+              "observed": 1
+            }
+          ],
+          "argumentItems": 1,
+          "argumentExpansionByNode": []
+        },
+        "windowLedgers": [
+          {
+            "nodeId": "n0",
+            "pages": 1,
+            "rootRows": 1,
+            "scannedRows": 1,
+            "resultRows": 1,
+            "resultBytes": 40,
+            "indexRanges": 1
+          }
+        ]
+      }
+    },
+    {
+      "caseKind": "pairedWorld",
+      "id": "g0-pair-public-rooms-other-partition-data",
+      "query": "publicRooms",
+      "plan": {
+        "normalizedPlan": {
+          "arguments": [
+            {
+              "argumentId": "a0",
+              "contract": {
+                "format": "snapback.argument-binding-contract.v1",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "rooms"
+                }
+              },
+              "contractHash": "sha256:bc3e77d415da29d492c874d44c4795288e1e3e9213d5bc391ceb4765f291d1e3",
+              "name": "roomId"
+            }
+          ],
+          "authorityPartitionRule": {
+            "class2Inputs": [],
+            "class3": "none",
+            "format": "snapback.graph-authority-partition-rule.v1"
+          },
+          "broadcast": {
+            "baseNodeIds": [
+              "n0"
+            ],
+            "classification": "broadcast",
+            "establishment": {
+              "audience": {
+                "installedOwnerIdentity": "sha256:c9080b642a2c36c9c76b351ca61fd14f8276ef42bd792f6fd0bb98c6d29e03f1",
+                "strictEvaluatorIdentity": "sha256:104ed5b814ff7eb97f770c15dd5d99d94fff091f2718058424ce06c09338bd58"
+              },
+              "effect": "admit-only",
+              "invalidation": [
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "admin-session-revocation",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "app-reset",
+                    "kind": "authorization-incarnation-change"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "credential-ended",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "credential-issued",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "declared-physical-restore",
+                    "kind": "authorization-incarnation-change"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "grant-ended",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "grant-issued",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "lease-expiry",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "logical-import",
+                    "kind": "authorization-incarnation-change"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "login",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "logout",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "session-expiry",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "token-ended",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "token-issued",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "user-switch",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "declarationId": "roomMembers",
+                    "kind": "authorization-metadata-activation"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "declarationId": "roomMembers",
+                    "kind": "out-of-band-permission-revocation"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "kind": "permission-backing-write",
+                    "permissionFields": null,
+                    "scope": {
+                      "kind": "all-declaration-scopes"
+                    },
+                    "table": "roomMembers"
+                  }
+                }
+              ],
+              "overlayProjection": null,
+              "predicate": {
+                "declaration": "roomMembers",
+                "kind": "membership",
+                "resourceField": "scopeId",
+                "roles": [
+                  "member"
+                ]
+              },
+              "scope": {
+                "argumentIds": [
+                  "a0"
+                ],
+                "policyIdentity": "sha256:36e8140617e4f41425025e1c4d150892aeb58206b8aaaf768e9c83d724582941",
+                "resourceEqualities": [
+                  {
+                    "argumentId": "a0",
+                    "field": "scopeId",
+                    "nodeId": "n0"
+                  }
+                ]
+              }
+            },
+            "format": "snapback.graph-broadcast-admission.v1"
+          },
+          "capabilityId": "graph_query_v1",
+          "format": "snapback.graph-query-plan.v1",
+          "functionMembership": [
+            {
+              "declaration": "roomMembers",
+              "resource": {
+                "arg": {
+                  "path": "roomId",
+                  "resourceTable": "rooms"
+                }
+              },
+              "roles": [
+                "member"
+              ]
+            }
+          ],
+          "nodes": [
+            {
+              "accessIndex": "by_scope_updated",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "$root",
+              "filters": [
+                {
+                  "field": "scopeId",
+                  "op": "Eq",
+                  "value": {
+                    "Arg": "a0"
+                  }
+                }
+              ],
+              "kind": "root-window",
+              "nodeId": "n0",
+              "order": [
+                {
+                  "direction": "Desc",
+                  "field": "updatedAt"
+                }
+              ],
+              "page": {
+                "kind": "demand"
+              },
+              "table": "rooms",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "$result",
+              "kind": "closed-projection",
+              "nodeId": "n1",
+              "object": {
+                "fields": [
+                  {
+                    "name": "scopeId",
+                    "value": {
+                      "field": "scopeId",
+                      "kind": "field",
+                      "nodeId": "n0"
+                    }
+                  },
+                  {
+                    "name": "name",
+                    "value": {
+                      "field": "name",
+                      "kind": "field",
+                      "nodeId": "n0"
+                    }
+                  }
+                ],
+                "scopeNodeId": "n0"
+              }
+            }
+          ],
+          "queryCost": {
+            "graph": {
+              "arguments": [],
+              "maxArgumentItems": 1,
+              "maxMaintainedWritesPerMutation": 0,
+              "maxPageResultBytes": 512,
+              "nodes": [
+                {
+                  "maxExaminedEntriesPerExecution": 3,
+                  "maxRootRowsPerPage": 2,
+                  "maxWindowIndexRanges": 2,
+                  "maxWindowPages": 2,
+                  "maxWindowResultBytes": 1024,
+                  "maxWindowResultRows": 4,
+                  "maxWindowRootRows": 4,
+                  "maxWindowScannedRows": 6,
+                  "nodeId": "n0"
+                }
+              ],
+              "windowRollup": {
+                "maxWindowIndexRanges": 2,
+                "maxWindowPages": 2,
+                "maxWindowResultBytes": 1024,
+                "maxWindowResultRows": 4,
+                "maxWindowRootRows": 4,
+                "maxWindowScannedRows": 6
+              }
+            },
+            "maxDistinctEvaluationGroups": 4,
+            "maxEstimatedLiveFanoutMs": 10,
+            "maxEvaluationTurnMs": 10,
+            "maxIndexRanges": 1,
+            "maxObservers": 8,
+            "maxResultBytes": 512,
+            "maxResultRows": 2,
+            "maxScannedRows": 3
+          },
+          "resultContractHash": "sha256:e6880f691fcc43f290927c1efebeb5b4017ba78dc0754633895970236348ef99",
+          "rootNodeId": "n0"
+        },
+        "planHash": "sha256:49c8cf49bdaff1c1eaa8e179cd6c30d0555122e8fd7b9364086781e4d42c8cf1"
+      },
+      "invocation": {
+        "planHash": "sha256:49c8cf49bdaff1c1eaa8e179cd6c30d0555122e8fd7b9364086781e4d42c8cf1",
+        "args": {
+          "roomId": "room_p"
+        },
+        "windows": [
+          {
+            "nodeId": "n0",
+            "intervals": [
+              {
+                "parentKey": null,
+                "window": {
+                  "order": [
+                    {
+                      "direction": "Desc",
+                      "field": "updatedAt"
+                    }
+                  ],
+                  "direction": "forward",
+                  "lower": {
+                    "kind": "unbounded"
+                  },
+                  "upper": {
+                    "kind": "unbounded"
+                  },
+                  "take": 1
+                }
+              }
+            ]
+          }
+        ],
+        "advancedNodeId": "n0",
+        "materialization": {
+          "format": "snapback.graph-materialization.v1",
+          "appId": "graph-broadcast-corpus",
+          "databaseId": "broadcast-fixture-v1",
+          "deploymentId": "g0-broadcast-prover",
+          "targetProfileId": "local",
+          "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "function": {
+            "artifactKind": "functionReference",
+            "schemaVersion": "snapback.v1",
+            "appId": "graph-broadcast-corpus",
+            "id": "graph-086781e4d42c8cf1",
+            "name": "publicRooms",
+            "kind": "LiveQuery",
+            "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "resultContractHash": "sha256:e6880f691fcc43f290927c1efebeb5b4017ba78dc0754633895970236348ef99",
+            "expectedGeneration": {
+              "schemaVersion": "snapback.v1",
+              "appId": "graph-broadcast-corpus",
+              "schemaHash": "broadcast-corpus-schema-v1",
+              "bundleHash": "broadcast-corpus-bundle-v1",
+              "inputsHash": "broadcast-corpus-inputs-v1"
+            }
+          },
+          "graphInstanceHash": "sha256:d15891f8b9e1ab885b0d7c65d6bc4cfae84ac477b651141c8049496377928331"
+        },
+        "partition": {
+          "format": "snapback.graph-authority-partition.v1",
+          "graphPlanHash": "sha256:49c8cf49bdaff1c1eaa8e179cd6c30d0555122e8fd7b9364086781e4d42c8cf1",
+          "class2": [],
+          "class3": null
+        },
+        "authorizationVersion": {
+          "incarnation": "broadcast-corpus-authorization-v1",
+          "epoch": 0
+        },
+        "evaluationCut": 1
+      },
+      "fixturePairId": "g0-pair-public-rooms-other-partition-data",
+      "coveredNodeIds": [
+        "n0"
+      ],
+      "coveredAuthorityClasses": [
+        1
+      ],
+      "hiddenAxes": [
+        "principal",
+        "partition",
+        "policy"
+      ],
+      "windowVectorDisposition": {
+        "status": "VALIDATED"
+      },
+      "worlds": {
+        "present": {
+          "fixture": "g0-pair-public-rooms-other-partition-data-present-v1",
+          "fixtureDigest": "sha256:30a2f2585cf3325bbad770d9fd22aa554edc07e9ec14bf5ce6cc92d19bf757e5",
+          "hiddenSlice": [
+            {
+              "table": "rooms",
+              "rowIds": [
+                "room_q"
+              ]
+            },
+            {
+              "table": "roomMembers",
+              "rowIds": [
+                "member_q"
+              ]
+            }
+          ]
+        },
+        "absent": {
+          "fixture": "g0-pair-public-rooms-other-partition-data-absent-v1",
+          "fixtureDigest": "sha256:af2083af90ab16eec3e8c1a8eeb45d168a57128ea1a6116cbb3d54a2bd73e45c",
+          "hiddenSlice": []
+        }
+      },
+      "oracleEvidence": {
+        "presentDigest": "sha256:c3a36f622d9a0f001004bfd06ac95097b570d0c84484e57abe9c58ad788b79f8",
+        "absentDigest": "sha256:c3a36f622d9a0f001004bfd06ac95097b570d0c84484e57abe9c58ad788b79f8",
+        "present": {
+          "outcome": "allow",
+          "resultBytes": "[{\"scopeId\":\"room_p\",\"name\":\"Public P\"}]",
+          "orderedRootIds": [
+            "room_p"
+          ],
+          "resultLength": 1,
+          "existence": "present",
+          "completeness": "complete"
+        },
+        "absent": {
+          "outcome": "allow",
+          "resultBytes": "[{\"scopeId\":\"room_p\",\"name\":\"Public P\"}]",
+          "orderedRootIds": [
+            "room_p"
+          ],
+          "resultLength": 1,
+          "existence": "present",
+          "completeness": "complete"
+        }
+      },
+      "expect": {
+        "kind": "result",
+        "label": "complete",
+        "resultBytes": "[{\"scopeId\":\"room_p\",\"name\":\"Public P\"}]",
+        "orderedRootIds": [
+          "room_p"
+        ],
+        "resultLength": 1,
+        "nodeCompleteness": [
+          {
+            "nodeId": "n0",
+            "nodeKind": "root-window",
+            "label": "complete",
+            "proofClass": "whole-source",
+            "proof": {
+              "materializationHash": "sha256:ee12f2a794b23c61aafeab421082e86259c38b3010a8ec48e0068a5cd0ca8f25",
+              "partitionHash": "sha256:e8e639b713bdc83cc7269672eb63b0f598e2f9fbceebafa2c38151480060d994",
+              "authorizationVersion": {
+                "incarnation": "broadcast-corpus-authorization-v1",
+                "epoch": 0
+              },
+              "evaluationCut": 1,
+              "kind": "root-window",
+              "label": "complete",
+              "interval": {
+                "lower": {
+                  "kind": "unbounded"
+                },
+                "upper": {
+                  "kind": "unbounded"
+                }
+              },
+              "consumed": 1,
+              "hasMore": false,
+              "sourceExhausted": true
+            }
+          },
+          {
+            "nodeId": "n1",
+            "nodeKind": "closed-projection",
+            "label": "complete",
+            "proofClass": "projection-composition",
+            "proof": {
+              "materializationHash": "sha256:ee12f2a794b23c61aafeab421082e86259c38b3010a8ec48e0068a5cd0ca8f25",
+              "partitionHash": "sha256:e8e639b713bdc83cc7269672eb63b0f598e2f9fbceebafa2c38151480060d994",
+              "authorizationVersion": {
+                "incarnation": "broadcast-corpus-authorization-v1",
+                "epoch": 0
+              },
+              "evaluationCut": 1,
+              "kind": "closed-projection",
+              "label": "complete",
+              "composition": {
+                "materializationHash": "sha256:ee12f2a794b23c61aafeab421082e86259c38b3010a8ec48e0068a5cd0ca8f25",
+                "partitionHash": "sha256:e8e639b713bdc83cc7269672eb63b0f598e2f9fbceebafa2c38151480060d994",
+                "authorizationVersion": {
+                  "incarnation": "broadcast-corpus-authorization-v1",
+                  "epoch": 0
+                },
+                "evaluationCut": 1,
+                "kind": "graph-composition",
+                "label": "complete",
+                "nodes": [
+                  {
+                    "nodeId": "n0",
+                    "nodeKind": "root-window",
+                    "label": "complete",
+                    "proofHash": "sha256:2cf1d7c5789367b1b4b18db211f8f8144ddac651bacd92dad6ce35edee813d6e"
+                  }
+                ],
+                "allComplete": true
+              }
+            }
+          }
+        ],
+        "graphCompleteness": {
+          "materializationHash": "sha256:ee12f2a794b23c61aafeab421082e86259c38b3010a8ec48e0068a5cd0ca8f25",
+          "partitionHash": "sha256:e8e639b713bdc83cc7269672eb63b0f598e2f9fbceebafa2c38151480060d994",
+          "authorizationVersion": {
+            "incarnation": "broadcast-corpus-authorization-v1",
+            "epoch": 0
+          },
+          "evaluationCut": 1,
+          "label": "complete",
+          "proofClass": "all-complete",
+          "proof": {
+            "materializationHash": "sha256:ee12f2a794b23c61aafeab421082e86259c38b3010a8ec48e0068a5cd0ca8f25",
+            "partitionHash": "sha256:e8e639b713bdc83cc7269672eb63b0f598e2f9fbceebafa2c38151480060d994",
+            "authorizationVersion": {
+              "incarnation": "broadcast-corpus-authorization-v1",
+              "epoch": 0
+            },
+            "evaluationCut": 1,
+            "kind": "graph-composition",
+            "label": "complete",
+            "nodes": [
+              {
+                "nodeId": "n0",
+                "nodeKind": "root-window",
+                "label": "complete",
+                "proofHash": "sha256:2cf1d7c5789367b1b4b18db211f8f8144ddac651bacd92dad6ce35edee813d6e"
+              }
+            ],
+            "allComplete": true
+          }
+        },
+        "refusalReason": null,
+        "structuralWork": {
+          "rootRowsByNode": [
+            {
+              "nodeId": "n0",
+              "observed": 1
+            }
+          ],
+          "examinedEntriesByNode": [
+            {
+              "nodeId": "n0",
+              "observed": 1
+            }
+          ],
+          "relationshipLookupsByNode": [],
+          "maxFanoutByNode": [],
+          "argumentItemsByArgument": [
+            {
+              "argumentId": "a0",
+              "observed": 1
+            }
+          ],
+          "argumentItems": 1,
+          "argumentExpansionByNode": []
+        },
+        "windowLedgers": [
+          {
+            "nodeId": "n0",
+            "pages": 1,
+            "rootRows": 1,
+            "scannedRows": 1,
+            "resultRows": 1,
+            "resultBytes": 40,
+            "indexRanges": 1
+          }
+        ]
+      }
+    },
+    {
       "caseKind": "allowDeny",
       "id": "g0-allow-deny-point-crew-internal-root",
       "query": "listIssueByID",
@@ -50169,6 +53307,1719 @@
         },
         "denied": "deny",
         "deniedResultBytes": null
+      }
+    },
+    {
+      "caseKind": "audienceParity",
+      "id": "public-rooms-scopeP-exact-audience",
+      "plan": {
+        "normalizedPlan": {
+          "arguments": [
+            {
+              "argumentId": "a0",
+              "contract": {
+                "format": "snapback.argument-binding-contract.v1",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "rooms"
+                }
+              },
+              "contractHash": "sha256:bc3e77d415da29d492c874d44c4795288e1e3e9213d5bc391ceb4765f291d1e3",
+              "name": "roomId"
+            }
+          ],
+          "authorityPartitionRule": {
+            "class2Inputs": [],
+            "class3": "none",
+            "format": "snapback.graph-authority-partition-rule.v1"
+          },
+          "broadcast": {
+            "baseNodeIds": [
+              "n0"
+            ],
+            "classification": "broadcast",
+            "establishment": {
+              "audience": {
+                "installedOwnerIdentity": "sha256:c9080b642a2c36c9c76b351ca61fd14f8276ef42bd792f6fd0bb98c6d29e03f1",
+                "strictEvaluatorIdentity": "sha256:104ed5b814ff7eb97f770c15dd5d99d94fff091f2718058424ce06c09338bd58"
+              },
+              "effect": "admit-only",
+              "invalidation": [
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "admin-session-revocation",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "app-reset",
+                    "kind": "authorization-incarnation-change"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "credential-ended",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "credential-issued",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "declared-physical-restore",
+                    "kind": "authorization-incarnation-change"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "grant-ended",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "grant-issued",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "lease-expiry",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "logical-import",
+                    "kind": "authorization-incarnation-change"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "login",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "logout",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "session-expiry",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "token-ended",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "token-issued",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "user-switch",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "declarationId": "roomMembers",
+                    "kind": "authorization-metadata-activation"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "declarationId": "roomMembers",
+                    "kind": "out-of-band-permission-revocation"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "kind": "permission-backing-write",
+                    "permissionFields": null,
+                    "scope": {
+                      "kind": "all-declaration-scopes"
+                    },
+                    "table": "roomMembers"
+                  }
+                }
+              ],
+              "overlayProjection": null,
+              "predicate": {
+                "declaration": "roomMembers",
+                "kind": "membership",
+                "resourceField": "scopeId",
+                "roles": [
+                  "member"
+                ]
+              },
+              "scope": {
+                "argumentIds": [
+                  "a0"
+                ],
+                "policyIdentity": "sha256:36e8140617e4f41425025e1c4d150892aeb58206b8aaaf768e9c83d724582941",
+                "resourceEqualities": [
+                  {
+                    "argumentId": "a0",
+                    "field": "scopeId",
+                    "nodeId": "n0"
+                  }
+                ]
+              }
+            },
+            "format": "snapback.graph-broadcast-admission.v1"
+          },
+          "capabilityId": "graph_query_v1",
+          "format": "snapback.graph-query-plan.v1",
+          "functionMembership": [
+            {
+              "declaration": "roomMembers",
+              "resource": {
+                "arg": {
+                  "path": "roomId",
+                  "resourceTable": "rooms"
+                }
+              },
+              "roles": [
+                "member"
+              ]
+            }
+          ],
+          "nodes": [
+            {
+              "accessIndex": "by_scope_updated",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "$root",
+              "filters": [
+                {
+                  "field": "scopeId",
+                  "op": "Eq",
+                  "value": {
+                    "Arg": "a0"
+                  }
+                }
+              ],
+              "kind": "root-window",
+              "nodeId": "n0",
+              "order": [
+                {
+                  "direction": "Desc",
+                  "field": "updatedAt"
+                }
+              ],
+              "page": {
+                "kind": "demand"
+              },
+              "table": "rooms",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "$result",
+              "kind": "closed-projection",
+              "nodeId": "n1",
+              "object": {
+                "fields": [
+                  {
+                    "name": "scopeId",
+                    "value": {
+                      "field": "scopeId",
+                      "kind": "field",
+                      "nodeId": "n0"
+                    }
+                  },
+                  {
+                    "name": "name",
+                    "value": {
+                      "field": "name",
+                      "kind": "field",
+                      "nodeId": "n0"
+                    }
+                  }
+                ],
+                "scopeNodeId": "n0"
+              }
+            }
+          ],
+          "queryCost": {
+            "graph": {
+              "arguments": [],
+              "maxArgumentItems": 1,
+              "maxMaintainedWritesPerMutation": 0,
+              "maxPageResultBytes": 512,
+              "nodes": [
+                {
+                  "maxExaminedEntriesPerExecution": 3,
+                  "maxRootRowsPerPage": 2,
+                  "maxWindowIndexRanges": 2,
+                  "maxWindowPages": 2,
+                  "maxWindowResultBytes": 1024,
+                  "maxWindowResultRows": 4,
+                  "maxWindowRootRows": 4,
+                  "maxWindowScannedRows": 6,
+                  "nodeId": "n0"
+                }
+              ],
+              "windowRollup": {
+                "maxWindowIndexRanges": 2,
+                "maxWindowPages": 2,
+                "maxWindowResultBytes": 1024,
+                "maxWindowResultRows": 4,
+                "maxWindowRootRows": 4,
+                "maxWindowScannedRows": 6
+              }
+            },
+            "maxDistinctEvaluationGroups": 4,
+            "maxEstimatedLiveFanoutMs": 10,
+            "maxEvaluationTurnMs": 10,
+            "maxIndexRanges": 1,
+            "maxObservers": 8,
+            "maxResultBytes": 512,
+            "maxResultRows": 2,
+            "maxScannedRows": 3
+          },
+          "resultContractHash": "sha256:e6880f691fcc43f290927c1efebeb5b4017ba78dc0754633895970236348ef99",
+          "rootNodeId": "n0"
+        },
+        "planHash": "sha256:49c8cf49bdaff1c1eaa8e179cd6c30d0555122e8fd7b9364086781e4d42c8cf1"
+      },
+      "invocations": [
+        {
+          "planHash": "sha256:49c8cf49bdaff1c1eaa8e179cd6c30d0555122e8fd7b9364086781e4d42c8cf1",
+          "args": {
+            "roomId": "room_p"
+          },
+          "windows": [
+            {
+              "nodeId": "n0",
+              "intervals": [
+                {
+                  "parentKey": null,
+                  "window": {
+                    "order": [
+                      {
+                        "direction": "Desc",
+                        "field": "updatedAt"
+                      }
+                    ],
+                    "direction": "forward",
+                    "lower": {
+                      "kind": "unbounded"
+                    },
+                    "upper": {
+                      "kind": "unbounded"
+                    },
+                    "take": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "advancedNodeId": "n0",
+          "materialization": {
+            "format": "snapback.graph-materialization.v1",
+            "appId": "graph-broadcast-corpus",
+            "databaseId": "broadcast-fixture-v1",
+            "deploymentId": "g0-broadcast-prover",
+            "targetProfileId": "local",
+            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "function": {
+              "artifactKind": "functionReference",
+              "schemaVersion": "snapback.v1",
+              "appId": "graph-broadcast-corpus",
+              "id": "graph-086781e4d42c8cf1",
+              "name": "publicRooms",
+              "kind": "LiveQuery",
+              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "resultContractHash": "sha256:e6880f691fcc43f290927c1efebeb5b4017ba78dc0754633895970236348ef99",
+              "expectedGeneration": {
+                "schemaVersion": "snapback.v1",
+                "appId": "graph-broadcast-corpus",
+                "schemaHash": "broadcast-corpus-schema-v1",
+                "bundleHash": "broadcast-corpus-bundle-v1",
+                "inputsHash": "broadcast-corpus-inputs-v1"
+              }
+            },
+            "graphInstanceHash": "sha256:d15891f8b9e1ab885b0d7c65d6bc4cfae84ac477b651141c8049496377928331"
+          },
+          "partition": {
+            "format": "snapback.graph-authority-partition.v1",
+            "graphPlanHash": "sha256:49c8cf49bdaff1c1eaa8e179cd6c30d0555122e8fd7b9364086781e4d42c8cf1",
+            "class2": [],
+            "class3": null
+          },
+          "authorizationVersion": {
+            "incarnation": "broadcast-corpus-authorization-v1",
+            "epoch": 0
+          },
+          "evaluationCut": 1
+        },
+        {
+          "planHash": "sha256:49c8cf49bdaff1c1eaa8e179cd6c30d0555122e8fd7b9364086781e4d42c8cf1",
+          "args": {
+            "roomId": "room_p"
+          },
+          "windows": [
+            {
+              "nodeId": "n0",
+              "intervals": [
+                {
+                  "parentKey": null,
+                  "window": {
+                    "order": [
+                      {
+                        "direction": "Desc",
+                        "field": "updatedAt"
+                      }
+                    ],
+                    "direction": "forward",
+                    "lower": {
+                      "kind": "unbounded"
+                    },
+                    "upper": {
+                      "kind": "unbounded"
+                    },
+                    "take": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "advancedNodeId": "n0",
+          "materialization": {
+            "format": "snapback.graph-materialization.v1",
+            "appId": "graph-broadcast-corpus",
+            "databaseId": "broadcast-fixture-v1",
+            "deploymentId": "g0-broadcast-prover",
+            "targetProfileId": "local",
+            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "function": {
+              "artifactKind": "functionReference",
+              "schemaVersion": "snapback.v1",
+              "appId": "graph-broadcast-corpus",
+              "id": "graph-086781e4d42c8cf1",
+              "name": "publicRooms",
+              "kind": "LiveQuery",
+              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "resultContractHash": "sha256:e6880f691fcc43f290927c1efebeb5b4017ba78dc0754633895970236348ef99",
+              "expectedGeneration": {
+                "schemaVersion": "snapback.v1",
+                "appId": "graph-broadcast-corpus",
+                "schemaHash": "broadcast-corpus-schema-v1",
+                "bundleHash": "broadcast-corpus-bundle-v1",
+                "inputsHash": "broadcast-corpus-inputs-v1"
+              }
+            },
+            "graphInstanceHash": "sha256:d15891f8b9e1ab885b0d7c65d6bc4cfae84ac477b651141c8049496377928331"
+          },
+          "partition": {
+            "format": "snapback.graph-authority-partition.v1",
+            "graphPlanHash": "sha256:49c8cf49bdaff1c1eaa8e179cd6c30d0555122e8fd7b9364086781e4d42c8cf1",
+            "class2": [],
+            "class3": null
+          },
+          "authorizationVersion": {
+            "incarnation": "broadcast-corpus-authorization-v1",
+            "epoch": 0
+          },
+          "evaluationCut": 1
+        }
+      ],
+      "principals": [
+        "principal_p_member",
+        "principal_outsider"
+      ],
+      "evaluationEvidence": {
+        "establishment": [
+          {
+            "outcome": "allow",
+            "declaration": "roomMembers",
+            "resource": "room_p"
+          },
+          {
+            "outcome": "deny",
+            "declaration": "roomMembers",
+            "resource": "room_p"
+          }
+        ],
+        "strict": [
+          {
+            "outcome": "allow",
+            "resultBytes": "[{\"scopeId\":\"room_p\",\"name\":\"Public P\"}]",
+            "orderedRootIds": [
+              "room_p"
+            ],
+            "resultLength": 1,
+            "existence": "present",
+            "completeness": "complete"
+          },
+          {
+            "outcome": "deny",
+            "resultBytes": null,
+            "orderedRootIds": [],
+            "resultLength": 0,
+            "existence": "withheld",
+            "completeness": null
+          }
+        ]
+      },
+      "expect": {
+        "establishment": [
+          "allow",
+          "deny"
+        ],
+        "strict": [
+          "allow",
+          "deny"
+        ],
+        "allowedDelivery": {
+          "kind": "result",
+          "label": "complete",
+          "resultBytes": "[{\"scopeId\":\"room_p\",\"name\":\"Public P\"}]",
+          "orderedRootIds": [
+            "room_p"
+          ],
+          "resultLength": 1,
+          "nodeCompleteness": [
+            {
+              "nodeId": "n0",
+              "nodeKind": "root-window",
+              "label": "complete",
+              "proofClass": "whole-source",
+              "proof": {
+                "materializationHash": "sha256:ee12f2a794b23c61aafeab421082e86259c38b3010a8ec48e0068a5cd0ca8f25",
+                "partitionHash": "sha256:e8e639b713bdc83cc7269672eb63b0f598e2f9fbceebafa2c38151480060d994",
+                "authorizationVersion": {
+                  "incarnation": "broadcast-corpus-authorization-v1",
+                  "epoch": 0
+                },
+                "evaluationCut": 1,
+                "kind": "root-window",
+                "label": "complete",
+                "interval": {
+                  "lower": {
+                    "kind": "unbounded"
+                  },
+                  "upper": {
+                    "kind": "unbounded"
+                  }
+                },
+                "consumed": 1,
+                "hasMore": false,
+                "sourceExhausted": true
+              }
+            },
+            {
+              "nodeId": "n1",
+              "nodeKind": "closed-projection",
+              "label": "complete",
+              "proofClass": "projection-composition",
+              "proof": {
+                "materializationHash": "sha256:ee12f2a794b23c61aafeab421082e86259c38b3010a8ec48e0068a5cd0ca8f25",
+                "partitionHash": "sha256:e8e639b713bdc83cc7269672eb63b0f598e2f9fbceebafa2c38151480060d994",
+                "authorizationVersion": {
+                  "incarnation": "broadcast-corpus-authorization-v1",
+                  "epoch": 0
+                },
+                "evaluationCut": 1,
+                "kind": "closed-projection",
+                "label": "complete",
+                "composition": {
+                  "materializationHash": "sha256:ee12f2a794b23c61aafeab421082e86259c38b3010a8ec48e0068a5cd0ca8f25",
+                  "partitionHash": "sha256:e8e639b713bdc83cc7269672eb63b0f598e2f9fbceebafa2c38151480060d994",
+                  "authorizationVersion": {
+                    "incarnation": "broadcast-corpus-authorization-v1",
+                    "epoch": 0
+                  },
+                  "evaluationCut": 1,
+                  "kind": "graph-composition",
+                  "label": "complete",
+                  "nodes": [
+                    {
+                      "nodeId": "n0",
+                      "nodeKind": "root-window",
+                      "label": "complete",
+                      "proofHash": "sha256:2cf1d7c5789367b1b4b18db211f8f8144ddac651bacd92dad6ce35edee813d6e"
+                    }
+                  ],
+                  "allComplete": true
+                }
+              }
+            }
+          ],
+          "graphCompleteness": {
+            "materializationHash": "sha256:ee12f2a794b23c61aafeab421082e86259c38b3010a8ec48e0068a5cd0ca8f25",
+            "partitionHash": "sha256:e8e639b713bdc83cc7269672eb63b0f598e2f9fbceebafa2c38151480060d994",
+            "authorizationVersion": {
+              "incarnation": "broadcast-corpus-authorization-v1",
+              "epoch": 0
+            },
+            "evaluationCut": 1,
+            "label": "complete",
+            "proofClass": "all-complete",
+            "proof": {
+              "materializationHash": "sha256:ee12f2a794b23c61aafeab421082e86259c38b3010a8ec48e0068a5cd0ca8f25",
+              "partitionHash": "sha256:e8e639b713bdc83cc7269672eb63b0f598e2f9fbceebafa2c38151480060d994",
+              "authorizationVersion": {
+                "incarnation": "broadcast-corpus-authorization-v1",
+                "epoch": 0
+              },
+              "evaluationCut": 1,
+              "kind": "graph-composition",
+              "label": "complete",
+              "nodes": [
+                {
+                  "nodeId": "n0",
+                  "nodeKind": "root-window",
+                  "label": "complete",
+                  "proofHash": "sha256:2cf1d7c5789367b1b4b18db211f8f8144ddac651bacd92dad6ce35edee813d6e"
+                }
+              ],
+              "allComplete": true
+            }
+          },
+          "refusalReason": null,
+          "structuralWork": {
+            "rootRowsByNode": [
+              {
+                "nodeId": "n0",
+                "observed": 1
+              }
+            ],
+            "examinedEntriesByNode": [
+              {
+                "nodeId": "n0",
+                "observed": 1
+              }
+            ],
+            "relationshipLookupsByNode": [],
+            "maxFanoutByNode": [],
+            "argumentItemsByArgument": [
+              {
+                "argumentId": "a0",
+                "observed": 1
+              }
+            ],
+            "argumentItems": 1,
+            "argumentExpansionByNode": []
+          },
+          "windowLedgers": [
+            {
+              "nodeId": "n0",
+              "pages": 1,
+              "rootRows": 1,
+              "scannedRows": 1,
+              "resultRows": 1,
+              "resultBytes": 40,
+              "indexRanges": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseKind": "audienceParity",
+      "id": "public-rooms-scopeQ-exact-audience",
+      "plan": {
+        "normalizedPlan": {
+          "arguments": [
+            {
+              "argumentId": "a0",
+              "contract": {
+                "format": "snapback.argument-binding-contract.v1",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "rooms"
+                }
+              },
+              "contractHash": "sha256:bc3e77d415da29d492c874d44c4795288e1e3e9213d5bc391ceb4765f291d1e3",
+              "name": "roomId"
+            }
+          ],
+          "authorityPartitionRule": {
+            "class2Inputs": [],
+            "class3": "none",
+            "format": "snapback.graph-authority-partition-rule.v1"
+          },
+          "broadcast": {
+            "baseNodeIds": [
+              "n0"
+            ],
+            "classification": "broadcast",
+            "establishment": {
+              "audience": {
+                "installedOwnerIdentity": "sha256:c9080b642a2c36c9c76b351ca61fd14f8276ef42bd792f6fd0bb98c6d29e03f1",
+                "strictEvaluatorIdentity": "sha256:104ed5b814ff7eb97f770c15dd5d99d94fff091f2718058424ce06c09338bd58"
+              },
+              "effect": "admit-only",
+              "invalidation": [
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "admin-session-revocation",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "app-reset",
+                    "kind": "authorization-incarnation-change"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "credential-ended",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "credential-issued",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "declared-physical-restore",
+                    "kind": "authorization-incarnation-change"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "grant-ended",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "grant-issued",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "lease-expiry",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "logical-import",
+                    "kind": "authorization-incarnation-change"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "login",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "logout",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "session-expiry",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "token-ended",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "token-issued",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "cause": "user-switch",
+                    "kind": "authority-transition"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "declarationId": "roomMembers",
+                    "kind": "authorization-metadata-activation"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "declarationId": "roomMembers",
+                    "kind": "out-of-band-permission-revocation"
+                  }
+                },
+                {
+                  "affectedScopeArgumentIds": [
+                    "a0"
+                  ],
+                  "declarationId": "roomMembers",
+                  "event": {
+                    "kind": "permission-backing-write",
+                    "permissionFields": null,
+                    "scope": {
+                      "kind": "all-declaration-scopes"
+                    },
+                    "table": "roomMembers"
+                  }
+                }
+              ],
+              "overlayProjection": null,
+              "predicate": {
+                "declaration": "roomMembers",
+                "kind": "membership",
+                "resourceField": "scopeId",
+                "roles": [
+                  "member"
+                ]
+              },
+              "scope": {
+                "argumentIds": [
+                  "a0"
+                ],
+                "policyIdentity": "sha256:36e8140617e4f41425025e1c4d150892aeb58206b8aaaf768e9c83d724582941",
+                "resourceEqualities": [
+                  {
+                    "argumentId": "a0",
+                    "field": "scopeId",
+                    "nodeId": "n0"
+                  }
+                ]
+              }
+            },
+            "format": "snapback.graph-broadcast-admission.v1"
+          },
+          "capabilityId": "graph_query_v1",
+          "format": "snapback.graph-query-plan.v1",
+          "functionMembership": [
+            {
+              "declaration": "roomMembers",
+              "resource": {
+                "arg": {
+                  "path": "roomId",
+                  "resourceTable": "rooms"
+                }
+              },
+              "roles": [
+                "member"
+              ]
+            }
+          ],
+          "nodes": [
+            {
+              "accessIndex": "by_scope_updated",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "$root",
+              "filters": [
+                {
+                  "field": "scopeId",
+                  "op": "Eq",
+                  "value": {
+                    "Arg": "a0"
+                  }
+                }
+              ],
+              "kind": "root-window",
+              "nodeId": "n0",
+              "order": [
+                {
+                  "direction": "Desc",
+                  "field": "updatedAt"
+                }
+              ],
+              "page": {
+                "kind": "demand"
+              },
+              "table": "rooms",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "$result",
+              "kind": "closed-projection",
+              "nodeId": "n1",
+              "object": {
+                "fields": [
+                  {
+                    "name": "scopeId",
+                    "value": {
+                      "field": "scopeId",
+                      "kind": "field",
+                      "nodeId": "n0"
+                    }
+                  },
+                  {
+                    "name": "name",
+                    "value": {
+                      "field": "name",
+                      "kind": "field",
+                      "nodeId": "n0"
+                    }
+                  }
+                ],
+                "scopeNodeId": "n0"
+              }
+            }
+          ],
+          "queryCost": {
+            "graph": {
+              "arguments": [],
+              "maxArgumentItems": 1,
+              "maxMaintainedWritesPerMutation": 0,
+              "maxPageResultBytes": 512,
+              "nodes": [
+                {
+                  "maxExaminedEntriesPerExecution": 3,
+                  "maxRootRowsPerPage": 2,
+                  "maxWindowIndexRanges": 2,
+                  "maxWindowPages": 2,
+                  "maxWindowResultBytes": 1024,
+                  "maxWindowResultRows": 4,
+                  "maxWindowRootRows": 4,
+                  "maxWindowScannedRows": 6,
+                  "nodeId": "n0"
+                }
+              ],
+              "windowRollup": {
+                "maxWindowIndexRanges": 2,
+                "maxWindowPages": 2,
+                "maxWindowResultBytes": 1024,
+                "maxWindowResultRows": 4,
+                "maxWindowRootRows": 4,
+                "maxWindowScannedRows": 6
+              }
+            },
+            "maxDistinctEvaluationGroups": 4,
+            "maxEstimatedLiveFanoutMs": 10,
+            "maxEvaluationTurnMs": 10,
+            "maxIndexRanges": 1,
+            "maxObservers": 8,
+            "maxResultBytes": 512,
+            "maxResultRows": 2,
+            "maxScannedRows": 3
+          },
+          "resultContractHash": "sha256:e6880f691fcc43f290927c1efebeb5b4017ba78dc0754633895970236348ef99",
+          "rootNodeId": "n0"
+        },
+        "planHash": "sha256:49c8cf49bdaff1c1eaa8e179cd6c30d0555122e8fd7b9364086781e4d42c8cf1"
+      },
+      "invocations": [
+        {
+          "planHash": "sha256:49c8cf49bdaff1c1eaa8e179cd6c30d0555122e8fd7b9364086781e4d42c8cf1",
+          "args": {
+            "roomId": "room_q"
+          },
+          "windows": [
+            {
+              "nodeId": "n0",
+              "intervals": [
+                {
+                  "parentKey": null,
+                  "window": {
+                    "order": [
+                      {
+                        "direction": "Desc",
+                        "field": "updatedAt"
+                      }
+                    ],
+                    "direction": "forward",
+                    "lower": {
+                      "kind": "unbounded"
+                    },
+                    "upper": {
+                      "kind": "unbounded"
+                    },
+                    "take": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "advancedNodeId": "n0",
+          "materialization": {
+            "format": "snapback.graph-materialization.v1",
+            "appId": "graph-broadcast-corpus",
+            "databaseId": "broadcast-fixture-v1",
+            "deploymentId": "g0-broadcast-prover",
+            "targetProfileId": "local",
+            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "function": {
+              "artifactKind": "functionReference",
+              "schemaVersion": "snapback.v1",
+              "appId": "graph-broadcast-corpus",
+              "id": "graph-086781e4d42c8cf1",
+              "name": "publicRooms",
+              "kind": "LiveQuery",
+              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "resultContractHash": "sha256:e6880f691fcc43f290927c1efebeb5b4017ba78dc0754633895970236348ef99",
+              "expectedGeneration": {
+                "schemaVersion": "snapback.v1",
+                "appId": "graph-broadcast-corpus",
+                "schemaHash": "broadcast-corpus-schema-v1",
+                "bundleHash": "broadcast-corpus-bundle-v1",
+                "inputsHash": "broadcast-corpus-inputs-v1"
+              }
+            },
+            "graphInstanceHash": "sha256:843fa99f063add7e23670e5d4e03276e6986b82f0b72b250ab9a96c4f738fb8b"
+          },
+          "partition": {
+            "format": "snapback.graph-authority-partition.v1",
+            "graphPlanHash": "sha256:49c8cf49bdaff1c1eaa8e179cd6c30d0555122e8fd7b9364086781e4d42c8cf1",
+            "class2": [],
+            "class3": null
+          },
+          "authorizationVersion": {
+            "incarnation": "broadcast-corpus-authorization-v1",
+            "epoch": 0
+          },
+          "evaluationCut": 1
+        },
+        {
+          "planHash": "sha256:49c8cf49bdaff1c1eaa8e179cd6c30d0555122e8fd7b9364086781e4d42c8cf1",
+          "args": {
+            "roomId": "room_q"
+          },
+          "windows": [
+            {
+              "nodeId": "n0",
+              "intervals": [
+                {
+                  "parentKey": null,
+                  "window": {
+                    "order": [
+                      {
+                        "direction": "Desc",
+                        "field": "updatedAt"
+                      }
+                    ],
+                    "direction": "forward",
+                    "lower": {
+                      "kind": "unbounded"
+                    },
+                    "upper": {
+                      "kind": "unbounded"
+                    },
+                    "take": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "advancedNodeId": "n0",
+          "materialization": {
+            "format": "snapback.graph-materialization.v1",
+            "appId": "graph-broadcast-corpus",
+            "databaseId": "broadcast-fixture-v1",
+            "deploymentId": "g0-broadcast-prover",
+            "targetProfileId": "local",
+            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "function": {
+              "artifactKind": "functionReference",
+              "schemaVersion": "snapback.v1",
+              "appId": "graph-broadcast-corpus",
+              "id": "graph-086781e4d42c8cf1",
+              "name": "publicRooms",
+              "kind": "LiveQuery",
+              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "resultContractHash": "sha256:e6880f691fcc43f290927c1efebeb5b4017ba78dc0754633895970236348ef99",
+              "expectedGeneration": {
+                "schemaVersion": "snapback.v1",
+                "appId": "graph-broadcast-corpus",
+                "schemaHash": "broadcast-corpus-schema-v1",
+                "bundleHash": "broadcast-corpus-bundle-v1",
+                "inputsHash": "broadcast-corpus-inputs-v1"
+              }
+            },
+            "graphInstanceHash": "sha256:843fa99f063add7e23670e5d4e03276e6986b82f0b72b250ab9a96c4f738fb8b"
+          },
+          "partition": {
+            "format": "snapback.graph-authority-partition.v1",
+            "graphPlanHash": "sha256:49c8cf49bdaff1c1eaa8e179cd6c30d0555122e8fd7b9364086781e4d42c8cf1",
+            "class2": [],
+            "class3": null
+          },
+          "authorizationVersion": {
+            "incarnation": "broadcast-corpus-authorization-v1",
+            "epoch": 0
+          },
+          "evaluationCut": 1
+        }
+      ],
+      "principals": [
+        "principal_q_member",
+        "principal_outsider"
+      ],
+      "evaluationEvidence": {
+        "establishment": [
+          {
+            "outcome": "allow",
+            "declaration": "roomMembers",
+            "resource": "room_q"
+          },
+          {
+            "outcome": "deny",
+            "declaration": "roomMembers",
+            "resource": "room_q"
+          }
+        ],
+        "strict": [
+          {
+            "outcome": "allow",
+            "resultBytes": "[{\"scopeId\":\"room_q\",\"name\":\"Public Q\"}]",
+            "orderedRootIds": [
+              "room_q"
+            ],
+            "resultLength": 1,
+            "existence": "present",
+            "completeness": "complete"
+          },
+          {
+            "outcome": "deny",
+            "resultBytes": null,
+            "orderedRootIds": [],
+            "resultLength": 0,
+            "existence": "withheld",
+            "completeness": null
+          }
+        ]
+      },
+      "expect": {
+        "establishment": [
+          "allow",
+          "deny"
+        ],
+        "strict": [
+          "allow",
+          "deny"
+        ],
+        "allowedDelivery": {
+          "kind": "result",
+          "label": "complete",
+          "resultBytes": "[{\"scopeId\":\"room_q\",\"name\":\"Public Q\"}]",
+          "orderedRootIds": [
+            "room_q"
+          ],
+          "resultLength": 1,
+          "nodeCompleteness": [
+            {
+              "nodeId": "n0",
+              "nodeKind": "root-window",
+              "label": "complete",
+              "proofClass": "whole-source",
+              "proof": {
+                "materializationHash": "sha256:f8df3d6b3ee11be406d190695d8a526214ebcb9f7f40060312f891f6dbe664d0",
+                "partitionHash": "sha256:e8e639b713bdc83cc7269672eb63b0f598e2f9fbceebafa2c38151480060d994",
+                "authorizationVersion": {
+                  "incarnation": "broadcast-corpus-authorization-v1",
+                  "epoch": 0
+                },
+                "evaluationCut": 1,
+                "kind": "root-window",
+                "label": "complete",
+                "interval": {
+                  "lower": {
+                    "kind": "unbounded"
+                  },
+                  "upper": {
+                    "kind": "unbounded"
+                  }
+                },
+                "consumed": 1,
+                "hasMore": false,
+                "sourceExhausted": true
+              }
+            },
+            {
+              "nodeId": "n1",
+              "nodeKind": "closed-projection",
+              "label": "complete",
+              "proofClass": "projection-composition",
+              "proof": {
+                "materializationHash": "sha256:f8df3d6b3ee11be406d190695d8a526214ebcb9f7f40060312f891f6dbe664d0",
+                "partitionHash": "sha256:e8e639b713bdc83cc7269672eb63b0f598e2f9fbceebafa2c38151480060d994",
+                "authorizationVersion": {
+                  "incarnation": "broadcast-corpus-authorization-v1",
+                  "epoch": 0
+                },
+                "evaluationCut": 1,
+                "kind": "closed-projection",
+                "label": "complete",
+                "composition": {
+                  "materializationHash": "sha256:f8df3d6b3ee11be406d190695d8a526214ebcb9f7f40060312f891f6dbe664d0",
+                  "partitionHash": "sha256:e8e639b713bdc83cc7269672eb63b0f598e2f9fbceebafa2c38151480060d994",
+                  "authorizationVersion": {
+                    "incarnation": "broadcast-corpus-authorization-v1",
+                    "epoch": 0
+                  },
+                  "evaluationCut": 1,
+                  "kind": "graph-composition",
+                  "label": "complete",
+                  "nodes": [
+                    {
+                      "nodeId": "n0",
+                      "nodeKind": "root-window",
+                      "label": "complete",
+                      "proofHash": "sha256:0af8625018d819994011b33a0c093011a02481b14f8aef71e424ec052a9b4078"
+                    }
+                  ],
+                  "allComplete": true
+                }
+              }
+            }
+          ],
+          "graphCompleteness": {
+            "materializationHash": "sha256:f8df3d6b3ee11be406d190695d8a526214ebcb9f7f40060312f891f6dbe664d0",
+            "partitionHash": "sha256:e8e639b713bdc83cc7269672eb63b0f598e2f9fbceebafa2c38151480060d994",
+            "authorizationVersion": {
+              "incarnation": "broadcast-corpus-authorization-v1",
+              "epoch": 0
+            },
+            "evaluationCut": 1,
+            "label": "complete",
+            "proofClass": "all-complete",
+            "proof": {
+              "materializationHash": "sha256:f8df3d6b3ee11be406d190695d8a526214ebcb9f7f40060312f891f6dbe664d0",
+              "partitionHash": "sha256:e8e639b713bdc83cc7269672eb63b0f598e2f9fbceebafa2c38151480060d994",
+              "authorizationVersion": {
+                "incarnation": "broadcast-corpus-authorization-v1",
+                "epoch": 0
+              },
+              "evaluationCut": 1,
+              "kind": "graph-composition",
+              "label": "complete",
+              "nodes": [
+                {
+                  "nodeId": "n0",
+                  "nodeKind": "root-window",
+                  "label": "complete",
+                  "proofHash": "sha256:0af8625018d819994011b33a0c093011a02481b14f8aef71e424ec052a9b4078"
+                }
+              ],
+              "allComplete": true
+            }
+          },
+          "refusalReason": null,
+          "structuralWork": {
+            "rootRowsByNode": [
+              {
+                "nodeId": "n0",
+                "observed": 1
+              }
+            ],
+            "examinedEntriesByNode": [
+              {
+                "nodeId": "n0",
+                "observed": 1
+              }
+            ],
+            "relationshipLookupsByNode": [],
+            "maxFanoutByNode": [],
+            "argumentItemsByArgument": [
+              {
+                "argumentId": "a0",
+                "observed": 1
+              }
+            ],
+            "argumentItems": 1,
+            "argumentExpansionByNode": []
+          },
+          "windowLedgers": [
+            {
+              "nodeId": "n0",
+              "pages": 1,
+              "rootRows": 1,
+              "scannedRows": 1,
+              "resultRows": 1,
+              "resultBytes": 40,
+              "indexRanges": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseKind": "scopeMismatch",
+      "id": "public-rooms-scope-mismatch-query-shaped",
+      "plan": {
+        "normalizedPlan": {
+          "arguments": [
+            {
+              "argumentId": "a0",
+              "contract": {
+                "format": "snapback.argument-binding-contract.v1",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "rooms"
+                }
+              },
+              "contractHash": "sha256:bc3e77d415da29d492c874d44c4795288e1e3e9213d5bc391ceb4765f291d1e3",
+              "name": "roomId"
+            }
+          ],
+          "authorityPartitionRule": {
+            "class2Inputs": [],
+            "class3": "none",
+            "format": "snapback.graph-authority-partition-rule.v1"
+          },
+          "broadcast": {
+            "classification": "query-shaped",
+            "format": "snapback.graph-broadcast-admission.v1",
+            "reason": "scope-unbound"
+          },
+          "capabilityId": "graph_query_v1",
+          "format": "snapback.graph-query-plan.v1",
+          "functionMembership": [
+            {
+              "declaration": "roomMembers",
+              "resource": {
+                "arg": {
+                  "path": "roomId",
+                  "resourceTable": "rooms"
+                }
+              },
+              "roles": [
+                "member"
+              ]
+            }
+          ],
+          "nodes": [
+            {
+              "accessIndex": "by_category_updated",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "$root",
+              "filters": [
+                {
+                  "field": "category",
+                  "op": "Eq",
+                  "value": {
+                    "Literal": "public"
+                  }
+                }
+              ],
+              "kind": "root-window",
+              "nodeId": "n0",
+              "order": [
+                {
+                  "direction": "Desc",
+                  "field": "updatedAt"
+                }
+              ],
+              "page": {
+                "kind": "demand"
+              },
+              "table": "rooms",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "$result",
+              "kind": "closed-projection",
+              "nodeId": "n1",
+              "object": {
+                "fields": [
+                  {
+                    "name": "scopeId",
+                    "value": {
+                      "field": "scopeId",
+                      "kind": "field",
+                      "nodeId": "n0"
+                    }
+                  },
+                  {
+                    "name": "name",
+                    "value": {
+                      "field": "name",
+                      "kind": "field",
+                      "nodeId": "n0"
+                    }
+                  }
+                ],
+                "scopeNodeId": "n0"
+              }
+            }
+          ],
+          "queryCost": {
+            "graph": {
+              "arguments": [],
+              "maxArgumentItems": 1,
+              "maxMaintainedWritesPerMutation": 0,
+              "maxPageResultBytes": 512,
+              "nodes": [
+                {
+                  "maxExaminedEntriesPerExecution": 3,
+                  "maxRootRowsPerPage": 2,
+                  "maxWindowIndexRanges": 2,
+                  "maxWindowPages": 2,
+                  "maxWindowResultBytes": 1024,
+                  "maxWindowResultRows": 4,
+                  "maxWindowRootRows": 4,
+                  "maxWindowScannedRows": 6,
+                  "nodeId": "n0"
+                }
+              ],
+              "windowRollup": {
+                "maxWindowIndexRanges": 2,
+                "maxWindowPages": 2,
+                "maxWindowResultBytes": 1024,
+                "maxWindowResultRows": 4,
+                "maxWindowRootRows": 4,
+                "maxWindowScannedRows": 6
+              }
+            },
+            "maxDistinctEvaluationGroups": 4,
+            "maxEstimatedLiveFanoutMs": 10,
+            "maxEvaluationTurnMs": 10,
+            "maxIndexRanges": 1,
+            "maxObservers": 8,
+            "maxResultBytes": 512,
+            "maxResultRows": 2,
+            "maxScannedRows": 3
+          },
+          "resultContractHash": "sha256:e6880f691fcc43f290927c1efebeb5b4017ba78dc0754633895970236348ef99",
+          "rootNodeId": "n0"
+        },
+        "planHash": "sha256:2be218c0949017e787b9ce61cde2409f9bde7d75044a4fb2b36f34b4b36a112e"
+      },
+      "invocations": {
+        "memberScope": {
+          "planHash": "sha256:2be218c0949017e787b9ce61cde2409f9bde7d75044a4fb2b36f34b4b36a112e",
+          "args": {
+            "roomId": "room_p"
+          },
+          "windows": [
+            {
+              "nodeId": "n0",
+              "intervals": [
+                {
+                  "parentKey": null,
+                  "window": {
+                    "order": [
+                      {
+                        "direction": "Desc",
+                        "field": "updatedAt"
+                      }
+                    ],
+                    "direction": "forward",
+                    "lower": {
+                      "kind": "unbounded"
+                    },
+                    "upper": {
+                      "kind": "unbounded"
+                    },
+                    "take": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "advancedNodeId": "n0",
+          "materialization": {
+            "format": "snapback.graph-materialization.v1",
+            "appId": "graph-broadcast-corpus",
+            "databaseId": "broadcast-fixture-v1",
+            "deploymentId": "g0-broadcast-prover",
+            "targetProfileId": "local",
+            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "function": {
+              "artifactKind": "functionReference",
+              "schemaVersion": "snapback.v1",
+              "appId": "graph-broadcast-corpus",
+              "id": "graph-b36f34b4b36a112e",
+              "name": "publicRoomsUnbound",
+              "kind": "LiveQuery",
+              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "resultContractHash": "sha256:e6880f691fcc43f290927c1efebeb5b4017ba78dc0754633895970236348ef99",
+              "expectedGeneration": {
+                "schemaVersion": "snapback.v1",
+                "appId": "graph-broadcast-corpus",
+                "schemaHash": "broadcast-corpus-schema-v1",
+                "bundleHash": "broadcast-corpus-bundle-v1",
+                "inputsHash": "broadcast-corpus-inputs-v1"
+              }
+            },
+            "graphInstanceHash": "sha256:94e43e71f694a49090a243106a5e9fe32d30eb202cd8f8f177e5b6a9906e5bda"
+          },
+          "partition": {
+            "format": "snapback.graph-authority-partition.v1",
+            "graphPlanHash": "sha256:2be218c0949017e787b9ce61cde2409f9bde7d75044a4fb2b36f34b4b36a112e",
+            "class2": [],
+            "class3": null
+          },
+          "authorizationVersion": {
+            "incarnation": "broadcast-corpus-authorization-v1",
+            "epoch": 0
+          },
+          "evaluationCut": 1
+        },
+        "presentedInstance": {
+          "planHash": "sha256:2be218c0949017e787b9ce61cde2409f9bde7d75044a4fb2b36f34b4b36a112e",
+          "args": {
+            "roomId": "room_q"
+          },
+          "windows": [
+            {
+              "nodeId": "n0",
+              "intervals": [
+                {
+                  "parentKey": null,
+                  "window": {
+                    "order": [
+                      {
+                        "direction": "Desc",
+                        "field": "updatedAt"
+                      }
+                    ],
+                    "direction": "forward",
+                    "lower": {
+                      "kind": "unbounded"
+                    },
+                    "upper": {
+                      "kind": "unbounded"
+                    },
+                    "take": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "advancedNodeId": "n0",
+          "materialization": {
+            "format": "snapback.graph-materialization.v1",
+            "appId": "graph-broadcast-corpus",
+            "databaseId": "broadcast-fixture-v1",
+            "deploymentId": "g0-broadcast-prover",
+            "targetProfileId": "local",
+            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "function": {
+              "artifactKind": "functionReference",
+              "schemaVersion": "snapback.v1",
+              "appId": "graph-broadcast-corpus",
+              "id": "graph-b36f34b4b36a112e",
+              "name": "publicRoomsUnbound",
+              "kind": "LiveQuery",
+              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "resultContractHash": "sha256:e6880f691fcc43f290927c1efebeb5b4017ba78dc0754633895970236348ef99",
+              "expectedGeneration": {
+                "schemaVersion": "snapback.v1",
+                "appId": "graph-broadcast-corpus",
+                "schemaHash": "broadcast-corpus-schema-v1",
+                "bundleHash": "broadcast-corpus-bundle-v1",
+                "inputsHash": "broadcast-corpus-inputs-v1"
+              }
+            },
+            "graphInstanceHash": "sha256:7448b577c7cf11549b3c6a5d2ac3efb54970b2959c75e7de37adb1674e66da44"
+          },
+          "partition": {
+            "format": "snapback.graph-authority-partition.v1",
+            "graphPlanHash": "sha256:2be218c0949017e787b9ce61cde2409f9bde7d75044a4fb2b36f34b4b36a112e",
+            "class2": [],
+            "class3": null
+          },
+          "authorizationVersion": {
+            "incarnation": "broadcast-corpus-authorization-v1",
+            "epoch": 0
+          },
+          "evaluationCut": 1
+        }
+      },
+      "principal": "principal_p_member",
+      "expect": {
+        "classification": "query-shaped",
+        "reason": "scope-unbound",
+        "resultBytes": null
       }
     },
     {
@@ -58755,45 +63606,49 @@
   "executableCaseKinds": [
     "pairedWorld",
     "allowDeny",
+    "audienceParity",
+    "scopeMismatch",
     "refusal"
   ],
   "pendingBroadcastCases": "tests/conformance/graph/broadcast-cases.g2-pending.v1.json",
+  "broadcastProverDispositions": "tests/conformance/graph/broadcast-prover-dispositions.v1.json",
   "broadcastInputs": [
     {
       "label": "G0-BCAST-CLASS",
-      "status": "NOT SATISFIED",
-      "missingCarrier": "every admitted Zerobugs base derives class 2 and each projection rolls up to class 3; no class-1 broadcast base or executed counterfeit-broadcast refusal exists",
-      "artifact": "queries[*].carrier.normalizedPlan.nodes[*].authority + pairedWorld cases",
+      "status": "SATISFIED",
+      "missingCarrier": null,
+      "artifact": "publicRooms + two class-1 pairedWorld cases + rows 23-27 host counterfeit tests",
       "caseKinds": [
         "pairedWorld",
+        "audienceParity",
         "refusal"
       ]
     },
     {
       "label": "G0-BCAST-SEPARATION",
-      "status": "NOT SATISFIED",
-      "missingCarrier": "host-proven separation certificate and executed counterfeit-broadcast refusal; allowed activation executes through the evaluator while denial remains establishment-only",
-      "artifact": "corpus.v1.json allowDeny + broadcast-cases.g2-pending.v1.json",
+      "status": "SATISFIED",
+      "missingCarrier": null,
+      "artifact": "codegen source walk + host recomputation + publicRooms certificate",
       "caseKinds": [
-        "allowDeny",
+        "audienceParity",
         "refusal"
       ]
     },
     {
       "label": "G0-BCAST-SCOPE",
-      "status": "NOT SATISFIED",
-      "missingCarrier": "executed P/Q mismatch evidence; owner-normalized P/Q-distinct scope identities are frozen and Rust-reconstructed",
-      "artifact": "corpus.v1.json authorityOwner/allowDeny + broadcast-cases.g2-pending.v1.json",
+      "status": "SATISFIED",
+      "missingCarrier": null,
+      "artifact": "publicRooms scope argument/equality proof + executable scopeMismatch",
       "caseKinds": [
-        "allowDeny",
+        "audienceParity",
         "scopeMismatch"
       ]
     },
     {
       "label": "G0-BCAST-SCOPE-BINDING",
-      "status": "NOT SATISFIED",
-      "missingCarrier": "executed resource-to-scope equality proof",
-      "artifact": "broadcast-cases.g2-pending.v1.json",
+      "status": "SATISFIED",
+      "missingCarrier": null,
+      "artifact": "broadcastFixture.publicRooms establishment.scope.resourceEqualities",
       "caseKinds": [
         "scopeMismatch",
         "refusal"
@@ -58801,19 +63656,19 @@
     },
     {
       "label": "G0-BCAST-AUDIENCE",
-      "status": "NOT SATISFIED",
-      "missingCarrier": "executed establishment versus strict-evaluator parity; allowed activation executes through the evaluator while denial remains establishment-only",
-      "artifact": "corpus.v1.json allowDeny + broadcast-cases.g2-pending.v1.json",
+      "status": "SATISFIED",
+      "missingCarrier": null,
+      "artifact": "independent establishment lookup and fresh strict function-membership/query evaluation over complete allow/deny vectors; divergent role fixture refuses audience-parity-failed",
       "caseKinds": [
-        "allowDeny",
-        "audienceParity"
+        "audienceParity",
+        "refusal"
       ]
     },
     {
       "label": "G0-BCAST-INVALIDATION",
-      "status": "NOT SATISFIED",
-      "missingCarrier": "executed authority-transition and mixed-commit fence evidence",
-      "artifact": "broadcast-cases.g2-pending.v1.json",
+      "status": "PARTIAL",
+      "missingCarrier": "the complete 18-selector admission map is host-recomputed, but authorityTransition and mixedCommit ordered fence observations require G2-C",
+      "artifact": "publicRooms establishment.invalidation + broadcast-cases.g2-pending.v1.json",
       "caseKinds": [
         "authorityTransition",
         "mixedCommit"
@@ -58823,16 +63678,17 @@
       "label": "G0-BCAST-IDENTITY",
       "status": "SATISFIED",
       "missingCarrier": null,
-      "artifact": "full plan/instance/materialization/partition/version/cut preimages and Rust reconstruction",
+      "artifact": "full plan/instance/materialization/partition/version/cut preimages, installed-owner schema/policy digest, and Rust reconstruction",
       "caseKinds": [
-        "pairedWorld"
+        "pairedWorld",
+        "audienceParity"
       ]
     },
     {
       "label": "G0-BCAST-CORPUS",
-      "status": "NOT SATISFIED",
-      "missingCarrier": "four graph-evaluator case kinds are structurally pending and not executable at G0",
-      "artifact": "caseKinds schema + corpus allowDeny + broadcast-cases.g2-pending.v1.json",
+      "status": "PARTIAL",
+      "missingCarrier": "audienceParity and scopeMismatch execute in the main corpus; authorityTransition and mixedCommit still require G2-C delivery ordering",
+      "artifact": "corpus executable cases + unchanged four-row broadcast-cases.g2-pending.v1.json + additive broadcast-prover-dispositions.v1.json",
       "caseKinds": [
         "pairedWorld",
         "allowDeny",
@@ -58845,10 +63701,11 @@
     },
     {
       "label": "G0-BCAST-BOUNDS",
-      "status": "NOT SATISFIED",
-      "missingCarrier": "large/hot typed exit observations and ratified non-provisional maxima",
-      "artifact": "bound-derivation.v1.json + g0ExitObservationGaps",
+      "status": "PARTIAL",
+      "missingCarrier": "G2-C broadcast evaluator observations are still required before broadcast fanout/group bounds can be re-recorded; large/hot typed observations also remain open",
+      "artifact": "bound-derivation.v1.json + g0ExitObservationGaps + 0268-EXTENSION-DRAFT.md",
       "caseKinds": [
+        "audienceParity",
         "pairedWorld"
       ]
     }
@@ -136067,5 +140924,5 @@
     "large-seed42-v1",
     "hot-recent-v1"
   ],
-  "contentDigest": "sha256:0a2a2814e17886e426a50fc96f8ae6da022321110647702c61ba6b8b88d09193"
+  "contentDigest": "sha256:96b62a77de7ff20bee2a480e48f631f22b8a25c972d12cf7c46127de0441bf19"
 }

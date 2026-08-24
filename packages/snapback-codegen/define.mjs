@@ -3526,7 +3526,8 @@ export function defineSnapshotBatchQuery(spec) {
 // ---------------------------------------------------------------------------
 
 const GRAPH_QUERY_SPEC_FIELDS = new Set([
-  'nodes', 'projection', 'args', 'bounds', 'authorityScopes', 'queryCost', 'broadcast',
+  'nodes', 'projection', 'args', 'bounds', 'authorityScopes', 'queryCost',
+  'membership', 'broadcast',
 ]);
 const GRAPH_DATA_NODE_KINDS = new Set([
   'root-window', 'equality-to-one', 'bounded-to-many', 'exists-semi-join',
@@ -3981,6 +3982,25 @@ export function defineGraphQuery(spec) {
   assert(spec.bounds && typeof spec.bounds === 'object' && !Array.isArray(spec.bounds), 'defineGraphQuery bounds must be an object', 'SNAPBACK_GRAPH_BOUND_INVALID');
   assert(spec.queryCost?.graph && typeof spec.queryCost.graph === 'object', 'defineGraphQuery queryCost.graph is required', 'SNAPBACK_GRAPH_BOUND_INVALID');
   assert(spec.broadcast && typeof spec.broadcast === 'object', 'defineGraphQuery broadcast declaration is required', 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
+  if (spec.membership !== undefined) {
+    assert(
+      Array.isArray(spec.membership) && spec.membership.length === 1,
+      'defineGraphQuery broadcast membership must contain exactly one declaration-bound predicate',
+      'SNAPBACK_GRAPH_BROADCAST_AUDIENCE_UNPROVABLE',
+    );
+    const [membership] = spec.membership;
+    assert(
+      membership?.__membershipPredicate === true
+        && membership.resource?.__membershipResourceRef === true
+        && membership.resource.kind === 'arg'
+        && typeof membership.resource.path === 'string'
+        && membership.resource.path.length > 0
+        && Array.isArray(membership.roles)
+        && membership.roles.length > 0,
+      'defineGraphQuery membership must come from declaration.hasRole(membershipResource.arg(...), ...)',
+      'SNAPBACK_GRAPH_BROADCAST_AUDIENCE_UNPROVABLE',
+    );
+  }
   assertKnownSpecFields(spec.bounds, 'defineGraphQuery.bounds', GRAPH_BOUND_FIELDS, 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
   assertKnownSpecFields(spec.queryCost, 'defineGraphQuery.queryCost', new Set(['graph']), 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
   assertKnownSpecFields(spec.queryCost.graph, 'defineGraphQuery.queryCost.graph', GRAPH_COST_FIELDS, 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
@@ -4008,7 +4028,58 @@ export function defineGraphQuery(spec) {
     GRAPH_WINDOW_ROLLUP_FIELDS,
     'SNAPBACK_GRAPH_UNKNOWN_FIELD',
   );
-  assertKnownSpecFields(spec.broadcast, 'defineGraphQuery.broadcast', new Set(['classification']), 'SNAPBACK_GRAPH_UNKNOWN_FIELD');
+  if (spec.broadcast.classification === 'query-shaped') {
+    assertKnownSpecFields(
+      spec.broadcast,
+      'defineGraphQuery.broadcast',
+      new Set(['classification']),
+      'SNAPBACK_GRAPH_UNKNOWN_FIELD',
+    );
+  } else if (spec.broadcast.classification === 'broadcast') {
+    assertKnownSpecFields(
+      spec.broadcast,
+      'defineGraphQuery.broadcast',
+      new Set(['classification', 'establishment']),
+      'SNAPBACK_GRAPH_UNKNOWN_FIELD',
+    );
+    assertKnownSpecFields(
+      spec.broadcast.establishment,
+      'defineGraphQuery.broadcast.establishment',
+      new Set(['predicate']),
+      'SNAPBACK_GRAPH_UNKNOWN_FIELD',
+    );
+    const predicate = spec.broadcast.establishment?.predicate;
+    assertKnownSpecFields(
+      predicate,
+      'defineGraphQuery.broadcast.establishment.predicate',
+      new Set(['kind', 'declaration', 'resourceField', 'roles']),
+      'SNAPBACK_GRAPH_UNKNOWN_FIELD',
+    );
+    assert(
+      predicate?.kind === 'membership'
+        && typeof predicate.declaration === 'string'
+        && predicate.declaration.length > 0
+        && typeof predicate.resourceField === 'string'
+        && predicate.resourceField.length > 0,
+      'defineGraphQuery broadcast establishment requires a closed membership predicate',
+      'SNAPBACK_GRAPH_BROADCAST_SEPARATION_UNPROVABLE',
+    );
+    if (predicate.roles !== undefined) {
+      assert(
+        Array.isArray(predicate.roles)
+          && predicate.roles.length > 0
+          && predicate.roles.every((role) => typeof role === 'string' && role.length > 0)
+          && new Set(predicate.roles).size === predicate.roles.length,
+        'defineGraphQuery broadcast predicate roles must be a non-empty unique string array',
+        'SNAPBACK_GRAPH_BROADCAST_SEPARATION_UNPROVABLE',
+      );
+    }
+  } else {
+    graphRefuse(
+      'SNAPBACK_GRAPH_BROADCAST_SEPARATION_UNPROVABLE',
+      `defineGraphQuery broadcast classification ${String(spec.broadcast.classification)} is unsupported`,
+    );
+  }
   assertKnownSpecFields(
     spec.projection,
     'defineGraphQuery.projection',
@@ -4038,7 +4109,10 @@ export function defineGraphQuery(spec) {
   return freezeGraphCarrier({
     [FN]: true,
     __kind: 'LiveQuery',
-    auth: nodes.some((node) => node.authorityClass !== 1) ? 'authenticated' : 'public',
+    auth: nodes.some((node) => node.authorityClass !== 1)
+      || spec.broadcast.classification === 'broadcast'
+      ? 'authenticated'
+      : 'public',
     args: { ...spec.args },
     resultContract: results.records(resultValidator, {
       minItems: 0,
@@ -4049,6 +4123,11 @@ export function defineGraphQuery(spec) {
       projection,
       queryCost,
       authorityScopes: spec.authorityScopes ?? {},
+      functionMembership: (spec.membership ?? []).map((membership) => ({
+        declaration: membership.declaration,
+        resourceArg: membership.resource.path,
+        roles: [...membership.roles],
+      })),
       broadcast: { ...spec.broadcast },
     },
   });

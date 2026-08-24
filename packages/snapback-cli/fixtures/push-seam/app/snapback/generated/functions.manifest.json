@@ -7,7 +7,7 @@
   "artifactKind": "functionManifest",
   "authoredSourceHash": "sha256:4f6ab7c81eda04ddea9b3b053bfb8f46475be10a5008abe3575d788af688026f",
   "authoringProfile": "snapback-explicit-v1",
-  "bundleHash": "snapback.v1:sessions:function:sha256:d27dcbf821fc9fe804357af56be7986d8beea89fefb141e4ee6bd96ddfe533a4",
+  "bundleHash": "snapback.v1:sessions:function:sha256:54fa69abe22a08c1203cda4356cc27b86fdd2ada6df55d103c27c10790121777",
   "config": [
     {
       "description": "Optional Expo enhanced-push-security access token.",
@@ -803,7 +803,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:ebf43a84f9cb8ecbb8e390a3399a4264f82290672855e4db897bc472d6546b00",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:cbd64c30d5ce6351718f0b7cecd43ede13a0387b108dbadc681b1fc5794fbc7a",
   "schemaVersion": "snapback.v1",
   "unsupportedDependencyDiagnostics": []
 }

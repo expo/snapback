@@ -161,6 +161,84 @@ fn codegen_emitted_manifest_full_engine_admission_seam() {
     );
 }
 
+#[test]
+fn broadcast_admission_recomputes_function_membership_and_installed_owner() {
+    use crate::manifest::{AuthRequirement, GraphAdmissionRefusalReasonV1 as Reason};
+
+    let corpus: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../../tests/conformance/graph/corpus.v1.json"
+    ))
+    .expect("broadcast corpus");
+    let schema: SchemaManifest =
+        serde_json::from_value(corpus["broadcastFixture"]["schema"].clone())
+            .expect("broadcast installed schema");
+    let manifest: FunctionManifest =
+        serde_json::from_value(corpus["broadcastFixture"]["functionManifest"].clone())
+            .expect("broadcast function manifest");
+    let function = manifest
+        .functions
+        .iter()
+        .find(|function| function.name == "publicRooms")
+        .expect("publicRooms function")
+        .clone();
+    assert_eq!(
+        function.effective_auth_requirement(),
+        AuthRequirement::Authenticated,
+    );
+    assert!(
+        graph_fault_reasons_with_schema(&function, &schema).is_empty(),
+        "codegen broadcast admits against the exact installed facts",
+    );
+
+    let mut wrong_function_auth = function.clone();
+    wrong_function_auth.auth_requirement = Some(AuthRequirement::Public);
+    assert!(
+        graph_fault_reasons_with_schema(&wrong_function_auth, &schema)
+            .contains(&Reason::BroadcastAudienceUnprovable),
+        "host requires authenticated function admission for a broadcast",
+    );
+
+    let mut bare_authenticated_outsider_hole = function.clone();
+    graph_plan_mut(&mut bare_authenticated_outsider_hole)
+        .function_membership
+        .clear();
+    assert_eq!(
+        bare_authenticated_outsider_hole.effective_auth_requirement(),
+        AuthRequirement::Authenticated,
+    );
+    assert!(
+        graph_fault_reasons_with_schema(&bare_authenticated_outsider_hole, &schema)
+            .contains(&Reason::BroadcastAudienceUnprovable),
+        "bare authenticated auth cannot stand in for the establishment membership",
+    );
+
+    let mut divergent_function_membership = function.clone();
+    graph_plan_mut(&mut divergent_function_membership).function_membership[0].roles =
+        Some(vec!["moderator".to_owned()]);
+    assert!(
+        graph_fault_reasons_with_schema(&divergent_function_membership, &schema)
+            .contains(&Reason::BroadcastAudienceUnprovable),
+        "host recomputes that function membership exactly equals establishment",
+    );
+
+    let mut changed_installed_schema = schema.clone();
+    changed_installed_schema
+        .tables
+        .iter_mut()
+        .find(|table| table.name == "roomMembers")
+        .unwrap()
+        .membership
+        .as_mut()
+        .unwrap()
+        .roles
+        .push("owner".to_owned());
+    assert!(
+        graph_fault_reasons_with_schema(&function, &changed_installed_schema)
+            .contains(&Reason::BroadcastAudienceUnprovable),
+        "manifest-carried installed-owner digest cannot override active schema/policy facts",
+    );
+}
+
 fn graph_test_function() -> FunctionDefinition {
     let mut plan: crate::manifest::GraphQueryPlanV1 =
         serde_json::from_str::<crate::manifest::GraphQueryCarrierV1>(include_str!(

@@ -20,11 +20,13 @@ const CONTROL_ROOT = resolve(import.meta.dirname, '..');
 const REPO_ROOT = resolve(CONTROL_ROOT, '../../..');
 const GRAPH_ROOT = join(REPO_ROOT, 'tests/conformance/graph');
 const DECLARATION_ROOT = join(GRAPH_ROOT, 'zerobugs');
+const BROADCAST_DECLARATION_ROOT = join(GRAPH_ROOT, 'broadcast-fixture');
 const NORMAL_ROOT = join(CONTROL_ROOT, 'fixtures/normal-seed-v1');
 const LARGE_ROOT = join(REPO_ROOT, 'demos/zerobugs/fixtures-local/large-seed42-v1');
 const CORPUS_PATH = join(GRAPH_ROOT, 'corpus.v1.json');
 const BOUNDS_PATH = join(GRAPH_ROOT, 'bound-derivation.v1.json');
 const PENDING_CASES_PATH = join(GRAPH_ROOT, 'broadcast-cases.g2-pending.v1.json');
+const PROVER_DISPOSITIONS_PATH = join(GRAPH_ROOT, 'broadcast-prover-dispositions.v1.json');
 const PAIRED_FIXTURES_PATH = join(GRAPH_ROOT, 'paired-world-fixtures.v1.json');
 const ZERO_HASH = `sha256:${'0'.repeat(64)}`;
 const OWNER_SCOPE_DOMAIN = 'snapback:g0-corpus-authority-scope:v1:';
@@ -283,8 +285,49 @@ async function codegenDeclarations() {
     assert(reason, `${query} full-feature candidate must refuse`);
     return [query, reason];
   }));
+  const broadcastTempRoot = mkdtempSync(join(tmpdir(), 'snapback-g0-broadcast-freeze-'));
+  const broadcastBackend = join(broadcastTempRoot, 'snapback');
+  mkdirSync(join(broadcastBackend, 'node_modules/@expo'), { recursive: true });
+  symlinkSync(
+    packageDir,
+    join(broadcastBackend, 'node_modules/@expo/snapback-codegen'),
+    'dir',
+  );
+  cpSync(
+    join(BROADCAST_DECLARATION_ROOT, 'demo.snapback.json'),
+    join(broadcastTempRoot, 'demo.snapback.json'),
+  );
+  for (const file of ['schema.mjs', 'queries.mjs', 'functions.mjs']) {
+    cpSync(join(BROADCAST_DECLARATION_ROOT, file), join(broadcastBackend, file));
+  }
+  const broadcastGenerated = await generateInProcess(
+    broadcastBackend,
+    {},
+    { capabilityManifest: capability },
+  );
+  assert.equal(
+    broadcastGenerated.ok,
+    true,
+    `broadcast declarations must codegen: ${JSON.stringify(broadcastGenerated.diagnostics)}`,
+  );
+  const broadcastManifest = readJson(
+    join(broadcastBackend, 'generated/functions.manifest.json'),
+  );
+  const broadcastSchema = readJson(
+    join(broadcastBackend, 'generated/schema.manifest.json'),
+  );
+  const broadcastCarriers = Object.fromEntries(
+    ['publicRooms', 'publicRoomsDivergent', 'publicRoomsUnbound'].map(name => {
+      const fn = broadcastManifest.functions.find(candidate => candidate.name === name);
+      assert(fn, `generated broadcast declaration ${name}`);
+      return [name, fn.runtime.HostPlan.GraphQuery];
+    }),
+  );
   rmSync(tempRoot, { recursive: true });
-  return { carriers, refusals };
+  rmSync(broadcastTempRoot, { recursive: true });
+  return {
+    carriers, refusals, broadcastCarriers, broadcastManifest, broadcastSchema,
+  };
 }
 
 function translation(status, reason, cursor, rows, label, refusal = null, excluded = null) {
@@ -737,6 +780,235 @@ function invocation(
   };
 }
 
+function broadcastInvocation(carrier, args, principal, functionName) {
+  const windows = windowVector(carrier, 'forward', []);
+  const instancePreimage = {
+    format: 'snapback.graph-instance.v1', graphPlanHash: carrier.planHash,
+    argsDigest: domainHash('snapback:materialization-args:v1:', args), windows,
+  };
+  const instanceHash = domainHash('snapback:graph-instance:v1:', instancePreimage);
+  return {
+    planHash: carrier.planHash, args, windows,
+    advancedNodeId: carrier.normalizedPlan.rootNodeId,
+    materialization: {
+      format: 'snapback.graph-materialization.v1',
+      appId: 'graph-broadcast-corpus', databaseId: 'broadcast-fixture-v1',
+      deploymentId: 'g0-broadcast-prover', targetProfileId: 'local',
+      activationHash: ZERO_HASH,
+      function: {
+        artifactKind: 'functionReference', schemaVersion: 'snapback.v1',
+        appId: 'graph-broadcast-corpus', id: `graph-${carrier.planHash.slice(-16)}`,
+        name: functionName, kind: 'LiveQuery', implementationHash: ZERO_HASH,
+        argsContractHash: ZERO_HASH,
+        resultContractHash: carrier.normalizedPlan.resultContractHash,
+        expectedGeneration: {
+          schemaVersion: 'snapback.v1', appId: 'graph-broadcast-corpus',
+          schemaHash: 'broadcast-corpus-schema-v1',
+          bundleHash: 'broadcast-corpus-bundle-v1',
+          inputsHash: 'broadcast-corpus-inputs-v1',
+        },
+      },
+      graphInstanceHash: instanceHash,
+    },
+    partition: {
+      format: 'snapback.graph-authority-partition.v1',
+      graphPlanHash: carrier.planHash, class2: [], class3: null,
+    },
+    authorizationVersion: { incarnation: 'broadcast-corpus-authorization-v1', epoch: 0 },
+    evaluationCut: 1,
+  };
+}
+
+function installedMembership(schema, declaration) {
+  return schema.tables.find(table => (
+    table.membership && (table.membership.id ?? table.name) === declaration
+  )) ?? null;
+}
+
+// The establishment evaluator owns its own membership-table lookup. It does
+// not call the delivered-query evaluator or consume its answer.
+function evaluateBroadcastEstablishment(carrier, schema, fixture, args, principal) {
+  const admission = carrier.normalizedPlan.broadcast;
+  assert.equal(admission.classification, 'broadcast', 'establishment requires an admitted broadcast');
+  const predicate = admission.establishment.predicate;
+  const table = installedMembership(schema, predicate.declaration);
+  assert(table?.membership, `installed establishment ${predicate.declaration}`);
+  const [scopeArgument] = admission.establishment.scope.argumentIds;
+  const argument = carrier.normalizedPlan.arguments.find(candidate => (
+    candidate.argumentId === scopeArgument
+  ));
+  assert(argument && Object.hasOwn(args, argument.name), 'establishment scope argument is present');
+  const resource = args[argument.name];
+  const roles = predicate.roles ?? table.membership.roles;
+  const allowed = fixture[predicate.declaration].some(row => (
+    row[table.membership.principal] === principal
+    && row[table.membership.resource] === resource
+    && roles.includes(row[table.membership.role])
+  ));
+  return {outcome: allowed ? 'allow' : 'deny', declaration: predicate.declaration, resource};
+}
+
+function graphFilterValue(value, plan, args) {
+  if (Object.hasOwn(value, 'Arg')) {
+    const argument = plan.arguments.find(candidate => candidate.argumentId === value.Arg);
+    assert(argument && Object.hasOwn(args, argument.name), `strict argument ${value.Arg}`);
+    return args[argument.name];
+  }
+  if (Object.hasOwn(value, 'Literal')) return value.Literal;
+  assert.fail(`strict fixture evaluator does not admit ${canonical(value)}`);
+}
+
+function projectStrictRow(object, row, nodeId) {
+  assert.equal(object.scopeNodeId, nodeId, 'strict projection is rooted in the delivered row');
+  return Object.fromEntries(object.fields.map(field => {
+    assert.equal(field.value.kind, 'field', 'strict fixture projection is a closed field leaf');
+    assert.equal(field.value.nodeId, nodeId, 'strict fixture projection reads only its class-1 root');
+    return [field.name, row[field.value.field]];
+  }));
+}
+
+// This is the fixture's strict delivery seam: it performs a fresh function
+// membership admission and only then evaluates the delivered query. It never
+// calls evaluateBroadcastEstablishment or accepts an establishment outcome.
+function evaluateStrictBroadcastDelivery(carrier, schema, fixture, args, principal) {
+  const plan = carrier.normalizedPlan;
+  const [predicate] = plan.functionMembership ?? [];
+  const resourceArg = predicate?.resource?.arg;
+  const table = predicate && installedMembership(schema, predicate.declaration);
+  const membership = table?.membership;
+  const roles = predicate?.roles ?? [];
+  const admitted = Boolean(
+    predicate && resourceArg && membership && roles.length > 0
+    && Object.hasOwn(args, resourceArg.path)
+    && fixture[predicate.declaration]?.some(row => (
+      row[membership.principal] === principal
+      && row[membership.resource] === args[resourceArg.path]
+      && roles.includes(row[membership.role])
+    )),
+  );
+  if (!admitted) {
+    return {
+      outcome: 'deny', resultBytes: null, orderedRootIds: [], resultLength: 0,
+      existence: 'withheld', completeness: null,
+    };
+  }
+
+  const root = plan.nodes.find(node => node.kind === 'root-window');
+  const projection = plan.nodes.find(node => node.kind === 'closed-projection');
+  assert(root && projection, 'strict fixture evaluator has one root and one projection');
+  let rows = fixture[root.table].filter(row => root.filters.every(filter => {
+    assert.equal(filter.op, 'Eq', 'strict fixture admits equality filters only');
+    return row[filter.field] === graphFilterValue(filter.value, plan, args);
+  }));
+  rows = [...rows].sort((left, right) => {
+    for (const order of root.order) {
+      const comparison = left[order.field] < right[order.field]
+        ? -1 : left[order.field] > right[order.field] ? 1 : 0;
+      if (comparison !== 0) return order.direction === 'Desc' ? -comparison : comparison;
+    }
+    return left._id < right._id ? -1 : left._id > right._id ? 1 : 0;
+  });
+  const maxRows = plan.queryCost.graph.nodes
+    .find(cost => cost.nodeId === root.nodeId).maxRootRowsPerPage;
+  rows = rows.slice(0, maxRows);
+  const result = rows.map(row => projectStrictRow(projection.object, row, root.nodeId));
+  return {
+    outcome: 'allow', resultBytes: JSON.stringify(result),
+    orderedRootIds: rows.map(row => row._id), resultLength: result.length,
+    existence: result.length === 0 ? 'absent' : 'present', completeness: 'complete',
+  };
+}
+
+function executableBroadcastCases(broadcastCarriers, fixture, schema) {
+  const audienceCase = (scopeName, memberName) => {
+    const roomId = fixture.expected[scopeName].roomId;
+    const principals = [fixture.principals[memberName], fixture.principals.outsider];
+    const invocations = principals.map(principal => broadcastInvocation(
+      broadcastCarriers.publicRooms,
+      { roomId },
+      principal,
+      'publicRooms',
+    ));
+    const establishment = principals.map(principal => evaluateBroadcastEstablishment(
+      broadcastCarriers.publicRooms, schema, fixture, {roomId}, principal,
+    ));
+    const strict = principals.map(principal => evaluateStrictBroadcastDelivery(
+      broadcastCarriers.publicRooms, schema, fixture, {roomId}, principal,
+    ));
+    const establishmentVector = establishment.map(row => row.outcome);
+    const strictVector = strict.map(row => row.outcome);
+    assert.deepEqual(strictVector, establishmentVector, `${scopeName} exact audience parity`);
+    assert.equal(strict[0].resultBytes, fixture.expected[scopeName].resultBytes);
+    assert.equal(strict[1].resultBytes, null, `${scopeName} outsider receives no bytes`);
+    const allowedDelivery = completeResult(
+      broadcastCarriers.publicRooms,
+      invocations[0],
+      fixture,
+      strict[0].resultBytes,
+      strict[0].orderedRootIds,
+    );
+    return {
+      caseKind: 'audienceParity',
+      id: `public-rooms-${scopeName}-exact-audience`,
+      plan: broadcastCarriers.publicRooms,
+      invocations,
+      principals,
+      evaluationEvidence: { establishment, strict },
+      expect: {
+        establishment: establishmentVector,
+        strict: strictVector,
+        allowedDelivery,
+      },
+    };
+  };
+  const divergenceArgs = {roomId: fixture.expected.scopeP.roomId};
+  const divergencePrincipal = fixture.principals.pMember;
+  const divergence = {
+    id: 'public-rooms-establishment-allow-strict-deny',
+    principal: divergencePrincipal,
+    args: divergenceArgs,
+    authorizationVersion: {incarnation: 'broadcast-corpus-authorization-v1', epoch: 0},
+    establishment: evaluateBroadcastEstablishment(
+      broadcastCarriers.publicRooms, schema, fixture, divergenceArgs, divergencePrincipal,
+    ),
+    strict: evaluateStrictBroadcastDelivery(
+      broadcastCarriers.publicRoomsDivergent, schema, fixture, divergenceArgs, divergencePrincipal,
+    ),
+    compilerDisposition: broadcastCarriers.publicRoomsDivergent.normalizedPlan.broadcast,
+  };
+  assert.equal(divergence.establishment.outcome, 'allow');
+  assert.equal(divergence.strict.outcome, 'deny');
+  assert.deepEqual(divergence.compilerDisposition, {
+    format: 'snapback.graph-broadcast-admission.v1',
+    classification: 'query-shaped',
+    reason: 'audience-parity-failed',
+  });
+  return { cases: [
+    audienceCase('scopeP', 'pMember'), audienceCase('scopeQ', 'qMember'),
+    {
+      caseKind: 'scopeMismatch',
+      id: 'public-rooms-scope-mismatch-query-shaped',
+      plan: broadcastCarriers.publicRoomsUnbound,
+      invocations: {
+        memberScope: broadcastInvocation(
+          broadcastCarriers.publicRoomsUnbound,
+          { roomId: fixture.expected.scopeP.roomId },
+          fixture.principals.pMember,
+          'publicRoomsUnbound',
+        ),
+        presentedInstance: broadcastInvocation(
+          broadcastCarriers.publicRoomsUnbound,
+          { roomId: fixture.expected.scopeQ.roomId },
+          fixture.principals.pMember,
+          'publicRoomsUnbound',
+        ),
+      },
+      principal: fixture.principals.pMember,
+      expect: { classification: 'query-shaped', reason: 'scope-unbound', resultBytes: null },
+    },
+  ], divergence };
+}
+
 function graphArgumentValue(carrier, call, expression) {
   if (Object.hasOwn(expression, 'Literal')) return expression.Literal;
   const argument = carrier.normalizedPlan.arguments
@@ -814,8 +1086,8 @@ function frozenGraphState(carrier, call, tables, orderedRootIds) {
     consumed: rootRows.length, hasMore: false, sourceExhausted: true,
   });
 
-  const principal = call.partition.class3.principalDataScope.userId;
-  const authority = authorityFact(principal);
+  const principal = call.partition.class3?.principalDataScope?.userId;
+  const authority = principal === undefined ? undefined : authorityFact(principal);
   for (const node of nodes.filter(candidate => !['root-window', 'closed-projection'].includes(candidate.kind))) {
     const parents = byNode.get(node.parentNodeId) ?? [];
     const output = [];
@@ -1199,7 +1471,26 @@ function attachFrozenExecutionWork(cases) {
     ),
   };
   for (const testCase of cases) {
-    const work = byId[testCase.id];
+    let work = byId[testCase.id];
+    const broadcastResult = testCase.caseKind === 'audienceParity'
+      ? testCase.expect?.allowedDelivery
+      : testCase.query === 'publicRooms' ? testCase.expect : null;
+    if (broadcastResult?.kind === 'result') {
+      work = frozenExecutionWork(
+        1,
+        [1],
+        [],
+        [],
+        [1],
+        [],
+        [ledger(
+          'n0', 1, 1, 1, 1,
+          Buffer.byteLength(broadcastResult.resultBytes),
+          1,
+        )],
+      );
+      Object.assign(broadcastResult, work);
+    }
     if (work && testCase.expect?.kind === 'result') Object.assign(testCase.expect, work);
     if (work && testCase.expect?.allowed?.kind === 'result') Object.assign(testCase.expect.allowed, work);
   }
@@ -1576,7 +1867,9 @@ function boundDerivation(carriers, measurements, tables) {
 async function main() {
   assert.equal(process.versions.node, '24.18.0', 'freeze requires paid-for Node 24.18.0');
   assert(requestedFixtures.includes('normal-seed-v1'), 'normal-seed-v1 is mandatory');
-  const { carriers, refusals } = await codegenDeclarations();
+  const {
+    carriers, refusals, broadcastCarriers, broadcastManifest, broadcastSchema,
+  } = await codegenDeclarations();
   assert.equal(refusals.issueListV2, 'SNAPBACK_GRAPH_SEARCH_UNADMITTED');
   assert.equal(refusals.issueDetail, 'SNAPBACK_GRAPH_NODE_KIND_UNSUPPORTED');
   assert.equal(refusals.listIssueByID, 'SNAPBACK_GRAPH_NODE_KIND_UNSUPPORTED');
@@ -1590,6 +1883,7 @@ async function main() {
   const commentsPageHandler = control.commentsPage?.js?.inlineHandler;
   assert.equal(typeof commentsPageHandler, 'function', 'commentsPage exposes the control inline-handler continuation seam');
   const fixture = readJson(join(NORMAL_ROOT, 'fixture.json'));
+  const broadcastFixture = readJson(join(BROADCAST_DECLARATION_ROOT, 'data.v1.json'));
   const tables = loadTables();
   const ordinaryPrincipal = 'principal_ordinary';
   installBinding(tables, ordinaryPrincipal, fixture.actorBindings['ordinary-user']);
@@ -1926,6 +2220,113 @@ async function main() {
       ),
     });
   }
+
+  // Class-1 broadcast bytes must not depend on any principal-, partition-, or
+  // policy-hidden fixture slice. Both worlds reuse the exact invocation tuple;
+  // only the named hidden rows differ.
+  const publicRoomsArgs = {roomId: broadcastFixture.expected.scopeP.roomId};
+  const publicRoomsPrincipal = broadcastFixture.principals.pMember;
+  const publicRoomsCall = broadcastInvocation(
+    broadcastCarriers.publicRooms, publicRoomsArgs, publicRoomsPrincipal, 'publicRooms',
+  );
+  const publicRoomsPairs = [
+    {
+      id: 'g0-pair-public-rooms-other-principal-membership',
+      channel: 'other-principal policy row outside the established room partition',
+      hiddenAxes: ['principal', 'policy'],
+      namedSlice: {table: 'roomMembers', rowIds: ['member_q']},
+      dependentSlices: [],
+      present: {
+        rooms: deepClone(broadcastFixture.rooms),
+        roomMembers: deepClone(broadcastFixture.roomMembers),
+      },
+      absent: {
+        rooms: deepClone(broadcastFixture.rooms),
+        roomMembers: broadcastFixture.roomMembers.filter(row => row._id !== 'member_q'),
+      },
+    },
+    {
+      id: 'g0-pair-public-rooms-other-partition-data',
+      channel: 'other room partition and its other-principal policy row',
+      hiddenAxes: ['principal', 'partition', 'policy'],
+      namedSlice: {table: 'rooms', rowIds: ['room_q']},
+      dependentSlices: [{table: 'roomMembers', rowIds: ['member_q']}],
+      present: {
+        rooms: deepClone(broadcastFixture.rooms),
+        roomMembers: deepClone(broadcastFixture.roomMembers),
+      },
+      absent: {
+        rooms: broadcastFixture.rooms.filter(row => row._id !== 'room_q'),
+        roomMembers: broadcastFixture.roomMembers.filter(row => row._id !== 'member_q'),
+      },
+    },
+  ];
+  for (const definition of publicRoomsPairs) {
+    const presentObservation = evaluateStrictBroadcastDelivery(
+      broadcastCarriers.publicRooms, broadcastSchema, definition.present,
+      publicRoomsArgs, publicRoomsPrincipal,
+    );
+    const absentObservation = evaluateStrictBroadcastDelivery(
+      broadcastCarriers.publicRooms, broadcastSchema, definition.absent,
+      publicRoomsArgs, publicRoomsPrincipal,
+    );
+    for (const field of [
+      'resultBytes', 'orderedRootIds', 'resultLength', 'existence', 'completeness',
+    ]) {
+      assert.deepEqual(
+        absentObservation[field], presentObservation[field],
+        `${definition.id} strict ${field} ignores hidden slices`,
+      );
+    }
+    assert.equal(presentObservation.outcome, 'allow');
+    const input = {
+      query: 'publicRooms', args: publicRoomsArgs, principal: publicRoomsPrincipal,
+      windows: publicRoomsCall.windows,
+      authorizationVersion: publicRoomsCall.authorizationVersion,
+    };
+    const present = frozenWorld(
+      `${definition.id}-present-v1`, definition.present, input, definition.namedSlice.table,
+    );
+    const absent = frozenWorld(
+      `${definition.id}-absent-v1`, definition.absent, input, definition.namedSlice.table,
+    );
+    const sliceTables = [definition.namedSlice, ...definition.dependentSlices];
+    present.sliceTableRowsByTable = Object.fromEntries(sliceTables.map(slice => (
+      [slice.table, definition.present[slice.table]]
+    )));
+    absent.sliceTableRowsByTable = Object.fromEntries(sliceTables.map(slice => (
+      [slice.table, definition.absent[slice.table]]
+    )));
+    frozenPairs.push({
+      id: definition.id, query: 'publicRooms', channel: definition.channel,
+      hiddenAxes: definition.hiddenAxes, namedSlice: definition.namedSlice,
+      dependentSlices: definition.dependentSlices,
+      coveredNodeIds: ['n0'], coveredAuthorityClasses: [1], present, absent,
+    });
+    pairedWorlds.push({
+      caseKind: 'pairedWorld', id: definition.id, query: 'publicRooms',
+      plan: broadcastCarriers.publicRooms, invocation: publicRoomsCall,
+      fixturePairId: definition.id, coveredNodeIds: ['n0'],
+      coveredAuthorityClasses: [1], hiddenAxes: definition.hiddenAxes,
+      windowVectorDisposition: {status: 'VALIDATED'},
+      worlds: {
+        present: {
+          fixture: present.identity, fixtureDigest: present.fixtureDigest,
+          hiddenSlice: sliceTables,
+        },
+        absent: {fixture: absent.identity, fixtureDigest: absent.fixtureDigest, hiddenSlice: []},
+      },
+      oracleEvidence: {
+        presentDigest: digestBytes(canonical(presentObservation)),
+        absentDigest: digestBytes(canonical(absentObservation)),
+        present: presentObservation, absent: absentObservation,
+      },
+      expect: completeResult(
+        broadcastCarriers.publicRooms, publicRoomsCall, broadcastFixture,
+        presentObservation.resultBytes, presentObservation.orderedRootIds,
+      ),
+    });
+  }
   const pairedFixtureCorpus = {
     format: 'snapback.graph-paired-world-fixtures.v1', version: 1,
     source: 'corpus-local worlds reconstructed by the freezer; world identities are not normal-seed-v1',
@@ -1993,13 +2394,41 @@ async function main() {
   const pendingBaseInvocation = invocation(carriers.listIssueByID, {
     sourceIssueID: internalIssue.id, selectedLabelIDs: [],
   }, ordinaryPrincipal, 0, 'listIssueByID');
+  const pendingCasesV1 = pendingCases(carriers.listIssueByID, pendingBaseInvocation);
   const pendingCorpus = {
     format: 'snapback.graph-broadcast-cases.g2-pending.v1', version: 1,
     description: 'Structurally frozen graph-evaluator records. G0 executes none of these four cases.',
     caseKinds: ['audienceParity', 'scopeMismatch', 'authorityTransition', 'mixedCommit'],
-    cases: pendingCases(carriers.listIssueByID, pendingBaseInvocation),
+    cases: pendingCasesV1,
   };
   pendingCorpus.contentDigest = digestBytes(canonical(pendingCorpus));
+  const proverDispositions = {
+    format: 'snapback.graph-broadcast-prover-dispositions.v1', version: 1,
+    description: 'Additive G0 prover dispositions for the unchanged four-row G2 sidecar contract.',
+    dispositions: [
+      {
+        id: 'zerobugs-audience-parity-g2', caseKind: 'audienceParity',
+        proverDisposition: 'executable-in-g0-prover',
+        reason: 'the broadcast fixture evaluates establishment membership and strict function admission independently, then the G2-A evaluator executes and freezes the admitted delivered query; the shared G2 row remains structurally unchanged',
+      },
+      {
+        id: 'zerobugs-scope-mismatch-g2', caseKind: 'scopeMismatch',
+        proverDisposition: 'executable-in-g0-prover',
+        reason: 'the broadcast fixture supplies an executable P/Q scope-mismatch carrier; the shared G2 row remains structurally unchanged',
+      },
+      {
+        id: 'zerobugs-authority-transition-g2', caseKind: 'authorityTransition',
+        proverDisposition: 'pending-g2-delivery-ordering',
+        reason: 'requires the G2-C broadcast evaluator to observe an authority-only commit fence before any post-transition delivery; G0 plan admission cannot execute or order deliveries',
+      },
+      {
+        id: 'zerobugs-mixed-commit-g2', caseKind: 'mixedCommit',
+        proverDisposition: 'pending-g2-delivery-ordering',
+        reason: 'requires the G2-C broadcast evaluator to coalesce data and authority invalidation in one commit and prove the fence precedes the single post-commit delivery; G0 has no delivery scheduler',
+      },
+    ],
+  };
+  proverDispositions.contentDigest = digestBytes(canonical(proverDispositions));
 
   const requiredMissInvocation = invocation(
     carriers.listIssueByID,
@@ -2158,10 +2587,18 @@ async function main() {
       expect: {label: 'refused', reason: 'SNAPBACK_STORAGE_VERSION_CORRUPT'},
     },
   ];
-  const cases = [...pairedWorlds, ...allowDenyCases, ...refusalCases];
+  const broadcastProof = executableBroadcastCases(
+    broadcastCarriers, broadcastFixture, broadcastSchema,
+  );
+  const broadcastCases = broadcastProof.cases;
+  const cases = [...pairedWorlds, ...allowDenyCases, ...broadcastCases, ...refusalCases];
   attachFrozenExecutionWork(cases);
   for (const testCase of cases) {
-    const results = [testCase.expect, testCase.expect?.allowed]
+    const results = [
+      testCase.expect,
+      testCase.expect?.allowed,
+      testCase.expect?.allowedDelivery,
+    ]
       .filter(result => result?.nodeCompleteness);
     for (const result of results) {
       assertLegalNodeProofClasses(testCase.plan, result.nodeCompleteness, testCase.id);
@@ -2230,12 +2667,21 @@ async function main() {
   }
   const corpus = {
     format: 'snapback.graph-conformance-corpus.v1', version: 1,
-    description: 'G2-A corpus: opaque G0 oracle evidence, evaluator-executed paired worlds and allowed activation, one evaluation-time refusal, and structural admission refusals plus pending broadcast cases.',
+    description: 'G2-A corpus plus the LLP 0268 broadcast-prover extension: opaque G0 oracle evidence, evaluator-executed paired worlds and allowed activation, class-1 exact-audience and scope-mismatch cases, one evaluation-time refusal, structural admission refusals, and pending G2-C broadcast fence cases.',
     fixtures: {
       normal: 'demos/zerobugs/control/fixtures/normal-seed-v1',
       policyExtension: 'demos/zerobugs/control/fixtures/policy-extension-v1.json',
       pairedWorlds: 'tests/conformance/graph/paired-world-fixtures.v1.json',
+      broadcast: 'tests/conformance/graph/broadcast-fixture/data.v1.json',
       large: 'demos/zerobugs/manifest/large-seed42-v1.receipt.json',
+    },
+    broadcastFixture: {
+      source: 'tests/conformance/graph/broadcast-fixture',
+      data: broadcastFixture,
+      schema: broadcastSchema,
+      functionManifest: broadcastManifest,
+      queries: Object.entries(broadcastCarriers).map(([query, carrier]) => ({ query, carrier })),
+      divergence: broadcastProof.divergence,
     },
     queries: Object.entries(carriers).map(([query, carrier]) => ({
       query, carrier, fieldMap: fieldMaps[query],
@@ -2248,18 +2694,19 @@ async function main() {
     authorityOwner: corpusAuthorityOwner,
     oracleCases, oracleTranslationCoverage: translationCoverage, cases, evaluatorEdgeCases,
     caseKinds: ['pairedWorld', 'allowDeny', 'audienceParity', 'scopeMismatch', 'authorityTransition', 'mixedCommit', 'refusal'],
-    executableCaseKinds: ['pairedWorld', 'allowDeny', 'refusal'],
+    executableCaseKinds: ['pairedWorld', 'allowDeny', 'audienceParity', 'scopeMismatch', 'refusal'],
     pendingBroadcastCases: 'tests/conformance/graph/broadcast-cases.g2-pending.v1.json',
+    broadcastProverDispositions: 'tests/conformance/graph/broadcast-prover-dispositions.v1.json',
     broadcastInputs: [
-      { label: 'G0-BCAST-CLASS', status: 'NOT SATISFIED', missingCarrier: 'every admitted Zerobugs base derives class 2 and each projection rolls up to class 3; no class-1 broadcast base or executed counterfeit-broadcast refusal exists', artifact: 'queries[*].carrier.normalizedPlan.nodes[*].authority + pairedWorld cases', caseKinds: ['pairedWorld', 'refusal'] },
-      { label: 'G0-BCAST-SEPARATION', status: 'NOT SATISFIED', missingCarrier: 'host-proven separation certificate and executed counterfeit-broadcast refusal; allowed activation executes through the evaluator while denial remains establishment-only', artifact: 'corpus.v1.json allowDeny + broadcast-cases.g2-pending.v1.json', caseKinds: ['allowDeny', 'refusal'] },
-      { label: 'G0-BCAST-SCOPE', status: 'NOT SATISFIED', missingCarrier: 'executed P/Q mismatch evidence; owner-normalized P/Q-distinct scope identities are frozen and Rust-reconstructed', artifact: 'corpus.v1.json authorityOwner/allowDeny + broadcast-cases.g2-pending.v1.json', caseKinds: ['allowDeny', 'scopeMismatch'] },
-      { label: 'G0-BCAST-SCOPE-BINDING', status: 'NOT SATISFIED', missingCarrier: 'executed resource-to-scope equality proof', artifact: 'broadcast-cases.g2-pending.v1.json', caseKinds: ['scopeMismatch', 'refusal'] },
-      { label: 'G0-BCAST-AUDIENCE', status: 'NOT SATISFIED', missingCarrier: 'executed establishment versus strict-evaluator parity; allowed activation executes through the evaluator while denial remains establishment-only', artifact: 'corpus.v1.json allowDeny + broadcast-cases.g2-pending.v1.json', caseKinds: ['allowDeny', 'audienceParity'] },
-      { label: 'G0-BCAST-INVALIDATION', status: 'NOT SATISFIED', missingCarrier: 'executed authority-transition and mixed-commit fence evidence', artifact: 'broadcast-cases.g2-pending.v1.json', caseKinds: ['authorityTransition', 'mixedCommit'] },
-      { label: 'G0-BCAST-IDENTITY', status: 'SATISFIED', missingCarrier: null, artifact: 'full plan/instance/materialization/partition/version/cut preimages and Rust reconstruction', caseKinds: ['pairedWorld'] },
-      { label: 'G0-BCAST-CORPUS', status: 'NOT SATISFIED', missingCarrier: 'four graph-evaluator case kinds are structurally pending and not executable at G0', artifact: 'caseKinds schema + corpus allowDeny + broadcast-cases.g2-pending.v1.json', caseKinds: ['pairedWorld', 'allowDeny', 'audienceParity', 'scopeMismatch', 'authorityTransition', 'mixedCommit', 'refusal'] },
-      { label: 'G0-BCAST-BOUNDS', status: 'NOT SATISFIED', missingCarrier: 'large/hot typed exit observations and ratified non-provisional maxima', artifact: 'bound-derivation.v1.json + g0ExitObservationGaps', caseKinds: ['pairedWorld'] },
+      { label: 'G0-BCAST-CLASS', status: 'SATISFIED', missingCarrier: null, artifact: 'publicRooms + two class-1 pairedWorld cases + rows 23-27 host counterfeit tests', caseKinds: ['pairedWorld', 'audienceParity', 'refusal'] },
+      { label: 'G0-BCAST-SEPARATION', status: 'SATISFIED', missingCarrier: null, artifact: 'codegen source walk + host recomputation + publicRooms certificate', caseKinds: ['audienceParity', 'refusal'] },
+      { label: 'G0-BCAST-SCOPE', status: 'SATISFIED', missingCarrier: null, artifact: 'publicRooms scope argument/equality proof + executable scopeMismatch', caseKinds: ['audienceParity', 'scopeMismatch'] },
+      { label: 'G0-BCAST-SCOPE-BINDING', status: 'SATISFIED', missingCarrier: null, artifact: 'broadcastFixture.publicRooms establishment.scope.resourceEqualities', caseKinds: ['scopeMismatch', 'refusal'] },
+      { label: 'G0-BCAST-AUDIENCE', status: 'SATISFIED', missingCarrier: null, artifact: 'independent establishment lookup and fresh strict function-membership/query evaluation over complete allow/deny vectors; divergent role fixture refuses audience-parity-failed', caseKinds: ['audienceParity', 'refusal'] },
+      { label: 'G0-BCAST-INVALIDATION', status: 'PARTIAL', missingCarrier: 'the complete 18-selector admission map is host-recomputed, but authorityTransition and mixedCommit ordered fence observations require G2-C', artifact: 'publicRooms establishment.invalidation + broadcast-cases.g2-pending.v1.json', caseKinds: ['authorityTransition', 'mixedCommit'] },
+      { label: 'G0-BCAST-IDENTITY', status: 'SATISFIED', missingCarrier: null, artifact: 'full plan/instance/materialization/partition/version/cut preimages, installed-owner schema/policy digest, and Rust reconstruction', caseKinds: ['pairedWorld', 'audienceParity'] },
+      { label: 'G0-BCAST-CORPUS', status: 'PARTIAL', missingCarrier: 'audienceParity and scopeMismatch execute in the main corpus; authorityTransition and mixedCommit still require G2-C delivery ordering', artifact: 'corpus executable cases + unchanged four-row broadcast-cases.g2-pending.v1.json + additive broadcast-prover-dispositions.v1.json', caseKinds: ['pairedWorld', 'allowDeny', 'audienceParity', 'scopeMismatch', 'authorityTransition', 'mixedCommit', 'refusal'] },
+      { label: 'G0-BCAST-BOUNDS', status: 'PARTIAL', missingCarrier: 'G2-C broadcast evaluator observations are still required before broadcast fanout/group bounds can be re-recorded; large/hot typed observations also remain open', artifact: 'bound-derivation.v1.json + g0ExitObservationGaps + 0268-EXTENSION-DRAFT.md', caseKinds: ['audienceParity', 'pairedWorld'] },
     ],
     g0ExitObservations, g0ExitObservationEvidence, g0ExitObservationGaps,
     requestedFixtures,
@@ -2274,13 +2721,16 @@ async function main() {
     assert.equal(readFileSync(CORPUS_PATH, 'utf8'), pretty(corpus), 'corpus.v1.json is stale');
     assert.equal(readFileSync(BOUNDS_PATH, 'utf8'), pretty(bounds), 'bound-derivation.v1.json is stale');
     assert.equal(readFileSync(PENDING_CASES_PATH, 'utf8'), pretty(pendingCorpus), 'broadcast pending corpus is stale');
+    assert.equal(readFileSync(PROVER_DISPOSITIONS_PATH, 'utf8'), pretty(proverDispositions), 'broadcast prover dispositions are stale');
     assert.equal(readFileSync(PAIRED_FIXTURES_PATH, 'utf8'), pretty(pairedFixtureCorpus), 'paired-world fixtures are stale');
   } else {
     writeFileSync(CORPUS_PATH, pretty(corpus));
     writeFileSync(BOUNDS_PATH, pretty(bounds));
     writeFileSync(PENDING_CASES_PATH, pretty(pendingCorpus));
+    writeFileSync(PROVER_DISPOSITIONS_PATH, pretty(proverDispositions));
     writeFileSync(PAIRED_FIXTURES_PATH, pretty(pairedFixtureCorpus));
   }
+  console.log(`graph-g0-digests: corpus=${corpus.contentDigest} bounds=${bounds.contentDigest} pending=${pendingCorpus.contentDigest} dispositions=${proverDispositions.contentDigest} paired=${pairedFixtureCorpus.contentDigest}`);
   console.log(`graph-g0-oracle-freeze: PASS normal-seed-v1 queries=3 oracleCases=${oracleCases.length} pairedWorlds=${pairedWorlds.length} allowDeny=${allowDenyCases.length} refusals=${refusalCases.length} corpusDigest=${corpus.contentDigest} boundsDigest=${bounds.contentDigest}`);
   if (!existsSync(LARGE_ROOT)) console.log('graph-g0-large-spot-check: DEFERRED receipt-only; rerun zb5 command recorded in bound-derivation.v1.json');
 }

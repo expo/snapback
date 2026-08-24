@@ -288,7 +288,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `37f6c287a659c1d13bec93cef6eca568dfd9fa8395b564a4966d12932a90b2e2`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `ec3ad2e56b2cb35cf9070ef5d42da7bb5e7fb69d8931fa581b41920a24318fee`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "createRoom": FunctionReference<"createRoom", 'Mutation', { title: string; displayName?: string }, unknown, "snapback-explicit-v1">;
   /**
@@ -297,7 +297,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `37f6c287a659c1d13bec93cef6eca568dfd9fa8395b564a4966d12932a90b2e2`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `ec3ad2e56b2cb35cf9070ef5d42da7bb5e7fb69d8931fa581b41920a24318fee`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "firstInboxPage": FunctionReference<"firstInboxPage", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"deliveriesV2">; "_version": number; "_createdAt": number; "_updatedAt": number; "recipientId": Principal; "roomId": Id<"roomsV2">; "messageId": Id<"messagesV2">; "authorId": Principal; "authorName": string; "body": string; "pageKey": string; "createdAt": number; "unread": boolean }>, "snapback-explicit-v1">;
   /**
@@ -306,7 +306,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `37f6c287a659c1d13bec93cef6eca568dfd9fa8395b564a4966d12932a90b2e2`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `ec3ad2e56b2cb35cf9070ef5d42da7bb5e7fb69d8931fa581b41920a24318fee`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "markRoomRead": FunctionReference<"markRoomRead", 'Mutation', { roomId: Id<'roomsV2'> }, unknown, "snapback-explicit-v1">;
   /**
@@ -315,7 +315,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `37f6c287a659c1d13bec93cef6eca568dfd9fa8395b564a4966d12932a90b2e2`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `ec3ad2e56b2cb35cf9070ef5d42da7bb5e7fb69d8931fa581b41920a24318fee`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "nextInboxPage": FunctionReference<"nextInboxPage", 'LiveQuery', { after: string }, ReadonlyArray<{ "_id": Id<"deliveriesV2">; "_version": number; "_createdAt": number; "_updatedAt": number; "recipientId": Principal; "roomId": Id<"roomsV2">; "messageId": Id<"messagesV2">; "authorId": Principal; "authorName": string; "body": string; "pageKey": string; "createdAt": number; "unread": boolean }>, "snapback-explicit-v1">;
   /**
@@ -324,7 +324,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `37f6c287a659c1d13bec93cef6eca568dfd9fa8395b564a4966d12932a90b2e2`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `ec3ad2e56b2cb35cf9070ef5d42da7bb5e7fb69d8931fa581b41920a24318fee`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "sendMessage": FunctionReference<"sendMessage", 'Mutation', { roomId: Id<'roomsV2'>; body: string }, unknown, "snapback-explicit-v1">;
   /**
@@ -333,7 +333,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `37f6c287a659c1d13bec93cef6eca568dfd9fa8395b564a4966d12932a90b2e2`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `ec3ad2e56b2cb35cf9070ef5d42da7bb5e7fb69d8931fa581b41920a24318fee`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "unreadDeliveries": FunctionReference<"unreadDeliveries", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"deliveriesV2">; "_version": number; "_createdAt": number; "_updatedAt": number; "recipientId": Principal; "roomId": Id<"roomsV2">; "messageId": Id<"messagesV2">; "authorId": Principal; "authorName": string; "body": string; "pageKey": string; "createdAt": number; "unread": boolean }>, "snapback-explicit-v1">;
   /**
@@ -342,7 +342,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `37f6c287a659c1d13bec93cef6eca568dfd9fa8395b564a4966d12932a90b2e2`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `ec3ad2e56b2cb35cf9070ef5d42da7bb5e7fb69d8931fa581b41920a24318fee`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "roomMembersV2.list": FunctionReference<"roomMembersV2.list", 'LiveQuery', { scopeId: Id<'roomsV2'>; page?: { after?: string; limit?: number } }, ReadonlyArray<{ "userId": Principal; "role": "admin" | "member" | "owner" | "invited" }>, "snapback-explicit-v1">;
   /**
@@ -351,7 +351,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `37f6c287a659c1d13bec93cef6eca568dfd9fa8395b564a4966d12932a90b2e2`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `ec3ad2e56b2cb35cf9070ef5d42da7bb5e7fb69d8931fa581b41920a24318fee`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "roomMembersV2.myRole": FunctionReference<"roomMembersV2.myRole", 'LiveQuery', { scopeId: Id<'roomsV2'> }, ReadonlyArray<{ "role": "admin" | "member" | "owner" | "invited"; "status": "active" | "invited" }>, "snapback-explicit-v1">;
   /**
@@ -360,7 +360,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `37f6c287a659c1d13bec93cef6eca568dfd9fa8395b564a4966d12932a90b2e2`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `ec3ad2e56b2cb35cf9070ef5d42da7bb5e7fb69d8931fa581b41920a24318fee`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "roomMembersV2.invite": FunctionReference<"roomMembersV2.invite", 'Mutation', { scopeId: Id<'roomsV2'>; principal: Principal; role: "invited" }, null, "snapback-explicit-v1">;
   /**
@@ -369,7 +369,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `37f6c287a659c1d13bec93cef6eca568dfd9fa8395b564a4966d12932a90b2e2`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `ec3ad2e56b2cb35cf9070ef5d42da7bb5e7fb69d8931fa581b41920a24318fee`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "roomMembersV2.join": FunctionReference<"roomMembersV2.join", 'Mutation', { scopeId: Id<'roomsV2'>; invitation: "member" }, null, "snapback-explicit-v1">;
   /**
@@ -378,7 +378,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `37f6c287a659c1d13bec93cef6eca568dfd9fa8395b564a4966d12932a90b2e2`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `ec3ad2e56b2cb35cf9070ef5d42da7bb5e7fb69d8931fa581b41920a24318fee`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "roomMembersV2.leave": FunctionReference<"roomMembersV2.leave", 'Mutation', { scopeId: Id<'roomsV2'> }, null, "snapback-explicit-v1">;
   /**
@@ -387,7 +387,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `37f6c287a659c1d13bec93cef6eca568dfd9fa8395b564a4966d12932a90b2e2`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `ec3ad2e56b2cb35cf9070ef5d42da7bb5e7fb69d8931fa581b41920a24318fee`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "roomMembersV2.changeRole": FunctionReference<"roomMembersV2.changeRole", 'Mutation', { scopeId: Id<'roomsV2'>; principal: Principal; role: "admin" | "member" }, null, "snapback-explicit-v1">;
   /**
@@ -396,7 +396,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `37f6c287a659c1d13bec93cef6eca568dfd9fa8395b564a4966d12932a90b2e2`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `ec3ad2e56b2cb35cf9070ef5d42da7bb5e7fb69d8931fa581b41920a24318fee`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "roomMembersV2.transferOwner": FunctionReference<"roomMembersV2.transferOwner", 'Mutation', { scopeId: Id<'roomsV2'>; principal: Principal }, null, "snapback-explicit-v1">;
   /**
@@ -405,7 +405,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `37f6c287a659c1d13bec93cef6eca568dfd9fa8395b564a4966d12932a90b2e2`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `ec3ad2e56b2cb35cf9070ef5d42da7bb5e7fb69d8931fa581b41920a24318fee`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "roomMembersV2.remove": FunctionReference<"roomMembersV2.remove", 'Mutation', { scopeId: Id<'roomsV2'>; principal: Principal }, null, "snapback-explicit-v1">;
   readonly "roomMembersV2": Readonly<{ "list": GeneratedApi["roomMembersV2.list"]; "myRole": GeneratedApi["roomMembersV2.myRole"]; "invite": GeneratedApi["roomMembersV2.invite"]; "join": GeneratedApi["roomMembersV2.join"]; "leave": GeneratedApi["roomMembersV2.leave"]; "changeRole": GeneratedApi["roomMembersV2.changeRole"]; "transferOwner": GeneratedApi["roomMembersV2.transferOwner"]; "remove": GeneratedApi["roomMembersV2.remove"] }>;

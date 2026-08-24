@@ -5676,6 +5676,10 @@ async function generateInProcessLocked({
       for (const table of tableVisibilityMembershipReadTables(visibilities, membershipDeclarations)) {
         reads.add(table);
       }
+      for (const membership of source.functionMembership ?? []) {
+        const installed = membershipDeclarations.get(membership.declaration);
+        if (installed) reads.add(installed.table.name);
+      }
       const readList = [...reads].sort(compareCodeUnits);
       const runtime = { HostPlan: { GraphQuery: null } };
       functions.push({
@@ -5687,6 +5691,7 @@ async function generateInProcessLocked({
         declaredWrites: [],
         authScopeField: null,
         authorizationDependence: source.nodes.some((node) => node.authorityClass !== 1)
+          || (source.functionMembership?.length ?? 0) > 0
           ? ['userId']
           : [],
         syncabilityClass: 'syncable-live',
@@ -19911,6 +19916,7 @@ function validateGraphAuthoringSource(source, path, bindings) {
   const graphLiteralHelpers = new Map();
   const graphNamespaces = new Set();
   const validatorRoots = new Set();
+  const membershipResourceRoots = new Set();
   for (const statement of sourceFile.statements) {
     if (!ts.isImportDeclaration(statement)
       || !ts.isStringLiteral(statement.moduleSpecifier)
@@ -19925,6 +19931,7 @@ function validateGraphAuthoringSource(source, path, bindings) {
       const imported = specifier.propertyName?.text ?? specifier.name.text;
       if (helperExports.has(imported)) graphLiteralHelpers.set(specifier.name.text, imported);
       if (imported === 'v') validatorRoots.add(specifier.name.text);
+      if (imported === 'membershipResource') membershipResourceRoots.add(specifier.name.text);
     }
   }
   const unwrap = (node) => {
@@ -19955,6 +19962,9 @@ function validateGraphAuthoringSource(source, path, bindings) {
       }
       if (validatorRoots.has(callee.expression.text)) {
         return { kind: 'validator', name: callee.name.text };
+      }
+      if (membershipResourceRoots.has(callee.expression.text)) {
+        return { kind: 'membership-resource', name: callee.name.text };
       }
     }
     if (ts.isPropertyAccessExpression(callee)
@@ -20104,17 +20114,28 @@ function validateGraphAuthoringSource(source, path, bindings) {
         const inArgs = propertyPath[0] === 'args';
         const inFilters = propertyPath.includes('filters');
         const inOrder = propertyPath.includes('order');
+        const inMembership = propertyPath[0] === 'membership';
+        const callee = unwrap(current.expression);
+        const membershipPredicateAllowed = inMembership
+          && ts.isPropertyAccessExpression(callee)
+          && callee.name.text === 'hasRole'
+          && ts.isIdentifier(callee.expression)
+          && bindings.isDeclaredTableBinding(callee.expression, path, sourceFile);
         const helperAllowed = nestedBinding?.kind === 'helper' && (
           (['arg', 'lit', 'literal', 'eq', 'ltFilter', 'lteFilter', 'gtFilter', 'gteFilter'].includes(nestedBinding.name) && inFilters)
           || (['asc', 'desc'].includes(nestedBinding.name) && inOrder)
-        );
+        ) || nestedBinding?.kind === 'membership-resource'
+          && nestedBinding.name === 'arg'
+          && inMembership;
         if (nestedBinding?.kind === 'helper' && nestedBinding.name === 'arg' && !inFilters) {
           refuse(
             'SNAPBACK_GRAPH_CLIENT_AST_FORBIDDEN',
             current,
             'an argument helper may bind only a closed filter value, never graph shape',
           );
-        } else if (!(helperAllowed || (nestedBinding?.kind === 'validator' && inArgs))) {
+        } else if (!(membershipPredicateAllowed
+          || helperAllowed
+          || (nestedBinding?.kind === 'validator' && inArgs))) {
           refuse(
             'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
             current,
