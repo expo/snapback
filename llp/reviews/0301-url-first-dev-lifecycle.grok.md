@@ -220,3 +220,44 @@ LLP 0300 decisions are treated as settled (path split, rendezvous-wins, release-
 0301: NOT READY
 0302: READY
 SET: NOT READY
+
+## Cluster round 3 (post-freeze punch-list) — 2026-08-24
+
+- Targets: 0301(d)+0302(d) at afb51ced0; own-family punch list; hashes in run journal
+- Received: complete response; verbatim body follows
+
+The prompt was truncated; I’ll load the offloaded full request first so the punch-list review can cover the complete documents and diffs.Punch-list folds are present at the cited sites. Revision **d** also left contradictory leftover sentences, so the frozen pair is **not sound**.
+
+#1: VERIFIED
+#2: VERIFIED
+#3: VERIFIED
+#4: VERIFIED
+#5: VERIFIED
+#6: VERIFIED
+#7: VERIFIED
+#8: VERIFIED
+#9: VERIFIED
+#10: VERIFIED
+#11: VERIFIED
+
+## Diff-soundness
+
+**MATERIAL — LLP 0301 §8 item 3.** The §3 attach matrix is six rows (the #1/#5 fold), but acceptance still requires “the four CLI×receipt cells.” Testers following §8 will not land rows 5–6. Replace “four CLI×receipt cells” with “the six §3 CLI×receipt cells” (or “the §3 matrix”).
+
+**MATERIAL — LLP 0301 §2b.** Syntax-only now admits **any** canonical HTTP(S) origin on the explicit allowlist, but the shared vectors still unconditionally refuse `http://attacker.dev`, `http://192.168.1.10:4287`, and `http://0.0.0.0`. Only `https://lane.trycloudflare.com` and `http://10.0.2.2:4287` are surface-qualified. Split the vector table: syntax refuses (path, credentials, query, `ws:`, parse failure) apply to every consumer; host-set refuses apply only to fixed-set surfaces.
+
+**MATERIAL — LLP 0302 §1.** The import-stable sentinel was added, but the preceding variant bullet still says release “does not export or construct that source at all.” That is the import-throw the sentinel was meant to close. Rewrite to: release does not construct the capability; the named export at the same path is the sentinel.
+
+**MATERIAL — LLP 0302 §7.** “New client code” names only `SNAPBACK_APP_BINDING_URL_INVALID`. §1, §3, and 0301 §7a also pin `SNAPBACK_APP_IDENTITY_FACT_INVALID` and `SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED`. List all three as new client codes.
+
+**Correction — LLP 0302 §8 item 3.** Still says “module brand” after §1 moved the brand to a library-internal stamp. Say “library stamp.”
+
+## Obligations
+
+**RECORD-AS-OBLIGATION — LLP 0302 §3.** Define the stream-less “top-level operation” atom and add an acceptance case. The idle-swap residual was closed in prose with no battery.
+
+**RECORD-AS-OBLIGATION — LLP 0302 §3(c).** Un-verify narrowed from all non-2xx to transport error / drop / 5xx, with only 4xx carved out. 3xx (and any other non-4xx, non-5xx) on a non-identity call is unspecified.
+
+0301: NOT READY
+0302: NOT READY
+SET: NOT READY

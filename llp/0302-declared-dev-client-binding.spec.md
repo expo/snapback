@@ -8,6 +8,11 @@ client, Code generation, Templates, Guide, Diagnostics
 overnight directive 2026-08-24: RFC → refine → Specs → refine →
 implementation)
 **Date:** 2026-08-24
+**Revised:** 2026-08-24 (e — post-freeze corrections from punch-list round
+3: full non-2xx un-verify restored (fail-closed beats 4xx noise; subsumes
+the 3xx gap); release-variant leftover sentence rewritten to the sentinel;
+§7 inventory lists all three new client codes; "library stamp" wording;
+obligations box added)
 **Revised:** 2026-08-24 (d — round-2 revision, after which the normative
 surface is FROZEN per the Spec-type default: stream-less consumers get a
 normative per-operation preflight (the idle-swap residual is closed, not
@@ -54,8 +59,8 @@ builds must still **succeed** with the URL env and `url` argument present
   generated `app` surface — application source imports nothing new and
   nothing that can be absent). Generating for development emits the
   variant that constructs the `declared-dev` capability; generating for
-  release emits the variant that does not export or construct that source
-  at all. Generated output is replaced atomically, and a dirty
+  release emits the variant that does not construct it — the named export
+  at the same path is the import-stable sentinel of the bullet below. Generated output is replaced atomically, and a dirty
   dev→release transition (stale files) is covered by acceptance.
 - **Library-internal stamp (the brand):** the dev variant obtains its
   capability by calling a library mint; the library stamps it internally
@@ -100,10 +105,11 @@ is the degenerate case below.
 - **Episode start:** (a) first use of the origin by this client instance;
   (b) establishment of a new standing stream (including every reconnect
   after a stream drop); (c) any transport error, connection drop, or
-  **5xx** on a non-identity call — which immediately *un-verifies* the
-  episode: the failed call is not retried and no other call is made until
-  re-verification. (Application-level 4xx does not un-verify; it cannot
-  indicate process replacement.)
+  **any non-2xx** on a non-identity call — which immediately *un-verifies*
+  the episode: the failed call is not retried and no other call is made
+  until re-verification. (Fail-closed on purpose: a wrong listener can
+  answer 4xx, and the cost of over-triggering is one credential-free
+  loopback GET.)
 - In an unverified episode the only permitted request is
   `GET /_snapback/api/app/identity`, sent credential-free with cache
   bypass (`cache: 'no-store'`; no conditional headers) and refusing
@@ -171,7 +177,9 @@ of that future work, tracked by the issue LLP 0301 §9 names.
 
 ## 7. Diagnostics
 
-New client code: `SNAPBACK_APP_BINDING_URL_INVALID`. Reused:
+New client codes: `SNAPBACK_APP_BINDING_URL_INVALID`,
+`SNAPBACK_APP_IDENTITY_FACT_INVALID`,
+`SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED`. Reused:
 `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH`, the existing unavailable/refusal
 codes, and LLP 0301's `SNAPBACK_APP_IDENTITY_UNAVAILABLE` by name. All
 new codes are s5_d10-classified with the landing (LLP 0301 §7).
@@ -193,7 +201,7 @@ new codes are s5_d10-classified with the landing (LLP 0301 §7).
    match across the swap).
 3. Wrong-app generated capability vs running backend → IDENTITY_MISMATCH
    naming both; a hand-assembled `declared-dev` candidate without the
-   module brand is refused.
+   library stamp is refused.
 4. Precedence table: completed rendezvous ignores `url`; failed
    configured rendezvous refuses without URL fallback; absent rendezvous +
    `url` selects `declared-dev`.
@@ -203,6 +211,14 @@ new codes are s5_d10-classified with the landing (LLP 0301 §7).
    two distinct principals in two contexts.
 6. Bundler restart on a new port (row 8): still connects; browser-local
    state reset accepted; backend data intact after ordinary re-sign-in.
+
+## 8a. Recorded obligations (post-freeze; resolved in implementation, not
+by new Spec prose)
+
+- Define the stream-less "top-level operation" atom (including nested and
+  concurrent operations) in the implementation's client documentation, and
+  ship an executable per-operation preflight battery exercising §3's
+  stream-less mode. (Punch-list round 3, both families.)
 
 ## 9. Out of scope
 

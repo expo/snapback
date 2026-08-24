@@ -66,3 +66,35 @@ No MATERIAL findings: PRE-EXISTING surface in either target; identity caching/re
 0301: NOT READY
 0302: NOT READY
 SET: NOT READY
+## Cluster round 3 (post-freeze punch-list) — 2026-08-24
+
+- Targets: 0301(d)+0302(d) at afb51ced0; own-family punch list; hashes in run journal
+- Received: complete response; verbatim body follows
+
+#1: DISPOSITION ERROR — 0301 §2b still calls the fixed-host rejection vectors “shared” and requires every consumer to reject `attacker.dev` and `192.168.1.10`, contradicting explicit-list syntax that admits any canonical HTTP(S) origin. Split syntax vectors from fixed-set host-policy vectors.
+
+#2: VERIFIED
+
+#3: VERIFIED
+
+#4: VERIFIED
+
+#5: VERIFIED
+
+#6: VERIFIED
+
+Diff-soundness findings:
+
+MATERIAL — 0301 §8.3: acceptance still references “four CLI×receipt cells,” while revision d establishes six rows. Change it to require all six §3 outcomes.
+
+MATERIAL — 0302 §3: narrowing un-verification from every non-2xx response to only 5xx is unsound. A replacement or wrong listener can return 4xx, leaving the client verified for subsequent calls. Restore non-2xx un-verification or provide an equivalently fail-closed classification.
+
+MATERIAL — 0302 §7: the diagnostics inventory says the only new client code is `SNAPBACK_APP_BINDING_URL_INVALID`, contradicting revision d and 0301 §7a, which also introduce `SNAPBACK_APP_IDENTITY_FACT_INVALID` and `SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED`. Update the inventory and new/reused classifications.
+
+Obligations to record:
+
+RECORD-AS-OBLIGATION — Define “top-level operation” for stream-less clients, including nested/concurrent operations, and add an executable per-operation preflight battery.
+
+0301: NOT READY
+0302: NOT READY
+SET: NOT READY

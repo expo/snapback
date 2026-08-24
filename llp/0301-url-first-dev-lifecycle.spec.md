@@ -8,6 +8,9 @@ Diagnostics
 overnight directive 2026-08-24: RFC → refine → Specs → refine →
 implementation)
 **Date:** 2026-08-24
+**Revised:** 2026-08-24 (e — post-freeze corrections from punch-list round
+3: vector table split into syntax vectors (all surfaces) vs host-policy
+vectors (fixed-set surfaces only); acceptance updated to the six §3 cells)
 **Revised:** 2026-08-24 (d — round-2 revision, after which the normative
 surface is FROZEN per the Spec-type default: canonicalization split into
 syntax vs host policy (tunnel origins admitted in explicit lists); the
@@ -147,16 +150,19 @@ LLP 0302's URL admission adds `10.0.2.2`.
 Parser normalization is the canonicalizer: `127.1` normalizes to
 `127.0.0.1` and is thereby admitted; `localhost.` (trailing dot) does not
 normalize away and is refused; default ports normalize to none; the
-canonical form is the parser's `origin` serialization. **Shared vectors**
-(the conformance set every consumer must pass, accept → canonical form):
-`http://127.0.0.1:4287` ✓; `http://localhost:5173/` ✓; `https://[::1]:8443` ✓;
-`http://127.1:4287` ✓ (→ `127.0.0.1`); `HTTP://LOCALHOST:80` ✓ (→
-`http://localhost`); refuse: `http://localhost.`, `http://attacker.dev`
-(even if DNS-loopback), `http://127.0.0.1:4287/path`, `http://user@127.0.0.1`,
-`http://127.0.0.1?x`, `ws://127.0.0.1`, `http://0.0.0.0`,
-`http://192.168.1.10:4287`. (`http://10.0.2.2:4287` ✓ on the LLP 0302 URL
-surface only; `https://lane.trycloudflare.com` ✓ as an explicit-allowlist
-entry and refused on every fixed-set surface.)
+canonical form is the parser's `origin` serialization. **Shared vectors, in two sets.**
+*Syntax vectors (every consumer, every surface):* accept →
+`http://127.0.0.1:4287`; `http://localhost:5173/`; `https://[::1]:8443`;
+`http://127.1:4287` (→ `127.0.0.1`); `HTTP://LOCALHOST:80` (→
+`http://localhost`); `https://lane.trycloudflare.com`; refuse (syntax):
+`http://127.0.0.1:4287/path`, `http://user@127.0.0.1`, `http://127.0.0.1?x`,
+`ws://127.0.0.1`, `http://localhost.` (parse-preserved trailing dot), and
+any parse failure. *Host-policy vectors (fixed-set surfaces only —
+`loopback-any` matcher and the LLP 0302 URL surface):* additionally refuse
+`http://attacker.dev` (even if DNS-loopback), `http://0.0.0.0`,
+`http://192.168.1.10:4287`, `https://lane.trycloudflare.com`; the LLP 0302
+URL surface alone accepts `http://10.0.2.2:4287`. An explicit allowlist
+applies the syntax vectors only.
 
 ## 3. Receipt posture — writer matrix, reader rule, attach contract
 
@@ -293,7 +299,7 @@ All new codes are s5_d10-classified with the landing.
    equals singleton list; supervised merge never drops injected origins;
    an SSH/devcontainer-forwarded literal-loopback URL works end-to-end
    (LLP 0300 row 3); posture×list invalid pairs refuse startup.
-3. Receipt: the four CLI×receipt cells land on the §3 outcomes; attach
+3. Receipt: the six §3 CLI×receipt cells land on the §3 outcomes; attach
    posture-mismatch refuses; supervised battery green with the additive
    field.
 4. Writer: refresh-on-rebind; no-clobber; single-block enforcement;
