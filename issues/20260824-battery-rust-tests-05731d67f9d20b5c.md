@@ -1,4 +1,4 @@
-# complete battery red: cargo-clippy
+# complete battery red: rust-tests
 
 **Status:** Open
 **Impact:** 5
@@ -7,20 +7,20 @@
 **Confidence:** 5
 **Systems:** Testing, CI
 **Date:** 2026-08-24
-**Battery gate:** `cargo-clippy`
-**Failure signature:** `sha256:2569034153f6cd32d4a834fc345965c72a091bb611134c6c12bfc0938d2cfa20`
-**First observed run:** `local.20260824T075727Z.59ae1a00e1c4`
-**Last observed run:** `local.20260824T075727Z.59ae1a00e1c4`
-**Last processed run:** `local.20260824T075727Z.59ae1a00e1c4`
-**Detected at revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
-**Last observed revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
+**Battery gate:** `rust-tests`
+**Failure signature:** `sha256:05731d67f9d20b5c45824a0cfcb4c384c52e21295292dda4d2fd0539c8da5c95`
+**First observed run:** `local.20260824T183807Z.0dd1f3c9f73c`
+**Last observed run:** `local.20260824T183807Z.0dd1f3c9f73c`
+**Last processed run:** `local.20260824T183807Z.0dd1f3c9f73c`
+**Detected at revision:** `0dd1f3c9f73ce89366de8c84bfc3f91f331b4b90`
+**Last observed revision:** `0dd1f3c9f73ce89366de8c84bfc3f91f331b4b90`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
 
-The scheduled complete canonical battery reported `cargo-clippy` as a root
+The scheduled complete canonical battery reported `rust-tests` as a root
 failure (exit 101). This ticket is keyed by gate plus the normalized
 root-failure signature and remains idempotent while open. Dependent `BLOCKED`
 results do not create tickets.
@@ -30,12 +30,12 @@ results do not create tickets.
 - None.
 
 These are the standing published claims whose recorded LLP 0189 D-4 scope
-derives `cargo-clippy` as claim-relevant for this battery revision.
+derives `rust-tests` as claim-relevant for this battery revision.
 
 ## Reproduce and repair
 
 ```sh
-cargo clippy --all-targets -- -D warnings
+env SNAPBACK_EXPECT_WORKERD=1 cargo test --workspace --no-fail-fast -- --test-threads 4
 ```
 
 Fix forward, rerun the complete battery, and let the next determinate pass close

@@ -1,6 +1,8 @@
 # complete battery red: regression-ephemeral-wiring
 
-**Status:** Open
+**Status:** Closed
+**Closure:** `signature absent from determinate FAIL`
+**Closed at revision:** `0dd1f3c9f73ce89366de8c84bfc3f91f331b4b90`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -11,7 +13,7 @@
 **Failure signature:** `sha256:6a8dc07ae1b7408353da97f124b9b29989ff475c95df2e4ff64fe23614b11a48`
 **First observed run:** `local.20260824T075727Z.59ae1a00e1c4`
 **Last observed run:** `local.20260824T075727Z.59ae1a00e1c4`
-**Last processed run:** `local.20260824T075727Z.59ae1a00e1c4`
+**Last processed run:** `local.20260824T183807Z.0dd1f3c9f73c`
 **Detected at revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
 **Last observed revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
 **Consecutive red runs:** `1`

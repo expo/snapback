@@ -1,17 +1,19 @@
-# complete battery red: todo-v2-headless
+# complete battery red: admin-acceptance
 
-**Status:** Open
+**Status:** Closed
+**Closure:** `signature absent from determinate FAIL`
+**Closed at revision:** `0dd1f3c9f73ce89366de8c84bfc3f91f331b4b90`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
 **Confidence:** 5
 **Systems:** Testing, CI
 **Date:** 2026-08-24
-**Battery gate:** `todo-v2-headless`
-**Failure signature:** `sha256:7ffdeec0385415b14ee53abdba0fbceef276b0d867d01a3d2852d09586670ec3`
+**Battery gate:** `admin-acceptance`
+**Failure signature:** `sha256:f1fe5ddbab5544caabc54aac93fbfe2e20b2fcb11f81694e28e406c25ffe95eb`
 **First observed run:** `local.20260824T075727Z.59ae1a00e1c4`
 **Last observed run:** `local.20260824T075727Z.59ae1a00e1c4`
-**Last processed run:** `local.20260824T075727Z.59ae1a00e1c4`
+**Last processed run:** `local.20260824T183807Z.0dd1f3c9f73c`
 **Detected at revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
 **Last observed revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
 **Consecutive red runs:** `1`
@@ -20,22 +22,22 @@
 
 ## Summary
 
-The scheduled complete canonical battery reported `todo-v2-headless` as a root
+The scheduled complete canonical battery reported `admin-acceptance` as a root
 failure (exit 1). This ticket is keyed by gate plus the normalized
 root-failure signature and remains idempotent while open. Dependent `BLOCKED`
 results do not create tickets.
 
 ## Standing claim cross-references
 
-- `single_table_v1` — `crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json`
+- None.
 
 These are the standing published claims whose recorded LLP 0189 D-4 scope
-derives `todo-v2-headless` as claim-relevant for this battery revision.
+derives `admin-acceptance` as claim-relevant for this battery revision.
 
 ## Reproduce and repair
 
 ```sh
-node demos/todo-v2/tests/acceptance/headless.mjs
+bash -lc cd\ admin-ui\ \&\&\ ./build.sh\ \&\&\ bun\ run\ test\ \&\&\ bun\ run\ test:browser-security\ \&\&\ bun\ run\ audit:production
 ```
 
 Fix forward, rerun the complete battery, and let the next determinate pass close

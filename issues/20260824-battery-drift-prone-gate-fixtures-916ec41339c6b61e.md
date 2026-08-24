@@ -1,4 +1,4 @@
-# complete battery red: swift-client
+# complete battery red: drift-prone-gate-fixtures
 
 **Status:** Open
 **Impact:** 5
@@ -7,20 +7,20 @@
 **Confidence:** 5
 **Systems:** Testing, CI
 **Date:** 2026-08-24
-**Battery gate:** `swift-client`
-**Failure signature:** `sha256:7edbc50e4e71fbf16a40dc7d45e9c2319469812f59fed484dd2b35c525baa134`
-**First observed run:** `local.20260824T075727Z.59ae1a00e1c4`
-**Last observed run:** `local.20260824T075727Z.59ae1a00e1c4`
-**Last processed run:** `local.20260824T075727Z.59ae1a00e1c4`
-**Detected at revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
-**Last observed revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
+**Battery gate:** `drift-prone-gate-fixtures`
+**Failure signature:** `sha256:916ec41339c6b61e66c24716ebeea268093c80856f05932083d7edf9fa1a6b0d`
+**First observed run:** `local.20260824T183807Z.0dd1f3c9f73c`
+**Last observed run:** `local.20260824T183807Z.0dd1f3c9f73c`
+**Last processed run:** `local.20260824T183807Z.0dd1f3c9f73c`
+**Detected at revision:** `0dd1f3c9f73ce89366de8c84bfc3f91f331b4b90`
+**Last observed revision:** `0dd1f3c9f73ce89366de8c84bfc3f91f331b4b90`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
 
-The scheduled complete canonical battery reported `swift-client` as a root
+The scheduled complete canonical battery reported `drift-prone-gate-fixtures` as a root
 failure (exit 1). This ticket is keyed by gate plus the normalized
 root-failure signature and remains idempotent while open. Dependent `BLOCKED`
 results do not create tickets.
@@ -30,12 +30,12 @@ results do not create tickets.
 - None.
 
 These are the standing published claims whose recorded LLP 0189 D-4 scope
-derives `swift-client` as claim-relevant for this battery revision.
+derives `drift-prone-gate-fixtures` as claim-relevant for this battery revision.
 
 ## Reproduce and repair
 
 ```sh
-swift test --package-path clients/swift/SnapbackClient
+node --test tests/drift_prone_gates_v0.mjs
 ```
 
 Fix forward, rerun the complete battery, and let the next determinate pass close

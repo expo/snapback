@@ -8,14 +8,14 @@
 **Systems:** Testing, CI
 **Date:** 2026-08-24
 **Battery gate:** `snapback-cli-real-server`
-**Failure signature:** `sha256:d276196e214a485653a66c45bf676e2e3822794ec54ecb29abb117d69d743784`
-**First observed run:** `local.20260824T022619Z.88476b032428`
-**Last observed run:** `local.20260824T075727Z.59ae1a00e1c4`
-**Last processed run:** `local.20260824T075727Z.59ae1a00e1c4`
-**Detected at revision:** `88476b0324286a5c8bde4b0c1d877ae542cf96e7`
-**Last observed revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
-**Consecutive red runs:** `2`
-**Escalation:** `pending (2/4)`
+**Failure signature:** `sha256:a526e2b1ef0d81ed8f3f0798070c298c76cf33628c81176f854c1b00928c3684`
+**First observed run:** `local.20260824T183807Z.0dd1f3c9f73c`
+**Last observed run:** `local.20260824T183807Z.0dd1f3c9f73c`
+**Last processed run:** `local.20260824T183807Z.0dd1f3c9f73c`
+**Detected at revision:** `0dd1f3c9f73ce89366de8c84bfc3f91f331b4b90`
+**Last observed revision:** `0dd1f3c9f73ce89366de8c84bfc3f91f331b4b90`
+**Consecutive red runs:** `1`
+**Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary

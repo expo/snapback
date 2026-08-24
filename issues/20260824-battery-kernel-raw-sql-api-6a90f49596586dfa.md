@@ -1,4 +1,4 @@
-# complete battery red: drift-prone-gate-fixtures
+# complete battery red: kernel-raw-sql-api
 
 **Status:** Open
 **Impact:** 5
@@ -7,20 +7,20 @@
 **Confidence:** 5
 **Systems:** Testing, CI
 **Date:** 2026-08-24
-**Battery gate:** `drift-prone-gate-fixtures`
-**Failure signature:** `sha256:8f4521a8220d0419e8ffec449bdf5c9a2cd75a190c2a671c1ada17f505089401`
-**First observed run:** `local.20260824T075727Z.59ae1a00e1c4`
-**Last observed run:** `local.20260824T075727Z.59ae1a00e1c4`
-**Last processed run:** `local.20260824T075727Z.59ae1a00e1c4`
-**Detected at revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
-**Last observed revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
+**Battery gate:** `kernel-raw-sql-api`
+**Failure signature:** `sha256:6a90f49596586dfaa563949c39fa04d489d814e9fd06b0b369efde6ce08c326c`
+**First observed run:** `local.20260824T183807Z.0dd1f3c9f73c`
+**Last observed run:** `local.20260824T183807Z.0dd1f3c9f73c`
+**Last processed run:** `local.20260824T183807Z.0dd1f3c9f73c`
+**Detected at revision:** `0dd1f3c9f73ce89366de8c84bfc3f91f331b4b90`
+**Last observed revision:** `0dd1f3c9f73ce89366de8c84bfc3f91f331b4b90`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
 
-The scheduled complete canonical battery reported `drift-prone-gate-fixtures` as a root
+The scheduled complete canonical battery reported `kernel-raw-sql-api` as a root
 failure (exit 1). This ticket is keyed by gate plus the normalized
 root-failure signature and remains idempotent while open. Dependent `BLOCKED`
 results do not create tickets.
@@ -30,12 +30,12 @@ results do not create tickets.
 - None.
 
 These are the standing published claims whose recorded LLP 0189 D-4 scope
-derives `drift-prone-gate-fixtures` as claim-relevant for this battery revision.
+derives `kernel-raw-sql-api` as claim-relevant for this battery revision.
 
 ## Reproduce and repair
 
 ```sh
-node --test tests/drift_prone_gates_v0.mjs
+node scripts/check-kernel-raw-sql-api.mjs
 ```
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
