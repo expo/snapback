@@ -238,3 +238,20 @@ satisfied. **G2 (per-node precision on admitted graphs) and G3 (delta
 lanes) are now unblocked** — those are the rungs that remove the
 per-turn re-evaluation floor this ticket anchors. This ticket stays the
 evidence anchor; the zb5-hot A/B rerun remains the acceptance instrument.
+
+## 2026-08-25 — G2 complete: per-node precision is real; the floor's removal is measured-ready
+
+The full ladder commissioned from this anchor is now landed: G0 (IR,
+identities, corpus — LLP 0209 v0.6/v0.7), G2-A (the corpus-proven graph
+evaluator), G2-B (honest capture emission + attested per-node matching),
+G2-C (served graph subscriptions behind the kill switch and capability
+gate, real observations, executable scheduler cases), plus the LLP 0268
+broadcast prover and the LLP 0267 graph-bounds amendment. D2-H2 holds on
+the frozen normal-fixture replay: conservative-fallback rate 0, no
+full-graph wake for node-disjoint commits (N=1 shape evidence; the
+published-claim battery — N≥3, large/hot arms, the zb5-hot A/B — is
+pinned in `issues/20260824-g0-bcast-bounds-large-hot-observations.md`
+and the corpus artifacts). Remaining rungs on the structural ceiling this
+ticket names: G3 delta lanes (uncommissioned) and the measurement tail.
+This ticket stays the evidence anchor; the zb5-hot A/B remains the
+acceptance instrument.
