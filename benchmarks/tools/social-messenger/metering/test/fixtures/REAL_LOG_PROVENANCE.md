@@ -38,3 +38,12 @@ are copied into the fixture. Adapter `codex-rollout-jsonl.v3` retains this as a
 fail-closed regression: the zero cumulative delta cannot checksum the nonzero
 aggregate, so the parser names ordinal 710 and refuses to invent or discard
 usage.
+
+`real-opus-shorthand-lane-observation.jsonl` is the exact first event from the
+retained Opus Clique explicit M1 suite-observation sidecar at
+`/Users/ccheever/bench-matrix-20260823-r2/instrument/runs/2026-08-23-r2-published-0125/cells/opus-clique-explicit/receipts/m1-suite.observations.jsonl`.
+Its line SHA-256 is
+`7c5b666682bf340461c84e34767763dba1baf55165c83c5ecbd46be23a4784d3`.
+The older sidecar wrote the cell-local suffix `opus-clique-explicit`; the
+versioned observation admission canonicalizes that suffix to the manifest's
+full lane identity and still refuses every unrelated value.

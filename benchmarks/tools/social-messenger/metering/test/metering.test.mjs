@@ -793,6 +793,23 @@ test("lane manifest rejects source-hash and receipt-identity mismatches", async 
   );
 });
 
+test("exact retained Opus shorthand lane identity canonicalizes to its full lane", async () => {
+  const fixture = await fixtureText("real-opus-shorthand-lane-observation.jsonl");
+  assert.equal(
+    sha256(fixture.trimEnd()),
+    "sha256:7c5b666682bf340461c84e34767763dba1baf55165c83c5ecbd46be23a4784d3",
+  );
+  const laneRunId = "2026-08-23-r2-published-0125/opus-clique-explicit";
+  const [event] = parseObservationJsonLines(fixture, "retained Opus M1 suite", {
+    laneRunId,
+  });
+  assert.equal(event.laneRunId, laneRunId);
+  const [unrelated] = parseObservationJsonLines(fixture, "retained Opus M1 suite", {
+    laneRunId: "2026-08-23-r2-published-0125/sol-clique-explicit",
+  });
+  assert.equal(unrelated.laneRunId, "opus-clique-explicit");
+});
+
 test("meter binds suite-status bytes to receipts at record-write time", async (t) => {
   const directory = await realpath(await mkdtemp(join(tmpdir(), "snapback-suite-binding-")));
   t.after(() => rm(directory, { recursive: true, force: true }));
