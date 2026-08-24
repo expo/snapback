@@ -1,13 +1,15 @@
-# LLP 0303 — Subject/authority correlation policy
+# LLP 0303: Subject/authority correlation policy — the derive-not-supply ruling
 
-Type: Decision
-Status: Accepted
-Systems: snapback-auth, snapback-sync, snapback-engine, snapback-kernel, snapback-server
-Author: ccheever
-Date: 2026-08-24
-Revised: 2026-08-24
-Related: LLP 0283 (post-rearchitecture follow-ups), LLP 0298 (durable-effect scope),
-  LLP 0285 (kernel authorization closure), LLP 0274 (explicit write authority postures)
+**Type:** Decision
+**Status:** Accepted
+**Systems:** Auth, Sync, Engine, Kernel, Server
+**Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
+2026-08-24, in session supervising LLP 0283 F-1)
+**Date:** 2026-08-24
+**Revised:** 2026-08-24 (a — initial ruling)
+**Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
+`issues/20260824-liveness-row-bucket-assignment.md`,
+`issues/20260824-entitlement-predicates-for-the-live-sites.md`
 
 ## Ruling
 
