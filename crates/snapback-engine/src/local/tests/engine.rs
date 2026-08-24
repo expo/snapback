@@ -1,4 +1,5 @@
 use super::*;
+use rusqlite::OptionalExtension;
 
 fn filter_telemetry_events_for_test(
     rows: Vec<crate::telemetry_query::TelemetryEventV1>,
@@ -28905,12 +28906,31 @@ type DurablePairingRow = (
     Option<i64>,
     Option<String>,
 );
+type DurableStepUpRow = (
+    String,
+    String,
+    Vec<u8>,
+    String,
+    i64,
+    i64,
+    i64,
+    i64,
+    Option<i64>,
+    Option<String>,
+);
+
+#[derive(Debug, Eq, PartialEq)]
+struct AuthorityFactoryDurableState {
+    invitations: BTreeSet<DurableInvitationRow>,
+    pairings: BTreeSet<DurablePairingRow>,
+    step_up_challenges: BTreeSet<DurableStepUpRow>,
+    auth_clock: Option<(String, String)>,
+}
 
 const AUTHORITY_FACTORY_SENTINELS_PER_SIDE: u8 = 10;
+const AUTHORITY_FACTORY_CLOCK_KEY: &str = "auth_invalidation_clock_high_water_ms_v1";
 
-fn read_authority_factory_rows(
-    path: &std::path::Path,
-) -> (BTreeSet<DurableInvitationRow>, BTreeSet<DurablePairingRow>) {
+fn read_authority_factory_state(path: &std::path::Path) -> AuthorityFactoryDurableState {
     let connection =
         rusqlite::Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
             .expect("open independent durable auth reader");
@@ -28972,7 +28992,48 @@ fn read_authority_factory_rows(
             .collect::<Result<BTreeSet<_>, _>>()
             .expect("collect durable pairing rows")
     };
-    (invitations, pairings)
+    let step_up_challenges = {
+        let mut statement = connection
+            .prepare(
+                "SELECT challenge_id, canonical_address, code_digest, key_id,
+                        attempts, max_attempts, requested_at_ms, expires_at_ms,
+                        consumed_at_ms, superseded_by
+                 FROM _auth_verification_codes",
+            )
+            .expect("prepare complete durable step-up readback");
+        statement
+            .query_map([], |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                    row.get(6)?,
+                    row.get(7)?,
+                    row.get(8)?,
+                    row.get(9)?,
+                ))
+            })
+            .expect("read durable step-up rows")
+            .collect::<Result<BTreeSet<_>, _>>()
+            .expect("collect durable step-up rows")
+    };
+    let auth_clock = connection
+        .query_row(
+            "SELECT key, value FROM _snapback_meta WHERE key = ?1",
+            [AUTHORITY_FACTORY_CLOCK_KEY],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()
+        .expect("read exact durable auth clock row");
+    AuthorityFactoryDurableState {
+        invitations,
+        pairings,
+        step_up_challenges,
+        auth_clock,
+    }
 }
 
 fn seed_authority_factory_fixture(path: &std::path::Path, now_ms: u64) {
@@ -29146,6 +29207,30 @@ fn expected_authority_factory_sentinels(
     (invitations, pairings)
 }
 
+fn expected_step_up_row(
+    proof: &crate::auth::crypto::StepUpProof,
+    requested_at_ms: u64,
+    consumed_at_ms: Option<u64>,
+) -> DurableStepUpRow {
+    (
+        proof.challenge_id.as_str().to_owned(),
+        proof.address.as_str().to_owned(),
+        proof.submitted_digest.as_bytes().to_vec(),
+        proof
+            .key_id
+            .as_ref()
+            .expect("fixture step-up proof carries its chosen key id")
+            .as_str()
+            .to_owned(),
+        i64::from(consumed_at_ms.is_some()),
+        5,
+        requested_at_ms as i64,
+        (requested_at_ms + 30_000) as i64,
+        consumed_at_ms.map(|value| value as i64),
+        None,
+    )
+}
+
 fn invitation_step_up_proofs(
     snapback: &mut LocalSnapback,
     random: &CounterRandom,
@@ -29268,11 +29353,22 @@ fn agent_invitation_factory_derives_the_inviter_and_requires_exact_management_fa
         "authority-z",
         now_ms,
     );
-    let (mut expected_invitations, expected_pairings) =
-        expected_authority_factory_sentinels(now_ms);
+    let (expected_invitations, expected_pairings) = expected_authority_factory_sentinels(now_ms);
+    let first_step_up_before = expected_step_up_row(&first_proof, now_ms, None);
+    let second_step_up_before = expected_step_up_row(&second_proof, now_ms, None);
+    let mut expected_state = AuthorityFactoryDurableState {
+        invitations: expected_invitations,
+        pairings: expected_pairings,
+        step_up_challenges: BTreeSet::from([
+            first_step_up_before.clone(),
+            second_step_up_before.clone(),
+        ]),
+        auth_clock: None,
+    };
     assert_eq!(
-        read_authority_factory_rows(&path),
-        (expected_invitations.clone(), expected_pairings.clone())
+        read_authority_factory_state(&path),
+        expected_state,
+        "the independently built fixture must match every projected durable fact"
     );
 
     let mut accepted = BTreeSet::new();
@@ -29310,8 +29406,8 @@ fn agent_invitation_factory_derives_the_inviter_and_requires_exact_management_fa
             .expect_err("an authority-derived nonexistent user must be refused");
         refused.insert(label, error.diagnostic.code);
         assert_eq!(
-            read_authority_factory_rows(&path),
-            (expected_invitations.clone(), expected_pairings.clone()),
+            read_authority_factory_state(&path),
+            expected_state,
             "{label} refusal must leave every durable row untouched"
         );
     }
@@ -29337,8 +29433,9 @@ fn agent_invitation_factory_derives_the_inviter_and_requires_exact_management_fa
         .expect_err("wrong-source inviter must be refused");
     refused.insert("wrong-source", error.diagnostic.code);
     assert_eq!(
-        read_authority_factory_rows(&path),
-        (expected_invitations.clone(), expected_pairings.clone())
+        read_authority_factory_state(&path),
+        expected_state,
+        "wrong-source refusal must leave every durable row untouched"
     );
 
     let admission = AdmissionController::from_mode_state(&settled_sessions_state())
@@ -29373,8 +29470,9 @@ fn agent_invitation_factory_derives_the_inviter_and_requires_exact_management_fa
         .expect_err("retired inviter must be refused");
     refused.insert("retired", error.diagnostic.code);
     assert_eq!(
-        read_authority_factory_rows(&path),
-        (expected_invitations.clone(), expected_pairings.clone())
+        read_authority_factory_state(&path),
+        expected_state,
+        "retired-authority refusal must leave every durable row untouched"
     );
 
     let error = snapback
@@ -29388,8 +29486,9 @@ fn agent_invitation_factory_derives_the_inviter_and_requires_exact_management_fa
         .expect_err("a proof digest for another session must be refused");
     refused.insert("wrong-step-up-session", error.diagnostic.code);
     assert_eq!(
-        read_authority_factory_rows(&path),
-        (expected_invitations.clone(), expected_pairings.clone())
+        read_authority_factory_state(&path),
+        expected_state,
+        "wrong-session proof refusal must roll back its attempted challenge and clock writes"
     );
 
     let first_mint_now_ms = now_ms + 10;
@@ -29408,7 +29507,7 @@ fn agent_invitation_factory_derives_the_inviter_and_requires_exact_management_fa
         "invitation expiry comes from the chosen mint time plus the contract TTL"
     );
     accepted.insert("user-m-session-m");
-    expected_invitations.insert((
+    expected_state.invitations.insert((
         first_minted.invitation_id.clone(),
         first_minted.secret.token_hash().as_bytes().to_vec(),
         "creation".to_owned(),
@@ -29421,10 +29520,26 @@ fn agent_invitation_factory_derives_the_inviter_and_requires_exact_management_fa
         None,
         None,
     ));
+    assert!(
+        expected_state
+            .step_up_challenges
+            .remove(&first_step_up_before)
+    );
+    expected_state
+        .step_up_challenges
+        .insert(expected_step_up_row(
+            &first_proof,
+            now_ms,
+            Some(first_mint_now_ms),
+        ));
+    expected_state.auth_clock = Some((
+        AUTHORITY_FACTORY_CLOCK_KEY.to_owned(),
+        first_mint_now_ms.to_string(),
+    ));
     assert_eq!(
-        read_authority_factory_rows(&path),
-        (expected_invitations.clone(), expected_pairings.clone()),
-        "first accepted invitation must add exactly its independently expected durable row"
+        read_authority_factory_state(&path),
+        expected_state,
+        "first accepted invitation must add exactly its independently expected durable effects"
     );
 
     let second_mint_now_ms = now_ms + 20;
@@ -29443,7 +29558,7 @@ fn agent_invitation_factory_derives_the_inviter_and_requires_exact_management_fa
         "second invitation expiry varies with its independently chosen mint time"
     );
     accepted.insert("user-n-session-n");
-    expected_invitations.insert((
+    expected_state.invitations.insert((
         second_minted.invitation_id.clone(),
         second_minted.secret.token_hash().as_bytes().to_vec(),
         "creation".to_owned(),
@@ -29456,10 +29571,26 @@ fn agent_invitation_factory_derives_the_inviter_and_requires_exact_management_fa
         None,
         None,
     ));
+    assert!(
+        expected_state
+            .step_up_challenges
+            .remove(&second_step_up_before)
+    );
+    expected_state
+        .step_up_challenges
+        .insert(expected_step_up_row(
+            &second_proof,
+            now_ms,
+            Some(second_mint_now_ms),
+        ));
+    expected_state.auth_clock = Some((
+        AUTHORITY_FACTORY_CLOCK_KEY.to_owned(),
+        second_mint_now_ms.to_string(),
+    ));
     assert_eq!(
-        read_authority_factory_rows(&path),
-        (expected_invitations, expected_pairings),
-        "second accepted invitation must add exactly its independently expected durable row"
+        read_authority_factory_state(&path),
+        expected_state,
+        "second accepted invitation must add exactly its independently expected durable effects"
     );
 
     assert_eq!(
@@ -29494,11 +29625,17 @@ fn pairing_code_factory_derives_the_durable_user_from_exact_management_authority
     let now_ms = 10_000;
     let (mut snapback, first_authority, second_authority) =
         authority_factory_fixture(&path, now_ms);
-    let (expected_invitations, mut expected_pairings) =
-        expected_authority_factory_sentinels(now_ms);
+    let (expected_invitations, expected_pairings) = expected_authority_factory_sentinels(now_ms);
+    let mut expected_state = AuthorityFactoryDurableState {
+        invitations: expected_invitations,
+        pairings: expected_pairings,
+        step_up_challenges: BTreeSet::new(),
+        auth_clock: None,
+    };
     assert_eq!(
-        read_authority_factory_rows(&path),
-        (expected_invitations.clone(), expected_pairings.clone())
+        read_authority_factory_state(&path),
+        expected_state,
+        "the independently built fixture must match every projected durable fact"
     );
 
     let mut accepted = BTreeSet::new();
@@ -29530,8 +29667,8 @@ fn pairing_code_factory_derives_the_durable_user_from_exact_management_authority
             .expect_err("an authority-derived nonexistent user must be refused");
         refused.insert(label, error.diagnostic.code);
         assert_eq!(
-            read_authority_factory_rows(&path),
-            (expected_invitations.clone(), expected_pairings.clone()),
+            read_authority_factory_state(&path),
+            expected_state,
             "{label} refusal must leave every durable row untouched"
         );
     }
@@ -29548,8 +29685,9 @@ fn pairing_code_factory_derives_the_durable_user_from_exact_management_authority
         .expect_err("wrong-source session must be refused");
     refused.insert("wrong-source", error.diagnostic.code);
     assert_eq!(
-        read_authority_factory_rows(&path),
-        (expected_invitations.clone(), expected_pairings.clone())
+        read_authority_factory_state(&path),
+        expected_state,
+        "wrong-source refusal must leave every durable row untouched"
     );
 
     let admission = AdmissionController::from_mode_state(&settled_sessions_state())
@@ -29584,8 +29722,9 @@ fn pairing_code_factory_derives_the_durable_user_from_exact_management_authority
         .expect_err("retired authority must be refused");
     refused.insert("retired", error.diagnostic.code);
     assert_eq!(
-        read_authority_factory_rows(&path),
-        (expected_invitations.clone(), expected_pairings.clone())
+        read_authority_factory_state(&path),
+        expected_state,
+        "retired-authority refusal must leave every durable row untouched"
     );
 
     let first_mint_now_ms = now_ms + 10;
@@ -29598,7 +29737,7 @@ fn pairing_code_factory_derives_the_durable_user_from_exact_management_authority
         "pairing expiry comes from the chosen mint time plus the contract TTL"
     );
     accepted.insert("user-m-session-m");
-    expected_pairings.insert((
+    expected_state.pairings.insert((
         first_minted.request_id.clone(),
         first_minted.secret.token_hash().as_bytes().to_vec(),
         "user-m".to_owned(),
@@ -29611,10 +29750,14 @@ fn pairing_code_factory_derives_the_durable_user_from_exact_management_authority
         None,
         None,
     ));
+    expected_state.auth_clock = Some((
+        AUTHORITY_FACTORY_CLOCK_KEY.to_owned(),
+        first_mint_now_ms.to_string(),
+    ));
     assert_eq!(
-        read_authority_factory_rows(&path),
-        (expected_invitations.clone(), expected_pairings.clone()),
-        "first accepted pairing must add exactly its independently expected durable row"
+        read_authority_factory_state(&path),
+        expected_state,
+        "first accepted pairing must add exactly its independently expected durable effects"
     );
 
     let second_mint_now_ms = now_ms + 20;
@@ -29627,7 +29770,7 @@ fn pairing_code_factory_derives_the_durable_user_from_exact_management_authority
         "second pairing expiry varies with its independently chosen mint time"
     );
     accepted.insert("user-n-session-n");
-    expected_pairings.insert((
+    expected_state.pairings.insert((
         second_minted.request_id.clone(),
         second_minted.secret.token_hash().as_bytes().to_vec(),
         "user-n".to_owned(),
@@ -29640,10 +29783,14 @@ fn pairing_code_factory_derives_the_durable_user_from_exact_management_authority
         None,
         None,
     ));
+    expected_state.auth_clock = Some((
+        AUTHORITY_FACTORY_CLOCK_KEY.to_owned(),
+        second_mint_now_ms.to_string(),
+    ));
     assert_eq!(
-        read_authority_factory_rows(&path),
-        (expected_invitations, expected_pairings),
-        "second accepted pairing must add exactly its independently expected durable row"
+        read_authority_factory_state(&path),
+        expected_state,
+        "second accepted pairing must add exactly its independently expected durable effects"
     );
 
     assert_eq!(
