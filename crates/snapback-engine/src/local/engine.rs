@@ -5850,20 +5850,11 @@ impl LocalSnapback {
         authority: &PreparedAuthority,
         user_id: &str,
     ) -> SnapbackResult<()> {
-        let ResolvedAppAuthority::Session {
-            user_id: authority_user_id,
-            ..
-        } = authority.resolved()
-        else {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_REQUIRED",
-                "auth",
-                "pairing-code minting requires exact session authority",
-            ));
-        };
-        if authority.source() != InvocationSource::AgentGrantManagement
-            || authority_user_id != user_id
-        {
+        let authority_user_id = Self::require_agent_grant_management_session(
+            authority,
+            "pairing-code minting authorization",
+        )?;
+        if authority_user_id != user_id {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_REQUIRED",
                 "auth",
@@ -5871,6 +5862,38 @@ impl LocalSnapback {
             ));
         }
         Ok(())
+    }
+
+    /// Require a currently admitted `PreparedAuthority` resolving to a session
+    /// with `AgentGrantManagement` source, then return that session's user.
+    /// Admission validates the lease and rehearsal authority; it does not
+    /// inspect `session_not_after_ms` or re-read the durable session.
+    /// For revocation, that statement is scoped to the two planners below and
+    /// their existing HTTP route handlers. It is not a global internal-API
+    /// closure and does not require the session user to own the grant's agent.
+    ///
+    /// @ref LLP 0055#routes-and-credential-classes — user-facing grant
+    /// management is session-only and scoped to the session user.
+    fn require_agent_grant_management_session<'a>(
+        authority: &'a PreparedAuthority,
+        effect: &'static str,
+    ) -> SnapbackResult<&'a str> {
+        authority.validate_admission(effect)?;
+        if authority.source() != InvocationSource::AgentGrantManagement {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_REQUIRED",
+                "auth",
+                "agent grant management requires its registered invocation source",
+            ));
+        }
+        let ResolvedAppAuthority::Session { user_id, .. } = authority.resolved() else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_REQUIRED",
+                "auth",
+                "agent grant management requires session authority",
+            ));
+        };
+        Ok(user_id)
     }
 
     pub fn present_pairing_code(
@@ -5974,7 +5997,8 @@ impl LocalSnapback {
         grant_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
-        let user_id = grant_session_user_id(authority, "grant revocation planning")?;
+        let user_id =
+            Self::require_agent_grant_management_session(authority, "grant revocation planning")?;
         self.db
             .plan_grant_revocation_service_terminal(user_id, grant_id, now_ms)
             .map(|token_ids| {
@@ -6003,7 +6027,10 @@ impl LocalSnapback {
         actor_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
-        let user_id = grant_session_user_id(authority, "bulk grant revocation planning")?;
+        let user_id = Self::require_agent_grant_management_session(
+            authority,
+            "bulk grant revocation planning",
+        )?;
         self.db
             .plan_bulk_grant_revocation_service_terminal(user_id, actor_id, now_ms)
             .map(|token_ids| {
@@ -40484,21 +40511,6 @@ fn live_owner_mismatch(subscription_id: &str, authority: &PreparedAuthority) -> 
             .then_some(json!({ "present": true })),
         "expectedIdentity": "[redacted]",
     }))
-}
-
-// @ref LLP 0055#routes-and-credential-classes — user-facing grant revocation
-// derives its effective grantor from the admitted management session.
-fn grant_session_user_id<'a>(
-    authority: &'a PreparedAuthority,
-    effect: &'static str,
-) -> SnapbackResult<&'a str> {
-    authority.validate_admission(effect)?;
-    let ResolvedAppAuthority::Session { user_id, .. } = authority.resolved() else {
-        return LocalSnapback::require_pairing_code_mint_authority(authority, "")
-            .map(|()| unreachable!("grant-management authority must resolve to a session"));
-    };
-    LocalSnapback::require_pairing_code_mint_authority(authority, user_id)?;
-    Ok(user_id)
 }
 
 #[cfg(test)]
