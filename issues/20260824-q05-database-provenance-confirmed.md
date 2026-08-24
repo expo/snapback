@@ -73,13 +73,47 @@ the prediction generalises:
 > A lane that introduces an identity should be asked which of provider, operation, database, and
 > caller it actually binds. Q05 bound the first two and was defeated through the third.
 
-## Applied to a sibling, with a negative result
+## Applied to a sibling — and the negative result was WRONG
 
-The same question was put to Q14 (`c16cd57cc1`), which is at a review gate.
-`VerifiedHostedAdmission` is `pub` and derives `Clone`, which is the Q05 shape — but its fields
-(`envelope`, `throttle_key`) are **private**, so a caller cannot forge one, and installation
-defers a durable monotonicity check that should reject a replayed clone.
+**Corrected 2026-08-24. The original text of this section is retracted.**
 
-**No defect found there.** Recorded because a checked-and-clear result is worth as much as a
-finding when the same question is being asked of every lane, and because it should not be
-re-derived from scratch by the next reader.
+The same question was put to Q14 (`c16cd57cc1`). `VerifiedHostedAdmission` is `pub` and derives
+`Clone`, which is the Q05 shape. This section originally concluded **"no defect found"**, reasoning
+that its private fields (`envelope`, `throttle_key`) prevent forgery and that installation defers a
+durable monotonicity check which would reject a replayed clone.
+
+**That reasoning was wrong, and an executable review disproved it by running the attack:**
+
+```rust
+verified2 = verified.clone();
+install(verified, db0);
+install(verified2, db1);
+```
+
+Both installs succeeded, produced live authorities for the same target, and wrote
+`(id, epoch, floor) = (1, 4, 9)` to **both** databases. `install_verified_admission`
+(`crates/snapback-auth/src/auth/hosted_edge.rs:703`) does consume by value — but `Clone` on the type
+means consumption is not *linear*, and the monotonicity check does not span databases.
+
+It compounds further: `HostedServingAuthority` (`.../deployment.rs:413`) is itself cloneable, and one
+installed authority cloned into two hosted `AppState`s through `with_hosted_serving_authority`
+(`crates/snapback-server/src/admin.rs:3371`), beside two caller-selected values from the public
+`with_server_startup_nonce` (`admin.rs:3505`), also compiled and ran — emitting two distinct
+authority identities.
+
+### The lesson, which is the reason this correction is kept rather than deleted
+
+Predicting a defect from source and confirming it by execution (the Q05 half of this document) is
+sound. **Predicting the *absence* of a defect from source is not.** The two are not symmetric:
+
+- To find a defect you need one composition that works, and executing it proves the claim.
+- To clear a surface you need *every* composition to fail, and reading the code cannot establish
+  that — it can only fail to imagine the one that works.
+
+"Private fields plus a downstream check" reads like a defence and is not one, because `Clone` was
+sitting in the same `derive` and consumption by value does not imply linearity. This is the exact
+failure mode this program keeps telling lanes to avoid — reasoning where execution was available —
+committed by the supervising session in a landed document.
+
+**Rule: a cleared verdict requires execution. A supervisor's read may raise a concern; it may never
+retire one.**
