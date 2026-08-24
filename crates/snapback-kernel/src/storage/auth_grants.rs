@@ -508,6 +508,37 @@ pub struct GrantApprovalGrantRowForTest {
     pub last_used_at_ms: u64,
 }
 
+/// Test-only physical projection of every durable row the grant-revocation
+/// fixtures change. The projection includes each subject predicate used by
+/// single and bulk revocation plus every column those fixtures write.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GrantRevocationDurableRowsForTest {
+    pub authorization_clock: GrantApprovalMetaRowForTest,
+    pub grants: Vec<GrantRevocationGrantRowForTest>,
+    pub tokens: Vec<GrantRevocationTokenRowForTest>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GrantRevocationGrantRowForTest {
+    pub grant_id: String,
+    pub actor_user_id: String,
+    pub effective_user_id: Option<String>,
+    pub revoked_at_ms: Option<u64>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GrantRevocationTokenRowForTest {
+    pub token_id: String,
+    pub grant_id: String,
+    pub revoked_at_ms: Option<u64>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UserGrant {
@@ -592,6 +623,76 @@ impl LocalDatabase {
                 authorization_clock,
                 pairing_requests,
                 grants,
+            })
+        })
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn grant_revocation_durable_rows_for_test(
+        &self,
+    ) -> SnapbackResult<GrantRevocationDurableRowsForTest> {
+        self.with_auth_read(|connection| {
+            let authorization_clock = connection.query_row(
+                "SELECT key, value FROM _snapback_meta WHERE key = ?1",
+                params![AUTH_CLOCK_META_KEY],
+                |row| {
+                    Ok(GrantApprovalMetaRowForTest {
+                        key: row.get(0)?,
+                        value: row.get(1)?,
+                    })
+                },
+            )?;
+            let mut grant_statement = connection.prepare(
+                "SELECT id, actor_user_id, effective_user_id, revoked_at_ms
+                 FROM _auth_grants ORDER BY id",
+            )?;
+            let grants = grant_statement
+                .query_map([], |row| {
+                    Ok(GrantRevocationGrantRowForTest {
+                        grant_id: row.get(0)?,
+                        actor_user_id: row.get(1)?,
+                        effective_user_id: row.get(2)?,
+                        revoked_at_ms: row
+                            .get::<_, Option<i64>>(3)?
+                            .map(u64::try_from)
+                            .transpose()
+                            .map_err(|error| {
+                                rusqlite::Error::FromSqlConversionFailure(
+                                    3,
+                                    rusqlite::types::Type::Integer,
+                                    Box::new(error),
+                                )
+                            })?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+            let mut token_statement = connection.prepare(
+                "SELECT id, grant_id, revoked_at_ms FROM _auth_grant_tokens ORDER BY id",
+            )?;
+            let tokens = token_statement
+                .query_map([], |row| {
+                    Ok(GrantRevocationTokenRowForTest {
+                        token_id: row.get(0)?,
+                        grant_id: row.get(1)?,
+                        revoked_at_ms: row
+                            .get::<_, Option<i64>>(2)?
+                            .map(u64::try_from)
+                            .transpose()
+                            .map_err(|error| {
+                                rusqlite::Error::FromSqlConversionFailure(
+                                    2,
+                                    rusqlite::types::Type::Integer,
+                                    Box::new(error),
+                                )
+                            })?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(GrantRevocationDurableRowsForTest {
+                authorization_clock,
+                grants,
+                tokens,
             })
         })
     }

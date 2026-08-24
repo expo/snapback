@@ -512,7 +512,7 @@ pub(super) async fn oauth_authorize_post(
     if form.decision == "deny" {
         let now_ms = provider.now_ms();
         let result = with_snapback(&runtime.snapback, move |snapback| {
-            snapback.deny_oauth_authorization(&authority, &user_id, &form.request_id, now_ms)
+            snapback.deny_oauth_authorization(&authority, &form.request_id, now_ms)
         })
         .await;
         return match result {

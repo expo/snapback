@@ -5498,13 +5498,17 @@ impl LocalSnapback {
         )
     }
 
+    /// @ref LLP 0303#the-governing-principle — derive the OAuth denial subject from the prepared authority.
     pub fn deny_oauth_authorization(
         &mut self,
         authority: &PreparedAuthority,
-        consenting_user_id: &str,
         request_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::auth_integrations::DeniedOAuthAuthorization> {
+        let (consenting_user_id, _) = Self::require_agent_grant_management_session(
+            authority,
+            "OAuth consent denial authorization",
+        )?;
         let _effect = authority.effect_guard("OAuth consent denial transaction")?;
         self.db
             .deny_oauth_authorization(consenting_user_id, request_id, now_ms)
@@ -6335,14 +6339,15 @@ impl LocalSnapback {
         )
     }
 
+    /// @ref LLP 0303#the-governing-principle — derive the denial subject from the prepared authority.
     pub fn deny_grant_request(
         &mut self,
-        effect: &AdmissionEffectGuard<'_>,
-        user_id: &str,
+        authority: &PreparedAuthority,
         request_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<()> {
-        let _ = effect;
+        let (user_id, _) = Self::require_agent_grant_management_session(authority, "grant denial")?;
+        let _effect = authority.effect_guard("grant denial transaction")?;
         self.db.deny_grant_request(user_id, request_id, now_ms)
     }
 
@@ -6397,14 +6402,16 @@ impl LocalSnapback {
             })
     }
 
+    /// @ref LLP 0303#the-governing-principle — derive the revocation subject from the prepared authority.
     pub fn revoke_grant_for_user(
         &mut self,
-        effect: &AdmissionEffectGuard<'_>,
-        user_id: &str,
+        authority: &PreparedAuthority,
         grant_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::auth_grants::GrantRevocation> {
-        let _ = effect;
+        let (user_id, _) =
+            Self::require_agent_grant_management_session(authority, "grant revocation")?;
+        let _effect = authority.effect_guard("grant revocation transaction")?;
         self.db.revoke_grant_for_user(user_id, grant_id, now_ms)
     }
 
@@ -6429,14 +6436,16 @@ impl LocalSnapback {
             })
     }
 
+    /// @ref LLP 0303#the-governing-principle — derive the bulk-revocation subject from the prepared authority.
     pub fn revoke_grants_by_actor_for_user(
         &mut self,
-        effect: &AdmissionEffectGuard<'_>,
-        user_id: &str,
+        authority: &PreparedAuthority,
         actor_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::auth_grants::BulkGrantRevocation> {
-        let _ = effect;
+        let (user_id, _) =
+            Self::require_agent_grant_management_session(authority, "bulk grant revocation")?;
+        let _effect = authority.effect_guard("bulk grant revocation transaction")?;
         self.db
             .revoke_grants_by_actor_for_user(user_id, actor_id, now_ms)
     }

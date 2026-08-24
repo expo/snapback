@@ -31595,6 +31595,760 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
     );
 }
 
+const DENY_FIXTURE_MS: u64 = 1_000;
+const DENY_EFFECT_MS: u64 = 2_000;
+const DENY_LOWER_USER: &str = "user-a";
+const DENY_MIDDLE_USER: &str = "user-m";
+const DENY_UPPER_USER: &str = "user-z";
+const DENY_USERS: [&str; 3] = [DENY_LOWER_USER, DENY_MIDDLE_USER, DENY_UPPER_USER];
+const AUTH_CLOCK_META_KEY_FOR_DENY_TESTS: &str = "auth_invalidation_clock_high_water_ms_v1";
+
+// Expected-value provenance for the four matrices below:
+// - authority source/user and target user come from this literal case table;
+// - request, grant, and token ids come from fixture setup results captured
+//   before the operation under test;
+// - durable states, revocation times, and the auth-clock value come only from
+//   the literal case table plus DENY_FIXTURE_MS/DENY_EFFECT_MS;
+// - accepted/refused codes come from the existing storage and authority error
+//   contracts, never from the result or durable readback being asserted.
+// The operation under test produces only `actual`. Timestamps, session id,
+// authority-instance id, actor id, and scope are shared across cases; case
+// names are observation labels that production never reads.
+
+#[derive(Clone, Copy)]
+struct DenySubjectCase {
+    name: &'static str,
+    source: InvocationSource,
+    authority_user: &'static str,
+    target_user: &'static str,
+}
+
+fn deny_subject_cases() -> [DenySubjectCase; 7] {
+    [
+        DenySubjectCase {
+            name: "lower-exact",
+            source: InvocationSource::AgentGrantManagement,
+            authority_user: DENY_LOWER_USER,
+            target_user: DENY_LOWER_USER,
+        },
+        DenySubjectCase {
+            name: "middle-exact",
+            source: InvocationSource::AgentGrantManagement,
+            authority_user: DENY_MIDDLE_USER,
+            target_user: DENY_MIDDLE_USER,
+        },
+        DenySubjectCase {
+            name: "upper-exact",
+            source: InvocationSource::AgentGrantManagement,
+            authority_user: DENY_UPPER_USER,
+            target_user: DENY_UPPER_USER,
+        },
+        DenySubjectCase {
+            name: "middle-to-lower",
+            source: InvocationSource::AgentGrantManagement,
+            authority_user: DENY_MIDDLE_USER,
+            target_user: DENY_LOWER_USER,
+        },
+        DenySubjectCase {
+            name: "middle-to-upper",
+            source: InvocationSource::AgentGrantManagement,
+            authority_user: DENY_MIDDLE_USER,
+            target_user: DENY_UPPER_USER,
+        },
+        DenySubjectCase {
+            name: "lower-to-middle",
+            source: InvocationSource::AgentGrantManagement,
+            authority_user: DENY_LOWER_USER,
+            target_user: DENY_MIDDLE_USER,
+        },
+        DenySubjectCase {
+            name: "wrong-source-middle",
+            source: InvocationSource::HttpMutation,
+            authority_user: DENY_MIDDLE_USER,
+            target_user: DENY_MIDDLE_USER,
+        },
+    ]
+}
+
+fn deny_case_is_accepted(case: DenySubjectCase) -> bool {
+    case.source == InvocationSource::AgentGrantManagement && case.authority_user == case.target_user
+}
+
+fn deny_case_expected_outcome(
+    case: DenySubjectCase,
+    subject_mismatch_code: &'static str,
+) -> &'static str {
+    if deny_case_is_accepted(case) {
+        "accepted"
+    } else if case.source != InvocationSource::AgentGrantManagement {
+        "SNAPBACK_AUTH_REQUIRED"
+    } else {
+        subject_mismatch_code
+    }
+}
+
+fn deny_case_expected_clock(case: DenySubjectCase) -> u64 {
+    if case.source == InvocationSource::AgentGrantManagement {
+        DENY_EFFECT_MS
+    } else {
+        DENY_FIXTURE_MS
+    }
+}
+
+fn denial_management_authority(case: DenySubjectCase) -> PreparedAuthority {
+    test_grant_session_authority(
+        case.source,
+        case.authority_user,
+        "shared-denial-session",
+        "shared-denial-authority-instance",
+    )
+}
+
+fn denial_scope_manifest() -> FunctionManifest {
+    FunctionManifest {
+        functions: vec![FunctionDefinition::new(
+            "denialRead",
+            FunctionKind::Query,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: None,
+                table: "items".to_owned(),
+                filters: Vec::new(),
+                membership_filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            })),
+        )],
+        ..FunctionManifest::default()
+    }
+}
+
+struct GrantDenialFixture {
+    snapback: LocalSnapback,
+    request_ids: BTreeMap<&'static str, String>,
+}
+
+impl GrantDenialFixture {
+    fn new() -> Self {
+        use crate::storage::auth_agents::AgentRegistration;
+        use crate::storage::auth_grants::{GrantScopeRequest, ScopedFunctionKind};
+
+        let mut snapback = LocalSnapback::memory().expect("grant denial memory fixture");
+        let random = CounterRandom::new();
+        let request_ids = {
+            let database = snapback.auth_database_mut();
+            database
+                .activate_current_auth_catalog()
+                .expect("activate grant denial auth catalog");
+            for user_id in DENY_USERS {
+                database
+                    .auth_catalog()
+                    .insert_human_user_for_test(user_id, DENY_FIXTURE_MS)
+                    .expect("create grant denial fixture user");
+            }
+            database
+                .auth_catalog()
+                .insert_human_user_for_test("owner-distinct-from-denial-users", DENY_FIXTURE_MS)
+                .expect("create grant denial fixture agent owner");
+            database
+                .create_agent_principal(
+                    "agent-denial-shared",
+                    DENY_FIXTURE_MS,
+                    &AgentRegistration {
+                        display_name: Some("Grant Denial Agent".to_owned()),
+                        operator_contact: None,
+                        registration_provenance: "grant-denial-derivation-test".to_owned(),
+                        owner_user_id: Some("owner-distinct-from-denial-users".to_owned()),
+                    },
+                )
+                .expect("create grant denial agent");
+            let credential = database
+                .issue_initial_agent_credential("agent-denial-shared", DENY_FIXTURE_MS, &random)
+                .expect("issue grant denial agent credential");
+            database
+                .reconcile_auth_scope_bases(&denial_scope_manifest())
+                .expect("install grant denial scope basis");
+            DENY_USERS
+                .into_iter()
+                .map(|user_id| {
+                    let pairing = database
+                        .mint_pairing_code(user_id, DENY_FIXTURE_MS, &random)
+                        .expect("mint grant denial pairing code");
+                    database
+                        .present_pairing_code(
+                            &credential.secret,
+                            &pairing.request_id,
+                            &pairing.secret,
+                            &[GrantScopeRequest::Exact {
+                                function_id: "fn:denialRead".to_owned(),
+                                kind: ScopedFunctionKind::Query,
+                            }],
+                            DENY_FIXTURE_MS,
+                        )
+                        .expect("present grant denial pairing code");
+                    (user_id, pairing.request_id)
+                })
+                .collect()
+        };
+        Self {
+            snapback,
+            request_ids,
+        }
+    }
+
+    fn request_id(&self, user_id: &str) -> &str {
+        self.request_ids
+            .get(user_id)
+            .expect("grant denial target request")
+    }
+
+    fn expected_rows(
+        &self,
+        case: DenySubjectCase,
+    ) -> crate::storage::auth_grants::GrantApprovalDurableRowsForTest {
+        use crate::storage::auth_grants::{
+            GrantApprovalDurableRowsForTest, GrantApprovalMetaRowForTest,
+            GrantApprovalPairingRowForTest,
+        };
+
+        let mut pairing_requests = DENY_USERS
+            .into_iter()
+            .map(|user_id| GrantApprovalPairingRowForTest {
+                request_id: self.request_id(user_id).to_owned(),
+                minted_by_user_id: user_id.to_owned(),
+                state: if deny_case_is_accepted(case) && user_id == case.target_user {
+                    "denied".to_owned()
+                } else {
+                    "pending".to_owned()
+                },
+                grant_id: None,
+            })
+            .collect::<Vec<_>>();
+        pairing_requests.sort_by(|left, right| left.request_id.cmp(&right.request_id));
+        GrantApprovalDurableRowsForTest {
+            authorization_clock: GrantApprovalMetaRowForTest {
+                key: AUTH_CLOCK_META_KEY_FOR_DENY_TESTS.to_owned(),
+                value: deny_case_expected_clock(case).to_string(),
+            },
+            pairing_requests,
+            grants: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+struct GrantDenialObservation {
+    case: &'static str,
+    outcome: String,
+    rows: crate::storage::auth_grants::GrantApprovalDurableRowsForTest,
+}
+
+#[test]
+fn grant_denial_derives_subject_and_preserves_every_other_durable_request() {
+    let (actual, expected): (Vec<_>, Vec<_>) = deny_subject_cases()
+        .into_iter()
+        .map(|case| {
+            let mut fixture = GrantDenialFixture::new();
+            let authority = denial_management_authority(case);
+            let request_id = fixture.request_id(case.target_user).to_owned();
+            let result =
+                fixture
+                    .snapback
+                    .deny_grant_request(&authority, &request_id, DENY_EFFECT_MS);
+            let actual = GrantDenialObservation {
+                case: case.name,
+                outcome: result
+                    .map(|_| "accepted".to_owned())
+                    .unwrap_or_else(|error: SnapbackError| error.diagnostic.code),
+                rows: fixture
+                    .snapback
+                    .auth_database_mut()
+                    .grant_approval_durable_rows_for_test()
+                    .expect("read grant denial durable rows"),
+            };
+            let expected = GrantDenialObservation {
+                case: case.name,
+                outcome: deny_case_expected_outcome(case, "SNAPBACK_AUTH_GRANT_INVALID").to_owned(),
+                rows: fixture.expected_rows(case),
+            };
+            (actual, expected)
+        })
+        .unzip();
+    assert_eq!(actual, expected);
+}
+
+struct OAuthDenialFixture {
+    snapback: LocalSnapback,
+    request_ids: BTreeMap<&'static str, String>,
+}
+
+impl OAuthDenialFixture {
+    fn new() -> Self {
+        let (mut schema, mut functions) = sessions_activation_pair('d', false);
+        schema.auth.as_mut().expect("sessions auth manifest").agents =
+            Some(crate::manifest::AgentsManifest::explicit(
+                crate::manifest::AgentsMode::Open,
+                crate::manifest::InvitedBy::Operators,
+            ));
+        schema.api = Some(crate::contract_types::ApiManifest {
+            enabled: true,
+            functions: BTreeMap::from([(
+                "oauthDenialRead".to_owned(),
+                crate::contract_types::ApiFunctionExposure {
+                    expose: true,
+                    since: None,
+                    approval: None,
+                },
+            )]),
+            oauth: Some(crate::contract_types::ApiOAuthManifest {
+                enabled: true,
+                bearer: true,
+                bundles: BTreeMap::from([(
+                    "read".to_owned(),
+                    crate::contract_types::ApiOAuthBundle {
+                        functions: vec!["oauthDenialRead".to_owned()],
+                    },
+                )]),
+            }),
+            ..crate::contract_types::ApiManifest::default()
+        });
+        for function in &mut functions.functions {
+            function.api_exposure = Some(crate::contract_types::ApiFunctionExposure::default());
+        }
+        let mut oauth_query = FunctionDefinition::new(
+            "oauthDenialRead",
+            FunctionKind::Query,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: None,
+                table: "items".to_owned(),
+                filters: Vec::new(),
+                membership_filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            })),
+        );
+        oauth_query.api_exposure = Some(crate::contract_types::ApiFunctionExposure {
+            expose: true,
+            since: None,
+            approval: None,
+        });
+        functions.functions.push(oauth_query);
+
+        let functions_for_scope_bases = functions.clone();
+        let mut snapback = settled_sessions_activation_snapback(schema, functions);
+        let random = CounterRandom::new();
+        let request_ids = {
+            let database = snapback.auth_database_mut();
+            database
+                .reconcile_auth_scope_bases(&functions_for_scope_bases)
+                .expect("install OAuth denial scope bases");
+            let integration = database
+                .register_agent_principal_with_class(
+                    crate::manifest::AgentsMode::Open,
+                    None,
+                    Some("OAuth Denial Integration".to_owned()),
+                    Some("ops@example.test".to_owned()),
+                    crate::storage::auth_integrations::AgentRegistrationClass::Integration,
+                    crate::storage::auth_integrations::IntegrationRegistrationFacts {
+                        origin: Some("https://example.test".to_owned()),
+                        redirect_uris: vec!["https://example.test/callback".to_owned()],
+                    },
+                    ServerProfile::Test,
+                    DENY_FIXTURE_MS,
+                    &random,
+                )
+                .expect("register OAuth denial integration");
+            let client_id = database
+                .integration_record_if_present(&integration.user_id)
+                .expect("read OAuth denial integration")
+                .expect("OAuth denial integration exists")
+                .integration_id;
+            for user_id in DENY_USERS {
+                database
+                    .auth_catalog()
+                    .insert_human_user_for_test(user_id, DENY_FIXTURE_MS)
+                    .expect("create OAuth denial fixture user");
+            }
+            DENY_USERS
+                .into_iter()
+                .map(|user_id| {
+                    let request_id = database
+                        .begin_oauth_authorization(
+                            user_id,
+                            &client_id,
+                            "https://example.test/callback",
+                            &["read".to_owned()],
+                            "abcdefghijklmnopqrstuvwxyzABCDEFGH012345678",
+                            Some("shared-oauth-state"),
+                            DENY_FIXTURE_MS,
+                            &random,
+                        )
+                        .expect("begin OAuth denial fixture request")
+                        .request_id;
+                    (user_id, request_id)
+                })
+                .collect()
+        };
+        Self {
+            snapback,
+            request_ids,
+        }
+    }
+
+    fn request_id(&self, user_id: &str) -> &str {
+        self.request_ids
+            .get(user_id)
+            .expect("OAuth denial target request")
+    }
+
+    fn expected_rows(
+        &self,
+        case: DenySubjectCase,
+    ) -> crate::storage::auth_integrations::OAuthDenialDurableRowsForTest {
+        use crate::storage::auth_grants::{
+            GrantApprovalMetaRowForTest, GrantApprovalPairingRowForTest,
+        };
+        use crate::storage::auth_integrations::{
+            OAuthDenialAuthorizationRowForTest, OAuthDenialDurableRowsForTest,
+        };
+
+        let mut pairing_requests = DENY_USERS
+            .into_iter()
+            .map(|user_id| GrantApprovalPairingRowForTest {
+                request_id: self.request_id(user_id).to_owned(),
+                minted_by_user_id: user_id.to_owned(),
+                state: if deny_case_is_accepted(case) && user_id == case.target_user {
+                    "denied".to_owned()
+                } else {
+                    "pending".to_owned()
+                },
+                grant_id: None,
+            })
+            .collect::<Vec<_>>();
+        pairing_requests.sort_by(|left, right| left.request_id.cmp(&right.request_id));
+        let mut authorizations = DENY_USERS
+            .into_iter()
+            .map(|user_id| OAuthDenialAuthorizationRowForTest {
+                request_id: self.request_id(user_id).to_owned(),
+                consenting_user_id: user_id.to_owned(),
+                status: if deny_case_is_accepted(case) && user_id == case.target_user {
+                    "denied".to_owned()
+                } else {
+                    "pending".to_owned()
+                },
+            })
+            .collect::<Vec<_>>();
+        authorizations.sort_by(|left, right| left.request_id.cmp(&right.request_id));
+        OAuthDenialDurableRowsForTest {
+            authorization_clock: GrantApprovalMetaRowForTest {
+                key: AUTH_CLOCK_META_KEY_FOR_DENY_TESTS.to_owned(),
+                value: deny_case_expected_clock(case).to_string(),
+            },
+            pairing_requests,
+            authorizations,
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+struct OAuthDenialObservation {
+    case: &'static str,
+    outcome: String,
+    rows: crate::storage::auth_integrations::OAuthDenialDurableRowsForTest,
+}
+
+#[test]
+fn oauth_denial_derives_subject_and_preserves_every_other_durable_request() {
+    let (actual, expected): (Vec<_>, Vec<_>) = deny_subject_cases()
+        .into_iter()
+        .map(|case| {
+            let mut fixture = OAuthDenialFixture::new();
+            let authority = denial_management_authority(case);
+            let request_id = fixture.request_id(case.target_user).to_owned();
+            let result =
+                fixture
+                    .snapback
+                    .deny_oauth_authorization(&authority, &request_id, DENY_EFFECT_MS);
+            let actual = OAuthDenialObservation {
+                case: case.name,
+                outcome: result
+                    .map(|_| "accepted".to_owned())
+                    .unwrap_or_else(|error| error.diagnostic.code),
+                rows: fixture
+                    .snapback
+                    .auth_database_mut()
+                    .oauth_denial_durable_rows_for_test()
+                    .expect("read OAuth denial durable rows"),
+            };
+            let expected = OAuthDenialObservation {
+                case: case.name,
+                outcome: deny_case_expected_outcome(case, "SNAPBACK_AUTH_OAUTH_GRANT_INVALID")
+                    .to_owned(),
+                rows: fixture.expected_rows(case),
+            };
+            (actual, expected)
+        })
+        .unzip();
+    assert_eq!(actual, expected);
+}
+
+struct GrantRevocationFixture {
+    snapback: LocalSnapback,
+    grant_ids: BTreeMap<&'static str, Vec<String>>,
+    token_ids: BTreeMap<&'static str, Vec<String>>,
+}
+
+impl GrantRevocationFixture {
+    fn new(grants_per_user: usize) -> Self {
+        use crate::storage::auth_agents::AgentRegistration;
+
+        let mut snapback = LocalSnapback::memory().expect("grant revocation memory fixture");
+        let random = CounterRandom::new();
+        let (grant_ids, token_ids) = {
+            let database = snapback.auth_database_mut();
+            database
+                .activate_current_auth_catalog()
+                .expect("activate grant revocation auth catalog");
+            for user_id in DENY_USERS {
+                database
+                    .auth_catalog()
+                    .insert_human_user_for_test(user_id, DENY_FIXTURE_MS)
+                    .expect("create grant revocation fixture user");
+            }
+            database
+                .create_agent_principal(
+                    "agent-revocation-shared",
+                    DENY_FIXTURE_MS,
+                    &AgentRegistration {
+                        display_name: Some("Grant Revocation Agent".to_owned()),
+                        operator_contact: None,
+                        registration_provenance: "grant-revocation-derivation-test".to_owned(),
+                        owner_user_id: Some(DENY_MIDDLE_USER.to_owned()),
+                    },
+                )
+                .expect("create grant revocation agent");
+            let credential = database
+                .issue_initial_agent_credential("agent-revocation-shared", DENY_FIXTURE_MS, &random)
+                .expect("issue grant revocation agent credential");
+            database
+                .reconcile_auth_scope_bases(&denial_scope_manifest())
+                .expect("install grant revocation scope basis");
+            let mut grant_ids = BTreeMap::new();
+            let mut token_ids = BTreeMap::new();
+            for user_id in DENY_USERS {
+                let suffix = user_id.strip_prefix("user-").expect("denial user suffix");
+                let mut user_grants = Vec::new();
+                let mut user_tokens = Vec::new();
+                for ordinal in 1..=grants_per_user {
+                    let grant_id = format!("grant-{suffix}-{ordinal}");
+                    database
+                        .auth_catalog()
+                        .insert_finite_authority_grant_for_test(
+                            &grant_id,
+                            "agent-revocation-shared",
+                            user_id,
+                            DENY_FIXTURE_MS,
+                        )
+                        .expect("create grant revocation fixture grant");
+                    let token_id = database
+                        .mint_scoped_token(
+                            &credential.secret,
+                            &grant_id,
+                            Some(60_000),
+                            DENY_FIXTURE_MS,
+                            &random,
+                        )
+                        .expect("mint grant revocation fixture token")
+                        .token_id;
+                    user_grants.push(grant_id);
+                    user_tokens.push(token_id);
+                }
+                grant_ids.insert(user_id, user_grants);
+                token_ids.insert(user_id, user_tokens);
+            }
+            (grant_ids, token_ids)
+        };
+        Self {
+            snapback,
+            grant_ids,
+            token_ids,
+        }
+    }
+
+    fn first_grant_id(&self, user_id: &str) -> &str {
+        self.grant_ids
+            .get(user_id)
+            .and_then(|ids| ids.first())
+            .expect("single grant revocation target")
+    }
+
+    fn terminal_token_ids(&self, user_id: &str, bulk: bool) -> Vec<String> {
+        let ids = self
+            .token_ids
+            .get(user_id)
+            .expect("grant revocation terminal tokens");
+        if bulk {
+            ids.clone()
+        } else {
+            vec![ids.first().expect("single grant revocation token").clone()]
+        }
+    }
+
+    fn expected_rows(
+        &self,
+        case: DenySubjectCase,
+        bulk: bool,
+    ) -> crate::storage::auth_grants::GrantRevocationDurableRowsForTest {
+        use crate::storage::auth_grants::{
+            GrantApprovalMetaRowForTest, GrantRevocationDurableRowsForTest,
+            GrantRevocationGrantRowForTest, GrantRevocationTokenRowForTest,
+        };
+
+        let accepted = deny_case_is_accepted(case);
+        let mut grants = DENY_USERS
+            .into_iter()
+            .flat_map(|user_id| {
+                self.grant_ids[user_id]
+                    .iter()
+                    .enumerate()
+                    .map(move |(index, grant_id)| GrantRevocationGrantRowForTest {
+                        grant_id: grant_id.clone(),
+                        actor_user_id: "agent-revocation-shared".to_owned(),
+                        effective_user_id: Some(user_id.to_owned()),
+                        revoked_at_ms: (accepted
+                            && user_id == case.target_user
+                            && (bulk || index == 0))
+                            .then_some(DENY_EFFECT_MS),
+                    })
+            })
+            .collect::<Vec<_>>();
+        grants.sort_by(|left, right| left.grant_id.cmp(&right.grant_id));
+        let mut tokens = DENY_USERS
+            .into_iter()
+            .flat_map(|user_id| {
+                self.token_ids[user_id]
+                    .iter()
+                    .enumerate()
+                    .map(move |(index, token_id)| GrantRevocationTokenRowForTest {
+                        token_id: token_id.clone(),
+                        grant_id: self.grant_ids[user_id][index].clone(),
+                        revoked_at_ms: (accepted
+                            && user_id == case.target_user
+                            && (bulk || index == 0))
+                            .then_some(DENY_EFFECT_MS),
+                    })
+            })
+            .collect::<Vec<_>>();
+        tokens.sort_by(|left, right| left.token_id.cmp(&right.token_id));
+        GrantRevocationDurableRowsForTest {
+            authorization_clock: GrantApprovalMetaRowForTest {
+                key: AUTH_CLOCK_META_KEY_FOR_DENY_TESTS.to_owned(),
+                value: deny_case_expected_clock(case).to_string(),
+            },
+            grants,
+            tokens,
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+struct GrantRevocationObservation {
+    case: &'static str,
+    outcome: String,
+    rows: crate::storage::auth_grants::GrantRevocationDurableRowsForTest,
+}
+
+#[tokio::test]
+async fn single_grant_revocation_derives_subject_and_preserves_foreign_durable_authority() {
+    use crate::auth::service_authority_contract::ServiceAuthorityDisposition;
+    use crate::auth::service_fence::with_service_authority_terminal_gate;
+
+    let mut actual = Vec::new();
+    let mut expected = Vec::new();
+    for case in deny_subject_cases() {
+        let mut fixture = GrantRevocationFixture::new(1);
+        let authority = denial_management_authority(case);
+        let grant_id = fixture.first_grant_id(case.target_user).to_owned();
+        let terminal_plan = fixture.snapback.service_authority_terminal_plan_for_test(
+            fixture.terminal_token_ids(case.target_user, false),
+            ServiceAuthorityDisposition::DurableDelete,
+        );
+        let terminal_gate = terminal_plan
+            .acquire_gate()
+            .await
+            .expect("acquire single grant revocation terminal gate");
+        let result = with_service_authority_terminal_gate(terminal_gate, || {
+            fixture
+                .snapback
+                .revoke_grant_for_user(&authority, &grant_id, DENY_EFFECT_MS)
+        });
+        actual.push(GrantRevocationObservation {
+            case: case.name,
+            outcome: result
+                .map(|_| "accepted".to_owned())
+                .unwrap_or_else(|error| error.diagnostic.code),
+            rows: fixture
+                .snapback
+                .auth_database_mut()
+                .grant_revocation_durable_rows_for_test()
+                .expect("read single grant revocation durable rows"),
+        });
+        expected.push(GrantRevocationObservation {
+            case: case.name,
+            outcome: deny_case_expected_outcome(case, "SNAPBACK_AUTH_GRANT_INVALID").to_owned(),
+            rows: fixture.expected_rows(case, false),
+        });
+    }
+    assert_eq!(actual, expected);
+}
+
+#[tokio::test]
+async fn bulk_grant_revocation_derives_subject_and_preserves_foreign_durable_authority() {
+    use crate::auth::service_authority_contract::ServiceAuthorityDisposition;
+    use crate::auth::service_fence::with_service_authority_terminal_gate;
+
+    let mut actual = Vec::new();
+    let mut expected = Vec::new();
+    for case in deny_subject_cases() {
+        let mut fixture = GrantRevocationFixture::new(2);
+        let authority = denial_management_authority(case);
+        let terminal_plan = fixture.snapback.service_authority_terminal_plan_for_test(
+            fixture.terminal_token_ids(case.target_user, true),
+            ServiceAuthorityDisposition::DurableDelete,
+        );
+        let terminal_gate = terminal_plan
+            .acquire_gate()
+            .await
+            .expect("acquire bulk grant revocation terminal gate");
+        let result = with_service_authority_terminal_gate(terminal_gate, || {
+            fixture.snapback.revoke_grants_by_actor_for_user(
+                &authority,
+                "agent-revocation-shared",
+                DENY_EFFECT_MS,
+            )
+        });
+        actual.push(GrantRevocationObservation {
+            case: case.name,
+            outcome: result
+                .map(|_| "accepted".to_owned())
+                .unwrap_or_else(|error| error.diagnostic.code),
+            rows: fixture
+                .snapback
+                .auth_database_mut()
+                .grant_revocation_durable_rows_for_test()
+                .expect("read bulk grant revocation durable rows"),
+        });
+        expected.push(GrantRevocationObservation {
+            case: case.name,
+            outcome: deny_case_expected_outcome(case, "SNAPBACK_AUTH_POLICY_UNAVAILABLE")
+                .to_owned(),
+            rows: fixture.expected_rows(case, true),
+        });
+    }
+    assert_eq!(actual, expected);
+}
+
 #[test]
 fn grant_approval_derives_exact_user_and_session_from_management_authority() {
     use crate::storage::auth_agents::AgentRegistration;

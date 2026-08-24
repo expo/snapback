@@ -5,6 +5,8 @@
 //! reversible admission state; installation authority remains an LLP 0055
 //! delegated grant proven by its approved pairing request.
 
+#[cfg(any(test, feature = "test-support"))]
+use super::auth_invalidation::AUTH_CLOCK_META_KEY;
 use super::{LocalDatabase, SnapbackResult};
 use crate::diagnostic::SnapbackError;
 use crate::manifest::SchemaManifest;
@@ -201,6 +203,26 @@ pub struct IssuedOAuthAuthorization {
 pub struct DeniedOAuthAuthorization {
     pub redirect_uri: String,
     pub oauth_state: Option<String>,
+}
+
+/// Test-only physical projection of every durable row the OAuth-denial
+/// fixtures change, including both halves of the linked consent record.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OAuthDenialDurableRowsForTest {
+    pub authorization_clock: super::auth_grants::GrantApprovalMetaRowForTest,
+    pub pairing_requests: Vec<super::auth_grants::GrantApprovalPairingRowForTest>,
+    pub authorizations: Vec<OAuthDenialAuthorizationRowForTest>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OAuthDenialAuthorizationRowForTest {
+    pub request_id: String,
+    pub consenting_user_id: String,
+    pub status: String,
 }
 
 #[derive(Debug)]
@@ -797,6 +819,57 @@ pub(super) fn consume_oauth_authorization_code_on(
 }
 
 impl LocalDatabase {
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn oauth_denial_durable_rows_for_test(
+        &self,
+    ) -> SnapbackResult<OAuthDenialDurableRowsForTest> {
+        self.with_auth_read(|connection| {
+            let authorization_clock = connection.query_row(
+                "SELECT key, value FROM _snapback_meta WHERE key = ?1",
+                params![AUTH_CLOCK_META_KEY],
+                |row| {
+                    Ok(super::auth_grants::GrantApprovalMetaRowForTest {
+                        key: row.get(0)?,
+                        value: row.get(1)?,
+                    })
+                },
+            )?;
+            let mut pairing_statement = connection.prepare(
+                "SELECT id, minted_by_user_id, state, grant_id
+                 FROM _auth_pairing_requests ORDER BY id",
+            )?;
+            let pairing_requests = pairing_statement
+                .query_map([], |row| {
+                    Ok(super::auth_grants::GrantApprovalPairingRowForTest {
+                        request_id: row.get(0)?,
+                        minted_by_user_id: row.get(1)?,
+                        state: row.get(2)?,
+                        grant_id: row.get(3)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+            let mut authorization_statement = connection.prepare(
+                "SELECT request_id, consenting_user_id, status
+                 FROM _snapback_oauth_authorizations ORDER BY request_id",
+            )?;
+            let authorizations = authorization_statement
+                .query_map([], |row| {
+                    Ok(OAuthDenialAuthorizationRowForTest {
+                        request_id: row.get(0)?,
+                        consenting_user_id: row.get(1)?,
+                        status: row.get(2)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(OAuthDenialDurableRowsForTest {
+                authorization_clock,
+                pairing_requests,
+                authorizations,
+            })
+        })
+    }
+
     pub fn oauth_bundle_names_for_grant(&self, grant_id: &str) -> SnapbackResult<Vec<String>> {
         let encoded = self
             .conn

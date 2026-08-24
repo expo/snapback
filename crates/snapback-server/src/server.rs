@@ -17549,14 +17549,12 @@ async fn auth_grant_request_deny(
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
-    let (user_id, _) = require_grant_session(&authority)?;
+    let _ = require_grant_session(&authority)?;
     let provider = require_agent_routes_available(&runtime)?;
     let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
     let now_ms = provider.now_ms();
-    let effect_authority = authority.clone();
     with_snapback(&runtime.snapback, move |snapback| {
-        let _effect = effect_authority.effect_guard("grant denial transaction")?;
-        snapback.deny_grant_request(&_effect, &user_id, &request_id, now_ms)
+        snapback.deny_grant_request(&authority, &request_id, now_ms)
     })
     .await?;
     Ok(StatusCode::NO_CONTENT.into_response())
@@ -17591,7 +17589,7 @@ async fn auth_grant_revoke(
     OriginalUri(uri): OriginalUri,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
-    let (user_id, _) = require_grant_session(&authority)?;
+    let _ = require_grant_session(&authority)?;
     let provider = require_agent_routes_available(&runtime)?;
     let body = body.map_err(|_| auth_request_invalid())?;
     if uri.query().is_some() || !body.is_empty() {
@@ -17602,17 +17600,16 @@ async fn auth_grant_revoke(
     let lifecycle = runtime.auth_terminal_lifecycle.clone();
     let effect_authority = authority.clone();
     let planning_authority = authority.clone();
-    let (user_id, grant_id, terminal_token_ids) =
-        with_snapback(&runtime.snapback, move |snapback| {
-            let token_ids = snapback.plan_grant_revocation_service_terminal(
-                &planning_authority,
-                // The planner derives the effective user from this authority.
-                &grant_id,
-                now_ms,
-            )?;
-            Ok::<_, SnapbackError>((user_id, grant_id, token_ids))
-        })
-        .await?;
+    let (grant_id, terminal_token_ids) = with_snapback(&runtime.snapback, move |snapback| {
+        let token_ids = snapback.plan_grant_revocation_service_terminal(
+            &planning_authority,
+            // The planner derives the effective user from this authority.
+            &grant_id,
+            now_ms,
+        )?;
+        Ok::<_, SnapbackError>((grant_id, token_ids))
+    })
+    .await?;
     let service_terminal_gate = terminal_token_ids
         .acquire_gate()
         .await
@@ -17620,8 +17617,7 @@ async fn auth_grant_revoke(
     let transaction = spawn_owned_auth_transaction(async move {
         let revocation = with_snapback(&snapback, move |snapback| {
             let revocation = with_service_authority_terminal_gate(service_terminal_gate, || {
-                let _effect = effect_authority.effect_guard("grant revocation transaction")?;
-                snapback.revoke_grant_for_user(&_effect, &user_id, &grant_id, now_ms)
+                snapback.revoke_grant_for_user(&effect_authority, &grant_id, now_ms)
             })?;
             let terminal_token_ids = revocation.token_ids.clone();
             let close_by = terminal_close_by(Instant::now());
@@ -17644,7 +17640,7 @@ async fn auth_grants_revoke_by_actor(
     OriginalUri(uri): OriginalUri,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
-    let (user_id, _) = require_grant_session(&authority)?;
+    let _ = require_grant_session(&authority)?;
     let provider = require_agent_routes_available(&runtime)?;
     let body = body.map_err(|_| auth_request_invalid())?;
     if uri.query().is_some() || !body.is_empty() {
@@ -17655,17 +17651,16 @@ async fn auth_grants_revoke_by_actor(
     let lifecycle = runtime.auth_terminal_lifecycle.clone();
     let effect_authority = authority.clone();
     let planning_authority = authority.clone();
-    let (user_id, actor_id, terminal_token_ids) =
-        with_snapback(&runtime.snapback, move |snapback| {
-            let token_ids = snapback.plan_bulk_grant_revocation_service_terminal(
-                &planning_authority,
-                // The planner derives the effective user from this authority.
-                &actor_id,
-                now_ms,
-            )?;
-            Ok::<_, SnapbackError>((user_id, actor_id, token_ids))
-        })
-        .await?;
+    let (actor_id, terminal_token_ids) = with_snapback(&runtime.snapback, move |snapback| {
+        let token_ids = snapback.plan_bulk_grant_revocation_service_terminal(
+            &planning_authority,
+            // The planner derives the effective user from this authority.
+            &actor_id,
+            now_ms,
+        )?;
+        Ok::<_, SnapbackError>((actor_id, token_ids))
+    })
+    .await?;
     let service_terminal_gate = terminal_token_ids
         .acquire_gate()
         .await
@@ -17673,8 +17668,7 @@ async fn auth_grants_revoke_by_actor(
     let transaction = spawn_owned_auth_transaction(async move {
         let revocation = with_snapback(&snapback, move |snapback| {
             let revocation = with_service_authority_terminal_gate(service_terminal_gate, || {
-                let _effect = effect_authority.effect_guard("bulk grant revocation transaction")?;
-                snapback.revoke_grants_by_actor_for_user(&_effect, &user_id, &actor_id, now_ms)
+                snapback.revoke_grants_by_actor_for_user(&effect_authority, &actor_id, now_ms)
             })?;
             let terminal_token_ids = revocation.token_ids.clone();
             let close_by = terminal_close_by(Instant::now());
