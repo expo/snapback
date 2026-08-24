@@ -1179,11 +1179,11 @@ function attachFrozenExecutionWork(cases) {
     ),
     'g0-pair-detail-hidden-root-empty-child-demand': frozenExecutionWork(
       0, [0, 0, 0, 0, 0, 0, 1, 0, 1], [0, 0, 0, 0, 0, 1, 0, 1], [[2, 0], [4, 0]],
-      [1], [], [ledger('n0', 1, 0, 2, 0, 2, 3), ledger('n2', 0, 0, 0, 0, 0, 0)],
+      [1], [], [ledger('n0', 1, 0, 2, 0, 2, 3), ledger('n2', 1, 0, 0, 0, 2, 0)],
     ),
     'g0-pair-detail-notification-principal': frozenExecutionWork(
       1, [1, 0, 21, 1, 2, 2, 1, 1, 1], [1, 1, 1, 1, 2, 2, 1, 2], [[2, 21], [4, 2]],
-      [1], [], [ledger('n0', 1, 1, 30, 1, 20261, 11), ledger('n2', 0, 0, 0, 0, 0, 0)],
+      [1], [], [ledger('n0', 1, 1, 30, 1, 20261, 11), ledger('n2', 1, 0, 21, 1, 20261, 1)],
     ),
     'g0-pair-point-view-state-principal': frozenExecutionWork(
       1, [1, 1, 2, 2, 0, 1], [1, 1, 2, 0, 2], [[2, 2], [4, 0]],
@@ -2073,7 +2073,7 @@ async function main() {
         ...frozenExecutionWork(
           2, [2, 2, 3, 2, 0, 1], [2, 2, 2, 0, 3], [[2, 1], [4, 0]],
           [1, 0], [[4, 0]], [
-            {nodeId: 'n0', pages: 0, rootRows: 0, scannedRows: 0, resultRows: 0, resultBytes: 0, indexRanges: 0},
+            {nodeId: 'n0', pages: 1, rootRows: 2, scannedRows: 10, resultRows: 2, resultBytes: 1145, indexRanges: 10},
             {nodeId: 'n2', pages: 1, rootRows: 0, scannedRows: 5, resultRows: 2, resultBytes: 1145, indexRanges: 4},
           ],
         ),
@@ -2097,14 +2097,20 @@ async function main() {
       id: 'g2-child-only-ledger-continuation',
       baseCaseId: 'g0-pair-detail-notification-principal', query: 'issueDetail',
       advancedNodeId: 'n2', untouchedNodeIds: ['n0'],
-      expect: {advancedPagesDelta: 1, untouchedLedgers: 'byte-identical'},
+      expect: {
+        firstPageChargedNodeIds: ['n0', 'n2'], advancedPagesDelta: 1,
+        changedNodeIds: ['n2'], untouchedLedgers: 'byte-identical',
+      },
     },
     {
       id: 'g2-sibling-only-ledger-continuation',
       baseCaseId: 'g0-pair-detail-notification-principal', query: 'issueDetail',
       advancedNodeId: 'n4', untouchedNodeIds: ['n0', 'n2'],
       planMutation: 'literal-label-sibling-to-demand-with-derived-window-costs',
-      expect: {advancedPagesDelta: 1, untouchedLedgers: 'byte-identical'},
+      expect: {
+        firstPageChargedNodeIds: ['n0', 'n2', 'n4'], advancedPagesDelta: 1,
+        changedNodeIds: ['n4'], untouchedLedgers: 'byte-identical',
+      },
     },
     {
       id: 'g2-class2-membership-only-context',

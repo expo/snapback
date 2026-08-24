@@ -2160,13 +2160,6 @@ fn mixed_parent_named_child_ranges_keep_per_parent_has_more() {
     );
 }
 
-fn zero_ledger(node_id: &str) -> GraphWindowLedgerV1 {
-    GraphWindowLedgerV1 {
-        node_id: node_id.to_owned(),
-        ..GraphWindowLedgerV1::default()
-    }
-}
-
 fn ledger_for<'a>(ledgers: &'a [GraphWindowLedgerV1], node_id: &str) -> &'a GraphWindowLedgerV1 {
     ledgers
         .iter()
@@ -2174,39 +2167,121 @@ fn ledger_for<'a>(ledgers: &'a [GraphWindowLedgerV1], node_id: &str) -> &'a Grap
         .unwrap_or_else(|| panic!("missing ledger for {node_id}"))
 }
 
+fn double_window_budget(plan: &mut Value, node_id: &str) {
+    let cost = plan["queryCost"]["graph"]["nodes"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|cost| cost["nodeId"] == node_id)
+        .unwrap_or_else(|| panic!("missing cost for {node_id}"));
+    for field in [
+        "maxWindowPages",
+        "maxWindowRootRows",
+        "maxWindowScannedRows",
+        "maxWindowResultRows",
+        "maxWindowResultBytes",
+        "maxWindowIndexRanges",
+    ] {
+        let value = cost[field]
+            .as_u64()
+            .unwrap_or_else(|| panic!("missing {field} for {node_id}"));
+        cost[field] = json!(value.checked_mul(2).expect("test window budget doubles"));
+    }
+}
+
+fn assert_first_page_charged(
+    output: &snapback_engine::graph_evaluator::GraphEvaluationOutputV1,
+    expected_node_ids: &Value,
+) {
+    let expected_node_ids = expected_node_ids
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|node_id| node_id.as_str().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        output
+            .window_ledgers
+            .iter()
+            .map(|ledger| ledger.node_id.as_str())
+            .collect::<Vec<_>>(),
+        expected_node_ids,
+    );
+    let result_bytes = output.result_bytes.as_ref().unwrap().len() as u64;
+    for ledger in &output.window_ledgers {
+        assert_eq!(ledger.pages, 1, "{} charges its first page", ledger.node_id);
+        assert_eq!(ledger.result_rows, output.result_length);
+        assert_eq!(ledger.result_bytes, result_bytes);
+    }
+}
+
+fn changed_lineages<'a>(
+    before: &'a [GraphWindowLedgerV1],
+    after: &'a [GraphWindowLedgerV1],
+) -> Vec<&'a str> {
+    after
+        .iter()
+        .filter(|ledger| ledger_for(before, &ledger.node_id) != *ledger)
+        .map(|ledger| ledger.node_id.as_str())
+        .collect()
+}
+
 /// @ref LLP 0209#24-plan-instance-and-contextual-materialization-identity —
-/// one request advances exactly one demand-node lineage; an exhausted sibling
-/// ledger cannot block it and is carried byte-for-byte.
+/// a first-page request charges every evaluated demand-node lineage; a
+/// continuation advances exactly one and carries every sibling byte-for-byte.
 #[test]
 fn child_and_sibling_continuations_advance_only_the_bound_lineage() {
     let corpus = graph_corpus();
     let case = executable_case(&corpus, "g0-pair-detail-notification-principal");
+    let child_edge = evaluator_edge_case(&corpus, "g2-child-only-ledger-continuation");
     let (carrier, mut child_request) = request_for_case(&corpus, case);
+    let mut child_plan_value = serde_json::to_value(&carrier.normalized_plan).unwrap();
+    double_window_budget(&mut child_plan_value, "n2");
+    let child_plan: GraphQueryPlanV1 = serde_json::from_value(child_plan_value).unwrap();
     child_request.advanced_node_id = "n2".to_owned();
-    let mut exhausted_root = zero_ledger("n0");
-    exhausted_root.pages = 1;
-    child_request.prior_window_ledgers = vec![exhausted_root.clone(), zero_ledger("n2")];
+    let first_child_output = graph_store(&corpus, None)
+        .evaluate_graph_query(&child_plan, &child_request)
+        .expect("first page charges every evaluated demand lineage");
+    assert_first_page_charged(
+        &first_child_output,
+        &child_edge["expect"]["firstPageChargedNodeIds"],
+    );
+    assert_eq!(
+        serde_json::to_value(&first_child_output.window_ledgers).unwrap(),
+        case["expect"]["windowLedgers"],
+        "first-page lineages charge their induced subtrees and whole result",
+    );
+    child_request.prior_window_ledgers = first_child_output.window_ledgers;
     let before = child_request.prior_window_ledgers.clone();
     let child_output = graph_store(&corpus, None)
-        .evaluate_graph_query(&carrier.normalized_plan, &child_request)
-        .expect("child-only continuation evaluates past an exhausted root sibling");
+        .evaluate_graph_query(&child_plan, &child_request)
+        .expect("child-only continuation evaluates past an untouched root sibling");
     assert_eq!(
-        ledger_for(&child_output.window_ledgers, "n0"),
-        ledger_for(&before, "n0"),
-        "child-only continuation carries the root lineage unchanged",
+        changed_lineages(&before, &child_output.window_ledgers),
+        child_edge["expect"]["changedNodeIds"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|node_id| node_id.as_str().unwrap())
+            .collect::<Vec<_>>(),
+        "child continuation changes exactly its bound lineage",
     );
-    assert_eq!(ledger_for(&child_output.window_ledgers, "n2").pages, 1);
+    assert_eq!(
+        ledger_for(&child_output.window_ledgers, "n2").pages - ledger_for(&before, "n2").pages,
+        child_edge["expect"]["advancedPagesDelta"].as_u64().unwrap(),
+    );
 
     let (carrier, mut sibling_request) = request_for_case(&corpus, case);
+    let sibling_edge = evaluator_edge_case(&corpus, "g2-sibling-only-ledger-continuation");
     let mut plan_value = serde_json::to_value(&carrier.normalized_plan).unwrap();
     plan_value["nodes"][4]["page"] = json!({"kind":"demand"});
     for (field, value) in [
-        ("maxWindowPages", 1_u64),
+        ("maxWindowPages", 2_u64),
         ("maxWindowRootRows", 0),
-        ("maxWindowScannedRows", 64),
-        ("maxWindowResultRows", 1),
-        ("maxWindowResultBytes", 8_388_608),
-        ("maxWindowIndexRanges", 64),
+        ("maxWindowScannedRows", 128),
+        ("maxWindowResultRows", 2),
+        ("maxWindowResultBytes", 16_777_216),
+        ("maxWindowIndexRanges", 128),
     ] {
         plan_value["queryCost"]["graph"]["nodes"][4][field] = json!(value);
     }
@@ -2236,21 +2311,34 @@ fn child_and_sibling_continuations_advance_only_the_bound_lineage() {
         .unwrap(),
     );
     sibling_request.advanced_node_id = "n4".to_owned();
-    let mut exhausted_child = zero_ledger("n2");
-    exhausted_child.pages = 1;
-    sibling_request.prior_window_ledgers = vec![exhausted_root, exhausted_child, zero_ledger("n4")];
+    let first_sibling_output = graph_store(&corpus, None)
+        .evaluate_graph_query(&sibling_plan, &sibling_request)
+        .expect("first page charges the added demand sibling too");
+    assert_first_page_charged(
+        &first_sibling_output,
+        &sibling_edge["expect"]["firstPageChargedNodeIds"],
+    );
+    sibling_request.prior_window_ledgers = first_sibling_output.window_ledgers;
     let before = sibling_request.prior_window_ledgers.clone();
     let sibling_output = graph_store(&corpus, None)
         .evaluate_graph_query(&sibling_plan, &sibling_request)
-        .expect("sibling-only continuation evaluates past exhausted untouched lineages");
-    for untouched in ["n0", "n2"] {
-        assert_eq!(
-            ledger_for(&sibling_output.window_ledgers, untouched),
-            ledger_for(&before, untouched),
-            "sibling-only continuation carries {untouched} unchanged",
-        );
-    }
-    assert_eq!(ledger_for(&sibling_output.window_ledgers, "n4").pages, 1);
+        .expect("sibling-only continuation carries untouched lineages");
+    assert_eq!(
+        changed_lineages(&before, &sibling_output.window_ledgers),
+        sibling_edge["expect"]["changedNodeIds"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|node_id| node_id.as_str().unwrap())
+            .collect::<Vec<_>>(),
+        "sibling continuation changes exactly its bound lineage",
+    );
+    assert_eq!(
+        ledger_for(&sibling_output.window_ledgers, "n4").pages - ledger_for(&before, "n4").pages,
+        sibling_edge["expect"]["advancedPagesDelta"]
+            .as_u64()
+            .unwrap(),
+    );
 }
 
 /// @ref LLP 0209#23-closure-admission-demand-time-evaluation-time-and-qualification-registers —

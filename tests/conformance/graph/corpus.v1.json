@@ -45714,11 +45714,11 @@
           },
           {
             "nodeId": "n2",
-            "pages": 0,
+            "pages": 1,
             "rootRows": 0,
             "scannedRows": 0,
             "resultRows": 0,
-            "resultBytes": 0,
+            "resultBytes": 2,
             "indexRanges": 0
           }
         ]
@@ -47449,12 +47449,12 @@
           },
           {
             "nodeId": "n2",
-            "pages": 0,
+            "pages": 1,
             "rootRows": 0,
-            "scannedRows": 0,
-            "resultRows": 0,
-            "resultBytes": 0,
-            "indexRanges": 0
+            "scannedRows": 21,
+            "resultRows": 1,
+            "resultBytes": 20261,
+            "indexRanges": 1
           }
         ]
       }
@@ -58483,12 +58483,12 @@
         "windowLedgers": [
           {
             "nodeId": "n0",
-            "pages": 0,
-            "rootRows": 0,
-            "scannedRows": 0,
-            "resultRows": 0,
-            "resultBytes": 0,
-            "indexRanges": 0
+            "pages": 1,
+            "rootRows": 2,
+            "scannedRows": 10,
+            "resultRows": 2,
+            "resultBytes": 1145,
+            "indexRanges": 10
           },
           {
             "nodeId": "n2",
@@ -58624,7 +58624,14 @@
         "n0"
       ],
       "expect": {
+        "firstPageChargedNodeIds": [
+          "n0",
+          "n2"
+        ],
         "advancedPagesDelta": 1,
+        "changedNodeIds": [
+          "n2"
+        ],
         "untouchedLedgers": "byte-identical"
       }
     },
@@ -58639,7 +58646,15 @@
       ],
       "planMutation": "literal-label-sibling-to-demand-with-derived-window-costs",
       "expect": {
+        "firstPageChargedNodeIds": [
+          "n0",
+          "n2",
+          "n4"
+        ],
         "advancedPagesDelta": 1,
+        "changedNodeIds": [
+          "n4"
+        ],
         "untouchedLedgers": "byte-identical"
       }
     },
@@ -136052,5 +136067,5 @@
     "large-seed42-v1",
     "hot-recent-v1"
   ],
-  "contentDigest": "sha256:3f65140b714236aac3a626ec6a092cea05233b8bdb9ec9f097a64fcef9badd16"
+  "contentDigest": "sha256:0a2a2814e17886e426a50fc96f8ae6da022321110647702c61ba6b8b88d09193"
 }

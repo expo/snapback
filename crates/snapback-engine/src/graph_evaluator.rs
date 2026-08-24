@@ -53,7 +53,8 @@ pub struct GraphEvaluationRequestV1 {
     pub args: Value,
     pub windows: Vec<GraphNodeWindowIdentityV1>,
     /// The one demand-paged node whose independent ledger lineage this
-    /// request advances. All sibling lineages are carried byte-for-byte.
+    /// request advances on continuation. A first-page request charges every
+    /// evaluated demand lineage; continuation siblings carry byte-for-byte.
     pub advanced_node_id: String,
     pub materialization_hash: Sha256V1,
     pub partition_hash: Sha256V1,
@@ -2121,13 +2122,17 @@ fn next_ledgers(
         .collect::<BTreeMap<_, _>>();
     let mut output = Vec::new();
     for cost in demand_costs(plan) {
+        let first_page = !ledgers.contains_key(&cost.node_id);
         let ledger = ledgers
             .entry(cost.node_id.clone())
             .or_insert_with(|| GraphWindowLedgerV1 {
                 node_id: cost.node_id.clone(),
                 ..GraphWindowLedgerV1::default()
             });
-        if cost.node_id != request.advanced_node_id {
+        // @ref LLP 0209#24-plan-instance-and-contextual-materialization-identity —
+        // the first publication charges every evaluated demand lineage; only
+        // a continuation carries non-advanced lineages unchanged.
+        if !first_page && cost.node_id != request.advanced_node_id {
             output.push(ledger.clone());
             continue;
         }
