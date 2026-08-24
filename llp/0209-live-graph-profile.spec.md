@@ -5,13 +5,11 @@
 **Systems:** Live queries, Relational queries, Schema, Auth, Performance, Client SDK
 **Author:** Claude Fable 5 (commissioned by the LLP 0191 author rulings, Charlie Cheever, 2026-08-08)
 **Date:** 2026-08-09
-**Revised:** 2026-08-24 (v0.7 — author ratification recorded; v0.8 Spec-gap
-notes appended from the G2-A fix-round rulings: the six hash
-domains, `CapturedReadKind::GraphNode`, `KeysetKeyV1`'s wire shape, and the
-logical/physical bound split are RATIFIED as landed; the fixture-derived bound
-table is RATIFIED PROVISIONALLY — values stand, provisional entries confirm or
-revise on the zb5 large-fixture validation; G2 and the LLP 0268 exit extension
-commissioned the same day)
+**Revised:** 2026-08-24 (v0.8 — G2-A landed (the corpus-proven graph
+evaluator, series ending `e486f4827`) and the LLP 0268 exit extension landed
+(`a11054ca4`): the G0 exit is re-recorded with six 0268 §7 labels SATISFIED
+and three PARTIAL pending G2-C; 0268 B1 remains gated on exactly those three;
+the four G2-A Spec-gap notes stand as normative)
 **Related:** LLP 0183 (D2 charter this Spec owns), LLP 0191 (evidence and the
 five-rung ladder), LLP 0200 (the D4-side sibling: scheduling/settlement;
 measured Phase-1 record in its §6a), LLP 0008 (DK-3 `live_delta` precedent,
@@ -3306,6 +3304,36 @@ or identities.
   LLP 0190's owner at that point, not before; until ruled, no §7 delta
   is claimed replica-applicable.
 
+### v0.8 exit re-record — G2-A landed; the 0268 extension landed (dated note, 2026-08-24)
+
+**G2-A** (commission `issues/20260824-llp0209-g2-commission.md`, deliverable 1)
+landed as the series ending `e486f4827`: the snapshot-pinned graph evaluator
+executes every executable corpus case byte-exactly (27-test runner), with
+per-lineage window ledgers, induced-subtree structural charging, complete
+bound enforcement, materialized evaluation-register refusals, fail-closed
+class-2 contexts, and the demand ladder inside the evaluator; it is gated
+behind test/test-support with no serving consumer and `graph_query_v1` still
+support-false. Review records: `llp/reviews/0209-g2-a.*`. G2-B (matcher
+consumption) and G2-C (observations, serving integration, D2-H2 A/B) remain.
+
+**The LLP 0268 exit extension** landed as `a11054ca4` (ported onto the
+evaluator; records `llp/reviews/0268-exit-extension.*`): compiler-derived
+broadcast certificates with installed-owner identity and
+establishment-implying function membership, host acceptance only by full
+recomputation, the class-1 public-rooms fixture, and `audienceParity`'s
+strict side executed through the real evaluator. The nine 0268 §7 labels
+re-record as (authoritative detail:
+`tests/conformance/graph/0268-EXTENSION-DRAFT.md`):
+
+| Label | Status |
+| --- | --- |
+| G0-BCAST-CLASS, -SEPARATION, -SCOPE, -SCOPE-BINDING, -AUDIENCE, -IDENTITY | SATISFIED |
+| G0-BCAST-INVALIDATION, -CORPUS, -BOUNDS | PARTIAL — G2-C fence/delivery observations |
+
+Per LLP 0268 §0, **0268 B1 remains gated** on exactly the three PARTIAL
+labels; the gap is now precisely G2-C's scheduler-side observations, no
+longer prover or corpus structure.
+
 ### v0.8 Spec-gap notes from G2-A fix round 1
 
 - GraphRowKeyV1.id is the physical `_id`, never an application identity.
@@ -3315,6 +3343,10 @@ or identities.
 
 ## Revision history
 
+- **v0.8 (2026-08-24).** G2-A landed (`e486f4827`) and the LLP 0268 exit
+  extension landed (`a11054ca4`); the exit re-recorded with six §7 labels
+  SATISFIED, three PARTIAL pending G2-C (see the §9 dated note). The four
+  G2-A Spec-gap notes become normative text of this revision.
 - **v0.7 (2026-08-24).** **Author ratification** (Charlie Cheever, 2026-08-24
   session): (1) the mechanical identity choices are ratified as landed — the
   six graph hash domains, the unit `CapturedReadKind::GraphNode` with its
