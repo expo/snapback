@@ -2590,3 +2590,116 @@ impl super::ServingDatabase {
             .set_integration_suspended(principal_user_id, suspended, now_ms)
     }
 }
+
+#[cfg(any(test, feature = "test-support"))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OAuthGrantRowForTest {
+    pub grant_id: String,
+    pub request_id: String,
+    pub actor_user_id: String,
+    pub effective_user_id: String,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OAuthPairingRequestRowForTest {
+    pub request_id: String,
+    pub minted_by_user_id: String,
+    pub state: String,
+    pub grant_id: Option<String>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OAuthAuthorizationRowForTest {
+    pub request_id: String,
+    pub principal_user_id: String,
+    pub consenting_user_id: String,
+    pub status: String,
+    pub code_hash: Option<Vec<u8>>,
+    pub grant_id: Option<String>,
+    pub code_expires_at_ms: Option<i64>,
+    pub consumed_at_ms: Option<i64>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OAuthConsentRowsForTest {
+    pub grants: Vec<OAuthGrantRowForTest>,
+    pub pairing_requests: Vec<OAuthPairingRequestRowForTest>,
+    pub authorizations: Vec<OAuthAuthorizationRowForTest>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+impl LocalDatabase {
+    pub fn oauth_consent_rows_for_test(&self) -> SnapbackResult<OAuthConsentRowsForTest> {
+        let grants = {
+            let mut statement = self.conn.prepare(
+                "SELECT id, request_id, actor_user_id, effective_user_id
+                 FROM _auth_grants
+                 WHERE request_id IN (
+                   SELECT request_id FROM _snapback_oauth_authorizations
+                 )
+                 ORDER BY request_id, id",
+            )?;
+            statement
+                .query_map([], |row| {
+                    Ok(OAuthGrantRowForTest {
+                        grant_id: row.get(0)?,
+                        request_id: row.get(1)?,
+                        actor_user_id: row.get(2)?,
+                        effective_user_id: row.get(3)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?
+        };
+        let pairing_requests = {
+            let mut statement = self.conn.prepare(
+                "SELECT id, minted_by_user_id, state, grant_id
+                 FROM _auth_pairing_requests
+                 WHERE id IN (
+                   SELECT request_id FROM _snapback_oauth_authorizations
+                 )
+                 ORDER BY id",
+            )?;
+            statement
+                .query_map([], |row| {
+                    Ok(OAuthPairingRequestRowForTest {
+                        request_id: row.get(0)?,
+                        minted_by_user_id: row.get(1)?,
+                        state: row.get(2)?,
+                        grant_id: row.get(3)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?
+        };
+        let authorizations = {
+            let mut statement = self.conn.prepare(
+                "SELECT request_id, principal_user_id, consenting_user_id,
+                        status, code_hash, grant_id, code_expires_at_ms,
+                        consumed_at_ms
+                 FROM _snapback_oauth_authorizations
+                 ORDER BY request_id",
+            )?;
+            statement
+                .query_map([], |row| {
+                    Ok(OAuthAuthorizationRowForTest {
+                        request_id: row.get(0)?,
+                        principal_user_id: row.get(1)?,
+                        consenting_user_id: row.get(2)?,
+                        status: row.get(3)?,
+                        code_hash: row.get(4)?,
+                        grant_id: row.get(5)?,
+                        code_expires_at_ms: row.get(6)?,
+                        consumed_at_ms: row.get(7)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?
+        };
+        Ok(OAuthConsentRowsForTest {
+            grants,
+            pairing_requests,
+            authorizations,
+        })
+    }
+}
