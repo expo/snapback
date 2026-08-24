@@ -2080,6 +2080,42 @@ Case 92 absorbs the first-party guest-session entry closure from LLP 0294 W6.1.
     Route terms: "enterAsGuest", "claimGuestWithPassword", "guest entry".
     Required guidance: "A caller never supplies the principal id, session id, expiry, or cleanup policy", "An existing password identity refuses".
 
+Cases 93–96 absorb the 2026-08-24 Familiar auth-entrypoint and volatile
+activity-presence guide gaps. Their route terms preserve the vocabulary used
+before the paved spelling was discoverable.
+
+93. **Familiar defineAuth:** "Where do I import familiar defineAuth while
+    declaring a sessions auth program?" The run fails if it reaches through
+    `@expo/snapback-codegen/define` or moves auth construction into a function
+    module.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "familiar defineAuth".
+    Required guidance: "Import `defineAuth` from the same generated server module as `defineSchema`".
+
+94. **Auth in generated server:** "Can auth in generated server define the
+    Familiar authProgram, or do I need a cross-package import?" The run fails
+    if it claims the constructor is unreachable or recommends source
+    inspection.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "auth in generated server".
+    Required guidance: "`defineAuth` is shared schema-module vocabulary".
+
+95. **Presence rate limit:** "My activity presence hits the presence rate
+    limit when I call touch on every keystroke." The run fails if it adds an
+    app heartbeat or only raises TTL/rate bounds instead of removing volatile
+    fields from the value thunk.
+    Expected pages: `recipes/activity-presence.md`.
+    Route terms: "presence rate limit".
+    Required guidance: "Volatile values defeat the no-op dedup".
+
+96. **Typing publishes too often:** "My typing indicator has too many
+    publishes and reports SNAPBACK_REACT_PRESENCE_VALUE_CHURN." The run fails
+    if it memoizes the thunk function while leaving timestamps, counters, or
+    draft text in its returned value.
+    Expected pages: `recipes/activity-presence.md`.
+    Route terms: "typing indicator too many publishes".
+    Required guidance: "bind and memoize only the small state peers actually need".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:

@@ -18375,7 +18375,7 @@ function renderFamiliarServerModule() {
   // @ref LLP 0253#s32-generated-local-modules — this bootstrap cannot depend
   // on Phase C's umbrella package; every runtime value comes from the Phase B
   // adapter that codegen already owns.
-  return `${HEADER}\nexport { defineSchema, defineTable, defineAssetUpload, defineEphemeral, ephemeral, query, mutation, action, allow, membershipResource, v } from '@expo/snapback-codegen/familiar';\n`;
+  return `${HEADER}\nexport { defineSchema, defineTable, defineAssetUpload, defineAuth, defineEphemeral, ephemeral, query, mutation, action, allow, membershipResource, v } from '@expo/snapback-codegen/familiar';\n`;
 }
 
 function renderFamiliarServerTypes() {
@@ -18383,7 +18383,7 @@ function renderFamiliarServerTypes() {
 import { v as familiarV } from '@expo/snapback-codegen/familiar';
 import type { InferObjectValidatorFields, InferValidator, MembershipPredicate, Validator } from '@expo/snapback-codegen/define';
 import type { FunctionArgs, FunctionReference, FunctionResult, GeneratedActionContext, GeneratedDataModel, GeneratedHandlerSchema, GeneratedIndexNames, GeneratedMutationContext, GeneratedQueryContext, GeneratedReadableTableName, Id, QueryBuilder } from './api';
-export { allow, defineAssetUpload, defineEphemeral, defineSchema, defineTable, ephemeral, membershipResource } from '@expo/snapback-codegen/familiar';
+export { allow, defineAssetUpload, defineAuth, defineEphemeral, defineSchema, defineTable, ephemeral, membershipResource } from '@expo/snapback-codegen/familiar';
 export declare const v: Omit<typeof familiarV, 'doc' | 'id'> & {
   doc<const Table extends keyof GeneratedDataModel & string>(table: Table): Validator<GeneratedDataModel[Table], { readonly AppSchemaRef: { readonly authority: 'app'; readonly table: Table } }, false>;
   id<const Table extends keyof GeneratedDataModel & string>(table: Table): Validator<Id<Table>, { readonly Id: { readonly table: Table } }, false>;

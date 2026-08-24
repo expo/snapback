@@ -14,7 +14,10 @@ import {
   SnapbackProvider,
   createSnapbackReactProvider,
   invokeSnapbackMutation,
+  observeSnapbackPresence,
   observeSnapbackDiagnostics,
+  skip,
+  useSnapbackActivityPresence,
   useSnapbackDiagnostics,
   useSnapbackPresence,
   useSnapbackQuery,
@@ -129,6 +132,7 @@ function createFakeClient({ attachReporter = true, queuedOutcome = null } = {}) 
   const presenceHandles = new Set();
   let querySequence = 0;
   let presenceSequence = 0;
+  let presencePublishes = 0;
   const client = {
     liveQuery() {},
     diagnosticsChannel: () => channel,
@@ -172,6 +176,7 @@ function createFakeClient({ attachReporter = true, queuedOutcome = null } = {}) 
     registerEphemeralRepublisher() { return Object.freeze({ dispose() {} }); },
     startEphemeralRoom(_definition, scope) {
       presenceSequence += 1;
+      let entryVersion = 0;
       const listeners = new Set();
       let current = Object.freeze({
         status: 'ready',
@@ -192,8 +197,10 @@ function createFakeClient({ attachReporter = true, queuedOutcome = null } = {}) 
         getSnapshot: () => current,
         getServerSnapshot: () => current,
         get grantedConnectionId() { return current.selfKey; },
-        started: async () => {},
+        started: async () => { notify(); },
         async publish(value, { ttlMs }) {
+          entryVersion += 1;
+          presencePublishes += 1;
           current = Object.freeze({
             ...current,
             entries: Object.freeze([Object.freeze({
@@ -202,14 +209,34 @@ function createFakeClient({ attachReporter = true, queuedOutcome = null } = {}) 
               expiresAtMs: Date.now() + ttlMs,
               receivedAtMs: Date.now(),
               scopeEpoch: 1,
-              entryVersion: 1,
+              entryVersion,
               scope,
             })]),
           });
           notify();
-          return { accepted: true };
+          return { accepted: true, scope_epoch: 1, entry_version: entryVersion };
         },
         async delete() { return { removed: true }; },
+        testReconnect() {
+          current = Object.freeze({
+            ...current,
+            status: 'resyncing',
+            entries: Object.freeze([]),
+            selfKey: null,
+            connection: 'connecting',
+            reason: 'socket_reconnected',
+          });
+          notify();
+          current = Object.freeze({
+            ...current,
+            status: 'ready',
+            entries: Object.freeze([]),
+            selfKey: `presence-self-${presenceSequence}-reconnected`,
+            connection: 'live',
+            reason: null,
+          });
+          notify();
+        },
         dispose() {
           listeners.clear();
           presenceHandles.delete(handle);
@@ -235,7 +262,14 @@ function createFakeClient({ attachReporter = true, queuedOutcome = null } = {}) 
       reporter?.dispose();
       channel.dispose();
     },
-    test: { channel, consoleOutput },
+    test: {
+      channel,
+      consoleOutput,
+      presencePublishes: () => presencePublishes,
+      reconnectPresence() {
+        for (const handle of presenceHandles) handle.testReconnect();
+      },
+    },
   };
   return client;
 }
@@ -432,6 +466,320 @@ try {
     assert.equal(event.details.hookKind, 'presence');
     assert.equal(event.details.referenceName, 'presence');
     await disposeHarness(harness, renderer);
+  }
+
+  // An activity helper whose thunk changes on every touch keeps one stable
+  // hook descriptor, so the provider must diagnose the actual wire publishes.
+  {
+    const harness = await createHarness({
+      providerOptions: {
+        __diagnosticsChurnTransitionThreshold: 3,
+        __diagnosticsChurnWindowMs: 2_000,
+      },
+    });
+    let renderer;
+    let current;
+    let cursor = 0;
+    function VolatileActivityProbe() {
+      current = useSnapbackActivityPresence(harness.presence, {
+        scope: { roomId: 'room-1' },
+        value: () => ({ cursor: cursor += 1 }),
+        idleMs: 1_000,
+      });
+      return null;
+    }
+    await act(async () => {
+      renderer = TestRenderer.create(React.createElement(
+        SnapbackProvider,
+        { provider: harness.provider },
+        React.createElement(VolatileActivityProbe),
+      ));
+      await flush();
+    });
+    for (let touch = 0; touch < 4; touch += 1) {
+      await act(async () => {
+        current.touch();
+        await flush();
+      });
+    }
+    await act(async () => { await flush(); await flush(); });
+    const [event] = harness.client.test.channel.snapshot().events.filter(
+      (entry) => entry.code === 'SNAPBACK_REACT_PRESENCE_VALUE_CHURN',
+    );
+    assert.ok(
+      event,
+      `volatile activity values emit the provider value-churn code: ${JSON.stringify({ events: harness.client.test.channel.snapshot().events, current })}`,
+    );
+    assert.equal(event.details.key, 'presence');
+    assert.equal(event.details.changedPublishCount, 3);
+    assert.equal(Object.hasOwn(event.details, 'value'), false, 'presence values stay redacted');
+    assert.match(event.message, /value thunk appears volatile/u);
+    assert.match(event.message, /memoize a stable bound value/u);
+    assert.match(event.message, /guide\/recipes\/activity-presence\.md/u);
+    await disposeHarness(harness, renderer);
+  }
+
+  // Two intent changes in one turn produce one actual publish. The skipped
+  // predecessor must not advance the provider-level counter.
+  {
+    const harness = await createHarness({
+      providerOptions: {
+        __diagnosticsChurnTransitionThreshold: 2,
+        __diagnosticsChurnWindowMs: 2_000,
+      },
+    });
+    let renderer;
+    let current;
+    let cursor = 0;
+    function SupersededActivityProbe() {
+      current = useSnapbackActivityPresence(harness.presence, {
+        scope: { roomId: 'room-1' },
+        value: () => ({ cursor: cursor += 1 }),
+        idleMs: 1_000,
+      });
+      return null;
+    }
+    await act(async () => {
+      renderer = TestRenderer.create(React.createElement(
+        SnapbackProvider,
+        { provider: harness.provider },
+        React.createElement(SupersededActivityProbe),
+      ));
+      await flush();
+    });
+    await act(async () => {
+      current.touch();
+      await flush();
+    });
+    await act(async () => {
+      current.touch();
+      current.touch();
+      await flush();
+      await flush();
+    });
+    assert.equal(
+      harness.client.test.channel.snapshot().events.some(
+        (entry) => entry.code === 'SNAPBACK_REACT_PRESENCE_VALUE_CHURN',
+      ),
+      false,
+      'a superseded changed intent does not advance the wire-publish counter',
+    );
+    await act(async () => {
+      current.touch();
+      await flush();
+    });
+    assert.equal(
+      harness.client.test.channel.snapshot().events.filter(
+        (entry) => entry.code === 'SNAPBACK_REACT_PRESENCE_VALUE_CHURN',
+      ).length,
+      1,
+      'the next actual changed publish reaches the configured threshold',
+    );
+    await disposeHarness(harness, renderer);
+  }
+
+  // Stable activity values retain the existing local no-op behavior and do
+  // not produce the changed-value detector's warning.
+  {
+    const harness = await createHarness({
+      providerOptions: {
+        __diagnosticsChurnTransitionThreshold: 2,
+        __diagnosticsChurnWindowMs: 2_000,
+      },
+    });
+    let renderer;
+    let current;
+    function StableActivityProbe() {
+      current = useSnapbackActivityPresence(harness.presence, {
+        scope: { roomId: 'room-1' },
+        value: () => ({ cursor: 1 }),
+        idleMs: 1_000,
+      });
+      return null;
+    }
+    await act(async () => {
+      renderer = TestRenderer.create(React.createElement(
+        SnapbackProvider,
+        { provider: harness.provider },
+        React.createElement(StableActivityProbe),
+      ));
+      await flush();
+    });
+    for (let touch = 0; touch < 4; touch += 1) {
+      await act(async () => {
+        current.touch();
+        await flush();
+      });
+    }
+    assert.equal(
+      harness.client.test.channel.snapshot().events.some(
+        (entry) => entry.code === 'SNAPBACK_REACT_PRESENCE_VALUE_CHURN',
+      ),
+      false,
+      'content-equal activity values remain local no-ops',
+    );
+    await disposeHarness(harness, renderer);
+  }
+
+  // A socket reconnect creates a new in-place room generation. Its lifecycle
+  // republish establishes a fresh baseline, so changes on opposite sides of
+  // the reconnect cannot combine into one warning.
+  {
+    const harness = await createHarness({
+      providerOptions: {
+        __diagnosticsChurnTransitionThreshold: 2,
+        __diagnosticsChurnWindowMs: 2_000,
+      },
+    });
+    const observer = observeSnapbackPresence(
+      harness.provider,
+      harness.presence,
+      { scope: { roomId: 'reconnect-room' }, value: skip },
+      () => {},
+    );
+    await flush();
+    await observer.publish({ cursor: 0 }, { ttlMs: 1_000 });
+    await observer.publish({ cursor: 1 }, { ttlMs: 1_000 });
+    harness.client.test.reconnectPresence();
+    await observer.publish({ cursor: 2 }, { ttlMs: 1_000 });
+    assert.equal(
+      harness.client.test.channel.snapshot().events.some(
+        (entry) => entry.code === 'SNAPBACK_REACT_PRESENCE_VALUE_CHURN',
+      ),
+      false,
+      'pre-reconnect and post-reconnect changes do not share a churn ring',
+    );
+    await observer.publish({ cursor: 3 }, { ttlMs: 1_000 });
+    assert.equal(
+      harness.client.test.channel.snapshot().events.some(
+        (entry) => entry.code === 'SNAPBACK_REACT_PRESENCE_VALUE_CHURN',
+      ),
+      false,
+      'the first change after the new generation baseline does not warn',
+    );
+    await observer.publish({ cursor: 4 }, { ttlMs: 1_000 });
+    assert.equal(
+      harness.client.test.channel.snapshot().events.filter(
+        (entry) => entry.code === 'SNAPBACK_REACT_PRESENCE_VALUE_CHURN',
+      ).length,
+      1,
+      'two post-reconnect changes still reach the configured threshold',
+    );
+    await observer.dispose();
+    await disposeHarness(harness);
+  }
+
+  // Heartbeats are actual same-value publishes, but they neither advance nor
+  // emit the changed-value warning.
+  {
+    const harness = await createHarness({
+      providerOptions: {
+        __diagnosticsChurnTransitionThreshold: 2,
+        __diagnosticsChurnWindowMs: 2_000,
+      },
+    });
+    const observer = observeSnapbackPresence(
+      harness.provider,
+      harness.presence,
+      { scope: { roomId: 'heartbeat-room' }, value: skip },
+      () => {},
+    );
+    await flush();
+    await observer.publish({ cursor: 0 }, { ttlMs: 500 });
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    assert.ok(
+      harness.client.test.presencePublishes() >= 3,
+      'the fixture observed the initial publish plus at least two heartbeats',
+    );
+    assert.equal(
+      harness.client.test.channel.snapshot().events.some(
+        (entry) => entry.code === 'SNAPBACK_REACT_PRESENCE_VALUE_CHURN',
+      ),
+      false,
+      'heartbeats do not advance changed-value churn',
+    );
+    await observer.dispose();
+    await disposeHarness(harness);
+  }
+
+  // A TTL-only managed-intent update does publish, but an unchanged canonical
+  // value cannot count as a changed-value transition.
+  {
+    const harness = await createHarness({
+      providerOptions: {
+        __diagnosticsChurnTransitionThreshold: 1,
+        __diagnosticsChurnWindowMs: 2_000,
+      },
+    });
+    const observer = observeSnapbackPresence(
+      harness.provider,
+      harness.presence,
+      { scope: { roomId: 'ttl-room' }, value: { cursor: 0 }, ttlMs: 500 },
+      () => {},
+    );
+    await flush();
+    await flush();
+    const publishesBeforeTtlChange = harness.client.test.presencePublishes();
+    observer.update({
+      scope: { roomId: 'ttl-room' },
+      value: { cursor: 0 },
+      ttlMs: 1_000,
+    });
+    await flush();
+    assert.equal(
+      harness.client.test.presencePublishes(),
+      publishesBeforeTtlChange + 1,
+      'TTL-only change reaches the actual publish boundary',
+    );
+    assert.equal(
+      harness.client.test.channel.snapshot().events.some(
+        (entry) => entry.code === 'SNAPBACK_REACT_PRESENCE_VALUE_CHURN',
+      ),
+      false,
+      'TTL-only publishes do not count as value churn',
+    );
+    await observer.dispose();
+    await disposeHarness(harness);
+  }
+
+  // Delete clears both the ring and its last-value baseline. A later publish
+  // starts a new sequence instead of inheriting the withdrawn entry's history.
+  {
+    const harness = await createHarness({
+      providerOptions: {
+        __diagnosticsChurnTransitionThreshold: 2,
+        __diagnosticsChurnWindowMs: 2_000,
+      },
+    });
+    const observer = observeSnapbackPresence(
+      harness.provider,
+      harness.presence,
+      { scope: { roomId: 'delete-room' }, value: skip },
+      () => {},
+    );
+    await flush();
+    await observer.publish({ cursor: 0 }, { ttlMs: 1_000 });
+    await observer.publish({ cursor: 1 }, { ttlMs: 1_000 });
+    await observer.delete();
+    await observer.publish({ cursor: 2 }, { ttlMs: 1_000 });
+    await observer.publish({ cursor: 3 }, { ttlMs: 1_000 });
+    assert.equal(
+      harness.client.test.channel.snapshot().events.some(
+        (entry) => entry.code === 'SNAPBACK_REACT_PRESENCE_VALUE_CHURN',
+      ),
+      false,
+      'a post-delete sequence starts from a fresh baseline',
+    );
+    await observer.publish({ cursor: 4 }, { ttlMs: 1_000 });
+    assert.equal(
+      harness.client.test.channel.snapshot().events.filter(
+        (entry) => entry.code === 'SNAPBACK_REACT_PRESENCE_VALUE_CHURN',
+      ).length,
+      1,
+      'two post-delete changes still reach the configured threshold',
+    );
+    await observer.dispose();
+    await disposeHarness(harness);
   }
 
   // No positive development signal means no detector, no reporter, and no

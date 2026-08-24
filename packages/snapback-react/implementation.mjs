@@ -693,6 +693,10 @@ function assertProvider(provider) {
 function createRegistry(binding, providerInstanceId, options = {}) {
   const client = preparedReactBindingClient(binding);
   const clientDiagnosticsChannel = diagnosticsChannelForClient(client);
+  const presenceValueChurnConfig = positiveDevelopmentEnvironment()
+    && clientDiagnosticsChannel !== null
+    ? hookDiagnosticsOptions(options)
+    : null;
   const stores = new Map();
   const rooms = new Map();
   const leases = new Set();
@@ -768,6 +772,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   let confirmedAuthorityContext = null;
   const runtimePaused = () => custodyPaused || hostPaused;
   let leaseSequence = 0;
+  let presenceDiagnosticSequence = 0;
   let registeredConnectionAttached = false;
   let registeredRecovery = null;
   let registeredRetirement = Promise.resolve();
@@ -3069,6 +3074,58 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     if (previous === null && room.desired !== null) publishers += 1;
     if (previous !== null && room.desired === null) publishers = Math.max(0, publishers - 1);
   };
+  const resetChangedValuePublishChurn = (room) => {
+    const detector = room.changedValuePublishChurn;
+    if (detector === null) return;
+    detector.publishCount = 0;
+    detector.publishCursor = 0;
+  };
+  const observePresencePublish = (room, encoded, cause) => {
+    const detector = room.changedValuePublishChurn;
+    if (detector === null) return;
+    const previousEncoded = detector.lastPublishEncoded;
+    detector.lastPublishEncoded = encoded;
+    if (cause !== 'changed-value') {
+      if (cause !== 'heartbeat') resetChangedValuePublishChurn(room);
+      return;
+    }
+    if (previousEncoded === null || previousEncoded === encoded) {
+      resetChangedValuePublishChurn(room);
+      return;
+    }
+    // @ref LLP 0219#producers-pilot-scoped-detectors — the provider reports
+    // actual changed-value publish attempts through the payload-safe client
+    // diagnostics channel. Superseded intents and heartbeat replays do not
+    // count, and the application value never enters the event.
+    const atMs = Date.now();
+    detector.publishTimes[detector.publishCursor] = atMs;
+    detector.publishCursor = (
+      detector.publishCursor + 1
+    ) % detector.transitionThreshold;
+    detector.publishCount = Math.min(
+      detector.publishCount + 1,
+      detector.transitionThreshold,
+    );
+    if (detector.publishCount < detector.transitionThreshold) return;
+    const firstAtMs = detector.publishTimes[detector.publishCursor];
+    const elapsedMs = Math.max(0, atMs - firstAtMs);
+    if (elapsedMs > detector.windowMs) return;
+
+    const key = room.definition.reference.name;
+    emitReactDiagnostic(clientDiagnosticsChannel, {
+      code: 'SNAPBACK_REACT_PRESENCE_VALUE_CHURN',
+      severity: 'warning',
+      message: `Presence publish stability rule: key ${JSON.stringify(key)} produced ${detector.transitionThreshold} consecutive changed-value publishes in ${elapsedMs}ms. The presence value thunk appears volatile; memoize a stable bound value and keep timestamps, counters, and draft text out of it. See guide/recipes/activity-presence.md#keep-presence-values-stable.`,
+      details: {
+        key,
+        changedPublishCount: detector.transitionThreshold,
+        windowElapsedMs: elapsedMs,
+        windowMs: detector.windowMs,
+        publishThreshold: detector.transitionThreshold,
+      },
+      site: detector.site,
+    });
+  };
   const scheduleRoomHeartbeat = (room, generation = room.intentGeneration) => {
     clearRoomHeartbeat(room);
     if (
@@ -3085,7 +3142,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         || room.raw.status !== 'ready'
         || room.intentGeneration !== generation
       ) return;
-      void enqueueRoomPublish(room, generation);
+      void enqueueRoomPublish(room, generation, 'heartbeat');
     }, room.desired.intervalMs);
     room.heartbeatTimer.unref?.();
   };
@@ -3131,7 +3188,11 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     room.acknowledgedPair = null;
     return enqueuePairWithdrawal(room, pair, handle);
   };
-  const enqueueRoomPublish = (room, generation = room.intentGeneration) => {
+  const enqueueRoomPublish = (
+    room,
+    generation = room.intentGeneration,
+    cause = 'lifecycle',
+  ) => {
     room.publisherDiagnostic = null;
     room.publishing = true;
     notifyRoom(room);
@@ -3145,6 +3206,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       ) return;
       try {
         const handle = room.handle;
+        observePresencePublish(room, desired.encoded, cause);
         const outcome = await handle.publish(desired.value, { ttlMs: desired.ttlMs });
         const pair = acknowledgedPairFromOutcome(outcome);
         if (
@@ -3183,15 +3245,19 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       && token.desired?.ttlMs === next.ttlMs;
     token.source = source;
     if (unchanged && !room.suspended) return Promise.resolve();
+    const previousRoomDesired = room.desired;
     token.desired = next;
     recomputeRoomDesired(room);
+    const changedValue = previousRoomDesired !== null
+      && room.desired !== null
+      && previousRoomDesired.encoded !== room.desired.encoded;
     room.intentGeneration += 1;
     room.suspended = false;
     room.publishing = false;
     clearRoomHeartbeat(room);
     notifyRoom(room);
     return room.raw.status === 'ready'
-      ? enqueueRoomPublish(room)
+      ? enqueueRoomPublish(room, room.intentGeneration, changedValue ? 'changed-value' : 'intent')
       : Promise.resolve();
   };
   const deleteTokenIntent = async (room, token) => {
@@ -3207,6 +3273,10 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     // another token may relinquish only its lease. Deleting the shared backend
     // entry here would erase the sibling's presence and strand its heartbeat.
     if (token.desired === null) return;
+    resetChangedValuePublishChurn(room);
+    if (room.changedValuePublishChurn !== null) {
+      room.changedValuePublishChurn.lastPublishEncoded = null;
+    }
     const siblingDesired = [...room.tokens.values()].some(
       (sibling) => sibling !== token && sibling.desired !== null,
     );
@@ -3241,6 +3311,10 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   const pauseRoom = (room) => {
     room.generation += 1;
     clearRoomHeartbeat(room);
+    resetChangedValuePublishChurn(room);
+    if (room.changedValuePublishChurn !== null) {
+      room.changedValuePublishChurn.lastPublishEncoded = null;
+    }
     room.handleOff?.();
     room.handleOff = null;
     room.republisher?.dispose?.();
@@ -3286,6 +3360,10 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       if (room.resyncReasons.length > 32) room.resyncReasons.shift();
       if (room.raw.status !== 'ready') clearRoomHeartbeat(room);
       if (room.raw.status === 'ready' && previous.status !== 'ready') {
+        resetChangedValuePublishChurn(room);
+        if (room.changedValuePublishChurn !== null) {
+          room.changedValuePublishChurn.lastPublishEncoded = null;
+        }
         room.suspended = false;
       }
       notifyRoom(room);
@@ -3358,6 +3436,17 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       withdrawalTasks: new Set(),
       cleanup: Promise.resolve(),
       resyncReasons: [],
+      changedValuePublishChurn: presenceValueChurnConfig === null
+        ? null
+        : {
+            transitionThreshold: presenceValueChurnConfig.transitionThreshold,
+            windowMs: presenceValueChurnConfig.windowMs,
+            publishTimes: new Array(presenceValueChurnConfig.transitionThreshold),
+            publishCount: 0,
+            publishCursor: 0,
+            lastPublishEncoded: null,
+            site: `provider:${providerInstanceId}:presence-value:${++presenceDiagnosticSequence}`,
+          },
       closed: false,
     };
     rooms.set(room.key, room);

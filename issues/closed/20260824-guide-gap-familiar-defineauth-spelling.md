@@ -1,7 +1,8 @@
 # guide-gap: no documented Familiar auth spelling; defineAuth unreachable from the generated entrypoint
 
-**Status:** Open
+**Status:** Resolved
 **Opened:** 2026-08-24
+**Resolved:** 2026-08-24
 **Systems:** Familiar TypeScript codegen, Auth, Guide
 **Related:** LLP 0253 (function-module grammar disposition 4; schema
 `authProgram` disposition 1), LLP 0306 (F3 item 2, chip-away C15),
@@ -57,3 +58,13 @@ Verified on main at `9a782983d` (2026-08-24):
   spelling with no source inspection.
 - The vertical-fixtures ticket's export-authority list and LLP 0253's
   disposition table agree with whatever was ruled.
+
+## Resolution
+
+LLP 0253's 2026-08-24 amendment moves `defineAuth` to the shared
+schema-module surface at constructor disposition 1 without changing the
+Familiar function-module grammar. The codegen adapter, umbrella server, and
+generated server runtime/type twins now expose the same canonical constructor.
+VCF-F-AUTH1 generates and typechecks an auth program imported from
+`./generated/server`, and the Familiar Guide plus retrieval cases 93–94 teach
+the paved spelling.

@@ -2059,14 +2059,14 @@ id: backend.familiar-profile
 order: 5
 audience: agent-first
 capabilities: [backend.familiar-profile-v1, authority.profile.v1]
-authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0237-bounded-handler-modules.rfc.md, llp/0240-application-authority-profiles.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, crates/snapback-engine/src/runtime.rs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-react/familiar.mjs, packages/snapback-contract/auth-coordinator.mjs, packages/snapback-contract/auth-custody-secure-store.mjs, llp/0044-asset-storage-pipeline.rfc.md]
-examples: [tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, tests/fixtures/familiar-vdoc-vertical, scripts/familiar-vdoc-vertical-contract.mjs, packages/snapback-codegen/familiar-phase-b.test.mjs, packages/snapback-codegen/rbac-authoring.test.mjs, packages/snapback-react/familiar.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-contract/auth-coordinator.test.mjs, packages/snapback-contract/auth-custody-secure-store.test.mjs, packages/snapback-cli/templates/expo-chat, tests/acceptance/fixtures/familiar-video-asset, tests/acceptance/familiar-video-asset-v1.mjs]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0237-bounded-handler-modules.rfc.md, llp/0240-application-authority-profiles.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, crates/snapback-engine/src/runtime.rs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/familiar.d.mts, packages/snapback-codegen/index.mjs, packages/snapback-umbrella/server.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-react/familiar.mjs, packages/snapback-contract/auth-coordinator.mjs, packages/snapback-contract/auth-custody-secure-store.mjs, llp/0044-asset-storage-pipeline.rfc.md]
+examples: [tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, tests/fixtures/familiar-vdoc-vertical, tests/fixtures/familiar-vdoc-vertical/auth-program.ts, scripts/familiar-vdoc-vertical-contract.mjs, packages/snapback-codegen/familiar-phase-b.test.mjs, packages/snapback-codegen/rbac-authoring.test.mjs, packages/snapback-react/familiar.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-contract/auth-coordinator.test.mjs, packages/snapback-contract/auth-custody-secure-store.test.mjs, packages/snapback-cli/templates/expo-chat, tests/acceptance/fixtures/familiar-video-asset, tests/acceptance/familiar-video-asset-v1.mjs]
 status: current
 targets: [local]
 maturity: partial
 since: 0.1.21
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:2d6275363dfe790730aed135fec80e708549fbcebe299b5dcb6f9385b1edebd4
+reviewed: 2026-08-24
+reviewed-authorities-digest: sha256:fb601aa5741322ef374a3bbf199ae6dc49acdf427b9f7b07b118c9e7d9f09967
 ---
 
 # Familiar TypeScript profile (Experimental, non-default)
@@ -2205,6 +2205,56 @@ refused; return an array of closed receipt records or ids instead. Familiar
 actions can read
 auth/runtime/secrets, refuse, and call a generated mutation reference; they do
 not expose `ctx.db`, fetch, assets, jobs, realtime, or streaming.
+
+<!-- since: 0.1.27 unreleased -->
+
+> **Unreleased.** This generated-server auth spelling is newer than the newest
+> published package closure, 0.1.26. Use a source checkout until 0.1.27 is
+> published.
+
+## Declare Familiar auth from the generated server
+
+Search vocabulary: familiar defineAuth; auth in generated server; Familiar
+authProgram; generated server auth constructor.
+
+Import `defineAuth` from the same generated server module as `defineSchema`.
+The generated entrypoint carries the application-bound declaration types, and
+`@expo/snapback/server` exposes the same canonical constructor for package-level
+composition. Do not source-read or reach through
+`@expo/snapback-codegen/define` to declare a Familiar auth program.
+
+```ts source=tests/fixtures/familiar-vdoc-vertical/auth-program.ts
+import { defineAuth } from "./generated/server";
+
+export const authProgram = defineAuth({
+  version: 1,
+  mechanisms: {
+    password: {
+      kind: "password",
+      identifier: "email",
+      provider: "builtIn",
+      recovery: "recoveryCodes",
+    },
+  },
+  assuranceRequirements: {},
+  recoveryPolicy: {
+    recoveryCodes: {
+      enabled: true,
+      requiredWhen: "no-independent-recovery",
+      rotateAfterUse: true,
+      plaintextCustody: "one-time-response",
+    },
+    lastAuthenticator: "enforce",
+  },
+  guestPolicy: { enabled: false },
+  secretReferences: {},
+});
+```
+
+Pass `authProgram` beside `auth: { mode: "sessions" }` in `defineSchema`'s
+options. `defineAuth` is shared schema-module vocabulary; it is not a Familiar
+function constructor. Exporting it as an authored value from a function module
+remains outside the `query`/`mutation`/`action` grammar.
 
 ## Translate the Familiar handler dialect
 

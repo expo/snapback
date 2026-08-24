@@ -2080,6 +2080,42 @@ Case 92 absorbs the first-party guest-session entry closure from LLP 0294 W6.1.
     Route terms: "enterAsGuest", "claimGuestWithPassword", "guest entry".
     Required guidance: "A caller never supplies the principal id, session id, expiry, or cleanup policy", "An existing password identity refuses".
 
+Cases 93–96 absorb the 2026-08-24 Familiar auth-entrypoint and volatile
+activity-presence guide gaps. Their route terms preserve the vocabulary used
+before the paved spelling was discoverable.
+
+93. **Familiar defineAuth:** "Where do I import familiar defineAuth while
+    declaring a sessions auth program?" The run fails if it reaches through
+    `@expo/snapback-codegen/define` or moves auth construction into a function
+    module.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "familiar defineAuth".
+    Required guidance: "Import `defineAuth` from the same generated server module as `defineSchema`".
+
+94. **Auth in generated server:** "Can auth in generated server define the
+    Familiar authProgram, or do I need a cross-package import?" The run fails
+    if it claims the constructor is unreachable or recommends source
+    inspection.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "auth in generated server".
+    Required guidance: "`defineAuth` is shared schema-module vocabulary".
+
+95. **Presence rate limit:** "My activity presence hits the presence rate
+    limit when I call touch on every keystroke." The run fails if it adds an
+    app heartbeat or only raises TTL/rate bounds instead of removing volatile
+    fields from the value thunk.
+    Expected pages: `recipes/activity-presence.md`.
+    Route terms: "presence rate limit".
+    Required guidance: "Volatile values defeat the no-op dedup".
+
+96. **Typing publishes too often:** "My typing indicator has too many
+    publishes and reports SNAPBACK_REACT_PRESENCE_VALUE_CHURN." The run fails
+    if it memoizes the thunk function while leaving timestamps, counters, or
+    draft text in its returned value.
+    Expected pages: `recipes/activity-presence.md`.
+    Route terms: "typing indicator too many publishes".
+    Required guidance: "bind and memoize only the small state peers actually need".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:
@@ -7712,14 +7748,14 @@ id: backend.familiar-profile
 order: 5
 audience: agent-first
 capabilities: [backend.familiar-profile-v1, authority.profile.v1]
-authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0237-bounded-handler-modules.rfc.md, llp/0240-application-authority-profiles.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, crates/snapback-engine/src/runtime.rs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-react/familiar.mjs, packages/snapback-contract/auth-coordinator.mjs, packages/snapback-contract/auth-custody-secure-store.mjs, llp/0044-asset-storage-pipeline.rfc.md]
-examples: [tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, tests/fixtures/familiar-vdoc-vertical, scripts/familiar-vdoc-vertical-contract.mjs, packages/snapback-codegen/familiar-phase-b.test.mjs, packages/snapback-codegen/rbac-authoring.test.mjs, packages/snapback-react/familiar.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-contract/auth-coordinator.test.mjs, packages/snapback-contract/auth-custody-secure-store.test.mjs, packages/snapback-cli/templates/expo-chat, tests/acceptance/fixtures/familiar-video-asset, tests/acceptance/familiar-video-asset-v1.mjs]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0237-bounded-handler-modules.rfc.md, llp/0240-application-authority-profiles.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, crates/snapback-engine/src/runtime.rs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/familiar.d.mts, packages/snapback-codegen/index.mjs, packages/snapback-umbrella/server.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-react/familiar.mjs, packages/snapback-contract/auth-coordinator.mjs, packages/snapback-contract/auth-custody-secure-store.mjs, llp/0044-asset-storage-pipeline.rfc.md]
+examples: [tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, tests/fixtures/familiar-vdoc-vertical, tests/fixtures/familiar-vdoc-vertical/auth-program.ts, scripts/familiar-vdoc-vertical-contract.mjs, packages/snapback-codegen/familiar-phase-b.test.mjs, packages/snapback-codegen/rbac-authoring.test.mjs, packages/snapback-react/familiar.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-contract/auth-coordinator.test.mjs, packages/snapback-contract/auth-custody-secure-store.test.mjs, packages/snapback-cli/templates/expo-chat, tests/acceptance/fixtures/familiar-video-asset, tests/acceptance/familiar-video-asset-v1.mjs]
 status: current
 targets: [local]
 maturity: partial
 since: 0.1.21
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:2d6275363dfe790730aed135fec80e708549fbcebe299b5dcb6f9385b1edebd4
+reviewed: 2026-08-24
+reviewed-authorities-digest: sha256:fb601aa5741322ef374a3bbf199ae6dc49acdf427b9f7b07b118c9e7d9f09967
 ---
 
 # Familiar TypeScript profile (Experimental, non-default)
@@ -7858,6 +7894,56 @@ refused; return an array of closed receipt records or ids instead. Familiar
 actions can read
 auth/runtime/secrets, refuse, and call a generated mutation reference; they do
 not expose `ctx.db`, fetch, assets, jobs, realtime, or streaming.
+
+<!-- since: 0.1.27 unreleased -->
+
+> **Unreleased.** This generated-server auth spelling is newer than the newest
+> published package closure, 0.1.26. Use a source checkout until 0.1.27 is
+> published.
+
+## Declare Familiar auth from the generated server
+
+Search vocabulary: familiar defineAuth; auth in generated server; Familiar
+authProgram; generated server auth constructor.
+
+Import `defineAuth` from the same generated server module as `defineSchema`.
+The generated entrypoint carries the application-bound declaration types, and
+`@expo/snapback/server` exposes the same canonical constructor for package-level
+composition. Do not source-read or reach through
+`@expo/snapback-codegen/define` to declare a Familiar auth program.
+
+```ts source=tests/fixtures/familiar-vdoc-vertical/auth-program.ts
+import { defineAuth } from "./generated/server";
+
+export const authProgram = defineAuth({
+  version: 1,
+  mechanisms: {
+    password: {
+      kind: "password",
+      identifier: "email",
+      provider: "builtIn",
+      recovery: "recoveryCodes",
+    },
+  },
+  assuranceRequirements: {},
+  recoveryPolicy: {
+    recoveryCodes: {
+      enabled: true,
+      requiredWhen: "no-independent-recovery",
+      rotateAfterUse: true,
+      plaintextCustody: "one-time-response",
+    },
+    lastAuthenticator: "enforce",
+  },
+  guestPolicy: { enabled: false },
+  secretReferences: {},
+});
+```
+
+Pass `authProgram` beside `auth: { mode: "sessions" }` in `defineSchema`'s
+options. `defineAuth` is shared schema-module vocabulary; it is not a Familiar
+function constructor. Exporting it as an authored value from a function module
+remains outside the `query`/`mutation`/`action` grammar.
 
 ## Translate the Familiar handler dialect
 
@@ -28424,8 +28510,8 @@ examples: [demos/messaging-snapback, packages/snapback-cli/templates/expo-chat, 
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:8f70a44985f5309caef3b140d31f6714b5a0f2fe8bd26961e0bada330ce66219
+reviewed: 2026-08-24
+reviewed-authorities-digest: sha256:a43849a5d72402bf957233393a1321549b84338822bd9a8766f91f0aa7d47a54
 ---
 
 # Recipe: activity presence, heartbeats, and withdrawal
@@ -28486,6 +28572,62 @@ delete to become visible: for a five-second ceiling, the shown three-second
 idle window leaves that convergence budget. TTL will not enforce the deadline
 while the activity owner is active.
 
+<!-- since: 0.1.27 unreleased -->
+
+> **Unreleased.** The volatile-value development diagnostic is newer than the
+> newest published package closure, 0.1.26. The stable-value repair applies to
+> every version that includes `useSnapbackActivityPresence`.
+
+## Keep presence values stable
+
+Volatile values defeat the no-op dedup. `touch()` evaluates `value` on every
+activity tick; a timestamp, counter, draft body, or other changing field turns
+every keystroke into a real publish. At typing speed this can reach the presence
+rate limit and suspend the publisher with `publish-error`.
+
+Search vocabulary: presence rate limit; typing indicator too many publishes;
+volatile presence value; `SNAPBACK_REACT_PRESENCE_VALUE_CHURN`.
+
+Before — the timestamp changes the canonical value on every touch:
+
+```tsx source=tests/fixtures/activity-presence-vertical/client-projection.ts
+export function VolatileTypingValue({ displayName }: { displayName: string }) {
+  const presence = useSnapbackActivityPresence(typing, {
+    scope: { roomId: 'room-one' },
+    value: () => ({ userHandle: 'ada', name: `${displayName}-${Date.now()}` }),
+    idleMs: 3_000,
+  });
+  const onKeystroke = () => presence.touch();
+  void onKeystroke;
+  return null;
+}
+```
+
+After — bind and memoize only the small state peers actually need:
+
+```tsx source=tests/fixtures/activity-presence-vertical/client-projection.ts
+export function StableTypingValue({ displayName }: { displayName: string }) {
+  const boundValue = useMemo(
+    () => ({ userHandle: 'ada', name: displayName }),
+    [displayName],
+  );
+  const presence = useSnapbackActivityPresence(typing, {
+    scope: { roomId: 'room-one' },
+    value: () => boundValue,
+    idleMs: 3_000,
+  });
+  const onKeystroke = () => presence.touch();
+  void onKeystroke;
+  return null;
+}
+```
+
+In a positively identified development build, N consecutive actual
+changed-value publishes for one presence key inside the short diagnostic
+window emit `SNAPBACK_REACT_PRESENCE_VALUE_CHURN`. The warning names the key
+and this repair without recording the presence value. Repeated unchanged
+touches, provider heartbeats, and superseded intents do not count.
+
 ## Coming from Supabase `track()`
 
 Supabase `track()` is the lifecycle analogue of bound `useSurface` presence or
@@ -28521,6 +28663,8 @@ membership or make presence durable history.
 - Publishing once and relying on a long TTL as the normal stop mechanism.
 - Adding an independent app timer when the activity-presence owner already
   owns heartbeat and withdrawal.
+- Putting timestamps, counters, or draft text in an activity-presence value
+  when a stable typing/active marker is enough.
 - Treating an expired or deleted entry as a durable offline-status record.
 - Reusing presence as membership, authorization, or message history.
 
@@ -29787,7 +29931,7 @@ reviewed-authorities-digest: sha256:7288a1a19f29ec11e92a871b29b855e71cf16d18debe
 
 This build-bound registry is generated from production Rust, JavaScript, and Swift sources. Use `snapback guide SNAPBACK_*` for an exact, bounded lookup before searching prose.
 
-**3,643 stable codes** from 608 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
+**3,644 stable codes** from 608 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
 
 | Code | Subsystem | HTTP | Guide | First emitting site | Sites |
 | --- | --- | ---: | --- | --- | ---: |
@@ -30270,7 +30414,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-authority-independent-invalid"></a>`SNAPBACK_AUTHORITY_INDEPENDENT_INVALID` | server | 400 | — | `crates/snapback-engine/src/local/engine.rs:36309` | 3 |
 | <a id="diagnostic-snapback-authority-invite-already-active"></a>`SNAPBACK_AUTHORITY_INVITE_ALREADY_ACTIVE` | server | 500 | — | `crates/snapback-kernel/src/storage/membership_plans.rs:554` | 1 |
 | <a id="diagnostic-snapback-authority-invite-already-present"></a>`SNAPBACK_AUTHORITY_INVITE_ALREADY_PRESENT` | server | 500 | — | `crates/snapback-kernel/src/storage/membership_plans.rs:559` | 1 |
-| <a id="diagnostic-snapback-authority-mutation-refused"></a>`SNAPBACK_AUTHORITY_MUTATION_REFUSED` | react | — | — | `packages/snapback-react/implementation.mjs:5675` | 1 |
+| <a id="diagnostic-snapback-authority-mutation-refused"></a>`SNAPBACK_AUTHORITY_MUTATION_REFUSED` | react | — | — | `packages/snapback-react/implementation.mjs:5764` | 1 |
 | <a id="diagnostic-snapback-authority-owner-count-invalid"></a>`SNAPBACK_AUTHORITY_OWNER_COUNT_INVALID` | server | 409 | — | `crates/snapback-kernel/src/storage/auth_agents.rs:1153` | 2 |
 | <a id="diagnostic-snapback-authority-owner-mutation-requires-transfer"></a>`SNAPBACK_AUTHORITY_OWNER_MUTATION_REQUIRES_TRANSFER` | server | 403 | — | `crates/snapback-kernel/src/storage/membership_plans.rs:105` | 2 |
 | <a id="diagnostic-snapback-authority-plan-mirror-duplicate"></a>`SNAPBACK_AUTHORITY_PLAN_MIRROR_DUPLICATE` | server | 500 | — | `crates/snapback-kernel/src/storage.rs:3629` | 1 |
@@ -30997,16 +31141,16 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-codegen-effect-ceiling-failed"></a>`SNAPBACK_CODEGEN_EFFECT_CEILING_FAILED` | codegen | — | — | `packages/snapback-codegen/index.mjs:12748` | 1 |
 | <a id="diagnostic-snapback-codegen-explicit-familiar-source-present"></a>`SNAPBACK_CODEGEN_EXPLICIT_FAMILIAR_SOURCE_PRESENT` | codegen | — | [guide](../getting-started/generated-artifacts.md#diagnose-familiar-profile-refusals) | `packages/snapback-codegen/index.mjs:18222` | 2 |
 | <a id="diagnostic-snapback-codegen-expression-unserializable"></a>`SNAPBACK_CODEGEN_EXPRESSION_UNSERIALIZABLE` | codegen | — | — | `packages/snapback-codegen/index.mjs:9511` | 1 |
-| <a id="diagnostic-snapback-codegen-familiar-auth-missing"></a>`SNAPBACK_CODEGEN_FAMILIAR_AUTH_MISSING` | codegen | — | [guide](../getting-started/generated-artifacts.md#diagnose-familiar-profile-refusals) | `packages/snapback-codegen/familiar.mjs:114` | 2 |
-| <a id="diagnostic-snapback-codegen-familiar-delivery-invalid"></a>`SNAPBACK_CODEGEN_FAMILIAR_DELIVERY_INVALID` | codegen | — | [guide](../getting-started/generated-artifacts.md#diagnose-familiar-profile-refusals) | `packages/snapback-codegen/familiar.mjs:235` | 2 |
+| <a id="diagnostic-snapback-codegen-familiar-auth-missing"></a>`SNAPBACK_CODEGEN_FAMILIAR_AUTH_MISSING` | codegen | — | [guide](../getting-started/generated-artifacts.md#diagnose-familiar-profile-refusals) | `packages/snapback-codegen/familiar.mjs:116` | 2 |
+| <a id="diagnostic-snapback-codegen-familiar-delivery-invalid"></a>`SNAPBACK_CODEGEN_FAMILIAR_DELIVERY_INVALID` | codegen | — | [guide](../getting-started/generated-artifacts.md#diagnose-familiar-profile-refusals) | `packages/snapback-codegen/familiar.mjs:237` | 2 |
 | <a id="diagnostic-snapback-codegen-familiar-explicit-source-present"></a>`SNAPBACK_CODEGEN_FAMILIAR_EXPLICIT_SOURCE_PRESENT` | codegen | — | [guide](../getting-started/generated-artifacts.md#diagnose-familiar-profile-refusals) | `packages/snapback-codegen/index.mjs:18274` | 1 |
 | <a id="diagnostic-snapback-codegen-familiar-export-unsupported"></a>`SNAPBACK_CODEGEN_FAMILIAR_EXPORT_UNSUPPORTED` | codegen | — | [guide](../getting-started/generated-artifacts.md#diagnose-familiar-profile-refusals) | `packages/snapback-codegen/index.mjs:18325` | 1 |
 | <a id="diagnostic-snapback-codegen-familiar-helper-import-unavailable"></a>`SNAPBACK_CODEGEN_FAMILIAR_HELPER_IMPORT_UNAVAILABLE` | codegen | — | — | `packages/snapback-codegen/index.mjs:18614` | 3 |
-| <a id="diagnostic-snapback-codegen-familiar-key-unsupported"></a>`SNAPBACK_CODEGEN_FAMILIAR_KEY_UNSUPPORTED` | codegen | — | [guide](../getting-started/generated-artifacts.md#diagnose-familiar-profile-refusals) | `packages/snapback-codegen/familiar.mjs:75` | 5 |
+| <a id="diagnostic-snapback-codegen-familiar-key-unsupported"></a>`SNAPBACK_CODEGEN_FAMILIAR_KEY_UNSUPPORTED` | codegen | — | [guide](../getting-started/generated-artifacts.md#diagnose-familiar-profile-refusals) | `packages/snapback-codegen/familiar.mjs:77` | 5 |
 | <a id="diagnostic-snapback-codegen-familiar-module-path-unsupported"></a>`SNAPBACK_CODEGEN_FAMILIAR_MODULE_PATH_UNSUPPORTED` | codegen | — | [guide](../getting-started/generated-artifacts.md#diagnose-familiar-profile-refusals) | `packages/snapback-codegen/index.mjs:18301` | 2 |
 | <a id="diagnostic-snapback-codegen-familiar-name-collision"></a>`SNAPBACK_CODEGEN_FAMILIAR_NAME_COLLISION` | codegen | — | [guide](../getting-started/generated-artifacts.md#diagnose-familiar-profile-refusals) | `packages/snapback-codegen/index.mjs:4945` | 2 |
 | <a id="diagnostic-snapback-codegen-familiar-reserved-module-unsupported"></a>`SNAPBACK_CODEGEN_FAMILIAR_RESERVED_MODULE_UNSUPPORTED` | codegen | — | [guide](../getting-started/generated-artifacts.md#diagnose-familiar-profile-refusals) | `packages/snapback-codegen/index.mjs:18285` | 1 |
-| <a id="diagnostic-snapback-codegen-familiar-returns-unlowerable"></a>`SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE` | codegen | — | [guide](../backend/familiar-profile.md#translate-the-familiar-handler-dialect) | `packages/snapback-codegen/familiar.mjs:104` | 4 |
+| <a id="diagnostic-snapback-codegen-familiar-returns-unlowerable"></a>`SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE` | codegen | — | [guide](../backend/familiar-profile.md#translate-the-familiar-handler-dialect) | `packages/snapback-codegen/familiar.mjs:106` | 4 |
 | <a id="diagnostic-snapback-codegen-familiar-sequence-unsupported"></a>`SNAPBACK_CODEGEN_FAMILIAR_SEQUENCE_UNSUPPORTED` | codegen | — | — | `packages/snapback-codegen/index.mjs:19017` | 1 |
 | <a id="diagnostic-snapback-codegen-function-id-invalid"></a>`SNAPBACK_CODEGEN_FUNCTION_ID_INVALID` | codegen | — | — | `packages/snapback-codegen/index.mjs:12696` | 1 |
 | <a id="diagnostic-snapback-codegen-graph-allowance-hook-missing"></a>`SNAPBACK_CODEGEN_GRAPH_ALLOWANCE_HOOK_MISSING` | codegen | — | — | `packages/snapback-codegen/index.mjs:20877` | 1 |
@@ -31415,7 +31559,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-ephemeral-operator-delete-target-refused-derived"></a>`SNAPBACK_EPHEMERAL_OPERATOR_DELETE_TARGET_REFUSED_DERIVED` | server | 403 | — | `crates/snapback-server/src/server.rs:35230` | 2 |
 | <a id="diagnostic-snapback-ephemeral-operator-delete-target-refused-hosted"></a>`SNAPBACK_EPHEMERAL_OPERATOR_DELETE_TARGET_REFUSED_HOSTED` | server | 403 | — | `crates/snapback-server/src/server.rs:35238` | 2 |
 | <a id="diagnostic-snapback-ephemeral-publish-failed"></a>`SNAPBACK_EPHEMERAL_PUBLISH_FAILED` | client | — | — | `packages/snapback-client/index.mjs:13453` | 1 |
-| <a id="diagnostic-snapback-ephemeral-publish-outcome-invalid"></a>`SNAPBACK_EPHEMERAL_PUBLISH_OUTCOME_INVALID` | react | — | — | `packages/snapback-react/implementation.mjs:3102` | 1 |
+| <a id="diagnostic-snapback-ephemeral-publish-outcome-invalid"></a>`SNAPBACK_EPHEMERAL_PUBLISH_OUTCOME_INVALID` | react | — | — | `packages/snapback-react/implementation.mjs:3159` | 1 |
 | <a id="diagnostic-snapback-ephemeral-rate-limited"></a>`SNAPBACK_EPHEMERAL_RATE_LIMITED` | server | 429 | — | `crates/snapback-server/src/server/api_error.rs:823` | 3 |
 | <a id="diagnostic-snapback-ephemeral-reauthorization-incomplete"></a>`SNAPBACK_EPHEMERAL_REAUTHORIZATION_INCOMPLETE` | server | 500 | — | `crates/snapback-engine/src/local/engine.rs:27052` | 1 |
 | <a id="diagnostic-snapback-ephemeral-republisher-limit"></a>`SNAPBACK_EPHEMERAL_REPUBLISHER_LIMIT` | swift-client | — | — | `clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift:202` | 3 |
@@ -32659,79 +32803,80 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-query-registration-volatile-only"></a>`SNAPBACK_QUERY_REGISTRATION_VOLATILE_ONLY` | queries | — | — | `packages/snapback-client/store-runtime.mjs:1235` | 2 |
 | <a id="diagnostic-snapback-query-unknown-index"></a>`SNAPBACK_QUERY_UNKNOWN_INDEX` | queries | 400 | — | `crates/snapback-engine/src/local/engine.rs:36085` | 4 |
 | <a id="diagnostic-snapback-random-unavailable"></a>`SNAPBACK_RANDOM_UNAVAILABLE` | server | 503 | — | `crates/snapback-kernel/src/storage/capability_links.rs:251` | 3 |
-| <a id="diagnostic-snapback-react-activity-idle-ms-invalid"></a>`SNAPBACK_REACT_ACTIVITY_IDLE_MS_INVALID` | react | — | [guide](../recipes/activity-presence.md#coming-from-supabase-track) | `packages/snapback-react/implementation.mjs:5785` | 1 |
-| <a id="diagnostic-snapback-react-activity-value-failed"></a>`SNAPBACK_REACT_ACTIVITY_VALUE_FAILED` | react | — | — | `packages/snapback-react/implementation.mjs:5803` | 1 |
+| <a id="diagnostic-snapback-react-activity-idle-ms-invalid"></a>`SNAPBACK_REACT_ACTIVITY_IDLE_MS_INVALID` | react | — | [guide](../recipes/activity-presence.md#coming-from-supabase-track) | `packages/snapback-react/implementation.mjs:5874` | 1 |
+| <a id="diagnostic-snapback-react-activity-value-failed"></a>`SNAPBACK_REACT_ACTIVITY_VALUE_FAILED` | react | — | — | `packages/snapback-react/implementation.mjs:5892` | 1 |
 | <a id="diagnostic-snapback-react-args-invalid"></a>`SNAPBACK_REACT_ARGS_INVALID` | client | — | — | `packages/snapback-client/canonical-client-value.mjs:36` | 2 |
-| <a id="diagnostic-snapback-react-asset-strict-delivery-sessions"></a>`SNAPBACK_REACT_ASSET_STRICT_DELIVERY_SESSIONS` | react | — | [guide](../backend/assets.md#render-the-uploaded-image-in-a-plain-image) | `packages/snapback-react/implementation.mjs:7749` | 1 |
-| <a id="diagnostic-snapback-react-authority-page-invalid"></a>`SNAPBACK_REACT_AUTHORITY_PAGE_INVALID` | react | — | — | `packages/snapback-react/implementation.mjs:5348` | 2 |
-| <a id="diagnostic-snapback-react-auth-provider-required"></a>`SNAPBACK_REACT_AUTH_PROVIDER_REQUIRED` | react | — | — | `packages/snapback-react/implementation.mjs:5119` | 1 |
+| <a id="diagnostic-snapback-react-asset-strict-delivery-sessions"></a>`SNAPBACK_REACT_ASSET_STRICT_DELIVERY_SESSIONS` | react | — | [guide](../backend/assets.md#render-the-uploaded-image-in-a-plain-image) | `packages/snapback-react/implementation.mjs:7838` | 1 |
+| <a id="diagnostic-snapback-react-authority-page-invalid"></a>`SNAPBACK_REACT_AUTHORITY_PAGE_INVALID` | react | — | — | `packages/snapback-react/implementation.mjs:5437` | 2 |
+| <a id="diagnostic-snapback-react-auth-provider-required"></a>`SNAPBACK_REACT_AUTH_PROVIDER_REQUIRED` | react | — | — | `packages/snapback-react/implementation.mjs:5208` | 1 |
 | <a id="diagnostic-snapback-react-binding-mismatch"></a>`SNAPBACK_REACT_BINDING_MISMATCH` | client | — | [guide](../clients/react.md#prepare-a-provider-for-advanced-composition) | `packages/snapback-client/react-binding.mjs:462` | 3 |
 | <a id="diagnostic-snapback-react-binding-origin-unreachable"></a>`SNAPBACK_REACT_BINDING_ORIGIN_UNREACHABLE` | client | — | [guide](../clients/react-expo.md#use-the-low-level-provider-when-you-own-environment-wiring) | `packages/snapback-client/react-binding.mjs:65` | 1 |
 | <a id="diagnostic-snapback-react-binding-receipt-not-persisted"></a>`SNAPBACK_REACT_BINDING_RECEIPT_NOT_PERSISTED` | client | — | [guide](../clients/react.md#prepare-a-provider-for-advanced-composition) | `packages/snapback-client/react-binding.mjs:622` | 3 |
 | <a id="diagnostic-snapback-react-binding-required"></a>`SNAPBACK_REACT_BINDING_REQUIRED` | client | — | — | `packages/snapback-client/react-binding.mjs:1685` | 1 |
 | <a id="diagnostic-snapback-react-command-invalid"></a>`SNAPBACK_REACT_COMMAND_INVALID` | client | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-client/react-binding.mjs:1787` | 1 |
-| <a id="diagnostic-snapback-react-command-result-invalid"></a>`SNAPBACK_REACT_COMMAND_RESULT_INVALID` | react | — | — | `packages/snapback-react/implementation.mjs:2708` | 1 |
-| <a id="diagnostic-snapback-react-delivery-reentrancy-unsupported"></a>`SNAPBACK_REACT_DELIVERY_REENTRANCY_UNSUPPORTED` | react | — | [guide](../recipes/provider-lifecycle.md#keep-update-callbacks-non-reentrant-and-deduplicate-adapter-projections) | `packages/snapback-react/implementation.mjs:2384` | 3 |
-| <a id="diagnostic-snapback-react-diagnostics-unsupported"></a>`SNAPBACK_REACT_DIAGNOSTICS_UNSUPPORTED` | react | — | — | `packages/snapback-react/implementation.mjs:7166` | 1 |
+| <a id="diagnostic-snapback-react-command-result-invalid"></a>`SNAPBACK_REACT_COMMAND_RESULT_INVALID` | react | — | — | `packages/snapback-react/implementation.mjs:2713` | 1 |
+| <a id="diagnostic-snapback-react-delivery-reentrancy-unsupported"></a>`SNAPBACK_REACT_DELIVERY_REENTRANCY_UNSUPPORTED` | react | — | [guide](../recipes/provider-lifecycle.md#keep-update-callbacks-non-reentrant-and-deduplicate-adapter-projections) | `packages/snapback-react/implementation.mjs:2389` | 3 |
+| <a id="diagnostic-snapback-react-diagnostics-unsupported"></a>`SNAPBACK_REACT_DIAGNOSTICS_UNSUPPORTED` | react | — | — | `packages/snapback-react/implementation.mjs:7255` | 1 |
 | <a id="diagnostic-snapback-react-group-already-consumed"></a>`SNAPBACK_REACT_GROUP_ALREADY_CONSUMED` | client | — | — | `packages/snapback-client/react-binding.mjs:1834` | 1 |
 | <a id="diagnostic-snapback-react-group-attach-expired"></a>`SNAPBACK_REACT_GROUP_ATTACH_EXPIRED` | client | — | — | `packages/snapback-client/index.mjs:17305` | 5 |
 | <a id="diagnostic-snapback-react-group-authority-stale"></a>`SNAPBACK_REACT_GROUP_AUTHORITY_STALE` | client | — | — | `packages/snapback-client/react-binding.mjs:1845` | 2 |
 | <a id="diagnostic-snapback-react-group-auth-invalidation-required"></a>`SNAPBACK_REACT_GROUP_AUTH_INVALIDATION_REQUIRED` | client | — | — | `packages/snapback-client/react-binding.mjs:2054` | 1 |
 | <a id="diagnostic-snapback-react-group-bundle-invalid"></a>`SNAPBACK_REACT_GROUP_BUNDLE_INVALID` | client | — | — | `packages/snapback-client/react-binding.mjs:2146` | 9 |
-| <a id="diagnostic-snapback-react-group-capacity"></a>`SNAPBACK_REACT_GROUP_CAPACITY` | react | — | — | `packages/snapback-react/implementation.mjs:2820` | 2 |
-| <a id="diagnostic-snapback-react-group-connection-mismatch"></a>`SNAPBACK_REACT_GROUP_CONNECTION_MISMATCH` | react | — | — | `packages/snapback-react/implementation.mjs:722` | 2 |
+| <a id="diagnostic-snapback-react-group-capacity"></a>`SNAPBACK_REACT_GROUP_CAPACITY` | react | — | — | `packages/snapback-react/implementation.mjs:2825` | 2 |
+| <a id="diagnostic-snapback-react-group-connection-mismatch"></a>`SNAPBACK_REACT_GROUP_CONNECTION_MISMATCH` | react | — | — | `packages/snapback-react/implementation.mjs:726` | 2 |
 | <a id="diagnostic-snapback-react-group-dev-identity-forbidden"></a>`SNAPBACK_REACT_GROUP_DEV_IDENTITY_FORBIDDEN` | client | — | — | `packages/snapback-client/react-binding.mjs:1948` | 1 |
 | <a id="diagnostic-snapback-react-group-duplicate-child"></a>`SNAPBACK_REACT_GROUP_DUPLICATE_CHILD` | client | — | — | `packages/snapback-client/react-binding.mjs:1972` | 1 |
 | <a id="diagnostic-snapback-react-group-owner-mismatch"></a>`SNAPBACK_REACT_GROUP_OWNER_MISMATCH` | client | — | — | `packages/snapback-client/react-binding.mjs:1827` | 1 |
 | <a id="diagnostic-snapback-react-group-params-invalid"></a>`SNAPBACK_REACT_GROUP_PARAMS_INVALID` | client | — | — | `packages/snapback-client/react-binding.mjs:1938` | 1 |
-| <a id="diagnostic-snapback-react-group-preparation-invalid"></a>`SNAPBACK_REACT_GROUP_PREPARATION_INVALID` | react | — | — | `packages/snapback-react/implementation.mjs:709` | 1 |
+| <a id="diagnostic-snapback-react-group-preparation-invalid"></a>`SNAPBACK_REACT_GROUP_PREPARATION_INVALID` | react | — | — | `packages/snapback-react/implementation.mjs:713` | 1 |
 | <a id="diagnostic-snapback-react-group-reference-invalid"></a>`SNAPBACK_REACT_GROUP_REFERENCE_INVALID` | client | — | — | `packages/snapback-client/react-binding.mjs:1704` | 3 |
 | <a id="diagnostic-snapback-react-group-register-unavailable"></a>`SNAPBACK_REACT_GROUP_REGISTER_UNAVAILABLE` | client | — | — | `packages/snapback-client/react-binding.mjs:2044` | 1 |
-| <a id="diagnostic-snapback-react-hmr-rebind-failed"></a>`SNAPBACK_REACT_HMR_REBIND_FAILED` | react | — | [guide](../clients/react.md#prepare-a-provider-for-advanced-composition) | `packages/snapback-react/implementation.mjs:3817` | 4 |
+| <a id="diagnostic-snapback-react-hmr-rebind-failed"></a>`SNAPBACK_REACT_HMR_REBIND_FAILED` | react | — | [guide](../clients/react.md#prepare-a-provider-for-advanced-composition) | `packages/snapback-react/implementation.mjs:3906` | 4 |
 | <a id="diagnostic-snapback-react-live-hook-args-identity-churn"></a>`SNAPBACK_REACT_LIVE_HOOK_ARGS_IDENTITY_CHURN` | react | — | [guide](../backend/familiar-profile.md#keep-react-hook-arguments-identity-stable) | `packages/snapback-react/react-runtime.mjs:45` | 2 |
 | <a id="diagnostic-snapback-react-manifest-invalid"></a>`SNAPBACK_REACT_MANIFEST_INVALID` | client | — | — | `packages/snapback-client/react-binding-hmr.mjs:95` | 26 |
 | <a id="diagnostic-snapback-react-mutation-queued"></a>`SNAPBACK_REACT_MUTATION_QUEUED` | client | — | [guide](../clients/react.md#inspect-client-dev-diagnostics) | `packages/snapback-client/client-diagnostics.mjs:26` | 4 |
 | <a id="diagnostic-snapback-react-mutation-queue-wedged"></a>`SNAPBACK_REACT_MUTATION_QUEUE_WEDGED` | client | — | [guide](../clients/react.md#inspect-client-dev-diagnostics) | `packages/snapback-client/client-diagnostics.mjs:28` | 1 |
-| <a id="diagnostic-snapback-react-optimistic-create-identity-missing"></a>`SNAPBACK_REACT_OPTIMISTIC_CREATE_IDENTITY_MISSING` | react | — | — | `packages/snapback-react/implementation.mjs:3995` | 2 |
-| <a id="diagnostic-snapback-react-optimistic-create-insert-required"></a>`SNAPBACK_REACT_OPTIMISTIC_CREATE_INSERT_REQUIRED` | react | — | [guide](../clients/react.md#optimistically-create-a-row-the-server-will-name) | `packages/snapback-react/implementation.mjs:1903` | 1 |
-| <a id="diagnostic-snapback-react-optimistic-create-query-conflict"></a>`SNAPBACK_REACT_OPTIMISTIC_CREATE_QUERY_CONFLICT` | react | — | — | `packages/snapback-react/implementation.mjs:2117` | 1 |
-| <a id="diagnostic-snapback-react-optimistic-create-query-unsupported"></a>`SNAPBACK_REACT_OPTIMISTIC_CREATE_QUERY_UNSUPPORTED` | react | — | — | `packages/snapback-react/implementation.mjs:1879` | 1 |
-| <a id="diagnostic-snapback-react-optimistic-create-unsupported"></a>`SNAPBACK_REACT_OPTIMISTIC_CREATE_UNSUPPORTED` | react | — | — | `packages/snapback-react/implementation.mjs:2074` | 1 |
+| <a id="diagnostic-snapback-react-optimistic-create-identity-missing"></a>`SNAPBACK_REACT_OPTIMISTIC_CREATE_IDENTITY_MISSING` | react | — | — | `packages/snapback-react/implementation.mjs:4084` | 2 |
+| <a id="diagnostic-snapback-react-optimistic-create-insert-required"></a>`SNAPBACK_REACT_OPTIMISTIC_CREATE_INSERT_REQUIRED` | react | — | [guide](../clients/react.md#optimistically-create-a-row-the-server-will-name) | `packages/snapback-react/implementation.mjs:1908` | 1 |
+| <a id="diagnostic-snapback-react-optimistic-create-query-conflict"></a>`SNAPBACK_REACT_OPTIMISTIC_CREATE_QUERY_CONFLICT` | react | — | — | `packages/snapback-react/implementation.mjs:2122` | 1 |
+| <a id="diagnostic-snapback-react-optimistic-create-query-unsupported"></a>`SNAPBACK_REACT_OPTIMISTIC_CREATE_QUERY_UNSUPPORTED` | react | — | — | `packages/snapback-react/implementation.mjs:1884` | 1 |
+| <a id="diagnostic-snapback-react-optimistic-create-unsupported"></a>`SNAPBACK_REACT_OPTIMISTIC_CREATE_UNSUPPORTED` | react | — | — | `packages/snapback-react/implementation.mjs:2079` | 1 |
 | <a id="diagnostic-snapback-react-optimistic-install-failed"></a>`SNAPBACK_REACT_OPTIMISTIC_INSTALL_FAILED` | client | — | [guide](../recipes/optimistic-toggle.md#cold-retained-public-layout-split-the-viewer-fact) | `packages/snapback-client/react-binding.mjs:906` | 7 |
-| <a id="diagnostic-snapback-react-optimistic-layer-limit"></a>`SNAPBACK_REACT_OPTIMISTIC_LAYER_LIMIT` | react | — | — | `packages/snapback-react/implementation.mjs:2506` | 1 |
+| <a id="diagnostic-snapback-react-optimistic-layer-limit"></a>`SNAPBACK_REACT_OPTIMISTIC_LAYER_LIMIT` | react | — | — | `packages/snapback-react/implementation.mjs:2511` | 1 |
 | <a id="diagnostic-snapback-react-optimistic-post-dispatch-failed"></a>`SNAPBACK_REACT_OPTIMISTIC_POST_DISPATCH_FAILED` | react | — | — | `packages/snapback-react/implementation.mjs:165` | 1 |
-| <a id="diagnostic-snapback-react-optimistic-rebase-failed"></a>`SNAPBACK_REACT_OPTIMISTIC_REBASE_FAILED` | react | — | — | `packages/snapback-react/implementation.mjs:1081` | 3 |
+| <a id="diagnostic-snapback-react-optimistic-rebase-failed"></a>`SNAPBACK_REACT_OPTIMISTIC_REBASE_FAILED` | react | — | — | `packages/snapback-react/implementation.mjs:1086` | 3 |
 | <a id="diagnostic-snapback-react-optimistic-replay-divergent"></a>`SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT` | react | — | [guide](../clients/react.md#run-a-mutation) | `packages/snapback-react/react-runtime.mjs:297` | 2 |
 | <a id="diagnostic-snapback-react-optimistic-result-contract-required"></a>`SNAPBACK_REACT_OPTIMISTIC_RESULT_CONTRACT_REQUIRED` | react | — | — | `packages/snapback-react/implementation.mjs:561` | 2 |
-| <a id="diagnostic-snapback-react-optimistic-store-missing"></a>`SNAPBACK_REACT_OPTIMISTIC_STORE_MISSING` | react | — | [guide](../clients/react.md#render-offline-facts-honestly) | `packages/snapback-react/implementation.mjs:2067` | 3 |
-| <a id="diagnostic-snapback-react-outbox-affordance-unsupported"></a>`SNAPBACK_REACT_OUTBOX_AFFORDANCE_UNSUPPORTED` | react | — | — | `packages/snapback-react/implementation.mjs:5711` | 2 |
-| <a id="diagnostic-snapback-react-outbox-unsupported"></a>`SNAPBACK_REACT_OUTBOX_UNSUPPORTED` | react | — | [guide](../clients/react.md#render-offline-facts-honestly) | `packages/snapback-react/implementation.mjs:7252` | 1 |
-| <a id="diagnostic-snapback-react-presence-action-conflict"></a>`SNAPBACK_REACT_PRESENCE_ACTION_CONFLICT` | react | — | — | `packages/snapback-react/implementation.mjs:3200` | 2 |
-| <a id="diagnostic-snapback-react-presence-consumer-limit"></a>`SNAPBACK_REACT_PRESENCE_CONSUMER_LIMIT` | react | — | — | `packages/snapback-react/implementation.mjs:3411` | 2 |
-| <a id="diagnostic-snapback-react-presence-heartbeat-unsupported"></a>`SNAPBACK_REACT_PRESENCE_HEARTBEAT_UNSUPPORTED` | react | — | — | `packages/snapback-react/implementation.mjs:3000` | 2 |
+| <a id="diagnostic-snapback-react-optimistic-store-missing"></a>`SNAPBACK_REACT_OPTIMISTIC_STORE_MISSING` | react | — | [guide](../clients/react.md#render-offline-facts-honestly) | `packages/snapback-react/implementation.mjs:2072` | 3 |
+| <a id="diagnostic-snapback-react-outbox-affordance-unsupported"></a>`SNAPBACK_REACT_OUTBOX_AFFORDANCE_UNSUPPORTED` | react | — | — | `packages/snapback-react/implementation.mjs:5800` | 2 |
+| <a id="diagnostic-snapback-react-outbox-unsupported"></a>`SNAPBACK_REACT_OUTBOX_UNSUPPORTED` | react | — | [guide](../clients/react.md#render-offline-facts-honestly) | `packages/snapback-react/implementation.mjs:7341` | 1 |
+| <a id="diagnostic-snapback-react-presence-action-conflict"></a>`SNAPBACK_REACT_PRESENCE_ACTION_CONFLICT` | react | — | — | `packages/snapback-react/implementation.mjs:3266` | 2 |
+| <a id="diagnostic-snapback-react-presence-consumer-limit"></a>`SNAPBACK_REACT_PRESENCE_CONSUMER_LIMIT` | react | — | — | `packages/snapback-react/implementation.mjs:3500` | 2 |
+| <a id="diagnostic-snapback-react-presence-heartbeat-unsupported"></a>`SNAPBACK_REACT_PRESENCE_HEARTBEAT_UNSUPPORTED` | react | — | — | `packages/snapback-react/implementation.mjs:3005` | 2 |
 | <a id="diagnostic-snapback-react-presence-key-mode-unsupported"></a>`SNAPBACK_REACT_PRESENCE_KEY_MODE_UNSUPPORTED` | client | — | — | `packages/snapback-client/react-binding.mjs:2480` | 1 |
 | <a id="diagnostic-snapback-react-presence-not-authoritative"></a>`SNAPBACK_REACT_PRESENCE_NOT_AUTHORITATIVE` | client | — | — | `packages/snapback-client/index.mjs:13284` | 3 |
-| <a id="diagnostic-snapback-react-presence-publisher-limit"></a>`SNAPBACK_REACT_PRESENCE_PUBLISHER_LIMIT` | react | — | — | `packages/snapback-react/implementation.mjs:3440` | 2 |
+| <a id="diagnostic-snapback-react-presence-publisher-limit"></a>`SNAPBACK_REACT_PRESENCE_PUBLISHER_LIMIT` | react | — | — | `packages/snapback-react/implementation.mjs:3529` | 2 |
 | <a id="diagnostic-snapback-react-presence-publish-churn"></a>`SNAPBACK_REACT_PRESENCE_PUBLISH_CHURN` | client | — | [guide](../clients/react.md#inspect-client-dev-diagnostics) | `packages/snapback-client/client-diagnostics.mjs:14` | 2 |
-| <a id="diagnostic-snapback-react-presence-room-limit"></a>`SNAPBACK_REACT_PRESENCE_ROOM_LIMIT` | react | — | — | `packages/snapback-react/implementation.mjs:3330` | 1 |
-| <a id="diagnostic-snapback-react-presence-value-conflict"></a>`SNAPBACK_REACT_PRESENCE_VALUE_CONFLICT` | react | — | — | `packages/snapback-react/implementation.mjs:3033` | 1 |
-| <a id="diagnostic-snapback-react-presence-value-invalid"></a>`SNAPBACK_REACT_PRESENCE_VALUE_INVALID` | react | — | — | `packages/snapback-react/implementation.mjs:3013` | 1 |
+| <a id="diagnostic-snapback-react-presence-room-limit"></a>`SNAPBACK_REACT_PRESENCE_ROOM_LIMIT` | react | — | — | `packages/snapback-react/implementation.mjs:3408` | 1 |
+| <a id="diagnostic-snapback-react-presence-value-churn"></a>`SNAPBACK_REACT_PRESENCE_VALUE_CHURN` | react | — | [guide](../recipes/activity-presence.md#keep-presence-values-stable) | `packages/snapback-react/implementation.mjs:3116` | 1 |
+| <a id="diagnostic-snapback-react-presence-value-conflict"></a>`SNAPBACK_REACT_PRESENCE_VALUE_CONFLICT` | react | — | — | `packages/snapback-react/implementation.mjs:3038` | 1 |
+| <a id="diagnostic-snapback-react-presence-value-invalid"></a>`SNAPBACK_REACT_PRESENCE_VALUE_INVALID` | react | — | — | `packages/snapback-react/implementation.mjs:3018` | 1 |
 | <a id="diagnostic-snapback-react-provider-closed"></a>`SNAPBACK_REACT_PROVIDER_CLOSED` | react | — | — | `packages/snapback-react/implementation.mjs:650` | 15 |
 | <a id="diagnostic-snapback-react-provider-invalid"></a>`SNAPBACK_REACT_PROVIDER_INVALID` | client | — | — | `packages/snapback-client/canonical-client-value.mjs:214` | 1 |
 | <a id="diagnostic-snapback-react-provider-required"></a>`SNAPBACK_REACT_PROVIDER_REQUIRED` | react | — | — | `packages/snapback-react/implementation.mjs:688` | 1 |
 | <a id="diagnostic-snapback-react-query-failed"></a>`SNAPBACK_REACT_QUERY_FAILED` | react | — | — | `packages/snapback-react/implementation.mjs:339` | 2 |
-| <a id="diagnostic-snapback-react-queued-presentation-unavailable"></a>`SNAPBACK_REACT_QUEUED_PRESENTATION_UNAVAILABLE` | react | — | — | `packages/snapback-react/implementation.mjs:2319` | 3 |
-| <a id="diagnostic-snapback-react-queue-false-violated"></a>`SNAPBACK_REACT_QUEUE_FALSE_VIOLATED` | react | — | — | `packages/snapback-react/implementation.mjs:2433` | 2 |
+| <a id="diagnostic-snapback-react-queued-presentation-unavailable"></a>`SNAPBACK_REACT_QUEUED_PRESENTATION_UNAVAILABLE` | react | — | — | `packages/snapback-react/implementation.mjs:2324` | 3 |
+| <a id="diagnostic-snapback-react-queue-false-violated"></a>`SNAPBACK_REACT_QUEUE_FALSE_VIOLATED` | react | — | — | `packages/snapback-react/implementation.mjs:2438` | 2 |
 | <a id="diagnostic-snapback-react-reference-invalid"></a>`SNAPBACK_REACT_REFERENCE_INVALID` | client | — | [guide](../clients/react.md#prepare-a-provider-for-advanced-composition) | `packages/snapback-client/react-binding.mjs:2432` | 5 |
-| <a id="diagnostic-snapback-react-store-capacity"></a>`SNAPBACK_REACT_STORE_CAPACITY` | react | — | — | `packages/snapback-react/implementation.mjs:1806` | 3 |
+| <a id="diagnostic-snapback-react-store-capacity"></a>`SNAPBACK_REACT_STORE_CAPACITY` | react | — | — | `packages/snapback-react/implementation.mjs:1811` | 3 |
 | <a id="diagnostic-snapback-react-subscription-churn"></a>`SNAPBACK_REACT_SUBSCRIPTION_CHURN` | client | — | [guide](../clients/react.md#inspect-client-dev-diagnostics) | `packages/snapback-client/client-diagnostics.mjs:15` | 2 |
-| <a id="diagnostic-snapback-react-subscription-view-budget-exceeded"></a>`SNAPBACK_REACT_SUBSCRIPTION_VIEW_BUDGET_EXCEEDED` | react | — | [guide](../recipes/provider-lifecycle.md#enforce-the-warning-budget-without-narrowing-correctness) | `packages/snapback-react/implementation.mjs:966` | 1 |
-| <a id="diagnostic-snapback-react-surface-generation-stale"></a>`SNAPBACK_REACT_SURFACE_GENERATION_STALE` | react | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-react/implementation.mjs:6711` | 1 |
-| <a id="diagnostic-snapback-react-surface-input-invalid"></a>`SNAPBACK_REACT_SURFACE_INPUT_INVALID` | react | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-react/implementation.mjs:6798` | 3 |
+| <a id="diagnostic-snapback-react-subscription-view-budget-exceeded"></a>`SNAPBACK_REACT_SUBSCRIPTION_VIEW_BUDGET_EXCEEDED` | react | — | [guide](../recipes/provider-lifecycle.md#enforce-the-warning-budget-without-narrowing-correctness) | `packages/snapback-react/implementation.mjs:971` | 1 |
+| <a id="diagnostic-snapback-react-surface-generation-stale"></a>`SNAPBACK_REACT_SURFACE_GENERATION_STALE` | react | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-react/implementation.mjs:6800` | 1 |
+| <a id="diagnostic-snapback-react-surface-input-invalid"></a>`SNAPBACK_REACT_SURFACE_INPUT_INVALID` | react | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-react/implementation.mjs:6887` | 3 |
 | <a id="diagnostic-snapback-react-surface-invalid"></a>`SNAPBACK_REACT_SURFACE_INVALID` | client | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-client/react-binding.mjs:1762` | 2 |
-| <a id="diagnostic-snapback-react-surface-options-invalid"></a>`SNAPBACK_REACT_SURFACE_OPTIONS_INVALID` | react | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-react/implementation.mjs:6737` | 4 |
-| <a id="diagnostic-snapback-react-surface-params-invalid"></a>`SNAPBACK_REACT_SURFACE_PARAMS_INVALID` | react | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-react/implementation.mjs:6720` | 2 |
-| <a id="diagnostic-snapback-react-surface-presence-identity-input"></a>`SNAPBACK_REACT_SURFACE_PRESENCE_IDENTITY_INPUT` | react | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-react/implementation.mjs:6759` | 1 |
+| <a id="diagnostic-snapback-react-surface-options-invalid"></a>`SNAPBACK_REACT_SURFACE_OPTIONS_INVALID` | react | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-react/implementation.mjs:6826` | 4 |
+| <a id="diagnostic-snapback-react-surface-params-invalid"></a>`SNAPBACK_REACT_SURFACE_PARAMS_INVALID` | react | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-react/implementation.mjs:6809` | 2 |
+| <a id="diagnostic-snapback-react-surface-presence-identity-input"></a>`SNAPBACK_REACT_SURFACE_PRESENCE_IDENTITY_INPUT` | react | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-react/implementation.mjs:6848` | 1 |
 | <a id="diagnostic-snapback-ready-descriptor-required"></a>`SNAPBACK_READY_DESCRIPTOR_REQUIRED` | server | — | [guide](../operating/diagnostics.md#assert-on-codes-not-prose) | `crates/snapback-cli/src/cli.rs:4001` | 2 |
 | <a id="diagnostic-snapback-ready-file-path-collision"></a>`SNAPBACK_READY_FILE_PATH_COLLISION` | server | 500 | — | `crates/snapback-cli/src/cli.rs:9830` | 1 |
 | <a id="diagnostic-snapback-read-lane-unavailable"></a>`SNAPBACK_READ_LANE_UNAVAILABLE` | server | 503 | — | `crates/snapback-engine/src/local/engine.rs:37905` | 2 |
@@ -44031,6 +44176,7 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_REACT_PRESENCE_PUBLISHER_LIMIT'
   | 'SNAPBACK_REACT_PRESENCE_PUBLISH_CHURN'
   | 'SNAPBACK_REACT_PRESENCE_ROOM_LIMIT'
+  | 'SNAPBACK_REACT_PRESENCE_VALUE_CHURN'
   | 'SNAPBACK_REACT_PRESENCE_VALUE_CONFLICT'
   | 'SNAPBACK_REACT_PRESENCE_VALUE_INVALID'
   | 'SNAPBACK_REACT_PROVIDER_CLOSED'

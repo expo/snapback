@@ -5,6 +5,11 @@
 **Systems:** JS headless client, React/Expo adapters, Client diagnostics, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
+**Revised:** 2026-08-24 (the React provider adds the payload-safe
+`SNAPBACK_REACT_PRESENCE_VALUE_CHURN` producer at the actual presence-publish
+boundary: only consecutive changed values advance it; initial publishes,
+content-equal no-ops, heartbeats, and superseded intents do not. The warning
+names the generated presence key and the stable bound-value repair.)
 **Revised:** 2026-08-10 (re-land reconciliation over LLP 0218 P3 and the
 static React package split: queued dispatch resolves the authoritative union,
 the React queued code is diagnostic-only, the client owns the wedge deadline,
@@ -217,6 +222,15 @@ into minutes.
   keying remains the primary correctness fix — the detector must *not* warn
   for fresh but content-equal args, which main deliberately supports; it
   catches genuinely changing inputs and future regressions.
+- **`SNAPBACK_REACT_PRESENCE_VALUE_CHURN`:** the provider warns after N
+  consecutive actual presence publishes change the canonical value for one
+  generated presence key inside the short detector window (the hook-churn
+  starting point, 8 in 2 s, is shared). The first actual publish establishes
+  a baseline; content-equal local no-ops, provider heartbeats, and superseded
+  intents do not advance the counter. The payload-safe event names the
+  generated key, transition count, and timing only — never the scope or
+  presence value — and tells the developer to bind and memoize stable peer
+  state rather than including timestamps, counters, or draft text.
 - **Outbox queued/wedged:** the canonical queued channel event is
   `SNAPBACK_OFFLINE_MUTATION_QUEUED` — the code the durable layer already
   records — emitted synchronously at the **relinquishment-to-queued

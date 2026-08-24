@@ -44,7 +44,8 @@ headless and framework clients preserve its admitted `appCode`.
 - Start with the confirmed Familiar cases: empty-capable point-read document
   arrays, closed object/value results, mutation document results, authored
   membership resource identity, and the shared ephemeral declaration import
-  path.
+  path. The 2026-08-24 LLP 0307 question-4 amendment additionally binds
+  `defineAuth` from the generated/umbrella Familiar server entrypoints.
 - Cover declared-refusal projection in both profiles: the server-admitted
   `appCode` and bounded details must survive generated headless and framework
   clients, while undeclared claims retain the generic fail-closed envelope.
@@ -125,6 +126,9 @@ Key rulings, in brief:
       re-exported from `@expo/snapback/server` and `generated/server`;
       export-parity check over every claimed disposition-1/2 constructor;
       VCF-F-E1 green.
+- [x] `defineAuth` re-exported from `@expo/snapback-codegen/familiar`,
+      `@expo/snapback/server`, and `generated/server` runtime/declaration
+      twins; VCF-F-AUTH1 generates and typechecks the documented spelling.
 - [x] Membership resource-identity spelling corroborated across guide,
       generated, and runtime contracts; VCF-F-MB1 (paired with VCF-E-MB1)
       green.
@@ -152,7 +156,7 @@ Key rulings, in brief:
   IDs deliberately carry no context-free table tag.
 - The disposition table is the export authority: its disposition-1/2 server
   projection now closes over `action`, `allow`, `defineAssetUpload`,
-  `defineEphemeral`, `defineSchema`, `defineTable`, `ephemeral`,
+  `defineAuth`, `defineEphemeral`, `defineSchema`, `defineTable`, `ephemeral`,
   `membershipResource`, `mutation`, and `query`, while values projects `v`.
   The Familiar React export authority also projects the canonical
   `projectAppRefusal` value and `SnapbackAppRefusal` type for declared-refusal
@@ -162,6 +166,10 @@ Key rulings, in brief:
   presence and the retired `_generated/` refusal. VCF-F-MB1 proves `_id`
   self-resource and child-resource visibility through generated and runtime
   contracts.
+- The 2026-08-24 VCF-F-AUTH1 extension imports `defineAuth` from the generated
+  server, uses its result as the schema `authProgram`, proves identity with the
+  umbrella and canonical constructors, and typechecks the packed generated
+  declarations. Function-module grammar remains unchanged.
 - The dialect carrier executes the supported rewrites for D1–D4 and refuses
   their familiar-looking negative forms pre-output. D3's diagnostic is based
   on declaration kind rather than fixture names. D4 recognizes `Date.now()`

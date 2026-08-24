@@ -1,5 +1,4 @@
-import { defineAuth } from '@expo/snapback-codegen/define';
-import { defineSchema, defineTable, v } from './generated/server';
+import { defineAuth, defineSchema, defineTable, v } from './generated/server';
 
 const authProgram = defineAuth({
   version: 1,

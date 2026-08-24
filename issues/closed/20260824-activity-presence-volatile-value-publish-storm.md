@@ -1,7 +1,8 @@
 # Activity presence: volatile value thunks defeat dedup and storm the wire at keystroke rates
 
-**Status:** Open
+**Status:** Resolved
 **Opened:** 2026-08-24
+**Resolved:** 2026-08-24
 **Systems:** React/Expo, Ephemeral state, Diagnostics, Guide
 **Related:** LLP 0257 (Implemented; names this failure mode), LLP 0306
 (chip-away D24, idea 10), `guide/recipes/activity-presence.md`
@@ -49,3 +50,18 @@ Small, in this order of value:
   "presence rate limit", "typing indicator too many publishes".
 - If (3) is taken: coalesced publishes keep last-writer-wins semantics and
   the idle-delete deadline unchanged.
+
+## Resolution
+
+Items 1–2 landed. In positively identified development builds the React
+provider emits `SNAPBACK_REACT_PRESENCE_VALUE_CHURN` after the configured
+number of actual changed-value publishes for one generated presence key in
+the short window. The event omits scope and presence payloads, names the key,
+and points to the stable bound-value repair. Initial publishes, content-equal
+no-ops, heartbeats, and superseded intents do not advance it. The activity
+presence recipe now carries exact before/after snippets and retrieval cases
+95–96.
+
+Item 3 was deliberately not taken: this lane was limited to items 1–2, and
+the diagnostic plus documented stable-value repair address the observed
+failure without adding hook API surface.

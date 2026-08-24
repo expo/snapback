@@ -43,8 +43,8 @@ LLP 0114, LLP 0179, LLP 0307.000, Diary 0113,
 `issues/20260824-metro-generated-module-freshness.md`,
 `issues/20260824-fixed-port-stale-listener-false-positive.md`,
 `issues/20260824-first-party-headless-replay-helper.md`,
-`issues/20260824-guide-gap-familiar-defineauth-spelling.md`,
-`issues/20260824-activity-presence-volatile-value-publish-storm.md`,
+`issues/closed/20260824-guide-gap-familiar-defineauth-spelling.md`,
+`issues/closed/20260824-activity-presence-volatile-value-publish-storm.md`,
 `issues/20260824-familiar-offline-replay-capability-unathorable.md`
 
 ## Summary
@@ -202,11 +202,11 @@ lane-I fix before any full pin.
 3. `issues/20260824-first-party-headless-replay-helper.md` — the tracking
    anchor for S1, **inventory-only**: no replay implementation starts from
    this ticket before the S1 Spec is accepted.
-4. `issues/20260824-guide-gap-familiar-defineauth-spelling.md` — the
+4. `issues/closed/20260824-guide-gap-familiar-defineauth-spelling.md` — the
    guide-gap half only (document the paved spelling with retrieval-eval
    cases). The `defineAuth` export itself ships from the LLP 0253 dated
    amendment (OQ4), not from this ticket.
-5. `issues/20260824-activity-presence-volatile-value-publish-storm.md` —
+5. `issues/closed/20260824-activity-presence-volatile-value-publish-storm.md` —
    dev diagnostic naming the volatile value, guide callout, optional
    coalescing (API surface, if taken, ruled through LLP 0257's owner).
 6. `issues/20260824-familiar-offline-replay-capability-unathorable.md`

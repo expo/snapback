@@ -6,6 +6,7 @@ import {
   ephemeral,
   v,
 } from "./generated/server";
+import { authProgram } from "./auth-program";
 
 export const roomMemberships = defineTable({
   roomId: v.id("rooms"),
@@ -70,6 +71,7 @@ export default defineSchema({
   roomNotes,
 }, {
   auth: { mode: "sessions" },
+  authProgram,
   ephemeral: defineEphemeral({
     typing: ephemeral.collection({
       scope: { roomId: v.id("rooms") },

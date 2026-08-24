@@ -17,6 +17,7 @@ test('the experimental umbrella is identity-preserving re-exports only', () => {
   assert.equal(server.defineSchema, define.defineSchema);
   assert.equal(server.defineTable, define.defineTable);
   assert.equal(server.defineAssetUpload, define.defineAssetUpload);
+  assert.equal(server.defineAuth, define.defineAuth);
   assert.equal(server.defineEphemeral, define.defineEphemeral);
   assert.equal(server.ephemeral, define.ephemeral);
   assert.equal(server.allow, define.allow);

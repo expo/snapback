@@ -1,5 +1,6 @@
 export {
   allow,
+  defineAuth,
   defineEphemeral,
   defineSchema,
   ephemeral,

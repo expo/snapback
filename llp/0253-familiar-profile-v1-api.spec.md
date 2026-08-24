@@ -6,6 +6,13 @@
 Code generation, React, Client integration, Packaging, Documentation, Testing
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-08-13
+**Revised:** 2026-08-24 (dated amendment under LLP 0307 ruled question 4:
+`defineAuth` moves from constructor disposition 4 to the shared schema-module
+surface at disposition 1 and joins the `@expo/snapback/server`,
+`@expo/snapback-codegen/familiar`, and generated `server` runtime/type export
+closures. The Familiar function-module authored-value grammar is unchanged;
+the packed vertical fixture now generates and typechecks an auth program from
+the generated spelling.)
 **Revised:** 2026-08-22 (W3 implementation: one packed external-app carrier
 now binds the complete VCF-F catalogue across Guide retrieval, advertised
 imports, clean generation, runtime admission, headless/React projection, and
@@ -316,7 +323,7 @@ A new, thin, deletable package `@expo/snapback` (npm), marked
 
 | Entry | Re-exports |
 | --- | --- |
-| `@expo/snapback/server` | `defineSchema`, `defineTable`, `defineAssetUpload`, `defineEphemeral`, `allow`, `membershipResource`, and the `ephemeral` collection-builder namespace from the canonical define module (the shared schema vocabulary is identity-preserving — same canonical objects, no second owner); the familiar `query`, `mutation`, `action` constructors (S4) from `@expo/snapback-codegen/familiar` |
+| `@expo/snapback/server` | `defineSchema`, `defineTable`, `defineAssetUpload`, `defineAuth`, `defineEphemeral`, `allow`, `membershipResource`, and the `ephemeral` collection-builder namespace from the canonical define module (the shared schema vocabulary is identity-preserving — same canonical objects, no second owner); the familiar `query`, `mutation`, `action` constructors (S4) from `@expo/snapback-codegen/familiar` |
 | `@expo/snapback/values` | `v` (the existing canonical validator grammar, unchanged) |
 | `@expo/snapback/react` | the familiar React entrypoint `@expo/snapback-react/familiar` (S6) |
 
@@ -340,7 +347,7 @@ familiar-authoring import.
 ### S3.2 Generated local modules
 
 - `generated/server.{mjs,d.ts}` re-exports `query`, `mutation`, `action`,
-  `defineAssetUpload`, `defineEphemeral`, `defineSchema`, `defineTable`,
+  `defineAssetUpload`, `defineAuth`, `defineEphemeral`, `defineSchema`, `defineTable`,
   `allow`, `membershipResource`, `v`, and the `ephemeral`
   collection-builder namespace (the ephemeral pair added 2026-08-21 per
   S9.1 R4)
@@ -988,6 +995,18 @@ it. An export-parity check landing with Phase C (the package/entrypoint
 phase) asserts the advertised-entrypoint
 closure covers every disposition-1/2 constructor the docs name.
 
+**Dated amendment — 2026-08-24, LLP 0307 ruled question 4.** Schema-level
+`authProgram` was already disposition 1, but its canonical constructor was not
+reachable from an advertised Familiar entrypoint. `defineAuth` therefore moves
+to constructor disposition 1 as shared schema-module vocabulary and joins the
+closed re-export lists of S3.1 `@expo/snapback/server`, the underlying
+`@expo/snapback-codegen/familiar` adapter, and S3.2 `generated/server` (runtime
+and declaration twins). This does not admit `defineAuth` as a top-level
+function-module authored-value export: S2 classification and the S4
+`query`/`mutation`/`action` grammar remain closed and unchanged. Fixture
+VCF-F-AUTH1 binds the generated spelling through packed import, clean
+generation, and typecheck.
+
 **R5 — Feature parity is reachability parity, not constructor parity.**
 For ephemeral, assets, membership, and sequences the promise is: every
 capability reachable in the Explicit profile is (a) nameable from
@@ -1082,6 +1101,7 @@ the parity/dialect cases:**
 | VCF-F-D3 | dialect boundary: the constant's value inlined or passed through `args`, end to end | a captured top-level constant refuses (the free-identifier family) naming exactly that rewrite |
 | VCF-F-D4 | dialect boundary: persisted visibility state is written by a mutation and read by a static query, end to end; ambient `Date.now()` and `new Date()` inside an extracted database-reading query's return/filter branch refuse pre-output naming that same executable Familiar repair, without a profile switch (steps 1–3 + 6) | both visibility forms refuse; branched mutation clocks, pure scalar-query comparisons, and unreferenced helper clocks instead name the ordinary `ctx.runtime.now()` rewrite |
 | VCF-F-E1 | ephemeral declaration authored via `defineEphemeral` + `ephemeral` collection builder imported from the advertised entrypoints (S3.1/S3.2), membership-backed typing, presence roundtrip (R4) | an import via the retired `_generated/` spelling gets the S2 rule 7 retired-spelling diagnostic naming the supported specifier |
+| VCF-F-AUTH1 | schema auth program authored with `defineAuth` imported from `./generated/server`, with identity parity at `@expo/snapback/server` (R4; 2026-08-24 amendment) | a function-module export of `defineAuth(...)` remains outside the Familiar authored-value grammar |
 | VCF-F-AS1 | `defineAssetUpload` MP4 intent upload/readback via `api.media.videoUpload` (recasts the existing acceptance with steps 1 and 6) | oversized/wrong-media upload refuses per policy |
 | VCF-F-MB1 | membership visibility with `resourceField: "_id"` (resource table) and child resource-id field, enforced through `ctx.db` (R5) | non-member read hides the row; misspelled resource field refuses at generation |
 | VCF-F-SQ1 | sequence allocation attempt refuses with the stable disposition-4 route to Explicit (steps 1–3 + 6) | the fixture is the negative |
@@ -1194,10 +1214,13 @@ S4). `defineSearchQuery`, `defineVectorQuery`, `defineLiveSearchQuery`,
 `defineRelationalQuery`, `defineJobStatusQuery`, `definePushLedgerQuery`,
 `defineWriteWithActivity`, `defineCron`, `defineRoutes`, `defineCommand`,
 `defineSurface`, `defineMaintainedProjection`,
-`defineConfig`, `definePushSeam`,
-`defineAuth` — disposition 4 in the familiar *function-module* grammar
+`defineConfig`, `definePushSeam` — disposition 4 in the familiar
+*function-module* grammar
 (stable refusals routing to the explicit profile or the D5 extension
-vocabulary). `defineEphemeral` and the `ephemeral` collection builder are
+vocabulary). `defineAuth` is disposition 1 as **schema-module vocabulary**
+(shared verbatim and re-exported from the advertised entrypoints per the
+2026-08-24 S9.1 R4 amendment); it remains outside function-module authored-value
+classification. `defineEphemeral` and the `ephemeral` collection builder are
 disposition 1 as **schema-declaration vocabulary** (shared verbatim,
 consumed by the schema-level `ephemeral` option and re-exported from the
 advertised entrypoints per S9.1 R4, 2026-08-21); they remain disposition 4
@@ -1224,7 +1247,9 @@ carry the dispositions in the Auth-program paragraph below).
 `verifiedProvisioning` are disposition 1 through the shared auth extension.
 `custody` is disposition 2: Familiar supplies `durable-required` and refuses
 `volatile-explicit`. `externalSessionEntry` is disposition 1 through the same
-explicit advanced-session extension. Both profiles then consume the one
+explicit advanced-session extension. The shared `defineAuth` constructor that
+produces this record is disposition 1 on the schema-module surface. Both
+profiles then consume the one
 normalized auth-program record; no runtime profile branch is introduced.
 
 ## Status

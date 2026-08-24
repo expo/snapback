@@ -9,8 +9,8 @@ examples: [demos/messaging-snapback, packages/snapback-cli/templates/expo-chat, 
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:8f70a44985f5309caef3b140d31f6714b5a0f2fe8bd26961e0bada330ce66219
+reviewed: 2026-08-24
+reviewed-authorities-digest: sha256:a43849a5d72402bf957233393a1321549b84338822bd9a8766f91f0aa7d47a54
 ---
 
 # Recipe: activity presence, heartbeats, and withdrawal
@@ -71,6 +71,62 @@ delete to become visible: for a five-second ceiling, the shown three-second
 idle window leaves that convergence budget. TTL will not enforce the deadline
 while the activity owner is active.
 
+<!-- since: 0.1.27 unreleased -->
+
+> **Unreleased.** The volatile-value development diagnostic is newer than the
+> newest published package closure, 0.1.26. The stable-value repair applies to
+> every version that includes `useSnapbackActivityPresence`.
+
+## Keep presence values stable
+
+Volatile values defeat the no-op dedup. `touch()` evaluates `value` on every
+activity tick; a timestamp, counter, draft body, or other changing field turns
+every keystroke into a real publish. At typing speed this can reach the presence
+rate limit and suspend the publisher with `publish-error`.
+
+Search vocabulary: presence rate limit; typing indicator too many publishes;
+volatile presence value; `SNAPBACK_REACT_PRESENCE_VALUE_CHURN`.
+
+Before — the timestamp changes the canonical value on every touch:
+
+```tsx source=tests/fixtures/activity-presence-vertical/client-projection.ts
+export function VolatileTypingValue({ displayName }: { displayName: string }) {
+  const presence = useSnapbackActivityPresence(typing, {
+    scope: { roomId: 'room-one' },
+    value: () => ({ userHandle: 'ada', name: `${displayName}-${Date.now()}` }),
+    idleMs: 3_000,
+  });
+  const onKeystroke = () => presence.touch();
+  void onKeystroke;
+  return null;
+}
+```
+
+After — bind and memoize only the small state peers actually need:
+
+```tsx source=tests/fixtures/activity-presence-vertical/client-projection.ts
+export function StableTypingValue({ displayName }: { displayName: string }) {
+  const boundValue = useMemo(
+    () => ({ userHandle: 'ada', name: displayName }),
+    [displayName],
+  );
+  const presence = useSnapbackActivityPresence(typing, {
+    scope: { roomId: 'room-one' },
+    value: () => boundValue,
+    idleMs: 3_000,
+  });
+  const onKeystroke = () => presence.touch();
+  void onKeystroke;
+  return null;
+}
+```
+
+In a positively identified development build, N consecutive actual
+changed-value publishes for one presence key inside the short diagnostic
+window emit `SNAPBACK_REACT_PRESENCE_VALUE_CHURN`. The warning names the key
+and this repair without recording the presence value. Repeated unchanged
+touches, provider heartbeats, and superseded intents do not count.
+
 ## Coming from Supabase `track()`
 
 Supabase `track()` is the lifecycle analogue of bound `useSurface` presence or
@@ -106,6 +162,8 @@ membership or make presence durable history.
 - Publishing once and relying on a long TTL as the normal stop mechanism.
 - Adding an independent app timer when the activity-presence owner already
   owns heartbeat and withdrawal.
+- Putting timestamps, counters, or draft text in an activity-presence value
+  when a stable typing/active marker is enough.
 - Treating an expired or deleted entry as a durable offline-status record.
 - Reusing presence as membership, authorization, or message history.
 

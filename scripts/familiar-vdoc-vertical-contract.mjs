@@ -974,6 +974,7 @@ async function main() {
     );
 
     copyFixtureFiles(backendRoot, [
+      'auth-program.ts',
       'client-projection.ts',
       'codegen.policy.json',
       'entrypoint-projection.ts',
@@ -1057,6 +1058,7 @@ async function main() {
       'action',
       'allow',
       'defineAssetUpload',
+      'defineAuth',
       'defineEphemeral',
       'defineSchema',
       'defineTable',
@@ -1071,10 +1073,16 @@ async function main() {
         : packedDefine;
       assert.equal(packedServer[name], umbrellaOwner[name], `@expo/snapback/server ${name}`);
       assert.equal(generatedServer[name], packedFamiliar[name], `generated/server ${name}`);
+      assert.equal(
+        generatedServer[name],
+        packedServer[name],
+        `generated/server ${name} identity at @expo/snapback/server`,
+      );
     }
     for (const name of [
       'action',
       'defineAssetUpload',
+      'defineAuth',
       'defineEphemeral',
       'defineSchema',
       'defineTable',

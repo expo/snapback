@@ -2,17 +2,17 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:b1c1f2223545ab03ceb2dab5e306a021c5fd60c4d438d51d564b414ec562b444"
+    "sourceDigest": "sha256:efb3c897b01aa69e6a0cd3441748a4e4ca73abc0531579fa2b013dfbf5371b6b"
   },
   "limits": {
     "lookupBytes": 16384
   },
   "counts": {
-    "codes": 3643,
+    "codes": 3644,
     "sourceFiles": 608,
-    "emittingSites": 12769,
+    "emittingSites": 12770,
     "httpClassified": 1730,
-    "guideAnchored": 457
+    "guideAnchored": 458
   },
   "diagnostics": {
     "SNAPBACK_ACTION_CAPACITY_EXCEEDED": {
@@ -7138,7 +7138,7 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4794,
+          "line": 4883,
           "column": 6
         }
       ],
@@ -14303,7 +14303,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 5675,
+          "line": 5764,
           "column": 24
         }
       ],
@@ -17860,7 +17860,7 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4784,
+          "line": 4873,
           "column": 6
         }
       ],
@@ -30187,12 +30187,12 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1440,
+          "line": 1445,
           "column": 44
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3662,
+          "line": 3751,
           "column": 20
         }
       ],
@@ -36073,37 +36073,37 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2091,
+          "line": 2096,
           "column": 12
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2514,
+          "line": 2519,
           "column": 10
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2580,
+          "line": 2585,
           "column": 12
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2629,
+          "line": 2634,
           "column": 12
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4105,
+          "line": 4194,
           "column": 10
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4122,
+          "line": 4211,
           "column": 12
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4140,
+          "line": 4229,
           "column": 10
         }
       ],
@@ -38463,7 +38463,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/familiar.mjs",
-          "line": 114,
+          "line": 116,
           "column": 8
         },
         {
@@ -38485,7 +38485,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/familiar.mjs",
-          "line": 235,
+          "line": 237,
           "column": 8
         },
         {
@@ -38566,22 +38566,22 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/familiar.mjs",
-          "line": 75,
+          "line": 77,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/familiar.mjs",
-          "line": 83,
+          "line": 85,
           "column": 10
         },
         {
           "file": "packages/snapback-codegen/familiar.mjs",
-          "line": 94,
+          "line": 96,
           "column": 10
         },
         {
           "file": "packages/snapback-codegen/familiar.mjs",
-          "line": 120,
+          "line": 122,
           "column": 8
         },
         {
@@ -38664,12 +38664,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/familiar.mjs",
-          "line": 104,
+          "line": 106,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/familiar.mjs",
-          "line": 171,
+          "line": 173,
           "column": 6
         },
         {
@@ -47811,12 +47811,12 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2915,
+          "line": 2920,
           "column": 23
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3572,
+          "line": 3661,
           "column": 10
         }
       ],
@@ -48171,7 +48171,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3102,
+          "line": 3159,
           "column": 10
         }
       ],
@@ -48576,7 +48576,7 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3021,
+          "line": 3026,
           "column": 10
         }
       ],
@@ -71275,7 +71275,7 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2204,
+          "line": 2209,
           "column": 22
         }
       ],
@@ -71398,7 +71398,7 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4514,
+          "line": 4603,
           "column": 10
         }
       ],
@@ -71476,7 +71476,7 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4515,
+          "line": 4604,
           "column": 10
         }
       ],
@@ -80638,7 +80638,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 5785,
+          "line": 5874,
           "column": 8
         }
       ],
@@ -80655,7 +80655,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 5803,
+          "line": 5892,
           "column": 6
         }
       ],
@@ -80675,7 +80675,7 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3558,
+          "line": 3647,
           "column": 10
         }
       ],
@@ -80690,7 +80690,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 7749,
+          "line": 7838,
           "column": 8
         }
       ],
@@ -80707,12 +80707,12 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 5348,
+          "line": 5437,
           "column": 8
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 5354,
+          "line": 5443,
           "column": 8
         }
       ],
@@ -80727,7 +80727,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 5119,
+          "line": 5208,
           "column": 8
         }
       ],
@@ -80845,7 +80845,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2708,
+          "line": 2713,
           "column": 25
         }
       ],
@@ -80860,17 +80860,17 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2384,
+          "line": 2389,
           "column": 10
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2669,
+          "line": 2674,
           "column": 10
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2763,
+          "line": 2768,
           "column": 10
         }
       ],
@@ -80887,7 +80887,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 7166,
+          "line": 7255,
           "column": 8
         }
       ],
@@ -81042,12 +81042,12 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2820,
+          "line": 2825,
           "column": 12
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 6327,
+          "line": 6416,
           "column": 8
         }
       ],
@@ -81062,12 +81062,12 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 722,
+          "line": 726,
           "column": 8
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 6296,
+          "line": 6385,
           "column": 10
         }
       ],
@@ -81142,7 +81142,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 709,
+          "line": 713,
           "column": 8
         }
       ],
@@ -81197,12 +81197,12 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3817,
+          "line": 3906,
           "column": 45
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3846,
+          "line": 3935,
           "column": 12
         },
         {
@@ -81401,12 +81401,12 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2208,
+          "line": 2213,
           "column": 14
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2222,
+          "line": 2227,
           "column": 10
         }
       ],
@@ -81443,12 +81443,12 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3995,
+          "line": 4084,
           "column": 12
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4171,
+          "line": 4260,
           "column": 10
         }
       ],
@@ -81463,7 +81463,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1903,
+          "line": 1908,
           "column": 10
         }
       ],
@@ -81480,7 +81480,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2117,
+          "line": 2122,
           "column": 12
         }
       ],
@@ -81495,7 +81495,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1879,
+          "line": 1884,
           "column": 10
         }
       ],
@@ -81510,7 +81510,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2074,
+          "line": 2079,
           "column": 10
         }
       ],
@@ -81540,22 +81540,22 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2344,
+          "line": 2349,
           "column": 31
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2446,
+          "line": 2451,
           "column": 27
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2625,
+          "line": 2630,
           "column": 27
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4167,
+          "line": 4256,
           "column": 25
         }
       ],
@@ -81572,7 +81572,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2506,
+          "line": 2511,
           "column": 10
         }
       ],
@@ -81602,17 +81602,17 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1081,
+          "line": 1086,
           "column": 12
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1169,
+          "line": 1174,
           "column": 12
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2302,
+          "line": 2307,
           "column": 10
         }
       ],
@@ -81655,7 +81655,7 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2497,
+          "line": 2502,
           "column": 10
         }
       ],
@@ -81670,17 +81670,17 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2067,
+          "line": 2072,
           "column": 10
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2490,
+          "line": 2495,
           "column": 10
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4083,
+          "line": 4172,
           "column": 10
         }
       ],
@@ -81697,12 +81697,12 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 5711,
+          "line": 5800,
           "column": 10
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 7317,
+          "line": 7406,
           "column": 10
         }
       ],
@@ -81717,7 +81717,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 7252,
+          "line": 7341,
           "column": 8
         }
       ],
@@ -81734,12 +81734,12 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3200,
+          "line": 3266,
           "column": 10
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3514,
+          "line": 3603,
           "column": 14
         }
       ],
@@ -81754,12 +81754,12 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3411,
+          "line": 3500,
           "column": 12
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3423,
+          "line": 3512,
           "column": 12
         }
       ],
@@ -81774,12 +81774,12 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3000,
+          "line": 3005,
           "column": 10
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3049,
+          "line": 3054,
           "column": 10
         }
       ],
@@ -81819,7 +81819,7 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3520,
+          "line": 3609,
           "column": 14
         }
       ],
@@ -81834,12 +81834,12 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3440,
+          "line": 3529,
           "column": 14
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3526,
+          "line": 3615,
           "column": 14
         }
       ],
@@ -81876,7 +81876,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3330,
+          "line": 3408,
           "column": 10
         }
       ],
@@ -81885,13 +81885,31 @@
       "guideAnchor": null,
       "guideAnchors": []
     },
+    "SNAPBACK_REACT_PRESENCE_VALUE_CHURN": {
+      "code": "SNAPBACK_REACT_PRESENCE_VALUE_CHURN",
+      "subsystem": "react",
+      "sites": [
+        {
+          "file": "packages/snapback-react/implementation.mjs",
+          "line": 3116,
+          "column": 14
+        }
+      ],
+      "httpStatus": null,
+      "httpStatusClass": null,
+      "guideAnchor": "/_snapback/guide/recipes/activity-presence.md#keep-presence-values-stable",
+      "guideAnchors": [
+        "/_snapback/guide/recipes/activity-presence.md#keep-presence-values-stable",
+        "/_snapback/guide/retrieval-eval.md#seed-intents"
+      ]
+    },
     "SNAPBACK_REACT_PRESENCE_VALUE_CONFLICT": {
       "code": "SNAPBACK_REACT_PRESENCE_VALUE_CONFLICT",
       "subsystem": "react",
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3033,
+          "line": 3038,
           "column": 12
         }
       ],
@@ -81906,7 +81924,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3013,
+          "line": 3018,
           "column": 10
         }
       ],
@@ -81926,72 +81944,72 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2381,
+          "line": 2386,
           "column": 42
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2406,
+          "line": 2411,
           "column": 44
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2474,
+          "line": 2479,
           "column": 44
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2662,
+          "line": 2667,
           "column": 10
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2685,
+          "line": 2690,
           "column": 12
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2760,
+          "line": 2765,
           "column": 42
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3397,
+          "line": 3486,
           "column": 42
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4070,
+          "line": 4159,
           "column": 42
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 6605,
+          "line": 6694,
           "column": 42
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 6647,
+          "line": 6736,
           "column": 42
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 6676,
+          "line": 6765,
           "column": 42
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 7003,
+          "line": 7092,
           "column": 45
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 7033,
+          "line": 7122,
           "column": 43
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 7064,
+          "line": 7153,
           "column": 43
         }
       ],
@@ -82041,7 +82059,7 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 808,
+          "line": 813,
           "column": 43
         }
       ],
@@ -82056,17 +82074,17 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2319,
+          "line": 2324,
           "column": 10
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2610,
+          "line": 2615,
           "column": 29
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4159,
+          "line": 4248,
           "column": 27
         }
       ],
@@ -82081,12 +82099,12 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2433,
+          "line": 2438,
           "column": 14
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2616,
+          "line": 2621,
           "column": 14
         }
       ],
@@ -82121,7 +82139,7 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3791,
+          "line": 3880,
           "column": 38
         }
       ],
@@ -82138,17 +82156,17 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1806,
+          "line": 1811,
           "column": 10
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2790,
+          "line": 2795,
           "column": 10
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3935,
+          "line": 4024,
           "column": 16
         }
       ],
@@ -82185,7 +82203,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 966,
+          "line": 971,
           "column": 8
         }
       ],
@@ -82202,7 +82220,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 6711,
+          "line": 6800,
           "column": 8
         }
       ],
@@ -82220,17 +82238,17 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 6798,
+          "line": 6887,
           "column": 8
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 6970,
+          "line": 7059,
           "column": 27
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 6978,
+          "line": 7067,
           "column": 27
         }
       ],
@@ -82252,7 +82270,7 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 6786,
+          "line": 6875,
           "column": 19
         }
       ],
@@ -82269,22 +82287,22 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 6737,
+          "line": 6826,
           "column": 21
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 6741,
+          "line": 6830,
           "column": 21
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 6745,
+          "line": 6834,
           "column": 21
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 6749,
+          "line": 6838,
           "column": 21
         }
       ],
@@ -82301,12 +82319,12 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 6720,
+          "line": 6809,
           "column": 21
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 6726,
+          "line": 6815,
           "column": 8
         }
       ],
@@ -82323,7 +82341,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 6759,
+          "line": 6848,
           "column": 10
         }
       ],

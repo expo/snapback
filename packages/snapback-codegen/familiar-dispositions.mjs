@@ -107,7 +107,7 @@ export const FAMILIAR_DISPOSITIONS = Object.freeze({
     defineEphemeral: entry(1, 'shared Snapback ephemeral extension', { entrypoint: 'server' }),
     ephemeral: entry(1, 'shared Snapback ephemeral collection vocabulary', { entrypoint: 'server' }),
     definePushSeam: entry(4, 'use the Snapback push extension or explicit profile'),
-    defineAuth: entry(4, 'use the Snapback auth extension or explicit profile'),
+    defineAuth: entry(1, 'shared schema-level auth-program constructor', { entrypoint: 'server' }),
     defineVisibilityOverride: entry(4, 'use the explicit profile for governed visibility overrides'),
     defineSchema: entry(1, 'shared verbatim', { entrypoint: 'server' }),
     defineTable: entry(1, 'shared verbatim', { entrypoint: 'server' }),

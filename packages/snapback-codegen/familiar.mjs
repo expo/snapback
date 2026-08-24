@@ -7,6 +7,7 @@ import {
   allow,
   defineAction,
   defineAssetUpload,
+  defineAuth,
   defineEphemeral,
   defineJsLiveQuery,
   defineJsMutation,
@@ -23,6 +24,7 @@ import { FAMILIAR_DISPOSITIONS } from './familiar-dispositions.mjs';
 export {
   allow,
   defineAssetUpload,
+  defineAuth,
   defineEphemeral,
   defineSchema,
   ephemeral,

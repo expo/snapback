@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useSnapbackActivityPresence as useExpoActivityPresence } from '@expo/snapback-expo';
 import { skip, useSnapbackActivityPresence, useSurface } from '@expo/snapback-react';
 import { app } from './generated/app';
@@ -15,6 +16,32 @@ export function TypingComposer() {
   const onClearOrSend = () => void presence.withdraw();
   void onKeystroke;
   void onClearOrSend;
+  return null;
+}
+
+export function VolatileTypingValue({ displayName }: { displayName: string }) {
+  const presence = useSnapbackActivityPresence(typing, {
+    scope: { roomId: 'room-one' },
+    value: () => ({ userHandle: 'ada', name: `${displayName}-${Date.now()}` }),
+    idleMs: 3_000,
+  });
+  const onKeystroke = () => presence.touch();
+  void onKeystroke;
+  return null;
+}
+
+export function StableTypingValue({ displayName }: { displayName: string }) {
+  const boundValue = useMemo(
+    () => ({ userHandle: 'ada', name: displayName }),
+    [displayName],
+  );
+  const presence = useSnapbackActivityPresence(typing, {
+    scope: { roomId: 'room-one' },
+    value: () => boundValue,
+    idleMs: 3_000,
+  });
+  const onKeystroke = () => presence.touch();
+  void onKeystroke;
   return null;
 }
 
