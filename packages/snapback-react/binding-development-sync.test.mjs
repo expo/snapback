@@ -132,6 +132,8 @@ await assert.rejects(
   },
 );
 assert.deepEqual(persistentStates.map((state) => state.status), ['timed-out']);
+assert.match(persistentStates[0].actions.join('\n'), /development bundler has served the successor generated binding/u);
+assert.match(persistentStates[0].actions.join('\n'), /needs no bundler restart unless a watch-inert advisory/u);
 assert.equal(persistent.inspectionCount(), 1);
 
 // The caller can opt out, and any mismatch outside the exact local-dev/dev

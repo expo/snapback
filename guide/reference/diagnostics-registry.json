@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:68f84921b26fa3121a45dcb7393c8560eb63bea949b665e04fc5127d26fe44ea"
+    "sourceDigest": "sha256:c9f2e9bb57de06d470d31b522e6be084948c331730c79131f7a38744727afb18"
   },
   "limits": {
     "lookupBytes": 16384
@@ -10,7 +10,7 @@
   "counts": {
     "codes": 3643,
     "sourceFiles": 608,
-    "emittingSites": 12766,
+    "emittingSites": 12767,
     "httpClassified": 1730,
     "guideAnchored": 457
   },
@@ -4464,7 +4464,7 @@
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 423,
+          "line": 424,
           "column": 13
         },
         {
@@ -15230,7 +15230,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 472,
+          "line": 473,
           "column": 28
         },
         {
@@ -25236,7 +25236,7 @@
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 471,
+          "line": 472,
           "column": 25
         },
         {
@@ -37558,17 +37558,17 @@
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1945,
+          "line": 1946,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 2323,
+          "line": 2324,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 2332,
+          "line": 2333,
           "column": 12
         },
         {
@@ -37888,17 +37888,17 @@
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 9036,
+          "line": 9039,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 9043,
+          "line": 9046,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 9048,
+          "line": 9051,
           "column": 30
         },
         {
@@ -45078,7 +45078,7 @@
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 9125,
+          "line": 9128,
           "column": 33
         },
         {
@@ -45342,12 +45342,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1940,
+          "line": 1941,
           "column": 25
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1946,
+          "line": 1947,
           "column": 8
         }
       ],
@@ -45688,7 +45688,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 2607,
+          "line": 2608,
           "column": 24
         },
         {
@@ -45941,12 +45941,12 @@
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 297,
+          "line": 298,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1638,
+          "line": 1639,
           "column": 57
         }
       ],
@@ -45964,7 +45964,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1960,
+          "line": 1961,
           "column": 8
         }
       ],
@@ -46023,7 +46023,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1378,
+          "line": 1379,
           "column": 6
         },
         {
@@ -46045,7 +46045,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1354,
+          "line": 1355,
           "column": 6
         }
       ],
@@ -46272,12 +46272,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 2479,
+          "line": 2480,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 9004,
+          "line": 9007,
           "column": 14
         }
       ],
@@ -49163,7 +49163,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 541,
+          "line": 542,
           "column": 8
         }
       ],
@@ -49178,17 +49178,17 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 892,
+          "line": 893,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 902,
+          "line": 903,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 932,
+          "line": 933,
           "column": 12
         }
       ],
@@ -49205,12 +49205,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 949,
+          "line": 950,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 974,
+          "line": 975,
           "column": 14
         }
       ],
@@ -49225,7 +49225,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 559,
+          "line": 560,
           "column": 6
         }
       ],
@@ -49240,7 +49240,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 588,
+          "line": 589,
           "column": 10
         }
       ],
@@ -49255,12 +49255,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 577,
+          "line": 578,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 598,
+          "line": 599,
           "column": 10
         }
       ],
@@ -49275,17 +49275,17 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 828,
+          "line": 829,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 878,
+          "line": 879,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1050,
+          "line": 1051,
           "column": 10
         }
       ],
@@ -49300,7 +49300,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 607,
+          "line": 608,
           "column": 8
         }
       ],
@@ -49315,7 +49315,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 2136,
+          "line": 2137,
           "column": 8
         }
       ],
@@ -49550,12 +49550,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1648,
+          "line": 1649,
           "column": 57
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1695,
+          "line": 1696,
           "column": 55
         }
       ],
@@ -49570,22 +49570,22 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1703,
+          "line": 1704,
           "column": 55
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1708,
+          "line": 1709,
           "column": 55
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1718,
+          "line": 1719,
           "column": 55
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 2204,
+          "line": 2205,
           "column": 31
         },
         {
@@ -49643,12 +49643,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 2884,
+          "line": 2888,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 2896,
+          "line": 2900,
           "column": 10
         }
       ],
@@ -49663,12 +49663,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 2904,
+          "line": 2908,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 2940,
+          "line": 2944,
           "column": 10
         }
       ],
@@ -49720,7 +49720,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1673,
+          "line": 1674,
           "column": 18
         }
       ],
@@ -49735,17 +49735,17 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1685,
+          "line": 1686,
           "column": 18
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1689,
+          "line": 1690,
           "column": 57
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 2732,
+          "line": 2733,
           "column": 18
         }
       ],
@@ -49760,7 +49760,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 2581,
+          "line": 2582,
           "column": 41
         }
       ],
@@ -49775,7 +49775,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 2592,
+          "line": 2593,
           "column": 22
         }
       ],
@@ -49820,12 +49820,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 799,
+          "line": 800,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 2120,
+          "line": 2121,
           "column": 8
         }
       ],
@@ -49840,7 +49840,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 3119,
+          "line": 3123,
           "column": 10
         }
       ],
@@ -49925,12 +49925,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 2296,
+          "line": 2297,
           "column": 14
         },
         {
           "file": "packages/snapback-cli/index.mjs",
-          "line": 8848,
+          "line": 8851,
           "column": 14
         }
       ],
@@ -49945,12 +49945,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 2269,
+          "line": 2270,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 2393,
+          "line": 2394,
           "column": 10
         }
       ],
@@ -50045,7 +50045,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 671,
+          "line": 672,
           "column": 10
         }
       ],
@@ -50060,12 +50060,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 620,
+          "line": 621,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 628,
+          "line": 629,
           "column": 8
         }
       ],
@@ -50080,7 +50080,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 689,
+          "line": 690,
           "column": 8
         }
       ],
@@ -50095,7 +50095,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 708,
+          "line": 709,
           "column": 8
         }
       ],
@@ -50110,7 +50110,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 696,
+          "line": 697,
           "column": 8
         }
       ],
@@ -50125,7 +50125,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 750,
+          "line": 751,
           "column": 6
         }
       ],
@@ -50172,12 +50172,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1574,
+          "line": 1575,
           "column": 6
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 2929,
+          "line": 2933,
           "column": 10
         }
       ],
@@ -50192,17 +50192,17 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1191,
+          "line": 1192,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1502,
+          "line": 1503,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1515,
+          "line": 1516,
           "column": 8
         }
       ],
@@ -50217,17 +50217,17 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1564,
+          "line": 1565,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 2509,
+          "line": 2510,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 2633,
+          "line": 2634,
           "column": 16
         }
       ],
@@ -50242,12 +50242,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1551,
+          "line": 1552,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 2429,
+          "line": 2430,
           "column": 16
         }
       ],
@@ -50277,18 +50277,23 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 148,
+          "line": 149,
           "column": 16
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 173,
+          "line": 174,
           "column": 18
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 2852,
+          "line": 2856,
           "column": 16
+        },
+        {
+          "file": "packages/snapback-client/react-binding.mjs",
+          "line": 721,
+          "column": 128
         }
       ],
       "httpStatus": null,
@@ -50325,32 +50330,32 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1004,
+          "line": 1005,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1027,
+          "line": 1028,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1060,
+          "line": 1061,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1158,
+          "line": 1159,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1169,
+          "line": 1170,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1176,
+          "line": 1177,
           "column": 8
         },
         {
@@ -50395,12 +50400,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1084,
+          "line": 1085,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1115,
+          "line": 1116,
           "column": 8
         }
       ],
@@ -50452,27 +50457,27 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 379,
+          "line": 380,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 386,
+          "line": 387,
           "column": 28
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 780,
+          "line": 781,
           "column": 28
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 821,
+          "line": 822,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1012,
+          "line": 1013,
           "column": 8
         }
       ],
@@ -50487,17 +50492,17 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 431,
+          "line": 432,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 443,
+          "line": 444,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 467,
+          "line": 468,
           "column": 6
         },
         {
@@ -50722,7 +50727,7 @@
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 3084,
+          "line": 3088,
           "column": 34
         }
       ],
@@ -50752,12 +50757,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1223,
+          "line": 1224,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1232,
+          "line": 1233,
           "column": 8
         }
       ],
@@ -50772,7 +50777,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1255,
+          "line": 1256,
           "column": 8
         }
       ],

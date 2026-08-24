@@ -128,10 +128,11 @@ export function expoMetroChildEnvironment({ env, bootstrapOrigin, port }) {
   // The checkout nonce is delivered by the native launcher, never by Metro or
   // an EXPO_PUBLIC_* variable.
   delete childEnv[SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV];
-  // `snapback dev --expo` is a watch loop even when its controller has no
-  // TTY. Omission therefore means ordinary Metro development mode; explicit
-  // CI values remain caller-owned for genuinely hermetic invocations.
-  if (env?.CI === undefined || env?.CI === null) delete childEnv.CI;
+  // @ref LLP 0241#d6-development-commands-share-one-recovery-model — the
+  // supervised Metro arm is always a generated-client watch custodian. Parent
+  // CI still keeps the controller headless, but inheriting it here makes Expo
+  // start Metro with `watch: false` and freezes the predecessor generated graph.
+  delete childEnv.CI;
   return childEnv;
 }
 
@@ -2836,13 +2837,16 @@ export async function runExpoDev(options = {}) {
     });
     assertStartupActive();
     emit({ ok: true, state: 'listeners-verified', listeners });
-    // Advisory only — never fails the loop. Metro silently disables file
-    // watching under an explicit CI environment and cannot see edits under
-    // watcher-blind roots such as /private/tmp; without this warning,
-    // stale bundles get misread as application bugs
+    // Advisory only — never fails the loop. The supervisor strips CI from its
+    // owned Metro child, but watcher-blind roots such as /private/tmp can still
+    // make stale bundles look like application bugs
     // (issues/20260808-supervisor-warn-metro-watch-blind.md).
     const watchAdvisories = assessMetroWatchInertness({
-      env: childEnv,
+      env: expoMetroChildEnvironment({
+        env: childEnv,
+        bootstrapOrigin: bootstrap.origin,
+        port: metroProcessPort,
+      }),
       directory: expoDirectory,
     });
     if (watchAdvisories.length > 0) {

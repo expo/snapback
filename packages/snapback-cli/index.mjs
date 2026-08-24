@@ -8797,13 +8797,16 @@ export async function runCli(argv, options = {}) {
       );
     }
     // Advisory only — Metro started outside the supervisor still inherits a
-    // truthy CI and serves a stale bundle. Warn before either spawn path.
+    // truthy CI and serves a stale bundle. The `--expo` owner strips CI from
+    // its Metro child, so only caller-owned launch paths need this warning.
     const expoDevModule = await import('./expo-dev.mjs');
-    expoDevModule.emitCliMetroWatchInertAdvisory({
-      env: options.env ?? process.env,
-      clientCommand,
-      json,
-    });
+    if (!expo) {
+      expoDevModule.emitCliMetroWatchInertAdvisory({
+        env: options.env ?? process.env,
+        clientCommand,
+        json,
+      });
+    }
     if (expo) {
       const runExpoDev = typeof options.runExpoDev === 'function'
         ? options.runExpoDev

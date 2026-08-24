@@ -81,3 +81,31 @@ binding; no partially-written graph may become importable).
   filesystem.
 - `SNAPBACK_REACT_BINDING_MISMATCH` remediation text names the freshness
   mechanism instead of implying a Metro restart.
+
+## Resolution (2026-08-24, lane H)
+
+Diagnosed mechanism: Metro-wide watcher disablement inherited from `CI=1`
+("Metro is running in CI mode, reloads are disabled") — not watcher
+coverage, not alias bytes (which already rotate), not HMR propagation, not
+descriptor-asset caching. Proven byte-for-byte on a shipped scaffold:
+identical served bundle SHA across a regeneration with
+`X-Metro-Files-Changed-Count: 0` while alias/digest/descriptor all rotated
+on disk. Independently corroborated by the published-0.1.26 Q-a probe via
+`SNAPBACK_EXPO_METRO_WATCH_INERT` (`ci-environment` cause).
+
+Repair: the supervisor now always strips `CI` from its owned Metro child
+(`expoMetroChildEnvironment`) — the supervised loop is a watch custodian by
+contract (LLP 0241 D6); the watch-inert advisory now assesses the actual
+child environment; the false CLI-side CI advisory is suppressed for
+`--expo`; `SNAPBACK_REACT_BINDING_MISMATCH` timeout remediation is
+bundler-neutral and points at the watch-inert advisory for the cases where
+a restart is still needed. The supervised loop test proves the same Metro
+PID serves the successor identity after an authored edit.
+
+Residual (advisory-covered, not blocking): watcher-blind roots such as
+`/private/tmp` still cannot watch (`watcher-blind-root` advisory names the
+move); no non-CI, watcher-visible staleness has been observed — if one
+appears it is a new ticket. The dual review (grok READY; codex's two copy
+findings fixed in the landing) and the orchestrator's outside-sandbox test
+runs back this closure; `expo-dev-loop.test.mjs`'s environment red is
+pre-existing at unmodified main (identical failure at base).

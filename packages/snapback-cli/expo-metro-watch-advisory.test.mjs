@@ -57,9 +57,12 @@ assert.equal(
 );
 for (const ci of ['1', 'true', '0', 'false', '']) {
   assert.equal(
-    expoMetroChildEnvironment({ env: { CI: ci }, bootstrapOrigin: 'x', port: 1 }).CI,
-    ci,
-    'the supervisor must preserve every explicit caller CI value',
+    Object.hasOwn(
+      expoMetroChildEnvironment({ env: { CI: ci }, bootstrapOrigin: 'x', port: 1 }),
+      'CI',
+    ),
+    false,
+    'the supervised Metro child must remain a watch custodian under parent CI',
   );
 }
 
@@ -269,8 +272,11 @@ async function captureDevAdvisory(argv, env) {
 {
   const captured = await captureDevAdvisory(['dev', 'snapback', '--expo'], { CI: '1' });
   assert.equal(captured.runExpoDevCalled, true);
-  assert.deepEqual(captured.order, ['advisory', 'runExpoDev']);
-  assert.match(captured.lines.join('\n'), /SNAPBACK_EXPO_METRO_WATCH_INERT/u);
+  assert.deepEqual(captured.order, ['runExpoDev']);
+  assert.equal(
+    captured.lines.some((line) => line.includes('SNAPBACK_EXPO_METRO_WATCH_INERT')),
+    false,
+  );
 }
 
 console.log('expo-metro-watch-advisory.test.mjs: Metro watch-inertness advisories pass');

@@ -64,3 +64,16 @@ omission is preserved for normal supervised dev loops (Metro file-watching
 on by default); an explicit caller `CI` value is preserved byte-for-byte so
 hermetic launchers opt in deliberately. Spawn-environment acceptance covers
 omitted/`1`/`true`/`0`/`false`/empty.
+
+## Supersession note (2026-08-24)
+
+The "explicit caller `CI` values are preserved byte-for-byte into the Metro
+child" half of this resolution is superseded: under LLP 0241 D6 the
+supervised Metro arm is a watch custodian by contract, and the
+published-0.1.25 Clique pair plus the Q-a probe showed explicit-CI
+passthrough (the normal headless-agent environment) silently disabling all
+file watching — the "kill Metro" ritual. The supervisor now always strips
+`CI` from its owned Metro child; the controller's own environment is
+untouched, and unsupervised `--client-command` invocations still get the
+`SNAPBACK_EXPO_METRO_WATCH_INERT` advisory. See
+`issues/20260824-metro-generated-module-freshness.md` (lane H landing).

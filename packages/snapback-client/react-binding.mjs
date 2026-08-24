@@ -717,8 +717,8 @@ async function beforeDevelopmentSyncDeadline(promise, milliseconds) {
 function developmentSyncTimeoutError(lastError, { timeoutMs, attempts }) {
   const actions = Object.freeze([
     'Wait for Snapback code generation and the local backend reload to finish.',
-    'Restart the local Snapback backend if it does not load the generated artifacts.',
-    'Reload the app after the backend reports ready.',
+    'Confirm the development bundler has served the successor generated binding; the supervised Expo loop watches for it automatically.',
+    'Reload the app after the backend reports ready. A running watcher needs no bundler restart unless a watch-inert advisory (SNAPBACK_EXPO_METRO_WATCH_INERT) was emitted.',
   ]);
   const diagnostic = Object.freeze({
     ...(lastError?.diagnostic ?? {}),
@@ -736,7 +736,7 @@ function developmentSyncTimeoutError(lastError, { timeoutMs, attempts }) {
     }),
   });
   const error = new Error(
-    'Client and local backend are still out of sync. Restart the local backend, then reload the app.',
+    'Client and local backend are still out of sync. Wait for code generation and the bundler’s generated-binding refresh, then reload the app.',
   );
   error.code = diagnostic.code;
   error.diagnostic = diagnostic;

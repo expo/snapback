@@ -41,6 +41,7 @@ import {
   createExpoRoutingPlan,
   expoBackendClientOrigins,
   expoBackendDevAuthEnvironment,
+  expoMetroChildEnvironment,
   installAndroidPortForwarding,
   runExpoDev,
 } from './expo-dev.mjs';
@@ -57,7 +58,10 @@ const repoRoot = resolve(packageRoot, '..', '..');
 // unrunnable everywhere else.
 const runtimeBinary = process.env.SNAPBACK_RUNTIME_BINARY
   ?? join(repoRoot, 'target', 'debug', 'snapback');
-assert.ok(existsSync(runtimeBinary), `real Snapback runtime is missing: ${runtimeBinary}`);
+const metroFreshnessOnly = process.argv.includes('--metro-freshness-only');
+if (!metroFreshnessOnly) {
+  assert.ok(existsSync(runtimeBinary), `real Snapback runtime is missing: ${runtimeBinary}`);
+}
 
 const sourceFixture = join(packageRoot, 'fixtures', 'comparator', 'app', 'snapback');
 const scratchRoot = realpathSync(mkdtempSync(join(tmpdir(), 'snapback-expo-dev-loop-')));
@@ -74,15 +78,66 @@ const governanceInputs = Object.freeze([
 ]);
 
 writeFileSync(metroScript, `
-import { writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, watch, watchFile, unwatchFile, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { getDefaultResultOrder } from 'node:dns';
+import { join } from 'node:path';
 
 const port = Number(process.env.SNAPBACK_EXPO_METRO_PORT);
 const origin = process.env.EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN;
+const generatedRoot = process.env.SNAPBACK_EXPO_TEST_GENERATED_ROOT;
+const ci = String(process.env.CI ?? '').trim().toLowerCase();
+const watching = !['1', 'true'].includes(ci);
+const pollGeneratedAlias = process.env.SNAPBACK_EXPO_TEST_POLL_GENERATED === '1';
+
+function publishedGraph() {
+  const aliasSource = readFileSync(join(generatedRoot, 'app.mjs'), 'utf8');
+  const bindingMatch = /from "\\.\\/(app\\.binding\\.[0-9a-f]{64}\\.mjs)"/u.exec(aliasSource);
+  if (bindingMatch === null) throw new Error('generated app alias has no digest binding');
+  const bindingPath = join(generatedRoot, bindingMatch[1]);
+  if (!existsSync(bindingPath)) throw new Error('digest binding is not yet published');
+  const bindingSource = readFileSync(bindingPath, 'utf8');
+  const descriptorMatch = /from "\\.\\/(app\\.descriptor\\.[0-9a-f]{64}\\.json)"/u.exec(bindingSource);
+  if (descriptorMatch === null) throw new Error('digest binding has no digest descriptor');
+  const descriptorPath = join(generatedRoot, descriptorMatch[1]);
+  if (!existsSync(descriptorPath)) throw new Error('digest descriptor is not yet published');
+  const descriptor = JSON.parse(readFileSync(descriptorPath, 'utf8'));
+  return Object.freeze({
+    bindingSpecifier: bindingMatch[1],
+    descriptorSpecifier: descriptorMatch[1],
+    descriptorIdentity: descriptor.identity.descriptor,
+  });
+}
+
+let servedGraph = publishedGraph();
+let filesChanged = 0;
+let refreshTimer = null;
+const refreshPublishedGraph = () => {
+  try {
+    const successor = publishedGraph();
+    if (successor.descriptorIdentity !== servedGraph.descriptorIdentity) filesChanged += 1;
+    servedGraph = successor;
+  } catch {
+    refreshTimer = setTimeout(refreshPublishedGraph, 10);
+  }
+};
+const scheduleRefresh = () => {
+  if (refreshTimer !== null) clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(refreshPublishedGraph, 10);
+};
+let generatedWatcher = null;
+if (watching && pollGeneratedAlias) {
+  const aliasPath = join(generatedRoot, 'app.mjs');
+  watchFile(aliasPath, { interval: 10 }, scheduleRefresh);
+  generatedWatcher = { close: () => unwatchFile(aliasPath, scheduleRefresh) };
+} else if (watching) {
+  generatedWatcher = watch(generatedRoot, scheduleRefresh);
+}
 writeFileSync(process.env.SNAPBACK_EXPO_TEST_ENV, JSON.stringify({
   nodeOptions: process.env.NODE_OPTIONS,
   defaultResultOrder: getDefaultResultOrder(),
+  ci: process.env.CI ?? null,
+  watching,
 }));
 writeFileSync(process.env.SNAPBACK_EXPO_TEST_BUNDLE, [
   '// headless Metro bundle fixture',
@@ -96,13 +151,28 @@ writeFileSync(process.env.SNAPBACK_EXPO_TEST_SOURCE_MAP, JSON.stringify({
   mappings: '',
 }));
 const server = createServer((request, response) => {
+  if (request.url === '/bundle') {
+    response.setHeader('content-type', 'application/javascript');
+    response.setHeader('x-metro-files-changed-count', String(filesChanged));
+    response.end([
+      '// headless Metro generated-graph bundle fixture',
+      'globalThis.__SNAPBACK_DESCRIPTOR_IDENTITY__ = ' + JSON.stringify(servedGraph.descriptorIdentity) + ';',
+      'globalThis.__SNAPBACK_BINDING_SPECIFIER__ = ' + JSON.stringify(servedGraph.bindingSpecifier) + ';',
+      'globalThis.__SNAPBACK_DESCRIPTOR_SPECIFIER__ = ' + JSON.stringify(servedGraph.descriptorSpecifier) + ';',
+    ].join('\\n') + '\\n');
+    return;
+  }
   response.setHeader('content-type', 'application/json');
   response.end(JSON.stringify({ ok: true, hmr: request.url === '/hmr' }));
 });
 server.listen(port, '127.0.0.1', () => {
   console.log(JSON.stringify({ event: 'metro-ready', host: '127.0.0.1', port }));
 });
-const stop = () => server.close(() => process.exit(0));
+const stop = () => {
+  generatedWatcher?.close();
+  if (refreshTimer !== null) clearTimeout(refreshTimer);
+  server.close(() => process.exit(0));
+};
 process.once('SIGTERM', stop);
 process.once('SIGINT', stop);
 `);
@@ -111,13 +181,14 @@ writeFileSync(cliLifecycleRunner, `
 import { existsSync, writeFileSync } from 'node:fs';
 import { runCli } from ${JSON.stringify(pathToFileURL(join(packageRoot, 'index.mjs')).href)};
 
-const [barrier, cleanupStarted, bundle, sourceMap, metroEnvironment, ...args] = process.argv.slice(2);
+const [barrier, cleanupStarted, bundle, sourceMap, metroEnvironment, generatedRoot, ...args] = process.argv.slice(2);
 const code = await runCli(args, {
   env: {
     ...process.env,
     SNAPBACK_EXPO_TEST_BUNDLE: bundle,
     SNAPBACK_EXPO_TEST_SOURCE_MAP: sourceMap,
     SNAPBACK_EXPO_TEST_ENV: metroEnvironment,
+    SNAPBACK_EXPO_TEST_GENERATED_ROOT: generatedRoot,
   },
   async beforeReadinessPublish({ listeners, metroPid, metroProcessPort, metroOrigin, signal }) {
     writeFileSync(barrier, JSON.stringify({ listeners, metroPid, metroProcessPort, metroOrigin }));
@@ -185,6 +256,98 @@ async function reserveFreeRange(width) {
     }
   }
   throw new Error('could not locate a free loopback range for the Expo supervisor test');
+}
+
+if (metroFreshnessOnly) {
+  const generatedRoot = join(scratchRoot, 'metro-freshness-generated');
+  const bundle = join(scratchRoot, 'metro-freshness-bundle.js');
+  const sourceMap = join(scratchRoot, 'metro-freshness-bundle.js.map');
+  const metroEnv = join(scratchRoot, 'metro-freshness-env.json');
+  mkdirSync(generatedRoot, { recursive: true });
+  const publishGraph = ({ digest, identity }) => {
+    writeFileSync(
+      join(generatedRoot, `app.descriptor.${digest}.json`),
+      `${JSON.stringify({ identity: { descriptor: identity } })}\n`,
+    );
+    writeFileSync(
+      join(generatedRoot, `app.binding.${digest}.mjs`),
+      `import descriptor from "./app.descriptor.${digest}.json" with { type: "json" };\nexport const app = descriptor;\n`,
+    );
+    // The stable alias is the atomic publication pointer: digest nodes exist
+    // before its bytes rotate, so the watcher can never import a partial graph.
+    writeFileSync(
+      join(generatedRoot, 'app.mjs'),
+      `export { app } from "./app.binding.${digest}.mjs";\n`,
+    );
+  };
+  const predecessor = Object.freeze({
+    digest: '1'.repeat(64),
+    identity: `sha256:${'a'.repeat(64)}`,
+  });
+  const successor = Object.freeze({
+    digest: '2'.repeat(64),
+    identity: `sha256:${'b'.repeat(64)}`,
+  });
+  publishGraph(predecessor);
+  const port = (await reserveFreeRange(1)).lo;
+  const child = spawn(process.execPath, [metroScript], {
+    env: expoMetroChildEnvironment({
+      env: {
+        ...process.env,
+        CI: '1',
+        SNAPBACK_EXPO_TEST_BUNDLE: bundle,
+        SNAPBACK_EXPO_TEST_SOURCE_MAP: sourceMap,
+        SNAPBACK_EXPO_TEST_ENV: metroEnv,
+        SNAPBACK_EXPO_TEST_GENERATED_ROOT: generatedRoot,
+        SNAPBACK_EXPO_TEST_POLL_GENERATED: '1',
+      },
+      bootstrapOrigin: 'http://127.0.0.1:1',
+      port,
+    }),
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let metroOutput = '';
+  child.stdout.on('data', (chunk) => { metroOutput += chunk; });
+  child.stderr.on('data', (chunk) => { metroOutput += chunk; });
+  const childExit = new Promise((resolveExit) => {
+    child.once('exit', (code, signal) => resolveExit({ code, signal }));
+  });
+  try {
+    const predecessorBundle = await eventually(async () => {
+      if (child.exitCode !== null || child.signalCode !== null) {
+        throw new Error(metroOutput || `Metro fixture exited ${child.exitCode ?? child.signalCode}`);
+      }
+      const response = await fetch(`http://127.0.0.1:${port}/bundle`);
+      const source = await response.text();
+      return source.includes(predecessor.identity) ? { response, source } : false;
+    }, { label: 'predecessor generated descriptor bundle' });
+    assert.equal(predecessorBundle.response.headers.get('x-metro-files-changed-count'), '0');
+    assert.deepEqual(JSON.parse(readFileSync(metroEnv, 'utf8')), {
+      nodeOptions: [process.env.NODE_OPTIONS, '--dns-result-order=ipv4first']
+        .filter(Boolean)
+        .join(' '),
+      defaultResultOrder: 'ipv4first',
+      ci: null,
+      watching: true,
+    });
+    const metroPid = child.pid;
+    publishGraph(successor);
+    const successorBundle = await eventually(async () => {
+      const response = await fetch(`http://127.0.0.1:${port}/bundle`);
+      const source = await response.text();
+      return source.includes(successor.identity) ? { response, source } : false;
+    }, { label: 'successor generated descriptor bundle' });
+    assert.equal(successorBundle.response.headers.get('x-metro-files-changed-count'), '1');
+    assert.equal(successorBundle.source.includes(predecessor.identity), false);
+    assert.equal(child.pid, metroPid);
+    assert.equal(child.exitCode, null);
+  } finally {
+    if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
+    await childExit;
+    rmSync(scratchRoot, { recursive: true, force: true });
+  }
+  console.log('expo-dev-loop.test.mjs --metro-freshness-only: 1 successor descriptor served without a Metro restart');
+  process.exit(0);
 }
 
 function processGroupAlive(pid) {
@@ -287,6 +450,7 @@ export default defineSchema(`,
   const bundle = join(expoRoot, 'bundle.js');
   const sourceMap = join(expoRoot, 'bundle.js.map');
   const metroEnv = join(stateRoot, 'metro-env.json');
+  const generatedRoot = join(backendRoot, 'generated');
   return {
     projectRoot,
     backendRoot,
@@ -297,6 +461,7 @@ export default defineSchema(`,
     bundle,
     sourceMap,
     metroEnv,
+    generatedRoot,
     publicConfig,
   };
 }
@@ -329,6 +494,7 @@ async function startFixture(target, options = {}) {
       SNAPBACK_EXPO_TEST_BUNDLE: target.bundle,
       SNAPBACK_EXPO_TEST_SOURCE_MAP: target.sourceMap,
       SNAPBACK_EXPO_TEST_ENV: target.metroEnv,
+      SNAPBACK_EXPO_TEST_GENERATED_ROOT: target.generatedRoot,
       NODE_OPTIONS: '--trace-warnings',
     },
     serverStdio: ['ignore', 'ignore', 'ignore'],
@@ -393,6 +559,7 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = []) {
       SNAPBACK_EXPO_TEST_BUNDLE: target.bundle,
       SNAPBACK_EXPO_TEST_SOURCE_MAP: target.sourceMap,
       SNAPBACK_EXPO_TEST_ENV: target.metroEnv,
+      SNAPBACK_EXPO_TEST_GENERATED_ROOT: target.generatedRoot,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -746,6 +913,8 @@ try {
   assert.deepEqual(JSON.parse(readFileSync(unsettled.metroEnv, 'utf8')), {
     nodeOptions: '--trace-warnings --dns-result-order=ipv4first',
     defaultResultOrder: 'ipv4first',
+    ci: null,
+    watching: true,
   });
   assert.equal(unsettledRun.supervisor.state, 'authority-required');
   assertListenerInventory(unsettledRun.supervisor);
@@ -836,6 +1005,7 @@ try {
     cliSignal.bundle,
     cliSignal.sourceMap,
     cliSignal.metroEnv,
+    cliSignal.generatedRoot,
     ...expoCliArguments(cliSignal),
   ], {
     cwd: cliSignal.projectRoot,
@@ -901,6 +1071,7 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
           cliTimeout.bundle,
           cliTimeout.sourceMap,
           cliTimeout.metroEnv,
+          cliTimeout.generatedRoot,
           ...expoCliArguments(cliTimeout, {
             readyFile: '{artifacts}/dev.ready.json',
             database: '{artifacts}/dev.sqlite3',
@@ -1321,6 +1492,11 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   const predecessorFunctions = readFileSync(functionsPath, 'utf8');
   const predecessorDescriptorIdentity = supervisor.binding.descriptorIdentity;
   const predecessorBackendPid = JSON.parse(readFileSync(settled.readyFile, 'utf8')).pid;
+  const predecessorMetroPid = supervisor.inspection().metro.pid;
+  const predecessorBundleResponse = await fetch(`${supervisor.metroOrigin}/bundle`);
+  const predecessorBundle = await predecessorBundleResponse.text();
+  assert.equal(predecessorBundleResponse.headers.get('x-metro-files-changed-count'), '0');
+  assert.match(predecessorBundle, new RegExp(predecessorDescriptorIdentity, 'u'));
   const rotationEventStart = events.length;
   const successorFunctions = predecessorFunctions
     .replace(
@@ -1356,6 +1532,18 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   ).json();
   assert.equal(successorExchange.binding.descriptorIdentity, rotated.descriptorIdentity);
   assert.equal(successorExchange.binding.provenance.supervisorGeneration, supervisor.supervisorGeneration);
+  const successorBundle = await eventually(
+    async () => {
+      const response = await fetch(`${supervisor.metroOrigin}/bundle`);
+      const source = await response.text();
+      if (!source.includes(rotated.descriptorIdentity)) return false;
+      return { response, source };
+    },
+    { timeoutMs: 30_000, label: 'Metro serves successor generated descriptor' },
+  );
+  assert.equal(successorBundle.response.headers.get('x-metro-files-changed-count'), '1');
+  assert.equal(successorBundle.source.includes(predecessorDescriptorIdentity), false);
+  assert.equal(supervisor.inspection().metro.pid, predecessorMetroPid);
   const successorApp = JSON.parse(readFileSync(
     join(settled.backendRoot, 'generated', 'app.descriptor.json'),
     'utf8',
@@ -1531,11 +1719,12 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
     events.some((event) => event.state === 'ready' && /snapback admin --ready-file/u.test(event.adminConsoleCommand)),
     'the correlated readiness stream prints the admin console launch command',
   );
-  assert(
+  assert.equal(
     events.some((event) => event.state === 'metro-watch-advisory'
       && event.code === 'SNAPBACK_EXPO_METRO_WATCH_INERT'
       && event.advisories.some((advisory) => advisory.condition === 'ci-environment')),
-    'the readiness stream warns once when Metro file watching is inert under CI',
+    false,
+    'the supervisor-owned Metro child must not inherit the controller CI environment',
   );
   assert(
     events.some((event) => event.state === 'closed'
@@ -1545,7 +1734,7 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
     'shutdown reports every owned arm reclaimed',
   );
 
-  console.log('expo-dev-loop.test.mjs: 6 LLP 0299 port-plan cases plus WS reset/cancelled-response handoff, zero-write rendezvous carrier, repeated TTL cold boots, transient descriptor, Sessions refusal+mint, all-listener loopback proof, provider live/mutation/presence/HMR/reconnect/authority replacement+conflict, leak matrix, SIGINT, and strict cleanup pass');
+  console.log('expo-dev-loop.test.mjs: 6 LLP 0299 port-plan cases plus WS reset/cancelled-response handoff, zero-write rendezvous carrier, repeated TTL cold boots, transient descriptor, served successor generated descriptor without Metro restart, Sessions refusal+mint, all-listener loopback proof, provider live/mutation/presence/HMR/reconnect/authority replacement+conflict, leak matrix, SIGINT, and strict cleanup pass');
 } finally {
   await Promise.allSettled(supervisors.flatMap((supervisor) => (
     typeof supervisor?.close === 'function' ? [supervisor.close()] : []
