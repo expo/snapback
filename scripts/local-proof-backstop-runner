@@ -116,6 +116,13 @@ if [ -n "$issue_changes" ]; then
     -m 'chore(backstop): update complete-battery ticket state' \
     -m 'Co-Authored-By: OpenAI Codex <noreply@openai.com>'
 
+  # Regenerating gates (generated-artifacts and friends) leave tracked
+  # byproducts in the dedicated clone. Only the issues/ ticket state is this
+  # runner's durable output; anything else left unstaged makes every rebase
+  # attempt below fail and wedges the next scheduled run behind the dirty-clone
+  # guard, so discard it before pushing.
+  git -C "$battery_repo" checkout -- .
+
   pushed=0
   for attempt in 1 2 3; do
     printf '[snapback-local-proof-schedule] push attempt %s of 3\n' "$attempt"
