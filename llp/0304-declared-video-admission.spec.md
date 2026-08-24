@@ -5,7 +5,7 @@
 **Systems:** Assets, Security, Code generation, Storage, Deployment, Testing
 **Author:** Codex, commissioned by Charlie Cheever for the 2026-08-24 design-revision round
 **Date:** 2026-08-24
-**Revised:** 2026-08-24 (v0.3 — freezes arbitrary-precision integer/rational duration arithmetic and the canonical v1 work, logical-allocation, and metadata-byte ledgers; design only, implementation and capability claims remain open)
+**Revised:** 2026-08-24 (v0.4 — scopes cross-deploy determinism to the single reference parser at a pinned semantics version, pins reference reservation ordinals, and moves exact ledger identity into implementation acceptance; design only, implementation and capability claims remain open)
 **Related:** LLP 0000, LLP 0012, LLP 0037, LLP 0044, LLP 0189, LLP 0225, LLP 0269, LLP 0276, LLP 0277, Diary 0086, `issues/20260817-upload-intent-codec-duration-admission-facts.md`
 
 ## Summary and authority
@@ -502,18 +502,18 @@ target-profile recommendations:
 | `maxEncodedSampleSizeEntriesPerTrack` | 10,000,000 | explicit `stsz`/`stz2` entries |
 | `maxChunkOffsetEntriesPerTrack` | 1,000,000 | `stco` or `co64` entries |
 
-Every implementation and capability fact publishes these exact numbers. A
-target cannot raise or lower one while claiming v1. Changing any value,
-charging scope, or entry-count definition requires a successor parser-
-semantics version and new capability identity. The semantic refusal is based
-on these deterministic ledgers, not elapsed wall-clock time.
+The single Snapback reference parser and every capability fact publish these
+exact numbers. A target cannot raise or lower one while claiming v1. Changing
+any value, charging scope, or entry-count definition requires a successor
+parser-semantics version and new capability identity. The semantic refusal is
+based on these deterministic ledgers, not elapsed wall-clock time.
 
 ### Canonical v1 event schedule
 
 The work ledger starts at zero and contains one entry for each event in the
 following schedule, in the stated order. An event is counted exactly once.
-An implementation may traverse or buffer differently, but it must derive this
-canonical ledger and the verdict at the same canonical event.
+The reference parser may traverse or buffer differently internally, but it
+must derive this canonical ledger and the verdict at the same canonical event.
 
 Phase H uses one closed walk: scan top-level boxes, and descend only through
 `moov`, `trak`, `edts`, `mdia`, `minf`, `dinf`, and `stbl`; through `dref` into
@@ -597,14 +597,32 @@ Actual `malloc`, stack, mmap, streaming, and cache choices do not affect it.
 | `stts`, `ctts`, `stsc`, sample-size, chunk-offset, merged-timing, and chunk-extent entries | 0 bytes per entry; their fixed streaming cursors are included in the track summary |
 | Closed codec sets, policy comparisons, and final prepared scalar facts | 0 bytes; their fixed storage is included in the track summary/invocation state |
 
-Header, brand, entry, descriptor, and edit reservations occur immediately
-before their corresponding work event. A track summary is reserved before
-that track's first T1--T8 event. `avcC` or `esds` workspace is reserved after
-its containing T2 event and before its first child event, or immediately after
-T2 when it has no child event. Reservation arithmetic uses the v1 natural-
-number domain. A reservation is allowed when the new total is less than or
-equal to `maxTemporaryAllocationBytes`; otherwise it refuses before the
-logical structure is used. Nothing is refunded.
+Reference reservation ordinals are exact:
+
+1. A decoded header, retained brand, data-reference summary, sample-
+   description summary, parameter-set summary, descriptor state, or edit
+   summary is reserved immediately before its corresponding H, B, T1, T2,
+   T3, T4, or T5 work event, respectively, after that event's applicable
+   local-count ceilings and before its work charge.
+2. A track summary is reserved immediately before that track's first scheduled
+   T1--T8 event (T8 when it has no earlier event), after any applicable local-
+   count ceiling for that event and before any other reservation or work charge
+   tied to it.
+3. Immediately after an `stsd` entry's owning T2 event completes, the reference
+   parser reserves every `avcC` or `esds` workspace descended from that sample
+   description, before the next T2 event. When the description has multiple
+   child boxes, their workspaces are reserved by increasing child-box start
+   offset (document order). Their T3/T4 work events retain the phase order
+   above; a workspace with no child work event is still reserved at this T2
+   ordinal.
+4. Rows with a zero-byte charge create no reservation event.
+
+Reservation arithmetic uses the v1 natural-number domain. A reservation is
+allowed when the new total is less than or equal to
+`maxTemporaryAllocationBytes`; otherwise it refuses at that ordinal before the
+logical structure is used. Nothing is refunded. These ordinals pin the single
+reference parser's v1 schedule; reservation micro-ordering is not a claim that
+separately authored parsers must independently derive identical ledgers.
 
 Declared counts and their minimum/exact encoded lengths must fit the enclosing
 box and their per-structure ceilings before their first dependent event. For
@@ -612,11 +630,13 @@ simultaneous possible bounds at one step, v1 checks whole-file length once at
 entry. At each H event it then checks box depth, box count, the header-byte
 range, the header's logical reservation, and the work charge, in that order.
 After H it admits payload/entry byte ranges in the order above. At each later
-count or event it checks applicable named per-structure ceilings in the
-numeric-table order above, then that event's logical reservation, then its work
-charge. The first failed check names the bounded detail. Every ceiling permits
-equality and refuses only when the next exact value would be greater. This
-ordering and the three ledgers are part of parser-semantics v1.
+count, reservation ordinal, or work event it checks applicable named per-
+structure ceilings in the numeric-table order above, then the logical
+reservations tied to that ordinal in the order just listed, then its work
+charge when it has one. The first failed check names the bounded detail. Every
+ceiling permits equality and refuses only when the next exact value would be
+greater. This refusal ordering and the three ledgers are part of parser-
+semantics v1.
 
 Capability facts carry every named table entry above, without aliases or
 omissions.
@@ -661,9 +681,21 @@ A deploy may introduce a successor semantic version, but it cannot reinterpret
 an old open attempt with the successor. A genuinely missing or corrupt retained
 implementation refuses the old attempt through LLP 0044's stale-admission
 path; it does not fall forward, and a successor attempt may be created under
-the current version. Identical bytes plus identical frozen policy and semantic
-version therefore have the same semantic admission/refusal across deploys;
-transient cancellation remains outside that content claim.
+the current version.
+
+For the C6 cross-deploy claim, **deterministic verdict** means that Snapback's
+single reference parser, selected by the pinned parser-semantics version,
+returns the same semantic admission/refusal for the same complete object bytes
+and frozen policy across deployments. Arbitrary-precision arithmetic, that
+fixed implementation, the frozen ceiling tuple, and the canonical event
+schedule provide this guarantee. The load-bearing contract is the published
+ceiling values and refusal precedence, including facts-unavailable ahead of
+duration policy, plus the prohibition on floating point. It does not claim
+that two independently authored conforming implementations must produce byte-
+identical work/allocation ledgers, nor that this design prose freezes every
+internal allocation ordinal. Transient cancellation remains outside the
+content claim. The implementation-acceptance artifact below freezes the exact
+v1 reference ledger; a change to that ledger is a parser-semantics change.
 
 ## Stable refusal contract
 
@@ -836,9 +868,15 @@ Editing only the declaration or diary does not satisfy the gate.
   prove rejection occurs before allocating from hostile declared counts.
 - Golden accounting vectors publish the phase/event ordinal, work total,
   logical-reservation total, and canonical metadata-range-union total at each
-  refusal boundary. Implementations using eager buffers, streaming cursors,
-  mmap, and different allocator growth strategies must match those ledgers and
-  the named first exceeded ceiling byte for byte.
+  refusal boundary. Acceptance must check in a frozen
+  `snapback.video-admission.iso-bmff.v1` artifact that pins the single reference
+  parser's exact work-unit and logical-allocation totals for every golden
+  fixture. Eager buffers, streaming cursors, mmap, and allocator growth remain
+  internal choices of that parser and must not change the frozen ledger or the
+  named first exceeded ceiling. Any future parser-semantics change bumps the
+  version. In particular, a reference-parser change that alters a fixture's
+  event ordinal, work total, allocation total, or first exceeded ceiling must
+  produce a successor artifact; it may not silently regenerate v1.
 - Repeated runs under different CPU load produce the same semantic result and
   work count. Injected wall-clock cancellation remains transient and
   re-drivable; it never becomes a content refusal.
@@ -877,6 +915,15 @@ Open questions for a later version:
 
 ## Revision history
 
+- **v0.4 (2026-08-24, Review).** Scopes C6's cross-deploy deterministic-verdict
+  claim to Snapback's single reference parser selected by a pinned semantics
+  version, rather than byte-identical ledgers from independently authored
+  implementations. Pins every reference reservation ordinal, including
+  sample-description workspaces immediately after their owning T2 in child-box
+  document order, and requires implementation acceptance to check in the exact
+  per-fixture v1 work/allocation ledger as a frozen artifact. Status remains
+  Review, the implementation ticket remains open, and no capability is
+  claimed.
 - **v0.3 (2026-08-24, Review).** Freezes v1 duration arithmetic to canonical
   arbitrary-precision integers and reduced rationals, including exact
   timescale comparison and Euclidean millisecond rounding. Replaces
