@@ -1,0 +1,14 @@
+{
+  "m1": {
+    "pass": true,
+    "receipt": "acceptance/m1.json"
+  },
+  "m2": {
+    "pass": true,
+    "receipt": "acceptance/m2.json"
+  },
+  "m3": {
+    "pass": true,
+    "receipt": "acceptance/m3.json"
+  }
+}

@@ -1,7 +1,7 @@
 # LLP 0300: Snapback is a URL — URL-first development binding
 
 **Type:** RFC
-**Status:** Accepted
+**Status:** Implemented
 **Systems:** Client integration, React/Expo, Vite/Exact clients, Headless
 client, CLI, Local server lifecycle, Auth, Templates, Guide, Developer
 experience
@@ -11,6 +11,12 @@ seem to run into the same issues"; "maybe we should just try to be more like
 them"; "Let's make an LLP/RFC about this, then refine it, then make a spec,
 then implement")
 **Date:** 2026-08-24
+**Revised:** 2026-08-24 (i — Accepted → Implemented. The URL-first server
+and identity route landed in `05dfbba22`, the declared-dev client gate and
+stream-less operation battery in `9653d21d2`, the CLI/writer/dev-session and
+two-process templates in `158744901`, and the start-packet reconciliation in
+`aa2de2d85`; Lane D closes the guide, diagnostics, LLP-amendment, and ticket
+record.)
 **Revised:** 2026-08-24 (h — Review → Accepted. The refine loop never
 applies acceptance; this transition is applied by the orchestrator under
 the author's standing overnight directive of 2026-08-24 ("Once the RFCs
@@ -55,7 +61,7 @@ author authorization: Charlie's 2026-08-24 pipeline direction)
 **Related:** LLP 0299 (supervised listener port plan — landed prerequisite,
 `544dd6a8e`), LLP 0181, LLP 0223, LLP 0258, LLP 0294, LLP 0295, LLP 0041,
 Diary 0100, Diary 0101, Diary 0104, Diary 0106,
-`issues/20260822-guide-gap-supervised-expo-mint-two-client.md`,
+`issues/closed/20260822-guide-gap-supervised-expo-mint-two-client.md`,
 `issues/20260823-expo-supervisor-restart-verb-port-drift.md`
 
 ## Summary

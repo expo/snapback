@@ -70,7 +70,7 @@ export const acceptance = defineStarterAcceptance({
       provenance: 'baseline',
     },
   },
-  async journey({ adminClient, bindingFor, defer, paths, step, until }) {
+  async journey({ adminClient, defer, paths, step, until }) {
     let observer = null;
     let provider = null;
     let appClient = null;
@@ -95,17 +95,17 @@ export const acceptance = defineStarterAcceptance({
       appClient = null;
     });
 
-    const binding = bindingFor(app, {
-      offeredCapabilities: ['auth.passwords'],
-      supervisorGeneration: `react-starter-acceptance-${process.pid}`,
-    });
     const platform = Object.freeze({
       kind: 'browser',
       indexedDB: new IDBFactory(),
       cryptoObject: webcrypto,
       databaseName: `snapback-react-starter-acceptance-${process.pid}`,
     });
-    appClient = await createSnapbackAppClient({ app, binding, platform });
+    appClient = await createSnapbackAppClient({
+      app,
+      url: process.env.SNAPBACK_URL,
+      platform,
+    });
 
     await step(paths.anonymousReady, async () => {
       assert.equal(appClient.bootstrapState().status, 'ready');
@@ -127,7 +127,11 @@ export const acceptance = defineStarterAcceptance({
 
     await step(paths.reloadRestoresPrincipal, async () => {
       await appClient.dispose();
-      appClient = await createSnapbackAppClient({ app, binding, platform });
+      appClient = await createSnapbackAppClient({
+        app,
+        url: process.env.SNAPBACK_URL,
+        platform,
+      });
       assert.equal(appClient.auth.currentPrincipal().status, 'authenticated');
       assert.equal(appClient.auth.currentPrincipal().userId, signedUpUserId);
       return { userId: signedUpUserId };

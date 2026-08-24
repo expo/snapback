@@ -4,48 +4,51 @@ id: start.expo-chat
 order: 4
 audience: agent-first
 capabilities: []
-authorities: [llp/0259-agent-first-read-budget.rfc.md, llp/0299-supervised-listener-port-plan.spec.md, packages/snapback-cli/templates/expo-chat/snapback/schema.mjs, packages/snapback-cli/templates/expo-chat/App.tsx]
+authorities: [llp/0259-agent-first-read-budget.rfc.md, llp/0299-supervised-listener-port-plan.spec.md, llp/0300-snapback-is-a-url.rfc.md, llp/0301-url-first-dev-lifecycle.spec.md, llp/0302-declared-dev-client-binding.spec.md, packages/snapback-cli/templates/expo-chat/snapback/schema.mjs, packages/snapback-cli/templates/expo-chat/App.tsx]
 examples: [packages/snapback-cli/templates/expo-chat]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:fa5149534a7e89282b33bbc909f7bf781c85381bb7d3b0771d1f0bcfd095c65a
+reviewed: 2026-08-24
+reviewed-authorities-digest: sha256:e409ac99f8cf13246c81236bc680e4dd89fc8ee753fa34a890a166cd05190b19
 ---
 
 # Start packet: the `expo-chat` template
 
 <!-- start-packet:begin expo-chat -->
-This packet is the whole required first read for this app (LLP 0259
-Rung A). Open the edit targets below and work; open one further Guide page
-only via `snapback guide <query>` or on a trigger — the brief is outside
-this packet, a structured `SNAPBACK_*` refusal, or a failed `prove`.
+This is the whole first read (LLP 0259 Rung A). Work from the edit targets;
+open one more page only for a brief, `SNAPBACK_*` refusal, or failed `prove`,
+via `snapback guide <query>`.
 
 ## The loop
 
 Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
-→ `bun run generate` → `bun run dev` (supervises the Expo client; it never
+→ `bun run generate` → `bun run dev` (backend + `.env.local`) and
+`bun run dev:client` in a second terminal (`dev:supervised` = optional
+one-command convenience; it never
 launches a device or simulator — Expo Go, a dev client, or
 `expo run:ios|android` is your job) → `bun run prove`.
 
-Before extending or ejecting the proof runner, read
-`node_modules/@expo/snapback-acceptance/README.md`; it is the supported
-compatibility and ownership contract.
+Android emulator: paste printed `androidEmulatorUrl` (`10.0.2.2`) as
+`EXPO_PUBLIC_SNAPBACK_URL`, then restart Metro; leave its managed-block line
+commented. Remove leftover `SNAPBACK_DEV_CLIENT_PORT` /
+`SNAPBACK_DEV_BOOTSTRAP_PORT`; plain dev refuses them with
+`SNAPBACK_CLI_ARGUMENT_INVALID`.
+
+Before changing proof, read `node_modules/@expo/snapback-acceptance/README.md`.
 
 <!-- script-glossary:begin -->
 ## Script glossary
 
-`bun run prove`: ordinary completion and the only done-oracle—the authoritative
-aggregate `snapback verify` receipt (acceptance evidence, not formal proof).
-`npm test`: raw acceptance implementation that `prove` wraps (debugging).
-`bun run test:static`: no-server source/generated coherence.
-`bun run carry:headless`, `bun run carry:web-browser`, `bun run carry:native-simulator`: observation artifacts after accepting the `prove` receipt,
-never proof authority. `bun run carry:self-check` checks carrier wiring only.
-Migration: `test:live` was removed; use `npm test` for the same raw acceptance command.
+`prove`: only done-oracle; writes the authoritative aggregate `snapback verify`
+receipt. `npm test`: raw acceptance debug path. `test:static`: no-server
+coherence. `carry:headless`, `carry:web-browser`, `carry:native-simulator`:
+observations after `prove`; `carry:self-check`: wiring only. Removed
+`test:live` → `npm test`.
 <!-- script-glossary:end -->
 
 The native carrier owns simulator boot, drive, and screenshots. Self-started
-Metro must not inherit `CI=1` (it disables watching); prefer `bun run dev`.
+Metro must not inherit `CI=1` (it disables watching).
 
 ## Edit targets (work files — listed, not charged to the first read)
 
@@ -70,6 +73,8 @@ Metro must not inherit `CI=1` (it disables watching); prefer `bun run dev`.
   app reaches anonymous `ready`; call `auth.enterAsGuest()` on the same
   `useSnapbackAuth()` owner before sends or image upload, or use ordinary
   password entry. Recovery codes surface once after signup or guest claim.
+  URL-first dev mints no ambient session; multi-browser proofs sign up or sign
+  in separately in each context instead of adopting the supervised mint.
 - **Custody: `volatile-explicit`.** This disposable template deliberately says
   memory custody, so a native process restart returns anonymous and must enter
   again. It does not silently weaken a durable policy; select
@@ -98,10 +103,8 @@ Metro must not inherit `CI=1` (it disables watching); prefer `bun run dev`.
 
 ## Escalate
 
-`snapback guide <query>` returns exact symbols, diagnostic codes, and page
-anchors — budgeted lookups do not count as extra pages. The
-[capability index](../capabilities.md) is the completeness registry: look
-up, do not linear-read. Deeper pages, only when triggered:
+`snapback guide <query>` returns exact symbols, codes, and anchors. Use the
+[capability index](../capabilities.md) as a lookup, not a first read. On trigger:
 [react-expo clients](../clients/react-expo.md),
 [surfaces](../clients/surfaces.md),
 [sessions and principals](../auth/sessions-and-principals.md),
@@ -114,6 +117,3 @@ and outside this template. If a brief selects it, read the
 [Familiar handler dialect](../backend/familiar-profile.md) before editing.
 <!-- /llp0259:stop-fence -->
 <!-- start-packet:end -->
-
-For constrained lanes, `snapback dev --expo` accepts strict `--port`,
-`--client-port`, and `--bootstrap-port` pins or one `--port-range`.

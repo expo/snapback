@@ -540,6 +540,10 @@ export interface DevEvent {
   readonly requestId?: string;
   readonly changed?: string | null;
   readonly applicationReadyFile?: string;
+  readonly snapbackUrl?: string;
+  readonly androidEmulatorUrl?: string;
+  readonly admissionPosture?: 'loopback-any' | 'explicit-list';
+  readonly environmentFile?: DevEnvironmentWriteResult | null;
   readonly portPlan?: DevPortPlan | null;
   readonly diagnostics?: readonly CliDiagnostic[];
   readonly [key: string]: unknown;
@@ -575,6 +579,8 @@ export interface RunDevOptions extends RuntimeSelectionOptions {
   readonly readyFile?: string;
   readonly applicationReadyFile?: string;
   readonly database?: string;
+  /** Opt-in marker-block environment writer target. */
+  readonly writeEnvFile?: string;
   readonly env?: EnvironmentVariables;
   readonly client?: DevClientArmSpec;
   /** Fixed backend listener port for externally-owned client lifecycles. */
@@ -584,10 +590,10 @@ export interface RunDevOptions extends RuntimeSelectionOptions {
   /** Pre-resolved plan supplied by the owning supervisor/CLI. Attached
    * backends are returned with owner source `attached` and no declaration. */
   readonly portPlan?: DevPortPlan;
-  /** Exact loopback HTTP(S) origin admitted by the backend. Requires a backend
+  /** Exact HTTP(S) origin admitted by the backend. Requires a backend
    * pin from `port` or `SNAPBACK_DEV_PORT`. */
   readonly externalClientOrigin?: string;
-  /** Exact loopback HTTP(S) origins admitted by the backend. Requires a
+  /** Exact HTTP(S) origins admitted by the backend. Requires a
    * backend pin from `port` or `SNAPBACK_DEV_PORT`. */
   readonly externalClientOrigins?: readonly string[];
   /** Provider-owned loopback aliases admitted before a supervised client starts. */
@@ -612,9 +618,13 @@ export interface DevLoopHandle {
   readyFile: string;
   applicationReadyFile: string;
   serverUrl: string;
+  snapbackUrl: string;
+  androidEmulatorUrl: string;
   lifecycleProfile: 'selected-port' | 'fixed-port';
   readonly portPlan: DevPortPlan;
+  admissionPosture: 'loopback-any' | 'explicit-list';
   clientOrigins: readonly string[];
+  environmentFile: DevEnvironmentWriteResult | null;
   runtime: ResolvedRuntime;
   runtimeRecovery: RuntimeRecoveryRecord;
   child: ManagedChildProcess | null;
@@ -640,6 +650,7 @@ export interface OperationalReadinessV1 {
   readonly artifacts: Readonly<Record<string, unknown>>;
   readonly auth: Readonly<Record<string, unknown>>;
   readonly clientOrigins: readonly string[];
+  readonly admissionPosture?: 'loopback-any' | 'explicit-list' | null;
   readonly capabilityManifestDigest: string;
   readonly networkProfile: string;
   readonly unsatisfied: readonly unknown[];
@@ -648,6 +659,7 @@ export interface OperationalReadinessV1 {
 
 export interface ApplicationReadyReceiptV1 {
   readonly formatVersion: 'snapback.application-ready.v1';
+  readonly admissionPosture: 'loopback-any' | 'explicit-list';
   readonly startupNonce: string;
   readonly hostReadyDescriptorDigest: string;
   readonly application: Readonly<Record<string, unknown>>;
@@ -683,6 +695,7 @@ export function verifyDevAttach(options: {
   readonly adminToken: string | null;
   readonly generatedRoot: string;
   readonly clientOrigins?: readonly string[] | null;
+  readonly admissionPosture?: 'loopback-any' | 'explicit-list' | null;
   readonly requiredClientOrigins?: readonly string[];
   readonly runtimeIdentity?: Readonly<Record<string, unknown>> | null;
   readonly fixedPort?: number | null;
@@ -694,6 +707,36 @@ export function verifyApplicationReadyReceiptAgainstReadiness(
   receipt: ApplicationReadyReceiptV1,
   readiness: OperationalReadinessV1,
 ): ApplicationReadyReceiptV1;
+
+export interface DevEnvironmentWriteResult {
+  readonly path: string;
+  readonly state: 'inserted' | 'rewritten' | 'unchanged';
+  readonly changed: boolean;
+  readonly gitignored: boolean;
+  readonly snapbackUrl: string;
+  readonly androidEmulatorUrl: string;
+}
+
+export function writeDevEnvironmentFile(path: string, options: Readonly<{
+  snapbackUrl: string;
+  androidEmulatorUrl: string;
+  projectRoot?: string;
+}>): DevEnvironmentWriteResult;
+
+export interface DevSessionResult {
+  readonly formatVersion: 'snapback.dev-session.v1';
+  readonly email: string;
+  readonly bearer: string;
+  readonly expiresAt: number;
+}
+
+export function mintDevSession(options?: Readonly<{
+  readyFile?: string | null;
+  email?: string;
+  cwd?: string;
+  env?: EnvironmentVariables;
+  runtimeBinary?: string | null;
+}>): Promise<DevSessionResult>;
 
 /** Minimal stdin surface the dev control channel drives (process.stdin fits). */
 export interface DevControlStdin {
@@ -738,6 +781,11 @@ export interface RunCliOptions {
 export function runCli(argv: readonly string[], options?: RunCliOptions): Promise<number>;
 
 export const __test: {
+  assertDevAdmissionContractMatches(
+    requested: Readonly<Record<string, unknown>>,
+    recorded: Readonly<Record<string, unknown>>,
+  ): Readonly<Record<string, unknown>>;
+  canonicalDevClientOrigin(value: string): string | null;
   loadGenerated: typeof loadGenerated;
   readReadyDescriptor: typeof readReadyDescriptor;
   runtimePackages: Record<string, string>;

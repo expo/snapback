@@ -3773,6 +3773,92 @@
       ],
       "type": "object"
     },
+    "GraphNodeDecisionStatsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "captureIncomplete": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "conservativeFallbacks": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "decisions": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "disposition": {
+          "$ref": "#/$defs/GraphNodeMatchDispositionV1"
+        },
+        "graphPlanHash": {
+          "type": "string"
+        },
+        "matches": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "nodeKind": {
+          "$ref": "#/$defs/GraphNodeKindV1"
+        },
+        "reason": {
+          "$ref": "#/$defs/GraphNodeMatchReasonV1"
+        },
+        "skips": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "graphPlanHash",
+        "nodeKind",
+        "disposition",
+        "reason",
+        "decisions",
+        "skips",
+        "matches",
+        "conservativeFallbacks",
+        "captureIncomplete"
+      ],
+      "type": "object"
+    },
+    "GraphNodeKindV1": {
+      "enum": [
+        "root-window",
+        "equality-to-one",
+        "bounded-to-many",
+        "exists-semi-join",
+        "principal-bound",
+        "search-membership",
+        "closed-projection"
+      ],
+      "type": "string"
+    },
+    "GraphNodeMatchDispositionV1": {
+      "enum": [
+        "skip",
+        "match",
+        "conservative-fallback"
+      ],
+      "type": "string"
+    },
+    "GraphNodeMatchReasonV1": {
+      "enum": [
+        "captured-disjoint",
+        "captured-intersects",
+        "capture-incomplete",
+        "static-table-intersects",
+        "search-table-write",
+        "search-capture-incomplete",
+        "projection-only"
+      ],
+      "type": "string"
+    },
     "HistoryRetentionManifestV1": {
       "additionalProperties": false,
       "description": "Finite product-history retention declared beside the table it governs.\nThis is authoring authority; storage projects it into the durable policy\ntable in the same transaction that publishes the schema manifest.",
@@ -4205,6 +4291,14 @@
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
+        },
+        "graphNodes": {
+          "default": [],
+          "description": "Value-free per-node graph matcher roll-up, grouped by the LLP 0209\n§5.2 identity. Empty while graph serving remains support-false.",
+          "items": {
+            "$ref": "#/$defs/GraphNodeDecisionStatsV1"
+          },
+          "type": "array"
         },
         "matchDelta": {
           "format": "uint64",

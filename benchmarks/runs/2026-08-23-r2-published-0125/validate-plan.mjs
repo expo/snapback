@@ -99,10 +99,11 @@ const config = readJson('harness-config.json');
 const preflight = readJson('preflight.json');
 const provenance = readJson('prompt-provenance.json');
 
-if (config.status !== 'prepared-blocked' || !config.noBenchmarkCellStarted) {
-  fail('configuration must remain prepared-blocked with no cell started');
+const waveRunning = config.status === 'wave-running' && config.waveTransition?.authorization;
+if (!waveRunning && (config.status !== 'prepared-blocked' || !config.noBenchmarkCellStarted)) {
+  fail('configuration must be prepared-blocked (pre-launch) or wave-running with a recorded transition');
 }
-if (preflight.waveStartAllowed !== false || !preflight.noBenchmarkCellStarted) {
+if (!waveRunning && (preflight.waveStartAllowed !== false || !preflight.noBenchmarkCellStarted)) {
   fail('preflight must refuse wave start and attest that no cell started');
 }
 const unresolvedRulings = preflight.checks.filter((check) => check.status === 'needs-ruling');
@@ -227,11 +228,14 @@ for (const cell of config.cells) {
     fail(`cell ${cell.id} does not carry the registered load ceiling`);
   }
   const slot = readJson(`cells/${cell.id}/cell.json`);
-  if (slot.cellId !== cell.id || slot.status !== 'not-started') {
-    fail(`cell slot is not pristine: ${cell.id}`);
-  }
-  if (existsSync(join(root, 'cells', cell.id, 'record.json'))) {
-    fail(`cell ${cell.id} unexpectedly has a completed record`);
+  const hasRecord = existsSync(join(root, 'cells', cell.id, 'record.json'));
+  // Resume semantics (2026-08-24 migration): a completed cell keeps its
+  // recorded slot and machine-valid record.json; only a slot that is neither
+  // pristine nor completed-with-record is invalid.
+  const completed = hasRecord && slot.cellId === cell.id && slot.status !== 'not-started';
+  const pristine = slot.cellId === cell.id && slot.status === 'not-started' && !hasRecord;
+  if (!pristine && !completed) {
+    fail(`cell slot is neither pristine nor completed-with-record: ${cell.id}`);
   }
   const expectedCommand = config.controller.commandTemplate.map((value) => (
     value === '{cellId}' ? cell.id : value

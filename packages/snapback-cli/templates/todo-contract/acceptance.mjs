@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { webcrypto } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { SnapbackClient } from '@expo/snapback-client';
-import api from './snapback/generated/api.mjs';
+import { SnapbackClient, createSnapbackAppClient } from '@expo/snapback-client';
+import api, { app } from './snapback/generated/api.mjs';
 import artifacts from './snapback/generated/artifacts.json' with { type: 'json' };
 
 // @ref LLP 0010#first-acceptance-app — the generated todo default proves a
@@ -14,6 +15,7 @@ import artifacts from './snapback/generated/artifacts.json' with { type: 'json' 
 
 const EXPECTED_CHECKS = Object.freeze([
   'managed-lifecycle',
+  'headless-app-auth',
   'artifact-identity',
   'query',
   'mutation-and-observation',
@@ -48,6 +50,7 @@ const cleanup = {
 };
 let failure = null;
 let client = null;
+let appAuthClient = null;
 let childSpawnError = null;
 
 const appendBounded = (current, chunk) =>
@@ -110,6 +113,25 @@ try {
     firstQueryRetries: 0,
   });
 
+  process.env.SNAPBACK_URL = ready.serverUrl;
+  appAuthClient = await createSnapbackAppClient({
+    app,
+    url: process.env.SNAPBACK_URL,
+    streamless: true,
+    platform: { kind: 'memory', cryptoObject: webcrypto },
+    storagePartition: `todo-contract-headless-${process.pid}`,
+    rqsStore: null,
+  });
+  const signup = await appAuthClient.auth.signUpWithPassword({
+    email: `todo-contract-headless-${process.pid}@example.com`,
+    password: 'todo-contract-headless-password',
+  });
+  assert.equal(signup.session.userId, appAuthClient.auth.currentPrincipal().userId);
+  pass('headless-app-auth', {
+    streamless: true,
+    principal: appAuthClient.auth.currentPrincipal().status,
+  });
+
   const adminToken = readFileSync(ready.adminTokenFile, 'utf8').trim();
   client = new SnapbackClient(ready.serverUrl, {
     adminToken,
@@ -150,6 +172,8 @@ try {
 } finally {
   cleanup.attempted = true;
   try {
+    await appAuthClient?.dispose();
+    appAuthClient = null;
     if (client) assert.equal((await client.inspect()).subscriptions.length, 0);
     cleanup.clientResourcesReleased = true;
   } catch (error) {

@@ -6,17 +6,18 @@
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
-    AuthInput, FilterExpr, FilterOp, GraphAuthorityClassV1, GraphChildPageV1,
-    GraphCompletenessLabelV1, GraphCompositionProofV1, GraphDataNodeKindV1, GraphEvaluationCutV1,
+    AuthInput, FilterExpr, FilterOp, GraphAuthorityClassV1, GraphCapturedDependencyV1,
+    GraphCapturedReadAttachmentV1, GraphCapturedReadV1, GraphChildPageV1, GraphCompletenessLabelV1,
+    GraphCompositionProofV1, GraphDataNodeKindV1, GraphEvaluationCutV1,
     GraphEvaluationTimeRefusalReasonV1, GraphExistsModeV1, GraphIntervalEndV1, GraphLiteralPageV1,
     GraphMaterializedRefusalReasonV1, GraphNodeCompletenessProofClassV1,
     GraphNodeCompletenessProofV1, GraphNodeKindV1, GraphNodeV1, GraphNodeWindowIdentityV1,
     GraphProjectionLiteralV1, GraphProjectionObjectV1, GraphProjectionValueV1, GraphQueryPlanV1,
     GraphRowKeyV1, GraphToOnePresenceV1, GraphWindowIdentityV1, HandlerInput, OrderDirection,
-    OrderExpr, QueryPlan, Sha256V1, TableVisibilityV1, ValueExpr, validate_graph_arguments_v1,
-    validate_graph_window_vector_v1,
+    OrderExpr, QueryPlan, Sha256V1, TableVisibilityV1, ValueExpr, graph_instance_identity_v1,
+    graph_plan_identity_v1, validate_graph_arguments_v1, validate_graph_window_vector_v1,
 };
-use crate::storage::DbRead;
+use crate::storage::{CapturedReadDependency, CapturedReadKind, DbRead};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use sha2::{Digest as _, Sha256};
@@ -150,6 +151,21 @@ pub struct GraphEvaluationOutputV1 {
     pub refusal_reason: Option<GraphMaterializedRefusalReasonV1>,
     pub structural_work: StructuralWorkV1,
     pub window_ledgers: Vec<GraphWindowLedgerV1>,
+    /// The shared read-dependency vector a future serving subscription will
+    /// register. G2-B exposes it only through the evaluator's existing
+    /// test/test-support gate; G2-C still owns serving dispatch.
+    #[serde(default)]
+    pub captured_reads: Vec<CapturedReadDependency>,
+    /// Exact graph-to-ordinary companion attachment over `captured_reads`.
+    /// Sync registration attests this evaluator-authored map before the graph
+    /// matcher can consume any of the reads.
+    #[serde(default)]
+    pub capture_attachments: Vec<GraphCapturedReadAttachmentV1>,
+    /// Internal full-row provenance for ordinary query companions. These
+    /// values cross only the evaluator-to-sync registration seam and are
+    /// intentionally omitted from serialized evaluation results/inspection.
+    #[serde(skip)]
+    pub captured_query_outputs: Vec<crate::live_matcher::GraphCapturedQueryOutputV1>,
 }
 
 fn deserialize_required_option<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
@@ -338,6 +354,12 @@ struct RowInstance {
     root_id: String,
 }
 
+#[derive(Clone)]
+struct GraphCaptureContext {
+    graph_plan_hash: Sha256V1,
+    instance_hash: Sha256V1,
+}
+
 #[derive(Default)]
 struct EvaluationState {
     roots: Vec<RowInstance>,
@@ -348,7 +370,190 @@ struct EvaluationState {
     continuations: BTreeMap<(String, String), Value>,
     node_proofs: Vec<NodeCompletenessV1>,
     materialized_refusal: Option<GraphMaterializedRefusalReasonV1>,
+    capture_context: Option<GraphCaptureContext>,
+    captured_reads: Vec<CapturedReadDependency>,
+    capture_attachments: Vec<GraphCapturedReadAttachmentV1>,
+    captured_query_outputs: Vec<crate::live_matcher::GraphCapturedQueryOutputV1>,
     work: Work,
+}
+
+impl EvaluationState {
+    fn capture_graph(
+        &mut self,
+        node: &GraphNodeV1,
+        dependency: GraphCapturedDependencyV1,
+    ) -> Option<usize> {
+        let Some(context) = self.capture_context.as_ref() else {
+            return None;
+        };
+        let graph_read_index = self.captured_reads.len() as u64;
+        self.captured_reads.push(CapturedReadDependency {
+            kind: CapturedReadKind::GraphNode,
+            graph: Some(GraphCapturedReadV1 {
+                format: "snapback.graph-captured-read.v1".to_owned(),
+                graph_plan_hash: context.graph_plan_hash.clone(),
+                instance_hash: context.instance_hash.clone(),
+                node_id: node.node_id().to_owned(),
+                node_kind: node_kind(node),
+                authority_class: node.authority().declared_class,
+                dependency,
+            }),
+            table: None,
+            id: None,
+            version: None,
+            predicate: None,
+            rows: Vec::new(),
+            field: None,
+            value: None,
+            order: None,
+            limit: None,
+            result_count: None,
+            boundary: None,
+        });
+        self.capture_attachments
+            .push(GraphCapturedReadAttachmentV1 {
+                graph_read_index,
+                ordinary_read_indices: Vec::new(),
+            });
+        Some(self.capture_attachments.len() - 1)
+    }
+
+    fn capture_ordinary(
+        &mut self,
+        attachment: Option<usize>,
+        dependency: CapturedReadDependency,
+    ) -> Option<u64> {
+        let Some(attachment) = attachment else {
+            return None;
+        };
+        let ordinary_read_index = self.captured_reads.len() as u64;
+        self.captured_reads.push(dependency);
+        self.capture_attachments[attachment]
+            .ordinary_read_indices
+            .push(ordinary_read_index);
+        Some(ordinary_read_index)
+    }
+
+    fn capture_query(
+        &mut self,
+        attachment: Option<usize>,
+        plan: &QueryPlan,
+        version: u64,
+        rows: &[Value],
+    ) -> SnapbackResult<()> {
+        if self.capture_context.is_none() {
+            return Ok(());
+        }
+        let (order, limit, result_count, boundary) =
+            crate::live_matcher::query_dependency_metadata(plan, rows)?;
+        let predicate = serde_json::to_value(plan).map_err(|error| {
+            SnapbackError::error(
+                "SNAPBACK_CAPTURED_READ_SERIALIZE_FAILED",
+                "runtime",
+                "graph query dependency could not be serialized",
+            )
+            .with_details(json!({ "error": error.to_string() }))
+        })?;
+        let query_read_index = self.capture_ordinary(
+            attachment,
+            CapturedReadDependency {
+                kind: CapturedReadKind::Query,
+                graph: None,
+                table: Some(plan.table.clone()),
+                id: None,
+                version: Some(version),
+                predicate: Some(predicate),
+                rows: rows
+                    .iter()
+                    .filter_map(|row| row.get("_id").and_then(Value::as_str).map(str::to_owned))
+                    .collect(),
+                field: None,
+                value: None,
+                order,
+                limit,
+                result_count,
+                boundary,
+            },
+        );
+        if let Some(query_read_index) = query_read_index {
+            self.captured_query_outputs
+                .push(crate::live_matcher::GraphCapturedQueryOutputV1 {
+                    query_read_index,
+                    rows: rows.to_vec(),
+                });
+        }
+        for row in rows {
+            let (Some(id), Some(version)) = (
+                row.get("_id").and_then(Value::as_str),
+                row.get("_version").and_then(Value::as_u64),
+            ) else {
+                continue;
+            };
+            self.capture_ordinary(
+                attachment,
+                CapturedReadDependency {
+                    kind: CapturedReadKind::Row,
+                    graph: None,
+                    table: Some(plan.table.clone()),
+                    id: Some(id.to_owned()),
+                    version: Some(version),
+                    predicate: None,
+                    rows: Vec::new(),
+                    field: None,
+                    value: None,
+                    order: None,
+                    limit: None,
+                    result_count: None,
+                    boundary: None,
+                },
+            );
+        }
+        Ok(())
+    }
+
+    fn capture_auth_user(&mut self, attachment: Option<usize>, user_id: &str) {
+        if self.capture_context.is_none() {
+            return;
+        }
+        self.capture_ordinary(
+            attachment,
+            CapturedReadDependency {
+                kind: CapturedReadKind::Auth,
+                graph: None,
+                table: None,
+                id: None,
+                version: None,
+                predicate: None,
+                rows: Vec::new(),
+                field: Some("userId".to_owned()),
+                value: Some(Value::String(user_id.to_owned())),
+                order: None,
+                limit: None,
+                result_count: None,
+                boundary: None,
+            },
+        );
+    }
+}
+
+fn captured_value_digest(domain: &[u8], value: &Value) -> SnapbackResult<Sha256V1> {
+    let canonical = snapback_types::rqs_contract::jcs(value).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_GRAPH_ARGUMENT_INVALID",
+            "query",
+            "captured graph value is not canonicalizable",
+        )
+    })?;
+    let mut hasher = Sha256::new();
+    hasher.update(domain);
+    hasher.update(canonical.as_bytes());
+    Sha256V1::new(format!("sha256:{:x}", hasher.finalize())).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+            "query",
+            "captured graph digest is malformed",
+        )
+    })
 }
 
 fn tuple_json(request: &GraphEvaluationRequestV1) -> Value {
@@ -854,9 +1059,47 @@ fn evaluate_root(
         &window.lower,
         &window.upper,
     )?;
+    let snapshot_version = output.version;
     let mut rows = output.rows;
     let has_more = rows.len() > take;
     rows.truncate(take);
+    let boundary = if has_more {
+        rows.last()
+            .map(|row| keyset_for(row, order))
+            .transpose()?
+            .map(|value| {
+                serde_json::from_value(value).map_err(|error| {
+                    SnapbackError::error(
+                        "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+                        "query",
+                        format!("graph root capture boundary is invalid: {error}"),
+                    )
+                })
+            })
+            .transpose()?
+    } else {
+        None
+    };
+    // @ref LLP 0209#51-captured-vocabulary-by-normalized-node — root
+    // windows register both their graph identity/boundary fact and the shared
+    // Query/Row dependencies used by the existing disjointness machinery.
+    let attachment = state.capture_graph(
+        node,
+        GraphCapturedDependencyV1::RootRange {
+            table: table.clone(),
+            index: access_index.clone(),
+            predicate: filters.clone(),
+            order: order.clone(),
+            direction: Some(window.direction),
+            lower: Some(window.lower.clone()),
+            upper: Some(window.upper.clone()),
+            limit: window.take,
+            result_count: rows.len() as u64,
+            boundary,
+            complete: !has_more,
+        },
+    );
+    state.capture_query(attachment, &query, snapshot_version, &rows)?;
     state.work.root.insert(node_id.clone(), rows.len() as u64);
     state
         .work
@@ -965,7 +1208,26 @@ fn evaluate_to_one(
     let mut examined = 0_u64;
     for parent in &parents {
         lookups += 1;
+        let lookup_key = join_on
+            .iter()
+            .map(|equality| {
+                parent
+                    .row
+                    .get(&equality.root_field)
+                    .cloned()
+                    .unwrap_or(Value::Null)
+            })
+            .collect::<Vec<_>>();
         let Some(mut relation) = relation_filters(&parent.row, join_on) else {
+            let _ = state.capture_graph(
+                node,
+                GraphCapturedDependencyV1::ParentLookupSkipped {
+                    table: table.clone(),
+                    index: access_index.clone(),
+                    parent_key: parent.key.clone(),
+                    reason: crate::manifest::GraphParentLookupSkippedReasonV1::NullOrOmittedKey,
+                },
+            );
             insert_child(state, parent_node_id, parent, node_id, Vec::new())?;
             proof_rows.push(json!({"parentKey":parent.key,"found":false}));
             if matches!(presence, GraphToOnePresenceV1::Required) {
@@ -988,9 +1250,29 @@ fn evaluate_to_one(
             1,
             access_index,
         );
-        let rows = read.query(&query, input)?.rows;
+        let query_output = read.query(&query, input)?;
+        let snapshot_version = query_output.version;
+        let rows = query_output.rows;
         examined += rows.len() as u64;
         let found = !rows.is_empty();
+        let child_key = rows.first().map(|row| row_key(table, row)).transpose()?;
+        let row_version = rows
+            .first()
+            .and_then(|row| row.get("_version"))
+            .and_then(Value::as_u64);
+        let attachment = state.capture_graph(
+            node,
+            GraphCapturedDependencyV1::ParentPoint {
+                table: table.clone(),
+                index: access_index.clone(),
+                parent_key: parent.key.clone(),
+                lookup_key,
+                child_key,
+                found,
+                row_version,
+            },
+        );
+        state.capture_query(attachment, &query, snapshot_version, &rows)?;
         if !found && matches!(presence, GraphToOnePresenceV1::Required) {
             // Same register as the null-key path above; both physical miss
             // shapes produce the one additive stable diagnostic.
@@ -1102,6 +1384,26 @@ fn evaluate_to_many(
             continue;
         }
         let Some(mut relation) = relation_filters(&parent.row, join_on) else {
+            let _ = state.capture_graph(
+                node,
+                GraphCapturedDependencyV1::ParentRange {
+                    table: table.clone(),
+                    index: access_index.clone(),
+                    parent_key: parent.key.clone(),
+                    predicate: filters.clone().unwrap_or_default(),
+                    order: order.clone(),
+                    direction: Some(effective.direction),
+                    lower: Some(effective.lower.clone()),
+                    upper: Some(effective.upper.clone()),
+                    limit: effective.take,
+                    result_count: 0,
+                    boundary: None,
+                    // The v1 carrier has no storage-free nullable to-many
+                    // attempt arm. Mark the range incomplete so matching can
+                    // never turn this representational gap into a false skip.
+                    complete: false,
+                },
+            );
             insert_child(state, parent_node_id, parent, node_id, Vec::new())?;
             let class = if unbounded(&effective) {
                 ParentRangeClass::Complete
@@ -1130,18 +1432,53 @@ fn evaluate_to_many(
             cap,
             access_index,
         );
-        let mut rows = read
-            .query_graph_window_with_lookahead(
-                &query,
-                input,
-                effective.direction,
-                &effective.lower,
-                &effective.upper,
-            )?
-            .rows;
+        let query_output = read.query_graph_window_with_lookahead(
+            &query,
+            input,
+            effective.direction,
+            &effective.lower,
+            &effective.upper,
+        )?;
+        let snapshot_version = query_output.version;
+        let mut rows = query_output.rows;
         let has_more = rows.len() > cap;
         examined += rows.len() as u64;
         rows.truncate(cap);
+        let boundary = if has_more {
+            rows.last()
+                .map(|row| keyset_for(row, order))
+                .transpose()?
+                .map(|value| {
+                    serde_json::from_value(value).map_err(|error| {
+                        SnapbackError::error(
+                            "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+                            "query",
+                            format!("graph parent capture boundary is invalid: {error}"),
+                        )
+                    })
+                })
+                .transpose()?
+        } else {
+            None
+        };
+        let attachment = state.capture_graph(
+            node,
+            GraphCapturedDependencyV1::ParentRange {
+                table: table.clone(),
+                index: access_index.clone(),
+                parent_key: parent.key.clone(),
+                predicate: filters.clone().unwrap_or_default(),
+                order: order.clone(),
+                direction: Some(effective.direction),
+                lower: Some(effective.lower.clone()),
+                upper: Some(effective.upper.clone()),
+                limit: effective.take,
+                result_count: rows.len() as u64,
+                boundary,
+                complete: !has_more,
+            },
+        );
+        state.capture_query(attachment, &query, snapshot_version, &rows)?;
         let children = rows
             .into_iter()
             .map(|row| {
@@ -1288,6 +1625,12 @@ fn evaluate_to_many(
     Ok(())
 }
 
+struct QueryCapture {
+    plan: QueryPlan,
+    version: u64,
+    rows: Vec<Value>,
+}
+
 #[derive(Default)]
 struct ProbeObservation {
     found: bool,
@@ -1296,6 +1639,7 @@ struct ProbeObservation {
     ranges: u64,
     examined: u64,
     fanout: u64,
+    captures: Vec<QueryCapture>,
 }
 
 fn direct_probe(
@@ -1321,7 +1665,8 @@ fn direct_probe(
         1,
         &edge.access_index,
     );
-    let rows = read.query(&query, input)?.rows;
+    let output = read.query(&query, input)?;
+    let rows = output.rows;
     Ok(ProbeObservation {
         found: !rows.is_empty(),
         undecidable_over_cap: false,
@@ -1329,6 +1674,11 @@ fn direct_probe(
         ranges: 1,
         examined: rows.len() as u64,
         fanout: rows.len() as u64,
+        captures: vec![QueryCapture {
+            plan: query,
+            version: output.version,
+            rows,
+        }],
     })
 }
 
@@ -1390,18 +1740,18 @@ fn through_probe(
         edge_cap,
         &edge.parent_index,
     );
-    let mut edge_rows = read
-        .query_graph_window_with_lookahead(
-            &edge_query,
-            input,
-            crate::manifest::GraphDirectionV1::Forward,
-            &GraphIntervalEndV1::Unbounded,
-            &GraphIntervalEndV1::Unbounded,
-        )?
-        .rows;
+    let edge_output = read.query_graph_window_with_lookahead(
+        &edge_query,
+        input,
+        crate::manifest::GraphDirectionV1::Forward,
+        &GraphIntervalEndV1::Unbounded,
+        &GraphIntervalEndV1::Unbounded,
+    )?;
+    let mut edge_rows = edge_output.rows;
     let has_more = edge_rows.len() > edge_cap;
     let examined_edge_rows = edge_rows.len() as u64;
     edge_rows.truncate(edge_cap);
+    let captured_edge_rows = edge_rows.clone();
     let mut observation = ProbeObservation {
         found: false,
         lookups: 1,
@@ -1409,6 +1759,11 @@ fn through_probe(
         examined: examined_edge_rows,
         fanout: edge_rows.len() as u64,
         undecidable_over_cap: false,
+        captures: vec![QueryCapture {
+            plan: edge_query,
+            version: edge_output.version,
+            rows: captured_edge_rows,
+        }],
     };
     for edge_row in edge_rows {
         let Some(target_filters) = relation_filters(&edge_row, &edge.target_join) else {
@@ -1424,8 +1779,14 @@ fn through_probe(
             1,
             &edge.target_index,
         );
-        let target = read.query(&target_query, input)?.rows;
+        let target_output = read.query(&target_query, input)?;
+        let target = target_output.rows;
         observation.examined += target.len() as u64;
+        observation.captures.push(QueryCapture {
+            plan: target_query,
+            version: target_output.version,
+            rows: target.clone(),
+        });
         if !target.is_empty() {
             observation.found = true;
             break;
@@ -1500,6 +1861,22 @@ fn evaluate_semi_join(
         })?;
         canonical_arguments.entry(key).or_insert(value);
     }
+    let (dependency_tables, dependency_indexes) = match edge {
+        crate::manifest::GraphEdgeV1::Direct(edge) => {
+            (vec![edge.table.clone()], vec![edge.access_index.clone()])
+        }
+        crate::manifest::GraphEdgeV1::Through(edge) => (
+            vec![edge.table.clone(), edge.target_table.clone()],
+            vec![edge.parent_index.clone(), edge.target_index.clone()],
+        ),
+    };
+    let argument_digest = argument_id
+        .as_ref()
+        .map(|argument_id| {
+            let value = input.args.get(argument_id).cloned().unwrap_or(Value::Null);
+            captured_value_digest(b"snapback:g0-corpus-argument:v1:", &value)
+        })
+        .transpose()?;
     for parent in &parents {
         let probes = if matches!(mode, GraphExistsModeV1::All) {
             canonical_arguments.values().cloned().collect::<Vec<_>>()
@@ -1507,6 +1884,8 @@ fn evaluate_semi_join(
             vec![Value::Null]
         };
         let mut matched = true;
+        let mut matched_count = 0_u64;
+        let mut captured_queries = Vec::new();
         for argument in probes {
             let mut probe_filters = base_filters.clone();
             if matches!(mode, GraphExistsModeV1::All) {
@@ -1530,6 +1909,7 @@ fn evaluate_semi_join(
             consultations += observation.ranges;
             examined += observation.examined;
             max_fanout = max_fanout.max(observation.fanout);
+            captured_queries.extend(observation.captures);
             if observation.undecidable_over_cap {
                 state.materialized_refusal =
                     Some(GraphMaterializedRefusalReasonV1::QueryCostBoundExceeded);
@@ -1539,6 +1919,22 @@ fn evaluate_semi_join(
                 matched = false;
                 break;
             }
+            matched_count += 1;
+        }
+        let attachment = state.capture_graph(
+            node,
+            GraphCapturedDependencyV1::Membership {
+                tables: dependency_tables.clone(),
+                indexes: dependency_indexes.clone(),
+                parent_key: parent.key.clone(),
+                argument_id: argument_id.clone(),
+                argument_digest: argument_digest.clone(),
+                matched_count,
+                complete: state.materialized_refusal.is_none(),
+            },
+        );
+        for capture in captured_queries {
+            state.capture_query(attachment, &capture.plan, capture.version, &capture.rows)?;
         }
         if state.materialized_refusal.is_some() {
             break;
@@ -1647,6 +2043,8 @@ fn evaluate_principal(
     };
     let parents = parent_instances(state, parent_node_id).to_vec();
     let mut principal = input.auth.user_id.clone();
+    let auth_user = principal.clone();
+    let mut auth_attached = false;
     let mut binding_found = binding.is_none();
     let binding_lookups = u64::from(binding.is_some());
     let mut binding_consultations = 0_u64;
@@ -1661,7 +2059,7 @@ fn evaluate_principal(
                 &[FilterExpr {
                     field: binding.principal_field.clone(),
                     op: FilterOp::Eq,
-                    value: ValueExpr::Literal(Value::String(raw_principal)),
+                    value: ValueExpr::Literal(Value::String(raw_principal.clone())),
                 }],
                 request,
             ),
@@ -1669,9 +2067,52 @@ fn evaluate_principal(
             1,
             &binding.unique_index,
         );
-        let row = read.query(&query, input)?.rows.into_iter().next();
+        let query_output = read.query(&query, input)?;
+        let binding_rows = query_output.rows;
+        let row = binding_rows.first().cloned();
         examined += u64::from(row.is_some());
         binding_found = row.is_some();
+        let attachment = state.capture_graph(
+            node,
+            GraphCapturedDependencyV1::PrincipalField {
+                table: binding.table.clone(),
+                index: binding.unique_index.clone(),
+                parent_key: None,
+                partition_hash: request.partition_hash.clone(),
+                field: binding.principal_field.clone(),
+                value_digest: captured_value_digest(
+                    b"snapback:g0-corpus-principal-value:v1:",
+                    &Value::String(raw_principal),
+                )?,
+                found: binding_found,
+            },
+        );
+        if let Some(user_id) = auth_user.as_deref() {
+            state.capture_auth_user(attachment, user_id);
+            auth_attached = true;
+        }
+        let resolved_value = row
+            .as_ref()
+            .and_then(|row| row.get(&binding.value_field))
+            .cloned();
+        if let Some(value) = resolved_value.as_ref() {
+            let _ = state.capture_graph(
+                node,
+                GraphCapturedDependencyV1::PrincipalField {
+                    table: binding.table.clone(),
+                    index: binding.unique_index.clone(),
+                    parent_key: None,
+                    partition_hash: request.partition_hash.clone(),
+                    field: binding.value_field.clone(),
+                    value_digest: captured_value_digest(
+                        b"snapback:g0-corpus-principal-value:v1:",
+                        value,
+                    )?,
+                    found: binding_found,
+                },
+            );
+        }
+        state.capture_query(attachment, &query, query_output.version, &binding_rows)?;
         principal = row.and_then(|row| {
             row.get(&binding.value_field)
                 .and_then(Value::as_str)
@@ -1704,9 +2145,30 @@ fn evaluate_principal(
                 1,
                 access_index,
             );
-            let rows = read.query(&query, input)?.rows;
+            let query_output = read.query(&query, input)?;
+            let rows = query_output.rows;
             examined += rows.len() as u64;
             found = !rows.is_empty();
+            let attachment = state.capture_graph(
+                node,
+                GraphCapturedDependencyV1::PrincipalField {
+                    table: table.clone(),
+                    index: access_index.clone(),
+                    parent_key: Some(parent.key.clone()),
+                    partition_hash: request.partition_hash.clone(),
+                    field: principal_field.clone(),
+                    value_digest: captured_value_digest(
+                        b"snapback:g0-corpus-principal-value:v1:",
+                        &Value::String(principal.clone()),
+                    )?,
+                    found,
+                },
+            );
+            if !auth_attached && let Some(user_id) = auth_user.as_deref() {
+                state.capture_auth_user(attachment, user_id);
+                auth_attached = true;
+            }
+            state.capture_query(attachment, &query, query_output.version, &rows)?;
             children_rows = rows
                 .into_iter()
                 .map(|row| {
@@ -1718,6 +2180,29 @@ fn evaluate_principal(
                     })
                 })
                 .collect::<SnapbackResult<Vec<_>>>()?;
+        } else if let Some(principal) = principal.as_ref() {
+            // The parent relation is nullable, so no point lookup occurred.
+            // The current principal scope is still the only target-table
+            // scope that could become relevant after the parent itself wakes.
+            let attachment = state.capture_graph(
+                node,
+                GraphCapturedDependencyV1::PrincipalField {
+                    table: table.clone(),
+                    index: access_index.clone(),
+                    parent_key: Some(parent.key.clone()),
+                    partition_hash: request.partition_hash.clone(),
+                    field: principal_field.clone(),
+                    value_digest: captured_value_digest(
+                        b"snapback:g0-corpus-principal-value:v1:",
+                        &Value::String(principal.clone()),
+                    )?,
+                    found: false,
+                },
+            );
+            if !auth_attached && let Some(user_id) = auth_user.as_deref() {
+                state.capture_auth_user(attachment, user_id);
+                auth_attached = true;
+            }
         }
         output.extend(children_rows.iter().cloned());
         insert_child(state, parent_node_id, parent, node_id, children_rows)?;
@@ -2258,6 +2743,9 @@ fn refused_output(
         structural_work: state.work.observation(plan),
         // A refusal publishes no page, so it cannot advance any lineage.
         window_ledgers: request.prior_window_ledgers.clone(),
+        captured_reads: state.captured_reads.clone(),
+        capture_attachments: state.capture_attachments.clone(),
+        captured_query_outputs: state.captured_query_outputs.clone(),
     })
 }
 
@@ -2293,6 +2781,25 @@ pub(crate) fn evaluate_graph_query_on(
     validate_demand(plan, request, &supplied_parents)?;
     let input = input_for(plan, request)?;
     let mut state = EvaluationState::default();
+    // Capture identity reconstruction is an additive G2-B output channel. A
+    // corpus-only or defense-in-depth in-memory plan can intentionally bypass
+    // admission while exercising G2-A evaluation behavior, so identity
+    // reconstruction failure suppresses captures rather than changing that
+    // established result/refusal behavior. Real admitted carriers always have
+    // both identities and therefore emit the complete vector.
+    state.capture_context = graph_plan_identity_v1(plan).ok().and_then(|plan_identity| {
+        graph_instance_identity_v1(
+            &plan_identity,
+            &request.args,
+            request.windows.clone(),
+            &supplied_parents,
+        )
+        .ok()
+        .map(|instance_identity| GraphCaptureContext {
+            graph_plan_hash: plan_identity.plan_hash,
+            instance_hash: instance_identity.instance_hash,
+        })
+    });
     state.work.prepare(plan, request)?;
     validate_prior_ledgers(plan, request)?;
     if prior_ledger_at_or_over_bound(plan, request) {
@@ -2401,6 +2908,17 @@ pub(crate) fn evaluate_graph_query_on(
             tuple_json(request),
             json!({"kind":"closed-projection","label":label,"composition":composition_proof}),
         );
+        let _ = state.capture_graph(
+            projection,
+            GraphCapturedDependencyV1::Projection {
+                source_node_ids: plan
+                    .nodes
+                    .iter()
+                    .filter(|node| !matches!(node, GraphNodeV1::ClosedProjection { .. }))
+                    .map(|node| node.node_id().to_owned())
+                    .collect(),
+            },
+        );
         state.node_proofs.push(proof_entry(
             node_id,
             node_kind(projection),
@@ -2447,6 +2965,9 @@ pub(crate) fn evaluate_graph_query_on(
             refusal_reason: None,
             structural_work: state.work.observation(plan),
             window_ledgers,
+            captured_reads: state.captured_reads.clone(),
+            capture_attachments: state.capture_attachments.clone(),
+            captured_query_outputs: state.captured_query_outputs.clone(),
         })
     })();
     match evaluation {

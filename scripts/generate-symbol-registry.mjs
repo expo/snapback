@@ -58,11 +58,12 @@ writeFileSync(3, JSON.stringify({
 // (application-ready receipt facts, RunDevOptions extensions) pushed
 // expo-snapback-client.md 62 bytes over; the budget is a practical projection
 // guard (LLP 0194), not a semantic contract.
-// 2026-08-24: raised from 460 KiB after the LLP 0151 provider-entry resolver
-// and shared-development client-half exports pushed expo-snapback-client.md to
-// 476,540 bytes. Same one-notch relief as every prior raise; OQ1's
-// module-slicing question stays open in
-// issues/20260815-symbol-registry-client-page-budget.md.
+// 2026-08-24: LLP 0302 adds the app-client URL/streamless/debug surface and
+// generated descriptor capability type; LLP 0151 adds the provider-entry
+// resolver and shared-development client-half exports. Both land on the same
+// page, so the budget takes the higher of the two raises rather than their sum.
+// Same one-notch relief as every prior raise; OQ1's module-slicing question
+// stays open in issues/20260815-symbol-registry-client-page-budget.md.
 const modulePageBudgetBytes = 491_520;
 const indexPageBudgetBytes = 32_768;
 const scopes = [

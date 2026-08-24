@@ -2048,6 +2048,12 @@ pub enum GraphCapturedDependencyV1 {
         index: String,
         predicate: Vec<FilterExpr>,
         order: Vec<OrderExpr>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        direction: Option<GraphDirectionV1>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        lower: Option<GraphIntervalEndV1>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        upper: Option<GraphIntervalEndV1>,
         limit: u64,
         #[serde(rename = "resultCount")]
         result_count: u64,
@@ -2087,6 +2093,12 @@ pub enum GraphCapturedDependencyV1 {
         parent_key: GraphRowKeyV1,
         predicate: Vec<FilterExpr>,
         order: Vec<OrderExpr>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        direction: Option<GraphDirectionV1>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        lower: Option<GraphIntervalEndV1>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        upper: Option<GraphIntervalEndV1>,
         limit: u64,
         #[serde(rename = "resultCount")]
         result_count: u64,
@@ -2129,6 +2141,12 @@ pub enum GraphCapturedDependencyV1 {
     PrincipalField {
         table: String,
         index: String,
+        /// The evaluated parent whose target lookup this fact records.
+        /// Binding-table facts are node-global and therefore carry null.
+        #[serde(rename = "parentKey")]
+        #[serde(deserialize_with = "deserialize_required_option")]
+        #[schemars(required, schema_with = "nullable_graph_row_key_schema")]
+        parent_key: Option<GraphRowKeyV1>,
         #[serde(rename = "partitionHash")]
         partition_hash: Sha256V1,
         field: String,
@@ -2166,6 +2184,16 @@ pub struct GraphCapturedReadV1 {
     pub node_kind: GraphNodeKindV1,
     pub authority_class: GraphAuthorityClassV1,
     pub dependency: GraphCapturedDependencyV1,
+}
+
+/// Evaluator-authored attachment of ordinary shared-carrier reads to one
+/// graph capture. Indices address the exact `captured_reads` vector returned
+/// by the same evaluation; registration rejects overlap, omission, or drift.
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GraphCapturedReadAttachmentV1 {
+    pub graph_read_index: u64,
+    pub ordinary_read_indices: Vec<u64>,
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
@@ -5490,6 +5518,9 @@ pub fn validate_graph_captured_read_v1(
                 index,
                 predicate,
                 order,
+                direction,
+                lower,
+                upper,
                 limit,
                 result_count,
                 boundary,
@@ -5500,6 +5531,13 @@ pub fn validate_graph_captured_read_v1(
                 && index == access_index
                 && predicate == filters
                 && order == declared_order
+                && direction.is_some()
+                && lower
+                    .as_ref()
+                    .is_some_and(|end| validate_interval_end(end, declared_order).is_ok())
+                && upper
+                    .as_ref()
+                    .is_some_and(|end| validate_interval_end(end, declared_order).is_ok())
                 && *limit > 0
                 && safe_count(*limit)
                 && *result_count <= *limit
@@ -5556,6 +5594,9 @@ pub fn validate_graph_captured_read_v1(
                 index,
                 predicate,
                 order,
+                direction,
+                lower,
+                upper,
                 limit,
                 result_count,
                 boundary,
@@ -5566,6 +5607,13 @@ pub fn validate_graph_captured_read_v1(
                 && index == access_index
                 && predicate.as_slice() == filters.as_deref().unwrap_or_default()
                 && order == declared_order
+                && direction.is_some()
+                && lower
+                    .as_ref()
+                    .is_some_and(|end| validate_interval_end(end, declared_order).is_ok())
+                && upper
+                    .as_ref()
+                    .is_some_and(|end| validate_interval_end(end, declared_order).is_ok())
                 && *limit > 0
                 && safe_count(*limit)
                 && *result_count <= *limit
@@ -5619,14 +5667,19 @@ pub fn validate_graph_captured_read_v1(
             GraphCapturedDependencyV1::PrincipalField {
                 table: captured_table,
                 index,
+                parent_key,
                 field,
                 ..
             },
         ) => {
-            (captured_table == table && index == access_index && field == principal_field)
+            (captured_table == table
+                && index == access_index
+                && field == principal_field
+                && parent_key.is_some())
                 || binding.as_ref().is_some_and(|binding| {
                     captured_table == &binding.table
                         && index == &binding.unique_index
+                        && parent_key.is_none()
                         && (field == &binding.principal_field || field == &binding.value_field)
                 })
         }
@@ -6674,12 +6727,12 @@ mod tests {
             "authorityClass":1
         });
         let variants = vec![
-            json!({"kind":"root-range","table":"issues","index":"by_updated","predicate":[],"order":[],"limit":2,"resultCount":0,"boundary":null,"complete":true}),
+            json!({"kind":"root-range","table":"issues","index":"by_updated","predicate":[],"order":[],"direction":"forward","lower":{"kind":"unbounded"},"upper":{"kind":"unbounded"},"limit":2,"resultCount":0,"boundary":null,"complete":true}),
             json!({"kind":"parent-point","table":"users","index":"by_id","parentKey":{"table":"issues","id":"i1"},"lookupKey":["u1"],"childKey":null,"found":false,"rowVersion":null}),
             json!({"kind":"parent-lookup-skipped","table":"users","index":"by_id","parentKey":{"table":"issues","id":"i1"},"reason":"null-or-omitted-key"}),
-            json!({"kind":"parent-range","table":"comments","index":"by_issue","parentKey":{"table":"issues","id":"i1"},"predicate":[],"order":[],"limit":2,"resultCount":0,"boundary":null,"complete":true}),
+            json!({"kind":"parent-range","table":"comments","index":"by_issue","parentKey":{"table":"issues","id":"i1"},"predicate":[],"order":[],"direction":"forward","lower":{"kind":"unbounded"},"upper":{"kind":"unbounded"},"limit":2,"resultCount":0,"boundary":null,"complete":true}),
             json!({"kind":"membership","tables":["votes"],"indexes":["by_issue"],"parentKey":{"table":"issues","id":"i1"},"argumentId":null,"matchedCount":0,"complete":true}),
-            json!({"kind":"principal-field","table":"views","index":"by_user","partitionHash":zero_hash(),"field":"userId","valueDigest":zero_hash(),"found":false}),
+            json!({"kind":"principal-field","table":"views","index":"by_user","parentKey":null,"partitionHash":zero_hash(),"field":"userId","valueDigest":zero_hash(),"found":false}),
             json!({"kind":"search-table","table":"issues","membershipIdentity":{"format":"snapback.graph-search-membership-identity.v1","providerPlanHash":zero_hash(),"argumentContractHash":zero_hash(),"scopeContractHash":zero_hash(),"authorityClass":1,"providerVersion":"v1","providerCompletenessClass":"complete-membership-v1","membershipHash":zero_hash()},"providerVersion":"v1"}),
             json!({"kind":"projection","sourceNodeIds":["n0"]}),
         ];

@@ -1749,9 +1749,13 @@ export class McpControlServer {
         attached = true;
       } else {
         const runtime = this.resolveRuntime();
+        const childEnvironment = runtimeSpawnEnvironment(runtime.binary, this.env);
+        // @ref LLP 0301#2-origin-admission--the-path-split-implemented — the
+        // posture is lifecycle-owner input, never ambient.
+        delete childEnvironment.SNAPBACK_DEV_ADMISSION_POSTURE;
         const child = spawn(runtime.binary, ['start', '--ready-file', this.readyFile, '--db', this.database], {
           cwd: this.projectRoot,
-          env: runtimeSpawnEnvironment(runtime.binary, this.env),
+          env: childEnvironment,
           stdio: 'ignore',
         });
         this.child = child;

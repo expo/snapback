@@ -19,5 +19,8 @@ assert.match(runtimeAcceptance, /'wait', '--ready-file', readyFile/);
 assert.match(runtimeAcceptance, /'--level', 'application', '--timeout-ms', '60000'/);
 assert.match(runtimeAcceptance, /applicationReadyObserved: true/);
 assert.match(runtimeAcceptance, /firstQueryRetries: 0/);
+assert.match(runtimeAcceptance, /createSnapbackAppClient\s*\(\s*\{[\s\S]*?app,[\s\S]*?url:\s*process\.env\.SNAPBACK_URL,[\s\S]*?streamless:\s*true,/u);
+assert.match(runtimeAcceptance, /new SnapbackClient\(ready\.serverUrl,/u);
+assert.doesNotMatch(runtimeAcceptance, /new SnapbackClient\(process\.env\.SNAPBACK_URL/u);
 assert.doesNotMatch(runtimeAcceptance, /generated-and-loaded/);
 console.log('todo-contract static coherence: generated package surface is coherent');

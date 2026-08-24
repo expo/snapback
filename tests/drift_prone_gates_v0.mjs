@@ -180,6 +180,40 @@ console.log('[guide-check] ok — fixture page digest matches');
 `);
 }
 
+function installPathMigrationDriftFixtureChecker(repo) {
+  const plantedPath = 'scripts/path-migration-review-straggler.mjs';
+  writeFileSync(join(repo, plantedPath), "export const retiredPath = 'src/storage.rs';\n");
+  const realChecker = run(repo, process.execPath, [
+    'scripts/check-path-migration-stragglers.mjs',
+    '--epoch',
+    'phase-3',
+    '--path',
+    plantedPath,
+  ]);
+  assert.equal(realChecker.status, 1, realChecker.output);
+  assert.match(realChecker.output, /root-src-path/u);
+  rmSync(join(repo, plantedPath));
+
+  // This suite exercises committed-revision selection and D-3 classification,
+  // while the now-canonical tests/path_migration_stragglers_v0.mjs suite owns
+  // the scanner's complete semantic matrix. The assertion above keeps this
+  // integration seam honest by proving the real checker rejects a controlled
+  // planted straggler before the narrow drift-runner stub replaces it.
+  // Keep the integration baseline independent of unrelated corpus literals
+  // that may legitimately make main's full scanner red. The fixture still
+  // validates the frozen manifest authority and must run green in strict mode.
+  writeFileSync(join(repo, 'scripts/check-path-migration-stragglers.mjs'), `#!/usr/bin/env node
+import { readFileSync } from 'node:fs';
+const manifest = JSON.parse(readFileSync('scripts/path-migration-manifest.v1.json', 'utf8'));
+if (manifest.schemaVersion !== 'snapback.path-migration-manifest.v1'
+  || manifest.epoch?.current !== 'phase-3') {
+  console.error('PATH_MIGRATION_STRAGGLER_FIXTURE_INVALID: manifest authority is invalid');
+  process.exit(1);
+}
+console.log('path-migration straggler gate fixture: PASS');
+`);
+}
+
 function setupCommittedClone() {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-drift-integration-'));
   const repo = join(scratch, 'repo');
@@ -255,6 +289,7 @@ function setupCommittedClone() {
   const baselineGuide = run(repo, process.execPath, ['scripts/generate-guide-manifest.mjs']);
   assert.equal(baselineGuide.status, 0, baselineGuide.output);
   installGuideDriftFixtureChecker(repo);
+  installPathMigrationDriftFixtureChecker(repo);
   commitAll(repo, 'test: install drift enforcement under committed state');
   git(ROOT, ['init', '--bare', '--quiet', remote]);
   git(repo, ['remote', 'rename', 'origin', 'source']);
@@ -1585,7 +1620,7 @@ test('standing battery claims are discovered from every on-disk publication anch
   );
 });
 
-test('standing battery claims fail closed when known anchors project to zero claims', () => {
+test('standing battery claims fail closed before an omitted known anchor can project zero claims', () => {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-battery-zero-claims-'));
   const repo = join(scratch, 'repo');
   mkdirSync(repo);
@@ -1606,9 +1641,12 @@ test('standing battery claims fail closed when known anchors project to zero cla
       })}\n`,
     );
     const revision = commitAll(repo, 'test: known anchor outside publication root');
+    // Anchor discovery now validates the complete set before claim projection.
+    // Returning an empty claim set would violate both assert.throws and D-1's
+    // fail-closed requirement; pin the newer, more actionable precedence.
     assert.throws(
       () => standingBatteryClaims({ root: repo, revision, context: {} }),
-      /known publication anchor\(s\).*zero standing claims/u,
+      /publication roots omitted known anchor\(s\): detached\/known-publication\.anchor\.json/u,
     );
   } finally {
     rmSync(scratch, { recursive: true, force: true });
@@ -2024,8 +2062,10 @@ test('optimistic hook, strict mode, and main backstop operate on committed pushe
     );
     assert.equal(strict.status, 0, strict.output);
     assert.match(strict.output, /RUN agent-safe-publication-fixtures:/u);
+    assert.match(strict.output, /RUN path-migration-stragglers:/u);
     assert.match(strict.output, /RUN workspace-graph:/u);
     assert.match(strict.output, /PASS agent-safe-publication-fixtures/u);
+    assert.match(strict.output, /PASS path-migration-stragglers/u);
     // This checkpoint intentionally carries no inherited red; an ambient stale
     // gate must not hide behind a permissive summary-count assertion.
     assert.deepEqual(inheritedStaleGateNames(strict.output), []);

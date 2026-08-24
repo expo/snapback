@@ -6,7 +6,9 @@
   "packageManager": "bun@1.3.12",
   "scripts": {
     "generate": "snapback generate snapback",
-    "dev": "snapback dev snapback --expo --expo-platform web",
+    "dev": "snapback dev snapback --write-env",
+    "dev:client": "expo start",
+    "dev:supervised": "snapback dev snapback --expo --expo-platform web",
     "dev:native-refusal": "snapback dev snapback --expo --expo-platform ios",
     "start": "expo start",
     "web": "expo start --web",

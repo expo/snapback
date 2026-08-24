@@ -716,9 +716,13 @@ export async function doctor(options = {}) {
       );
     }
     mkdirSync(stateRoot, { recursive: true });
+    const childEnvironment = runtimeSpawnEnvironment(runtime.binary, options.env);
+    // @ref LLP 0301#2-origin-admission--the-path-split-implemented — the
+    // posture is lifecycle-owner input, never ambient.
+    delete childEnvironment.SNAPBACK_DEV_ADMISSION_POSTURE;
     child = spawn(runtime.binary, ['start', '--ready-file', readyFile, '--db', database], {
       cwd: projectRoot,
-      env: runtimeSpawnEnvironment(runtime.binary, options.env),
+      env: childEnvironment,
       stdio: ['ignore', 'ignore', 'ignore'],
     });
     const descriptor = validateDevTarget(
@@ -1506,7 +1510,10 @@ export async function buildRelease(options = {}) {
   assertDisjointTrees(backendRoot, requestedOutputRoot);
   if (options.webDirectory) assertDisjointTrees(resolve(options.webDirectory), requestedOutputRoot);
   const targetProfile = options.targetProfile ?? 'local-dev-sqlite-ibex';
-  const generated = await generateApp(backendRoot, { targetProfile });
+  const generated = await generateApp(backendRoot, {
+    targetProfile,
+    appBindingMode: 'release',
+  });
   if (!generated.ok) {
     throw diagnosticError('SNAPBACK_DEPLOY_GENERATION_FAILED', 'release generation failed', { diagnostics: generated.diagnostics ?? [] });
   }
@@ -3426,16 +3433,21 @@ export function initApp(target = process.cwd(), options = {}) {
     },
     next: detected.kind !== 'react'
       ? ['snapback generate snapback --json', 'snapback dev snapback --expo']
-      : ['snapback generate snapback --json', 'snapback dev snapback --client . --client-command vite'],
+      : [
+          'snapback generate snapback --json',
+          'snapback dev snapback --write-env',
+          `${packageManager.manager} run dev`,
+        ],
   };
 }
 
-async function generateAppThroughNode(backendDirectory, { targetProfile, check }) {
+async function generateAppThroughNode(backendDirectory, { targetProfile, appBindingMode, check }) {
   const args = [
     require.resolve('@expo/snapback-codegen'),
     resolve(backendDirectory),
     '--json',
     '--target-profile', targetProfile,
+    '--app-binding-mode', appBindingMode,
     ...(check ? ['--check'] : []),
   ];
   const allowedEnvironment = new Set([
@@ -3511,6 +3523,7 @@ async function generateAppThroughNode(backendDirectory, { targetProfile, check }
 
 export async function generateApp(backendDirectory, options = {}) {
   const targetProfile = options.targetProfile ?? 'local-dev-sqlite-ibex';
+  const appBindingMode = options.appBindingMode ?? 'development';
   const check = options.check === true;
   // @ref LLP 0010#generated-artifacts — definition evaluation still occurs
   // under Node 24's permission model when a Bun-hosted Vite process owns the
@@ -3518,12 +3531,13 @@ export async function generateApp(backendDirectory, options = {}) {
   const canEvaluateIsolatedDefinitions = process.allowedNodeEnvironmentFlags
     ?.has('--permission') === true;
   const result = canEvaluateIsolatedDefinitions
-    ? await generate(resolve(backendDirectory), { targetProfile, check })
-    : await generateAppThroughNode(backendDirectory, { targetProfile, check });
+    ? await generate(resolve(backendDirectory), { targetProfile, appBindingMode, check })
+    : await generateAppThroughNode(backendDirectory, { targetProfile, appBindingMode, check });
   return {
     schemaVersion: 'snapback.generate.v1',
     ...result,
     targetProfile,
+    appBindingMode,
     check,
   };
 }
@@ -3584,21 +3598,15 @@ function normalizeDevPort(value) {
   return port;
 }
 
-function canonicalDevAuthOrigin(value) {
+function canonicalDevClientOrigin(value) {
   let url;
   try {
     url = new URL(value);
   } catch {
     return null;
   }
-  const hostname = url.hostname.replace(/^\[|\]$/gu, '').toLowerCase();
-  const loopback = hostname === 'localhost'
-    || hostname === '::1'
-    || /^127(?:\.[0-9]{1,3}){3}$/u.test(hostname);
   if (
     !['http:', 'https:'].includes(url.protocol)
-    || !loopback
-    || url.port === ''
     || url.username !== ''
     || url.password !== ''
     || (url.pathname !== '' && url.pathname !== '/')
@@ -3616,11 +3624,11 @@ function portFromUrl(value) {
 }
 
 function canonicalExternalClientOrigin(value) {
-  const origin = canonicalDevAuthOrigin(value);
+  const origin = canonicalDevClientOrigin(value);
   if (origin === null) {
     throw diagnosticError(
       'SNAPBACK_CLI_ARGUMENT_INVALID',
-      '--external-client-origin must be an exact loopback HTTP(S) origin with an explicit port',
+      '--external-client-origin must be an exact HTTP(S) origin without credentials, path, query, or fragment',
       { origin: value },
     );
   }
@@ -3668,16 +3676,190 @@ function withExternalClientOrigins(environment, declaredClientOrigins) {
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean)
-    .map(canonicalDevAuthOrigin)
-    .filter((origin) => origin !== null);
+    .map(canonicalExternalClientOrigin);
   const clientOrigins = [...new Set([...inherited, ...declaredClientOrigins])].sort();
-  const nextEnvironment = { ...environment };
-  if (clientOrigins.length === 0) delete nextEnvironment.SNAPBACK_DEV_AUTH_ORIGINS;
+  const admissionPosture = clientOrigins.length === 0 ? 'loopback-any' : 'explicit-list';
+  const nextEnvironment = {
+    ...environment,
+    // @ref LLP 0301#2-origin-admission--the-path-split-implemented — this is
+    // lifecycle-owned spawn input: a hostile ambient value is always
+    // overwritten together with the complete declaration list.
+    SNAPBACK_DEV_ADMISSION_POSTURE: admissionPosture,
+  };
+  if (admissionPosture === 'loopback-any') delete nextEnvironment.SNAPBACK_DEV_AUTH_ORIGINS;
   else nextEnvironment.SNAPBACK_DEV_AUTH_ORIGINS = clientOrigins.join(',');
   return {
     environment: nextEnvironment,
     clientOrigins,
+    admissionPosture,
   };
+}
+
+const DEV_ENV_BLOCK_START = '# >>> snapback dev >>>';
+const DEV_ENV_BLOCK_END = '# <<< snapback dev <<<';
+
+function devBackendUrls(serverUrl) {
+  const port = portFromUrl(serverUrl);
+  const snapbackUrl = canonicalDevClientOrigin(`http://127.0.0.1:${port}`);
+  const androidEmulatorUrl = canonicalDevClientOrigin(`http://10.0.2.2:${port}`);
+  return Object.freeze({
+    snapbackUrl,
+    androidEmulatorUrl,
+  });
+}
+
+function devEnvironmentBlock({ snapbackUrl, androidEmulatorUrl }, newline = '\n') {
+  return [
+    DEV_ENV_BLOCK_START,
+    `EXPO_PUBLIC_SNAPBACK_URL=${snapbackUrl}`,
+    `VITE_SNAPBACK_URL=${snapbackUrl}`,
+    `SNAPBACK_URL=${snapbackUrl}`,
+    '# Android emulator (copy this value manually; do not uncomment it here):',
+    `# EXPO_PUBLIC_SNAPBACK_URL=${androidEmulatorUrl}`,
+    DEV_ENV_BLOCK_END,
+  ].join(newline);
+}
+
+function devEnvironmentWriterConflict(path, reason, details = {}) {
+  return diagnosticError(
+    'SNAPBACK_DEV_ENV_WRITER_CONFLICT',
+    `snapback dev refused to update ${path}: ${reason}`,
+    { path: resolve(path), reason, ...details },
+  );
+}
+
+function exactMarkerMatches(contents, marker) {
+  const escaped = marker.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+  return [...contents.matchAll(new RegExp(`^${escaped}(?=\\r?$)`, 'gmu'))];
+}
+
+function managedEnvironmentKeys(contents) {
+  const keys = [];
+  for (const line of contents.split(/\r?\n/u)) {
+    const match = line.match(/^\s*(?:export\s+)?(EXPO_PUBLIC_SNAPBACK_URL|VITE_SNAPBACK_URL|SNAPBACK_URL)\s*=/u);
+    if (match) keys.push(match[1]);
+  }
+  return keys;
+}
+
+function environmentFileIgnored(path, projectRoot) {
+  const result = spawnSync(
+    'git',
+    ['check-ignore', '--quiet', '--no-index', '--', resolve(path)],
+    { cwd: projectRoot, stdio: 'ignore' },
+  );
+  return result.status === 0;
+}
+
+// @ref LLP 0301#4-snapback-dev-prints-the-url-the-opt-in-writer — one
+// marker-owned, credential-free block is replaced atomically without
+// normalizing any unrelated byte or changing an existing file's mode.
+export function writeDevEnvironmentFile(path, {
+  snapbackUrl,
+  androidEmulatorUrl,
+  projectRoot = dirname(resolve(path)),
+  beforeRename = null,
+} = {}) {
+  if (
+    typeof snapbackUrl !== 'string'
+    || typeof androidEmulatorUrl !== 'string'
+    || canonicalDevClientOrigin(snapbackUrl) !== snapbackUrl
+    || canonicalDevClientOrigin(androidEmulatorUrl) !== androidEmulatorUrl
+  ) {
+    throw new TypeError('writeDevEnvironmentFile requires canonical snapbackUrl and androidEmulatorUrl origins');
+  }
+  const target = resolve(path);
+  const existed = existsSync(target);
+  const contents = existed ? readFileSync(target, 'utf8') : '';
+  const starts = exactMarkerMatches(contents, DEV_ENV_BLOCK_START);
+  const ends = exactMarkerMatches(contents, DEV_ENV_BLOCK_END);
+  const markerLikeLines = contents
+    .split(/\r?\n/u)
+    .filter((line) => line.includes('snapback dev') && /[<>]{2,}/u.test(line));
+  if (
+    starts.length !== ends.length
+    || starts.length > 1
+    || markerLikeLines.length !== starts.length + ends.length
+    || (starts.length === 1 && starts[0].index >= ends[0].index)
+  ) {
+    throw devEnvironmentWriterConflict(target, 'duplicate or malformed snapback dev marker blocks', {
+      startMarkers: starts.length,
+      endMarkers: ends.length,
+    });
+  }
+
+  let prefix = contents;
+  let suffix = '';
+  let previousBlock = null;
+  if (starts.length === 1) {
+    const blockStart = starts[0].index;
+    const blockEnd = ends[0].index + ends[0][0].length;
+    prefix = contents.slice(0, blockStart);
+    previousBlock = contents.slice(blockStart, blockEnd);
+    suffix = contents.slice(blockEnd);
+    const androidLine = previousBlock.split(/\r?\n/u).find((line) => (
+      /^\s*(?:export\s+)?(?:EXPO_PUBLIC_SNAPBACK_URL|VITE_SNAPBACK_URL|SNAPBACK_URL)\s*=\s*https?:\/\/10\.0\.2\.2(?::|$)/u.test(line)
+    ));
+    if (androidLine !== undefined) {
+      throw devEnvironmentWriterConflict(
+        target,
+        'an Android emulator URL was manually uncommented inside the managed block',
+        { line: androidLine },
+      );
+    }
+  }
+  const outsideKeys = [...managedEnvironmentKeys(prefix), ...managedEnvironmentKeys(suffix)];
+  if (outsideKeys.length > 0) {
+    throw devEnvironmentWriterConflict(
+      target,
+      'managed Snapback URL keys exist outside the managed block',
+      { keys: [...new Set(outsideKeys)].sort() },
+    );
+  }
+
+  const newline = contents.includes('\r\n') ? '\r\n' : '\n';
+  const block = devEnvironmentBlock({ snapbackUrl, androidEmulatorUrl }, newline);
+  let nextContents;
+  let state;
+  if (previousBlock === null) {
+    const separator = contents.length === 0 || contents.endsWith('\n') ? '' : newline;
+    nextContents = `${contents}${separator}${block}${newline}`;
+    state = 'inserted';
+  } else {
+    nextContents = `${prefix}${block}${suffix}`;
+    state = previousBlock === block ? 'unchanged' : 'rewritten';
+  }
+  const gitignored = environmentFileIgnored(target, resolve(projectRoot));
+  if (nextContents === contents) {
+    return Object.freeze({
+      path: target,
+      state: 'unchanged',
+      changed: false,
+      gitignored,
+      snapbackUrl,
+      androidEmulatorUrl,
+    });
+  }
+
+  mkdirSync(dirname(target), { recursive: true });
+  const mode = existed ? statSync(target).mode & 0o7777 : 0o600;
+  const temporary = join(dirname(target), `.${basename(target)}.${process.pid}.${randomUUID()}.tmp`);
+  try {
+    writeFileSync(temporary, nextContents, { flag: 'wx', mode });
+    chmodSync(temporary, mode);
+    beforeRename?.({ target, temporary });
+    renameSync(temporary, target);
+  } finally {
+    rmSync(temporary, { force: true });
+  }
+  return Object.freeze({
+    path: target,
+    state,
+    changed: true,
+    gitignored,
+    snapbackUrl,
+    androidEmulatorUrl,
+  });
 }
 
 function loopbackPortAcceptsConnections(port) {
@@ -4284,6 +4466,110 @@ export function managedAdminToken(descriptor, database) {
   return token;
 }
 
+const DEFAULT_DEV_SESSION_EMAIL = 'snapback-dev@localhost.invalid';
+
+function devSessionTargetMissing(paths, cause = null) {
+  const error = diagnosticError(
+    'SNAPBACK_DEV_SESSION_TARGET_MISSING',
+    `no live receipt-verified managed development target was found at ${paths.join(', ')}`,
+    {
+      triedPaths: paths,
+      cause: cause?.code ?? cause?.message ?? null,
+    },
+  );
+  if (cause !== null) error.cause = cause;
+  return error;
+}
+
+// @ref LLP 0301#5-snapback-auth-dev-session — this explicit operator action
+// reuses the managed ready descriptor and its existing store-owned admin
+// token; it creates no durable credential carrier of its own.
+export async function mintDevSession({
+  readyFile = null,
+  email = DEFAULT_DEV_SESSION_EMAIL,
+  cwd = process.cwd(),
+  env = process.env,
+  runtimeBinary = null,
+} = {}) {
+  const requestedReadyFile = resolve(cwd, readyFile ?? join('.snapback', 'dev.ready.json'));
+  const triedPaths = [requestedReadyFile];
+  const selectedReadyFile = existsSync(requestedReadyFile)
+    ? realpathSync.native(requestedReadyFile)
+    : requestedReadyFile;
+  let descriptor;
+  try {
+    descriptor = readReadyDescriptor(selectedReadyFile);
+    if (typeof descriptor.startupNonce !== 'string' || descriptor.startupNonce.length === 0) {
+      throw diagnosticError(
+        'SNAPBACK_DEV_READY_FILE_INVALID',
+        'the managed development ready descriptor has no startup nonce',
+        { readyFile: selectedReadyFile },
+      );
+    }
+    await validateReadyDescriptorHealth(descriptor);
+  } catch (error) {
+    throw devSessionTargetMissing(triedPaths, error);
+  }
+  const database = descriptor?.database?.mode === 'file'
+    && typeof descriptor?.database?.path === 'string'
+    ? descriptor.database.path
+    : null;
+  if (database === null) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
+      'snapback auth dev-session requires a managed file-store admin-token artifact',
+      { readyFile: selectedReadyFile, databaseMode: descriptor?.database?.mode ?? null },
+    );
+  }
+  let operatorToken = managedAdminToken(descriptor, database);
+  if (typeof operatorToken !== 'string' || operatorToken.length === 0) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
+      'snapback auth dev-session requires the existing managed admin-token artifact',
+      { readyFile: selectedReadyFile },
+    );
+  }
+  try {
+    const runtime = resolveRuntimeBinary({
+      runtimeBinary: runtimeBinary ?? env?.SNAPBACK_RUNTIME_BINARY ?? null,
+      env,
+      projectRoot: cwd,
+    });
+    const { mintSupervisedOrdinarySession } = await import('./expo-dev.mjs');
+    const minted = mintSupervisedOrdinarySession({
+      runtimeBinary: runtime.binary,
+      readyFile: selectedReadyFile,
+      email,
+      operatorToken,
+      cwd,
+      env,
+    });
+    if (minted.status !== 'ready') {
+      const refusal = diagnosticError(
+        minted.diagnostic.code,
+        minted.diagnostic.message,
+        minted.diagnostic.details,
+      );
+      refusal.diagnostic = minted.diagnostic;
+      throw refusal;
+    }
+    if (!Number.isSafeInteger(minted.expiresAt)) {
+      throw diagnosticError(
+        'SNAPBACK_EXPO_SESSION_MINT_FAILED',
+        'the native session mint omitted the ordinary session expiry',
+      );
+    }
+    return Object.freeze({
+      formatVersion: 'snapback.dev-session.v1',
+      email,
+      bearer: minted.token,
+      expiresAt: minted.expiresAt,
+    });
+  } finally {
+    operatorToken = null;
+  }
+}
+
 function expectedDevIdentityCapabilityPath(descriptor, { readyFile, database = null } = {}) {
   // @ref LLP 0262#d2-carriers-per-shipped-topology — CLI custody follows the
   // server's database-sibling/ready-file-sibling anchor ladder exactly.
@@ -4410,7 +4696,7 @@ export function spawnManagedRuntime(binary, args, {
 }
 
 function managedDevRuntimeEnvironment(environment) {
-  return {
+  const childEnvironment = {
     ...scrubDynamicLoaderEnvironment(environment),
     // @ref LLP 0193#program — managed development is the explicit opt-in
     // boundary for bounded handler exception detail. Native `start` and every
@@ -4418,6 +4704,10 @@ function managedDevRuntimeEnvironment(environment) {
     // choice; an inherited caller value cannot silently change this supervisor.
     SNAPBACK_HANDLER_ERROR_EXPOSURE: 'development',
   };
+  // @ref LLP 0301#2-origin-admission--the-path-split-implemented — the
+  // posture and its complete declaration list were constructed immediately
+  // before this spawn; neither is caller-pass-through state.
+  return childEnvironment;
 }
 
 export async function loadGenerated(
@@ -4776,6 +5066,7 @@ async function requestOperationalReadiness(descriptor, adminToken, expectedTarge
     || readiness.artifacts == null
     || readiness.auth == null
     || !Array.isArray(readiness.clientOrigins)
+    || ![undefined, null, 'loopback-any', 'explicit-list'].includes(readiness.admissionPosture)
   ) {
     throw diagnosticError(
       'SNAPBACK_DEV_APPLICATION_READINESS_INVALID',
@@ -4814,6 +5105,43 @@ function recordKeysWithin(value, allowed) {
     && typeof value === 'object'
     && !Array.isArray(value)
     && Object.keys(value).every((key) => allowed.includes(key));
+}
+
+function normalizedAdmissionPosture(value) {
+  return value === undefined || value === null ? 'explicit-list' : value;
+}
+
+function admissionContract(admissionPosture, clientOrigins) {
+  return Object.freeze({
+    admissionPosture: normalizedAdmissionPosture(admissionPosture),
+    clientOrigins: Object.freeze([...(clientOrigins ?? [])]),
+  });
+}
+
+function assertDevAdmissionContractMatches(requested, recorded) {
+  const requestedContract = admissionContract(
+    requested?.admissionPosture,
+    requested?.clientOrigins,
+  );
+  const recordedContract = admissionContract(
+    recorded?.admissionPosture,
+    recorded?.clientOrigins,
+  );
+  if (
+    requestedContract.admissionPosture !== recordedContract.admissionPosture
+    || !sameStringSet(requestedContract.clientOrigins, recordedContract.clientOrigins)
+  ) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_ATTACH_ADMISSION_MISMATCH',
+      'the running server admission contract differs from the contract requested by this attaching lifecycle',
+      {
+        requestedAdmissionContract: requestedContract,
+        recordedAdmissionContract: recordedContract,
+        safety: 'the listener was not adopted, restarted, or mutated',
+      },
+    );
+  }
+  return recordedContract;
 }
 
 function receiptReadinessMismatches(receipt, readiness) {
@@ -4860,6 +5188,10 @@ function receiptReadinessMismatches(receipt, readiness) {
   if (!sameStringSet(receipt.clientOrigins, readiness?.clientOrigins)) {
     mismatch.push('clientOrigins');
   }
+  if (
+    normalizedAdmissionPosture(receipt.admissionPosture)
+      !== normalizedAdmissionPosture(readiness?.admissionPosture)
+  ) mismatch.push('admissionPosture');
   if (receipt.networkProfile !== readiness?.networkProfile) mismatch.push('networkProfile');
   return mismatch;
 }
@@ -4892,7 +5224,7 @@ function writeApplicationReadyReceipt(path, receipt) {
   return receipt;
 }
 
-export function readApplicationReadyReceipt(path) {
+function readApplicationReadyReceiptWithFormat(path, { legacyFormat = false } = {}) {
   let metadata;
   try {
     metadata = lstatSync(path);
@@ -4924,7 +5256,7 @@ export function readApplicationReadyReceipt(path) {
     error.cause = cause;
     throw error;
   }
-  const rootKeys = [
+  const legacyRootKeys = [
     'application',
     'artifacts',
     'auth',
@@ -4939,6 +5271,10 @@ export function readApplicationReadyReceipt(path) {
     'startupNonce',
     'targetProfile',
   ];
+  const rootKeys = [
+    'admissionPosture',
+    ...legacyRootKeys,
+  ];
   const deploymentKeys = [
     'appId', 'authMode', 'bundleHash', 'inputsHash', 'schemaHash', 'schemaVersion',
   ];
@@ -4947,7 +5283,11 @@ export function readApplicationReadyReceipt(path) {
   const wrapper = receipt?.runtimeIdentity?.wrapper;
   if (
     receipt?.formatVersion !== 'snapback.application-ready.v1'
-    || !exactRecordKeys(receipt, rootKeys)
+    || (legacyFormat
+      ? !exactRecordKeys(receipt, legacyRootKeys)
+      : !exactRecordKeys(receipt, legacyRootKeys) && !exactRecordKeys(receipt, rootKeys))
+    || (!legacyFormat
+      && ![undefined, 'loopback-any', 'explicit-list'].includes(receipt.admissionPosture))
     || typeof receipt.startupNonce !== 'string'
     || typeof receipt.hostReadyDescriptorDigest !== 'string'
     || receipt.application?.mode !== 'dev-generated'
@@ -4993,7 +5333,7 @@ export function readApplicationReadyReceipt(path) {
     || binding.integrity.channel !== 'local-supervised-ipc'
     || !Array.isArray(receipt.clientOrigins)
     || new Set(receipt.clientOrigins).size !== receipt.clientOrigins.length
-    || receipt.clientOrigins.some((origin) => canonicalDevAuthOrigin(origin) !== origin)
+    || receipt.clientOrigins.some((origin) => canonicalDevClientOrigin(origin) !== origin)
     || !exactRecordKeys(receipt.runtimeIdentity, ['qualifiedBinary', 'wrapper'])
     || !exactRecordKeys(qualifiedBinary, [
       'buildIdentity', 'bytes', 'path', 'platform', 'qualification', 'sha256', 'source',
@@ -5022,7 +5362,21 @@ export function readApplicationReadyReceipt(path) {
       { path: resolve(path) },
     );
   }
-  return receipt;
+  if (legacyFormat) return receipt;
+  return {
+    ...receipt,
+    // @ref LLP 0301#3-receipt-posture--writer-matrix-reader-rule-attach-contract —
+    // a missing field is the legacy exact-list contract.
+    admissionPosture: normalizedAdmissionPosture(receipt.admissionPosture),
+  };
+}
+
+export function readApplicationReadyReceipt(path) {
+  return readApplicationReadyReceiptWithFormat(path);
+}
+
+function readLegacyApplicationReadyReceipt(path) {
+  return readApplicationReadyReceiptWithFormat(path, { legacyFormat: true });
 }
 
 function qualifiedRuntimeIdentity(
@@ -5108,9 +5462,23 @@ function publishApplicationReadyReceipt(path, readyFile, readiness, lifecycle) {
       },
     );
   }
+  if (
+    normalizedAdmissionPosture(readiness.admissionPosture)
+      !== lifecycle.admissionPosture
+  ) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_APPLICATION_READINESS_INVALID',
+      'the running server admission posture differs from the lifecycle-owned posture',
+      {
+        expectedAdmissionPosture: lifecycle.admissionPosture,
+        observedAdmissionPosture: readiness.admissionPosture ?? null,
+      },
+    );
+  }
   const readyBytes = readFileSync(readyFile);
   const receipt = {
     formatVersion: 'snapback.application-ready.v1',
+    admissionPosture: lifecycle.admissionPosture,
     startupNonce: readiness.startupNonce,
     hostReadyDescriptorDigest: sha256Bytes(readyBytes),
     application: {
@@ -5188,6 +5556,7 @@ export async function verifyDevAttach({
   adminToken,
   generatedRoot,
   clientOrigins = null,
+  admissionPosture = null,
   requiredClientOrigins = [],
   runtimeIdentity = null,
   fixedPort = null,
@@ -5232,6 +5601,12 @@ export async function verifyDevAttach({
     }
     throw error;
   }
+  if (admissionPosture !== null) {
+    assertDevAdmissionContractMatches(
+      { admissionPosture, clientOrigins },
+      receipt,
+    );
+  }
   const readiness = await readOperationalReadiness(descriptor, adminToken);
   verifyApplicationReadyReceiptAgainstReadiness(receipt, readiness);
   const generatedDescriptor = generatedApplicationDescriptor(generatedRoot);
@@ -5259,7 +5634,11 @@ export async function verifyDevAttach({
   // binding; it is not evidence that the live child is foreign. runDev always
   // republishes a fresh lifecycle-issued binding after this identity cut.
   if (!Number.isFinite(expiresAt)) mismatch.push('binding.provenance.expiresAt');
-  if (clientOrigins !== null && !sameStringSet(receipt.clientOrigins, clientOrigins)) {
+  if (
+    admissionPosture === null
+    && clientOrigins !== null
+    && !sameStringSet(receipt.clientOrigins, clientOrigins)
+  ) {
     mismatch.push('clientOrigins');
   }
   for (const requiredOrigin of requiredClientOrigins) {
@@ -5427,6 +5806,20 @@ export async function runDev(options = {}) {
     ...normalizeSupervisedClientOrigins(options),
   ])].sort();
   let clientOrigins = declaredClientOrigins;
+  let admissionPosture = null;
+  const writeEnvFile = options.writeEnvFile === undefined || options.writeEnvFile === null
+    ? null
+    : resolve(projectRoot, options.writeEnvFile);
+  let environmentFile = null;
+  const refreshDevEnvironmentFile = (currentDescriptor) => {
+    if (writeEnvFile === null) return null;
+    environmentFile = writeDevEnvironmentFile(writeEnvFile, {
+      ...devBackendUrls(currentDescriptor.serverUrl),
+      projectRoot,
+      beforeRename: options.beforeEnvRename ?? null,
+    });
+    return environmentFile;
+  };
   // @ref LLP 0224#layered-readiness-not-one-overloaded-boolean — receipt
   // lifecycle removes the projection before every launch, reload, restart,
   // reset, and shutdown; absence is the honest intermediate state.
@@ -5466,7 +5859,7 @@ export async function runDev(options = {}) {
       },
     );
   }
-  const generated = await generateApp(backendRoot);
+  const generated = await generateApp(backendRoot, { appBindingMode: 'development' });
   if (!generated.ok) return { ...generated, state: 'generation-failed' };
   let devRuntimeEnvironment;
   const prepareVisibilityGovernanceDevEnvironment =
@@ -5482,6 +5875,7 @@ export async function runDev(options = {}) {
     const admission = withExternalClientOrigins(prepared.environment, declaredClientOrigins);
     devRuntimeEnvironment = admission.environment;
     clientOrigins = admission.clientOrigins;
+    admissionPosture = admission.admissionPosture;
     return prepared;
   };
   try {
@@ -5574,6 +5968,7 @@ export async function runDev(options = {}) {
       adminToken: attachAdminToken,
       generatedRoot,
       clientOrigins,
+      admissionPosture,
       runtimeIdentity: applicationRuntimeIdentity,
       fixedPort,
       portPlan: requestedPortPlan,
@@ -5755,8 +6150,10 @@ export async function runDev(options = {}) {
     publishApplicationReadyReceipt(applicationReadyFile, readyFile, readiness, {
       binding: issueDevBinding(bindingPublisher, generatedRoot, descriptor),
       clientOrigins,
+      admissionPosture,
       runtimeIdentity: applicationRuntimeIdentity,
     });
+    refreshDevEnvironmentFile(descriptor);
   } catch (error) {
     await closeManaged();
     throw error;
@@ -5770,9 +6167,12 @@ export async function runDev(options = {}) {
     readyFile,
     applicationReadyFile,
     serverUrl: descriptor.serverUrl,
+    ...devBackendUrls(descriptor.serverUrl),
     lifecycleProfile: fixedPort === null ? 'selected-port' : 'fixed-port',
     get portPlan() { return backendPortPlan; },
+    admissionPosture,
     clientOrigins,
+    environmentFile,
     runtime,
     runtimeRecovery,
   };
@@ -5820,7 +6220,7 @@ export async function runDev(options = {}) {
     removeApplicationReadyReceipt();
     let next;
     try {
-      next = await generateApp(backendRoot);
+      next = await generateApp(backendRoot, { appBindingMode: 'development' });
     } catch (error) {
       const refined = refineGeneratedArtifactFailure(error, {
         binary: runtime.binary,
@@ -5885,8 +6285,10 @@ export async function runDev(options = {}) {
       publishApplicationReadyReceipt(applicationReadyFile, readyFile, readiness, {
         binding: issueDevBinding(bindingPublisher, generatedRoot, descriptor),
         clientOrigins,
+        admissionPosture,
         runtimeIdentity: applicationRuntimeIdentity,
       });
+      refreshDevEnvironmentFile(descriptor);
       const fromDeployment = predecessorReceipt?.application?.deployment ?? null;
       const toDeployment = readiness.target.deployment;
       if (
@@ -5918,6 +6320,9 @@ export async function runDev(options = {}) {
         state: 'generated-and-loaded',
         changed: filename,
         applicationReadyFile,
+        ...devBackendUrls(descriptor.serverUrl),
+        admissionPosture,
+        environmentFile,
         ...extra,
       });
     } catch (error) {
@@ -6411,7 +6816,10 @@ export async function runDev(options = {}) {
   return {
     ...result,
     get serverUrl() { return descriptor.serverUrl; },
+    get snapbackUrl() { return devBackendUrls(descriptor.serverUrl).snapbackUrl; },
+    get androidEmulatorUrl() { return devBackendUrls(descriptor.serverUrl).androidEmulatorUrl; },
     get portPlan() { return backendPortPlan; },
+    get environmentFile() { return environmentFile; },
     get child() { return child; },
     verbs: {
       status: statusVerb,
@@ -6539,6 +6947,18 @@ function takeFlag(args, name, fallback = null) {
   return value;
 }
 
+function takeOptionalValueFlag(args, name, defaultValue) {
+  const index = args.indexOf(name);
+  if (index === -1) return null;
+  const candidate = args[index + 1];
+  if (candidate === undefined || candidate.startsWith('--')) {
+    args.splice(index, 1);
+    return defaultValue;
+  }
+  args.splice(index, 2);
+  return candidate;
+}
+
 function takeBooleanFlag(args, name) {
   const index = args.indexOf(name);
   if (index === -1) return false;
@@ -6604,6 +7024,29 @@ function printResult(result, json) {
   }
   else if (result.ok !== false) console.log(`${result.schemaVersion}: ok`);
   else console.error(JSON.stringify(result, null, 2));
+}
+
+function printDevEvent(event, { json, plainProfile }) {
+  console.log(JSON.stringify(event));
+  const urls = typeof event?.snapbackUrl === 'string'
+    ? event
+    : typeof event?.backend?.snapbackUrl === 'string'
+      ? event.backend
+      : null;
+  if (!json && urls !== null) {
+    console.log(`SNAPBACK_URL=${urls.snapbackUrl}`);
+    console.log(`Android emulator URL: ${urls.androidEmulatorUrl}`);
+    if (plainProfile) {
+      console.log('Mint an explicit ordinary session: snapback auth dev-session [--email <address>]');
+    }
+  }
+  const environmentFile = event?.environmentFile ?? event?.backend?.environmentFile ?? null;
+  if (environmentFile?.state === 'rewritten') {
+    console.error(`Snapback URL changed in ${environmentFile.path}; restart the bundler to read the rewritten environment.`);
+  }
+  if (environmentFile?.gitignored === false) {
+    console.error(`Warning: ${environmentFile.path} is not gitignored; add an ignore rule before committing local URL state.`);
+  }
 }
 
 function declarationSuggestionCliFailure(message, details = {}) {
@@ -6687,6 +7130,18 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     ]),
   },
   {
+    name: 'auth', usage: 'snapback auth dev-session [--ready-file <path>] [--email <address>] [--json]',
+    description: 'Mint one explicit ordinary development session from an existing managed ready target; other auth subcommands delegate to the native CLI.',
+    lifecycle: 'one-shot',
+    output: 'snapback.dev-session.v1 on stdout only',
+    exits: '0 session minted; 1 missing/stale target, managed-artifact refusal, or existing mint-mode refusal',
+    recovery: 'Start snapback dev for this project, select its ready file when non-conventional, and repair the preserved mint diagnostic.',
+    details: Object.freeze([
+      'The default ready target is ./.snapback/dev.ready.json; --ready-file takes precedence.',
+      'The bearer is never written to .env.local or any other credential file by this command.',
+    ]),
+  },
+  {
     name: 'doctor', usage: 'snapback doctor [--json]', description: 'Diagnose the packaged runtime and local prerequisites.', lifecycle: 'one-shot/read-only',
     output: 'snapback.doctor.v1', exits: '0 healthy; 1 one or more checks failed', recovery: 'Follow the diagnostic recovery record; runtime failures normally name bootstrap or receipt repair.',
   },
@@ -6696,7 +7151,7 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     output: `${VERIFY_RECEIPT_SCHEMA_VERSION} receipt`, exits: '0 all required stages pass (including machine-distinct passed-without-acceptance); 1 failed/refused stage', recovery: 'Use the failed stage diagnostics and rerun against the same declared app identity.',
   },
   {
-    name: 'dev', usage: 'snapback dev [<backend-dir>] [--attach] [--no-watch] [--port <port>] [--client-port <port>] [--bootstrap-port <port>] [--port-range <lo>-<hi>] [--external-client-origin <origin>] [--ready-file <path>] [--application-ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] [--expo] [--expo-dir <dir>] [--expo-platform ios|android|web] [--email <address>] [--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] [--native-checkout --expo-app-scheme <scheme> <--ios-bundle-identifier <id>|--android-component <component>>] [--json]',
+    name: 'dev', usage: 'snapback dev [<backend-dir>] [--attach] [--no-watch] [--port <port>] [--client-port <port>] [--bootstrap-port <port>] [--port-range <lo>-<hi>] [--external-client-origin <origin>] [--ready-file <path>] [--application-ready-file <path>] [--db <path>] [--write-env [path]] [--client <dir>] [--client-command <cmd>] [--expo] [--expo-dir <dir>] [--expo-platform ios|android|web] [--email <address>] [--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] [--native-checkout --expo-app-scheme <scheme> <--ios-bundle-identifier <id>|--android-component <component>>] [--json]',
     description: 'Generate, start or attach, load, watch, and optionally supervise a web or Expo client surface.', lifecycle: 'long-running unless --no-watch (Expo supervision is always long-running)',
     output: 'snapback.dev.v1 JSON-line events; snapback.dev-command.v1 JSON lines are accepted on non-TTY stdin while it remains open', exits: '0 requested signal/TTY quit or successful --no-watch; 1 startup/watch/server failure',
     recovery: 'Act on the event diagnostic. Non-TTY stdin EOF only closes the optional control channel; use SIGINT/SIGTERM to stop the dev loop.',
@@ -6710,6 +7165,7 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
       'Every owned listener uses the stable 4287-4387 range by default; use --port/--client-port/--bootstrap-port for strict pins or --port-range for a constrained lane.',
       'Native dev-identity checkout is default-off and requires the application development client\'s own bundle/component and URL scheme; Expo Go is refused.',
       '--expo owns the bootstrap environment; --client-command is a generic child and does not install the supervised Expo bootstrap.',
+      '--write-env defaults to ./.env.local, owns one marked non-secret URL block, and warns when the target is not gitignored.',
     ]),
   },
   {
@@ -6852,6 +7308,12 @@ export const PACKAGED_CLI_SUBCOMMANDS = Object.freeze([
     ],
   ),
   nestedCliHelp(
+    ['auth', 'dev-session'],
+    'snapback auth dev-session [--ready-file <path>] [--email <address>] [--json]',
+    'Mint an ordinary session from the existing managed development target and print it to stdout without creating another disk credential.',
+    ['--email defaults to snapback-dev@localhost.invalid.'],
+  ),
+  nestedCliHelp(
     ['author', 'suggest'],
     'snapback author suggest <operation-or-file> <--format patch|--json>',
     'Read a stable backend snapshot and derive result plus receipt-witnessed addition-only dependency DeclarationSuggestionV1 records without editing source.',
@@ -6922,12 +7384,7 @@ const PACKAGED_CLI_HELP_BY_NAME = new Map([
 ]);
 
 function resolvePackagedHelpName(command, args = []) {
-  // `snapback auth` is native; only three of its verbs are package-owned. Help
-  // therefore resolves per verb, so asking for a native verb's help still
-  // reaches the native binary instead of the packaged group's.
-  const packagedRoot = PACKAGED_CLI_COMMAND_BY_NAME.has(command)
-    || PACKAGED_CLI_SUBCOMMANDS.some((entry) => entry.path[0] === command);
-  if (!packagedRoot) return command;
+  if (!PACKAGED_CLI_COMMAND_BY_NAME.has(command)) return null;
   let match = command;
   for (const entry of PACKAGED_CLI_SUBCOMMANDS) {
     if (entry.path[0] !== command || entry.path.length === 1) continue;
@@ -6936,13 +7393,15 @@ function resolvePackagedHelpName(command, args = []) {
       match = entry.name;
     }
   }
-  return match;
+  // `auth` is a delegated native command family with one package-owned leaf.
+  // Intercept only that exact leaf; parent and sibling help stay clap-owned.
+  return command === 'auth' && match === 'auth' ? null : match;
 }
 
-function nativeHelp(options, command = null) {
+function nativeHelp(options, commandPath = null) {
   try {
     const runtime = resolveRuntimeBinary(options);
-    const result = spawnSync(runtime.binary, command === null ? ['--help'] : [command, '--help'], {
+    const result = spawnSync(runtime.binary, commandPath === null ? ['--help'] : [...commandPath, '--help'], {
       encoding: 'utf8',
       env: runtimeSpawnEnvironment(runtime.binary, options.env),
     });
@@ -6978,7 +7437,7 @@ function nativeCommandInventory(options) {
   }
 }
 
-function printCliHelp(command, { json, options }) {
+function printCliHelp(command, { json, options, nativeCommandPath = null }) {
   if (command !== null && PACKAGED_CLI_HELP_BY_NAME.has(command)) {
     const entry = PACKAGED_CLI_HELP_BY_NAME.get(command);
     const scope = entry.path ? 'subcommand' : 'command';
@@ -7000,8 +7459,8 @@ function printCliHelp(command, { json, options }) {
     return 0;
   }
 
-  if (command !== null) {
-    const native = nativeHelp(options, command);
+  if (nativeCommandPath !== null) {
+    const native = nativeHelp(options, nativeCommandPath);
     if (native.text) console.log(native.text);
     // A natively owned command can still have package-owned verbs (`snapback
     // auth enable|configure|status`). Native help cannot know about them, so
@@ -7060,21 +7519,59 @@ export async function runCli(argv, options = {}) {
   }
   const helpIndex = args.findIndex((argument) => argument === '--help' || argument === '-h');
   if (command === '--help' || command === '-h' || command === 'help' || helpIndex !== -1) {
-    const target = command === '--help' || command === '-h'
-      ? null
-      : command === 'help'
-        ? (() => {
-            const targetIndex = args.findIndex((argument) => !argument.startsWith('-'));
-            if (targetIndex === -1) return null;
-            return resolvePackagedHelpName(args[targetIndex], args.slice(targetIndex + 1));
-          })()
-        : resolvePackagedHelpName(command, args.slice(0, helpIndex));
-    return printCliHelp(target, { json: args.includes('--json'), options });
+    let target = null;
+    let nativeCommandPath = null;
+    if (command === 'help') {
+      const targetIndex = args.findIndex((argument) => !argument.startsWith('-'));
+      if (targetIndex !== -1) {
+        const requestedCommand = args[targetIndex];
+        const requestedArgs = args.slice(targetIndex + 1).filter((argument) => argument !== '--json');
+        target = resolvePackagedHelpName(requestedCommand, requestedArgs);
+        if (target === null) nativeCommandPath = [requestedCommand, ...requestedArgs];
+      }
+    } else if (command !== '--help' && command !== '-h') {
+      const requestedArgs = args.slice(0, helpIndex).filter((argument) => argument !== '--json');
+      target = resolvePackagedHelpName(command, requestedArgs);
+      if (target === null) nativeCommandPath = [command, ...requestedArgs];
+    }
+    return printCliHelp(target, {
+      json: args.includes('--json'),
+      options,
+      nativeCommandPath,
+    });
   }
   const json = args.includes('--json');
   if (json) args.splice(args.indexOf('--json'), 1);
   const auditActorId = takeFlag(args, '--audit-actor');
   if (auditActorId !== null) options = { ...options, auditActorId };
+  if (command === 'auth' && args[0] === 'dev-session') {
+    args.shift();
+    const readyFile = takeFlag(args, '--ready-file');
+    const email = takeFlag(args, '--email', DEFAULT_DEV_SESSION_EMAIL);
+    if (args.length > 0) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        'usage: snapback auth dev-session [--ready-file <path>] [--email <address>] [--json]',
+        { args },
+      );
+    }
+    const mint = typeof options.mintDevSession === 'function'
+      ? options.mintDevSession
+      : mintDevSession;
+    const result = await mint({
+      ...(readyFile === null ? {} : { readyFile }),
+      email,
+      cwd: resolve(options.cwd ?? process.cwd()),
+      env: options.env ?? process.env,
+      runtimeBinary: options.runtimeBinary ?? null,
+    });
+    if (json) console.log(JSON.stringify(result, null, 2));
+    else {
+      console.log(`bearer=${result.bearer}`);
+      console.log(`expiresAt=${result.expiresAt}`);
+    }
+    return 0;
+  }
   if (command === 'author') {
     const subcommand = args.shift();
     if (subcommand === 'suggest') {
@@ -7538,7 +8035,11 @@ export async function runCli(argv, options = {}) {
         'usage: snapback generate [<backend-dir>] [--target-profile <id>] [--check] [--json]',
       );
     }
-    const result = await generateApp(backendDirectory, { targetProfile, check });
+    const result = await generateApp(backendDirectory, {
+      targetProfile,
+      appBindingMode: 'development',
+      check,
+    });
     printResult(result, json);
     return result.ok ? 0 : 1;
   }
@@ -8148,6 +8649,7 @@ export async function runCli(argv, options = {}) {
     const readyFile = takeFlag(args, '--ready-file');
     const applicationReadyFile = takeFlag(args, '--application-ready-file');
     const database = takeFlag(args, '--db');
+    const writeEnvFile = takeOptionalValueFlag(args, '--write-env', '.env.local');
     const port = takeFlag(args, '--port');
     const clientPort = takeFlag(args, '--client-port');
     const bootstrapPort = takeFlag(args, '--bootstrap-port');
@@ -8174,6 +8676,7 @@ export async function runCli(argv, options = {}) {
         'SNAPBACK_CLI_ARGUMENT_INVALID',
         `unknown dev option ${args[0]}; usage: snapback dev [<backend-dir>] [--attach] [--no-watch] `
           + '[--ready-file <path>] [--application-ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] '
+          + '[--write-env [path]] '
           + '[--port <port>] [--client-port <port>] [--bootstrap-port <port>] [--port-range <lo>-<hi>] [--external-client-origin <origin>] '
           + '[--expo] [--expo-dir <dir>] [--expo-platform ios|android|web] [--email <address>] '
           + '[--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] '
@@ -8376,6 +8879,7 @@ export async function runCli(argv, options = {}) {
           ...(readyFile ? { readyFile } : {}),
           ...(applicationReadyFile ? { applicationReadyFile } : {}),
           ...(database ? { database } : {}),
+          ...(writeEnvFile === null ? {} : { writeEnvFile }),
           ...(expoDirectory ? { expoDirectory } : {}),
           ...(expoEmail ? { email: expoEmail } : {}),
           ...(expoCommand ? { metroCommand: expoCommand } : {}),
@@ -8388,7 +8892,7 @@ export async function runCli(argv, options = {}) {
           platform: expoSelectedPlatform,
           signal: interrupt.signal,
           onEvent(event) {
-            console.log(JSON.stringify(event));
+            printDevEvent(event, { json, plainProfile: false });
             options.onEvent?.(event);
           },
           onCriticalExit(error) {
@@ -8437,6 +8941,7 @@ export async function runCli(argv, options = {}) {
       ...(readyFile ? { readyFile } : {}),
       ...(applicationReadyFile ? { applicationReadyFile } : {}),
       ...(database ? { database } : {}),
+      ...(writeEnvFile === null ? {} : { writeEnvFile }),
       ...(port === null ? {} : { port }),
       ...(portRange === null ? {} : { portRange }),
       portPlan,
@@ -8449,13 +8954,16 @@ export async function runCli(argv, options = {}) {
           },
         }
         : {}),
-      onEvent(event) { console.log(JSON.stringify(event)); },
       onServerExit(code, signal) { onUnexpectedServerExit?.(code, signal); },
       ...options,
       // The CLI-resolved plan has already applied flag > environment >
       // default precedence. Do not let an embedding option replace it after
       // argument validation.
       portPlan,
+      onEvent(event) {
+        printDevEvent(event, { json, plainProfile: true });
+        options.onEvent?.(event);
+      },
     });
     // A failed dev result must reach the terminal through the same
     // printResult path every other command uses — `snapback dev` used to
@@ -8610,19 +9118,29 @@ export async function runCli(argv, options = {}) {
   const delegatedArgs = command === undefined
     ? []
     : [command, ...args, ...(command === 'guide' && json ? ['--json'] : [])];
+  const delegatedEnvironment = runtimeSpawnEnvironment(runtime.binary, options.env);
+  if (command === 'start') {
+    // @ref LLP 0301#2-origin-admission--the-path-split-implemented — direct
+    // native start must not inherit lifecycle posture.
+    delete delegatedEnvironment.SNAPBACK_DEV_ADMISSION_POSTURE;
+  }
   const result = spawnSync(runtime.binary, delegatedArgs, {
     stdio: 'inherit',
-    env: runtimeSpawnEnvironment(runtime.binary, options.env),
+    env: delegatedEnvironment,
   });
   if (result.error) throw result.error;
   return result.status ?? 1;
 }
 
 export const __test = {
+  assertDevAdmissionContractMatches,
+  canonicalDevClientOrigin,
+  devBackendUrls,
   devIdentityClientEnvironment,
   expectedActivationTargetFromActivation,
   loadGenerated,
   portFromUrl,
+  readLegacyApplicationReadyReceipt,
   readReadyDescriptor,
   refineGeneratedArtifactFailure,
   removeManagedDatabaseState,
@@ -8632,4 +9150,5 @@ export const __test = {
   sourceCheckoutRoot,
   runtimeSpawnEnvironment,
   scrubDynamicLoaderEnvironment,
+  withExternalClientOrigins,
 };

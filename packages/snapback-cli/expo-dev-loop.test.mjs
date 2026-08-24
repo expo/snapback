@@ -957,6 +957,8 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   const settledReadyEvent = events.find((event) => event.state === 'ready');
   assert.equal(settledReadyEvent?.connectCarrier, 'supervisor-rendezvous');
   assert.equal(settledReadyEvent?.platform, 'web');
+  assert.equal(settledReadyEvent?.snapbackUrl, supervisor.snapbackUrl);
+  assert.equal(settledReadyEvent?.androidEmulatorUrl, supervisor.androidEmulatorUrl);
   const supervisorDescriptor = join(dirname(settled.readyFile), 'expo-supervisor.json');
   assert.equal(existsSync(supervisorDescriptor), true);
   assert.equal(statSync(supervisorDescriptor).mode & 0o777, 0o600);
@@ -970,6 +972,7 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   assert.equal(typeof supervisorDiscovery.metro.startTime, 'string');
   assert.equal(supervisorDiscovery.metro.origin, supervisor.metroOrigin);
   assert.equal(supervisor.applicationReady.formatVersion, 'snapback.application-ready.v1');
+  assert.equal(supervisor.applicationReady.admissionPosture, 'explicit-list');
   assert.deepEqual(supervisorDiscovery.applicationReady, supervisor.applicationReady);
   const metroClientOrigins = expoBackendClientOrigins(
     Number(new URL(supervisor.metroOrigin).port),

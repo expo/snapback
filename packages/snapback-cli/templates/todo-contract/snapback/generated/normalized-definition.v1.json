@@ -24,12 +24,43 @@
       "schema": {
         "api": null,
         "assets": null,
-        "auth": null,
-        "authProgram": null,
+        "auth": {
+          "mode": "sessions",
+          "passwordIdentifierMode": "email-v1"
+        },
+        "authProgram": {
+          "assuranceRequirements": {},
+          "custody": "durable-required",
+          "guestPolicy": {
+            "claiming": [],
+            "enabled": false
+          },
+          "mechanisms": {
+            "password": {
+              "identifier": "email",
+              "kind": "password",
+              "provider": "builtIn",
+              "recovery": "recoveryCodes"
+            }
+          },
+          "recoveryPolicy": {
+            "lastAuthenticator": "enforce",
+            "recoveryCodes": {
+              "enabled": true,
+              "plaintextCustody": "one-time-response",
+              "requiredWhen": "no-independent-recovery",
+              "rotateAfterUse": true
+            }
+          },
+          "secretReferences": {},
+          "version": 1
+        },
         "ephemeralCollections": [],
         "portabilityFlags": [],
         "pushSeam": null,
-        "requiredCapabilities": [],
+        "requiredCapabilities": [
+          "auth.sessions.v1"
+        ],
         "strictDeclarations": false,
         "tables": [
           {
@@ -66,7 +97,7 @@
             }
           }
         ],
-        "version": "snapback.v0"
+        "version": "snapback.v1"
       }
     },
     "operations": [
@@ -347,7 +378,7 @@
     "authoringProfile",
     "appId"
   ],
-  "normalizedContractId": "sha256:922af6755f2c2b4a538f7501c06561041a88137d7c7b4c89328fcce9fd4211a1",
-  "normalizedSchemaId": "sha256:e524d12da26ff3bdf1666b4e979d8d2720eaa0be9cf378b05c63c2de57174245",
+  "normalizedContractId": "sha256:eca34c1233f6eeb587021030368a1625fab5dde3de5f962b02c5fd3b615589f4",
+  "normalizedSchemaId": "sha256:56089dccaed56e833631f9106f8fea4ba1c2b3fa791c24d75f9bf21d908f7d1a",
   "schemaVersion": "snapback.normalized-application-definition.v1"
 }

@@ -2,10 +2,23 @@ import type {
   AuthBootstrapSnapshot,
   SnapbackAppBindingV1,
   SnapbackAppClient,
+  SnapbackAppClientDebugEvent,
   SnapbackAppClientPlatform,
   SnapbackApplicationDescriptorV1,
   SnapbackSha256DigestAdapter,
 } from './app-client.mjs';
+import type {
+  DeclaredDevCapability,
+  SnapbackDeploymentIdentity,
+} from './internal/declared-dev-mint.mjs';
+
+export function canonicalDeclaredDevOrigin(value: unknown):
+  | Readonly<{ ok: true; origin: string }>
+  | Readonly<{ ok: false; rule: string }>;
+export function declaredDevCapabilityFromApp(app: unknown): DeclaredDevCapability | null;
+export function stampedDeclaredDevIdentity(capability: unknown): Readonly<SnapbackDeploymentIdentity> | null;
+export function normalizeDeploymentIdentity(value: unknown): Readonly<SnapbackDeploymentIdentity> | null;
+export function deploymentIdentitiesEqual(left: unknown, right: unknown): boolean;
 
 export function authStoragePartitionIdentityHash(
   appId: string,
@@ -20,12 +33,15 @@ export function classifyHostedDevelopmentHostname(
 export function createSnapbackAppClientWithBootstrapObserver(
   input: Readonly<{
     app: SnapbackApplicationDescriptorV1;
-    binding: SnapbackAppBindingV1;
+    binding?: SnapbackAppBindingV1;
+    url?: string;
+    streamless?: boolean;
     platform: SnapbackAppClientPlatform;
     storagePartition?: string;
     now?: () => number;
     signal?: AbortSignal;
     rqsStore?: unknown;
+    onDiagnostic?: (diagnostic: import('./index.mjs').SnapbackDiagnostic | SnapbackAppClientDebugEvent) => void;
   }>,
   observer: (snapshot: AuthBootstrapSnapshot) => void,
 ): Promise<SnapbackAppClient>;

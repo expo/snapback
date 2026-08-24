@@ -1,0 +1,144 @@
+{
+  "format": "clique-suite-receipt.v1",
+  "milestone": "m2",
+  "pass": true,
+  "startedAt": "2026-08-24T09:55:07.142Z",
+  "finishedAt": "2026-08-24T09:55:37.941Z",
+  "requiredAssertionIds": [
+    "m2-a01",
+    "m2-a02",
+    "m2-a03",
+    "m2-a06",
+    "m2-a08",
+    "m2-a09",
+    "m2-a10",
+    "m2-a11",
+    "m2-a12",
+    "m2-a13",
+    "m2-a15",
+    "m2-a16",
+    "m2-a17",
+    "m2-a18",
+    "m2-a20",
+    "m2-a21",
+    "m2-a22",
+    "m2-a23",
+    "m2-a24",
+    "m2-a25",
+    "m2-a26",
+    "m2-a27"
+  ],
+  "assertions": {
+    "m2-a01": {
+      "id": "m2-a01",
+      "pass": true,
+      "durationMs": 80.54820800000016
+    },
+    "m2-a02": {
+      "id": "m2-a02",
+      "pass": true,
+      "durationMs": 49.867583999999624
+    },
+    "m2-a03": {
+      "id": "m2-a03",
+      "pass": true,
+      "durationMs": 49.620999999999185
+    },
+    "m2-a06": {
+      "id": "m2-a06",
+      "pass": true,
+      "durationMs": 58.30737500000032
+    },
+    "m2-a08": {
+      "id": "m2-a08",
+      "pass": true,
+      "durationMs": 57.75170799999978
+    },
+    "m2-a09": {
+      "id": "m2-a09",
+      "pass": true,
+      "durationMs": 23.88524999999936
+    },
+    "m2-a10": {
+      "id": "m2-a10",
+      "pass": true,
+      "durationMs": 28.418125000000146
+    },
+    "m2-a11": {
+      "id": "m2-a11",
+      "pass": true,
+      "durationMs": 17.964625000000524
+    },
+    "m2-a12": {
+      "id": "m2-a12",
+      "pass": true,
+      "durationMs": 22.00458300000173
+    },
+    "m2-a13": {
+      "id": "m2-a13",
+      "pass": true,
+      "durationMs": 0.37162499999976717
+    },
+    "m2-a15": {
+      "id": "m2-a15",
+      "pass": true,
+      "durationMs": 104.66358300000138
+    },
+    "m2-a16": {
+      "id": "m2-a16",
+      "pass": true,
+      "durationMs": 49.06475000000137
+    },
+    "m2-a17": {
+      "id": "m2-a17",
+      "pass": true,
+      "durationMs": 53.68045799999891
+    },
+    "m2-a18": {
+      "id": "m2-a18",
+      "pass": true,
+      "durationMs": 101.70037500000035
+    },
+    "m2-a20": {
+      "id": "m2-a20",
+      "pass": true,
+      "durationMs": 21.163625000001048
+    },
+    "m2-a21": {
+      "id": "m2-a21",
+      "pass": true,
+      "durationMs": 47.248374999999214
+    },
+    "m2-a22": {
+      "id": "m2-a22",
+      "pass": true,
+      "durationMs": 0.0867919999982405
+    },
+    "m2-a23": {
+      "id": "m2-a23",
+      "pass": true,
+      "durationMs": 0.009916999999404652
+    },
+    "m2-a24": {
+      "id": "m2-a24",
+      "pass": true,
+      "durationMs": 52.58691700000054
+    },
+    "m2-a25": {
+      "id": "m2-a25",
+      "pass": true,
+      "durationMs": 24.500958000000537
+    },
+    "m2-a26": {
+      "id": "m2-a26",
+      "pass": true,
+      "durationMs": 79.46108399999866
+    },
+    "m2-a27": {
+      "id": "m2-a27",
+      "pass": true,
+      "durationMs": 16.8582920000008
+    }
+  },
+  "fatalError": null
+}

@@ -364,6 +364,11 @@ test('init adopts the packaged React scaffold shape with its Vite/provider seams
   assert.equal(result.appKind, 'packaged-react-scaffold');
   assert.equal(result.packageManager, 'pnpm');
   assert.deepEqual(result.install.command, ['pnpm', 'install']);
+  assert.deepEqual(result.next, [
+    'snapback generate snapback --json',
+    'snapback dev snapback --write-env',
+    'pnpm run dev',
+  ]);
   assert.equal(existsSync(join(root, 'snapback', 'functions.mjs')), true);
   assert.equal(existsSync(join(root, 'src', 'snapback-init-provider.tsx')), true);
   assert.equal(existsSync(join(root, 'src', 'snapback-dev.d.ts')), true);

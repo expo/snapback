@@ -6806,6 +6806,92 @@
       ],
       "type": "object"
     },
+    "GraphNodeDecisionStatsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "captureIncomplete": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "conservativeFallbacks": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "decisions": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "disposition": {
+          "$ref": "#/$defs/GraphNodeMatchDispositionV1"
+        },
+        "graphPlanHash": {
+          "type": "string"
+        },
+        "matches": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "nodeKind": {
+          "$ref": "#/$defs/GraphNodeKindV1"
+        },
+        "reason": {
+          "$ref": "#/$defs/GraphNodeMatchReasonV1"
+        },
+        "skips": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "graphPlanHash",
+        "nodeKind",
+        "disposition",
+        "reason",
+        "decisions",
+        "skips",
+        "matches",
+        "conservativeFallbacks",
+        "captureIncomplete"
+      ],
+      "type": "object"
+    },
+    "GraphNodeKindV1": {
+      "enum": [
+        "root-window",
+        "equality-to-one",
+        "bounded-to-many",
+        "exists-semi-join",
+        "principal-bound",
+        "search-membership",
+        "closed-projection"
+      ],
+      "type": "string"
+    },
+    "GraphNodeMatchDispositionV1": {
+      "enum": [
+        "skip",
+        "match",
+        "conservative-fallback"
+      ],
+      "type": "string"
+    },
+    "GraphNodeMatchReasonV1": {
+      "enum": [
+        "captured-disjoint",
+        "captured-intersects",
+        "capture-incomplete",
+        "static-table-intersects",
+        "search-table-write",
+        "search-capture-incomplete",
+        "projection-only"
+      ],
+      "type": "string"
+    },
     "GraphNodeV1": {
       "description": "The seven closed graph node kinds. Optional fields use omission on the\nwire; validation below enforces the kind-conditional grammar.\n\n@ref LLP 0209#2-the-graph-ir — G0 admits a finite closed data graph, never\ncallbacks or data-dependent construction.\n@ref LLP 0209#21-the-normalized-carrier — exact G0 node union and wire\nspellings.",
       "oneOf": [
@@ -8644,6 +8730,14 @@
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
+        },
+        "graphNodes": {
+          "default": [],
+          "description": "Value-free per-node graph matcher roll-up, grouped by the LLP 0209\n§5.2 identity. Empty while graph serving remains support-false.",
+          "items": {
+            "$ref": "#/$defs/GraphNodeDecisionStatsV1"
+          },
+          "type": "array"
         },
         "matchDelta": {
           "format": "uint64",

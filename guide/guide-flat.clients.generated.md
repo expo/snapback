@@ -3487,13 +3487,13 @@ id: clients.react-expo
 order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, llp/0299-supervised-listener-port-plan.spec.md, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/templates/expo-chat/App.tsx, packages/snapback-client/app-client.mjs, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider-auth-bootstrap.test.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-binding-cache.mjs, packages/snapback-expo/supervised-environment.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/tandem-expo-bakeoff/snapback/scripts/dev-backend.mjs, demos/tandem-expo-bakeoff/snapback/src/backend.tsx, demos/_kit/eas-stage-build.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, llp/0299-supervised-listener-port-plan.spec.md, llp/0300-snapback-is-a-url.rfc.md, llp/0301-url-first-dev-lifecycle.spec.md, llp/0302-declared-dev-client-binding.spec.md, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/templates/expo-chat/App.tsx, packages/snapback-client/app-client.mjs, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider-auth-bootstrap.test.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-binding-cache.mjs, packages/snapback-expo/supervised-environment.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/tandem-expo-bakeoff/snapback/scripts/dev-backend.mjs, demos/tandem-expo-bakeoff/snapback/src/backend.tsx, demos/_kit/eas-stage-build.mjs]
 examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md, demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md, demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md, demos/expo-golden-path-fixture/receipts/physical-device-online-checklist.md, demos/partiful-matrix/native/react-expo, packages/snapback-cli/expo-device-forwarding.test.mjs, packages/snapback-cli/expo-bootstrap-exchange.test.mjs, packages/snapback-cli/expo-dev-loop.test.mjs, packages/snapback-expo/asset-source.test.mjs, packages/snapback-expo/supervised-offline-fallback.test.mjs, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-expo/provider.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-react/cold-boot-binding.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/snapback/src/backend.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs, benchmarks/lanes/native-simulator.md]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:299115fe806bead910521204724986e78926c9c97645a649e2ff36500595f62d
+reviewed: 2026-08-24
+reviewed-authorities-digest: sha256:b5d93f72d1c45ebafe15d09274241dca2c4b3f349400f00e96c9a11ff04adb12
 ---
 
 # React Expo Online clients
@@ -3517,6 +3517,62 @@ store consequence, queue refusal, and reconnect honesty. In particular,
 optimistic mutations work unchanged: for a like/favorite button backed by a
 live feed, use [the optimistic toggle recipe](../recipes/optimistic-toggle.md)
 rather than component state plus a local counter delta.
+
+## Start the URL-first development loop
+
+The ordinary local loop has two caller-owned processes. Start the backend
+first so it can print and, in the shipped templates, write the URL:
+
+```sh
+# Terminal 1: backend; --write-env maintains one marked block in .env.local
+bun run dev
+```
+
+Then start the bundler yourself:
+
+```sh
+# Terminal 2: Expo/Metro or Vite
+bun run dev:client
+```
+
+The application reads exactly one bundler-native variable and passes it as
+the provider/client `url`: Expo/Metro uses
+`EXPO_PUBLIC_SNAPBACK_URL`, Vite uses `VITE_SNAPBACK_URL`, and a headless
+Node client uses `SNAPBACK_URL`. The library does not read the environment.
+The Expo template shows the complete app-owned handoff:
+
+```tsx source=packages/snapback-cli/templates/expo-chat/App.tsx
+    <SnapbackExpoProvider app={app} url={process.env.EXPO_PUBLIC_SNAPBACK_URL} fallback={(state: ExpoBootState) => <BootFallback state={state} />}>
+```
+
+Bundlers inline public environment values when they start. If the backend
+rewrites `.env.local` after Metro or Vite is already running, stop and restart
+the bundler; hot reload cannot see the new URL. The provider performs a
+credential-free identity discovery before signup, login, or any credentialed
+request, and repeats it for every new connection episode. If another app or
+backend generation has taken the same URL, it fails closed with
+`SNAPBACK_APP_BINDING_IDENTITY_MISMATCH`, names both identities, and sends no
+application credential to the replacement.
+
+For persistence-sensitive browser lanes, keep the browser origin stable too:
+pin Vite with `vite --port <port> --strictPort` or Metro with
+`expo start --port <port>`. A changed bundler port does not lose backend data,
+but browser-origin-scoped bearer storage and IndexedDB appear fresh and the
+user must sign in again.
+
+The URL printed for the host is not reachable as host loopback from an Android
+emulator. Copy the printed `androidEmulatorUrl` value manually — the managed
+`.env.local` block leaves its `10.0.2.2` spelling commented — set
+`EXPO_PUBLIC_SNAPBACK_URL` to it, and restart Metro. Do not uncomment that line
+inside the managed block. The supervised appendix below remains the optional
+one-command path when you want Snapback to own Metro, listener enumeration,
+and Android `adb reverse` setup.
+
+When migrating from the old supervised-only shape, remove leftover
+`SNAPBACK_DEV_CLIENT_PORT` and `SNAPBACK_DEV_BOOTSTRAP_PORT` variables before
+plain `bun run dev`. Those pins name absent supervisor-owned processes, so
+plain development deliberately refuses them with
+`SNAPBACK_CLI_ARGUMENT_INVALID`.
 
 <!-- since: 0.1.23 -->
 ## Add first-party application auth
@@ -3735,13 +3791,13 @@ operator surface, not part of the Expo bundle; the command derives a browser
 credential without exposing the master admin token. Check it before falling
 back to `curl`, raw host operations, or a one-off verification script.
 
-## Run the supervised Expo development loop
+## Appendix: Run the supervised Expo development loop
 
-If the backend origin or Metro process must instead be owned and pinned by an
-external harness, use the
-[fixed-origin attach recipe](../recipes/fixed-origin-development.md). Do not
-pass a raw origin as a `SnapbackExpoProvider` binding override or wrap an
-independently owned fixed listener in the supervised `--expo` loop.
+Use this optional path when Snapback should own Metro, its bootstrap exchange,
+listener enumeration, and Android `adb reverse` setup. If a harness owns the
+backend or client process instead, stay on the URL-first path above or use the
+[fixed-origin attach recipe](../recipes/fixed-origin-development.md); do not
+wrap an independently owned listener in the supervised `--expo` loop.
 
 <!-- since: 0.1.10 -->
 
@@ -3764,9 +3820,10 @@ independently owned fixed listener in the supervised `--expo` loop.
 > Do not patch `node_modules` or mix source and registry packages to hide a
 > boundary on an older closure.
 
-The north-star boot has three application-visible pieces: the config-plugin
-entry, the generated `app`, and `SnapbackExpoProvider`. There is no backend URL
-prop and no second application model ([LLP 0181 §Config plugin](repo:llp/0181-zero-configuration-expo.rfc.md#config-plugin),
+This supervised boot has three application-visible pieces: the config-plugin
+entry, the generated `app`, and `SnapbackExpoProvider`; the rendezvous wins
+over any configured URL, so the older no-URL composition remains valid here
+([LLP 0181 §Config plugin](repo:llp/0181-zero-configuration-expo.rfc.md#config-plugin),
 [LLP 0181 §Provider](repo:llp/0181-zero-configuration-expo.rfc.md#provider)).
 The working fixture's plugin entry is:
 
@@ -3809,6 +3866,13 @@ sessions mode and adopt a separate ordinary session for each test persona when
 the app needs product-shaped multi-persona behavior. The checkpoint-era
 `useSnapbackQuery({ provider, query, userId })` bridge in an older demo is a
 test-era workaround, not the packaged path.
+
+The supervised mint is one session for the supervised origin, so every browser
+context that adopts it becomes the same principal. A two-user browser proof
+must decline that ambient authority and use ordinary password signup/sign-in
+with separate custody per context. The canonical URL-first path avoids this
+footgun by minting nothing at startup; use `snapback auth dev-session` only as
+an explicit operator tool, never as a template-consumed app session.
 
 From an Expo app whose backend is the conventional `snapback/` child, select
 the supervised carrier explicitly (iOS remains the default when the platform

@@ -2,14 +2,63 @@
   "appId": "todo-contract",
   "artifactDiagnostics": [],
   "artifactKind": "schemaManifest",
-  "authoredSourceHash": "sha256:76a80fefe75ac9eb4a707327e1e7268c3182bfb7f9db888622f6f08a90cd73f3",
+  "auth": {
+    "mode": "sessions",
+    "passwordIdentifierMode": "email-v1"
+  },
+  "authProgram": {
+    "assuranceRequirements": {},
+    "custody": "durable-required",
+    "guestPolicy": {
+      "claiming": [],
+      "enabled": false
+    },
+    "mechanisms": {
+      "password": {
+        "identifier": "email",
+        "kind": "password",
+        "provider": "builtIn",
+        "recovery": "recoveryCodes"
+      }
+    },
+    "recoveryPolicy": {
+      "lastAuthenticator": "enforce",
+      "recoveryCodes": {
+        "enabled": true,
+        "plaintextCustody": "one-time-response",
+        "requiredWhen": "no-independent-recovery",
+        "rotateAfterUse": true
+      }
+    },
+    "secretReferences": {},
+    "version": 1
+  },
+  "authProgramReadiness": {
+    "assuranceRequirementsCompiled": true,
+    "catalogRequired": 3,
+    "claimsProjectionCompiled": true,
+    "declarationValid": true,
+    "deliveryChannels": {},
+    "noDeliveryCheck": {
+      "enforced": false,
+      "satisfied": true
+    },
+    "programVersion": 1,
+    "requiredAssuranceProducers": {},
+    "verifiedProvisioningCompiled": false,
+    "verifiedProvisioningDeclared": false
+  },
+  "authoredSourceHash": "sha256:d601f5e881895225d4f9063f2304517a303e064456f5fb93f95dacfdb562a502",
   "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "c94125ecab4b97e4e046429be49c4cdc15db7fb2d966141589b768a276bc03c8",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:1c71cd0873b7ebb21995d8ebe7ef1a0f6dcb5b2b4438a6c567cc459d7993e55b",
   "portabilityFlags": [],
-  "schemaHash": "sha256:6d8cb48010d8e2a8",
-  "schemaVersion": "snapback.v0",
+  "requiredCapabilities": [
+    "auth.sessions.v1"
+  ],
+  "schemaHash": "snapback.v1:sessions:schema:sha256:b5c850988f41b705e7154a094def4832f6532e4adab8879fb606451907801de4",
+  "schemaVersion": "snapback.v1",
   "tables": [
     {
       "fields": [

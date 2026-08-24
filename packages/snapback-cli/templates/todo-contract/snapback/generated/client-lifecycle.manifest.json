@@ -1,7 +1,7 @@
 {
   "appId": "todo-contract",
   "artifactKind": "clientLifecycleManifest",
-  "authoredSourceHash": "sha256:76a80fefe75ac9eb4a707327e1e7268c3182bfb7f9db888622f6f08a90cd73f3",
+  "authoredSourceHash": "sha256:d601f5e881895225d4f9063f2304517a303e064456f5fb93f95dacfdb562a502",
   "commands": [],
   "compatibilityAliases": [
     {
@@ -84,7 +84,7 @@
       ]
     }
   },
-  "inputsHash": "c94125ecab4b97e4e046429be49c4cdc15db7fb2d966141589b768a276bc03c8",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:1c71cd0873b7ebb21995d8ebe7ef1a0f6dcb5b2b4438a6c567cc459d7993e55b",
   "mutationSettlement": {
     "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
     "dispositions": [
@@ -316,7 +316,7 @@
       ]
     },
     "authBootstrapPolicy": {
-      "configured": false,
+      "configured": true,
       "fields": [
         {
           "derivation": "constant:APPLICATION_AUTH_BOOTSTRAP_FORMAT",
@@ -326,7 +326,7 @@
           },
           "field": "format",
           "semanticIdentityEffect": "included-constant",
-          "value": null
+          "value": "snapback.application-auth-bootstrap.v1"
         },
         {
           "derivation": "normalized-schema:appId",
@@ -336,7 +336,7 @@
           },
           "field": "appId",
           "semanticIdentityEffect": "rotates-semanticId",
-          "value": null
+          "value": "todo-contract"
         },
         {
           "derivation": "settled-schema-and-defineAuth:auth.mode",
@@ -346,7 +346,7 @@
           },
           "field": "mode",
           "semanticIdentityEffect": "rotates-semanticId",
-          "value": null
+          "value": "sessions"
         },
         {
           "derivation": "normalized-defineAuth:custody(default:durable-required)",
@@ -356,7 +356,7 @@
           },
           "field": "custody",
           "semanticIdentityEffect": "rotates-semanticId",
-          "value": null
+          "value": "durable-required"
         },
         {
           "derivation": "normalized-defineAuth:mechanisms+externalSessionEntry",
@@ -366,7 +366,9 @@
           },
           "field": "entryMechanisms",
           "semanticIdentityEffect": "rotates-semanticId",
-          "value": null
+          "value": [
+            "password-v1"
+          ]
         },
         {
           "derivation": "normalized-functions:authRequirement+normalized-schema:table.visibility",
@@ -376,7 +378,7 @@
           },
           "field": "anonymousPublic",
           "semanticIdentityEffect": "rotates-semanticId",
-          "value": null
+          "value": "allowed"
         },
         {
           "derivation": "constant:1",
@@ -386,7 +388,7 @@
           },
           "field": "lifecycleProtocol",
           "semanticIdentityEffect": "included-constant",
-          "value": null
+          "value": 1
         }
       ],
       "profiles": [
@@ -402,6 +404,16 @@
         }
       ],
       "sourceFields": [
+        {
+          "bootstrapProjection": [],
+          "disposition": "auth-abuse-policy-source",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared generated abuse-policy extension"
+          },
+          "field": "abuseBudgets",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
         {
           "bootstrapProjection": [],
           "disposition": "semantic-source-no-bootstrap-field",
@@ -901,7 +913,7 @@
           "runtimePlatformKind": "expo-native-phase-2-evidence-required"
         }
       ],
-      "selectedPolicy": null
+      "selectedPolicy": "durable-required"
     },
     "authEntryMechanisms": {
       "entries": [
@@ -918,7 +930,21 @@
               "facadeOwner": "SnapbackAppClient.auth",
               "operation": "enter",
               "predecessor": "settled-anonymous-or-process-local-supervised-adopted",
+              "recoveryProjection": "none",
               "resultType": "Promise<AuthCredentialPublicProjectionV1>"
+            },
+            {
+              "applicationFacadeMethod": "claimGuestWithPassword",
+              "clientMethod": "authClaimGuestWithPassword",
+              "clientNamespaceMethod": "authClaimGuestWithPassword",
+              "collisionContract": "different-principal-refuses-without-link-merge-or-switch",
+              "facadeMethod": "claimGuestWithPassword",
+              "facadeOwner": "SnapbackAppClient.auth",
+              "operation": "claim-password",
+              "predecessor": "settled-active-guest-same-session-and-authority",
+              "recoveryProjection": "one-time-response",
+              "resultType": "Promise<AuthRecoveryCredentialPublicProjectionV1>",
+              "targetCapability": "auth.guest-sessions"
             }
           ],
           "phase": "shipped",
@@ -926,7 +952,7 @@
           "targetCapability": "auth.guest-sessions"
         },
         {
-          "configured": false,
+          "configured": true,
           "familiarHook": "useAuth",
           "mechanism": "password-v1",
           "operations": [
@@ -1089,7 +1115,15 @@
           "targetCapability": "auth.passwords"
         }
       ],
-      "policy": null,
+      "policy": {
+        "lastAuthenticator": "enforce",
+        "recoveryCodes": {
+          "enabled": true,
+          "plaintextCustody": "one-time-response",
+          "requiredWhen": "no-independent-recovery",
+          "rotateAfterUse": true
+        }
+      },
       "sourceField": "recoveryPolicy"
     },
     "authSupervisedPrecedence": {

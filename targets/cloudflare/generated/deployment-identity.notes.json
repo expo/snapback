@@ -2,8 +2,8 @@
   "format": 2,
   "app": "notes",
   "schemaHash": "sha256:69e62b2d1c7709f4b029e9dddef962da436989f5f69e92b3916776a8f2b3c763",
-  "bundleHash": "sha256:e53987dd1eacea1c104dee6bfbf2de8bb2e25ea053c5a7de7c3bd5db15e8d0e9",
-  "inputsHash": "sha256:7480f754e0211ed6016f2ddc6071c8eb9094636b7b6a7632238367e87c1a6e24",
+  "bundleHash": "sha256:cae8724a1d41b17f0b06f89b7b960896e7d527a7c0e15788593ad2b67462a2ac",
+  "inputsHash": "sha256:e5e1fe2bc5f8f71532baad247e5e959647ee087de627d961f6c7f154d017fad5",
   "inputs": [
     "normalized:packages/snapback-harness/compat.json",
     "normalized:targets/cloudflare/wrangler.handler.jsonc",

@@ -105,6 +105,13 @@
       ],
       "type": "object"
     },
+    "DevAdmissionPostureV1": {
+      "enum": [
+        "loopback-any",
+        "explicit-list"
+      ],
+      "type": "string"
+    },
     "HostOpsArtifacts": {
       "additionalProperties": false,
       "properties": {
@@ -203,6 +210,17 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
+    "admissionPosture": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DevAdmissionPostureV1"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Additive reader-before-writer posture. A missing field is the legacy\nexact-list contract; lifecycle owners may project a declared posture\ninto their own comparator/receipt only when this fact carries one."
+    },
     "appId": {
       "type": [
         "string",
@@ -219,7 +237,7 @@
       "type": "string"
     },
     "clientOrigins": {
-      "description": "The normalized exact loopback origins admitted by the running server\nfor development auth. This is captured from the Rust consumer of\n`SNAPBACK_DEV_AUTH_ORIGINS`, not reconstructed by a receipt publisher.",
+      "description": "The normalized exact client origins declared to the running server for\ndevelopment admission. This is captured from the Rust consumer of\n`SNAPBACK_DEV_AUTH_ORIGINS`, not reconstructed by a receipt publisher.",
       "items": {
         "type": "string"
       },

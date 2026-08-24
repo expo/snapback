@@ -6,7 +6,8 @@ todo query, one mutation, and connection state, wired through
 
 ```sh
 bun install
-bun run dev     # supervised backend + Vite client
+bun run dev         # terminal 1: backend; writes .env.local
+bun run dev:client  # terminal 2: Vite client
 bun run prove   # the acceptance command (writes .snapback/verify-receipt.json)
 ```
 

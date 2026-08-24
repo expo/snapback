@@ -34,6 +34,7 @@ export type {
   ResolvedProviderEntryV1,
   SnapbackAppBindingV1,
   SnapbackAppClient,
+  SnapbackAppClientDebugEvent,
   SnapbackAppClientPlatform,
   SnapbackApplicationDescriptorV1,
   SnapbackAuthFacade,

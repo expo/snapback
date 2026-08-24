@@ -1,13 +1,19 @@
 # LLP 0302: declared-dev client binding — generated kind, discovery gate, provider contract
 
 **Type:** Spec
-**Status:** Accepted
+**Status:** Implemented
 **Systems:** Client integration, React/Expo, Vite/Exact clients, Headless
 client, Code generation, Templates, Guide, Diagnostics
 **Author:** Claude (Fable 5), commissioned by Charlie Cheever (standing
 overnight directive 2026-08-24: RFC → refine → Specs → refine →
 implementation)
 **Date:** 2026-08-24
+**Revised:** 2026-08-24 (g — Accepted → Implemented. The declared-dev
+generated kind, source precedence, standing identity gate, provider contract,
+and §8a stream-less per-operation preflight documentation/battery landed in
+`9653d21d2`; server support landed in `05dfbba22`, template consumers in
+`158744901`, and packet reconciliation in `aa2de2d85`; Lane D closes the
+documentary and generated chain.)
 **Revised:** 2026-08-24 (f — Review → Accepted; the refine loop never
 applies acceptance — this transition is applied by the orchestrator under
 the author's standing overnight directive of 2026-08-24, after the
@@ -33,7 +39,7 @@ cache-bypass; Origin-less headless rule; canonicalization deferred to the
 LLP 0301 §2b shared algorithm and vectors)
 **Revised:** 2026-08-24 (b — Draft → Review at loop start)
 **Revised:** 2026-08-24 (a — initial draft)
-**Related:** LLP 0300 (Accepted — the governing RFC), LLP 0301 (the
+**Related:** LLP 0300 (Implemented — the governing RFC), LLP 0301 (the
 server/CLI sibling; owns the identity fact and the shared canonicalization
 this Spec consumes), LLP 0299, LLP 0181
 
@@ -177,7 +183,8 @@ either direction.
 Designed in LLP 0301 §9; **not required for these Specs to go READY and
 excluded from this implementation set** — the client-side hook (optional
 fingerprint argument; refusal of unsigned facts when configured) is part
-of that future work, tracked by the issue LLP 0301 §9 names.
+of that future work, tracked by
+`issues/20260824-signed-discovery-future-spec.md`.
 
 ## 7. Diagnostics
 
@@ -223,6 +230,12 @@ by new Spec prose)
   concurrent operations) in the implementation's client documentation, and
   ship an executable per-operation preflight battery exercising §3's
   stream-less mode. (Punch-list round 3, both families.)
+
+**Satisfied in `9653d21d2`; no follow-up ticket filed.**
+`packages/snapback-client/README.md` defines the operation episode and
+concurrent-operation boundary; `packages/snapback-client/declared-dev-episode.test.mjs`
+executes the per-operation preflight battery, including HTTP-only backend
+replacement and concurrent sibling operations.
 
 ## 9. Out of scope
 

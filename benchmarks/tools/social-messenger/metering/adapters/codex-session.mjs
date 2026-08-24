@@ -1,4 +1,5 @@
 import {
+  nullTokenCounts,
   subtractTokenCounts,
   tokenCountsEqual,
   zeroTokenCounts,
@@ -53,6 +54,36 @@ function normalizeCodexCumulative(usage, label) {
   };
 }
 
+function normalizeCodexLast(usage, label) {
+  const aggregateTotal = requiredCount(usage?.total_tokens, `${label}.total_tokens`);
+  try {
+    return {
+      version: "codex-last-token-usage.v1",
+      counts: normalizeCodexCumulative(usage, label),
+      aggregateTotal,
+    };
+  } catch (error) {
+    const aggregateOnly = aggregateTotal > 0
+      && [
+        "input_tokens",
+        "cached_input_tokens",
+        "cache_write_input_tokens",
+        "output_tokens",
+        "reasoning_output_tokens",
+      ].every((field) => usage?.[field] === 0);
+    if (!aggregateOnly) throw error;
+    return {
+      version: "codex-last-token-usage.aggregate-only.v1",
+      counts: nullTokenCounts(),
+      aggregateTotal,
+    };
+  }
+}
+
+function rawTokenTotal(counts) {
+  return counts.input + counts.output + counts.cacheRead + counts.cacheWrite;
+}
+
 function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
   const cumulativeRecords = [];
   for (const [index, record] of records.entries()) {
@@ -75,7 +106,7 @@ function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
       ),
       last: info.last_token_usage === undefined
         ? null
-        : normalizeCodexCumulative(
+        : normalizeCodexLast(
           info.last_token_usage,
           `Codex token_count record ${index + 1}.last_token_usage`,
         ),
@@ -86,18 +117,34 @@ function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
   let previous = zeroTokenCounts();
   const turns = [];
   for (const entry of cumulativeRecords) {
-    if (tokenCountsEqual(entry.cumulative, previous)) continue;
     const usage = subtractTokenCounts(entry.cumulative, previous);
+    const cumulativeChanged = !tokenCountsEqual(entry.cumulative, previous);
+    if (
+      !cumulativeChanged
+      && entry.last?.version !== "codex-last-token-usage.aggregate-only.v1"
+    ) {
+      continue;
+    }
     if (entry.last === null) {
       throw new Error(
         `Codex token_count record ${entry.recordIndex} changed cumulative usage without last_token_usage`,
       );
     }
-    if (!tokenCountsEqual(usage, entry.last)) {
+    const cumulativeDeltaTotal = rawTokenTotal(usage);
+    if (cumulativeDeltaTotal !== entry.last.aggregateTotal) {
+      throw new RangeError(
+        `Codex token_count record ${entry.recordIndex} cumulative delta does not equal last_token_usage.total_tokens; received ${cumulativeDeltaTotal} and ${entry.last.aggregateTotal}`,
+      );
+    }
+    if (
+      entry.last.version === "codex-last-token-usage.v1"
+      && !tokenCountsEqual(usage, entry.last.counts)
+    ) {
       throw new RangeError(
         `Codex token_count record ${entry.recordIndex} cumulative delta does not equal last_token_usage`,
       );
     }
+    if (!cumulativeChanged) continue;
     const cumulativeIdentity = [
       entry.cumulative.input,
       entry.cumulative.output,

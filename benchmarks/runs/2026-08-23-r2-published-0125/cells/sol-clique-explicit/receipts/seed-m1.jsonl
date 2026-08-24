@@ -1,0 +1,16 @@
+{"milestone":"m1","index":1,"timestamp":"2026-01-01T00:00:00Z","actor":"alice","verb":"register","status":"settled","auth":"signin-existing"}
+{"milestone":"m1","index":2,"timestamp":"2026-01-01T00:00:01Z","actor":"alice","verb":"profile-set","status":"settled"}
+{"milestone":"m1","index":3,"timestamp":"2026-01-01T00:00:02Z","actor":"bob","verb":"register","status":"settled","auth":"signin-existing"}
+{"milestone":"m1","index":4,"timestamp":"2026-01-01T00:00:03Z","actor":"bob","verb":"profile-set","status":"settled"}
+{"milestone":"m1","index":5,"timestamp":"2026-01-01T00:00:04Z","actor":"carol","verb":"register","status":"settled","auth":"signin-existing"}
+{"milestone":"m1","index":6,"timestamp":"2026-01-01T00:00:05Z","actor":"carol","verb":"profile-set","status":"settled"}
+{"milestone":"m1","index":7,"timestamp":"2026-01-01T00:00:06Z","actor":"dave","verb":"register","status":"settled","auth":"signin-existing"}
+{"milestone":"m1","index":8,"timestamp":"2026-01-01T00:00:07Z","actor":"dave","verb":"profile-set","status":"settled"}
+{"milestone":"m1","index":9,"timestamp":"2026-01-01T00:00:08Z","actor":"erin","verb":"register","status":"settled","auth":"signin-existing"}
+{"milestone":"m1","index":10,"timestamp":"2026-01-01T00:00:09Z","actor":"erin","verb":"profile-set","status":"settled"}
+{"milestone":"m1","index":11,"timestamp":"2026-01-01T00:00:10Z","actor":"frank","verb":"register","status":"settled","auth":"signin-existing"}
+{"milestone":"m1","index":12,"timestamp":"2026-01-01T00:00:11Z","actor":"frank","verb":"profile-set","status":"settled"}
+{"milestone":"m1","index":13,"timestamp":"2026-01-01T00:00:12Z","actor":"grace","verb":"register","status":"settled","auth":"signin-existing"}
+{"milestone":"m1","index":14,"timestamp":"2026-01-01T00:00:13Z","actor":"grace","verb":"profile-set","status":"settled"}
+{"milestone":"m1","index":15,"timestamp":"2026-01-01T00:00:14Z","actor":"henry","verb":"register","status":"settled","auth":"signin-existing"}
+{"milestone":"m1","index":16,"timestamp":"2026-01-01T00:00:15Z","actor":"henry","verb":"profile-set","status":"settled"}

@@ -1,0 +1,1326 @@
+{
+  "schemaVersion": 1,
+  "lane": "snapback",
+  "laneVariant": "skill",
+  "brief": "social-messenger",
+  "harness": {
+    "name": "codex-sol 0.149.0",
+    "model": "gpt-5.6-sol",
+    "effort": "xhigh",
+    "environment": {
+      "node": "v24.18.0",
+      "snapback": "0.1.25",
+      "instrument": "social-messenger@0.3.3-m8",
+      "harnessVersionFlag": "same-harness-version-change-accepted:0.147.0->0.149.0"
+    }
+  },
+  "timestamps": {
+    "startedAt": "2026-08-24T09:05:53.827Z",
+    "finishedAt": "2026-08-24T10:10:23.198Z"
+  },
+  "firstGreenProofAt": "2026-08-24T09:54:53.931Z",
+  "wallClock": {
+    "totalSeconds": 3869.371,
+    "phases": {
+      "orientation": 0,
+      "authoring": 3869.371,
+      "verification": 0,
+      "diagnosis": 0
+    }
+  },
+  "tokens": {
+    "input": null,
+    "output": null,
+    "source": null,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null
+    }
+  },
+  "toolUses": null,
+  "correctionLoops": [
+    {
+      "attribution": "ambiguous",
+      "summary": "Native source-inspection action failed and recovered on retry",
+      "evidence": "events/harness.stdout.jsonl"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "Native process action failed and recovered on retry",
+      "evidence": "events/harness.stdout.jsonl"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "Native process action failed and recovered on retry",
+      "evidence": "events/harness.stdout.jsonl"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "Native process action failed and recovered on retry",
+      "evidence": "events/harness.stdout.jsonl"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "Native generate action failed and recovered on retry",
+      "evidence": "events/harness.stdout.jsonl"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "Native process action failed and recovered on retry",
+      "evidence": "events/harness.stdout.jsonl"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "Native source-inspection action failed and recovered on retry",
+      "evidence": "events/harness.stdout.jsonl"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "Native suite action failed and recovered on retry",
+      "evidence": "events/harness.stdout.jsonl"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "Native suite action failed and recovered on retry",
+      "evidence": "events/harness.stdout.jsonl"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "Native process action failed and recovered on retry",
+      "evidence": "events/harness.stdout.jsonl"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "Native process action failed and recovered on retry",
+      "evidence": "events/harness.stdout.jsonl"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "Native process action failed and recovered on retry",
+      "evidence": "events/harness.stdout.jsonl"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "Native choreography action failed and recovered on retry",
+      "evidence": "events/harness.stdout.jsonl"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "Native choreography action failed and recovered on retry",
+      "evidence": "events/harness.stdout.jsonl"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "Native process action failed and recovered on retry",
+      "evidence": "events/harness.stdout.jsonl"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "Native choreography action failed and recovered on retry",
+      "evidence": "events/harness.stdout.jsonl"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "Native suite action failed and recovered on retry",
+      "evidence": "events/harness.stdout.jsonl"
+    }
+  ],
+  "handAuthoredLoc": {
+    "lines": 0,
+    "files": 0
+  },
+  "diary": "diary.md",
+  "socialMessenger": {
+    "extensionVersion": 2,
+    "instrumentVersion": "social-messenger@0.3.3-m8",
+    "orientation": {
+      "schemaVersion": "benchmark-orientation.v1",
+      "laneKind": "snapback-web-clique",
+      "instrument": {
+        "pin": "social-messenger@0.3.3-m8",
+        "manifest": {
+          "path": "instrument.manifest.json",
+          "sha256": "8a13dcc55eca1dfe49a13d704575d2e2843ca059c34c964df86c7287dfb729ad"
+        },
+        "versions": {
+          "schema": "0.3.0-m8",
+          "ui": "0.3.1-m8",
+          "choreography": "0.3.3-m8"
+        }
+      },
+      "selectedSkills": [
+        "snapback-authoring"
+      ],
+      "artifacts": [
+        {
+          "id": "rendered-cell-prompt",
+          "kind": "orientation",
+          "path": "rendered-prompt.md",
+          "bytes": 5189,
+          "sha256": "3be61fd4a605baf83159f484a0ffd0438515a5cb4b36851b4efbb980906dd70c",
+          "deduplicated": false
+        }
+      ],
+      "uniqueBytes": 5189,
+      "deliveredBytes": 5189,
+      "preflightWarnings": []
+    },
+    "runScope": "reduced",
+    "capFamily": "gpt-frontier",
+    "deploymentPosture": "local-dev-server",
+    "milestones": {
+      "M1": {
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "status": "green",
+        "authoring": {
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": "2026-08-24T09:54:53.931Z",
+          "suitePassAt": "2026-08-24T09:54:53.931Z",
+          "choreoPassAt": "2026-08-24T09:54:53.931Z",
+          "terminalAt": "2026-08-24T09:54:53.931Z",
+          "terminalSequence": 1,
+          "terminalReason": "green",
+          "wallSeconds": 2940.104
+        },
+        "semanticActions": {
+          "claimed": true,
+          "evidence": [
+            {
+              "path": "receipts/m1-suite.observations.jsonl",
+              "sha256": "sha256:9d0b9d3b9de0cfba1270bb730346339addb6d1a9f2f7aebd656108b4ff6f9fbe"
+            },
+            {
+              "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:d3d285608c6f0799c77533006348fa61a72e831899afc7279e922eb545ac147f"
+            },
+            {
+              "path": "receipts/m2-suite.observations.jsonl",
+              "sha256": "sha256:a0274e9b3032e23a2ededb0ffbfc1918057b8d5b735178f823d27adbd37d7886"
+            },
+            {
+              "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:f82a8734cd1e343bc836b3908f3303f642061bc6686d891d098a8c50e641db5c"
+            },
+            {
+              "path": "receipts/m3-suite.observations.jsonl",
+              "sha256": "sha256:a4c1faa7df1501898d80c10131fd2dc60d03b04bacaa26d435e3dd1da76396c8"
+            },
+            {
+              "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+            },
+            {
+              "path": "events/lane-controller-observations.jsonl",
+              "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
+            }
+          ],
+          "total": 131,
+          "byClass": {
+            "guide-lookup": 15,
+            "source-inspection": 49,
+            "edit": 0,
+            "generate": 3,
+            "process": 32,
+            "reseed": 1,
+            "suite": 9,
+            "choreography": 5,
+            "retry": 17
+          },
+          "byDisposition": {
+            "progress": 101,
+            "correction": 30
+          },
+          "byRetriedClass": {
+            "guide-lookup": 0,
+            "source-inspection": 2,
+            "edit": 0,
+            "generate": 2,
+            "process": 10,
+            "reseed": 0,
+            "suite": 2,
+            "choreography": 1
+          },
+          "binaryExcavation": 28
+        },
+        "failureToRecoveryEpisodes": {
+          "claimed": true,
+          "evidence": [
+            {
+              "path": "receipts/m1-suite.observations.jsonl",
+              "sha256": "sha256:9d0b9d3b9de0cfba1270bb730346339addb6d1a9f2f7aebd656108b4ff6f9fbe"
+            },
+            {
+              "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:d3d285608c6f0799c77533006348fa61a72e831899afc7279e922eb545ac147f"
+            },
+            {
+              "path": "receipts/m2-suite.observations.jsonl",
+              "sha256": "sha256:a0274e9b3032e23a2ededb0ffbfc1918057b8d5b735178f823d27adbd37d7886"
+            },
+            {
+              "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:f82a8734cd1e343bc836b3908f3303f642061bc6686d891d098a8c50e641db5c"
+            },
+            {
+              "path": "receipts/m3-suite.observations.jsonl",
+              "sha256": "sha256:a4c1faa7df1501898d80c10131fd2dc60d03b04bacaa26d435e3dd1da76396c8"
+            },
+            {
+              "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+            },
+            {
+              "path": "events/lane-controller-observations.jsonl",
+              "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
+            }
+          ],
+          "costlyEpisodeThresholdActions": 2,
+          "total": 13,
+          "byCarrier": {
+            "snapback-refusal": 0,
+            "compiler-codegen-diagnostic": 0,
+            "bare-not-found": 0,
+            "silent-discovery-miss": 0,
+            "other": 13
+          },
+          "byAttribution": {
+            "snapback-defect": 0,
+            "agent-error": 0,
+            "environment": 0,
+            "ambiguous": 13
+          },
+          "bySubAttribution": {
+            "defect": 0,
+            "knowledge-gap": 0
+          },
+          "byOutcome": {
+            "recovered": 13,
+            "unresolved": 0
+          }
+        },
+        "restartReseed": {
+          "claimed": true,
+          "evidence": [
+            {
+              "path": "receipts/m1-suite.observations.jsonl",
+              "sha256": "sha256:9d0b9d3b9de0cfba1270bb730346339addb6d1a9f2f7aebd656108b4ff6f9fbe"
+            },
+            {
+              "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:d3d285608c6f0799c77533006348fa61a72e831899afc7279e922eb545ac147f"
+            },
+            {
+              "path": "receipts/m2-suite.observations.jsonl",
+              "sha256": "sha256:a0274e9b3032e23a2ededb0ffbfc1918057b8d5b735178f823d27adbd37d7886"
+            },
+            {
+              "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:f82a8734cd1e343bc836b3908f3303f642061bc6686d891d098a8c50e641db5c"
+            },
+            {
+              "path": "receipts/m3-suite.observations.jsonl",
+              "sha256": "sha256:a4c1faa7df1501898d80c10131fd2dc60d03b04bacaa26d435e3dd1da76396c8"
+            },
+            {
+              "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+            },
+            {
+              "path": "events/lane-controller-observations.jsonl",
+              "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
+            }
+          ],
+          "restarts": 0,
+          "reseeds": 1,
+          "destructiveReseeds": 0
+        },
+        "browserAssertionWait": {
+          "suite": {
+            "claimed": true,
+            "evidence": [
+              {
+                "path": "receipts/m1-suite.observations.jsonl",
+                "sha256": "sha256:9d0b9d3b9de0cfba1270bb730346339addb6d1a9f2f7aebd656108b4ff6f9fbe"
+              },
+              {
+                "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+                "sha256": "sha256:d3d285608c6f0799c77533006348fa61a72e831899afc7279e922eb545ac147f"
+              },
+              {
+                "path": "receipts/m2-suite.observations.jsonl",
+                "sha256": "sha256:a0274e9b3032e23a2ededb0ffbfc1918057b8d5b735178f823d27adbd37d7886"
+              },
+              {
+                "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+                "sha256": "sha256:f82a8734cd1e343bc836b3908f3303f642061bc6686d891d098a8c50e641db5c"
+              },
+              {
+                "path": "receipts/m3-suite.observations.jsonl",
+                "sha256": "sha256:a4c1faa7df1501898d80c10131fd2dc60d03b04bacaa26d435e3dd1da76396c8"
+              },
+              {
+                "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+                "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+              },
+              {
+                "path": "events/lane-controller-observations.jsonl",
+                "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
+              }
+            ],
+            "attempts": 7,
+            "waitMillis": 177.62595800000054
+          },
+          "choreography": {
+            "claimed": true,
+            "evidence": [
+              {
+                "path": "receipts/m1-suite.observations.jsonl",
+                "sha256": "sha256:9d0b9d3b9de0cfba1270bb730346339addb6d1a9f2f7aebd656108b4ff6f9fbe"
+              },
+              {
+                "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+                "sha256": "sha256:d3d285608c6f0799c77533006348fa61a72e831899afc7279e922eb545ac147f"
+              },
+              {
+                "path": "receipts/m2-suite.observations.jsonl",
+                "sha256": "sha256:a0274e9b3032e23a2ededb0ffbfc1918057b8d5b735178f823d27adbd37d7886"
+              },
+              {
+                "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+                "sha256": "sha256:f82a8734cd1e343bc836b3908f3303f642061bc6686d891d098a8c50e641db5c"
+              },
+              {
+                "path": "receipts/m3-suite.observations.jsonl",
+                "sha256": "sha256:a4c1faa7df1501898d80c10131fd2dc60d03b04bacaa26d435e3dd1da76396c8"
+              },
+              {
+                "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+                "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+              },
+              {
+                "path": "events/lane-controller-observations.jsonl",
+                "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
+              }
+            ],
+            "attempts": 5,
+            "waitMillis": 3186
+          }
+        },
+        "hostLoad": {
+          "claimed": true,
+          "evidence": [
+            {
+              "path": "receipts/m1-suite.observations.jsonl",
+              "sha256": "sha256:9d0b9d3b9de0cfba1270bb730346339addb6d1a9f2f7aebd656108b4ff6f9fbe"
+            },
+            {
+              "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:d3d285608c6f0799c77533006348fa61a72e831899afc7279e922eb545ac147f"
+            },
+            {
+              "path": "receipts/m2-suite.observations.jsonl",
+              "sha256": "sha256:a0274e9b3032e23a2ededb0ffbfc1918057b8d5b735178f823d27adbd37d7886"
+            },
+            {
+              "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:f82a8734cd1e343bc836b3908f3303f642061bc6686d891d098a8c50e641db5c"
+            },
+            {
+              "path": "receipts/m3-suite.observations.jsonl",
+              "sha256": "sha256:a4c1faa7df1501898d80c10131fd2dc60d03b04bacaa26d435e3dd1da76396c8"
+            },
+            {
+              "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+            },
+            {
+              "path": "events/lane-controller-observations.jsonl",
+              "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
+            }
+          ],
+          "startedAt": "2026-08-24T09:05:53.828Z",
+          "endedAt": "2026-08-24T09:54:53.931Z",
+          "sampleCount": 51,
+          "contamination": false,
+          "breaches": []
+        },
+        "apiInterruptions": {
+          "claimed": true,
+          "evidence": [
+            {
+              "path": "receipts/m1-suite.observations.jsonl",
+              "sha256": "sha256:9d0b9d3b9de0cfba1270bb730346339addb6d1a9f2f7aebd656108b4ff6f9fbe"
+            },
+            {
+              "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:d3d285608c6f0799c77533006348fa61a72e831899afc7279e922eb545ac147f"
+            },
+            {
+              "path": "receipts/m2-suite.observations.jsonl",
+              "sha256": "sha256:a0274e9b3032e23a2ededb0ffbfc1918057b8d5b735178f823d27adbd37d7886"
+            },
+            {
+              "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:f82a8734cd1e343bc836b3908f3303f642061bc6686d891d098a8c50e641db5c"
+            },
+            {
+              "path": "receipts/m3-suite.observations.jsonl",
+              "sha256": "sha256:a4c1faa7df1501898d80c10131fd2dc60d03b04bacaa26d435e3dd1da76396c8"
+            },
+            {
+              "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+            },
+            {
+              "path": "events/lane-controller-observations.jsonl",
+              "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
+            }
+          ],
+          "interrupted": false,
+          "windows": []
+        },
+        "charging": {
+          "chargedWallSeconds": 2940.104,
+          "chargedTokens": null,
+          "flags": []
+        }
+      },
+      "M2": {
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "status": "green",
+        "authoring": {
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": "2026-08-24T10:02:30.777Z",
+          "suitePassAt": "2026-08-24T10:02:30.777Z",
+          "choreoPassAt": "2026-08-24T10:02:30.777Z",
+          "terminalAt": "2026-08-24T10:02:30.777Z",
+          "terminalSequence": 2,
+          "terminalReason": "green",
+          "wallSeconds": 456.846
+        },
+        "semanticActions": {
+          "claimed": true,
+          "evidence": [
+            {
+              "path": "receipts/m1-suite.observations.jsonl",
+              "sha256": "sha256:9d0b9d3b9de0cfba1270bb730346339addb6d1a9f2f7aebd656108b4ff6f9fbe"
+            },
+            {
+              "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:d3d285608c6f0799c77533006348fa61a72e831899afc7279e922eb545ac147f"
+            },
+            {
+              "path": "receipts/m2-suite.observations.jsonl",
+              "sha256": "sha256:a0274e9b3032e23a2ededb0ffbfc1918057b8d5b735178f823d27adbd37d7886"
+            },
+            {
+              "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:f82a8734cd1e343bc836b3908f3303f642061bc6686d891d098a8c50e641db5c"
+            },
+            {
+              "path": "receipts/m3-suite.observations.jsonl",
+              "sha256": "sha256:a4c1faa7df1501898d80c10131fd2dc60d03b04bacaa26d435e3dd1da76396c8"
+            },
+            {
+              "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+            },
+            {
+              "path": "events/lane-controller-observations.jsonl",
+              "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
+            }
+          ],
+          "total": 18,
+          "byClass": {
+            "guide-lookup": 0,
+            "source-inspection": 5,
+            "edit": 0,
+            "generate": 0,
+            "process": 5,
+            "reseed": 0,
+            "suite": 2,
+            "choreography": 3,
+            "retry": 3
+          },
+          "byDisposition": {
+            "progress": 12,
+            "correction": 6
+          },
+          "byRetriedClass": {
+            "guide-lookup": 0,
+            "source-inspection": 0,
+            "edit": 0,
+            "generate": 0,
+            "process": 1,
+            "reseed": 0,
+            "suite": 0,
+            "choreography": 2
+          },
+          "binaryExcavation": 2
+        },
+        "failureToRecoveryEpisodes": {
+          "claimed": true,
+          "evidence": [
+            {
+              "path": "receipts/m1-suite.observations.jsonl",
+              "sha256": "sha256:9d0b9d3b9de0cfba1270bb730346339addb6d1a9f2f7aebd656108b4ff6f9fbe"
+            },
+            {
+              "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:d3d285608c6f0799c77533006348fa61a72e831899afc7279e922eb545ac147f"
+            },
+            {
+              "path": "receipts/m2-suite.observations.jsonl",
+              "sha256": "sha256:a0274e9b3032e23a2ededb0ffbfc1918057b8d5b735178f823d27adbd37d7886"
+            },
+            {
+              "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:f82a8734cd1e343bc836b3908f3303f642061bc6686d891d098a8c50e641db5c"
+            },
+            {
+              "path": "receipts/m3-suite.observations.jsonl",
+              "sha256": "sha256:a4c1faa7df1501898d80c10131fd2dc60d03b04bacaa26d435e3dd1da76396c8"
+            },
+            {
+              "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+            },
+            {
+              "path": "events/lane-controller-observations.jsonl",
+              "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
+            }
+          ],
+          "costlyEpisodeThresholdActions": 2,
+          "total": 3,
+          "byCarrier": {
+            "snapback-refusal": 0,
+            "compiler-codegen-diagnostic": 0,
+            "bare-not-found": 0,
+            "silent-discovery-miss": 0,
+            "other": 3
+          },
+          "byAttribution": {
+            "snapback-defect": 0,
+            "agent-error": 0,
+            "environment": 0,
+            "ambiguous": 3
+          },
+          "bySubAttribution": {
+            "defect": 0,
+            "knowledge-gap": 0
+          },
+          "byOutcome": {
+            "recovered": 3,
+            "unresolved": 0
+          }
+        },
+        "restartReseed": {
+          "claimed": true,
+          "evidence": [
+            {
+              "path": "receipts/m1-suite.observations.jsonl",
+              "sha256": "sha256:9d0b9d3b9de0cfba1270bb730346339addb6d1a9f2f7aebd656108b4ff6f9fbe"
+            },
+            {
+              "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:d3d285608c6f0799c77533006348fa61a72e831899afc7279e922eb545ac147f"
+            },
+            {
+              "path": "receipts/m2-suite.observations.jsonl",
+              "sha256": "sha256:a0274e9b3032e23a2ededb0ffbfc1918057b8d5b735178f823d27adbd37d7886"
+            },
+            {
+              "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:f82a8734cd1e343bc836b3908f3303f642061bc6686d891d098a8c50e641db5c"
+            },
+            {
+              "path": "receipts/m3-suite.observations.jsonl",
+              "sha256": "sha256:a4c1faa7df1501898d80c10131fd2dc60d03b04bacaa26d435e3dd1da76396c8"
+            },
+            {
+              "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+            },
+            {
+              "path": "events/lane-controller-observations.jsonl",
+              "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
+            }
+          ],
+          "restarts": 0,
+          "reseeds": 0,
+          "destructiveReseeds": 0
+        },
+        "browserAssertionWait": {
+          "suite": {
+            "claimed": true,
+            "evidence": [
+              {
+                "path": "receipts/m1-suite.observations.jsonl",
+                "sha256": "sha256:9d0b9d3b9de0cfba1270bb730346339addb6d1a9f2f7aebd656108b4ff6f9fbe"
+              },
+              {
+                "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+                "sha256": "sha256:d3d285608c6f0799c77533006348fa61a72e831899afc7279e922eb545ac147f"
+              },
+              {
+                "path": "receipts/m2-suite.observations.jsonl",
+                "sha256": "sha256:a0274e9b3032e23a2ededb0ffbfc1918057b8d5b735178f823d27adbd37d7886"
+              },
+              {
+                "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+                "sha256": "sha256:f82a8734cd1e343bc836b3908f3303f642061bc6686d891d098a8c50e641db5c"
+              },
+              {
+                "path": "receipts/m3-suite.observations.jsonl",
+                "sha256": "sha256:a4c1faa7df1501898d80c10131fd2dc60d03b04bacaa26d435e3dd1da76396c8"
+              },
+              {
+                "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+                "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+              },
+              {
+                "path": "events/lane-controller-observations.jsonl",
+                "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
+              }
+            ],
+            "attempts": 22,
+            "waitMillis": 939.765209000001
+          },
+          "choreography": {
+            "claimed": true,
+            "evidence": [
+              {
+                "path": "receipts/m1-suite.observations.jsonl",
+                "sha256": "sha256:9d0b9d3b9de0cfba1270bb730346339addb6d1a9f2f7aebd656108b4ff6f9fbe"
+              },
+              {
+                "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+                "sha256": "sha256:d3d285608c6f0799c77533006348fa61a72e831899afc7279e922eb545ac147f"
+              },
+              {
+                "path": "receipts/m2-suite.observations.jsonl",
+                "sha256": "sha256:a0274e9b3032e23a2ededb0ffbfc1918057b8d5b735178f823d27adbd37d7886"
+              },
+              {
+                "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+                "sha256": "sha256:f82a8734cd1e343bc836b3908f3303f642061bc6686d891d098a8c50e641db5c"
+              },
+              {
+                "path": "receipts/m3-suite.observations.jsonl",
+                "sha256": "sha256:a4c1faa7df1501898d80c10131fd2dc60d03b04bacaa26d435e3dd1da76396c8"
+              },
+              {
+                "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+                "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+              },
+              {
+                "path": "events/lane-controller-observations.jsonl",
+                "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
+              }
+            ],
+            "attempts": 19,
+            "waitMillis": 28681.399999999998
+          }
+        },
+        "hostLoad": {
+          "claimed": true,
+          "evidence": [
+            {
+              "path": "receipts/m1-suite.observations.jsonl",
+              "sha256": "sha256:9d0b9d3b9de0cfba1270bb730346339addb6d1a9f2f7aebd656108b4ff6f9fbe"
+            },
+            {
+              "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:d3d285608c6f0799c77533006348fa61a72e831899afc7279e922eb545ac147f"
+            },
+            {
+              "path": "receipts/m2-suite.observations.jsonl",
+              "sha256": "sha256:a0274e9b3032e23a2ededb0ffbfc1918057b8d5b735178f823d27adbd37d7886"
+            },
+            {
+              "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:f82a8734cd1e343bc836b3908f3303f642061bc6686d891d098a8c50e641db5c"
+            },
+            {
+              "path": "receipts/m3-suite.observations.jsonl",
+              "sha256": "sha256:a4c1faa7df1501898d80c10131fd2dc60d03b04bacaa26d435e3dd1da76396c8"
+            },
+            {
+              "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+            },
+            {
+              "path": "events/lane-controller-observations.jsonl",
+              "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
+            }
+          ],
+          "startedAt": "2026-08-24T09:54:53.931Z",
+          "endedAt": "2026-08-24T10:02:30.776Z",
+          "sampleCount": 9,
+          "contamination": false,
+          "breaches": []
+        },
+        "apiInterruptions": {
+          "claimed": true,
+          "evidence": [
+            {
+              "path": "receipts/m1-suite.observations.jsonl",
+              "sha256": "sha256:9d0b9d3b9de0cfba1270bb730346339addb6d1a9f2f7aebd656108b4ff6f9fbe"
+            },
+            {
+              "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:d3d285608c6f0799c77533006348fa61a72e831899afc7279e922eb545ac147f"
+            },
+            {
+              "path": "receipts/m2-suite.observations.jsonl",
+              "sha256": "sha256:a0274e9b3032e23a2ededb0ffbfc1918057b8d5b735178f823d27adbd37d7886"
+            },
+            {
+              "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:f82a8734cd1e343bc836b3908f3303f642061bc6686d891d098a8c50e641db5c"
+            },
+            {
+              "path": "receipts/m3-suite.observations.jsonl",
+              "sha256": "sha256:a4c1faa7df1501898d80c10131fd2dc60d03b04bacaa26d435e3dd1da76396c8"
+            },
+            {
+              "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+            },
+            {
+              "path": "events/lane-controller-observations.jsonl",
+              "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
+            }
+          ],
+          "interrupted": false,
+          "windows": []
+        },
+        "charging": {
+          "chargedWallSeconds": 456.846,
+          "chargedTokens": null,
+          "flags": []
+        }
+      },
+      "M3": {
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "status": "green",
+        "authoring": {
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": "2026-08-24T10:10:23.198Z",
+          "suitePassAt": "2026-08-24T10:10:23.198Z",
+          "choreoPassAt": "2026-08-24T10:10:23.198Z",
+          "terminalAt": "2026-08-24T10:10:23.198Z",
+          "terminalSequence": 3,
+          "terminalReason": "green",
+          "wallSeconds": 472.421
+        },
+        "semanticActions": {
+          "claimed": true,
+          "evidence": [
+            {
+              "path": "receipts/m1-suite.observations.jsonl",
+              "sha256": "sha256:9d0b9d3b9de0cfba1270bb730346339addb6d1a9f2f7aebd656108b4ff6f9fbe"
+            },
+            {
+              "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:d3d285608c6f0799c77533006348fa61a72e831899afc7279e922eb545ac147f"
+            },
+            {
+              "path": "receipts/m2-suite.observations.jsonl",
+              "sha256": "sha256:a0274e9b3032e23a2ededb0ffbfc1918057b8d5b735178f823d27adbd37d7886"
+            },
+            {
+              "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:f82a8734cd1e343bc836b3908f3303f642061bc6686d891d098a8c50e641db5c"
+            },
+            {
+              "path": "receipts/m3-suite.observations.jsonl",
+              "sha256": "sha256:a4c1faa7df1501898d80c10131fd2dc60d03b04bacaa26d435e3dd1da76396c8"
+            },
+            {
+              "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+            },
+            {
+              "path": "events/lane-controller-observations.jsonl",
+              "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
+            }
+          ],
+          "total": 16,
+          "byClass": {
+            "guide-lookup": 0,
+            "source-inspection": 2,
+            "edit": 0,
+            "generate": 0,
+            "process": 7,
+            "reseed": 0,
+            "suite": 5,
+            "choreography": 1,
+            "retry": 1
+          },
+          "byDisposition": {
+            "progress": 14,
+            "correction": 2
+          },
+          "byRetriedClass": {
+            "guide-lookup": 0,
+            "source-inspection": 0,
+            "edit": 0,
+            "generate": 0,
+            "process": 0,
+            "reseed": 0,
+            "suite": 1,
+            "choreography": 0
+          },
+          "binaryExcavation": 0
+        },
+        "failureToRecoveryEpisodes": {
+          "claimed": true,
+          "evidence": [
+            {
+              "path": "receipts/m1-suite.observations.jsonl",
+              "sha256": "sha256:9d0b9d3b9de0cfba1270bb730346339addb6d1a9f2f7aebd656108b4ff6f9fbe"
+            },
+            {
+              "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:d3d285608c6f0799c77533006348fa61a72e831899afc7279e922eb545ac147f"
+            },
+            {
+              "path": "receipts/m2-suite.observations.jsonl",
+              "sha256": "sha256:a0274e9b3032e23a2ededb0ffbfc1918057b8d5b735178f823d27adbd37d7886"
+            },
+            {
+              "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:f82a8734cd1e343bc836b3908f3303f642061bc6686d891d098a8c50e641db5c"
+            },
+            {
+              "path": "receipts/m3-suite.observations.jsonl",
+              "sha256": "sha256:a4c1faa7df1501898d80c10131fd2dc60d03b04bacaa26d435e3dd1da76396c8"
+            },
+            {
+              "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+            },
+            {
+              "path": "events/lane-controller-observations.jsonl",
+              "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
+            }
+          ],
+          "costlyEpisodeThresholdActions": 2,
+          "total": 1,
+          "byCarrier": {
+            "snapback-refusal": 0,
+            "compiler-codegen-diagnostic": 0,
+            "bare-not-found": 0,
+            "silent-discovery-miss": 0,
+            "other": 1
+          },
+          "byAttribution": {
+            "snapback-defect": 0,
+            "agent-error": 0,
+            "environment": 0,
+            "ambiguous": 1
+          },
+          "bySubAttribution": {
+            "defect": 0,
+            "knowledge-gap": 0
+          },
+          "byOutcome": {
+            "recovered": 1,
+            "unresolved": 0
+          }
+        },
+        "restartReseed": {
+          "claimed": true,
+          "evidence": [
+            {
+              "path": "receipts/m1-suite.observations.jsonl",
+              "sha256": "sha256:9d0b9d3b9de0cfba1270bb730346339addb6d1a9f2f7aebd656108b4ff6f9fbe"
+            },
+            {
+              "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:d3d285608c6f0799c77533006348fa61a72e831899afc7279e922eb545ac147f"
+            },
+            {
+              "path": "receipts/m2-suite.observations.jsonl",
+              "sha256": "sha256:a0274e9b3032e23a2ededb0ffbfc1918057b8d5b735178f823d27adbd37d7886"
+            },
+            {
+              "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:f82a8734cd1e343bc836b3908f3303f642061bc6686d891d098a8c50e641db5c"
+            },
+            {
+              "path": "receipts/m3-suite.observations.jsonl",
+              "sha256": "sha256:a4c1faa7df1501898d80c10131fd2dc60d03b04bacaa26d435e3dd1da76396c8"
+            },
+            {
+              "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+            },
+            {
+              "path": "events/lane-controller-observations.jsonl",
+              "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
+            }
+          ],
+          "restarts": 0,
+          "reseeds": 0,
+          "destructiveReseeds": 0
+        },
+        "browserAssertionWait": {
+          "suite": {
+            "claimed": true,
+            "evidence": [
+              {
+                "path": "receipts/m1-suite.observations.jsonl",
+                "sha256": "sha256:9d0b9d3b9de0cfba1270bb730346339addb6d1a9f2f7aebd656108b4ff6f9fbe"
+              },
+              {
+                "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+                "sha256": "sha256:d3d285608c6f0799c77533006348fa61a72e831899afc7279e922eb545ac147f"
+              },
+              {
+                "path": "receipts/m2-suite.observations.jsonl",
+                "sha256": "sha256:a0274e9b3032e23a2ededb0ffbfc1918057b8d5b735178f823d27adbd37d7886"
+              },
+              {
+                "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+                "sha256": "sha256:f82a8734cd1e343bc836b3908f3303f642061bc6686d891d098a8c50e641db5c"
+              },
+              {
+                "path": "receipts/m3-suite.observations.jsonl",
+                "sha256": "sha256:a4c1faa7df1501898d80c10131fd2dc60d03b04bacaa26d435e3dd1da76396c8"
+              },
+              {
+                "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+                "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+              },
+              {
+                "path": "events/lane-controller-observations.jsonl",
+                "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
+              }
+            ],
+            "attempts": 7,
+            "waitMillis": 29914.291416999993
+          },
+          "choreography": {
+            "claimed": true,
+            "evidence": [
+              {
+                "path": "receipts/m1-suite.observations.jsonl",
+                "sha256": "sha256:9d0b9d3b9de0cfba1270bb730346339addb6d1a9f2f7aebd656108b4ff6f9fbe"
+              },
+              {
+                "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+                "sha256": "sha256:d3d285608c6f0799c77533006348fa61a72e831899afc7279e922eb545ac147f"
+              },
+              {
+                "path": "receipts/m2-suite.observations.jsonl",
+                "sha256": "sha256:a0274e9b3032e23a2ededb0ffbfc1918057b8d5b735178f823d27adbd37d7886"
+              },
+              {
+                "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+                "sha256": "sha256:f82a8734cd1e343bc836b3908f3303f642061bc6686d891d098a8c50e641db5c"
+              },
+              {
+                "path": "receipts/m3-suite.observations.jsonl",
+                "sha256": "sha256:a4c1faa7df1501898d80c10131fd2dc60d03b04bacaa26d435e3dd1da76396c8"
+              },
+              {
+                "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+                "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+              },
+              {
+                "path": "events/lane-controller-observations.jsonl",
+                "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
+              }
+            ],
+            "attempts": 9,
+            "waitMillis": 17873.9
+          }
+        },
+        "hostLoad": {
+          "claimed": true,
+          "evidence": [
+            {
+              "path": "receipts/m1-suite.observations.jsonl",
+              "sha256": "sha256:9d0b9d3b9de0cfba1270bb730346339addb6d1a9f2f7aebd656108b4ff6f9fbe"
+            },
+            {
+              "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:d3d285608c6f0799c77533006348fa61a72e831899afc7279e922eb545ac147f"
+            },
+            {
+              "path": "receipts/m2-suite.observations.jsonl",
+              "sha256": "sha256:a0274e9b3032e23a2ededb0ffbfc1918057b8d5b735178f823d27adbd37d7886"
+            },
+            {
+              "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:f82a8734cd1e343bc836b3908f3303f642061bc6686d891d098a8c50e641db5c"
+            },
+            {
+              "path": "receipts/m3-suite.observations.jsonl",
+              "sha256": "sha256:a4c1faa7df1501898d80c10131fd2dc60d03b04bacaa26d435e3dd1da76396c8"
+            },
+            {
+              "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+            },
+            {
+              "path": "events/lane-controller-observations.jsonl",
+              "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
+            }
+          ],
+          "startedAt": "2026-08-24T10:02:30.781Z",
+          "endedAt": "2026-08-24T10:10:23.123Z",
+          "sampleCount": 9,
+          "contamination": false,
+          "breaches": []
+        },
+        "apiInterruptions": {
+          "claimed": true,
+          "evidence": [
+            {
+              "path": "receipts/m1-suite.observations.jsonl",
+              "sha256": "sha256:9d0b9d3b9de0cfba1270bb730346339addb6d1a9f2f7aebd656108b4ff6f9fbe"
+            },
+            {
+              "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:d3d285608c6f0799c77533006348fa61a72e831899afc7279e922eb545ac147f"
+            },
+            {
+              "path": "receipts/m2-suite.observations.jsonl",
+              "sha256": "sha256:a0274e9b3032e23a2ededb0ffbfc1918057b8d5b735178f823d27adbd37d7886"
+            },
+            {
+              "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:f82a8734cd1e343bc836b3908f3303f642061bc6686d891d098a8c50e641db5c"
+            },
+            {
+              "path": "receipts/m3-suite.observations.jsonl",
+              "sha256": "sha256:a4c1faa7df1501898d80c10131fd2dc60d03b04bacaa26d435e3dd1da76396c8"
+            },
+            {
+              "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+            },
+            {
+              "path": "events/lane-controller-observations.jsonl",
+              "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
+            }
+          ],
+          "interrupted": false,
+          "windows": []
+        },
+        "charging": {
+          "chargedWallSeconds": 472.421,
+          "chargedTokens": null,
+          "flags": []
+        }
+      }
+    },
+    "termination": {
+      "terminatedEarly": false,
+      "reason": null,
+      "afterMilestone": null
+    },
+    "compaction": {
+      "policy": "codex-sol-native-default",
+      "events": []
+    },
+    "firstProductEdit": {
+      "at": null,
+      "orientationBytes": null,
+      "selectedSkills": [],
+      "orientationTokens": {
+        "input": null,
+        "output": null,
+        "cacheRead": null,
+        "cacheWrite": null,
+        "reasoning": null
+      }
+    },
+    "meteringProvenance": {
+      "manifestVersion": "social-messenger-metering-manifest.v1",
+      "laneRunId": "2026-08-23-r2-published-0125/sol-clique-explicit",
+      "driver": {
+        "id": "social-messenger-r2-native-cli-driver.v1",
+        "stampedAt": "2026-08-24T10:10:23.198Z",
+        "startedAt": "2026-08-24T09:05:53.827Z"
+      },
+      "manifestSha256": "sha256:0475614ac8db156cc8a90288094d77a4badc52f7aa1a313617830abaa2ad7b73",
+      "unavailableReason": "retained-session-token-event-corrupt",
+      "clockCorrelation": {
+        "method": "rfc3339-with-bounded-skew",
+        "maxSkewMillis": 0,
+        "evidence": "deterministic retained-evidence rejoin uses the shared host clock and controller phase-transition/final stamps"
+      },
+      "sessions": [],
+      "receipts": [
+        {
+          "sourceId": "m1-choreography",
+          "runId": "13006b0d-05c3-4a94-84ff-8b503d45b60c",
+          "milestone": "M1",
+          "path": "receipts/m1-choreography.jsonl",
+          "sha256": "sha256:1fc119508e7543d8ddccc4a5ebd48f8bac580bfdfb76ed00b9fbcee42d90ddef"
+        },
+        {
+          "sourceId": "m2-choreography",
+          "runId": "b62d1b67-35d8-4bca-b493-8e1b38f02382",
+          "milestone": "M2",
+          "path": "receipts/m2-choreography.jsonl",
+          "sha256": "sha256:ab1182dc6532aa7f65d25d2e29858411311953b855a533f2860b3a62a73705f4"
+        },
+        {
+          "sourceId": "m3-choreography",
+          "runId": "7d12326c-c0bd-4fbe-8931-78791b3ec156",
+          "milestone": "M3",
+          "path": "receipts/m3-choreography.jsonl",
+          "sha256": "sha256:685fa8c13cbaf39a811ff43d34a4a7ba39017911b10e94d3c387c866fc32851b"
+        }
+      ],
+      "observations": [
+        {
+          "sourceId": "m1-suite-observations",
+          "path": "receipts/m1-suite.observations.jsonl",
+          "sha256": "sha256:9d0b9d3b9de0cfba1270bb730346339addb6d1a9f2f7aebd656108b4ff6f9fbe"
+        },
+        {
+          "sourceId": "m1-choreography-observations",
+          "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+          "sha256": "sha256:d3d285608c6f0799c77533006348fa61a72e831899afc7279e922eb545ac147f"
+        },
+        {
+          "sourceId": "m2-suite-observations",
+          "path": "receipts/m2-suite.observations.jsonl",
+          "sha256": "sha256:a0274e9b3032e23a2ededb0ffbfc1918057b8d5b735178f823d27adbd37d7886"
+        },
+        {
+          "sourceId": "m2-choreography-observations",
+          "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+          "sha256": "sha256:f82a8734cd1e343bc836b3908f3303f642061bc6686d891d098a8c50e641db5c"
+        },
+        {
+          "sourceId": "m3-suite-observations",
+          "path": "receipts/m3-suite.observations.jsonl",
+          "sha256": "sha256:a4c1faa7df1501898d80c10131fd2dc60d03b04bacaa26d435e3dd1da76396c8"
+        },
+        {
+          "sourceId": "m3-choreography-observations",
+          "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+          "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+        },
+        {
+          "sourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
+          "path": "events/lane-controller-observations.jsonl",
+          "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
+        }
+      ],
+      "boundaries": {
+        "path": "terminal-boundaries.json",
+        "sha256": "sha256:e4fd80893282d46f2b6ce86ae9c6b15aedcfb70c81e0de70a873faa27da7132d"
+      },
+      "firstProductEdit": null
+    },
+    "coverageManifest": {
+      "path": "coverage-manifest.json",
+      "sha256": null,
+      "validated": true
+    },
+    "assertionManifest": {
+      "path": "schema/social-messenger/assertions.json",
+      "version": "0.3.0-m8",
+      "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+    },
+    "clocks": {
+      "grading": {
+        "sessions": [
+          {
+            "wallSeconds": 0,
+            "tokens": {
+              "input": null,
+              "output": null,
+              "cacheRead": null,
+              "cacheWrite": null,
+              "reasoning": null
+            }
+          }
+        ]
+      }
+    },
+    "grading": {
+      "graderReportPath": null,
+      "graderFamily": null,
+      "sameFamilyGraded": false,
+      "usableGradingRecord": false
+    },
+    "observabilityProtocol": "social-messenger-observation.v1",
+    "efficiencyScorecardEligibility": {
+      "eligible": false,
+      "correctionActionTargetEligible": false,
+      "ineligibilityReasons": [
+        "phase-usage-unavailable"
+      ]
+    },
+    "suiteStatusLinkage": {
+      "input": {
+        "path": "suite-status.json",
+        "sha256": "sha256:1b66c7025f0afe8eddb5ab2d217811c3856b33c20c786870e9fb202eca0cbc78"
+      },
+      "milestones": [
+        {
+          "milestone": "M1",
+          "pass": true,
+          "receipt": {
+            "path": "acceptance/m1.json",
+            "sha256": "sha256:4f44686769bd7a92b825984277cfe7d1c8b3b5339033bbcc40659bbf028a9cfd"
+          }
+        },
+        {
+          "milestone": "M2",
+          "pass": true,
+          "receipt": {
+            "path": "acceptance/m2.json",
+            "sha256": "sha256:80e63b552e5a76c0d3cc2363fc908acc270cde6501497e2753a2d11bb2c3e633"
+          }
+        },
+        {
+          "milestone": "M3",
+          "pass": true,
+          "receipt": {
+            "path": "acceptance/m3.json",
+            "sha256": "sha256:250430147fb0b6df4620bb41da2f4ab7dd34543ee40184aba2089ba9d9b56c88"
+          }
+        }
+      ]
+    }
+  }
+}

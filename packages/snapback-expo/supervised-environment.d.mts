@@ -8,7 +8,10 @@ import type {
   SnapbackExpoEnvironmentV1,
   TypedRemediation,
 } from './index.mjs';
-import type { SnapbackClientOptions } from '@expo/snapback-client';
+import type {
+  SnapbackAppClientDebugEvent,
+  SnapbackClientOptions,
+} from '@expo/snapback-client';
 
 export const SUPERVISED_EXCHANGE_FORMAT: 'snapback.expo-supervised-exchange.v1';
 export const SUPERVISED_EXCHANGE_PATH: '/_snapback/expo/v1/bootstrap';
@@ -100,7 +103,7 @@ export function createSupervisedExpoEnvironment(options?: Readonly<{
   resolveExpoSqliteReactNativeModule?: () => unknown | Promise<unknown>;
   resolveExpoDeviceModule?: () => unknown | Promise<unknown>;
   bindingCache?: SupervisedBindingCache | null;
-  onDiagnostic?: (diagnostic: SnapbackDiagnostic) => void;
+  onDiagnostic?: (diagnostic: SnapbackDiagnostic | SnapbackAppClientDebugEvent) => void;
 }>): SupervisedSnapbackExpoEnvironmentV1;
 
 export function resolveSupervisedExpoExchangeOrigin(): string | null;

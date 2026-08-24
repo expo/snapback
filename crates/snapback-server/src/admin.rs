@@ -21,6 +21,7 @@ pub use crate::contract_types::ServerProfile;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::local::{EphemeralApi, InspectState, LocalSnapback, ReadLane};
 use crate::manifest::{AuthMode, FunctionKind, HandlerInput};
+pub(crate) use crate::operational_readiness::DevAdmissionPostureV1 as DevAdmissionPosture;
 #[cfg(test)]
 use crate::remainder_adapter::RemainderLocalSnapbackExt as _;
 use crate::runtime::CapabilityState;
@@ -352,16 +353,147 @@ fn canonical_loopback_http_origin(raw: &str) -> Option<String> {
     Some(format!("{scheme}://{normalized_authority}"))
 }
 
-fn env_dev_auth_origins() -> BTreeSet<String> {
-    std::env::var("SNAPBACK_DEV_AUTH_ORIGINS")
-        .ok()
-        .into_iter()
-        .flat_map(|raw| {
-            raw.split(',')
-                .filter_map(canonical_loopback_http_origin)
-                .collect::<Vec<_>>()
-        })
-        .collect()
+fn parsed_http_origin(raw: &str) -> Option<url::Url> {
+    let raw = raw.trim();
+    let after_scheme = raw.split_once(':')?.1;
+    let raw_authority = after_scheme
+        .trim_start_matches('/')
+        .split(['/', '?', '#'])
+        .next()?;
+    // WHATWG normalization erases empty userinfo (`@` / `:@`). Credentials
+    // are a syntax refusal even when the normalized URL reports no username.
+    if raw_authority.contains('@') {
+        return None;
+    }
+    let parsed = url::Url::parse(raw).ok()?;
+    if !matches!(parsed.scheme(), "http" | "https")
+        || !parsed.username().is_empty()
+        || parsed.password().is_some()
+        || parsed.path() != "/"
+        || parsed.query().is_some()
+        || parsed.fragment().is_some()
+        || parsed.host().is_none()
+    {
+        return None;
+    }
+    Some(parsed)
+}
+
+fn canonical_http_origin(raw: &str) -> Option<String> {
+    Some(parsed_http_origin(raw)?.origin().ascii_serialization())
+}
+
+/// Canonicalize one browser client origin and apply the literal-loopback host
+/// policy. This extends the legacy `canonical_loopback_http_origin` seam with
+/// WHATWG URL normalization, default-port elision, and the deliberately
+/// narrower fixed host set; it never resolves DNS.
+///
+/// @ref LLP 0301#2b-origin-canonicalization-and-host-policy--separated — URL
+/// syntax normalization precedes the fixed-set host decision.
+fn canonical_dev_client_origin(raw: &str) -> Option<String> {
+    let parsed = parsed_http_origin(raw)?;
+    let host_allowed = match parsed.host()? {
+        url::Host::Domain(host) => host == "localhost",
+        url::Host::Ipv4(address) => address == std::net::Ipv4Addr::LOCALHOST,
+        url::Host::Ipv6(address) => address == std::net::Ipv6Addr::LOCALHOST,
+    };
+    host_allowed.then(|| parsed.origin().ascii_serialization())
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct DevAdmissionConfig {
+    /// `None` is the compatibility posture for a server launched before the
+    /// lifecycle owner began setting the must-understand variable.
+    posture: Option<DevAdmissionPosture>,
+    origins: BTreeSet<String>,
+}
+
+fn dev_admission_posture_invalid(
+    raw_posture: Option<&str>,
+    origins_nonempty: bool,
+) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_DEV_ADMISSION_POSTURE_INVALID",
+        "server",
+        "development admission posture is missing, unrecognized, or inconsistent with SNAPBACK_DEV_AUTH_ORIGINS",
+    )
+    .with_details(json!({
+        "admissionPosture": raw_posture,
+        "devAuthOriginsNonempty": origins_nonempty,
+        "validPairs": [
+            {"admissionPosture": "loopback-any", "devAuthOriginsNonempty": false},
+            {"admissionPosture": "explicit-list", "devAuthOriginsNonempty": true},
+        ],
+    }))
+}
+
+fn resolve_dev_admission_config(
+    raw_posture: Option<&str>,
+    raw_origins: Option<&str>,
+) -> SnapbackResult<DevAdmissionConfig> {
+    let origins_nonempty = raw_origins.is_some_and(|origins| !origins.trim().is_empty());
+
+    // @ref LLP 0301#2-origin-admission--the-path-split-implemented — until
+    // the lifecycle owner supplies the new variable, retain today's exact-list
+    // parsing and admission behavior. This compatibility branch is removed
+    // only by a separately ruled migration, never by inferring loopback-any.
+    let Some(raw_posture) = raw_posture else {
+        let origins = raw_origins
+            .into_iter()
+            .flat_map(|raw| raw.split(','))
+            .filter_map(canonical_loopback_http_origin)
+            .collect();
+        return Ok(DevAdmissionConfig {
+            posture: None,
+            origins,
+        });
+    };
+
+    match (raw_posture, origins_nonempty) {
+        ("loopback-any", false) => Ok(DevAdmissionConfig {
+            posture: Some(DevAdmissionPosture::LoopbackAny),
+            origins: BTreeSet::new(),
+        }),
+        ("explicit-list", true) => Ok(DevAdmissionConfig {
+            posture: Some(DevAdmissionPosture::ExplicitList),
+            origins: raw_origins
+                .into_iter()
+                .flat_map(|raw| raw.split(','))
+                .map(canonical_http_origin)
+                .collect::<Option<BTreeSet<_>>>()
+                .ok_or_else(|| {
+                    dev_admission_posture_invalid(Some(raw_posture), origins_nonempty)
+                })?,
+        }),
+        _ => Err(dev_admission_posture_invalid(
+            Some(raw_posture),
+            origins_nonempty,
+        )),
+    }
+}
+
+fn environment_dev_admission_config() -> SnapbackResult<DevAdmissionConfig> {
+    let raw_posture = match std::env::var("SNAPBACK_DEV_ADMISSION_POSTURE") {
+        Ok(value) => Some(value),
+        Err(std::env::VarError::NotPresent) => None,
+        Err(std::env::VarError::NotUnicode(_)) => {
+            return Err(dev_admission_posture_invalid(
+                Some("<non-Unicode>"),
+                std::env::var("SNAPBACK_DEV_AUTH_ORIGINS")
+                    .ok()
+                    .is_some_and(|origins| !origins.trim().is_empty()),
+            ));
+        }
+    };
+    let raw_origins = match std::env::var("SNAPBACK_DEV_AUTH_ORIGINS") {
+        Ok(value) => Some(value),
+        Err(std::env::VarError::NotPresent) => None,
+        Err(std::env::VarError::NotUnicode(_)) if raw_posture.is_none() => None,
+        Err(std::env::VarError::NotUnicode(_)) => {
+            return Err(dev_admission_posture_invalid(raw_posture.as_deref(), true));
+        }
+    };
+    resolve_dev_admission_config(raw_posture.as_deref(), raw_origins.as_deref())
 }
 
 /// Resolve the server profile from the raw `SNAPBACK_PROFILE` value and the
@@ -390,6 +522,7 @@ pub struct ServerStartupResolution {
     profile: ServerProfile,
     loopback: bool,
     startup_warning: Option<String>,
+    dev_admission: DevAdmissionConfig,
 }
 
 impl ServerStartupResolution {
@@ -402,14 +535,15 @@ impl ServerStartupResolution {
     }
 }
 
-pub fn resolve_server_startup(loopback: bool) -> ServerStartupResolution {
+pub fn resolve_server_startup(loopback: bool) -> SnapbackResult<ServerStartupResolution> {
     let raw_profile = std::env::var("SNAPBACK_PROFILE").ok();
     let exposure = environment_exposure();
-    ServerStartupResolution {
+    Ok(ServerStartupResolution {
         profile: resolve_profile(raw_profile.as_deref(), loopback, exposure.fronted()),
         loopback,
         startup_warning: exposure.startup_warning(raw_profile.as_deref()),
-    }
+        dev_admission: environment_dev_admission_config()?,
+    })
 }
 
 /// The one admin HTTP client. Contract admin-ui imports the same source as the
@@ -2118,10 +2252,13 @@ pub struct ServerContext {
     // Kept private so an embedder cannot turn an assertion into transport
     // authority. Only a bound-listener path may resolve this posture.
     pub(crate) listener_transport: ListenerTransportPosture,
-    /// Exact loopback browser origins permitted to exercise legacy Dev-mode
-    /// body impersonation across origins. No-Origin clients and the listener's
-    /// own origin are handled separately by the request gate.
+    /// Canonical exact browser origins used by explicit-list admission, or the
+    /// legacy loopback list while no 0301 posture has been declared.
+    /// No-Origin clients are handled separately by the request gate.
     pub(crate) dev_auth_origins: BTreeSet<String>,
+    /// `None` preserves the pre-0301 exact-list behavior for callers whose
+    /// lifecycle owner has not begun sending the must-understand posture.
+    pub(crate) dev_admission_posture: Option<DevAdmissionPosture>,
     pub profile: ServerProfile,
     /// Must-understand exposure requested at process composition. The local
     /// target can satisfy only `local`; `hosted` is rejected before bind and
@@ -2170,6 +2307,7 @@ impl fmt::Debug for ServerContext {
             .field("loopback", &self.loopback)
             .field("listener_transport", &self.listener_transport)
             .field("dev_auth_origins", &self.dev_auth_origins)
+            .field("dev_admission_posture", &self.dev_admission_posture)
             .field("profile", &self.profile)
             .field("auth_deployment", &self.auth_deployment)
             .field("pid", &self.pid)
@@ -2244,12 +2382,26 @@ impl ServerContext {
         loopback: bool,
         profile: ServerProfile,
     ) -> Self {
+        let raw_origins = std::env::var("SNAPBACK_DEV_AUTH_ORIGINS").ok();
+        let dev_admission = resolve_dev_admission_config(None, raw_origins.as_deref())
+            .expect("the legacy admission posture is infallible");
+        Self::new_with_resolved_profile_and_admission(host, port, loopback, profile, dev_admission)
+    }
+
+    fn new_with_resolved_profile_and_admission(
+        host: impl Into<String>,
+        port: u16,
+        loopback: bool,
+        profile: ServerProfile,
+        dev_admission: DevAdmissionConfig,
+    ) -> Self {
         Self {
             host: host.into(),
             port,
             loopback,
             listener_transport: ListenerTransportPosture::Unknown,
-            dev_auth_origins: env_dev_auth_origins(),
+            dev_auth_origins: dev_admission.origins,
+            dev_admission_posture: dev_admission.posture,
             profile,
             auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
             pid: std::process::id(),
@@ -2275,7 +2427,13 @@ impl ServerContext {
         port: u16,
         resolution: ServerStartupResolution,
     ) -> Self {
-        Self::new_with_resolved_profile(host, port, resolution.loopback, resolution.profile)
+        Self::new_with_resolved_profile_and_admission(
+            host,
+            port,
+            resolution.loopback,
+            resolution.profile,
+            resolution.dev_admission,
+        )
     }
 
     /// A context for embedded or test use where the bind address is unknown.
@@ -2360,15 +2518,43 @@ impl ServerContext {
     }
 
     pub(crate) fn permits_dev_body_origin(&self, origin: &HeaderValue) -> bool {
-        let Some(origin) = origin
-            .to_str()
-            .ok()
-            .and_then(canonical_loopback_http_origin)
-        else {
-            return false;
-        };
-        self.listener_http_origin().as_deref() == Some(origin.as_str())
-            || self.dev_auth_origins.contains(&origin)
+        match self.dev_admission_posture {
+            Some(DevAdmissionPosture::LoopbackAny) => origin
+                .to_str()
+                .ok()
+                .and_then(canonical_dev_client_origin)
+                .is_some(),
+            Some(DevAdmissionPosture::ExplicitList) => origin
+                .to_str()
+                .ok()
+                .and_then(canonical_http_origin)
+                .is_some_and(|origin| self.dev_auth_origins.contains(&origin)),
+            None => {
+                let Some(origin) = origin
+                    .to_str()
+                    .ok()
+                    .and_then(canonical_loopback_http_origin)
+                else {
+                    return false;
+                };
+                self.listener_http_origin().as_deref() == Some(origin.as_str())
+                    || self.dev_auth_origins.contains(&origin)
+            }
+        }
+    }
+
+    pub(crate) fn declared_dev_admission_posture(&self) -> Option<DevAdmissionPosture> {
+        self.dev_admission_posture
+    }
+
+    pub(crate) fn dev_admission_posture_wire(&self) -> &'static str {
+        self.dev_admission_posture
+            .unwrap_or(DevAdmissionPosture::ExplicitList)
+            .as_str()
+    }
+
+    pub(crate) fn dev_admission_posture_for_readiness(&self) -> Option<DevAdmissionPosture> {
+        self.dev_admission_posture
     }
 
     #[cfg(test)]
@@ -2376,6 +2562,12 @@ impl ServerContext {
         let origin = canonical_loopback_http_origin(origin)
             .expect("test Dev auth origin must be an exact loopback HTTP(S) origin");
         self.dev_auth_origins.insert(origin);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn use_loopback_any_dev_admission_for_test(&mut self) {
+        self.dev_admission_posture = Some(DevAdmissionPosture::LoopbackAny);
+        self.dev_auth_origins.clear();
     }
 
     /// Install a serve-time resolved admin token (ENG-23443): the serve path
@@ -6266,7 +6458,7 @@ mod tests {
     use std::collections::BTreeMap;
 
     #[test]
-    fn dev_auth_origins_are_exact_normalized_loopback_origins() {
+    fn legacy_dev_auth_origins_remain_exact_normalized_loopback_origins() {
         assert_eq!(
             canonical_loopback_http_origin("http://LOCALHOST:8081"),
             Some("http://localhost:8081".to_owned())
@@ -6278,6 +6470,150 @@ mod tests {
         assert!(canonical_loopback_http_origin("http://localhost").is_none());
         assert!(canonical_loopback_http_origin("http://localhost:8081/path").is_none());
         assert!(canonical_loopback_http_origin("https://192.0.2.1:8081").is_none());
+    }
+
+    #[test]
+    fn dev_client_origin_shared_vectors_separate_syntax_from_host_policy() {
+        let syntax_accepts = [
+            ("http://127.0.0.1:4287", "http://127.0.0.1:4287"),
+            ("http://localhost:5173/", "http://localhost:5173"),
+            ("https://[::1]:8443", "https://[::1]:8443"),
+            ("http://127.1:4287", "http://127.0.0.1:4287"),
+            ("HTTP://LOCALHOST:80", "http://localhost"),
+            (
+                "https://lane.trycloudflare.com",
+                "https://lane.trycloudflare.com",
+            ),
+            ("http://localhost.", "http://localhost."),
+        ];
+        for (raw, expected) in syntax_accepts {
+            assert_eq!(
+                canonical_http_origin(raw).as_deref(),
+                Some(expected),
+                "{raw}"
+            );
+        }
+
+        for raw in [
+            "http://127.0.0.1:4287/path",
+            "http://user@127.0.0.1",
+            "http://@localhost",
+            "http://:@localhost",
+            "http:/@localhost",
+            "http:///@localhost",
+            "http:////@localhost",
+            "http://127.0.0.1?x",
+            "ws://127.0.0.1",
+            "not a URL",
+        ] {
+            assert_eq!(canonical_http_origin(raw), None, "{raw}");
+        }
+
+        let host_policy_accepts = [
+            ("http://127.0.0.1:4287", "http://127.0.0.1:4287"),
+            ("http://localhost:5173/", "http://localhost:5173"),
+            ("https://[::1]:8443", "https://[::1]:8443"),
+            ("http://127.1:4287", "http://127.0.0.1:4287"),
+            ("HTTP://LOCALHOST:80", "http://localhost"),
+        ];
+        for (raw, expected) in host_policy_accepts {
+            assert_eq!(
+                canonical_dev_client_origin(raw).as_deref(),
+                Some(expected),
+                "{raw}"
+            );
+        }
+
+        for raw in [
+            "http://localhost.",
+            "http://attacker.dev",
+            "http://0.0.0.0",
+            "http://192.168.1.10:4287",
+            "https://lane.trycloudflare.com",
+            "http://10.0.2.2:4287",
+        ] {
+            assert_eq!(canonical_dev_client_origin(raw), None, "{raw}");
+        }
+    }
+
+    #[test]
+    fn dev_admission_posture_and_list_pairs_are_exhaustive() {
+        for raw_origins in [None, Some("")] {
+            let loopback_any = resolve_dev_admission_config(Some("loopback-any"), raw_origins)
+                .expect("loopback-any plus empty list");
+            assert_eq!(loopback_any.posture, Some(DevAdmissionPosture::LoopbackAny));
+            assert!(loopback_any.origins.is_empty());
+        }
+
+        for raw_origins in [None, Some("")] {
+            let error = resolve_dev_admission_config(Some("explicit-list"), raw_origins)
+                .expect_err("explicit-list plus empty list must refuse");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_DEV_ADMISSION_POSTURE_INVALID"
+            );
+        }
+
+        let explicit = resolve_dev_admission_config(
+            Some("explicit-list"),
+            Some("https://lane.trycloudflare.com"),
+        )
+        .expect("explicit-list plus non-empty list");
+        assert_eq!(explicit.posture, Some(DevAdmissionPosture::ExplicitList));
+        assert_eq!(
+            explicit.origins,
+            BTreeSet::from(["https://lane.trycloudflare.com".to_owned()])
+        );
+
+        let error =
+            resolve_dev_admission_config(Some("loopback-any"), Some("http://localhost:5173"))
+                .expect_err("loopback-any plus non-empty list must refuse");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_DEV_ADMISSION_POSTURE_INVALID"
+        );
+
+        let legacy = resolve_dev_admission_config(None, Some("http://127.0.0.1:5173"))
+            .expect("missing posture retains the legacy exact-list branch");
+        assert_eq!(legacy.posture, None);
+        assert_eq!(
+            legacy.origins,
+            BTreeSet::from(["http://127.0.0.1:5173".to_owned()])
+        );
+
+        let error = resolve_dev_admission_config(Some("surprise"), None)
+            .expect_err("unrecognized posture must refuse");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_DEV_ADMISSION_POSTURE_INVALID"
+        );
+
+        let error = resolve_dev_admission_config(
+            Some("explicit-list"),
+            Some("https://lane.trycloudflare.com/path"),
+        )
+        .expect_err("a syntactically invalid explicit origin must refuse startup");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_DEV_ADMISSION_POSTURE_INVALID"
+        );
+    }
+
+    #[test]
+    fn explicit_list_is_complete_and_does_not_implicitly_add_loopback() {
+        let mut context =
+            ServerContext::new_with_resolved_profile("127.0.0.1", 4287, true, ServerProfile::Dev);
+        context.dev_admission_posture = Some(DevAdmissionPosture::ExplicitList);
+        context.dev_auth_origins = BTreeSet::from(["https://lane.trycloudflare.com".to_owned()]);
+
+        assert!(
+            context.permits_dev_body_origin(&HeaderValue::from_static(
+                "https://lane.trycloudflare.com"
+            ))
+        );
+        assert!(
+            !context.permits_dev_body_origin(&HeaderValue::from_static("http://127.0.0.1:4287"))
+        );
     }
 
     #[test]

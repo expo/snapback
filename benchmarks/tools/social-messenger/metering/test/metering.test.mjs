@@ -271,6 +271,83 @@ test("Codex adapter differences every session's cumulative counters", async () =
   );
 });
 
+test("Codex adapter refuses corrupt retained aggregate-only compaction token_count", async () => {
+  const records = parseJsonLines(
+    await fixtureText("real-codex-aggregate-only-token-count.jsonl"),
+    "retained aggregate-only Codex fixture",
+  );
+  assert.throws(
+    () => adaptCodexSession(records),
+    /cumulative delta does not equal last_token_usage\.total_tokens; received 15609302 and 15283/u,
+  );
+});
+
+test("Codex adapter admits aggregate-only breakdown only when its total checksums", async () => {
+  const [record] = parseJsonLines(
+    await fixtureText("real-codex-aggregate-only-token-count.jsonl"),
+    "aggregate-only Codex fixture",
+  );
+  record.payload.info.total_token_usage = {
+    input_tokens: 15_000,
+    cached_input_tokens: 10_000,
+    cache_write_input_tokens: 0,
+    output_tokens: 283,
+    reasoning_output_tokens: 0,
+    total_tokens: 15_283,
+  };
+  const channel = adaptCodexSession([record]);
+  assert.deepEqual(channel.turns.map((turn) => turn.usage), [
+    counts(5_000, 283, 10_000, 0, 0),
+  ]);
+});
+
+test("observation writer canonicalizes cell identity and rejoin accepts retained spelling", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "snapback-observation-identity-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  for (const name of [
+    "boundaries.json",
+    "first-product-edit.json",
+    "receipts-m1.jsonl",
+    "receipts-m2.jsonl",
+  ]) {
+    await copyFile(new URL(name, FIXTURES), join(directory, name));
+  }
+  const observationPath = join(directory, "observations.jsonl");
+  const writer = new ObservationWriter({
+    path: observationPath,
+    laneRunId: "fixture-cell",
+    canonicalLaneRunId: "fixture-run/fixture-cell",
+  });
+  await writer.initialize();
+  await writer.claim("M1", "browserAssertionWait", { owner: "suite" });
+  const [written] = parseObservationJsonLines(await readFile(observationPath, "utf8"));
+  assert.equal(written.laneRunId, "fixture-run/fixture-cell");
+
+  const retained = `${JSON.stringify({ ...written, laneRunId: "fixture-cell" })}\n`;
+  await writeFile(observationPath, retained);
+  const manifest = await fixtureJson("unavailable-manifest.json");
+  manifest.laneRunId = "fixture-run/fixture-cell";
+  for (const [name, field] of [
+    ["boundaries.json", "boundaries"],
+    ["first-product-edit.json", "firstProductEdit"],
+  ]) {
+    const value = await fixtureJson(name);
+    value.laneRunId = manifest.laneRunId;
+    const text = `${JSON.stringify(value)}\n`;
+    await writeFile(join(directory, name), text);
+    manifest[field].sha256 = sha256(text);
+  }
+  manifest.observations = [{
+    sourceId: "retained-cell-spelling",
+    path: "observations.jsonl",
+    sha256: sha256(retained),
+  }];
+  const manifestPath = join(directory, "manifest.json");
+  await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
+  const loaded = await loadMeteringManifest(manifestPath);
+  assert.equal(loaded.observations.events[0].laneRunId, "fixture-run/fixture-cell");
+});
+
 test("retained real Codex parent and subagent deltas checksum and aggregate independently", async () => {
   const parent = parseJsonLines(
     await fixtureText("real-codex-tree-parent.jsonl"),
@@ -1394,6 +1471,27 @@ test("D0.6 observability is produced from real sidecars and tampering fails clos
     /cannot read retained artifact/u,
   );
 
+  const mixedSpellingRecord = structuredClone(record);
+  mixedSpellingRecord.socialMessenger.meteringProvenance.laneRunId =
+    "fixture-run/fixture-lane";
+  const observationPath = join(root, "observations.jsonl");
+  const observationText = await readFile(observationPath, "utf8");
+  const [firstObservation] = observationText.trim().split("\n");
+  const duplicate = {
+    ...JSON.parse(firstObservation),
+    laneRunId: "fixture-run/fixture-lane",
+  };
+  const mixedSpellingText = `${observationText}${JSON.stringify(duplicate)}\n`;
+  await writeFile(observationPath, mixedSpellingText);
+  mixedSpellingRecord.socialMessenger.meteringProvenance.observations[0].sha256 =
+    sha256(mixedSpellingText);
+  assert.match(
+    composedErrors(mixedSpellingRecord, root).join("\n"),
+    /duplicate observation sequence 1/u,
+    "validator canonicalizes the artifact lane spelling before sequence uniqueness",
+  );
+  await writeFile(observationPath, observationText);
+
   const absentObservationSet = structuredClone(record);
   delete absentObservationSet.socialMessenger.meteringProvenance.observations;
   assert.match(
@@ -1451,14 +1549,13 @@ test("D0.6 observability is produced from real sidecars and tampering fails clos
   );
   await writeFile(suiteReceiptPath, suiteReceiptText);
 
-  const observationText = await readFile(join(root, "observations.jsonl"), "utf8");
-  await writeFile(join(root, "observations.jsonl"), `${observationText} `);
+  await writeFile(observationPath, `${observationText} `);
   assert.match(
     composedErrors(record, root).join("\n"),
     /digest mismatch/u,
     "changing retained bytes after record creation must invalidate the record",
   );
-  await writeFile(join(root, "observations.jsonl"), observationText);
+  await writeFile(observationPath, observationText);
 
   const downgradedOrientation = structuredClone(record);
   downgradedOrientation.socialMessenger.orientation.instrument.pin =

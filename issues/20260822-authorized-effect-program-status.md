@@ -317,3 +317,57 @@ No population is closed. The enumeration has been corrected for count and for ki
 again by the wide-predicate sweep. Several reported findings remain **unverified** and are marked as
 such in their tickets rather than being relied on. Grok's review of the first design was corrupted
 mid-file and its middle findings are **unread, not cleared**.
+
+---
+
+## Status update — 2026-08-24 (later): ruling landed, sequencing corrected
+
+### The program now has a ruling
+
+**LLP 0303** records the author ruling across all 45 open authorization questions, unblocking the
+68 liveness-only rows. One rule with enumerated exceptions:
+
+> The subject must be derived from the authority, not supplied alongside it. Where a mismatched
+> pair can be constructed and then rejected, prefer removing the parameter so the mismatch is
+> unconstructible.
+
+Exceptions are flows that are cross-principal **by design** — effect approval and detached-action
+sinks — each carrying an explicit binding rather than a relaxation. Challenge sends are
+rate-limited rather than authorized. Q13 (who is billed) and Q23 (dev-mode impersonation) are
+approved only in their correlation half; the product policy in each remains open.
+
+### The sequencing was wrong and is corrected
+
+Authority provenance (Q08/Q09/Q11) is a **prerequisite for every other row**, not a peer.
+`PreparedAuthority` is itself caller-constructible today, so "derive the subject from the
+authority" inherits a forgeable input. Until that seal lands, **no row may claim its mismatch is
+unconstructible** — only that it derives from the prepared authority. See
+`issues/20260824-authority-provenance-is-a-prerequisite-not-a-peer.md`.
+
+A consequence worth planning for: every already-landed and in-flight row will need a claim
+re-audit *after* the seal, to see which strengthen from "derives from" to "unconstructible".
+
+### Row accounting (row-level, verifiable)
+
+`issues/20260824-liveness-row-bucket-assignment.md` carries the per-row assignment.
+**7 P1-SHIP / 68 P2-POLICY / 17 P3-LOW / 40 P4-DUPLICATE + 2 RESOLVED = 134**, collapsing to
+**94 independent surfaces**. The 9 P1 rows are enumerated in
+`issues/20260824-p1-ship-rows-enumerated.md`; F190 and F191 are resolved by `a5d66e941` +
+`23db84b46`.
+
+### The evidence bar, learned the expensive way
+
+One fix failed review three times, each for a different insufficiency in the same test:
+refusal-only; exact sets asserted on **method outcomes** rather than the database; then durable
+rows whose expected value was **copied from the observed value**, reducing the assertion to
+`stored == stored`. Every landing now owes an **assertion-provenance audit**. See
+`issues/20260824-assertion-provenance-is-the-recurring-test-defect.md`.
+
+### Fleet note
+
+Coding lanes require macOS: `snapback-server` links the vendored Hermes runtime, which is
+macOS-only. The Linux hosts can build non-Hermes crates (verified: `cargo check -p snapback-types`
+succeeds on the 96-core host) but cannot host a full lane, and their `codex` installs are
+currently unusable — npm's newest is 0.142.5 while `gpt-5.6-sol` requires ≥0.149.0, and one host's
+auth fails token refresh under concurrent use. Treat Linux hosts as analysis-only, and not
+worth further provisioning effort until a current codex is installable there.

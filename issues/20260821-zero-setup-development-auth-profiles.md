@@ -3,7 +3,7 @@
 **Status:** Open
 **Systems:** Auth, Identity providers, Code generation, CLI, Expo, Hosted delivery
 **Owner:** Unassigned
-**Related:** LLP 0036, LLP 0151, LLP 0214, LLP 0258, Diary 0104
+**Related:** LLP 0036, LLP 0151, LLP 0214, LLP 0258, Diary 0111
 
 ## Demo checkpoint, 2026-08-21
 

@@ -1,11 +1,24 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+
+import { createSnapbackAppClient } from '@expo/snapback-client';
+import { mintDeclaredDevCapability } from '@expo/snapback-client/internal/declared-dev-mint';
+import { IDBFactory } from 'fake-indexeddb';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const cli = join(packageRoot, 'cli.mjs');
@@ -32,6 +45,178 @@ function digest(directory) {
   visit(directory);
   return hash.digest('hex');
 }
+
+function generatedBindingSource(backendRoot) {
+  const alias = readFileSync(join(backendRoot, 'generated', 'app.binding.mjs'), 'utf8');
+  const relative = alias.match(/from "(\.\/app\.binding\.[a-f0-9]{64}\.mjs)"/u)?.[1];
+  assert(relative, 'generated binding alias did not name a content-addressed module');
+  return readFileSync(join(backendRoot, 'generated', relative.slice(2)), 'utf8');
+}
+
+test('packaged generate mints development binding and the release CLI emits the sentinel', async () => {
+  const appRoot = mkdtempSync(join(tmpdir(), 'snapback-cli-declared-dev-mode-'));
+  const backendRoot = join(appRoot, 'snapback');
+  const clientPackage = join(packageRoot, '..', 'snapback-client');
+  try {
+    mkdirSync(backendRoot, { recursive: true });
+    mkdirSync(join(appRoot, 'node_modules', '@expo'), { recursive: true });
+    symlinkSync(clientPackage, join(appRoot, 'node_modules', '@expo', 'snapback-client'), 'dir');
+    writeFileSync(join(backendRoot, 'schema.mjs'), `
+import { defineAuth, defineSchema, defineTable, v } from '${defineUrl}';
+const authProgram = defineAuth({
+  version: 1,
+  mechanisms: { password: { kind: 'password', identifier: 'email', provider: 'builtIn', recovery: 'recoveryCodes' } },
+  assuranceRequirements: {},
+  recoveryPolicy: {
+    recoveryCodes: { enabled: true, requiredWhen: 'no-independent-recovery', rotateAfterUse: true, plaintextCustody: 'one-time-response' },
+    lastAuthenticator: 'enforce',
+  },
+  guestPolicy: { enabled: false },
+  secretReferences: {},
+});
+export default defineSchema({
+  todos: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).sync(),
+}, { auth: { mode: 'sessions' }, authProgram });
+`);
+    writeFileSync(join(backendRoot, 'functions.mjs'), `
+import { defineQuery } from '${defineUrl}';
+export const listTodos = defineQuery({ table: 'todos', args: {}, auth: 'public' });
+`);
+
+    const development = spawnSync(
+      process.execPath,
+      [cli, 'generate', backendRoot, '--json'],
+      { cwd: appRoot, encoding: 'utf8' },
+    );
+    assert.equal(development.status, 0, development.stderr || development.stdout);
+    assert.match(
+      generatedBindingSource(backendRoot),
+      /@expo\/snapback-client\/internal\/declared-dev-mint[\s\S]*unsafeInstallDeclaredDevCapabilityForGeneratedCode/u,
+    );
+    const developmentModule = await import(`${pathToFileURL(join(backendRoot, 'generated', 'app.mjs')).href}?mode=development`);
+    assert.equal(developmentModule.declaredDev?.format, 'snapback.declared-dev-capability.v1');
+    assert.equal(developmentModule.app.declaredDev, developmentModule.declaredDev);
+    const handBuiltApp = Object.freeze({
+      ...developmentModule.app,
+      declaredDev: mintDeclaredDevCapability(developmentModule.declaredDev.deploymentIdentity),
+    });
+    await assert.rejects(
+      createSnapbackAppClient({
+        app: handBuiltApp,
+        url: 'http://localhost:5173',
+        platform: { kind: 'memory' },
+        rqsStore: null,
+      }),
+      (error) => error?.code === 'SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED'
+        && /exact generated app object/u.test(error?.message ?? ''),
+    );
+
+    const release = spawnSync(
+      process.execPath,
+      [codegenCli, backendRoot, '--app-binding-mode', 'release', '--json'],
+      { cwd: appRoot, encoding: 'utf8' },
+    );
+    assert.equal(release.status, 0, release.stderr || release.stdout);
+    const releaseSource = generatedBindingSource(backendRoot);
+    assert.match(releaseSource, /export const declaredDev = null/u);
+    assert.doesNotMatch(releaseSource, /declared-dev-mint|unsafeInstallDeclaredDevCapabilityForGeneratedCode/u);
+    const releaseModule = await import(`${pathToFileURL(join(backendRoot, 'generated', 'app.mjs')).href}?mode=release`);
+    assert.equal(releaseModule.declaredDev, null);
+    assert.equal(releaseModule.app.declaredDev, null);
+
+    const artifacts = JSON.parse(readFileSync(join(backendRoot, 'generated', 'artifacts.json'), 'utf8'));
+    const releaseBinding = Object.freeze({
+      format: 'snapback.app-binding.v1',
+      source: 'release',
+      descriptorIdentity: releaseModule.app.identity.descriptor,
+      target: Object.freeze({
+        app: releaseModule.app.identity.app,
+        schema: releaseModule.app.identity.schema,
+        functions: releaseModule.app.identity.functions,
+        origin: 'https://release-generated.example',
+        routing: 'https',
+      }),
+      capabilities: Object.freeze({ offered: Object.freeze([
+        ...releaseModule.app.capabilities.required,
+        'auth.passwords',
+      ]) }),
+      provenance: Object.freeze({
+        environment: 'production',
+        releaseChannel: 'stable',
+        buildReceipt: 'generated-release-test',
+      }),
+      integrity: Object.freeze({ channel: 'embedded-at-build' }),
+    });
+    const nativeFetch = globalThis.fetch;
+    const diagnostics = [];
+    const requests = [];
+    process.env.VITE_SNAPBACK_URL = 'http://localhost:5173';
+    globalThis.fetch = async (input) => {
+      const url = new URL(String(input));
+      requests.push(url.pathname);
+      assert.equal(url.origin, releaseBinding.target.origin);
+      assert.equal(url.pathname, '/auth/session');
+      return new Response(JSON.stringify({
+        protocolVersion: 1,
+        serverStartupNonce: 'release-generated-test',
+        authorizationStreamIncarnation: '018f0d90-8c21-7a22-8c33-445566778899',
+        transitionGeneration: 0,
+        activeMode: 'sessions',
+        desiredMode: 'sessions',
+        modeState: 'settled',
+        appDataAvailability: 'available',
+        quarantineCode: null,
+        clientProtocols: { authClient: 1, authInvalidation: 1, authorityDescriptor: 1, authorizedLease: null },
+        availability: {
+          onlineRequestResponse: { available: true, reason: null },
+          authScopedLive: { available: true, minimumAuthInvalidationProtocol: 1, reason: null },
+          retainedReads: { available: false, minimumAuthInvalidationProtocol: 1, minimumAuthorizedLeaseProtocol: 1, reason: 'fixture' },
+          queuedReplay: { available: true, minimumAuthorityDescriptorProtocol: 1, reason: null },
+        },
+        provider: { key: 'local-password', available: true },
+        transports: ['bearer'],
+        authority: { kind: 'anonymous', userId: null, sessionId: null, isAuthenticated: false },
+        authorityDescriptor: { descriptorVersion: 1, authorityInstanceId: '018f0d90-8c21-7a22-8c33-445566778899', sessionGeneration: 0 },
+        deploymentIdentity: {
+          schemaVersion: artifacts.schemaVersion,
+          authMode: 'sessions',
+          appId: artifacts.appId,
+          schemaHash: artifacts.schemaHash,
+          bundleHash: artifacts.bundleHash,
+          inputsHash: artifacts.inputsHash,
+        },
+        authorizedLease: null,
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+    };
+    try {
+      const appClient = await createSnapbackAppClient({
+        app: releaseModule.app,
+        binding: releaseBinding,
+        url: process.env.VITE_SNAPBACK_URL,
+        platform: {
+          kind: 'browser',
+          indexedDB: new IDBFactory(),
+          cryptoObject: globalThis.crypto,
+          databaseName: `snapback-release-generated-${process.pid}`,
+        },
+        rqsStore: null,
+        onDiagnostic: (event) => diagnostics.push(event),
+      });
+      assert.equal(appClient.bootstrapState().status, 'ready');
+      await appClient.dispose();
+    } finally {
+      globalThis.fetch = nativeFetch;
+      delete process.env.VITE_SNAPBACK_URL;
+    }
+    assert.deepEqual(requests, ['/auth/session']);
+    assert(diagnostics.some((event) => (
+      event.event === 'snapback.declared-dev-url-ignored'
+      && !Object.hasOwn(event, 'code')
+    )));
+  } finally {
+    rmSync(appRoot, { recursive: true, force: true });
+  }
+});
 
 test('packaged generate --check runs the full preflight without replacing artifacts', () => {
   try {

@@ -2953,9 +2953,10 @@ await build({
     .map((name) => readFileSync(join(reactScaffoldRoot, 'dist', 'assets', name), 'utf8'))
     .join('\n');
   if (
-    reactManifest.scripts?.dev !== 'snapback dev snapback --client . --client-command vite'
-    || reactManifest.scripts?.['snapback:dev'] !== reactManifest.scripts?.dev
-    || reactManifest.scripts?.['client:dev'] !== 'vite'
+    reactManifest.scripts?.dev !== 'snapback dev snapback --write-env'
+    || reactManifest.scripts?.['dev:client'] !== 'vite'
+    || Object.hasOwn(reactManifest.scripts ?? {}, 'snapback:dev')
+    || Object.hasOwn(reactManifest.scripts ?? {}, 'client:dev')
     || !Object.hasOwn(reactManifest.dependencies ?? {}, generation.vite)
     || !reactMain.includes("from 'virtual:snapback/dev'")
     || reactMain.includes('ensureApp(')
@@ -2965,7 +2966,7 @@ await build({
     || builtAssets.includes('127.0.0.1')
     || browserAssetsContainSecretCanary(builtAssets, browserSecretCanary)
   ) {
-    fail('React starter did not preserve the one-command versioned relative Vite seam');
+    fail('React starter did not preserve the two-process URL-first Vite seam');
   }
 
   // LLP 0196 T1: the portfolio CRUD scaffold must survive the same packed,

@@ -76,7 +76,7 @@ three-arg `ctx.db.patch/delete` dialect, required-field slips, quote unwrap.
 Familiar's verdict on dialect cliffs ("cost hours when hit blind") matches
 `0104-sol-high-clique-explicit-local-main`,
 `0105-sol-high-clique-familiar-local-main`, and
-`0106-sol-high-clique-local-main-0125`.
+`0112-sol-high-clique-local-main-0125`.
 
 ## Comparison notes
 

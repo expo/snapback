@@ -13,6 +13,7 @@ import {
   adoptSupervisedBootstrapAuthority,
   createProviderValidatedExpoNativePlatform,
   createSnapbackAppClientWithBootstrapObserver,
+  declaredDevCapabilityFromApp,
 } from '@expo/snapback-client/app-client-internal';
 import { createAssetClient } from '@expo/snapback-client/assets';
 import {
@@ -25,7 +26,9 @@ import {
   isAppBindingDiagnostic,
   publicBindingFacts,
 } from './app-binding.mjs';
-import { createSupervisedExpoEnvironment } from './supervised-environment.mjs';
+import {
+  createSupervisedExpoEnvironment,
+} from './supervised-environment.mjs';
 import {
   sanitizePublicDiagnostic,
   sanitizePublicRemediations,
@@ -44,6 +47,10 @@ import {
   createExpoCryptoSha256DigestAdapter,
   expoCryptoDigestModuleUnavailable,
 } from './expo-crypto-digest.mjs';
+import {
+  createDeclaredDevBindingCandidate,
+  supervisedRendezvousConfiguredFromRuntime,
+} from './declared-dev-binding-internal.mjs';
 
 const bootContext = createContext(null);
 const lifecycleContext = createContext(null);
@@ -349,18 +356,25 @@ export const defaultSnapbackExpoEnvironment = createSupervisedExpoEnvironment();
 // @ref LLP 0176#one-owner-many-projections — client preparation and React
 // provider construction call the existing package owners instead of creating
 // an Expo cache, sync transport, or auth model.
-export function createSnapbackExpoBoot({
-  app,
-  binding: bindingOverride = null,
-  rqsStore = undefined,
-  environment = defaultSnapbackExpoEnvironment,
-  createProvider = createSnapbackReactProvider,
-  bindLifecycle = bindSnapbackAppLifecycle,
-  createApplicationClient = createSnapbackAppClientWithBootstrapObserver,
-  adoptSupervisedAuthority = adoptSupervisedBootstrapAuthority,
-  acquireDefaultRqsStore = acquireExpoSqliteDefaultRqsStore,
-  now = () => Date.now(),
-} = {}) {
+export function createSnapbackExpoBoot(options = {}) {
+  if (Object.hasOwn(options, 'declaredDev') || Object.hasOwn(options, 'declaredDevCapability')) {
+    const error = new Error('The declared-dev capability is accepted only from the imported generated app object.');
+    error.code = 'SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED';
+    throw error;
+  }
+  const {
+    app,
+    binding: bindingOverride = null,
+    url = undefined,
+    rqsStore = undefined,
+    environment = defaultSnapbackExpoEnvironment,
+    createProvider = createSnapbackReactProvider,
+    bindLifecycle = bindSnapbackAppLifecycle,
+    createApplicationClient = createSnapbackAppClientWithBootstrapObserver,
+    adoptSupervisedAuthority = adoptSupervisedBootstrapAuthority,
+    acquireDefaultRqsStore = acquireExpoSqliteDefaultRqsStore,
+    now = () => Date.now(),
+  } = options;
   const correlationId = `snapback-expo-boot-${++bootSequence}`;
   let state = Object.freeze({ status: 'starting', stage: 'binding' });
   let started = false;
@@ -384,6 +398,20 @@ export function createSnapbackExpoBoot({
   let resolvedRqsStore = rqsStore;
   const listeners = new Set();
   const controller = new AbortController();
+
+  const emitSourceDiagnostic = (message, details) => {
+    try {
+      environment.onDiagnostic?.(Object.freeze({
+        schemaVersion: 'snapback.client-debug-event.v1',
+        event: 'snapback.declared-dev-url-ignored',
+        severity: 'debug',
+        message,
+        details: Object.freeze({ ...details }),
+      }));
+    } catch {
+      // Source selection diagnostics are observational.
+    }
+  };
 
   const abortReason = () => controller.signal.reason
     ?? Object.assign(new Error('Expo application bootstrap was aborted.'), { name: 'AbortError' });
@@ -484,11 +512,50 @@ export function createSnapbackExpoBoot({
         error.code = 'SNAPBACK_EXPO_ENVIRONMENT_INVALID';
         throw error;
       }
-      const resolution = await awaitBoundary(environment.resolveBinding(Object.freeze({
-        app,
-        bindingOverride,
-        signal: controller.signal,
-      })));
+      const declaredDevCapability = declaredDevCapabilityFromApp(app);
+      if (app?.declaredDev !== undefined && app.declaredDev !== null && declaredDevCapability === null) {
+        const error = new Error('The declared-dev capability is not installed on this exact generated app object.');
+        error.code = 'SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED';
+        throw error;
+      }
+      const rendezvousConfigured = declaredDevCapability !== null
+        && supervisedRendezvousConfiguredFromRuntime();
+      const hasRealUrl = url !== undefined && url !== null && url !== '';
+      let resolution;
+      if (
+        bindingOverride === null
+        && declaredDevCapability !== null
+        && !rendezvousConfigured
+        && hasRealUrl
+      ) {
+        resolution = Object.freeze({
+          binding: createDeclaredDevBindingCandidate(app, url),
+          admission: Object.freeze({ productionCondition: false }),
+        });
+      } else {
+        if (declaredDevCapability === null && hasRealUrl) {
+          emitSourceDiagnostic(
+            'The generated app has no declared-dev capability; the url option is ignored for source selection.',
+            { selectedSource: 'existing-binding-resolution', ignoredUrl: url },
+          );
+        }
+        resolution = await awaitBoundary(environment.resolveBinding(Object.freeze({
+          app,
+          bindingOverride,
+          signal: controller.signal,
+          url,
+        })));
+        if (
+          declaredDevCapability !== null
+          && hasRealUrl
+          && resolution?.binding?.source === 'supervised-dev'
+        ) {
+          emitSourceDiagnostic(
+            'The supervised rendezvous completed; its binding is selected and the url option is ignored.',
+            { selectedSource: 'supervised-dev', ignoredUrl: url },
+          );
+        }
+      }
       if (!resolution || typeof resolution !== 'object' || !resolution.binding) {
         const error = new Error('binding resolver returned no AppBinding admission candidate');
         error.code = 'SNAPBACK_APP_BINDING_UNAVAILABLE';
@@ -543,12 +610,17 @@ export function createSnapbackExpoBoot({
         applicationClient = await awaitBoundary(createApplicationClient(
           {
             app,
-            binding: admittedBinding,
+            ...(admittedBinding.source === 'declared-dev'
+              ? { url: admittedBinding.target.origin }
+              : { binding: admittedBinding }),
             platform,
             now,
             signal: controller.signal,
             rqsStore: resolvedRqsStore,
             ...(authProviders === null ? {} : { authProviders }),
+            ...(environment.onDiagnostic === undefined
+              ? {}
+              : { onDiagnostic: environment.onDiagnostic }),
           },
           (snapshot) => {
             if (!disposed && snapshot.status !== 'ready') publish(snapshot);
@@ -911,16 +983,23 @@ export function createSnapbackExpoBoot({
   });
 }
 
-export function SnapbackExpoProvider({
-  app,
-  binding = null,
-  environment = defaultSnapbackExpoEnvironment,
-  rqsStore = undefined,
-  fallback = null,
-  children = null,
-  outboxDrain = 'auto',
-  outboxDrainOptions = undefined,
-}) {
+export function SnapbackExpoProvider(props) {
+  if (Object.hasOwn(props, 'declaredDev') || Object.hasOwn(props, 'declaredDevCapability')) {
+    const error = new Error('The declared-dev capability is accepted only from the imported generated app object.');
+    error.code = 'SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED';
+    throw error;
+  }
+  const {
+    app,
+    binding = null,
+    url = undefined,
+    environment = defaultSnapbackExpoEnvironment,
+    rqsStore = undefined,
+    fallback = null,
+    children = null,
+    outboxDrain = 'auto',
+    outboxDrainOptions = undefined,
+  } = props;
   const store = useMemo(() => {
     const listeners = new Set();
     let current = Object.freeze({
@@ -940,10 +1019,10 @@ export function SnapbackExpoProvider({
         for (const listener of [...listeners]) listener();
       },
     });
-  }, [app, binding, environment, rqsStore]);
+  }, [app, binding, environment, rqsStore, url]);
   const active = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   useEffect(() => {
-    const boot = createSnapbackExpoBoot({ app, binding, environment, rqsStore });
+    const boot = createSnapbackExpoBoot({ app, binding, url, environment, rqsStore });
     let current = true;
     const sync = () => {
       if (!current) return;
@@ -962,7 +1041,7 @@ export function SnapbackExpoProvider({
       unsubscribe();
       void boot.dispose();
     };
-  }, [app, binding, environment, rqsStore, store]);
+  }, [app, binding, environment, rqsStore, store, url]);
   const state = active.state;
   const lifecycleValue = useMemo(() => Object.freeze({
     environment,

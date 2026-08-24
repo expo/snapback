@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "snapback.r2-retained-rejoin.v1",
+  "cellId": "opus-clique-explicit",
+  "mode": "deterministic-retained-evidence-rejoin",
+  "rerun": false,
+  "sourceFailureReport": "../../BLOCKED-charlies-macbook-pro-2-driver-finalization.md",
+  "meteringDisposition": {
+    "result": "available",
+    "parserRevision": "7b828efca524b4c61d124f80fd3f32e5fa6670b0",
+    "sourceSession": {
+      "nativeSessionId": "6b19e74c-66ca-4dbe-ae68-b42ac4b12138",
+      "path": "events/harness.stdout.jsonl",
+      "sha256": "sha256:665630fdbc21883fc8c3d3c87d71ad262f1a520a4958326db5dff0fce2010853"
+    },
+    "rule": "The retained native session is parsed only after its declared SHA-256 is verified; checksum or parser failure makes usage unavailable rather than estimated."
+  },
+  "normalization": {
+    "reason": "The original driver used each choreography summary time as the terminal boundary even though the retained controller phase transition and final flush occurred later.",
+    "clockCorrelation": "All retained sources use the same host clock; the rejoin partitions at exact retained controller transition/final stamps with zero cross-host skew.",
+    "milestones": {
+      "M1": "2026-08-24T10:10:18.992Z",
+      "M2": "2026-08-24T11:27:40.153Z",
+      "M3": "2026-08-24T12:22:34.170Z"
+    },
+    "redundantClaimMarkers": {
+      "reason": "Each suite sidecar and the controller both claimed the unowned restartReseed block. The rejoin removes only the suite claim marker while retaining every suite and controller lifecycle event under the controller's original claim.",
+      "removed": [
+        "receipts/m1-suite.observations.jsonl sequence 2",
+        "receipts/m2-suite.observations.jsonl sequence 2",
+        "receipts/m3-suite.observations.jsonl sequence 2"
+      ]
+    },
+    "crossMilestoneRetry": {
+      "reason": "The controller linked M3 native-api-3 to the M1 native-api-2 failure, but interruption projection is milestone-scoped. The rejoin retains both errors and changes only native-api-3.retryOf to null, preserving an unrecovered M3 interruption rather than hiding it.",
+      "event": "events/lane-controller-observations.jsonl sequence 527"
+    },
+    "originalSha256": {
+      "events/lane-controller-observations.jsonl": "sha256:1d02998afbaec731a48afe59c2979a065bf198ae31299c71ffb7da20679cec27",
+      "terminal-boundaries.json": "sha256:226c1964b08928e19dd213b8ad39f68910381621859464913ab08e884a9c60d3",
+      "receipts/m1-choreography.jsonl": "sha256:46013f8b9a9c2a9472cfc301ceb65f01130122e57a309b6d3f9ebbf0efc0382b",
+      "receipts/m2-choreography.jsonl": "sha256:14f57500a7bfedbce919ddf3f80c0089134d9c1e822e39574700e1ecc1b31d26",
+      "receipts/m3-choreography.jsonl": "sha256:804e1887d93f484767bd0928fbb05390b52871ae689bab9388fa024ec837d482",
+      "receipts/m1-suite.observations.jsonl": "sha256:c5ca827d10a240be5bd1eb54321b59f5fada528d0a7e2fbf9ee2668fe1c23ecd",
+      "receipts/m2-suite.observations.jsonl": "sha256:69368f9f634eca977da532dd9bf0a1cf2a01b07ce7e84b5b3767af3fcb8592b0",
+      "receipts/m3-suite.observations.jsonl": "sha256:a1c1d427fffab03b02000a3f228e77eab08a6d8861373354c1b49f6ca890dfc2"
+    }
+  }
+}

@@ -108,7 +108,7 @@ use axum::extract::{
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{MethodRouter, delete, get, head, patch, post};
+use axum::routing::{MethodFilter, MethodRouter, delete, get, head, patch, post};
 use axum::{
     Json, Router,
     body::{Body, Bytes, to_bytes},
@@ -9774,6 +9774,9 @@ pub struct EffectiveRoutePolicy {
     /// controls so no other public/static route inherits cross-origin embed
     /// permission from its sensitivity class alone.
     pub cross_origin_embeddable: bool,
+    /// The identity fact pins the literal cache-control value rather than the
+    /// broader private-response spelling used by credential-bearing lanes.
+    pub exact_public_no_store: bool,
 }
 
 /// A declared route in the registry. `policy` is retained as a source
@@ -9843,9 +9846,12 @@ impl RouteSpec {
     }
 
     /// Methods structurally installed for this path. Axum's `get` includes
-    /// HEAD, and the registry builder attaches one inert CORS preflight to
-    /// every known path; no middleware manufactures methods for unknown paths.
+    /// HEAD, and the registry builder ordinarily attaches one inert CORS
+    /// preflight to every known path. The app-identity fact is GET-only.
     pub fn accepts_http_method(&self, method: &str) -> bool {
+        if self.path == "/_snapback/api/app/identity" {
+            return method == self.method;
+        }
         method == self.method || method == "OPTIONS" || (self.method == "GET" && method == "HEAD")
     }
 
@@ -9858,6 +9864,7 @@ impl RouteSpec {
             effect_policy: self.effect_policy,
             response_sensitivity: self.response_sensitivity,
             cross_origin_embeddable: pasteable_delivery_route(self),
+            exact_public_no_store: self.path == "/_snapback/api/app/identity",
         };
         if matches!(mode, PolicyAuthMode::Sessions) {
             let overlay = self.session_overlay;
@@ -9921,15 +9928,28 @@ impl RouteSpec {
                 if !self.path.starts_with("/_snapback/api/") {
                     return fail("system API escaped the reserved namespace");
                 }
+                // @ref LLP 0301#1-the-identity-fact — this one credential-free
+                // system fact is intentionally public and no-store; all other
+                // system APIs retain the operator/rehearsal policy families.
+                let public_app_identity = self.method == "GET"
+                    && self.path == "/_snapback/api/app/identity"
+                    && self.path_policy == RoutePolicy::Public
+                    && self.credential_resolution == CredentialResolution::None
+                    && self.invocation_authority == InvocationAuthority::None
+                    && self.legacy_body_policy == LegacyBodyPolicy::NotApplicable
+                    && self.effect_policy == EffectPolicy::None
+                    && self.response_sensitivity == ResponseSensitivity::PublicNoStore
+                    && self.session_overlay == SessionModeOverlay::NONE;
                 if !matches!(
                     self.path_policy,
                     RoutePolicy::AdminRead
                         | RoutePolicy::AdminWrite
                         | RoutePolicy::AdminSecretRead
                         | RoutePolicy::SessionAuth
-                ) && !(self.path_policy == RoutePolicy::Public
-                    && self.credential_resolution == CredentialResolution::RehearsalCapability
-                    && self.effect_policy == EffectPolicy::RehearsalGrant)
+                ) && !public_app_identity
+                    && !(self.path_policy == RoutePolicy::Public
+                        && self.credential_resolution == CredentialResolution::RehearsalCapability
+                        && self.effect_policy == EffectPolicy::RehearsalGrant)
                 {
                     return fail("system API has a non-system path policy");
                 }
@@ -10536,6 +10556,61 @@ async fn served_http_routes() -> Response {
         HeaderValue::from_static(option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")),
     );
     response
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AppIdentityFactV1 {
+    format_version: &'static str,
+    deployment: crate::auth::mode::DeploymentIdentity,
+    admission_posture: &'static str,
+}
+
+/// Credential-free mix-up detection for URL-first development clients.
+///
+/// @ref LLP 0301#1-the-identity-fact — identity plus admission posture only;
+/// no process, receipt, token, port, lease, or lifecycle-owner state.
+async fn app_identity(
+    method: Method,
+    State(runtime): State<AppState>,
+) -> Result<Response, ApiError> {
+    // Axum deliberately falls GET back to HEAD. This fact is contractually
+    // GET-only, so close that implicit method before reading server state.
+    if method != Method::GET {
+        return Ok((StatusCode::METHOD_NOT_ALLOWED, [(header::ALLOW, "GET")]).into_response());
+    }
+    if runtime.server.profile != ServerProfile::Dev {
+        return Err(SnapbackError::error(
+            "SNAPBACK_APP_IDENTITY_UNAVAILABLE",
+            "server",
+            "the application identity fact is unavailable on this server profile",
+        )
+        .into());
+    }
+
+    let auth_mode_state = (*runtime.auth_mode_state()).clone();
+    let deployment = with_snapback(&runtime.snapback, move |snapback| {
+        crate::operational_readiness::derive_effective_active_deployment(
+            &auth_mode_state,
+            snapback.served_schema_manifest(),
+            snapback.served_function_manifest(),
+        )
+        .ok_or_else(|| {
+            SnapbackError::error(
+                crate::operational_readiness::READINESS_FACTS_UNAVAILABLE_CODE,
+                "app-readiness",
+                "the active deployment identity is unavailable",
+            )
+        })
+    })
+    .await?;
+
+    Ok(Json(AppIdentityFactV1 {
+        format_version: "snapback.app-identity.v1",
+        deployment,
+        admission_posture: runtime.server.dev_admission_posture_wire(),
+    })
+    .into_response())
 }
 
 /// The app-data route registrations. Each handler literal appears only here;
@@ -11680,6 +11755,21 @@ fn system_route_registrations() -> Vec<RegisteredRoute> {
     let write =
         |path, sensitivity| system_api_route("POST", path, RoutePolicy::AdminWrite, sensitivity);
     vec![
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "GET",
+                "/_snapback/api/app/identity",
+                RouteClass::SystemApi,
+                RoutePolicy::Public,
+                CredentialResolution::None,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::PublicNoStore,
+            ),
+            MethodRouter::new()
+                .on(MethodFilter::GET, app_identity)
+                .layer(DefaultBodyLimit::max(0)),
+        ),
         RegisteredRoute::new(served_guide_route("/llms.txt"), get(served_llms_txt)),
         RegisteredRoute::new(
             served_guide_route("/_snapback/guide"),
@@ -12005,7 +12095,9 @@ fn apply_registered_response_controls(
             HeaderValue::from_static("same-origin"),
         );
     }
-    if !matches!(
+    if effective.exact_public_no_store {
+        headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    } else if !matches!(
         effective.response_sensitivity,
         ResponseSensitivity::StaticPublic | ResponseSensitivity::PublicProjection
     ) {
@@ -15218,8 +15310,11 @@ async fn enforce_registered_route_policy_inner(
     // the disabled surface as a fixed 404 on the public application origin, so
     // that is what a hosted deployment serves — before any handler, and
     // identically for pages and API routes so the response cannot distinguish
-    // a present route from an absent one.
+    // a present route from an absent one. LLP 0301's public identity path is
+    // the one exception: it reaches its handler so every Prod profile returns
+    // the contract's typed SNAPBACK_APP_IDENTITY_UNAVAILABLE 404.
     if runtime.hosted_serving.is_some()
+        && spec.path != "/_snapback/api/app/identity"
         && matches!(spec.class, RouteClass::SystemStatic | RouteClass::SystemApi)
     {
         return apply_registered_response_controls(
@@ -21136,10 +21231,12 @@ pub(crate) fn router_from_registrations(
     paths
         .into_iter()
         .fold(Router::new(), |router, (path, method_router)| {
-            router.route(
-                path,
-                method_router.options(|| async { StatusCode::NO_CONTENT }),
-            )
+            let method_router = if path == "/_snapback/api/app/identity" {
+                method_router
+            } else {
+                method_router.options(|| async { StatusCode::NO_CONTENT })
+            };
+            router.route(path, method_router)
         })
         .fallback(telemetry_not_found)
 }
@@ -23132,6 +23229,7 @@ async fn local_dev_cors(
     // @ref LLP 0025#demo-shape — web-only demos may be served by an ordinary
     // static/Vite origin while talking to the local Snapback server.
     let origin = request.headers().get(header::ORIGIN);
+    let identity_route = request.uri().path() == "/_snapback/api/app/identity";
     let declared_api_origin =
         if request.uri().path().starts_with("/api/v1/") || request.uri().path() == "/mcp" {
             let candidate = origin
@@ -23156,9 +23254,24 @@ async fn local_dev_cors(
     // @ref LLP 0204#d2--surface-1-the-third-party-api — browser integrations
     // use bearer headers, so a declared exact origin is echoed with Vary but
     // never Access-Control-Allow-Credentials.
-    let allowed_origin = loopback_origin(origin)
-        .or_else(|| runtime.console_reachability.admitted_origin(origin))
-        .or(declared_api_origin);
+    let dev_admission_origin = match runtime.server.declared_dev_admission_posture() {
+        Some(_) => origin
+            .filter(|origin| runtime.server.permits_dev_body_origin(origin))
+            .cloned(),
+        // The lifecycle owner did not supply the 0301 variable: retain the
+        // pre-0301 CORS behavior along with the legacy body-origin behavior.
+        None => loopback_origin(origin),
+    };
+    let allowed_origin = if identity_route {
+        // @ref LLP 0301#1-the-identity-fact — the public identity route follows
+        // the selected dev admission posture and no unrelated console/API
+        // origin source widens that browser-readable fact.
+        dev_admission_origin
+    } else {
+        dev_admission_origin
+            .or_else(|| runtime.console_reachability.admitted_origin(origin))
+            .or(declared_api_origin)
+    };
     with_cors_headers(next.run(request).await, allowed_origin)
 }
 
@@ -24956,6 +25069,7 @@ fn operational_readiness_runtime_facts(
         auth_mode_state: (*runtime.auth_mode_state()).clone(),
         auth_program_readiness: runtime.auth_program_readiness().clone(),
         client_origins: runtime.server.dev_auth_origins.iter().cloned().collect(),
+        admission_posture: runtime.server.dev_admission_posture_for_readiness(),
         // @ref LLP 0167#observation-semantics--what-a-delay-means — readiness
         //   reads the undelayed control plane and only records the active name.
         network_profile: runtime.network_profiles.active().profile.name.clone(),
@@ -25002,6 +25116,7 @@ fn capture_operational_readiness_facts(
             database_version: None,
         },
         client_origins: runtime.client_origins,
+        admission_posture: runtime.admission_posture,
         network_profile: runtime.network_profile,
         app_id: (!app_id.is_empty()).then_some(app_id),
         route_manifest_hash: snapback.loaded_route_manifest_hash(),

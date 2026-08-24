@@ -1,9 +1,16 @@
 import {
+  canonicalDeclaredDevOrigin,
   classifyHostedDevelopmentHostname,
+  declaredDevCapabilityFromApp,
+  deploymentIdentitiesEqual,
+  stampedDeclaredDevIdentity,
 } from '@expo/snapback-client/app-client-internal';
 import {
   admitHostedDevelopmentBindingForAppClient,
 } from './app-binding-internal.mjs';
+import {
+  declaredDevCandidateStamp,
+} from './declared-dev-binding-internal.mjs';
 
 export const APP_BINDING_FORMAT = 'snapback.app-binding.v1';
 
@@ -21,6 +28,7 @@ const CAPABILITY_KEYS = ['offered'];
 const DEV_PROVENANCE_KEYS = ['expiresAt', 'issuedAt', 'supervisorGeneration'];
 const HOSTED_DEVELOPMENT_PROVENANCE_KEYS = ['hostedTargetReceipt'];
 const RELEASE_PROVENANCE_KEYS = ['buildReceipt', 'environment', 'releaseChannel'];
+const DECLARED_DEV_PROVENANCE_KEYS = ['deploymentIdentity'];
 const SUPERVISED_ISSUANCE_CLOCK_SKEW_MS = 60_000;
 const AUTHORING_PROFILES = new Set([
   'snapback-explicit-v1',
@@ -106,25 +114,18 @@ function parseOrigin(value) {
 }
 
 function isLoopbackHostname(hostname) {
-  // @ref LLP 0181#package-contract — release exports must not retain the supervised
-  // endpoint vocabulary; production builds prune this branch (LLP 0176 G4).
-  if (process.env.NODE_ENV !== 'production') {
-    return hostname === 'localhost'
-      || hostname === '[::1]'
-      || hostname === '::1'
-      || /^127(?:\.[0-9]{1,3}){3}$/u.test(hostname);
-  }
-  return false;
+  // @ref LLP 0302#1-structural-gating-one-stable-module-two-generated-variants
+  // — source admission is closed by generated capability/release facts, not
+  // by ambient NODE_ENV, which may be misleading in a development app.
+  return hostname === 'localhost'
+    || hostname === '[::1]'
+    || hostname === '::1'
+    || /^127(?:\.[0-9]{1,3}){3}$/u.test(hostname);
 }
 
 function isSupervisedDeviceLocalHostname(hostname, routing) {
-  // @ref LLP 0181#package-contract — release exports must not retain the supervised
-  // endpoint vocabulary; production builds prune this branch (LLP 0176 G4).
-  if (process.env.NODE_ENV !== 'production') {
-    return isLoopbackHostname(hostname)
-      || (routing === 'port-forward' && hostname === '10.0.2.2');
-  }
-  return false;
+  return isLoopbackHostname(hostname)
+    || (routing === 'port-forward' && hostname === '10.0.2.2');
 }
 
 function validTimestamp(value) {
@@ -154,11 +155,11 @@ export function validateAppBindingV1(candidate) {
       { observedFormat: candidate.format ?? null },
     ));
   }
-  if (!['supervised-dev', 'hosted-development', 'release'].includes(candidate.source)) {
+  if (!['supervised-dev', 'hosted-development', 'declared-dev', 'release'].includes(candidate.source)) {
     problems.push(problem(
       'SNAPBACK_APP_BINDING_SOURCE_UNSUPPORTED',
       '$.source',
-      'AppBinding source must be supervised-dev, hosted-development, or release',
+      'AppBinding source must be supervised-dev, hosted-development, declared-dev, or release',
       { observedSource: candidate.source ?? null },
     ));
   }
@@ -177,6 +178,7 @@ export function validateAppBindingV1(candidate) {
     ));
   } else {
     for (const field of ['app', 'schema', 'functions', 'origin']) {
+      if (field === 'origin' && candidate.source === 'declared-dev') continue;
       if (!nonEmptyString(candidate.target[field])) {
         problems.push(problem(
           'SNAPBACK_APP_BINDING_SCHEMA_INVALID',
@@ -186,7 +188,24 @@ export function validateAppBindingV1(candidate) {
       }
     }
     const origin = parseOrigin(candidate.target.origin);
-    if (origin === null) {
+    if (candidate.source === 'declared-dev') {
+      const canonical = canonicalDeclaredDevOrigin(candidate.target.origin);
+      if (!canonical.ok || canonical.origin !== candidate.target.origin) {
+        problems.push(problem(
+          'SNAPBACK_APP_BINDING_URL_INVALID',
+          '$.target.origin',
+          `declared-dev URL refused by rule ${canonical.ok ? 'canonical-origin' : canonical.rule}`,
+          { rule: canonical.ok ? 'canonical-origin' : canonical.rule },
+        ));
+      }
+      if (candidate.target.routing !== 'declared-dev') {
+        problems.push(problem(
+          'SNAPBACK_APP_BINDING_SOURCE_MISMATCH',
+          '$.target.routing',
+          'declared-dev bindings admit only declared-dev routing',
+        ));
+      }
+    } else if (origin === null) {
       problems.push(problem(
         'SNAPBACK_APP_BINDING_TARGET_INVALID',
         '$.target.origin',
@@ -260,7 +279,23 @@ export function validateAppBindingV1(candidate) {
       'capabilities.offered must be a duplicate-free string array',
     ));
   }
-  if (candidate.source === 'supervised-dev') {
+  if (candidate.source === 'declared-dev') {
+    if (!exactKeys(candidate.provenance, DECLARED_DEV_PROVENANCE_KEYS)) {
+      problems.push(problem(
+        'SNAPBACK_APP_BINDING_SOURCE_MISMATCH',
+        '$.provenance',
+        'declared-dev provenance must contain only deploymentIdentity',
+      ));
+    }
+    if (!exactKeys(candidate.integrity, ['channel'])
+      || candidate.integrity.channel !== 'generated-declared-dev') {
+      problems.push(problem(
+        'SNAPBACK_APP_BINDING_INTEGRITY_INVALID',
+        '$.integrity',
+        'declared-dev integrity must name only generated-declared-dev',
+      ));
+    }
+  } else if (candidate.source === 'supervised-dev') {
     if (!exactKeys(candidate.provenance, DEV_PROVENANCE_KEYS)) {
       problems.push(problem(
         'SNAPBACK_APP_BINDING_SOURCE_MISMATCH',
@@ -491,6 +526,29 @@ export async function admitAppBindingV1(candidate, app, {
         { descriptorIdentity: descriptor.identity.descriptor },
       )],
     );
+  }
+  if (candidate.source === 'declared-dev') {
+    const stamp = declaredDevCandidateStamp(candidate);
+    const appCapability = declaredDevCapabilityFromApp(descriptor);
+    const appDeploymentIdentity = stampedDeclaredDevIdentity(appCapability);
+    const candidateDeploymentIdentity = stamp?.deploymentIdentity ?? null;
+    if (
+      candidateDeploymentIdentity === null
+      || appDeploymentIdentity === null
+      || !deploymentIdentitiesEqual(candidateDeploymentIdentity, candidate.provenance.deploymentIdentity)
+      || !deploymentIdentitiesEqual(candidateDeploymentIdentity, appDeploymentIdentity)
+    ) {
+      bindingFailure(
+        'SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED',
+        'The declared-dev binding was not minted for this generated application.',
+        {
+          branded: stamp !== null,
+          generatedIdentity: appDeploymentIdentity,
+          candidateIdentity: candidate.provenance.deploymentIdentity ?? null,
+        },
+      );
+    }
+    return freezeClone(candidate);
   }
   if (candidate.source === 'supervised-dev') {
     if (productionCondition === true) {

@@ -1,17 +1,31 @@
 # LLP 0301: URL-first dev lifecycle — server, CLI, and wire contract
 
 **Type:** Spec
-**Status:** Accepted
+**Status:** Implemented
 **Systems:** Server, CLI, Local server lifecycle, Auth, Templates, Guide,
 Diagnostics
 **Author:** Claude (Fable 5), commissioned by Charlie Cheever (standing
 overnight directive 2026-08-24: RFC → refine → Specs → refine →
 implementation)
 **Date:** 2026-08-24
+**Revised:** 2026-08-24 (h — Accepted → Implemented. Server/identity work
+landed in `05dfbba22`; client discovery and the LLP 0302 §8a stream-less
+per-operation battery landed in `9653d21d2`; CLI, env writer, explicit dev
+session, and template flips landed in `158744901`; packet reconciliation
+landed in `aa2de2d85`; Lane D completes the documentary and generated chain.)
 **Revised:** 2026-08-24 (g — Review → Accepted; the refine loop never
 applies acceptance — this transition is applied by the orchestrator under
 the author's standing overnight directive of 2026-08-24, after the
 cluster's dual READY per-target and set verdicts)
+**Revised:** 2026-08-24 (g — post-freeze implementation correction: the
+shipped legacy receipt reader is strict (`exactRecordKeys`), so an
+already-shipped CLI refuses ANY receipt carrying the new field with its
+existing typed unknown-field error — safe, no adoption. The §3 matrix's
+legacy-tolerance cells claimed behavior legacy readers do not have; the
+corrected cells: old-CLI x new-supervised and old-CLI x new-plain both
+REFUSE via the existing unknown-field refusal; new-CLI cells unchanged.
+Cross-version dev attach is resolved by using one CLI version, stated in
+the migration text.)
 **Revised:** 2026-08-24 (f — punch-list round-4 corrections: `localhost.`
 reclassified from the syntax set to the host-policy set (a canonical
 trailing-dot origin is admissible in an explicit allowlist); §8.2 worded
@@ -36,7 +50,7 @@ deliverables and the nine-row traceability table added; signed discovery
 designed at spec altitude, implementation excluded from this set)
 **Revised:** 2026-08-24 (b — Draft → Review at loop start)
 **Revised:** 2026-08-24 (a — initial draft)
-**Related:** LLP 0300 (Accepted — the governing RFC), LLP 0299, LLP 0302
+**Related:** LLP 0300 (Implemented — the governing RFC), LLP 0299, LLP 0302
 (the client-side sibling), LLP 0010, LLP 0181, LLP 0223
 
 ## Summary
@@ -201,9 +215,8 @@ the cells below claim nothing a legacy CLI cannot execute:
 | CLI | Receipt | Attach outcome |
 | --- | --- | --- |
 | old | old | today's behavior |
-| old | new supervised | succeeds (additive field ignored; origin lists match as today) |
-| old, no declarations | new plain (`loopback-any`, `clientOrigins: []`) | **succeeds** by the old empty-vs-empty list comparison, with degraded semantics: the old CLI models an exact empty list while the server admits loopback-any. Safety analysis, stated: the server admits *more* browser origins than the old CLI's model — the exposure is exactly LLP 0300 P2's accepted dev posture, and no origin the old CLI believed admitted is dropped. Dev-only; accepted. |
-| old, with declarations | new plain | refuses via the old list comparison (non-empty requested vs `[]` recorded) |
+| old | new supervised | **refuses** — the shipped legacy reader is strict (`exactRecordKeys`) and rejects the unknown `admissionPosture` field with its existing typed error; safe, no adoption (corrected, revision g) |
+| old | new plain | **refuses** — same strict-reader refusal (corrected, revision g) |
 | new, no declarations (requests `loopback-any`) | old (`explicit-list`) | refuses (`SNAPBACK_DEV_ATTACH_ADMISSION_MISMATCH`); deliberate restart is the operator's move |
 | new, declarations matching the recorded list | old | succeeds |
 
@@ -339,7 +352,8 @@ this table as a checked test-inventory comment.
 ## 9. Signed discovery — explicitly deferred (non-normative sketch)
 
 The normative design is **deferred to a future Spec** and is not part of
-this implementation set (tracked by an issue filed at landing). The
+this implementation set (tracked by
+`issues/20260824-signed-discovery-future-spec.md`). The
 non-normative sketch — a store-minted dev-identity key signing the fact,
 a fingerprint delivered out-of-band, refusal when configured — carries
 known open problems a future Spec must solve before anything freezes:

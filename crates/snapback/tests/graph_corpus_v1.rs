@@ -15,15 +15,22 @@ use std::sync::OnceLock;
 
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
-use snapback::live_matcher::{LiveMatchOutcome, live_subscription_match_outcome};
+use snapback::live_matcher::{
+    GraphNodeMatchDispositionV1, LiveMatchOutcome,
+    live_subscription_match_decision_with_graph_registration, live_subscription_match_outcome,
+};
 use snapback::local::LocalSnapback;
 use snapback::manifest::*;
 use snapback_engine::graph_evaluator::{
-    GraphEvaluationAuthorityV1, GraphEvaluationRequestV1, GraphPermissionValuesV1,
-    GraphWindowLedgerV1,
+    GraphEvaluationAuthorityV1, GraphEvaluationOutputV1, GraphEvaluationRequestV1,
+    GraphPermissionValuesV1, GraphWindowLedgerV1,
 };
 use snapback_kernel::storage::{ChangeOp, ChangedRow};
-use snapback_sync::graph_captured_read::graph_capture_carrier_is_well_formed;
+use snapback_sync::graph_captured_read::{
+    GraphRegistrationPermissionValuesV1, GraphSubscriptionRegistrationDemandV1,
+    RegisteredGraphSubscriptionDependenciesV1, graph_capture_carrier_is_well_formed,
+    register_graph_subscription_dependencies,
+};
 use snapback_types::diagnostic::DiagnosticSeverity;
 use snapback_types::storage::{CapturedReadDependency, CapturedReadKind};
 
@@ -33,6 +40,8 @@ const PENDING_CASES_FILE: &str = "tests/conformance/graph/broadcast-cases.g2-pen
 const PROVER_DISPOSITIONS_FILE: &str =
     "tests/conformance/graph/broadcast-prover-dispositions.v1.json";
 const PAIRED_FIXTURES_FILE: &str = "tests/conformance/graph/paired-world-fixtures.v1.json";
+const RUNTIME_CAPTURES_FILE: &str = "tests/conformance/graph/runtime-captures.g2-b.v1.json";
+const MATCH_DISPOSITIONS_FILE: &str = "tests/conformance/graph/match-dispositions.v1.json";
 const OWNER_SCOPE_DOMAIN: &str = "snapback:g0-corpus-authority-scope:v1:";
 
 fn repository_path(relative: &str) -> PathBuf {
@@ -345,6 +354,463 @@ fn jcs_domain_hash(domain: &str, value: &Value) -> String {
 
 fn byte_hash(value: &str) -> String {
     format!("sha256:{:x}", Sha256::digest(value.as_bytes()))
+}
+
+fn normalized_matcher_input(
+    plan: &GraphQueryPlanV1,
+    request: &GraphEvaluationRequestV1,
+) -> HandlerInput {
+    let supplied = request.args.as_object().expect("graph args object");
+    let args = plan
+        .arguments
+        .iter()
+        .map(|argument| {
+            (
+                argument.argument_id.clone(),
+                supplied
+                    .get(&argument.name)
+                    .unwrap_or_else(|| panic!("missing graph argument {}", argument.name))
+                    .clone(),
+            )
+        })
+        .collect::<Map<_, _>>();
+    HandlerInput {
+        args: Value::Object(args),
+        auth: request.authority.auth.clone(),
+        read_set: Vec::new(),
+        correlation: None,
+        ctx_ledger: None,
+    }
+}
+
+fn normal_graph_evaluations(
+    corpus: &Value,
+) -> Vec<(
+    String,
+    GraphQueryCarrierV1,
+    HandlerInput,
+    RegisteredGraphSubscriptionDependenciesV1,
+)> {
+    let registration_schema = corpus_schema(&corpus_seed_tables(corpus));
+    corpus["g0ExitObservationEvidence"]
+        .as_array()
+        .expect("G0 exit evidence")
+        .iter()
+        .map(|evidence| {
+            let plan_hash = evidence["graphPlanHash"].as_str().unwrap();
+            let query = corpus_queries(corpus)
+                .find(|query| query["carrier"]["planHash"] == plan_hash)
+                .unwrap_or_else(|| panic!("carrier for {plan_hash}"));
+            let query_name = query["query"].as_str().unwrap().to_owned();
+            let carrier: GraphQueryCarrierV1 =
+                serde_json::from_value(query["carrier"].clone()).unwrap();
+            let call = &evidence["invocation"];
+            let (materialization, partition) =
+                validate_corpus_invocation(&carrier, call, &query_name);
+            let request = evaluation_request(corpus, call, &materialization, &partition);
+            let output = graph_store(corpus, None)
+                .evaluate_graph_query(&carrier.normalized_plan, &request)
+                .unwrap_or_else(|error| panic!("evaluate {query_name}: {error:?}"));
+            let matcher_input = normalized_matcher_input(&carrier.normalized_plan, &request);
+            let registration_demand = GraphSubscriptionRegistrationDemandV1 {
+                args: request.args.clone(),
+                windows: request.windows.clone(),
+                input: matcher_input.clone(),
+                permission_values_by_table: request
+                    .authority
+                    .permission_values_by_table
+                    .iter()
+                    .map(|(table, permission)| {
+                        (
+                            table.clone(),
+                            GraphRegistrationPermissionValuesV1 {
+                                field: permission.field.clone(),
+                                allowed_values: permission.allowed_values.clone(),
+                            },
+                        )
+                    })
+                    .collect(),
+                materialization: materialization.clone(),
+                partition: partition.clone(),
+            };
+            let registered = register_graph_subscription_dependencies(
+                &carrier,
+                &registration_schema,
+                &registration_demand,
+                &output.captured_reads,
+                &output.capture_attachments,
+                &output.captured_query_outputs,
+            )
+            .unwrap_or_else(|error| panic!("register {query_name}: {error:?}"));
+            (query_name, carrier, matcher_input, registered)
+        })
+        .collect()
+}
+
+fn registration_fixture(
+    corpus: &Value,
+    query_name: &str,
+) -> (
+    GraphQueryCarrierV1,
+    SchemaManifest,
+    GraphSubscriptionRegistrationDemandV1,
+    GraphEvaluationOutputV1,
+) {
+    let query = corpus_queries(corpus)
+        .find(|query| query["query"] == query_name)
+        .unwrap_or_else(|| panic!("missing corpus query {query_name}"));
+    let carrier: GraphQueryCarrierV1 =
+        serde_json::from_value(query["carrier"].clone()).expect("registration carrier");
+    let evidence = corpus["g0ExitObservationEvidence"]
+        .as_array()
+        .expect("G0 exit evidence")
+        .iter()
+        .find(|evidence| evidence["graphPlanHash"] == carrier.plan_hash.as_str())
+        .unwrap_or_else(|| panic!("missing invocation for {query_name}"));
+    let call = &evidence["invocation"];
+    let (materialization, partition) = validate_corpus_invocation(&carrier, call, query_name);
+    let request = evaluation_request(corpus, call, &materialization, &partition);
+    let output = graph_store(corpus, None)
+        .evaluate_graph_query(&carrier.normalized_plan, &request)
+        .unwrap_or_else(|error| panic!("evaluate {query_name}: {error:?}"));
+    let input = normalized_matcher_input(&carrier.normalized_plan, &request);
+    let demand = GraphSubscriptionRegistrationDemandV1 {
+        args: request.args.clone(),
+        windows: request.windows.clone(),
+        input,
+        permission_values_by_table: request
+            .authority
+            .permission_values_by_table
+            .iter()
+            .map(|(table, permission)| {
+                (
+                    table.clone(),
+                    GraphRegistrationPermissionValuesV1 {
+                        field: permission.field.clone(),
+                        allowed_values: permission.allowed_values.clone(),
+                    },
+                )
+            })
+            .collect(),
+        materialization,
+        partition,
+    };
+    (
+        carrier,
+        corpus_schema(&corpus_seed_tables(corpus)),
+        demand,
+        output,
+    )
+}
+
+fn first_captured_parent_key_mut(
+    reads: &mut [CapturedReadDependency],
+) -> Option<&mut GraphRowKeyV1> {
+    reads.iter_mut().find_map(|read| {
+        let dependency = &mut read.graph.as_mut()?.dependency;
+        match dependency {
+            GraphCapturedDependencyV1::ParentPoint { parent_key, .. }
+            | GraphCapturedDependencyV1::ParentLookupSkipped { parent_key, .. }
+            | GraphCapturedDependencyV1::ParentRange { parent_key, .. }
+            | GraphCapturedDependencyV1::Membership { parent_key, .. } => Some(parent_key),
+            GraphCapturedDependencyV1::PrincipalField { parent_key, .. } => parent_key.as_mut(),
+            _ => None,
+        }
+    })
+}
+
+fn content_digest(mut value: Value) -> Value {
+    let canonical = snapback_types::rqs_contract::jcs(&value).expect("artifact canonicalizes");
+    value["contentDigest"] = json!(byte_hash(&canonical));
+    value
+}
+
+fn match_outcome_name(outcome: LiveMatchOutcome) -> &'static str {
+    match outcome {
+        LiveMatchOutcome::Skip => "skip",
+        LiveMatchOutcome::Match => "match",
+        LiveMatchOutcome::ConservativeFallback => "conservative-fallback",
+    }
+}
+
+fn update_change(table: &str, row: Value, changed_fields: &[&str]) -> ChangedRow {
+    ChangedRow {
+        table: table.to_owned(),
+        id: row["_id"].as_str().unwrap().to_owned(),
+        op: ChangeOp::Update,
+        row: Some(row),
+        changed_fields: changed_fields
+            .iter()
+            .map(|field| (*field).to_owned())
+            .collect(),
+    }
+}
+
+fn insert_change(table: &str, row: Value) -> ChangedRow {
+    ChangedRow {
+        table: table.to_owned(),
+        id: row["_id"].as_str().unwrap().to_owned(),
+        op: ChangeOp::Insert,
+        row: Some(row),
+        changed_fields: Vec::new(),
+    }
+}
+
+fn graph_match_replay_commits(corpus: &Value) -> Vec<(String, Vec<ChangedRow>)> {
+    let tables = corpus_seed_tables(corpus);
+    let evidence = corpus["g0ExitObservationEvidence"]
+        .as_array()
+        .expect("exit evidence");
+    let list_call = evidence
+        .iter()
+        .find(|row| {
+            let hash = row["graphPlanHash"].as_str().unwrap();
+            corpus_queries(corpus).any(|query| {
+                query["query"] == "issueListV2" && query["carrier"]["planHash"] == hash
+            })
+        })
+        .expect("list evidence");
+    let project = list_call["invocation"]["args"]["projectID"]
+        .as_str()
+        .unwrap();
+    let mut in_project = Value::Object(
+        tables["issueListRead"]
+            .iter()
+            .find(|row| row["projectID"] == project)
+            .unwrap()
+            .clone(),
+    );
+    in_project["open"] = json!(!in_project["open"].as_bool().unwrap_or(false));
+    let out_project = json!({
+        "_id":"g2b_issue_outside_project",
+        "issueID":"g2b_issue_outside_project",
+        "sourceIssueID":"g2b-outside-source",
+        "projectID":"g2b-other-project",
+        "creatorID":"g2b-user",
+        "open":true,
+        "visibility":"public",
+        "modified":1,
+        "created":1
+    });
+
+    let issue_detail_call = evidence
+        .iter()
+        .find(|row| {
+            let hash = row["graphPlanHash"].as_str().unwrap();
+            corpus_queries(corpus).any(|query| {
+                query["query"] == "issueDetail" && query["carrier"]["planHash"] == hash
+            })
+        })
+        .expect("detail evidence");
+    let source_issue = issue_detail_call["invocation"]["args"]["sourceIssueID"]
+        .as_str()
+        .unwrap();
+    let physical_issue = tables["issue"]
+        .iter()
+        .find(|row| row["id"] == source_issue)
+        .unwrap()["_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let comment = json!({
+        "_id":"g2b_comment_add",
+        "id":"g2b-comment-source",
+        "issueID":physical_issue,
+        "created":9_000_000_000_000_i64,
+        "body":"G2-B matcher replay",
+        "creatorID":"g2b-user"
+    });
+
+    let label_row = tables["issueLabelRead"]
+        .first()
+        .expect("label edge fixture")
+        .clone();
+    let mut label_add = Value::Object(label_row.clone());
+    label_add["_id"] = json!("g2b_label_edge_add");
+    let label_remove = ChangedRow {
+        table: "issueLabelRead".to_owned(),
+        id: label_row["_id"].as_str().unwrap().to_owned(),
+        op: ChangeOp::Delete,
+        row: None,
+        changed_fields: Vec::new(),
+    };
+    let mut membership_change = Value::Object(label_row);
+    membership_change["_id"] = json!("g2b_selected_label_membership");
+    membership_change["labelID"] = json!("g2b-selected-label");
+
+    let self_user = corpus["authorityOwner"]["facts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|fact| fact["principal"] == "principal_ordinary")
+        .unwrap()["userID"]
+        .as_str()
+        .unwrap();
+    let view_self = json!({
+        "_id":"g2b_view_self", "issueID":physical_issue,
+        "userID":self_user, "viewed":9_000_000_000_000_i64
+    });
+    let view_other = json!({
+        "_id":"g2b_view_other", "issueID":physical_issue,
+        "userID":"g2b-other-user", "viewed":9_000_000_000_000_i64
+    });
+
+    vec![
+        (
+            "issue-edit-in-project".to_owned(),
+            vec![update_change(
+                "issueListRead",
+                in_project.clone(),
+                &["open"],
+            )],
+        ),
+        (
+            "issue-edit-out-of-project".to_owned(),
+            vec![update_change(
+                "issueListRead",
+                out_project.clone(),
+                &["open"],
+            )],
+        ),
+        (
+            "label-edge-add".to_owned(),
+            vec![insert_change("issueLabelRead", label_add)],
+        ),
+        ("label-edge-remove".to_owned(), vec![label_remove]),
+        (
+            "comment-add".to_owned(),
+            vec![insert_change("comment", comment.clone())],
+        ),
+        (
+            "view-state-write-self".to_owned(),
+            vec![insert_change("viewState", view_self)],
+        ),
+        (
+            "view-state-write-other".to_owned(),
+            vec![insert_change("viewState", view_other.clone())],
+        ),
+        (
+            "selected-label-membership-change".to_owned(),
+            vec![insert_change("issueLabelRead", membership_change)],
+        ),
+        (
+            "ledger-multi-row-multi-table".to_owned(),
+            vec![
+                update_change("issueListRead", in_project, &["open"]),
+                update_change("issueListRead", out_project, &["open"]),
+                insert_change("comment", comment),
+                insert_change("viewState", view_other),
+                insert_change(
+                    "matcherUnrelated",
+                    json!({"_id":"g2b_unrelated", "value":true}),
+                ),
+            ],
+        ),
+    ]
+}
+
+fn runtime_capture_artifact(
+    runs: &[(
+        String,
+        GraphQueryCarrierV1,
+        HandlerInput,
+        RegisteredGraphSubscriptionDependenciesV1,
+    )],
+) -> Value {
+    let captures = runs
+        .iter()
+        .map(|(query, carrier, _, registered)| {
+            json!({
+                "query": query,
+                "graphPlanHash": carrier.plan_hash,
+                "capturedDependencies": registered.reads().iter().filter_map(|read| read.graph.as_ref()).collect::<Vec<_>>(),
+            })
+        })
+        .collect::<Vec<_>>();
+    content_digest(json!({
+        "format":"snapback.graph-runtime-captures.g2-b.v1",
+        "version":1,
+        "captures":captures,
+    }))
+}
+
+fn match_disposition_artifact(
+    corpus: &Value,
+    runs: &[(
+        String,
+        GraphQueryCarrierV1,
+        HandlerInput,
+        RegisteredGraphSubscriptionDependenciesV1,
+    )],
+) -> Value {
+    let mut replays = Vec::new();
+    let mut summary = BTreeMap::<GraphNodeKindV1, [u64; 3]>::new();
+    for kind in [
+        GraphNodeKindV1::RootWindow,
+        GraphNodeKindV1::EqualityToOne,
+        GraphNodeKindV1::BoundedToMany,
+        GraphNodeKindV1::ExistsSemiJoin,
+        GraphNodeKindV1::PrincipalBound,
+        GraphNodeKindV1::SearchMembership,
+        GraphNodeKindV1::ClosedProjection,
+    ] {
+        summary.insert(kind, [0, 0, 0]);
+    }
+    for (commit_id, changes) in graph_match_replay_commits(corpus) {
+        for (query, carrier, input, registered) in runs {
+            let definition = FunctionDefinition::new(
+                query,
+                FunctionKind::LiveQuery,
+                FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier.clone())),
+            );
+            let decision = live_subscription_match_decision_with_graph_registration(
+                &definition,
+                input,
+                registered,
+                &changes,
+            );
+            for node in &decision.graph_nodes {
+                let counts = summary.get_mut(&node.node_kind).unwrap();
+                counts[match node.disposition {
+                    GraphNodeMatchDispositionV1::Skip => 0,
+                    GraphNodeMatchDispositionV1::Match => 1,
+                    GraphNodeMatchDispositionV1::ConservativeFallback => 2,
+                }] += 1;
+            }
+            replays.push(json!({
+                "commit":commit_id,
+                "query":query,
+                "overallDisposition":match_outcome_name(decision.outcome),
+                "nodes":decision.graph_nodes,
+            }));
+        }
+    }
+    let summary = summary
+        .into_iter()
+        .map(|(node_kind, counts)| {
+            json!({
+                "nodeKind":node_kind,
+                "skip":counts[0],
+                "match":counts[1],
+                "conservativeFallback":counts[2],
+            })
+        })
+        .collect::<Vec<_>>();
+    content_digest(json!({
+        "format":"snapback.graph-match-dispositions.v1",
+        "version":1,
+        "commits":graph_match_replay_commits(corpus).iter().map(|(id, _)| id).collect::<Vec<_>>(),
+        "replays":replays,
+        "summary":summary,
+    }))
+}
+
+fn write_frozen_json(relative: &str, value: &Value) {
+    std::fs::write(
+        repository_path(relative),
+        format!("{}\n", serde_json::to_string_pretty(value).unwrap()),
+    )
+    .unwrap_or_else(|error| panic!("write {relative}: {error}"));
 }
 
 fn corpus_queries(corpus: &Value) -> impl Iterator<Item = &Value> {
@@ -1172,6 +1638,8 @@ fn dependency_shapes() {
         "dependency":{
             "kind":"root-range", "table":"issues", "index":"by_updated",
             "predicate":[], "order":[{"field":"updatedAt","direction":"Desc"}],
+            "direction":"forward", "lower":{"kind":"unbounded"},
+            "upper":{"kind":"unbounded"},
             "limit":2, "resultCount":0, "boundary":null, "complete":true
         }
     }))
@@ -1179,6 +1647,16 @@ fn dependency_shapes() {
     let bound_carrier = carrier();
     let plan = &bound_carrier.normalized_plan;
     validate_graph_captured_read_v1(&graph, plan).expect("capture binds the normalized node");
+    let mut missing_range_identity = graph.clone();
+    if let GraphCapturedDependencyV1::RootRange { direction, .. } =
+        &mut missing_range_identity.dependency
+    {
+        *direction = None;
+    }
+    assert!(
+        validate_graph_captured_read_v1(&missing_range_identity, plan).is_err(),
+        "a range without its executed direction is incomplete"
+    );
     graph.node_id = "n1".to_owned();
     assert!(validate_graph_captured_read_v1(&graph, plan).is_err());
     graph.node_id = "n0".to_owned();
@@ -3023,6 +3501,178 @@ fn all_semijoin_admission_requires_its_declared_collection_argument_filter() {
             .iter()
             .any(|fault| fault.reason == GraphAdmissionRefusalReasonV1::ArgumentUnbound)
     );
+}
+
+#[test]
+fn graph_registration_refuses_semantically_forged_provenance() {
+    let corpus = graph_corpus();
+    let (carrier, schema, demand, output) = registration_fixture(&corpus, "issueListV2");
+    let register = |demand: &GraphSubscriptionRegistrationDemandV1,
+                    output: &GraphEvaluationOutputV1| {
+        register_graph_subscription_dependencies(
+            &carrier,
+            &schema,
+            demand,
+            &output.captured_reads,
+            &output.capture_attachments,
+            &output.captured_query_outputs,
+        )
+    };
+    assert!(register(&demand, &output).is_ok(), "baseline registers");
+
+    let mut forged_filter = output.clone();
+    let query_read_index = forged_filter
+        .capture_attachments
+        .iter()
+        .flat_map(|attachment| attachment.ordinary_read_indices.iter())
+        .copied()
+        .find(|index| forged_filter.captured_reads[*index as usize].kind == CapturedReadKind::Query)
+        .expect("ordinary query companion");
+    let query_read = &mut forged_filter.captured_reads[query_read_index as usize];
+    let mut query_plan: QueryPlan = serde_json::from_value(
+        query_read
+            .predicate
+            .clone()
+            .expect("query companion predicate"),
+    )
+    .expect("query companion plan");
+    query_plan.filters.push(FilterExpr {
+        field: "registrationForgery".to_owned(),
+        op: FilterOp::Eq,
+        value: ValueExpr::Literal(Value::Bool(true)),
+    });
+    query_read.predicate = Some(serde_json::to_value(&query_plan).unwrap());
+    assert!(
+        register(&demand, &forged_filter).is_err(),
+        "a companion with a forged filter cannot register"
+    );
+    let captured_rows = output
+        .captured_query_outputs
+        .iter()
+        .find(|query| query.query_read_index == query_read_index)
+        .expect("captured query output");
+    let inserted = captured_rows.rows.first().expect("non-empty root output");
+    assert!(
+        inserted.get("registrationForgery").is_none(),
+        "the inserted row satisfies the real plan, not the forged filter"
+    );
+    let definition = FunctionDefinition::new(
+        "issueListV2",
+        FunctionKind::LiveQuery,
+        FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier.clone())),
+    );
+    let outcome = live_subscription_match_outcome(
+        &definition,
+        &demand.input,
+        &forged_filter.captured_reads,
+        &[ChangedRow {
+            table: query_plan.table,
+            id: inserted["_id"].as_str().unwrap().to_owned(),
+            op: ChangeOp::Insert,
+            row: Some(inserted.clone()),
+            changed_fields: Vec::new(),
+        }],
+    );
+    assert_ne!(
+        outcome,
+        LiveMatchOutcome::Skip,
+        "an insert satisfying the real filter but not the forged filter must not skip"
+    );
+
+    let mut wrong_table = output.clone();
+    let parent_key = first_captured_parent_key_mut(&mut wrong_table.captured_reads)
+        .expect("captured child parent key");
+    parent_key.table = "wrong_parent_table".to_owned();
+    assert!(
+        register(&demand, &wrong_table).is_err(),
+        "a wrong-table parent substitution with the same id cannot register"
+    );
+
+    let mut stale_closure = output.clone();
+    let parent_key = first_captured_parent_key_mut(&mut stale_closure.captured_reads)
+        .expect("captured child parent key");
+    parent_key.id = "stale-parent-from-prior-demand".to_owned();
+    assert!(
+        register(&demand, &stale_closure).is_err(),
+        "a stale same-cardinality parent closure cannot register"
+    );
+
+    let mut bare_hash = demand.clone();
+    bare_hash.materialization.materialization_hash = Sha256V1::new(
+        "sha256:3333333333333333333333333333333333333333333333333333333333333333".to_owned(),
+    )
+    .unwrap();
+    assert!(
+        register(&bare_hash, &output).is_err(),
+        "a bare hash that disagrees with its supplied preimage cannot register"
+    );
+}
+
+/// The G2-B freezer is downstream of real evaluator output. It writes the
+/// graph-only sidecar consumed by the JS G0 freezer and the exact per-node
+/// replay ledger; the ordinary shared Query/Row/Auth dependencies remain
+/// runtime-only and are asserted through the registration result here.
+///
+/// Run with `SNAPBACK_FREEZE_GRAPH_G2_B=1` to regenerate both artifacts, then
+/// run the JS graph freezer so its embedded capture vectors/digests follow the
+/// runtime sidecar. A normal test run is read-only.
+///
+/// @ref LLP 0209#51-captured-vocabulary-by-normalized-node — the evaluator is
+/// the sole capture authority and sync validates the exact shared carrier.
+/// @ref LLP 0209#52-per-node-decision-ledger — frozen commit shapes bind every
+/// Zerobugs graph's per-node disposition in normalized order.
+#[test]
+fn graph_runtime_captures_register_and_match_replays_are_frozen() {
+    let corpus = graph_corpus();
+    let runs = normal_graph_evaluations(&corpus);
+    assert_eq!(runs.len(), 3, "all three Zerobugs graphs evaluate");
+    assert!(runs.iter().all(|(_, _, _, registered)| {
+        registered
+            .reads()
+            .iter()
+            .any(|read| read.kind == CapturedReadKind::GraphNode)
+            && registered
+                .reads()
+                .iter()
+                .any(|read| read.kind == CapturedReadKind::Query)
+    }));
+
+    let captures = runtime_capture_artifact(&runs);
+    let dispositions = match_disposition_artifact(&corpus, &runs);
+    if std::env::var_os("SNAPBACK_FREEZE_GRAPH_G2_B").is_some() {
+        write_frozen_json(RUNTIME_CAPTURES_FILE, &captures);
+        write_frozen_json(MATCH_DISPOSITIONS_FILE, &dispositions);
+        return;
+    }
+
+    assert_eq!(
+        load_json(RUNTIME_CAPTURES_FILE),
+        captures,
+        "runtime graph capture sidecar is stale"
+    );
+    assert_eq!(
+        load_json(MATCH_DISPOSITIONS_FILE),
+        dispositions,
+        "graph matcher disposition corpus is stale"
+    );
+    for (query, carrier, _, registered) in &runs {
+        let frozen = corpus["g0ExitObservationEvidence"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["graphPlanHash"] == carrier.plan_hash.as_str())
+            .unwrap_or_else(|| panic!("frozen observation for {query}"));
+        let actual = registered
+            .reads()
+            .iter()
+            .filter_map(|read| read.graph.as_ref())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            frozen["capturedDependencies"],
+            serde_json::to_value(actual).unwrap(),
+            "G0 exit capture vector for {query} must be evaluator-authored"
+        );
+    }
 }
 
 /// @ref LLP 0209#9-sequencing-and-measurement-what-lands-first-and-how-it-is-measured — executable graph corpus entries run

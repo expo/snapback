@@ -15,6 +15,7 @@ export declare const QUERY_SPEC_FIELDS: ReadonlySet<string>;
 export declare const MUTATION_SPEC_FIELDS: ReadonlySet<string>;
 export declare const ACTION_SPEC_FIELDS: ReadonlySet<string>;
 export declare const JS_QUERY_SPEC_FIELDS: ReadonlySet<string>;
+export declare const JS_MUTATION_SPEC_FIELDS: ReadonlySet<string>;
 
 export type FieldType =
   | 'String'

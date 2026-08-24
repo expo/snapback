@@ -1,0 +1,33 @@
+{
+  "laneRunId": "2026-08-23-r2-published-0125/opus-clique-explicit",
+  "driverId": "social-messenger-r2-native-cli-driver.v1",
+  "milestones": {
+    "M1": {
+      "status": "green",
+      "firstGreenAt": "2026-08-24T10:10:18.992Z",
+      "suitePassAt": "2026-08-24T10:10:18.992Z",
+      "choreoPassAt": "2026-08-24T10:10:18.992Z",
+      "terminalAt": "2026-08-24T10:10:18.992Z",
+      "terminalSequence": 1,
+      "terminalReason": "green"
+    },
+    "M2": {
+      "status": "green",
+      "firstGreenAt": "2026-08-24T11:27:40.153Z",
+      "suitePassAt": "2026-08-24T11:27:40.153Z",
+      "choreoPassAt": "2026-08-24T11:27:40.153Z",
+      "terminalAt": "2026-08-24T11:27:40.153Z",
+      "terminalSequence": 2,
+      "terminalReason": "green"
+    },
+    "M3": {
+      "status": "green",
+      "firstGreenAt": "2026-08-24T12:22:34.170Z",
+      "suitePassAt": "2026-08-24T12:22:34.170Z",
+      "choreoPassAt": "2026-08-24T12:22:34.170Z",
+      "terminalAt": "2026-08-24T12:22:34.170Z",
+      "terminalSequence": 3,
+      "terminalReason": "green"
+    }
+  }
+}
