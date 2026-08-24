@@ -183,6 +183,27 @@ session on a path that did read it. The lesson is that these rules are about pro
 not about fixture tidiness, and a requirement written for one path should be re-checked before being
 demanded of another.
 
+## Reviewer capability is part of the evidence chain
+
+Three consecutive reviews reported, honestly, that they executed **no** mutants. The cause was not
+reviewer choice but sandbox shape: a read-only checkout cannot create `target/debug/.cargo-build-lock`,
+`vendor/ibex` is uninitialised, and no prebuilt test binary exists. Each review therefore fell back
+to reasoning about mutants — and reasoning has already missed live defects that execution caught.
+
+Two consequences worth acting on rather than noting:
+
+1. **Route reviews that must execute to a writable host with a prepared runtime.** A read-only
+   analysis box is the right place for enumeration and code reading; it is the wrong place for
+   mutation verification. Where mutation evidence is the point, the reviewer needs a writable
+   worktree and `SNAPBACK_IBEX_CHECKOUT` (or `scripts/bootstrap-ibex-runtime`).
+2. **A lane's executed-mutant results are often the only executed evidence in the chain.** That
+   makes reproducibility a hard requirement, not a courtesy: the commit message must carry the exact
+   command sequence — bootstrap step, `cargo test` invocation, filters — so the next reader can
+   re-run rather than re-trust.
+
+Stated plainly: *"I could not execute" is a valid and valuable review result.* It should be reported
+loudly, never implied away, and it should change where the next review runs.
+
 ## The rule this yields
 
 > **For every assertion, ask where the expected value comes from.** If it comes from the same read
