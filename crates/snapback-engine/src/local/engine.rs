@@ -5963,18 +5963,18 @@ impl LocalSnapback {
         self.db.pending_grant_requests(user_id, now_ms)
     }
 
-    #[allow(clippy::too_many_arguments)]
+    /// @ref LLP 0303#the-governing-principle — derive the grant user and session from the prepared authority.
     pub fn approve_grant_request(
         &mut self,
-        effect: &AdmissionEffectGuard<'_>,
-        user_id: &str,
-        session_id: &str,
+        authority: &PreparedAuthority,
         request_id: &str,
         requested_ttl_ms: Option<u64>,
         proof: Option<&crate::auth::crypto::StepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::auth_grants::GrantApproval> {
-        let _ = effect;
+        let user_id = Self::require_agent_grant_management_session(authority, "grant approval")?;
+        let session_id = authority.resolved().session_id().expect("session helper");
+        let _effect = authority.effect_guard("grant approval transaction")?;
         self.db.approve_grant_request(
             user_id,
             session_id,

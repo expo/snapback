@@ -28866,6 +28866,32 @@ fn test_live_session_authority(
     .expect("prepare retained live session authority")
 }
 
+fn test_grant_session_authority(
+    source: InvocationSource,
+    user_id: &str,
+    session_id: &str,
+) -> PreparedAuthority {
+    InvocationGate::prepare_authority(
+        source,
+        AuthMode::Sessions,
+        ServerProfile::Test,
+        0,
+        0,
+        &WireAuthorityFields::default(),
+        ResolvedAppAuthority::Session {
+            user_id: user_id.to_owned(),
+            session_id: session_id.to_owned(),
+            provider: "email-code".to_owned(),
+            generation: 1,
+            authority_instance_id: format!("grant-authority-{session_id}"),
+            session_not_after_ms: u64::MAX / 2,
+            provider_not_after_ms: None,
+            rehearsal_provenance: None,
+        },
+    )
+    .expect("prepare grant-management session authority")
+}
+
 fn test_dev_authority(source: InvocationSource) -> PreparedAuthority {
     InvocationGate::prepare_authority(
         source,
@@ -28877,6 +28903,294 @@ fn test_dev_authority(source: InvocationSource) -> PreparedAuthority {
         ResolvedAppAuthority::dev_from_auth(&AuthInput::default()),
     )
     .expect("prepare exact test dev authority")
+}
+
+#[test]
+fn grant_approval_derives_exact_user_and_session_from_management_authority() {
+    use crate::storage::auth_agents::AgentRegistration;
+    use crate::storage::auth_grants::{
+        GrantApproval, GrantApprovalDurableRowsForTest, GrantApprovalGrantRowForTest,
+        GrantApprovalPairingRowForTest, GrantScopeRequest, PairingPresentation, ScopedFunctionKind,
+    };
+
+    const NOW_MS: u64 = 2_000;
+    const CALLER: &str = "user-m";
+    const CALLER_SESSION: &str = "session-m";
+    const AGENT: &str = "agent-grant-approval";
+
+    struct Fixture {
+        snapback: LocalSnapback,
+        lower_request_id: String,
+        caller_request_id: String,
+        upper_request_id: String,
+    }
+
+    impl Fixture {
+        fn new() -> Self {
+            let mut snapback = LocalSnapback::memory().expect("grant approval memory fixture");
+            let random = CounterRandom::new();
+            let request_ids = {
+                let database = snapback.auth_database_mut();
+                database
+                    .activate_current_auth_catalog()
+                    .expect("activate grant approval auth catalog");
+                for user_id in ["user-a", CALLER, "user-z"] {
+                    database
+                        .auth_catalog()
+                        .insert_human_user_for_test(user_id, 1_000)
+                        .expect("create grantor fixture user");
+                }
+                database
+                    .create_agent_principal(
+                        AGENT,
+                        1_000,
+                        &AgentRegistration {
+                            display_name: Some("Grant Approval Agent".to_owned()),
+                            operator_contact: None,
+                            registration_provenance: "grant-approval-authority-test".to_owned(),
+                            owner_user_id: Some(CALLER.to_owned()),
+                        },
+                    )
+                    .expect("create grant approval agent");
+                let credential = database
+                    .issue_initial_agent_credential(AGENT, 1_001, &random)
+                    .expect("issue grant approval agent credential");
+                let function_runtime = FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table_visibility: None,
+                    table: "unused".to_owned(),
+                    filters: Vec::new(),
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                }));
+                database
+                    .reconcile_auth_scope_bases(&FunctionManifest {
+                        functions: vec![FunctionDefinition::new(
+                            "grantApprovalRead",
+                            FunctionKind::Query,
+                            function_runtime,
+                        )],
+                        ..FunctionManifest::default()
+                    })
+                    .expect("install grant approval scope basis");
+
+                ["user-a", CALLER, "user-z"]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, user_id)| {
+                        let minted_at_ms = 1_100 + (index as u64 * 10);
+                        let pairing = database
+                            .mint_pairing_code(user_id, minted_at_ms, &random)
+                            .expect("mint grant approval pairing code");
+                        let presentation = database
+                            .present_pairing_code(
+                                &credential.secret,
+                                &pairing.request_id,
+                                &pairing.secret,
+                                &[GrantScopeRequest::Exact {
+                                    function_id: "fn:grantApprovalRead".to_owned(),
+                                    kind: ScopedFunctionKind::Query,
+                                }],
+                                minted_at_ms + 1,
+                            )
+                            .expect("present grant approval pairing code");
+                        assert!(matches!(presentation, PairingPresentation::Created(_)));
+                        pairing.request_id
+                    })
+                    .collect::<Vec<_>>()
+            };
+            let [lower_request_id, caller_request_id, upper_request_id]: [String; 3] = request_ids
+                .try_into()
+                .expect("three grant approval requests");
+            Self {
+                snapback,
+                lower_request_id,
+                caller_request_id,
+                upper_request_id,
+            }
+        }
+
+        fn rows(&mut self) -> GrantApprovalDurableRowsForTest {
+            self.snapback
+                .auth_database_mut()
+                .grant_approval_durable_rows_for_test()
+                .expect("read physical grant approval rows")
+        }
+
+        fn pending_rows(&self) -> Vec<GrantApprovalPairingRowForTest> {
+            let mut rows = vec![
+                GrantApprovalPairingRowForTest {
+                    request_id: self.lower_request_id.clone(),
+                    minted_by_user_id: "user-a".to_owned(),
+                    state: "pending".to_owned(),
+                    grant_id: None,
+                },
+                GrantApprovalPairingRowForTest {
+                    request_id: self.caller_request_id.clone(),
+                    minted_by_user_id: CALLER.to_owned(),
+                    state: "pending".to_owned(),
+                    grant_id: None,
+                },
+                GrantApprovalPairingRowForTest {
+                    request_id: self.upper_request_id.clone(),
+                    minted_by_user_id: "user-z".to_owned(),
+                    state: "pending".to_owned(),
+                    grant_id: None,
+                },
+            ];
+            rows.sort_by(|left, right| left.request_id.cmp(&right.request_id));
+            rows
+        }
+    }
+
+    #[derive(Clone, Copy)]
+    enum Case {
+        Exact,
+        WrongSource,
+        LowerSubject,
+        UpperSubject,
+    }
+
+    impl Case {
+        fn name(self) -> &'static str {
+            match self {
+                Self::Exact => "exact",
+                Self::WrongSource => "wrong-source",
+                Self::LowerSubject => "lower-subject",
+                Self::UpperSubject => "upper-subject",
+            }
+        }
+    }
+
+    struct Observation {
+        case: Case,
+        approval: Result<crate::storage::auth_grants::ApprovedGrant, String>,
+        rows: GrantApprovalDurableRowsForTest,
+        pending_rows: Vec<GrantApprovalPairingRowForTest>,
+        selected_request_id: String,
+    }
+
+    let observations = [
+        Case::Exact,
+        Case::WrongSource,
+        Case::LowerSubject,
+        Case::UpperSubject,
+    ]
+    .into_iter()
+    .map(|case| {
+        let mut fixture = Fixture::new();
+        let (authority, selected_request_id) = match case {
+            Case::Exact => (
+                test_grant_session_authority(
+                    InvocationSource::AgentGrantManagement,
+                    CALLER,
+                    CALLER_SESSION,
+                ),
+                fixture.caller_request_id.clone(),
+            ),
+            Case::WrongSource => (
+                test_grant_session_authority(InvocationSource::HttpQuery, CALLER, CALLER_SESSION),
+                fixture.caller_request_id.clone(),
+            ),
+            Case::LowerSubject => (
+                test_grant_session_authority(
+                    InvocationSource::AgentGrantManagement,
+                    CALLER,
+                    CALLER_SESSION,
+                ),
+                fixture.lower_request_id.clone(),
+            ),
+            Case::UpperSubject => (
+                test_grant_session_authority(
+                    InvocationSource::AgentGrantManagement,
+                    CALLER,
+                    CALLER_SESSION,
+                ),
+                fixture.upper_request_id.clone(),
+            ),
+        };
+        let approval = fixture
+            .snapback
+            .approve_grant_request(&authority, &selected_request_id, None, None, NOW_MS)
+            .map(|approval| match approval {
+                GrantApproval::Created(grant) | GrantApproval::Existing(grant) => grant,
+            })
+            .map_err(|error| error.diagnostic.code);
+        let pending_rows = fixture.pending_rows();
+        let rows = fixture.rows();
+        Observation {
+            case,
+            approval,
+            rows,
+            pending_rows,
+            selected_request_id,
+        }
+    })
+    .collect::<Vec<_>>();
+
+    let accepted = observations
+        .iter()
+        .filter_map(|observation| {
+            observation
+                .approval
+                .is_ok()
+                .then_some(observation.case.name())
+        })
+        .collect::<Vec<_>>();
+    let refused = observations
+        .iter()
+        .filter_map(|observation| {
+            observation
+                .approval
+                .as_ref()
+                .err()
+                .map(|code| (observation.case.name(), code.as_str()))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(accepted, vec!["exact"]);
+    assert_eq!(
+        refused,
+        vec![
+            ("wrong-source", "SNAPBACK_AUTH_REQUIRED"),
+            ("lower-subject", "SNAPBACK_AUTH_GRANT_INVALID"),
+            ("upper-subject", "SNAPBACK_AUTH_GRANT_INVALID"),
+        ]
+    );
+
+    for observation in observations {
+        match observation.approval {
+            Ok(grant) => {
+                let mut expected_pairing_rows = observation.pending_rows;
+                let approved = expected_pairing_rows
+                    .iter_mut()
+                    .find(|row| row.request_id == observation.selected_request_id)
+                    .expect("selected pairing row exists");
+                approved.state = "approved".to_owned();
+                approved.grant_id = Some(grant.grant_id.clone());
+                assert_eq!(observation.rows.pairing_requests, expected_pairing_rows);
+                assert_eq!(
+                    observation.rows.grants,
+                    vec![GrantApprovalGrantRowForTest {
+                        grant_id: grant.grant_id,
+                        actor_user_id: AGENT.to_owned(),
+                        effective_user_id: CALLER.to_owned(),
+                        created_by: format!("session:{CALLER_SESSION}"),
+                        request_id: observation.selected_request_id,
+                    }]
+                );
+            }
+            Err(_) => {
+                assert_eq!(observation.rows.pairing_requests, observation.pending_rows);
+                assert!(
+                    observation.rows.grants.is_empty(),
+                    "{} refusal created a durable grant: {:?}",
+                    observation.case.name(),
+                    observation.rows.grants,
+                );
+            }
+        }
+    }
 }
 
 #[test]
