@@ -616,6 +616,28 @@ export function validateSocialMessengerRecordSemantics(record, { artifactRoot = 
     // @ref LLP 0201#d2--quantitative-instrument — D0.6 records hash-linked
     // semantic actions, recovery, lifecycle, assertion wait, and contamination.
     validateD06Observability(errors, milestone, value, path);
+    if (currentInstrument && value.status === "green") {
+      for (const owner of ["suite", "choreography"]) {
+        if (
+          value.browserAssertionWait?.[owner]?.claimed === true
+          && value.browserAssertionWait[owner].attempts === 0
+        ) {
+          errors.push(
+            `${path}/browserAssertionWait/${owner}/attempts: green current-instrument milestones require at least one measured ${owner} settlement attempt`,
+          );
+        }
+      }
+    }
+    if (
+      currentInstrument
+      && value.status === "green"
+      && value.semanticActions?.claimed === true
+      && value.semanticActions.total === 0
+    ) {
+      errors.push(
+        `${path}/semanticActions/total: green current-instrument milestones require at least one native-driver semantic action`,
+      );
+    }
     if (!ATTEMPTED_STATUSES.has(value.status)) continue;
 
     switch (authoring.terminalReason) {

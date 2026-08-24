@@ -24,10 +24,11 @@ claim.
   different comparison. Its legacy checkout is restored at the prompt-pinned
   path, has frozen-lockfile dependencies installed, and is filesystem
   read-only.
-- App semantics remain the 0.1.24 instrument snapshot at `bbc324323`. The only
-  admitted instrument overlay is the landed harness-native per-milestone
-  metering/context carrier through `bdb493130`. The open coordinated
-  observability bump is not represented as landed.
+- App semantics remain the 0.1.24 instrument snapshot lineage, migrated through
+  the coordinated observability build on this branch. The runnable pin is
+  `social-messenger@0.3.3-m8`: schema `0.3.0-m8`, UI `0.3.1-m8`, and
+  choreography `0.3.3-m8`. The broader LLP 0281 worklist remains open; this
+  pin claims only the R2-gating slice recorded by its issue.
 - The final cell record must validate against
   `benchmarks/schema/social-messenger/run-record.schema.json` and then pass
   `benchmarks/tools/social-messenger/record-validator.mjs`.
@@ -40,9 +41,12 @@ claim.
    instrument tree, package closure, and proposed load ceiling in
    `harness-config.json`.
 3. Materialize each lane from a fresh directory with the landed lane setup and
-   its bounded start packet. Start a cold agent session with the rendered
-   historical prompt. No session, implementation, store, or generated output
-   may cross a cell boundary.
+   its bounded start packet. Start its exact `controllerCommand` from
+   `harness-config.json`; that command supplies the production native-CLI
+   driver to `lane-controller.mjs`. The driver launches Codex, Grok, or Claude
+   from the cell definition and keeps one cold session behind milestone gates.
+   No session, implementation, store, or generated output may cross a cell
+   boundary.
 4. Run cells in the registered order with `maxConcurrentCells: 1`. The next
    cell cannot start until the prior process tree is closed and three
    consecutive one-minute load samples are within the ceiling.
@@ -50,18 +54,34 @@ claim.
    segment summary, terminal boundary, first-green time, semantic actions,
    failure-to-recovery episodes, restarts/reseeds, assertion attempts/wait,
    and harness-native usage. Suite and choreography must both attest green.
-   The current schema carries the landed usage/orientation fields but not all
-   of these D0.6 observations; cell start remains refused until the coordinated
-   bump lands and the fields are hash-linked into the record.
+   The 0.3.3-m8 controller hash-links all of these sources. A green milestone
+   with no native semantic action or no measured suite/choreography settlement
+   attempt is invalid.
 6. Sample one-, five-, and fifteen-minute load averages every 60 seconds from
    before prompt delivery through the terminal boundary. Any ceiling breach
    sets `host-load-contamination`; any provider interruption window sets
    `api-interruption`. Either flag makes that cell ineligible for the
    efficiency scorecard while its product findings, diary, and proof receipts
    remain valid evidence.
-7. Validate and retain one D2 record per cell. Generate the aggregate tables
-   only from those records; keep each qualitative essay as pre-metrics
-   narrative evidence.
+7. The controller always writes `metering.json`, then composes and validates
+   the complete `record.json`. Its `finally` path does the same after a thrown
+   milestone, producing a valid failure-shaped record rather than losing the
+   attempt. Generate aggregate tables only from complete records; keep each
+   qualitative essay as pre-metrics narrative evidence.
+
+The production command shape is frozen per cell, for example:
+
+```sh
+/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node \
+  benchmarks/tools/social-messenger/metering/lane-controller.mjs \
+  --harness-config benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json \
+  --cell sol-clique-explicit \
+  --driver benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs
+```
+
+`validate-plan.mjs` resolves all twelve concrete commands, imports the driver
+hooks, verifies each native CLI exists, and asks the lane controller to resolve
+every cell against the external 0.3.3-m8 pin.
 
 ## Load-isolation proposal
 
@@ -92,6 +112,7 @@ first-product-edit.json
 terminal-boundaries.json
 metering-manifest.json
 metering.json
+record-base.json                  # driver metadata merged by the controller
 load-samples.jsonl                # must be hash-linked by the run record
 api-interruptions.jsonl           # must be hash-linked by the run record
 receipts/                         # suite status + choreography JSONL/summary
@@ -130,11 +151,31 @@ elapsed hours after all blockers clear. The safety-limit upper bound is 144
 authoring hours (four hours × three milestones × twelve cells), excluding
 load-drain waits and final aggregation.
 
+## Dry-run lifecycle proof
+
+`dry-run-cell.mjs` runs a two-minute no-op stub through the same controller,
+typed observation, manifest, metering, complete-record, and checked-validator
+path. It does not invoke a model CLI or mark a preregistered campaign slot
+started. The output is a private temporary cell root containing a validating
+`record.json`; the script prints its path and validation disposition.
+
+```sh
+node benchmarks/runs/2026-08-23-r2-published-0125/dry-run-cell.mjs
+node benchmarks/runs/2026-08-23-r2-published-0125/dry-run-cell.mjs \
+  --duration-seconds 1 --failure-probe
+```
+
+The first command is the required full-duration lifecycle proof. The second is
+a focused fault-injection check: it throws in M1 before choreography, then
+requires a validating `record.json` with M1 `aborted` and M2/M3 `not-run`.
+
 ## Start blockers
 
-The authoritative list is `preflight.json`. At preparation time the blocking
-items are Grok authentication, the coordinated W6 schema/suite-status refusal
-not yet landed, absent raw 0.1.24 event streams/retrospective annotations, the
-load-ceiling ruling, an actually reserved/quiet host, and the retained Claude
-effort contradiction. Codex also moved from the recorded 0.147.0 to 0.149.0
-and needs a comparator ruling or restoration of the old binary.
+The authoritative list is `preflight.json`. The controller, driver,
+suite-status refusal, complete-record path, and 0.3.3-m8 pin are no longer
+blockers. The campaign still waits for materialization of the new private
+instrument archive, Grok authentication, absent raw 0.1.24 event streams or a
+governing pre-wave ruling, the load-ceiling ruling, an actually reserved/quiet
+host, and the Claude effort contradiction. Codex also moved from the recorded
+0.147.0 to 0.149.0 and needs a comparator ruling or restoration of the old
+binary.

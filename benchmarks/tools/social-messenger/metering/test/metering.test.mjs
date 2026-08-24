@@ -375,6 +375,7 @@ test("meter binds suite-status bytes to receipts at record-write time", async (t
     schemaVersion: "snapback.r2-harness-config.v1",
     runId: "r2-fixture",
     pins: { instrument: { instrumentPin: "social-messenger@0.3.3-m8" } },
+    harnesses: { fixture: { binary: process.execPath } },
     paths: { privateExecutionRoot: directory },
     execution: {
       milestones: ["M1", "M2"],
@@ -383,7 +384,7 @@ test("meter binds suite-status bytes to receipts at record-write time", async (t
         ceilingInclusive: { loadavg1: 10, loadavg5: 10, loadavg15: 10 },
       },
     },
-    cells: [{ id: "fixture-cell" }],
+    cells: [{ id: "fixture-cell", harness: "fixture" }],
   };
   await writeFile(r2HarnessPath, `${JSON.stringify(r2Harness)}\n`);
   const loadedControllerConfig = await loadLaneControllerConfig({
@@ -479,6 +480,10 @@ test("meter binds suite-status bytes to receipts at record-write time", async (t
       await laneController.writer.claim(milestone, "browserAssertionWait", {
         owner: "choreography",
       });
+    }, {
+      restartReseedClaimed: true,
+      apiInterruptionsClaimed: true,
+      suiteAssertionWaitClaimed: true,
     });
   }
 
@@ -535,7 +540,11 @@ test("lane observation harness samples load and records lifecycle and API retrie
     loadIntervalMs: 2,
     loadSample: () => [11, 2, 3],
   });
-  await harness.startMilestone("M1");
+  await harness.startMilestone("M1", {
+    restartReseedClaimed: true,
+    apiInterruptionsClaimed: true,
+    suiteAssertionWaitClaimed: true,
+  });
   await assert.rejects(writer.semanticAction("M1", {
     actionId: "invalid-retry",
     actionClass: "retry",
@@ -646,6 +655,10 @@ test("lane observation harness samples load and records lifecycle and API retrie
       await new Promise((resolvePromise) => setTimeout(resolvePromise, 2));
       return { pass: true };
     });
+  }, {
+    restartReseedClaimed: true,
+    apiInterruptionsClaimed: true,
+    suiteAssertionWaitClaimed: true,
   });
   const productionEvents = parseObservationJsonLines(await readFile(productionPath, "utf8"));
   const productionProjection = projectMilestoneObservability({
@@ -936,6 +949,7 @@ function composedRecord({ capFamily, source, metered }) {
     diary: "benchmarks/records/fixture.md",
     socialMessenger: {
       extensionVersion: 2,
+      instrumentVersion: "social-messenger@0.3.2-m8",
       orientation: {
         schemaVersion: "benchmark-orientation.v1",
         laneKind: "snapback-web-clique",
@@ -1118,6 +1132,15 @@ async function writeObservationFixture(root, { allClaimed = true } = {}) {
       retriedClass: null,
       binaryExcavation: false,
     });
+    observationAt = Date.parse("2026-08-21T16:02:20.000Z");
+    await writer.semanticAction("M3", {
+      actionId: "m3-progress",
+      actionClass: "suite",
+      disposition: "progress",
+      episodeId: null,
+      retriedClass: null,
+      binaryExcavation: false,
+    });
   }
   observationAt = Date.parse("2026-08-21T16:00:40.000Z");
   await writer.restart("M1");
@@ -1129,6 +1152,23 @@ async function writeObservationFixture(root, { allClaimed = true } = {}) {
     durationMs: 10,
     pass: true,
   });
+  observationAt = Date.parse("2026-08-21T16:01:40.000Z");
+  await writer.assertionWait("M2", {
+    owner: "suite",
+    assertion: "suite-fixture-m2",
+    attempt: 1,
+    durationMs: 10,
+    pass: true,
+  });
+  observationAt = Date.parse("2026-08-21T16:02:40.000Z");
+  await writer.assertionWait("M3", {
+    owner: "suite",
+    assertion: "suite-fixture-m3",
+    attempt: 1,
+    durationMs: 10,
+    pass: true,
+  });
+  observationAt = Date.parse("2026-08-21T16:00:45.000Z");
   await writer.assertionWait("M1", {
     owner: "choreography",
     assertion: "choreo-fixture",
@@ -1136,6 +1176,23 @@ async function writeObservationFixture(root, { allClaimed = true } = {}) {
     durationMs: 20,
     pass: true,
   });
+  observationAt = Date.parse("2026-08-21T16:01:45.000Z");
+  await writer.assertionWait("M2", {
+    owner: "choreography",
+    assertion: "choreo-fixture-m2",
+    attempt: 1,
+    durationMs: 20,
+    pass: true,
+  });
+  observationAt = Date.parse("2026-08-21T16:02:45.000Z");
+  await writer.assertionWait("M3", {
+    owner: "choreography",
+    assertion: "choreo-fixture-m3",
+    attempt: 1,
+    durationMs: 20,
+    pass: true,
+  });
+  observationAt = Date.parse("2026-08-21T16:00:50.000Z");
   await writer.apiRequest("M1", {
     provider: "fixture-provider",
     operation: "stream-turn",
@@ -1422,6 +1479,19 @@ test("D0.6 observability is produced from real sidecars and tampering fails clos
   assert.match(
     composedErrors(absentInstrumentVersion, root).join("\n"),
     /instrumentVersion.*required field is missing/u,
+  );
+
+  const coordinatedDowngrade = structuredClone(record);
+  delete coordinatedDowngrade.socialMessenger.instrumentVersion;
+  delete coordinatedDowngrade.socialMessenger.observabilityProtocol;
+  coordinatedDowngrade.socialMessenger.orientation.instrument.pin =
+    "social-messenger@0.3.2-m8";
+  coordinatedDowngrade.socialMessenger.orientation.instrument.versions.choreography =
+    "0.3.2-m8";
+  assert.match(
+    composedErrors(coordinatedDowngrade, root).join("\n"),
+    /instrumentVersion.*required field is missing/u,
+    "coordinated marker deletion/downgrade cannot select legacy validation",
   );
 
   const preChoreographyAbort = structuredClone(record);

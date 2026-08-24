@@ -6,6 +6,7 @@
   "type": "object",
   "required": [
     "extensionVersion",
+    "instrumentVersion",
     "runScope",
     "capFamily",
     "deploymentPosture",
@@ -155,8 +156,11 @@
       "description": "Version 2 requires an execution-ordered terminal boundary for every attempted milestone."
     },
     "instrumentVersion": {
-      "const": "social-messenger@0.3.3-m8",
-      "description": "Required identity binding for records produced by the current R2 instrument. It is independent of the orientation carrier, so deleting or downgrading orientation cannot silently select legacy validation."
+      "enum": [
+        "social-messenger@0.3.2-m8",
+        "social-messenger@0.3.3-m8"
+      ],
+      "description": "Unconditional identity binding for every plan record. Current R2 records use 0.3.3-m8; retained legacy records must identify 0.3.2-m8 explicitly, so deleting or downgrading only the optional orientation/protocol markers cannot select legacy validation."
     },
     "observabilityProtocol": {
       "const": "social-messenger-observation.v1",

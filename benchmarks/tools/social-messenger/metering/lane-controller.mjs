@@ -12,8 +12,10 @@ import {
   LaneObservationHarness,
   ObservationWriter,
 } from "./observations.mjs";
+import { validateSocialMessengerRunRecord } from "../record-validator.mjs";
 
 const MILESTONE = /^M[1-8]$/u;
+const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 
 function inside(root, path) {
   const logical = relative(resolve(root), resolve(path));
@@ -61,6 +63,170 @@ async function observationDescriptor(manifestDirectory, source) {
     path: relative(manifestDirectory, absolute).split(sep).join("/"),
     sha256: digest(contents),
   };
+}
+
+function tokenTotal(counts) {
+  return Number.isInteger(counts?.input) && Number.isInteger(counts?.output)
+    ? counts.input + counts.output
+    : null;
+}
+
+function secondsBetween(startedAt, finishedAt) {
+  return Math.max(0, (Date.parse(finishedAt) - Date.parse(startedAt)) / 1_000);
+}
+
+function milestoneCharging({ status, authoring, caps }) {
+  const actualTokens = tokenTotal(authoring.tokens);
+  if (status === "green") {
+    return {
+      chargedWallSeconds: authoring.wallSeconds,
+      chargedTokens: actualTokens,
+      flags: [],
+    };
+  }
+  if (authoring.terminalReason === "token-cap") {
+    return {
+      chargedWallSeconds: authoring.wallSeconds,
+      chargedTokens: caps.tokenCap,
+      flags: ["capped-tokens"],
+    };
+  }
+  if (authoring.terminalReason === "wall-cap") {
+    return {
+      chargedWallSeconds: caps.wallCapSeconds,
+      chargedTokens: actualTokens,
+      flags: ["capped-wall"],
+    };
+  }
+  return {
+    chargedWallSeconds: caps.wallCapSeconds,
+    chargedTokens: actualTokens,
+    flags: ["aborted"],
+  };
+}
+
+export function composeRunRecord({ base, patch, expectedMilestones = [] }) {
+  if (base === null || typeof base !== "object" || Array.isArray(base)) {
+    throw new TypeError("record base must be an object");
+  }
+  const startedAt = patch.meteringProvenance?.driver?.startedAt;
+  requiredString(startedAt, "metering driver.startedAt");
+  const attempted = patch.executionOrder.map((milestone) => [
+    milestone,
+    patch.milestones[milestone],
+  ]);
+  const finishedAt = attempted.at(-1)?.[1]?.authoring?.terminalAt;
+  requiredString(finishedAt, "final milestone terminalAt");
+  const record = structuredClone(base);
+  const totalSeconds = secondsBetween(startedAt, finishedAt);
+  const firstGreenProofAt = attempted
+    .map(([, value]) => value.authoring.firstGreenAt)
+    .filter((value) => value !== null)
+    .sort()[0] ?? null;
+  const orientationAt = patch.firstProductEdit.at;
+  const orientationSeconds = orientationAt === null
+    ? 0
+    : Math.min(totalSeconds, secondsBetween(startedAt, orientationAt));
+  const totalTokens = tokenTotal(patch.totals);
+  const orientationTokens = tokenTotal(patch.firstProductEdit.orientationTokens);
+
+  record.timestamps = { startedAt, finishedAt };
+  record.firstGreenProofAt = firstGreenProofAt;
+  record.wallClock = {
+    totalSeconds,
+    phases: {
+      orientation: orientationSeconds,
+      authoring: totalSeconds - orientationSeconds,
+      verification: 0,
+      diagnosis: 0,
+    },
+  };
+  record.tokens = {
+    input: patch.totals.input,
+    output: patch.totals.output,
+    source: patch.source,
+    phases: {
+      orientation: orientationTokens,
+      authoring: totalTokens === null || orientationTokens === null
+        ? null
+        : totalTokens - orientationTokens,
+      verification: totalTokens === null ? null : 0,
+      diagnosis: totalTokens === null ? null : 0,
+    },
+  };
+
+  let previousAt = startedAt;
+  const milestones = {};
+  for (const [milestone, projected] of attempted) {
+    const baseMilestone = record.socialMessenger?.milestones?.[milestone] ?? {};
+    const authoring = {
+      ...baseMilestone.authoring,
+      ...projected.authoring,
+      wallSeconds: secondsBetween(previousAt, projected.authoring.terminalAt),
+    };
+    const caps = {
+      wallCapSeconds: baseMilestone.caps?.wallCapSeconds ?? null,
+      tokenCap: baseMilestone.caps?.tokenCap ?? null,
+    };
+    milestones[milestone] = {
+      ...baseMilestone,
+      ...projected,
+      authoring,
+      caps,
+      charging: milestoneCharging({ status: projected.status, authoring, caps }),
+    };
+    previousAt = projected.authoring.terminalAt;
+  }
+  const expected = expectedMilestones.length > 0 ? expectedMilestones : patch.executionOrder;
+  for (const milestone of expected) {
+    if (milestones[milestone] !== undefined) continue;
+    const baseMilestone = record.socialMessenger?.milestones?.[milestone] ?? {};
+    milestones[milestone] = {
+      ...baseMilestone,
+      status: "not-run",
+      authoring: {
+        wallSeconds: null,
+        tokens: {
+          input: null,
+          output: null,
+          cacheRead: null,
+          cacheWrite: null,
+          reasoning: null,
+        },
+        firstGreenAt: null,
+        suitePassAt: null,
+        choreoPassAt: null,
+        terminalAt: null,
+        terminalSequence: null,
+        terminalReason: null,
+      },
+      charging: {
+        chargedWallSeconds: null,
+        chargedTokens: null,
+        flags: [],
+      },
+    };
+  }
+  const terminatedEarly = patch.executionOrder.length < expected.length
+    || attempted.some(([, value]) => value.status !== "green");
+  record.socialMessenger = {
+    ...record.socialMessenger,
+    instrumentVersion: patch.instrumentVersion,
+    observabilityProtocol: patch.observabilityProtocol,
+    milestones,
+    termination: terminatedEarly
+      ? {
+          terminatedEarly: true,
+          reason: record.socialMessenger?.termination?.reason ?? "cell-driver-failure",
+          afterMilestone: patch.executionOrder.at(-1) ?? null,
+        }
+      : { terminatedEarly: false, reason: null, afterMilestone: null },
+    firstProductEdit: patch.firstProductEdit,
+    meteringProvenance: patch.meteringProvenance,
+    efficiencyScorecardEligibility: patch.efficiencyScorecardEligibility,
+    suiteStatusLinkage: patch.suiteStatusLinkage,
+  };
+  return record;
 }
 
 // @ref LLP 0295#d06--efficiency-instrument-and-target-registration — the
@@ -129,6 +295,9 @@ export class R2LaneController {
       suiteAssertionWait: (fields, waitForSettlement) => (
         this.observations.suiteAssertionWait(milestone, fields, waitForSettlement)
       ),
+      suiteAssertionObservation: (fields) => (
+        this.observations.suiteAssertionObservation(milestone, fields)
+      ),
       semanticAction: (event) => this.observations.semanticAction(milestone, event),
       recoveryEpisode: (event) => this.observations.recoveryEpisode(milestone, event),
     });
@@ -186,6 +355,35 @@ export class R2LaneController {
     await writeFile(resolve(requiredString(outPath, "outPath")), `${JSON.stringify(patch, null, 2)}\n`);
     return patch;
   }
+
+  async writeCompleteRecord({
+    patch,
+    recordBasePath,
+    recordPath,
+    expectedMilestones,
+    baseSchemaPath,
+    extensionSchemaPath,
+    composedSchemaPath,
+  }) {
+    const absoluteBase = resolve(requiredString(recordBasePath, "recordBasePath"));
+    const absoluteRecord = resolve(requiredString(recordPath, "recordPath"));
+    const base = JSON.parse(await readFile(absoluteBase, "utf8"));
+    const record = composeRunRecord({ base, patch, expectedMilestones });
+    const [baseSchema, extensionSchema, composedSchema] = await Promise.all([
+      readFile(resolve(requiredString(baseSchemaPath, "baseSchemaPath")), "utf8"),
+      readFile(resolve(requiredString(extensionSchemaPath, "extensionSchemaPath")), "utf8"),
+      readFile(resolve(requiredString(composedSchemaPath, "composedSchemaPath")), "utf8"),
+    ]).then((values) => values.map((value) => JSON.parse(value)));
+    const errors = validateSocialMessengerRunRecord(composedSchema, record, {
+      schemas: [baseSchema, extensionSchema],
+      artifactRoot: dirname(absoluteRecord),
+    });
+    if (errors.length > 0) {
+      throw new Error(`complete record does not validate:\n  ${errors.join("\n  ")}`);
+    }
+    await writeFile(absoluteRecord, `${JSON.stringify(record, null, 2)}\n`, "utf8");
+    return record;
+  }
 }
 
 function usage() {
@@ -194,12 +392,15 @@ function usage() {
   node lane-controller.mjs --harness-config <harness-config.json> --cell <cell-id> --driver <driver.mjs>
 
 The config declares laneRunId, observationPath, loadCeilings, milestones,
-manifestPath, recordPatchPath, and optional observationSources. The driver
-exports runMilestone({ milestone, controls, config }) and places only the
-actual suite settlement wait inside controls.suiteAssertionWait(). In R2 mode,
-the controller reads the frozen harness config directly, refuses any instrument
-pin other than ${CURRENT_INSTRUMENT_PIN}, and writes under the cell's private
-execution root.`;
+manifestPath, recordPatchPath, recordBasePath, recordPath, and optional
+observationSources. The driver exports runMilestone({ milestone, controls,
+config }) and may export prepare(), claimOptions(), finalize(), and
+observationSources(). Only actual suite settlement waits belong in
+controls.suiteAssertionWait(). In R2 mode, the controller reads the frozen
+harness config directly, refuses any instrument pin other than
+${CURRENT_INSTRUMENT_PIN}, and writes both metering.json and a validated
+record.json under the cell's private execution root, including on a thrown
+cell attempt.`;
 }
 
 function parseArgs(argv) {
@@ -239,6 +440,7 @@ export async function loadLaneControllerConfig({ configPath: path, harnessConfig
 
   requiredString(cellId, "--cell");
   const absoluteConfig = resolve(harnessConfigPath);
+  const planDirectory = dirname(absoluteConfig);
   const harnessConfig = JSON.parse(await readFile(absoluteConfig, "utf8"));
   if (harnessConfig.schemaVersion !== "snapback.r2-harness-config.v1") {
     throw new Error("--harness-config must be a snapback.r2-harness-config.v1 document");
@@ -251,6 +453,8 @@ export async function loadLaneControllerConfig({ configPath: path, harnessConfig
   }
   const cell = harnessConfig.cells?.find((candidate) => candidate.id === cellId);
   if (!cell) throw new Error(`R2 harness config does not declare cell ${cellId}`);
+  const harness = harnessConfig.harnesses?.[cell.harness];
+  if (!harness) throw new Error(`R2 harness config does not declare harness ${cell.harness}`);
   const privateRoot = resolve(requiredString(
     harnessConfig.paths?.privateExecutionRoot,
     "harness paths.privateExecutionRoot",
@@ -272,8 +476,22 @@ export async function loadLaneControllerConfig({ configPath: path, harnessConfig
       milestones: harnessConfig.execution?.milestones,
       manifestPath: "metering-manifest.json",
       recordPatchPath: "metering.json",
+      recordBasePath: "record-base.json",
+      recordPath: "record.json",
       observationSources: [],
+      baseSchemaPath: join(REPOSITORY_ROOT, "benchmarks/schema/run-record.schema.json"),
+      extensionSchemaPath: join(
+        REPOSITORY_ROOT,
+        "benchmarks/schema/social-messenger/run-record-extension.schema.json",
+      ),
+      composedSchemaPath: join(
+        REPOSITORY_ROOT,
+        "benchmarks/schema/social-messenger/run-record.schema.json",
+      ),
+      repositoryRoot: REPOSITORY_ROOT,
+      planDirectory,
       harnessConfig,
+      harness,
       cell,
     },
   };
@@ -302,30 +520,89 @@ async function main() {
     loadIntervalMs: config.loadIntervalMs ?? 60_000,
   });
   await controller.initialize();
-  for (const milestone of config.milestones) {
-    await controller.runMilestone(
-      milestone,
-      (controls) => driver.runMilestone({ milestone, controls, config }),
-    );
+  let cellError = null;
+  let finalizationError = null;
+  let patch = null;
+  let record = null;
+  try {
+    if (typeof driver.prepare === "function") {
+      await driver.prepare({ config, configDirectory });
+    }
+    for (const milestone of config.milestones) {
+      const claimOptions = typeof driver.claimOptions === "function"
+        ? await driver.claimOptions({ milestone, config, configDirectory })
+        : {};
+      await controller.runMilestone(
+        milestone,
+        (controls) => driver.runMilestone({
+          milestone,
+          controls,
+          config,
+          configDirectory,
+        }),
+        claimOptions,
+      );
+    }
+  } catch (error) {
+    cellError = error;
+  } finally {
+    try {
+      if (typeof driver.finalize === "function") {
+        await driver.finalize({
+          config,
+          configDirectory,
+          error: cellError,
+        });
+      }
+    } catch (error) {
+      finalizationError = error;
+    }
+    try {
+      const driverSources = typeof driver.observationSources === "function"
+        ? await driver.observationSources({ config, configDirectory })
+        : [];
+      patch = await controller.writeRecordPatch({
+        manifestPath: configPath(configDirectory, config.manifestPath, "manifestPath"),
+        outPath: configPath(configDirectory, config.recordPatchPath, "recordPatchPath"),
+        additionalObservationSources: [
+          ...(config.observationSources ?? []),
+          ...driverSources,
+        ].map((source) => ({
+          sourceId: source.sourceId,
+          path: configPath(configDirectory, source.path, "observation source path"),
+        })),
+      });
+      record = await controller.writeCompleteRecord({
+        patch,
+        recordBasePath: configPath(
+          configDirectory,
+          config.recordBasePath,
+          "recordBasePath",
+        ),
+        recordPath: configPath(configDirectory, config.recordPath, "recordPath"),
+        expectedMilestones: config.milestones,
+        baseSchemaPath: config.baseSchemaPath,
+        extensionSchemaPath: config.extensionSchemaPath,
+        composedSchemaPath: config.composedSchemaPath,
+      });
+    } catch (error) {
+      finalizationError = finalizationError === null
+        ? error
+        : new AggregateError([finalizationError, error], "cell finalization failed");
+    }
   }
-  const driverSources = typeof driver.observationSources === "function"
-    ? await driver.observationSources({ config })
-    : [];
-  const patch = await controller.writeRecordPatch({
-    manifestPath: configPath(configDirectory, config.manifestPath, "manifestPath"),
-    outPath: configPath(configDirectory, config.recordPatchPath, "recordPatchPath"),
-    additionalObservationSources: [
-      ...(config.observationSources ?? []),
-      ...driverSources,
-    ].map((source) => ({
-      sourceId: source.sourceId,
-      path: configPath(configDirectory, source.path, "observation source path"),
-    })),
-  });
+  if (cellError !== null || finalizationError !== null) {
+    const errors = [cellError, finalizationError].filter((error) => error !== null);
+    throw errors.length === 1
+      ? errors[0]
+      : new AggregateError(errors, "cell execution and record finalization failed");
+  }
   process.stdout.write(`${JSON.stringify({
     ok: true,
     laneRunId: config.laneRunId,
     milestones: patch.executionOrder,
+    record: config.recordPath,
+    scorecardEligible: record.socialMessenger.efficiencyScorecardEligibility.eligible,
   })}\n`);
 }
 

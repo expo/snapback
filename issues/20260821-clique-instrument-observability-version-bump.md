@@ -113,6 +113,36 @@ Playwright choreography calibration passes; the preregistered twelve-cell R2
 `validate-plan.mjs` remains green and prepared-blocked with no cell started;
 and `./ref-check --verbose` reports 0 errors and 0 unchecked references.
 
+### Round 4 runnable-branch closure — 2026-08-23
+
+The preregistered R2 plan and the 0.3.3-m8 instrument now live on one branch.
+Every cell carries a concrete `lane-controller.mjs --driver
+r2-cell-driver.mjs` command. `validate-plan.mjs` resolves all twelve commands,
+imports the production hooks, checks each Codex/Grok/Claude CLI path, and asks
+the controller to resolve the cell against the external 0.3.3-m8 pin.
+
+The controller now makes all non-load custody claims explicit, requires real
+green suite/choreography attempts and native semantic actions, and always
+writes both `metering.json` and a composed, semantically validated
+`record.json`. Its finally path retains an aborted attempted milestone plus
+`not-run` successors when a driver throws before choreography. The two-minute
+no-model dry-run exercises the same typed observations, receipts, manifest,
+metering join, complete record, and checked validator; a focused forced-crash
+probe separately validates the failure-shaped record path.
+
+`instrumentVersion` is now in the unconditional extension required set. A
+test removes both current markers and downgrades orientation together; it is
+rejected for the missing version instead of entering legacy validation.
+
+Round 4 verification: the exact tooling battery is green `39/39`; the pinned
+Node 24 Playwright choreography calibration passes with 8 observed assertions,
+missing-linkage startup refusal, M1/M8 green, and its deliberate M8 failure
+rejected. `validate-plan.mjs` verifies the digest-bound instrument and all 12
+accepted production commands. The default no-model dry cell retained 120.094
+seconds of authoring wall and validated M1/M2/M3 green; the forced M1
+pre-choreography failure separately validated an `aborted` M1 plus `not-run`
+M2/M3. `./ref-check --verbose` reports 0 errors and 0 unchecked references.
+
 This ticket remains open: the broader LLP 0281 media/receipt/avatar/membership,
 selector-isolation/layout, setup-identity, and generated-report acceptance is
 outside this R2 start-blocking slice and is not claimed complete here.

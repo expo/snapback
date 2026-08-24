@@ -47,8 +47,11 @@ for `runRecordSchema` and `runRecordExtensionSchema` in the frozen
   `choreography`; complete coverage requires both. Current receipt JSONL is
   validated record-by-record against `receipts.schema.json`, while failed or
   aborted attempts may honestly end before a choreography segment summary is
-  produced. The extension stays at version `2`, so completed legacy records
-  are never rewritten.
+  produced. `instrumentVersion` is unconditional for every plan record: a
+  coordinated deletion/downgrade of optional orientation and protocol markers
+  cannot select a legacy validator. Historical `0.3.2-m8` records remain valid
+  only with that explicit version identity. The extension stays at version
+  `2`, so retained records are never rewritten.
 - `run-record.schema.json` — the complete composed record schema. It restricts
   `tokens.source` by `capFamily`; requires native lane totals and attempted
   milestone phases; and requires advisory or explicitly unavailable metering

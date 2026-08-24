@@ -1,7 +1,7 @@
 {
   "schemaVersion": "snapback.r2-preflight.v1",
   "runId": "2026-08-23-r2-published-0125",
-  "recordedAt": "2026-08-23T21:02:38Z",
+  "recordedAt": "2026-08-24T00:31:49Z",
   "noBenchmarkCellStarted": true,
   "waveStartAllowed": false,
   "checks": [
@@ -73,13 +73,13 @@
     {
       "id": "d0-6-metering-tests",
       "status": "pass",
-      "observed": "16/16 metering tests and 10/10 lane-setup/schema tests passed."
+      "observed": "20/20 metering tests and 10/10 lane-setup/schema tests passed; the complete tooling battery is 39/39."
     },
     {
       "id": "versioned-instrument-materialization",
-      "status": "pass",
-      "observed": "/Users/ccheever/bench-matrix-20260823-r2/instrument is a read-only archive of bdb493130; social-messenger manifest sha256 3438c84b8831239ab95e167eed79675a2127d7d63b3cb0f1ce72811872e2898e.",
-      "detail": "A setup-only lane-setup probe accepted the manifest and emitted the bounded orientation carrier; no benchmark cell or authoring clock was started."
+      "status": "fail",
+      "observed": "The committed plan now pins social-messenger@0.3.3-m8; the prior private archive was 0.3.2-m8 and is no longer admissible.",
+      "detail": "Materialize this branch's digest-verified 0.3.3-m8 snapshot at the pinned private path before cell 1. The dry-run uses repository-local bytes and is not the campaign archive."
     },
     {
       "id": "d2-record-schema",
@@ -88,21 +88,33 @@
     },
     {
       "id": "full-d0-6-record-linkage",
-      "status": "fail",
-      "observed": "The landed extension carries harness-native milestone usage and orientation/first-edit fields, but does not yet carry semantic actions, recovery episodes, restart/reseed counts, assertion wait, host-load windows, or API-interruption windows.",
-      "detail": "Do not substitute unlinked sidecars for the coordinated structured record. The observability bump must land and validate before cell 1."
+      "status": "pass",
+      "observed": "0.3.3-m8 hash-links semantic actions, recovery episodes, lifecycle, assertion waits, host load, API interruptions, suite status, terminal boundaries, and the complete record.",
+      "detail": "The lane controller now writes metering.json and validates complete record.json in its finally path."
     },
     {
       "id": "suite-status-startup-refusal",
-      "status": "fail",
-      "observed": "Current choreography documents --suite-status as optional; issues/20260821-clique-instrument-observability-version-bump.md remains Open.",
-      "detail": "LLP 0295 W6 requires refusal before the authoring clock when linkage is absent."
+      "status": "pass",
+      "observed": "Choreography 0.3.3-m8 requires --suite-status and the production driver requires typed suite/choreography observation sidecars before accepting green.",
+      "detail": "A green current-instrument milestone with zero measured suite or choreography settlement attempts is invalid."
     },
     {
       "id": "observability-version-bump",
-      "status": "not-landed",
-      "observed": "Issue remains Open at both this branch and fetched origin/main 1fc781635; kit 0.3.1-m8 and choreography 0.3.2-m8 are unchanged.",
-      "detail": "No unlanded vocabulary or schema is included in this R2 configuration."
+      "status": "pass",
+      "observed": "The R2-gating slice is built on this branch as instrument 0.3.3-m8; the umbrella issue remains open only for its broader LLP 0281 scope.",
+      "detail": "The plan pins this exact branch instrument; no claim is made that the broader media/avatar/membership worklist is complete."
+    },
+    {
+      "id": "production-controller-driver",
+      "status": "pass",
+      "observed": "All twelve cells carry an exact lane-controller --driver command; validate-plan resolves every command, CLI binary, cell, and 0.3.3-m8 pin.",
+      "detail": "The native driver launches Codex, Grok, or Claude according to the cell harness definition inside milestone observation windows."
+    },
+    {
+      "id": "dry-run-lifecycle",
+      "status": "pass",
+      "observed": "The default 120-second no-model cell completed M1/M2/M3 green through the production controller lifecycle and emitted a checked-valid record.json with 120.094 seconds of authoring wall.",
+      "detail": "A separate forced pre-choreography crash emitted a checked-valid M1 aborted record with M2/M3 not-run. Neither dry run occupies a preregistered campaign cell."
     },
     {
       "id": "exact-4046cafcf-checkout",

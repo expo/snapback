@@ -111,26 +111,34 @@ The production `lane-controller.mjs` constructs `ObservationWriter` and
 `LaneObservationHarness` for the complete cell. It can consume the frozen R2
 `harness-config.json` directly with `--harness-config ... --cell ...`; startup
 refuses unless that plan pins `social-messenger@0.3.3-m8`. For every attempted
-milestone, `startMilestone()` starts interval `os.loadavg()` sampling and
-claims complete lifecycle/API and suite-wait custody; `restart()` and
+milestone, `startMilestone()` starts interval `os.loadavg()` sampling. Every
+other custody claim is explicit in the driver contract: absent claim options
+produce non-claims, and an external suite/choreography producer may supply its
+own claim without a competing controller marker. `restart()` and
 `reseed()` wrap the operations they count; `apiRequest()` wraps native stream
 attempts and records errors plus linked retries; and `finishMilestone()`
 records a final load sample. The driver puts only its actual settlement wait
 inside `controls.suiteAssertionWait()`—setup, actions, and whole-attempt wall
-are not suite wait. After the last attempt, the controller hash-registers its
-stream plus the choreography stream in the lane manifest and invokes the
-record writer.
+are not suite wait. After the last attempt—or in the `finally` path after a
+thrown attempt—the controller hash-registers every producer stream, writes
+`metering.json`, composes the complete per-cell `record.json`, and validates it
+against the composed schema plus semantic validator. Unreached reduced-scope
+milestones are retained as `not-run`; a crash cannot erase the attempted
+failure.
 
 Choreography separately writes its own owner-scoped assertion attempts and
 measures only the intervals actually spent awaiting browser settlement. Suite
 and choreography claims and non-claims remain separate; neither producer can
 claim the other's coverage, and the complete browser-wait block is eligible
 only when both owners are claimed. A harness with a native normalized event
-log may call `semanticAction()` and `recoveryEpisode()` and claim those
-streams. Current
-harness-native Claude/Codex/Kimi/Grok usage logs do not expose sufficient
-semantic-action and failure-to-recovery events, so the lane harness emits
-explicit non-claims for those blocks by default.
+log calls `semanticAction()` and `recoveryEpisode()` at its decoded
+tool-result boundary. The R2 production driver does this for Codex, Grok, and
+Claude native CLI streams; it also owns the lifecycle/API wrappers, while
+typed suite and choreography sidecars own their settlement waits. A green
+current-instrument milestone with no native semantic action or no
+suite/choreography settlement attempt is invalid, so selecting the driver
+alone cannot claim trustworthy coverage. Drivers without those producers
+retain explicit non-claims.
 
 Every attempted milestone receives all six fields. A block is either
 `{"claimed":true,...}` with retained evidence or
@@ -139,11 +147,12 @@ Every attempted milestone receives all six fields. A block is either
 the correction-action target ineligible; phase gaps, other coverage gaps,
 host-load contamination, and API interruptions likewise make the overall
 efficiency scorecard ineligible while preserving product-debugging value.
-The joiner stamps `instrumentVersion: "social-messenger@0.3.3-m8"`; current
-schema validation requires that pin, the exact orientation pin, the current
+The joiner stamps `instrumentVersion: "social-messenger@0.3.3-m8"`;
+`instrumentVersion` is unconditional for every plan record, and current schema
+validation requires that pin, the exact orientation pin, the current
 observability protocol, suite linkage, and the complete claimed-or-non-claimed
-shape. A current/R2 record cannot become legacy-compatible by deleting or
-downgrading an orientation string.
+shape. A current/R2 record cannot become legacy-compatible by coordinated
+deletion/downgrade of optional markers.
 
 ## Watchdog contract
 

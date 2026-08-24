@@ -128,11 +128,12 @@ function validateSessionTree(sessions, adapter) {
 function validateClaudeIdentity(session, records) {
   let sawSession = false;
   for (const [index, record] of records.entries()) {
-    if (record?.sessionId !== undefined) {
+    const recordSessionId = record?.sessionId ?? record?.session_id;
+    if (recordSessionId !== undefined) {
       sawSession = true;
-      if (record.sessionId !== session.nativeSessionId) {
+      if (recordSessionId !== session.nativeSessionId) {
         throw new Error(
-          `Claude source ${session.sourceId}:${index + 1} has sessionId ${record.sessionId}, expected ${session.nativeSessionId}`,
+          `Claude source ${session.sourceId}:${index + 1} has sessionId ${recordSessionId}, expected ${session.nativeSessionId}`,
         );
       }
     }

@@ -847,12 +847,33 @@ export class LaneObservationHarness {
       semanticActionsReason = NON_CLAIM_REASONS.semanticActions,
       recoveryEpisodesClaimed = false,
       recoveryEpisodesReason = NON_CLAIM_REASONS.failureToRecoveryEpisodes,
+      restartReseedClaimed = false,
+      restartReseedReason = NON_CLAIM_REASONS.restartReseed,
+      suiteAssertionWaitClaimed = false,
+      suiteAssertionWaitReason = "suite-assertion-settlement-waits-unavailable",
+      apiInterruptionsClaimed = false,
+      apiInterruptionsReason = NON_CLAIM_REASONS.apiInterruptions,
     } = {},
   ) {
     if (this.samplers.has(milestone)) throw new Error(`${milestone} is already being observed`);
-    await this.writer.claim(milestone, "restartReseed");
-    await this.writer.claim(milestone, "apiInterruptions");
-    await this.writer.claim(milestone, "browserAssertionWait", { owner: "suite" });
+    if (restartReseedClaimed === true) await this.writer.claim(milestone, "restartReseed");
+    else if (restartReseedClaimed === false) {
+      await this.writer.nonClaim(milestone, "restartReseed", restartReseedReason);
+    }
+    if (apiInterruptionsClaimed === true) await this.writer.claim(milestone, "apiInterruptions");
+    else if (apiInterruptionsClaimed === false) {
+      await this.writer.nonClaim(milestone, "apiInterruptions", apiInterruptionsReason);
+    }
+    if (suiteAssertionWaitClaimed === true) {
+      await this.writer.claim(milestone, "browserAssertionWait", { owner: "suite" });
+    } else if (suiteAssertionWaitClaimed === false) {
+      await this.writer.nonClaim(
+        milestone,
+        "browserAssertionWait",
+        suiteAssertionWaitReason,
+        { owner: "suite" },
+      );
+    }
     if (semanticActionsClaimed) await this.writer.claim(milestone, "semanticActions");
     else await this.writer.nonClaim(milestone, "semanticActions", semanticActionsReason);
     if (recoveryEpisodesClaimed) {
@@ -911,6 +932,13 @@ export class LaneObservationHarness {
         pass,
       });
     }
+  }
+
+  suiteAssertionObservation(milestone, fields) {
+    return this.writer.assertionWait(milestone, {
+      ...fields,
+      owner: "suite",
+    });
   }
 
   async apiRequest(milestone, fields, operation) {
