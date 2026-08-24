@@ -23,6 +23,9 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+          # Manual complete proof always qualifies latest main even when the
+          # dispatch UI was opened from a topic ref. PRs retain their event ref.
+          ref: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'refs/heads/main' || github.ref }}
           # Guide freshness compares reviewed authority commits against HEAD;
           # a depth-1 checkout turns every historical review identity into an
           # unverifiable warning instead of running the intended audit.

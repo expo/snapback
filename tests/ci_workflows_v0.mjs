@@ -24,6 +24,36 @@ assert.deepEqual(workflowNames, [
   'visibility-governance-reconciler.yml',
 ]);
 
+function declaredWorkflowEvents(name) {
+  const text = readFileSync(join(workflowDir, name), 'utf8');
+  const triggerBlock = /^on:\n((?:[ \t]+[^\n]*(?:\n|$))*)/mu.exec(text);
+  assert(triggerBlock, `${name} must declare workflow triggers`);
+  return [...triggerBlock[1].matchAll(/^  ([a-z_]+):/gmu)].map((match) => match[1]);
+}
+
+const lowNoiseTriggerContract = new Map([
+  ['all-aboard-cold-clone.yml', ['workflow_dispatch']],
+  ['deployment-identity.yml', ['pull_request', 'workflow_dispatch']],
+  ['inventories.yml', ['pull_request', 'workflow_dispatch']],
+  ['linux-runtime-package.yml', ['workflow_dispatch']],
+  ['local-proof.yml', ['pull_request', 'schedule', 'workflow_dispatch']],
+  ['required-surface-builds.yml', ['workflow_dispatch']],
+  ['visibility-governance-observer.yml', ['workflow_dispatch']],
+  ['visibility-governance-reconciler.yml', ['workflow_dispatch']],
+]);
+for (const [name, expectedEvents] of lowNoiseTriggerContract) {
+  assert.deepEqual(
+    declaredWorkflowEvents(name),
+    expectedEvents,
+    `${name} must retain the reviewed LLP 0189 low-noise trigger posture`,
+  );
+}
+assert.deepEqual(
+  declaredWorkflowEvents('ref-check.yml'),
+  ['push', 'pull_request'],
+  'ref-check must preserve cheap direct-main and pull-request feedback',
+);
+
 const deploymentIdentityWorkflow = readFileSync(
   join(workflowDir, 'deployment-identity.yml'),
   'utf8',
@@ -311,12 +341,22 @@ assert.match(
 assert.match(
   localProof,
   /PROOF_CADENCE:[^\n]*schedule[^\n]*workflow_dispatch[^\n]*complete[^\n]*affected/u,
-  'push/PR proof must select affected gates while schedule/manual retains complete cadence',
+  'PR proof must select affected gates while schedule/manual retains complete cadence',
 );
 assert.match(
   localProof,
-  /group:[^\n]*schedule[^\n]*workflow_dispatch[^\n]*latest-main[^\n]*event_name == 'push'[^\n]*github\.sha[^\n]*github\.ref/u,
-  'main push proofs must use a commit-unique group while scheduled complete and PR runs may coalesce',
+  /group:[^\n]*schedule[^\n]*workflow_dispatch[^\n]*latest-main[^\n]*github\.ref/u,
+  'scheduled complete proof must coalesce latest-main while PR proof remains ref-scoped',
+);
+assert.match(
+  localProof,
+  /ref:[^\n]*schedule[^\n]*workflow_dispatch[^\n]*refs\/heads\/main[^\n]*github\.ref/u,
+  'scheduled/manual complete proof must checkout main while PR proof retains its event ref',
+);
+assert.doesNotMatch(
+  localProof,
+  /^  push:/mu,
+  'temporary low-noise posture must not launch local proof on direct main pushes',
 );
 assert.match(
   localProof,
@@ -379,6 +419,15 @@ assert.doesNotMatch(
   localProof,
   /drift-prone-gates\.mjs battery(?:\s|\\)|issues\/\*battery-|SNAPBACK_BATTERY_RUN_ID/u,
   'the read-only GitHub checkout must not mutate or retain artifact-only ticket state',
+);
+const visibilityObserver = readFileSync(
+  join(workflowDir, 'visibility-governance-observer.yml'),
+  'utf8',
+);
+assert.match(
+  visibilityObserver,
+  /if:\s*\$\{\{ github\.event_name == 'push' \}\}/u,
+  'manual dispatch must not manufacture a protected observer verdict without an authenticated push event',
 );
 const localProofBackstop = readFileSync(
   join(ROOT, 'scripts', 'local-proof-backstop-runner'),
