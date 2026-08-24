@@ -18,7 +18,7 @@ import {
   createServer as createHttpServer,
   request as createHttpRequest,
 } from 'node:http';
-import { createConnection } from 'node:net';
+import { createConnection, createServer as createNetServer } from 'node:net';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { IDBFactory } from 'fake-indexeddb';
@@ -52,8 +52,11 @@ import {
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(packageRoot, '..', '..');
+// Default to this checkout's own bootstrapped binary. The previous default was
+// an absolute path into one developer's home directory, which made this test
+// unrunnable everywhere else.
 const runtimeBinary = process.env.SNAPBACK_RUNTIME_BINARY
-  ?? '/Users/ccheever/projects/snapback-g0-land/target/debug/snapback';
+  ?? join(repoRoot, 'target', 'debug', 'snapback');
 assert.ok(existsSync(runtimeBinary), `real Snapback runtime is missing: ${runtimeBinary}`);
 
 const sourceFixture = join(packageRoot, 'fixtures', 'comparator', 'app', 'snapback');
@@ -161,6 +164,27 @@ async function eventually(check, { timeoutMs = 30_000, label = 'condition' } = {
     await new Promise((resolveWait) => setTimeout(resolveWait, 50));
   }
   throw new Error(`timed out waiting for ${label}${lastError ? `: ${lastError.message}` : ''}`);
+}
+
+async function reserveFreeRange(width) {
+  for (let lo = 46_000; lo <= 60_000 - width; lo += width) {
+    const servers = [];
+    try {
+      for (let port = lo; port < lo + width; port += 1) {
+        const server = createNetServer();
+        await new Promise((resolveListen, rejectListen) => {
+          server.once('error', rejectListen);
+          server.listen(port, '127.0.0.1', resolveListen);
+        });
+        servers.push(server);
+      }
+      await Promise.all(servers.map((server) => new Promise((resolveClose) => server.close(resolveClose))));
+      return { lo, hi: lo + width - 1 };
+    } catch {
+      await Promise.all(servers.map((server) => new Promise((resolveClose) => server.close(resolveClose))));
+    }
+  }
+  throw new Error('could not locate a free loopback range for the Expo supervisor test');
 }
 
 function processGroupAlive(pid) {
@@ -292,9 +316,14 @@ async function startFixture(target, options = {}) {
     now: options.now,
     bindingTtlMs: options.bindingTtlMs,
     bindingRefreshWindowMs: options.bindingRefreshWindowMs,
+    devOptions: options.devOptions,
+    clientPort: options.clientPort,
+    bootstrapPort: options.bootstrapPort,
+    portRange: options.portRange,
     metroCommand: { command: process.execPath, args: [metroScript] },
     env: {
       ...process.env,
+      ...(options.env ?? {}),
       CI: '1',
       SNAPBACK_RUNTIME_BINARY: runtimeBinary,
       SNAPBACK_EXPO_TEST_BUNDLE: target.bundle,
@@ -339,7 +368,7 @@ async function assertOriginClosed(origin, label) {
   }, { label: `${label} listener cleanup` });
 }
 
-async function runCliSupervisor(target, platform = 'ios') {
+async function runCliSupervisor(target, platform = 'ios', portArgs = []) {
   const cli = join(packageRoot, 'cli.mjs');
   const events = [];
   let stdoutBuffer = '';
@@ -355,6 +384,7 @@ async function runCliSupervisor(target, platform = 'ios') {
     '--db', target.database,
     '--email', 'cli@expo-e1.test',
     '--expo-command', `${JSON.stringify(process.execPath)} ${JSON.stringify(metroScript)}`,
+    ...portArgs,
   ], {
     cwd: target.projectRoot,
     env: {
@@ -606,10 +636,113 @@ try {
   assert.equal(alias.appHost, '10.0.2.2');
   assert.deepEqual(alias.forwards, []);
 
+  // LLP 0299: all three public pins are strict and their provenance is
+  // projected consistently through the event, descriptor, handle, and
+  // inspection surfaces. Metro remains the unpinned internal web upstream.
+  const pinnedPorts = await reserveFreeRange(3);
+  const pinned = fixture('pinned-ports', { sessions: true });
+  const pinnedRun = await startFixture(pinned, {
+    platform: 'web',
+    devOptions: { port: pinnedPorts.lo },
+    clientPort: pinnedPorts.lo + 1,
+    bootstrapPort: pinnedPorts.lo + 2,
+  });
+  const pinnedSupervisor = pinnedRun.supervisor;
+  assert.equal(new URL(pinnedSupervisor.binding.target.origin).port, String(pinnedPorts.lo));
+  assert.equal(new URL(pinnedSupervisor.metroOrigin).port, String(pinnedPorts.lo + 1));
+  assert.equal(new URL(pinnedSupervisor.exchangeOrigin).port, String(pinnedPorts.lo + 2));
+  const pinnedOwners = Object.fromEntries(
+    pinnedSupervisor.portPlan.owners.map((entry) => [entry.owner, entry]),
+  );
+  for (const owner of ['backend', 'client', 'bootstrap']) {
+    assert.equal(pinnedOwners[owner].source, 'pinned');
+    assert.equal(pinnedOwners[owner].declaredBy, 'flag');
+  }
+  const pinnedReady = pinnedRun.events.find((event) => event.state === 'ready');
+  assert.deepEqual(pinnedReady.portPlan, pinnedSupervisor.portPlan);
+  assert.deepEqual(
+    pinnedSupervisor.applicationReady.clientOrigins,
+    expoBackendClientOrigins(pinnedPorts.lo + 1),
+  );
+  const pinnedDescriptor = JSON.parse(readFileSync(
+    join(dirname(pinned.readyFile), 'expo-supervisor.json'),
+    'utf8',
+  ));
+  assert.deepEqual(pinnedDescriptor.portPlan, pinnedSupervisor.portPlan);
+  assert.deepEqual(pinnedSupervisor.inspection().portPlan, pinnedSupervisor.portPlan);
+  await pinnedSupervisor.close();
+  supervisors.splice(supervisors.indexOf(pinnedSupervisor), 1);
+  await eventually(() => !existsSync(pinned.readyFile), { label: 'pinned ready-file cleanup' });
+
+  // A held client pin refuses before either child can write its first startup
+  // artifact, and lsof attributes this process without authorizing adoption
+  // or a signal.
+  const occupiedPort = (await reserveFreeRange(1)).lo;
+  const occupiedServer = createNetServer();
+  await new Promise((resolveListen, rejectListen) => {
+    occupiedServer.once('error', rejectListen);
+    occupiedServer.listen(occupiedPort, '127.0.0.1', resolveListen);
+  });
+  const occupied = fixture('occupied-client-pin', { sessions: true });
+  try {
+    await assert.rejects(
+      startFixture(occupied, { platform: 'web', clientPort: occupiedPort }),
+      (error) => {
+        assert.equal(error?.code, 'SNAPBACK_DEV_PORT_UNAVAILABLE');
+        assert.equal(error?.diagnostic?.details?.owner, 'client');
+        assert.equal(error?.diagnostic?.details?.port, occupiedPort);
+        assert.equal(error?.diagnostic?.details?.holder?.pid, process.pid);
+        return true;
+      },
+    );
+    assert.equal(existsSync(occupied.readyFile), false, 'the backend child must not start');
+    assert.equal(existsSync(occupied.metroEnv), false, 'the Metro child must not start');
+    assert.equal(existsSync(occupied.bundle), false, 'Metro must not write a bundle');
+  } finally {
+    await new Promise((resolveClose) => occupiedServer.close(resolveClose));
+  }
+
+  const rangedPorts = await reserveFreeRange(8);
+  const ranged = fixture('ranged-ports', { sessions: true });
+  const rangedRun = await startFixture(ranged, {
+    platform: 'web',
+    portRange: `${rangedPorts.lo}-${rangedPorts.hi}`,
+  });
+  const rangedByOwner = Object.fromEntries(
+    rangedRun.supervisor.portPlan.owners.map((entry) => [entry.owner, entry.port]),
+  );
+  assert.deepEqual(rangedByOwner, {
+    backend: rangedPorts.lo,
+    client: rangedPorts.hi,
+    bootstrap: rangedPorts.hi - 1,
+    metro: rangedPorts.hi - 2,
+  });
+  assert.equal(rangedRun.supervisor.portPlan.range.source, 'flag');
+  assert(rangedRun.supervisor.portPlan.owners.every(({ port }) => (
+    port >= rangedPorts.lo && port <= rangedPorts.hi
+  )));
+  await rangedRun.supervisor.close();
+  supervisors.splice(supervisors.indexOf(rangedRun.supervisor), 1);
+  await eventually(() => !existsSync(ranged.readyFile), { label: 'ranged ready-file cleanup' });
+
+  const envClientPort = (await reserveFreeRange(1)).lo;
+  const envPinned = fixture('env-pinned-client', { sessions: true });
+  const envPinnedRun = await startFixture(envPinned, {
+    platform: 'web',
+    env: { SNAPBACK_DEV_CLIENT_PORT: String(envClientPort) },
+  });
+  assert.deepEqual(
+    envPinnedRun.supervisor.portPlan.owners.find(({ owner }) => owner === 'client'),
+    { owner: 'client', port: envClientPort, source: 'pinned', declaredBy: 'env' },
+  );
+  await envPinnedRun.supervisor.close();
+  supervisors.splice(supervisors.indexOf(envPinnedRun.supervisor), 1);
+  await eventually(() => !existsSync(envPinned.readyFile), { label: 'env-pinned ready-file cleanup' });
+
   // A target not settled in Sessions mode still completes binding delivery,
   // but the real native mint refusal becomes authority-required in the app.
   const unsettled = fixture('unsettled', { sessions: false });
-  const unsettledRun = await startFixture(unsettled);
+  const unsettledRun = await startFixture(unsettled, { platform: 'web' });
   assert.deepEqual(JSON.parse(readFileSync(unsettled.metroEnv, 'utf8')), {
     nodeOptions: '--trace-warnings --dns-result-order=ipv4first',
     defaultResultOrder: 'ipv4first',
@@ -809,12 +942,23 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
     bindingRefreshWindowMs,
   });
   const { supervisor, events } = settledRun;
+  assert.deepEqual(
+    {
+      backend: supervisor.binding.target.origin,
+      metro: supervisor.metroOrigin,
+      bootstrap: supervisor.exchangeOrigin,
+    },
+    unsettledOrigins,
+    'two quiet default web runs keep the same public origins',
+  );
   assert.equal(supervisor.state, 'ready');
   assert.equal(supervisor.connectCarrier, 'supervisor-rendezvous');
   assert.deepEqual(supervisor.device, { serial: null, class: 'browser' });
   const settledReadyEvent = events.find((event) => event.state === 'ready');
   assert.equal(settledReadyEvent?.connectCarrier, 'supervisor-rendezvous');
   assert.equal(settledReadyEvent?.platform, 'web');
+  assert.equal(settledReadyEvent?.snapbackUrl, supervisor.snapbackUrl);
+  assert.equal(settledReadyEvent?.androidEmulatorUrl, supervisor.androidEmulatorUrl);
   const supervisorDescriptor = join(dirname(settled.readyFile), 'expo-supervisor.json');
   assert.equal(existsSync(supervisorDescriptor), true);
   assert.equal(statSync(supervisorDescriptor).mode & 0o777, 0o600);
@@ -828,6 +972,7 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   assert.equal(typeof supervisorDiscovery.metro.startTime, 'string');
   assert.equal(supervisorDiscovery.metro.origin, supervisor.metroOrigin);
   assert.equal(supervisor.applicationReady.formatVersion, 'snapback.application-ready.v1');
+  assert.equal(supervisor.applicationReady.admissionPosture, 'explicit-list');
   assert.deepEqual(supervisorDiscovery.applicationReady, supervisor.applicationReady);
   const metroClientOrigins = expoBackendClientOrigins(
     Number(new URL(supervisor.metroOrigin).port),
@@ -1320,9 +1465,22 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   // Exercise the packaged command wiring and signal path, not only the
   // programmatic supervisor seam. It reuses the settled database, receives a
   // fresh ordinary session, correlates control events, and joins every child.
-  const cliRun = await runCliSupervisor(settled, 'web');
+  const cliRange = await reserveFreeRange(8);
+  const cliRun = await runCliSupervisor(settled, 'web', [
+    '--port-range', `${cliRange.lo}-${cliRange.hi}`,
+  ]);
   assert.match(cliRun.bearer, /^sbs_/u);
   assert.equal(cliRun.readyEvent.platform, 'web');
+  assert.deepEqual(
+    Object.fromEntries(cliRun.readyEvent.portPlan.owners.map(({ owner, port }) => [owner, port])),
+    {
+      backend: cliRange.lo,
+      client: cliRange.hi,
+      bootstrap: cliRange.hi - 1,
+      metro: cliRange.hi - 2,
+    },
+  );
+  assert.equal(cliRun.readyEvent.portPlan.range.source, 'flag');
   assertListenerInventory({ listeners: cliRun.listenerEvent.listeners });
   const cliOrigins = {
     backend: cliRun.readyEvent.binding.target.origin,
@@ -1387,7 +1545,7 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
     'shutdown reports every owned arm reclaimed',
   );
 
-  console.log('expo-dev-loop.test.mjs: WS reset/cancelled-response handoff, zero-write rendezvous carrier, repeated TTL cold boots, transient descriptor, Sessions refusal+mint, all-listener loopback proof, provider live/mutation/presence/HMR/reconnect/authority replacement+conflict, leak matrix, SIGINT, and strict cleanup pass');
+  console.log('expo-dev-loop.test.mjs: 6 LLP 0299 port-plan cases plus WS reset/cancelled-response handoff, zero-write rendezvous carrier, repeated TTL cold boots, transient descriptor, Sessions refusal+mint, all-listener loopback proof, provider live/mutation/presence/HMR/reconnect/authority replacement+conflict, leak matrix, SIGINT, and strict cleanup pass');
 } finally {
   await Promise.allSettled(supervisors.flatMap((supervisor) => (
     typeof supervisor?.close === 'function' ? [supervisor.close()] : []

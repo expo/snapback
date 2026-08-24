@@ -161,6 +161,84 @@ fn codegen_emitted_manifest_full_engine_admission_seam() {
     );
 }
 
+#[test]
+fn broadcast_admission_recomputes_function_membership_and_installed_owner() {
+    use crate::manifest::{AuthRequirement, GraphAdmissionRefusalReasonV1 as Reason};
+
+    let corpus: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../../tests/conformance/graph/corpus.v1.json"
+    ))
+    .expect("broadcast corpus");
+    let schema: SchemaManifest =
+        serde_json::from_value(corpus["broadcastFixture"]["schema"].clone())
+            .expect("broadcast installed schema");
+    let manifest: FunctionManifest =
+        serde_json::from_value(corpus["broadcastFixture"]["functionManifest"].clone())
+            .expect("broadcast function manifest");
+    let function = manifest
+        .functions
+        .iter()
+        .find(|function| function.name == "publicRooms")
+        .expect("publicRooms function")
+        .clone();
+    assert_eq!(
+        function.effective_auth_requirement(),
+        AuthRequirement::Authenticated,
+    );
+    assert!(
+        graph_fault_reasons_with_schema(&function, &schema).is_empty(),
+        "codegen broadcast admits against the exact installed facts",
+    );
+
+    let mut wrong_function_auth = function.clone();
+    wrong_function_auth.auth_requirement = Some(AuthRequirement::Public);
+    assert!(
+        graph_fault_reasons_with_schema(&wrong_function_auth, &schema)
+            .contains(&Reason::BroadcastAudienceUnprovable),
+        "host requires authenticated function admission for a broadcast",
+    );
+
+    let mut bare_authenticated_outsider_hole = function.clone();
+    graph_plan_mut(&mut bare_authenticated_outsider_hole)
+        .function_membership
+        .clear();
+    assert_eq!(
+        bare_authenticated_outsider_hole.effective_auth_requirement(),
+        AuthRequirement::Authenticated,
+    );
+    assert!(
+        graph_fault_reasons_with_schema(&bare_authenticated_outsider_hole, &schema)
+            .contains(&Reason::BroadcastAudienceUnprovable),
+        "bare authenticated auth cannot stand in for the establishment membership",
+    );
+
+    let mut divergent_function_membership = function.clone();
+    graph_plan_mut(&mut divergent_function_membership).function_membership[0].roles =
+        Some(vec!["moderator".to_owned()]);
+    assert!(
+        graph_fault_reasons_with_schema(&divergent_function_membership, &schema)
+            .contains(&Reason::BroadcastAudienceUnprovable),
+        "host recomputes that function membership exactly equals establishment",
+    );
+
+    let mut changed_installed_schema = schema.clone();
+    changed_installed_schema
+        .tables
+        .iter_mut()
+        .find(|table| table.name == "roomMembers")
+        .unwrap()
+        .membership
+        .as_mut()
+        .unwrap()
+        .roles
+        .push("owner".to_owned());
+    assert!(
+        graph_fault_reasons_with_schema(&function, &changed_installed_schema)
+            .contains(&Reason::BroadcastAudienceUnprovable),
+        "manifest-carried installed-owner digest cannot override active schema/policy facts",
+    );
+}
+
 fn graph_test_function() -> FunctionDefinition {
     let mut plan: crate::manifest::GraphQueryPlanV1 =
         serde_json::from_str::<crate::manifest::GraphQueryCarrierV1>(include_str!(
@@ -28788,6 +28866,33 @@ fn test_live_session_authority(
     .expect("prepare retained live session authority")
 }
 
+fn test_grant_session_authority(
+    source: InvocationSource,
+    user_id: &str,
+    session_id: &str,
+    authority_instance_id: &str,
+) -> PreparedAuthority {
+    InvocationGate::prepare_authority(
+        source,
+        AuthMode::Sessions,
+        ServerProfile::Test,
+        0,
+        0,
+        &WireAuthorityFields::default(),
+        ResolvedAppAuthority::Session {
+            user_id: user_id.to_owned(),
+            session_id: session_id.to_owned(),
+            provider: "email-code".to_owned(),
+            generation: 1,
+            authority_instance_id: authority_instance_id.to_owned(),
+            session_not_after_ms: u64::MAX / 2,
+            provider_not_after_ms: None,
+            rehearsal_provenance: None,
+        },
+    )
+    .expect("prepare grant-management session authority")
+}
+
 fn test_dev_authority(source: InvocationSource) -> PreparedAuthority {
     InvocationGate::prepare_authority(
         source,
@@ -28799,6 +28904,713 @@ fn test_dev_authority(source: InvocationSource) -> PreparedAuthority {
         ResolvedAppAuthority::dev_from_auth(&AuthInput::default()),
     )
     .expect("prepare exact test dev authority")
+}
+
+#[test]
+fn grant_approval_derives_exact_user_and_session_from_management_authority() {
+    use crate::storage::auth_agents::AgentRegistration;
+    use crate::storage::auth_grants::{
+        ExactGrantScope, GrantApproval, GrantApprovalDurableRowsForTest,
+        GrantApprovalGrantRowForTest, GrantApprovalMetaRowForTest, GrantApprovalPairingRowForTest,
+        GrantScopeRequest, PairingPresentation, ScopedFunctionKind,
+    };
+
+    const NOW_MS: u64 = 2_000;
+    const FIXTURE_CLOCK_HIGH_WATER_MS: u64 = 1_131;
+    const GRANT_TTL_MS: u64 = 40_000;
+    const AUTH_CLOCK_META_KEY: &str = "auth_invalidation_clock_high_water_ms_v1";
+    const EXPECTED_SCOPES_JSON: &str =
+        r#"[{"fn":"fn:grantApprovalRead","kind":"query","basis":0,"authorityCreating":false}]"#;
+    const AGENT_REGISTRATION_PROVENANCE: &str = "grant-approval-authority-test";
+    const OTHER_OWNER_AGENT_WARNING: &str = "You do not own this agent. Its owner can re-credential it and use memberships or roles that this grant creates for the agent.";
+    const FIRST_GRANTOR: &str = "user-m";
+    // PreparedAuthority remains caller-constructible, so successful cases
+    // form a non-functional claim matrix: the same user and authority instance
+    // carry two sessions, while the same session and authority instance carry
+    // two users. This proves only that approval derives both carried claims; it
+    // does not claim that these durable provider sessions are constructible.
+    const FIRST_SESSION: &str = "session-m";
+    const SECOND_SESSION: &str = "session-x";
+    const SECOND_GRANTOR: &str = "user-x";
+    const SHARED_AUTHORITY_INSTANCE: &str = "grant-authority-independent-alpha";
+    const SECOND_AUTHORITY_INSTANCE: &str = "grant-authority-independent-beta";
+    const FIRST_AGENT_OWNER: &str = "user-owner-a";
+    const SECOND_AGENT_OWNER: &str = "user-owner-b";
+    const FIRST_AGENT: &str = "agent-grant-approval-a";
+    const SECOND_AGENT: &str = "agent-grant-approval-b";
+
+    struct Fixture {
+        snapback: LocalSnapback,
+        lower_request_id: String,
+        first_grantor_request_id: String,
+        second_grantor_request_id: String,
+        upper_request_id: String,
+    }
+
+    impl Fixture {
+        fn new() -> Self {
+            let mut snapback = LocalSnapback::memory().expect("grant approval memory fixture");
+            let random = CounterRandom::new();
+            let request_ids = {
+                let database = snapback.auth_database_mut();
+                database
+                    .activate_current_auth_catalog()
+                    .expect("activate grant approval auth catalog");
+                for user_id in [
+                    "user-a",
+                    FIRST_GRANTOR,
+                    FIRST_AGENT_OWNER,
+                    SECOND_AGENT_OWNER,
+                    SECOND_GRANTOR,
+                    "user-z",
+                ] {
+                    database
+                        .auth_catalog()
+                        .insert_human_user_for_test(user_id, 1_000)
+                        .expect("create grantor fixture user");
+                }
+                for (agent, owner) in [
+                    (FIRST_AGENT, FIRST_AGENT_OWNER),
+                    (SECOND_AGENT, SECOND_AGENT_OWNER),
+                ] {
+                    database
+                        .create_agent_principal(
+                            agent,
+                            1_000,
+                            &AgentRegistration {
+                                display_name: Some(format!("Grant Approval Agent {agent}")),
+                                operator_contact: None,
+                                registration_provenance: AGENT_REGISTRATION_PROVENANCE.to_owned(),
+                                owner_user_id: Some(owner.to_owned()),
+                            },
+                        )
+                        .expect("create grant approval agent");
+                }
+                let first_credential = database
+                    .issue_initial_agent_credential(FIRST_AGENT, 1_001, &random)
+                    .expect("issue first grant approval agent credential");
+                let second_credential = database
+                    .issue_initial_agent_credential(SECOND_AGENT, 1_002, &random)
+                    .expect("issue second grant approval agent credential");
+                let function_runtime = FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table_visibility: None,
+                    table: "unused".to_owned(),
+                    filters: Vec::new(),
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    indexed_by: None,
+                }));
+                database
+                    .reconcile_auth_scope_bases(&FunctionManifest {
+                        functions: vec![FunctionDefinition::new(
+                            "grantApprovalRead",
+                            FunctionKind::Query,
+                            function_runtime,
+                        )],
+                        ..FunctionManifest::default()
+                    })
+                    .expect("install grant approval scope basis");
+
+                [
+                    ("user-a", &first_credential.secret),
+                    (FIRST_GRANTOR, &first_credential.secret),
+                    (SECOND_GRANTOR, &second_credential.secret),
+                    ("user-z", &first_credential.secret),
+                ]
+                .into_iter()
+                .enumerate()
+                .map(|(index, (user_id, credential))| {
+                    let minted_at_ms = 1_100 + (index as u64 * 10);
+                    let pairing = database
+                        .mint_pairing_code(user_id, minted_at_ms, &random)
+                        .expect("mint grant approval pairing code");
+                    let presentation = database
+                        .present_pairing_code(
+                            credential,
+                            &pairing.request_id,
+                            &pairing.secret,
+                            &[GrantScopeRequest::Exact {
+                                function_id: "fn:grantApprovalRead".to_owned(),
+                                kind: ScopedFunctionKind::Query,
+                            }],
+                            minted_at_ms + 1,
+                        )
+                        .expect("present grant approval pairing code");
+                    assert!(matches!(presentation, PairingPresentation::Created(_)));
+                    pairing.request_id
+                })
+                .collect::<Vec<_>>()
+            };
+            let [
+                lower_request_id,
+                first_grantor_request_id,
+                second_grantor_request_id,
+                upper_request_id,
+            ]: [String; 4] = request_ids
+                .try_into()
+                .expect("four grant approval requests");
+            Self {
+                snapback,
+                lower_request_id,
+                first_grantor_request_id,
+                second_grantor_request_id,
+                upper_request_id,
+            }
+        }
+
+        fn rows(&mut self) -> GrantApprovalDurableRowsForTest {
+            self.snapback
+                .auth_database_mut()
+                .grant_approval_durable_rows_for_test()
+                .expect("read physical grant approval rows")
+        }
+
+        fn pending_rows(&self) -> Vec<GrantApprovalPairingRowForTest> {
+            let mut rows = vec![
+                GrantApprovalPairingRowForTest {
+                    request_id: self.lower_request_id.clone(),
+                    minted_by_user_id: "user-a".to_owned(),
+                    state: "pending".to_owned(),
+                    grant_id: None,
+                },
+                GrantApprovalPairingRowForTest {
+                    request_id: self.first_grantor_request_id.clone(),
+                    minted_by_user_id: FIRST_GRANTOR.to_owned(),
+                    state: "pending".to_owned(),
+                    grant_id: None,
+                },
+                GrantApprovalPairingRowForTest {
+                    request_id: self.second_grantor_request_id.clone(),
+                    minted_by_user_id: SECOND_GRANTOR.to_owned(),
+                    state: "pending".to_owned(),
+                    grant_id: None,
+                },
+                GrantApprovalPairingRowForTest {
+                    request_id: self.upper_request_id.clone(),
+                    minted_by_user_id: "user-z".to_owned(),
+                    state: "pending".to_owned(),
+                    grant_id: None,
+                },
+            ];
+            rows.sort_by(|left, right| left.request_id.cmp(&right.request_id));
+            rows
+        }
+    }
+
+    fn expected_consent_digest(agent_user_id: &str, expires_at_ms: u64) -> [u8; 32] {
+        use sha2::Digest as _;
+
+        #[derive(serde::Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct ExpectedScope<'a> {
+            #[serde(rename = "fn")]
+            function_id: &'a str,
+            kind: &'a str,
+            basis: u64,
+            authority_creating: bool,
+        }
+
+        #[derive(serde::Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct ExpectedConsent<'a> {
+            agent_user_id: &'a str,
+            display_name: &'a str,
+            registration_provenance: &'a str,
+            owner_assumption: &'a str,
+            owner_assumption_warning: &'a str,
+            scopes: &'a [ExpectedScope<'a>],
+            expires_at_ms: u64,
+        }
+
+        let display_name = format!("Grant Approval Agent {agent_user_id}");
+        let scopes = [ExpectedScope {
+            function_id: "fn:grantApprovalRead",
+            kind: "query",
+            basis: 0,
+            authority_creating: false,
+        }];
+        let encoded = serde_json::to_vec(&ExpectedConsent {
+            agent_user_id,
+            display_name: &display_name,
+            registration_provenance: AGENT_REGISTRATION_PROVENANCE,
+            owner_assumption: "ownedByAnotherUser",
+            owner_assumption_warning: OTHER_OWNER_AGENT_WARNING,
+            scopes: &scopes,
+            expires_at_ms,
+        })
+        .expect("serialize independent expected consent record");
+        sha2::Sha256::digest(encoded).into()
+    }
+
+    #[derive(Clone, Copy)]
+    enum Case {
+        FirstExact,
+        SameUserSecondSession,
+        SameSessionSecondUser,
+        SecondExact,
+        WrongSource,
+        LowerSubject,
+        UpperSubject,
+    }
+
+    impl Case {
+        fn name(self) -> &'static str {
+            match self {
+                Self::FirstExact => "first-exact",
+                Self::SameUserSecondSession => "same-user-second-session",
+                Self::SameSessionSecondUser => "same-session-second-user",
+                Self::SecondExact => "second-exact",
+                Self::WrongSource => "wrong-source",
+                Self::LowerSubject => "lower-subject",
+                Self::UpperSubject => "upper-subject",
+            }
+        }
+
+        fn expected_grantor(self) -> &'static str {
+            match self {
+                Self::SameSessionSecondUser | Self::SecondExact => SECOND_GRANTOR,
+                _ => FIRST_GRANTOR,
+            }
+        }
+
+        fn expected_session(self) -> &'static str {
+            match self {
+                Self::SameUserSecondSession | Self::SecondExact => SECOND_SESSION,
+                _ => FIRST_SESSION,
+            }
+        }
+
+        fn authority_instance_id(self) -> &'static str {
+            match self {
+                Self::SecondExact => SECOND_AUTHORITY_INSTANCE,
+                _ => SHARED_AUTHORITY_INSTANCE,
+            }
+        }
+
+        fn expected_agent(self) -> &'static str {
+            match self {
+                Self::SameSessionSecondUser | Self::SecondExact => SECOND_AGENT,
+                _ => FIRST_AGENT,
+            }
+        }
+    }
+
+    struct Observation {
+        case: Case,
+        approval: Result<crate::storage::auth_grants::ApprovedGrant, String>,
+        rows: GrantApprovalDurableRowsForTest,
+        pending_rows: Vec<GrantApprovalPairingRowForTest>,
+        selected_request_id: String,
+    }
+
+    let observations = [
+        Case::FirstExact,
+        Case::SameUserSecondSession,
+        Case::SameSessionSecondUser,
+        Case::SecondExact,
+        Case::WrongSource,
+        Case::LowerSubject,
+        Case::UpperSubject,
+    ]
+    .into_iter()
+    .map(|case| {
+        let mut fixture = Fixture::new();
+        let (authority, selected_request_id) = match case {
+            Case::FirstExact => (
+                test_grant_session_authority(
+                    InvocationSource::AgentGrantManagement,
+                    FIRST_GRANTOR,
+                    case.expected_session(),
+                    case.authority_instance_id(),
+                ),
+                fixture.first_grantor_request_id.clone(),
+            ),
+            Case::SameUserSecondSession => (
+                test_grant_session_authority(
+                    InvocationSource::AgentGrantManagement,
+                    FIRST_GRANTOR,
+                    case.expected_session(),
+                    case.authority_instance_id(),
+                ),
+                fixture.first_grantor_request_id.clone(),
+            ),
+            Case::SameSessionSecondUser => (
+                test_grant_session_authority(
+                    InvocationSource::AgentGrantManagement,
+                    SECOND_GRANTOR,
+                    case.expected_session(),
+                    case.authority_instance_id(),
+                ),
+                fixture.second_grantor_request_id.clone(),
+            ),
+            Case::SecondExact => (
+                test_grant_session_authority(
+                    InvocationSource::AgentGrantManagement,
+                    SECOND_GRANTOR,
+                    case.expected_session(),
+                    case.authority_instance_id(),
+                ),
+                fixture.second_grantor_request_id.clone(),
+            ),
+            Case::WrongSource => (
+                test_grant_session_authority(
+                    InvocationSource::HttpQuery,
+                    FIRST_GRANTOR,
+                    FIRST_SESSION,
+                    SHARED_AUTHORITY_INSTANCE,
+                ),
+                fixture.first_grantor_request_id.clone(),
+            ),
+            Case::LowerSubject => (
+                test_grant_session_authority(
+                    InvocationSource::AgentGrantManagement,
+                    FIRST_GRANTOR,
+                    FIRST_SESSION,
+                    SHARED_AUTHORITY_INSTANCE,
+                ),
+                fixture.lower_request_id.clone(),
+            ),
+            Case::UpperSubject => (
+                test_grant_session_authority(
+                    InvocationSource::AgentGrantManagement,
+                    FIRST_GRANTOR,
+                    FIRST_SESSION,
+                    SHARED_AUTHORITY_INSTANCE,
+                ),
+                fixture.upper_request_id.clone(),
+            ),
+        };
+        let approval = fixture
+            .snapback
+            .approve_grant_request(
+                &authority,
+                &selected_request_id,
+                Some(GRANT_TTL_MS),
+                None,
+                NOW_MS,
+            )
+            .map(|approval| match approval {
+                GrantApproval::Created(grant) | GrantApproval::Existing(grant) => grant,
+            })
+            .map_err(|error| error.diagnostic.code);
+        let pending_rows = fixture.pending_rows();
+        let rows = fixture.rows();
+        Observation {
+            case,
+            approval,
+            rows,
+            pending_rows,
+            selected_request_id,
+        }
+    })
+    .collect::<Vec<_>>();
+
+    let accepted = observations
+        .iter()
+        .filter_map(|observation| {
+            observation
+                .approval
+                .is_ok()
+                .then_some(observation.case.name())
+        })
+        .collect::<Vec<_>>();
+    let refused = observations
+        .iter()
+        .filter_map(|observation| {
+            observation
+                .approval
+                .as_ref()
+                .err()
+                .map(|code| (observation.case.name(), code.as_str()))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        accepted,
+        vec![
+            "first-exact",
+            "same-user-second-session",
+            "same-session-second-user",
+            "second-exact",
+        ]
+    );
+    assert_eq!(
+        refused,
+        vec![
+            ("wrong-source", "SNAPBACK_AUTH_REQUIRED"),
+            ("lower-subject", "SNAPBACK_AUTH_GRANT_INVALID"),
+            ("upper-subject", "SNAPBACK_AUTH_GRANT_INVALID"),
+        ]
+    );
+
+    for observation in observations {
+        let expected_clock_high_water_ms = if matches!(observation.case, Case::WrongSource) {
+            FIXTURE_CLOCK_HIGH_WATER_MS
+        } else {
+            NOW_MS
+        };
+        assert_eq!(
+            observation.rows.authorization_clock,
+            GrantApprovalMetaRowForTest {
+                key: AUTH_CLOCK_META_KEY.to_owned(),
+                value: expected_clock_high_water_ms.to_string(),
+            },
+            "{} authorization-clock durable row",
+            observation.case.name(),
+        );
+        match observation.approval {
+            Ok(grant) => {
+                let expected_created_at_ms = NOW_MS;
+                let expected_expires_at_ms = expected_created_at_ms + GRANT_TTL_MS;
+                let expected_scopes = [ExactGrantScope {
+                    function_id: "fn:grantApprovalRead".to_owned(),
+                    kind: ScopedFunctionKind::Query,
+                    basis: 0,
+                    authority_creating: false,
+                }];
+                let expected_consent_digest = expected_consent_digest(
+                    observation.case.expected_agent(),
+                    expected_expires_at_ms,
+                );
+                assert!(grant.grant_id.starts_with("grt_"));
+                assert_eq!(grant.request_id, observation.selected_request_id);
+                assert_eq!(grant.actor_user_id, observation.case.expected_agent());
+                assert_eq!(grant.effective_user_id, observation.case.expected_grantor());
+                assert_eq!(grant.scopes.as_slice(), expected_scopes.as_slice());
+                assert!(grant.expires_at_ms > expected_created_at_ms);
+                assert_eq!(grant.expires_at_ms, expected_expires_at_ms);
+                assert_eq!(grant.consent_digest, expected_consent_digest);
+                let mut expected_pairing_rows = observation.pending_rows;
+                let approved = expected_pairing_rows
+                    .iter_mut()
+                    .find(|row| row.request_id == observation.selected_request_id)
+                    .expect("selected pairing row exists");
+                approved.state = "approved".to_owned();
+                approved.grant_id = Some(grant.grant_id.clone());
+                assert_eq!(observation.rows.pairing_requests, expected_pairing_rows);
+                assert_eq!(
+                    observation.rows.grants,
+                    vec![GrantApprovalGrantRowForTest {
+                        grant_id: grant.grant_id,
+                        actor_user_id: observation.case.expected_agent().to_owned(),
+                        effective_user_id: observation.case.expected_grantor().to_owned(),
+                        scopes: EXPECTED_SCOPES_JSON.to_owned(),
+                        created_at_ms: expected_created_at_ms,
+                        expires_at_ms: expected_expires_at_ms,
+                        revoked_at_ms: None,
+                        created_by: format!("session:{}", observation.case.expected_session()),
+                        request_id: observation.selected_request_id,
+                        consent_digest: expected_consent_digest.to_vec(),
+                        last_used_at_ms: expected_created_at_ms,
+                    }]
+                );
+            }
+            Err(_) => {
+                assert_eq!(observation.rows.pairing_requests, observation.pending_rows);
+                assert!(
+                    observation.rows.grants.is_empty(),
+                    "{} refusal created a durable grant: {:?}",
+                    observation.case.name(),
+                    observation.rows.grants,
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn grant_revocation_planners_select_only_the_session_users_exact_token_set() {
+    let (schema, functions) = sessions_activation_pair('b', false);
+    let mut snapback = settled_sessions_activation_snapback(schema, functions);
+    let now_ms = 1_000;
+    let function_runtime = FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+        table_visibility: None,
+        table: "unused".to_owned(),
+        filters: Vec::new(),
+        membership_filters: Vec::new(),
+        order: Vec::new(),
+        limit: None,
+        indexed_by: None,
+    }));
+    let grant_functions = FunctionManifest {
+        functions: [
+            ("listItems", FunctionKind::Query),
+            ("liveItems", FunctionKind::LiveQuery),
+            ("queuedWrite", FunctionKind::Mutation),
+            ("writeAction", FunctionKind::Action),
+        ]
+        .into_iter()
+        .map(|(name, kind)| FunctionDefinition::new(name, kind, function_runtime.clone()))
+        .collect(),
+        ..FunctionManifest::default()
+    };
+    let (lower_token_id, caller_token_id, upper_token_id) = {
+        let random = CounterRandom::new();
+        let database = snapback.auth_database_mut();
+        database
+            .reconcile_auth_scope_bases(&grant_functions)
+            .expect("install grant scope bases");
+        database
+            .auth_catalog()
+            .insert_human_user_for_test("user-a", now_ms)
+            .expect("create lexically lower effective user");
+        database
+            .auth_catalog()
+            .insert_human_user_for_test("user-m", now_ms)
+            .expect("create caller effective user");
+        database
+            .auth_catalog()
+            .insert_human_user_for_test("user-z", now_ms)
+            .expect("create lexically upper effective user");
+        database
+            .create_agent_principal(
+                "agent-shared",
+                now_ms,
+                &crate::storage::auth_agents::AgentRegistration {
+                    display_name: Some("Shared Agent".to_owned()),
+                    operator_contact: None,
+                    registration_provenance: "grant-revocation-planner-test".to_owned(),
+                    owner_user_id: Some("user-m".to_owned()),
+                },
+            )
+            .expect("create caller's agent");
+        let credential = database
+            .issue_initial_agent_credential("agent-shared", now_ms, &random)
+            .expect("issue agent credential");
+        database
+            .auth_catalog()
+            .insert_finite_authority_grant_for_test("grant-lower", "agent-shared", "user-a", now_ms)
+            .expect("create lexically lower user's grant");
+        database
+            .auth_catalog()
+            .insert_finite_authority_grant_for_test(
+                "grant-caller",
+                "agent-shared",
+                "user-m",
+                now_ms,
+            )
+            .expect("create caller's grant");
+        database
+            .auth_catalog()
+            .insert_finite_authority_grant_for_test("grant-upper", "agent-shared", "user-z", now_ms)
+            .expect("create lexically upper user's grant");
+        let lower_token_id = database
+            .mint_scoped_token(
+                &credential.secret,
+                "grant-lower",
+                Some(60_000),
+                now_ms,
+                &random,
+            )
+            .expect("mint lexically lower user's grant token")
+            .token_id;
+        let caller_token_id = database
+            .mint_scoped_token(
+                &credential.secret,
+                "grant-caller",
+                Some(60_000),
+                now_ms,
+                &random,
+            )
+            .expect("mint caller's grant token")
+            .token_id;
+        let upper_token_id = database
+            .mint_scoped_token(
+                &credential.secret,
+                "grant-upper",
+                Some(60_000),
+                now_ms,
+                &random,
+            )
+            .expect("mint lexically upper user's grant token")
+            .token_id;
+        (lower_token_id, caller_token_id, upper_token_id)
+    };
+    let authority = test_live_session_authority(
+        InvocationSource::AgentGrantManagement,
+        "user-m",
+        1,
+        now_ms + 60_000,
+        None,
+    );
+
+    let own_single = snapback
+        .plan_grant_revocation_service_terminal(&authority, "grant-caller", now_ms)
+        .expect("caller can plan revocation of their own grant");
+    assert_eq!(own_single.token_ids(), &[caller_token_id.clone()]);
+
+    for (grant_id, position) in [
+        ("grant-lower", "lexically lower"),
+        ("grant-upper", "lexically upper"),
+    ] {
+        let foreign_single =
+            snapback.plan_grant_revocation_service_terminal(&authority, grant_id, now_ms);
+        let Err(error) = foreign_single else {
+            panic!("caller must be refused when planning {position} foreign grant revocation");
+        };
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_GRANT_INVALID");
+    }
+
+    let wrong_source = test_live_session_authority(
+        InvocationSource::HttpMutation,
+        "user-m",
+        1,
+        now_ms + 60_000,
+        None,
+    );
+    let wrong_source_plan =
+        snapback.plan_grant_revocation_service_terminal(&wrong_source, "grant-caller", now_ms);
+    let Err(error) = wrong_source_plan else {
+        panic!("grant revocation planning must require its registered management source");
+    };
+    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_REQUIRED");
+
+    let admission = AdmissionController::from_mode_state(&settled_sessions_state())
+        .expect("managed Sessions admission controller");
+    let retired_authority = InvocationGate::prepare_admitted_authority(
+        InvocationSource::AgentGrantManagement,
+        AuthMode::Sessions,
+        ServerProfile::Test,
+        admission
+            .admit_for_mode(AuthMode::Sessions)
+            .expect("admit grant-management authority"),
+        &WireAuthorityFields::default(),
+        authority.resolved().clone(),
+        Some(
+            crate::auth::identity_core::AuthClaimsProjection::server_derived(
+                Vec::new(),
+                Vec::new(),
+            ),
+        ),
+    )
+    .expect("prepare managed grant-management authority");
+    assert_eq!(
+        admission
+            .retire_current_epoch_for_test()
+            .expect_err("outstanding authority forces retirement timeout")
+            .diagnostic
+            .code,
+        "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
+    );
+    let retired_plan =
+        snapback.plan_grant_revocation_service_terminal(&retired_authority, "grant-caller", now_ms);
+    let Err(error) = retired_plan else {
+        panic!("retired grant-management authority must be refused");
+    };
+    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_MODE_PENDING");
+
+    let bulk = snapback
+        .plan_bulk_grant_revocation_service_terminal(&authority, "agent-shared", now_ms)
+        .expect("bulk planning selects the caller's grants");
+    let planned_tokens = bulk.token_ids().iter().cloned().collect::<BTreeSet<_>>();
+    let expected_positive_tokens = BTreeSet::from([caller_token_id]);
+    let expected_negative_tokens = BTreeSet::from([lower_token_id, upper_token_id]);
+    let selected_negative_tokens = planned_tokens
+        .intersection(&expected_negative_tokens)
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    assert_eq!(planned_tokens, expected_positive_tokens);
+    assert_eq!(selected_negative_tokens, BTreeSet::new());
 }
 
 fn test_session_admission() -> crate::auth::admission::AdmissionLease {

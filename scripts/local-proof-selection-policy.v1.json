@@ -12,6 +12,7 @@
     "local-proof-inventory",
     "affected-selector-fixtures",
     "path-migration-stragglers",
+    "path-migration-straggler-fixtures",
     "workspace-graph",
     "workspace-graph-fixtures",
     "authoring-profile-branches",
@@ -1123,7 +1124,8 @@
     "path-migration": {
       "lane": "fast",
       "gates": [
-        "path-migration-stragglers"
+        "path-migration-stragglers",
+        "path-migration-straggler-fixtures"
       ]
     },
     "workspace-graph": {

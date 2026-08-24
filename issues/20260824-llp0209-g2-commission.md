@@ -72,4 +72,5 @@ measurement. Each slice review-gated and landed per LLP 0232/0189.
 
 ## Status
 
-- 2026-08-24 — commissioned; packet landed; G2-A dispatch follows.
+- 2026-08-24 — commissioned; packet landed.
+- 2026-08-24 — **G2-A LANDED** (series ending `e486f4827`; 4 fix rounds, dual-family READY; records `llp/reviews/0209-g2-a.*`). Remaining: G2-B (matcher consumption + per-node ledger), G2-C (observations, sidecar case kinds, serving integration behind the kill switch, D2-H2 A/B measurement).

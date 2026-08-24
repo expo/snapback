@@ -1,6 +1,9 @@
 import {
   createSnapbackAppClient,
   type ApplicationAuthBootstrapV1,
+  type AuthEntryAdapter,
+  type ResolvedProviderEntryV1,
+  type SnapbackAppClient,
   type CurrentPrincipalSnapshot,
   type SnapbackAppBindingV1,
   type SnapbackApplicationDescriptorV1,
@@ -147,3 +150,45 @@ async function fixture() {
 }
 
 void fixture;
+
+// @ref LLP 0151#default-development-provider-profiles — one stable call, and a
+// provider name the generated declaration actually carries.
+const providerPolicy = {
+  format: 'snapback.application-auth-bootstrap.v1',
+  appId: 'app',
+  mode: 'sessions',
+  custody: 'volatile-explicit',
+  entryMechanisms: ['external-session-explicit-v1'],
+  providers: [
+    { provider: 'apple', kind: 'apple', credentials: 'auto' },
+    { provider: 'google', kind: 'oidc', preset: 'google', credentials: 'auto' },
+  ],
+  anonymousPublic: 'refused',
+  lifecycleProtocol: 1,
+} as const satisfies ApplicationAuthBootstrapV1;
+void providerPolicy;
+
+const mismatchedOidcPreset = {
+  ...providerPolicy,
+  // @ts-expect-error an oidc provider's preset is its provider name.
+  providers: [{ provider: 'google', kind: 'oidc', preset: 'apple', credentials: 'auto' }],
+} as const satisfies ApplicationAuthBootstrapV1;
+void mismatchedOidcPreset;
+
+declare const providerAppClient: SnapbackAppClient;
+void (async () => {
+  await providerAppClient.auth.signIn({ provider: 'apple' });
+  await providerAppClient.auth.signIn({ provider: 'google' });
+  // @ts-expect-error github is not a v1 first-party provider.
+  await providerAppClient.auth.signIn({ provider: 'github' });
+  const entry: ResolvedProviderEntryV1 | null = providerAppClient.auth.providerEntry('apple');
+  void entry?.adapter satisfies AuthEntryAdapter | undefined;
+});
+
+const providerAdapters = {
+  context: { deployment: 'development', platform: 'ios', sharedAvailable: true },
+  adapters: {
+    'snapback-shared-browser': async () => ({ exchange: { challengeId: 'c', code: 'k' } }),
+  },
+} satisfies NonNullable<Parameters<typeof createSnapbackAppClient>[0]['authProviders']>;
+void providerAdapters;

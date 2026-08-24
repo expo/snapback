@@ -10,7 +10,7 @@
   "cellRoot": "execution/cells/dry-run-noop",
   "record": {
     "path": "execution/cells/dry-run-noop/record.json",
-    "sha256": "sha256:e1ea4bd64ed0f18647b9525fe0a173cb68cbf048cd54429218436ffdaeed6ded"
+    "sha256": "sha256:85699e189ea96ac072643a2e87602a52c885c76d755f7bf4a608d0f90d9114ab"
   },
   "status": "aborted",
   "scorecardEligible": false,
@@ -32,7 +32,7 @@
       },
       "semantic": {
         "path": "benchmarks/tools/social-messenger/record-validator.mjs",
-        "sha256": "sha256:fa1b179a617db743ec15d9d87017458e594cab070b798ccd72b5349ccf373238"
+        "sha256": "sha256:6083bf88cf29feac9e625093b5bc026377c644c7a963195f920cc6b17edcd727"
       }
     }
   },
@@ -54,23 +54,23 @@
     },
     {
       "path": "execution/cells/dry-run-noop/events/lane-controller-observations.jsonl",
-      "bytes": 3176,
-      "sha256": "sha256:00684c570a17a8ecb7a8a11e796091d8a6e8f0bc8ba15c8619aded20017d4635"
+      "bytes": 3174,
+      "sha256": "sha256:d52d5cb8d4aabe005b847ae2e8c94028dd6003271cb3a1dd5a1a06c893807156"
     },
     {
       "path": "execution/cells/dry-run-noop/instrument.manifest.json",
       "bytes": 3268,
-      "sha256": "sha256:8a13dcc55eca1dfe49a13d704575d2e2843ca059c34c964df86c7287dfb729ad"
+      "sha256": "sha256:a3ff59a5e9d4b351953d35be68652dd7a4a1a298b4593a3fcc4754263ca14841"
     },
     {
       "path": "execution/cells/dry-run-noop/metering-manifest.json",
       "bytes": 1441,
-      "sha256": "sha256:2caf01c069e71d2cdd70031b45711a58c099323f13231dd73d5f29ed076d9d17"
+      "sha256": "sha256:6d25f81e15cd93a2476afb3efab67c963480984012ff0fe74d4f8659c1a7140f"
     },
     {
       "path": "execution/cells/dry-run-noop/metering.json",
       "bytes": 8167,
-      "sha256": "sha256:5f2d2988bc547a626c4360c7bf36a304396ee6ebfebe31f05be04fa168ebb23f"
+      "sha256": "sha256:d4a5cc06b02eb70f4d9a49b393e1042d0fddc7a34cc705379cee9621018234a3"
     },
     {
       "path": "execution/cells/dry-run-noop/receipts/m1-suite.json",
@@ -80,12 +80,12 @@
     {
       "path": "execution/cells/dry-run-noop/record-base.json",
       "bytes": 3708,
-      "sha256": "sha256:d8218f7e664c269136ee56387bf8087324ca3b6548009f12b6e9093979330450"
+      "sha256": "sha256:7c16b00ec144cc1f710a6790e725a4e92d1ee109432e4c3d938f68ac79279be5"
     },
     {
       "path": "execution/cells/dry-run-noop/record.json",
       "bytes": 12713,
-      "sha256": "sha256:e1ea4bd64ed0f18647b9525fe0a173cb68cbf048cd54429218436ffdaeed6ded"
+      "sha256": "sha256:85699e189ea96ac072643a2e87602a52c885c76d755f7bf4a608d0f90d9114ab"
     },
     {
       "path": "execution/cells/dry-run-noop/suite-status.json",
@@ -95,12 +95,12 @@
     {
       "path": "execution/cells/dry-run-noop/terminal-boundaries.json",
       "bytes": 372,
-      "sha256": "sha256:5e28e2b5758b840d8c6a1be478186ecd19edb2c2bdc714de8c2c0929faeaf9ad"
+      "sha256": "sha256:9d3754451743c44559281e3ca78cfd0cefb214e336a396e16eb1ccb0d55999e2"
     },
     {
       "path": "harness-config.json",
-      "bytes": 1222,
-      "sha256": "sha256:14b5fa1ee5e51595878567e2d56b8c1f9905096db47f3f00dbe8198cf8050613"
+      "bytes": 1186,
+      "sha256": "sha256:25165cc0b68334c430e4306440aaba5f2f3169445c7dbce527f2215383989204"
     }
   ]
 }

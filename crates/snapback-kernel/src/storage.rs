@@ -7,16 +7,16 @@ use crate::manifest::{
     AuthorityProfileOperationOutcomeV1, AuthorityProfileOperationV1,
     AuthorityProfileOutcomeClassV1, AuthorityProfileTransitionOpV1, CLIENT_MUTATION_ACK_MAX_IDS,
     CTX_ANSWER_LEDGER_MAX_IDS, CTX_ANSWER_LEDGER_VERSION, CtxAnswerLedger, FieldManifest,
-    FieldType, FilterOp, FunctionKind, FunctionResultContract, HandlerInput, MembershipManifest,
-    MembershipOp, MembershipProvenance, MembershipScope, MembershipTarget, MutationOutput,
-    MutationPlan, MutationSettlement, MutationStep, OrderDirection, OrderExpr,
-    OwnerWriteAbsentDispositionV1, OwnerWriteCheckV1, PORTABLE_STORAGE_VERSION_MAX,
-    QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_FILTER_BINDINGS, QUERY_MAX_IN_ITEMS, QueryOutput,
-    QueryPlan, ReadDependency, ResultValueContract, ReturnValue, SchemaManifest, SeedData,
-    SettlementMintObservation, SettlementTimeObservation, TableManifest, TableVisibilityV1,
-    ValueExpr, canonical_membership_transition_matrix, effective_query_limit, is_user_identifier,
-    replay_opaque_id_is_valid, validate_ctx_answer_ledger, validate_portable_timestamp_millis,
-    validate_query_plan_shape,
+    FieldType, FilterOp, FunctionKind, FunctionResultContract, GraphDirectionV1,
+    GraphIntervalEndV1, HandlerInput, MembershipManifest, MembershipOp, MembershipProvenance,
+    MembershipScope, MembershipTarget, MutationOutput, MutationPlan, MutationSettlement,
+    MutationStep, OrderDirection, OrderExpr, OwnerWriteAbsentDispositionV1, OwnerWriteCheckV1,
+    PORTABLE_STORAGE_VERSION_MAX, QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_FILTER_BINDINGS,
+    QUERY_MAX_IN_ITEMS, QueryOutput, QueryPlan, ReadDependency, ResultValueContract, ReturnValue,
+    SchemaManifest, SeedData, SettlementMintObservation, SettlementTimeObservation, TableManifest,
+    TableVisibilityV1, ValueExpr, canonical_membership_transition_matrix, effective_query_limit,
+    is_user_identifier, replay_opaque_id_is_valid, validate_ctx_answer_ledger,
+    validate_portable_timestamp_millis, validate_query_plan_shape,
 };
 use rusqlite::types::{Value as SqlValue, ValueRef};
 use rusqlite::{
@@ -5859,6 +5859,7 @@ impl LocalDatabase {
                         None,
                         None,
                         false,
+                        false,
                         None,
                     )?;
                     let rows = {
@@ -8065,6 +8066,19 @@ impl From<snapback_types::manifest::KeysetKeyV1> for KeysetAfter {
     }
 }
 
+fn graph_traversal_order(declared: &[OrderExpr], direction: GraphDirectionV1) -> Vec<OrderExpr> {
+    let mut order = declared.to_vec();
+    if direction == GraphDirectionV1::Backward {
+        for component in &mut order {
+            component.direction = match component.direction {
+                OrderDirection::Asc => OrderDirection::Desc,
+                OrderDirection::Desc => OrderDirection::Asc,
+            };
+        }
+    }
+    order
+}
+
 #[cfg(test)]
 mod graph_keyset_round_trip_tests {
     use super::*;
@@ -8082,6 +8096,51 @@ mod graph_keyset_round_trip_tests {
         let returned: KeysetKeyV1 = native.into();
         assert_eq!(returned, graph);
     }
+
+    #[test]
+    fn graph_interval_end_inclusion_and_backward_order_are_explicit() {
+        let declared = vec![
+            OrderExpr {
+                field: "rank".to_owned(),
+                direction: OrderDirection::Desc,
+                max_encoded_bytes: None,
+            },
+            OrderExpr {
+                field: "name".to_owned(),
+                direction: OrderDirection::Asc,
+                max_encoded_bytes: None,
+            },
+        ];
+        let backward = graph_traversal_order(&declared, GraphDirectionV1::Backward);
+        assert_eq!(backward[0].direction, OrderDirection::Asc);
+        assert_eq!(backward[1].direction, OrderDirection::Desc);
+        assert_eq!(
+            graph_traversal_order(&declared, GraphDirectionV1::Forward),
+            declared
+        );
+
+        let table: TableManifest = serde_json::from_value(json!({
+            "name":"rows",
+            "fields":[{"name":"rank","field_type":"Integer"}]
+        }))
+        .unwrap();
+        let key = KeysetAfter {
+            entries: vec![("rank".to_owned(), json!(7))],
+            id: "row_7".to_owned(),
+        };
+        let mut exclusive_bindings = 0;
+        let (exclusive, _) =
+            build_keyset_after_sql(&table, &declared[..1], &key, false, &mut exclusive_bindings)
+                .unwrap();
+        let mut inclusive_bindings = 0;
+        let (inclusive, _) =
+            build_keyset_after_sql(&table, &declared[..1], &key, true, &mut inclusive_bindings)
+                .unwrap();
+        assert!(exclusive.contains("\"_id\" > ?"));
+        assert!(inclusive.contains("\"_id\" >= ?"));
+        // `_id` is not a declared component to reverse: build_query_sql owns
+        // the same final ascending physical tie for both traversal directions.
+    }
 }
 
 /// Lower a keyset boundary to one WHERE clause selecting rows strictly after
@@ -8094,6 +8153,7 @@ fn build_keyset_after_sql(
     table: &TableManifest,
     order: &[OrderExpr],
     keyset: &KeysetAfter,
+    inclusive: bool,
     filter_bindings: &mut usize,
 ) -> SnapbackResult<(String, Vec<SqlValue>)> {
     if keyset.entries.len() != order.len()
@@ -8147,7 +8207,7 @@ fn build_keyset_after_sql(
     }
 
     let mut final_clause = prefix_clauses;
-    final_clause.push("\"_id\" > ?".to_owned());
+    final_clause.push(format!("\"_id\" {} ?", if inclusive { ">=" } else { ">" }));
     disjuncts.push(format!("({})", final_clause.join(" AND ")));
     add_query_filter_bindings(filter_bindings, prefix_values.len() + 1, "_id")?;
     values.extend(prefix_values);
@@ -8560,6 +8620,7 @@ pub(crate) fn query_on_keyset(
         effective_query_limit(plan),
         false,
         keyset,
+        false,
         true,
         None,
     )
@@ -8582,6 +8643,7 @@ fn query_on_with_storage_limit_visibility(
         allow_private_membership,
         None,
         false,
+        false,
         None,
     )
 }
@@ -8602,6 +8664,7 @@ fn query_on_with_examined_entry_ceiling(
         false,
         None,
         false,
+        false,
         Some(examined_entry_ceiling),
     )
 }
@@ -8615,6 +8678,7 @@ fn query_on_with_storage_limit_visibility_keyset(
     storage_limit: usize,
     allow_private_membership: bool,
     keyset: Option<&KeysetAfter>,
+    keyset_inclusive: bool,
     force_id_order: bool,
     examined_entry_ceiling: Option<usize>,
 ) -> SnapbackResult<QueryOutput> {
@@ -8689,6 +8753,7 @@ fn query_on_with_storage_limit_visibility_keyset(
             "query",
             Some(storage_limit),
             keyset,
+            keyset_inclusive,
             force_id_order,
             examined_entry_ceiling.map(|_| "__snapback_single_table_examined_entry_guard"),
         )?;
@@ -9704,6 +9769,162 @@ impl DbRead<'_> {
         }
     }
 
+    /// Keyset query with one kernel-owned successor slot beyond the declared
+    /// portable result limit. The additional row is execution evidence only;
+    /// callers must remove it before publishing application rows.
+    ///
+    /// @ref LLP 0209#26-bounds-and-fixture-derivation — graph range nodes examine
+    /// `take + 1`, including when the admitted emitted cap is 1,024.
+    pub fn query_keyset_with_lookahead(
+        &self,
+        plan: &QueryPlan,
+        input: &HandlerInput,
+        keyset: Option<&KeysetAfter>,
+    ) -> SnapbackResult<QueryOutput> {
+        let storage_limit = effective_query_limit(plan).checked_add(1).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_QUERY_LIMIT_INVALID",
+                "query",
+                "query lookahead limit overflowed",
+            )
+        })?;
+        match self {
+            DbRead::Pinned(read) => query_on_with_storage_limit_visibility_keyset(
+                read.conn,
+                read.schema,
+                plan,
+                input,
+                storage_limit,
+                false,
+                keyset,
+                false,
+                true,
+                None,
+            ),
+            DbRead::Live(db) => query_on_with_storage_limit_visibility_keyset(
+                &db.conn,
+                &db.schema,
+                plan,
+                input,
+                storage_limit,
+                false,
+                keyset,
+                false,
+                true,
+                None,
+            ),
+        }
+    }
+
+    /// Graph-only interval query. It preserves the relational/query surfaces,
+    /// adds the one lookahead row required by G2, and keeps `_id ASC` as the
+    /// final tie rule even when the declared components are traversed backward.
+    ///
+    /// `lower` is the traversal start and `upper` is the traversal end. Their
+    /// inclusive/exclusive tags are applied at the complete key comparison,
+    /// including the physical `_id` component.
+    ///
+    /// @ref LLP 0209#21-the-normalized-carrier — graph traversal reverses only
+    /// declared order components; the implicit physical `_id` tie stays ASC.
+    /// @ref LLP 0209#26-bounds-and-fixture-derivation — interval execution
+    /// remains bounded by the declared take plus exactly one lookahead row.
+    pub fn query_graph_window_with_lookahead(
+        &self,
+        plan: &QueryPlan,
+        input: &HandlerInput,
+        direction: GraphDirectionV1,
+        lower: &GraphIntervalEndV1,
+        upper: &GraphIntervalEndV1,
+    ) -> SnapbackResult<QueryOutput> {
+        let mut execution_plan = plan.clone();
+        execution_plan.order = graph_traversal_order(&plan.order, direction);
+
+        let validate_end = |end: &GraphIntervalEndV1| -> SnapbackResult<Option<KeysetAfter>> {
+            let key = match end {
+                GraphIntervalEndV1::Unbounded => return Ok(None),
+                GraphIntervalEndV1::Inclusive { key } | GraphIntervalEndV1::Exclusive { key } => {
+                    key
+                }
+            };
+            let boundary = key
+                .entries
+                .iter()
+                .map(|(_, value)| value.clone())
+                .collect::<Vec<_>>();
+            validate_query_keyset_boundary(
+                self.schema(),
+                &execution_plan.table,
+                &execution_plan.order,
+                &boundary,
+                &key.id,
+            )
+            .map(Some)
+        };
+        let lower_key = validate_end(lower)?;
+        let upper_key = validate_end(upper)?;
+        let lower_inclusive = matches!(lower, GraphIntervalEndV1::Inclusive { .. });
+        let storage_limit = effective_query_limit(&execution_plan)
+            .checked_add(1)
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_QUERY_LIMIT_INVALID",
+                    "query",
+                    "query lookahead limit overflowed",
+                )
+            })?;
+        let mut output = match self {
+            DbRead::Pinned(read) => query_on_with_storage_limit_visibility_keyset(
+                read.conn,
+                read.schema,
+                &execution_plan,
+                input,
+                storage_limit,
+                false,
+                lower_key.as_ref(),
+                lower_inclusive,
+                true,
+                None,
+            )?,
+            DbRead::Live(db) => query_on_with_storage_limit_visibility_keyset(
+                &db.conn,
+                &db.schema,
+                &execution_plan,
+                input,
+                storage_limit,
+                false,
+                lower_key.as_ref(),
+                lower_inclusive,
+                true,
+                None,
+            )?,
+        };
+        if let Some(upper_key) = upper_key {
+            let mut values = upper_key
+                .entries
+                .iter()
+                .map(|(_, value)| value.clone())
+                .collect::<Vec<_>>();
+            values.push(Value::String(upper_key.id));
+            let upper_sort_key = Value::Array(values);
+            let upper_inclusive = matches!(upper, GraphIntervalEndV1::Inclusive { .. });
+            output.rows.retain(|row| {
+                let Some(row_key) = crate::live_matcher::sort_key(&execution_plan, row) else {
+                    return false;
+                };
+                match crate::live_matcher::compare_sort_keys(
+                    &execution_plan,
+                    &row_key,
+                    &upper_sort_key,
+                ) {
+                    Some(std::cmp::Ordering::Less) => true,
+                    Some(std::cmp::Ordering::Equal) => upper_inclusive,
+                    Some(std::cmp::Ordering::Greater) | None => false,
+                }
+            });
+        }
+        Ok(output)
+    }
+
     /// Narrow, non-application-returning bypass used only by the declaration-
     /// bound membership evaluator. Keeping this as a distinct method prevents
     /// generic/live/retained query callers from opting around private rosters.
@@ -9755,6 +9976,7 @@ impl DbRead<'_> {
                 storage_limit,
                 true,
                 keyset,
+                false,
                 true,
                 None,
             ),
@@ -9766,6 +9988,7 @@ impl DbRead<'_> {
                 storage_limit,
                 true,
                 keyset,
+                false,
                 true,
                 None,
             ),
@@ -14266,6 +14489,7 @@ fn build_query_sql(
     runtime_id_site: &str,
     sql_limit: Option<usize>,
     keyset: Option<&KeysetAfter>,
+    keyset_inclusive: bool,
     force_id_order: bool,
     examined_entry_guard_function: Option<&str>,
 ) -> SnapbackResult<(String, Vec<SqlValue>)> {
@@ -14468,8 +14692,13 @@ fn build_query_sql(
     }
 
     if let Some(keyset) = keyset {
-        let (clause, keyset_values) =
-            build_keyset_after_sql(table, &plan.order, keyset, &mut filter_bindings)?;
+        let (clause, keyset_values) = build_keyset_after_sql(
+            table,
+            &plan.order,
+            keyset,
+            keyset_inclusive,
+            &mut filter_bindings,
+        )?;
         where_parts.push(clause);
         values.extend(keyset_values);
     }

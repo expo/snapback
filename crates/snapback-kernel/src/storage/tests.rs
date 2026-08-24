@@ -7584,6 +7584,102 @@ mod guarded_commit_tests {
             .expect("pinned keyset probes");
     }
 
+    // @ref LLP 0209#21-the-normalized-carrier — graph interval traversal
+    // honors inclusive/exclusive ends and reverses only declared order
+    // components; physical `_id` remains ascending within equal keys.
+    #[test]
+    fn graph_window_interval_ends_and_backward_ties_execute_exactly() {
+        let db = relational_database();
+        let input = relational_input("user-a");
+        let plan = QueryPlan {
+            table_visibility: None,
+            table: "books".to_owned(),
+            filters: Vec::new(),
+            membership_filters: Vec::new(),
+            order: vec![OrderExpr {
+                field: "authorSlug".to_owned(),
+                direction: OrderDirection::Asc,
+                max_encoded_bytes: None,
+            }],
+            limit: Some(8),
+            indexed_by: None,
+        };
+        let boundary = |value: Value, id: &str| snapback_types::manifest::KeysetKeyV1 {
+            entries: vec![("authorSlug".to_owned(), value)],
+            id: id.to_owned(),
+        };
+        let ids = |output: QueryOutput| {
+            output
+                .rows
+                .into_iter()
+                .map(|row| row["_id"].as_str().expect("row id").to_owned())
+                .collect::<Vec<_>>()
+        };
+        db.query_reads_read()
+            .with_pinned_read_view(|view| {
+                let inclusive = view.query_graph_window_with_lookahead(
+                    &plan,
+                    &input,
+                    GraphDirectionV1::Forward,
+                    &GraphIntervalEndV1::Inclusive {
+                        key: boundary(json!("ada"), "b1"),
+                    },
+                    &GraphIntervalEndV1::Unbounded,
+                )?;
+                assert_eq!(ids(inclusive), vec!["b1", "b4", "b2", "b3"]);
+
+                let exclusive = view.query_graph_window_with_lookahead(
+                    &plan,
+                    &input,
+                    GraphDirectionV1::Forward,
+                    &GraphIntervalEndV1::Exclusive {
+                        key: boundary(json!("ada"), "b1"),
+                    },
+                    &GraphIntervalEndV1::Unbounded,
+                )?;
+                assert_eq!(ids(exclusive), vec!["b4", "b2", "b3"]);
+
+                let inclusive_upper = view.query_graph_window_with_lookahead(
+                    &plan,
+                    &input,
+                    GraphDirectionV1::Forward,
+                    &GraphIntervalEndV1::Unbounded,
+                    &GraphIntervalEndV1::Inclusive {
+                        key: boundary(json!("ada"), "b4"),
+                    },
+                )?;
+                assert_eq!(ids(inclusive_upper), vec!["b1", "b4"]);
+
+                let exclusive_upper = view.query_graph_window_with_lookahead(
+                    &plan,
+                    &input,
+                    GraphDirectionV1::Forward,
+                    &GraphIntervalEndV1::Unbounded,
+                    &GraphIntervalEndV1::Exclusive {
+                        key: boundary(json!("ada"), "b4"),
+                    },
+                )?;
+                assert_eq!(ids(exclusive_upper), vec!["b1"]);
+
+                let backward = view.query_graph_window_with_lookahead(
+                    &plan,
+                    &input,
+                    GraphDirectionV1::Backward,
+                    &GraphIntervalEndV1::Inclusive {
+                        key: boundary(json!("ada"), "b1"),
+                    },
+                    &GraphIntervalEndV1::Unbounded,
+                )?;
+                assert_eq!(
+                    ids(backward),
+                    vec!["b1", "b4", "b3"],
+                    "backward reverses authorSlug but keeps b1 before b4",
+                );
+                Ok(())
+            })
+            .expect("pinned graph interval probes");
+    }
+
     // @ref LLP 0065#2-the-v1-visibility-floor — generated update/delete lower
     //   to a server-evaluated conditional plan: read, owner guard, write in
     //   one authoritative transaction. The guard consumes the transaction's
@@ -20645,6 +20741,7 @@ pub(crate) mod membership_write_tests {
             "query-test",
             None,
             None,
+            false,
             false,
             None,
         )

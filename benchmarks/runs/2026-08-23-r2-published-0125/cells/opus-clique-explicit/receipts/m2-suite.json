@@ -1,0 +1,392 @@
+{
+  "schemaVersion": "clique.acceptance.v1",
+  "app": "clique",
+  "laneRunId": "opus-clique-explicit",
+  "milestone": "M2",
+  "startedAt": "2026-08-24T11:20:59.498Z",
+  "finishedAt": "2026-08-24T11:23:08.736Z",
+  "durationMs": 129237,
+  "baseUrl": "http://127.0.0.1:42161",
+  "segments": [
+    "starter-m1.log",
+    "starter-m2.log"
+  ],
+  "seed": {
+    "firstPass": {
+      "applied": 40,
+      "skipped": 36,
+      "actors": 8,
+      "entities": 36
+    },
+    "secondPass": {
+      "applied": 40,
+      "skipped": 36,
+      "actors": 8,
+      "entities": 36
+    }
+  },
+  "coverage": {
+    "suiteRequired": 22,
+    "covered": 22,
+    "missing": [],
+    "map": [
+      {
+        "assertion": "m2-a01",
+        "text": "Create a text post.",
+        "test": "create a text post",
+        "covered": true
+      },
+      {
+        "assertion": "m2-a02",
+        "text": "Create an image post with 2 fixture images.",
+        "test": "create an image post with 2 fixture images",
+        "covered": true
+      },
+      {
+        "assertion": "m2-a03",
+        "text": "Create a video post.",
+        "test": "create a video post",
+        "covered": true
+      },
+      {
+        "assertion": "m2-a06",
+        "text": "Bob follows Alice; Alice's posts appear in Bob's Following feed.",
+        "test": "Bob follows Alice; Alice's posts appear in Bob's Following feed",
+        "covered": true
+      },
+      {
+        "assertion": "m2-a08",
+        "text": "After Bob unfollows, on next feed load Alice's posts (including older ones) no longer appear in his Following feed.",
+        "test": "after unfollow, older Alice posts leave Bob's Following feed",
+        "covered": true
+      },
+      {
+        "assertion": "m2-a09",
+        "text": "After the unfollow, Alice's posts remain visible in the Global feed (unfollow is projection-scoped, not content revocation).",
+        "test": "after the unfollow Alice's posts remain in Bob's Global feed",
+        "covered": true
+      },
+      {
+        "assertion": "m2-a10",
+        "text": "A post from a user Bob doesn't follow appears in his Global feed.",
+        "test": "a post from an unfollowed user appears in Bob's Global feed",
+        "covered": true
+      },
+      {
+        "assertion": "m2-a11",
+        "text": "That same post is absent from Bob's Following feed.",
+        "test": "that same post is absent from Bob's Following feed",
+        "covered": true
+      },
+      {
+        "assertion": "m2-a12",
+        "text": "An http(s) URL in a text post renders as tappable text opening the system browser.",
+        "test": "an http(s) URL in a post is tappable and opens the system browser",
+        "covered": true
+      },
+      {
+        "assertion": "m2-a13",
+        "text": "No preview card renders for the URL (no unfurling).",
+        "test": "no preview card renders for the URL",
+        "covered": true
+      },
+      {
+        "assertion": "m2-a15",
+        "text": "Unlike works: the like is cleared and the count decrements (idempotent set-state toggle).",
+        "test": "unlike clears the like and decrements the count",
+        "covered": true
+      },
+      {
+        "assertion": "m2-a16",
+        "text": "Repost from client B; feeds show the repost attributed 'reposted by {display name}'.",
+        "test": "repost renders attributed 'reposted by {display name}'",
+        "covered": true
+      },
+      {
+        "assertion": "m2-a17",
+        "text": "Reposting again removes the repost (toggle).",
+        "test": "reposting again removes the repost",
+        "covered": true
+      },
+      {
+        "assertion": "m2-a18",
+        "text": "A repost by a followed user surfaces the original author's post in the Following feed.",
+        "test": "a followed user's repost surfaces the original author's post in Following",
+        "covered": true
+      },
+      {
+        "assertion": "m2-a20",
+        "text": "The thread screen shows the parent and its direct replies in chronological order.",
+        "test": "the thread screen shows the parent and its direct replies in order",
+        "covered": true
+      },
+      {
+        "assertion": "m2-a21",
+        "text": "The reply is absent from both feeds (replies appear only on thread screens).",
+        "test": "the reply is absent from both feeds",
+        "covered": true
+      },
+      {
+        "assertion": "m2-a22",
+        "text": "With >20 seeded posts, scrolling loads the next page (20 per page) in the Following tab.",
+        "test": "scrolling loads the next page (20 per page) in the Following tab",
+        "covered": true
+      },
+      {
+        "assertion": "m2-a23",
+        "text": "With >20 seeded posts, scrolling loads the next page in the Global tab.",
+        "test": "scrolling loads the next page in the Global tab",
+        "covered": true
+      },
+      {
+        "assertion": "m2-a24",
+        "text": "Feed pagination produces no duplicates and no gaps across pages in either tab.",
+        "test": "pagination produces no duplicates and no gaps in either tab",
+        "covered": true
+      },
+      {
+        "assertion": "m2-a25",
+        "text": "With no explicit self-follow edge, Bob's own original posts remain in his Following feed, including when he follows no other accounts.",
+        "test": "own original posts stay in Following with no follows",
+        "covered": true
+      },
+      {
+        "assertion": "m2-a26",
+        "text": "With no explicit self-follow edge, Bob's own reposts remain in his Following feed.",
+        "test": "own reposts stay in Following with no follows",
+        "covered": true
+      },
+      {
+        "assertion": "m2-a27",
+        "text": "Implicit self-follow feed membership does not change Bob's follower or following counts.",
+        "test": "implicit self-follow does not change follower or following counts",
+        "covered": true
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "id": "m2-a01",
+      "name": "create a text post",
+      "pass": true,
+      "durationMs": 2282.6,
+      "detail": null,
+      "error": null
+    },
+    {
+      "id": "m2-a02",
+      "name": "create an image post with 2 fixture images",
+      "pass": true,
+      "durationMs": 4411.2,
+      "detail": {
+        "images": 3
+      },
+      "error": null
+    },
+    {
+      "id": "m2-a03",
+      "name": "create a video post",
+      "pass": true,
+      "durationMs": 5115.2,
+      "detail": null,
+      "error": null
+    },
+    {
+      "id": "m2-a06",
+      "name": "Bob follows Alice; Alice's posts appear in Bob's Following feed",
+      "pass": true,
+      "durationMs": 4309.8,
+      "detail": null,
+      "error": null
+    },
+    {
+      "id": "m2-a08",
+      "name": "after unfollow, older Alice posts leave Bob's Following feed",
+      "pass": true,
+      "durationMs": 6110.3,
+      "detail": {
+        "beforeAliceEntries": 61,
+        "seededOlder": 60,
+        "followingEntries": 20
+      },
+      "error": null
+    },
+    {
+      "id": "m2-a09",
+      "name": "after the unfollow Alice's posts remain in Bob's Global feed",
+      "pass": true,
+      "durationMs": 1613.7,
+      "detail": {
+        "globalEntries": 20,
+        "seededStillGlobal": 1
+      },
+      "error": null
+    },
+    {
+      "id": "m2-a10",
+      "name": "a post from an unfollowed user appears in Bob's Global feed",
+      "pass": true,
+      "durationMs": 3151.4,
+      "detail": {
+        "entries": 20
+      },
+      "error": null
+    },
+    {
+      "id": "m2-a11",
+      "name": "that same post is absent from Bob's Following feed",
+      "pass": true,
+      "durationMs": 1559.6,
+      "detail": null,
+      "error": null
+    },
+    {
+      "id": "m2-a12",
+      "name": "an http(s) URL in a post is tappable and opens the system browser",
+      "pass": true,
+      "durationMs": 1310.2,
+      "detail": {
+        "url": "https://example.com/cafe",
+        "role": "link"
+      },
+      "error": null
+    },
+    {
+      "id": "m2-a13",
+      "name": "no preview card renders for the URL",
+      "pass": true,
+      "durationMs": 13,
+      "detail": {
+        "images": 0,
+        "iframes": 0,
+        "previewNodes": 0
+      },
+      "error": null
+    },
+    {
+      "id": "m2-a15",
+      "name": "unlike clears the like and decrements the count",
+      "pass": true,
+      "durationMs": 713.5,
+      "detail": {
+        "liked": "Unlike (1)",
+        "unliked": "Like (0)"
+      },
+      "error": null
+    },
+    {
+      "id": "m2-a16",
+      "name": "repost renders attributed 'reposted by {display name}'",
+      "pass": true,
+      "durationMs": 2292.9,
+      "detail": {
+        "attribution": "↻ Reposted by Bob BennettAAAlice Alvarez@alice· 04:21mt75bbjj suite text post◗↻1"
+      },
+      "error": null
+    },
+    {
+      "id": "m2-a17",
+      "name": "reposting again removes the repost",
+      "pass": true,
+      "durationMs": 4315.8,
+      "detail": null,
+      "error": null
+    },
+    {
+      "id": "m2-a18",
+      "name": "a followed user's repost surfaces the original author's post in Following",
+      "pass": true,
+      "durationMs": 3432.7,
+      "detail": {
+        "entry": "↻ Reposted by Carol ChenAAAlice Alvarez@alice· 04:21mt75bbjj suite text post◗↻1♡"
+      },
+      "error": null
+    },
+    {
+      "id": "m2-a20",
+      "name": "the thread screen shows the parent and its direct replies in order",
+      "pass": true,
+      "durationMs": 5110.4,
+      "detail": {
+        "parentIndex": 0,
+        "firstIndex": 1,
+        "secondIndex": 2
+      },
+      "error": null
+    },
+    {
+      "id": "m2-a21",
+      "name": "the reply is absent from both feeds",
+      "pass": true,
+      "durationMs": 5668.6,
+      "detail": null,
+      "error": null
+    },
+    {
+      "id": "m2-a22",
+      "name": "scrolling loads the next page (20 per page) in the Following tab",
+      "pass": true,
+      "durationMs": 11072.7,
+      "detail": {
+        "firstPage": 20,
+        "afterScroll": 40
+      },
+      "error": null
+    },
+    {
+      "id": "m2-a23",
+      "name": "scrolling loads the next page in the Global tab",
+      "pass": true,
+      "durationMs": 3045.7,
+      "detail": {
+        "firstPage": 20,
+        "afterScroll": 40
+      },
+      "error": null
+    },
+    {
+      "id": "m2-a24",
+      "name": "pagination produces no duplicates and no gaps in either tab",
+      "pass": true,
+      "durationMs": 1010.8,
+      "detail": {
+        "following": 40,
+        "global": 40
+      },
+      "error": null
+    },
+    {
+      "id": "m2-a25",
+      "name": "own original posts stay in Following with no follows",
+      "pass": true,
+      "durationMs": 12315.6,
+      "detail": {
+        "followingEntries": 1
+      },
+      "error": null
+    },
+    {
+      "id": "m2-a26",
+      "name": "own reposts stay in Following with no follows",
+      "pass": true,
+      "durationMs": 7030.6,
+      "detail": {
+        "excerpt": "ost mt75bbjj https://example.com/cafe◗↻♡"
+      },
+      "error": null
+    },
+    {
+      "id": "m2-a27",
+      "name": "implicit self-follow does not change follower or following counts",
+      "pass": true,
+      "durationMs": 3008.3,
+      "detail": {
+        "follower": "0 Followers",
+        "following": "0 Following",
+        "refused": "SELF_FOLLOW"
+      },
+      "error": null
+    }
+  ],
+  "pass": true
+}

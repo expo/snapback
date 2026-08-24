@@ -13,12 +13,12 @@ use super::{
     TargetArgs, TelemetryCommand, automatic_reap_before_create, bind_first_available,
     bind_listener, console_claim_fragment_url, console_fragment_url, console_launch_handoff_with,
     controls_list_text, fork_secret_disposition, managed_startup_paths, parse_fork_ttl,
-    parse_network_profile_selection, parse_run_args, path_segment_escape, prepare_database_path,
-    prepare_database_path_for_startup, quiet_stop_fork, reject_misdirected_serve_flags,
-    render_guide_command, resolve_http_target, resolve_http_target_for_operation,
-    resolve_startup_nonce, runtime_auth_program_readiness, search_guide_sections_in,
-    validate_path_disjointness, validated_console_origin, validated_secret_read_root_path,
-    write_ready_file_atomic, write_ready_file_atomic_protected,
+    parse_network_profile_selection, parse_port_range, parse_run_args, path_segment_escape,
+    prepare_database_path, prepare_database_path_for_startup, quiet_stop_fork,
+    reject_misdirected_serve_flags, render_guide_command, resolve_http_target,
+    resolve_http_target_for_operation, resolve_startup_nonce, runtime_auth_program_readiness,
+    search_guide_sections_in, validate_path_disjointness, validated_console_origin,
+    validated_secret_read_root_path, write_ready_file_atomic, write_ready_file_atomic_protected,
 };
 use crate::guide::EmbeddedGuideFile;
 use crate::instance_lock::TargetInstanceReservation;
@@ -5202,22 +5202,46 @@ fn ready_descriptor_swap_cannot_mix_an_attacker_url_with_a_trusted_token() {
 }
 
 #[tokio::test]
-async fn automatic_port_selection_skips_busy_candidates() {
-    let busy = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
-    let busy_port = busy.local_addr().unwrap().port();
+async fn requested_port_range_scans_ascending_past_an_occupied_port() {
+    let mut pair = None;
+    for base in 20_000..60_000u16 {
+        let Ok(low) = TcpListener::bind(("127.0.0.1", base)).await else {
+            continue;
+        };
+        let Ok(busy) = TcpListener::bind(("127.0.0.1", base + 1)).await else {
+            drop(low);
+            continue;
+        };
+        drop(low);
+        pair = Some((base, busy));
+        break;
+    }
+    let (low_port, _busy_high) = pair.expect("a free adjacent loopback port pair");
 
-    let listener = bind_first_available("127.0.0.1", [busy_port, 0])
+    let listener = bind_first_available("127.0.0.1", low_port..=low_port + 1)
         .await
         .unwrap();
 
-    assert_ne!(listener.local_addr().unwrap().port(), busy_port);
+    assert_eq!(listener.local_addr().unwrap().port(), low_port);
 }
 
 #[tokio::test]
 async fn explicit_port_zero_uses_os_assigned_port() {
-    let listener = bind_listener("127.0.0.1", Some(0)).await.unwrap();
+    let listener = bind_listener("127.0.0.1", Some(0), None).await.unwrap();
 
     assert_ne!(listener.local_addr().unwrap().port(), 0);
+}
+
+#[test]
+fn port_range_parser_accepts_valid_and_refuses_reversed_malformed_and_zero() {
+    assert_eq!(parse_port_range("48100-48199").unwrap(), 48_100..=48_199);
+    assert!(parse_port_range("48199-48100").is_err());
+    assert!(parse_port_range("48100:48199").is_err());
+    assert!(parse_port_range("0-48199").is_err());
+    assert!(
+        Args::try_parse_from(["snapback", "--port", "48100", "--port-range", "48100-48199",])
+            .is_err()
+    );
 }
 
 #[test]

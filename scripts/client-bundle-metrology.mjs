@@ -68,7 +68,15 @@ const LOCAL_SYNC_CLOSURE_MODULES = Object.freeze([
 // it is deliberately classified here as sync-owned.
 const SYNC_OWNED_CLIENT_SUBPATHS = new Set(Object.freeze([
   '.',
+  // @ref LLP 0258#d2-one-bootstrap-owner-constructs-the-auth-bearing-application-client —
+  // this framework-only seam constructs the Full application client and owns
+  // coordinator/custody admission; it is not a local-sync-free narrow module.
+  './app-client-internal',
   './app-data',
+  // @ref LLP 0059#dated-amendment-total-client-authority-transition-state-and-settlement-matrix-2026-08-21-llp-0295-d02 —
+  // the shared matrix owns live, outbox, ephemeral, and retained-state
+  // admission through authority transitions.
+  './authority-transition',
   './hosted-browser',
   './online',
   './vector-search',
@@ -87,6 +95,9 @@ const SYNC_OWNED_CLIENT_SUBPATHS = new Set(Object.freeze([
   './rqs-store-file',
   './rqs-store-expo',
   './rqs-store-default',
+  // @ref LLP 0166#d1--one-store-domain — the SQLite carrier is a direct
+  // implementation of the local-sync store's atomic custody domain.
+  './rqs-store-sqlite',
   './outbox-shared',
   // This framework-adapter seam owns prepared-binding admission and its
   // development-only generation handoff; it is narrow relative to the client
@@ -2944,15 +2955,23 @@ function assertReactCoreComposition(profiles) {
       Object.hasOwn(profile.metafile.inputs, REACT_IMPLEMENTATION_MODULE),
       `${profile.id}: retains the shared provider implementation`,
     );
-    for (const forbidden of [
-      REACT_FULL_CAPABILITIES_MODULE,
+    assert.equal(
+      Object.hasOwn(profile.metafile.inputs, REACT_FULL_CAPABILITIES_MODULE),
+      false,
+      `${profile.id}: excludes ${REACT_FULL_CAPABILITIES_MODULE}`,
+    );
+    // @ref LLP 0258#d2-one-bootstrap-owner-constructs-the-auth-bearing-application-client
+    // — b186296fd deliberately made the ordinary provider construct the
+    // canonical Full client. Its command/asset implementations are therefore
+    // client closure, while the React command/asset capability projection
+    // remains excluded until the full-capabilities entry selects it.
+    for (const clientImplementation of [
       COMMANDS_MODULE,
       ASSETS_MODULE,
     ]) {
-      assert.equal(
-        Object.hasOwn(profile.metafile.inputs, forbidden),
-        false,
-        `${profile.id}: excludes ${forbidden}`,
+      assert.ok(
+        Object.hasOwn(profile.metafile.inputs, clientImplementation),
+        `${profile.id}: includes Full-client implementation ${clientImplementation}`,
       );
     }
   }

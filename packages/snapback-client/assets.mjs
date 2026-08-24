@@ -1149,6 +1149,19 @@ export class SnapbackAssetClient {
     return {};
   }
 
+  async #backendFetch(path, init) {
+    const declaredDevOperation = await this.#client.__beforeDeclaredDevTransport?.(init?.signal);
+    let response;
+    try {
+      response = await this.#fetch(`${this.#client.baseUrl}${path}`, init);
+    } catch (error) {
+      this.#client.__invalidateDeclaredDevEpisode?.(declaredDevOperation);
+      throw error;
+    }
+    this.#client.__afterDeclaredDevTransport?.(response, declaredDevOperation);
+    return Object.freeze({ response, declaredDevOperation });
+  }
+
   async #json(method, path, body, {
     userId = null,
     authorityCapture = undefined,
@@ -1158,13 +1171,19 @@ export class SnapbackAssetClient {
       'content-type': 'application/json',
       ...this.#custodyHeaders(userId, authorityCapture, externalTransportGeneration),
     };
-    const response = await this.#fetch(`${this.#client.baseUrl}${path}`, assetFetchInit({
+    const { response, declaredDevOperation } = await this.#backendFetch(path, assetFetchInit({
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     }));
     await refuseCredentialRedirect(response, headers);
-    const text = await response.text();
+    let text;
+    try {
+      text = await response.text();
+    } catch (error) {
+      this.#client.__invalidateDeclaredDevEpisode?.(declaredDevOperation);
+      throw error;
+    }
     const value = text.length > 0 ? JSON.parse(text) : null;
     if (!response.ok) {
       const diagnostic = value?.diagnostics?.[0] ?? value ?? {
@@ -1555,8 +1574,8 @@ export class SnapbackAssetClient {
             state.externalTransportGeneration,
           ),
         };
-        const head = await this.#fetch(
-          `${this.#client.baseUrl}${state.transfer.uploadUrl}`,
+        const { response: head } = await this.#backendFetch(
+          state.transfer.uploadUrl,
           assetFetchInit({
             method: 'HEAD',
             headers,
@@ -1606,8 +1625,8 @@ export class SnapbackAssetClient {
             state.externalTransportGeneration,
           ),
         };
-        const response = await this.#fetch(
-          `${this.#client.baseUrl}${state.transfer.uploadUrl}`,
+        const { response } = await this.#backendFetch(
+          state.transfer.uploadUrl,
           assetFetchInit({
             method: 'PATCH',
             signal: controller.signal,

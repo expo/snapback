@@ -7,7 +7,9 @@ bound `send` command, and typing presence, in Sessions auth mode.
 ```sh
 bun install
 bun run generate   # regenerate after editing snapback/schema.mjs or functions.mjs
-bun run dev        # supervised backend + Expo client
+bun run dev         # terminal 1: backend; writes .env.local
+bun run dev:client  # terminal 2: Expo client
+bun run dev:supervised  # optional one-process Expo web supervisor
 bun run prove      # the acceptance command (writes .snapback/verify-receipt.json)
 ```
 

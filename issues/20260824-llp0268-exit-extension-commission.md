@@ -44,5 +44,5 @@ conflicts; this lane rebases.
 
 ## Status
 
-- 2026-08-24 — commissioned; packet landed; dispatch follows G2-A's
-  worktree setup (shared-file coordination).
+- 2026-08-24 — commissioned; packet landed.
+- 2026-08-24 — **LANDED** `a11054ca4` (ported onto the landed G2-A evaluator after a real-conflict rebase was redone as a port; fidelity-reviewed READY; records `llp/reviews/0268-exit-extension.*`). Exit re-recorded in LLP 0209 v0.8: six labels SATISFIED, three PARTIAL pending G2-C — 0268 B1 stays gated on exactly those. This ticket stays open until the G2-C re-record completes it.

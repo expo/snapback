@@ -1,5 +1,5 @@
 {
-  "laneRunId": "dry-run-1787534368269/dry-run-noop",
+  "laneRunId": "dry-run-1787596320933/dry-run-noop",
   "driverId": "social-messenger-r2-two-minute-noop.v1",
   "milestones": {
     "M1": {
@@ -7,7 +7,7 @@
       "firstGreenAt": null,
       "suitePassAt": null,
       "choreoPassAt": null,
-      "terminalAt": "2026-08-24T01:19:28.775Z",
+      "terminalAt": "2026-08-24T18:32:01.410Z",
       "terminalSequence": 1,
       "terminalReason": "abort"
     }

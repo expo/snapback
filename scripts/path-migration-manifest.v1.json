@@ -292,6 +292,13 @@
         "file": "tests/conformance/data-tier/todo-v2-patch-missing-row-is-soft.case.json"
       },
       {
+        "id": "digest-pinned-graph-conformance-corpus",
+        "files": [
+          "tests/conformance/graph/corpus.v1.json",
+          "tests/conformance/graph/paired-world-fixtures.v1.json"
+        ]
+      },
+      {
         "id": "target-review-artifacts",
         "prefix": "targets/cloudflare/spike-facets/reviews/"
       }

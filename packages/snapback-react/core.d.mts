@@ -5,6 +5,7 @@ import type {
   PreparedReactQueryGroup,
   SnapbackAppBindingV1,
   SnapbackAppClient,
+  SnapbackAppClientDebugEvent,
   SnapbackAppClientPlatform,
   SnapbackApplicationDescriptorV1,
   SnapbackAuthFacade,
@@ -100,6 +101,7 @@ export function createSnapbackReactProvider(
 type SnapbackCoreProviderSharedProps = Readonly<{
   children?: any;
   fallback?: any | ((state: AuthBootstrapSnapshot) => any);
+  onDiagnostic?: (diagnostic: SnapbackDiagnostic | SnapbackAppClientDebugEvent) => void;
 }>;
 
 export type SnapbackProviderProps = SnapbackCoreProviderSharedProps & (
@@ -107,26 +109,30 @@ export type SnapbackProviderProps = SnapbackCoreProviderSharedProps & (
       appClient: SnapbackAppClient;
       app?: never;
       binding?: never;
+      url?: never;
       platform?: never;
       storagePartition?: never;
       now?: never;
       provider?: never;
     }>
-  | Readonly<{
+  | (Readonly<{
       app: SnapbackApplicationDescriptorV1;
-      binding: SnapbackAppBindingV1;
       platform: SnapbackAppClientPlatform;
       storagePartition?: string;
       /** Injected binding-admission clock; defaults to Date.now. */
       now?: () => number;
       appClient?: never;
       provider?: never;
-    }>
+    }> & (
+      | Readonly<{ binding: SnapbackAppBindingV1; url?: string }>
+      | Readonly<{ binding?: never; url: string }>
+    ))
   | Readonly<{
       binding?: PreparedReactBinding;
       provider?: SnapbackReactCoreProvider;
       appClient?: never;
       app?: never;
+      url?: never;
       platform?: never;
       storagePartition?: never;
       now?: never;

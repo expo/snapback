@@ -2,6 +2,9 @@ import {
   SnapbackClient,
   createExternalSessionClient,
 } from '@expo/snapback-client';
+import {
+  declaredDevCapabilityFromApp,
+} from '@expo/snapback-client/app-client-internal';
 
 import { createDefaultSupervisedBindingCache } from './supervised-binding-cache.mjs';
 import {
@@ -12,6 +15,9 @@ import {
   resolveDefaultExpoSqliteOperatingSystem,
   resolveDefaultExpoSqliteTarget,
 } from './expo-sqlite-target.mjs';
+import {
+  supervisedRendezvousOriginFromRuntime,
+} from './declared-dev-binding-internal.mjs';
 
 export const SUPERVISED_EXCHANGE_FORMAT = 'snapback.expo-supervised-exchange.v1';
 export const SUPERVISED_EXCHANGE_PATH = supervisedExchangePath();
@@ -106,20 +112,6 @@ function deviceLocalHostname(hostname) {
   return false;
 }
 
-function exchangeOriginFromRuntime() {
-  // @ref LLP 0181#package-contract — release exports must not retain the supervised
-  // endpoint vocabulary; production builds prune this branch (LLP 0176 G4).
-  if (process.env.NODE_ENV !== 'production') {
-    const installed = globalThis.__SNAPBACK_EXPO_SUPERVISOR_ORIGIN__;
-    if (nonEmptyString(installed)) return installed;
-    if (
-      typeof process !== 'undefined'
-      && nonEmptyString(process.env?.EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN)
-    ) return process.env.EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN;
-  }
-  return null;
-}
-
 function inferredRuntimePlatform() {
   if (globalThis.navigator?.product === 'ReactNative') return 'native';
   return 'web';
@@ -141,7 +133,7 @@ export function resolveSupervisedDevIdentityCheckoutNonce({
 }
 
 function normalizedExchangeOrigin(explicit) {
-  const candidate = explicit ?? exchangeOriginFromRuntime();
+  const candidate = explicit ?? supervisedRendezvousOriginFromRuntime();
   if (!nonEmptyString(candidate)) return null;
   let parsed;
   try {
@@ -314,6 +306,11 @@ export function createSupervisedExpoEnvironment({
 } = {}) {
   const exchanges = new Map();
   const offlineFallbacks = new Map();
+  // @ref LLP 0151#shared-development-browser-adapter — the credential-free
+  // shared-auth projection is retained separately from the one-shot authority
+  // exchange, because the client reads it whenever it builds a provider
+  // Adapter, not only at the moment authority settles.
+  const sharedAuthProjections = new Map();
   let adopted = null;
   let devIdentityCapability = undefined;
   let devIdentityCapabilityPromise = null;
@@ -366,8 +363,8 @@ export function createSupervisedExpoEnvironment({
     if (origin === null) {
       throw codedError(
         'SNAPBACK_APP_BINDING_UNAVAILABLE',
-        'No AppBinding delivery is installed. Start snapback dev --expo or use an admitted release build.',
-        { seam: 'SnapbackExpoEnvironmentV1.resolveBinding' },
+        'No AppBinding delivery is installed. Start snapback dev --expo, pass the url option with a development-generated app, or use an admitted release build.',
+        { seam: 'SnapbackExpoEnvironmentV1.resolveBinding', urlOption: 'url' },
         [remediation(
           'startExpoSupervisor',
           'Start the supervised Expo development runtime, or build with an admitted release binding.',
@@ -549,6 +546,7 @@ export function createSupervisedExpoEnvironment({
         exchange = await fetchExchange(signal);
       } catch (error) {
         if (error?.code !== 'SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE') throw error;
+        if (declaredDevCapabilityFromApp(app) !== null) throw error;
         const cached = await loadCachedBinding(app);
         if (cached === null) throw error;
         offlineFallbacks.set(bindingKey(cached.binding), cached);
@@ -562,10 +560,21 @@ export function createSupervisedExpoEnvironment({
       }
       offlineFallbacks.delete(bindingKey(exchange.binding));
       retainExchange(bindingKey(exchange.binding), exchange, signal);
+      if (exchange.sharedAuth !== undefined) {
+        sharedAuthProjections.set(bindingKey(exchange.binding), exchange.sharedAuth);
+      }
       return Object.freeze({
         binding: exchange.binding,
         admission: supervisedAdmission(),
       });
+    },
+    /**
+     * The supervisor's shared development auth projection for one binding, or
+     * null when this supervisor published none. Credential-free by
+     * construction; a cached offline binding has no projection at all.
+     */
+    resolveSharedDevelopmentAuth({ binding }) {
+      return sharedAuthProjections.get(bindingKey(binding)) ?? null;
     },
     async resolveSupervisedAuthority({ binding, signal, refresh = false }) {
       const key = bindingKey(binding);

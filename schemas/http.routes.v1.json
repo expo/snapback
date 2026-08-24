@@ -84,6 +84,15 @@
     },
     {
       "class": "SystemApi",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/_snapback/api/app/identity",
+      "path_policy": "Public"
+    },
+    {
+      "class": "SystemApi",
       "credential_resolution": "AdminCredential",
       "inputSchema": null,
       "method": "POST",
@@ -1130,6 +1139,24 @@
       "method": "DELETE",
       "outputSchema": null,
       "path": "/auth/grants/{id}",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "GuestCreationPolicy",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/auth/guest",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/auth/guest/claim/password",
       "path_policy": "SessionAuth"
     },
     {

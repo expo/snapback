@@ -1,0 +1,100 @@
+{
+  "manifestVersion": "social-messenger-metering-manifest.v1",
+  "laneRunId": "2026-08-23-r2-published-0125/opus-clique-explicit",
+  "capFamily": "claude-frontier",
+  "adapter": "claude",
+  "unavailableReason": null,
+  "sessions": [
+    {
+      "sourceId": "builder",
+      "parentSourceId": null,
+      "role": "builder",
+      "nativeSessionId": "6b19e74c-66ca-4dbe-ae68-b42ac4b12138",
+      "nativeAgentId": null,
+      "path": "events/harness.stdout.jsonl",
+      "sha256": "sha256:665630fdbc21883fc8c3d3c87d71ad262f1a520a4958326db5dff0fce2010853"
+    }
+  ],
+  "receipts": [
+    {
+      "sourceId": "m1-choreography",
+      "runId": "5e624366-1aaf-42fe-b6c2-d20ae0a1d758",
+      "milestone": "M1",
+      "path": "receipts/m1-choreography.jsonl",
+      "sha256": "sha256:7b5ad85f7c0db22c6f451789ddde3f55c8643968022c61fe483fb00d8c5cff5c"
+    },
+    {
+      "sourceId": "m2-choreography",
+      "runId": "8ef5ac43-fd45-4e11-8b8c-ced82bdd4d90",
+      "milestone": "M2",
+      "path": "receipts/m2-choreography.jsonl",
+      "sha256": "sha256:4a7890805fb93876b0a21757da3ae991bcd1cff8d96940c3ea447418e91536c2"
+    },
+    {
+      "sourceId": "m3-choreography",
+      "runId": "78d79291-144f-4dba-a2d7-ac75d2171649",
+      "milestone": "M3",
+      "path": "receipts/m3-choreography.jsonl",
+      "sha256": "sha256:fb48560cd3f9e204d7f180d674e600ff78bec57c6266856db459fda083420eb6"
+    }
+  ],
+  "observations": [
+    {
+      "sourceId": "m1-suite-observations",
+      "path": "receipts/m1-suite.observations.jsonl",
+      "sha256": "sha256:7641537f22458b69ef481ee865d262c17ddad49bd3e6047f2d74dc96f55c3235"
+    },
+    {
+      "sourceId": "m1-choreography-observations",
+      "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+      "sha256": "sha256:b01eb24f1fec2cff3b451b0214ab4f19d67cf4ee4f94f7b795777ecec960f8ba"
+    },
+    {
+      "sourceId": "m2-suite-observations",
+      "path": "receipts/m2-suite.observations.jsonl",
+      "sha256": "sha256:cc6ca348486637ec26536442889ba8625dd84b1aca42fefedbe9a6b4b8d4a7f0"
+    },
+    {
+      "sourceId": "m2-choreography-observations",
+      "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+      "sha256": "sha256:9f8be9d899edaf7fffb97f448f3cb5fcd223bc3b2c0f06f5e2e283e41b7a9ec8"
+    },
+    {
+      "sourceId": "m3-suite-observations",
+      "path": "receipts/m3-suite.observations.jsonl",
+      "sha256": "sha256:b908bccce22fd13f76e55ff8f0e3df8baa01322543d73d2b758f8edc476c9401"
+    },
+    {
+      "sourceId": "m3-choreography-observations",
+      "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+      "sha256": "sha256:57dec563d1564c248293081aaf647a1ece732e0a80fe844f99fb8afd5da5dd6a"
+    },
+    {
+      "sourceId": "2026-08-23-r2-published-0125/opus-clique-explicit-lane-controller",
+      "path": "events/lane-controller-observations.jsonl",
+      "sha256": "sha256:466b6ee4842f5a64957d1833c463d2e371b1a60c619e7c463a40c6d0bc54f913"
+    }
+  ],
+  "suiteStatus": {
+    "path": "suite-status.json",
+    "sha256": "sha256:1397953294c863eb93959dc9e0eb04e9e82762b599fb7f09668da5a719beb453"
+  },
+  "boundaries": {
+    "path": "terminal-boundaries.json",
+    "sha256": "sha256:e4bb10fa0b2455ec4cfa6b0d6418f13b95b7aaedb928ab60b80cc2abafd6ef20"
+  },
+  "firstProductEdit": {
+    "path": "first-product-edit.json",
+    "sha256": "sha256:f57af2bc04ec80ae1df64360ddabcbc86ca8050c692c2dd77a814f46337de396"
+  },
+  "driver": {
+    "id": "social-messenger-r2-native-cli-driver.v1",
+    "startedAt": "2026-08-24T09:17:13.236Z",
+    "stampedAt": "2026-08-24T12:22:34.170Z"
+  },
+  "clockCorrelation": {
+    "method": "rfc3339-with-bounded-skew",
+    "maxSkewMillis": 0,
+    "evidence": "deterministic retained-evidence rejoin uses the shared host clock and controller phase-transition/final stamps"
+  }
+}

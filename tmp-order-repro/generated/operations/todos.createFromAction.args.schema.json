@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/impl-0301-a/todos.createFromAction.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title"
+  ],
+  "title": "impl-0301-a:todos.createFromAction arguments",
+  "type": "object"
+}

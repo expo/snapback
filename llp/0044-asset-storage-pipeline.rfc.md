@@ -5,6 +5,10 @@
 **Systems:** Assets, Storage, API, Security, Auth, Runtime, Deployment, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
+**Revised:** 2026-08-24 (Review LLP 0305 becomes the dedicated proposed
+video codec-configuration/sample-timeline admission Spec under this asset
+authority; the existing W2d `mvhd` duration is explicitly legacy media
+metadata, not codec/duration admission evidence.)
 **Revised:** 2026-08-22 (same-recipe/version width-publication convergence now
 compares the exact prepared digest before bypassing quota; every width and
 finalizer primary/required PUT capability holds a bounded five-minute
@@ -149,7 +153,7 @@ place and added live lifecycle, optimistic display, resumability, derivatives,
 content addressing, GC, ranges, receipts, one S3-compatible seam, and the
 hosted executor direction; 2026-07-07 cross-family review revisions, ratified
 by Charlie — see `reviews/0044-asset-storage-pipeline.claude.md`)
-**Related:** LLP 0000, LLP 0007, LLP 0011, LLP 0012, LLP 0013, LLP 0028, LLP 0036, LLP 0037, LLP 0039, LLP 0047, LLP 0053, LLP 0064, LLP 0070, LLP 0074, LLP 0093, LLP 0095, LLP 0096, LLP 0099, LLP 0107, LLP 0108, LLP 0109, LLP 0114, LLP 0124, LLP 0127, LLP 0129, https://tus.io/protocols/resumable-upload
+**Related:** LLP 0000, LLP 0007, LLP 0011, LLP 0012, LLP 0013, LLP 0028, LLP 0036, LLP 0037, LLP 0039, LLP 0047, LLP 0053, LLP 0064, LLP 0070, LLP 0074, LLP 0093, LLP 0095, LLP 0096, LLP 0099, LLP 0107, LLP 0108, LLP 0109, LLP 0114, LLP 0124, LLP 0127, LLP 0129, LLP 0305, https://tus.io/protocols/resumable-upload
 
 ## Summary
 
@@ -1799,6 +1803,26 @@ over: `image.location` governs location-bearing image types,
 of admitting the new spelling get the same care as any policy-identity
 change.
 
+### Video codec/duration admission: dedicated Review Spec (dated pointer, 2026-08-24)
+
+[LLP 0305](./0305-declared-video-admission.spec.md) is the dedicated Review-
+status proposal for the additive `accept.video` grammar and its closed ISO
+BMFF container, declared codec-configuration, same-file sample-layout,
+sample-timeline duration, deterministic-bound, refusal, and capability
+contract. It is subordinate to this RFC's generated-policy, restricted-
+staging, trusted-finalization, frozen-generation, prepared-carrier, and
+publication authority; it does not relocate those pipeline rules. LLP 0269
+retains only the SQLite → Postgres → transactional-cell graduation obligations.
+
+The LLP 0305 design is not accepted or implemented by this pointer. Until its
+implementation and evidence land, no target claims
+`asset_video_admission_facts_v1`, and existing video finalization continues to
+provide only the W2d facts below. If the Review design is accepted and
+implemented, intents carrying `accept.video` use its upward-rounded sample-
+timeline duration as the existing media `facts.durationMs`; intents without
+the block preserve the legacy `mvhd`-derived fact and artifact hashes. No
+second same-purpose duration field is introduced.
+
 ### Asset-intent implementation identity: the helper closure joins the carrier (dated decision, 2026-08-03)
 
 Ruled by the author at decision sitting #2
@@ -2413,6 +2437,12 @@ container refuses deterministically like strip. Codegen now admits
 video strip on the local manifest (`assets.video` facts block) and
 still refuses it wherever the fact is withheld; transcoding, poster
 frames, and HLS remain nonclaims.
+
+The `mvhd` duration in that as-built W2d sentence is legacy safe metadata for
+intents without LLP 0305's proposed `accept.video` block. It is not evidence
+that codec/duration admission occurred and does not prove a sample-timeline
+ceiling. Review LLP 0305 proposes the versioned replacement behavior only for
+opted-in intents; this Accepted RFC does not pre-claim it.
 
 Also closed 2026-07-31, later same day (the completion-program W2e
 pass): **sessions-mode live projection**. The reserved

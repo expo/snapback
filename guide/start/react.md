@@ -4,13 +4,13 @@ id: start.react
 order: 3
 audience: agent-first
 capabilities: []
-authorities: [llp/0259-agent-first-read-budget.rfc.md, packages/snapback-cli/templates/react/snapback/schema.mjs, packages/snapback-cli/templates/react/src/App.tsx]
+authorities: [llp/0259-agent-first-read-budget.rfc.md, llp/0300-snapback-is-a-url.rfc.md, llp/0301-url-first-dev-lifecycle.spec.md, llp/0302-declared-dev-client-binding.spec.md, packages/snapback-cli/templates/react/snapback/schema.mjs, packages/snapback-cli/templates/react/src/App.tsx]
 examples: [packages/snapback-cli/templates/react]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:bb51fb7bff16d6c94335925cb0522657982e212144f54e5be6a224438bc6f82e
+reviewed: 2026-08-24
+reviewed-authorities-digest: sha256:9e2e713ea922a413fa77477b0bdefa8c205cc9b8e812528bd719eb71f58ab386
 ---
 
 # Start packet: the `react` template
@@ -24,8 +24,14 @@ this packet, a structured `SNAPBACK_*` refusal, or a failed `prove`.
 ## The loop
 
 Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
-→ `bun run generate` → `bun run dev` (one supervisor: managed server plus
-Vite; it prints the admin console URL) → `bun run prove`.
+→ `bun run generate` → `bun run dev` (backend; writes `.env.local`) plus
+`bun run dev:client` in a second terminal (Vite) → `bun run prove`.
+
+Expo templates retain optional `dev:supervised`. Android emulator: paste
+printed `androidEmulatorUrl` (`10.0.2.2`) as `EXPO_PUBLIC_SNAPBACK_URL`, then
+restart Metro. Remove leftover `SNAPBACK_DEV_CLIENT_PORT` /
+`SNAPBACK_DEV_BOOTSTRAP_PORT`; plain dev refuses them with
+`SNAPBACK_CLI_ARGUMENT_INVALID`.
 
 `bun run prove` (`npm run prove` is equivalent) is the acceptance command:
 it runs the registered live profile through `snapback verify` and writes

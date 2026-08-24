@@ -3,6 +3,11 @@ import { createHash } from 'node:crypto';
 export const APP_DESCRIPTOR_FORMAT = 'snapback.app.v1';
 export const APP_DESCRIPTOR_MAX_BYTES = 16 * 1024 * 1024;
 export const APPLICATION_AUTH_BOOTSTRAP_FORMAT = 'snapback.application-auth-bootstrap.v1';
+export const APPLICATION_AUTH_BOOTSTRAP_PROVIDERS = Object.freeze(['apple', 'google']);
+export const APPLICATION_AUTH_BOOTSTRAP_PROVIDER_KINDS = Object.freeze(['apple', 'oidc']);
+export const APPLICATION_AUTH_BOOTSTRAP_CREDENTIAL_MODES = Object.freeze([
+  'auto', 'shared', 'app-owned',
+]);
 export const APPLICATION_AUTH_BOOTSTRAP_ENTRY_MECHANISMS = Object.freeze([
   'guest-v1',
   'password-v1',
@@ -571,11 +576,57 @@ function validateSurfaceMap(surfaces, commands, problems) {
   }
 }
 
+// @ref LLP 0151#default-development-provider-profiles — the projected provider
+// list carries a provider name, its substrate kind, and its credential policy.
+// A credential value, callback secret, or resolved Adapter in this position is
+// a shape error, not a tolerated extra field.
+function validateApplicationAuthBootstrapProviders(providers, problems) {
+  const path = '$.authBootstrap.providers';
+  if (!Array.isArray(providers) || providers.length === 0) {
+    problems.push(problem(
+      'SNAPBACK_APP_DESCRIPTOR_SHAPE_INVALID',
+      path,
+      `${path}, when present, must be a non-empty list of declared providers`,
+    ));
+    return;
+  }
+  let previous = null;
+  for (const [index, entry] of providers.entries()) {
+    const entryPath = `${path}[${index}]`;
+    const keys = entry?.kind === 'oidc'
+      ? ['credentials', 'kind', 'preset', 'provider']
+      : ['credentials', 'kind', 'provider'];
+    if (!exactKeys(entry, keys)
+      || !APPLICATION_AUTH_BOOTSTRAP_PROVIDERS.includes(entry.provider)
+      || !APPLICATION_AUTH_BOOTSTRAP_PROVIDER_KINDS.includes(entry.kind)
+      || !APPLICATION_AUTH_BOOTSTRAP_CREDENTIAL_MODES.includes(entry.credentials)
+      || (entry.kind === 'oidc' && entry.preset !== entry.provider)
+      || (entry.kind === 'apple' && entry.provider !== 'apple')) {
+      problems.push(problem(
+        'SNAPBACK_APP_DESCRIPTOR_SHAPE_INVALID',
+        entryPath,
+        `${entryPath} must be the closed declared-provider record`,
+        { allowedProviders: APPLICATION_AUTH_BOOTSTRAP_PROVIDERS },
+      ));
+      continue;
+    }
+    if (previous !== null && !(previous < entry.provider)) {
+      problems.push(problem(
+        'SNAPBACK_APP_DESCRIPTOR_SHAPE_INVALID',
+        entryPath,
+        `${path} must be sorted by provider name without repeats`,
+      ));
+    }
+    previous = entry.provider;
+  }
+}
+
 function validateApplicationAuthBootstrap(bootstrap, appId, problems) {
   const path = '$.authBootstrap';
   const keys = [
     'anonymousPublic', 'appId', 'custody', 'entryMechanisms', 'format',
     'lifecycleProtocol', 'mode',
+    ...(isRecord(bootstrap) && Object.hasOwn(bootstrap, 'providers') ? ['providers'] : []),
   ];
   if (!exactKeys(bootstrap, keys)) {
     problems.push(problem(
@@ -614,6 +665,9 @@ function validateApplicationAuthBootstrap(bootstrap, appId, problems) {
       `${path}.entryMechanisms must be a unique list in canonical policy order`,
       { allowed: APPLICATION_AUTH_BOOTSTRAP_ENTRY_MECHANISMS },
     ));
+  }
+  if (Object.hasOwn(bootstrap, 'providers')) {
+    validateApplicationAuthBootstrapProviders(bootstrap.providers, problems);
   }
 }
 

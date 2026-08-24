@@ -302,6 +302,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/ephemeral/publish"),
         ("POST", "/ephemeral/subscribe"),
         ("POST", "/ephemeral/delete"),
+        ("GET", "/_snapback/api/app/identity"),
         ("POST", "/_snapback/api/schema/load"),
         ("GET", "/_snapback/api/auth/mailbox"),
         ("POST", "/_snapback/api/auth/password/unlock"),

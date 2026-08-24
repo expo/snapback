@@ -94,6 +94,23 @@ pub struct OperationalReadinessHostInputV1 {
     pub expected_target: ExpectedActivationTargetV1,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+pub enum DevAdmissionPostureV1 {
+    #[serde(rename = "loopback-any")]
+    LoopbackAny,
+    #[serde(rename = "explicit-list")]
+    ExplicitList,
+}
+
+impl DevAdmissionPostureV1 {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LoopbackAny => "loopback-any",
+            Self::ExplicitList => "explicit-list",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct OperationalReadinessV1 {
@@ -107,10 +124,15 @@ pub struct OperationalReadinessV1 {
     pub auth: OperationalReadinessAuthV1,
     pub capability_manifest_digest: String,
     pub artifacts: HostOpsArtifacts,
-    /// The normalized exact loopback origins admitted by the running server
-    /// for development auth. This is captured from the Rust consumer of
+    /// The normalized exact client origins declared to the running server for
+    /// development admission. This is captured from the Rust consumer of
     /// `SNAPBACK_DEV_AUTH_ORIGINS`, not reconstructed by a receipt publisher.
     pub client_origins: Vec<String>,
+    /// Additive reader-before-writer posture. A missing field is the legacy
+    /// exact-list contract; lifecycle owners may project a declared posture
+    /// into their own comparator/receipt only when this fact carries one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub admission_posture: Option<DevAdmissionPostureV1>,
     pub network_profile: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub app_id: Option<String>,
@@ -161,6 +183,10 @@ pub struct ApplicationReadyReceiptV1 {
     pub auth: ApplicationReadyAuthV1,
     pub binding: AppBindingV1,
     pub client_origins: Vec<String>,
+    /// Optional reader-before-writer admission contract. A missing field is
+    /// read as the legacy explicit-list posture.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub admission_posture: Option<DevAdmissionPostureV1>,
     pub runtime_identity: ApplicationReadyRuntimeIdentityV1,
     pub capability_manifest_digest: String,
     pub network_profile: String,
@@ -298,6 +324,7 @@ pub struct OperationalReadinessFactsV1 {
     pub capability_manifest_digest: String,
     pub artifacts: HostOpsArtifacts,
     pub client_origins: Vec<String>,
+    pub admission_posture: Option<DevAdmissionPostureV1>,
     pub network_profile: String,
     pub app_id: Option<String>,
     pub route_manifest_hash: Option<String>,
@@ -312,6 +339,7 @@ pub struct OperationalReadinessRuntimeFactsV1 {
     pub auth_mode_state: AuthModeStateRecord,
     pub auth_program_readiness: AuthProgramReadiness,
     pub client_origins: Vec<String>,
+    pub admission_posture: Option<DevAdmissionPostureV1>,
     pub network_profile: String,
 }
 
@@ -579,6 +607,7 @@ pub fn evaluate_operational_readiness(
         capability_manifest_digest: facts.capability_manifest_digest.clone(),
         artifacts: facts.artifacts.clone(),
         client_origins: facts.client_origins.clone(),
+        admission_posture: facts.admission_posture.clone(),
         network_profile: facts.network_profile.clone(),
         app_id: facts.app_id.clone(),
     }
@@ -704,6 +733,7 @@ mod tests {
                 database_version: Some(7),
             },
             client_origins: vec!["http://127.0.0.1:5173".to_owned()],
+            admission_posture: None,
             network_profile: "normal".to_owned(),
             app_id: Some(active.app_id.clone()),
             route_manifest_hash: Some("sha256:routes".to_owned()),
@@ -741,6 +771,28 @@ mod tests {
             readiness.target.unwrap().obligations_digest,
             target.obligations_digest
         );
+    }
+
+    #[test]
+    fn admission_posture_is_additive_and_legacy_facts_omit_it() {
+        let active = deployment(AuthMode::Dev, 'a');
+        let target = target(&active);
+        let legacy = evaluate_operational_readiness(&facts(active.clone()), Some(&target));
+        let legacy_json = serde_json::to_value(&legacy).expect("serialize legacy readiness");
+        assert!(legacy_json.get("admissionPosture").is_none());
+        let reparsed: OperationalReadinessV1 =
+            serde_json::from_value(legacy_json.clone()).expect("parse readiness without posture");
+        assert_eq!(reparsed.admission_posture, None);
+
+        let mut declared_facts = facts(active);
+        declared_facts.admission_posture = Some(DevAdmissionPostureV1::LoopbackAny);
+        let declared = evaluate_operational_readiness(&declared_facts, Some(&target));
+        let declared_json = serde_json::to_value(declared).expect("serialize declared posture");
+        assert_eq!(declared_json["admissionPosture"], "loopback-any");
+
+        let mut invalid_json = legacy_json;
+        invalid_json["admissionPosture"] = serde_json::json!("surprise");
+        assert!(serde_json::from_value::<OperationalReadinessV1>(invalid_json).is_err());
     }
 
     #[test]

@@ -363,7 +363,7 @@ pub(crate) fn migration_keyset_scan_batch_on(
     if let Some(boundary) = &state.boundary {
         let mut bindings = 0_usize;
         let (clause, keyset_values) =
-            build_keyset_after_sql(table, &order, boundary, &mut bindings)?;
+            build_keyset_after_sql(table, &order, boundary, false, &mut bindings)?;
         sql.push_str(" WHERE ");
         sql.push_str(&clause);
         values.extend(keyset_values);

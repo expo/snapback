@@ -2,11 +2,14 @@
 
 **Type:** Plan
 **Status:** Accepted
-**Systems:** Storage, Performance, Schema, Sync, Realtime, Deployment, Testing
+**Systems:** Storage, Assets, Performance, Schema, Sync, Realtime, Deployment, Testing
 **Author:** Codex gpt-5.6-sol xhigh, orchestrated by Claude Fable 5 (commissioned in the author's 2026-08-16 orchestration session under Charlie Cheever's 2026-08-15 performance-direction ruling)
 **Date:** 2026-08-16
-**Revised:** 2026-08-18 (LLP 0276 crate-path relocation); 2026-08-16 (v0.3 — Status Draft → Accepted, author ruling 2026-08-16)
-**Related:** LLP 0007, LLP 0012, LLP 0046, LLP 0080, LLP 0113, LLP 0128, LLP 0163, LLP 0189, LLP 0198, LLP 0209, LLP 0225, LLP 0265, `issues/20260815-storage-graduation-plan-commission.md`
+**Revised:** 2026-08-24 (video admission's proposed normative contract moves
+to Review LLP 0305; this Accepted Plan retains only backend/cell portability
+and graduation obligations); 2026-08-18 (LLP 0276 crate-path relocation);
+2026-08-16 (v0.3 — Status Draft → Accepted, author ruling 2026-08-16)
+**Related:** LLP 0007, LLP 0012, LLP 0037, LLP 0044, LLP 0046, LLP 0080, LLP 0113, LLP 0128, LLP 0163, LLP 0189, LLP 0198, LLP 0209, LLP 0225, LLP 0265, LLP 0276, LLP 0277, LLP 0305, `issues/20260815-storage-graduation-plan-commission.md`, `issues/20260817-upload-intent-codec-duration-admission-facts.md`
 
 ## 0. Charter and position
 
@@ -451,6 +454,64 @@ when:
 Phase 3 exits class by class. “Cross-cell support” without that qualifier is
 not a capability or a publishable claim.
 
+## Dated portability addition: declared video admission facts (2026-08-24)
+
+**Addition status.** Design-only portability obligations for Review LLP 0305;
+not implementation, not acceptance of that Spec, and not a capability claim.
+LLP 0044 remains the asset-pipeline authority, and
+[LLP 0305](./0305-declared-video-admission.spec.md) is the dedicated proposed
+normative contract for the `accept.video` grammar, trusted ISO BMFF facts,
+refusals, bounds, parser-semantics version, and implementation acceptance.
+This Plan no longer owns or restates those parser rules.
+
+This addition routes LLP 0277 F8 and
+`issues/20260817-upload-intent-codec-duration-admission-facts.md` through the
+existing storage-graduation seam only. It does not fire §0's Postgres demand
+gate: byte inspection is asset-domain preparation, not a new authority-store
+engine.
+
+### Portability and graduation obligations
+
+If LLP 0305's Review design is accepted and implemented, its
+`asset_video_admission_facts_v1` capability must graduate without changing
+application or admission semantics:
+
+1. The generated intent, Rust-owned policy carrier, parser-semantics version,
+   and required-capability derivation are identical on every target. A backend
+   adapter cannot add, remove, or reinterpret a video-policy field.
+2. Canonical byte inspection and policy comparison remain in the asset-domain
+   service above the authority-store port. SQLite, Postgres, and later cells do
+   not independently re-detect container, declared codec configuration, sample
+   layout, or duration.
+3. The opaque prepared carrier binds the canonical digest, exact normalized
+   facts, frozen intent/implementation generation, and parser-semantics
+   version. The final publication commit revalidates those bindings with the
+   current attempt, generation, witness, quota, and lifecycle state before
+   persisting facts or readiness.
+4. Every authority persists the same normalized safe facts, lifecycle
+   transition, stable refusal code/details, and receipt. Publication of the
+   admitted facts and readiness remains one transaction in the asset's owning
+   cell with the existing blob/rendition/journal atomicity.
+5. Store or cell migration copies the canonical digest, normalized facts,
+   parser version, and policy/generation identity as opaque historical
+   evidence. It never re-probes an old blob with a newer parser and silently
+   rewrites its admission outcome.
+6. Phase 1's shared SQLite/Postgres behavior corpus gains LLP 0305's positive,
+   adversarial, refusal, deterministic-bound, and retained-version vectors. A
+   Postgres profile cannot claim `asset_video_admission_facts_v1` until
+   identical canonical bytes plus frozen artifacts yield the same normalized
+   facts or stable refusal as SQLite.
+7. Phase 2 placement keeps preparation outside the commit fence and publishes
+   the resulting carrier in the asset's one owning cell. Cross-cell storage or
+   a sibling target's capability cannot substitute for the owning cell's exact
+   claim and evidence.
+
+Supporting a new brand, declared codec configuration, elementary-stream proof,
+fragmented timeline, duration interpretation, or resource-accounting schedule
+is a new parser-semantics/capability version under LLP 0305. Graduation may
+carry old versioned facts; it may not widen v1 or reinterpret retained
+attempts.
+
 ## 4. Open questions
 
 Every item below is author-gated before the phase that freezes its surface.
@@ -497,6 +558,14 @@ The recommendation is a default for decision, not a silent ruling.
 
 ## 5. Revision history
 
+- **v0.5 (2026-08-24).** Moves the proposed normative video-admission design
+  into Review LLP 0305 under LLP 0044's asset authority after convergent
+  hostile review. This Accepted Plan now retains only the SQLite → Postgres →
+  transactional-cell portability and graduation obligations; implementation
+  and capability claims remain open.
+- **v0.4 (2026-08-24, superseded in document home by v0.5).** Initially added
+  the review-ready video-admission design here. LLP 0305 now owns that proposed
+  grammar/parser/refusal/acceptance contract.
 - **v0.3 (2026-08-16).** Status Draft → Accepted by author ruling (Charlie Cheever, 2026-08-16 session), on the converged dual-family review record in the run journal.
 - **v0.2 (2026-08-16).** Applies review round 1: corrects implementation and
   LLP citations; scopes envelopes to identity-bearing lanes; adds the

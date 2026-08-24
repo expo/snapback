@@ -44,87 +44,87 @@
     {
       "attribution": "ambiguous",
       "summary": "Native source-inspection action failed and recovered on retry",
-      "evidence": "events/lane-controller-observations.jsonl"
+      "evidence": "events/harness.stdout.jsonl"
     },
     {
       "attribution": "ambiguous",
       "summary": "Native process action failed and recovered on retry",
-      "evidence": "events/lane-controller-observations.jsonl"
+      "evidence": "events/harness.stdout.jsonl"
     },
     {
       "attribution": "ambiguous",
       "summary": "Native process action failed and recovered on retry",
-      "evidence": "events/lane-controller-observations.jsonl"
+      "evidence": "events/harness.stdout.jsonl"
     },
     {
       "attribution": "ambiguous",
       "summary": "Native process action failed and recovered on retry",
-      "evidence": "events/lane-controller-observations.jsonl"
+      "evidence": "events/harness.stdout.jsonl"
     },
     {
       "attribution": "ambiguous",
       "summary": "Native generate action failed and recovered on retry",
-      "evidence": "events/lane-controller-observations.jsonl"
+      "evidence": "events/harness.stdout.jsonl"
     },
     {
       "attribution": "ambiguous",
       "summary": "Native process action failed and recovered on retry",
-      "evidence": "events/lane-controller-observations.jsonl"
+      "evidence": "events/harness.stdout.jsonl"
     },
     {
       "attribution": "ambiguous",
       "summary": "Native source-inspection action failed and recovered on retry",
-      "evidence": "events/lane-controller-observations.jsonl"
+      "evidence": "events/harness.stdout.jsonl"
     },
     {
       "attribution": "ambiguous",
       "summary": "Native suite action failed and recovered on retry",
-      "evidence": "events/lane-controller-observations.jsonl"
+      "evidence": "events/harness.stdout.jsonl"
     },
     {
       "attribution": "ambiguous",
       "summary": "Native suite action failed and recovered on retry",
-      "evidence": "events/lane-controller-observations.jsonl"
+      "evidence": "events/harness.stdout.jsonl"
     },
     {
       "attribution": "ambiguous",
       "summary": "Native process action failed and recovered on retry",
-      "evidence": "events/lane-controller-observations.jsonl"
+      "evidence": "events/harness.stdout.jsonl"
     },
     {
       "attribution": "ambiguous",
       "summary": "Native process action failed and recovered on retry",
-      "evidence": "events/lane-controller-observations.jsonl"
+      "evidence": "events/harness.stdout.jsonl"
     },
     {
       "attribution": "ambiguous",
       "summary": "Native process action failed and recovered on retry",
-      "evidence": "events/lane-controller-observations.jsonl"
+      "evidence": "events/harness.stdout.jsonl"
     },
     {
       "attribution": "ambiguous",
       "summary": "Native choreography action failed and recovered on retry",
-      "evidence": "events/lane-controller-observations.jsonl"
+      "evidence": "events/harness.stdout.jsonl"
     },
     {
       "attribution": "ambiguous",
       "summary": "Native choreography action failed and recovered on retry",
-      "evidence": "events/lane-controller-observations.jsonl"
+      "evidence": "events/harness.stdout.jsonl"
     },
     {
       "attribution": "ambiguous",
       "summary": "Native process action failed and recovered on retry",
-      "evidence": "events/lane-controller-observations.jsonl"
+      "evidence": "events/harness.stdout.jsonl"
     },
     {
       "attribution": "ambiguous",
       "summary": "Native choreography action failed and recovered on retry",
-      "evidence": "events/lane-controller-observations.jsonl"
+      "evidence": "events/harness.stdout.jsonl"
     },
     {
       "attribution": "ambiguous",
       "summary": "Native suite action failed and recovered on retry",
-      "evidence": "events/lane-controller-observations.jsonl"
+      "evidence": "events/harness.stdout.jsonl"
     }
   ],
   "handAuthoredLoc": {

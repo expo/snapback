@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { webcrypto } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { SnapbackClient } from '@expo/snapback-client';
-import api from './snapback/generated/api.mjs';
+import { IDBFactory } from 'fake-indexeddb';
+
+import { SnapbackClient, createSnapbackAppClient } from '@expo/snapback-client';
+import api, { app } from './snapback/generated/api.mjs';
 import artifacts from './snapback/generated/artifacts.json' with { type: 'json' };
 
 // @ref LLP 0010#first-acceptance-app — the generated todo default proves a
@@ -14,6 +17,7 @@ import artifacts from './snapback/generated/artifacts.json' with { type: 'json' 
 
 const EXPECTED_CHECKS = Object.freeze([
   'managed-lifecycle',
+  'headless-app-auth',
   'artifact-identity',
   'query',
   'mutation-and-observation',
@@ -48,6 +52,7 @@ const cleanup = {
 };
 let failure = null;
 let client = null;
+let appAuthClient = null;
 let childSpawnError = null;
 
 const appendBounded = (current, chunk) =>
@@ -110,14 +115,44 @@ try {
     firstQueryRetries: 0,
   });
 
+  process.env.SNAPBACK_URL = ready.serverUrl;
+  appAuthClient = await createSnapbackAppClient({
+    app,
+    url: process.env.SNAPBACK_URL,
+    streamless: true,
+    // durable-required custody needs a qualifying adapter; headless Node uses
+    // the browser platform shape over fake-indexeddb, like the repo's own
+    // application-auth fixtures (memory has no durable custody by design).
+    platform: {
+      kind: 'browser',
+      indexedDB: new IDBFactory(),
+      lockManager: { request: (_name, _options, operation) => operation() },
+      cryptoObject: webcrypto,
+      databaseName: `todo-contract-headless-${process.pid}`,
+    },
+    storagePartition: `todo-contract-headless-${process.pid}`,
+    rqsStore: null,
+  });
+  const signup = await appAuthClient.auth.signUpWithPassword({
+    email: `todo-contract-headless-${process.pid}@example.com`,
+    password: 'todo-contract-headless-password',
+  });
+  assert.equal(signup.session.userId, appAuthClient.auth.currentPrincipal().userId);
+  pass('headless-app-auth', {
+    streamless: true,
+    principal: appAuthClient.auth.currentPrincipal().status,
+  });
+
   const adminToken = readFileSync(ready.adminTokenFile, 'utf8').trim();
   client = new SnapbackClient(ready.serverUrl, {
     adminToken,
     rqsStore: null,
-    offlineQueue: false,
-  });
-  const userId = 'generated_acceptance_user';
-  const before = await client.query(api.listTodos, { userId });
+    offlineQueue: false, authClientProtocol: 1, custody: 'anonymous-public' });
+  // Sessions mode: data legs run as the signed-up principal through the
+  // app-auth client's session-bound inner client; the admin client keeps
+  // only the artifact-identity inspection.
+  const sessionClient = appAuthClient.client;
+  const before = await sessionClient.query(api.listTodos, {});
   assert(Array.isArray(before.rows));
   const inspected = await client.inspect();
   assert.equal(inspected.functions?.appId, artifacts.appId);
@@ -130,13 +165,12 @@ try {
   pass('query', { functionId: api.listTodos.id, rowCount: before.rows.length });
 
   const title = `Generated acceptance ${process.pid}`;
-  const mutation = await client.mutate(api.createTodo, {
+  const mutation = await sessionClient.mutate(api.createTodo, {
     args: { title },
-    userId,
     clientMutationId: `generated-acceptance-${process.pid}`,
   });
   assert.equal(mutation.changed_count, 1);
-  const after = await client.query(api.listTodos, { userId });
+  const after = await sessionClient.query(api.listTodos, {});
   assert(after.rows.some((row) => row.title === title));
   pass('mutation-and-observation', {
     functionId: api.createTodo.id,
@@ -150,6 +184,8 @@ try {
 } finally {
   cleanup.attempted = true;
   try {
+    await appAuthClient?.dispose();
+    appAuthClient = null;
     if (client) assert.equal((await client.inspect()).subscriptions.length, 0);
     cleanup.clientResourcesReleased = true;
   } catch (error) {

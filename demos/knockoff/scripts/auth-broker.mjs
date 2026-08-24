@@ -26,6 +26,15 @@ const broker = createKnockoffSocialBroker({
   appId: schema.appId,
   identitySecret,
   allowFixtures: process.env.KNOCKOFF_AUTH_FIXTURES !== '0',
+  allowSharedDevelopment: process.env.KNOCKOFF_SHARED_AUTH !== '0',
+  deploymentProfile: process.env.KNOCKOFF_DEPLOYMENT_PROFILE ?? 'development',
+  previewOwnerAuthenticated: process.env.KNOCKOFF_SHARED_PREVIEW_OWNER_AUTHORIZED === '1',
+  previewExpiresAt: process.env.KNOCKOFF_SHARED_PREVIEW_EXPIRES_AT,
+  sharedReturnTargets: (process.env.KNOCKOFF_SHARED_RETURN_TARGETS ?? 'knockoff://auth/shared')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean),
+  sharedUserLimit: Number(process.env.KNOCKOFF_SHARED_USER_LIMIT ?? 100),
   appleClientId: process.env.KNOCKOFF_APPLE_CLIENT_ID ?? '',
   googleClientId: process.env.KNOCKOFF_GOOGLE_CLIENT_ID ?? '',
 });

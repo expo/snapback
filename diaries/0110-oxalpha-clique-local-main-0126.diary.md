@@ -21,7 +21,7 @@ Pro mini) rather than the control plane.
 ## Staging experience (orchestrator's seat)
 
 - The publication-shaped delivery path from
-  `0106-sol-high-clique-local-main-0125` worked again on a different host,
+  `0112-sol-high-clique-local-main-0125` worked again on a different host,
   with one requirement surfaced by the packer: the darwin runtime
   must be built with `SNAPBACK_BUILD_DISTRIBUTION=public-package` or
   `snapback-publish.mjs` refuses with
@@ -30,7 +30,7 @@ Pro mini) rather than the control plane.
   the env-stamped rebuild is. Default dry-run staging is still not the
   receipt-qualified real-publication path.
 - `53e7ac866` closed the skill-ceiling staging defect recorded in
-  `0106-sol-high-clique-local-main-0125`: the
+  `0112-sol-high-clique-local-main-0125`: the
   scaffold-emitted skill body is 10,165 B, lane-setup accepted it unmodified,
   zero preflight warnings. That diary's trim workaround is obsolete.
 - Provisioning the harness on a fresh fleet machine was ~15 minutes: npm
@@ -70,7 +70,7 @@ cliffs — patch signatures, order(), intent triple-agreement — that cost hour
 when hit blind." That matches
 `0104-sol-high-clique-explicit-local-main`,
 `0105-sol-high-clique-familiar-local-main`, and
-`0106-sol-high-clique-local-main-0125`: after the foundation, M2/M3 were
+`0112-sol-high-clique-local-main-0125`: after the foundation, M2/M3 were
 product logic, not plumbing.
 
 ## Harness findings (pi + ox-alpha as lane agent)

@@ -16,5 +16,8 @@
     "@expo/snapback-cli": "__SNAPBACK_VERSION__",
     "@expo/snapback-client": "__SNAPBACK_VERSION__",
     "@expo/snapback-codegen": "__SNAPBACK_VERSION__"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "^6.2.5"
   }
 }

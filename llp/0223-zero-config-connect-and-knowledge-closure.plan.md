@@ -6,6 +6,12 @@
 Vite/Exact clients, Headless client, Auth, Diagnostics, Verification, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
+**Revised:** 2026-08-24 (g — LLP 0300–0302 re-rule the supervised
+zero-config baseline as one of two admitted development sources. URL-first is
+canonical and the client process is ordinarily caller-owned; the supervised
+injection path remains optional. See the dated amendment.)
+**Revised:** 2026-08-23 (f — LLP 0299 amends tool-selected listener ports to
+one stable deterministic range with strict per-owner pins and recorded provenance)
 **Revised:** 2026-08-21 (e — D0.1 ruling amendment — records LLP 0295 D0.1's
 canonical development lifecycle: `snapback dev` stays the single lifecycle
 owner and gains a fixed-origin/external-client profile; `start
@@ -366,7 +372,8 @@ one owner with two admission postures, not a second lifecycle surface.
 
 ### Semantic contract
 
-1. **Ports.** The default posture stays tool-selected. The fixed profile
+1. **Ports.** Per LLP 0299, the default posture is one stable deterministic
+   range, with strict pins available for every owned listener. The fixed profile
    lets the caller pin the server port and declare the external client
    origin. **Port occupancy is never identity:** before attaching to a
    pinned port, the lifecycle verifies the listener is the intended
@@ -384,9 +391,11 @@ one owner with two admission postures, not a second lifecycle surface.
    declared-external clients). Port pinning and client posture are
    **orthogonal**: `snapback dev --expo` with a pinned backend port is a
    legal composition (the diary-0096/0104 case) — the supervised Metro
-   client stays supervisor-launched on a tool-selected port while the
+   client stays supervisor-launched on a plan-selected port while the
    backend listener is pinned; declaring the client external is required
-   only when the client process is externally owned.
+   only when the client process is externally owned. LLP 0299 is the narrow
+   port-selection amendment: it preserves this lifecycle and receipt contract
+   while making every supervised owner pinnable or ranged.
 3. **Lifecycle verbs.** One semantic verb set across postures: **fresh
    start**; **attach** to an already-running intended child (idempotent —
    an intended child is recognized by receipt identity, an unrelated
@@ -498,3 +507,23 @@ its pre-agreed outcome — a run-scoped `snapback connect` export — is
 replaced by the fixed profile plus the authoritative receipt; option 3
 stays rejected, and the Decision's injection-fallback constraint continues
 to bind.
+
+## Dated amendment — 2026-08-24: URL-first supersedes the supervised baseline
+
+Implemented LLP 0300–0302 admit two development binding sources. URL-first
+`declared-dev` is now canonical: `snapback dev` owns the backend lifecycle and
+prints the URL, while the caller ordinarily owns the Expo/Metro, Vite, or
+headless client process and passes one application-read environment value to
+the provider. The supervised rendezvous remains a supported optional source
+and retains the zero-config injection, transient descriptor, exact-origin
+admission, client-process ownership, and issuance behavior this Plan proved.
+
+This narrows the earlier "auto-inject, do not auto-write" ruling to the
+supervised source. On the canonical URL source, the explicit `--write-env`
+option may maintain a marked `.env.local` block containing only the non-secret
+backend URL; identity discovery detects a stale or replaced endpoint before
+credentials flow. It is not a durable binding export, and a running bundler
+must restart after the value changes. The authoritative lifecycle receipt and
+fixed-profile history above remain applicable where those paths are used, but
+they no longer make the supervisor the baseline or imply that Snapback
+ordinarily owns the client process.

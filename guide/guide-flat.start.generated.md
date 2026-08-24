@@ -122,13 +122,13 @@ id: start.react
 order: 3
 audience: agent-first
 capabilities: []
-authorities: [llp/0259-agent-first-read-budget.rfc.md, packages/snapback-cli/templates/react/snapback/schema.mjs, packages/snapback-cli/templates/react/src/App.tsx]
+authorities: [llp/0259-agent-first-read-budget.rfc.md, llp/0300-snapback-is-a-url.rfc.md, llp/0301-url-first-dev-lifecycle.spec.md, llp/0302-declared-dev-client-binding.spec.md, packages/snapback-cli/templates/react/snapback/schema.mjs, packages/snapback-cli/templates/react/src/App.tsx]
 examples: [packages/snapback-cli/templates/react]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:bb51fb7bff16d6c94335925cb0522657982e212144f54e5be6a224438bc6f82e
+reviewed: 2026-08-24
+reviewed-authorities-digest: sha256:9e2e713ea922a413fa77477b0bdefa8c205cc9b8e812528bd719eb71f58ab386
 ---
 
 # Start packet: the `react` template
@@ -142,8 +142,14 @@ this packet, a structured `SNAPBACK_*` refusal, or a failed `prove`.
 ## The loop
 
 Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
-→ `bun run generate` → `bun run dev` (one supervisor: managed server plus
-Vite; it prints the admin console URL) → `bun run prove`.
+→ `bun run generate` → `bun run dev` (backend; writes `.env.local`) plus
+`bun run dev:client` in a second terminal (Vite) → `bun run prove`.
+
+Expo templates retain optional `dev:supervised`. Android emulator: paste
+printed `androidEmulatorUrl` (`10.0.2.2`) as `EXPO_PUBLIC_SNAPBACK_URL`, then
+restart Metro. Remove leftover `SNAPBACK_DEV_CLIENT_PORT` /
+`SNAPBACK_DEV_BOOTSTRAP_PORT`; plain dev refuses them with
+`SNAPBACK_CLI_ARGUMENT_INVALID`.
 
 `bun run prove` (`npm run prove` is equivalent) is the acceptance command:
 it runs the registered live profile through `snapback verify` and writes
@@ -239,48 +245,51 @@ id: start.expo-chat
 order: 4
 audience: agent-first
 capabilities: []
-authorities: [llp/0259-agent-first-read-budget.rfc.md, packages/snapback-cli/templates/expo-chat/snapback/schema.mjs, packages/snapback-cli/templates/expo-chat/App.tsx]
+authorities: [llp/0259-agent-first-read-budget.rfc.md, llp/0299-supervised-listener-port-plan.spec.md, llp/0300-snapback-is-a-url.rfc.md, llp/0301-url-first-dev-lifecycle.spec.md, llp/0302-declared-dev-client-binding.spec.md, packages/snapback-cli/templates/expo-chat/snapback/schema.mjs, packages/snapback-cli/templates/expo-chat/App.tsx]
 examples: [packages/snapback-cli/templates/expo-chat]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:fa5149534a7e89282b33bbc909f7bf781c85381bb7d3b0771d1f0bcfd095c65a
+reviewed: 2026-08-24
+reviewed-authorities-digest: sha256:e409ac99f8cf13246c81236bc680e4dd89fc8ee753fa34a890a166cd05190b19
 ---
 
 # Start packet: the `expo-chat` template
 
 <!-- start-packet:begin expo-chat -->
-This packet is the whole required first read for this app (LLP 0259
-Rung A). Open the edit targets below and work; open one further Guide page
-only via `snapback guide <query>` or on a trigger — the brief is outside
-this packet, a structured `SNAPBACK_*` refusal, or a failed `prove`.
+This is the whole first read (LLP 0259 Rung A). Work from the edit targets;
+open one more page only for a brief, `SNAPBACK_*` refusal, or failed `prove`,
+via `snapback guide <query>`.
 
 ## The loop
 
 Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
-→ `bun run generate` → `bun run dev` (supervises the Expo client; it never
+→ `bun run generate` → `bun run dev` (backend + `.env.local`) and
+`bun run dev:client` in a second terminal (`dev:supervised` = optional
+one-command convenience; it never
 launches a device or simulator — Expo Go, a dev client, or
 `expo run:ios|android` is your job) → `bun run prove`.
 
-Before extending or ejecting the proof runner, read
-`node_modules/@expo/snapback-acceptance/README.md`; it is the supported
-compatibility and ownership contract.
+Android emulator: paste printed `androidEmulatorUrl` (`10.0.2.2`) as
+`EXPO_PUBLIC_SNAPBACK_URL`, then restart Metro; leave its managed-block line
+commented. Remove leftover `SNAPBACK_DEV_CLIENT_PORT` /
+`SNAPBACK_DEV_BOOTSTRAP_PORT`; plain dev refuses them with
+`SNAPBACK_CLI_ARGUMENT_INVALID`.
+
+Before changing proof, read `node_modules/@expo/snapback-acceptance/README.md`.
 
 <!-- script-glossary:begin -->
 ## Script glossary
 
-`bun run prove`: ordinary completion and the only done-oracle—the authoritative
-aggregate `snapback verify` receipt (acceptance evidence, not formal proof).
-`npm test`: raw acceptance implementation that `prove` wraps (debugging).
-`bun run test:static`: no-server source/generated coherence.
-`bun run carry:headless`, `bun run carry:web-browser`, `bun run carry:native-simulator`: observation artifacts after accepting the `prove` receipt,
-never proof authority. `bun run carry:self-check` checks carrier wiring only.
-Migration: `test:live` was removed; use `npm test` for the same raw acceptance command.
+`prove`: only done-oracle; writes the authoritative aggregate `snapback verify`
+receipt. `npm test`: raw acceptance debug path. `test:static`: no-server
+coherence. `carry:headless`, `carry:web-browser`, `carry:native-simulator`:
+observations after `prove`; `carry:self-check`: wiring only. Removed
+`test:live` → `npm test`.
 <!-- script-glossary:end -->
 
 The native carrier owns simulator boot, drive, and screenshots. Self-started
-Metro must not inherit `CI=1` (it disables watching); prefer `bun run dev`.
+Metro must not inherit `CI=1` (it disables watching).
 
 ## Edit targets (work files — listed, not charged to the first read)
 
@@ -305,6 +314,8 @@ Metro must not inherit `CI=1` (it disables watching); prefer `bun run dev`.
   app reaches anonymous `ready`; call `auth.enterAsGuest()` on the same
   `useSnapbackAuth()` owner before sends or image upload, or use ordinary
   password entry. Recovery codes surface once after signup or guest claim.
+  URL-first dev mints no ambient session; multi-browser proofs sign up or sign
+  in separately in each context instead of adopting the supervised mint.
 - **Custody: `volatile-explicit`.** This disposable template deliberately says
   memory custody, so a native process restart returns anonymous and must enter
   again. It does not silently weaken a durable policy; select
@@ -333,10 +344,8 @@ Metro must not inherit `CI=1` (it disables watching); prefer `bun run dev`.
 
 ## Escalate
 
-`snapback guide <query>` returns exact symbols, diagnostic codes, and page
-anchors — budgeted lookups do not count as extra pages. The
-[capability index](../capabilities.md) is the completeness registry: look
-up, do not linear-read. Deeper pages, only when triggered:
+`snapback guide <query>` returns exact symbols, codes, and anchors. Use the
+[capability index](../capabilities.md) as a lookup, not a first read. On trigger:
 [react-expo clients](../clients/react-expo.md),
 [surfaces](../clients/surfaces.md),
 [sessions and principals](../auth/sessions-and-principals.md),
@@ -359,36 +368,37 @@ id: start.crud-dashboard
 order: 5
 audience: agent-first
 capabilities: []
-authorities: [llp/0259-agent-first-read-budget.rfc.md, packages/snapback-cli/templates/crud-dashboard/snapback/schema.mjs]
+authorities: [llp/0259-agent-first-read-budget.rfc.md, llp/0300-snapback-is-a-url.rfc.md, llp/0301-url-first-dev-lifecycle.spec.md, llp/0302-declared-dev-client-binding.spec.md, packages/snapback-cli/templates/crud-dashboard/snapback/schema.mjs]
 examples: [packages/snapback-cli/templates/crud-dashboard]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:b1f8201cab1348a01e401a2f12412ee36b6412cc13d389d089b33b61e5bbe396
+reviewed: 2026-08-24
+reviewed-authorities-digest: sha256:fec37765ca46bdda9d4e8e1e59d2d88ba3af242da2629f088332fc38da5e13af
 ---
 
 # Start stub: the `crud-dashboard` template
 
 <!-- start-packet:begin crud-dashboard -->
-Mental model: [Snapback in one screen](./mental-model.md); with this stub it is
-the whole first read.
+Read [Snapback in one screen](./mental-model.md); with this stub it is the
+whole first read.
 
 <!-- script-glossary:begin -->
 ## Scripts
 
-`prove`: only done-oracle; writes the authoritative aggregate `snapback verify`
-receipt (acceptance evidence, not formal proof). `npm test`: unwrapped
-`acceptance.mjs` debug path. `test:static`: no-server coherence.
-`bun run carry:headless`, `bun run carry:web-browser`: observations only after `prove`, never proof.
-`carry:self-check`: wiring only.
+`prove`: only done-oracle; writes the authoritative `snapback verify` receipt.
+`npm test`: acceptance debug path. `test:static`: no-server coherence.
+`carry:*`: observations after `prove`; `carry:self-check`: wiring only.
 <!-- script-glossary:end -->
 
 Edit `snapback/{schema,functions}.mjs`, `seed.json`, `src/App.tsx` →
-`generate` → `dev` → `prove`; generated files are codegen-owned. The consumer
-uses `useSnapbackQuery` / `useSnapbackMutation`. Keep `projectDirectory`'s
-team-join uniqueness. Sample data/mutations are public for sign-in-free demos,
-not a production auth pattern. Escalate: `snapback guide <query>`.
+`generate` → `dev` (backend + env) and `dev:client` (Vite) in terminal 2 →
+`prove`. Expo has optional `dev:supervised`; Android emulators manually paste
+printed `androidEmulatorUrl` (`10.0.2.2`) and restart Metro. Remove leftover
+`SNAPBACK_DEV_CLIENT_PORT` / `SNAPBACK_DEV_BOOTSTRAP_PORT`; plain dev refuses
+them with `SNAPBACK_CLI_ARGUMENT_INVALID`. Generated files are owned. Keep
+`projectDirectory` team-join uniqueness; demo-public mutations are not a
+production auth pattern. Escalate: `snapback guide <query>`.
 <!-- start-packet:end -->
 
 ---
@@ -400,36 +410,37 @@ id: start.media-feed
 order: 6
 audience: agent-first
 capabilities: []
-authorities: [llp/0259-agent-first-read-budget.rfc.md, packages/snapback-cli/templates/media-feed/snapback/schema.mjs]
+authorities: [llp/0259-agent-first-read-budget.rfc.md, llp/0300-snapback-is-a-url.rfc.md, llp/0301-url-first-dev-lifecycle.spec.md, llp/0302-declared-dev-client-binding.spec.md, packages/snapback-cli/templates/media-feed/snapback/schema.mjs]
 examples: [packages/snapback-cli/templates/media-feed]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:f805ed361a34d8e055b4cf2e28c744733ae6c5c2162736f9c4bc3ddb23da9dde
+reviewed: 2026-08-24
+reviewed-authorities-digest: sha256:50a482a3bf66cda132be785279830df6706b1111daaa3fd029b82d9524e5cdc5
 ---
 
 # Start stub: the `media-feed` template
 
 <!-- start-packet:begin media-feed -->
-Mental model: [Snapback in one screen](./mental-model.md); with this stub it is
-the whole first read.
+Read [Snapback in one screen](./mental-model.md); with this stub it is the
+whole first read.
 
 <!-- script-glossary:begin -->
 ## Scripts
 
-`prove`: only done-oracle; writes the authoritative aggregate `snapback verify`
-receipt (acceptance evidence, not formal proof). `npm test`: unwrapped
-`acceptance.mjs` debug path. `test:static`: no-server coherence.
-`bun run carry:headless`, `bun run carry:web-browser`, `bun run carry:native-simulator`: observations only after `prove`, never proof.
-`carry:self-check`: wiring only.
+`prove`: only done-oracle; writes the authoritative `snapback verify` receipt.
+`npm test`: acceptance debug path. `test:static`: no-server coherence.
+`carry:*`: observations after `prove`; `carry:self-check`: wiring only.
 <!-- script-glossary:end -->
 
 Edit `snapback/{schema,functions}.mjs`, `seed.json`, `App.tsx`, and
-`pagination.mjs` → `generate` → `dev` → `prove`. `publishEntry` owns
-upload/finalize/attach; app uploads require sessions custody. Paginate on
-immutable `pageKey`; dedupe accumulated pages by `_id`. Escalate:
-`snapback guide <query>`.
+`pagination.mjs` → `generate` → `dev` (backend + env) and `dev:client` (Metro)
+in terminal 2 → `prove`; `dev:supervised` is optional. Android emulator: paste
+printed `androidEmulatorUrl` (`10.0.2.2`) as `EXPO_PUBLIC_SNAPBACK_URL`, then
+restart Metro. Remove leftover `SNAPBACK_DEV_CLIENT_PORT` /
+`SNAPBACK_DEV_BOOTSTRAP_PORT`; plain dev refuses them with
+`SNAPBACK_CLI_ARGUMENT_INVALID`. `publishEntry` owns upload/finalize/attach;
+paginate on immutable `pageKey`. Escalate: `snapback guide <query>`.
 <!-- start-packet:end -->
 
 ---

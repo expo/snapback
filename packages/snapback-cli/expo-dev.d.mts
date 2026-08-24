@@ -1,3 +1,13 @@
+import type { DevPortPlan } from './port-plan.mjs';
+
+export { resolveDevPortPlan } from './port-plan.mjs';
+export type {
+  DevPortPlan,
+  DevPortPlanOwner,
+  DevPortPlanOwnerProvenance,
+  DevPortPlanRange,
+} from './port-plan.mjs';
+
 export const EXPO_DEV_EVENT_FORMAT: 'snapback.expo-dev.v1';
 export const EXPO_SUPERVISOR_DESCRIPTOR_FORMAT: 'snapback.expo-supervisor.v1';
 export const SUPERVISED_EXCHANGE_FORMAT: 'snapback.expo-supervised-exchange.v1';
@@ -109,6 +119,7 @@ export function startBootstrapExchange(
       request: BootstrapExchangeControlRequest,
     ) => BootstrapExchangeControlResult | Promise<BootstrapExchangeControlResult>;
     onDevIdentityCheckout?: (nonce: unknown) => string | null | Promise<string | null>;
+    port?: number;
   }>,
 ): Promise<BootstrapExchangeHandle>;
 
@@ -286,6 +297,10 @@ export function enumerateExpoOwnedListeners(options: Readonly<{
   webFrontPort?: number | null;
 }>): readonly ExpoOwnedListener[];
 
+export function describePortHolder(
+  port: number,
+): Readonly<{ pid: number; command: string | null }> | null;
+
 export function mintSupervisedOrdinarySession(options: Readonly<{
   runtimeBinary: string;
   readyFile: string;
@@ -301,6 +316,7 @@ export interface ExpoApplicationReadyProjection {
   readonly startupNonce: string;
   readonly hostReadyDescriptorDigest: string;
   readonly binding: Readonly<Record<string, unknown>>;
+  readonly admissionPosture: 'loopback-any' | 'explicit-list';
   readonly clientOrigins: readonly string[];
   readonly runtimeIdentity: Readonly<Record<string, unknown>>;
 }
@@ -317,6 +333,10 @@ export interface ExpoDevSupervisor {
   readonly applicationReady: ExpoApplicationReadyProjection;
   readonly exchangeOrigin: string;
   readonly metroOrigin: string;
+  readonly snapbackUrl: string;
+  readonly androidEmulatorUrl: string;
+  readonly environmentFile: Readonly<Record<string, unknown>> | null;
+  readonly portPlan: DevPortPlan;
   readonly listeners: readonly ExpoOwnedListener[];
   readonly verbs: Readonly<Record<string, (...args: any[]) => Promise<unknown>>>;
   replaceAuthority(email: string): Promise<'ready' | 'authority-required'>;
@@ -326,6 +346,11 @@ export interface ExpoDevSupervisor {
 }
 
 export interface RunExpoDevOptions extends Readonly<Record<string, unknown>> {
+  readonly writeEnvFile?: string;
+  readonly clientPort?: number;
+  readonly bootstrapPort?: number;
+  readonly portRange?: string;
+  readonly portPlan?: DevPortPlan;
   /** Testable supervisor wall clock used for binding issuance and refresh. */
   readonly now?: () => number;
   /** Lifetime of one supervised AppBinding. Defaults to one hour. */
@@ -342,6 +367,12 @@ export interface RunExpoDevOptions extends Readonly<Record<string, unknown>> {
   readonly expoAppScheme?: string;
   /** Test-only command runner; its presence opts protocol tests into launch. */
   readonly nativeLaunchRun?: (...args: any[]) => any;
+  /** Test-only allocation barrier invoked after each supervisor owner binds. */
+  readonly afterSupervisorOwnerBound?: (
+    owner: 'client' | 'bootstrap' | 'metro',
+    port: number,
+    reservation: Readonly<{ close(): Promise<void> }>,
+  ) => void | Promise<void>;
 }
 
 export function runExpoDev(options?: RunExpoDevOptions): Promise<ExpoDevSupervisor>;
@@ -356,3 +387,78 @@ export declare function resolveExpoMetroCommand(
   shell: boolean;
   display: string;
 };
+
+export type ExpoSupervisorPortOwner = 'client' | 'bootstrap' | 'metro';
+
+export interface LoopbackPortReservation {
+  readonly port: number;
+  close(): Promise<void>;
+}
+
+export type ExpoSupervisorReservation =
+  | LoopbackPortReservation
+  | BootstrapExchangeHandle
+  | MetroWebFrontReservation;
+
+export interface ExpoSupervisorPortAllocation {
+  readonly assigned: Readonly<Partial<Record<ExpoSupervisorPortOwner, number>>>;
+  readonly reservations: Readonly<Partial<Record<ExpoSupervisorPortOwner, ExpoSupervisorReservation>>>;
+  close(): Promise<void>;
+}
+
+export interface MetroWebFrontReservation extends LoopbackPortReservation {
+  readonly origin: string;
+  readonly port: number;
+  readonly upstreamOrigin: string | null;
+  setUpstreamOrigin(origin: string): void;
+}
+
+export interface PlannedSupervisorListeners {
+  readonly assigned: Readonly<Partial<Record<ExpoSupervisorPortOwner, number>>>;
+  readonly clientPort: number;
+  readonly metroProcessPort: number;
+  readonly metroFront: MetroWebFrontReservation | null;
+  readonly bootstrap: BootstrapExchangeHandle;
+  readonly metroPlaceholder: LoopbackPortReservation;
+  close(): Promise<void>;
+}
+
+export const __test: Readonly<{
+  allocateSupervisorPortCandidates(
+    plan: DevPortPlan,
+    excluded?: ReadonlySet<number>,
+    options?: Readonly<{
+      platform?: ExpoDevicePlatform;
+      bindOwner?: (
+        owner: ExpoSupervisorPortOwner,
+        port: number,
+        context: Readonly<{ platform: ExpoDevicePlatform }>,
+      ) => ExpoSupervisorReservation | Promise<ExpoSupervisorReservation>;
+      onReservation?: (owner: ExpoSupervisorPortOwner, reservation: ExpoSupervisorReservation) => void;
+      afterOwnerBound?: (
+        owner: ExpoSupervisorPortOwner,
+        port: number,
+        reservation: ExpoSupervisorReservation,
+      ) => void | Promise<void>;
+    }>,
+  ): Promise<ExpoSupervisorPortAllocation>;
+  startMetroWebFront(input: Readonly<{
+    port: number;
+    upstreamOrigin: string | null;
+    attestation: Readonly<{ serve(request: unknown, response: unknown): boolean }>;
+  }>): Promise<MetroWebFrontReservation>;
+  bindPlannedSupervisorListeners(input: Readonly<{
+    plan: DevPortPlan;
+    platform: ExpoDevicePlatform;
+    attestation: Readonly<{ serve(request: unknown, response: unknown): boolean }>;
+    getBootstrapPayload: () => unknown | Promise<unknown>;
+    onControl?: (request: BootstrapExchangeControlRequest) => BootstrapExchangeControlResult | Promise<BootstrapExchangeControlResult>;
+    onDevIdentityCheckout?: (nonce: unknown) => string | null | Promise<string | null>;
+    onReservation?: (owner: ExpoSupervisorPortOwner, reservation: ExpoSupervisorReservation) => void;
+    afterOwnerBound?: (
+      owner: ExpoSupervisorPortOwner,
+      port: number,
+      reservation: ExpoSupervisorReservation,
+    ) => void | Promise<void>;
+  }>): Promise<PlannedSupervisorListeners>;
+}>;

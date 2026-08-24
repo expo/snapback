@@ -23,6 +23,13 @@ import type { SnapbackProviderProps } from './index.mjs';
 
 declare const ordinaryAppClient: SnapbackAppClient;
 declare const advancedBinding: PreparedReactBinding;
+declare const declaredDevConversationApp: ConversationAppDescriptor;
+const declaredDevProviderOwnership: SnapbackProviderProps = {
+  app: declaredDevConversationApp,
+  url: 'http://localhost:4287',
+  platform: 'browser',
+};
+void declaredDevProviderOwnership;
 // @ts-expect-error ordinary app-client ownership and advanced binding injection are exclusive.
 const mixedProviderOwnership: SnapbackProviderProps = {
   appClient: ordinaryAppClient,

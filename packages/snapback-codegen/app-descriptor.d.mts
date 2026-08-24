@@ -29,6 +29,10 @@ export interface PortableAppDescriptorV1 {
     mode: 'sessions';
     custody: 'durable-required' | 'volatile-explicit';
     entryMechanisms: readonly ('guest-v1' | 'password-v1' | 'email-code-v1' | 'external-session-explicit-v1')[];
+    providers?: readonly (
+      | Readonly<{ provider: 'apple'; kind: 'apple'; credentials: 'auto' | 'shared' | 'app-owned' }>
+      | Readonly<{ provider: 'google'; kind: 'oidc'; preset: 'google'; credentials: 'auto' | 'shared' | 'app-owned' }>
+    )[];
     anonymousPublic: 'allowed' | 'refused';
     lifecycleProtocol: 1;
   }>;

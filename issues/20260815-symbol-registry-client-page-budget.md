@@ -34,3 +34,13 @@ discipline and module/symbol slicing must be measured. Either:
 
 Whoever picks this up should record the chosen shape as an LLP 0194 OQ1
 measurement note.
+
+## 2026-08-24 — third one-notch relief
+
+The LLP 0151 provider-entry resolver (`./provider-entry`) and the shared
+development client half (`./shared-development-auth`) pushed
+`guide/reference/expo-snapback-client.md` to 476,540 bytes, over the 460 KiB
+notch. Raised 460 KiB → 480 KiB (491,520). Three relief notches in nine days
+is the measurement OQ1 asked for: the page grows with every client export, and
+the real fix — slicing `expo-snapback-client.md` by submodule — is now
+overdue rather than anticipated.

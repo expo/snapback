@@ -1,0 +1,1369 @@
+{
+  "instrumentVersion": "social-messenger@0.3.3-m8",
+  "observabilityProtocol": "social-messenger-observation.v1",
+  "source": "claude-code-session-usage",
+  "available": true,
+  "unavailableReason": null,
+  "capAdjudicationEligible": true,
+  "capCounters": [
+    "input",
+    "output"
+  ],
+  "totals": {
+    "input": 594,
+    "output": 2955,
+    "cacheRead": 122317417,
+    "cacheWrite": 688361,
+    "reasoning": null
+  },
+  "executionOrder": [
+    "M1",
+    "M2",
+    "M3"
+  ],
+  "milestones": {
+    "M1": {
+      "status": "green",
+      "authoring": {
+        "tokens": {
+          "input": 384,
+          "output": 2004,
+          "cacheRead": 57812290,
+          "cacheWrite": 489629,
+          "reasoning": null
+        },
+        "firstGreenAt": "2026-08-24T10:10:18.992Z",
+        "suitePassAt": "2026-08-24T10:10:18.992Z",
+        "choreoPassAt": "2026-08-24T10:10:18.992Z",
+        "terminalAt": "2026-08-24T10:10:18.992Z",
+        "terminalSequence": 1,
+        "terminalReason": "green"
+      },
+      "semanticActions": {
+        "claimed": true,
+        "evidence": [
+          {
+            "path": "receipts/m1-suite.observations.jsonl",
+            "sha256": "sha256:7641537f22458b69ef481ee865d262c17ddad49bd3e6047f2d74dc96f55c3235"
+          },
+          {
+            "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:b01eb24f1fec2cff3b451b0214ab4f19d67cf4ee4f94f7b795777ecec960f8ba"
+          },
+          {
+            "path": "receipts/m2-suite.observations.jsonl",
+            "sha256": "sha256:cc6ca348486637ec26536442889ba8625dd84b1aca42fefedbe9a6b4b8d4a7f0"
+          },
+          {
+            "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:9f8be9d899edaf7fffb97f448f3cb5fcd223bc3b2c0f06f5e2e283e41b7a9ec8"
+          },
+          {
+            "path": "receipts/m3-suite.observations.jsonl",
+            "sha256": "sha256:b908bccce22fd13f76e55ff8f0e3df8baa01322543d73d2b758f8edc476c9401"
+          },
+          {
+            "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:57dec563d1564c248293081aaf647a1ece732e0a80fe844f99fb8afd5da5dd6a"
+          },
+          {
+            "path": "events/lane-controller-observations.jsonl",
+            "sha256": "sha256:466b6ee4842f5a64957d1833c463d2e371b1a60c619e7c463a40c6d0bc54f913"
+          }
+        ],
+        "total": 200,
+        "byClass": {
+          "guide-lookup": 3,
+          "source-inspection": 99,
+          "edit": 15,
+          "generate": 19,
+          "process": 31,
+          "reseed": 2,
+          "suite": 11,
+          "choreography": 15,
+          "retry": 5
+        },
+        "byDisposition": {
+          "progress": 190,
+          "correction": 10
+        },
+        "byRetriedClass": {
+          "guide-lookup": 0,
+          "source-inspection": 3,
+          "edit": 0,
+          "generate": 1,
+          "process": 1,
+          "reseed": 0,
+          "suite": 0,
+          "choreography": 0
+        },
+        "binaryExcavation": 29
+      },
+      "failureToRecoveryEpisodes": {
+        "claimed": true,
+        "evidence": [
+          {
+            "path": "receipts/m1-suite.observations.jsonl",
+            "sha256": "sha256:7641537f22458b69ef481ee865d262c17ddad49bd3e6047f2d74dc96f55c3235"
+          },
+          {
+            "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:b01eb24f1fec2cff3b451b0214ab4f19d67cf4ee4f94f7b795777ecec960f8ba"
+          },
+          {
+            "path": "receipts/m2-suite.observations.jsonl",
+            "sha256": "sha256:cc6ca348486637ec26536442889ba8625dd84b1aca42fefedbe9a6b4b8d4a7f0"
+          },
+          {
+            "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:9f8be9d899edaf7fffb97f448f3cb5fcd223bc3b2c0f06f5e2e283e41b7a9ec8"
+          },
+          {
+            "path": "receipts/m3-suite.observations.jsonl",
+            "sha256": "sha256:b908bccce22fd13f76e55ff8f0e3df8baa01322543d73d2b758f8edc476c9401"
+          },
+          {
+            "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:57dec563d1564c248293081aaf647a1ece732e0a80fe844f99fb8afd5da5dd6a"
+          },
+          {
+            "path": "events/lane-controller-observations.jsonl",
+            "sha256": "sha256:466b6ee4842f5a64957d1833c463d2e371b1a60c619e7c463a40c6d0bc54f913"
+          }
+        ],
+        "costlyEpisodeThresholdActions": 2,
+        "total": 5,
+        "byCarrier": {
+          "snapback-refusal": 0,
+          "compiler-codegen-diagnostic": 0,
+          "bare-not-found": 0,
+          "silent-discovery-miss": 0,
+          "other": 5
+        },
+        "byAttribution": {
+          "snapback-defect": 0,
+          "agent-error": 0,
+          "environment": 0,
+          "ambiguous": 5
+        },
+        "bySubAttribution": {
+          "defect": 0,
+          "knowledge-gap": 0
+        },
+        "byOutcome": {
+          "recovered": 5,
+          "unresolved": 0
+        }
+      },
+      "restartReseed": {
+        "claimed": true,
+        "evidence": [
+          {
+            "path": "receipts/m1-suite.observations.jsonl",
+            "sha256": "sha256:7641537f22458b69ef481ee865d262c17ddad49bd3e6047f2d74dc96f55c3235"
+          },
+          {
+            "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:b01eb24f1fec2cff3b451b0214ab4f19d67cf4ee4f94f7b795777ecec960f8ba"
+          },
+          {
+            "path": "receipts/m2-suite.observations.jsonl",
+            "sha256": "sha256:cc6ca348486637ec26536442889ba8625dd84b1aca42fefedbe9a6b4b8d4a7f0"
+          },
+          {
+            "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:9f8be9d899edaf7fffb97f448f3cb5fcd223bc3b2c0f06f5e2e283e41b7a9ec8"
+          },
+          {
+            "path": "receipts/m3-suite.observations.jsonl",
+            "sha256": "sha256:b908bccce22fd13f76e55ff8f0e3df8baa01322543d73d2b758f8edc476c9401"
+          },
+          {
+            "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:57dec563d1564c248293081aaf647a1ece732e0a80fe844f99fb8afd5da5dd6a"
+          },
+          {
+            "path": "events/lane-controller-observations.jsonl",
+            "sha256": "sha256:466b6ee4842f5a64957d1833c463d2e371b1a60c619e7c463a40c6d0bc54f913"
+          }
+        ],
+        "restarts": 1,
+        "reseeds": 4,
+        "destructiveReseeds": 1
+      },
+      "browserAssertionWait": {
+        "suite": {
+          "claimed": true,
+          "evidence": [
+            {
+              "path": "receipts/m1-suite.observations.jsonl",
+              "sha256": "sha256:7641537f22458b69ef481ee865d262c17ddad49bd3e6047f2d74dc96f55c3235"
+            },
+            {
+              "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:b01eb24f1fec2cff3b451b0214ab4f19d67cf4ee4f94f7b795777ecec960f8ba"
+            },
+            {
+              "path": "receipts/m2-suite.observations.jsonl",
+              "sha256": "sha256:cc6ca348486637ec26536442889ba8625dd84b1aca42fefedbe9a6b4b8d4a7f0"
+            },
+            {
+              "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:9f8be9d899edaf7fffb97f448f3cb5fcd223bc3b2c0f06f5e2e283e41b7a9ec8"
+            },
+            {
+              "path": "receipts/m3-suite.observations.jsonl",
+              "sha256": "sha256:b908bccce22fd13f76e55ff8f0e3df8baa01322543d73d2b758f8edc476c9401"
+            },
+            {
+              "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:57dec563d1564c248293081aaf647a1ece732e0a80fe844f99fb8afd5da5dd6a"
+            },
+            {
+              "path": "events/lane-controller-observations.jsonl",
+              "sha256": "sha256:466b6ee4842f5a64957d1833c463d2e371b1a60c619e7c463a40c6d0bc54f913"
+            }
+          ],
+          "attempts": 7,
+          "waitMillis": 15622.499999999998
+        },
+        "choreography": {
+          "claimed": true,
+          "evidence": [
+            {
+              "path": "receipts/m1-suite.observations.jsonl",
+              "sha256": "sha256:7641537f22458b69ef481ee865d262c17ddad49bd3e6047f2d74dc96f55c3235"
+            },
+            {
+              "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:b01eb24f1fec2cff3b451b0214ab4f19d67cf4ee4f94f7b795777ecec960f8ba"
+            },
+            {
+              "path": "receipts/m2-suite.observations.jsonl",
+              "sha256": "sha256:cc6ca348486637ec26536442889ba8625dd84b1aca42fefedbe9a6b4b8d4a7f0"
+            },
+            {
+              "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:9f8be9d899edaf7fffb97f448f3cb5fcd223bc3b2c0f06f5e2e283e41b7a9ec8"
+            },
+            {
+              "path": "receipts/m3-suite.observations.jsonl",
+              "sha256": "sha256:b908bccce22fd13f76e55ff8f0e3df8baa01322543d73d2b758f8edc476c9401"
+            },
+            {
+              "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:57dec563d1564c248293081aaf647a1ece732e0a80fe844f99fb8afd5da5dd6a"
+            },
+            {
+              "path": "events/lane-controller-observations.jsonl",
+              "sha256": "sha256:466b6ee4842f5a64957d1833c463d2e371b1a60c619e7c463a40c6d0bc54f913"
+            }
+          ],
+          "attempts": 5,
+          "waitMillis": 7949.1
+        }
+      },
+      "hostLoad": {
+        "claimed": true,
+        "evidence": [
+          {
+            "path": "receipts/m1-suite.observations.jsonl",
+            "sha256": "sha256:7641537f22458b69ef481ee865d262c17ddad49bd3e6047f2d74dc96f55c3235"
+          },
+          {
+            "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:b01eb24f1fec2cff3b451b0214ab4f19d67cf4ee4f94f7b795777ecec960f8ba"
+          },
+          {
+            "path": "receipts/m2-suite.observations.jsonl",
+            "sha256": "sha256:cc6ca348486637ec26536442889ba8625dd84b1aca42fefedbe9a6b4b8d4a7f0"
+          },
+          {
+            "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:9f8be9d899edaf7fffb97f448f3cb5fcd223bc3b2c0f06f5e2e283e41b7a9ec8"
+          },
+          {
+            "path": "receipts/m3-suite.observations.jsonl",
+            "sha256": "sha256:b908bccce22fd13f76e55ff8f0e3df8baa01322543d73d2b758f8edc476c9401"
+          },
+          {
+            "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:57dec563d1564c248293081aaf647a1ece732e0a80fe844f99fb8afd5da5dd6a"
+          },
+          {
+            "path": "events/lane-controller-observations.jsonl",
+            "sha256": "sha256:466b6ee4842f5a64957d1833c463d2e371b1a60c619e7c463a40c6d0bc54f913"
+          }
+        ],
+        "startedAt": "2026-08-24T09:17:13.240Z",
+        "endedAt": "2026-08-24T10:10:18.991Z",
+        "sampleCount": 55,
+        "contamination": true,
+        "breaches": [
+          {
+            "at": "2026-08-24T09:53:13.242Z",
+            "metric": "loadavg1",
+            "observed": 16.70751953125,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T09:54:13.242Z",
+            "metric": "loadavg1",
+            "observed": 32.9462890625,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T09:54:13.242Z",
+            "metric": "loadavg5",
+            "observed": 13.47314453125,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T09:55:13.242Z",
+            "metric": "loadavg1",
+            "observed": 46.9609375,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T09:55:13.242Z",
+            "metric": "loadavg5",
+            "observed": 21.943359375,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T09:55:13.242Z",
+            "metric": "loadavg15",
+            "observed": 11.2138671875,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T09:56:13.242Z",
+            "metric": "loadavg1",
+            "observed": 29.46826171875,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T09:56:13.242Z",
+            "metric": "loadavg5",
+            "observed": 21.97509765625,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T09:56:13.242Z",
+            "metric": "loadavg15",
+            "observed": 11.9853515625,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T09:57:13.244Z",
+            "metric": "loadavg1",
+            "observed": 13.21484375,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T09:57:13.244Z",
+            "metric": "loadavg5",
+            "observed": 18.65576171875,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T09:57:13.244Z",
+            "metric": "loadavg15",
+            "observed": 11.421875,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T09:58:13.246Z",
+            "metric": "loadavg1",
+            "observed": 15.32275390625,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T09:58:13.246Z",
+            "metric": "loadavg5",
+            "observed": 18.0859375,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T09:58:13.246Z",
+            "metric": "loadavg15",
+            "observed": 11.6865234375,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T09:59:13.248Z",
+            "metric": "loadavg1",
+            "observed": 15.2880859375,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T09:59:13.248Z",
+            "metric": "loadavg5",
+            "observed": 18.015625,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T09:59:13.248Z",
+            "metric": "loadavg15",
+            "observed": 12.12158203125,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T10:00:13.250Z",
+            "metric": "loadavg5",
+            "observed": 15.76708984375,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T10:00:13.250Z",
+            "metric": "loadavg15",
+            "observed": 11.68408203125,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T10:01:13.251Z",
+            "metric": "loadavg5",
+            "observed": 13.96630859375,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T10:01:13.251Z",
+            "metric": "loadavg15",
+            "observed": 11.2685546875,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T10:02:13.251Z",
+            "metric": "loadavg5",
+            "observed": 12.24267578125,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T10:02:13.251Z",
+            "metric": "loadavg15",
+            "observed": 10.81201171875,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T10:03:13.251Z",
+            "metric": "loadavg5",
+            "observed": 10.7880859375,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T10:03:13.251Z",
+            "metric": "loadavg15",
+            "observed": 10.3623046875,
+            "ceiling": 10
+          }
+        ]
+      },
+      "apiInterruptions": {
+        "claimed": true,
+        "evidence": [
+          {
+            "path": "receipts/m1-suite.observations.jsonl",
+            "sha256": "sha256:7641537f22458b69ef481ee865d262c17ddad49bd3e6047f2d74dc96f55c3235"
+          },
+          {
+            "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:b01eb24f1fec2cff3b451b0214ab4f19d67cf4ee4f94f7b795777ecec960f8ba"
+          },
+          {
+            "path": "receipts/m2-suite.observations.jsonl",
+            "sha256": "sha256:cc6ca348486637ec26536442889ba8625dd84b1aca42fefedbe9a6b4b8d4a7f0"
+          },
+          {
+            "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:9f8be9d899edaf7fffb97f448f3cb5fcd223bc3b2c0f06f5e2e283e41b7a9ec8"
+          },
+          {
+            "path": "receipts/m3-suite.observations.jsonl",
+            "sha256": "sha256:b908bccce22fd13f76e55ff8f0e3df8baa01322543d73d2b758f8edc476c9401"
+          },
+          {
+            "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:57dec563d1564c248293081aaf647a1ece732e0a80fe844f99fb8afd5da5dd6a"
+          },
+          {
+            "path": "events/lane-controller-observations.jsonl",
+            "sha256": "sha256:466b6ee4842f5a64957d1833c463d2e371b1a60c619e7c463a40c6d0bc54f913"
+          }
+        ],
+        "interrupted": true,
+        "windows": [
+          {
+            "provider": "claude-opus5",
+            "operation": "native-harness-turn",
+            "startedAt": "2026-08-24T09:17:15.816Z",
+            "recoveredAt": null,
+            "failedRequests": 2
+          }
+        ]
+      }
+    },
+    "M2": {
+      "status": "green",
+      "authoring": {
+        "tokens": {
+          "input": 102,
+          "output": 353,
+          "cacheRead": 28676492,
+          "cacheWrite": 116806,
+          "reasoning": null
+        },
+        "firstGreenAt": "2026-08-24T11:27:40.153Z",
+        "suitePassAt": "2026-08-24T11:27:40.153Z",
+        "choreoPassAt": "2026-08-24T11:27:40.153Z",
+        "terminalAt": "2026-08-24T11:27:40.153Z",
+        "terminalSequence": 2,
+        "terminalReason": "green"
+      },
+      "semanticActions": {
+        "claimed": true,
+        "evidence": [
+          {
+            "path": "receipts/m1-suite.observations.jsonl",
+            "sha256": "sha256:7641537f22458b69ef481ee865d262c17ddad49bd3e6047f2d74dc96f55c3235"
+          },
+          {
+            "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:b01eb24f1fec2cff3b451b0214ab4f19d67cf4ee4f94f7b795777ecec960f8ba"
+          },
+          {
+            "path": "receipts/m2-suite.observations.jsonl",
+            "sha256": "sha256:cc6ca348486637ec26536442889ba8625dd84b1aca42fefedbe9a6b4b8d4a7f0"
+          },
+          {
+            "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:9f8be9d899edaf7fffb97f448f3cb5fcd223bc3b2c0f06f5e2e283e41b7a9ec8"
+          },
+          {
+            "path": "receipts/m3-suite.observations.jsonl",
+            "sha256": "sha256:b908bccce22fd13f76e55ff8f0e3df8baa01322543d73d2b758f8edc476c9401"
+          },
+          {
+            "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:57dec563d1564c248293081aaf647a1ece732e0a80fe844f99fb8afd5da5dd6a"
+          },
+          {
+            "path": "events/lane-controller-observations.jsonl",
+            "sha256": "sha256:466b6ee4842f5a64957d1833c463d2e371b1a60c619e7c463a40c6d0bc54f913"
+          }
+        ],
+        "total": 51,
+        "byClass": {
+          "guide-lookup": 0,
+          "source-inspection": 18,
+          "edit": 8,
+          "generate": 3,
+          "process": 5,
+          "reseed": 2,
+          "suite": 5,
+          "choreography": 10,
+          "retry": 0
+        },
+        "byDisposition": {
+          "progress": 51,
+          "correction": 0
+        },
+        "byRetriedClass": {
+          "guide-lookup": 0,
+          "source-inspection": 0,
+          "edit": 0,
+          "generate": 0,
+          "process": 0,
+          "reseed": 0,
+          "suite": 0,
+          "choreography": 0
+        },
+        "binaryExcavation": 1
+      },
+      "failureToRecoveryEpisodes": {
+        "claimed": true,
+        "evidence": [
+          {
+            "path": "receipts/m1-suite.observations.jsonl",
+            "sha256": "sha256:7641537f22458b69ef481ee865d262c17ddad49bd3e6047f2d74dc96f55c3235"
+          },
+          {
+            "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:b01eb24f1fec2cff3b451b0214ab4f19d67cf4ee4f94f7b795777ecec960f8ba"
+          },
+          {
+            "path": "receipts/m2-suite.observations.jsonl",
+            "sha256": "sha256:cc6ca348486637ec26536442889ba8625dd84b1aca42fefedbe9a6b4b8d4a7f0"
+          },
+          {
+            "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:9f8be9d899edaf7fffb97f448f3cb5fcd223bc3b2c0f06f5e2e283e41b7a9ec8"
+          },
+          {
+            "path": "receipts/m3-suite.observations.jsonl",
+            "sha256": "sha256:b908bccce22fd13f76e55ff8f0e3df8baa01322543d73d2b758f8edc476c9401"
+          },
+          {
+            "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:57dec563d1564c248293081aaf647a1ece732e0a80fe844f99fb8afd5da5dd6a"
+          },
+          {
+            "path": "events/lane-controller-observations.jsonl",
+            "sha256": "sha256:466b6ee4842f5a64957d1833c463d2e371b1a60c619e7c463a40c6d0bc54f913"
+          }
+        ],
+        "costlyEpisodeThresholdActions": 2,
+        "total": 0,
+        "byCarrier": {
+          "snapback-refusal": 0,
+          "compiler-codegen-diagnostic": 0,
+          "bare-not-found": 0,
+          "silent-discovery-miss": 0,
+          "other": 0
+        },
+        "byAttribution": {
+          "snapback-defect": 0,
+          "agent-error": 0,
+          "environment": 0,
+          "ambiguous": 0
+        },
+        "bySubAttribution": {
+          "defect": 0,
+          "knowledge-gap": 0
+        },
+        "byOutcome": {
+          "recovered": 0,
+          "unresolved": 0
+        }
+      },
+      "restartReseed": {
+        "claimed": true,
+        "evidence": [
+          {
+            "path": "receipts/m1-suite.observations.jsonl",
+            "sha256": "sha256:7641537f22458b69ef481ee865d262c17ddad49bd3e6047f2d74dc96f55c3235"
+          },
+          {
+            "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:b01eb24f1fec2cff3b451b0214ab4f19d67cf4ee4f94f7b795777ecec960f8ba"
+          },
+          {
+            "path": "receipts/m2-suite.observations.jsonl",
+            "sha256": "sha256:cc6ca348486637ec26536442889ba8625dd84b1aca42fefedbe9a6b4b8d4a7f0"
+          },
+          {
+            "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:9f8be9d899edaf7fffb97f448f3cb5fcd223bc3b2c0f06f5e2e283e41b7a9ec8"
+          },
+          {
+            "path": "receipts/m3-suite.observations.jsonl",
+            "sha256": "sha256:b908bccce22fd13f76e55ff8f0e3df8baa01322543d73d2b758f8edc476c9401"
+          },
+          {
+            "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:57dec563d1564c248293081aaf647a1ece732e0a80fe844f99fb8afd5da5dd6a"
+          },
+          {
+            "path": "events/lane-controller-observations.jsonl",
+            "sha256": "sha256:466b6ee4842f5a64957d1833c463d2e371b1a60c619e7c463a40c6d0bc54f913"
+          }
+        ],
+        "restarts": 0,
+        "reseeds": 4,
+        "destructiveReseeds": 1
+      },
+      "browserAssertionWait": {
+        "suite": {
+          "claimed": true,
+          "evidence": [
+            {
+              "path": "receipts/m1-suite.observations.jsonl",
+              "sha256": "sha256:7641537f22458b69ef481ee865d262c17ddad49bd3e6047f2d74dc96f55c3235"
+            },
+            {
+              "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:b01eb24f1fec2cff3b451b0214ab4f19d67cf4ee4f94f7b795777ecec960f8ba"
+            },
+            {
+              "path": "receipts/m2-suite.observations.jsonl",
+              "sha256": "sha256:cc6ca348486637ec26536442889ba8625dd84b1aca42fefedbe9a6b4b8d4a7f0"
+            },
+            {
+              "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:9f8be9d899edaf7fffb97f448f3cb5fcd223bc3b2c0f06f5e2e283e41b7a9ec8"
+            },
+            {
+              "path": "receipts/m3-suite.observations.jsonl",
+              "sha256": "sha256:b908bccce22fd13f76e55ff8f0e3df8baa01322543d73d2b758f8edc476c9401"
+            },
+            {
+              "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:57dec563d1564c248293081aaf647a1ece732e0a80fe844f99fb8afd5da5dd6a"
+            },
+            {
+              "path": "events/lane-controller-observations.jsonl",
+              "sha256": "sha256:466b6ee4842f5a64957d1833c463d2e371b1a60c619e7c463a40c6d0bc54f913"
+            }
+          ],
+          "attempts": 22,
+          "waitMillis": 88894.60000000002
+        },
+        "choreography": {
+          "claimed": true,
+          "evidence": [
+            {
+              "path": "receipts/m1-suite.observations.jsonl",
+              "sha256": "sha256:7641537f22458b69ef481ee865d262c17ddad49bd3e6047f2d74dc96f55c3235"
+            },
+            {
+              "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:b01eb24f1fec2cff3b451b0214ab4f19d67cf4ee4f94f7b795777ecec960f8ba"
+            },
+            {
+              "path": "receipts/m2-suite.observations.jsonl",
+              "sha256": "sha256:cc6ca348486637ec26536442889ba8625dd84b1aca42fefedbe9a6b4b8d4a7f0"
+            },
+            {
+              "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:9f8be9d899edaf7fffb97f448f3cb5fcd223bc3b2c0f06f5e2e283e41b7a9ec8"
+            },
+            {
+              "path": "receipts/m3-suite.observations.jsonl",
+              "sha256": "sha256:b908bccce22fd13f76e55ff8f0e3df8baa01322543d73d2b758f8edc476c9401"
+            },
+            {
+              "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:57dec563d1564c248293081aaf647a1ece732e0a80fe844f99fb8afd5da5dd6a"
+            },
+            {
+              "path": "events/lane-controller-observations.jsonl",
+              "sha256": "sha256:466b6ee4842f5a64957d1833c463d2e371b1a60c619e7c463a40c6d0bc54f913"
+            }
+          ],
+          "attempts": 19,
+          "waitMillis": 142863.5
+        }
+      },
+      "hostLoad": {
+        "claimed": true,
+        "evidence": [
+          {
+            "path": "receipts/m1-suite.observations.jsonl",
+            "sha256": "sha256:7641537f22458b69ef481ee865d262c17ddad49bd3e6047f2d74dc96f55c3235"
+          },
+          {
+            "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:b01eb24f1fec2cff3b451b0214ab4f19d67cf4ee4f94f7b795777ecec960f8ba"
+          },
+          {
+            "path": "receipts/m2-suite.observations.jsonl",
+            "sha256": "sha256:cc6ca348486637ec26536442889ba8625dd84b1aca42fefedbe9a6b4b8d4a7f0"
+          },
+          {
+            "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:9f8be9d899edaf7fffb97f448f3cb5fcd223bc3b2c0f06f5e2e283e41b7a9ec8"
+          },
+          {
+            "path": "receipts/m3-suite.observations.jsonl",
+            "sha256": "sha256:b908bccce22fd13f76e55ff8f0e3df8baa01322543d73d2b758f8edc476c9401"
+          },
+          {
+            "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:57dec563d1564c248293081aaf647a1ece732e0a80fe844f99fb8afd5da5dd6a"
+          },
+          {
+            "path": "events/lane-controller-observations.jsonl",
+            "sha256": "sha256:466b6ee4842f5a64957d1833c463d2e371b1a60c619e7c463a40c6d0bc54f913"
+          }
+        ],
+        "startedAt": "2026-08-24T10:10:18.994Z",
+        "endedAt": "2026-08-24T11:27:40.151Z",
+        "sampleCount": 79,
+        "contamination": true,
+        "breaches": [
+          {
+            "at": "2026-08-24T11:26:19.224Z",
+            "metric": "loadavg1",
+            "observed": 12.1611328125,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T11:27:19.224Z",
+            "metric": "loadavg1",
+            "observed": 13.19970703125,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T11:27:40.151Z",
+            "metric": "loadavg1",
+            "observed": 10.55908203125,
+            "ceiling": 10
+          }
+        ]
+      },
+      "apiInterruptions": {
+        "claimed": true,
+        "evidence": [
+          {
+            "path": "receipts/m1-suite.observations.jsonl",
+            "sha256": "sha256:7641537f22458b69ef481ee865d262c17ddad49bd3e6047f2d74dc96f55c3235"
+          },
+          {
+            "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:b01eb24f1fec2cff3b451b0214ab4f19d67cf4ee4f94f7b795777ecec960f8ba"
+          },
+          {
+            "path": "receipts/m2-suite.observations.jsonl",
+            "sha256": "sha256:cc6ca348486637ec26536442889ba8625dd84b1aca42fefedbe9a6b4b8d4a7f0"
+          },
+          {
+            "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:9f8be9d899edaf7fffb97f448f3cb5fcd223bc3b2c0f06f5e2e283e41b7a9ec8"
+          },
+          {
+            "path": "receipts/m3-suite.observations.jsonl",
+            "sha256": "sha256:b908bccce22fd13f76e55ff8f0e3df8baa01322543d73d2b758f8edc476c9401"
+          },
+          {
+            "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:57dec563d1564c248293081aaf647a1ece732e0a80fe844f99fb8afd5da5dd6a"
+          },
+          {
+            "path": "events/lane-controller-observations.jsonl",
+            "sha256": "sha256:466b6ee4842f5a64957d1833c463d2e371b1a60c619e7c463a40c6d0bc54f913"
+          }
+        ],
+        "interrupted": false,
+        "windows": []
+      }
+    },
+    "M3": {
+      "status": "green",
+      "authoring": {
+        "tokens": {
+          "input": 108,
+          "output": 598,
+          "cacheRead": 35828635,
+          "cacheWrite": 81926,
+          "reasoning": null
+        },
+        "firstGreenAt": "2026-08-24T12:22:34.170Z",
+        "suitePassAt": "2026-08-24T12:22:34.170Z",
+        "choreoPassAt": "2026-08-24T12:22:34.170Z",
+        "terminalAt": "2026-08-24T12:22:34.170Z",
+        "terminalSequence": 3,
+        "terminalReason": "green"
+      },
+      "semanticActions": {
+        "claimed": true,
+        "evidence": [
+          {
+            "path": "receipts/m1-suite.observations.jsonl",
+            "sha256": "sha256:7641537f22458b69ef481ee865d262c17ddad49bd3e6047f2d74dc96f55c3235"
+          },
+          {
+            "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:b01eb24f1fec2cff3b451b0214ab4f19d67cf4ee4f94f7b795777ecec960f8ba"
+          },
+          {
+            "path": "receipts/m2-suite.observations.jsonl",
+            "sha256": "sha256:cc6ca348486637ec26536442889ba8625dd84b1aca42fefedbe9a6b4b8d4a7f0"
+          },
+          {
+            "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:9f8be9d899edaf7fffb97f448f3cb5fcd223bc3b2c0f06f5e2e283e41b7a9ec8"
+          },
+          {
+            "path": "receipts/m3-suite.observations.jsonl",
+            "sha256": "sha256:b908bccce22fd13f76e55ff8f0e3df8baa01322543d73d2b758f8edc476c9401"
+          },
+          {
+            "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:57dec563d1564c248293081aaf647a1ece732e0a80fe844f99fb8afd5da5dd6a"
+          },
+          {
+            "path": "events/lane-controller-observations.jsonl",
+            "sha256": "sha256:466b6ee4842f5a64957d1833c463d2e371b1a60c619e7c463a40c6d0bc54f913"
+          }
+        ],
+        "total": 54,
+        "byClass": {
+          "guide-lookup": 2,
+          "source-inspection": 19,
+          "edit": 7,
+          "generate": 0,
+          "process": 4,
+          "reseed": 2,
+          "suite": 12,
+          "choreography": 7,
+          "retry": 1
+        },
+        "byDisposition": {
+          "progress": 52,
+          "correction": 2
+        },
+        "byRetriedClass": {
+          "guide-lookup": 0,
+          "source-inspection": 0,
+          "edit": 0,
+          "generate": 0,
+          "process": 1,
+          "reseed": 0,
+          "suite": 0,
+          "choreography": 0
+        },
+        "binaryExcavation": 8
+      },
+      "failureToRecoveryEpisodes": {
+        "claimed": true,
+        "evidence": [
+          {
+            "path": "receipts/m1-suite.observations.jsonl",
+            "sha256": "sha256:7641537f22458b69ef481ee865d262c17ddad49bd3e6047f2d74dc96f55c3235"
+          },
+          {
+            "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:b01eb24f1fec2cff3b451b0214ab4f19d67cf4ee4f94f7b795777ecec960f8ba"
+          },
+          {
+            "path": "receipts/m2-suite.observations.jsonl",
+            "sha256": "sha256:cc6ca348486637ec26536442889ba8625dd84b1aca42fefedbe9a6b4b8d4a7f0"
+          },
+          {
+            "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:9f8be9d899edaf7fffb97f448f3cb5fcd223bc3b2c0f06f5e2e283e41b7a9ec8"
+          },
+          {
+            "path": "receipts/m3-suite.observations.jsonl",
+            "sha256": "sha256:b908bccce22fd13f76e55ff8f0e3df8baa01322543d73d2b758f8edc476c9401"
+          },
+          {
+            "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:57dec563d1564c248293081aaf647a1ece732e0a80fe844f99fb8afd5da5dd6a"
+          },
+          {
+            "path": "events/lane-controller-observations.jsonl",
+            "sha256": "sha256:466b6ee4842f5a64957d1833c463d2e371b1a60c619e7c463a40c6d0bc54f913"
+          }
+        ],
+        "costlyEpisodeThresholdActions": 2,
+        "total": 1,
+        "byCarrier": {
+          "snapback-refusal": 0,
+          "compiler-codegen-diagnostic": 0,
+          "bare-not-found": 0,
+          "silent-discovery-miss": 0,
+          "other": 1
+        },
+        "byAttribution": {
+          "snapback-defect": 0,
+          "agent-error": 0,
+          "environment": 0,
+          "ambiguous": 1
+        },
+        "bySubAttribution": {
+          "defect": 0,
+          "knowledge-gap": 0
+        },
+        "byOutcome": {
+          "recovered": 1,
+          "unresolved": 0
+        }
+      },
+      "restartReseed": {
+        "claimed": true,
+        "evidence": [
+          {
+            "path": "receipts/m1-suite.observations.jsonl",
+            "sha256": "sha256:7641537f22458b69ef481ee865d262c17ddad49bd3e6047f2d74dc96f55c3235"
+          },
+          {
+            "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:b01eb24f1fec2cff3b451b0214ab4f19d67cf4ee4f94f7b795777ecec960f8ba"
+          },
+          {
+            "path": "receipts/m2-suite.observations.jsonl",
+            "sha256": "sha256:cc6ca348486637ec26536442889ba8625dd84b1aca42fefedbe9a6b4b8d4a7f0"
+          },
+          {
+            "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:9f8be9d899edaf7fffb97f448f3cb5fcd223bc3b2c0f06f5e2e283e41b7a9ec8"
+          },
+          {
+            "path": "receipts/m3-suite.observations.jsonl",
+            "sha256": "sha256:b908bccce22fd13f76e55ff8f0e3df8baa01322543d73d2b758f8edc476c9401"
+          },
+          {
+            "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:57dec563d1564c248293081aaf647a1ece732e0a80fe844f99fb8afd5da5dd6a"
+          },
+          {
+            "path": "events/lane-controller-observations.jsonl",
+            "sha256": "sha256:466b6ee4842f5a64957d1833c463d2e371b1a60c619e7c463a40c6d0bc54f913"
+          }
+        ],
+        "restarts": 1,
+        "reseeds": 4,
+        "destructiveReseeds": 1
+      },
+      "browserAssertionWait": {
+        "suite": {
+          "claimed": true,
+          "evidence": [
+            {
+              "path": "receipts/m1-suite.observations.jsonl",
+              "sha256": "sha256:7641537f22458b69ef481ee865d262c17ddad49bd3e6047f2d74dc96f55c3235"
+            },
+            {
+              "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:b01eb24f1fec2cff3b451b0214ab4f19d67cf4ee4f94f7b795777ecec960f8ba"
+            },
+            {
+              "path": "receipts/m2-suite.observations.jsonl",
+              "sha256": "sha256:cc6ca348486637ec26536442889ba8625dd84b1aca42fefedbe9a6b4b8d4a7f0"
+            },
+            {
+              "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:9f8be9d899edaf7fffb97f448f3cb5fcd223bc3b2c0f06f5e2e283e41b7a9ec8"
+            },
+            {
+              "path": "receipts/m3-suite.observations.jsonl",
+              "sha256": "sha256:b908bccce22fd13f76e55ff8f0e3df8baa01322543d73d2b758f8edc476c9401"
+            },
+            {
+              "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:57dec563d1564c248293081aaf647a1ece732e0a80fe844f99fb8afd5da5dd6a"
+            },
+            {
+              "path": "events/lane-controller-observations.jsonl",
+              "sha256": "sha256:466b6ee4842f5a64957d1833c463d2e371b1a60c619e7c463a40c6d0bc54f913"
+            }
+          ],
+          "attempts": 7,
+          "waitMillis": 36708
+        },
+        "choreography": {
+          "claimed": true,
+          "evidence": [
+            {
+              "path": "receipts/m1-suite.observations.jsonl",
+              "sha256": "sha256:7641537f22458b69ef481ee865d262c17ddad49bd3e6047f2d74dc96f55c3235"
+            },
+            {
+              "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:b01eb24f1fec2cff3b451b0214ab4f19d67cf4ee4f94f7b795777ecec960f8ba"
+            },
+            {
+              "path": "receipts/m2-suite.observations.jsonl",
+              "sha256": "sha256:cc6ca348486637ec26536442889ba8625dd84b1aca42fefedbe9a6b4b8d4a7f0"
+            },
+            {
+              "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:9f8be9d899edaf7fffb97f448f3cb5fcd223bc3b2c0f06f5e2e283e41b7a9ec8"
+            },
+            {
+              "path": "receipts/m3-suite.observations.jsonl",
+              "sha256": "sha256:b908bccce22fd13f76e55ff8f0e3df8baa01322543d73d2b758f8edc476c9401"
+            },
+            {
+              "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+              "sha256": "sha256:57dec563d1564c248293081aaf647a1ece732e0a80fe844f99fb8afd5da5dd6a"
+            },
+            {
+              "path": "events/lane-controller-observations.jsonl",
+              "sha256": "sha256:466b6ee4842f5a64957d1833c463d2e371b1a60c619e7c463a40c6d0bc54f913"
+            }
+          ],
+          "attempts": 9,
+          "waitMillis": 42717.3
+        }
+      },
+      "hostLoad": {
+        "claimed": true,
+        "evidence": [
+          {
+            "path": "receipts/m1-suite.observations.jsonl",
+            "sha256": "sha256:7641537f22458b69ef481ee865d262c17ddad49bd3e6047f2d74dc96f55c3235"
+          },
+          {
+            "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:b01eb24f1fec2cff3b451b0214ab4f19d67cf4ee4f94f7b795777ecec960f8ba"
+          },
+          {
+            "path": "receipts/m2-suite.observations.jsonl",
+            "sha256": "sha256:cc6ca348486637ec26536442889ba8625dd84b1aca42fefedbe9a6b4b8d4a7f0"
+          },
+          {
+            "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:9f8be9d899edaf7fffb97f448f3cb5fcd223bc3b2c0f06f5e2e283e41b7a9ec8"
+          },
+          {
+            "path": "receipts/m3-suite.observations.jsonl",
+            "sha256": "sha256:b908bccce22fd13f76e55ff8f0e3df8baa01322543d73d2b758f8edc476c9401"
+          },
+          {
+            "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:57dec563d1564c248293081aaf647a1ece732e0a80fe844f99fb8afd5da5dd6a"
+          },
+          {
+            "path": "events/lane-controller-observations.jsonl",
+            "sha256": "sha256:466b6ee4842f5a64957d1833c463d2e371b1a60c619e7c463a40c6d0bc54f913"
+          }
+        ],
+        "startedAt": "2026-08-24T11:27:40.157Z",
+        "endedAt": "2026-08-24T12:22:34.139Z",
+        "sampleCount": 56,
+        "contamination": true,
+        "breaches": [
+          {
+            "at": "2026-08-24T11:27:40.157Z",
+            "metric": "loadavg1",
+            "observed": 10.55908203125,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T11:38:40.173Z",
+            "metric": "loadavg1",
+            "observed": 16.19140625,
+            "ceiling": 10
+          },
+          {
+            "at": "2026-08-24T11:50:40.215Z",
+            "metric": "loadavg1",
+            "observed": 10.15087890625,
+            "ceiling": 10
+          }
+        ]
+      },
+      "apiInterruptions": {
+        "claimed": true,
+        "evidence": [
+          {
+            "path": "receipts/m1-suite.observations.jsonl",
+            "sha256": "sha256:7641537f22458b69ef481ee865d262c17ddad49bd3e6047f2d74dc96f55c3235"
+          },
+          {
+            "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:b01eb24f1fec2cff3b451b0214ab4f19d67cf4ee4f94f7b795777ecec960f8ba"
+          },
+          {
+            "path": "receipts/m2-suite.observations.jsonl",
+            "sha256": "sha256:cc6ca348486637ec26536442889ba8625dd84b1aca42fefedbe9a6b4b8d4a7f0"
+          },
+          {
+            "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:9f8be9d899edaf7fffb97f448f3cb5fcd223bc3b2c0f06f5e2e283e41b7a9ec8"
+          },
+          {
+            "path": "receipts/m3-suite.observations.jsonl",
+            "sha256": "sha256:b908bccce22fd13f76e55ff8f0e3df8baa01322543d73d2b758f8edc476c9401"
+          },
+          {
+            "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+            "sha256": "sha256:57dec563d1564c248293081aaf647a1ece732e0a80fe844f99fb8afd5da5dd6a"
+          },
+          {
+            "path": "events/lane-controller-observations.jsonl",
+            "sha256": "sha256:466b6ee4842f5a64957d1833c463d2e371b1a60c619e7c463a40c6d0bc54f913"
+          }
+        ],
+        "interrupted": true,
+        "windows": [
+          {
+            "provider": "claude-opus5",
+            "operation": "native-harness-turn",
+            "startedAt": "2026-08-24T12:22:33.861Z",
+            "recoveredAt": null,
+            "failedRequests": 1
+          }
+        ]
+      }
+    }
+  },
+  "efficiencyScorecardEligibility": {
+    "eligible": false,
+    "correctionActionTargetEligible": false,
+    "ineligibilityReasons": [
+      "api-interruption",
+      "host-load-contamination"
+    ]
+  },
+  "boundarySnapshots": {
+    "M1": {
+      "at": "2026-08-24T10:10:18.992Z",
+      "sequence": 1,
+      "status": "green",
+      "tokens": {
+        "input": 384,
+        "output": 2004,
+        "cacheRead": 57812290,
+        "cacheWrite": 489629,
+        "reasoning": null
+      }
+    },
+    "M2": {
+      "at": "2026-08-24T11:27:40.153Z",
+      "sequence": 2,
+      "status": "green",
+      "tokens": {
+        "input": 486,
+        "output": 2357,
+        "cacheRead": 86488782,
+        "cacheWrite": 606435,
+        "reasoning": null
+      }
+    },
+    "M3": {
+      "at": "2026-08-24T12:22:34.170Z",
+      "sequence": 3,
+      "status": "green",
+      "tokens": {
+        "input": 594,
+        "output": 2955,
+        "cacheRead": 122317417,
+        "cacheWrite": 688361,
+        "reasoning": null
+      }
+    }
+  },
+  "firstProductEdit": {
+    "at": "2026-08-24T09:34:39.461Z",
+    "orientationBytes": 5214,
+    "selectedSkills": [
+      "snapback-authoring"
+    ],
+    "orientationTokens": {
+      "input": 202,
+      "output": 1118,
+      "cacheRead": 18647229,
+      "cacheWrite": 333506,
+      "reasoning": null
+    }
+  },
+  "meteringProvenance": {
+    "manifestVersion": "social-messenger-metering-manifest.v1",
+    "laneRunId": "2026-08-23-r2-published-0125/opus-clique-explicit",
+    "driver": {
+      "id": "social-messenger-r2-native-cli-driver.v1",
+      "stampedAt": "2026-08-24T12:22:34.170Z",
+      "startedAt": "2026-08-24T09:17:13.236Z"
+    },
+    "manifestSha256": "sha256:6a0455c196e4bcebccc042eea225731fa2fd376136a4f90e4ebfd357db7647fd",
+    "unavailableReason": null,
+    "clockCorrelation": {
+      "method": "rfc3339-with-bounded-skew",
+      "maxSkewMillis": 0,
+      "evidence": "deterministic retained-evidence rejoin uses the shared host clock and controller phase-transition/final stamps"
+    },
+    "sessions": [
+      {
+        "sourceId": "builder",
+        "parentSourceId": null,
+        "role": "builder",
+        "nativeSessionId": "6b19e74c-66ca-4dbe-ae68-b42ac4b12138",
+        "nativeAgentId": null,
+        "path": "events/harness.stdout.jsonl",
+        "sha256": "sha256:665630fdbc21883fc8c3d3c87d71ad262f1a520a4958326db5dff0fce2010853"
+      }
+    ],
+    "receipts": [
+      {
+        "sourceId": "m1-choreography",
+        "runId": "5e624366-1aaf-42fe-b6c2-d20ae0a1d758",
+        "milestone": "M1",
+        "path": "receipts/m1-choreography.jsonl",
+        "sha256": "sha256:7b5ad85f7c0db22c6f451789ddde3f55c8643968022c61fe483fb00d8c5cff5c"
+      },
+      {
+        "sourceId": "m2-choreography",
+        "runId": "8ef5ac43-fd45-4e11-8b8c-ced82bdd4d90",
+        "milestone": "M2",
+        "path": "receipts/m2-choreography.jsonl",
+        "sha256": "sha256:4a7890805fb93876b0a21757da3ae991bcd1cff8d96940c3ea447418e91536c2"
+      },
+      {
+        "sourceId": "m3-choreography",
+        "runId": "78d79291-144f-4dba-a2d7-ac75d2171649",
+        "milestone": "M3",
+        "path": "receipts/m3-choreography.jsonl",
+        "sha256": "sha256:fb48560cd3f9e204d7f180d674e600ff78bec57c6266856db459fda083420eb6"
+      }
+    ],
+    "observations": [
+      {
+        "sourceId": "m1-suite-observations",
+        "path": "receipts/m1-suite.observations.jsonl",
+        "sha256": "sha256:7641537f22458b69ef481ee865d262c17ddad49bd3e6047f2d74dc96f55c3235"
+      },
+      {
+        "sourceId": "m1-choreography-observations",
+        "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+        "sha256": "sha256:b01eb24f1fec2cff3b451b0214ab4f19d67cf4ee4f94f7b795777ecec960f8ba"
+      },
+      {
+        "sourceId": "m2-suite-observations",
+        "path": "receipts/m2-suite.observations.jsonl",
+        "sha256": "sha256:cc6ca348486637ec26536442889ba8625dd84b1aca42fefedbe9a6b4b8d4a7f0"
+      },
+      {
+        "sourceId": "m2-choreography-observations",
+        "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+        "sha256": "sha256:9f8be9d899edaf7fffb97f448f3cb5fcd223bc3b2c0f06f5e2e283e41b7a9ec8"
+      },
+      {
+        "sourceId": "m3-suite-observations",
+        "path": "receipts/m3-suite.observations.jsonl",
+        "sha256": "sha256:b908bccce22fd13f76e55ff8f0e3df8baa01322543d73d2b758f8edc476c9401"
+      },
+      {
+        "sourceId": "m3-choreography-observations",
+        "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+        "sha256": "sha256:57dec563d1564c248293081aaf647a1ece732e0a80fe844f99fb8afd5da5dd6a"
+      },
+      {
+        "sourceId": "2026-08-23-r2-published-0125/opus-clique-explicit-lane-controller",
+        "path": "events/lane-controller-observations.jsonl",
+        "sha256": "sha256:466b6ee4842f5a64957d1833c463d2e371b1a60c619e7c463a40c6d0bc54f913"
+      }
+    ],
+    "boundaries": {
+      "path": "terminal-boundaries.json",
+      "sha256": "sha256:e4bb10fa0b2455ec4cfa6b0d6418f13b95b7aaedb928ab60b80cc2abafd6ef20"
+    },
+    "firstProductEdit": {
+      "path": "first-product-edit.json",
+      "sha256": "sha256:f57af2bc04ec80ae1df64360ddabcbc86ca8050c692c2dd77a814f46337de396"
+    }
+  },
+  "suiteStatusLinkage": {
+    "input": {
+      "path": "suite-status.json",
+      "sha256": "sha256:1397953294c863eb93959dc9e0eb04e9e82762b599fb7f09668da5a719beb453"
+    },
+    "milestones": [
+      {
+        "milestone": "M1",
+        "pass": true,
+        "receipt": {
+          "path": "receipts/m1-suite.json",
+          "sha256": "sha256:b33f2fd4983865c122a04a2b9037a438054a5fc2d4681e6d48778f915c0619ff"
+        }
+      },
+      {
+        "milestone": "M2",
+        "pass": true,
+        "receipt": {
+          "path": "receipts/m2-suite.json",
+          "sha256": "sha256:bb8414c137d009e41c607a6da737a5f74ba24197199016a690cc3540f7407048"
+        }
+      },
+      {
+        "milestone": "M3",
+        "pass": true,
+        "receipt": {
+          "path": "receipts/m3-suite.json",
+          "sha256": "sha256:9dc32dd5b5d5d1e4015add09b2ede62c53ed4bec808a7158ced297c110120e5b"
+        }
+      }
+    ]
+  }
+}

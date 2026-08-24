@@ -5,12 +5,12 @@
 **Systems:** Live queries, Relational queries, Schema, Auth, Performance, Client SDK
 **Author:** Claude Fable 5 (commissioned by the LLP 0191 author rulings, Charlie Cheever, 2026-08-08)
 **Date:** 2026-08-09
-**Revised:** 2026-08-24 (v0.7 — author ratification recorded: the six hash
-domains, `CapturedReadKind::GraphNode`, `KeysetKeyV1`'s wire shape, and the
-logical/physical bound split are RATIFIED as landed; the fixture-derived bound
-table is RATIFIED PROVISIONALLY — values stand, provisional entries confirm or
-revise on the zb5 large-fixture validation; G2 and the LLP 0268 exit extension
-commissioned the same day)
+**Revised:** 2026-08-24 (v0.9 — G2-B rounds 1–2 make range traversal identity
+and semantic-provenance registration/completeness attestation explicit; G2-A landed (the
+corpus-proven graph evaluator, series ending `e486f4827`) and the LLP 0268 exit extension landed
+(`a11054ca4`): the G0 exit is re-recorded with six 0268 §7 labels SATISFIED
+and three PARTIAL pending G2-C; 0268 B1 remains gated on exactly those three;
+the four G2-A Spec-gap notes stand as normative)
 **Related:** LLP 0183 (D2 charter this Spec owns), LLP 0191 (evidence and the
 five-rung ladder), LLP 0200 (the D4-side sibling: scheduling/settlement;
 measured Phase-1 record in its §6a), LLP 0008 (DK-3 `live_delta` precedent,
@@ -2505,6 +2505,9 @@ type GraphCapturedReadV1 = Readonly<{
         index: string
         predicate: readonly FilterExpr[]
         order: readonly OrderExpr[]
+        direction: GraphDirectionV1
+        lower: GraphIntervalEndV1
+        upper: GraphIntervalEndV1
         limit: number
         resultCount: number
         boundary: KeysetKeyV1 | null
@@ -2518,6 +2521,9 @@ type GraphCapturedReadV1 = Readonly<{
         parentKey: GraphRowKeyV1
         predicate: readonly FilterExpr[]
         order: readonly OrderExpr[]
+        direction: GraphDirectionV1
+        lower: GraphIntervalEndV1
+        upper: GraphIntervalEndV1
         limit: number
         resultCount: number
         boundary: KeysetKeyV1 | null
@@ -2528,6 +2534,9 @@ type GraphCapturedReadV1 = Readonly<{
         kind: "principal-field"
         table: string
         index: string
+        // Null only for node-global binding-table facts; target facts bind
+        // the captured parent output row whose lookup they attest.
+        parentKey: GraphRowKeyV1 | null
         partitionHash: Sha256V1
         field: string
         valueDigest: Sha256V1
@@ -2571,9 +2580,9 @@ digest. `argumentDigest` is present if and only if `argumentId` is non-null.
 
 | Node kind | Captured dependencies at execution |
 | --- | --- |
-| `root-window` | One `GraphNode.root-range` and the equivalent existing `Query`; one `Row` per returned versioned row; `MissingRow` as well when the statically point-shaped root misses. Boundary includes first/last total-order keys and complete/source-exhausted bit. |
+| `root-window` | One `GraphNode.root-range` and the equivalent existing `Query`; one `Row` per returned versioned row; `MissingRow` as well when the statically point-shaped root misses. The graph range repeats the exact §2.4 direction/lower/upper identity; the ordinary query boundary carries the real first/last total-order keys and complete/source-exhausted bit. |
 | `equality-to-one` | One graph edge-attempt dependency per parent: `GraphNode.parent-point` plus `Row` on a concrete-key hit, `GraphNode.parent-point` plus ordinary `MissingRow` on a concrete-key miss, or storage-free `GraphNode.parent-lookup-skipped` on a null/omitted key. The declared unique index and complete ordered join fields are present. |
-| `bounded-to-many` | One `GraphNode.parent-range` and one existing `Query` per parent range, including zero-result ranges; returned versioned children contribute `Row`. Each range carries its own predicate/order/limit/count/boundary, so one parent cannot shadow another. |
+| `bounded-to-many` | One `GraphNode.parent-range` and one existing `Query` per parent range, including zero-result ranges; returned versioned children contribute `Row`. Each range carries its own predicate/order/direction/lower/upper/limit/count/boundary, so one parent cannot shadow another. |
 | `exists-semi-join` | One `GraphNode.membership` per attempted parent. For each probe, a non-unique direct edge additionally records an ordinary `Query`-style bounded-index dependency with `limit:1`, result count, and boundary for both hit and empty outcomes; a unique direct edge records its point `Row`/`MissingRow` instead. A through probe retains its ordinary edge-range `Query` dependency plus target-point `Row`/`MissingRow` dependencies. `exists` carries `argumentId:null` and no digest; `all` binds non-null `argumentId` and `argumentDigest`, never values. In the LLP 0056 precedent these are ordinary query dependencies; `Permission` is never correctness evidence. |
 | `principal-bound` | Existing `Auth` for the host principal dimension; target `Row`/`MissingRow`, plus binding `Row`/`MissingRow` only when `binding` is present; one `GraphNode.principal-field` for each consulted binding/target field scope. Anonymous nullable absence proven to attempt no lookup adds no point/range/row dependency. A field/value disjointness skip is permitted only when all consulted inputs are captured. |
 | `search-membership` | One `GraphNode.search-table` for each `invalidationTables` entry, carrying the same membership/provider identity. Any write to any listed table matches the node in G0/G2; no matched-id, term, posting, range, or document-level skip exists before D6/OQ-4. |
@@ -2586,6 +2595,26 @@ current matcher's ordering, where captured dependencies are consulted before
 the carrier-specific table-granular arms
 (`crates/snapback-kernel/src/live_matcher.rs:212` and
 `crates/snapback-kernel/src/live_matcher.rs:217`).
+
+Matcher consumption additionally requires a sync-attested registration, not a
+caller-assembled read vector. The registration binds the recomputed plan hash,
+graph instance and materialization identities, authority partition, exact
+normalized node-id vector and per-node cardinalities, unique parent-key
+closure, and an explicit graph-to-ordinary companion attachment. Any identity,
+node, cardinality, closure, or companion mismatch is incomplete and therefore
+cannot produce `Skip`; there is no positional companion inference. Registration
+derives every ordinary companion's complete lowered `QueryPlan` independently
+from the normalized carrier, demand authority inputs, named window, and the
+captured parent output row (including its join literals), then exact-compares
+table, visibility, declared and permission filters, membership filters,
+index, order, direction/window-bound graph fact, and limit against the supplied
+query and its captured rows. It reconstructs each child node's complete
+duplicate-free `(table,_id)` parent set from those captured parent output rows,
+never from the child facts' own parent claims. Finally it reconstructs the
+graph-instance, materialization, and authority-partition preimages from the
+carrier and complete demand inputs and verifies the supplied identities by
+exact equality; a hash without its matching preimage is not registration
+evidence.
 
 ### 5.2 Per-node decision ledger
 
@@ -2612,10 +2641,11 @@ type GraphNodeDecisionLedgerV1 = Readonly<{
 ```
 
 `dependencyKinds` uses enum declaration order and deduplicates;
-`changedRowCount` is the number of commit rows tested against that node, not
-the number proved relevant. Projection always reports
-`skip/projection-only`. The graph disposition is
-`conservative-fallback` if any storage-reading node falls back, otherwise
+`changedRowCount` is the number of distinct commit rows that node actually
+tested, not the number merely present in the commit or proved relevant.
+Projection and pre-evaluation-incomplete nodes report zero; a complete
+projection reports `skip/projection-only`. The graph disposition is
+`conservative-fallback` if any node falls back, otherwise
 `match` if any node matches, otherwise `skip`.
 
 The stats roll-up groups by `(graphPlanHash,nodeKind,disposition,reason)` and
@@ -3305,8 +3335,57 @@ or identities.
   LLP 0190's owner at that point, not before; until ruled, no §7 delta
   is claimed replica-applicable.
 
+### v0.8 exit re-record — G2-A landed; the 0268 extension landed (dated note, 2026-08-24)
+
+**G2-A** (commission `issues/20260824-llp0209-g2-commission.md`, deliverable 1)
+landed as the series ending `e486f4827`: the snapshot-pinned graph evaluator
+executes every executable corpus case byte-exactly (27-test runner), with
+per-lineage window ledgers, induced-subtree structural charging, complete
+bound enforcement, materialized evaluation-register refusals, fail-closed
+class-2 contexts, and the demand ladder inside the evaluator; it is gated
+behind test/test-support with no serving consumer and `graph_query_v1` still
+support-false. Review records: `llp/reviews/0209-g2-a.*`. G2-B (matcher
+consumption) and G2-C (observations, serving integration, D2-H2 A/B) remain.
+
+**The LLP 0268 exit extension** landed as `a11054ca4` (ported onto the
+evaluator; records `llp/reviews/0268-exit-extension.*`): compiler-derived
+broadcast certificates with installed-owner identity and
+establishment-implying function membership, host acceptance only by full
+recomputation, the class-1 public-rooms fixture, and `audienceParity`'s
+strict side executed through the real evaluator. The nine 0268 §7 labels
+re-record as (authoritative detail:
+`tests/conformance/graph/0268-EXTENSION-DRAFT.md`):
+
+| Label | Status |
+| --- | --- |
+| G0-BCAST-CLASS, -SEPARATION, -SCOPE, -SCOPE-BINDING, -AUDIENCE, -IDENTITY | SATISFIED |
+| G0-BCAST-INVALIDATION, -CORPUS, -BOUNDS | PARTIAL — G2-C fence/delivery observations |
+
+Per LLP 0268 §0, **0268 B1 remains gated** on exactly the three PARTIAL
+labels; the gap is now precisely G2-C's scheduler-side observations, no
+longer prover or corpus structure.
+
+### v0.8 Spec-gap notes from G2-A fix round 1
+
+- GraphRowKeyV1.id is the physical `_id`, never an application identity.
+- A required equality-to-one miss materializes `SNAPBACK_GRAPH_REQUIRED_EDGE_MISSING` in the evaluation-time register and is classified 4xx.
+- Through-edge filters apply to the edge range before target resolution; target-row predicates belong to target nodes.
+- Graph interval ends honor inclusive/exclusive boundary comparison, and backward traversal reverses declared order components while retaining the ascending physical `_id` tie within equal keys.
+
 ## Revision history
 
+- **v0.9 (2026-08-24).** G2-B round 1 added evaluator-owned captured reads,
+  sync-attested registration, and the per-node matcher ledger. Fix round 2
+  closes semantic provenance: registration independently reconstructs every
+  ordinary query, derives child parent closure from captured parent output
+  rows with full `(table,_id)` set equality, and re-hashes complete
+  materialization/partition preimages. Principal target facts now carry their
+  parent key; binding facts carry explicit null. Results, completeness labels,
+  and proof records are unchanged.
+- **v0.8 (2026-08-24).** G2-A landed (`e486f4827`) and the LLP 0268 exit
+  extension landed (`a11054ca4`); the exit re-recorded with six §7 labels
+  SATISFIED, three PARTIAL pending G2-C (see the §9 dated note). The four
+  G2-A Spec-gap notes become normative text of this revision.
 - **v0.7 (2026-08-24).** **Author ratification** (Charlie Cheever, 2026-08-24
   session): (1) the mechanical identity choices are ratified as landed — the
   six graph hash domains, the unit `CapturedReadKind::GraphNode` with its

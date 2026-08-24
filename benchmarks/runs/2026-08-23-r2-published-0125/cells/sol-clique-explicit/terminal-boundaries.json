@@ -4,28 +4,28 @@
   "milestones": {
     "M1": {
       "status": "green",
-      "firstGreenAt": "2026-08-24T09:54:04.184Z",
-      "suitePassAt": "2026-08-24T09:54:04.184Z",
-      "choreoPassAt": "2026-08-24T09:54:04.184Z",
-      "terminalAt": "2026-08-24T09:54:04.184Z",
+      "firstGreenAt": "2026-08-24T09:54:53.931Z",
+      "suitePassAt": "2026-08-24T09:54:53.931Z",
+      "choreoPassAt": "2026-08-24T09:54:53.931Z",
+      "terminalAt": "2026-08-24T09:54:53.931Z",
       "terminalSequence": 1,
       "terminalReason": "green"
     },
     "M2": {
       "status": "green",
-      "firstGreenAt": "2026-08-24T10:01:49.197Z",
-      "suitePassAt": "2026-08-24T10:01:49.197Z",
-      "choreoPassAt": "2026-08-24T10:01:49.197Z",
-      "terminalAt": "2026-08-24T10:01:49.197Z",
+      "firstGreenAt": "2026-08-24T10:02:30.777Z",
+      "suitePassAt": "2026-08-24T10:02:30.777Z",
+      "choreoPassAt": "2026-08-24T10:02:30.777Z",
+      "terminalAt": "2026-08-24T10:02:30.777Z",
       "terminalSequence": 2,
       "terminalReason": "green"
     },
     "M3": {
       "status": "green",
-      "firstGreenAt": "2026-08-24T10:05:46.005Z",
-      "suitePassAt": "2026-08-24T10:05:46.005Z",
-      "choreoPassAt": "2026-08-24T10:05:46.005Z",
-      "terminalAt": "2026-08-24T10:05:46.005Z",
+      "firstGreenAt": "2026-08-24T10:10:23.198Z",
+      "suitePassAt": "2026-08-24T10:10:23.198Z",
+      "choreoPassAt": "2026-08-24T10:10:23.198Z",
+      "terminalAt": "2026-08-24T10:10:23.198Z",
       "terminalSequence": 3,
       "terminalReason": "green"
     }

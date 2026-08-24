@@ -183,6 +183,7 @@ pub(super) fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID"
         | "SNAPBACK_GRAPH_CURSOR_UNBOUND"
         | "SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH"
+        | "SNAPBACK_GRAPH_REQUIRED_EDGE_MISSING"
         | "SNAPBACK_QUERY_COST_CLIENT_UNSUPPORTED" => StatusCode::BAD_REQUEST,
         "SNAPBACK_FUNCTION_GENERATION_AWAITING_RELOAD"
         | "SNAPBACK_AUTH_PAIRING_COMMIT_TIMEOUT"
@@ -251,7 +252,12 @@ pub(super) fn status_for_diagnostic_code(code: &str) -> StatusCode {
         crate::network_profile::NETWORK_PROFILE_FORBIDDEN_CODE => StatusCode::FORBIDDEN,
         crate::network_profile::NETWORK_PROFILE_DELAY_CEILING_CODE
         | crate::network_profile::NETWORK_PROFILE_INVALID_CODE => StatusCode::BAD_REQUEST,
-        "SNAPBACK_BUNDLE_ROUTE_UNKNOWN" | "SNAPBACK_ROUTE_UNKNOWN" => StatusCode::NOT_FOUND,
+        // @ref LLP 0301#7a-diagnostic-code-matrix-pinned-before-the-freeze —
+        // production-profile identity discovery is an intentional absent
+        // surface, not an authorization or server failure.
+        "SNAPBACK_APP_IDENTITY_UNAVAILABLE"
+        | "SNAPBACK_BUNDLE_ROUTE_UNKNOWN"
+        | "SNAPBACK_ROUTE_UNKNOWN" => StatusCode::NOT_FOUND,
         "SNAPBACK_BUNDLE_NOT_PUBLIC"
         | "SNAPBACK_BUNDLE_REGISTER_REQUIRES_CREDENTIAL"
         | "SNAPBACK_BUNDLE_IDEMPOTENCY_SENDER_MISMATCH" => StatusCode::FORBIDDEN,

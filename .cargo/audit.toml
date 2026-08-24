@@ -1,0 +1,7 @@
+# RUSTSEC-2026-0249 reaches Snapback through the vendored Ibex runtime's
+# swc_ecma_parser pin, which still selects unmaintained smartstring 1.0.1.
+# The fix belongs upstream in Ibex's SWC dependency closure; track it in
+# issues/20260824-smartstring-unmaintained-via-ibex-swc.md and remove this
+# exception as soon as that upgrade lands here.
+[advisories]
+ignore = ["RUSTSEC-2026-0249"]

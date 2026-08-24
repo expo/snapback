@@ -205,7 +205,7 @@ function appStateSource() {
   });
 }
 
-function expoEnvironment(binding, platform) {
+function expoEnvironment(binding, platform, diagnostics) {
   const admission = Object.freeze({
     productionCondition: false,
     delivery: Object.freeze({ channel: 'local-supervised-ipc' }),
@@ -219,7 +219,7 @@ function expoEnvironment(binding, platform) {
     async adoptAuthority() {
       throw new Error('clean opted-in fixture must not call legacy adoptAuthority');
     },
-    onDiagnostic() {},
+    onDiagnostic(diagnostic) { diagnostics.push(diagnostic); },
   });
 }
 
@@ -251,7 +251,13 @@ async function journey(fixture) {
     databaseName: `snapback-${definition.name}`,
   });
   const server = installServer({ app, generated });
+  const hadSupervisorOrigin = Object.hasOwn(
+    globalThis,
+    '__SNAPBACK_EXPO_SUPERVISOR_ORIGIN__',
+  );
+  const priorSupervisorOrigin = globalThis.__SNAPBACK_EXPO_SUPERVISOR_ORIGIN__;
   let latest = null;
+  const diagnostics = [];
   let appClient = null;
   let expoHarnessProjection = null;
   let renderer = null;
@@ -277,11 +283,15 @@ async function journey(fixture) {
       assert.equal(appClient.bootstrapState().status, 'ready');
       assert.equal(appClient.bootstrapState().custody.carrier, 'indexeddb-web-locks');
     } else {
+      // The injected rendezvous signal, not an optional environment method,
+      // is the provider's configured/absent source of truth.
+      globalThis.__SNAPBACK_EXPO_SUPERVISOR_ORIGIN__ = binding.target.origin;
       expoHarnessProjection = await createSnapbackAppClient({
         app,
         binding,
         platform,
         now: () => journeyNow,
+        rqsStore: null,
       });
       const prepared = await expoHarnessProjection.client.prepareReactBinding({
         generatedManifest: app,
@@ -289,7 +299,7 @@ async function journey(fixture) {
       expoHarnessProjection.client.prepareReactBinding = async () => prepared;
       await act(async () => {
         renderer = TestRenderer.create(React.createElement(module.Application, {
-          environment: expoEnvironment(binding, platform),
+          environment: expoEnvironment(binding, platform, diagnostics),
           onSnapshot: (snapshot) => { latest = snapshot; },
         }));
         await flush();
@@ -303,7 +313,7 @@ async function journey(fixture) {
     assert.equal(
       latest?.principal.status,
       'anonymous',
-      JSON.stringify(renderer.toJSON()),
+      `${definition.name}: ${JSON.stringify({ tree: renderer.toJSON(), diagnostics })}`,
     );
 
     const click = async (action) => {
@@ -347,6 +357,11 @@ async function journey(fixture) {
     }
     await appClient?.dispose();
     await expoHarnessProjection?.dispose();
+    if (hadSupervisorOrigin) {
+      globalThis.__SNAPBACK_EXPO_SUPERVISOR_ORIGIN__ = priorSupervisorOrigin;
+    } else {
+      delete globalThis.__SNAPBACK_EXPO_SUPERVISOR_ORIGIN__;
+    }
     server.restore();
   }
 }

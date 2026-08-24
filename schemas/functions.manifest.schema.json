@@ -2407,11 +2407,15 @@
     "GraphBroadcastAudienceV1": {
       "additionalProperties": false,
       "properties": {
+        "installedOwnerIdentity": {
+          "$ref": "#/$defs/Sha256V1"
+        },
         "strictEvaluatorIdentity": {
           "$ref": "#/$defs/Sha256V1"
         }
       },
       "required": [
+        "installedOwnerIdentity",
         "strictEvaluatorIdentity"
       ],
       "type": "object"
@@ -3564,7 +3568,7 @@
     },
     "GraphQueryPlanV1": {
       "additionalProperties": false,
-      "description": "Complete normalized graph plan and all plan-hashed policy/bound facts.\n\n@ref LLP 0209#2-the-graph-ir — this is the closed non-executable G0 IR.\n@ref LLP 0209#21-the-normalized-carrier — the plan is finite, closed, and\nuses preorder node ids plus canonical argument ids.",
+      "description": "Complete normalized graph plan and all plan-hashed policy/bound facts.\n\n@ref LLP 0209#2-the-graph-ir — this closed normalized graph IR executes in G2-A without callbacks or data-dependent shape.\n@ref LLP 0209#21-the-normalized-carrier — the plan is finite, closed, and\nuses preorder node ids plus canonical argument ids.",
       "properties": {
         "arguments": {
           "items": {
@@ -3585,6 +3589,13 @@
         "format": {
           "const": "snapback.graph-query-plan.v1",
           "type": "string"
+        },
+        "functionMembership": {
+          "description": "The function's own fail-closed membership admission. Broadcast\nclassification requires exactly one installed predicate whose audience\nis identical to the establishment predicate; ordinary graph plans keep\nthe vector empty.",
+          "items": {
+            "$ref": "#/$defs/MembershipPredicate"
+          },
+          "type": "array"
         },
         "nodes": {
           "items": {

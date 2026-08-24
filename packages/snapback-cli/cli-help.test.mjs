@@ -31,9 +31,17 @@ for (const line of runCliSource.split('\n').filter((candidate) => candidate.star
     if (!['--help', '-h', 'help', '--version', '-V'].includes(match[1])) dispatched.add(match[1]);
   }
 }
+// A command may be package-owned outright, or natively owned with a few
+// package-owned verbs (`snapback auth enable|configure|status`). Either way the
+// dispatch branch must be named by composed help — as a command, or as the root
+// of a registered subcommand path.
+const composedHelpRoots = new Set([
+  ...PACKAGED_CLI_COMMANDS.map(({ name }) => name),
+  ...PACKAGED_CLI_SUBCOMMANDS.map(({ path }) => path[0]),
+]);
 assert.deepEqual(
   [...dispatched].sort(),
-  PACKAGED_CLI_COMMANDS.map(({ name }) => name).sort(),
+  [...composedHelpRoots].sort(),
   'composed help registry must equal the mechanically derived package dispatch set',
 );
 assert.equal(
@@ -56,6 +64,10 @@ if [ "$1" = "command-inventory" ]; then
 fi
 if [ "$2" = "--help" ]; then
   printf 'Native help for %s\\n' "$1"
+  exit 0
+fi
+if [ "$1" = "auth" ] && [ "$2" = "password" ] && [ "$3" = "--help" ]; then
+  printf '%s\\n' 'Native help for auth password' 'Usage: snapback auth password <command>'
   exit 0
 fi
 printf '%s\\n' 'EXECUTED' >&2
@@ -87,6 +99,7 @@ exit 97
   assert.match(rootHelp.stdout, /^  snapback mcp$/m, 'root help omits Guide MCP');
 
   for (const entry of PACKAGED_CLI_COMMANDS) {
+    if (entry.name === 'auth') continue;
     const help = spawnSync(process.execPath, [cli, entry.name, '--help'], { encoding: 'utf8', env });
     assert.equal(help.status, 0, `${entry.name} --help failed: ${help.stderr}`);
     assert.match(help.stdout, new RegExp(`^Usage: ${entry.usage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'm'));
@@ -140,6 +153,23 @@ exit 97
   assert.equal(nativeHelp.status, 0, nativeHelp.stderr);
   assert.match(nativeHelp.stdout, /Native help for start/);
 
+  const nativeAuthParentHelp = spawnSync(
+    process.execPath,
+    [cli, 'auth', '--help'],
+    { encoding: 'utf8', env },
+  );
+  assert.equal(nativeAuthParentHelp.status, 0, nativeAuthParentHelp.stderr);
+  assert.match(nativeAuthParentHelp.stdout, /Native help for auth/);
+
+  const nativeAuthHelp = spawnSync(
+    process.execPath,
+    [cli, 'auth', 'password', '--help'],
+    { encoding: 'utf8', env },
+  );
+  assert.equal(nativeAuthHelp.status, 0, nativeAuthHelp.stderr);
+  assert.match(nativeAuthHelp.stdout, /Native help for auth password/);
+  assert.doesNotMatch(nativeAuthHelp.stdout, /Mint one explicit ordinary development session/u);
+
   const guideHelp = spawnSync(process.execPath, [cli, 'guide', '--help'], { encoding: 'utf8', env });
   assert.equal(guideHelp.status, 0, guideHelp.stderr);
   assert.match(guideHelp.stdout, /^Usage: snapback guide <ExactSymbolName\|module> \[--slice <n>\] \[--json\]$/m);
@@ -151,6 +181,23 @@ exit 97
   const parsed = JSON.parse(jsonHelp.stdout);
   assert.equal(parsed.schemaVersion, 'snapback.cli-help.v1');
   assert.equal(parsed.command.name, 'dev');
+  for (const flag of ['--port <port>', '--client-port <port>', '--bootstrap-port <port>', '--port-range <lo>-<hi>', '--write-env [path]']) {
+    assert.match(parsed.command.usage, new RegExp(flag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'u'));
+  }
+
+  const authHelp = spawnSync(
+    process.execPath,
+    [cli, 'auth', 'dev-session', '--help', '--json'],
+    { encoding: 'utf8', env },
+  );
+  assert.equal(authHelp.status, 0, authHelp.stderr);
+  const parsedAuthHelp = JSON.parse(authHelp.stdout);
+  assert.equal(parsedAuthHelp.command.name, 'auth dev-session');
+  assert.equal(
+    parsedAuthHelp.command.usage,
+    'snapback auth dev-session [--ready-file <path>] [--email <address>] [--json]',
+  );
+  assert.match(parsedAuthHelp.command.description, /without creating another disk credential/u);
 
   const rootJsonHelp = spawnSync(process.execPath, [cli, '--help', '--json'], { encoding: 'utf8', env });
   assert.equal(rootJsonHelp.status, 0, rootJsonHelp.stderr);
@@ -175,7 +222,7 @@ exit 97
   assert.equal(heldExit, 0);
   assert.match(heldOutput, /^Usage: snapback doctor/m);
 
-  console.log('cli-help.test.mjs: dispatch parity and non-executing root/per-command/nested help pass');
+  console.log(`cli-help.test.mjs: ${PACKAGED_CLI_COMMANDS.length} command and ${PACKAGED_CLI_SUBCOMMANDS.length} subcommand help cases passed`);
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

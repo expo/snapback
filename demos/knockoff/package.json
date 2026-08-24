@@ -11,7 +11,7 @@
     "start": "expo start",
     "start:dev-client": "expo start --dev-client",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/auth-broker-client.test.mjs && node tests/acceptance/social-auth.mjs"
+    "test": "node --test tests/auth-broker-client.test.mjs tests/auth-profile.test.mjs tests/shared-development-auth.test.mjs && node tests/acceptance/social-auth.mjs"
   },
   "dependencies": {
     "@expo/snapback-client": "file:../../packages/snapback-client",
@@ -20,6 +20,7 @@
     "@expo/snapback-expo": "file:../../packages/snapback-expo",
     "@expo/snapback-expo-custody": "file:../../packages/snapback-expo-custody",
     "@expo/snapback-react": "file:../../packages/snapback-react",
+    "@react-native-google-signin/google-signin": "^16.1.4",
     "expo": "~57.0.7",
     "expo-apple-authentication": "~8.0.8",
     "expo-auth-session": "~57.0.5",

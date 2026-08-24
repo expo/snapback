@@ -40,6 +40,9 @@ import {
   installDevIdentityCapability,
 } from './dev-identity-capability.mjs';
 import {
+  createDeclaredDevEpisodeGate,
+} from './declared-dev-episode.mjs';
+import {
   normalizeArgumentsAgainstContractV1,
   normalizeGeneratedArgumentsV1,
 } from './argument-normalization.mjs';
@@ -2889,8 +2892,26 @@ export class SnapbackClient {
     // Production callers omit it; wiring tests inject clocks/carriers without
     // replacing any policy or broker object.
     __storeRuntimeOptions = null,
+    // Installed only by the generated declared-dev app-binding path. The
+    // public URL is insufficient without this generated identity witness.
+    declaredDevDeploymentIdentity = null,
+    // @ref LLP 0302#8a-recorded-obligations-post-freeze-resolved-in-implementation-not
+    // — in this explicit mode every outbound transport-bearing public method
+    // invocation is its own operation episode; composite/nested phases and
+    // concurrent invocations each receive an independent preflight.
+    declaredDevStreamless = false,
   } = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
+    if (typeof declaredDevStreamless !== 'boolean') {
+      throw new TypeError('declaredDevStreamless must be boolean');
+    }
+    this.__declaredDevEpisodeGate = declaredDevDeploymentIdentity === null
+      ? null
+      : createDeclaredDevEpisodeGate({
+          origin: this.baseUrl,
+          expectedDeploymentIdentity: declaredDevDeploymentIdentity,
+          streamless: declaredDevStreamless,
+        });
     this.adminToken = adminToken;
     installDevIdentityCapability(this, devIdentityCapability);
     if (typeof __adminDataPlane !== 'boolean') throw new TypeError('__adminDataPlane must be boolean');
@@ -5543,6 +5564,8 @@ export class SnapbackClient {
         // open capture and publication. Retry the complete negotiation ladder
         // once after it settles (issues/20260807-auth-stream-reset-boot-flake.md).
         await new Promise((resolve) => setTimeout(resolve, STREAM_RESET_RETRY_DELAY_MS));
+        // openWithNegotiation reaches #request again, whose declared-dev
+        // preflight must finish before the retried connection-open dispatch.
         return openWithNegotiation();
       }
     };
@@ -5609,6 +5632,9 @@ export class SnapbackClient {
       if (this.__connectionGrants.get(connectionId) === cached) {
         await this.refreshConnectionGrant(connectionId, externalBearerTransitionPermit);
       }
+      // `run` owns an ordinary #req operation. Re-enter it only after the
+      // refreshed grant is ready; #fetchJson then re-verifies any invalidated
+      // declared-dev episode before replaying the failed operation.
       return run(await this.connectionGrant(
         connectionId,
         externalBearerTransitionPermit,
@@ -6103,6 +6129,8 @@ export class SnapbackClient {
         && this.authCoordinator
         && capture
       ) {
+        // A non-2xx invalidates the declared-dev gate in #fetchJson. Re-enter
+        // #request so identity verification completes before this replay.
         return this.#request(method, path, body, headers, {
           admin,
           supersededRetry,
@@ -6136,6 +6164,8 @@ export class SnapbackClient {
             resolve,
             this.#reservationRetryDelayMilliseconds(),
           ));
+          // The retry re-enters #fetchJson, so an invalidated declared-dev
+          // episode is verified before AUTH_MODE_PENDING is replayed.
           return await this.#request(method, path, body, headers, {
             admin,
             supersededRetry,
@@ -6206,6 +6236,8 @@ export class SnapbackClient {
             this.#reservationRetryDelayMilliseconds(),
           ));
           assertRetryAuthorityCurrent();
+          // Preserve the authority capture while still re-entering the common
+          // declared-dev identity preflight before the transport replay.
           return await this.#request(method, path, body, headers, {
             admin,
             supersededRetry,
@@ -6256,6 +6288,8 @@ export class SnapbackClient {
         const successor = await this.authCoordinator.waitForNewerRevision(capture);
         if (successor && supersededRetry && expectedAuthorityCapture === null) {
           this.clearAuthSession();
+          // Successor retry also re-enters #fetchJson after any failed
+          // response invalidated the declared-dev episode.
           return this.#request(method, path, body, headers, {
             admin,
             supersededRetry: false,
@@ -6368,6 +6402,11 @@ export class SnapbackClient {
       forbiddenSecrets = [],
     } = {},
   ) {
+    let declaredDevOperation = null;
+    if (this.__declaredDevEpisodeGate !== null) {
+      declaredDevOperation = this.__declaredDevEpisodeGate.beginTopLevelOperation();
+      await this.__declaredDevEpisodeGate.ensureVerified(declaredDevOperation, signal);
+    }
     if (includeSenderNonce && onSenderNonce !== null) {
       throw new TypeError('sender nonce must have one transport owner');
     }
@@ -6402,12 +6441,14 @@ export class SnapbackClient {
         headers: Object.keys(merged).length > 0 ? merged : undefined,
         body: body === undefined ? undefined : JSON.stringify(body),
         signal,
-        ...(credentialed ? { redirect: 'manual' } : {}),
+        ...(credentialed || declaredDevOperation !== null ? { redirect: 'manual' } : {}),
       });
     } catch (error) {
+      this.__declaredDevEpisodeGate?.invalidate(declaredDevOperation);
       if (opaqueSuccessFailure) throw opaqueCredentialResponseError();
       throw sanitizeTransportError(error, requestSecrets, { dispatchFailure: true });
     }
+    if (!res.ok) this.__declaredDevEpisodeGate?.invalidate(declaredDevOperation);
     if (credentialed && isRedirectResponse(res)) {
       try { await res.body?.cancel?.(); } catch { /* the refusal owns cleanup */ }
       throw redirectRefusedError(res.status);
@@ -6434,6 +6475,7 @@ export class SnapbackClient {
       const ingressClass = ingressClassForPath(path);
       text = await readBoundedResponseText(res, ingressClass, this.ingressLimits[ingressClass]);
     } catch (error) {
+      this.__declaredDevEpisodeGate?.invalidate(declaredDevOperation);
       if (opaqueSuccessFailure) {
         throw opaqueCredentialResponseError();
       }
@@ -6520,6 +6562,34 @@ export class SnapbackClient {
 
   #req(method, path, body, headers, options = undefined) {
     return this.#request(method, path, body, headers, options);
+  }
+
+  __beginDeclaredDevStandingStreamEpisode(signal = undefined) {
+    return this.__declaredDevEpisodeGate?.beginStandingStreamEpisode(signal)
+      ?? Promise.resolve(null);
+  }
+
+  __markDeclaredDevStandingStreamOpen(episode) {
+    return this.__declaredDevEpisodeGate?.markStandingStreamOpen(episode) ?? true;
+  }
+
+  __endDeclaredDevStandingStreamEpisode(episode) {
+    this.__declaredDevEpisodeGate?.endStandingStreamEpisode(episode);
+  }
+
+  async __beforeDeclaredDevTransport(signal = undefined) {
+    if (this.__declaredDevEpisodeGate === null) return null;
+    const operation = this.__declaredDevEpisodeGate.beginTopLevelOperation();
+    await this.__declaredDevEpisodeGate.ensureVerified(operation, signal);
+    return operation;
+  }
+
+  __afterDeclaredDevTransport(response, operation) {
+    if (response?.ok !== true) this.__declaredDevEpisodeGate?.invalidate(operation);
+  }
+
+  __invalidateDeclaredDevEpisode(operation) {
+    this.__declaredDevEpisodeGate?.invalidate(operation);
   }
 
   #adminReq(method, path, body, headers) {
@@ -7480,6 +7550,8 @@ export class SnapbackClient {
         && challengeCapture !== null
       ) {
         this.clearAuthSession();
+        // The recursive sender refresh performs a fresh #trackedFetchJson;
+        // any non-2xx invalidation is therefore re-verified before replay.
         return this.#authRefreshSender({
           currentDescriptor,
           capture: challengeCapture,
@@ -17707,6 +17779,13 @@ class LiveStreamManager {
     this.grantSuspect = false;
     this.authorityCapture = null;
     this.grantEstablishedAtMs = null;
+    this.declaredDevStreamEpisode = null;
+  }
+
+  #endDeclaredDevStreamEpisode() {
+    const episode = this.declaredDevStreamEpisode;
+    this.declaredDevStreamEpisode = null;
+    this.client.__endDeclaredDevStandingStreamEpisode(episode);
   }
 
   #demand() {
@@ -17973,7 +18052,19 @@ class LiveStreamManager {
     this.#emitState('connecting');
     const refreshGrant = this.grantSuspect;
     this.grantSuspect = false;
-    const grantPromise = this.client.authSession({ force: true }).then((session) => {
+    const grantPromise = this.client.__beginDeclaredDevStandingStreamEpisode()
+      .then((episode) => {
+        this.declaredDevStreamEpisode = episode;
+        if (this.closed) {
+          this.#endDeclaredDevStreamEpisode();
+          throw liveStreamReadinessError(
+            'SNAPBACK_LIVE_STREAM_CLOSED',
+            `Snapback live stream for ${this.connectionId} closed during identity verification`,
+          );
+        }
+        return this.client.authSession({ force: true });
+      })
+      .then((session) => {
       const unavailable = authAvailabilityError(session);
       if (unavailable) throw unavailable;
       const authorityCapture = this.client.authorityFence?.capture?.() ?? null;
@@ -18021,7 +18112,20 @@ class LiveStreamManager {
       },
       (error) => {
         this.connectPending = false;
+        this.#endDeclaredDevStreamEpisode();
         if (this.closed) return;
+        if ([
+          'SNAPBACK_APP_BINDING_IDENTITY_MISMATCH',
+          'SNAPBACK_APP_IDENTITY_FACT_INVALID',
+        ].includes(error?.diagnostic?.code ?? error?.code)) {
+          this.close(error, {
+            error,
+            terminal: true,
+            code: error?.diagnostic?.code ?? error?.code,
+            reason: 'declared_dev_identity_refused',
+          });
+          return;
+        }
         if (isTerminalLiveProtocolRefusal(error)) {
           this.close(error, {
             error,
@@ -18067,6 +18171,7 @@ class LiveStreamManager {
       );
     } catch {
       releaseSenderFlight();
+      this.#endDeclaredDevStreamEpisode();
       // Constructor failure (bad URL, blocked context) is a loss like any
       // other: let consumers engage their fallback on the first failure.
       if (this.attempts === 0) this.#emitState('lost', { wasOpen: false });
@@ -18082,6 +18187,7 @@ class LiveStreamManager {
     } catch (error) {
       this.closed = true;
       releaseSenderFlight();
+      this.#endDeclaredDevStreamEpisode();
       try { ws.close(); } catch { /* fail closed */ }
       this.#emitState('closed', { error });
       return;
@@ -18107,6 +18213,13 @@ class LiveStreamManager {
     ws.addEventListener('open', () => {
       if (this.ws !== ws) return;
       clearTimeout(connectTimer);
+      if (!this.client.__markDeclaredDevStandingStreamOpen(this.declaredDevStreamEpisode)) {
+        this.#loseSocket(ws, liveStreamReadinessError(
+          'SNAPBACK_APP_BINDING_UNAVAILABLE',
+          'The declared-development identity episode changed before the live stream opened.',
+        ));
+        return;
+      }
       // Decision 5: the flight is NOT released on open — the first server
       // frame carrying the successor nonce is the release event. An
       // open-without-frame stall releases as consumed-unknown at the
@@ -18218,6 +18331,7 @@ class LiveStreamManager {
   // for a later close event that a custom implementation may never deliver.
   #loseSocket(ws, error, lossDetail = {}) {
     if (this.ws !== ws) return;
+    this.#endDeclaredDevStreamEpisode();
     const wasOpen = this.open;
     // Loss forensics for carrier diagnosis (0137 A1-Expo f7): the close
     // code/reason, whether an `error` event preceded, and how long the
@@ -18483,6 +18597,7 @@ class LiveStreamManager {
   close(error = null, detail = {}) {
     if (this.closed) return;
     this.closed = true;
+    this.#endDeclaredDevStreamEpisode();
     this.#stopHeartbeat();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);

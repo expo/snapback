@@ -68,17 +68,23 @@ export const PACKAGE_TEST_INVENTORIES = [
       'agent-setup.test.mjs',
       'application-auth-fixtures.test.mjs',
       'application-ready.test.mjs',
+      'auth-setup.test.mjs',
       'carrier-kit.test.mjs',
       'cli-help.test.mjs',
       'comparator-profile.test.mjs',
       'declaration-suggestion-cli.test.mjs',
+      'dev-admission-posture.test.mjs',
       'dev-cli-diagnostics.test.mjs',
+      'dev-env-writer.test.mjs',
       'dev-loop.test.mjs',
+      'dev-port-range.test.mjs',
+      'dev-session.test.mjs',
       'expo-bootstrap-exchange.test.mjs',
       'expo-dev-identity-checkout.test.mjs',
       'expo-device-forwarding.test.mjs',
       'expo-dev-loop.test.mjs',
       'expo-metro-watch-advisory.test.mjs',
+      'expo-port-refusal.test.mjs',
       'fake-expo-push.test.mjs',
       'familiar-dev-loop.test.mjs',
       'generate-check.test.mjs',
@@ -90,10 +96,13 @@ export const PACKAGE_TEST_INVENTORIES = [
       'package.test.mjs',
       'packed-dev-lifecycle.test.mjs',
       'packaged-store-qualification.test.mjs',
+      'port-plan.test.mjs',
       'reset-dev-fresh.test.mjs',
       'reference-lookup.test.mjs',
       'scaffold-skill-budget.test.mjs',
       'sessions-dev-loop.test.mjs',
+      'shared-development-auth.test.mjs',
+      'shared-development-broker.test.mjs',
       'visibility-governance-dev-loop.test.mjs',
       'verify.test.mjs',
     ],
@@ -139,6 +148,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'client-diagnostics.test.mjs',
       'commands.test.mjs',
       'connection-open-stream-reset-retry.test.mjs',
+      'declared-dev-episode.test.mjs',
       'demand-broker.test.mjs',
       'diagnostic-error.test.mjs',
       'ephemeral-room.test.mjs',
@@ -167,6 +177,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'outbox-store.test.mjs',
       'package.test.mjs',
       'password-auth.test.mjs',
+      'provider-entry.test.mjs',
       'push-registry.test.mjs',
       'registration-ledger.test.mjs',
       'reference-kind.test.mjs',
@@ -184,6 +195,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'rqs-store-v3.test.mjs',
       'rqs-store.test.mjs',
       'sender-proof.test.mjs',
+      'shared-development-auth.test.mjs',
       'sender-transport.test.mjs',
       'search.test.mjs',
       'store-policy.test.mjs',
@@ -281,9 +293,11 @@ export const PACKAGE_TEST_INVENTORIES = [
     packageDir: 'packages/snapback-expo',
     testDir: '.',
     suffix: '.test.mjs',
+    scriptNames: ['pretest', 'test'],
     expectedFiles: [
       'activity-presence.test.mjs',
       'app-binding.test.mjs',
+      'declared-dev-binding.test.mjs',
       'asset-source.test.mjs',
       'auth-partition-digest.test.mjs',
       'config-plugin.test.mjs',
@@ -295,6 +309,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'provider-auth-bootstrap.test.mjs',
       'provider-native-custody.test.mjs',
       'release-export-vocabulary.test.mjs',
+      'shared-browser-adapter.test.mjs',
       'supervised-environment.test.mjs',
       'supervised-offline-fallback.test.mjs',
     ],
@@ -365,6 +380,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'custom-authorization.test.mjs',
       'data-tier-corpus.test.mjs',
       'declaration-suggestion.test.mjs',
+      'declared-dev-generation.test.mjs',
       'dependency-graph.test.mjs',
       'effect-ceiling.test.mjs',
       'familiar-phase-a.test.mjs',
@@ -577,7 +593,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 332,
+  expectedTotal = 347,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1076,6 +1092,29 @@ export function checkPackageTestInventories(options = {}) {
 // 331 -> 332 (2026-08-23, LLP 0209 G0 Stage B2):
 // @expo/snapback-codegen gains the graph identity, source-refusal, authority,
 // and Rust-host admission conformance suite.
+// 332 -> 335 (2026-08-23, LLP 0299): @expo/snapback-cli gains the pure port
+// plan matrix, plain ranged-backend proof, and supervised refusal/allocation proof.
+// 335 -> 338 (2026-08-24, LLP 0302 Lane C): codegen, Expo admission/source
+// precedence, and client transport-episode batteries cover declared-dev.
+// 335 -> 338 (2026-08-24, LLP 0301 Lane B): @expo/snapback-cli gains the
+// admission-posture matrix, atomic env writer, and explicit dev-session suites.
+// 338 -> 341 (2026-08-24, LLP 0301+0302 integration): the union of both
+// lanes' suites — posture/writer/dev-session and the declared-dev batteries.
+// 341 -> 347 (2026-08-24, LLP 0151): @expo/snapback-client gains the provider
+// entry resolver/dispatch proof and the shared development client-half proof;
+// @expo/snapback-cli gains the auth setup group proof, the shared development
+// broker-half proof, and the supervised broker HTTP proof; @expo/snapback-expo
+// gains the shared development browser Adapter proof.
+// LLP 0300 nine-row acceptance traceability (0301 §8 set-level table):
+// 1 cold bring-up -> templates/*/acceptance.mjs + declared-dev-episode.test.mjs;
+// 2 two principals -> declared-dev-episode.test.mjs; 3 forwards/tunnel/rebinding
+// -> snapback-server admission tests (dev_admission*); 4 gate ordering/reassignment
+// -> declared-dev-episode.test.mjs; 5 release matrix w/ url set ->
+// declared-dev-generation.test.mjs + generate-check.test.mjs; 6 receipt cells +
+// supervised battery -> application-ready.test.mjs + dev-admission-posture.test.mjs;
+// 7 per-bundler cold templates -> template acceptances + declared-dev-binding.test.mjs;
+// 8 bundler restart/data preservation -> declared-dev-episode.test.mjs;
+// 9 signup boundary/bearer non-theft -> snapback-server tests + declared-dev-episode.test.mjs.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

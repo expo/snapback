@@ -3532,6 +3532,7 @@ impl LocalDatabase {
                 "migration/backfill-page",
                 Some(BACKFILL_BATCH_ROWS),
                 boundary.as_ref(),
+                false,
                 true,
                 None,
             )?;
@@ -4744,6 +4745,7 @@ fn read_id_page(
         "migration/page",
         Some(BACKFILL_BATCH_ROWS),
         boundary.as_ref(),
+        false,
         true,
         None,
     )?;

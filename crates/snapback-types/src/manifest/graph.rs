@@ -547,6 +547,7 @@ graph_reason_enum!(GraphDemandTimeRefusalReasonV1 {
 });
 
 graph_reason_enum!(GraphEvaluationTimeRefusalReasonV1 {
+    GraphRequiredEdgeMissing => "SNAPBACK_GRAPH_REQUIRED_EDGE_MISSING",
     QueryCostIndexRequired => "SNAPBACK_QUERY_COST_INDEX_REQUIRED",
     QueryCostPaginationRequired => "SNAPBACK_QUERY_COST_PAGINATION_REQUIRED",
     QueryCostBoundExceeded => "SNAPBACK_QUERY_COST_BOUND_EXCEEDED",
@@ -565,6 +566,7 @@ graph_reason_enum!(GraphMaterializedRefusalReasonV1 {
     CursorUnbound => "SNAPBACK_GRAPH_CURSOR_UNBOUND",
     DemandIdentityMismatch => "SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH",
     QueryCostClientUnsupported => "SNAPBACK_QUERY_COST_CLIENT_UNSUPPORTED",
+    GraphRequiredEdgeMissing => "SNAPBACK_GRAPH_REQUIRED_EDGE_MISSING",
     QueryCostIndexRequired => "SNAPBACK_QUERY_COST_INDEX_REQUIRED",
     QueryCostPaginationRequired => "SNAPBACK_QUERY_COST_PAGINATION_REQUIRED",
     QueryCostBoundExceeded => "SNAPBACK_QUERY_COST_BOUND_EXCEEDED",
@@ -595,6 +597,10 @@ pub enum GraphCompletenessUnknownReasonV1 {
 
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+/// Physical storage identity used by demand windows and completeness proofs.
+///
+/// @ref LLP 0209#4-completeness-vocabulary — the id is always the row's
+/// physical `_id`; application/source identities remain ordinary row fields.
 pub struct GraphRowKeyV1 {
     pub table: String,
     pub id: String,
@@ -1248,6 +1254,7 @@ pub struct GraphBroadcastScopeV1 {
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct GraphBroadcastAudienceV1 {
+    pub installed_owner_identity: Sha256V1,
     pub strict_evaluator_identity: Sha256V1,
 }
 
@@ -1309,7 +1316,7 @@ pub struct GraphQueryCostEnvelopeV1 {
 
 /// Complete normalized graph plan and all plan-hashed policy/bound facts.
 ///
-/// @ref LLP 0209#2-the-graph-ir — this is the closed non-executable G0 IR.
+/// @ref LLP 0209#2-the-graph-ir — this closed normalized graph IR executes in G2-A without callbacks or data-dependent shape.
 /// @ref LLP 0209#21-the-normalized-carrier — the plan is finite, closed, and
 /// uses preorder node ids plus canonical argument ids.
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
@@ -1325,6 +1332,12 @@ pub struct GraphQueryPlanV1 {
     pub arguments: Vec<GraphArgumentV1>,
     pub query_cost: GraphQueryCostEnvelopeV1,
     pub authority_partition_rule: GraphAuthorityPartitionRuleV1,
+    /// The function's own fail-closed membership admission. Broadcast
+    /// classification requires exactly one installed predicate whose audience
+    /// is identical to the establishment predicate; ordinary graph plans keep
+    /// the vector empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub function_membership: Vec<MembershipPredicate>,
     pub broadcast: GraphBroadcastAdmissionV1,
     pub result_contract_hash: Sha256V1,
 }
@@ -2035,6 +2048,12 @@ pub enum GraphCapturedDependencyV1 {
         index: String,
         predicate: Vec<FilterExpr>,
         order: Vec<OrderExpr>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        direction: Option<GraphDirectionV1>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        lower: Option<GraphIntervalEndV1>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        upper: Option<GraphIntervalEndV1>,
         limit: u64,
         #[serde(rename = "resultCount")]
         result_count: u64,
@@ -2074,6 +2093,12 @@ pub enum GraphCapturedDependencyV1 {
         parent_key: GraphRowKeyV1,
         predicate: Vec<FilterExpr>,
         order: Vec<OrderExpr>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        direction: Option<GraphDirectionV1>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        lower: Option<GraphIntervalEndV1>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        upper: Option<GraphIntervalEndV1>,
         limit: u64,
         #[serde(rename = "resultCount")]
         result_count: u64,
@@ -2116,6 +2141,12 @@ pub enum GraphCapturedDependencyV1 {
     PrincipalField {
         table: String,
         index: String,
+        /// The evaluated parent whose target lookup this fact records.
+        /// Binding-table facts are node-global and therefore carry null.
+        #[serde(rename = "parentKey")]
+        #[serde(deserialize_with = "deserialize_required_option")]
+        #[schemars(required, schema_with = "nullable_graph_row_key_schema")]
+        parent_key: Option<GraphRowKeyV1>,
         #[serde(rename = "partitionHash")]
         partition_hash: Sha256V1,
         field: String,
@@ -2153,6 +2184,16 @@ pub struct GraphCapturedReadV1 {
     pub node_kind: GraphNodeKindV1,
     pub authority_class: GraphAuthorityClassV1,
     pub dependency: GraphCapturedDependencyV1,
+}
+
+/// Evaluator-authored attachment of ordinary shared-carrier reads to one
+/// graph capture. Indices address the exact `captured_reads` vector returned
+/// by the same evaluation; registration rejects overlap, omission, or drift.
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GraphCapturedReadAttachmentV1 {
+    pub graph_read_index: u64,
+    pub ordinary_read_indices: Vec<u64>,
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
@@ -2877,18 +2918,29 @@ pub fn normalized_graph_plan(
                 .then_with(|| utf16_cmp(&left.declaration_id, &right.declaration_id))
         });
 
+    for membership in &mut normalized.function_membership {
+        if let Some(roles) = &mut membership.roles {
+            roles.sort_by(|left, right| utf16_cmp(left, right));
+            roles.dedup();
+        }
+    }
+    sort_by_jcs_key(
+        &mut normalized.function_membership,
+        GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable,
+    )?;
+
     match &mut normalized.broadcast {
         GraphBroadcastAdmissionV1::QueryShaped { reason, .. } => {
-            *reason = if normalized
+            let base_is_class_1 = normalized
                 .nodes
                 .iter()
                 .filter(|node| !matches!(node, GraphNodeV1::ClosedProjection { .. }))
-                .any(|node| node.authority().declared_class != GraphAuthorityClassV1::INDEPENDENT)
-            {
-                GraphQueryShapedReasonV1::BaseNotClass1
-            } else {
-                GraphQueryShapedReasonV1::DeclaredQueryShaped
-            };
+                .all(|node| node.authority().declared_class == GraphAuthorityClassV1::INDEPENDENT);
+            if !base_is_class_1 {
+                *reason = GraphQueryShapedReasonV1::BaseNotClass1;
+            } else if *reason == GraphQueryShapedReasonV1::BaseNotClass1 {
+                *reason = GraphQueryShapedReasonV1::DeclaredQueryShaped;
+            }
         }
         GraphBroadcastAdmissionV1::Broadcast {
             base_node_ids,
@@ -2919,6 +2971,14 @@ pub fn normalized_graph_plan(
                     .cloned()
                     .ok_or(GraphAdmissionRefusalReasonV1::ArgumentUnbound)?;
             }
+            establishment
+                .scope
+                .resource_equalities
+                .sort_by(|left, right| {
+                    utf16_cmp(&left.node_id, &right.node_id)
+                        .then_with(|| utf16_cmp(&left.field, &right.field))
+                        .then_with(|| utf16_cmp(&left.argument_id, &right.argument_id))
+                });
             for invalidation in &mut establishment.invalidation {
                 normalize_authority_event_selector(&mut invalidation.event);
                 for argument_id in &mut invalidation.affected_scope_argument_ids {
@@ -2932,6 +2992,10 @@ pub fn normalized_graph_plan(
                     .sort_by(|left, right| utf16_cmp(left, right));
                 invalidation.affected_scope_argument_ids.dedup();
             }
+            sort_by_jcs_key(
+                &mut establishment.invalidation,
+                GraphAdmissionRefusalReasonV1::ArgumentUnbound,
+            )?;
         }
     }
 
@@ -3864,6 +3928,350 @@ fn validate_graph_costs(plan: &GraphQueryPlanV1) -> Result<(), GraphAdmissionRef
     Ok(())
 }
 
+fn graph_broadcast_filter_bindings(filters: &[FilterExpr]) -> BTreeMap<String, String> {
+    filters
+        .iter()
+        .filter_map(|filter| match (&filter.op, &filter.value) {
+            (FilterOp::Eq, ValueExpr::Arg(argument_id)) => {
+                Some((filter.field.clone(), argument_id.clone()))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+/// Content identity of the installed declaration, nominal schema axes, and
+/// table policy that own one broadcast audience. Codegen emits this digest
+/// from its installed schema view; manifest admission calls the same helper on
+/// the active schema instead of trusting the carried value.
+///
+/// @ref LLP 0209#33-the-nine-llp-0268-inputs-and-their-carriers — audience
+/// identity includes installed owner facts, not only a self-describing
+/// predicate copied from the function manifest.
+pub fn graph_broadcast_installed_owner_identity_v1(
+    schema: &SchemaManifest,
+    declaration: &str,
+) -> Result<Sha256V1, GraphAdmissionRefusalReasonV1> {
+    let (table, membership) = find_membership_declaration(schema, declaration)
+        .ok_or(GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable)?;
+    let mut membership = serde_json::to_value(membership)
+        .map_err(|_| GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable)?;
+    // `defineSchema` preserves the closed empty transition list. Serde omits
+    // it from the Rust manifest wire to keep legacy manifests stable, so put
+    // the semantic default back into this private cross-language preimage.
+    membership
+        .as_object_mut()
+        .ok_or(GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable)?
+        .entry("transitions")
+        .or_insert_with(|| serde_json::json!([]));
+    graph_domain_hash(
+        b"",
+        &serde_json::json!({
+            "format": "snapback.graph-broadcast-installed-owner.v1",
+            "declaration": declaration,
+            "schema": {
+                "table": table.name,
+                "fields": table.fields,
+            },
+            "policy": {
+                "membership": membership,
+                "visibility": table.visibility,
+            },
+        }),
+    )
+    .map_err(|_| GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable)
+}
+
+fn graph_broadcast_function_membership_v1<'a>(
+    plan: &'a GraphQueryPlanV1,
+    declaration: &str,
+    establishment_roles: &[String],
+    scope_argument_id: &str,
+) -> Result<&'a MembershipPredicate, GraphAdmissionRefusalReasonV1> {
+    let [function_membership] = plan.function_membership.as_slice() else {
+        return Err(GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable);
+    };
+    let MembershipResourceRef::Arg {
+        path,
+        resource_table,
+    } = &function_membership.resource
+    else {
+        return Err(GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable);
+    };
+    let argument_matches = plan
+        .arguments
+        .iter()
+        .any(|argument| argument.name == *path && argument.argument_id == scope_argument_id);
+    let Some(function_roles) = function_membership.roles.as_deref() else {
+        return Err(GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable);
+    };
+    if function_membership.declaration != declaration
+        || resource_table.as_ref().is_none_or(String::is_empty)
+        || !argument_matches
+        || function_roles.is_empty()
+        || function_roles != establishment_roles
+    {
+        return Err(GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable);
+    }
+    Ok(function_membership)
+}
+
+/// Recompute the complete plan-local broadcast certificate from the closed
+/// membership predicate and graph data flow. The installed-owner wrapper
+/// separately proves that the nominal declaration names the same backing
+/// table and resource domain in the active schema.
+///
+/// @ref LLP 0209#33-the-nine-llp-0268-inputs-and-their-carriers — an authored broadcast is admitted
+/// only when every proof field is reproduced by the host; failure never
+/// downgrades the authored carrier to query-shaped.
+pub fn recompute_graph_broadcast_establishment_v1(
+    plan: &GraphQueryPlanV1,
+    predicate: &TableVisibilityV1,
+    installed_owner_identity: &Sha256V1,
+) -> Result<GraphBroadcastEstablishmentV1, GraphAdmissionRefusalReasonV1> {
+    let TableVisibilityV1::Membership {
+        declaration,
+        resource_field,
+        roles,
+    } = predicate
+    else {
+        return Err(GraphAdmissionRefusalReasonV1::BroadcastSeparationUnprovable);
+    };
+    if declaration.is_empty()
+        || resource_field.is_empty()
+        || roles.as_ref().is_some_and(|roles| {
+            roles.is_empty()
+                || roles.iter().any(String::is_empty)
+                || roles.iter().collect::<BTreeSet<_>>().len() != roles.len()
+        })
+    {
+        return Err(GraphAdmissionRefusalReasonV1::BroadcastSeparationUnprovable);
+    }
+
+    let mut bindings_by_node = BTreeMap::<String, BTreeMap<String, String>>::new();
+    let mut root_node_id = None;
+    for node in plan
+        .nodes
+        .iter()
+        .filter(|node| !matches!(node, GraphNodeV1::ClosedProjection { .. }))
+    {
+        let mut bindings = match node {
+            GraphNodeV1::RootWindow {
+                node_id, filters, ..
+            } => {
+                root_node_id = Some(node_id.clone());
+                graph_broadcast_filter_bindings(filters)
+            }
+            GraphNodeV1::EqualityToOne {
+                parent_node_id,
+                join_on,
+                filters,
+                ..
+            }
+            | GraphNodeV1::BoundedToMany {
+                parent_node_id,
+                join_on,
+                filters,
+                ..
+            } => {
+                let parent = bindings_by_node
+                    .get(parent_node_id)
+                    .ok_or(GraphAdmissionRefusalReasonV1::BroadcastScopeUnbound)?;
+                let mut bindings =
+                    graph_broadcast_filter_bindings(filters.as_deref().unwrap_or_default());
+                for equality in join_on {
+                    if let Some(argument_id) = parent.get(&equality.root_field) {
+                        bindings.insert(equality.joined_field.clone(), argument_id.clone());
+                    }
+                }
+                bindings
+            }
+            GraphNodeV1::ExistsSemiJoin { .. }
+            | GraphNodeV1::PrincipalBound { .. }
+            | GraphNodeV1::SearchMembership { .. }
+            | GraphNodeV1::ClosedProjection { .. } => {
+                return Err(GraphAdmissionRefusalReasonV1::BroadcastScopeUnbound);
+            }
+        };
+        // A repeated equality for one field is canonicalized by the graph's
+        // filter conjunction. Retain the one deterministic argument binding.
+        bindings_by_node.insert(node.node_id().to_owned(), std::mem::take(&mut bindings));
+    }
+    let root_node_id = root_node_id.ok_or(GraphAdmissionRefusalReasonV1::BroadcastScopeUnbound)?;
+    let scope_argument_id = bindings_by_node
+        .get(&root_node_id)
+        .and_then(|bindings| bindings.get(resource_field))
+        .cloned()
+        .ok_or(GraphAdmissionRefusalReasonV1::BroadcastScopeUnbound)?;
+    if !plan
+        .arguments
+        .iter()
+        .any(|argument| argument.argument_id == scope_argument_id)
+    {
+        return Err(GraphAdmissionRefusalReasonV1::BroadcastScopeUnbound);
+    }
+
+    let mut resource_equalities = Vec::new();
+    for node in plan
+        .nodes
+        .iter()
+        .filter(|node| !matches!(node, GraphNodeV1::ClosedProjection { .. }))
+    {
+        let node_equalities = bindings_by_node
+            .get(node.node_id())
+            .into_iter()
+            .flat_map(|bindings| bindings.iter())
+            .filter(|(_, argument_id)| *argument_id == &scope_argument_id)
+            .map(|(field, argument_id)| GraphBroadcastResourceEqualityV1 {
+                node_id: node.node_id().to_owned(),
+                field: field.clone(),
+                argument_id: argument_id.clone(),
+            })
+            .collect::<Vec<_>>();
+        if node_equalities.is_empty() {
+            return Err(GraphAdmissionRefusalReasonV1::BroadcastScopeUnbound);
+        }
+        resource_equalities.extend(node_equalities);
+    }
+    resource_equalities.sort_by(|left, right| {
+        utf16_cmp(&left.node_id, &right.node_id)
+            .then_with(|| utf16_cmp(&left.field, &right.field))
+            .then_with(|| utf16_cmp(&left.argument_id, &right.argument_id))
+    });
+
+    let establishment_roles = roles
+        .as_deref()
+        .ok_or(GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable)?;
+    let _function_membership = graph_broadcast_function_membership_v1(
+        plan,
+        declaration,
+        establishment_roles,
+        &scope_argument_id,
+    )?;
+
+    let policy_identity = graph_domain_hash(
+        b"",
+        &serde_json::json!({
+            "format": "snapback.graph-broadcast-policy.v1",
+            "predicate": predicate,
+        }),
+    )
+    .map_err(|_| GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable)?;
+    let strict_evaluator_identity = graph_domain_hash(
+        b"",
+        &serde_json::json!({
+            "format": "snapback.graph-strict-audience-evaluator.v1",
+            "installedOwnerIdentity": installed_owner_identity,
+            "functionMembership": &plan.function_membership,
+            "predicate": predicate,
+        }),
+    )
+    .map_err(|_| GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable)?;
+
+    let mut events = vec![
+        GraphAuthorityEventSelectorV1::PermissionBackingWrite {
+            table: declaration.clone(),
+            permission_fields: None,
+            scope: GraphAuthorityEventScopeV1::AllDeclarationScopes,
+        },
+        GraphAuthorityEventSelectorV1::AuthorizationMetadataActivation {
+            declaration_id: declaration.clone(),
+        },
+        GraphAuthorityEventSelectorV1::AuthorizationIncarnationChange {
+            cause: GraphAuthorizationIncarnationCauseV1::AppReset,
+        },
+        GraphAuthorityEventSelectorV1::AuthorizationIncarnationChange {
+            cause: GraphAuthorizationIncarnationCauseV1::LogicalImport,
+        },
+        GraphAuthorityEventSelectorV1::AuthorizationIncarnationChange {
+            cause: GraphAuthorizationIncarnationCauseV1::DeclaredPhysicalRestore,
+        },
+        GraphAuthorityEventSelectorV1::OutOfBandPermissionRevocation {
+            declaration_id: declaration.clone(),
+        },
+    ];
+    events.extend(
+        [
+            GraphAuthorityTransitionCauseV1::Login,
+            GraphAuthorityTransitionCauseV1::Logout,
+            GraphAuthorityTransitionCauseV1::UserSwitch,
+            GraphAuthorityTransitionCauseV1::SessionExpiry,
+            GraphAuthorityTransitionCauseV1::AdminSessionRevocation,
+            GraphAuthorityTransitionCauseV1::LeaseExpiry,
+            GraphAuthorityTransitionCauseV1::GrantIssued,
+            GraphAuthorityTransitionCauseV1::GrantEnded,
+            GraphAuthorityTransitionCauseV1::CredentialIssued,
+            GraphAuthorityTransitionCauseV1::CredentialEnded,
+            GraphAuthorityTransitionCauseV1::TokenIssued,
+            GraphAuthorityTransitionCauseV1::TokenEnded,
+        ]
+        .into_iter()
+        .map(|cause| GraphAuthorityEventSelectorV1::AuthorityTransition { cause }),
+    );
+    let mut invalidation = events
+        .into_iter()
+        .map(|event| GraphBroadcastInvalidationV1 {
+            declaration_id: declaration.clone(),
+            event,
+            affected_scope_argument_ids: vec![scope_argument_id.clone()],
+        })
+        .collect::<Vec<_>>();
+    sort_by_jcs_key(
+        &mut invalidation,
+        GraphAdmissionRefusalReasonV1::BroadcastInvalidationIncomplete,
+    )?;
+
+    Ok(GraphBroadcastEstablishmentV1 {
+        effect: GraphBroadcastEffectV1::AdmitOnly,
+        predicate: predicate.clone(),
+        overlay_projection: (),
+        scope: GraphBroadcastScopeV1 {
+            argument_ids: vec![scope_argument_id],
+            policy_identity,
+            resource_equalities,
+        },
+        audience: GraphBroadcastAudienceV1 {
+            installed_owner_identity: installed_owner_identity.clone(),
+            strict_evaluator_identity,
+        },
+        invalidation,
+    })
+}
+
+fn graph_broadcast_proof_faults(
+    plan: &GraphQueryPlanV1,
+    establishment: &GraphBroadcastEstablishmentV1,
+) -> BTreeSet<GraphAdmissionRefusalReasonV1> {
+    let mut faults = BTreeSet::new();
+    let expected = match recompute_graph_broadcast_establishment_v1(
+        plan,
+        &establishment.predicate,
+        &establishment.audience.installed_owner_identity,
+    ) {
+        Ok(expected) => expected,
+        Err(reason) => {
+            faults.insert(reason);
+            return faults;
+        }
+    };
+    if establishment.effect != expected.effect
+        || establishment.predicate != expected.predicate
+        || establishment.overlay_projection != expected.overlay_projection
+    {
+        faults.insert(GraphAdmissionRefusalReasonV1::BroadcastSeparationUnprovable);
+    }
+    if establishment.scope != expected.scope {
+        faults.insert(GraphAdmissionRefusalReasonV1::BroadcastScopeUnbound);
+    }
+    if establishment.audience != expected.audience {
+        faults.insert(GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable);
+    }
+    if establishment.invalidation != expected.invalidation {
+        faults.insert(GraphAdmissionRefusalReasonV1::BroadcastInvalidationIncomplete);
+    }
+    faults
+}
+
 /// Validate the closed, normalized graph record using only plan-decidable
 /// facts. Installed schema/policy owner checks are performed by the manifest
 /// admission wrapper before this function is called.
@@ -3977,6 +4385,7 @@ fn validate_graph_query_plan_v1_first_fault(
                 parent_node_id,
                 edge,
                 mode,
+                filters,
                 argument_id,
                 ..
             } => {
@@ -4010,6 +4419,17 @@ fn validate_graph_query_plan_v1_first_fault(
                     return Err(GraphAdmissionRefusalReasonV1::ThroughTableUndeclared);
                 }
                 if matches!(mode, GraphExistsModeV1::Exists) != argument_id.is_none() {
+                    return Err(GraphAdmissionRefusalReasonV1::ArgumentUnbound);
+                }
+                if matches!(mode, GraphExistsModeV1::All)
+                    && !argument_id.as_ref().is_some_and(|argument_id| {
+                        all_semijoin_argument_is_bound(
+                            plan,
+                            filters.as_deref().unwrap_or_default(),
+                            argument_id,
+                        )
+                    })
+                {
                     return Err(GraphAdmissionRefusalReasonV1::ArgumentUnbound);
                 }
             }
@@ -4187,8 +4607,12 @@ fn validate_graph_query_plan_v1_first_fault(
             }) {
                 return Err(GraphAdmissionRefusalReasonV1::BroadcastBaseClassInvalid);
             }
-            let _b2_proof_carrier = establishment;
-            return Err(GraphAdmissionRefusalReasonV1::BroadcastSeparationUnprovable);
+            if let Some(reason) = graph_broadcast_proof_faults(plan, establishment)
+                .into_iter()
+                .next()
+            {
+                return Err(reason);
+            }
         }
     }
     validate_graph_costs(plan)
@@ -4217,6 +4641,25 @@ fn graph_filter_faults(
             }
         }
     }
+}
+
+fn all_semijoin_argument_is_bound(
+    plan: &GraphQueryPlanV1,
+    filters: &[FilterExpr],
+    argument_id: &str,
+) -> bool {
+    let collection_typed = plan.arguments.iter().any(|argument| {
+        argument.argument_id == argument_id
+            && matches!(argument.contract.value, ResultValueContract::Array { .. })
+    });
+    let matching_filters = filters
+        .iter()
+        .filter(|filter| {
+            filter.op == FilterOp::In
+                && matches!(&filter.value, ValueExpr::Arg(bound) if bound == argument_id)
+        })
+        .count();
+    collection_typed && matching_filters == 1
 }
 
 /// Return every plan-local and normalization fault, ordered by the normative
@@ -4427,6 +4870,17 @@ pub fn graph_query_plan_faults_v1(plan: &GraphQueryPlanV1) -> Vec<GraphAdmission
                 if matches!(mode, GraphExistsModeV1::Exists) != argument_id.is_none() {
                     faults.insert(GraphAdmissionRefusalReasonV1::ArgumentUnbound);
                 }
+                if matches!(mode, GraphExistsModeV1::All)
+                    && !argument_id.as_ref().is_some_and(|argument_id| {
+                        all_semijoin_argument_is_bound(
+                            plan,
+                            filters.as_deref().unwrap_or_default(),
+                            argument_id,
+                        )
+                    })
+                {
+                    faults.insert(GraphAdmissionRefusalReasonV1::ArgumentUnbound);
+                }
                 graph_filter_faults(
                     filters.as_deref().unwrap_or_default(),
                     &argument_names,
@@ -4587,7 +5041,7 @@ pub fn graph_query_plan_faults_v1(plan: &GraphQueryPlanV1) -> Vec<GraphAdmission
         GraphBroadcastAdmissionV1::Broadcast {
             format,
             base_node_ids,
-            ..
+            establishment,
         } => {
             if format != "snapback.graph-broadcast-admission.v1" {
                 faults.insert(GraphAdmissionRefusalReasonV1::UnknownField);
@@ -4602,7 +5056,7 @@ pub fn graph_query_plan_faults_v1(plan: &GraphQueryPlanV1) -> Vec<GraphAdmission
             }) {
                 faults.insert(GraphAdmissionRefusalReasonV1::BroadcastBaseClassInvalid);
             }
-            faults.insert(GraphAdmissionRefusalReasonV1::BroadcastSeparationUnprovable);
+            faults.extend(graph_broadcast_proof_faults(plan, establishment));
         }
     }
     faults.extend(graph_cost_faults(plan));
@@ -4791,7 +5245,7 @@ pub fn validate_graph_window_vector_v1(
         return Err(GraphDemandTimeRefusalReasonV1::WindowVectorInvalid);
     }
     for (entry, node) in windows.iter().zip(demand_nodes) {
-        if entry.node_id != node.node_id() || entry.intervals.is_empty() {
+        if entry.node_id != node.node_id() {
             return Err(GraphDemandTimeRefusalReasonV1::WindowVectorInvalid);
         }
         let order = node
@@ -4816,6 +5270,10 @@ pub fn validate_graph_window_vector_v1(
                 return Err(GraphDemandTimeRefusalReasonV1::WindowVectorInvalid);
             }
         } else {
+            // @ref LLP 0209#24-plan-instance-and-contextual-materialization-identity —
+            // a demand-paged child records exactly the evaluated physical
+            // parent set; an empty root result therefore has an empty, but
+            // still present, child interval vector.
             let expected =
                 expected_parents.ok_or(GraphDemandTimeRefusalReasonV1::WindowVectorInvalid)?;
             let actual = entry
@@ -4845,9 +5303,7 @@ pub fn validate_graph_window_vector_v1(
             if interval.window.order != order {
                 return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
             }
-            if interval.window.take == 0
-                || interval.window.take > GRAPH_MAX_SAFE_INTEGER
-                || interval.window.take > maximum_take
+            if interval.window.take > GRAPH_MAX_SAFE_INTEGER || interval.window.take > maximum_take
             {
                 return Err(GraphDemandTimeRefusalReasonV1::WindowVectorInvalid);
             }
@@ -5062,6 +5518,9 @@ pub fn validate_graph_captured_read_v1(
                 index,
                 predicate,
                 order,
+                direction,
+                lower,
+                upper,
                 limit,
                 result_count,
                 boundary,
@@ -5072,6 +5531,13 @@ pub fn validate_graph_captured_read_v1(
                 && index == access_index
                 && predicate == filters
                 && order == declared_order
+                && direction.is_some()
+                && lower
+                    .as_ref()
+                    .is_some_and(|end| validate_interval_end(end, declared_order).is_ok())
+                && upper
+                    .as_ref()
+                    .is_some_and(|end| validate_interval_end(end, declared_order).is_ok())
                 && *limit > 0
                 && safe_count(*limit)
                 && *result_count <= *limit
@@ -5128,6 +5594,9 @@ pub fn validate_graph_captured_read_v1(
                 index,
                 predicate,
                 order,
+                direction,
+                lower,
+                upper,
                 limit,
                 result_count,
                 boundary,
@@ -5138,6 +5607,13 @@ pub fn validate_graph_captured_read_v1(
                 && index == access_index
                 && predicate.as_slice() == filters.as_deref().unwrap_or_default()
                 && order == declared_order
+                && direction.is_some()
+                && lower
+                    .as_ref()
+                    .is_some_and(|end| validate_interval_end(end, declared_order).is_ok())
+                && upper
+                    .as_ref()
+                    .is_some_and(|end| validate_interval_end(end, declared_order).is_ok())
                 && *limit > 0
                 && safe_count(*limit)
                 && *result_count <= *limit
@@ -5191,14 +5667,19 @@ pub fn validate_graph_captured_read_v1(
             GraphCapturedDependencyV1::PrincipalField {
                 table: captured_table,
                 index,
+                parent_key,
                 field,
                 ..
             },
         ) => {
-            (captured_table == table && index == access_index && field == principal_field)
+            (captured_table == table
+                && index == access_index
+                && field == principal_field
+                && parent_key.is_some())
                 || binding.as_ref().is_some_and(|binding| {
                     captured_table == &binding.table
                         && index == &binding.unique_index
+                        && parent_key.is_none()
                         && (field == &binding.principal_field || field == &binding.value_field)
                 })
         }
@@ -5342,6 +5823,58 @@ mod tests {
             "resultContractHash": zero_hash()
         }))
         .expect("valid graph fixture")
+    }
+
+    fn broadcast_plan() -> GraphQueryPlanV1 {
+        let mut candidate = candidate_plan("root", "projection");
+        candidate.arguments = serde_json::from_value(json!([{
+            "argumentId":"roomId", "name":"roomId",
+            "contract":{
+                "format":"snapback.argument-binding-contract.v1",
+                "required":true,
+                "value":{"kind":"string","maxBytes":128}
+            },
+            "contractHash":zero_hash()
+        }]))
+        .unwrap();
+        candidate.query_cost.graph.max_argument_items = 1;
+        let GraphNodeV1::RootWindow { filters, .. } = &mut candidate.nodes[0] else {
+            unreachable!()
+        };
+        *filters = vec![FilterExpr {
+            field: "scopeId".to_owned(),
+            op: FilterOp::Eq,
+            value: ValueExpr::Arg("roomId".to_owned()),
+        }];
+        let mut normalized = graph_plan_identity_v1(&candidate)
+            .expect("broadcast base normalizes")
+            .normalized_plan;
+        normalized.function_membership = vec![MembershipPredicate {
+            declaration: "roomMembers".to_owned(),
+            resource: MembershipResourceRef::Arg {
+                path: "roomId".to_owned(),
+                resource_table: Some("rooms".to_owned()),
+            },
+            roles: Some(vec!["member".to_owned()]),
+        }];
+        let predicate = TableVisibilityV1::Membership {
+            declaration: "roomMembers".to_owned(),
+            resource_field: "scopeId".to_owned(),
+            roles: Some(vec!["member".to_owned()]),
+        };
+        let installed_owner_identity = Sha256V1::new(zero_hash()).unwrap();
+        let establishment = recompute_graph_broadcast_establishment_v1(
+            &normalized,
+            &predicate,
+            &installed_owner_identity,
+        )
+        .unwrap();
+        normalized.broadcast = GraphBroadcastAdmissionV1::Broadcast {
+            format: "snapback.graph-broadcast-admission.v1".to_owned(),
+            base_node_ids: vec!["n0".to_owned()],
+            establishment,
+        };
+        normalized
     }
 
     fn root_window(node_id: &str) -> GraphNodeWindowIdentityV1 {
@@ -5692,6 +6225,7 @@ mod tests {
                     resource_equalities: Vec::new(),
                 },
                 audience: GraphBroadcastAudienceV1 {
+                    installed_owner_identity: Sha256V1::new(zero_hash()).unwrap(),
                     strict_evaluator_identity: Sha256V1::new(zero_hash()).unwrap(),
                 },
                 invalidation: Vec::new(),
@@ -5728,6 +6262,7 @@ mod tests {
                         resource_equalities: Vec::new(),
                     },
                     audience: GraphBroadcastAudienceV1 {
+                        installed_owner_identity: Sha256V1::new(zero_hash()).unwrap(),
                         strict_evaluator_identity: Sha256V1::new(zero_hash()).unwrap(),
                     },
                     invalidation: Vec::new(),
@@ -5740,6 +6275,78 @@ mod tests {
             vectors["broadcastScope"]["rotatedHash"].as_str().unwrap()
         );
         assert_ne!(scope.scope_hash, rotated_scope.scope_hash);
+    }
+
+    #[test]
+    fn graph_instance_identity_distinguishes_empty_and_one_physical_child_parent() {
+        let mut normalized_plan = candidate_plan("n0", "n2");
+        normalized_plan.nodes.insert(
+            1,
+            serde_json::from_value(json!({
+                "nodeId":"n1", "kind":"bounded-to-many", "edgeName":"comments",
+                "authority":authority(1), "parentNodeId":"n0", "table":"comments",
+                "visibility":{"kind":"public-read"},
+                "joinOn":[{"rootField":"id","joinedField":"issueId"}],
+                "accessIndex":"by_issue", "order":[{"field":"updatedAt","direction":"Desc"}],
+                "page":{"kind":"demand"}
+            }))
+            .unwrap(),
+        );
+        normalized_plan.query_cost.graph.nodes.insert(
+            1,
+            GraphNodeCostV1 {
+                node_id: "n1".to_owned(),
+                max_root_rows_per_page: None,
+                max_examined_entries_per_execution: 3,
+                max_relationship_lookups_per_execution: Some(1),
+                max_children_per_parent: Some(2),
+                max_argument_expansion: None,
+                max_window_pages: Some(1),
+                max_window_root_rows: Some(0),
+                max_window_scanned_rows: Some(3),
+                max_window_result_rows: Some(2),
+                max_window_result_bytes: Some(100),
+                max_window_index_ranges: Some(1),
+            },
+        );
+        let plan = GraphPlanIdentityV1 {
+            normalized_plan,
+            plan_hash: Sha256V1::new(zero_hash()).unwrap(),
+        };
+        let child_window = |intervals| GraphNodeWindowIdentityV1 {
+            node_id: "n1".to_owned(),
+            intervals,
+        };
+        let empty_windows = vec![root_window("n0"), child_window(Vec::new())];
+        let empty_parents = BTreeMap::from([("n1".to_owned(), Vec::new())]);
+        let empty = graph_instance_identity_v1(&plan, &json!({}), empty_windows, &empty_parents)
+            .expect("empty evaluated child parent set is represented exactly");
+
+        let physical_parent = GraphRowKeyV1 {
+            table: "issues".to_owned(),
+            id: "physical_issue_1".to_owned(),
+        };
+        let one_windows = vec![
+            root_window("n0"),
+            child_window(vec![GraphParentWindowIdentityV1 {
+                parent_key: Some(physical_parent.clone()),
+                window: GraphWindowIdentityV1 {
+                    order: vec![OrderExpr {
+                        field: "updatedAt".to_owned(),
+                        direction: OrderDirection::Desc,
+                        max_encoded_bytes: None,
+                    }],
+                    direction: GraphDirectionV1::Forward,
+                    lower: GraphIntervalEndV1::Unbounded,
+                    upper: GraphIntervalEndV1::Unbounded,
+                    take: 2,
+                },
+            }]),
+        ];
+        let one_parents = BTreeMap::from([("n1".to_owned(), vec![physical_parent])]);
+        let one = graph_instance_identity_v1(&plan, &json!({}), one_windows, &one_parents)
+            .expect("one evaluated physical child parent is represented exactly");
+        assert_ne!(empty.instance_hash, one.instance_hash);
     }
 
     #[test]
@@ -6014,38 +6621,64 @@ mod tests {
                 .any(|fault| fault.reason == GraphAdmissionRefusalReasonV1::SearchUnadmitted)
         );
 
-        let mut class1 = graph_plan_identity_v1(&candidate_plan("root", "projection"))
-            .unwrap()
-            .normalized_plan;
-        class1.broadcast = GraphBroadcastAdmissionV1::Broadcast {
-            format: "snapback.graph-broadcast-admission.v1".to_owned(),
-            base_node_ids: vec!["n0".to_owned()],
-            establishment: GraphBroadcastEstablishmentV1 {
-                effect: GraphBroadcastEffectV1::AdmitOnly,
-                predicate: TableVisibilityV1::PublicRead,
-                overlay_projection: (),
-                scope: GraphBroadcastScopeV1 {
-                    argument_ids: Vec::new(),
-                    policy_identity: Sha256V1::new(zero_hash()).unwrap(),
-                    resource_equalities: Vec::new(),
-                },
-                audience: GraphBroadcastAudienceV1 {
-                    strict_evaluator_identity: Sha256V1::new(zero_hash()).unwrap(),
-                },
-                invalidation: Vec::new(),
-            },
+        let class1 = broadcast_plan();
+        assert_eq!(validate_graph_query_plan_v1(&class1), Ok(()));
+
+        let mut separation_counterfeit = class1.clone();
+        let GraphBroadcastAdmissionV1::Broadcast { establishment, .. } =
+            &mut separation_counterfeit.broadcast
+        else {
+            unreachable!()
         };
+        establishment.predicate = TableVisibilityV1::PublicRead;
         assert_eq!(
-            validate_graph_query_plan_v1(&class1),
+            validate_graph_query_plan_v1(&separation_counterfeit),
             Err(GraphAdmissionRefusalReasonV1::BroadcastSeparationUnprovable)
         );
 
-        for node in &mut class1.nodes {
+        let mut scope_counterfeit = class1.clone();
+        let GraphBroadcastAdmissionV1::Broadcast { establishment, .. } =
+            &mut scope_counterfeit.broadcast
+        else {
+            unreachable!()
+        };
+        establishment.scope.resource_equalities.clear();
+        assert_eq!(
+            validate_graph_query_plan_v1(&scope_counterfeit),
+            Err(GraphAdmissionRefusalReasonV1::BroadcastScopeUnbound)
+        );
+
+        let mut audience_counterfeit = class1.clone();
+        let GraphBroadcastAdmissionV1::Broadcast { establishment, .. } =
+            &mut audience_counterfeit.broadcast
+        else {
+            unreachable!()
+        };
+        establishment.audience.strict_evaluator_identity = Sha256V1::new(zero_hash()).unwrap();
+        assert_eq!(
+            validate_graph_query_plan_v1(&audience_counterfeit),
+            Err(GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable)
+        );
+
+        let mut invalidation_counterfeit = class1.clone();
+        let GraphBroadcastAdmissionV1::Broadcast { establishment, .. } =
+            &mut invalidation_counterfeit.broadcast
+        else {
+            unreachable!()
+        };
+        establishment.invalidation.pop();
+        assert_eq!(
+            validate_graph_query_plan_v1(&invalidation_counterfeit),
+            Err(GraphAdmissionRefusalReasonV1::BroadcastInvalidationIncomplete)
+        );
+
+        let mut invalid_base = class1;
+        for node in &mut invalid_base.nodes {
             node.authority_mut().declared_class = GraphAuthorityClassV1::PRINCIPAL_SCOPED;
         }
-        class1.authority_partition_rule.class3 = GraphClass3PartitionV1::PartitionOfOne;
+        invalid_base.authority_partition_rule.class3 = GraphClass3PartitionV1::PartitionOfOne;
         assert_eq!(
-            validate_graph_query_plan_v1(&class1),
+            validate_graph_query_plan_v1(&invalid_base),
             Err(GraphAdmissionRefusalReasonV1::BroadcastBaseClassInvalid)
         );
     }
@@ -6094,12 +6727,12 @@ mod tests {
             "authorityClass":1
         });
         let variants = vec![
-            json!({"kind":"root-range","table":"issues","index":"by_updated","predicate":[],"order":[],"limit":2,"resultCount":0,"boundary":null,"complete":true}),
+            json!({"kind":"root-range","table":"issues","index":"by_updated","predicate":[],"order":[],"direction":"forward","lower":{"kind":"unbounded"},"upper":{"kind":"unbounded"},"limit":2,"resultCount":0,"boundary":null,"complete":true}),
             json!({"kind":"parent-point","table":"users","index":"by_id","parentKey":{"table":"issues","id":"i1"},"lookupKey":["u1"],"childKey":null,"found":false,"rowVersion":null}),
             json!({"kind":"parent-lookup-skipped","table":"users","index":"by_id","parentKey":{"table":"issues","id":"i1"},"reason":"null-or-omitted-key"}),
-            json!({"kind":"parent-range","table":"comments","index":"by_issue","parentKey":{"table":"issues","id":"i1"},"predicate":[],"order":[],"limit":2,"resultCount":0,"boundary":null,"complete":true}),
+            json!({"kind":"parent-range","table":"comments","index":"by_issue","parentKey":{"table":"issues","id":"i1"},"predicate":[],"order":[],"direction":"forward","lower":{"kind":"unbounded"},"upper":{"kind":"unbounded"},"limit":2,"resultCount":0,"boundary":null,"complete":true}),
             json!({"kind":"membership","tables":["votes"],"indexes":["by_issue"],"parentKey":{"table":"issues","id":"i1"},"argumentId":null,"matchedCount":0,"complete":true}),
-            json!({"kind":"principal-field","table":"views","index":"by_user","partitionHash":zero_hash(),"field":"userId","valueDigest":zero_hash(),"found":false}),
+            json!({"kind":"principal-field","table":"views","index":"by_user","parentKey":null,"partitionHash":zero_hash(),"field":"userId","valueDigest":zero_hash(),"found":false}),
             json!({"kind":"search-table","table":"issues","membershipIdentity":{"format":"snapback.graph-search-membership-identity.v1","providerPlanHash":zero_hash(),"argumentContractHash":zero_hash(),"scopeContractHash":zero_hash(),"authorityClass":1,"providerVersion":"v1","providerCompletenessClass":"complete-membership-v1","membershipHash":zero_hash()},"providerVersion":"v1"}),
             json!({"kind":"projection","sourceNodeIds":["n0"]}),
         ];

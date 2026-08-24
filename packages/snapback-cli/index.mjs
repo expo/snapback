@@ -24,7 +24,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { createConnection } from 'node:net';
+import { createConnection, createServer as createNetServer } from 'node:net';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -93,6 +93,7 @@ import {
   verifyRuntimeReadinessReceipt,
   verifyRuntimePackageSeal,
 } from './runtime-readiness.mjs';
+import { maskInitSourceCommentsAndStrings } from './source-mask.mjs';
 import { createSupervisedBindingPublisher } from './expo-binding-refresh.mjs';
 import {
   loadComparatorProfile,
@@ -117,6 +118,18 @@ import {
 } from './hosted-control.mjs';
 import { spawnLeasedProcess, stopProcessGroup } from './process-teardown.mjs';
 import { validateAdminConsoleSnapshot } from './admin-snapshot.mjs';
+import {
+  devPortPlanOwner,
+  materializeDevPortPlan,
+  resolveDevPortPlan,
+} from './port-plan.mjs';
+export {
+  DEFAULT_DEV_PORT_RANGE,
+  DEV_PORT_ENVIRONMENT,
+  devPortPlanOwner,
+  materializeDevPortPlan,
+  resolveDevPortPlan,
+} from './port-plan.mjs';
 export {
   addTarget,
   applyBackupPlan,
@@ -469,12 +482,17 @@ function runtimeReadinessRoot(runtime) {
   return dirname(dirname(resolve(runtime.binary)));
 }
 
+// @ref LLP 0010#native-runtime-bootstrap — the digest binding follows the
+// Hermes layout that actually sits beside the selected binary. Selecting the
+// candidate set from the `runtime.source` label instead bound a source-checkout
+// layout to an explicitly overridden packaged runtime, recorded an empty
+// artifact list, and made framework drift undetectable for that binary.
 function runtimeReadinessArtifacts(runtime, runtimeRoot) {
-  if (['source-checkout', 'override', 'qualified-override'].includes(runtime.source)) {
-    return digestRuntimeArtifacts(runtimeRoot);
-  }
-  const candidates = packagedRuntimeArtifactCandidates(runtimeRoot);
-  return digestRuntimeArtifacts(runtimeRoot, { candidates });
+  const checkoutLayout = digestRuntimeArtifacts(runtimeRoot);
+  if (checkoutLayout.length > 0) return checkoutLayout;
+  return digestRuntimeArtifacts(runtimeRoot, {
+    candidates: packagedRuntimeArtifactCandidates(runtimeRoot),
+  });
 }
 
 // @ref LLP 0010#native-runtime-bootstrap — packaged consumers persist the
@@ -496,6 +514,19 @@ export function packagedRuntimeReadiness(options = {}) {
       receiptPath,
       artifacts,
     });
+    // @ref LLP 0115#cv-3-a-persisted-readiness-receipt-across-doctor-bootstrap-and-harness — a packaged app's first proof, and every proof after
+    // a runtime upgrade, has no receipt for the binary in front of it. Running
+    // the authoritative live qualification is the honest way to obtain one; a
+    // failed qualification still refuses. Tampered, unqualified, and
+    // contract-drifted receipts stay loud because a person must read them.
+    if (!verdict.ok
+        && options.acquire === true
+        && ['absent', 'binary-drift', 'framework-drift'].includes(verdict.reason)) {
+      return {
+        ...packagedRuntimeReadiness({ ...options, verify: false, acquire: false }),
+        acquired: verdict.reason,
+      };
+    }
     return {
       schemaVersion: 'snapback.runtime-readiness-verification.v1',
       operation: 'verify',
@@ -685,9 +716,13 @@ export async function doctor(options = {}) {
       );
     }
     mkdirSync(stateRoot, { recursive: true });
+    const childEnvironment = runtimeSpawnEnvironment(runtime.binary, options.env);
+    // @ref LLP 0301#2-origin-admission--the-path-split-implemented — the
+    // posture is lifecycle-owner input, never ambient.
+    delete childEnvironment.SNAPBACK_DEV_ADMISSION_POSTURE;
     child = spawn(runtime.binary, ['start', '--ready-file', readyFile, '--db', database], {
       cwd: projectRoot,
-      env: runtimeSpawnEnvironment(runtime.binary, options.env),
+      env: childEnvironment,
       stdio: ['ignore', 'ignore', 'ignore'],
     });
     const descriptor = validateDevTarget(
@@ -1475,7 +1510,10 @@ export async function buildRelease(options = {}) {
   assertDisjointTrees(backendRoot, requestedOutputRoot);
   if (options.webDirectory) assertDisjointTrees(resolve(options.webDirectory), requestedOutputRoot);
   const targetProfile = options.targetProfile ?? 'local-dev-sqlite-ibex';
-  const generated = await generateApp(backendRoot, { targetProfile });
+  const generated = await generateApp(backendRoot, {
+    targetProfile,
+    appBindingMode: 'release',
+  });
   if (!generated.ok) {
     throw diagnosticError('SNAPBACK_DEPLOY_GENERATION_FAILED', 'release generation failed', { diagnostics: generated.diagnostics ?? [] });
   }
@@ -2065,10 +2103,23 @@ function initContainedPath(root, path, label) {
   return join(canonical, relative(cursor, path));
 }
 
+// @ref LLP 0261#design — create-expo-app has shipped both a root `app/` and a
+// `src/app/` Router root; each is recognized, and a root carrying both stays
+// ambiguous rather than guessing which one owns the layout.
+const INIT_EXPO_ROUTER_ROOTS = Object.freeze(['app', 'src/app']);
+
+function detectInitRouterRoots(root) {
+  return INIT_EXPO_ROUTER_ROOTS.filter((candidate) => (
+    initFileExists(root, candidate, 'directory')
+      && initFileExists(root, `${candidate}/_layout.tsx`)
+  ));
+}
+
 // @ref LLP 0261#design — v1 recognizes only the two evidence-backed root
 // shapes; every other frontend refuses instead of receiving guessed edits.
 function detectInitApp(root, manifest) {
   const dependencies = initDependencies(manifest);
+  const routerRoots = detectInitRouterRoots(root);
   const expoFacts = {
     expoDependency: typeof dependencies.expo === 'string',
     reactNativeDependency: typeof dependencies['react-native'] === 'string',
@@ -2076,8 +2127,7 @@ function detectInitApp(root, manifest) {
     appEntry: initFileExists(root, 'App.tsx'),
     registrationEntry: initFileExists(root, 'index.ts'),
     routerDependency: typeof dependencies['expo-router'] === 'string',
-    routerDirectory: initFileExists(root, 'app', 'directory'),
-    routerLayout: initFileExists(root, 'app/_layout.tsx'),
+    routerRoots,
     typecheckConfig: initFileExists(root, 'tsconfig.json'),
   };
   const reactFacts = {
@@ -2095,33 +2145,39 @@ function detectInitApp(root, manifest) {
     && expoFacts.appConfig
     && expoFacts.typecheckConfig;
   const classicShape = expoCommon && expoFacts.appEntry && expoFacts.registrationEntry;
-  const routerShape = expoCommon
-    && expoFacts.routerDependency
-    && expoFacts.routerDirectory
-    && expoFacts.routerLayout;
+  if (expoCommon && expoFacts.routerDependency && routerRoots.length > 1) {
+    initCollision(
+      root,
+      'router-root ambiguity',
+      'tsconfig.json',
+      `Both ${routerRoots.join(' and ')} carry a _layout.tsx, so init cannot tell which one owns the route tree. Remove the unused Router root before rerunning.`,
+    );
+  }
+  const routerRoot = routerRoots[0] ?? null;
+  const routerShape = expoCommon && expoFacts.routerDependency && routerRoot !== null;
   const declaredMain = typeof manifest.main === 'string' ? manifest.main : null;
   const routerMain = declaredMain === 'expo-router/entry';
   const classicMain = declaredMain === 'index.ts' || declaredMain === './index.ts';
-  if (routerMain && routerShape) return { kind: 'expo-router', facts: expoFacts };
+  if (routerMain && routerShape) return { kind: 'expo-router', routerRoot, facts: expoFacts };
   if (classicMain && classicShape) return { kind: 'expo', facts: expoFacts };
   if (classicShape && routerShape) {
     initCollision(
       root,
       'app-entry ambiguity',
       'package.json',
-      `Both the classic App.tsx/index.ts and expo-router app/_layout.tsx shapes are present, but package.json main (${JSON.stringify(declaredMain)}) selects neither. Set main to "index.ts" or "expo-router/entry" before rerunning.`,
+      `Both the classic App.tsx/index.ts and expo-router ${routerRoot}/_layout.tsx shapes are present, but package.json main (${JSON.stringify(declaredMain)}) selects neither. Set main to "index.ts" or "expo-router/entry" before rerunning.`,
     );
   }
   if (!routerMain && classicShape) {
     return { kind: 'expo', facts: expoFacts };
   }
   if (!classicMain && routerShape) {
-    return { kind: 'expo-router', facts: expoFacts };
+    return { kind: 'expo-router', routerRoot, facts: expoFacts };
   }
   if (Object.values(reactFacts).every(Boolean)) return { kind: 'react', facts: reactFacts };
   throw initRefusal(
     'SNAPBACK_INIT_ROOT_UNRECOGNIZED',
-    `snapback init looked for create-expo-app (classic App.tsx/index.ts or default expo-router app/_layout.tsx) or the packaged React scaffold shape, but this root matched neither. Use the sibling-scaffold workaround: ${initSiblingScaffoldWorkaround()}`,
+    `snapback init looked for create-expo-app (classic App.tsx/index.ts or default expo-router app/_layout.tsx or src/app/_layout.tsx) or the packaged React scaffold shape, but this root matched neither. Use the sibling-scaffold workaround: ${initSiblingScaffoldWorkaround()}`,
     root,
     {
       lookedFor: ['create-expo-app', 'packaged-react-scaffold'],
@@ -2135,7 +2191,7 @@ function initProfile(detected) {
 }
 
 function initTypecheckInclude(detected) {
-  if (detected.kind === 'expo-router') return ['app', 'snapback/generated/*.d.ts'];
+  if (detected.kind === 'expo-router') return [detected.routerRoot, 'snapback/generated/*.d.ts'];
   if (detected.kind === 'expo') return ['App.tsx', 'index.ts', 'snapback/generated/*.d.ts'];
   return ['src', 'snapback/generated/*.d.ts', 'vite.config.ts'];
 }
@@ -2411,11 +2467,13 @@ function readInitConfigs(root, detected) {
     };
   }
   if (detected.kind === 'expo-router') {
+    const entryRelativePath = `${detected.routerRoot}/_layout.tsx`;
+    const entryPath = join(root, ...detected.routerRoot.split('/'), '_layout.tsx');
     return {
       tsconfig,
-      entryPath: join(root, 'app', '_layout.tsx'),
-      entryRelativePath: 'app/_layout.tsx',
-      entrySource: readFileSync(join(root, 'app', '_layout.tsx'), 'utf8'),
+      entryPath,
+      entryRelativePath,
+      entrySource: readFileSync(entryPath, 'utf8'),
       appConfig: readInitJson(join(root, 'app.json'), root, 'app.json', { jsonc: true }),
     };
   }
@@ -2480,7 +2538,12 @@ function plannedInitTypecheck(root, detected, configs) {
       `Preserve files/references and add ${JSON.stringify(initTypecheckInclude(detected))} to the appropriate project boundary manually.`,
     );
   }
-  const include = configs.tsconfig.value?.include;
+  // @ref LLP 0261#design — the pristine blank-typescript template omits
+  // `include` entirely, which is an implicit whole-root boundary rather than a
+  // deliberate one; narrowing it is the same edit as replacing `**/*.ts`.
+  const include = Object.hasOwn(configs.tsconfig.value, 'include')
+    ? configs.tsconfig.value.include
+    : [];
   if (typeof include === 'string') {
     initCollision(
       root,
@@ -2527,55 +2590,6 @@ function plannedInitTypecheck(root, detected, configs) {
   };
 }
 
-function maskInitSourceCommentsAndStrings(source) {
-  let output = '';
-  let state = 'code';
-  let quote = null;
-  let escaped = false;
-  for (let index = 0; index < source.length; index += 1) {
-    const character = source[index];
-    const next = source[index + 1];
-    if (state === 'line-comment') {
-      if (character === '\n' || character === '\r') {
-        state = 'code';
-        output += character;
-      } else output += ' ';
-      continue;
-    }
-    if (state === 'block-comment') {
-      if (character === '*' && next === '/') {
-        output += '  ';
-        index += 1;
-        state = 'code';
-      } else output += character === '\n' || character === '\r' ? character : ' ';
-      continue;
-    }
-    if (state === 'string') {
-      output += character === '\n' || character === '\r' ? character : ' ';
-      if (escaped) escaped = false;
-      else if (character === '\\') escaped = true;
-      else if (character === quote) {
-        state = 'code';
-        quote = null;
-      }
-      continue;
-    }
-    if (character === '/' && next === '/') {
-      output += '  ';
-      index += 1;
-      state = 'line-comment';
-    } else if (character === '/' && next === '*') {
-      output += '  ';
-      index += 1;
-      state = 'block-comment';
-    } else if (character === "'" || character === '"' || character === '`') {
-      output += ' ';
-      state = 'string';
-      quote = character;
-    } else output += character;
-  }
-  return output;
-}
 
 function initImportBindings(source) {
   const bindings = new Set();
@@ -2616,8 +2630,11 @@ function assertInitBindingsAvailable(root, source, path, names) {
   }
 }
 
+// @ref LLP 0261#design — create-expo-app ships explanatory comments inside its
+// pristine entry files, so pristine comparison drops comments while keeping
+// string literals, which still pin the module specifier the seam rewrites.
 function normalizeInitPristineSource(source) {
-  return source.replace(/[\s;]/gu, '');
+  return maskInitSourceCommentsAndStrings(source, false).replace(/[\s;]/gu, '');
 }
 
 function initClassicExpoEntries() {
@@ -2629,18 +2646,24 @@ registerRootComponent(App);
 `);
 }
 
-function initExpoEntryImports(router = false) {
+// @ref LLP 0261#design — the descriptor specifier is derived from the Router
+// root's depth, so a `src/app/` layout reaches the same `snapback/generated`
+// directory as a root `app/` layout instead of one level short.
+function initGeneratedAppSpecifier(routerRoot) {
+  if (routerRoot === null) return './snapback/generated/app.mjs';
+  return `${'../'.repeat(routerRoot.split('/').length)}snapback/generated/app.mjs`;
+}
+
+function initExpoEntryImports(routerRoot = null) {
   return [
     `// ${INIT_SEAM_MARKER}`,
-    ...(router ? [] : ["import { createElement } from 'react';"]),
+    ...(routerRoot === null ? ["import { createElement } from 'react';"] : []),
     "import { Platform } from 'react-native';",
     "import * as FileSystem from 'expo-file-system';",
     "import * as Crypto from 'expo-crypto';",
     "import { registerExpoFileSystemRqsFiles } from '@expo/snapback-client';",
     "import { SnapbackExpoProvider } from '@expo/snapback-expo';",
-    router
-      ? "import { app as snapbackApp } from '../snapback/generated/app.mjs';"
-      : "import { app as snapbackApp } from './snapback/generated/app.mjs';",
+    `import { app as snapbackApp } from '${initGeneratedAppSpecifier(routerRoot)}';`,
   ].join('\n');
 }
 
@@ -2679,12 +2702,12 @@ export default function RootLayout() {
 `;
 }
 
-function initExpoEntryOwned(source, router = false) {
+function initExpoEntryOwned(source, routerRoot = null) {
   const newline = initSourceNewline(source);
-  const imports = renderInitSourceFragment(source, initExpoEntryImports(router));
+  const imports = renderInitSourceFragment(source, initExpoEntryImports(routerRoot));
   if (!source.startsWith(`${imports}${newline}`)) return false;
   let remainder = source.slice(imports.length + newline.length);
-  if (router) {
+  if (routerRoot !== null) {
     const tail = renderInitSourceFragment(source, initRouterExpoTail());
     if (!remainder.endsWith(`${newline}${newline}${tail}`)) return false;
     remainder = remainder.slice(0, -(`${newline}${newline}${tail}`).length);
@@ -2742,19 +2765,19 @@ function plannedClassicExpoEntry(root, configs) {
   return renderExpoEntry(configs.entrySource, appImport[1]);
 }
 
-function plannedRouterExpoEntry(root, configs) {
-  if (initExpoEntryOwned(configs.entrySource, true)) return null;
+function plannedRouterExpoEntry(root, configs, routerRoot) {
+  if (initExpoEntryOwned(configs.entrySource, routerRoot)) return null;
   if (configs.entrySource.includes('@expo/snapback-expo')
       || configs.entrySource.includes('SnapbackExpoProvider')
       || configs.entrySource.includes(INIT_SEAM_MARKER)) {
     initCollision(
       root,
       'provider',
-      'app/_layout.tsx',
+      configs.entryRelativePath,
       'Keep the existing router provider ownership and wrap its root layout with SnapbackExpoProvider manually.',
     );
   }
-  assertInitBindingsAvailable(root, configs.entrySource, 'app/_layout.tsx', [
+  assertInitBindingsAvailable(root, configs.entrySource, configs.entryRelativePath, [
     'Platform',
     'FileSystem',
     'Crypto',
@@ -2773,11 +2796,11 @@ function plannedRouterExpoEntry(root, configs) {
     initCollision(
       root,
       'provider',
-      'app/_layout.tsx',
+      configs.entryRelativePath,
       'The automatic seam expects the pristine Expo 57 create-expo-app TabLayout (ThemeProvider, AnimatedSplashOverlay, AppTabs) or its pristine blank Stack layout. Wrap a customized layout with SnapbackExpoProvider manually.',
     );
   }
-  return renderRouterExpoLayout(configs.entrySource, pristine.functionName);
+  return renderRouterExpoLayout(configs.entrySource, pristine.functionName, routerRoot);
 }
 
 function initReactEntryOwned(source) {
@@ -2868,9 +2891,9 @@ function renderExpoEntry(source, appIdentifier) {
   return `${imports}${newline}${source.replace(registration, replacement)}`;
 }
 
-function renderRouterExpoLayout(source, functionName) {
+function renderRouterExpoLayout(source, functionName, routerRoot) {
   const newline = initSourceNewline(source);
-  const imports = renderInitSourceFragment(source, initExpoEntryImports(true));
+  const imports = renderInitSourceFragment(source, initExpoEntryImports(routerRoot));
   const content = source.replace(
     new RegExp(`export\\s+default\\s+function\\s+${functionName}\\s*\\(\\s*\\)\\s*\\{`, 'u'),
     'function SnapbackInitRouterContent() {',
@@ -3074,7 +3097,7 @@ function initRequiredPaths(root, detected) {
     return [...common, 'src', 'src/App.tsx', 'src/main.tsx', 'vite.config.ts'];
   }
   if (detected.kind === 'expo-router') {
-    return [...common, 'app.json', 'app', 'app/_layout.tsx'];
+    return [...common, 'app.json', detected.routerRoot, `${detected.routerRoot}/_layout.tsx`];
   }
   return [...common, 'app.json', 'App.tsx', 'index.ts'];
 }
@@ -3371,7 +3394,7 @@ export function initApp(target = process.cwd(), options = {}) {
       );
     }
     const nextEntry = detected.kind === 'expo-router'
-      ? plannedRouterExpoEntry(root, configs)
+      ? plannedRouterExpoEntry(root, configs, detected.routerRoot)
       : plannedClassicExpoEntry(root, configs);
     if (nextEntry === null) plan.unchanged.add(configs.entryRelativePath);
     else planInitUpdate(plan, configs.entryRelativePath, configs.entrySource, nextEntry);
@@ -3410,16 +3433,21 @@ export function initApp(target = process.cwd(), options = {}) {
     },
     next: detected.kind !== 'react'
       ? ['snapback generate snapback --json', 'snapback dev snapback --expo']
-      : ['snapback generate snapback --json', 'snapback dev snapback --client . --client-command vite'],
+      : [
+          'snapback generate snapback --json',
+          'snapback dev snapback --write-env',
+          `${packageManager.manager} run dev`,
+        ],
   };
 }
 
-async function generateAppThroughNode(backendDirectory, { targetProfile, check }) {
+async function generateAppThroughNode(backendDirectory, { targetProfile, appBindingMode, check }) {
   const args = [
     require.resolve('@expo/snapback-codegen'),
     resolve(backendDirectory),
     '--json',
     '--target-profile', targetProfile,
+    '--app-binding-mode', appBindingMode,
     ...(check ? ['--check'] : []),
   ];
   const allowedEnvironment = new Set([
@@ -3495,6 +3523,7 @@ async function generateAppThroughNode(backendDirectory, { targetProfile, check }
 
 export async function generateApp(backendDirectory, options = {}) {
   const targetProfile = options.targetProfile ?? 'local-dev-sqlite-ibex';
+  const appBindingMode = options.appBindingMode ?? 'development';
   const check = options.check === true;
   // @ref LLP 0010#generated-artifacts — definition evaluation still occurs
   // under Node 24's permission model when a Bun-hosted Vite process owns the
@@ -3502,12 +3531,13 @@ export async function generateApp(backendDirectory, options = {}) {
   const canEvaluateIsolatedDefinitions = process.allowedNodeEnvironmentFlags
     ?.has('--permission') === true;
   const result = canEvaluateIsolatedDefinitions
-    ? await generate(resolve(backendDirectory), { targetProfile, check })
-    : await generateAppThroughNode(backendDirectory, { targetProfile, check });
+    ? await generate(resolve(backendDirectory), { targetProfile, appBindingMode, check })
+    : await generateAppThroughNode(backendDirectory, { targetProfile, appBindingMode, check });
   return {
     schemaVersion: 'snapback.generate.v1',
     ...result,
     targetProfile,
+    appBindingMode,
     check,
   };
 }
@@ -3568,21 +3598,15 @@ function normalizeDevPort(value) {
   return port;
 }
 
-function canonicalDevAuthOrigin(value) {
+function canonicalDevClientOrigin(value) {
   let url;
   try {
     url = new URL(value);
   } catch {
     return null;
   }
-  const hostname = url.hostname.replace(/^\[|\]$/gu, '').toLowerCase();
-  const loopback = hostname === 'localhost'
-    || hostname === '::1'
-    || /^127(?:\.[0-9]{1,3}){3}$/u.test(hostname);
   if (
     !['http:', 'https:'].includes(url.protocol)
-    || !loopback
-    || url.port === ''
     || url.username !== ''
     || url.password !== ''
     || (url.pathname !== '' && url.pathname !== '/')
@@ -3594,12 +3618,17 @@ function canonicalDevAuthOrigin(value) {
   return url.origin;
 }
 
+function portFromUrl(value) {
+  const parsed = new URL(value);
+  return Number(parsed.port || (parsed.protocol === 'https:' ? 443 : 80));
+}
+
 function canonicalExternalClientOrigin(value) {
-  const origin = canonicalDevAuthOrigin(value);
+  const origin = canonicalDevClientOrigin(value);
   if (origin === null) {
     throw diagnosticError(
       'SNAPBACK_CLI_ARGUMENT_INVALID',
-      '--external-client-origin must be an exact loopback HTTP(S) origin with an explicit port',
+      '--external-client-origin must be an exact HTTP(S) origin without credentials, path, query, or fragment',
       { origin: value },
     );
   }
@@ -3621,8 +3650,11 @@ function normalizeExternalClientOrigins(options, port) {
   if (origins.length > 0 && port === null) {
     throw diagnosticError(
       'SNAPBACK_CLI_ARGUMENT_INVALID',
-      '--external-client-origin requires --port so attach identity cannot drift with port selection',
-      { supportedProfile: 'snapback dev --port <backend-port> --external-client-origin <client-origin>' },
+      '--external-client-origin requires a backend pin (--port or SNAPBACK_DEV_PORT) so attach identity cannot drift with port selection',
+      {
+        supportedProfile: 'snapback dev --port <backend-port> --external-client-origin <client-origin>',
+        environmentEquivalent: 'SNAPBACK_DEV_PORT',
+      },
     );
   }
   return origins;
@@ -3644,16 +3676,190 @@ function withExternalClientOrigins(environment, declaredClientOrigins) {
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean)
-    .map(canonicalDevAuthOrigin)
-    .filter((origin) => origin !== null);
+    .map(canonicalExternalClientOrigin);
   const clientOrigins = [...new Set([...inherited, ...declaredClientOrigins])].sort();
-  const nextEnvironment = { ...environment };
-  if (clientOrigins.length === 0) delete nextEnvironment.SNAPBACK_DEV_AUTH_ORIGINS;
+  const admissionPosture = clientOrigins.length === 0 ? 'loopback-any' : 'explicit-list';
+  const nextEnvironment = {
+    ...environment,
+    // @ref LLP 0301#2-origin-admission--the-path-split-implemented — this is
+    // lifecycle-owned spawn input: a hostile ambient value is always
+    // overwritten together with the complete declaration list.
+    SNAPBACK_DEV_ADMISSION_POSTURE: admissionPosture,
+  };
+  if (admissionPosture === 'loopback-any') delete nextEnvironment.SNAPBACK_DEV_AUTH_ORIGINS;
   else nextEnvironment.SNAPBACK_DEV_AUTH_ORIGINS = clientOrigins.join(',');
   return {
     environment: nextEnvironment,
     clientOrigins,
+    admissionPosture,
   };
+}
+
+const DEV_ENV_BLOCK_START = '# >>> snapback dev >>>';
+const DEV_ENV_BLOCK_END = '# <<< snapback dev <<<';
+
+function devBackendUrls(serverUrl) {
+  const port = portFromUrl(serverUrl);
+  const snapbackUrl = canonicalDevClientOrigin(`http://127.0.0.1:${port}`);
+  const androidEmulatorUrl = canonicalDevClientOrigin(`http://10.0.2.2:${port}`);
+  return Object.freeze({
+    snapbackUrl,
+    androidEmulatorUrl,
+  });
+}
+
+function devEnvironmentBlock({ snapbackUrl, androidEmulatorUrl }, newline = '\n') {
+  return [
+    DEV_ENV_BLOCK_START,
+    `EXPO_PUBLIC_SNAPBACK_URL=${snapbackUrl}`,
+    `VITE_SNAPBACK_URL=${snapbackUrl}`,
+    `SNAPBACK_URL=${snapbackUrl}`,
+    '# Android emulator (copy this value manually; do not uncomment it here):',
+    `# EXPO_PUBLIC_SNAPBACK_URL=${androidEmulatorUrl}`,
+    DEV_ENV_BLOCK_END,
+  ].join(newline);
+}
+
+function devEnvironmentWriterConflict(path, reason, details = {}) {
+  return diagnosticError(
+    'SNAPBACK_DEV_ENV_WRITER_CONFLICT',
+    `snapback dev refused to update ${path}: ${reason}`,
+    { path: resolve(path), reason, ...details },
+  );
+}
+
+function exactMarkerMatches(contents, marker) {
+  const escaped = marker.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+  return [...contents.matchAll(new RegExp(`^${escaped}(?=\\r?$)`, 'gmu'))];
+}
+
+function managedEnvironmentKeys(contents) {
+  const keys = [];
+  for (const line of contents.split(/\r?\n/u)) {
+    const match = line.match(/^\s*(?:export\s+)?(EXPO_PUBLIC_SNAPBACK_URL|VITE_SNAPBACK_URL|SNAPBACK_URL)\s*=/u);
+    if (match) keys.push(match[1]);
+  }
+  return keys;
+}
+
+function environmentFileIgnored(path, projectRoot) {
+  const result = spawnSync(
+    'git',
+    ['check-ignore', '--quiet', '--no-index', '--', resolve(path)],
+    { cwd: projectRoot, stdio: 'ignore' },
+  );
+  return result.status === 0;
+}
+
+// @ref LLP 0301#4-snapback-dev-prints-the-url-the-opt-in-writer — one
+// marker-owned, credential-free block is replaced atomically without
+// normalizing any unrelated byte or changing an existing file's mode.
+export function writeDevEnvironmentFile(path, {
+  snapbackUrl,
+  androidEmulatorUrl,
+  projectRoot = dirname(resolve(path)),
+  beforeRename = null,
+} = {}) {
+  if (
+    typeof snapbackUrl !== 'string'
+    || typeof androidEmulatorUrl !== 'string'
+    || canonicalDevClientOrigin(snapbackUrl) !== snapbackUrl
+    || canonicalDevClientOrigin(androidEmulatorUrl) !== androidEmulatorUrl
+  ) {
+    throw new TypeError('writeDevEnvironmentFile requires canonical snapbackUrl and androidEmulatorUrl origins');
+  }
+  const target = resolve(path);
+  const existed = existsSync(target);
+  const contents = existed ? readFileSync(target, 'utf8') : '';
+  const starts = exactMarkerMatches(contents, DEV_ENV_BLOCK_START);
+  const ends = exactMarkerMatches(contents, DEV_ENV_BLOCK_END);
+  const markerLikeLines = contents
+    .split(/\r?\n/u)
+    .filter((line) => line.includes('snapback dev') && /[<>]{2,}/u.test(line));
+  if (
+    starts.length !== ends.length
+    || starts.length > 1
+    || markerLikeLines.length !== starts.length + ends.length
+    || (starts.length === 1 && starts[0].index >= ends[0].index)
+  ) {
+    throw devEnvironmentWriterConflict(target, 'duplicate or malformed snapback dev marker blocks', {
+      startMarkers: starts.length,
+      endMarkers: ends.length,
+    });
+  }
+
+  let prefix = contents;
+  let suffix = '';
+  let previousBlock = null;
+  if (starts.length === 1) {
+    const blockStart = starts[0].index;
+    const blockEnd = ends[0].index + ends[0][0].length;
+    prefix = contents.slice(0, blockStart);
+    previousBlock = contents.slice(blockStart, blockEnd);
+    suffix = contents.slice(blockEnd);
+    const androidLine = previousBlock.split(/\r?\n/u).find((line) => (
+      /^\s*(?:export\s+)?(?:EXPO_PUBLIC_SNAPBACK_URL|VITE_SNAPBACK_URL|SNAPBACK_URL)\s*=\s*https?:\/\/10\.0\.2\.2(?::|$)/u.test(line)
+    ));
+    if (androidLine !== undefined) {
+      throw devEnvironmentWriterConflict(
+        target,
+        'an Android emulator URL was manually uncommented inside the managed block',
+        { line: androidLine },
+      );
+    }
+  }
+  const outsideKeys = [...managedEnvironmentKeys(prefix), ...managedEnvironmentKeys(suffix)];
+  if (outsideKeys.length > 0) {
+    throw devEnvironmentWriterConflict(
+      target,
+      'managed Snapback URL keys exist outside the managed block',
+      { keys: [...new Set(outsideKeys)].sort() },
+    );
+  }
+
+  const newline = contents.includes('\r\n') ? '\r\n' : '\n';
+  const block = devEnvironmentBlock({ snapbackUrl, androidEmulatorUrl }, newline);
+  let nextContents;
+  let state;
+  if (previousBlock === null) {
+    const separator = contents.length === 0 || contents.endsWith('\n') ? '' : newline;
+    nextContents = `${contents}${separator}${block}${newline}`;
+    state = 'inserted';
+  } else {
+    nextContents = `${prefix}${block}${suffix}`;
+    state = previousBlock === block ? 'unchanged' : 'rewritten';
+  }
+  const gitignored = environmentFileIgnored(target, resolve(projectRoot));
+  if (nextContents === contents) {
+    return Object.freeze({
+      path: target,
+      state: 'unchanged',
+      changed: false,
+      gitignored,
+      snapbackUrl,
+      androidEmulatorUrl,
+    });
+  }
+
+  mkdirSync(dirname(target), { recursive: true });
+  const mode = existed ? statSync(target).mode & 0o7777 : 0o600;
+  const temporary = join(dirname(target), `.${basename(target)}.${process.pid}.${randomUUID()}.tmp`);
+  try {
+    writeFileSync(temporary, nextContents, { flag: 'wx', mode });
+    chmodSync(temporary, mode);
+    beforeRename?.({ target, temporary });
+    renameSync(temporary, target);
+  } finally {
+    rmSync(temporary, { force: true });
+  }
+  return Object.freeze({
+    path: target,
+    state,
+    changed: true,
+    gitignored,
+    snapbackUrl,
+    androidEmulatorUrl,
+  });
 }
 
 function loopbackPortAcceptsConnections(port) {
@@ -3670,6 +3876,103 @@ function loopbackPortAcceptsConnections(port) {
     socket.once('connect', () => settle(true));
     socket.once('error', () => settle(false));
   });
+}
+
+async function probeLoopbackPort(port) {
+  return new Promise((resolvePort, rejectPort) => {
+    const probe = createNetServer();
+    probe.once('error', (error) => {
+      if (error?.code === 'EADDRINUSE') resolvePort(false);
+      else rejectPort(error);
+    });
+    probe.listen(port, '127.0.0.1', () => {
+      probe.close((error) => {
+        if (error) rejectPort(error);
+        else resolvePort(true);
+      });
+    });
+  });
+}
+
+function describeDevPortHolder(port) {
+  const binary = ['/usr/sbin/lsof', '/usr/bin/lsof'].find((path) => existsSync(path));
+  if (binary === undefined) return null;
+  try {
+    const result = spawnSync(binary, [
+      '-nP', `-i4TCP:${port}`, '-sTCP:LISTEN', '-Fpcn',
+    ], { encoding: 'utf8', timeout: 10_000 });
+    if (result.error || ![0, 1].includes(result.status)) return null;
+    let pid = null;
+    let command = null;
+    for (const line of result.stdout.split('\n')) {
+      if (line.startsWith('p')) pid = Number(line.slice(1));
+      else if (line.startsWith('c')) command = line.slice(1);
+      else if (line.startsWith('n') && Number.isInteger(pid)) {
+        const address = line.slice(1).replace(/\s+\(LISTEN\)$/u, '');
+        const separator = address.lastIndexOf(':');
+        const host = separator === -1 ? null : address.slice(0, separator);
+        if (
+          Number(address.slice(separator + 1)) === port
+          && (host === '127.0.0.1' || host === '0.0.0.0' || host === '*')
+        ) {
+          return Object.freeze({ pid, command: command ?? null });
+        }
+      }
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function backendRangeExhaustionError(range, occupiedPorts) {
+  const holders = [...occupiedPorts]
+    .sort((left, right) => left - right)
+    .map((port) => {
+      const holder = describeDevPortHolder(port);
+      return Object.freeze({
+        port,
+        pid: holder?.pid ?? null,
+        command: holder?.command ?? null,
+      });
+    });
+  return diagnosticError(
+    'SNAPBACK_DEV_PORT_RANGE_EXHAUSTED',
+    `the backend listener could not find a free port in ${range.lo}-${range.hi}`,
+    { owner: 'backend', range: { lo: range.lo, hi: range.hi }, holders },
+  );
+}
+
+async function observeBackendRange(plan, { stopAtFirstFree }) {
+  const heldBySupervisor = new Set(plan.owners
+    .filter(({ owner, port }) => owner !== 'backend' && Number.isInteger(port))
+    .map(({ port }) => port));
+  const occupied = [];
+  for (let port = plan.range.lo; port <= plan.range.hi; port += 1) {
+    if (heldBySupervisor.has(port)) continue;
+    if (await probeLoopbackPort(port)) {
+      if (stopAtFirstFree) return { available: true, occupied };
+    } else {
+      occupied.push(port);
+    }
+  }
+  return { available: false, occupied };
+}
+
+async function assertBackendRangeAvailable(plan) {
+  const observed = await observeBackendRange(plan, { stopAtFirstFree: true });
+  if (!observed.available) throw backendRangeExhaustionError(plan.range, observed.occupied);
+}
+
+async function translateBackendRangeExhaustion(error, plan) {
+  if (
+    devPortPlanOwner(plan, 'backend')?.source !== 'range'
+    || error?.code !== 'SNAPBACK_DEV_SERVER_START_FAILED'
+  ) return null;
+  const output = `${error?.diagnostic?.details?.stdout ?? ''}\n${error?.diagnostic?.details?.stderr ?? ''}`;
+  if (!/no available Snapback port on/u.test(output)) return null;
+  const observed = await observeBackendRange(plan, { stopAtFirstFree: false });
+  return backendRangeExhaustionError(plan.range, observed.occupied);
 }
 
 async function validateReadyDescriptorHealth(descriptor) {
@@ -4163,6 +4466,110 @@ export function managedAdminToken(descriptor, database) {
   return token;
 }
 
+const DEFAULT_DEV_SESSION_EMAIL = 'snapback-dev@localhost.invalid';
+
+function devSessionTargetMissing(paths, cause = null) {
+  const error = diagnosticError(
+    'SNAPBACK_DEV_SESSION_TARGET_MISSING',
+    `no live receipt-verified managed development target was found at ${paths.join(', ')}`,
+    {
+      triedPaths: paths,
+      cause: cause?.code ?? cause?.message ?? null,
+    },
+  );
+  if (cause !== null) error.cause = cause;
+  return error;
+}
+
+// @ref LLP 0301#5-snapback-auth-dev-session — this explicit operator action
+// reuses the managed ready descriptor and its existing store-owned admin
+// token; it creates no durable credential carrier of its own.
+export async function mintDevSession({
+  readyFile = null,
+  email = DEFAULT_DEV_SESSION_EMAIL,
+  cwd = process.cwd(),
+  env = process.env,
+  runtimeBinary = null,
+} = {}) {
+  const requestedReadyFile = resolve(cwd, readyFile ?? join('.snapback', 'dev.ready.json'));
+  const triedPaths = [requestedReadyFile];
+  const selectedReadyFile = existsSync(requestedReadyFile)
+    ? realpathSync.native(requestedReadyFile)
+    : requestedReadyFile;
+  let descriptor;
+  try {
+    descriptor = readReadyDescriptor(selectedReadyFile);
+    if (typeof descriptor.startupNonce !== 'string' || descriptor.startupNonce.length === 0) {
+      throw diagnosticError(
+        'SNAPBACK_DEV_READY_FILE_INVALID',
+        'the managed development ready descriptor has no startup nonce',
+        { readyFile: selectedReadyFile },
+      );
+    }
+    await validateReadyDescriptorHealth(descriptor);
+  } catch (error) {
+    throw devSessionTargetMissing(triedPaths, error);
+  }
+  const database = descriptor?.database?.mode === 'file'
+    && typeof descriptor?.database?.path === 'string'
+    ? descriptor.database.path
+    : null;
+  if (database === null) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
+      'snapback auth dev-session requires a managed file-store admin-token artifact',
+      { readyFile: selectedReadyFile, databaseMode: descriptor?.database?.mode ?? null },
+    );
+  }
+  let operatorToken = managedAdminToken(descriptor, database);
+  if (typeof operatorToken !== 'string' || operatorToken.length === 0) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID',
+      'snapback auth dev-session requires the existing managed admin-token artifact',
+      { readyFile: selectedReadyFile },
+    );
+  }
+  try {
+    const runtime = resolveRuntimeBinary({
+      runtimeBinary: runtimeBinary ?? env?.SNAPBACK_RUNTIME_BINARY ?? null,
+      env,
+      projectRoot: cwd,
+    });
+    const { mintSupervisedOrdinarySession } = await import('./expo-dev.mjs');
+    const minted = mintSupervisedOrdinarySession({
+      runtimeBinary: runtime.binary,
+      readyFile: selectedReadyFile,
+      email,
+      operatorToken,
+      cwd,
+      env,
+    });
+    if (minted.status !== 'ready') {
+      const refusal = diagnosticError(
+        minted.diagnostic.code,
+        minted.diagnostic.message,
+        minted.diagnostic.details,
+      );
+      refusal.diagnostic = minted.diagnostic;
+      throw refusal;
+    }
+    if (!Number.isSafeInteger(minted.expiresAt)) {
+      throw diagnosticError(
+        'SNAPBACK_EXPO_SESSION_MINT_FAILED',
+        'the native session mint omitted the ordinary session expiry',
+      );
+    }
+    return Object.freeze({
+      formatVersion: 'snapback.dev-session.v1',
+      email,
+      bearer: minted.token,
+      expiresAt: minted.expiresAt,
+    });
+  } finally {
+    operatorToken = null;
+  }
+}
+
 function expectedDevIdentityCapabilityPath(descriptor, { readyFile, database = null } = {}) {
   // @ref LLP 0262#d2-carriers-per-shipped-topology — CLI custody follows the
   // server's database-sibling/ready-file-sibling anchor ladder exactly.
@@ -4289,7 +4696,7 @@ export function spawnManagedRuntime(binary, args, {
 }
 
 function managedDevRuntimeEnvironment(environment) {
-  return {
+  const childEnvironment = {
     ...scrubDynamicLoaderEnvironment(environment),
     // @ref LLP 0193#program — managed development is the explicit opt-in
     // boundary for bounded handler exception detail. Native `start` and every
@@ -4297,6 +4704,10 @@ function managedDevRuntimeEnvironment(environment) {
     // choice; an inherited caller value cannot silently change this supervisor.
     SNAPBACK_HANDLER_ERROR_EXPOSURE: 'development',
   };
+  // @ref LLP 0301#2-origin-admission--the-path-split-implemented — the
+  // posture and its complete declaration list were constructed immediately
+  // before this spawn; neither is caller-pass-through state.
+  return childEnvironment;
 }
 
 export async function loadGenerated(
@@ -4655,6 +5066,7 @@ async function requestOperationalReadiness(descriptor, adminToken, expectedTarge
     || readiness.artifacts == null
     || readiness.auth == null
     || !Array.isArray(readiness.clientOrigins)
+    || ![undefined, null, 'loopback-any', 'explicit-list'].includes(readiness.admissionPosture)
   ) {
     throw diagnosticError(
       'SNAPBACK_DEV_APPLICATION_READINESS_INVALID',
@@ -4693,6 +5105,43 @@ function recordKeysWithin(value, allowed) {
     && typeof value === 'object'
     && !Array.isArray(value)
     && Object.keys(value).every((key) => allowed.includes(key));
+}
+
+function normalizedAdmissionPosture(value) {
+  return value === undefined || value === null ? 'explicit-list' : value;
+}
+
+function admissionContract(admissionPosture, clientOrigins) {
+  return Object.freeze({
+    admissionPosture: normalizedAdmissionPosture(admissionPosture),
+    clientOrigins: Object.freeze([...(clientOrigins ?? [])]),
+  });
+}
+
+function assertDevAdmissionContractMatches(requested, recorded) {
+  const requestedContract = admissionContract(
+    requested?.admissionPosture,
+    requested?.clientOrigins,
+  );
+  const recordedContract = admissionContract(
+    recorded?.admissionPosture,
+    recorded?.clientOrigins,
+  );
+  if (
+    requestedContract.admissionPosture !== recordedContract.admissionPosture
+    || !sameStringSet(requestedContract.clientOrigins, recordedContract.clientOrigins)
+  ) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_ATTACH_ADMISSION_MISMATCH',
+      'the running server admission contract differs from the contract requested by this attaching lifecycle',
+      {
+        requestedAdmissionContract: requestedContract,
+        recordedAdmissionContract: recordedContract,
+        safety: 'the listener was not adopted, restarted, or mutated',
+      },
+    );
+  }
+  return recordedContract;
 }
 
 function receiptReadinessMismatches(receipt, readiness) {
@@ -4739,6 +5188,10 @@ function receiptReadinessMismatches(receipt, readiness) {
   if (!sameStringSet(receipt.clientOrigins, readiness?.clientOrigins)) {
     mismatch.push('clientOrigins');
   }
+  if (
+    normalizedAdmissionPosture(receipt.admissionPosture)
+      !== normalizedAdmissionPosture(readiness?.admissionPosture)
+  ) mismatch.push('admissionPosture');
   if (receipt.networkProfile !== readiness?.networkProfile) mismatch.push('networkProfile');
   return mismatch;
 }
@@ -4771,7 +5224,7 @@ function writeApplicationReadyReceipt(path, receipt) {
   return receipt;
 }
 
-export function readApplicationReadyReceipt(path) {
+function readApplicationReadyReceiptWithFormat(path, { legacyFormat = false } = {}) {
   let metadata;
   try {
     metadata = lstatSync(path);
@@ -4803,7 +5256,7 @@ export function readApplicationReadyReceipt(path) {
     error.cause = cause;
     throw error;
   }
-  const rootKeys = [
+  const legacyRootKeys = [
     'application',
     'artifacts',
     'auth',
@@ -4818,6 +5271,10 @@ export function readApplicationReadyReceipt(path) {
     'startupNonce',
     'targetProfile',
   ];
+  const rootKeys = [
+    'admissionPosture',
+    ...legacyRootKeys,
+  ];
   const deploymentKeys = [
     'appId', 'authMode', 'bundleHash', 'inputsHash', 'schemaHash', 'schemaVersion',
   ];
@@ -4826,7 +5283,11 @@ export function readApplicationReadyReceipt(path) {
   const wrapper = receipt?.runtimeIdentity?.wrapper;
   if (
     receipt?.formatVersion !== 'snapback.application-ready.v1'
-    || !exactRecordKeys(receipt, rootKeys)
+    || (legacyFormat
+      ? !exactRecordKeys(receipt, legacyRootKeys)
+      : !exactRecordKeys(receipt, legacyRootKeys) && !exactRecordKeys(receipt, rootKeys))
+    || (!legacyFormat
+      && ![undefined, 'loopback-any', 'explicit-list'].includes(receipt.admissionPosture))
     || typeof receipt.startupNonce !== 'string'
     || typeof receipt.hostReadyDescriptorDigest !== 'string'
     || receipt.application?.mode !== 'dev-generated'
@@ -4872,7 +5333,7 @@ export function readApplicationReadyReceipt(path) {
     || binding.integrity.channel !== 'local-supervised-ipc'
     || !Array.isArray(receipt.clientOrigins)
     || new Set(receipt.clientOrigins).size !== receipt.clientOrigins.length
-    || receipt.clientOrigins.some((origin) => canonicalDevAuthOrigin(origin) !== origin)
+    || receipt.clientOrigins.some((origin) => canonicalDevClientOrigin(origin) !== origin)
     || !exactRecordKeys(receipt.runtimeIdentity, ['qualifiedBinary', 'wrapper'])
     || !exactRecordKeys(qualifiedBinary, [
       'buildIdentity', 'bytes', 'path', 'platform', 'qualification', 'sha256', 'source',
@@ -4901,7 +5362,21 @@ export function readApplicationReadyReceipt(path) {
       { path: resolve(path) },
     );
   }
-  return receipt;
+  if (legacyFormat) return receipt;
+  return {
+    ...receipt,
+    // @ref LLP 0301#3-receipt-posture--writer-matrix-reader-rule-attach-contract —
+    // a missing field is the legacy exact-list contract.
+    admissionPosture: normalizedAdmissionPosture(receipt.admissionPosture),
+  };
+}
+
+export function readApplicationReadyReceipt(path) {
+  return readApplicationReadyReceiptWithFormat(path);
+}
+
+function readLegacyApplicationReadyReceipt(path) {
+  return readApplicationReadyReceiptWithFormat(path, { legacyFormat: true });
 }
 
 function qualifiedRuntimeIdentity(
@@ -4987,9 +5462,23 @@ function publishApplicationReadyReceipt(path, readyFile, readiness, lifecycle) {
       },
     );
   }
+  if (
+    normalizedAdmissionPosture(readiness.admissionPosture)
+      !== lifecycle.admissionPosture
+  ) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_APPLICATION_READINESS_INVALID',
+      'the running server admission posture differs from the lifecycle-owned posture',
+      {
+        expectedAdmissionPosture: lifecycle.admissionPosture,
+        observedAdmissionPosture: readiness.admissionPosture ?? null,
+      },
+    );
+  }
   const readyBytes = readFileSync(readyFile);
   const receipt = {
     formatVersion: 'snapback.application-ready.v1',
+    admissionPosture: lifecycle.admissionPosture,
     startupNonce: readiness.startupNonce,
     hostReadyDescriptorDigest: sha256Bytes(readyBytes),
     application: {
@@ -5067,10 +5556,13 @@ export async function verifyDevAttach({
   adminToken,
   generatedRoot,
   clientOrigins = null,
+  admissionPosture = null,
   requiredClientOrigins = [],
   runtimeIdentity = null,
   fixedPort = null,
+  portPlan = null,
 }) {
+  const backendOwner = devPortPlanOwner(portPlan, 'backend');
   try {
     await validateReadyDescriptorHealth(descriptor);
   } catch (error) {
@@ -5109,6 +5601,12 @@ export async function verifyDevAttach({
     }
     throw error;
   }
+  if (admissionPosture !== null) {
+    assertDevAdmissionContractMatches(
+      { admissionPosture, clientOrigins },
+      receipt,
+    );
+  }
   const readiness = await readOperationalReadiness(descriptor, adminToken);
   verifyApplicationReadyReceiptAgainstReadiness(receipt, readiness);
   const generatedDescriptor = generatedApplicationDescriptor(generatedRoot);
@@ -5136,7 +5634,11 @@ export async function verifyDevAttach({
   // binding; it is not evidence that the live child is foreign. runDev always
   // republishes a fresh lifecycle-issued binding after this identity cut.
   if (!Number.isFinite(expiresAt)) mismatch.push('binding.provenance.expiresAt');
-  if (clientOrigins !== null && !sameStringSet(receipt.clientOrigins, clientOrigins)) {
+  if (
+    admissionPosture === null
+    && clientOrigins !== null
+    && !sameStringSet(receipt.clientOrigins, clientOrigins)
+  ) {
     mismatch.push('clientOrigins');
   }
   for (const requiredOrigin of requiredClientOrigins) {
@@ -5151,7 +5653,7 @@ export async function verifyDevAttach({
   if (!(generatedDescriptor.capabilities?.required ?? []).every(
     (capability) => receipt.binding.capabilities.offered.includes(capability),
   )) mismatch.push('binding.capabilities.offered');
-  if (fixedPort !== null && Number(new URL(descriptor.serverUrl).port) !== fixedPort) {
+  if (fixedPort !== null && portFromUrl(descriptor.serverUrl) !== fixedPort) {
     mismatch.push('serverPort');
   }
   if (mismatch.length > 0) {
@@ -5171,6 +5673,25 @@ export async function verifyDevAttach({
         safety: 'the listener was not adopted or terminated',
       },
     );
+  }
+  // @ref LLP 0299#7-the-plan-is-recorded-not-just-applied — adoption records
+  // attached provenance but cannot widen a flag/environment range.
+  if (
+    backendOwner?.source === 'range'
+    && portPlan.range.source !== 'default'
+  ) {
+    const attachedPort = portFromUrl(descriptor.serverUrl);
+    if (attachedPort < portPlan.range.lo || attachedPort > portPlan.range.hi) {
+      throw diagnosticError(
+        'SNAPBACK_DEV_ATTACH_PORT_OUT_OF_RANGE',
+        `the receipt-verified backend at port ${attachedPort} is outside the declared range ${portPlan.range.lo}-${portPlan.range.hi}`,
+        {
+          port: attachedPort,
+          range: { lo: portPlan.range.lo, hi: portPlan.range.hi },
+          readyFile,
+        },
+      );
+    }
   }
   return receipt;
 }
@@ -5232,6 +5753,7 @@ export function genericClientCommandAdvisory(command) {
 }
 
 export async function runDev(options = {}) {
+  const spawnRuntime = options.spawnManagedRuntime ?? spawnManagedRuntime;
   const backendRoot = resolve(options.backendDirectory ?? 'snapback');
   const projectRoot = resolve(options.projectRoot ?? dirname(backendRoot));
   const stateRoot = join(projectRoot, '.snapback');
@@ -5240,13 +5762,64 @@ export async function runDev(options = {}) {
   const applicationReadyFile = resolve(
     options.applicationReadyFile ?? `${readyFile}.application-ready`,
   );
-  const fixedPort = normalizeDevPort(options.port);
+  const requestedPortPlan = options.portPlan ?? resolveDevPortPlan({
+    profile: options.client ? 'client-command' : 'plain',
+    flags: {
+      port: options.port,
+      portRange: options.portRange,
+    },
+    env: options.env ?? process.env,
+  });
+  const requestedBackendOwner = devPortPlanOwner(requestedPortPlan, 'backend');
+  if (requestedBackendOwner === null) {
+    throw diagnosticError(
+      'SNAPBACK_CLI_ARGUMENT_INVALID',
+      'the dev port plan must include the backend owner',
+    );
+  }
+  const fixedPort = requestedBackendOwner.source === 'pinned'
+    ? normalizeDevPort(requestedBackendOwner.port)
+    : null;
+  const selectedPortRange = fixedPort === null && requestedPortPlan.range.source !== 'default'
+    ? `${requestedPortPlan.range.lo}-${requestedPortPlan.range.hi}`
+    : null;
+  const runtimePortArguments = () => fixedPort === null
+    ? selectedPortRange === null ? [] : ['--port-range', selectedPortRange]
+    : ['--port', String(fixedPort)];
+  const backendPlanTemplate = Object.freeze({
+    range: requestedPortPlan.range,
+    owners: Object.freeze([requestedBackendOwner]),
+  });
+  let backendPortPlan = materializeDevPortPlan(backendPlanTemplate);
+  const refreshBackendPortPlan = (currentDescriptor, provenance = null) => {
+    const backendPort = portFromUrl(currentDescriptor.serverUrl);
+    backendPortPlan = materializeDevPortPlan(
+      backendPlanTemplate,
+      { backend: backendPort },
+      provenance === null ? {} : { backend: provenance },
+    );
+    return backendPortPlan;
+  };
   const externalClientOrigins = normalizeExternalClientOrigins(options, fixedPort);
   const declaredClientOrigins = [...new Set([
     ...externalClientOrigins,
     ...normalizeSupervisedClientOrigins(options),
   ])].sort();
   let clientOrigins = declaredClientOrigins;
+  let admissionPosture = null;
+  const writeEnvFile = options.writeEnvFile === undefined || options.writeEnvFile === null
+    ? null
+    : resolve(projectRoot, options.writeEnvFile);
+  let environmentFile = null;
+  const refreshDevEnvironmentFile = (currentDescriptor) => {
+    if (writeEnvFile === null) return null;
+    environmentFile = writeDevEnvironmentFile(writeEnvFile, {
+      ...devBackendUrls(currentDescriptor.serverUrl),
+      projectRoot,
+      beforeRename: options.beforeEnvRename ?? null,
+    });
+    return environmentFile;
+  };
   // @ref LLP 0224#layered-readiness-not-one-overloaded-boolean — receipt
   // lifecycle removes the projection before every launch, reload, restart,
   // reset, and shutdown; absence is the honest intermediate state.
@@ -5286,7 +5859,7 @@ export async function runDev(options = {}) {
       },
     );
   }
-  const generated = await generateApp(backendRoot);
+  const generated = await generateApp(backendRoot, { appBindingMode: 'development' });
   if (!generated.ok) return { ...generated, state: 'generation-failed' };
   let devRuntimeEnvironment;
   const prepareVisibilityGovernanceDevEnvironment =
@@ -5302,6 +5875,7 @@ export async function runDev(options = {}) {
     const admission = withExternalClientOrigins(prepared.environment, declaredClientOrigins);
     devRuntimeEnvironment = admission.environment;
     clientOrigins = admission.clientOrigins;
+    admissionPosture = admission.admissionPosture;
     return prepared;
   };
   try {
@@ -5394,8 +5968,10 @@ export async function runDev(options = {}) {
       adminToken: attachAdminToken,
       generatedRoot,
       clientOrigins,
+      admissionPosture,
       runtimeIdentity: applicationRuntimeIdentity,
       fixedPort,
+      portPlan: requestedPortPlan,
     });
   } else {
     if (options.attach === true) {
@@ -5413,13 +5989,23 @@ export async function runDev(options = {}) {
         },
       );
     }
+    if (fixedPort === null) {
+      // @ref LLP 0299#4-ranges — the lifecycle owner reports backend
+      // exhaustion under the same typed refusal as supervisor allocation.
+      // The native child captures bounded stderr, so its own uncoded
+      // "no available Snapback port on" refusal is translated below as a
+      // post-scan defense. This pre-scan supplies the typed lifecycle refusal
+      // before spawn in the ordinary exhaustion case; supervisor-held ports
+      // are deliberately skipped because this plan already owns them.
+      await assertBackendRangeAvailable(requestedPortPlan);
+    }
     removeApplicationReadyReceipt();
     refreshStartupArtifacts();
-    child = spawnManagedRuntime(runtime.binary, [
+    child = spawnRuntime(runtime.binary, [
       'start',
       '--ready-file', readyFile,
       '--db', database,
-      ...(fixedPort === null ? [] : ['--port', String(fixedPort)]),
+      ...runtimePortArguments(),
       ...(startupArtifacts ? ['--startup-artifacts', startupArtifacts] : []),
     ], {
       cwd: projectRoot,
@@ -5431,14 +6017,19 @@ export async function runDev(options = {}) {
       descriptor = validateDevTarget(await waitForReady(readyFile, child), { readyFile, database });
     } catch (error) {
       await stopProcessGroup(child);
+      const rangeExhaustion = await translateBackendRangeExhaustion(
+        error,
+        requestedPortPlan,
+      );
+      if (rangeExhaustion !== null) throw rangeExhaustion;
       const startupPin = authStartupPinRefusal(error);
       if (startupPin?.details?.observedDeployment) {
         if (existsSync(readyFile)) rmSync(readyFile, { force: true });
-        child = spawnManagedRuntime(runtime.binary, [
+        child = spawnRuntime(runtime.binary, [
           'start',
           '--ready-file', readyFile,
           '--db', database,
-          ...(fixedPort === null ? [] : ['--port', String(fixedPort)]),
+          ...runtimePortArguments(),
           ...(startupArtifacts ? ['--startup-artifacts', startupArtifacts] : []),
           '--activate-startup-successor',
         ], {
@@ -5458,6 +6049,11 @@ export async function runDev(options = {}) {
           };
         } catch (activationError) {
           await stopProcessGroup(child);
+          const rangeExhaustion = await translateBackendRangeExhaustion(
+            activationError,
+            requestedPortPlan,
+          );
+          if (rangeExhaustion !== null) throw rangeExhaustion;
           const refinedActivation = refineGeneratedArtifactFailure(activationError, {
             binary: runtime.binary,
             runtime,
@@ -5494,6 +6090,10 @@ export async function runDev(options = {}) {
       }
     }
   }
+  refreshBackendPortPlan(
+    descriptor,
+    managed ? null : { source: 'attached', declaredBy: null },
+  );
   const closeManaged = async () => {
     try {
       if (managed && child?.exitCode === null) {
@@ -5550,8 +6150,10 @@ export async function runDev(options = {}) {
     publishApplicationReadyReceipt(applicationReadyFile, readyFile, readiness, {
       binding: issueDevBinding(bindingPublisher, generatedRoot, descriptor),
       clientOrigins,
+      admissionPosture,
       runtimeIdentity: applicationRuntimeIdentity,
     });
+    refreshDevEnvironmentFile(descriptor);
   } catch (error) {
     await closeManaged();
     throw error;
@@ -5565,8 +6167,12 @@ export async function runDev(options = {}) {
     readyFile,
     applicationReadyFile,
     serverUrl: descriptor.serverUrl,
+    ...devBackendUrls(descriptor.serverUrl),
     lifecycleProfile: fixedPort === null ? 'selected-port' : 'fixed-port',
+    get portPlan() { return backendPortPlan; },
+    admissionPosture,
     clientOrigins,
+    environmentFile,
     runtime,
     runtimeRecovery,
   };
@@ -5614,7 +6220,7 @@ export async function runDev(options = {}) {
     removeApplicationReadyReceipt();
     let next;
     try {
-      next = await generateApp(backendRoot);
+      next = await generateApp(backendRoot, { appBindingMode: 'development' });
     } catch (error) {
       const refined = refineGeneratedArtifactFailure(error, {
         binary: runtime.binary,
@@ -5679,8 +6285,10 @@ export async function runDev(options = {}) {
       publishApplicationReadyReceipt(applicationReadyFile, readyFile, readiness, {
         binding: issueDevBinding(bindingPublisher, generatedRoot, descriptor),
         clientOrigins,
+        admissionPosture,
         runtimeIdentity: applicationRuntimeIdentity,
       });
+      refreshDevEnvironmentFile(descriptor);
       const fromDeployment = predecessorReceipt?.application?.deployment ?? null;
       const toDeployment = readiness.target.deployment;
       if (
@@ -5712,6 +6320,9 @@ export async function runDev(options = {}) {
         state: 'generated-and-loaded',
         changed: filename,
         applicationReadyFile,
+        ...devBackendUrls(descriptor.serverUrl),
+        admissionPosture,
+        environmentFile,
         ...extra,
       });
     } catch (error) {
@@ -5988,7 +6599,7 @@ export async function runDev(options = {}) {
         'start',
         '--ready-file', readyFile,
         '--db', database,
-        ...(fixedPort === null ? [] : ['--port', String(fixedPort)]),
+        ...runtimePortArguments(),
         ...(startupArtifacts ? ['--startup-artifacts', startupArtifacts] : []),
         ...(activateSuccessor ? ['--activate-startup-successor'] : []),
       ], {
@@ -6017,6 +6628,7 @@ export async function runDev(options = {}) {
           { readyFile, database },
         );
       }
+      refreshBackendPortPlan(descriptor);
       adminToken = managedAdminToken(descriptor, database);
       devIdentityCapability = generatedAuthMode === 'dev'
         ? resolveDevIdentityCapabilityForCli(descriptor, { readyFile, database })
@@ -6144,7 +6756,7 @@ export async function runDev(options = {}) {
         'start',
         '--ready-file', readyFile,
         '--db', database,
-        ...(fixedPort === null ? [] : ['--port', String(fixedPort)]),
+        ...runtimePortArguments(),
         ...(startupArtifacts ? ['--startup-artifacts', startupArtifacts] : []),
       ], {
         cwd: projectRoot,
@@ -6153,6 +6765,7 @@ export async function runDev(options = {}) {
       });
       attachExitWatch(child);
       descriptor = validateDevTarget(await waitForReady(readyFile, child), { readyFile, database });
+      refreshBackendPortPlan(descriptor);
       adminToken = managedAdminToken(descriptor, database);
       devIdentityCapability = generatedAuthMode === 'dev'
         ? resolveDevIdentityCapabilityForCli(descriptor, { readyFile, database })
@@ -6203,6 +6816,10 @@ export async function runDev(options = {}) {
   return {
     ...result,
     get serverUrl() { return descriptor.serverUrl; },
+    get snapbackUrl() { return devBackendUrls(descriptor.serverUrl).snapbackUrl; },
+    get androidEmulatorUrl() { return devBackendUrls(descriptor.serverUrl).androidEmulatorUrl; },
+    get portPlan() { return backendPortPlan; },
+    get environmentFile() { return environmentFile; },
     get child() { return child; },
     verbs: {
       status: statusVerb,
@@ -6330,6 +6947,18 @@ function takeFlag(args, name, fallback = null) {
   return value;
 }
 
+function takeOptionalValueFlag(args, name, defaultValue) {
+  const index = args.indexOf(name);
+  if (index === -1) return null;
+  const candidate = args[index + 1];
+  if (candidate === undefined || candidate.startsWith('--')) {
+    args.splice(index, 1);
+    return defaultValue;
+  }
+  args.splice(index, 2);
+  return candidate;
+}
+
 function takeBooleanFlag(args, name) {
   const index = args.indexOf(name);
   if (index === -1) return false;
@@ -6340,6 +6969,40 @@ function takeBooleanFlag(args, name) {
 function printResult(result, json) {
   if (json) console.log(JSON.stringify(result, null, 2));
   else if (result.ok === undefined) console.log(JSON.stringify(result, null, 2));
+  else if (result.ok !== false && result.schemaVersion === 'snapback.auth-status.v1') {
+    for (const provider of result.providers) {
+      console.log(`${provider.provider}: ${provider.resolvedAdapter} (${provider.identityRealm}, ${provider.readiness})`);
+      if (provider.nextAction !== null) console.log(`  Next: ${provider.nextAction}`);
+    }
+    if (result.providers.length === 0) console.log('No provider is declared. Run snapback auth enable apple google.');
+    for (const nonclaim of result.nonclaims) console.log(`Note: ${nonclaim}`);
+  }
+  else if (result.ok !== false && result.schemaVersion === 'snapback.auth-enable.v1') {
+    console.log(`Enabled ${result.providers.join(' and ')} in ${result.declaration}.`);
+    for (const command of result.next) console.log(`Next: ${command}`);
+    for (const nonclaim of result.nonclaims) console.log(`Note: ${nonclaim}`);
+  }
+  else if (result.ok !== false && result.schemaVersion === 'snapback.auth-configure.v1') {
+    console.log(`${result.provider}: ${result.walkthrough.console}`);
+    for (const [index, step] of result.walkthrough.steps.entries()) {
+      console.log(`  ${index + 1}. ${step}`);
+    }
+    if (result.operation === 'record') {
+      console.log(`Recorded ${result.recorded.join(', ')} in ${result.configFile}.`);
+      if (result.missing.length > 0) console.log(`Still missing: ${result.missing.join(', ')}`);
+      // Whether the config plugin was written is the difference between a
+      // rebuild that carries the native integration and one that silently does
+      // not, so it is reported here and not only under --json.
+      const native = result.nativeIntegration;
+      if (native.pluginConfigured) {
+        console.log(`Config plugin ${native.plugin}: ${native.reason === 'added' ? 'added to app.json' : 'already present'}.`);
+      } else if (native.reason !== 'configuration-incomplete') {
+        console.log(`Config plugin ${native.plugin}: not written (${native.reason}).`);
+      }
+    }
+    for (const command of result.next) console.log(`Next: ${command}`);
+    for (const nonclaim of result.nonclaims ?? []) console.log(`Note: ${nonclaim}`);
+  }
   else if (result.ok !== false && result.schemaVersion === 'snapback.init.v1') {
     console.log(`snapback.init.v1: ${result.state}`);
     console.log(`Install command: ${result.install.command.join(' ')}`);
@@ -6361,6 +7024,29 @@ function printResult(result, json) {
   }
   else if (result.ok !== false) console.log(`${result.schemaVersion}: ok`);
   else console.error(JSON.stringify(result, null, 2));
+}
+
+function printDevEvent(event, { json, plainProfile }) {
+  console.log(JSON.stringify(event));
+  const urls = typeof event?.snapbackUrl === 'string'
+    ? event
+    : typeof event?.backend?.snapbackUrl === 'string'
+      ? event.backend
+      : null;
+  if (!json && urls !== null) {
+    console.log(`SNAPBACK_URL=${urls.snapbackUrl}`);
+    console.log(`Android emulator URL: ${urls.androidEmulatorUrl}`);
+    if (plainProfile) {
+      console.log('Mint an explicit ordinary session: snapback auth dev-session [--email <address>]');
+    }
+  }
+  const environmentFile = event?.environmentFile ?? event?.backend?.environmentFile ?? null;
+  if (environmentFile?.state === 'rewritten') {
+    console.error(`Snapback URL changed in ${environmentFile.path}; restart the bundler to read the rewritten environment.`);
+  }
+  if (environmentFile?.gitignored === false) {
+    console.error(`Warning: ${environmentFile.path} is not gitignored; add an ignore rule before committing local URL state.`);
+  }
 }
 
 function declarationSuggestionCliFailure(message, details = {}) {
@@ -6444,6 +7130,18 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     ]),
   },
   {
+    name: 'auth', usage: 'snapback auth dev-session [--ready-file <path>] [--email <address>] [--json]',
+    description: 'Mint one explicit ordinary development session from an existing managed ready target; other auth subcommands delegate to the native CLI.',
+    lifecycle: 'one-shot',
+    output: 'snapback.dev-session.v1 on stdout only',
+    exits: '0 session minted; 1 missing/stale target, managed-artifact refusal, or existing mint-mode refusal',
+    recovery: 'Start snapback dev for this project, select its ready file when non-conventional, and repair the preserved mint diagnostic.',
+    details: Object.freeze([
+      'The default ready target is ./.snapback/dev.ready.json; --ready-file takes precedence.',
+      'The bearer is never written to .env.local or any other credential file by this command.',
+    ]),
+  },
+  {
     name: 'doctor', usage: 'snapback doctor [--json]', description: 'Diagnose the packaged runtime and local prerequisites.', lifecycle: 'one-shot/read-only',
     output: 'snapback.doctor.v1', exits: '0 healthy; 1 one or more checks failed', recovery: 'Follow the diagnostic recovery record; runtime failures normally name bootstrap or receipt repair.',
   },
@@ -6453,7 +7151,7 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     output: `${VERIFY_RECEIPT_SCHEMA_VERSION} receipt`, exits: '0 all required stages pass (including machine-distinct passed-without-acceptance); 1 failed/refused stage', recovery: 'Use the failed stage diagnostics and rerun against the same declared app identity.',
   },
   {
-    name: 'dev', usage: 'snapback dev [<backend-dir>] [--attach] [--no-watch] [--port <port> --external-client-origin <origin>] [--ready-file <path>] [--application-ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] [--expo] [--expo-dir <dir>] [--expo-platform ios|android|web] [--email <address>] [--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] [--native-checkout --expo-app-scheme <scheme> <--ios-bundle-identifier <id>|--android-component <component>>] [--json]',
+    name: 'dev', usage: 'snapback dev [<backend-dir>] [--attach] [--no-watch] [--port <port>] [--client-port <port>] [--bootstrap-port <port>] [--port-range <lo>-<hi>] [--external-client-origin <origin>] [--ready-file <path>] [--application-ready-file <path>] [--db <path>] [--write-env [path]] [--client <dir>] [--client-command <cmd>] [--expo] [--expo-dir <dir>] [--expo-platform ios|android|web] [--email <address>] [--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] [--native-checkout --expo-app-scheme <scheme> <--ios-bundle-identifier <id>|--android-component <component>>] [--json]',
     description: 'Generate, start or attach, load, watch, and optionally supervise a web or Expo client surface.', lifecycle: 'long-running unless --no-watch (Expo supervision is always long-running)',
     output: 'snapback.dev.v1 JSON-line events; snapback.dev-command.v1 JSON lines are accepted on non-TTY stdin while it remains open', exits: '0 requested signal/TTY quit or successful --no-watch; 1 startup/watch/server failure',
     recovery: 'Act on the event diagnostic. Non-TTY stdin EOF only closes the optional control channel; use SIGINT/SIGTERM to stop the dev loop.',
@@ -6464,8 +7162,10 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
       'Supervised Expo iOS: snapback dev snapback --expo --expo-platform ios (ios is the default).',
       'Supervised Expo Android: snapback dev snapback --expo --expo-platform android.',
       'Supervised Expo web: snapback dev snapback --expo --expo-platform web.',
+      'Every owned listener uses the stable 4287-4387 range by default; use --port/--client-port/--bootstrap-port for strict pins or --port-range for a constrained lane.',
       'Native dev-identity checkout is default-off and requires the application development client\'s own bundle/component and URL scheme; Expo Go is refused.',
       '--expo owns the bootstrap environment; --client-command is a generic child and does not install the supervised Expo bootstrap.',
+      '--write-env defaults to ./.env.local, owns one marked non-secret URL block, and warns when the target is not gitignored.',
     ]),
   },
   {
@@ -6553,7 +7253,66 @@ const HOSTED_LIFECYCLE_HELP_DETAILS = Object.freeze([
 //
 // @ref LLP 0111#closed-request-and-command-registry — hosted lifecycle verb
 // spellings are derived from the exhaustive authority registry.
+const AUTH_SETUP_HELP_SHELL = Object.freeze({
+  lifecycle: 'one-shot',
+  output: 'snapback.auth-enable.v1, snapback.auth-configure.v1, or snapback.auth-status.v1',
+  exits: '0 completed (including a blocked provider readiness report); 1 typed declaration, staleness, or argument refusal',
+  recovery: 'Act on the reported next action; a stale-refused edit is retried after rereading the named file.',
+});
+
+function authSetupCliHelp(path, usage, description, details = []) {
+  return Object.freeze({
+    name: path.join(' '),
+    path: Object.freeze(path),
+    usage,
+    description,
+    ...AUTH_SETUP_HELP_SHELL,
+    details: Object.freeze(details),
+  });
+}
+
 export const PACKAGED_CLI_SUBCOMMANDS = Object.freeze([
+  // @ref LLP 0151#setup-and-status — the provider setup verbs are package-owned
+  // because they edit app source and read generated artifacts. Every other
+  // `snapback auth` verb delegates to the native binary, help included.
+  authSetupCliHelp(
+    ['auth', 'enable'],
+    'snapback auth enable <apple|google>... [--backend-dir <dir>] [--json]',
+    'Declare identity providers in the app auth declaration itself, with a stale-safe edit.',
+    [
+      'The declaration is the source of provider policy, so this edits it rather than writing a side-channel file the declaration would not agree with.',
+      'Enabling a provider also adds the external-session seam its completion path redeems through; a declaration that sets externalSessionEntry to anything but true is refused.',
+      'A hand-written providers block is never reserialized; the refusal names the exact entries to paste.',
+      'Local development without app-owned credentials resolves to the Snapback shared development profile, which issues hermetic rehearsal identities — not Apple or Google logins.',
+    ],
+  ),
+  authSetupCliHelp(
+    ['auth', 'configure'],
+    'snapback auth configure <apple|google> [--<identifier> <value>...] [--app-scheme <scheme>] [--bundle-identifier <id>] [--return-url <url>] [--backend-dir <dir>] [--json]',
+    'Record one provider\'s public identifiers and secret references, and print the console work that cannot be automated.',
+    [
+      'With no identifiers this prints the walkthrough and writes nothing.',
+      'Secret values are never accepted here. Each one comes back as an exact snapback config set --entry <name> --value-stdin command.',
+      'Apple and Google expose no client-registration API, so the console steps are a deterministic walkthrough carrying this app\'s own bundle identifier, scheme, and return URL.',
+      'Recorded configuration is not readiness: the installed client must also carry the matching native integration.',
+    ],
+  ),
+  authSetupCliHelp(
+    ['auth', 'status'],
+    'snapback auth status [--deployment <profile>] [--platform ios|android|web] [--shared-available] [--backend-dir <dir>] [--json]',
+    'Report the requested credential policy, resolved Adapter, configuration readiness, profile generation, and one next action per declared provider.',
+    [
+      'Resolution uses the same first-party resolver the client uses, so status and runtime cannot disagree.',
+      'The CLI never claims native readiness: it cannot observe an installed build, and the installed client reports its own build receipt.',
+      'Secret values never appear in this output.',
+    ],
+  ),
+  nestedCliHelp(
+    ['auth', 'dev-session'],
+    'snapback auth dev-session [--ready-file <path>] [--email <address>] [--json]',
+    'Mint an ordinary session from the existing managed development target and print it to stdout without creating another disk credential.',
+    ['--email defaults to snapback-dev@localhost.invalid.'],
+  ),
   nestedCliHelp(
     ['author', 'suggest'],
     'snapback author suggest <operation-or-file> <--format patch|--json>',
@@ -6625,7 +7384,7 @@ const PACKAGED_CLI_HELP_BY_NAME = new Map([
 ]);
 
 function resolvePackagedHelpName(command, args = []) {
-  if (!PACKAGED_CLI_COMMAND_BY_NAME.has(command)) return command;
+  if (!PACKAGED_CLI_COMMAND_BY_NAME.has(command)) return null;
   let match = command;
   for (const entry of PACKAGED_CLI_SUBCOMMANDS) {
     if (entry.path[0] !== command || entry.path.length === 1) continue;
@@ -6634,13 +7393,15 @@ function resolvePackagedHelpName(command, args = []) {
       match = entry.name;
     }
   }
-  return match;
+  // `auth` is a delegated native command family with one package-owned leaf.
+  // Intercept only that exact leaf; parent and sibling help stay clap-owned.
+  return command === 'auth' && match === 'auth' ? null : match;
 }
 
-function nativeHelp(options, command = null) {
+function nativeHelp(options, commandPath = null) {
   try {
     const runtime = resolveRuntimeBinary(options);
-    const result = spawnSync(runtime.binary, command === null ? ['--help'] : [command, '--help'], {
+    const result = spawnSync(runtime.binary, commandPath === null ? ['--help'] : [...commandPath, '--help'], {
       encoding: 'utf8',
       env: runtimeSpawnEnvironment(runtime.binary, options.env),
     });
@@ -6676,7 +7437,7 @@ function nativeCommandInventory(options) {
   }
 }
 
-function printCliHelp(command, { json, options }) {
+function printCliHelp(command, { json, options, nativeCommandPath = null }) {
   if (command !== null && PACKAGED_CLI_HELP_BY_NAME.has(command)) {
     const entry = PACKAGED_CLI_HELP_BY_NAME.get(command);
     const scope = entry.path ? 'subcommand' : 'command';
@@ -6698,9 +7459,19 @@ function printCliHelp(command, { json, options }) {
     return 0;
   }
 
-  if (command !== null) {
-    const native = nativeHelp(options, command);
+  if (nativeCommandPath !== null) {
+    const native = nativeHelp(options, nativeCommandPath);
     if (native.text) console.log(native.text);
+    // A natively owned command can still have package-owned verbs (`snapback
+    // auth enable|configure|status`). Native help cannot know about them, so
+    // name them here rather than leaving them undiscoverable.
+    const packagedVerbs = PACKAGED_CLI_SUBCOMMANDS
+      .filter((entry) => entry.path[0] === command && !PACKAGED_CLI_COMMAND_BY_NAME.has(command))
+      .map((entry) => entry.name);
+    if (packagedVerbs.length > 0) {
+      console.log('');
+      console.log(`Package-owned verbs (use --help on one): ${packagedVerbs.join(', ')}`);
+    }
     return native.exitCode;
   }
 
@@ -6748,21 +7519,59 @@ export async function runCli(argv, options = {}) {
   }
   const helpIndex = args.findIndex((argument) => argument === '--help' || argument === '-h');
   if (command === '--help' || command === '-h' || command === 'help' || helpIndex !== -1) {
-    const target = command === '--help' || command === '-h'
-      ? null
-      : command === 'help'
-        ? (() => {
-            const targetIndex = args.findIndex((argument) => !argument.startsWith('-'));
-            if (targetIndex === -1) return null;
-            return resolvePackagedHelpName(args[targetIndex], args.slice(targetIndex + 1));
-          })()
-        : resolvePackagedHelpName(command, args.slice(0, helpIndex));
-    return printCliHelp(target, { json: args.includes('--json'), options });
+    let target = null;
+    let nativeCommandPath = null;
+    if (command === 'help') {
+      const targetIndex = args.findIndex((argument) => !argument.startsWith('-'));
+      if (targetIndex !== -1) {
+        const requestedCommand = args[targetIndex];
+        const requestedArgs = args.slice(targetIndex + 1).filter((argument) => argument !== '--json');
+        target = resolvePackagedHelpName(requestedCommand, requestedArgs);
+        if (target === null) nativeCommandPath = [requestedCommand, ...requestedArgs];
+      }
+    } else if (command !== '--help' && command !== '-h') {
+      const requestedArgs = args.slice(0, helpIndex).filter((argument) => argument !== '--json');
+      target = resolvePackagedHelpName(command, requestedArgs);
+      if (target === null) nativeCommandPath = [command, ...requestedArgs];
+    }
+    return printCliHelp(target, {
+      json: args.includes('--json'),
+      options,
+      nativeCommandPath,
+    });
   }
   const json = args.includes('--json');
   if (json) args.splice(args.indexOf('--json'), 1);
   const auditActorId = takeFlag(args, '--audit-actor');
   if (auditActorId !== null) options = { ...options, auditActorId };
+  if (command === 'auth' && args[0] === 'dev-session') {
+    args.shift();
+    const readyFile = takeFlag(args, '--ready-file');
+    const email = takeFlag(args, '--email', DEFAULT_DEV_SESSION_EMAIL);
+    if (args.length > 0) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        'usage: snapback auth dev-session [--ready-file <path>] [--email <address>] [--json]',
+        { args },
+      );
+    }
+    const mint = typeof options.mintDevSession === 'function'
+      ? options.mintDevSession
+      : mintDevSession;
+    const result = await mint({
+      ...(readyFile === null ? {} : { readyFile }),
+      email,
+      cwd: resolve(options.cwd ?? process.cwd()),
+      env: options.env ?? process.env,
+      runtimeBinary: options.runtimeBinary ?? null,
+    });
+    if (json) console.log(JSON.stringify(result, null, 2));
+    else {
+      console.log(`bearer=${result.bearer}`);
+      console.log(`expiresAt=${result.expiresAt}`);
+    }
+    return 0;
+  }
   if (command === 'author') {
     const subcommand = args.shift();
     if (subcommand === 'suggest') {
@@ -7176,6 +7985,7 @@ export async function runCli(argv, options = {}) {
         const verdict = packagedRuntimeReadiness({
           ...options,
           verify: true,
+          acquire: true,
           ...(runtimeBinary === null ? {} : { runtimeBinary }),
           ...(runtimeReceiptPath === null ? {} : { receiptPath: runtimeReceiptPath }),
         });
@@ -7184,6 +7994,7 @@ export async function runCli(argv, options = {}) {
           receipt: verdict.ok ? {
             receiptPath: verdict.receiptPath,
             receipt: verdict.receipt,
+            ...(verdict.acquired === undefined ? {} : { acquiredBecause: verdict.acquired }),
           } : null,
           diagnostics: verdict.ok || verdict.diagnostic === null ? [] : [verdict.diagnostic],
         };
@@ -7224,9 +8035,90 @@ export async function runCli(argv, options = {}) {
         'usage: snapback generate [<backend-dir>] [--target-profile <id>] [--check] [--json]',
       );
     }
-    const result = await generateApp(backendDirectory, { targetProfile, check });
+    const result = await generateApp(backendDirectory, {
+      targetProfile,
+      appBindingMode: 'development',
+      check,
+    });
     printResult(result, json);
     return result.ok ? 0 : 1;
+  }
+  // @ref LLP 0151#setup-and-status — the provider setup verbs are package-owned
+  // because they edit app source and read generated artifacts. Every other
+  // `snapback auth` verb (export, import, backup, restore, rehearse, password,
+  // recovery) keeps delegating to the native binary untouched.
+  if (command === 'auth' && ['enable', 'configure', 'status'].includes(args[0])) {
+    const subcommand = args.shift();
+    const { runAuthConfigure, runAuthEnable, runAuthStatus, AUTH_SETUP_PROVIDERS } =
+      await import('./auth-setup.mjs');
+    const backendFlag = takeFlag(args, '--backend-dir');
+    if (subcommand === 'enable') {
+      const providers = [];
+      while (args.length > 0 && !args[0].startsWith('--')) providers.push(args.shift());
+      if (args.length > 0) {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          `usage: snapback auth enable <${AUTH_SETUP_PROVIDERS.join('|')}>... [--backend-dir <dir>] [--json]`,
+        );
+      }
+      const result = runAuthEnable({
+        ...(backendFlag === null ? {} : { backendDirectory: backendFlag }),
+        providers,
+        cwd: options.cwd ?? process.cwd(),
+      });
+      printResult(result, json);
+      return 0;
+    }
+    if (subcommand === 'configure') {
+      const provider = args.shift();
+      const identifierNames = [
+        'servicesId', 'teamId', 'keyId', 'bundleIdentifier',
+        'iosClientId', 'androidClientId', 'webClientId',
+      ];
+      const identifiers = {};
+      for (const name of identifierNames) {
+        const value = takeFlag(args, `--${name}`);
+        if (value !== null) identifiers[name] = value;
+      }
+      const appScheme = takeFlag(args, '--app-scheme');
+      const bundleIdentifier = takeFlag(args, '--bundle-identifier') ?? identifiers.bundleIdentifier ?? null;
+      const returnUrl = takeFlag(args, '--return-url');
+      if (args.length > 0) {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          `usage: snapback auth configure <${AUTH_SETUP_PROVIDERS.join('|')}> [--<identifier> <value>...] [--app-scheme <scheme>] [--return-url <url>] [--backend-dir <dir>] [--json]`,
+        );
+      }
+      const result = runAuthConfigure({
+        ...(backendFlag === null ? {} : { backendDirectory: backendFlag }),
+        provider,
+        identifiers,
+        appScheme,
+        bundleIdentifier,
+        returnUrl,
+        cwd: options.cwd ?? process.cwd(),
+      });
+      printResult(result, json);
+      return 0;
+    }
+    const deployment = takeFlag(args, '--deployment') ?? 'development';
+    const platform = takeFlag(args, '--platform') ?? 'ios';
+    const sharedAvailable = takeBooleanFlag(args, '--shared-available');
+    if (args.length > 0) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        'usage: snapback auth status [--deployment <profile>] [--platform ios|android|web] [--shared-available] [--backend-dir <dir>] [--json]',
+      );
+    }
+    const result = runAuthStatus({
+      ...(backendFlag === null ? {} : { backendDirectory: backendFlag }),
+      deployment,
+      platform,
+      sharedAvailable,
+      cwd: options.cwd ?? process.cwd(),
+    });
+    printResult(result, json);
+    return 0;
   }
   if (command === 'hosted') {
     const subcommand = args.shift();
@@ -7757,7 +8649,11 @@ export async function runCli(argv, options = {}) {
     const readyFile = takeFlag(args, '--ready-file');
     const applicationReadyFile = takeFlag(args, '--application-ready-file');
     const database = takeFlag(args, '--db');
+    const writeEnvFile = takeOptionalValueFlag(args, '--write-env', '.env.local');
     const port = takeFlag(args, '--port');
+    const clientPort = takeFlag(args, '--client-port');
+    const bootstrapPort = takeFlag(args, '--bootstrap-port');
+    const portRange = takeFlag(args, '--port-range');
     const externalClientOrigin = takeFlag(args, '--external-client-origin');
     const clientDirectory = takeFlag(args, '--client');
     const clientCommand = takeFlag(args, '--client-command');
@@ -7780,7 +8676,8 @@ export async function runCli(argv, options = {}) {
         'SNAPBACK_CLI_ARGUMENT_INVALID',
         `unknown dev option ${args[0]}; usage: snapback dev [<backend-dir>] [--attach] [--no-watch] `
           + '[--ready-file <path>] [--application-ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] '
-          + '[--port <port> --external-client-origin <origin>] '
+          + '[--write-env [path]] '
+          + '[--port <port>] [--client-port <port>] [--bootstrap-port <port>] [--port-range <lo>-<hi>] [--external-client-origin <origin>] '
           + '[--expo] [--expo-dir <dir>] [--expo-platform ios|android|web] [--email <address>] '
           + '[--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] '
           + '[--native-checkout --expo-app-scheme <scheme> <--ios-bundle-identifier <id>|--android-component <component>>] [--json]',
@@ -7880,6 +8777,25 @@ export async function runCli(argv, options = {}) {
         );
       }
     }
+    const portPlan = resolveDevPortPlan({
+      profile: expo
+        ? 'expo'
+        : externalClientOrigin !== null
+          ? 'external-client'
+          : clientDirectory !== null || clientCommand !== null
+            ? 'client-command'
+            : 'plain',
+      platform: expoSelectedPlatform,
+      flags: { port, clientPort, bootstrapPort, portRange },
+      env: options.env ?? process.env,
+    });
+    if (externalClientOrigin !== null) {
+      const backendOwner = devPortPlanOwner(portPlan, 'backend');
+      normalizeExternalClientOrigins(
+        { externalClientOrigin },
+        backendOwner?.source === 'pinned' ? backendOwner.port : null,
+      );
+    }
     // Advisory only — Metro started outside the supervisor still inherits a
     // truthy CI and serves a stale bundle. Warn before either spawn path.
     const expoDevModule = await import('./expo-dev.mjs');
@@ -7952,11 +8868,18 @@ export async function runCli(argv, options = {}) {
           attach,
           devOptions: {
             ...options.devOptions,
+            portPlan,
             ...(port === null ? {} : { port }),
+            ...(portRange === null ? {} : { portRange }),
           },
+          portPlan,
+          ...(clientPort === null ? {} : { clientPort }),
+          ...(bootstrapPort === null ? {} : { bootstrapPort }),
+          ...(portRange === null ? {} : { portRange }),
           ...(readyFile ? { readyFile } : {}),
           ...(applicationReadyFile ? { applicationReadyFile } : {}),
           ...(database ? { database } : {}),
+          ...(writeEnvFile === null ? {} : { writeEnvFile }),
           ...(expoDirectory ? { expoDirectory } : {}),
           ...(expoEmail ? { email: expoEmail } : {}),
           ...(expoCommand ? { metroCommand: expoCommand } : {}),
@@ -7969,7 +8892,7 @@ export async function runCli(argv, options = {}) {
           platform: expoSelectedPlatform,
           signal: interrupt.signal,
           onEvent(event) {
-            console.log(JSON.stringify(event));
+            printDevEvent(event, { json, plainProfile: false });
             options.onEvent?.(event);
           },
           onCriticalExit(error) {
@@ -8018,7 +8941,10 @@ export async function runCli(argv, options = {}) {
       ...(readyFile ? { readyFile } : {}),
       ...(applicationReadyFile ? { applicationReadyFile } : {}),
       ...(database ? { database } : {}),
+      ...(writeEnvFile === null ? {} : { writeEnvFile }),
       ...(port === null ? {} : { port }),
+      ...(portRange === null ? {} : { portRange }),
+      portPlan,
       ...(externalClientOrigin === null ? {} : { externalClientOrigin }),
       ...(clientDirectory || clientCommand
         ? {
@@ -8028,9 +8954,16 @@ export async function runCli(argv, options = {}) {
           },
         }
         : {}),
-      onEvent(event) { console.log(JSON.stringify(event)); },
       onServerExit(code, signal) { onUnexpectedServerExit?.(code, signal); },
       ...options,
+      // The CLI-resolved plan has already applied flag > environment >
+      // default precedence. Do not let an embedding option replace it after
+      // argument validation.
+      portPlan,
+      onEvent(event) {
+        printDevEvent(event, { json, plainProfile: true });
+        options.onEvent?.(event);
+      },
     });
     // A failed dev result must reach the terminal through the same
     // printResult path every other command uses — `snapback dev` used to
@@ -8185,18 +9118,29 @@ export async function runCli(argv, options = {}) {
   const delegatedArgs = command === undefined
     ? []
     : [command, ...args, ...(command === 'guide' && json ? ['--json'] : [])];
+  const delegatedEnvironment = runtimeSpawnEnvironment(runtime.binary, options.env);
+  if (command === 'start') {
+    // @ref LLP 0301#2-origin-admission--the-path-split-implemented — direct
+    // native start must not inherit lifecycle posture.
+    delete delegatedEnvironment.SNAPBACK_DEV_ADMISSION_POSTURE;
+  }
   const result = spawnSync(runtime.binary, delegatedArgs, {
     stdio: 'inherit',
-    env: runtimeSpawnEnvironment(runtime.binary, options.env),
+    env: delegatedEnvironment,
   });
   if (result.error) throw result.error;
   return result.status ?? 1;
 }
 
 export const __test = {
+  assertDevAdmissionContractMatches,
+  canonicalDevClientOrigin,
+  devBackendUrls,
   devIdentityClientEnvironment,
   expectedActivationTargetFromActivation,
   loadGenerated,
+  portFromUrl,
+  readLegacyApplicationReadyReceipt,
   readReadyDescriptor,
   refineGeneratedArtifactFailure,
   removeManagedDatabaseState,
@@ -8206,4 +9150,5 @@ export const __test = {
   sourceCheckoutRoot,
   runtimeSpawnEnvironment,
   scrubDynamicLoaderEnvironment,
+  withExternalClientOrigins,
 };

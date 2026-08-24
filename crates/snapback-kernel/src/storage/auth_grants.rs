@@ -463,6 +463,51 @@ pub enum GrantApproval {
     Existing(ApprovedGrant),
 }
 
+/// Test-only physical projection of every row grant approval may change.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GrantApprovalDurableRowsForTest {
+    pub authorization_clock: GrantApprovalMetaRowForTest,
+    pub pairing_requests: Vec<GrantApprovalPairingRowForTest>,
+    pub grants: Vec<GrantApprovalGrantRowForTest>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GrantApprovalMetaRowForTest {
+    pub key: String,
+    pub value: String,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GrantApprovalPairingRowForTest {
+    pub request_id: String,
+    pub minted_by_user_id: String,
+    pub state: String,
+    pub grant_id: Option<String>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GrantApprovalGrantRowForTest {
+    pub grant_id: String,
+    pub actor_user_id: String,
+    pub effective_user_id: String,
+    pub scopes: String,
+    pub created_at_ms: u64,
+    pub expires_at_ms: u64,
+    pub revoked_at_ms: Option<u64>,
+    pub created_by: String,
+    pub request_id: String,
+    pub consent_digest: Vec<u8>,
+    pub last_used_at_ms: u64,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UserGrant {
@@ -487,6 +532,70 @@ pub struct BulkGrantRevocation {
 }
 
 impl LocalDatabase {
+    /// Read every durable subject row the grant-approval transaction can
+    /// create or transition. This intentionally bypasses the product
+    /// projections so an engine regression can prove the physical outcome.
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn grant_approval_durable_rows_for_test(
+        &self,
+    ) -> SnapbackResult<GrantApprovalDurableRowsForTest> {
+        self.with_auth_read(|connection| {
+            let authorization_clock = connection.query_row(
+                "SELECT key, value FROM _snapback_meta WHERE key = ?1",
+                params![AUTH_CLOCK_META_KEY],
+                |row| {
+                    Ok(GrantApprovalMetaRowForTest {
+                        key: row.get(0)?,
+                        value: row.get(1)?,
+                    })
+                },
+            )?;
+            let mut pairing_statement = connection.prepare(
+                "SELECT id, minted_by_user_id, state, grant_id
+                 FROM _auth_pairing_requests ORDER BY id",
+            )?;
+            let pairing_requests = pairing_statement
+                .query_map([], |row| {
+                    Ok(GrantApprovalPairingRowForTest {
+                        request_id: row.get(0)?,
+                        minted_by_user_id: row.get(1)?,
+                        state: row.get(2)?,
+                        grant_id: row.get(3)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+            let mut grant_statement = connection.prepare(
+                "SELECT id, actor_user_id, effective_user_id, scopes,
+                        created_at_ms, expires_at_ms, revoked_at_ms, created_by,
+                        request_id, consent_digest, last_used_at_ms
+                 FROM _auth_grants ORDER BY id",
+            )?;
+            let grants = grant_statement
+                .query_map([], |row| {
+                    Ok(GrantApprovalGrantRowForTest {
+                        grant_id: row.get(0)?,
+                        actor_user_id: row.get(1)?,
+                        effective_user_id: row.get(2)?,
+                        scopes: row.get(3)?,
+                        created_at_ms: row.get(4)?,
+                        expires_at_ms: row.get(5)?,
+                        revoked_at_ms: row.get(6)?,
+                        created_by: row.get(7)?,
+                        request_id: row.get(8)?,
+                        consent_digest: row.get(9)?,
+                        last_used_at_ms: row.get(10)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(GrantApprovalDurableRowsForTest {
+                authorization_clock,
+                pairing_requests,
+                grants,
+            })
+        })
+    }
+
     /// Mint a short-lived, single-use consent secret for a human principal.
     /// The plaintext exists only in the returned wrapper.
     pub fn mint_pairing_code(

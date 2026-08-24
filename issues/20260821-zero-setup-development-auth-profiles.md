@@ -3,7 +3,60 @@
 **Status:** Open
 **Systems:** Auth, Identity providers, Code generation, CLI, Expo, Hosted delivery
 **Owner:** Unassigned
-**Related:** LLP 0036, LLP 0151, LLP 0214, LLP 0258, Diary 0104
+**Related:** LLP 0036, LLP 0151, LLP 0214, LLP 0258, Diary 0111
+
+## Demo checkpoint, 2026-08-21
+
+Knockoff now implements the provider-entry resolver, no-runtime-fallback
+controller, native-build probes, shared browser transaction, exact return
+allowlist, client-held verifier, one-use redemption, replay refusal, app-scoped
+rehearsal identities, and the 100-user limit. Apple uses its native SDK after
+readiness. Google uses `@react-native-google-signin/google-signin` after
+readiness.
+
+The local shared Adapter uses hermetic identities. The product work remains
+open because Snapback-owned provider registrations, the public callback host,
+generated bootstrap policy, hosted rehearsal authority, production admission,
+and setup commands do not exist yet.
+
+## First-party checkpoint, 2026-08-24
+
+The demo behavior above is now first-party surface, and several of the
+acceptance criteria at the bottom of this ticket are met. What landed:
+
+- **Generated bootstrap policy exists.** `defineAuth` types Apple/Google
+  declarations with `credentials: 'auto' | 'shared' | 'app-owned'`, and the
+  generated `ApplicationAuthBootstrapV1` projects them credential-free.
+- **One resolver, one frozen Adapter, one stable call.**
+  `@expo/snapback-client/provider-entry` plus
+  `auth.signIn({ provider })` on the existing application auth owner.
+- **Setup commands exist.** `snapback auth enable | configure | status`.
+- **`snapback dev` supervises the shared broker** on the origin the client
+  already discovers, with return targets derived from the supervised client
+  port — so a fresh Expo app signs in with no second terminal, no broker
+  origin, no `EXPO_PUBLIC_*` variable, and **no app-owned native build**.
+
+Criteria now met, with proof: distinct app-scoped rehearsal identities per app;
+callback refusal for an unregistered app binding, an arbitrary return URL, a
+replayed code, and a missing verifier; no provider token or session credential
+in a redirect URL, log, generated artifact, or receipt; typed settlement inside
+a declared deadline; and a staging/production refusal of any shared profile.
+
+**Still open, and the reason this ticket stays open:** Snapback-owned provider
+registrations and the public callback host. Until those exist the shared
+Adapter issues hermetic rehearsal identities, so "signs in through both
+providers" is true only in the rehearsal sense. Hosted rehearsal authority is
+also still absent — the broker is supervised locally by `snapback dev`.
+
+One criterion landed differently than written. "Replacing the profile stores
+credentials only in LLP 0036 deployment state" is met for *secrets*:
+`snapback auth configure` refuses a secret value and prints the exact
+`snapback config set --value-stdin` command. Public identifiers land in a
+tracked `snapback/auth-providers.json` instead, on the reasoning that public
+identifiers belong to the app and want to be reviewable while secrets must
+never be diffable. Recorded as a scoped divergence in LLP 0151's 2026-08-24
+amendment; whether the public half should also move into LLP 0036 entries is
+open.
 
 ## Problem
 

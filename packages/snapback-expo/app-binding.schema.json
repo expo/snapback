@@ -9,6 +9,43 @@
       "required": ["format", "source", "descriptorIdentity", "target", "capabilities", "provenance", "integrity"],
       "properties": {
         "format": { "const": "snapback.app-binding.v1" },
+        "source": { "const": "declared-dev" },
+        "descriptorIdentity": { "type": "string", "minLength": 1 },
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["app", "schema", "functions", "origin", "routing"],
+          "properties": {
+            "app": { "type": "string", "minLength": 1 },
+            "schema": { "type": "string", "minLength": 1 },
+            "functions": { "type": "string", "minLength": 1 },
+            "origin": { "type": "string", "format": "uri", "minLength": 1 },
+            "routing": { "const": "declared-dev" }
+          }
+        },
+        "capabilities": { "$ref": "#/$defs/capabilities" },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["deploymentIdentity"],
+          "properties": {
+            "deploymentIdentity": { "$ref": "#/$defs/deploymentIdentity" }
+          }
+        },
+        "integrity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["channel"],
+          "properties": { "channel": { "const": "generated-declared-dev" } }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "source", "descriptorIdentity", "target", "capabilities", "provenance", "integrity"],
+      "properties": {
+        "format": { "const": "snapback.app-binding.v1" },
         "source": { "const": "supervised-dev" },
         "descriptorIdentity": { "type": "string", "minLength": 1 },
         "target": {
@@ -133,6 +170,19 @@
     }
   ],
   "$defs": {
+    "deploymentIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "authMode", "appId", "schemaHash", "bundleHash", "inputsHash"],
+      "properties": {
+        "schemaVersion": { "type": "string", "minLength": 1 },
+        "authMode": { "type": "string", "minLength": 1 },
+        "appId": { "type": "string", "minLength": 1 },
+        "schemaHash": { "type": "string", "minLength": 1 },
+        "bundleHash": { "type": "string", "minLength": 1 },
+        "inputsHash": { "type": "string", "minLength": 1 }
+      }
+    },
     "capabilities": {
       "type": "object",
       "additionalProperties": false,

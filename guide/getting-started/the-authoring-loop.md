@@ -106,16 +106,11 @@ stale bundle. Prefer `snapback dev --expo`, or unset `CI` / pass `CI=0`.
 `snapback dev` prints `SNAPBACK_EXPO_METRO_WATCH_INERT` as an advisory when
 it can see that environment; it does not refuse.
 
-The React/Vite templates import the relative relay base from the generated
-development virtual module:
+The React/Vite template keeps the development virtual module declaration
+available for tooling that observes the relay state:
 
 ```ts source=packages/snapback-cli/templates/react/src/snapback-dev.d.ts
 declare module 'virtual:snapback/dev' {
-  import type {
-    SnapbackAppBindingV1,
-    SnapbackApplicationDescriptorV1,
-  } from '@expo/snapback-client';
-
   export const snapbackBasePath: string;
   export const snapbackDevState: Readonly<{
     mode: 'off' | 'external' | 'attach' | 'managed' | 'auto';
@@ -123,19 +118,16 @@ declare module 'virtual:snapback/dev' {
     ready: boolean;
     basePath: string;
   }>;
-  export function createSnapbackDevAppBinding(
-    app: SnapbackApplicationDescriptorV1,
-  ): SnapbackAppBindingV1;
 }
 ```
 
 `@expo/snapback-vite` supplies `virtual:snapback/dev`; there is no file to
-install or generate at that specifier. A hand-built TypeScript/Vite app must
-add the ambient declaration above (conventionally
-`src/snapback-dev.d.ts`) so the compiler knows the relay state and app-binding
-helper. Pass the generated `app` to `createSnapbackDevAppBinding`, then pass
-that binding to `createSnapbackAppClient`; the helper emits only the
-same-origin relative relay path, never a loopback server URL.
+install or generate at that specifier. Ordinary application binding no longer
+depends on a virtual-module constructor: application code passes the generated
+`app` plus `url: import.meta.env.VITE_SNAPBACK_URL` to
+`createSnapbackAppClient`. Development-generated apps carry the private
+declared-dev capability that admits that URL; release-generated apps ignore it
+for source selection and continue through the existing binding path.
 
 The package `@expo/snapback-cli` supplies the `snapback` command — the
 terminal npm identity (LLP 0115 decision 9): the workspace name and the

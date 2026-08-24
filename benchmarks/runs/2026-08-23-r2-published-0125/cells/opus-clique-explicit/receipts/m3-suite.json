@@ -1,0 +1,454 @@
+{
+  "schemaVersion": "clique.acceptance.v1",
+  "app": "clique",
+  "laneRunId": "opus-clique-explicit",
+  "milestone": "M3",
+  "startedAt": "2026-08-24T12:13:06.085Z",
+  "finishedAt": "2026-08-24T12:14:29.912Z",
+  "durationMs": 83827,
+  "baseUrl": "http://127.0.0.1:42161",
+  "segments": [
+    "starter-m1.log",
+    "starter-m2.log",
+    "starter-m3.log"
+  ],
+  "seed": {
+    "firstPass": {
+      "applied": 43,
+      "skipped": 53,
+      "actors": 8,
+      "entities": 53
+    },
+    "secondPass": {
+      "applied": 43,
+      "skipped": 53,
+      "actors": 8,
+      "entities": 53
+    },
+    "stateAfterFirstPass": {
+      "seedRefs": 53,
+      "seedRefIds": [
+        "asset:avatar:alice",
+        "asset:avatar:bob",
+        "asset:avatar:carol",
+        "asset:avatar:dave",
+        "asset:avatar:erin",
+        "asset:avatar:frank",
+        "asset:avatar:grace",
+        "asset:avatar:henry",
+        "conversation:d-alice-bob",
+        "conversation:g-starter",
+        "message:sm0001",
+        "message:sm0002",
+        "message:sm0003",
+        "message:sm0004",
+        "message:sm0005",
+        "message:sm0006",
+        "message:sm0007",
+        "message:sm0008",
+        "message:sm0009",
+        "message:sm0010",
+        "message:sm0011",
+        "message:sm0012",
+        "message:sm0013",
+        "message:sm0014",
+        "message:sm0015",
+        "post:sp0001",
+        "post:sp0002",
+        "post:sp0003",
+        "post:sp0004",
+        "post:sp0005",
+        "post:sp0006",
+        "post:sp0007",
+        "post:sp0008",
+        "post:sp0009",
+        "post:sp0010",
+        "post:sp0011",
+        "post:sp0012",
+        "post:sp0013",
+        "post:sp0014",
+        "post:sp0015",
+        "post:sp0016",
+        "post:sp0017",
+        "post:sp0018",
+        "post:sp0019",
+        "post:sp0020",
+        "post:sp0021",
+        "post:sp0022",
+        "post:sp0023",
+        "post:sp0024",
+        "post:sr0001",
+        "post:sr0002",
+        "post:sr0003",
+        "post:sr0004"
+      ],
+      "profiles": {
+        "alice": {
+          "displayName": "Alice Alvarez",
+          "bio": "Coffee, cameras, and neighborhood walks.",
+          "location": "Oakland, CA",
+          "link": "https://example.com/alice",
+          "hasAvatar": true,
+          "followingCount": 2,
+          "originalPosts": 85
+        },
+        "bob": {
+          "displayName": "Bob Bennett",
+          "bio": "Bikes, bread, and tiny software tools.",
+          "location": "Berkeley, CA",
+          "link": "https://example.com/bob",
+          "hasAvatar": true,
+          "followingCount": 3,
+          "originalPosts": 3
+        },
+        "carol": {
+          "displayName": "Carol Chen",
+          "bio": "Ceramics student and relentless list maker.",
+          "location": "San Francisco, CA",
+          "link": "https://example.com/carol",
+          "hasAvatar": true,
+          "followingCount": 1,
+          "originalPosts": 11
+        },
+        "dave": {
+          "displayName": "Dave Diaz",
+          "bio": "Live music, trail maps, and spicy noodles.",
+          "location": "Portland, OR",
+          "link": "https://example.com/dave",
+          "hasAvatar": true,
+          "followingCount": 1,
+          "originalPosts": 3
+        },
+        "erin": {
+          "displayName": "Erin Evans",
+          "bio": "Designing kinder interfaces and growing herbs.",
+          "location": "Seattle, WA",
+          "link": "https://example.com/erin",
+          "hasAvatar": true,
+          "followingCount": 2,
+          "originalPosts": 3
+        },
+        "frank": {
+          "displayName": "Frank Flores",
+          "bio": "Weekend cook and weekday data wrangler.",
+          "location": "Austin, TX",
+          "link": "https://example.com/frank",
+          "hasAvatar": true,
+          "followingCount": 1,
+          "originalPosts": 3
+        },
+        "grace": {
+          "displayName": "Grace Green",
+          "bio": "Gardens, graphic novels, and good questions.",
+          "location": "Chicago, IL",
+          "link": "https://example.com/grace",
+          "hasAvatar": true,
+          "followingCount": 1,
+          "originalPosts": 3
+        },
+        "henry": {
+          "displayName": "Henry Hall",
+          "bio": "History podcasts and pickup basketball.",
+          "location": "Brooklyn, NY",
+          "link": "https://example.com/henry",
+          "hasAvatar": true,
+          "followingCount": 2,
+          "originalPosts": 3
+        }
+      },
+      "conversations": {
+        "d-alice-bob": {
+          "kind": "dm",
+          "title": "Bob Bennett",
+          "members": 2
+        },
+        "g-starter": {
+          "kind": "group",
+          "title": "Weekend Plans",
+          "members": 4
+        }
+      }
+    },
+    "stateAfterSecondPass": {
+      "seedRefs": 53,
+      "seedRefIds": [
+        "asset:avatar:alice",
+        "asset:avatar:bob",
+        "asset:avatar:carol",
+        "asset:avatar:dave",
+        "asset:avatar:erin",
+        "asset:avatar:frank",
+        "asset:avatar:grace",
+        "asset:avatar:henry",
+        "conversation:d-alice-bob",
+        "conversation:g-starter",
+        "message:sm0001",
+        "message:sm0002",
+        "message:sm0003",
+        "message:sm0004",
+        "message:sm0005",
+        "message:sm0006",
+        "message:sm0007",
+        "message:sm0008",
+        "message:sm0009",
+        "message:sm0010",
+        "message:sm0011",
+        "message:sm0012",
+        "message:sm0013",
+        "message:sm0014",
+        "message:sm0015",
+        "post:sp0001",
+        "post:sp0002",
+        "post:sp0003",
+        "post:sp0004",
+        "post:sp0005",
+        "post:sp0006",
+        "post:sp0007",
+        "post:sp0008",
+        "post:sp0009",
+        "post:sp0010",
+        "post:sp0011",
+        "post:sp0012",
+        "post:sp0013",
+        "post:sp0014",
+        "post:sp0015",
+        "post:sp0016",
+        "post:sp0017",
+        "post:sp0018",
+        "post:sp0019",
+        "post:sp0020",
+        "post:sp0021",
+        "post:sp0022",
+        "post:sp0023",
+        "post:sp0024",
+        "post:sr0001",
+        "post:sr0002",
+        "post:sr0003",
+        "post:sr0004"
+      ],
+      "profiles": {
+        "alice": {
+          "displayName": "Alice Alvarez",
+          "bio": "Coffee, cameras, and neighborhood walks.",
+          "location": "Oakland, CA",
+          "link": "https://example.com/alice",
+          "hasAvatar": true,
+          "followingCount": 2,
+          "originalPosts": 85
+        },
+        "bob": {
+          "displayName": "Bob Bennett",
+          "bio": "Bikes, bread, and tiny software tools.",
+          "location": "Berkeley, CA",
+          "link": "https://example.com/bob",
+          "hasAvatar": true,
+          "followingCount": 3,
+          "originalPosts": 3
+        },
+        "carol": {
+          "displayName": "Carol Chen",
+          "bio": "Ceramics student and relentless list maker.",
+          "location": "San Francisco, CA",
+          "link": "https://example.com/carol",
+          "hasAvatar": true,
+          "followingCount": 1,
+          "originalPosts": 11
+        },
+        "dave": {
+          "displayName": "Dave Diaz",
+          "bio": "Live music, trail maps, and spicy noodles.",
+          "location": "Portland, OR",
+          "link": "https://example.com/dave",
+          "hasAvatar": true,
+          "followingCount": 1,
+          "originalPosts": 3
+        },
+        "erin": {
+          "displayName": "Erin Evans",
+          "bio": "Designing kinder interfaces and growing herbs.",
+          "location": "Seattle, WA",
+          "link": "https://example.com/erin",
+          "hasAvatar": true,
+          "followingCount": 2,
+          "originalPosts": 3
+        },
+        "frank": {
+          "displayName": "Frank Flores",
+          "bio": "Weekend cook and weekday data wrangler.",
+          "location": "Austin, TX",
+          "link": "https://example.com/frank",
+          "hasAvatar": true,
+          "followingCount": 1,
+          "originalPosts": 3
+        },
+        "grace": {
+          "displayName": "Grace Green",
+          "bio": "Gardens, graphic novels, and good questions.",
+          "location": "Chicago, IL",
+          "link": "https://example.com/grace",
+          "hasAvatar": true,
+          "followingCount": 1,
+          "originalPosts": 3
+        },
+        "henry": {
+          "displayName": "Henry Hall",
+          "bio": "History podcasts and pickup basketball.",
+          "location": "Brooklyn, NY",
+          "link": "https://example.com/henry",
+          "hasAvatar": true,
+          "followingCount": 2,
+          "originalPosts": 3
+        }
+      },
+      "conversations": {
+        "d-alice-bob": {
+          "kind": "dm",
+          "title": "Bob Bennett",
+          "members": 2
+        },
+        "g-starter": {
+          "kind": "group",
+          "title": "Weekend Plans",
+          "members": 4
+        }
+      }
+    }
+  },
+  "coverage": {
+    "suiteRequired": 7,
+    "covered": 7,
+    "missing": [],
+    "map": [
+      {
+        "assertion": "m3-a03",
+        "text": "Starting the 'same' DM again reuses the existing channel (at most one DM channel per user pair).",
+        "test": "starting the 'same' DM again reuses the existing channel",
+        "covered": true
+      },
+      {
+        "assertion": "m3-a04",
+        "text": "Create a group with Alice, Bob, and Carol.",
+        "test": "create a group with Alice, Bob and Carol",
+        "covered": true
+      },
+      {
+        "assertion": "m3-a05",
+        "text": "A second group with the same three members coexists as a distinct group.",
+        "test": "a second group with the same members coexists as a distinct group",
+        "covered": true
+      },
+      {
+        "assertion": "m3-a10",
+        "text": "A quoted reply renders the quoted excerpt in its bubble.",
+        "test": "a quoted reply renders the quoted excerpt in its bubble",
+        "covered": true
+      },
+      {
+        "assertion": "m3-a11",
+        "text": "Tapping the quoted excerpt scrolls/jumps to the original message.",
+        "test": "tapping the quoted excerpt jumps to the original message",
+        "covered": true
+      },
+      {
+        "assertion": "m3-a14",
+        "text": "A non-admin cannot remove members.",
+        "test": "a non-admin cannot remove members",
+        "covered": true
+      },
+      {
+        "assertion": "m3-a15",
+        "text": "The seed is idempotent: a second run produces no duplicates - judged per installed segment, covering every starter-log segment installed so far (each milestone's suite re-runs this).",
+        "test": "the seed is idempotent across every installed segment",
+        "covered": true
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "id": "m3-a03",
+      "name": "starting the 'same' DM again reuses the existing channel",
+      "pass": true,
+      "durationMs": 5244.7,
+      "detail": {
+        "conversationId": "id_01m0srexwmeb0s7bda0y5zp5ef"
+      },
+      "error": null
+    },
+    {
+      "id": "m3-a04",
+      "name": "create a group with Alice, Bob and Carol",
+      "pass": true,
+      "durationMs": 4238.1,
+      "detail": {
+        "conversationId": "id_01m0sv27b4e0hvm8a43g2b3jhy",
+        "roster": [
+          "alice",
+          "bob",
+          "carol"
+        ]
+      },
+      "error": null
+    },
+    {
+      "id": "m3-a05",
+      "name": "a second group with the same members coexists as a distinct group",
+      "pass": true,
+      "durationMs": 3225.4,
+      "detail": {
+        "first": "id_01m0sv27b4e0hvm8a43g2b3jhy",
+        "second": "id_01m0sv2ba5en0vgqzj95k0rn7t"
+      },
+      "error": null
+    },
+    {
+      "id": "m3-a10",
+      "name": "a quoted reply renders the quoted excerpt in its bubble",
+      "pass": true,
+      "durationMs": 6522,
+      "detail": {
+        "excerpt": "Alice Alvarez\nmt776h66 original for the quote"
+      },
+      "error": null
+    },
+    {
+      "id": "m3-a11",
+      "name": "tapping the quoted excerpt jumps to the original message",
+      "pass": true,
+      "durationMs": 14760.3,
+      "detail": {
+        "visibleBeforeJump": false,
+        "visibleAfterJump": true
+      },
+      "error": null
+    },
+    {
+      "id": "m3-a14",
+      "name": "a non-admin cannot remove members",
+      "pass": true,
+      "durationMs": 2717.3,
+      "detail": {
+        "error": "Only an admin can change members.",
+        "appCode": "NOT_ADMIN"
+      },
+      "error": null
+    },
+    {
+      "id": "m3-a15",
+      "name": "the seed is idempotent across every installed segment",
+      "pass": true,
+      "durationMs": 0.2,
+      "detail": {
+        "segments": [
+          "starter-m1.log",
+          "starter-m2.log",
+          "starter-m3.log"
+        ],
+        "seedRefs": 53,
+        "profiles": 8,
+        "conversations": 2
+      },
+      "error": null
+    }
+  ],
+  "pass": true
+}

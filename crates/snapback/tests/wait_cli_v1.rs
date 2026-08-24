@@ -236,6 +236,7 @@ fn receipt(ready_file: &Path, readiness: &OperationalReadinessV1) -> Application
             },
         },
         client_origins: readiness.client_origins.clone(),
+        admission_posture: readiness.admission_posture,
         runtime_identity: ApplicationReadyRuntimeIdentityV1 {
             qualified_binary: QualifiedBinaryIdentityV1 {
                 path: "/test/snapback".to_owned(),

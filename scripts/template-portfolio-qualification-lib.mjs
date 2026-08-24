@@ -37,12 +37,6 @@ const OBSERVATION_CARRIER_ORDER = Object.freeze([
   'carry:web-browser',
   'carry:native-simulator',
 ]);
-const COMPACT_GLOSSARY_TEMPLATES = new Set([
-  'crud-dashboard',
-  'media-feed',
-  'todo-contract',
-]);
-
 export function renderTemplateScriptGlossary(manifest, { compact = false } = {}) {
   const observationScripts = OBSERVATION_CARRIER_ORDER
     .filter((script) => typeof manifest.scripts?.[script] === 'string')
@@ -76,6 +70,46 @@ export function renderTemplateScriptGlossary(manifest, { compact = false } = {})
   ].join('\n');
 }
 
+function assertStartPacketScriptGlossary({ name, manifest, instructions }) {
+  // @ref LLP 0196#program — first-read packets may use the budgeted `carry:*`
+  // spelling; validate its authority and manifest coverage instead of freezing
+  // the packet's prose byte-for-byte (LLP 0259's steering budget).
+  const match = instructions.match(
+    /<!-- script-glossary:begin -->([\s\S]*?)<!-- script-glossary:end -->/u,
+  );
+  if (!match) throw new Error(`${name} start packet omits its script glossary`);
+  const glossary = match[1];
+  for (const required of [
+    'only done-oracle',
+    'snapback verify',
+    'npm test',
+    'test:static',
+    'carry:self-check',
+  ]) {
+    if (!glossary.includes(required)) {
+      throw new Error(`${name} start packet script glossary omits ${required}`);
+    }
+  }
+  if (!glossary.includes('observation') || !glossary.includes('prove')) {
+    throw new Error(`${name} start packet script glossary changes carrier authority`);
+  }
+  const documentsAllCarriers = glossary.includes('`carry:*`');
+  for (const script of OBSERVATION_CARRIER_ORDER) {
+    const present = typeof manifest.scripts?.[script] === 'string';
+    if (present && !(documentsAllCarriers || glossary.includes(script))) {
+      throw new Error(`${name} start packet script glossary omits ${script}`);
+    }
+  }
+  const documentedCarriers = new Set(
+    glossary.match(/carry:(?:headless|web-browser|native-simulator|self-check)/gu) ?? [],
+  );
+  for (const script of documentedCarriers) {
+    if (typeof manifest.scripts?.[script] !== 'string') {
+      throw new Error(`${name} start packet documents missing script ${script}`);
+    }
+  }
+}
+
 export function assertTemplateScriptSurface({ name, manifest, readme, instructions }) {
   for (const script of REQUIRED_TEMPLATE_SCRIPTS) {
     if (typeof manifest.scripts?.[script] !== 'string') {
@@ -103,25 +137,10 @@ export function assertTemplateScriptSurface({ name, manifest, readme, instructio
     }
   }
 
-  const expectedGlossaries = [
-    ['README', readme, renderTemplateScriptGlossary(manifest)],
-    [
-      'start packet',
-      instructions,
-      renderTemplateScriptGlossary(manifest, { compact: COMPACT_GLOSSARY_TEMPLATES.has(name) }),
-    ],
-  ];
-  for (const [surface, document, expectedGlossary] of expectedGlossaries) {
-    if (!document.includes(expectedGlossary)) {
-      throw new Error(`${name} ${surface} script glossary disagrees with package.json`);
-    }
-    const documentedCarriers = new Set(document.match(/carry:(?:headless|web-browser|native-simulator|self-check)/gu) ?? []);
-    for (const script of documentedCarriers) {
-      if (typeof manifest.scripts[script] !== 'string') {
-        throw new Error(`${name} ${surface} documents missing script ${script}`);
-      }
-    }
+  if (!readme.includes(renderTemplateScriptGlossary(manifest))) {
+    throw new Error(`${name} README script glossary disagrees with package.json`);
   }
+  assertStartPacketScriptGlossary({ name, manifest, instructions });
   return Object.freeze({
     commands: Object.freeze({
       ordinaryCompletion: 'bun run prove',
@@ -470,7 +489,8 @@ export function selfCheckTemplatePortfolio(sourceCliRoot) {
     const instructions = readFileSync(join(root, 'AGENTS.md'), 'utf8');
     const carrier = readFileSync(join(root, 'carrier.mjs'), 'utf8');
     const scriptSurface = assertTemplateScriptSurface({ name, manifest, readme, instructions });
-    if (!instructions.includes('carry:headless')
+    const documentsAllCarriers = instructions.includes('`carry:*`');
+    if (!(instructions.includes('carry:headless') || documentsAllCarriers)
         || !carrier.includes('snapback.template-carriers.v1')) {
       throw new Error(`${name} does not register its carrier kit for a cold agent`);
     }
@@ -478,7 +498,8 @@ export function selfCheckTemplatePortfolio(sourceCliRoot) {
     for (const candidate of ['web-browser', 'native-simulator']) {
       const script = `carry:${candidate}`;
       if (typeof manifest.scripts[script] !== 'string') continue;
-      if (!instructions.includes(script) || !carrier.includes(`'${candidate}'`)) {
+      if (!(instructions.includes(script) || documentsAllCarriers)
+          || !carrier.includes(`'${candidate}'`)) {
         throw new Error(`${name} does not register its ${candidate} carrier for a cold agent`);
       }
       carriers.push(candidate);

@@ -15710,6 +15710,421 @@ async fn dev_body_impersonation_requires_a_trusted_browser_origin_but_not_an_ori
 }
 
 #[tokio::test]
+async fn loopback_any_dev_body_origin_admits_literal_loopback_and_refuses_foreign_hosts() {
+    async fn echo_authority(Extension(authority): Extension<PreparedAuthority>) -> Json<Value> {
+        Json(json!({ "userId": authority.projection().user_id() }))
+    }
+
+    let (mut state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+    Arc::make_mut(&mut state.server).use_loopback_any_dev_admission_for_test();
+    let router = super::router_from_registrations(
+        vec![super::RegisteredRoute::new(
+            super::app_auth_route("POST", "/query/{name}"),
+            axum::routing::post(echo_authority),
+        )],
+        state.clone(),
+    )
+    .with_state(state);
+    let request = |origin: Option<&'static str>| {
+        let mut builder = Request::builder()
+            .method("POST")
+            .uri("/query/authority")
+            .header(header::CONTENT_TYPE, "application/json");
+        if let Some(origin) = origin {
+            builder = builder.header(header::ORIGIN, origin);
+        }
+        builder
+            .body(Body::from(r#"{"args":{},"auth":{"user_id":"user-1"}}"#))
+            .unwrap()
+    };
+
+    let originless = router.clone().oneshot(request(None)).await.unwrap();
+    assert_eq!(originless.status(), StatusCode::OK);
+
+    let admitted = router
+        .clone()
+        .oneshot(request(Some("http://localhost:59999")))
+        .await
+        .unwrap();
+    assert_eq!(admitted.status(), StatusCode::OK);
+
+    let refused = router
+        .oneshot(request(Some("http://attacker.dev")))
+        .await
+        .unwrap();
+    assert_eq!(refused.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        response_json(refused).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_DEV_ORIGIN_REFUSED"
+    );
+
+    let (mut explicit_state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+    let context = Arc::make_mut(&mut explicit_state.server);
+    context.dev_admission_posture = Some(crate::admin::DevAdmissionPosture::ExplicitList);
+    context.dev_auth_origins = BTreeSet::from(["https://lane.trycloudflare.com".to_owned()]);
+    let explicit_router = super::router_from_registrations(
+        vec![super::RegisteredRoute::new(
+            super::app_auth_route("POST", "/query/{name}"),
+            axum::routing::post(echo_authority),
+        )],
+        explicit_state.clone(),
+    )
+    .with_state(explicit_state);
+    let originless = explicit_router.oneshot(request(None)).await.unwrap();
+    assert_eq!(originless.status(), StatusCode::OK);
+}
+
+static DEV_ADMISSION_ENV_TEST_LOCK: OnceLock<StdMutex<()>> = OnceLock::new();
+
+struct DevAdmissionEnvironmentRestore {
+    posture: Option<std::ffi::OsString>,
+    origins: Option<std::ffi::OsString>,
+    profile: Option<std::ffi::OsString>,
+}
+
+impl DevAdmissionEnvironmentRestore {
+    fn capture() -> Self {
+        Self {
+            posture: std::env::var_os("SNAPBACK_DEV_ADMISSION_POSTURE"),
+            origins: std::env::var_os("SNAPBACK_DEV_AUTH_ORIGINS"),
+            profile: std::env::var_os("SNAPBACK_PROFILE"),
+        }
+    }
+}
+
+impl Drop for DevAdmissionEnvironmentRestore {
+    fn drop(&mut self) {
+        for (name, value) in [
+            ("SNAPBACK_DEV_ADMISSION_POSTURE", self.posture.take()),
+            ("SNAPBACK_DEV_AUTH_ORIGINS", self.origins.take()),
+            ("SNAPBACK_PROFILE", self.profile.take()),
+        ] {
+            match value {
+                Some(value) => unsafe { std::env::set_var(name, value) },
+                None => unsafe { std::env::remove_var(name) },
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn startup_resolution_carries_declared_posture_and_absent_legacy_posture_to_identity_route() {
+    let (declared_context, legacy_context) = {
+        let _environment_lock = DEV_ADMISSION_ENV_TEST_LOCK
+            .get_or_init(|| StdMutex::new(()))
+            .lock()
+            .unwrap();
+        let _restore = DevAdmissionEnvironmentRestore::capture();
+        unsafe {
+            std::env::set_var("SNAPBACK_PROFILE", "dev");
+            std::env::remove_var("SNAPBACK_DEV_AUTH_ORIGINS");
+            std::env::set_var("SNAPBACK_DEV_ADMISSION_POSTURE", "hostile-ambient-value");
+        }
+        let hostile_error = match crate::admin::resolve_server_startup(true) {
+            Ok(_) => panic!("an unrecognized inherited posture must refuse startup"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            hostile_error.diagnostic.code,
+            "SNAPBACK_DEV_ADMISSION_POSTURE_INVALID"
+        );
+
+        unsafe {
+            std::env::set_var("SNAPBACK_DEV_ADMISSION_POSTURE", "loopback-any");
+        }
+        let declared = crate::admin::resolve_server_startup(true)
+            .expect("valid declared posture resolves at startup");
+        let mut declared_context =
+            ServerContext::new_with_startup_resolution("127.0.0.1", 4287, declared);
+        declared_context.record_bound_address("127.0.0.1:4287".parse().unwrap());
+
+        unsafe {
+            std::env::remove_var("SNAPBACK_DEV_ADMISSION_POSTURE");
+        }
+        let legacy = crate::admin::resolve_server_startup(true)
+            .expect("absent posture preserves legacy startup");
+        let mut legacy_context =
+            ServerContext::new_with_startup_resolution("127.0.0.1", 4287, legacy);
+        legacy_context.record_bound_address("127.0.0.1:4287".parse().unwrap());
+        (declared_context, legacy_context)
+    };
+
+    for (context, expected_posture) in [
+        (declared_context, "loopback-any"),
+        (legacy_context, "explicit-list"),
+    ] {
+        let state = test_app_state_from_snapback(
+            LocalSnapback::memory().expect("startup-resolution identity fixture"),
+            context,
+        );
+        let deployment = DeploymentIdentity {
+            schema_version: "snapback.v0".to_owned(),
+            auth_mode: AuthMode::Dev,
+            app_id: format!("startup-resolution-{expected_posture}"),
+            schema_hash: "sha256:startup-resolution-schema".to_owned(),
+            bundle_hash: "sha256:startup-resolution-functions".to_owned(),
+            inputs_hash: "sha256:startup-resolution-inputs".to_owned(),
+        };
+        deployment.validate().expect("valid startup identity");
+        let readiness = state.auth_program_readiness().clone();
+        let state = state
+            .with_auth_runtime_facts(
+                AuthModeStateRecord::initial_dev(Some(deployment)),
+                readiness,
+            )
+            .expect("install startup-resolution deployment");
+        let response = app(state)
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/_snapback/api/app/identity")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK, "{expected_posture}");
+        assert_eq!(
+            response_json(response).await["admissionPosture"],
+            expected_posture,
+            "{expected_posture}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn app_identity_dev_route_is_exact_uncached_originless_and_get_only() {
+    let mut context = bound_loopback_context();
+    context.profile = ServerProfile::Dev;
+    context.use_loopback_any_dev_admission_for_test();
+    let state = test_app_state_from_snapback(
+        LocalSnapback::memory().expect("application identity fixture"),
+        context,
+    );
+    let expected_deployment = DeploymentIdentity {
+        schema_version: "snapback.v0".to_owned(),
+        auth_mode: AuthMode::Dev,
+        app_id: "identity-route-fixture".to_owned(),
+        schema_hash: "sha256:identity-schema".to_owned(),
+        bundle_hash: "sha256:identity-functions".to_owned(),
+        inputs_hash: "sha256:identity-inputs".to_owned(),
+    };
+    expected_deployment.validate().expect("valid dev identity");
+    let auth_program_readiness = state.auth_program_readiness().clone();
+    let state = state
+        .with_auth_runtime_facts(
+            AuthModeStateRecord::initial_dev(Some(expected_deployment.clone())),
+            auth_program_readiness,
+        )
+        .expect("install active development deployment");
+    let router = app(state);
+
+    let response = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/_snapback/api/app/identity")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
+    assert!(response.headers().get(header::ETAG).is_none());
+    assert!(response.headers().get(header::LAST_MODIFIED).is_none());
+    assert!(response.headers().get(header::LOCATION).is_none());
+    let body = response_json(response).await;
+    assert_eq!(
+        body.as_object()
+            .expect("identity response object")
+            .keys()
+            .cloned()
+            .collect::<BTreeSet<_>>(),
+        BTreeSet::from([
+            "admissionPosture".to_owned(),
+            "deployment".to_owned(),
+            "formatVersion".to_owned(),
+        ])
+    );
+    assert_eq!(body["formatVersion"], "snapback.app-identity.v1");
+    assert_eq!(
+        body["deployment"],
+        serde_json::to_value(&expected_deployment).unwrap()
+    );
+    assert_eq!(body["admissionPosture"], "loopback-any");
+
+    for (origin, admitted) in [
+        ("http://localhost:59999", true),
+        ("http://attacker.dev", false),
+    ] {
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/_snapback/api/app/identity")
+                    .header(header::ORIGIN, origin)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response
+                .headers()
+                .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                .and_then(|value| value.to_str().ok()),
+            admitted.then_some(origin),
+            "{origin}"
+        );
+    }
+
+    for method in ["HEAD", "POST", "OPTIONS"] {
+        let refused = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(method)
+                    .uri("/_snapback/api/app/identity")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(refused.status(), StatusCode::METHOD_NOT_ALLOWED, "{method}");
+    }
+
+    let mut explicit_context = bound_loopback_context();
+    explicit_context.profile = ServerProfile::Dev;
+    explicit_context.dev_admission_posture = Some(crate::admin::DevAdmissionPosture::ExplicitList);
+    explicit_context.dev_auth_origins =
+        BTreeSet::from(["https://lane.trycloudflare.com".to_owned()]);
+    let explicit_state = test_app_state_from_snapback(
+        LocalSnapback::memory().expect("explicit-list identity fixture"),
+        explicit_context,
+    );
+    let explicit_readiness = explicit_state.auth_program_readiness().clone();
+    let explicit_state = explicit_state
+        .with_auth_runtime_facts(
+            AuthModeStateRecord::initial_dev(Some(expected_deployment)),
+            explicit_readiness,
+        )
+        .expect("install explicit-list active deployment");
+    let explicit_router = app(explicit_state);
+    let response = explicit_router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/_snapback/api/app/identity")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response_json(response).await["admissionPosture"],
+        "explicit-list"
+    );
+
+    for (origin, expected_acao) in [
+        (
+            "https://lane.trycloudflare.com",
+            Some("https://lane.trycloudflare.com"),
+        ),
+        ("http://localhost:59999", None),
+    ] {
+        let response = explicit_router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/_snapback/api/app/identity")
+                    .header(header::ORIGIN, origin)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK, "{origin}");
+        assert_eq!(
+            response
+                .headers()
+                .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                .and_then(|value| value.to_str().ok()),
+            expected_acao,
+            "{origin}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn app_identity_route_is_unavailable_on_demo_and_test_profiles() {
+    for profile in [ServerProfile::Demo, ServerProfile::Test] {
+        let mut context = bound_loopback_context();
+        context.profile = profile;
+        context.use_loopback_any_dev_admission_for_test();
+        let state = test_app_state_from_snapback(
+            LocalSnapback::memory().expect("non-dev identity fixture"),
+            context,
+        );
+        let response = app(state)
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/_snapback/api/app/identity")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{profile:?}");
+        assert_eq!(
+            response_json(response).await["diagnostic"]["code"],
+            "SNAPBACK_APP_IDENTITY_UNAVAILABLE",
+            "{profile:?}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn app_identity_prod_route_is_typed_not_found() {
+    let mut context = bound_loopback_context();
+    context.profile = ServerProfile::Prod;
+    context.use_loopback_any_dev_admission_for_test();
+    let mut state = test_app_state_from_snapback(
+        LocalSnapback::memory().expect("production application identity fixture"),
+        context,
+    );
+    Arc::make_mut(&mut state.server).auth_deployment =
+        crate::auth::deployment::AuthDeploymentTarget::Hosted;
+    let state = state
+        .with_hosted_serving_authority(hosted_serving_authority(super::now_millis()))
+        .expect("install production hosted authority");
+    let response = app(state)
+        .oneshot(via_hosted_terminator(
+            Request::builder()
+                .method("GET")
+                .uri("/_snapback/api/app/identity")
+                .body(Body::empty())
+                .unwrap(),
+            TEST_HOSTED_CLIENT_SOURCE,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
+    assert_eq!(
+        response_json(response).await["diagnostic"]["code"],
+        "SNAPBACK_APP_IDENTITY_UNAVAILABLE"
+    );
+}
+
+#[tokio::test]
 async fn dev_client_asserted_capability_verifies_when_present_and_warns_when_absent() {
     async fn echo_authority(Extension(authority): Extension<PreparedAuthority>) -> Json<Value> {
         Json(json!({ "userId": authority.projection().user_id() }))
@@ -24502,6 +24917,10 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
         "comma-separated exact loopback-origin configuration for Dev browser body authority; never an HTTP diagnostic",
     ),
     (
+        "SNAPBACK_DEV_ADMISSION_POSTURE",
+        "spawn-owned environment variable selecting the LLP 0301 development origin posture; never an HTTP diagnostic",
+    ),
+    (
         "SNAPBACK_HANDLER_ERROR_EXPOSURE",
         "environment variable selecting redacted versus development handler-error rendering; never an HTTP diagnostic",
     ),
@@ -25144,6 +25563,10 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID",
     "SNAPBACK_GRAPH_CURSOR_UNBOUND",
     "SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH",
+    // G2-A's required-edge miss is an evaluation-time materialized refusal,
+    // but it still reports a caller-visible graph shape/data mismatch in the
+    // reviewed 4xx family rather than inheriting the fail-safe 500 default.
+    "SNAPBACK_GRAPH_REQUIRED_EDGE_MISSING",
     "SNAPBACK_QUERY_COST_CLIENT_UNSUPPORTED",
     // These closed terminal-protocol ids are produced by the mapper's
     // dedicated registry rather than a match arm, but retain the same reviewed
@@ -25884,6 +26307,9 @@ const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
 ];
 
 const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
+    // @ref LLP 0301#7a-diagnostic-code-matrix-pinned-before-the-freeze — the
+    // identity fact is deliberately absent on the production profile.
+    "SNAPBACK_APP_IDENTITY_UNAVAILABLE",
     "SNAPBACK_AUTH_GUEST_DISABLED",
     "SNAPBACK_EFFECT_NOT_FOUND",
     "SNAPBACK_WATCH_NOT_FOUND",
@@ -27018,6 +27444,7 @@ const CROSS_CRATE_FAIL_SAFE_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_BENCH_SETUP_FAILED",
     "SNAPBACK_BENCH_WRITER_POISONED",
     "SNAPBACK_CLIENT_MUTATION_RESULT_INTEGRITY",
+    "SNAPBACK_DEV_ADMISSION_POSTURE_INVALID",
     "SNAPBACK_DEV_IDENTITY_CONFIG_FORBIDDEN",
     "SNAPBACK_DEV_IDENTITY_FILE_INVALID",
     "SNAPBACK_EFFECT_AUTHORITY_INVALID",
@@ -40030,9 +40457,9 @@ const RESERVED_PREFIX: &str = "/_snapback/";
 
 /// LLP 0031 §The invariant — the declared registry holds the boundary: every
 /// app-data entry is a root path, every system entry is under the reserved
-/// prefix, every system-api entry is admin-gated, static console/guide
-/// entries are public presentation, and no privileged operation lives at
-/// the root.
+/// prefix, system-api entries are admin-gated except the LLP 0301 public
+/// identity fact, static console/guide entries are public presentation, and
+/// no privileged operation lives at the root.
 #[test]
 fn s1_route_registry_matches_the_invariant() {
     let registry = route_registry();
@@ -40088,14 +40515,18 @@ fn s1_route_registry_matches_the_invariant() {
                     "system-api must live under /_snapback/api/: {}",
                     route.path
                 );
+                let public_identity = route.method == "GET"
+                    && route.path == "/_snapback/api/app/identity"
+                    && route.policy == RoutePolicy::Public;
                 assert!(
-                    matches!(
-                        route.policy,
-                        RoutePolicy::AdminRead
-                            | RoutePolicy::AdminWrite
-                            | RoutePolicy::AdminSecretRead
-                    ),
-                    "system-api must be admin-gated: {}",
+                    public_identity
+                        || matches!(
+                            route.policy,
+                            RoutePolicy::AdminRead
+                                | RoutePolicy::AdminWrite
+                                | RoutePolicy::AdminSecretRead
+                        ),
+                    "system-api must be admin-gated or the public identity fact: {}",
                     route.path
                 );
             }

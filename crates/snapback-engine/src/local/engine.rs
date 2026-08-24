@@ -50,8 +50,9 @@ use crate::ephemeral::{
     validate_collection_permission_backing,
 };
 use crate::live_matcher::{
-    LiveDeltaKind, LiveDeltaOutcome, LiveMatchOutcome, compute_live_delta,
-    live_subscription_match_outcome, query_dependencies_from_plan,
+    GraphNodeDecisionStatsV1, LiveDeltaKind, LiveDeltaOutcome, LiveMatchOutcome,
+    compute_live_delta, live_subscription_match_decision, live_subscription_match_outcome,
+    query_dependencies_from_plan, rollup_graph_node_decisions,
 };
 use crate::live_wire::{
     AuthorizationInvalidationSnapshot, LiveDeltaOpKind, LiveDeltaWireOp, LiveEnvelope,
@@ -1264,6 +1265,43 @@ pub struct LiveMatcherDecisionStats {
     pub match_delta: u64,
     pub skip: u64,
     pub conservative_fallback: u64,
+    /// Value-free per-node graph matcher roll-up, grouped by the LLP 0209
+    /// §5.2 identity. Empty while graph serving remains support-false.
+    #[serde(default)]
+    pub graph_nodes: Vec<GraphNodeDecisionStatsV1>,
+}
+
+fn merge_graph_node_matcher_stats(
+    target: &mut Vec<GraphNodeDecisionStatsV1>,
+    incoming: impl IntoIterator<Item = GraphNodeDecisionStatsV1>,
+) {
+    for incoming in incoming {
+        if let Some(existing) = target.iter_mut().find(|existing| {
+            existing.graph_plan_hash == incoming.graph_plan_hash
+                && existing.node_kind == incoming.node_kind
+                && existing.disposition == incoming.disposition
+                && existing.reason == incoming.reason
+        }) {
+            existing.decisions = existing.decisions.saturating_add(incoming.decisions);
+            existing.skips = existing.skips.saturating_add(incoming.skips);
+            existing.matches = existing.matches.saturating_add(incoming.matches);
+            existing.conservative_fallbacks = existing
+                .conservative_fallbacks
+                .saturating_add(incoming.conservative_fallbacks);
+            existing.capture_incomplete = existing
+                .capture_incomplete
+                .saturating_add(incoming.capture_incomplete);
+        } else {
+            target.push(incoming);
+        }
+    }
+    target.sort_by(|left, right| {
+        left.graph_plan_hash
+            .cmp(&right.graph_plan_hash)
+            .then_with(|| left.node_kind.cmp(&right.node_kind))
+            .then_with(|| left.disposition.cmp(&right.disposition))
+            .then_with(|| left.reason.cmp(&right.reason))
+    });
 }
 
 /// Scheduler evaluation lifecycle and wire-output accounting.
@@ -4817,6 +4855,36 @@ impl<R> DirectAuthorizationWrite<R> {
 }
 
 impl LocalSnapback {
+    /// Evaluate an already-admitted graph query without exposing it through a
+    /// handler or serving dispatch. G2-C owns that integration boundary.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn evaluate_graph_query(
+        &self,
+        plan: &crate::manifest::GraphQueryPlanV1,
+        request: &crate::graph_evaluator::GraphEvaluationRequestV1,
+    ) -> SnapbackResult<crate::graph_evaluator::GraphEvaluationOutputV1> {
+        self.db.query_reads_read().with_pinned_read_view(|read| {
+            // @ref LLP 0209#24-plan-instance-and-contextual-materialization-identity —
+            // the first reads after opening the transaction pin the snapshot;
+            // the proof tuple is then completed from that same read view.
+            let evaluation_cut = read.current_version()?;
+            let (authorization_version, _) = read.membership_cursor_custody_snapshot()?;
+            let mut effective = request.clone();
+            effective.evaluation_cut = crate::manifest::GraphEvaluationCutV1(evaluation_cut);
+            effective.authorization_version = authorization_version;
+            crate::graph_evaluator::evaluate_graph_query_on(read, plan, &effective)
+        })
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn set_graph_evaluation_snapshot_debug_hook(
+        &self,
+        reached: std::sync::mpsc::Sender<u64>,
+        release: std::sync::mpsc::Receiver<()>,
+    ) -> crate::storage::StorageReadSnapshotDebugHookGuard {
+        crate::storage::set_storage_read_snapshot_debug_hook(&self.db, reached, release)
+    }
+
     pub fn database_path(&self) -> Option<&std::path::Path> {
         self.db.database_path()
     }
@@ -5820,20 +5888,11 @@ impl LocalSnapback {
         authority: &PreparedAuthority,
         user_id: &str,
     ) -> SnapbackResult<()> {
-        let ResolvedAppAuthority::Session {
-            user_id: authority_user_id,
-            ..
-        } = authority.resolved()
-        else {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_REQUIRED",
-                "auth",
-                "pairing-code minting requires exact session authority",
-            ));
-        };
-        if authority.source() != InvocationSource::AgentGrantManagement
-            || authority_user_id != user_id
-        {
+        let (authority_user_id, _) = Self::require_agent_grant_management_session(
+            authority,
+            "pairing-code minting authorization",
+        )?;
+        if authority_user_id != user_id {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_REQUIRED",
                 "auth",
@@ -5841,6 +5900,44 @@ impl LocalSnapback {
             ));
         }
         Ok(())
+    }
+
+    /// Require a currently admitted `PreparedAuthority` resolving to a session
+    /// with `AgentGrantManagement` source, then return that session's user and
+    /// session id.
+    /// Admission validates the lease and rehearsal authority; it does not
+    /// inspect `session_not_after_ms` or re-read the durable session.
+    /// For revocation, that statement is scoped to the two planners below and
+    /// their existing HTTP route handlers. It is not a global internal-API
+    /// closure and does not require the session user to own the grant's agent.
+    ///
+    /// @ref LLP 0055#routes-and-credential-classes — user-facing grant
+    /// management is session-only and scoped to the session user.
+    fn require_agent_grant_management_session<'a>(
+        authority: &'a PreparedAuthority,
+        effect: &'static str,
+    ) -> SnapbackResult<(&'a str, &'a str)> {
+        authority.validate_admission(effect)?;
+        if authority.source() != InvocationSource::AgentGrantManagement {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_REQUIRED",
+                "auth",
+                "agent grant management requires its registered invocation source",
+            ));
+        }
+        let ResolvedAppAuthority::Session {
+            user_id,
+            session_id,
+            ..
+        } = authority.resolved()
+        else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_REQUIRED",
+                "auth",
+                "agent grant management requires session authority",
+            ));
+        };
+        Ok((user_id, session_id))
     }
 
     pub fn present_pairing_code(
@@ -5872,18 +5969,18 @@ impl LocalSnapback {
         self.db.pending_grant_requests(user_id, now_ms)
     }
 
-    #[allow(clippy::too_many_arguments)]
+    /// @ref LLP 0303#the-governing-principle — derive the grant user and session from the prepared authority.
     pub fn approve_grant_request(
         &mut self,
-        effect: &AdmissionEffectGuard<'_>,
-        user_id: &str,
-        session_id: &str,
+        authority: &PreparedAuthority,
         request_id: &str,
         requested_ttl_ms: Option<u64>,
         proof: Option<&crate::auth::crypto::StepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::auth_grants::GrantApproval> {
-        let _ = effect;
+        let (user_id, session_id) =
+            Self::require_agent_grant_management_session(authority, "grant approval")?;
+        let _effect = authority.effect_guard("grant approval transaction")?;
         self.db.approve_grant_request(
             user_id,
             session_id,
@@ -5940,11 +6037,12 @@ impl LocalSnapback {
     pub fn plan_grant_revocation_service_terminal(
         &self,
         authority: &PreparedAuthority,
-        user_id: &str,
+        // The effective user comes from the admitted management session.
         grant_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
-        authority.validate_admission("grant revocation planning")?;
+        let (user_id, _) =
+            Self::require_agent_grant_management_session(authority, "grant revocation planning")?;
         self.db
             .plan_grant_revocation_service_terminal(user_id, grant_id, now_ms)
             .map(|token_ids| {
@@ -5969,11 +6067,14 @@ impl LocalSnapback {
     pub fn plan_bulk_grant_revocation_service_terminal(
         &self,
         authority: &PreparedAuthority,
-        user_id: &str,
+        // The effective user comes from the admitted management session.
         actor_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
-        authority.validate_admission("bulk grant revocation planning")?;
+        let (user_id, _) = Self::require_agent_grant_management_session(
+            authority,
+            "bulk grant revocation planning",
+        )?;
         self.db
             .plan_bulk_grant_revocation_service_terminal(user_id, actor_id, now_ms)
             .map(|token_ids| {
@@ -31010,11 +31111,16 @@ impl LocalSnapback {
                 );
                 continue;
             }
-            let match_outcome = live_subscription_match_outcome(
+            let match_decision = live_subscription_match_decision(
                 function,
                 &subscription.input,
                 &subscription.read_dependencies,
                 changes,
+            );
+            let match_outcome = match_decision.outcome;
+            merge_graph_node_matcher_stats(
+                &mut matcher_stats.graph_nodes,
+                rollup_graph_node_decisions(&match_decision.graph_nodes),
             );
             if match_outcome == LiveMatchOutcome::Skip {
                 skipped += 1;
@@ -31123,6 +31229,10 @@ impl LocalSnapback {
             .live_matcher_stats
             .conservative_fallback
             .saturating_add(matcher_stats.conservative_fallback);
+        merge_graph_node_matcher_stats(
+            &mut self.live_matcher_stats.graph_nodes,
+            matcher_stats.graph_nodes,
+        );
         self.live_delivery.total_skipped += skipped;
         self.live_delivery.last_skipped += skipped as usize;
 
@@ -32583,6 +32693,24 @@ pub struct ReadHealth {
 }
 
 impl ReadLane {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn evaluate_graph_query(
+        &self,
+        plan: &crate::manifest::GraphQueryPlanV1,
+        request: &crate::graph_evaluator::GraphEvaluationRequestV1,
+    ) -> SnapbackResult<crate::graph_evaluator::GraphEvaluationOutputV1> {
+        let pool = self.pool.as_ref().ok_or_else(read_lane_unavailable)?;
+        let manifests = self.manifests();
+        pool.with_pinned_read(&manifests.schema, |read| {
+            let evaluation_cut = read.current_version()?;
+            let (authorization_version, _) = read.membership_cursor_custody_snapshot()?;
+            let mut effective = request.clone();
+            effective.evaluation_cut = crate::manifest::GraphEvaluationCutV1(evaluation_cut);
+            effective.authorization_version = authorization_version;
+            crate::graph_evaluator::evaluate_graph_query_on(read, plan, &effective)
+        })
+    }
+
     /// Whether this declared query needs the non-cloneable serving owner.
     /// Push-ledger authorization currently consumes a fact asserted by that
     /// owner, so it must never execute through a cloned read lane.
@@ -34860,6 +34988,141 @@ fn validate_graph_query_schema_references(
             }
         }
     }
+
+    // @ref LLP 0209#33-the-nine-llp-0268-inputs-and-their-carriers — host
+    // admission recomputes the audience owner and function-establishment
+    // implication from active installed facts, never the manifest's copy.
+    if let crate::manifest::GraphBroadcastAdmissionV1::Broadcast { establishment, .. } =
+        &plan.broadcast
+    {
+        let crate::manifest::TableVisibilityV1::Membership {
+            declaration,
+            resource_field: _,
+            roles,
+        } = &establishment.predicate
+        else {
+            return Err(graph_admission_error(
+                crate::manifest::GraphAdmissionRefusalReasonV1::BroadcastSeparationUnprovable,
+                "broadcast establishment is not a closed membership predicate",
+            ));
+        };
+        let Some((membership_table, membership)) =
+            crate::manifest::find_membership_declaration(schema, declaration)
+        else {
+            return Err(graph_admission_error(
+                crate::manifest::GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable,
+                format!("broadcast names unknown membership declaration {declaration}"),
+            ));
+        };
+        let installed_owner_identity =
+            crate::manifest::graph_broadcast_installed_owner_identity_v1(schema, declaration)
+                .map_err(|reason| {
+                    graph_admission_error(
+                        reason,
+                        format!(
+                            "broadcast installed owner identity cannot be formed for {declaration}"
+                        ),
+                    )
+                })?;
+        if establishment.audience.installed_owner_identity != installed_owner_identity {
+            return Err(graph_admission_error(
+                crate::manifest::GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable,
+                "broadcast installed owner identity differs from the active schema and policy",
+            ));
+        }
+        // The plan-local invalidation proof intentionally names its backing
+        // table by declaration. A custom declaration id is therefore outside
+        // this first host-recomputable broadcast slice rather than silently
+        // weakening permission-write invalidation.
+        if membership_table.name != *declaration {
+            return Err(graph_admission_error(
+                crate::manifest::GraphAdmissionRefusalReasonV1::BroadcastInvalidationIncomplete,
+                format!(
+                    "broadcast declaration {declaration} does not identify its permission-backing table"
+                ),
+            ));
+        }
+        let Some(resource_table) = membership.resource_table.as_deref() else {
+            return Err(graph_admission_error(
+                crate::manifest::GraphAdmissionRefusalReasonV1::BroadcastScopeUnbound,
+                "broadcast membership declaration is not resource-scoped",
+            ));
+        };
+        if roles.as_ref().is_some_and(|requested| {
+            requested
+                .iter()
+                .any(|role| !membership.roles.iter().any(|declared| declared == role))
+        }) {
+            return Err(graph_admission_error(
+                crate::manifest::GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable,
+                "broadcast predicate names an undeclared membership role",
+            ));
+        }
+        let [function_membership] = plan.function_membership.as_slice() else {
+            return Err(graph_admission_error(
+                crate::manifest::GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable,
+                "broadcast function lacks its own exact membership admission",
+            ));
+        };
+        let crate::manifest::MembershipResourceRef::Arg {
+            path,
+            resource_table: function_resource_table,
+        } = &function_membership.resource
+        else {
+            return Err(graph_admission_error(
+                crate::manifest::GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable,
+                "broadcast function membership must bind the establishment scope argument",
+            ));
+        };
+        let scope_argument_matches = plan.arguments.iter().any(|argument| {
+            argument.name == *path
+                && establishment.scope.argument_ids == [argument.argument_id.clone()]
+        });
+        let function_roles = function_membership.roles.as_deref().unwrap_or_default();
+        let establishment_roles = roles.as_deref().unwrap_or_default();
+        if function_membership.declaration != *declaration
+            || function_resource_table.as_deref() != Some(resource_table)
+            || !scope_argument_matches
+            || function_roles != establishment_roles
+            || function_roles
+                .iter()
+                .any(|role| !membership.roles.iter().any(|installed| installed == role))
+        {
+            return Err(graph_admission_error(
+                crate::manifest::GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable,
+                "broadcast function membership does not imply and exactly equal the installed establishment predicate",
+            ));
+        }
+        for equality in &establishment.scope.resource_equalities {
+            let Some(row_table_name) = parent_table(&equality.node_id) else {
+                return Err(graph_admission_error(
+                    crate::manifest::GraphAdmissionRefusalReasonV1::BroadcastScopeUnbound,
+                    "broadcast resource equality references a non-row graph node",
+                ));
+            };
+            let row_table = table(row_table_name)?;
+            let nominal_resource_matches = if equality.field == "_id" {
+                row_table.name == resource_table
+            } else {
+                row_table.field(&equality.field).is_some_and(|field| {
+                    !field.optional
+                        && matches!(
+                            &field.field_type,
+                            crate::manifest::FieldType::Id { table } if table == resource_table
+                        )
+                })
+            };
+            if !nominal_resource_matches {
+                return Err(graph_admission_error(
+                    crate::manifest::GraphAdmissionRefusalReasonV1::BroadcastScopeUnbound,
+                    format!(
+                        "broadcast equality {}.{} is not a required Id<{resource_table}>",
+                        row_table.name, equality.field
+                    ),
+                ));
+            }
+        }
+    }
     Ok(())
 }
 
@@ -35248,6 +35511,14 @@ fn graph_query_admission_faults(
                 .into_iter()
                 .map(|fault| fault.reason),
         );
+        if matches!(
+            carrier.normalized_plan.broadcast,
+            crate::manifest::GraphBroadcastAdmissionV1::Broadcast { .. }
+        ) && function.effective_auth_requirement()
+            != crate::manifest::AuthRequirement::Authenticated
+        {
+            reasons.insert(GraphAdmissionRefusalReasonV1::BroadcastAudienceUnprovable);
+        }
         reasons.extend(
             graph_query_schema_faults(&carrier.normalized_plan, schema)
                 .into_iter()

@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 
 import Ajv2020 from 'ajv/dist/2020.js';
 
-import { readReadyDescriptor, runDev, scaffoldApp } from './index.mjs';
+import { __test, readApplicationReadyReceipt, readReadyDescriptor, runDev, scaffoldApp } from './index.mjs';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(packageRoot, '..', '..');
@@ -63,6 +63,7 @@ function readReceipt(path = applicationReadyFile) {
   const receipt = JSON.parse(readFileSync(path, 'utf8'));
   assert.equal(validateReceipt(receipt), true, ajv.errorsText(validateReceipt.errors));
   assert.deepEqual(Object.keys(receipt).sort(), [
+    'admissionPosture',
     'application',
     'artifacts',
     'auth',
@@ -88,6 +89,7 @@ function readReceipt(path = applicationReadyFile) {
   ]);
   assert.equal(statSync(path).mode & 0o777, 0o600);
   assert.equal(receipt.binding.format, 'snapback.app-binding.v1');
+  assert.ok(['loopback-any', 'explicit-list'].includes(receipt.admissionPosture));
   assert.equal(receipt.runtimeIdentity.wrapper.package, '@expo/snapback-cli');
   assert.match(receipt.runtimeIdentity.qualifiedBinary.sha256, /^sha256:[0-9a-f]{64}$/u);
   return receipt;
@@ -191,6 +193,8 @@ try {
     serverStdio: ['ignore', 'ignore', 'ignore'],
   });
   handles.push(owner);
+  assert.equal(readReceipt().admissionPosture, 'loopback-any');
+  assert.deepEqual(readReceipt().clientOrigins, []);
   const existingNonce = readReadyDescriptor(readyFile).startupNonce;
   assert.equal(readReceipt().startupNonce, existingNonce);
   const attached = await runDev({
@@ -242,6 +246,7 @@ try {
   handles.push(fixedOwner);
   receipt = readReceipt();
   assert.deepEqual(receipt.clientOrigins, actualClientOrigins);
+  assert.equal(receipt.admissionPosture, 'explicit-list');
   assert.deepEqual(fixedOwner.clientOrigins, actualClientOrigins);
   assert.equal(new URL(receipt.binding.target.origin).port, String(fixedPort));
   const fixedNonce = receipt.startupNonce;
@@ -317,7 +322,9 @@ try {
       watch: false,
       serverStdio: ['ignore', 'ignore', 'ignore'],
     }),
-    (error) => error.code === 'SNAPBACK_DEV_FIXED_BINDING_MISMATCH',
+    (error) => error.code === 'SNAPBACK_DEV_ATTACH_ADMISSION_MISMATCH'
+      && error.diagnostic.details.requestedAdmissionContract.clientOrigins.includes('http://localhost:5174')
+      && error.diagnostic.details.recordedAdmissionContract.clientOrigins.includes(clientOrigin),
   );
   assert.equal(readReadyDescriptor(readyFile).startupNonce, fixedNonce);
   await fixedAttach.close();
@@ -349,7 +356,77 @@ try {
   assert.equal(staleListener.listening, true);
   await new Promise((resolveClose) => staleListener.close(resolveClose));
 
-  console.log('application-ready.test.mjs: all cases passed');
+  // LLP 0301 §3 six-cell compatibility matrix. The legacy simulation enters
+  // through the shipped exactRecordKeys-based reader, which refuses the new
+  // posture field before its origin-list comparison can adopt the listener.
+  const oldComparison = (requestedOrigins, receiptPath) => {
+    const recorded = __test.readLegacyApplicationReadyReceipt(receiptPath);
+    return [...requestedOrigins].sort().join('\n')
+      === [...recorded.clientOrigins].sort().join('\n');
+  };
+  const currentReceipt = JSON.parse(correctReceiptBytes);
+  const supervisedOrigins = currentReceipt.clientOrigins;
+  const oldReceipt = { ...currentReceipt };
+  delete oldReceipt.admissionPosture;
+  const oldBytes = `${JSON.stringify(oldReceipt)}\n`;
+  const newSupervisedBytes = `${JSON.stringify({
+    ...currentReceipt,
+    admissionPosture: 'explicit-list',
+    clientOrigins: supervisedOrigins,
+  })}\n`;
+  const newPlainBytes = `${JSON.stringify({
+    ...currentReceipt,
+    admissionPosture: 'loopback-any',
+    clientOrigins: [],
+  })}\n`;
+  const legacyReceiptFile = join(stateRoot, 'legacy.application-ready.json');
+  const newSupervisedReceiptFile = join(stateRoot, 'new-supervised.application-ready.json');
+  const newPlainReceiptFile = join(stateRoot, 'new-plain.application-ready.json');
+  writeFileSync(legacyReceiptFile, oldBytes, { mode: 0o600 });
+  writeFileSync(newSupervisedReceiptFile, newSupervisedBytes, { mode: 0o600 });
+  writeFileSync(newPlainReceiptFile, newPlainBytes, { mode: 0o600 });
+  assert.equal(
+    oldComparison(oldReceipt.clientOrigins, legacyReceiptFile),
+    true,
+    'old CLI + old receipt reaches the shipped origin-list comparison',
+  );
+  for (const [requestedOrigins, receiptPath, label] of [
+    [supervisedOrigins, newSupervisedReceiptFile, 'old CLI + new supervised'],
+    [[], newPlainReceiptFile, 'old CLI no declarations + new plain'],
+    [[clientOrigin], newPlainReceiptFile, 'old CLI declarations + new plain'],
+  ]) {
+    assert.throws(
+      () => oldComparison(requestedOrigins, receiptPath),
+      (error) => error?.code === 'SNAPBACK_DEV_APPLICATION_READY_INVALID',
+      `${label} refuses through the shipped strict receipt reader`,
+    );
+  }
+  assert.throws(
+    () => __test.assertDevAdmissionContractMatches(
+      { admissionPosture: 'loopback-any', clientOrigins: [] },
+      { ...oldReceipt, clientOrigins: [] },
+    ),
+    (error) => error?.code === 'SNAPBACK_DEV_ATTACH_ADMISSION_MISMATCH'
+      && error.diagnostic.details.requestedAdmissionContract.admissionPosture === 'loopback-any'
+      && error.diagnostic.details.recordedAdmissionContract.admissionPosture === 'explicit-list',
+    'new CLI no declarations + old receipt refuses with both contracts',
+  );
+  assert.doesNotThrow(
+    () => __test.assertDevAdmissionContractMatches(
+      { admissionPosture: 'explicit-list', clientOrigins: [clientOrigin] },
+      { ...oldReceipt, clientOrigins: [clientOrigin] },
+    ),
+    'new CLI matching declarations + old receipt succeeds',
+  );
+
+  assert.equal(
+    readApplicationReadyReceipt(legacyReceiptFile).admissionPosture,
+    'explicit-list',
+    'reader defaults the missing legacy field without changing the old bytes',
+  );
+  assert.equal(readFileSync(legacyReceiptFile, 'utf8'), oldBytes);
+
+  console.log('application-ready.test.mjs: lifecycle, posture writer, and six attach compatibility cells passed');
 } finally {
   await Promise.allSettled(handles.map((handle) => handle.close?.()));
   rmSync(root, { recursive: true, force: true });

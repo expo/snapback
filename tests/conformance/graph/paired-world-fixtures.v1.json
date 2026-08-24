@@ -36648,7 +36648,223 @@
           }
         ]
       }
+    },
+    {
+      "id": "g0-pair-public-rooms-other-principal-membership",
+      "query": "publicRooms",
+      "channel": "other-principal policy row outside the established room partition",
+      "hiddenAxes": [
+        "principal",
+        "policy"
+      ],
+      "namedSlice": {
+        "table": "roomMembers",
+        "rowIds": [
+          "member_q"
+        ]
+      },
+      "dependentSlices": [],
+      "coveredNodeIds": [
+        "n0"
+      ],
+      "coveredAuthorityClasses": [
+        1
+      ],
+      "present": {
+        "identity": "g0-pair-public-rooms-other-principal-membership-present-v1",
+        "fixtureDigest": "sha256:30a2f2585cf3325bbad770d9fd22aa554edc07e9ec14bf5ce6cc92d19bf757e5",
+        "identityDigest": "sha256:4fe030ee33fc28f850335ad41c6039381ee45911d71f437276bb114e2a3ec1a8",
+        "inputDigest": "sha256:37fd3afc667481290fa2acd58612bc963808400ad1780a5264c5fe6327285f1d",
+        "tableDigests": {
+          "roomMembers": "sha256:022a37ab98c8c1b41758b0952d215cab1a9eb8d833be4ea16c41d5b65f9f672f",
+          "rooms": "sha256:433183aabb265a8d7bf46b022e4d2fe1170d23109a0130b3c7f795437e285879"
+        },
+        "sliceTableRows": [
+          {
+            "_id": "member_p",
+            "principal": "principal_p_member",
+            "roomId": "room_p",
+            "role": "member"
+          },
+          {
+            "_id": "member_q",
+            "principal": "principal_q_member",
+            "roomId": "room_q",
+            "role": "member"
+          }
+        ],
+        "sliceTableRowsByTable": {
+          "roomMembers": [
+            {
+              "_id": "member_p",
+              "principal": "principal_p_member",
+              "roomId": "room_p",
+              "role": "member"
+            },
+            {
+              "_id": "member_q",
+              "principal": "principal_q_member",
+              "roomId": "room_q",
+              "role": "member"
+            }
+          ]
+        }
+      },
+      "absent": {
+        "identity": "g0-pair-public-rooms-other-principal-membership-absent-v1",
+        "fixtureDigest": "sha256:79ffd46ff8565380d26891d0da07eb2eec20fa49d5a8b1d7cc090dfa528eed7a",
+        "identityDigest": "sha256:b163dd28f8a502b8904bc3c5434de0e88d241acd71458577e76138e8d8c70b1a",
+        "inputDigest": "sha256:37fd3afc667481290fa2acd58612bc963808400ad1780a5264c5fe6327285f1d",
+        "tableDigests": {
+          "roomMembers": "sha256:04a3f0aa457dc9a9210b70a2a8d72752e78e26b46fe287ba94a998f70d0c8e3e",
+          "rooms": "sha256:433183aabb265a8d7bf46b022e4d2fe1170d23109a0130b3c7f795437e285879"
+        },
+        "sliceTableRows": [
+          {
+            "_id": "member_p",
+            "principal": "principal_p_member",
+            "roomId": "room_p",
+            "role": "member"
+          }
+        ],
+        "sliceTableRowsByTable": {
+          "roomMembers": [
+            {
+              "_id": "member_p",
+              "principal": "principal_p_member",
+              "roomId": "room_p",
+              "role": "member"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "g0-pair-public-rooms-other-partition-data",
+      "query": "publicRooms",
+      "channel": "other room partition and its other-principal policy row",
+      "hiddenAxes": [
+        "principal",
+        "partition",
+        "policy"
+      ],
+      "namedSlice": {
+        "table": "rooms",
+        "rowIds": [
+          "room_q"
+        ]
+      },
+      "dependentSlices": [
+        {
+          "table": "roomMembers",
+          "rowIds": [
+            "member_q"
+          ]
+        }
+      ],
+      "coveredNodeIds": [
+        "n0"
+      ],
+      "coveredAuthorityClasses": [
+        1
+      ],
+      "present": {
+        "identity": "g0-pair-public-rooms-other-partition-data-present-v1",
+        "fixtureDigest": "sha256:30a2f2585cf3325bbad770d9fd22aa554edc07e9ec14bf5ce6cc92d19bf757e5",
+        "identityDigest": "sha256:be3db7ec7c75bf82f639880602f6f9f4ed7aebe1e10d912b1ea0fd0d19307439",
+        "inputDigest": "sha256:37fd3afc667481290fa2acd58612bc963808400ad1780a5264c5fe6327285f1d",
+        "tableDigests": {
+          "roomMembers": "sha256:022a37ab98c8c1b41758b0952d215cab1a9eb8d833be4ea16c41d5b65f9f672f",
+          "rooms": "sha256:433183aabb265a8d7bf46b022e4d2fe1170d23109a0130b3c7f795437e285879"
+        },
+        "sliceTableRows": [
+          {
+            "_id": "room_p",
+            "scopeId": "room_p",
+            "name": "Public P",
+            "category": "public",
+            "updatedAt": 2
+          },
+          {
+            "_id": "room_q",
+            "scopeId": "room_q",
+            "name": "Public Q",
+            "category": "public",
+            "updatedAt": 1
+          }
+        ],
+        "sliceTableRowsByTable": {
+          "rooms": [
+            {
+              "_id": "room_p",
+              "scopeId": "room_p",
+              "name": "Public P",
+              "category": "public",
+              "updatedAt": 2
+            },
+            {
+              "_id": "room_q",
+              "scopeId": "room_q",
+              "name": "Public Q",
+              "category": "public",
+              "updatedAt": 1
+            }
+          ],
+          "roomMembers": [
+            {
+              "_id": "member_p",
+              "principal": "principal_p_member",
+              "roomId": "room_p",
+              "role": "member"
+            },
+            {
+              "_id": "member_q",
+              "principal": "principal_q_member",
+              "roomId": "room_q",
+              "role": "member"
+            }
+          ]
+        }
+      },
+      "absent": {
+        "identity": "g0-pair-public-rooms-other-partition-data-absent-v1",
+        "fixtureDigest": "sha256:af2083af90ab16eec3e8c1a8eeb45d168a57128ea1a6116cbb3d54a2bd73e45c",
+        "identityDigest": "sha256:f51a37c1dbd0d8cc54774a7fbc72bf5bd801371b27425e8049f51914067c0ef2",
+        "inputDigest": "sha256:37fd3afc667481290fa2acd58612bc963808400ad1780a5264c5fe6327285f1d",
+        "tableDigests": {
+          "roomMembers": "sha256:04a3f0aa457dc9a9210b70a2a8d72752e78e26b46fe287ba94a998f70d0c8e3e",
+          "rooms": "sha256:ff671f62be5dd65f39f3da1e33d87dc6434ceb608220b9c3c593c798380412bc"
+        },
+        "sliceTableRows": [
+          {
+            "_id": "room_p",
+            "scopeId": "room_p",
+            "name": "Public P",
+            "category": "public",
+            "updatedAt": 2
+          }
+        ],
+        "sliceTableRowsByTable": {
+          "rooms": [
+            {
+              "_id": "room_p",
+              "scopeId": "room_p",
+              "name": "Public P",
+              "category": "public",
+              "updatedAt": 2
+            }
+          ],
+          "roomMembers": [
+            {
+              "_id": "member_p",
+              "principal": "principal_p_member",
+              "roomId": "room_p",
+              "role": "member"
+            }
+          ]
+        }
+      }
     }
   ],
-  "contentDigest": "sha256:afcb09c4d2599a0fff1efb3123f6b9692e31ab43c99ae236314caeb6a9cb9d25"
+  "contentDigest": "sha256:e3f07acf9b50d782042b0ad9e5de459636ac399aafaaa05b2808383eddec15cb"
 }

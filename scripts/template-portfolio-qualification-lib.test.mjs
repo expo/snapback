@@ -39,6 +39,20 @@ test('every registered template exposes a manifest-derived cold-agent glossary',
     browserObservation: null,
     simulatorObservation: null,
   });
+  assert.deepEqual(answers.get('crud-dashboard'), {
+    ordinaryCompletion: 'bun run prove',
+    staticChecking: 'bun run test:static',
+    rawAcceptanceDebugging: 'npm test',
+    browserObservation: 'bun run carry:web-browser',
+    simulatorObservation: null,
+  });
+  assert.deepEqual(answers.get('media-feed'), {
+    ordinaryCompletion: 'bun run prove',
+    staticChecking: 'bun run test:static',
+    rawAcceptanceDebugging: 'npm test',
+    browserObservation: 'bun run carry:web-browser',
+    simulatorObservation: 'bun run carry:native-simulator',
+  });
   const todo = fixture('todo-contract');
   assert.match(todo.readme, /Migration: `test:live` was removed/u);
   assert.doesNotMatch(todo.instructions, /Migration: `test:live` was removed/u);
@@ -76,5 +90,21 @@ test('missing scripts, changed command classes, and documentation drift fail clo
       readme: current.readme.replace('raw acceptance implementation', 'raw runtime check'),
     }),
     /react README script glossary disagrees with package.json/u,
+  );
+  const compact = fixture('crud-dashboard');
+  assert.throws(
+    () => assertTemplateScriptSurface({
+      ...compact,
+      instructions: compact.instructions.replace('`carry:*`', '`carriers`'),
+    }),
+    /crud-dashboard start packet script glossary omits carry:headless/u,
+  );
+  const shortened = fixture('expo-chat');
+  assert.throws(
+    () => assertTemplateScriptSurface({
+      ...shortened,
+      instructions: shortened.instructions.replace('carry:native-simulator', 'native carrier'),
+    }),
+    /expo-chat start packet script glossary omits carry:native-simulator/u,
   );
 });

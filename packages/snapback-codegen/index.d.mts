@@ -405,6 +405,9 @@ export type SnapbackTargetProfile = 'local-dev-sqlite-ibex' | 'remote-service-sq
 
 export type GenerateOptions = Readonly<{
   targetProfile?: SnapbackTargetProfile;
+  /** Selects the generated app binding kind structurally. Programmatic
+   * generation defaults to release; authoring CLIs pass development. */
+  appBindingMode?: 'development' | 'release';
   /** Run complete generation validation without publishing generated output. */
   check?: boolean;
 }>;

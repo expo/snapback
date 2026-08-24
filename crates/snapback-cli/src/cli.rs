@@ -20,6 +20,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsString;
 use std::io::{self, ErrorKind, IsTerminal, Read as _};
 use std::net::IpAddr;
+use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -653,6 +654,10 @@ pub struct Args {
     #[arg(long)]
     pub port: Option<u16>,
 
+    /// Scan an inclusive listener range in ascending order.
+    #[arg(long, value_parser = parse_port_range, conflicts_with = "port")]
+    pub port_range: Option<RangeInclusive<u16>>,
+
     #[arg(long, default_value = ".snapback/dev.sqlite3")]
     pub db: PathBuf,
 
@@ -748,6 +753,7 @@ impl Default for Args {
         Self {
             host: "127.0.0.1".to_owned(),
             port: None,
+            port_range: None,
             db: PathBuf::from(".snapback/dev.sqlite3"),
             memory: false,
             ready_file: None,
@@ -8243,7 +8249,7 @@ async fn run_composed(
     // This keeps profile/capture posture identical for numeric hosts and DNS
     // aliases without opening a listener early.
     let bind_ip = resolve_bind_ip(&args.host).await?;
-    let startup_resolution = crate::admin::resolve_server_startup(bind_ip.is_loopback());
+    let startup_resolution = crate::admin::resolve_server_startup(bind_ip.is_loopback())?;
     let startup_profile = startup_resolution.profile();
     // @ref LLP 0262#d4-declared-exposure — a fronted unset profile resolves
     // to full Prod semantics; explicit non-production remains explicit and
@@ -8982,13 +8988,14 @@ async fn run_composed(
         )
         .await
         .map_err(anyhow::Error::new)?;
-    let listener = match bind_listener(&bind_ip.to_string(), args.port).await {
-        Ok(listener) => listener,
-        Err(error) => {
-            auth_expiry_worker.abort();
-            return Err(error);
-        }
-    };
+    let listener =
+        match bind_listener(&bind_ip.to_string(), args.port, args.port_range.clone()).await {
+            Ok(listener) => listener,
+            Err(error) => {
+                auth_expiry_worker.abort();
+                return Err(error);
+            }
+        };
     let local_addr = match listener.local_addr() {
         Ok(address) => address,
         Err(error) => {
@@ -9465,7 +9472,7 @@ async fn run_auth_collision_recovery(
 
     // Bind the concrete address returned by the pre-bind loopback resolver;
     // never re-resolve the caller's hostname after validating it.
-    let listener = bind_listener(&bind_ip.to_string(), args.port).await?;
+    let listener = bind_listener(&bind_ip.to_string(), args.port, args.port_range.clone()).await?;
     let local_addr = listener.local_addr()?;
     anyhow::ensure!(
         local_addr.ip().is_loopback(),
@@ -11044,7 +11051,33 @@ fn resolve_restore_database_path(path: &Path) -> anyhow::Result<PathBuf> {
     Ok(existing_parent.join(instance_name).join(database_name))
 }
 
-async fn bind_listener(host: &str, port: Option<u16>) -> anyhow::Result<TcpListener> {
+fn parse_port_range(value: &str) -> Result<RangeInclusive<u16>, String> {
+    let (lo, hi) = value
+        .split_once('-')
+        .ok_or_else(|| "port range must have the form <lo>-<hi>".to_owned())?;
+    if lo.is_empty() || hi.is_empty() || hi.contains('-') {
+        return Err("port range must have the form <lo>-<hi>".to_owned());
+    }
+    let lo = lo
+        .parse::<u16>()
+        .map_err(|_| "port range lower bound must be from 1 through 65535".to_owned())?;
+    let hi = hi
+        .parse::<u16>()
+        .map_err(|_| "port range upper bound must be from 1 through 65535".to_owned())?;
+    if lo == 0 || hi == 0 {
+        return Err("port range bounds must be from 1 through 65535".to_owned());
+    }
+    if lo > hi {
+        return Err("port range lower bound must not exceed its upper bound".to_owned());
+    }
+    Ok(lo..=hi)
+}
+
+async fn bind_listener(
+    host: &str,
+    port: Option<u16>,
+    port_range: Option<RangeInclusive<u16>>,
+) -> anyhow::Result<TcpListener> {
     if let Some(port) = port {
         return TcpListener::bind((host, port))
             .await
@@ -11054,7 +11087,11 @@ async fn bind_listener(host: &str, port: Option<u16>) -> anyhow::Result<TcpListe
     // @ref LLP 0010#required-tool-surfaces — normal local startup should tolerate
     // multiple Snapback instances by scanning the default dev range; explicit
     // `--port` remains a pinned automation contract.
-    bind_first_available(host, DEFAULT_PORT_RANGE_START..=DEFAULT_PORT_RANGE_END).await
+    bind_first_available(
+        host,
+        port_range.unwrap_or(DEFAULT_PORT_RANGE_START..=DEFAULT_PORT_RANGE_END),
+    )
+    .await
 }
 
 async fn resolve_bind_ip(host: &str) -> anyhow::Result<IpAddr> {

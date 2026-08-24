@@ -109,6 +109,7 @@ if (args[0] === 'stop') {
   process.exit(0);
 }
 if (args[0] !== 'start') process.exit(2);
+if (Object.hasOwn(process.env, 'SNAPBACK_DEV_ADMISSION_POSTURE')) process.exit(17);
 const ready = value('--ready-file');
 const database = value('--db');
 mkdirSync(dirname(ready), { recursive: true });
@@ -179,6 +180,7 @@ setInterval(() => {}, 1000);
     database: managedDatabase,
     runtimeBinary: fakeRuntime,
     stateDirectory: join(root, 'managed-sidecar'),
+    env: { ...process.env, SNAPBACK_DEV_ADMISSION_POSTURE: 'hostile-ambient-value' },
     fetch: fakeFetch,
     restartPolicy: { mode: 'restart', maxAttempts: 1, backoffMs: 0 },
     outbox: {
@@ -283,6 +285,10 @@ setInterval(() => {}, 1000);
   });
   managedReadyFile = supervisor.readyFile;
   let managed = await supervisor.start();
+  assert.ok(
+    managed.pid > 0,
+    'sidecar start scrubs the polluted posture; the fake runtime exits 17 if it inherits it',
+  );
   assert.equal(managed.healthyStart.requestedPort, 0);
   assert.match(await managed.capabilities.adminToken.read(), /^fake-admin-/u);
 

@@ -1,20 +1,20 @@
 {
   "instrumentVersion": "social-messenger@0.3.3-m8",
   "observabilityProtocol": "social-messenger-observation.v1",
-  "source": "codex-rollout-token-count",
-  "available": true,
-  "unavailableReason": null,
-  "capAdjudicationEligible": true,
+  "source": null,
+  "available": false,
+  "unavailableReason": "retained-session-token-event-corrupt",
+  "capAdjudicationEligible": false,
   "capCounters": [
     "input",
     "output"
   ],
   "totals": {
-    "input": 656467,
-    "output": 124603,
-    "cacheRead": 34408960,
-    "cacheWrite": 0,
-    "reasoning": 36124
+    "input": null,
+    "output": null,
+    "cacheRead": null,
+    "cacheWrite": null,
+    "reasoning": null
   },
   "executionOrder": [
     "M1",
@@ -26,16 +26,16 @@
       "status": "green",
       "authoring": {
         "tokens": {
-          "input": 544314,
-          "output": 103534,
-          "cacheRead": 24087808,
-          "cacheWrite": 0,
-          "reasoning": 29142
+          "input": null,
+          "output": null,
+          "cacheRead": null,
+          "cacheWrite": null,
+          "reasoning": null
         },
-        "firstGreenAt": "2026-08-24T09:54:04.184Z",
-        "suitePassAt": "2026-08-24T09:54:04.184Z",
-        "choreoPassAt": "2026-08-24T09:54:04.184Z",
-        "terminalAt": "2026-08-24T09:54:04.184Z",
+        "firstGreenAt": "2026-08-24T09:54:53.931Z",
+        "suitePassAt": "2026-08-24T09:54:53.931Z",
+        "choreoPassAt": "2026-08-24T09:54:53.931Z",
+        "terminalAt": "2026-08-24T09:54:53.931Z",
         "terminalSequence": 1,
         "terminalReason": "green"
       },
@@ -67,28 +67,24 @@
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
           },
           {
-            "path": "events/codex-file-change-observations.jsonl",
-            "sha256": "sha256:9c0f6f70672a4cdb83c965d65e461c6f04855d2a5221a622eb55c32e2bc14b2e"
-          },
-          {
             "path": "events/lane-controller-observations.jsonl",
             "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
           }
         ],
-        "total": 166,
+        "total": 131,
         "byClass": {
           "guide-lookup": 15,
           "source-inspection": 49,
-          "edit": 28,
-          "generate": 12,
-          "process": 31,
+          "edit": 0,
+          "generate": 3,
+          "process": 32,
           "reseed": 1,
-          "suite": 8,
+          "suite": 9,
           "choreography": 5,
           "retry": 17
         },
         "byDisposition": {
-          "progress": 136,
+          "progress": 101,
           "correction": 30
         },
         "byRetriedClass": {
@@ -129,10 +125,6 @@
           {
             "path": "receipts/m3-choreography.jsonl.observations.jsonl",
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
-          },
-          {
-            "path": "events/codex-file-change-observations.jsonl",
-            "sha256": "sha256:9c0f6f70672a4cdb83c965d65e461c6f04855d2a5221a622eb55c32e2bc14b2e"
           },
           {
             "path": "events/lane-controller-observations.jsonl",
@@ -191,10 +183,6 @@
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
           },
           {
-            "path": "events/codex-file-change-observations.jsonl",
-            "sha256": "sha256:9c0f6f70672a4cdb83c965d65e461c6f04855d2a5221a622eb55c32e2bc14b2e"
-          },
-          {
             "path": "events/lane-controller-observations.jsonl",
             "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
           }
@@ -232,10 +220,6 @@
               "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
             },
             {
-              "path": "events/codex-file-change-observations.jsonl",
-              "sha256": "sha256:9c0f6f70672a4cdb83c965d65e461c6f04855d2a5221a622eb55c32e2bc14b2e"
-            },
-            {
               "path": "events/lane-controller-observations.jsonl",
               "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
             }
@@ -269,10 +253,6 @@
             {
               "path": "receipts/m3-choreography.jsonl.observations.jsonl",
               "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
-            },
-            {
-              "path": "events/codex-file-change-observations.jsonl",
-              "sha256": "sha256:9c0f6f70672a4cdb83c965d65e461c6f04855d2a5221a622eb55c32e2bc14b2e"
             },
             {
               "path": "events/lane-controller-observations.jsonl",
@@ -311,17 +291,13 @@
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
           },
           {
-            "path": "events/codex-file-change-observations.jsonl",
-            "sha256": "sha256:9c0f6f70672a4cdb83c965d65e461c6f04855d2a5221a622eb55c32e2bc14b2e"
-          },
-          {
             "path": "events/lane-controller-observations.jsonl",
             "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
           }
         ],
         "startedAt": "2026-08-24T09:05:53.828Z",
-        "endedAt": "2026-08-24T09:53:53.929Z",
-        "sampleCount": 49,
+        "endedAt": "2026-08-24T09:54:53.931Z",
+        "sampleCount": 51,
         "contamination": false,
         "breaches": []
       },
@@ -353,10 +329,6 @@
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
           },
           {
-            "path": "events/codex-file-change-observations.jsonl",
-            "sha256": "sha256:9c0f6f70672a4cdb83c965d65e461c6f04855d2a5221a622eb55c32e2bc14b2e"
-          },
-          {
             "path": "events/lane-controller-observations.jsonl",
             "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
           }
@@ -369,16 +341,16 @@
       "status": "green",
       "authoring": {
         "tokens": {
-          "input": 50096,
-          "output": 7770,
-          "cacheRead": 5335296,
-          "cacheWrite": 0,
-          "reasoning": 2314
+          "input": null,
+          "output": null,
+          "cacheRead": null,
+          "cacheWrite": null,
+          "reasoning": null
         },
-        "firstGreenAt": "2026-08-24T10:01:49.197Z",
-        "suitePassAt": "2026-08-24T10:01:49.197Z",
-        "choreoPassAt": "2026-08-24T10:01:49.197Z",
-        "terminalAt": "2026-08-24T10:01:49.197Z",
+        "firstGreenAt": "2026-08-24T10:02:30.777Z",
+        "suitePassAt": "2026-08-24T10:02:30.777Z",
+        "choreoPassAt": "2026-08-24T10:02:30.777Z",
+        "terminalAt": "2026-08-24T10:02:30.777Z",
         "terminalSequence": 2,
         "terminalReason": "green"
       },
@@ -410,28 +382,24 @@
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
           },
           {
-            "path": "events/codex-file-change-observations.jsonl",
-            "sha256": "sha256:9c0f6f70672a4cdb83c965d65e461c6f04855d2a5221a622eb55c32e2bc14b2e"
-          },
-          {
             "path": "events/lane-controller-observations.jsonl",
             "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
           }
         ],
-        "total": 20,
+        "total": 18,
         "byClass": {
           "guide-lookup": 0,
           "source-inspection": 5,
-          "edit": 5,
+          "edit": 0,
           "generate": 0,
-          "process": 3,
+          "process": 5,
           "reseed": 0,
-          "suite": 1,
+          "suite": 2,
           "choreography": 3,
           "retry": 3
         },
         "byDisposition": {
-          "progress": 14,
+          "progress": 12,
           "correction": 6
         },
         "byRetriedClass": {
@@ -472,10 +440,6 @@
           {
             "path": "receipts/m3-choreography.jsonl.observations.jsonl",
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
-          },
-          {
-            "path": "events/codex-file-change-observations.jsonl",
-            "sha256": "sha256:9c0f6f70672a4cdb83c965d65e461c6f04855d2a5221a622eb55c32e2bc14b2e"
           },
           {
             "path": "events/lane-controller-observations.jsonl",
@@ -534,10 +498,6 @@
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
           },
           {
-            "path": "events/codex-file-change-observations.jsonl",
-            "sha256": "sha256:9c0f6f70672a4cdb83c965d65e461c6f04855d2a5221a622eb55c32e2bc14b2e"
-          },
-          {
             "path": "events/lane-controller-observations.jsonl",
             "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
           }
@@ -575,10 +535,6 @@
               "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
             },
             {
-              "path": "events/codex-file-change-observations.jsonl",
-              "sha256": "sha256:9c0f6f70672a4cdb83c965d65e461c6f04855d2a5221a622eb55c32e2bc14b2e"
-            },
-            {
               "path": "events/lane-controller-observations.jsonl",
               "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
             }
@@ -612,10 +568,6 @@
             {
               "path": "receipts/m3-choreography.jsonl.observations.jsonl",
               "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
-            },
-            {
-              "path": "events/codex-file-change-observations.jsonl",
-              "sha256": "sha256:9c0f6f70672a4cdb83c965d65e461c6f04855d2a5221a622eb55c32e2bc14b2e"
             },
             {
               "path": "events/lane-controller-observations.jsonl",
@@ -654,17 +606,13 @@
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
           },
           {
-            "path": "events/codex-file-change-observations.jsonl",
-            "sha256": "sha256:9c0f6f70672a4cdb83c965d65e461c6f04855d2a5221a622eb55c32e2bc14b2e"
-          },
-          {
             "path": "events/lane-controller-observations.jsonl",
             "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
           }
         ],
         "startedAt": "2026-08-24T09:54:53.931Z",
-        "endedAt": "2026-08-24T10:00:53.991Z",
-        "sampleCount": 7,
+        "endedAt": "2026-08-24T10:02:30.776Z",
+        "sampleCount": 9,
         "contamination": false,
         "breaches": []
       },
@@ -696,10 +644,6 @@
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
           },
           {
-            "path": "events/codex-file-change-observations.jsonl",
-            "sha256": "sha256:9c0f6f70672a4cdb83c965d65e461c6f04855d2a5221a622eb55c32e2bc14b2e"
-          },
-          {
             "path": "events/lane-controller-observations.jsonl",
             "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
           }
@@ -712,16 +656,16 @@
       "status": "green",
       "authoring": {
         "tokens": {
-          "input": 62057,
-          "output": 13299,
-          "cacheRead": 4985856,
-          "cacheWrite": 0,
-          "reasoning": 4668
+          "input": null,
+          "output": null,
+          "cacheRead": null,
+          "cacheWrite": null,
+          "reasoning": null
         },
-        "firstGreenAt": "2026-08-24T10:05:46.005Z",
-        "suitePassAt": "2026-08-24T10:05:46.005Z",
-        "choreoPassAt": "2026-08-24T10:05:46.005Z",
-        "terminalAt": "2026-08-24T10:05:46.005Z",
+        "firstGreenAt": "2026-08-24T10:10:23.198Z",
+        "suitePassAt": "2026-08-24T10:10:23.198Z",
+        "choreoPassAt": "2026-08-24T10:10:23.198Z",
+        "terminalAt": "2026-08-24T10:10:23.198Z",
         "terminalSequence": 3,
         "terminalReason": "green"
       },
@@ -753,28 +697,24 @@
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
           },
           {
-            "path": "events/codex-file-change-observations.jsonl",
-            "sha256": "sha256:9c0f6f70672a4cdb83c965d65e461c6f04855d2a5221a622eb55c32e2bc14b2e"
-          },
-          {
             "path": "events/lane-controller-observations.jsonl",
             "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
           }
         ],
-        "total": 7,
+        "total": 16,
         "byClass": {
           "guide-lookup": 0,
-          "source-inspection": 0,
-          "edit": 3,
+          "source-inspection": 2,
+          "edit": 0,
           "generate": 0,
-          "process": 1,
+          "process": 7,
           "reseed": 0,
-          "suite": 1,
+          "suite": 5,
           "choreography": 1,
           "retry": 1
         },
         "byDisposition": {
-          "progress": 5,
+          "progress": 14,
           "correction": 2
         },
         "byRetriedClass": {
@@ -815,10 +755,6 @@
           {
             "path": "receipts/m3-choreography.jsonl.observations.jsonl",
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
-          },
-          {
-            "path": "events/codex-file-change-observations.jsonl",
-            "sha256": "sha256:9c0f6f70672a4cdb83c965d65e461c6f04855d2a5221a622eb55c32e2bc14b2e"
           },
           {
             "path": "events/lane-controller-observations.jsonl",
@@ -877,10 +813,6 @@
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
           },
           {
-            "path": "events/codex-file-change-observations.jsonl",
-            "sha256": "sha256:9c0f6f70672a4cdb83c965d65e461c6f04855d2a5221a622eb55c32e2bc14b2e"
-          },
-          {
             "path": "events/lane-controller-observations.jsonl",
             "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
           }
@@ -918,10 +850,6 @@
               "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
             },
             {
-              "path": "events/codex-file-change-observations.jsonl",
-              "sha256": "sha256:9c0f6f70672a4cdb83c965d65e461c6f04855d2a5221a622eb55c32e2bc14b2e"
-            },
-            {
               "path": "events/lane-controller-observations.jsonl",
               "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
             }
@@ -955,10 +883,6 @@
             {
               "path": "receipts/m3-choreography.jsonl.observations.jsonl",
               "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
-            },
-            {
-              "path": "events/codex-file-change-observations.jsonl",
-              "sha256": "sha256:9c0f6f70672a4cdb83c965d65e461c6f04855d2a5221a622eb55c32e2bc14b2e"
             },
             {
               "path": "events/lane-controller-observations.jsonl",
@@ -997,17 +921,13 @@
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
           },
           {
-            "path": "events/codex-file-change-observations.jsonl",
-            "sha256": "sha256:9c0f6f70672a4cdb83c965d65e461c6f04855d2a5221a622eb55c32e2bc14b2e"
-          },
-          {
             "path": "events/lane-controller-observations.jsonl",
             "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
           }
         ],
         "startedAt": "2026-08-24T10:02:30.781Z",
-        "endedAt": "2026-08-24T10:05:30.789Z",
-        "sampleCount": 4,
+        "endedAt": "2026-08-24T10:10:23.123Z",
+        "sampleCount": 9,
         "contamination": false,
         "breaches": []
       },
@@ -1039,10 +959,6 @@
             "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
           },
           {
-            "path": "events/codex-file-change-observations.jsonl",
-            "sha256": "sha256:9c0f6f70672a4cdb83c965d65e461c6f04855d2a5221a622eb55c32e2bc14b2e"
-          },
-          {
             "path": "events/lane-controller-observations.jsonl",
             "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
           }
@@ -1056,275 +972,96 @@
     "eligible": false,
     "correctionActionTargetEligible": false,
     "ineligibilityReasons": [
-      "orientation-evidence-unavailable"
+      "phase-usage-unavailable"
     ]
   },
   "boundarySnapshots": {
     "M1": {
-      "at": "2026-08-24T09:54:04.184Z",
+      "at": "2026-08-24T09:54:53.931Z",
       "sequence": 1,
       "status": "green",
       "tokens": {
-        "input": 544314,
-        "output": 103534,
-        "cacheRead": 24087808,
-        "cacheWrite": 0,
-        "reasoning": 29142
+        "input": null,
+        "output": null,
+        "cacheRead": null,
+        "cacheWrite": null,
+        "reasoning": null
       }
     },
     "M2": {
-      "at": "2026-08-24T10:01:49.197Z",
+      "at": "2026-08-24T10:02:30.777Z",
       "sequence": 2,
       "status": "green",
       "tokens": {
-        "input": 594410,
-        "output": 111304,
-        "cacheRead": 29423104,
-        "cacheWrite": 0,
-        "reasoning": 31456
+        "input": null,
+        "output": null,
+        "cacheRead": null,
+        "cacheWrite": null,
+        "reasoning": null
       }
     },
     "M3": {
-      "at": "2026-08-24T10:05:46.005Z",
+      "at": "2026-08-24T10:10:23.198Z",
       "sequence": 3,
       "status": "green",
       "tokens": {
-        "input": 656467,
-        "output": 124603,
-        "cacheRead": 34408960,
-        "cacheWrite": 0,
-        "reasoning": 36124
+        "input": null,
+        "output": null,
+        "cacheRead": null,
+        "cacheWrite": null,
+        "reasoning": null
       }
     }
   },
   "firstProductEdit": {
-    "at": "2026-08-24T09:12:14.377Z",
+    "at": null,
     "orientationBytes": null,
     "selectedSkills": [],
     "orientationTokens": {
-      "input": 135726,
-      "output": 9326,
-      "cacheRead": 2243840,
-      "cacheWrite": 0,
-      "reasoning": 3090
+      "input": null,
+      "output": null,
+      "cacheRead": null,
+      "cacheWrite": null,
+      "reasoning": null
     }
   },
   "meteringProvenance": {
     "manifestVersion": "social-messenger-metering-manifest.v1",
     "laneRunId": "2026-08-23-r2-published-0125/sol-clique-explicit",
-    "manifest": {
-      "path": "metering-manifest.json",
-      "sha256": "sha256:d83a317350830b8cd1583f9b053d46dc630583a93deb8ce6245d546254b1797a"
-    },
     "driver": {
       "id": "social-messenger-r2-native-cli-driver.v1",
       "stampedAt": "2026-08-24T10:10:23.198Z",
-      "startedAt": "2026-08-24T09:05:53.827Z",
-      "compatibilityEvents": [
-        {
-          "ruleId": "social-messenger-r2-native-cli-driver.v1-codex-usage-settlement.v3",
-          "originalClockCorrelation": {
-            "method": "rfc3339-with-bounded-skew",
-            "maxSkewMillis": 5000,
-            "evidence": "controller and native CLI use the same host clock; 5s covers receipt-to-final-sample handoff"
-          },
-          "effectiveClockCorrelation": {
-            "method": "rfc3339-with-bounded-skew",
-            "maxSkewMillis": 0,
-            "evidence": "controller and Codex native events use the shared host system clock; native execution order, not receipt latency, determines terminal usage settlement"
-          },
-          "nativeSourceId": "builder",
-          "nativeSessionId": "01a03304-e4e2-71d0-892e-bf0440eac5b2",
-          "nativeStreamSha256": "sha256:f9838d32f9f1357eb40ed7661d350cc9e341431ab0fcc3df0dc6e280e2035c0d",
-          "taskCompleteAt": "2026-08-24T10:10:21.954Z",
-          "taskCompleteRecordOrdinal": 1565,
-          "usageSettlements": [
-            {
-              "milestone": "M1",
-              "originalTerminalAt": "2026-08-24T09:54:04.184Z",
-              "signalItemId": "exec-99d072d0-74ea-481c-939e-ed8b90b63fb4",
-              "signalCompletedAt": "2026-08-24T09:54:54.149Z",
-              "signalRecordOrdinal": 1229,
-              "usageSettledAt": "2026-08-24T09:54:54.157Z",
-              "usageRecordOrdinal": 1231,
-              "usageAvailable": true,
-              "settlementKind": "signal-turn-token-count"
-            },
-            {
-              "milestone": "M2",
-              "originalTerminalAt": "2026-08-24T10:01:49.197Z",
-              "signalItemId": "exec-be790ed3-4d77-4fdd-b6e6-a908beba9560",
-              "signalCompletedAt": "2026-08-24T10:02:30.901Z",
-              "signalRecordOrdinal": 1413,
-              "usageSettledAt": "2026-08-24T10:02:30.911Z",
-              "usageRecordOrdinal": 1415,
-              "usageAvailable": true,
-              "settlementKind": "signal-turn-token-count"
-            },
-            {
-              "milestone": "M3",
-              "originalTerminalAt": "2026-08-24T10:05:46.005Z",
-              "signalItemId": "exec-e2dd2006-de9b-436d-93c9-fa857a845557",
-              "signalCompletedAt": "2026-08-24T10:10:14.089Z",
-              "signalRecordOrdinal": 1557,
-              "usageSettledAt": "2026-08-24T10:10:21.856Z",
-              "usageRecordOrdinal": 1564,
-              "usageAvailable": true,
-              "settlementKind": "final-native-token-count"
-            }
-          ],
-          "observationWindowPolicy": "protocol-terminal-inclusive.v1",
-          "observationHandoffRuleId": "social-messenger-r2-cell-1-signal-handoff-exclusions.v1",
-          "observationHandoffExclusions": [
-            {
-              "observationSourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
-              "milestone": "M2",
-              "sequence": 209,
-              "at": "2026-08-24T09:54:54.152Z",
-              "type": "semantic-action",
-              "actionId": "native-m2-132",
-              "actionClass": "process",
-              "disposition": "progress",
-              "priorMilestone": "M1",
-              "nativeSignalItemId": "exec-99d072d0-74ea-481c-939e-ed8b90b63fb4",
-              "nativeSignalRecordOrdinal": 1229,
-              "registrationId": "social-messenger-r2-cell-1-signal-handoff-exclusions.v1",
-              "reason": "native-r2-cell-signal-instrumentation-is-not-a-product-action"
-            },
-            {
-              "observationSourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
-              "milestone": "M3",
-              "sequence": 244,
-              "at": "2026-08-24T10:02:30.906Z",
-              "type": "semantic-action",
-              "actionId": "native-m3-150",
-              "actionClass": "process",
-              "disposition": "progress",
-              "priorMilestone": "M2",
-              "nativeSignalItemId": "exec-be790ed3-4d77-4fdd-b6e6-a908beba9560",
-              "nativeSignalRecordOrdinal": 1413,
-              "registrationId": "social-messenger-r2-cell-1-signal-handoff-exclusions.v1",
-              "reason": "native-r2-cell-signal-instrumentation-is-not-a-product-action"
-            }
-          ],
-          "observationTerminalInclusions": [
-            {
-              "observationSourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
-              "milestone": "M1",
-              "sequence": 197,
-              "at": "2026-08-24T09:54:04.341Z",
-              "type": "semantic-action",
-              "terminalAt": "2026-08-24T09:54:04.184Z",
-              "eventSha256": "sha256:f7ed327db67ce3ad08c95d44e11de90b95a6babdc88d5a82d65fc1299616f85e",
-              "reason": "exact-protocol-terminal-observation-correlation-within-one-second"
-            },
-            {
-              "observationSourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
-              "milestone": "M1",
-              "sequence": 198,
-              "at": "2026-08-24T09:54:04.341Z",
-              "type": "recovery-episode",
-              "terminalAt": "2026-08-24T09:54:04.184Z",
-              "eventSha256": "sha256:966cfa8f4a823ff82e54458e3d5d3bd3aecb48c9e3c67d517b71d03fd721d708",
-              "reason": "exact-protocol-terminal-observation-correlation-within-one-second"
-            },
-            {
-              "observationSourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
-              "milestone": "M2",
-              "sequence": 232,
-              "at": "2026-08-24T10:01:49.338Z",
-              "type": "semantic-action",
-              "terminalAt": "2026-08-24T10:01:49.197Z",
-              "eventSha256": "sha256:62eea14ca69543c79059994c88adba72c6a5079a8d7ee862be62cd4b4cf46abc",
-              "reason": "exact-protocol-terminal-observation-correlation-within-one-second"
-            },
-            {
-              "observationSourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
-              "milestone": "M2",
-              "sequence": 233,
-              "at": "2026-08-24T10:01:49.338Z",
-              "type": "recovery-episode",
-              "terminalAt": "2026-08-24T10:01:49.197Z",
-              "eventSha256": "sha256:b473b95eb4c463ddeaa47d85c43994e562e2527b92b837eef5202123061f16da",
-              "reason": "exact-protocol-terminal-observation-correlation-within-one-second"
-            },
-            {
-              "observationSourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
-              "milestone": "M3",
-              "sequence": 252,
-              "at": "2026-08-24T10:05:46.142Z",
-              "type": "semantic-action",
-              "terminalAt": "2026-08-24T10:05:46.005Z",
-              "eventSha256": "sha256:dea62ca73a091890661947f57fc1c2ff910d44e68e382166b5f72b41b9053984",
-              "reason": "exact-protocol-terminal-observation-correlation-within-one-second"
-            }
-          ]
-        }
-      ]
+      "startedAt": "2026-08-24T09:05:53.827Z"
     },
-    "manifestSha256": "sha256:d83a317350830b8cd1583f9b053d46dc630583a93deb8ce6245d546254b1797a",
-    "unavailableReason": null,
-    "adapter": {
-      "id": "codex-rollout-jsonl",
-      "version": "codex-rollout-jsonl.v2",
-      "compatibilityEvents": [
-        {
-          "ruleId": "codex-0.149.0-unchanged-cumulative-zero-components-advisory-total.v1",
-          "sourceId": "builder",
-          "nativeSessionId": "01a03304-e4e2-71d0-892e-bf0440eac5b2",
-          "recordIndex": 711,
-          "recordedAt": "2026-08-24T09:38:08.701Z",
-          "nativeCliVersion": "0.149.0",
-          "cumulativeUnchanged": true,
-          "ignoredLastTokenUsage": {
-            "inputTokens": 0,
-            "cachedInputTokens": 0,
-            "cacheWriteInputTokens": 0,
-            "outputTokens": 0,
-            "reasoningOutputTokens": 0,
-            "totalTokens": 15283
-          }
-        }
-      ]
-    },
+    "manifestSha256": "sha256:0475614ac8db156cc8a90288094d77a4badc52f7aa1a313617830abaa2ad7b73",
+    "unavailableReason": "retained-session-token-event-corrupt",
     "clockCorrelation": {
       "method": "rfc3339-with-bounded-skew",
       "maxSkewMillis": 0,
-      "evidence": "controller and Codex native events use the shared host system clock; native execution order, not receipt latency, determines terminal usage settlement"
+      "evidence": "deterministic retained-evidence rejoin uses the shared host clock and controller phase-transition/final stamps"
     },
-    "sessions": [
-      {
-        "sourceId": "builder",
-        "parentSourceId": null,
-        "role": "builder",
-        "nativeSessionId": "01a03304-e4e2-71d0-892e-bf0440eac5b2",
-        "nativeAgentId": null,
-        "nativeCliVersion": "0.149.0",
-        "path": "events/codex-rollout.jsonl",
-        "sha256": "sha256:f9838d32f9f1357eb40ed7661d350cc9e341431ab0fcc3df0dc6e280e2035c0d"
-      }
-    ],
+    "sessions": [],
     "receipts": [
       {
         "sourceId": "m1-choreography",
         "runId": "13006b0d-05c3-4a94-84ff-8b503d45b60c",
         "milestone": "M1",
         "path": "receipts/m1-choreography.jsonl",
-        "sha256": "sha256:cf2e882e18b3e11d60cb0b65d51a81162651efa6036b65d1630fc69cd5647944"
+        "sha256": "sha256:1fc119508e7543d8ddccc4a5ebd48f8bac580bfdfb76ed00b9fbcee42d90ddef"
       },
       {
         "sourceId": "m2-choreography",
         "runId": "b62d1b67-35d8-4bca-b493-8e1b38f02382",
         "milestone": "M2",
         "path": "receipts/m2-choreography.jsonl",
-        "sha256": "sha256:d259024b356095c38b973840c11c7ae38342b4f7c7b53fda5c3bf096e706f89c"
+        "sha256": "sha256:ab1182dc6532aa7f65d25d2e29858411311953b855a533f2860b3a62a73705f4"
       },
       {
         "sourceId": "m3-choreography",
         "runId": "7d12326c-c0bd-4fbe-8931-78791b3ec156",
         "milestone": "M3",
         "path": "receipts/m3-choreography.jsonl",
-        "sha256": "sha256:05b53f51edef1c93fd1b507eac43742610d748f3e301d9a5129f94d0e72a3737"
+        "sha256": "sha256:685fa8c13cbaf39a811ff43d34a4a7ba39017911b10e94d3c387c866fc32851b"
       }
     ],
     "observations": [
@@ -1359,11 +1096,6 @@
         "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
       },
       {
-        "sourceId": "codex-file-change-observations",
-        "path": "events/codex-file-change-observations.jsonl",
-        "sha256": "sha256:9c0f6f70672a4cdb83c965d65e461c6f04855d2a5221a622eb55c32e2bc14b2e"
-      },
-      {
         "sourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
         "path": "events/lane-controller-observations.jsonl",
         "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
@@ -1371,16 +1103,9 @@
     ],
     "boundaries": {
       "path": "terminal-boundaries.json",
-      "sha256": "sha256:1fcd53f32deec0c23087e2c06a7f194a7493395e92425ac6d98d3cbb6626ab36"
+      "sha256": "sha256:e4fd80893282d46f2b6ce86ae9c6b15aedcfb70c81e0de70a873faa27da7132d"
     },
-    "firstProductEdit": {
-      "path": "first-product-edit.json",
-      "sha256": "sha256:4c8e8eab7a1f1d8338f555277f218e8f9a48f2811e1932e1da894cf5cd395ebb"
-    },
-    "recordBase": {
-      "path": "record-base.json",
-      "sha256": "sha256:8ee55d513cd10106f62a1a1acaeee375aeb3c81574104af1f1bfd9fb33f1c586"
-    }
+    "firstProductEdit": null
   },
   "suiteStatusLinkage": {
     "input": {

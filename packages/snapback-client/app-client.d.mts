@@ -5,6 +5,14 @@ import type {
   SnapbackDiagnostic,
 } from './index.mjs';
 import type { SnapbackAuthCustodyStorage } from '@expo/snapback-contract/auth-coordinator';
+import type {
+  AuthEntryAdapter,
+  ProviderEntryContext,
+  ResolvedProviderEntryV1,
+} from './provider-entry.d.mts';
+import type { DeclaredDevCapability } from './internal/declared-dev-mint.mjs';
+
+export type { AuthEntryAdapter, ProviderEntryContext, ResolvedProviderEntryV1 };
 
 export { DEFAULT_AUTH_STORAGE_PARTITION } from './app-client-defaults.mjs';
 
@@ -19,9 +27,21 @@ export type ApplicationAuthBootstrapV1 = Readonly<{
     | 'email-code-v1'
     | 'external-session-explicit-v1'
   )[];
+  /**
+   * Providers the auth declaration names, with the credential policy each one
+   * declared. Credential-free by construction: resolution into an Adapter is a
+   * deployment-time fact, not a generated one.
+   */
+  providers?: readonly AuthDeclaredProviderV1[];
   anonymousPublic: 'allowed' | 'refused';
   lifecycleProtocol: 1;
 }>;
+
+export type AuthIdentityProvider = 'apple' | 'google';
+export type AuthCredentialMode = 'auto' | 'shared' | 'app-owned';
+export type AuthDeclaredProviderV1 =
+  | Readonly<{ provider: 'apple'; kind: 'apple'; credentials: AuthCredentialMode }>
+  | Readonly<{ provider: 'google'; kind: 'oidc'; preset: 'google'; credentials: AuthCredentialMode }>;
 
 export type SnapbackApplicationDescriptorV1 = Readonly<{
   format: 'snapback.app.v1';
@@ -32,6 +52,7 @@ export type SnapbackApplicationDescriptorV1 = Readonly<{
     descriptor: string;
   }>;
   authBootstrap: ApplicationAuthBootstrapV1;
+  readonly declaredDev?: DeclaredDevCapability | null;
 }>;
 
 export type SnapbackAppBindingV1 = Readonly<{
@@ -192,6 +213,18 @@ export interface SnapbackAuthFacade {
   readonly claimGuestWithPassword: SnapbackClient['authClaimGuestWithPassword'];
   readonly signUpWithPassword: SnapbackClient['authPasswordSignup'];
   readonly signInWithPassword: SnapbackClient['authPasswordSignIn'];
+  /**
+   * One stable call for every declared provider and every Adapter.
+   *
+   * The Adapter is resolved once when this client is constructed and frozen for
+   * its lifetime. An Adapter failure — cancellation, timeout, `invalid_client`,
+   * a token refusal — is the result of this call. It never opens a different
+   * Adapter, because that would change the consent brand, the provider
+   * installation, and possibly the identity realm without the caller asking.
+   */
+  signIn(input: Readonly<{ provider: AuthIdentityProvider }>): ReturnType<SnapbackClient['authExchange']>;
+  /** The resolved entry for one provider, or null when this client carries no Adapters. */
+  providerEntry(provider: AuthIdentityProvider): ResolvedProviderEntryV1 | null;
   readonly signInWithExternalCode: SnapbackClient['authExchange'];
   readonly consumeRecoveryCode: SnapbackClient['authRecoveryConsume'];
   readonly rotateRecoveryCodes: SnapbackClient['authRecoveryRotate'];
@@ -207,9 +240,24 @@ export interface SnapbackAppClient {
   dispose(): Promise<void>;
 }
 
+/** Code-less advisory emitted when an option is intentionally ignored. */
+export type SnapbackAppClientDebugEvent = Readonly<{
+  schemaVersion: 'snapback.client-debug-event.v1';
+  event: 'snapback.declared-dev-url-ignored';
+  severity: 'debug';
+  message: string;
+  details: Readonly<Record<string, unknown>>;
+}>;
+
 export function createSnapbackAppClient(input: Readonly<{
   app: SnapbackApplicationDescriptorV1;
-  binding: SnapbackAppBindingV1;
+  binding?: SnapbackAppBindingV1;
+  /** Explicit application-owned URL; selected only by a branded generated
+   * development app. The library does not read an environment variable. */
+  url?: string;
+  /** Headless request/response mode: every transport-bearing operation phase
+   * receives an independent identity preflight. */
+  streamless?: boolean;
   platform: SnapbackAppClientPlatform;
   storagePartition?: string;
   /** Injected clock for binding-expiry admission (epoch milliseconds);
@@ -221,4 +269,23 @@ export function createSnapbackAppClient(input: Readonly<{
   signal?: AbortSignal;
   /** Provider-resolved RQS store/default-resolution. */
   rqsStore?: unknown;
+  /**
+   * Identity-provider Adapters, plus the deployment facts that select among
+   * them. Resolution happens once, at construction. Each Adapter runs its
+   * provider flow and returns one short-lived external completion; custody and
+   * the signed-in state stay with the ordinary coordinator.
+   */
+  authProviders?: Readonly<{
+    context: Omit<ProviderEntryContext, 'appId'> & Readonly<{ appId?: string }>;
+    adapters: Readonly<Partial<Record<
+      AuthEntryAdapter,
+      (entry: ResolvedProviderEntryV1) => Promise<Readonly<{
+        exchange: Readonly<{ challengeId: string; code: string }>;
+      }>>
+    >>>;
+    nowMs?: number;
+  }>;
+  /** Optional source-selection diagnostics. Debug events deliberately carry
+   * no stable refusal code. */
+  onDiagnostic?: (diagnostic: SnapbackDiagnostic | SnapbackAppClientDebugEvent) => void;
 }>): Promise<SnapbackAppClient>;
