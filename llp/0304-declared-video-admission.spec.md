@@ -5,7 +5,7 @@
 **Systems:** Assets, Security, Code generation, Storage, Deployment, Testing
 **Author:** Codex, commissioned by Charlie Cheever for the 2026-08-24 design-revision round
 **Date:** 2026-08-24
-**Revised:** 2026-08-24 (v0.2 — closes the delta-review residuals with checked-integer duration identities, corrected OTI/AOT classification, trusted still-image detection, frozen numeric ceilings, and pinned public/oracle fields; design only, implementation and capability claims remain open)
+**Revised:** 2026-08-24 (v0.3 — freezes arbitrary-precision integer/rational duration arithmetic and the canonical v1 work, logical-allocation, and metadata-byte ledgers; design only, implementation and capability claims remain open)
 **Related:** LLP 0000, LLP 0012, LLP 0037, LLP 0044, LLP 0189, LLP 0225, LLP 0269, LLP 0276, LLP 0277, Diary 0086, `issues/20260817-upload-intent-codec-duration-admission-facts.md`
 
 ## Summary and authority
@@ -255,21 +255,21 @@ following before codec or duration policy comparison:
    the self-contained flag and no external locator. External `url `, `urn `,
    aliases, or an unrecognized reference form yield facts-unavailable. V1 does
    not fetch or trust external media.
-2. Every `stsc` run is ordered, covers the chunk table without a gap or
-   overflow, and references an in-range sample-description index. Every sample
+2. Every `stsc` run is ordered, covers the chunk table without a gap or an
+   index outside the exact chunk-count domain, and references an in-range sample-description index. Every sample
    description is structurally and codec-configuration checked, including an
    unused alternate; an alternate cannot become an unexamined future codec or
    external data reference.
 3. `stsz`/`stz2` supplies exactly the sample count consumed by `stsc`; fixed
    size, per-sample size, and compact-size encodings are checked without
    allocating a per-sample object. `stts` and, when present, `ctts` expand to
-   that same count. Zero samples, zero-sized presentable video, count mismatch,
-   or arithmetic overflow yields facts-unavailable.
+   that same count. Zero samples, zero-sized presentable video, or an exact
+   count mismatch yields facts-unavailable.
 4. For every derived chunk, the parser streams the mapped sample sizes, uses
-   checked arithmetic, and proves the complete chunk interval lies within one
+   arithmetic in `Z`, and proves the complete chunk interval lies within one
    `mdat` payload in the canonical object. File-bound-but-outside-`mdat`,
-   out-of-range, wrapping, overlapping/contradictory chunk layout, or an
-   unaccounted sample yields facts-unavailable.
+   an exact endpoint outside the object, overlapping/contradictory chunk
+   layout, or an unaccounted sample yields facts-unavailable.
 5. At least one positive-size sample belonging to a `vide` track is present in
    the canonical object's `mdat`. The parser validates extents but does not
    interpret those bytes as NAL units or AAC access units.
@@ -336,19 +336,36 @@ crossed:
   `mvhd.timescale`.
 
 Zero timescales, zero governing durations, a version-specific all-1s
-“unspecified” duration, unsupported versions, overflow, or disagreement under
-the exact comparisons below yields
+“unspecified” duration, unsupported versions, a field value disallowed by the
+versioned rules below, or disagreement under the exact comparisons below yields
 `SNAPBACK_ASSET_VIDEO_FACTS_UNAVAILABLE`, never admission as zero and never a
 truncation-dependent result.
 
-The following are checked-integer identities. No step converts to binary or
-decimal floating point, milliseconds, or a rounded timescale. An
-implementation may use a fixed-width integer only when every addition,
-subtraction, multiplication, negation, and cross-product is checked before it
-is committed; overflow refuses facts. Exact rational comparison of `a/b` and
-`c/d`, for positive denominators, is the checked comparison of `a*d` and
-`c*b` (or an algebraically equivalent GCD-cancelled/big-integer comparison).
-Rational reduction is optional and cannot change a verdict.
+### V1 integer and rational domain
+
+Every encoded integer is decoded at its specified signedness and width and is
+then promoted, before arithmetic, into the mathematical integer domain
+`Z` (arbitrary precision). Counts, offsets, durations, timescales, intermediate
+sums, differences, products, negations, cross-products, and the work,
+allocation, and byte ledgers use that domain. There is no semantic fixed-width
+overflow in v1. A conforming implementation may use fixed-width fast paths
+only when it transparently promotes before overflow; exhausting a local
+machine integer is neither `FACTS_UNAVAILABLE` nor `BOUNDS_EXCEEDED` and may
+not change the content verdict. An implementation that cannot promote is
+nonconforming and cannot publish the v1 capability. A transient allocation or
+process failure while providing this domain follows the non-terminal
+cancellation rule below; it never creates a stable content refusal.
+
+Every stored or compared rational has the canonical representation `(n, d)`:
+`n` and `d` are arbitrary-precision integers, `d > 0`, the sign is carried by
+`n`, and the pair is reduced by `gcd(abs(n), d)`; zero, where an intermediate
+can be zero, is exactly `(0, 1)`. Duration facts require a positive numerator.
+All identities below are evaluated in `Z`. Timescale conversion never rounds
+or materializes an integer tick count in the destination scale: equality and
+ordering of `a/b` and `c/d` are exactly the ordering of `a*d` and `c*b` in
+`Z`, after canonicalization. `max` selects by that comparison; equal values
+have the same canonical pair. No production, test, oracle, persistence, or
+capability path may use binary or decimal floating point.
 
 Only version 0 and version 1 `mdhd`, `tkhd`, `mvhd`, and `elst` encodings are
 supported. For `elst`, v0 has unsigned 32-bit `segment_duration` and signed
@@ -372,7 +389,7 @@ For each admitted audio/video-class track, define:
 - the unedited media duration `U = U_num/U_den = S/M_t`.
 
 The run-count sums for `stts` and `ctts` must equal the exact sample count.
-The parser must establish these checked integer equalities before considering
+The parser must establish these exact integer equalities before considering
 an edit:
 
 ```text
@@ -408,7 +425,7 @@ with elst:   E = E_num/E_den = L/M_m
 ```
 
 Let `K = tkhd.duration`, in movie ticks. The track-header cross-check is the
-following checked integer equality, chosen by edit presence:
+following exact integer equality, chosen by edit presence:
 
 ```text
 no elst:     K × M_t == S × M_m       (K/M_m == U)
@@ -443,8 +460,12 @@ The inclusive policy check is exactly:
 P_final_num × 1000 <= maxDurationMs × P_final_den
 ```
 
-Only after that comparison is `declaredDurationMs` computed as
-`ceil(P_final_num × 1000 / P_final_den)`. A 60.000-second `U` with a supported
+Both products and the comparison are in `Z`; there is no intermediate
+millisecond conversion. Only after that comparison is `declaredDurationMs`
+computed by Euclidean division in `Z`: for
+`(q, r) = divmod(P_final_num × 1000, P_final_den)`, where
+`0 <= r < P_final_den`, the result is `q` when `r == 0` and `q + 1` otherwise.
+No other conversion or rounding occurs. A 60.000-second `U` with a supported
 edit whose leading/composition-delay presentation adds two frames has
 `E > 60.000 seconds`, hence `P = E` and intentionally refuses a 60,000 ms
 ceiling; no frame, tick, or millisecond rounding may admit it. When
@@ -460,11 +481,11 @@ target-profile recommendations:
 | Ceiling | Exact v1 value | Scope |
 | --- | ---: | --- |
 | `maxWorkUnits` | 2,000,000 | one parser invocation |
-| `maxTemporaryAllocationBytes` | 16,777,216 | non-refunded logical arena reservations per invocation |
+| `maxTemporaryAllocationBytes` | 16,777,216 | canonical non-refunded logical reservations in the v1 table below |
 | `maxWholeFileParseBytes` | 536,870,912 | canonical object length |
 | `maxBoxDepth` | 32 | nested box depth, counting the top-level box as depth 1 |
-| `maxBoxCount` | 100,000 | all decoded box headers, including skipped payload boxes |
-| `maxMetadataBytes` | 16,777,216 | sum of box headers and payload bytes actually parsed; `mdat` payload bytes excluded |
+| `maxBoxCount` | 100,000 | all headers in the closed phase-H walk, including skipped payload boxes |
+| `maxMetadataBytes` | 16,777,216 | cardinality of the canonical half-open byte-range union below |
 | `maxCompatibleBrandEntries` | 64 | complete `ftyp` vector |
 | `maxTracks` | 64 | all `trak` boxes, including non-A/V |
 | `maxDrefEntriesPerTrack` | 64 | one track |
@@ -485,32 +506,117 @@ Every implementation and capability fact publishes these exact numbers. A
 target cannot raise or lower one while claiming v1. Changing any value,
 charging scope, or entry-count definition requires a successor parser-
 semantics version and new capability identity. The semantic refusal is based
-on these deterministic counters, not elapsed wall-clock time.
+on these deterministic ledgers, not elapsed wall-clock time.
 
-One work unit is charged before each of these operations:
+### Canonical v1 event schedule
 
-- decoding one box header or compatible-brand entry;
-- decoding one `dref`, sample-description, codec-config array element/SPS, or
-  `esds` descriptor;
-- decoding one `elst`, `stts`, `ctts`, `stsc`, `stsz`/`stz2`, `stco`, or `co64`
-  entry;
-- consuming one merged timing run or deriving/validating one chunk extent; and
-- completing one track fact or one policy comparison.
+The work ledger starts at zero and contains one entry for each event in the
+following schedule, in the stated order. An event is counted exactly once.
+An implementation may traverse or buffer differently, but it must derive this
+canonical ledger and the verdict at the same canonical event.
 
-The same bytes, frozen artifact, and parser-semantics version therefore
-consume the same units. Reaching `maxWorkUnits` yields
-`SNAPBACK_ASSET_VIDEO_BOUNDS_EXCEEDED` at the same semantic step on every run.
-`mdat` is skipped by declared extent and is never charged or scanned per byte
-by this parser.
+Phase H uses one closed walk: scan top-level boxes, and descend only through
+`moov`, `trak`, `edts`, `mdia`, `minf`, `dinf`, and `stbl`; through `dref` into
+its box-like entries; and through `stsd` into every sample-description entry.
+It descends into child boxes only for `avc1`/`avc3`, beginning at
+`payloadStart + 78` after the ISO VisualSampleEntry fields, and `mp4a`,
+beginning at `payloadStart + 28` after the ISO AudioSampleEntry fields. A
+shorter entry is malformed. `encv`, `enca`, known-but-unlisted entries, and
+non-A/V sample entries contribute their own entry header but have no descended
+child headers in v1. It does not descend into any other payload for accounting.
+The phases execute H, then B, then, for each `trak` in start-offset order, T1
+through T8, and finally P. T1--T8 are per-track subphases, not whole-file
+passes.
 
-Temporary allocation is a deterministic parser-arena reservation budget, not
-allocator telemetry. Before every dynamic buffer, the parser computes the
-exact logical byte request with checked arithmetic, charges it once against
-`maxTemporaryAllocationBytes`, and does not refund it during that invocation.
+| Phase | One work-unit event | Canonical order |
+| --- | --- | --- |
+| H | One syntactically decoded ISO BMFF box or box-like sample/data-reference entry header, including an otherwise skipped box. | Increasing header start offset over the complete object; a containing header necessarily precedes its children. |
+| B | One `ftyp` compatible-brand vector element. The major brand and minor version are not elements. | Encoded vector order. |
+| T1 | One `dref` entry. | Tracks by `trak` start offset, then entry index. |
+| T2 | One `stsd` sample-description entry. | Same track order, then entry index. |
+| T3 | One `avcC` parameter-set record: each SPS, PPS, or extension parameter-set record is one event, including its length field and payload as one record. The `avcC` box and array-count fields add no separate event. | Sample-description order, child-box start offset, then array order SPS, PPS, extension; encoded record order within an array. |
+| T4 | One `esds` descriptor TLV, including the outer descriptor. | Sample-description order, then encoded pre-order: parent before child and siblings by start offset. |
+| T5 | One encoded entry in each of `elst`, `stts`, `ctts`, `stsc`, `stsz`/`stz2`, and `stco`/`co64`. A fixed-size `stsz` has zero encoded size-entry events. | Within each track, table kinds in the order just listed, then encoded entry index. Exactly one member of each slash pair may exist. |
+| T6 | One merged timing interval. | Expand only conceptually to `(delta_i, offset_i)` for sample indices `i` in `[0, sampleCount)`; absent `ctts` means offset zero. Partition that sequence into maximal nonempty half-open index intervals on which the pair is identical. Charge one event per interval in increasing start index. Input-run boundaries with identical pairs do not create another event. |
+| T7 | One derived and validated chunk extent. | One per `stco`/`co64` entry, by 1-based chunk index, after applying `stsc` and the sample-size table; unused or zero-sample chunks still reach this event and then refuse facts if invalid. |
+| T8 | One completed track fact. | Exactly one per `trak`, including a non-A/V track whose fact is only the validated `tkhd` contribution, in `trak` start-offset order. |
+| P | One whole-value policy comparison. | After all facts: container allowlist, declared-video-codec set, declared-audio-codec set (also when empty), then duration, in that order. Stop after the first failed comparison. |
+
+Structural or semantic refusal stops the schedule. Before a scheduled event,
+the parser applies any tied local-count ceiling, logical reservation, and work
+charge before performing that event. A work charge is allowed when
+`workUnits + 1 <= maxWorkUnits`; when another event exists and the ledger is
+already at the ceiling, that event refuses
+`SNAPBACK_ASSET_VIDEO_BOUNDS_EXCEEDED` before it executes. Merely reaching the
+ceiling on the final event is allowed.
+
+### Canonical metadata-byte ranges
+
+Byte accounting is a property of the encoded object, not of reads, page
+faults, seeks, traversal, or copies. Every range is half-open: `[start, end)`
+includes the byte at `start` and excludes the byte at `end`. `boxEnd` is the
+first byte after the declared box. The metadata ledger is the cardinality of
+the set union of these ranges, so overlapping parent/child or record ranges
+charge each byte once:
+
+| Encoded structure | Charged range |
+| --- | --- |
+| Every header counted by phase H | `[headerStart, payloadStart)`, including extended-size or user-type header bytes when present. |
+| `ftyp`, `mvhd`, `tkhd`, `mdhd`, `hdlr`, `elst`, `dref`, `stsd`, `avcC`, `esds`, `stts`, `ctts`, `stsc`, `stsz`, `stz2`, `stco`, and `co64` | The complete declared payload `[payloadStart, boxEnd)`, including version/flags, count fields, entry bytes, and trailing bytes inside the declared box. Nested ranges remain a set union. |
+| A box-like `dref` entry or `stsd` sample-description entry | Its complete declared header and payload extent; overlap with its containing `dref`/`stsd` is charged once. |
+| Navigation containers, unrecognized/skipped boxes, and recognized boxes not listed above | Header range only. Their payload contributes zero. |
+| `mdat` | Header range only. `[payloadStart, boxEnd)` contributes zero and is never scanned merely to charge it. |
+
+Header ranges are admitted in phase-H order. After the complete structural
+scan, listed payload/entry ranges are admitted by increasing range start, then
+increasing range end. Before adding a range, the ledger adds only bytes not
+already in the union and refuses if the resulting exact natural number would
+exceed `maxMetadataBytes`. An invalid or out-of-file range is malformed or
+facts-unavailable according to the stable refusal table; it is never clipped.
+Thus “metadata bytes parsed” has no implementation-dependent meaning in v1.
+
+### Canonical logical reservations
+
+Temporary-allocation accounting is the following abstract, non-refunded
+reservation ledger. Sizes are exact octet counts with no allocator header,
+alignment, capacity-growth, small-vector, interning, or compression adjustment.
+Actual `malloc`, stack, mmap, streaming, and cache choices do not affect it.
+
+| Logical structure | Reservation charged exactly once |
+| --- | ---: |
+| Decoded phase-H header record | 32 bytes per header |
+| Compatible-brand retained value | 8 bytes per compatible-brand element |
+| Track summary/cursors | 256 bytes per `trak` |
+| Data-reference summary | 32 bytes per `dref` entry |
+| Sample-description summary | 256 bytes per `stsd` entry |
+| `avcC` bounded workspace | Exact `avcC` payload length per `avcC` |
+| `avcC` parameter-set summary | 16 bytes per T3 record; payload bytes are already in the workspace row |
+| `esds` bounded workspace | Exact complete encoded `esds` box length, header included, per `esds` |
+| Iterative `esds` descriptor state | 32 bytes per T4 descriptor |
+| Edit summary | 32 bytes per `elst` entry |
+| `stts`, `ctts`, `stsc`, sample-size, chunk-offset, merged-timing, and chunk-extent entries | 0 bytes per entry; their fixed streaming cursors are included in the track summary |
+| Closed codec sets, policy comparisons, and final prepared scalar facts | 0 bytes; their fixed storage is included in the track summary/invocation state |
+
+Header, brand, entry, descriptor, and edit reservations occur immediately
+before their corresponding work event. A track summary is reserved before
+that track's first T1--T8 event. `avcC` or `esds` workspace is reserved after
+its containing T2 event and before its first child event, or immediately after
+T2 when it has no child event. Reservation arithmetic uses the v1 natural-
+number domain. A reservation is allowed when the new total is less than or
+equal to `maxTemporaryAllocationBytes`; otherwise it refuses before the
+logical structure is used. Nothing is refunded.
+
 Declared counts and their minimum/exact encoded lengths must fit the enclosing
-box, their per-structure ceiling, the remaining work units, and the remaining
-allocation budget **before allocation**. Implementation-dependent `Vec`
-growth is not an accounting mechanism.
+box and their per-structure ceilings before their first dependent event. For
+simultaneous possible bounds at one step, v1 checks whole-file length once at
+entry. At each H event it then checks box depth, box count, the header-byte
+range, the header's logical reservation, and the work charge, in that order.
+After H it admits payload/entry byte ranges in the order above. At each later
+count or event it checks applicable named per-structure ceilings in the
+numeric-table order above, then that event's logical reservation, then its work
+charge. The first failed check names the bounded detail. Every ceiling permits
+equality and refuses only when the next exact value would be greater. This
+ordering and the three ledgers are part of parser-semantics v1.
 
 Capability facts carry every named table entry above, without aliases or
 omissions.
@@ -532,8 +638,9 @@ stable resource refusal.
 The initial semantic identity is
 `snapback.video-admission.iso-bmff.v1`. It names the complete brand table,
 sample/data-reference checks, codec-configuration map, duration algorithm,
-work-unit schedule, allocation accounting, **the exact numeric ceiling tuple
-above**, refusal precedence, and safe-fact shape — not merely a crate version.
+arbitrary-precision integer/rational domain, canonical event schedule, charged
+byte-range map, logical reservation-size table, **the exact numeric ceiling
+tuple above**, refusal precedence, and safe-fact shape — not merely a crate version.
 There is no conforming “v1 with locally tuned limits.”
 
 When `accept.video` is present:
@@ -636,7 +743,12 @@ passes.
   `avc1` and `avc3` with nonempty v1 `avcC`, each enumerated AAC Audio Object
   Type, silent video, multiple tracks/descriptions, a valid negative `ctts`
   reorder, exact 60,000 ms admission, 60,001 ms refusal, and rational
-  sub-millisecond overflow rounded only after comparison.
+  sub-millisecond excess rounded only after comparison.
+- Arithmetic vectors require cross-products wider than 64 and 128 bits and
+  compare a fixed-width-fast-path implementation with an arbitrary-precision
+  reference. Both must emit the same reduced rational, rounded millisecond
+  value, and verdict; injected machine-width exhaustion is never a content
+  refusal.
 - Brand vectors cover HEIC + compatible `isom`, `mif1`, `msf1`, AVIF,
   Motion Photo/still-image wrapping, `qt  ` + `isom`, `isom` + `qt  `,
   unknown brands, and contradictory still-image/video combinations. None of
@@ -651,7 +763,8 @@ passes.
   equality without entering `P`, and a short-`moov`/long-`moof` hybrid plus
   standalone `moof`, `traf`, and `mvex`.
 - Data-layout vectors cover external `dref`, invalid data-reference and sample-
-  description indices, out-of-range and outside-`mdat` chunks, overflow,
+  description indices, out-of-range and outside-`mdat` chunks, exact endpoints
+  beyond the object,
   overlap/contradiction, zero samples, zero-sized video samples, and a valid
   multi-chunk same-file file with at least one presentable video sample.
 - Codec vectors cover handler/sample-entry mismatch, no `vide` handler,
@@ -721,6 +834,11 @@ Editing only the declaration or diary does not satisfy the gate.
   independently, then one combined fixture approaches multiple local ceilings
   and crosses the single global budget deterministically. Allocation probes
   prove rejection occurs before allocating from hostile declared counts.
+- Golden accounting vectors publish the phase/event ordinal, work total,
+  logical-reservation total, and canonical metadata-range-union total at each
+  refusal boundary. Implementations using eager buffers, streaming cursors,
+  mmap, and different allocator growth strategies must match those ledgers and
+  the named first exceeded ceiling byte for byte.
 - Repeated runs under different CPU load produce the same semantic result and
   work count. Injected wall-clock cancellation remains transient and
   re-drivable; it never becomes a content refusal.
@@ -759,6 +877,14 @@ Open questions for a later version:
 
 ## Revision history
 
+- **v0.3 (2026-08-24, Review).** Freezes v1 duration arithmetic to canonical
+  arbitrary-precision integers and reduced rationals, including exact
+  timescale comparison and Euclidean millisecond rounding. Replaces
+  representation-dependent resource language with one canonical event
+  schedule, half-open charged-byte-range union, logical reservation-size
+  table, and bound-precedence rule under parser-semantics v1. Status remains
+  Review, the implementation ticket remains open, and no capability is
+  claimed.
 - **v0.2 (2026-08-24, Review).** Closes the residual delta-review findings:
   checked-integer `U`/`E`/`P` identities and header equalities, explicit
   non-A/V `tkhd` handling and conservative composition-delay behavior;
