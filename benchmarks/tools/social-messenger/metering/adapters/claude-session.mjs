@@ -80,12 +80,14 @@ export function adaptClaudeSessionTree(sessions) {
     .map(({ completedAtMs: _completedAtMs, ...turn }) => turn);
   return {
     adapter: "claude-session-jsonl",
+    adapterVersion: "claude-session-jsonl.v1",
     source: TOKEN_SOURCES.claude,
     turns,
     unavailableReason: null,
     sourceIds: sessions.map((session) => session.sourceId),
     usageRecords,
     deduplicatedRecords: usageRecords - turns.length,
+    compatibilityEvents: [],
   };
 }
 

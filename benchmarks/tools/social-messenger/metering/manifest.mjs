@@ -23,6 +23,10 @@ const MANIFEST_VERSION = "social-messenger-metering-manifest.v1";
 const SHA256 = /^sha256:[a-f0-9]{64}$/u;
 const MILESTONE = /^M[1-8]$/u;
 const CURRENT_CHOREOGRAPHY_VERSION = "0.3.3-m8";
+const R2_DRIVER_V1_TERMINAL_RULE =
+  "social-messenger-r2-native-cli-driver.v1-observation-terminal.v1";
+const R2_DRIVER_V1_CLOCK_EVIDENCE =
+  "controller and native CLI use the same host clock; 5s covers receipt-to-final-sample handoff";
 const RECEIPT_SCHEMA = JSON.parse(readFileSync(
   new URL("../choreography/receipts.schema.json", import.meta.url),
   "utf8",
@@ -159,6 +163,14 @@ function validateCodexIdentity(session, records) {
       `Codex source ${session.sourceId} does not identify native session ${session.nativeSessionId}`,
     );
   }
+  const versions = new Set(records
+    .filter((record) => record?.type === "session_meta")
+    .map((record) => record?.payload?.cli_version)
+    .filter((value) => typeof value === "string" && value.length > 0));
+  if (versions.size > 1) {
+    throw new Error(`Codex source ${session.sourceId} has conflicting cli_version values`);
+  }
+  return [...versions][0] ?? null;
 }
 
 async function loadSessions(manifestDirectory, sessions, adapter) {
@@ -170,9 +182,15 @@ async function loadSessions(manifestDirectory, sessions, adapter) {
       `session ${session.sourceId}`,
     );
     const records = parseJsonLines(artifact.text, artifact.path);
+    let nativeCliVersion = null;
     if (adapter === "claude") validateClaudeIdentity(session, records);
-    else validateCodexIdentity(session, records);
-    loaded.push({ ...session, records, resolvedSha256: artifact.sha256 });
+    else nativeCliVersion = validateCodexIdentity(session, records);
+    loaded.push({
+      ...session,
+      records,
+      nativeCliVersion,
+      resolvedSha256: artifact.sha256,
+    });
   }
   return loaded;
 }
@@ -206,6 +224,76 @@ async function loadObservations(manifestDirectory, observations, laneRunId) {
     Date.parse(left.at) - Date.parse(right.at) || left.sequence - right.sequence
   ));
   return { events, provenance };
+}
+
+// @ref LLP 0201#d2--quantitative-instrument — a terminal must bound the
+// complete native usage prefix. The retained driver-v1 receipt timestamp was
+// first-green evidence, so recover its terminal only from hash-bound events.
+function applyR2DriverV1TerminalCompatibility({
+  manifest,
+  boundaryValue,
+  observationEvents,
+  clockCorrelation,
+}) {
+  if (
+    manifest.driver?.id !== "social-messenger-r2-native-cli-driver.v1"
+    || clockCorrelation.maxSkewMillis !== 5_000
+    || clockCorrelation.evidence !== R2_DRIVER_V1_CLOCK_EVIDENCE
+  ) {
+    return {
+      boundaryValue,
+      clockCorrelation,
+      compatibilityEvents: [],
+    };
+  }
+  const effective = structuredClone(boundaryValue);
+  const boundaries = effective?.milestones ?? effective;
+  const latestByMilestone = new Map();
+  for (const event of observationEvents) {
+    const previous = latestByMilestone.get(event.milestone);
+    if (previous === undefined || Date.parse(event.at) > Date.parse(previous)) {
+      latestByMilestone.set(event.milestone, event.at);
+    }
+  }
+  const terminalAdjustments = [];
+  for (const [milestone, boundary] of Object.entries(boundaries ?? {})) {
+    const effectiveTerminalAt = latestByMilestone.get(milestone);
+    if (
+      effectiveTerminalAt === undefined
+      || typeof boundary?.terminalAt !== "string"
+      || Date.parse(effectiveTerminalAt) <= Date.parse(boundary.terminalAt)
+    ) {
+      continue;
+    }
+    terminalAdjustments.push({
+      milestone,
+      originalTerminalAt: boundary.terminalAt,
+      effectiveTerminalAt,
+    });
+    boundary.terminalAt = effectiveTerminalAt;
+  }
+  if (terminalAdjustments.length === 0) {
+    return {
+      boundaryValue,
+      clockCorrelation,
+      compatibilityEvents: [],
+    };
+  }
+  const effectiveClockCorrelation = {
+    method: "rfc3339-with-bounded-skew",
+    maxSkewMillis: 0,
+    evidence: "driver-v1 recovery derives terminalAt from the latest hash-bound observation on the shared host system clock; the original 5s value described handoff latency, not clock drift",
+  };
+  return {
+    boundaryValue: effective,
+    clockCorrelation: effectiveClockCorrelation,
+    compatibilityEvents: [{
+      ruleId: R2_DRIVER_V1_TERMINAL_RULE,
+      originalClockCorrelation: clockCorrelation,
+      effectiveClockCorrelation,
+      terminalAdjustments,
+    }],
+  };
 }
 
 async function loadReceipts(manifestDirectory, receipts) {
@@ -446,6 +534,11 @@ export async function loadMeteringManifest(manifestPath) {
     }
   }
 
+  const observations = await loadObservations(
+    manifestDirectory,
+    manifest.observations,
+    laneRunId,
+  );
   const boundaryArtifact = await readArtifact(
     manifestDirectory,
     manifest.boundaries,
@@ -458,7 +551,13 @@ export async function loadMeteringManifest(manifestPath) {
   if (boundaryValue?.driverId !== manifest.driver.id) {
     throw new Error("boundary artifact driverId does not match the lane manifest");
   }
-  const driverBoundaries = normalizeBoundaryMap(boundaryValue);
+  const driverCompatibility = applyR2DriverV1TerminalCompatibility({
+    manifest,
+    boundaryValue,
+    observationEvents: observations.events,
+    clockCorrelation,
+  });
+  const driverBoundaries = normalizeBoundaryMap(driverCompatibility.boundaryValue);
   const receiptResult = await loadReceipts(manifestDirectory, manifest.receipts);
   const boundaries = mergeBoundaryMaps(...receiptResult.maps, driverBoundaries);
   for (const [milestone, boundary] of Object.entries(boundaries)) {
@@ -472,23 +571,18 @@ export async function loadMeteringManifest(manifestPath) {
       && candidate.suitePass === true
       && candidate.choreoPass === true
       && Date.parse(candidate.recordedAt) === Date.parse(boundary.firstGreenAt)
-      && Date.parse(candidate.recordedAt) === Date.parse(boundary.terminalAt)
+      && Date.parse(candidate.recordedAt) <= Date.parse(boundary.terminalAt)
     ));
     if (attestation === undefined) {
       const nonGreen = attestations.some((candidate) => candidate.green === false);
       throw new Error(
         nonGreen
           ? `green milestone ${milestone} conflicts with its non-green hash-bound receipt`
-          : `green milestone ${milestone} lacks a hash-bound green segment-summary at its terminal boundary`,
+          : `green milestone ${milestone} lacks a hash-bound green segment-summary at its first-green boundary`,
       );
     }
   }
 
-  const observations = await loadObservations(
-    manifestDirectory,
-    manifest.observations,
-    laneRunId,
-  );
   const suiteStatusLinkage = await loadSuiteStatusLinkage(
     manifestDirectory,
     manifest.suiteStatus,
@@ -523,7 +617,7 @@ export async function loadMeteringManifest(manifestPath) {
       evidence: observations.provenance.map(({ path, sha256 }) => ({ path, sha256 })),
     },
     suiteStatusLinkage,
-    maxClockSkewMs: clockCorrelation.maxSkewMillis,
+    maxClockSkewMs: driverCompatibility.clockCorrelation.maxSkewMillis,
     wallClockOrigin: manifest.driver.startedAt,
     provenance: {
       manifestVersion: MANIFEST_VERSION,
@@ -532,13 +626,19 @@ export async function loadMeteringManifest(manifestPath) {
         id: manifest.driver.id,
         stampedAt: manifest.driver.stampedAt,
         startedAt: manifest.driver.startedAt,
+        compatibilityEvents: driverCompatibility.compatibilityEvents,
       },
       manifestSha256: digest(manifestText),
       unavailableReason: channel.unavailableReason ?? null,
+      adapter: {
+        id: channel.adapter,
+        version: channel.adapterVersion,
+        compatibilityEvents: channel.compatibilityEvents ?? [],
+      },
       clockCorrelation: {
-        method: clockCorrelation.method,
-        maxSkewMillis: clockCorrelation.maxSkewMillis,
-        evidence: clockCorrelation.evidence,
+        method: driverCompatibility.clockCorrelation.method,
+        maxSkewMillis: driverCompatibility.clockCorrelation.maxSkewMillis,
+        evidence: driverCompatibility.clockCorrelation.evidence,
       },
       sessions: loadedSessions.map((session) => ({
         sourceId: session.sourceId,
@@ -546,6 +646,7 @@ export async function loadMeteringManifest(manifestPath) {
         role: session.role,
         nativeSessionId: session.nativeSessionId,
         nativeAgentId: session.nativeAgentId ?? null,
+        nativeCliVersion: session.nativeCliVersion,
         path: session.path,
         sha256: session.resolvedSha256,
       })),
@@ -560,4 +661,8 @@ export async function loadMeteringManifest(manifestPath) {
   };
 }
 
-export { MANIFEST_VERSION };
+export {
+  applyR2DriverV1TerminalCompatibility,
+  MANIFEST_VERSION,
+  R2_DRIVER_V1_TERMINAL_RULE,
+};

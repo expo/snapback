@@ -443,6 +443,26 @@ async function readMarkers(state) {
   }
 }
 
+async function controllerTerminalTimes(state) {
+  const path = join(state.root, "events", "lane-controller-observations.jsonl");
+  const records = (await readFile(path, "utf8"))
+    .split(/\r?\n/u)
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+  const byMilestone = new Map();
+  for (const record of records) {
+    if (record.laneRunId !== state.config.laneRunId) {
+      throw new Error("lane-controller observation belongs to another lane run");
+    }
+    if (!/^M[1-8]$/u.test(record.milestone ?? "")) continue;
+    const previous = byMilestone.get(record.milestone);
+    if (previous === undefined || Date.parse(record.at) > Date.parse(previous)) {
+      byMilestone.set(record.milestone, record.at);
+    }
+  }
+  return byMilestone;
+}
+
 async function waitForMarker(state, milestone) {
   while (true) {
     const marker = (await readMarkers(state)).find((candidate) => candidate.milestone === milestone);
@@ -603,6 +623,7 @@ async function writeTerminalArtifacts(state, error) {
     state.pendingEpisodes.clear();
   }
   const markers = await readMarkers(state);
+  const terminalTimes = await controllerTerminalTimes(state);
   if (error && state.currentMilestone) {
     const existing = markers.find((item) => item.milestone === state.currentMilestone);
     const failure = {
@@ -632,12 +653,20 @@ async function writeTerminalArtifacts(state, error) {
     const receipt = await receiptDescriptor(state, marker);
     if (receipt) receipts.push(receipt);
     if (marker.suiteStatus) suiteStatusPath = marker.suiteStatus;
-    const terminalAt = receipt?.summary?.recordedAt ?? marker.recordedAt ?? new Date().toISOString();
+    const firstGreenAt = marker.status === "green"
+      ? (receipt?.summary?.recordedAt ?? marker.recordedAt)
+      : null;
+    const terminalAt = terminalTimes.get(marker.milestone)
+      ?? marker.recordedAt
+      ?? new Date().toISOString();
+    if (firstGreenAt !== null && Date.parse(firstGreenAt) > Date.parse(terminalAt)) {
+      throw new Error(`${marker.milestone} first-green evidence follows its controller terminal`);
+    }
     boundaries.milestones[marker.milestone] = {
       status: marker.status,
-      firstGreenAt: marker.status === "green" ? terminalAt : null,
-      suitePassAt: marker.status === "green" ? terminalAt : null,
-      choreoPassAt: marker.status === "green" ? terminalAt : null,
+      firstGreenAt,
+      suitePassAt: firstGreenAt,
+      choreoPassAt: firstGreenAt,
       terminalAt,
       terminalSequence: index + 1,
       terminalReason: marker.terminalReason,
@@ -690,8 +719,8 @@ async function writeTerminalArtifacts(state, error) {
     driver: { id: DRIVER_ID, startedAt: state.startedAt, stampedAt: new Date().toISOString() },
     clockCorrelation: {
       method: "rfc3339-with-bounded-skew",
-      maxSkewMillis: 5_000,
-      evidence: "controller and native CLI use the same host clock; 5s covers receipt-to-final-sample handoff",
+      maxSkewMillis: 0,
+      evidence: "native CLI and controller stamps use the same host system clock; terminalAt is the controller's final retained observation, not a cross-host correlation",
     },
   };
   await writeFile(join(state.root, "metering-manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);

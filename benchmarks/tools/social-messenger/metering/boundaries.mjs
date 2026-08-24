@@ -135,8 +135,8 @@ function boundaryFromValue(value, label, { requireTerminal = false } = {}) {
       if (terminalReason !== "green" || firstGreenAt === null) {
         throw new Error(`${label} green terminal boundary requires firstGreenAt and reason green`);
       }
-      if (Date.parse(firstGreenAt) !== Date.parse(terminalAt)) {
-        throw new Error(`${label}.firstGreenAt must equal the green terminal boundary`);
+      if (Date.parse(firstGreenAt) > Date.parse(terminalAt)) {
+        throw new Error(`${label}.firstGreenAt cannot follow the green terminal boundary`);
       }
     } else {
       const expectedReason = status === "aborted"
@@ -205,9 +205,9 @@ export function boundariesFromReceiptRecords(records, label = "receipt stream") 
         choreoPassAt: record.choreography?.pass === true ? recordedAt : null,
         firstGreenAt: record.green === true ? recordedAt : null,
         status: record.green === true ? "green" : null,
-        terminalAt: record.green === true ? recordedAt : null,
+        terminalAt: null,
         terminalSequence: null,
-        terminalReason: record.green === true ? "green" : null,
+        terminalReason: null,
       });
       continue;
     }

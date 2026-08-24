@@ -1,0 +1,97 @@
+{
+  "manifestVersion": "social-messenger-metering-manifest.v1",
+  "laneRunId": "2026-08-23-r2-published-0125/sol-clique-explicit",
+  "capFamily": "gpt-frontier",
+  "adapter": "codex",
+  "unavailableReason": null,
+  "sessions": [
+    {
+      "sourceId": "builder",
+      "parentSourceId": null,
+      "role": "builder",
+      "nativeSessionId": "01a03304-e4e2-71d0-892e-bf0440eac5b2",
+      "nativeAgentId": null,
+      "path": "events/codex-rollout.jsonl",
+      "sha256": "sha256:f9838d32f9f1357eb40ed7661d350cc9e341431ab0fcc3df0dc6e280e2035c0d"
+    }
+  ],
+  "receipts": [
+    {
+      "sourceId": "m1-choreography",
+      "runId": "13006b0d-05c3-4a94-84ff-8b503d45b60c",
+      "milestone": "M1",
+      "path": "receipts/m1-choreography.jsonl",
+      "sha256": "sha256:cf2e882e18b3e11d60cb0b65d51a81162651efa6036b65d1630fc69cd5647944"
+    },
+    {
+      "sourceId": "m2-choreography",
+      "runId": "b62d1b67-35d8-4bca-b493-8e1b38f02382",
+      "milestone": "M2",
+      "path": "receipts/m2-choreography.jsonl",
+      "sha256": "sha256:d259024b356095c38b973840c11c7ae38342b4f7c7b53fda5c3bf096e706f89c"
+    },
+    {
+      "sourceId": "m3-choreography",
+      "runId": "7d12326c-c0bd-4fbe-8931-78791b3ec156",
+      "milestone": "M3",
+      "path": "receipts/m3-choreography.jsonl",
+      "sha256": "sha256:05b53f51edef1c93fd1b507eac43742610d748f3e301d9a5129f94d0e72a3737"
+    }
+  ],
+  "observations": [
+    {
+      "sourceId": "m1-suite-observations",
+      "path": "receipts/m1-suite.observations.jsonl",
+      "sha256": "sha256:9d0b9d3b9de0cfba1270bb730346339addb6d1a9f2f7aebd656108b4ff6f9fbe"
+    },
+    {
+      "sourceId": "m1-choreography-observations",
+      "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+      "sha256": "sha256:d3d285608c6f0799c77533006348fa61a72e831899afc7279e922eb545ac147f"
+    },
+    {
+      "sourceId": "m2-suite-observations",
+      "path": "receipts/m2-suite.observations.jsonl",
+      "sha256": "sha256:a0274e9b3032e23a2ededb0ffbfc1918057b8d5b735178f823d27adbd37d7886"
+    },
+    {
+      "sourceId": "m2-choreography-observations",
+      "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+      "sha256": "sha256:f82a8734cd1e343bc836b3908f3303f642061bc6686d891d098a8c50e641db5c"
+    },
+    {
+      "sourceId": "m3-suite-observations",
+      "path": "receipts/m3-suite.observations.jsonl",
+      "sha256": "sha256:a4c1faa7df1501898d80c10131fd2dc60d03b04bacaa26d435e3dd1da76396c8"
+    },
+    {
+      "sourceId": "m3-choreography-observations",
+      "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+      "sha256": "sha256:99ff2bf0f831e08fff2d2506a116d3135a38bc727fd809d8363b5d751e5c0805"
+    },
+    {
+      "sourceId": "2026-08-23-r2-published-0125/sol-clique-explicit-lane-controller",
+      "path": "events/lane-controller-observations.jsonl",
+      "sha256": "sha256:8098e3f1589151e6540c5ec00840531ebc6471fb244eb43c048e5da8c62a9363"
+    }
+  ],
+  "suiteStatus": {
+    "path": "suite-status.json",
+    "sha256": "sha256:1b66c7025f0afe8eddb5ab2d217811c3856b33c20c786870e9fb202eca0cbc78"
+  },
+  "boundaries": {
+    "path": "terminal-boundaries.json",
+    "sha256": "sha256:1fcd53f32deec0c23087e2c06a7f194a7493395e92425ac6d98d3cbb6626ab36"
+  },
+  "firstProductEdit": null,
+  "driver": {
+    "id": "social-messenger-r2-native-cli-driver.v1",
+    "startedAt": "2026-08-24T09:05:53.827Z",
+    "stampedAt": "2026-08-24T10:10:23.198Z"
+  },
+  "clockCorrelation": {
+    "method": "rfc3339-with-bounded-skew",
+    "maxSkewMillis": 5000,
+    "evidence": "controller and native CLI use the same host clock; 5s covers receipt-to-final-sample handoff"
+  }
+}

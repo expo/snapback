@@ -20,3 +20,18 @@ session metadata and the first three contiguous `token_count` records only.
 Prompts, responses, tool arguments, and transcript content are omitted. The
 fixture demonstrates that parent and subagent cumulative counters are
 independent and that every cumulative delta matches `last_token_usage`.
+
+`real-codex-0149-zero-delta.jsonl` is a usage-only prefix from the immutable
+2026-08-24 R2 cell-1 rollout retained at
+`/Users/ccheever/bench-matrix-20260823-r2/cells/sol-clique-explicit/events/codex-rollout.jsonl`.
+It contains a minimized `session_meta` carrying native session identity and
+`cli_version: "0.149.0"`, followed by every `token_count.info` record needed to
+validate the cumulative chain through native ordinal 710. Prompts, responses,
+tool calls, and unrelated session metadata are omitted. The last JSONL line is
+the exact retained ordinal-710 event bytes, including its native envelope; its
+line SHA-256 is
+`144d9413f662621e63bdd63f622b0da791d31c30ef63befe53b2f604a7489254`.
+That event repeats the prior cumulative snapshot unchanged while carrying zero
+component counters and the contradictory advisory
+`last_token_usage.total_tokens: 15283`. No credentials or application content
+are copied into the fixture.

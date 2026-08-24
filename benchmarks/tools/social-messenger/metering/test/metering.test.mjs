@@ -21,6 +21,8 @@ import {
 import {
   adaptCodexSession,
   adaptCodexSessionTree,
+  CODEX_0149_ZERO_DELTA_RULE,
+  CODEX_ADAPTER_VERSION,
 } from "../adapters/codex-session.mjs";
 import { adaptUnavailableFamily } from "../adapters/unavailable.mjs";
 import {
@@ -30,7 +32,11 @@ import {
 } from "../boundaries.mjs";
 import { joinUsageToMilestones } from "../joiner.mjs";
 import { parseJsonLines } from "../jsonl.mjs";
-import { loadMeteringManifest } from "../manifest.mjs";
+import {
+  applyR2DriverV1TerminalCompatibility,
+  loadMeteringManifest,
+  R2_DRIVER_V1_TERMINAL_RULE,
+} from "../manifest.mjs";
 import {
   loadLaneControllerConfig,
   R2LaneController,
@@ -269,6 +275,161 @@ test("Codex adapter differences every session's cumulative counters", async () =
     () => adaptCodexSession(truncated),
     /cumulative delta does not equal last_token_usage/u,
   );
+});
+
+test("Codex 0.149 unchanged cumulative snapshot ignores only its malformed advisory total", async () => {
+  const fixture = await fixtureText("real-codex-0149-zero-delta.jsonl");
+  const lines = fixture.trimEnd().split("\n");
+  assert.equal(
+    sha256(lines.at(-1)),
+    "sha256:144d9413f662621e63bdd63f622b0da791d31c30ef63befe53b2f604a7489254",
+    "the malformed token_count line must retain the exact retained bytes",
+  );
+  const records = parseJsonLines(fixture, "retained Codex 0.149 zero-delta fixture");
+  const retainedSession = {
+    sourceId: "builder",
+    nativeSessionId: "01a03304-e4e2-71d0-892e-bf0440eac5b2",
+    records,
+  };
+  const channel = adaptCodexSessionTree([retainedSession]);
+  assert.equal(channel.adapterVersion, CODEX_ADAPTER_VERSION);
+  assert.equal(channel.turns.length, 111, "the repeated cumulative snapshot cannot create a turn");
+  assert.deepEqual(channel.compatibilityEvents, [{
+    ruleId: CODEX_0149_ZERO_DELTA_RULE,
+    sourceId: "builder",
+    nativeSessionId: "01a03304-e4e2-71d0-892e-bf0440eac5b2",
+    recordIndex: 113,
+    recordedAt: "2026-08-24T09:38:08.701Z",
+    nativeCliVersion: "0.149.0",
+    cumulativeUnchanged: true,
+    ignoredLastTokenUsage: {
+      inputTokens: 0,
+      cachedInputTokens: 0,
+      cacheWriteInputTokens: 0,
+      outputTokens: 0,
+      reasoningOutputTokens: 0,
+      totalTokens: 15_283,
+    },
+  }]);
+
+  const joined = joinUsageToMilestones({
+    channel,
+    boundaries: {
+      M1: {
+        status: "aborted",
+        firstGreenAt: null,
+        suitePassAt: null,
+        choreoPassAt: null,
+        terminalAt: "2026-08-24T09:38:09.000Z",
+        terminalSequence: 1,
+        terminalReason: "abort",
+      },
+    },
+  });
+  assert.deepEqual(joined.totals, counts(321_961, 64_301, 15_223_040, 0, 20_864));
+  assert.deepEqual(joined.milestones.M1.authoring.tokens, joined.totals);
+
+  const advancing = structuredClone(records);
+  const advancingUsage = advancing.at(-1).payload.info.total_token_usage;
+  advancingUsage.input_tokens += 1;
+  advancingUsage.total_tokens += 1;
+  assert.throws(
+    () => adaptCodexSessionTree([{ ...retainedSession, records: advancing }]),
+    /last_token_usage\.total_tokens does not equal input_tokens \+ output_tokens/u,
+    "the 0.149 rule must not excuse malformed last usage when cumulative usage advances",
+  );
+
+  const wrongVersion = structuredClone(records);
+  wrongVersion[0].payload.cli_version = "0.148.0";
+  assert.throws(
+    () => adaptCodexSessionTree([{ ...retainedSession, records: wrongVersion }]),
+    /last_token_usage\.total_tokens does not equal input_tokens \+ output_tokens/u,
+    "the compatibility rule must stay tied to the observed 0.149.0 native shape",
+  );
+});
+
+test("Codex preserves an absent optional reasoning counter as null", () => {
+  const channel = adaptCodexSession([{
+    timestamp: "2026-08-24T11:00:00.000Z",
+    type: "session_meta",
+    payload: { id: "optional-reasoning", cli_version: "0.149.0" },
+  }, {
+    timestamp: "2026-08-24T11:00:01.000Z",
+    type: "event_msg",
+    payload: {
+      type: "token_count",
+      info: {
+        total_token_usage: {
+          input_tokens: 12,
+          cached_input_tokens: 2,
+          cache_write_input_tokens: 0,
+          output_tokens: 3,
+          total_tokens: 15,
+        },
+        last_token_usage: {
+          input_tokens: 12,
+          cached_input_tokens: 2,
+          cache_write_input_tokens: 0,
+          output_tokens: 3,
+          total_tokens: 15,
+        },
+      },
+    },
+  }]);
+  assert.equal(channel.turns[0].usage.reasoning, null);
+});
+
+test("retained R2 driver v1 advances terminals only from later hash-bound observations", () => {
+  const originalClockCorrelation = {
+    method: "rfc3339-with-bounded-skew",
+    maxSkewMillis: 5_000,
+    evidence: "controller and native CLI use the same host clock; 5s covers receipt-to-final-sample handoff",
+  };
+  const boundaryValue = {
+    M1: {
+      status: "green",
+      firstGreenAt: "2026-08-24T09:54:04.184Z",
+      suitePassAt: "2026-08-24T09:54:04.184Z",
+      choreoPassAt: "2026-08-24T09:53:54.802Z",
+      terminalAt: "2026-08-24T09:54:04.184Z",
+      terminalSequence: 1,
+      terminalReason: "green",
+    },
+  };
+  const result = applyR2DriverV1TerminalCompatibility({
+    manifest: { driver: { id: "social-messenger-r2-native-cli-driver.v1" } },
+    boundaryValue,
+    observationEvents: [{
+      milestone: "M1",
+      at: "2026-08-24T09:54:53.931Z",
+      sequence: 1,
+    }],
+    clockCorrelation: originalClockCorrelation,
+  });
+
+  assert.equal(boundaryValue.M1.terminalAt, "2026-08-24T09:54:04.184Z");
+  assert.equal(result.boundaryValue.M1.firstGreenAt, "2026-08-24T09:54:04.184Z");
+  assert.equal(result.boundaryValue.M1.terminalAt, "2026-08-24T09:54:53.931Z");
+  assert.equal(result.clockCorrelation.maxSkewMillis, 0);
+  assert.deepEqual(result.compatibilityEvents[0].terminalAdjustments, [{
+    milestone: "M1",
+    originalTerminalAt: "2026-08-24T09:54:04.184Z",
+    effectiveTerminalAt: "2026-08-24T09:54:53.931Z",
+  }]);
+  assert.equal(result.compatibilityEvents[0].ruleId, R2_DRIVER_V1_TERMINAL_RULE);
+
+  const unversioned = applyR2DriverV1TerminalCompatibility({
+    manifest: { driver: { id: "some-other-driver" } },
+    boundaryValue,
+    observationEvents: [{
+      milestone: "M1",
+      at: "2026-08-24T09:54:53.931Z",
+      sequence: 1,
+    }],
+    clockCorrelation: originalClockCorrelation,
+  });
+  assert.equal(unversioned.boundaryValue, boundaryValue);
+  assert.deepEqual(unversioned.compatibilityEvents, []);
 });
 
 test("retained real Codex parent and subagent deltas checksum and aggregate independently", async () => {

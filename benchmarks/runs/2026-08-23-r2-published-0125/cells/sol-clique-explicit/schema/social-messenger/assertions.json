@@ -1,0 +1,1203 @@
+{
+  "manifestVersion": "0.3.0-m8",
+  "title": "social-messenger assertion-ID manifest",
+  "provenance": {
+    "brief": "benchmarks/briefs/social-messenger.md (Milestones section, acceptance checklists; Executors and Statuses paragraphs)",
+    "plan": "llp/0201-social-messenger-canonical-benchmark.plan.md (D2 coverage-manifest rule, D3 executor split)",
+    "phase": "LLP 0201 P2 hardening — DRAFT until the P3 freeze pins hashes",
+    "note": "Every numbered acceptance checklist item of M1-M8 is split into atomic assertions, one per observable clause, per the brief's Executors paragraph ('every assertion (not merely every numbered item - compound items get one class per clause) is assigned exactly one executor class'). IDs are stable from P1 forward; the P3 freeze may add assertions but never renumbers existing ones. P2 marks M6 simulator assertions greenRequired:false because their lane-native artifact is recorded and scored separately from web authoring green. M8 was added by LLP 0201's 2026-08-11 dated amendment (additive; prior records record M8 not-run)."
+  },
+  "executorClasses": {
+    "suite-required": "The builder's scripted acceptance suite must cover it; the harness validates a coverage manifest mapping every suite-required assertion to a test. Green requires a passing coverage-validated suite run.",
+    "choreo": "Two-client web behavior executed by the choreography harness, plus M6 simulator behavior recorded through a separate lane-native artifact. A milestone's green receipt requires its web choreography segment; assertions explicitly marked greenRequired:false remain separately scored evidence.",
+    "grader": "Source inspection, API probing, snapshot comparison - grader phase only; never gates the milestone's green receipt."
+  },
+  "runScopeValues": {
+    "all": "Asserted whenever the milestone is in the run's scope (reduced = M1-M3, full = M1-M8).",
+    "full-only": "Asserted on full runs only, even though the milestone is also in reduced scope (the brief marks these explicitly)."
+  },
+  "milestones": {
+    "M1": {
+      "title": "Accounts and profiles",
+      "checklistItems": 7,
+      "assertions": [
+        {
+          "id": "m1-a01",
+          "checklistItem": 1,
+          "text": "Sign up as a new user with email + password (password >= 8 chars) succeeds.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m1-a02",
+          "checklistItem": 1,
+          "text": "After signup the app lands in the authenticated state.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m1-a03",
+          "checklistItem": 2,
+          "text": "Signing up with a duplicate handle is rejected with a visible error.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m1-a04",
+          "checklistItem": 2,
+          "text": "Signing up with a duplicate email is rejected with a visible error.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m1-a05",
+          "checklistItem": 3,
+          "text": "Kill and relaunch the app; the session persists (still signed in).",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "app-restart"
+          ],
+          "notes": "App kill/relaunch is client-lifecycle behavior driven by the harness choreography script, not the scripted suite."
+        },
+        {
+          "id": "m1-a06",
+          "checklistItem": 4,
+          "text": "Log out, relaunch: the app is signed out.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "app-restart"
+          ]
+        },
+        {
+          "id": "m1-a07",
+          "checklistItem": 4,
+          "text": "After logout the old session token no longer works against the backend (server-side revocation, verified via the API).",
+          "executor": "grader",
+          "runScope": "full-only",
+          "tags": [
+            "api"
+          ],
+          "notes": "The brief marks this API sub-assertion run-scope-conditional: [grader] via the API on full runs only."
+        },
+        {
+          "id": "m1-a08",
+          "checklistItem": 5,
+          "text": "Editing display name and bio persists (updated values shown on own profile).",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m1-a09",
+          "checklistItem": 5,
+          "text": "Display-name and bio edits are visible on the other client without manual refresh.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "two-client",
+            "timing-sensitive"
+          ]
+        },
+        {
+          "id": "m1-a10",
+          "checklistItem": 6,
+          "text": "Uploading a fixture avatar succeeds.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m1-a11",
+          "checklistItem": 6,
+          "text": "The uploaded avatar renders on the profile (avatars beside posts and messages are asserted at M2/M3, where those surfaces exist).",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m1-a12",
+          "checklistItem": 7,
+          "text": "Source inspection: passwords are stored via built-in auth or a named adaptive KDF (argon2id, scrypt, or bcrypt at standard published parameters); a managed auth provider qualifies by its documentation, with the grader verifying the lane uses the documented provider path, not provider internals.",
+          "executor": "grader",
+          "runScope": "all",
+          "tags": [
+            "source-inspection"
+          ]
+        },
+        {
+          "id": "m1-a13",
+          "checklistItem": 7,
+          "text": "No plaintext or reversible password storage in server persistence, client bundles, or logs (the fixture pack's credential files are a declared test-fixture exception - they live outside the app).",
+          "executor": "grader",
+          "runScope": "all",
+          "tags": [
+            "source-inspection"
+          ]
+        }
+      ]
+    },
+    "M2": {
+      "title": "Posts and the follow graph",
+      "checklistItems": 8,
+      "assertions": [
+        {
+          "id": "m2-a01",
+          "checklistItem": 1,
+          "text": "Create a text post.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a02",
+          "checklistItem": 1,
+          "text": "Create an image post with 2 fixture images.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a03",
+          "checklistItem": 1,
+          "text": "Create a video post.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a04",
+          "checklistItem": 1,
+          "text": "All three created posts render in the Global feed on the other client without manual refresh.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "two-client",
+            "timing-sensitive"
+          ]
+        },
+        {
+          "id": "m2-a05",
+          "checklistItem": 1,
+          "text": "Feed items render with the author's avatar and display name.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "two-client"
+          ]
+        },
+        {
+          "id": "m2-a06",
+          "checklistItem": 2,
+          "text": "Bob follows Alice; Alice's posts appear in Bob's Following feed.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a07",
+          "checklistItem": 2,
+          "text": "Alice's follower count updates live when Bob follows her.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "two-client",
+            "timing-sensitive"
+          ]
+        },
+        {
+          "id": "m2-a08",
+          "checklistItem": 2,
+          "text": "After Bob unfollows, on next feed load Alice's posts (including older ones) no longer appear in his Following feed.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a09",
+          "checklistItem": 2,
+          "text": "After the unfollow, Alice's posts remain visible in the Global feed (unfollow is projection-scoped, not content revocation).",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a10",
+          "checklistItem": 3,
+          "text": "A post from a user Bob doesn't follow appears in his Global feed.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a11",
+          "checklistItem": 3,
+          "text": "That same post is absent from Bob's Following feed.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a12",
+          "checklistItem": 4,
+          "text": "An http(s) URL in a text post renders as tappable text opening the system browser.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a13",
+          "checklistItem": 4,
+          "text": "No preview card renders for the URL (no unfurling).",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a14",
+          "checklistItem": 5,
+          "text": "Like from client B; the like count updates live on client A.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "two-client",
+            "timing-sensitive"
+          ]
+        },
+        {
+          "id": "m2-a15",
+          "checklistItem": 5,
+          "text": "Unlike works: the like is cleared and the count decrements (idempotent set-state toggle).",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a16",
+          "checklistItem": 6,
+          "text": "Repost from client B; feeds show the repost attributed 'reposted by {display name}'.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a17",
+          "checklistItem": 6,
+          "text": "Reposting again removes the repost (toggle).",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a18",
+          "checklistItem": 6,
+          "text": "A repost by a followed user surfaces the original author's post in the Following feed.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a19",
+          "checklistItem": 7,
+          "text": "Reply to a post; the parent's reply count increments live.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "two-client",
+            "timing-sensitive"
+          ]
+        },
+        {
+          "id": "m2-a20",
+          "checklistItem": 7,
+          "text": "The thread screen shows the parent and its direct replies in chronological order.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a21",
+          "checklistItem": 7,
+          "text": "The reply is absent from both feeds (replies appear only on thread screens).",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a22",
+          "checklistItem": 8,
+          "text": "With >20 seeded posts, scrolling loads the next page (20 per page) in the Following tab.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a23",
+          "checklistItem": 8,
+          "text": "With >20 seeded posts, scrolling loads the next page in the Global tab.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a24",
+          "checklistItem": 8,
+          "text": "Feed pagination produces no duplicates and no gaps across pages in either tab.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a25",
+          "checklistItem": 2,
+          "text": "With no explicit self-follow edge, Bob's own original posts remain in his Following feed, including when he follows no other accounts.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a26",
+          "checklistItem": 2,
+          "text": "With no explicit self-follow edge, Bob's own reposts remain in his Following feed.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m2-a27",
+          "checklistItem": 2,
+          "text": "Implicit self-follow feed membership does not change Bob's follower or following counts.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        }
+      ]
+    },
+    "M3": {
+      "title": "Messaging core",
+      "checklistItems": 7,
+      "assertions": [
+        {
+          "id": "m3-a01",
+          "checklistItem": 1,
+          "text": "Alice DMs Bob and Bob replies; both clients see the messages live.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "two-client",
+            "timing-sensitive"
+          ]
+        },
+        {
+          "id": "m3-a02",
+          "checklistItem": 1,
+          "text": "DM messages render with sender avatars.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "two-client"
+          ]
+        },
+        {
+          "id": "m3-a03",
+          "checklistItem": 1,
+          "text": "Starting the 'same' DM again reuses the existing channel (at most one DM channel per user pair).",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m3-a04",
+          "checklistItem": 2,
+          "text": "Create a group with Alice, Bob, and Carol.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m3-a05",
+          "checklistItem": 2,
+          "text": "A second group with the same three members coexists as a distinct group.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m3-a06",
+          "checklistItem": 3,
+          "text": "Bob types; Alice sees the '…' typing indicator within 2 s.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "two-client",
+            "timing-sensitive"
+          ]
+        },
+        {
+          "id": "m3-a07",
+          "checklistItem": 3,
+          "text": "The typing indicator expires within 5 s of Bob's last keystroke.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "two-client",
+            "timing-sensitive"
+          ]
+        },
+        {
+          "id": "m3-a08",
+          "checklistItem": 4,
+          "text": "Receipt ticks transition sent -> delivered -> read, monotonically, as Bob's client fetches and then opens the conversation.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "two-client",
+            "timing-sensitive"
+          ]
+        },
+        {
+          "id": "m3-a09",
+          "checklistItem": 4,
+          "text": "The group aggregate indicator shows a state only when every member of the message's recipient set (membership at send time) has reached it - it waits for the slowest member.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "two-client"
+          ]
+        },
+        {
+          "id": "m3-a10",
+          "checklistItem": 5,
+          "text": "A quoted reply renders the quoted excerpt in its bubble.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m3-a11",
+          "checklistItem": 5,
+          "text": "Tapping the quoted excerpt scrolls/jumps to the original message.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": [],
+          "notes": "Single-client UI interaction: suite-covered (web automation), not two-client choreography."
+        },
+        {
+          "id": "m3-a12",
+          "checklistItem": 6,
+          "text": "Admin removes Carol; she immediately stops receiving new messages.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "two-client"
+          ]
+        },
+        {
+          "id": "m3-a13",
+          "checklistItem": 6,
+          "text": "The removed member still sees her local copy of pre-removal history.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "two-client"
+          ],
+          "notes": "Client-local retention observed on the removed member's client."
+        },
+        {
+          "id": "m3-a14",
+          "checklistItem": 6,
+          "text": "A non-admin cannot remove members.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m3-a15",
+          "checklistItem": 7,
+          "text": "The seed is idempotent: a second run produces no duplicates - judged per installed segment, covering every starter-log segment installed so far (each milestone's suite re-runs this).",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        }
+      ]
+    },
+    "M4": {
+      "title": "Media messages, reactions, edit/delete",
+      "checklistItems": 5,
+      "assertions": [
+        {
+          "id": "m4-a01",
+          "checklistItem": 1,
+          "text": "Photo message end-to-end: Alice picks a fixture image and sends it as a message.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m4-a02",
+          "checklistItem": 1,
+          "text": "Bob sees the photo rendered inline from a query result (not a placeholder), live.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "two-client",
+            "timing-sensitive"
+          ]
+        },
+        {
+          "id": "m4-a03",
+          "checklistItem": 2,
+          "text": "Video message end-to-end: a fixture video sends as a message.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m4-a04",
+          "checklistItem": 2,
+          "text": "The video message plays on the recipient.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "two-client"
+          ]
+        },
+        {
+          "id": "m4-a05",
+          "checklistItem": 3,
+          "text": "Bob reacts 👍; Alice sees the reaction live.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "two-client",
+            "timing-sensitive"
+          ]
+        },
+        {
+          "id": "m4-a06",
+          "checklistItem": 3,
+          "text": "Bob switches to ❤️: the new emoji replaces the previous one (at most one reaction per user per message).",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m4-a07",
+          "checklistItem": 3,
+          "text": "Bob taps ❤️ again: the reaction is removed.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m4-a08",
+          "checklistItem": 4,
+          "text": "Alice edits a sent message within the window; Bob sees the new text live.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "two-client",
+            "timing-sensitive"
+          ]
+        },
+        {
+          "id": "m4-a09",
+          "checklistItem": 4,
+          "text": "The edited bubble shows an 'edited' label.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m4-a10",
+          "checklistItem": 4,
+          "text": "Under the shortened-windows config, an edit attempted after the window is rejected server-side (verified via the API, not just the absence of the UI affordance).",
+          "executor": "grader",
+          "runScope": "all",
+          "tags": [
+            "api",
+            "shortened-windows"
+          ]
+        },
+        {
+          "id": "m4-a11",
+          "checklistItem": 5,
+          "text": "Alice deletes a message (delete-for-everyone); Bob sees the 'This message was deleted' tombstone.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "two-client"
+          ]
+        },
+        {
+          "id": "m4-a12",
+          "checklistItem": 5,
+          "text": "After the delete, the media URL no longer serves the asset.",
+          "executor": "grader",
+          "runScope": "all",
+          "tags": [
+            "api",
+            "asset-fetch"
+          ]
+        }
+      ]
+    },
+    "M5": {
+      "title": "Ephemeral, chat config, search",
+      "checklistItems": 5,
+      "assertions": [
+        {
+          "id": "m5-a01",
+          "checklistItem": 1,
+          "text": "Set a DM to disappearing (shortened-windows config): with both clients closed at expiry, the server refuses the expired message (API check).",
+          "executor": "grader",
+          "runScope": "all",
+          "tags": [
+            "api",
+            "shortened-windows"
+          ],
+          "notes": "Checklist item 1 is tagged [grader] in the brief; all three of its clauses grade in the grader phase."
+        },
+        {
+          "id": "m5-a02",
+          "checklistItem": 1,
+          "text": "Each client purges the expired message on next launch/reconnect (connected: within tolerance; disconnected: immediately on reconnect).",
+          "executor": "grader",
+          "runScope": "all",
+          "tags": [
+            "shortened-windows"
+          ],
+          "notes": "Grader-verified via web automation per the item's [grader] tag."
+        },
+        {
+          "id": "m5-a03",
+          "checklistItem": 1,
+          "text": "The expired message no longer appears in offline search after the client has synced the expiry.",
+          "executor": "grader",
+          "runScope": "all",
+          "tags": [
+            "shortened-windows"
+          ]
+        },
+        {
+          "id": "m5-a04",
+          "checklistItem": 2,
+          "text": "View-once photo: Bob can open it exactly once (first open works).",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m5-a05",
+          "checklistItem": 2,
+          "text": "Bob's second open of the view-once photo is denied.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m5-a06",
+          "checklistItem": 2,
+          "text": "A direct asset fetch after the view is refused server-side.",
+          "executor": "grader",
+          "runScope": "all",
+          "tags": [
+            "api",
+            "asset-fetch"
+          ]
+        },
+        {
+          "id": "m5-a07",
+          "checklistItem": 3,
+          "text": "Admin sets the group accent color and background; Carol sees both (customization synced to all members).",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "two-client"
+          ]
+        },
+        {
+          "id": "m5-a08",
+          "checklistItem": 3,
+          "text": "A non-admin cannot rename the group.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m5-a09",
+          "checklistItem": 4,
+          "text": "People search finds 'car' -> Carol (case-insensitive word-prefix matching).",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m5-a10",
+          "checklistItem": 4,
+          "text": "In-chat search finds a known seeded string.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m5-a11",
+          "checklistItem": 4,
+          "text": "Global message search groups results by chat.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m5-a12",
+          "checklistItem": 5,
+          "text": "Warm-offline: with the app running, connectivity cut, search over previously synced messages still returns results (no restart - cold-start offline search is verified at M6).",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "offline"
+          ]
+        }
+      ]
+    },
+    "M6": {
+      "title": "Offline writes, push seam, custom-client API",
+      "checklistItems": 6,
+      "assertions": [
+        {
+          "id": "m6-a01",
+          "checklistItem": 1,
+          "text": "Cold-start offline (iOS simulator, backend stopped): previously synced chats and message history render.",
+          "executor": "choreo",
+          "greenRequired": false,
+          "runScope": "all",
+          "tags": [
+            "simulator",
+            "offline",
+            "native-artifact"
+          ]
+        },
+        {
+          "id": "m6-a02",
+          "checklistItem": 1,
+          "text": "Cold-start offline: previously viewed media renders.",
+          "executor": "choreo",
+          "greenRequired": false,
+          "runScope": "all",
+          "tags": [
+            "simulator",
+            "offline",
+            "native-artifact"
+          ]
+        },
+        {
+          "id": "m6-a03",
+          "checklistItem": 1,
+          "text": "Cold-start offline: search over synced messages works.",
+          "executor": "choreo",
+          "greenRequired": false,
+          "runScope": "all",
+          "tags": [
+            "simulator",
+            "offline",
+            "native-artifact"
+          ]
+        },
+        {
+          "id": "m6-a04",
+          "checklistItem": 1,
+          "text": "Cold-start offline: a previously viewed view-once photo does NOT render (view-once media is never durably cached).",
+          "executor": "choreo",
+          "greenRequired": false,
+          "runScope": "all",
+          "tags": [
+            "simulator",
+            "offline",
+            "native-artifact"
+          ]
+        },
+        {
+          "id": "m6-a05",
+          "checklistItem": 2,
+          "text": "Two messages composed offline both show a visible pending state.",
+          "executor": "choreo",
+          "greenRequired": false,
+          "runScope": "all",
+          "tags": [
+            "simulator",
+            "offline",
+            "native-artifact"
+          ]
+        },
+        {
+          "id": "m6-a06",
+          "checklistItem": 2,
+          "text": "On reconnect the queued messages flush and arrive in order.",
+          "executor": "choreo",
+          "greenRequired": false,
+          "runScope": "all",
+          "tags": [
+            "simulator",
+            "offline",
+            "native-artifact"
+          ]
+        },
+        {
+          "id": "m6-a07",
+          "checklistItem": 2,
+          "text": "The flushed messages walk the normal receipt states and reach 'read'.",
+          "executor": "choreo",
+          "greenRequired": false,
+          "runScope": "all",
+          "tags": [
+            "simulator",
+            "offline",
+            "native-artifact"
+          ]
+        },
+        {
+          "id": "m6-a08",
+          "checklistItem": 3,
+          "text": "With Bob's clients closed, Alice messages him: the backend logs a push payload with the correct targetUserId, chatId, senderDisplayName, and preview (first 80 chars of text, or 'Photo'/'Video' for media).",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m6-a09",
+          "checklistItem": 3,
+          "text": "A view-once photo previews as 'Photo' in the logged push payload.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m6-a10",
+          "checklistItem": 4,
+          "text": "scripts/custom-client-demo.mjs runs green against the live backend from a clean checkout.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m6-a11",
+          "checklistItem": 4,
+          "text": "The demo script exercises every listed API operation: authenticate (or use an issued token), list conversations, page through message history, send a text message, and receive new messages (streaming or documented polling).",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m6-a12",
+          "checklistItem": 5,
+          "text": "Grader-written variation: following only API.md, fetch the latest message of a named conversation (documentation quality is part of the bar).",
+          "executor": "grader",
+          "runScope": "all",
+          "tags": [
+            "api"
+          ]
+        },
+        {
+          "id": "m6-a13",
+          "checklistItem": 6,
+          "text": "The scale-replay adapter passes the fixture pack's action-schema conformance check: it replays a 50-action sample log green, harness-validated, on the dev instance (adapter authoring is inside M6's coverage manifest, cap, and authoring clock).",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": [
+            "harness-validated"
+          ],
+          "notes": "The brief places this inside M6's coverage manifest (hence suite-required) while the pass receipt is harness-validated; see the manifest README's ambiguity log."
+        }
+      ]
+    },
+    "M7": {
+      "title": "Day-2 evolution (fresh session, after M1-M6 grading)",
+      "checklistItems": 5,
+      "assertions": [
+        {
+          "id": "m7-a01",
+          "checklistItem": 1,
+          "text": "Create a poll in a group: question (<=200 chars) with 2-4 options (<=50 chars each).",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m7-a02",
+          "checklistItem": 1,
+          "text": "Members vote; live tallies update on all members' clients.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "two-client",
+            "timing-sensitive"
+          ]
+        },
+        {
+          "id": "m7-a03",
+          "checklistItem": 1,
+          "text": "Changing a vote adjusts the counts (one vote per user, changeable).",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m7-a04",
+          "checklistItem": 1,
+          "text": "A duplicate/retried vote intent does not flip state (idempotent set-state per the global ruling).",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m7-a05",
+          "checklistItem": 2,
+          "text": "An offline vote queues and settles on reconnect.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": [
+            "offline"
+          ]
+        },
+        {
+          "id": "m7-a06",
+          "checklistItem": 3,
+          "text": "Message counts are correct for pre-existing conversations (backfill): currently visible messages, excluding tombstoned and expired messages; polls count as messages.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m7-a07",
+          "checklistItem": 3,
+          "text": "Message counts increment with new messages (maintained forward), shown in chat settings.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m7-a08",
+          "checklistItem": 4,
+          "text": "Pre-existing messages, media, receipts, and reactions are intact after the migration, compared against the pre-M7 snapshot exported through the custom-client API over the M6 field manifest.",
+          "executor": "grader",
+          "runScope": "all",
+          "tags": [
+            "snapshot-comparison",
+            "api"
+          ]
+        },
+        {
+          "id": "m7-a09",
+          "checklistItem": 5,
+          "text": "The acceptance suites of previously-green milestones still pass (prior failures are preserved, not repaired under M7's budget).",
+          "executor": "suite-required",
+          "runScope": "all",
+          "conditionalOn": "previously-green-milestones",
+          "tags": [],
+          "notes": "Conditional per the brief's DAG note: the regression item applies only to milestones that were green before M7; prior failures are preserved."
+        }
+      ]
+    },
+    "M8": {
+      "title": "Insights, digest, and multi-device offline",
+      "checklistItems": 8,
+      "assertions": [
+        {
+          "id": "m8-a01",
+          "checklistItem": 1,
+          "text": "Alice's Insights screen shows the six lifetime totals (posts, likes received, reposts received, replies received, followers, following) matching the seeded content.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m8-a02",
+          "checklistItem": 1,
+          "text": "After Bob likes one of Alice's posts, a refresh of Alice's Insights increments her likes-received total.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m8-a03",
+          "checklistItem": 2,
+          "text": "The 7-day activity breakdown buckets a post created today under today (server-time UTC day boundaries).",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m8-a04",
+          "checklistItem": 2,
+          "text": "Days with no activity render as zero, not omitted.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m8-a05",
+          "checklistItem": 3,
+          "text": "Trending ranks the post with the most likes in the trailing 24 h first.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m8-a06",
+          "checklistItem": 3,
+          "text": "An older heavily-liked post (>24 h) is absent from Trending.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m8-a07",
+          "checklistItem": 3,
+          "text": "A like-count tie in Trending breaks newest-first.",
+          "executor": "suite-required",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m8-a08",
+          "checklistItem": 4,
+          "text": "Under the shortened digest config with every client closed, seeded activity produces exactly one logged digest payload per active user, with correct newFollowers, newPostsInFollowing, unreadMessages, and unreadChats counts.",
+          "executor": "grader",
+          "runScope": "all",
+          "tags": [
+            "scheduled",
+            "push-seam"
+          ]
+        },
+        {
+          "id": "m8-a09",
+          "checklistItem": 4,
+          "text": "A persona with no activity in the period receives no digest.",
+          "executor": "grader",
+          "runScope": "all",
+          "tags": [
+            "scheduled"
+          ]
+        },
+        {
+          "id": "m8-a10",
+          "checklistItem": 4,
+          "text": "A following period with no new activity emits no digest.",
+          "executor": "grader",
+          "runScope": "all",
+          "tags": [
+            "scheduled"
+          ]
+        },
+        {
+          "id": "m8-a11",
+          "checklistItem": 4,
+          "text": "A backend restart mid-period does not double-emit any user's digest (exactly one digest per user per period).",
+          "executor": "grader",
+          "runScope": "all",
+          "tags": [
+            "scheduled"
+          ]
+        },
+        {
+          "id": "m8-a12",
+          "checklistItem": 5,
+          "text": "Activity in a chat the target user is not a member of never contributes to that user's digest counts.",
+          "executor": "grader",
+          "runScope": "all",
+          "tags": [
+            "trust-boundary",
+            "scheduled"
+          ]
+        },
+        {
+          "id": "m8-a13",
+          "checklistItem": 6,
+          "text": "With Alice signed in on two clients, a message sent on client 1 appears on client 2 live.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m8-a14",
+          "checklistItem": 6,
+          "text": "Opening the conversation on client 1 clears the unread indication on client 2 (cross-device read state).",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m8-a15",
+          "checklistItem": 7,
+          "text": "With both of Alice's clients warm-offline, each composes one message in the same chat; on reconnect both settle in server-arrival order with no loss and no duplicates.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m8-a16",
+          "checklistItem": 7,
+          "text": "After the dual-offline reconnect the flushed messages' receipts advance normally.",
+          "executor": "choreo",
+          "runScope": "all",
+          "tags": []
+        },
+        {
+          "id": "m8-a17",
+          "checklistItem": 8,
+          "text": "Compose offline; kill and relaunch the app still offline: the queued messages render as pending (the offline queue is durable across restart).",
+          "executor": "choreo",
+          "greenRequired": false,
+          "runScope": "all",
+          "tags": [
+            "simulator",
+            "offline",
+            "native-artifact"
+          ]
+        },
+        {
+          "id": "m8-a18",
+          "checklistItem": 8,
+          "text": "On reconnect after the offline restart, the queued messages flush in order and reach 'read' normally.",
+          "executor": "choreo",
+          "greenRequired": false,
+          "runScope": "all",
+          "tags": [
+            "simulator",
+            "offline",
+            "native-artifact"
+          ]
+        }
+      ]
+    }
+  },
+  "counts": {
+    "checklistItems": {
+      "M1": 7,
+      "M2": 8,
+      "M3": 7,
+      "M4": 5,
+      "M5": 5,
+      "M6": 6,
+      "M7": 5,
+      "total": 51,
+      "M8": 8
+    },
+    "assertions": {
+      "M1": 13,
+      "M2": 24,
+      "M3": 15,
+      "M4": 12,
+      "M5": 12,
+      "M6": 13,
+      "M7": 9,
+      "total": 116,
+      "M8": 18
+    }
+  }
+}

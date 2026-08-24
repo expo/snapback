@@ -6,6 +6,10 @@ import {
 import { timestampMillis } from "../jsonl.mjs";
 import { TOKEN_SOURCES } from "../sources.mjs";
 
+export const CODEX_ADAPTER_VERSION = "codex-rollout-jsonl.v2";
+export const CODEX_0149_ZERO_DELTA_RULE =
+  "codex-0.149.0-unchanged-cumulative-zero-components-advisory-total.v1";
+
 function requiredCount(value, label) {
   if (!Number.isInteger(value) || value < 0) {
     throw new TypeError(`${label} must be a non-negative integer`);
@@ -16,6 +20,69 @@ function requiredCount(value, label) {
 function optionalCount(value, label) {
   if (value === undefined || value === null) return null;
   return requiredCount(value, label);
+}
+
+function codexCliVersion(records) {
+  const versions = new Set(records
+    .filter((record) => record?.type === "session_meta")
+    .map((record) => record?.payload?.cli_version)
+    .filter((value) => typeof value === "string" && value.length > 0));
+  if (versions.size > 1) {
+    throw new Error("Codex session carries conflicting cli_version values");
+  }
+  return [...versions][0] ?? null;
+}
+
+function diagnosticLastTokenUsage(usage, label) {
+  return {
+    inputTokens: optionalCount(usage?.input_tokens, `${label}.input_tokens`),
+    cachedInputTokens: optionalCount(
+      usage?.cached_input_tokens,
+      `${label}.cached_input_tokens`,
+    ),
+    cacheWriteInputTokens: optionalCount(
+      usage?.cache_write_input_tokens,
+      `${label}.cache_write_input_tokens`,
+    ),
+    outputTokens: optionalCount(usage?.output_tokens, `${label}.output_tokens`),
+    reasoningOutputTokens: optionalCount(
+      usage?.reasoning_output_tokens,
+      `${label}.reasoning_output_tokens`,
+    ),
+    totalTokens: optionalCount(usage?.total_tokens, `${label}.total_tokens`),
+  };
+}
+
+function zeroDeltaCompatibilityEvent({
+  entry,
+  nativeCliVersion,
+  nativeSessionId,
+  sourceId,
+}) {
+  if (nativeCliVersion !== "0.149.0" || entry.lastRaw === null) return null;
+  const label = `Codex token_count record ${entry.recordIndex}.last_token_usage`;
+  const carried = diagnosticLastTokenUsage(entry.lastRaw, label);
+  if (
+    carried.inputTokens !== 0
+    || carried.cachedInputTokens !== 0
+    || carried.cacheWriteInputTokens !== 0
+    || carried.outputTokens !== 0
+    || carried.reasoningOutputTokens !== 0
+    || carried.totalTokens === null
+    || carried.totalTokens === 0
+  ) {
+    return null;
+  }
+  return {
+    ruleId: CODEX_0149_ZERO_DELTA_RULE,
+    sourceId,
+    nativeSessionId,
+    recordIndex: entry.recordIndex,
+    recordedAt: entry.completedAt,
+    nativeCliVersion,
+    cumulativeUnchanged: true,
+    ignoredLastTokenUsage: carried,
+  };
 }
 
 function normalizeCodexCumulative(usage, label) {
@@ -54,6 +121,7 @@ function normalizeCodexCumulative(usage, label) {
 }
 
 function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
+  const nativeCliVersion = codexCliVersion(records);
   const cumulativeRecords = [];
   for (const [index, record] of records.entries()) {
     const info = record?.type === "event_msg"
@@ -73,27 +141,50 @@ function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
         info.total_token_usage,
         `Codex token_count record ${index + 1}.total_token_usage`,
       ),
-      last: info.last_token_usage === undefined
-        ? null
-        : normalizeCodexCumulative(
-          info.last_token_usage,
-          `Codex token_count record ${index + 1}.last_token_usage`,
-        ),
+      lastRaw: info.last_token_usage ?? null,
     });
   }
   cumulativeRecords.sort((left, right) => left.completedAtMs - right.completedAtMs);
 
   let previous = zeroTokenCounts();
   const turns = [];
+  const compatibilityEvents = [];
   for (const entry of cumulativeRecords) {
-    if (tokenCountsEqual(entry.cumulative, previous)) continue;
+    if (tokenCountsEqual(entry.cumulative, previous)) {
+      if (entry.lastRaw === null) continue;
+      try {
+        normalizeCodexCumulative(
+          entry.lastRaw,
+          `Codex token_count record ${entry.recordIndex}.last_token_usage`,
+        );
+      } catch (error) {
+        // @ref LLP 0201#d2--quantitative-instrument — charged usage comes
+        // only from validated cumulative component deltas. Codex 0.149.0 can
+        // repeat an unchanged cumulative status with zero last components and
+        // a contradictory advisory total; retain that native shape but do not
+        // invent a turn or tokens for it.
+        const compatibilityEvent = zeroDeltaCompatibilityEvent({
+          entry,
+          nativeCliVersion,
+          nativeSessionId,
+          sourceId,
+        });
+        if (compatibilityEvent === null) throw error;
+        compatibilityEvents.push(compatibilityEvent);
+      }
+      continue;
+    }
     const usage = subtractTokenCounts(entry.cumulative, previous);
-    if (entry.last === null) {
+    if (entry.lastRaw === null) {
       throw new Error(
         `Codex token_count record ${entry.recordIndex} changed cumulative usage without last_token_usage`,
       );
     }
-    if (!tokenCountsEqual(usage, entry.last)) {
+    const last = normalizeCodexCumulative(
+      entry.lastRaw,
+      `Codex token_count record ${entry.recordIndex}.last_token_usage`,
+    );
+    if (!tokenCountsEqual(usage, last)) {
       throw new RangeError(
         `Codex token_count record ${entry.recordIndex} cumulative delta does not equal last_token_usage`,
       );
@@ -113,7 +204,7 @@ function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
     });
     previous = entry.cumulative;
   }
-  return turns;
+  return { turns, compatibilityEvents, nativeCliVersion };
 }
 
 export function adaptCodexSessionTree(sessions) {
@@ -121,6 +212,8 @@ export function adaptCodexSessionTree(sessions) {
     throw new TypeError("Codex session tree must contain at least one session");
   }
   const byIdentity = new Map();
+  const compatibilityEvents = [];
+  const nativeCliVersions = new Set();
   for (const [index, session] of sessions.entries()) {
     if (
       session === null
@@ -131,7 +224,12 @@ export function adaptCodexSessionTree(sessions) {
     ) {
       throw new TypeError(`Codex session tree entry ${index + 1} is invalid`);
     }
-    for (const turn of adaptOneCodexSession(session)) {
+    const adapted = adaptOneCodexSession(session);
+    if (adapted.nativeCliVersion !== null) {
+      nativeCliVersions.add(adapted.nativeCliVersion);
+    }
+    compatibilityEvents.push(...adapted.compatibilityEvents);
+    for (const turn of adapted.turns) {
       const previous = byIdentity.get(turn.id);
       if (previous !== undefined && !tokenCountsEqual(previous.usage, turn.usage)) {
         throw new RangeError(`Codex turn identity ${turn.id} has conflicting usage`);
@@ -145,10 +243,13 @@ export function adaptCodexSessionTree(sessions) {
   ));
   return {
     adapter: "codex-rollout-jsonl",
+    adapterVersion: CODEX_ADAPTER_VERSION,
     source: TOKEN_SOURCES.codex,
     turns,
     unavailableReason: null,
     sourceIds: sessions.map((session) => session.sourceId),
+    nativeCliVersions: [...nativeCliVersions].sort(),
+    compatibilityEvents,
   };
 }
 

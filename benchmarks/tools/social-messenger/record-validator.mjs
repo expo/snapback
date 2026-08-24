@@ -526,10 +526,12 @@ function validateSuiteStatusLinkage(errors, extension, artifactRoot, currentInst
             attestation.green !== true
             || attestation.choreography?.pass !== true
             || Date.parse(attestation.recordedAt)
-              !== Date.parse(milestoneRecord.authoring?.terminalAt)
+              !== Date.parse(milestoneRecord.authoring?.firstGreenAt)
+            || Date.parse(attestation.recordedAt)
+              > Date.parse(milestoneRecord.authoring?.terminalAt)
           )
         ) {
-          errors.push(`${path}: green milestone lacks a matching terminal 0.3.3-m8 segment-summary`);
+          errors.push(`${path}: green milestone lacks a matching first-green 0.3.3-m8 segment-summary`);
         }
       }
     }

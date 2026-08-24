@@ -33,14 +33,28 @@ loader verifies every digest, native Claude/Codex session identity, descendant
 reachability, receipt `runId`/milestone, and lane/driver identity before it
 parses usage. Every Codex nonzero cumulative delta must equal normalized
 `last_token_usage`. Green milestones additionally require a bound
-`segment-summary` that attests `green: true` at exactly the driver-stamped
-terminal/first-green timestamp; a non-green receipt conflicts.
+`segment-summary` that attests `green: true` at exactly the first-green
+timestamp, no later than the driver-stamped terminal; a non-green receipt
+conflicts.
 At record-write time the loader re-reads every `suiteStatus` receipt path,
 requires a regular file, hashes its current bytes, and compares that digest to
 the `0.3.3-m8` segment-summary digest captured during choreography's startup
 refusal check. A missing, replaced, or edited receipt refuses the record.
 The emitted `meteringProvenance` block retains all identities, hashes, and clock
 evidence.
+
+The Codex parser is versioned independently from the manifest. Adapter
+`codex-rollout-jsonl.v2` has one bounded compatibility rule for the observed
+Codex CLI 0.149.0 native shape: when a validated cumulative component snapshot
+is unchanged, and `last_token_usage` carries zero for every component but a
+contradictory positive advisory `total_tokens`, the repeated status creates no
+turn and charges no tokens. The parser records the rule ID, native CLI version,
+source/session identity, record index/timestamp, and every ignored advisory
+counter under `meteringProvenance.adapter.compatibilityEvents`. The exception
+never applies when any cumulative component advances; those records still
+require an internally valid `last_token_usage` equal to the cumulative delta.
+Optional native counters that are genuinely absent remain `null` where the
+record schema allows null; the adapter does not manufacture zeroes.
 
 Delegation policy is **aggregation**: every builder descendant is charged.
 Omitting a descendant invalidates the manifest; delegation is never treated as
@@ -66,6 +80,22 @@ Each attempted entry carries:
 - `terminalReason`: `green`, `token-cap`, `wall-cap`, or `abort`; and
 - the separate suite/choreography/first-green receipts where applicable.
 
+For a green attempt, the hash-bound segment summary stamps `suitePassAt`,
+`choreoPassAt`, and `firstGreenAt`. `terminalAt` may be later: the production
+driver stamps it from the controller's final retained observation after the
+terminal signal and usage handoff settle. This keeps first-green proof distinct
+from the terminal prefix used for complete charging. A first-green timestamp
+after the terminal is invalid.
+
+Retained `social-messenger-r2-native-cli-driver.v1` manifests from before this
+repair stamped the segment-summary time as `terminalAt` and labeled a fixed
+five-second handoff allowance as clock skew. The loader has a version-bounded
+recovery for exactly that driver/evidence pair: it advances each terminal to
+the latest hash-bound observation for that milestone, treats the shared host
+system clock as the effective zero-skew channel, and records every original and
+effective value under `meteringProvenance.driver.compatibilityEvents`. Other
+driver IDs, clock evidence, and manifests remain unchanged and fail closed.
+
 The joiner orders attempts by `terminalSequence`, snapshots all usage completed
 at or before each `terminalAt`, and differences consecutive terminal prefixes.
 Thus cap/abort usage never folds into the next milestone and a final failed
@@ -77,10 +107,10 @@ The sequence is the ordering authority. RFC 3339 timestamps correlate usage
 to driver boundaries under the manifest's skew evidence. When a turn lies
 inside a nonzero ambiguity window, the join fails closed instead of guessing.
 Drivers must record a measured nonzero skew bound for separately stamped
-process clocks; zero is reserved for evidence that one process and clock
-stamps both channels. The final terminal is stamped after in-flight/overshoot
-usage settles. A retained turn after it invalidates the join rather than
-disappearing from actuals.
+clocks; zero is reserved for evidence that both processes read the same host
+system clock or that one process stamps both channels. The final terminal is
+stamped after in-flight/overshoot usage settles. A retained turn after it
+invalidates the join rather than disappearing from actuals.
 
 The first-product-edit marker is also a hash-bound driver receipt:
 

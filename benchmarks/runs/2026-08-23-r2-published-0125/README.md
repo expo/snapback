@@ -1,6 +1,7 @@
 # LLP 0295 R2 — published 0.1.25 calibration rerun plan
 
-**Status:** PREPARED / BLOCKED — no benchmark cell has started.
+**Status:** BLOCKED after cell 1 — its retained attempt is deterministically
+recovered; no later cell has started.
 
 This directory preregisters the load-isolated twelve-cell R2 calibration wave
 from LLP 0295 §R2. It repeats the retained 2026-08-17/18 published-0.1.24
@@ -229,3 +230,17 @@ effort, load ceiling, and Codex 0.149.0 rulings are resolved and frozen above.
   load. Host identity, load samples, and contamination flags are recorded per
   cell; the plan's "reserved machines or enforced load ceilings" language
   admits both mechanisms.
+
+## Cell-1 deterministic recovery (2026-08-24)
+
+The first and only `sol-clique-explicit` attempt remains immutable at its
+private retained root and was not rerun. The versioned metering repair recovers
+its complete native token join, and the committed cell directory now contains
+`metering.json`, a schema- and semantic-validator-clean `record.json`, and the
+minimal hash-linked evidence graph needed to revalidate both. Its recovery note
+records the exact Codex 0.149.0 advisory-total compatibility event and the
+driver-v1 terminal correction derived from retained controller observations.
+
+This is a deterministic finalization of cell 1, not campaign continuation or a
+profile conclusion. No later Codex/Grok cell and no Claude cell ran. The
+instrument repair remains scoped-review-pending.

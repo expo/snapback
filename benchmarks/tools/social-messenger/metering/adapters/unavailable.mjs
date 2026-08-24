@@ -15,9 +15,11 @@ export function adaptUnavailableFamily(capFamily, reason) {
   assertCapFamily(capFamily);
   return {
     adapter: "unavailable-null",
+    adapterVersion: "unavailable-null.v1",
     source: null,
     turns: null,
     unavailableReason: assertUnavailableReason(reason),
     sourceIds: [],
+    compatibilityEvents: [],
   };
 }

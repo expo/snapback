@@ -634,6 +634,57 @@
             "startedAt": {
               "type": "string",
               "format": "date-time"
+            },
+            "compatibilityEvents": {
+              "type": "array",
+              "description": "Version-bounded driver recovery applied to retained evidence before the terminal join; empty for native driver output that already carries settled terminals.",
+              "items": {
+                "type": "object",
+                "required": [
+                  "ruleId",
+                  "originalClockCorrelation",
+                  "effectiveClockCorrelation",
+                  "terminalAdjustments"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "ruleId": {
+                    "const": "social-messenger-r2-native-cli-driver.v1-observation-terminal.v1"
+                  },
+                  "originalClockCorrelation": {
+                    "$ref": "#/$defs/clockCorrelation"
+                  },
+                  "effectiveClockCorrelation": {
+                    "$ref": "#/$defs/clockCorrelation"
+                  },
+                  "terminalAdjustments": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "milestone",
+                        "originalTerminalAt",
+                        "effectiveTerminalAt"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "milestone": {
+                          "enum": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"]
+                        },
+                        "originalTerminalAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "effectiveTerminalAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         },
@@ -652,6 +703,93 @@
               "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
             }
           ]
+        },
+        "adapter": {
+          "type": "object",
+          "description": "Versioned native-usage parser identity plus any narrowly applied compatibility diagnostics. Compatibility events are provenance only and never contribute charged counts.",
+          "required": [
+            "id",
+            "version",
+            "compatibilityEvents"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "enum": [
+                "claude-session-jsonl",
+                "codex-rollout-jsonl",
+                "unavailable-null"
+              ]
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "compatibilityEvents": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "ruleId",
+                  "sourceId",
+                  "nativeSessionId",
+                  "recordIndex",
+                  "recordedAt",
+                  "nativeCliVersion",
+                  "cumulativeUnchanged",
+                  "ignoredLastTokenUsage"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "ruleId": {
+                    "const": "codex-0.149.0-unchanged-cumulative-zero-components-advisory-total.v1"
+                  },
+                  "sourceId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "nativeSessionId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "recordIndex": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "recordedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "nativeCliVersion": {
+                    "const": "0.149.0"
+                  },
+                  "cumulativeUnchanged": {
+                    "const": true
+                  },
+                  "ignoredLastTokenUsage": {
+                    "type": "object",
+                    "required": [
+                      "inputTokens",
+                      "cachedInputTokens",
+                      "cacheWriteInputTokens",
+                      "outputTokens",
+                      "reasoningOutputTokens",
+                      "totalTokens"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "inputTokens": { "type": ["integer", "null"], "minimum": 0 },
+                      "cachedInputTokens": { "type": ["integer", "null"], "minimum": 0 },
+                      "cacheWriteInputTokens": { "type": ["integer", "null"], "minimum": 0 },
+                      "outputTokens": { "type": ["integer", "null"], "minimum": 0 },
+                      "reasoningOutputTokens": { "type": ["integer", "null"], "minimum": 0 },
+                      "totalTokens": { "type": ["integer", "null"], "minimum": 0 }
+                    }
+                  }
+                }
+              }
+            }
+          }
         },
         "clockCorrelation": {
           "type": "object",
@@ -716,6 +854,13 @@
                   "string",
                   "null"
                 ]
+              },
+              "nativeCliVersion": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Native CLI version carried by session metadata; null when that optional native field was genuinely absent."
               },
               "path": {
                 "type": "string",
@@ -1419,6 +1564,28 @@
       "properties": {
         "claimed": { "const": false },
         "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "clockCorrelation": {
+      "type": "object",
+      "required": [
+        "method",
+        "maxSkewMillis",
+        "evidence"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "const": "rfc3339-with-bounded-skew"
+        },
+        "maxSkewMillis": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "evidence": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "tokenCounts": {
