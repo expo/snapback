@@ -31607,6 +31607,9 @@ const AUTH_CLOCK_META_KEY_FOR_DENY_TESTS: &str = "auth_invalidation_clock_high_w
 // - authority source/user and target user come from this literal case table;
 // - request, grant, and token ids come from fixture setup results captured
 //   before the operation under test;
+// - watch ids and their anchor/installation bindings are fixture choices made
+//   before the operation; all ten expected watch-write columns are literals
+//   here, including the independently spelled terminal notification JSON;
 // - durable states, revocation times, and the auth-clock value come only from
 //   the literal case table plus DENY_FIXTURE_MS/DENY_EFFECT_MS;
 // - accepted/refused codes come from the existing storage and authority error
@@ -32097,15 +32100,72 @@ struct GrantRevocationFixture {
     snapback: LocalSnapback,
     grant_ids: BTreeMap<&'static str, Vec<String>>,
     token_ids: BTreeMap<&'static str, Vec<String>>,
+    watches: Vec<GrantRevocationWatchFixture>,
+}
+
+struct GrantRevocationWatchFixture {
+    watch_id: String,
+    anchor_grant_id: String,
+    installation_grant_id: String,
 }
 
 impl GrantRevocationFixture {
     fn new(grants_per_user: usize) -> Self {
         use crate::storage::auth_agents::AgentRegistration;
 
-        let mut snapback = LocalSnapback::memory().expect("grant revocation memory fixture");
+        let (mut schema, mut functions) = sessions_activation_pair('d', false);
+        schema.auth.as_mut().expect("sessions auth manifest").agents =
+            Some(crate::manifest::AgentsManifest::explicit(
+                crate::manifest::AgentsMode::Open,
+                crate::manifest::InvitedBy::Operators,
+            ));
+        schema.api = Some(crate::contract_types::ApiManifest {
+            enabled: true,
+            functions: BTreeMap::from([(
+                "grantRevocationRead".to_owned(),
+                crate::contract_types::ApiFunctionExposure {
+                    expose: true,
+                    since: None,
+                    approval: None,
+                },
+            )]),
+            oauth: Some(crate::contract_types::ApiOAuthManifest {
+                enabled: true,
+                bearer: true,
+                bundles: BTreeMap::from([(
+                    "read".to_owned(),
+                    crate::contract_types::ApiOAuthBundle {
+                        functions: vec!["grantRevocationRead".to_owned()],
+                    },
+                )]),
+            }),
+            ..crate::contract_types::ApiManifest::default()
+        });
+        for function in &mut functions.functions {
+            function.api_exposure = Some(crate::contract_types::ApiFunctionExposure::default());
+        }
+        let mut revocation_query = FunctionDefinition::new(
+            "grantRevocationRead",
+            FunctionKind::Query,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: None,
+                table: "items".to_owned(),
+                filters: Vec::new(),
+                membership_filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            })),
+        );
+        revocation_query.api_exposure = Some(crate::contract_types::ApiFunctionExposure {
+            expose: true,
+            since: None,
+            approval: None,
+        });
+        functions.functions.push(revocation_query);
+        let mut snapback = settled_sessions_activation_snapback(schema, functions);
         let random = CounterRandom::new();
-        let (grant_ids, token_ids) = {
+        let (grant_ids, token_ids, watches) = {
             let database = snapback.auth_database_mut();
             database
                 .activate_current_auth_catalog()
@@ -32167,12 +32227,57 @@ impl GrantRevocationFixture {
                 grant_ids.insert(user_id, user_grants);
                 token_ids.insert(user_id, user_tokens);
             }
-            (grant_ids, token_ids)
+            let mut watches = Vec::new();
+            for grant_id in grant_ids.values().flatten() {
+                for (binding, anchor_grant_id, installation_grant_id) in [
+                    (
+                        "anchor",
+                        grant_id.clone(),
+                        format!("unrelated-installation-for-{grant_id}"),
+                    ),
+                    (
+                        "installation",
+                        format!("unrelated-anchor-for-{grant_id}"),
+                        grant_id.clone(),
+                    ),
+                ] {
+                    let watch_id = format!("watch-{binding}-{grant_id}");
+                    database
+                        .seed_grant_revocation_watch_for_test(
+                            &watch_id,
+                            &anchor_grant_id,
+                            &installation_grant_id,
+                            DENY_FIXTURE_MS,
+                        )
+                        .expect("seed targeted grant revocation watch");
+                    watches.push(GrantRevocationWatchFixture {
+                        watch_id,
+                        anchor_grant_id,
+                        installation_grant_id,
+                    });
+                }
+            }
+            let unrelated = GrantRevocationWatchFixture {
+                watch_id: "watch-unrelated".to_owned(),
+                anchor_grant_id: "grant-unrelated-anchor".to_owned(),
+                installation_grant_id: "grant-unrelated-installation".to_owned(),
+            };
+            database
+                .seed_grant_revocation_watch_for_test(
+                    &unrelated.watch_id,
+                    &unrelated.anchor_grant_id,
+                    &unrelated.installation_grant_id,
+                    DENY_FIXTURE_MS,
+                )
+                .expect("seed unrelated active grant revocation watch");
+            watches.push(unrelated);
+            (grant_ids, token_ids, watches)
         };
         Self {
             snapback,
             grant_ids,
             token_ids,
+            watches,
         }
     }
 
@@ -32203,6 +32308,7 @@ impl GrantRevocationFixture {
         use crate::storage::auth_grants::{
             GrantApprovalMetaRowForTest, GrantRevocationDurableRowsForTest,
             GrantRevocationGrantRowForTest, GrantRevocationTokenRowForTest,
+            GrantRevocationWatchRowForTest,
         };
 
         let accepted = deny_case_is_accepted(case);
@@ -32241,6 +32347,59 @@ impl GrantRevocationFixture {
             })
             .collect::<Vec<_>>();
         tokens.sort_by(|left, right| left.token_id.cmp(&right.token_id));
+        let target_grant_ids = &self.grant_ids[case.target_user];
+        let revoked_grant_ids = if bulk {
+            target_grant_ids.as_slice()
+        } else {
+            &target_grant_ids[..1]
+        };
+        let mut watches = self
+            .watches
+            .iter()
+            .map(|fixture| {
+                let targeted = accepted
+                    && revoked_grant_ids.iter().any(|grant_id| {
+                        grant_id == &fixture.anchor_grant_id
+                            || grant_id == &fixture.installation_grant_id
+                    });
+                GrantRevocationWatchRowForTest {
+                    watch_id: fixture.watch_id.clone(),
+                    anchor_grant_id: Some(fixture.anchor_grant_id.clone()),
+                    installation_grant_id: Some(fixture.installation_grant_id.clone()),
+                    status: if targeted { "dead" } else { "active" }.to_owned(),
+                    status_reason: targeted.then(|| "grant_revoked".to_owned()),
+                    notification_json: Some(if targeted {
+                        "{\"kind\":\"watchDead\",\"reason\":\"grantRevoked\",\"atMs\":2000,\"diagnosticCode\":\"SNAPBACK_WATCH_AUTHORITY_DEAD\"}"
+                            .to_owned()
+                    } else {
+                        "{\"kind\":\"fixtureActive\"}".to_owned()
+                    }),
+                    pending_job_id: (!targeted)
+                        .then(|| format!("{}:pending-job", fixture.watch_id)),
+                    dirty_while_pending: !targeted,
+                    pending_firing_ordinal: (!targeted).then_some(7),
+                    pending_firing_job_id: (!targeted)
+                        .then(|| format!("{}:pending-firing-job", fixture.watch_id)),
+                    last_firing_outcome: Some(
+                        if targeted { "dead" } else { "fixture_pending" }.to_owned(),
+                    ),
+                    last_diagnostic_code: Some(
+                        if targeted {
+                            "SNAPBACK_WATCH_AUTHORITY_DEAD"
+                        } else {
+                            "fixture_pending_diagnostic"
+                        }
+                        .to_owned(),
+                    ),
+                    updated_at_ms: if targeted {
+                        DENY_EFFECT_MS
+                    } else {
+                        DENY_FIXTURE_MS
+                    },
+                }
+            })
+            .collect::<Vec<_>>();
+        watches.sort_by(|left, right| left.watch_id.cmp(&right.watch_id));
         GrantRevocationDurableRowsForTest {
             authorization_clock: GrantApprovalMetaRowForTest {
                 key: AUTH_CLOCK_META_KEY_FOR_DENY_TESTS.to_owned(),
@@ -32248,6 +32407,7 @@ impl GrantRevocationFixture {
             },
             grants,
             tokens,
+            watches,
         }
     }
 }
@@ -32257,6 +32417,32 @@ struct GrantRevocationObservation {
     case: &'static str,
     outcome: String,
     rows: crate::storage::auth_grants::GrantRevocationDurableRowsForTest,
+}
+
+fn assert_grant_revocation_observations(
+    actual: &[GrantRevocationObservation],
+    expected: &[GrantRevocationObservation],
+) {
+    assert_eq!(actual.len(), expected.len());
+    for (actual_case, expected_case) in actual.iter().zip(expected) {
+        assert_eq!(
+            actual_case.rows.watches.len(),
+            expected_case.rows.watches.len()
+        );
+        for (actual_watch, expected_watch) in actual_case
+            .rows
+            .watches
+            .iter()
+            .zip(&expected_case.rows.watches)
+        {
+            assert_eq!(
+                actual_watch, expected_watch,
+                "case {} watch {}",
+                actual_case.case, actual_watch.watch_id
+            );
+        }
+    }
+    assert_eq!(actual, expected);
 }
 
 #[tokio::test]
@@ -32300,7 +32486,7 @@ async fn single_grant_revocation_derives_subject_and_preserves_foreign_durable_a
             rows: fixture.expected_rows(case, false),
         });
     }
-    assert_eq!(actual, expected);
+    assert_grant_revocation_observations(&actual, &expected);
 }
 
 #[tokio::test]
@@ -32346,7 +32532,7 @@ async fn bulk_grant_revocation_derives_subject_and_preserves_foreign_durable_aut
             rows: fixture.expected_rows(case, true),
         });
     }
-    assert_eq!(actual, expected);
+    assert_grant_revocation_observations(&actual, &expected);
 }
 
 #[test]

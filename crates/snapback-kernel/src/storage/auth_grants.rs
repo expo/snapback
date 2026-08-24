@@ -508,9 +508,9 @@ pub struct GrantApprovalGrantRowForTest {
     pub last_used_at_ms: u64,
 }
 
-/// Test-only physical projection of every durable row the grant-revocation
-/// fixtures change. The projection includes each subject predicate used by
-/// single and bulk revocation plus every column those fixtures write.
+/// Test-only physical projection of every durable table grant revocation
+/// writes. The projection includes each subject predicate used by single and
+/// bulk revocation plus every column their statements update.
 #[cfg(any(test, feature = "test-support"))]
 #[doc(hidden)]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -518,6 +518,7 @@ pub struct GrantRevocationDurableRowsForTest {
     pub authorization_clock: GrantApprovalMetaRowForTest,
     pub grants: Vec<GrantRevocationGrantRowForTest>,
     pub tokens: Vec<GrantRevocationTokenRowForTest>,
+    pub watches: Vec<GrantRevocationWatchRowForTest>,
 }
 
 #[cfg(any(test, feature = "test-support"))]
@@ -537,6 +538,25 @@ pub struct GrantRevocationTokenRowForTest {
     pub token_id: String,
     pub grant_id: String,
     pub revoked_at_ms: Option<u64>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GrantRevocationWatchRowForTest {
+    pub watch_id: String,
+    pub anchor_grant_id: Option<String>,
+    pub installation_grant_id: Option<String>,
+    pub status: String,
+    pub status_reason: Option<String>,
+    pub notification_json: Option<String>,
+    pub pending_job_id: Option<String>,
+    pub dirty_while_pending: bool,
+    pub pending_firing_ordinal: Option<u64>,
+    pub pending_firing_job_id: Option<String>,
+    pub last_firing_outcome: Option<String>,
+    pub last_diagnostic_code: Option<String>,
+    pub updated_at_ms: u64,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -689,10 +709,38 @@ impl LocalDatabase {
                     })
                 })?
                 .collect::<Result<Vec<_>, _>>()?;
+            let mut watch_statement = connection.prepare(
+                "SELECT id, anchor_grant_id, installation_grant_id,
+                        status, status_reason, notification_json,
+                        pending_job_id, dirty_while_pending,
+                        pending_firing_ordinal, pending_firing_job_id,
+                        last_firing_outcome, last_diagnostic_code, updated_at_ms
+                 FROM _snapback_watches ORDER BY id",
+            )?;
+            let watches = watch_statement
+                .query_map([], |row| {
+                    Ok(GrantRevocationWatchRowForTest {
+                        watch_id: row.get(0)?,
+                        anchor_grant_id: row.get(1)?,
+                        installation_grant_id: row.get(2)?,
+                        status: row.get(3)?,
+                        status_reason: row.get(4)?,
+                        notification_json: row.get(5)?,
+                        pending_job_id: row.get(6)?,
+                        dirty_while_pending: row.get(7)?,
+                        pending_firing_ordinal: row.get(8)?,
+                        pending_firing_job_id: row.get(9)?,
+                        last_firing_outcome: row.get(10)?,
+                        last_diagnostic_code: row.get(11)?,
+                        updated_at_ms: row.get(12)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
             Ok(GrantRevocationDurableRowsForTest {
                 authorization_clock,
                 grants,
                 tokens,
+                watches,
             })
         })
     }

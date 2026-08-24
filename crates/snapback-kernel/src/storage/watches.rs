@@ -1145,6 +1145,59 @@ impl LocalDatabase {
         })
     }
 
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn seed_grant_revocation_watch_for_test(
+        &mut self,
+        watch_id: &str,
+        anchor_grant_id: &str,
+        installation_grant_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.conn.execute(
+            "INSERT INTO _snapback_watches (
+               id, owner_kind, owner_principal_id, owner_authority_instance_id,
+               authority_mode, anchor_grant_id, installation_grant_id, anchor_expires_at_ms,
+               query_function_id, query_function_name, query_basis, query_args_json,
+               query_args_digest, read_dependencies_json, predicate_json,
+               reaction_kind, reaction_function_id, reaction_function_name,
+               reaction_function_kind, reaction_basis, reaction_args_json,
+               reaction_args_digest, webhook_url, webhook_secret_ref,
+               status, status_reason, notification_json,
+               daily_firing_budget, budget_day, firings_today, debounce_ms,
+               next_evaluation_at_ms, pending_job_id, dirty_while_pending,
+               pending_firing_ordinal, pending_firing_job_id, last_predicate_state,
+               evaluation_count, coalesced_invalidation_count, firing_count,
+               journal_count, last_evaluated_at_ms, last_fired_at_ms,
+               last_firing_outcome, last_diagnostic_code, created_at_ms, updated_at_ms
+             ) VALUES (
+               ?1, 'integration', ?2, ?3, 'capturedGrant', ?4, ?5, ?6,
+               ?7, 'grantRevocationFixtureQuery', 1, '{}',
+               'grant-revocation-query-args', '[]',
+               '{\"path\":\"/rows\",\"op\":\"exists\"}',
+               'function', ?8, 'grantRevocationFixtureReaction', 'action', 1,
+               '{}', 'grant-revocation-reaction-args', NULL, NULL,
+               'active', NULL, '{\"kind\":\"fixtureActive\"}',
+               10, 0, 0, ?9, ?10, ?11, 1, 7, ?12, 0,
+               3, 2, 1, 1, ?10, ?10, 'fixture_pending',
+               'fixture_pending_diagnostic', ?10, ?10)",
+            params![
+                watch_id,
+                format!("{watch_id}:owner"),
+                format!("{watch_id}:authority"),
+                anchor_grant_id,
+                installation_grant_id,
+                now_ms + crate::watches::ANCHOR_LIFETIME_MS,
+                format!("{watch_id}:query"),
+                format!("{watch_id}:reaction"),
+                crate::watches::DEFAULT_DEBOUNCE_MS,
+                now_ms,
+                format!("{watch_id}:pending-job"),
+                format!("{watch_id}:pending-firing-job"),
+            ],
+        )?;
+        Ok(())
+    }
+
     pub fn transition_watch(
         &mut self,
         id: &str,
