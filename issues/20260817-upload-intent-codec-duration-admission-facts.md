@@ -26,12 +26,12 @@ caveat in Diary 0086 is retired by a rerun.
 The two hostile design reviews converged on the trust-boundary, duration,
 fragment, brand, deterministic-bound, parser-version, and document-home
 corrections. The revised design landed as dedicated **Review-status**
-[LLP 0304](../llp/0304-declared-video-admission.spec.md), under LLP 0044's
+[LLP 0305](../llp/0305-declared-video-admission.spec.md), under LLP 0044's
 asset-pipeline authority. LLP 0269 now retains only the
 SQLite → Postgres → transactional-cell portability/graduation obligations and
 links to the Spec.
 
-LLP 0304 deliberately proves declared ISO BMFF sample-entry/decoder
+LLP 0305 deliberately proves declared ISO BMFF sample-entry/decoder
 configuration, same-file sample extents, and bounded sample-timeline duration;
 it does not decode `mdat` or claim elementary H.264/AAC bitstream identity.
 Its acceptance adds the converged adversarial fixtures and requires a pinned

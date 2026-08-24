@@ -9,7 +9,7 @@ integration, Diagnostics, Guide, Testing
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-08-17
 **Revised:** 2026-08-24 (F8 design routing moves from LLP 0269's storage Plan
-to dedicated Review LLP 0304 under LLP 0044; implementation and the Coterie
+to dedicated Review LLP 0305 under LLP 0044; implementation and the Coterie
 evidence rerun remain open)
 **Revised:** 2026-08-21 (F5 residual reconciliation: membership-backed room
 role narrowing is closed); 2026-08-21 (P17 follow-through: records the packed
@@ -26,7 +26,7 @@ Clique 0.1.21 sweep deltas that LLP 0236's synthesis does not already own)
 **Related:** LLP 0013, LLP 0056, LLP 0059, LLP 0061, LLP 0201, LLP 0208,
 LLP 0236, LLP 0240, LLP 0243, LLP 0252, LLP 0253, LLP 0258, LLP 0264,
 LLP 0266, LLP 0267, LLP 0269, LLP 0270, LLP 0274, LLP 0278, LLP 0279,
-LLP 0280, LLP 0281, LLP 0304,
+LLP 0280, LLP 0281, LLP 0305,
 Diary 0078, Diary 0079, Diary 0080, Diary 0081, Diary 0082, Diary 0083,
 Diary 0084, Diary 0085, Diary 0086, Diary 0092, Diary 0093, Diary 0094,
 Diary 0095, Diary 0096, Diary 0097, Diary 0098, Diary 0099, Diary 0100,
@@ -299,7 +299,7 @@ Upload intents bound media type and byte size, but the brief's H.264/AAC and
 60-second ceilings are inexpressible, so M2 video admission is honest about
 enforcing less than the product rule. Ticketed as
 `issues/20260817-upload-intent-codec-duration-admission-facts.md`; the
-dedicated Review Spec is LLP 0304 under LLP 0044's asset authority. LLP 0269
+dedicated Review Spec is LLP 0305 under LLP 0044's asset authority. LLP 0269
 retains only the SQLite → Postgres → transactional-cell graduation obligations.
 
 ### F9. Exact/Contract carries its own friction register — repeated
@@ -675,7 +675,7 @@ such as "P14 cost 12% of tokens" would be invented.
 | Ephemeral role narrowing, overlay Error arm, Coterie typing adoption | existing tickets + `issues/20260817-coterie-typing-allow-members-adoption.md` |
 | Published 0.1.24 cross-cutting authoring/lifecycle/efficiency program | LLP 0295 (new Plan), with mechanisms retained by their subsystem owners |
 | Clique Explicit/Familiar historical register and prior rerun protocol | LLP 0236; superseding matrix evidence is in this amendment and LLP 0295 |
-| Media/codec admission facts | Review LLP 0304 under LLP 0044; LLP 0269 graduation obligations; `issues/20260817-upload-intent-codec-duration-admission-facts.md` |
+| Media/codec admission facts | Review LLP 0305 under LLP 0044; LLP 0269 graduation obligations; `issues/20260817-upload-intent-codec-duration-admission-facts.md` |
 | Ceremony-reduction classification | LLP 0275 (already Draft; this run's evidence corroborates its derivation rule) |
 
 ## Open questions

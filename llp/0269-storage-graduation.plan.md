@@ -6,10 +6,10 @@
 **Author:** Codex gpt-5.6-sol xhigh, orchestrated by Claude Fable 5 (commissioned in the author's 2026-08-16 orchestration session under Charlie Cheever's 2026-08-15 performance-direction ruling)
 **Date:** 2026-08-16
 **Revised:** 2026-08-24 (video admission's proposed normative contract moves
-to Review LLP 0304; this Accepted Plan retains only backend/cell portability
+to Review LLP 0305; this Accepted Plan retains only backend/cell portability
 and graduation obligations); 2026-08-18 (LLP 0276 crate-path relocation);
 2026-08-16 (v0.3 — Status Draft → Accepted, author ruling 2026-08-16)
-**Related:** LLP 0007, LLP 0012, LLP 0037, LLP 0044, LLP 0046, LLP 0080, LLP 0113, LLP 0128, LLP 0163, LLP 0189, LLP 0198, LLP 0209, LLP 0225, LLP 0265, LLP 0276, LLP 0277, LLP 0304, `issues/20260815-storage-graduation-plan-commission.md`, `issues/20260817-upload-intent-codec-duration-admission-facts.md`
+**Related:** LLP 0007, LLP 0012, LLP 0037, LLP 0044, LLP 0046, LLP 0080, LLP 0113, LLP 0128, LLP 0163, LLP 0189, LLP 0198, LLP 0209, LLP 0225, LLP 0265, LLP 0276, LLP 0277, LLP 0305, `issues/20260815-storage-graduation-plan-commission.md`, `issues/20260817-upload-intent-codec-duration-admission-facts.md`
 
 ## 0. Charter and position
 
@@ -456,10 +456,10 @@ not a capability or a publishable claim.
 
 ## Dated portability addition: declared video admission facts (2026-08-24)
 
-**Addition status.** Design-only portability obligations for Review LLP 0304;
+**Addition status.** Design-only portability obligations for Review LLP 0305;
 not implementation, not acceptance of that Spec, and not a capability claim.
 LLP 0044 remains the asset-pipeline authority, and
-[LLP 0304](./0304-declared-video-admission.spec.md) is the dedicated proposed
+[LLP 0305](./0305-declared-video-admission.spec.md) is the dedicated proposed
 normative contract for the `accept.video` grammar, trusted ISO BMFF facts,
 refusals, bounds, parser-semantics version, and implementation acceptance.
 This Plan no longer owns or restates those parser rules.
@@ -472,7 +472,7 @@ engine.
 
 ### Portability and graduation obligations
 
-If LLP 0304's Review design is accepted and implemented, its
+If LLP 0305's Review design is accepted and implemented, its
 `asset_video_admission_facts_v1` capability must graduate without changing
 application or admission semantics:
 
@@ -496,7 +496,7 @@ application or admission semantics:
    parser version, and policy/generation identity as opaque historical
    evidence. It never re-probes an old blob with a newer parser and silently
    rewrites its admission outcome.
-6. Phase 1's shared SQLite/Postgres behavior corpus gains LLP 0304's positive,
+6. Phase 1's shared SQLite/Postgres behavior corpus gains LLP 0305's positive,
    adversarial, refusal, deterministic-bound, and retained-version vectors. A
    Postgres profile cannot claim `asset_video_admission_facts_v1` until
    identical canonical bytes plus frozen artifacts yield the same normalized
@@ -508,7 +508,7 @@ application or admission semantics:
 
 Supporting a new brand, declared codec configuration, elementary-stream proof,
 fragmented timeline, duration interpretation, or resource-accounting schedule
-is a new parser-semantics/capability version under LLP 0304. Graduation may
+is a new parser-semantics/capability version under LLP 0305. Graduation may
 carry old versioned facts; it may not widen v1 or reinterpret retained
 attempts.
 
@@ -559,12 +559,12 @@ The recommendation is a default for decision, not a silent ruling.
 ## 5. Revision history
 
 - **v0.5 (2026-08-24).** Moves the proposed normative video-admission design
-  into Review LLP 0304 under LLP 0044's asset authority after convergent
+  into Review LLP 0305 under LLP 0044's asset authority after convergent
   hostile review. This Accepted Plan now retains only the SQLite → Postgres →
   transactional-cell portability and graduation obligations; implementation
   and capability claims remain open.
 - **v0.4 (2026-08-24, superseded in document home by v0.5).** Initially added
-  the review-ready video-admission design here. LLP 0304 now owns that proposed
+  the review-ready video-admission design here. LLP 0305 now owns that proposed
   grammar/parser/refusal/acceptance contract.
 - **v0.3 (2026-08-16).** Status Draft → Accepted by author ruling (Charlie Cheever, 2026-08-16 session), on the converged dual-family review record in the run journal.
 - **v0.2 (2026-08-16).** Applies review round 1: corrects implementation and

@@ -1,4 +1,4 @@
-# LLP 0304: Declared video codec configuration and sample-timeline admission
+# LLP 0305: Declared video codec configuration and sample-timeline admission
 
 **Type:** Spec
 **Status:** Review
