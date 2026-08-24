@@ -29978,7 +29978,12 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
             snapback.issue_oauth_authorization_code(&authority, request_id, now_ms + 100, &random);
         let after = oauth_consent_rows_for_test(&mut snapback);
         if user_id == "user-m" {
-            result.expect("authority user can issue their OAuth code");
+            let issued = result.expect("authority user can issue their OAuth code");
+            let expected_code_hash: [u8; 32] = {
+                use sha2::Digest as _;
+
+                sha2::Sha256::digest(issued.code.expose_secret().as_bytes()).into()
+            };
             let updated = after
                 .authorizations
                 .iter()
@@ -29990,7 +29995,11 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
             );
             assert_eq!(updated.grant_id.as_deref(), Some(grant_id.as_str()));
             assert_eq!(updated.code_expires_at_ms, Some(61_100));
-            assert_eq!(updated.code_hash.as_deref().map(<[_]>::len), Some(32));
+            assert_eq!(
+                updated.code_hash.as_deref(),
+                Some(expected_code_hash.as_slice()),
+                "durable OAuth selector must be the SHA-256 of the returned code"
+            );
 
             let mut expected = before;
             let expected_updated = expected
@@ -29999,7 +30008,7 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
                 .find(|row| row.request_id == *request_id)
                 .expect("authority user's expected OAuth row exists");
             expected_updated.status = "approved".to_owned();
-            expected_updated.code_hash = updated.code_hash.clone();
+            expected_updated.code_hash = Some(expected_code_hash.to_vec());
             expected_updated.grant_id = Some(grant_id.clone());
             expected_updated.code_expires_at_ms = Some(61_100);
             assert_eq!(after, expected);
