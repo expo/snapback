@@ -1158,7 +1158,10 @@ importantly — what still does not exist.
   only once — a provider's app-owned configuration is complete, `configure`
   also adds that provider's Expo config plugin to `app.json` through the same
   stale-safe compare-and-write, and names the `npx expo install` and rebuild
-  that finish the native half. An app on the shared development profile is a
+  that finish the native half. A module app config (`app.config.ts` and its
+  `.js`/`.mjs`/`.cjs` spellings) is code rather than data, so it is never
+  rewritten; the exact `expo.plugins` edit is named in `next` instead, and the
+  native steps stay owed either way. An app on the shared development profile is a
   browser flow, so nothing native is added to it. `status` resolves with the
   same resolver the client uses.
 

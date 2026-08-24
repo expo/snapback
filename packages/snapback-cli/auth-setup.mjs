@@ -61,6 +61,12 @@ const PROVIDER_CONFIG_FIELDS = Object.freeze({
   }),
 });
 
+// Expo app config also has module spellings. They are code, not data, so this
+// command names the edit instead of rewriting a TypeScript or JavaScript module.
+const APP_CONFIG_MODULE_FILES = Object.freeze([
+  'app.config.ts', 'app.config.js', 'app.config.mjs', 'app.config.cjs',
+]);
+
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 
 function refuse(code, message, details = {}) {
@@ -475,6 +481,14 @@ export function runAuthConfigure({
         pluginConfigured: false,
         reason: 'configuration-incomplete',
       });
+  // Once configuration is complete the native half is owed whether or not the
+  // plugin edit could be made here, so an unwritable app config names the edit
+  // rather than dropping out of `next` and reading as nothing left to do.
+  const nativeNext = missing.length > 0 ? [] : [
+    ...(nativeIntegration.manualStep === undefined ? [] : [nativeIntegration.manualStep]),
+    `npx expo install ${nativeIntegration.dependency}`,
+    'Rebuild the client so it carries the native integration.',
+  ];
   return Object.freeze({
     schemaVersion: 'snapback.auth-configure.v1',
     ok: true,
@@ -491,9 +505,7 @@ export function runAuthConfigure({
     next: Object.freeze([
       ...(missing.length === 0 ? [] : [`snapback auth configure ${provider} ${missing.map((name) => `--${name} <value>`).join(' ')}`]),
       ...secretCommands,
-      ...(nativeIntegration.pluginConfigured
-        ? [`npx expo install ${nativeIntegration.dependency}`, 'Rebuild the client so it carries the native integration.']
-        : []),
+      ...nativeNext,
       'snapback auth status',
     ]),
     nonclaims: Object.freeze([
@@ -516,7 +528,13 @@ function installNativeConfigPlugin(root, provider) {
   const integration = AUTH_PROVIDER_NATIVE_INTEGRATIONS[provider];
   const path = join(root, 'app.json');
   if (!existsSync(path)) {
-    return Object.freeze({ ...integration, pluginConfigured: false, reason: 'no-app-json' });
+    const module = APP_CONFIG_MODULE_FILES.find((name) => existsSync(join(root, name)));
+    return Object.freeze({
+      ...integration,
+      pluginConfigured: false,
+      reason: module === undefined ? 'no-app-json' : 'app-config-not-json',
+      manualStep: `Add ${integration.plugin} to expo.plugins in ${module ?? 'your Expo app config'}.`,
+    });
   }
   const source = readFileSync(path, 'utf8');
   let appConfig;

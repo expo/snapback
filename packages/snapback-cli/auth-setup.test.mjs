@@ -56,7 +56,9 @@ export default defineSchema({
 }, { auth: { mode: 'sessions' }, authProgram });
 `;
 
-function project({ declaration = DECLARATION, manifest = {}, appConfig = null, descriptor = null } = {}) {
+function project({
+  declaration = DECLARATION, manifest = {}, appConfig = null, appConfigModule = null, descriptor = null,
+} = {}) {
   const root = mkdtempSync(join(tmpdir(), 'snapback-auth-setup-'));
   roots.push(root);
   mkdirSync(join(root, 'snapback', 'generated'), { recursive: true });
@@ -69,6 +71,9 @@ function project({ declaration = DECLARATION, manifest = {}, appConfig = null, d
   }, null, 2)}\n`);
   if (appConfig !== null) {
     writeFileSync(join(root, 'app.json'), `${JSON.stringify(appConfig, null, 2)}\n`);
+  }
+  if (appConfigModule !== null) {
+    writeFileSync(join(root, appConfigModule), 'export default { expo: { name: \'x\', slug: \'x\' } };\n');
   }
   if (descriptor !== null) {
     writeFileSync(
@@ -296,6 +301,50 @@ test('an app with no app.json records configuration without inventing one', () =
   });
   assert.equal(result.nativeIntegration.pluginConfigured, false);
   assert.equal(result.nativeIntegration.reason, 'no-app-json');
+  // Nothing was written, so the edit is named. Dropping it from `next` would
+  // read as nothing left to do and produce a rebuild without the integration.
+  assert.equal(
+    result.next.includes(
+      'Add @react-native-google-signin/google-signin to expo.plugins in your Expo app config.',
+    ),
+    true,
+  );
+  assert.equal(
+    result.next.includes('npx expo install @react-native-google-signin/google-signin'),
+    true,
+  );
+});
+
+// An Expo app config module is code, not data. Rewriting it is not on the
+// table, so the command names the exact edit against the file it found.
+test('a module app config is named for a hand edit, not rewritten', () => {
+  for (const spelling of ['app.config.ts', 'app.config.js', 'app.config.mjs', 'app.config.cjs']) {
+    const root = project({ appConfigModule: spelling });
+    const result = runAuthConfigure({
+      provider: 'apple',
+      identifiers: { servicesId: 's', teamId: 't', keyId: 'k', bundleIdentifier: 'b' },
+      cwd: root,
+    });
+    assert.deepEqual(result.missing, [], spelling);
+    assert.equal(result.nativeIntegration.pluginConfigured, false, spelling);
+    assert.equal(result.nativeIntegration.reason, 'app-config-not-json', spelling);
+    assert.equal(
+      result.next.includes(`Add expo-apple-authentication to expo.plugins in ${spelling}.`),
+      true,
+      spelling,
+    );
+    assert.equal(
+      result.next.includes('Rebuild the client so it carries the native integration.'),
+      true,
+      spelling,
+    );
+    // The module was left exactly as authored.
+    assert.equal(
+      readFileSync(join(root, spelling), 'utf8').includes('expo-apple-authentication'),
+      false,
+      spelling,
+    );
+  }
 });
 
 test('configure rotates the configuration generation when an identifier changes', () => {

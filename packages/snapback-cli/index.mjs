@@ -6570,6 +6570,15 @@ function printResult(result, json) {
     if (result.operation === 'record') {
       console.log(`Recorded ${result.recorded.join(', ')} in ${result.configFile}.`);
       if (result.missing.length > 0) console.log(`Still missing: ${result.missing.join(', ')}`);
+      // Whether the config plugin was written is the difference between a
+      // rebuild that carries the native integration and one that silently does
+      // not, so it is reported here and not only under --json.
+      const native = result.nativeIntegration;
+      if (native.pluginConfigured) {
+        console.log(`Config plugin ${native.plugin}: ${native.reason === 'added' ? 'added to app.json' : 'already present'}.`);
+      } else if (native.reason !== 'configuration-incomplete') {
+        console.log(`Config plugin ${native.plugin}: not written (${native.reason}).`);
+      }
     }
     for (const command of result.next) console.log(`Next: ${command}`);
     for (const nonclaim of result.nonclaims ?? []) console.log(`Note: ${nonclaim}`);

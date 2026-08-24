@@ -1696,6 +1696,11 @@ needs no native integration. Adding the plugin is a source edit, not proof —
 readiness still requires the two halves above, and the CLI cannot see your
 installed build.
 
+If your app config is a module — `app.config.ts` and its `.js`, `.mjs`, and
+`.cjs` spellings — the command does not rewrite it. Config modules are code,
+not data, so it names the exact `expo.plugins` edit to make and leaves the file
+as you authored it. The install and rebuild steps are owed either way.
+
 Shared and app-owned credentials are separate provider installations. Switching
 rotates the auth-profile generation and signs out the incompatible rehearsal
 custody; Snapback never merges the two identities by email.
