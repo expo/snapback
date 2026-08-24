@@ -29019,7 +29019,12 @@ fn seed_authority_factory_fixture(path: &std::path::Path, now_ms: u64) {
     }
 }
 
-fn authority_factory_management_session(user_id: &str, now_ms: u64) -> PreparedAuthority {
+fn authority_factory_management_session(
+    user_id: &str,
+    session_id: &str,
+    authority_instance_id: &str,
+    now_ms: u64,
+) -> PreparedAuthority {
     InvocationGate::prepare_authority(
         InvocationSource::AgentGrantManagement,
         AuthMode::Sessions,
@@ -29029,10 +29034,10 @@ fn authority_factory_management_session(user_id: &str, now_ms: u64) -> PreparedA
         &WireAuthorityFields::default(),
         ResolvedAppAuthority::Session {
             user_id: user_id.to_owned(),
-            session_id: "session-m".to_owned(),
+            session_id: session_id.to_owned(),
             provider: "email-code".to_owned(),
             generation: 1,
-            authority_instance_id: "authority-m".to_owned(),
+            authority_instance_id: authority_instance_id.to_owned(),
             session_not_after_ms: now_ms + 60_000,
             provider_not_after_ms: None,
             rehearsal_provenance: None,
@@ -29044,7 +29049,7 @@ fn authority_factory_management_session(user_id: &str, now_ms: u64) -> PreparedA
 fn authority_factory_fixture(
     path: &std::path::Path,
     now_ms: u64,
-) -> (LocalSnapback, PreparedAuthority) {
+) -> (LocalSnapback, PreparedAuthority, PreparedAuthority) {
     let mut snapback = LocalSnapback::open(path).expect("open authority-factory fixture");
     snapback
         .auth_database_mut()
@@ -29065,7 +29070,21 @@ fn authority_factory_fixture(
                 now_ms + 60_000,
                 now_ms + 120_000,
             )
-            .expect("insert caller session");
+            .expect("insert first caller session");
+        catalog
+            .insert_email_session_for_test(
+                "user-n",
+                "identity-n",
+                "session-n",
+                "authority-n",
+                "user-n@example.test",
+                &[0x32; 32],
+                now_ms - 90,
+                now_ms - 90,
+                now_ms + 61_000,
+                now_ms + 121_000,
+            )
+            .expect("insert second caller session");
         catalog
             .insert_human_user_for_test("user-a", now_ms - 100)
             .expect("insert lexically lower user");
@@ -29074,8 +29093,11 @@ fn authority_factory_fixture(
             .expect("insert lexically upper user");
     }
     seed_authority_factory_fixture(path, now_ms);
-    let authority = authority_factory_management_session("user-m", now_ms);
-    (snapback, authority)
+    let first_authority =
+        authority_factory_management_session("user-m", "session-m", "authority-m", now_ms);
+    let second_authority =
+        authority_factory_management_session("user-n", "session-n", "authority-n", now_ms);
+    (snapback, first_authority, second_authority)
 }
 
 fn expected_authority_factory_sentinels(
@@ -29126,17 +29148,23 @@ fn expected_authority_factory_sentinels(
 
 fn invitation_step_up_proofs(
     snapback: &mut LocalSnapback,
+    random: &CounterRandom,
+    user_id: &str,
+    session_id: &str,
+    authority_instance_id: &str,
+    address: &str,
+    wrong_session_id: &str,
+    wrong_authority_instance_id: &str,
     now_ms: u64,
 ) -> (
     crate::auth::crypto::StepUpProof,
     crate::auth::crypto::StepUpProof,
 ) {
-    let random = CounterRandom::new();
-    let challenge_id = crate::auth::crypto::ChallengeId::generate(&random)
+    let challenge_id = crate::auth::crypto::ChallengeId::generate(random)
         .expect("generate invitation step-up challenge id");
-    let key_id = crate::auth::crypto::AuthKeyId::generate(&random)
+    let key_id = crate::auth::crypto::AuthKeyId::generate(random)
         .expect("generate invitation step-up key id");
-    let address = crate::auth::crypto::CanonicalAddress::parse("user-m@example.test")
+    let address = crate::auth::crypto::CanonicalAddress::parse(address)
         .expect("parse invitation step-up address");
     let code = crate::auth::crypto::VerificationCode::parse("123456")
         .expect("parse invitation step-up code");
@@ -29145,10 +29173,10 @@ fn invitation_step_up_proofs(
         &key,
         &challenge_id,
         &address,
-        "user-m",
-        "session-m",
+        user_id,
+        session_id,
         1,
-        "authority-m",
+        authority_instance_id,
         "agentInvitation",
         "creation",
         &code,
@@ -29157,10 +29185,10 @@ fn invitation_step_up_proofs(
         &key,
         &challenge_id,
         &address,
-        "user-m",
-        "session-a",
+        user_id,
+        wrong_session_id,
         1,
-        "authority-a",
+        wrong_authority_instance_id,
         "agentInvitation",
         "creation",
         &code,
@@ -29176,10 +29204,10 @@ fn invitation_step_up_proofs(
         .auth_catalog()
         .insert_step_up_challenge(
             &crate::storage::auth_catalog_ops::CatalogStepUpBinding {
-                user_id: "user-m",
-                session_id: "session-m",
+                user_id,
+                session_id,
                 session_generation: 1,
-                authority_instance_id: "authority-m",
+                authority_instance_id,
             },
             &address,
             &challenge_id,
@@ -29215,8 +29243,31 @@ fn agent_invitation_factory_derives_the_inviter_and_requires_exact_management_fa
     let directory = tempfile::tempdir().expect("invitation authority fixture directory");
     let path = directory.path().join("invitation-authority.sqlite3");
     let now_ms = 10_000;
-    let (mut snapback, authority) = authority_factory_fixture(&path, now_ms);
-    let (proof, wrong_session_proof) = invitation_step_up_proofs(&mut snapback, now_ms);
+    let (mut snapback, first_authority, second_authority) =
+        authority_factory_fixture(&path, now_ms);
+    let proof_random = CounterRandom::new();
+    let (first_proof, wrong_session_proof) = invitation_step_up_proofs(
+        &mut snapback,
+        &proof_random,
+        "user-m",
+        "session-m",
+        "authority-m",
+        "user-m@example.test",
+        "session-a",
+        "authority-a",
+        now_ms,
+    );
+    let (second_proof, _) = invitation_step_up_proofs(
+        &mut snapback,
+        &proof_random,
+        "user-n",
+        "session-n",
+        "authority-n",
+        "user-n@example.test",
+        "session-z",
+        "authority-z",
+        now_ms,
+    );
     let (mut expected_invitations, expected_pairings) =
         expected_authority_factory_sentinels(now_ms);
     assert_eq!(
@@ -29228,39 +29279,31 @@ fn agent_invitation_factory_derives_the_inviter_and_requires_exact_management_fa
     let mut refused = BTreeMap::new();
     let random = CounterRandom::new();
 
-    for (label, expected_user) in [
-        ("lexically-lower-user", "user-a"),
-        ("lexically-upper-user", "user-z"),
+    for (label, missing_user, missing_session, missing_instance) in [
+        (
+            "missing-authority-user-below",
+            "user-0",
+            "session-0",
+            "authority-0",
+        ),
+        (
+            "missing-authority-user-above",
+            "user-zz",
+            "session-zz",
+            "authority-zz",
+        ),
     ] {
-        let error = snapback
-            .mint_agent_invitation(
-                &authority,
-                expected_user,
-                ServerProfile::Test,
-                &proof,
-                now_ms,
-                &random,
-            )
-            .expect_err("a mismatched expected inviter must be refused");
-        refused.insert(label, error.diagnostic.code);
-        assert_eq!(
-            read_authority_factory_rows(&path),
-            (expected_invitations.clone(), expected_pairings.clone()),
-            "{label} refusal must leave every durable row untouched"
+        let missing_authority = authority_factory_management_session(
+            missing_user,
+            missing_session,
+            missing_instance,
+            now_ms,
         );
-    }
-
-    for (label, missing_user) in [
-        ("missing-authority-user-below", "user-0"),
-        ("missing-authority-user-above", "user-zz"),
-    ] {
-        let missing_authority = authority_factory_management_session(missing_user, now_ms);
         let error = snapback
             .mint_agent_invitation(
                 &missing_authority,
-                missing_user,
                 ServerProfile::Test,
-                &proof,
+                &first_proof,
                 now_ms,
                 &random,
             )
@@ -29280,15 +29323,14 @@ fn agent_invitation_factory_derives_the_inviter_and_requires_exact_management_fa
         0,
         0,
         &WireAuthorityFields::default(),
-        authority.resolved().clone(),
+        first_authority.resolved().clone(),
     )
     .expect("prepare wrong-source session authority");
     let error = snapback
         .mint_agent_invitation(
             &wrong_source,
-            "user-m",
             ServerProfile::Test,
-            &proof,
+            &first_proof,
             now_ms,
             &random,
         )
@@ -29309,7 +29351,7 @@ fn agent_invitation_factory_derives_the_inviter_and_requires_exact_management_fa
             .admit_for_mode(AuthMode::Sessions)
             .expect("admit invitation authority before retirement"),
         &WireAuthorityFields::default(),
-        authority.resolved().clone(),
+        first_authority.resolved().clone(),
         Some(
             crate::auth::identity_core::AuthClaimsProjection::server_derived(
                 Vec::new(),
@@ -29327,14 +29369,7 @@ fn agent_invitation_factory_derives_the_inviter_and_requires_exact_management_fa
         "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
     );
     let error = snapback
-        .mint_agent_invitation(
-            &retired,
-            "user-m",
-            ServerProfile::Test,
-            &proof,
-            now_ms,
-            &random,
-        )
+        .mint_agent_invitation(&retired, ServerProfile::Test, &first_proof, now_ms, &random)
         .expect_err("retired inviter must be refused");
     refused.insert("retired", error.diagnostic.code);
     assert_eq!(
@@ -29344,8 +29379,7 @@ fn agent_invitation_factory_derives_the_inviter_and_requires_exact_management_fa
 
     let error = snapback
         .mint_agent_invitation(
-            &authority,
-            "user-m",
+            &first_authority,
             ServerProfile::Test,
             &wrong_session_proof,
             now_ms,
@@ -29358,26 +29392,66 @@ fn agent_invitation_factory_derives_the_inviter_and_requires_exact_management_fa
         (expected_invitations.clone(), expected_pairings.clone())
     );
 
-    let minted = snapback
+    let first_mint_now_ms = now_ms + 10;
+    let first_minted = snapback
         .mint_agent_invitation(
-            &authority,
-            "user-m",
+            &first_authority,
             ServerProfile::Test,
-            &proof,
-            now_ms,
+            &first_proof,
+            first_mint_now_ms,
             &random,
         )
-        .expect("exact inviter authority and step-up proof mint an invitation");
-    accepted.insert("exact-management-session-and-step-up");
+        .expect("first inviter authority and step-up proof mint an invitation");
+    assert_eq!(
+        first_minted.expires_at_ms,
+        first_mint_now_ms + 86_400_000,
+        "invitation expiry comes from the chosen mint time plus the contract TTL"
+    );
+    accepted.insert("user-m-session-m");
     expected_invitations.insert((
-        minted.invitation_id.clone(),
-        minted.secret.token_hash().as_bytes().to_vec(),
+        first_minted.invitation_id.clone(),
+        first_minted.secret.token_hash().as_bytes().to_vec(),
         "creation".to_owned(),
         "user-m".to_owned(),
         "test".to_owned(),
         None,
-        now_ms as i64,
-        minted.expires_at_ms as i64,
+        first_mint_now_ms as i64,
+        (first_mint_now_ms + 86_400_000) as i64,
+        None,
+        None,
+        None,
+    ));
+    assert_eq!(
+        read_authority_factory_rows(&path),
+        (expected_invitations.clone(), expected_pairings.clone()),
+        "first accepted invitation must add exactly its independently expected durable row"
+    );
+
+    let second_mint_now_ms = now_ms + 20;
+    let second_minted = snapback
+        .mint_agent_invitation(
+            &second_authority,
+            ServerProfile::Demo,
+            &second_proof,
+            second_mint_now_ms,
+            &random,
+        )
+        .expect("second inviter authority and step-up proof mint an invitation");
+    assert_eq!(
+        second_minted.expires_at_ms,
+        second_mint_now_ms + 86_400_000,
+        "second invitation expiry varies with its independently chosen mint time"
+    );
+    accepted.insert("user-n-session-n");
+    expected_invitations.insert((
+        second_minted.invitation_id.clone(),
+        second_minted.secret.token_hash().as_bytes().to_vec(),
+        "creation".to_owned(),
+        "user-n".to_owned(),
+        "demo".to_owned(),
+        None,
+        second_mint_now_ms as i64,
+        (second_mint_now_ms + 86_400_000) as i64,
         None,
         None,
         None,
@@ -29385,18 +29459,16 @@ fn agent_invitation_factory_derives_the_inviter_and_requires_exact_management_fa
     assert_eq!(
         read_authority_factory_rows(&path),
         (expected_invitations, expected_pairings),
-        "accepted invitation must add exactly its returned row for the derived inviter"
+        "second accepted invitation must add exactly its independently expected durable row"
     );
 
     assert_eq!(
         accepted,
-        BTreeSet::from(["exact-management-session-and-step-up"])
+        BTreeSet::from(["user-m-session-m", "user-n-session-n"])
     );
     assert_eq!(
         refused,
         BTreeMap::from([
-            ("lexically-lower-user", "SNAPBACK_AUTH_REQUIRED".to_owned()),
-            ("lexically-upper-user", "SNAPBACK_AUTH_REQUIRED".to_owned()),
             (
                 "missing-authority-user-above",
                 "SNAPBACK_AUTH_AGENT_INVITATION_USER_INVALID".to_owned(),
@@ -29420,7 +29492,8 @@ fn pairing_code_factory_derives_the_durable_user_from_exact_management_authority
     let directory = tempfile::tempdir().expect("pairing authority fixture directory");
     let path = directory.path().join("pairing-authority.sqlite3");
     let now_ms = 10_000;
-    let (mut snapback, authority) = authority_factory_fixture(&path, now_ms);
+    let (mut snapback, first_authority, second_authority) =
+        authority_factory_fixture(&path, now_ms);
     let (expected_invitations, mut expected_pairings) =
         expected_authority_factory_sentinels(now_ms);
     assert_eq!(
@@ -29432,28 +29505,28 @@ fn pairing_code_factory_derives_the_durable_user_from_exact_management_authority
     let mut refused = BTreeMap::new();
     let random = CounterRandom::new();
 
-    for (label, expected_user) in [
-        ("lexically-lower-user", "user-a"),
-        ("lexically-upper-user", "user-z"),
+    for (label, missing_user, missing_session, missing_instance) in [
+        (
+            "missing-authority-user-below",
+            "user-0",
+            "session-0",
+            "authority-0",
+        ),
+        (
+            "missing-authority-user-above",
+            "user-zz",
+            "session-zz",
+            "authority-zz",
+        ),
     ] {
-        let error = snapback
-            .mint_pairing_code(&authority, expected_user, now_ms, &random)
-            .expect_err("a mismatched expected user must be refused");
-        refused.insert(label, error.diagnostic.code);
-        assert_eq!(
-            read_authority_factory_rows(&path),
-            (expected_invitations.clone(), expected_pairings.clone()),
-            "{label} refusal must leave every durable row untouched"
+        let missing_authority = authority_factory_management_session(
+            missing_user,
+            missing_session,
+            missing_instance,
+            now_ms,
         );
-    }
-
-    for (label, missing_user) in [
-        ("missing-authority-user-below", "user-0"),
-        ("missing-authority-user-above", "user-zz"),
-    ] {
-        let missing_authority = authority_factory_management_session(missing_user, now_ms);
         let error = snapback
-            .mint_pairing_code(&missing_authority, missing_user, now_ms, &random)
+            .mint_pairing_code(&missing_authority, now_ms, &random)
             .expect_err("an authority-derived nonexistent user must be refused");
         refused.insert(label, error.diagnostic.code);
         assert_eq!(
@@ -29471,7 +29544,7 @@ fn pairing_code_factory_derives_the_durable_user_from_exact_management_authority
         None,
     );
     let error = snapback
-        .mint_pairing_code(&wrong_source, "user-m", now_ms, &random)
+        .mint_pairing_code(&wrong_source, now_ms, &random)
         .expect_err("wrong-source session must be refused");
     refused.insert("wrong-source", error.diagnostic.code);
     assert_eq!(
@@ -29489,7 +29562,7 @@ fn pairing_code_factory_derives_the_durable_user_from_exact_management_authority
             .admit_for_mode(AuthMode::Sessions)
             .expect("admit authority before retirement"),
         &WireAuthorityFields::default(),
-        authority.resolved().clone(),
+        first_authority.resolved().clone(),
         Some(
             crate::auth::identity_core::AuthClaimsProjection::server_derived(
                 Vec::new(),
@@ -29507,7 +29580,7 @@ fn pairing_code_factory_derives_the_durable_user_from_exact_management_authority
         "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
     );
     let error = snapback
-        .mint_pairing_code(&retired, "user-m", now_ms, &random)
+        .mint_pairing_code(&retired, now_ms, &random)
         .expect_err("retired authority must be refused");
     refused.insert("retired", error.diagnostic.code);
     assert_eq!(
@@ -29515,35 +29588,71 @@ fn pairing_code_factory_derives_the_durable_user_from_exact_management_authority
         (expected_invitations.clone(), expected_pairings.clone())
     );
 
-    let minted = snapback
-        .mint_pairing_code(&authority, "user-m", now_ms, &random)
-        .expect("exact management session mints for its derived user");
-    accepted.insert("exact-management-session");
+    let first_mint_now_ms = now_ms + 10;
+    let first_minted = snapback
+        .mint_pairing_code(&first_authority, first_mint_now_ms, &random)
+        .expect("first management session mints for its derived user");
+    assert_eq!(
+        first_minted.expires_at_ms,
+        first_mint_now_ms + 600_000,
+        "pairing expiry comes from the chosen mint time plus the contract TTL"
+    );
+    accepted.insert("user-m-session-m");
     expected_pairings.insert((
-        minted.request_id.clone(),
-        minted.secret.token_hash().as_bytes().to_vec(),
+        first_minted.request_id.clone(),
+        first_minted.secret.token_hash().as_bytes().to_vec(),
         "user-m".to_owned(),
         None,
         None,
         "pending".to_owned(),
         0,
-        now_ms as i64,
-        minted.expires_at_ms as i64,
+        first_mint_now_ms as i64,
+        (first_mint_now_ms + 600_000) as i64,
+        None,
+        None,
+    ));
+    assert_eq!(
+        read_authority_factory_rows(&path),
+        (expected_invitations.clone(), expected_pairings.clone()),
+        "first accepted pairing must add exactly its independently expected durable row"
+    );
+
+    let second_mint_now_ms = now_ms + 20;
+    let second_minted = snapback
+        .mint_pairing_code(&second_authority, second_mint_now_ms, &random)
+        .expect("second management session mints for its derived user");
+    assert_eq!(
+        second_minted.expires_at_ms,
+        second_mint_now_ms + 600_000,
+        "second pairing expiry varies with its independently chosen mint time"
+    );
+    accepted.insert("user-n-session-n");
+    expected_pairings.insert((
+        second_minted.request_id.clone(),
+        second_minted.secret.token_hash().as_bytes().to_vec(),
+        "user-n".to_owned(),
+        None,
+        None,
+        "pending".to_owned(),
+        0,
+        second_mint_now_ms as i64,
+        (second_mint_now_ms + 600_000) as i64,
         None,
         None,
     ));
     assert_eq!(
         read_authority_factory_rows(&path),
         (expected_invitations, expected_pairings),
-        "accepted mint must add exactly its returned row for the derived user"
+        "second accepted pairing must add exactly its independently expected durable row"
     );
 
-    assert_eq!(accepted, BTreeSet::from(["exact-management-session"]));
+    assert_eq!(
+        accepted,
+        BTreeSet::from(["user-m-session-m", "user-n-session-n"])
+    );
     assert_eq!(
         refused,
         BTreeMap::from([
-            ("lexically-lower-user", "SNAPBACK_AUTH_REQUIRED".to_owned()),
-            ("lexically-upper-user", "SNAPBACK_AUTH_REQUIRED".to_owned()),
             (
                 "missing-authority-user-above",
                 "SNAPBACK_AUTH_GRANT_INVALID".to_owned(),

@@ -35701,7 +35701,6 @@ async fn pairing_code_mint_stages_clock_and_row_under_exact_guard_before_one_com
     let receipt = probe.receipt();
     let _probe_registration = probe.register_production_entry_for_test(reservation_identity);
     let effect_authority = authority.clone();
-    let user_id = fixture.principal_id.clone();
     let provider = fixture
         .state
         .auth_provider
@@ -35714,7 +35713,6 @@ async fn pairing_code_mint_stages_clock_and_row_under_exact_guard_before_one_com
         move |snapback| {
             snapback.mint_pairing_code_with_authorized_effect(
                 &effect_authority,
-                &user_id,
                 now_ms,
                 provider.agent_random_source(),
                 authorized_effect,

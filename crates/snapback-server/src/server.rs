@@ -17237,7 +17237,7 @@ async fn auth_agent_invitation(
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<AgentInvitationSecretResponse>, ApiError> {
-    let (user_id, _) = require_grant_session(&authority)?;
+    require_grant_session(&authority)?;
     let (provider, policy) = require_agent_registration_mode(&runtime).await?;
     if policy.mode != AgentsMode::Invited || policy.invited_by != crate::manifest::InvitedBy::Users
     {
@@ -17275,7 +17275,6 @@ async fn auth_agent_invitation(
     let invitation = with_snapback(&runtime.snapback, move |snapback| {
         snapback.mint_agent_invitation_with_authorized_effect(
             &effect_authority,
-            &user_id,
             profile,
             proof.proof(),
             effect_provider.now_ms(),
@@ -17317,7 +17316,7 @@ async fn auth_pairing_code(
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<PairingCodeSecretResponse>, ApiError> {
-    let (user_id, _) = require_grant_session(&authority)?;
+    require_grant_session(&authority)?;
     let provider = require_agent_routes_available(&runtime)?;
     let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
     let now_ms = provider.now_ms();
@@ -17362,7 +17361,6 @@ async fn auth_pairing_code(
     let minted = with_snapback_until(&runtime.snapback, writer_deadline, move |snapback| {
         snapback.mint_pairing_code_with_authorized_effect(
             &effect_authority,
-            &user_id,
             now_ms,
             provider.agent_random_source(),
             authorized_effect,
