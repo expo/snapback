@@ -142,13 +142,23 @@ impl crate::auth::crypto::RandomSource for FenceRandom {
     }
 }
 
-const DENY_CALLER_USER: &str = "middle-deny-user";
+const DENY_FIRST_CALLER_USER: &str = "middle-deny-user";
+const DENY_SECOND_CALLER_USER: &str = "second-deny-user";
 const DENY_LOWER_USER: &str = "aaa-deny-user";
 const DENY_UPPER_USER: &str = "zzz-deny-user";
+const DENY_AGENT_OWNER_USER: &str = "grant-denial-owner-user";
+const DENY_AGENT_USER: &str = "grant-denial-agent";
+const DENY_FIRST_SESSION_ID: &str = "opaque-denial-session-alpha";
+const DENY_SECOND_SESSION_ID: &str = "opaque-denial-session-bravo";
+const DENY_AUTH_CLOCK_META_KEY: &str = "auth_invalidation_clock_high_water_ms_v1";
+const DENY_PAIRING_TTL_MS: u64 = 600_000;
+const DENY_SCOPES_JSON: &str =
+    r#"[{"fn":"fn:listItems","kind":"query","basis":0,"authorityCreating":false}]"#;
 
-fn grant_management_authority_for_user(
+fn grant_management_authority_for_session(
     controller: &AdmissionController,
     user_id: &str,
+    session_id: &str,
     source: InvocationSource,
 ) -> PreparedAuthority {
     prepare_authority(
@@ -156,7 +166,7 @@ fn grant_management_authority_for_user(
         source,
         ResolvedAppAuthority::Session {
             user_id: user_id.to_owned(),
-            session_id: format!("{user_id}-session"),
+            session_id: session_id.to_owned(),
             provider: "email-code".to_owned(),
             generation: 1,
             authority_instance_id: AUTHORITY_INSTANCE_ID.to_owned(),
@@ -167,7 +177,34 @@ fn grant_management_authority_for_user(
     )
 }
 
-fn durable_pairing_request_rows(database_path: &std::path::Path) -> Vec<(String, String, String)> {
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct DurablePairingRequestRow {
+    id: String,
+    code_hash: Vec<u8>,
+    minted_by_user_id: String,
+    agent_user_id: Option<String>,
+    requested_scopes: Option<String>,
+    state: String,
+    attempts: i64,
+    created_at_ms: i64,
+    expires_at_ms: i64,
+    consumed_at_ms: Option<i64>,
+    grant_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct DurableAuthClockRow {
+    key: String,
+    value: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct GrantDenialDurableState {
+    pairing_requests: Vec<DurablePairingRequestRow>,
+    authorization_clock: DurableAuthClockRow,
+}
+
+fn durable_grant_denial_state(database_path: &std::path::Path) -> GrantDenialDurableState {
     let connection = rusqlite::Connection::open_with_flags(
         database_path,
         rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
@@ -175,47 +212,79 @@ fn durable_pairing_request_rows(database_path: &std::path::Path) -> Vec<(String,
     .expect("open independent durable grant-request reader");
     let mut statement = connection
         .prepare(
-            "SELECT id, minted_by_user_id, state
+            "SELECT id, code_hash, minted_by_user_id, agent_user_id,
+                    requested_scopes, state, attempts, created_at_ms,
+                    expires_at_ms, consumed_at_ms, grant_id
              FROM _auth_pairing_requests
              ORDER BY minted_by_user_id, id",
         )
         .expect("prepare durable grant-request readback");
-    statement
-        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+    let pairing_requests = statement
+        .query_map([], |row| {
+            Ok(DurablePairingRequestRow {
+                id: row.get(0)?,
+                code_hash: row.get(1)?,
+                minted_by_user_id: row.get(2)?,
+                agent_user_id: row.get(3)?,
+                requested_scopes: row.get(4)?,
+                state: row.get(5)?,
+                attempts: row.get(6)?,
+                created_at_ms: row.get(7)?,
+                expires_at_ms: row.get(8)?,
+                consumed_at_ms: row.get(9)?,
+                grant_id: row.get(10)?,
+            })
+        })
         .expect("read durable grant-request rows")
         .collect::<Result<Vec<_>, _>>()
-        .expect("decode durable grant-request rows")
+        .expect("decode durable grant-request rows");
+    let authorization_clock = connection
+        .query_row(
+            "SELECT key, value FROM _snapback_meta WHERE key = ?1",
+            [DENY_AUTH_CLOCK_META_KEY],
+            |row| {
+                Ok(DurableAuthClockRow {
+                    key: row.get(0)?,
+                    value: row.get(1)?,
+                })
+            },
+        )
+        .expect("read durable grant-denial authorization clock");
+    GrantDenialDurableState {
+        pairing_requests,
+        authorization_clock,
+    }
 }
 
-fn expected_pairing_request_rows(
-    requests: &[(String, &'static str)],
-    denied_request_ids: &[&str],
-) -> Vec<(String, String, String)> {
-    let mut rows = requests
+#[derive(Debug)]
+struct PairingRequestFixture {
+    label: &'static str,
+    row: DurablePairingRequestRow,
+}
+
+fn request_id<'a>(requests: &'a [PairingRequestFixture], label: &str) -> &'a str {
+    requests
         .iter()
-        .map(|(request_id, user_id)| {
-            let state = if denied_request_ids.contains(&request_id.as_str()) {
-                "denied"
-            } else {
-                "pending"
-            };
-            (request_id.clone(), (*user_id).to_owned(), state.to_owned())
-        })
-        .collect::<Vec<_>>();
-    rows.sort_by(|left, right| (&left.1, &left.0).cmp(&(&right.1, &right.0)));
-    rows
-}
-
-#[derive(Debug, Eq, PartialEq)]
-struct GrantDenialObservation {
-    outcomes: Vec<(&'static str, String)>,
-    durable_rows_after_each_call: Vec<Vec<(String, String, String)>>,
+        .find(|request| request.label == label)
+        .unwrap_or_else(|| panic!("grant-denial fixture request {label} exists"))
+        .row
+        .id
+        .as_str()
 }
 
 #[test]
 fn grant_denial_derives_subject_and_preserves_every_other_durable_request() {
-    assert!(DENY_LOWER_USER < DENY_CALLER_USER);
-    assert!(DENY_CALLER_USER < DENY_UPPER_USER);
+    assert!(DENY_LOWER_USER < DENY_FIRST_CALLER_USER);
+    assert!(DENY_FIRST_CALLER_USER < DENY_SECOND_CALLER_USER);
+    assert!(DENY_SECOND_CALLER_USER < DENY_UPPER_USER);
+    assert_ne!(DENY_FIRST_CALLER_USER, DENY_SECOND_CALLER_USER);
+    assert_ne!(DENY_FIRST_SESSION_ID, DENY_SECOND_SESSION_ID);
+    assert_ne!(DENY_FIRST_CALLER_USER, DENY_FIRST_SESSION_ID);
+    assert_ne!(DENY_SECOND_CALLER_USER, DENY_SECOND_SESSION_ID);
+    assert_ne!(DENY_AGENT_OWNER_USER, DENY_FIRST_CALLER_USER);
+    assert_ne!(DENY_AGENT_OWNER_USER, DENY_SECOND_CALLER_USER);
+    assert_ne!(DENY_AGENT_USER, DENY_FIRST_CALLER_USER);
+    assert_ne!(DENY_AGENT_USER, DENY_SECOND_CALLER_USER);
 
     let directory = tempfile::tempdir().expect("grant-denial fixture directory");
     let database_path = directory.path().join("grant-denial.sqlite3");
@@ -225,24 +294,31 @@ fn grant_denial_derives_subject_and_preserves_every_other_durable_request() {
         let db = snapback.auth_database_mut();
         db.activate_current_auth_catalog()
             .expect("activate grant-denial auth catalog");
-        for user_id in [DENY_LOWER_USER, DENY_CALLER_USER, DENY_UPPER_USER] {
+        for user_id in [
+            DENY_LOWER_USER,
+            DENY_FIRST_CALLER_USER,
+            DENY_SECOND_CALLER_USER,
+            DENY_AGENT_OWNER_USER,
+            DENY_FIRST_SESSION_ID,
+            DENY_UPPER_USER,
+        ] {
             db.auth_catalog()
                 .insert_human_user_for_test(user_id, NOW_MS)
                 .expect("insert grant-denial human fixture");
         }
         db.create_agent_principal(
-            "grant-denial-agent",
+            DENY_AGENT_USER,
             NOW_MS,
             &crate::storage::auth_agents::AgentRegistration {
                 display_name: Some("Grant Denial Agent".to_owned()),
                 operator_contact: None,
                 registration_provenance: "grant-denial-authority-test".to_owned(),
-                owner_user_id: Some(DENY_CALLER_USER.to_owned()),
+                owner_user_id: Some(DENY_AGENT_OWNER_USER.to_owned()),
             },
         )
         .expect("create grant-denial agent");
         let credential = db
-            .issue_initial_agent_credential("grant-denial-agent", NOW_MS, &random)
+            .issue_initial_agent_credential(DENY_AGENT_USER, NOW_MS, &random)
             .expect("issue grant-denial agent credential")
             .secret;
         db.auth_catalog()
@@ -250,19 +326,29 @@ fn grant_denial_derives_subject_and_preserves_every_other_durable_request() {
             .expect("insert grant-denial scope bases");
 
         [
-            DENY_LOWER_USER,
-            DENY_CALLER_USER,
-            DENY_CALLER_USER,
-            DENY_CALLER_USER,
-            DENY_UPPER_USER,
+            ("foreign-lower", DENY_LOWER_USER),
+            ("first-pending-lower-id", DENY_FIRST_CALLER_USER),
+            ("first-target", DENY_FIRST_CALLER_USER),
+            ("first-pending-upper-id", DENY_FIRST_CALLER_USER),
+            ("second-target", DENY_SECOND_CALLER_USER),
+            ("second-pending", DENY_SECOND_CALLER_USER),
+            ("agent-owner-subject", DENY_AGENT_OWNER_USER),
+            ("session-id-subject", DENY_FIRST_SESSION_ID),
+            ("foreign-upper", DENY_UPPER_USER),
         ]
         .into_iter()
         .enumerate()
-        .map(|(index, user_id)| {
+        .map(|(index, (label, user_id))| {
             let now_ms = NOW_MS + index as u64 + 1;
             let pairing = db
                 .mint_pairing_code(user_id, now_ms, &random)
                 .expect("mint grant-denial pairing code");
+            assert_eq!(
+                pairing.expires_at_ms,
+                now_ms + DENY_PAIRING_TTL_MS,
+                "pairing expiry is the chosen creation time plus the contract TTL"
+            );
+            let code_hash = pairing.secret.token_hash().as_bytes().to_vec();
             db.present_pairing_code(
                 &credential,
                 &pairing.request_id,
@@ -274,117 +360,237 @@ fn grant_denial_derives_subject_and_preserves_every_other_durable_request() {
                 now_ms,
             )
             .expect("present grant-denial pairing code");
-            (pairing.request_id, user_id)
+            PairingRequestFixture {
+                label,
+                row: DurablePairingRequestRow {
+                    id: pairing.request_id,
+                    code_hash,
+                    minted_by_user_id: user_id.to_owned(),
+                    agent_user_id: Some(DENY_AGENT_USER.to_owned()),
+                    requested_scopes: Some(DENY_SCOPES_JSON.to_owned()),
+                    state: "pending".to_owned(),
+                    attempts: 0,
+                    created_at_ms: now_ms as i64,
+                    expires_at_ms: (now_ms + DENY_PAIRING_TTL_MS) as i64,
+                    consumed_at_ms: Some(now_ms as i64),
+                    grant_id: None,
+                },
+            }
         })
         .collect::<Vec<_>>()
     };
-    let lower_request = requests[0].0.clone();
-    let caller_lower_request = requests[1].0.clone();
-    let accepted_request = requests[2].0.clone();
-    let caller_upper_request = requests[3].0.clone();
-    let upper_request = requests[4].0.clone();
-    assert!(caller_lower_request < accepted_request);
-    assert!(accepted_request < caller_upper_request);
+    assert!(
+        request_id(&requests, "first-pending-lower-id") < request_id(&requests, "first-target")
+    );
+    assert!(
+        request_id(&requests, "first-target") < request_id(&requests, "first-pending-upper-id")
+    );
+    for (index, request) in requests.iter().enumerate() {
+        assert!(
+            requests[index + 1..]
+                .iter()
+                .all(|other| request.row.code_hash != other.row.code_hash),
+            "every returned pairing artifact supplies a distinct expected digest"
+        );
+    }
 
+    let mut expected_pairing_requests = requests
+        .iter()
+        .map(|request| request.row.clone())
+        .collect::<Vec<_>>();
+    expected_pairing_requests.sort_by(|left, right| {
+        (&left.minted_by_user_id, &left.id).cmp(&(&right.minted_by_user_id, &right.id))
+    });
+    let setup_clock_ms = NOW_MS + requests.len() as u64;
+    let mut expected_durable = GrantDenialDurableState {
+        pairing_requests: expected_pairing_requests,
+        authorization_clock: DurableAuthClockRow {
+            key: DENY_AUTH_CLOCK_META_KEY.to_owned(),
+            value: setup_clock_ms.to_string(),
+        },
+    };
     assert_eq!(
-        durable_pairing_request_rows(&database_path),
-        expected_pairing_request_rows(&requests, &[]),
-        "fixture starts with exactly five independently bound pending rows"
+        durable_grant_denial_state(&database_path),
+        expected_durable,
+        "fixture starts with all eleven pairing columns and both clock columns independently expected"
     );
 
     let controller = synchronize_sessions(&snapback);
-    let management_authority = grant_management_authority_for_user(
+    let first_authority = grant_management_authority_for_session(
         &controller,
-        DENY_CALLER_USER,
+        DENY_FIRST_CALLER_USER,
+        DENY_FIRST_SESSION_ID,
         InvocationSource::AgentGrantManagement,
     );
-    let wrong_source_authority = grant_management_authority_for_user(
+    let second_authority = grant_management_authority_for_session(
         &controller,
-        DENY_CALLER_USER,
+        DENY_SECOND_CALLER_USER,
+        DENY_SECOND_SESSION_ID,
+        InvocationSource::AgentGrantManagement,
+    );
+    let wrong_source_authority = grant_management_authority_for_session(
+        &controller,
+        DENY_FIRST_CALLER_USER,
+        DENY_FIRST_SESSION_ID,
         InvocationSource::HttpMutation,
     );
-    let mut actual = GrantDenialObservation {
-        outcomes: Vec::new(),
-        durable_rows_after_each_call: Vec::new(),
-    };
+    struct DenialCall<'a> {
+        label: &'static str,
+        authority: &'a PreparedAuthority,
+        request_id: &'a str,
+        expected_outcome: &'static str,
+        reaches_storage: bool,
+        changed_request_id: Option<&'a str>,
+    }
     let calls = [
-        (
-            "own-request",
-            &management_authority,
-            accepted_request.as_str(),
-        ),
-        (
-            "own-request-idempotent-repeat",
-            &management_authority,
-            accepted_request.as_str(),
-        ),
-        (
-            "foreign-lower-subject",
-            &management_authority,
-            lower_request.as_str(),
-        ),
-        (
-            "foreign-upper-subject",
-            &management_authority,
-            upper_request.as_str(),
-        ),
-        ("missing-lower-id", &management_authority, ""),
-        (
-            "missing-upper-id",
-            &management_authority,
-            "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
-        ),
-        (
-            "wrong-source-own-request",
-            &wrong_source_authority,
-            caller_lower_request.as_str(),
-        ),
+        DenialCall {
+            label: "first-own-request",
+            authority: &first_authority,
+            request_id: request_id(&requests, "first-target"),
+            expected_outcome: "accepted",
+            reaches_storage: true,
+            changed_request_id: Some(request_id(&requests, "first-target")),
+        },
+        DenialCall {
+            label: "second-own-request",
+            authority: &second_authority,
+            request_id: request_id(&requests, "second-target"),
+            expected_outcome: "accepted",
+            reaches_storage: true,
+            changed_request_id: Some(request_id(&requests, "second-target")),
+        },
+        DenialCall {
+            label: "first-own-request-idempotent-repeat",
+            authority: &first_authority,
+            request_id: request_id(&requests, "first-target"),
+            expected_outcome: "accepted",
+            reaches_storage: true,
+            changed_request_id: None,
+        },
+        DenialCall {
+            label: "second-own-request-idempotent-repeat",
+            authority: &second_authority,
+            request_id: request_id(&requests, "second-target"),
+            expected_outcome: "accepted",
+            reaches_storage: true,
+            changed_request_id: None,
+        },
+        DenialCall {
+            label: "foreign-lower-subject",
+            authority: &first_authority,
+            request_id: request_id(&requests, "foreign-lower"),
+            expected_outcome: "SNAPBACK_AUTH_GRANT_INVALID",
+            reaches_storage: true,
+            changed_request_id: None,
+        },
+        DenialCall {
+            label: "foreign-upper-subject",
+            authority: &first_authority,
+            request_id: request_id(&requests, "foreign-upper"),
+            expected_outcome: "SNAPBACK_AUTH_GRANT_INVALID",
+            reaches_storage: true,
+            changed_request_id: None,
+        },
+        DenialCall {
+            label: "foreign-other-successful-subject",
+            authority: &first_authority,
+            request_id: request_id(&requests, "second-pending"),
+            expected_outcome: "SNAPBACK_AUTH_GRANT_INVALID",
+            reaches_storage: true,
+            changed_request_id: None,
+        },
+        DenialCall {
+            label: "foreign-agent-owner-subject",
+            authority: &first_authority,
+            request_id: request_id(&requests, "agent-owner-subject"),
+            expected_outcome: "SNAPBACK_AUTH_GRANT_INVALID",
+            reaches_storage: true,
+            changed_request_id: None,
+        },
+        DenialCall {
+            label: "foreign-session-id-subject",
+            authority: &first_authority,
+            request_id: request_id(&requests, "session-id-subject"),
+            expected_outcome: "SNAPBACK_AUTH_GRANT_INVALID",
+            reaches_storage: true,
+            changed_request_id: None,
+        },
+        DenialCall {
+            label: "missing-lower-id",
+            authority: &first_authority,
+            request_id: "",
+            expected_outcome: "SNAPBACK_AUTH_GRANT_INVALID",
+            reaches_storage: true,
+            changed_request_id: None,
+        },
+        DenialCall {
+            label: "missing-upper-id",
+            authority: &first_authority,
+            request_id: "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+            expected_outcome: "SNAPBACK_AUTH_GRANT_INVALID",
+            reaches_storage: true,
+            changed_request_id: None,
+        },
+        DenialCall {
+            label: "wrong-source-own-request",
+            authority: &wrong_source_authority,
+            request_id: request_id(&requests, "first-pending-lower-id"),
+            expected_outcome: "SNAPBACK_AUTH_REQUIRED",
+            reaches_storage: false,
+            changed_request_id: None,
+        },
     ];
-    for (label, authority, request_id) in calls {
-        let result = snapback.deny_grant_request(authority, request_id, NOW_MS + 10);
-        actual.outcomes.push((
-            label,
-            result
-                .as_ref()
-                .map(|_| "accepted".to_owned())
-                .unwrap_or_else(|error| error.diagnostic.code.clone()),
-        ));
-        actual
-            .durable_rows_after_each_call
-            .push(durable_pairing_request_rows(&database_path));
+    let mut actual_outcomes = Vec::new();
+    for (index, call) in calls.iter().enumerate() {
+        let call_now_ms = NOW_MS + 100 + index as u64;
+        let before = expected_durable.clone();
+        let result = snapback.deny_grant_request(call.authority, call.request_id, call_now_ms);
+        let outcome = result
+            .as_ref()
+            .map(|_| "accepted".to_owned())
+            .unwrap_or_else(|error| error.diagnostic.code.clone());
+        actual_outcomes.push((call.label, outcome));
+
+        if call.reaches_storage {
+            expected_durable.authorization_clock.value = call_now_ms.to_string();
+        }
+        if let Some(changed_request_id) = call.changed_request_id {
+            expected_durable
+                .pairing_requests
+                .iter_mut()
+                .find(|row| row.id == changed_request_id)
+                .expect("accepted grant-denial target exists")
+                .state = "denied".to_owned();
+        }
+
+        let after = durable_grant_denial_state(&database_path);
+        let changed_pairing_ids = before
+            .pairing_requests
+            .iter()
+            .zip(&after.pairing_requests)
+            .filter_map(|(before, after)| (before != after).then(|| after.id.as_str()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            changed_pairing_ids,
+            call.changed_request_id.into_iter().collect::<Vec<_>>(),
+            "{} changes exactly its selected pairing row and no other pairing column",
+            call.label
+        );
+        assert_eq!(
+            after, expected_durable,
+            "{} has the exact complete durable successor, including the denial clock",
+            call.label
+        );
     }
 
-    let accepted_only = expected_pairing_request_rows(&requests, &[&accepted_request]);
-    let expected = GrantDenialObservation {
-        outcomes: vec![
-            ("own-request", "accepted".to_owned()),
-            ("own-request-idempotent-repeat", "accepted".to_owned()),
-            (
-                "foreign-lower-subject",
-                "SNAPBACK_AUTH_GRANT_INVALID".to_owned(),
-            ),
-            (
-                "foreign-upper-subject",
-                "SNAPBACK_AUTH_GRANT_INVALID".to_owned(),
-            ),
-            ("missing-lower-id", "SNAPBACK_AUTH_GRANT_INVALID".to_owned()),
-            ("missing-upper-id", "SNAPBACK_AUTH_GRANT_INVALID".to_owned()),
-            (
-                "wrong-source-own-request",
-                "SNAPBACK_AUTH_REQUIRED".to_owned(),
-            ),
-        ],
-        durable_rows_after_each_call: vec![
-            accepted_only.clone(),
-            accepted_only.clone(),
-            accepted_only.clone(),
-            accepted_only.clone(),
-            accepted_only.clone(),
-            accepted_only.clone(),
-            accepted_only,
-        ],
-    };
-    assert_eq!(actual, expected);
+    assert_eq!(
+        actual_outcomes,
+        calls
+            .iter()
+            .map(|call| (call.label, call.expected_outcome.to_owned()))
+            .collect::<Vec<_>>(),
+        "grant denial has the exact accepted/refused set and diagnostic codes"
+    );
 }
 
 fn retire_at_next_effect(
