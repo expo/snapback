@@ -1,17 +1,19 @@
-# complete battery red: provider-live-conformance
+# complete battery red: telemetry-smoke
 
-**Status:** Open
+**Status:** Closed
+**Closure:** `determinate PASS`
+**Closed at revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
 **Confidence:** 5
 **Systems:** Testing, CI
 **Date:** 2026-08-24
-**Battery gate:** `provider-live-conformance`
-**Failure signature:** `sha256:3231c8f9f698410c2632ad51452499aa998088e3668e378fdaa6f4add92c64e8`
+**Battery gate:** `telemetry-smoke`
+**Failure signature:** `sha256:abd19987c9a047c1681c597768fdc555d5c3dc6fad5102ca4b4fce766c95f35c`
 **First observed run:** `local.20260824T022619Z.88476b032428`
 **Last observed run:** `local.20260824T022619Z.88476b032428`
-**Last processed run:** `local.20260824T022619Z.88476b032428`
+**Last processed run:** `local.20260824T075727Z.59ae1a00e1c4`
 **Detected at revision:** `88476b0324286a5c8bde4b0c1d877ae542cf96e7`
 **Last observed revision:** `88476b0324286a5c8bde4b0c1d877ae542cf96e7`
 **Consecutive red runs:** `1`
@@ -20,22 +22,22 @@
 
 ## Summary
 
-The scheduled complete canonical battery reported `provider-live-conformance` as a root
+The scheduled complete canonical battery reported `telemetry-smoke` as a root
 failure (exit 1). This ticket is keyed by gate plus the normalized
 root-failure signature and remains idempotent while open. Dependent `BLOCKED`
 results do not create tickets.
 
 ## Standing claim cross-references
 
-- `single_table_v1` — `crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json`
+- None.
 
 These are the standing published claims whose recorded LLP 0189 D-4 scope
-derives `provider-live-conformance` as claim-relevant for this battery revision.
+derives `telemetry-smoke` as claim-relevant for this battery revision.
 
 ## Reproduce and repair
 
 ```sh
-node demos/_kit/tests/provider-live-conformance.mjs
+scripts/verify-telemetry-phase1-proof --smoke
 ```
 
 Fix forward, rerun the complete battery, and let the next determinate pass close

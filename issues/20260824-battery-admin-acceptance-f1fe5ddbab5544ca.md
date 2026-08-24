@@ -8,12 +8,12 @@
 **Systems:** Testing, CI
 **Date:** 2026-08-24
 **Battery gate:** `admin-acceptance`
-**Failure signature:** `sha256:e29ea68c74ff86877e24ea516c1e052f1b06bab15f3433f1692cdd24f4069c3b`
-**First observed run:** `local.20260824T022619Z.88476b032428`
-**Last observed run:** `local.20260824T022619Z.88476b032428`
-**Last processed run:** `local.20260824T022619Z.88476b032428`
-**Detected at revision:** `88476b0324286a5c8bde4b0c1d877ae542cf96e7`
-**Last observed revision:** `88476b0324286a5c8bde4b0c1d877ae542cf96e7`
+**Failure signature:** `sha256:f1fe5ddbab5544caabc54aac93fbfe2e20b2fcb11f81694e28e406c25ffe95eb`
+**First observed run:** `local.20260824T075727Z.59ae1a00e1c4`
+**Last observed run:** `local.20260824T075727Z.59ae1a00e1c4`
+**Last processed run:** `local.20260824T075727Z.59ae1a00e1c4`
+**Detected at revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
+**Last observed revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3

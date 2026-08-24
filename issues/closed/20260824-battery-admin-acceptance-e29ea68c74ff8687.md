@@ -1,17 +1,19 @@
-# complete battery red: swift-client
+# complete battery red: admin-acceptance
 
-**Status:** Open
+**Status:** Closed
+**Closure:** `signature absent from determinate FAIL`
+**Closed at revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
 **Confidence:** 5
 **Systems:** Testing, CI
 **Date:** 2026-08-24
-**Battery gate:** `swift-client`
-**Failure signature:** `sha256:8c513b28427fced5c7f181f659523df6273d313bcf48ae770ab12a78cbea475c`
+**Battery gate:** `admin-acceptance`
+**Failure signature:** `sha256:e29ea68c74ff86877e24ea516c1e052f1b06bab15f3433f1692cdd24f4069c3b`
 **First observed run:** `local.20260824T022619Z.88476b032428`
 **Last observed run:** `local.20260824T022619Z.88476b032428`
-**Last processed run:** `local.20260824T022619Z.88476b032428`
+**Last processed run:** `local.20260824T075727Z.59ae1a00e1c4`
 **Detected at revision:** `88476b0324286a5c8bde4b0c1d877ae542cf96e7`
 **Last observed revision:** `88476b0324286a5c8bde4b0c1d877ae542cf96e7`
 **Consecutive red runs:** `1`
@@ -20,7 +22,7 @@
 
 ## Summary
 
-The scheduled complete canonical battery reported `swift-client` as a root
+The scheduled complete canonical battery reported `admin-acceptance` as a root
 failure (exit 1). This ticket is keyed by gate plus the normalized
 root-failure signature and remains idempotent while open. Dependent `BLOCKED`
 results do not create tickets.
@@ -30,12 +32,12 @@ results do not create tickets.
 - None.
 
 These are the standing published claims whose recorded LLP 0189 D-4 scope
-derives `swift-client` as claim-relevant for this battery revision.
+derives `admin-acceptance` as claim-relevant for this battery revision.
 
 ## Reproduce and repair
 
 ```sh
-swift test --package-path clients/swift/SnapbackClient
+bash -lc cd\ admin-ui\ \&\&\ ./build.sh\ \&\&\ bun\ run\ test\ \&\&\ bun\ run\ test:browser-security\ \&\&\ bun\ run\ audit:production
 ```
 
 Fix forward, rerun the complete battery, and let the next determinate pass close

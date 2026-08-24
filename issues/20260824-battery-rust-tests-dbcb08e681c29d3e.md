@@ -8,12 +8,12 @@
 **Systems:** Testing, CI
 **Date:** 2026-08-24
 **Battery gate:** `rust-tests`
-**Failure signature:** `sha256:61d8a31170e2e245bc21dc7f8410595fc349c58078b0828c382b103273c59073`
-**First observed run:** `local.20260824T022619Z.88476b032428`
-**Last observed run:** `local.20260824T022619Z.88476b032428`
-**Last processed run:** `local.20260824T022619Z.88476b032428`
-**Detected at revision:** `88476b0324286a5c8bde4b0c1d877ae542cf96e7`
-**Last observed revision:** `88476b0324286a5c8bde4b0c1d877ae542cf96e7`
+**Failure signature:** `sha256:dbcb08e681c29d3efbf23531d6a1ead537a387d42202b7c587a673a354f1d0a1`
+**First observed run:** `local.20260824T075727Z.59ae1a00e1c4`
+**Last observed run:** `local.20260824T075727Z.59ae1a00e1c4`
+**Last processed run:** `local.20260824T075727Z.59ae1a00e1c4`
+**Detected at revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
+**Last observed revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
