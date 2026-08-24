@@ -81,11 +81,15 @@ path, for unlinked files, in every journal mode, with the exact flags the repo p
 `table t already exists` / `database is locked`. Those were artifacts of fd reuse, not results.
 The table above is from the corrected probe that holds every file open so no two share an fd.)*
 
-**Still not diagnosed.** The leading remaining candidate is that **rusqlite does not use the system
-SQLite**. If it is built with the bundled amalgamation, that is a different library with different
-compile-time options from the one probed above, and the probe therefore does not exercise the code
-that actually fails. Check `rusqlite`'s features in `Cargo.toml` first, and re-run the equivalent
-probe against the bundled build before looking anywhere else.
+**Confirmed, and it explains why the probe passed.** `rusqlite` is declared with the `"bundled"`
+feature (`crates/snapback-kernel/Cargo.toml:30`, alongside `backup` and `serialize`), so the failing
+code links its **own SQLite amalgamation**, not the system `libsqlite3` the probe exercised. The
+table above therefore says nothing about the library that actually fails — it only proves the
+approach is sound in principle on this kernel and filesystem.
+
+The next step is to re-run the same sequence against the **bundled** build. Because `backup` and
+`serialize` are both enabled and the code path uses them (copy into an in-memory database, then
+serialise to the pinned descriptor), the bundled build's options are the first thing to compare.
 
 Two lesser candidates, untested: the failing open may not be the output image at all but another
 open in the same chain (the code copies into an in-memory database and serialises to the pinned
