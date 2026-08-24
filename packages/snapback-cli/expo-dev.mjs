@@ -40,6 +40,12 @@ import {
   stopProcessGroup,
 } from './process-teardown.mjs';
 import { createSupervisedBindingPublisher } from './expo-binding-refresh.mjs';
+import {
+  devPortPlanOwner,
+  materializeDevPortPlan,
+  resolveDevPortPlan,
+} from './port-plan.mjs';
+export { resolveDevPortPlan } from './port-plan.mjs';
 
 export const EXPO_DEV_EVENT_FORMAT = 'snapback.expo-dev.v1';
 export const EXPO_SUPERVISOR_DESCRIPTOR_FORMAT = 'snapback.expo-supervisor.v1';
@@ -375,20 +381,6 @@ function portFromOrigin(origin, label) {
     throw diagnosticError('SNAPBACK_EXPO_ROUTE_INVALID', `${label} provided an invalid port`);
   }
   return { host: parsed.hostname, port, origin: parsed.origin };
-}
-
-async function freeLoopbackPort() {
-  return new Promise((resolvePort, rejectPort) => {
-    const probe = createNetServer();
-    probe.once('error', rejectPort);
-    probe.listen(0, LOOPBACK_HOST, () => {
-      const address = probe.address();
-      probe.close((error) => {
-        if (error) rejectPort(error);
-        else resolvePort(address.port);
-      });
-    });
-  });
 }
 
 function clientDiagnostic(source, fallbackCode, fallbackMessage) {
@@ -1316,6 +1308,175 @@ function lsofBinary() {
   return null;
 }
 
+export function describePortHolder(port) {
+  const binary = lsofBinary();
+  if (binary === null) return null;
+  try {
+    const result = spawnSync(binary, [
+      '-nP', `-i4TCP:${port}`, '-sTCP:LISTEN', '-Fpcn',
+    ], { encoding: 'utf8', timeout: 10_000 });
+    if (result.error || ![0, 1].includes(result.status)) return null;
+    const holder = parseLsofListeners(result.stdout)
+      .find((listener) => (
+        listener.port === port
+        && (
+          listener.host === '127.0.0.1'
+          || listener.host === '0.0.0.0'
+          || listener.host === '*'
+        )
+      ));
+    return holder === undefined
+      ? null
+      : Object.freeze({ pid: holder.pid, command: holder.command ?? null });
+  } catch {
+    return null;
+  }
+}
+
+function unavailablePortError(owner, port) {
+  // @ref LLP 0299#3-pins-are-strict — a supervisor-owned pin is a strict,
+  // non-adopting contract; lsof identifies the holder without authorizing a
+  // signal or fallback allocation.
+  const recoveryByOwner = {
+    client: `stop or reconfigure the process holding ${LOOPBACK_HOST}:${port}, or choose a different --client-port`,
+    bootstrap: `stop or reconfigure the process holding ${LOOPBACK_HOST}:${port}, or choose a different --bootstrap-port`,
+    metro: `stop or reconfigure the process holding ${LOOPBACK_HOST}:${port}, or choose a different --port-range (metro has no pin flag)`,
+  };
+  return diagnosticError(
+    'SNAPBACK_DEV_PORT_UNAVAILABLE',
+    `the pinned ${owner} listener port ${port} is unavailable on ${LOOPBACK_HOST}`,
+    {
+      owner,
+      host: LOOPBACK_HOST,
+      port,
+      holder: describePortHolder(port),
+      recovery: recoveryByOwner[owner],
+    },
+  );
+}
+
+function exhaustedPortRangeError(owner, range, observedPorts) {
+  const holders = [...observedPorts]
+    .sort((left, right) => right - left)
+    .map((port) => {
+      const holder = describePortHolder(port);
+      return holder === null ? Object.freeze({ port, pid: null, command: null }) : Object.freeze({
+        port,
+        pid: holder.pid,
+        command: holder.command,
+      });
+    });
+  return diagnosticError(
+    'SNAPBACK_DEV_PORT_RANGE_EXHAUSTED',
+    `the ${owner} listener could not find a free port in ${range.lo}-${range.hi}`,
+    { owner, range: { lo: range.lo, hi: range.hi }, holders },
+  );
+}
+
+async function holdLoopbackPort(port) {
+  const server = createNetServer();
+  await new Promise((resolveListen, rejectListen) => {
+    server.once('error', rejectListen);
+    server.listen(port, LOOPBACK_HOST, resolveListen);
+  });
+  return Object.freeze({
+    port,
+    async close() {
+      await new Promise((resolveClose, rejectClose) => {
+        server.close((error) => (error ? rejectClose(error) : resolveClose()));
+      });
+    },
+  });
+}
+
+function idempotentReservation(reservation) {
+  let closePromise = null;
+  const descriptors = Object.getOwnPropertyDescriptors(reservation);
+  delete descriptors.close;
+  const wrapped = Object.defineProperties({}, descriptors);
+  Object.defineProperty(wrapped, 'close', {
+    enumerable: true,
+    value() {
+      if (closePromise === null) closePromise = Promise.resolve().then(() => reservation.close());
+      return closePromise;
+    },
+  });
+  return Object.freeze(wrapped);
+}
+
+async function allocateSupervisorPortCandidates(
+  plan,
+  excluded = new Set(),
+  {
+    platform = 'web',
+    bindOwner = async (_owner, port) => holdLoopbackPort(port),
+    onReservation = () => {},
+    afterOwnerBound = null,
+  } = {},
+) {
+  const assigned = {};
+  const reservations = {};
+  const pinnedPorts = new Set(
+    plan.owners.filter(({ source }) => source === 'pinned').map(({ port }) => port),
+  );
+  const supervisorOwners = ['client', 'bootstrap', 'metro']
+    .map((owner) => devPortPlanOwner(plan, owner))
+    .filter((entry) => entry !== null);
+  const used = new Set(pinnedPorts);
+  const close = async () => {
+    const failures = [];
+    for (const owner of [...supervisorOwners].reverse().map(({ owner }) => owner)) {
+      try { await reservations[owner]?.close?.(); } catch (error) { failures.push(error); }
+    }
+    if (failures.length > 0) {
+      throw new AggregateError(failures, 'planned supervisor listener cleanup failed');
+    }
+  };
+  try {
+    // @ref LLP 0299#2-default-posture-stable-deterministic-collision-tolerant —
+    // the owner order and descending scan are deliberate: the backend keeps
+    // ascending from 4287 while client/bootstrap/metro descend from the top.
+    for (const entry of supervisorOwners) {
+      const occupied = new Set(excluded);
+      const candidates = entry.source === 'pinned'
+        ? [entry.port]
+        : Array.from(
+            { length: plan.range.hi - plan.range.lo + 1 },
+            (_unused, offset) => plan.range.hi - offset,
+          );
+      let selected = null;
+      for (const port of candidates) {
+        if (entry.source !== 'pinned' && (used.has(port) || excluded.has(port))) continue;
+        try {
+          const reservation = idempotentReservation(await bindOwner(entry.owner, port, { platform }));
+          assigned[entry.owner] = port;
+          reservations[entry.owner] = reservation;
+          used.add(port);
+          onReservation(entry.owner, reservation);
+          await afterOwnerBound?.(entry.owner, port, reservation);
+          selected = port;
+          break;
+        } catch (error) {
+          if (error?.code !== 'EADDRINUSE') throw error;
+          if (entry.source === 'pinned') throw unavailablePortError(entry.owner, port);
+          occupied.add(port);
+        }
+      }
+      if (selected === null) {
+        throw exhaustedPortRangeError(entry.owner, plan.range, occupied);
+      }
+    }
+    return Object.freeze({
+      assigned: Object.freeze(assigned),
+      reservations: Object.freeze(reservations),
+      close,
+    });
+  } catch (error) {
+    try { await close(); } catch { /* allocation error wins */ }
+    throw error;
+  }
+}
+
 // Enumerate, rather than merely restate configuration: the backend process
 // tree, Metro process tree, and supervisor exchange socket are joined to the
 // OS listener table and every observed address must be loopback.
@@ -1410,7 +1571,7 @@ async function waitForListenerInventory({
 
 export async function startBootstrapExchange(
   getPayload,
-  { onControl, onDevIdentityCheckout } = {},
+  { onControl, onDevIdentityCheckout, port = 0 } = {},
 ) {
   const sockets = new Set();
   const handleRequest = async (request, response) => {
@@ -1545,7 +1706,7 @@ export async function startBootstrapExchange(
   });
   await new Promise((resolveListen, rejectListen) => {
     server.once('error', rejectListen);
-    server.listen(0, LOOPBACK_HOST, resolveListen);
+    server.listen(port, LOOPBACK_HOST, resolveListen);
   });
   const address = server.address();
   return Object.freeze({
@@ -1671,10 +1832,16 @@ function proxyUpgrade(request, socket, head, upstream) {
 }
 
 async function startMetroWebFront({ port, upstreamOrigin, attestation }) {
-  const upstream = new URL(upstreamOrigin);
+  let currentUpstreamOrigin = upstreamOrigin;
   const sockets = new Set();
   const server = createHttpServer((request, response) => {
     if (attestation.serve(request, response)) return;
+    if (currentUpstreamOrigin === null) {
+      response.statusCode = 503;
+      response.end('supervised Metro is still being allocated\n');
+      return;
+    }
+    const upstream = new URL(currentUpstreamOrigin);
     const controller = new AbortController();
     const abort = () => {
       if (!controller.signal.aborted) controller.abort();
@@ -1720,7 +1887,10 @@ async function startMetroWebFront({ port, upstreamOrigin, attestation }) {
     sockets.add(socket);
     socket.once('close', () => sockets.delete(socket));
   });
-  server.on('upgrade', (request, socket, head) => proxyUpgrade(request, socket, head, upstream));
+  server.on('upgrade', (request, socket, head) => {
+    if (currentUpstreamOrigin === null) socket.destroy();
+    else proxyUpgrade(request, socket, head, new URL(currentUpstreamOrigin));
+  });
   await new Promise((resolveListen, rejectListen) => {
     server.once('error', rejectListen);
     server.listen(port, LOOPBACK_HOST, resolveListen);
@@ -1730,7 +1900,10 @@ async function startMetroWebFront({ port, upstreamOrigin, attestation }) {
   return Object.freeze({
     origin: `http://${LOOPBACK_HOST}:${resolvedPort}`,
     port: resolvedPort,
-    upstreamOrigin,
+    get upstreamOrigin() { return currentUpstreamOrigin; },
+    setUpstreamOrigin(origin) {
+      currentUpstreamOrigin = new URL(origin).origin;
+    },
     async close() {
       server.closeAllConnections?.();
       for (const socket of sockets) socket.destroy();
@@ -1738,6 +1911,61 @@ async function startMetroWebFront({ port, upstreamOrigin, attestation }) {
         server.close((error) => (error ? rejectClose(error) : resolveClose()));
       });
     },
+  });
+}
+
+async function bindPlannedSupervisorListeners({
+  plan,
+  platform,
+  attestation,
+  getBootstrapPayload,
+  onControl,
+  onDevIdentityCheckout,
+  onReservation,
+  afterOwnerBound,
+}) {
+  // @ref LLP 0299#4-ranges — allocation binds each owner in sequence. The
+  // web client front and bootstrap are their real servers; Metro's port (the
+  // native client port) is placeholder-held until the child spawn seam.
+  const allocation = await allocateSupervisorPortCandidates(plan, new Set(), {
+    platform,
+    onReservation,
+    afterOwnerBound,
+    async bindOwner(owner, port) {
+      if (owner === 'client' && platform === 'web') {
+        return startMetroWebFront({
+          port,
+          upstreamOrigin: null,
+          attestation,
+        });
+      }
+      if (owner === 'bootstrap') {
+        return startBootstrapExchange(getBootstrapPayload, {
+          onControl,
+          onDevIdentityCheckout,
+          port,
+        });
+      }
+      return holdLoopbackPort(port);
+    },
+  });
+  const { assigned, reservations } = allocation;
+  const clientPort = assigned.client;
+  const metroProcessPort = platform === 'web' ? assigned.metro : clientPort;
+  const metroFront = platform === 'web' ? reservations.client : null;
+  const bootstrap = reservations.bootstrap;
+  const metroPlaceholder = platform === 'web'
+    ? reservations.metro
+    : reservations.client;
+  metroFront?.setUpstreamOrigin(appOrigin(LOOPBACK_HOST, metroProcessPort));
+  return Object.freeze({
+    assigned,
+    clientPort,
+    metroProcessPort,
+    metroFront,
+    bootstrap,
+    metroPlaceholder,
+    close: allocation.close,
   });
 }
 
@@ -1889,6 +2117,7 @@ export async function runExpoDev(options = {}) {
   let bootstrap = null;
   let metro = null;
   let metroFront = null;
+  let metroPlaceholder = null;
   let forwarding = null;
   let authority = null;
   let checkoutRegistry = null;
@@ -1915,6 +2144,11 @@ export async function runExpoDev(options = {}) {
   let publishBindingProjection = () => null;
   let bindingProjection = null;
   let applicationReceiptProjection = null;
+  let portPlan = null;
+  let handleBootstrapControl = async () => ({
+    statusCode: 503,
+    body: { ok: false, code: 'SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE' },
+  });
   const close = () => {
     if (closePromise !== null) return closePromise;
     closePromise = (async () => {
@@ -1938,6 +2172,8 @@ export async function runExpoDev(options = {}) {
       try { forwarding?.remove?.(); } catch (error) { failures.push(error); }
       try { await metroFront?.close?.(); } catch (error) { failures.push(error); }
       metroFront = null;
+      try { await metroPlaceholder?.close?.(); } catch (error) { failures.push(error); }
+      metroPlaceholder = null;
       try { await stopProcessGroup(metro?.child, { processGroup: true }); } catch (error) { failures.push(error); }
       metroAttestation = null;
       try { await bootstrap?.close?.(); } catch (error) { failures.push(error); }
@@ -2009,13 +2245,93 @@ export async function runExpoDev(options = {}) {
     assertStartupActive();
     const selectedDevice = resolveExpoDeviceSelection({ ...options, env: childEnv });
     const platform = options.platform ?? 'ios';
-    const metroPort = options.metroPort ?? await freeLoopbackPort();
-    let metroProcessPort = platform === 'web'
-      ? options.metroProcessPort ?? await freeLoopbackPort()
-      : metroPort;
-    while (platform === 'web' && metroProcessPort === metroPort) {
-      metroProcessPort = await freeLoopbackPort();
+    let requestedPortPlan = options.portPlan ?? resolveDevPortPlan({
+      profile: 'expo',
+      platform,
+      flags: {
+        port: options.devOptions?.port ?? options.port,
+        clientPort: options.clientPort ?? options.metroPort,
+        bootstrapPort: options.bootstrapPort,
+        portRange: options.portRange ?? options.devOptions?.portRange,
+      },
+      env: options.env ?? process.env,
+    });
+    if (platform === 'web' && options.metroProcessPort !== undefined) {
+      const metroProcessPort = Number(options.metroProcessPort);
+      if (!Number.isSafeInteger(metroProcessPort)
+          || metroProcessPort < 1
+          || metroProcessPort > 65_535) {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          'the Metro process port test seam must be an integer from 1 through 65535',
+          { port: options.metroProcessPort },
+        );
+      }
+      if (requestedPortPlan.owners.some(({ owner, port }) => (
+        owner !== 'metro' && port === metroProcessPort
+      ))) {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          `the Metro process port test seam duplicates another owner pin at ${metroProcessPort}`,
+          { port: metroProcessPort },
+        );
+      }
+      requestedPortPlan = Object.freeze({
+        range: requestedPortPlan.range,
+        owners: Object.freeze(requestedPortPlan.owners.map((entry) => (
+          entry.owner === 'metro'
+            ? Object.freeze({
+                owner: 'metro',
+                port: metroProcessPort,
+                source: 'pinned',
+                declaredBy: 'flag',
+              })
+            : entry
+        ))),
+      });
     }
+    metroAttestation = createMetroRunAttestation(platform);
+    const reservedListeners = await bindPlannedSupervisorListeners({
+      plan: requestedPortPlan,
+      platform,
+      attestation: metroAttestation,
+      onReservation(owner, reservation) {
+        if (owner === 'bootstrap') bootstrap = reservation;
+        else if (owner === 'client' && platform === 'web') metroFront = reservation;
+        else metroPlaceholder = reservation;
+      },
+      async afterOwnerBound(owner, port, reservation) {
+        await options.afterSupervisorOwnerBound?.(owner, port, reservation);
+        assertStartupActive();
+      },
+      getBootstrapPayload: async () => {
+        const exchangeBinding = await bindingPublisher.bindingForExchange();
+        if (exchangeBinding !== null) publishBindingProjection(exchangeBinding);
+        return exchangeBinding === null || authority === null
+          ? null
+          : Object.freeze({
+              format: SUPERVISED_EXCHANGE_FORMAT,
+              correlationId,
+              binding: exchangeBinding,
+              authority,
+            });
+      },
+      onDevIdentityCheckout: (presented) => checkoutRegistry?.redeem(presented) ?? null,
+      onControl: (request) => handleBootstrapControl(request),
+    });
+    if (closed) {
+      try { await reservedListeners.close(); } catch { /* latched critical exit wins */ }
+      throw startupCriticalExit ?? diagnosticError(
+        'SNAPBACK_EXPO_DEV_STARTUP_CANCELLED',
+        'the Expo supervisor closed during listener allocation',
+      );
+    }
+    bootstrap = reservedListeners.bootstrap;
+    metroFront = reservedListeners.metroFront;
+    metroPlaceholder = reservedListeners.metroPlaceholder;
+    const metroPort = reservedListeners.clientPort;
+    const metroProcessPort = reservedListeners.metroProcessPort;
+    portPlan = materializeDevPortPlan(requestedPortPlan, reservedListeners.assigned);
     const backendEnv = expoBackendDevAuthEnvironment(childEnv, metroPort);
     emit({
       ok: true,
@@ -2023,6 +2339,38 @@ export async function runExpoDev(options = {}) {
       platform: options.platform ?? 'ios',
       device: selectedDevice,
     });
+    const launchMetro = async () => {
+      if (metro !== null) return metro;
+      assertStartupActive();
+      const placeholder = metroPlaceholder;
+      metroPlaceholder = null;
+      await placeholder?.close?.();
+      assertStartupActive();
+      metro = startMetro({
+        command: options.metroCommand,
+        directory: expoDirectory,
+        port: metroProcessPort,
+        platform,
+        bootstrapOrigin: bootstrap.origin,
+        env: childEnv,
+        emit,
+        cleanupLease,
+        onExit(code, signal, cause) {
+          if (!closed) {
+            const error = diagnosticError(
+              'SNAPBACK_EXPO_METRO_EXITED',
+              cause
+                ? 'Expo/Metro could not be started'
+                : 'Expo/Metro exited while supervised development was active',
+              { code, signal, ...(cause ? { cause: cause.code ?? cause.message } : {}) },
+            );
+            reportCriticalExit(error);
+          }
+        },
+      });
+      return metro;
+    };
+    assertStartupActive();
     dev = await runDev({
       ...options.devOptions,
       backendDirectory: backendRoot,
@@ -2032,6 +2380,7 @@ export async function runExpoDev(options = {}) {
       database,
       runtimeBinary: options.runtimeBinary,
       env: backendEnv,
+      portPlan,
       attach: options.attach === true,
       // The Metro aliases are declared before the backend process starts, so
       // Rust's live admission set and the authoritative receipt are identical.
@@ -2062,7 +2411,19 @@ export async function runExpoDev(options = {}) {
       try { await dev.close?.(); } catch { /* latched critical exit wins */ }
     }
     assertStartupActive();
+    await launchMetro();
     let backendRoute = portFromOrigin(dev.serverUrl, 'Snapback backend');
+    const backendProvenance = devPortPlanOwner(dev.portPlan, 'backend');
+    portPlan = materializeDevPortPlan(
+      portPlan,
+      { backend: backendRoute.port },
+      backendProvenance === null ? {} : {
+        backend: {
+          source: backendProvenance.source,
+          declaredBy: backendProvenance.declaredBy,
+        },
+      },
+    );
     if (!isLoopbackHost(backendRoute.host)) {
       throw diagnosticError(
         'SNAPBACK_EXPO_LISTENER_EXPOSED',
@@ -2102,20 +2463,7 @@ export async function runExpoDev(options = {}) {
     };
     mintAndSwapAuthority(options.email ?? DEFAULT_EMAIL, { emitReplacement: false });
     let route = null;
-    bootstrap = await startBootstrapExchange(async () => {
-      const exchangeBinding = await bindingPublisher.bindingForExchange();
-      if (exchangeBinding !== null) publishBindingProjection(exchangeBinding);
-      return exchangeBinding === null || authority === null
-        ? null
-        : Object.freeze({
-            format: SUPERVISED_EXCHANGE_FORMAT,
-            correlationId,
-            binding: exchangeBinding,
-            authority,
-          });
-    }, {
-      onDevIdentityCheckout: (presented) => checkoutRegistry?.redeem(presented) ?? null,
-      onControl: async ({ operatorToken, body }) => {
+    handleBootstrapControl = async ({ operatorToken, body }) => {
         let expectedOperatorToken = null;
         try {
           expectedOperatorToken = managedAdminToken(
@@ -2167,6 +2515,17 @@ export async function runExpoDev(options = {}) {
         try {
           const refreshedReady = readReadyDescriptor(dev.readyFile);
           backendRoute = portFromOrigin(refreshedReady.serverUrl, 'Snapback backend');
+          const refreshedBackendProvenance = devPortPlanOwner(dev.portPlan, 'backend');
+          portPlan = materializeDevPortPlan(
+            portPlan,
+            { backend: backendRoute.port },
+            refreshedBackendProvenance === null ? {} : {
+              backend: {
+                source: refreshedBackendProvenance.source,
+                declaredBy: refreshedBackendProvenance.declaredBy,
+              },
+            },
+          );
           if (!isLoopbackHost(backendRoute.host)) {
             throw diagnosticError(
               'SNAPBACK_EXPO_LISTENER_EXPOSED',
@@ -2275,8 +2634,7 @@ export async function runExpoDev(options = {}) {
             },
           };
         }
-      },
-    });
+    };
     if (closed) {
       try { await bootstrap.close?.(); } catch { /* latched critical exit wins */ }
     }
@@ -2313,6 +2671,7 @@ export async function runExpoDev(options = {}) {
         // authority. The application-ready file remains untouched.
         writeFileSync(supervisorDescriptorFile, `${JSON.stringify({
           ...current,
+          portPlan,
           binding: bindingProjection,
           applicationReady: applicationReceiptProjection,
         }, null, 2)}\n`);
@@ -2359,37 +2718,6 @@ export async function runExpoDev(options = {}) {
         binding: publicBinding(rotatedBinding),
       };
     };
-    metroAttestation = createMetroRunAttestation(platform);
-    assertStartupActive();
-    metro = startMetro({
-      command: options.metroCommand,
-      directory: expoDirectory,
-      port: metroProcessPort,
-      platform,
-      bootstrapOrigin: appOrigin(route.appHost, bootstrap.port),
-      env: childEnv,
-      emit,
-      cleanupLease,
-      onExit(code, signal, cause) {
-        if (!closed) {
-          const error = diagnosticError(
-            'SNAPBACK_EXPO_METRO_EXITED',
-            cause
-              ? 'Expo/Metro could not be started'
-              : 'Expo/Metro exited while supervised development was active',
-            { code, signal, ...(cause ? { cause: cause.code ?? cause.message } : {}) },
-          );
-          reportCriticalExit(error);
-        }
-      },
-    });
-    if (platform === 'web') {
-      metroFront = await startMetroWebFront({
-        port: metroPort,
-        upstreamOrigin: appOrigin(LOOPBACK_HOST, metroProcessPort),
-        attestation: metroAttestation,
-      });
-    }
     const backendPid = dev.child?.pid ?? readyDescriptor.pid;
     listeners = await waitForListenerInventory({
       backendPid,
@@ -2546,6 +2874,7 @@ export async function runExpoDev(options = {}) {
       backend: { pid: dev.child?.pid ?? null, origin: backendRoute.origin },
       metro: metroReadiness,
       bootstrap: bootstrapReadiness,
+      portPlan,
       adminConsoleCommand: `snapback admin --ready-file ${JSON.stringify(dev.readyFile)}`,
     };
     supervisorDescriptorFile = join(dirname(dev.readyFile), 'expo-supervisor.json');
@@ -2577,6 +2906,7 @@ export async function runExpoDev(options = {}) {
       },
       platform: route.platform,
       connectCarrier: SUPERVISED_CONNECT_CARRIER,
+      portPlan,
       binding: publicBinding(bindingProjection),
       applicationReady: applicationReceiptProjection,
       exchangeOrigin: bootstrap.origin,
@@ -2638,6 +2968,7 @@ export async function runExpoDev(options = {}) {
       },
       exchangeOrigin: bootstrap.origin,
       metroOrigin: `http://${LOOPBACK_HOST}:${metroPort}`,
+      get portPlan() { return portPlan; },
       get listeners() { return listeners; },
       verbs: dev.verbs,
       async replaceAuthority(email) {
@@ -2652,6 +2983,7 @@ export async function runExpoDev(options = {}) {
           listeners,
           binding: publicBinding(bindingProjection),
           applicationReady: currentApplicationReceiptProjection(),
+          portPlan,
           metro: Object.freeze({
             pid: metro.child.pid,
             origin: `http://${LOOPBACK_HOST}:${metroPort}`,
@@ -2685,5 +3017,7 @@ export async function runExpoDev(options = {}) {
 }
 
 export const __test = Object.freeze({
+  allocateSupervisorPortCandidates,
+  bindPlannedSupervisorListeners,
   startMetroWebFront,
 });

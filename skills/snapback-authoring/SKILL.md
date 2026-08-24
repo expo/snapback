@@ -8,8 +8,7 @@ description: Build an application on Snapback — the scale-to-zero backend with
 <!-- @ref LLP 0186#w2--context-injection-surface-owned-here — the published authoring skill this implements; the Rosetta block below is checked against guide/rosetta/records/*.json by scripts/check-rosetta.mjs -->
 <!-- @ref LLP 0259#1-first-read-contract — packet-first steering diet: this skill plus one packet or stub is the whole required first read. -->
 
-This skill is a map, not a second guide. The first read is deliberately
-small; everything else is one budgeted lookup away.
+This skill maps a packet and one budgeted lookup at a time.
 
 ## First read: the start packet, not the corpus
 
@@ -60,7 +59,8 @@ small; everything else is one budgeted lookup away.
    `generated/artifacts.json`; never hand-edit outputs.
 4. **Dev loop.** `bun run dev` runs the one supervisor: generate →
    start/attach server → load → client → watch. It infers `dev` vs
-   `sessions` mode from the schema.
+   `sessions` mode from the schema; supervised Expo accepts strict
+   `--port`/`--client-port`/`--bootstrap-port` pins or one `--port-range`.
 5. **First query.** Use the generated references with the first-party
    provider and the template's own consumer spelling —
    `useSnapbackQuery`, `useSnapbackQueries`, `useSnapbackMutation`, or a

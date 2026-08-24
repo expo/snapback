@@ -4,7 +4,7 @@ id: start.expo-chat
 order: 4
 audience: agent-first
 capabilities: []
-authorities: [llp/0259-agent-first-read-budget.rfc.md, packages/snapback-cli/templates/expo-chat/snapback/schema.mjs, packages/snapback-cli/templates/expo-chat/App.tsx]
+authorities: [llp/0259-agent-first-read-budget.rfc.md, llp/0299-supervised-listener-port-plan.spec.md, packages/snapback-cli/templates/expo-chat/snapback/schema.mjs, packages/snapback-cli/templates/expo-chat/App.tsx]
 examples: [packages/snapback-cli/templates/expo-chat]
 status: current
 targets: [all]
@@ -114,3 +114,6 @@ and outside this template. If a brief selects it, read the
 [Familiar handler dialect](../backend/familiar-profile.md) before editing.
 <!-- /llp0259:stop-fence -->
 <!-- start-packet:end -->
+
+For constrained lanes, `snapback dev --expo` accepts strict `--port`,
+`--client-port`, and `--bootstrap-port` pins or one `--port-range`.

@@ -421,6 +421,10 @@ that supplies an explicit `--port` is asking for a pinned address and should kee
 getting exact bind semantics, including an error if that port is owned by another
 process.
 
+LLP 0299 extends this canonical range to every listener `snapback dev`
+supervises: unpinned backend allocation stays ascending, supervisor allocation
+is descending, and every per-owner pin is strict.
+
 Auto-selecting a port must not allow two local servers to own the same
 file-backed app database. A file-backed local server should acquire an exclusive
 sidecar lock for the resolved SQLite path before opening the database, keep it

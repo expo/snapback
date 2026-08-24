@@ -74,11 +74,13 @@ export const PACKAGE_TEST_INVENTORIES = [
       'declaration-suggestion-cli.test.mjs',
       'dev-cli-diagnostics.test.mjs',
       'dev-loop.test.mjs',
+      'dev-port-range.test.mjs',
       'expo-bootstrap-exchange.test.mjs',
       'expo-dev-identity-checkout.test.mjs',
       'expo-device-forwarding.test.mjs',
       'expo-dev-loop.test.mjs',
       'expo-metro-watch-advisory.test.mjs',
+      'expo-port-refusal.test.mjs',
       'fake-expo-push.test.mjs',
       'familiar-dev-loop.test.mjs',
       'generate-check.test.mjs',
@@ -90,6 +92,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'package.test.mjs',
       'packed-dev-lifecycle.test.mjs',
       'packaged-store-qualification.test.mjs',
+      'port-plan.test.mjs',
       'reset-dev-fresh.test.mjs',
       'reference-lookup.test.mjs',
       'scaffold-skill-budget.test.mjs',
@@ -577,7 +580,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 332,
+  expectedTotal = 335,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1076,6 +1079,8 @@ export function checkPackageTestInventories(options = {}) {
 // 331 -> 332 (2026-08-23, LLP 0209 G0 Stage B2):
 // @expo/snapback-codegen gains the graph identity, source-refusal, authority,
 // and Rust-host admission conformance suite.
+// 332 -> 335 (2026-08-23, LLP 0299): @expo/snapback-cli gains the pure port
+// plan matrix, plain ranged-backend proof, and supervised refusal/allocation proof.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

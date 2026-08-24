@@ -2,6 +2,23 @@
 // developer loop, release builder, and native server launcher.
 
 import type { RuntimeBinaryInspection, RuntimeRecoveryRecord } from './runtime-recovery.mjs';
+import type { DevPortPlan } from './port-plan.mjs';
+
+export {
+  DEFAULT_DEV_PORT_RANGE,
+  DEV_PORT_ENVIRONMENT,
+  devPortPlanOwner,
+  materializeDevPortPlan,
+  resolveDevPortPlan,
+} from './port-plan.mjs';
+export type {
+  DevPortPlan,
+  DevPortPlanOwner,
+  DevPortPlanOwnerName,
+  DevPortPlanOwnerProvenance,
+  DevPortPlanProfile,
+  DevPortPlanRange,
+} from './port-plan.mjs';
 
 export {
   addTarget,
@@ -523,6 +540,7 @@ export interface DevEvent {
   readonly requestId?: string;
   readonly changed?: string | null;
   readonly applicationReadyFile?: string;
+  readonly portPlan?: DevPortPlan | null;
   readonly diagnostics?: readonly CliDiagnostic[];
   readonly [key: string]: unknown;
 }
@@ -561,9 +579,16 @@ export interface RunDevOptions extends RuntimeSelectionOptions {
   readonly client?: DevClientArmSpec;
   /** Fixed backend listener port for externally-owned client lifecycles. */
   readonly port?: number;
-  /** Exact loopback HTTP(S) origin admitted by the backend. Requires `port`. */
+  /** Inclusive range used by an unpinned backend listener. */
+  readonly portRange?: string;
+  /** Pre-resolved plan supplied by the owning supervisor/CLI. Attached
+   * backends are returned with owner source `attached` and no declaration. */
+  readonly portPlan?: DevPortPlan;
+  /** Exact loopback HTTP(S) origin admitted by the backend. Requires a backend
+   * pin from `port` or `SNAPBACK_DEV_PORT`. */
   readonly externalClientOrigin?: string;
-  /** Exact loopback HTTP(S) origins admitted by the backend. Requires `port`. */
+  /** Exact loopback HTTP(S) origins admitted by the backend. Requires a
+   * backend pin from `port` or `SNAPBACK_DEV_PORT`. */
   readonly externalClientOrigins?: readonly string[];
   /** Provider-owned loopback aliases admitted before a supervised client starts. */
   readonly supervisedClientOrigins?: readonly string[];
@@ -575,6 +600,8 @@ export interface RunDevOptions extends RuntimeSelectionOptions {
   readonly serverStdio?: DevServerStdioTarget | readonly DevServerStdioTarget[];
   readonly onEvent?: (event: DevEvent) => void;
   readonly onServerExit?: (code: number | null, signal: string | null) => void;
+  /** Test-only managed-runtime spawn seam. */
+  readonly spawnManagedRuntime?: typeof spawnManagedRuntime;
 }
 
 export interface DevLoopHandle {
@@ -586,6 +613,7 @@ export interface DevLoopHandle {
   applicationReadyFile: string;
   serverUrl: string;
   lifecycleProfile: 'selected-port' | 'fixed-port';
+  readonly portPlan: DevPortPlan;
   clientOrigins: readonly string[];
   runtime: ResolvedRuntime;
   runtimeRecovery: RuntimeRecoveryRecord;
@@ -658,6 +686,7 @@ export function verifyDevAttach(options: {
   readonly requiredClientOrigins?: readonly string[];
   readonly runtimeIdentity?: Readonly<Record<string, unknown>> | null;
   readonly fixedPort?: number | null;
+  readonly portPlan?: DevPortPlan | null;
 }): Promise<ApplicationReadyReceiptV1>;
 
 /** Refuse a receipt whose complete bind-set differs from live readiness. */

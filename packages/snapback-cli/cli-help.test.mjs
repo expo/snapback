@@ -151,6 +151,9 @@ exit 97
   const parsed = JSON.parse(jsonHelp.stdout);
   assert.equal(parsed.schemaVersion, 'snapback.cli-help.v1');
   assert.equal(parsed.command.name, 'dev');
+  for (const flag of ['--port <port>', '--client-port <port>', '--bootstrap-port <port>', '--port-range <lo>-<hi>']) {
+    assert.match(parsed.command.usage, new RegExp(flag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'u'));
+  }
 
   const rootJsonHelp = spawnSync(process.execPath, [cli, '--help', '--json'], { encoding: 'utf8', env });
   assert.equal(rootJsonHelp.status, 0, rootJsonHelp.stderr);
@@ -175,7 +178,7 @@ exit 97
   assert.equal(heldExit, 0);
   assert.match(heldOutput, /^Usage: snapback doctor/m);
 
-  console.log('cli-help.test.mjs: dispatch parity and non-executing root/per-command/nested help pass');
+  console.log(`cli-help.test.mjs: ${PACKAGED_CLI_COMMANDS.length} command and ${PACKAGED_CLI_SUBCOMMANDS.length} subcommand help cases passed`);
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

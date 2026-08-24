@@ -1,3 +1,13 @@
+import type { DevPortPlan } from './port-plan.mjs';
+
+export { resolveDevPortPlan } from './port-plan.mjs';
+export type {
+  DevPortPlan,
+  DevPortPlanOwner,
+  DevPortPlanOwnerProvenance,
+  DevPortPlanRange,
+} from './port-plan.mjs';
+
 export const EXPO_DEV_EVENT_FORMAT: 'snapback.expo-dev.v1';
 export const EXPO_SUPERVISOR_DESCRIPTOR_FORMAT: 'snapback.expo-supervisor.v1';
 export const SUPERVISED_EXCHANGE_FORMAT: 'snapback.expo-supervised-exchange.v1';
@@ -109,6 +119,7 @@ export function startBootstrapExchange(
       request: BootstrapExchangeControlRequest,
     ) => BootstrapExchangeControlResult | Promise<BootstrapExchangeControlResult>;
     onDevIdentityCheckout?: (nonce: unknown) => string | null | Promise<string | null>;
+    port?: number;
   }>,
 ): Promise<BootstrapExchangeHandle>;
 
@@ -286,6 +297,10 @@ export function enumerateExpoOwnedListeners(options: Readonly<{
   webFrontPort?: number | null;
 }>): readonly ExpoOwnedListener[];
 
+export function describePortHolder(
+  port: number,
+): Readonly<{ pid: number; command: string | null }> | null;
+
 export function mintSupervisedOrdinarySession(options: Readonly<{
   runtimeBinary: string;
   readyFile: string;
@@ -317,6 +332,7 @@ export interface ExpoDevSupervisor {
   readonly applicationReady: ExpoApplicationReadyProjection;
   readonly exchangeOrigin: string;
   readonly metroOrigin: string;
+  readonly portPlan: DevPortPlan;
   readonly listeners: readonly ExpoOwnedListener[];
   readonly verbs: Readonly<Record<string, (...args: any[]) => Promise<unknown>>>;
   replaceAuthority(email: string): Promise<'ready' | 'authority-required'>;
@@ -326,6 +342,10 @@ export interface ExpoDevSupervisor {
 }
 
 export interface RunExpoDevOptions extends Readonly<Record<string, unknown>> {
+  readonly clientPort?: number;
+  readonly bootstrapPort?: number;
+  readonly portRange?: string;
+  readonly portPlan?: DevPortPlan;
   /** Testable supervisor wall clock used for binding issuance and refresh. */
   readonly now?: () => number;
   /** Lifetime of one supervised AppBinding. Defaults to one hour. */
@@ -342,6 +362,12 @@ export interface RunExpoDevOptions extends Readonly<Record<string, unknown>> {
   readonly expoAppScheme?: string;
   /** Test-only command runner; its presence opts protocol tests into launch. */
   readonly nativeLaunchRun?: (...args: any[]) => any;
+  /** Test-only allocation barrier invoked after each supervisor owner binds. */
+  readonly afterSupervisorOwnerBound?: (
+    owner: 'client' | 'bootstrap' | 'metro',
+    port: number,
+    reservation: Readonly<{ close(): Promise<void> }>,
+  ) => void | Promise<void>;
 }
 
 export function runExpoDev(options?: RunExpoDevOptions): Promise<ExpoDevSupervisor>;

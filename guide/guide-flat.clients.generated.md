@@ -3487,7 +3487,7 @@ id: clients.react-expo
 order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/templates/expo-chat/App.tsx, packages/snapback-client/app-client.mjs, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider-auth-bootstrap.test.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-binding-cache.mjs, packages/snapback-expo/supervised-environment.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/tandem-expo-bakeoff/snapback/scripts/dev-backend.mjs, demos/tandem-expo-bakeoff/snapback/src/backend.tsx, demos/_kit/eas-stage-build.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, llp/0299-supervised-listener-port-plan.spec.md, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/templates/expo-chat/App.tsx, packages/snapback-client/app-client.mjs, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider-auth-bootstrap.test.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-binding-cache.mjs, packages/snapback-expo/supervised-environment.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/tandem-expo-bakeoff/snapback/scripts/dev-backend.mjs, demos/tandem-expo-bakeoff/snapback/src/backend.tsx, demos/_kit/eas-stage-build.mjs]
 examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md, demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md, demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md, demos/expo-golden-path-fixture/receipts/physical-device-online-checklist.md, demos/partiful-matrix/native/react-expo, packages/snapback-cli/expo-device-forwarding.test.mjs, packages/snapback-cli/expo-bootstrap-exchange.test.mjs, packages/snapback-cli/expo-dev-loop.test.mjs, packages/snapback-expo/asset-source.test.mjs, packages/snapback-expo/supervised-offline-fallback.test.mjs, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-expo/provider.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-react/cold-boot-binding.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/snapback/src/backend.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs, benchmarks/lanes/native-simulator.md]
 status: current
 targets: [local]
@@ -3791,6 +3791,42 @@ snapback dev snapback --expo --expo-platform ios
 snapback dev snapback --expo --expo-platform android
 snapback dev snapback --expo --expo-platform web
 ```
+
+<!-- since: 0.1.26 unreleased -->
+> **Unreleased.** Supervised port plans are newer than published 0.1.25.
+
+### Pin or range the supervised ports
+
+Without flags, the backend scans `4287–4387` upward while the supervisor
+allocates `client`, `bootstrap`, then web-only `metro` downward. On a quiet
+host that means the same ports every morning: backend `4287`, client `4387`,
+bootstrap `4386`, and web Metro `4385`.
+
+Use `--port`, `--client-port`, and `--bootstrap-port` for exact pins, or
+`--port-range <lo>-<hi>` to constrain every unpinned owner. Pins may sit
+inside or outside the range.
+
+| Flag | Environment equivalent |
+| --- | --- |
+| `--port` | `SNAPBACK_DEV_PORT` |
+| `--client-port` | `SNAPBACK_DEV_CLIENT_PORT` |
+| `--bootstrap-port` | `SNAPBACK_DEV_BOOTSTRAP_PORT` |
+| `--port-range` | `SNAPBACK_DEV_PORT_RANGE` |
+
+Flags win over environment values. Supervisor-owned pins (`--client-port` and
+`--bootstrap-port`) are strict: an occupied pin refuses with
+`SNAPBACK_DEV_PORT_UNAVAILABLE`. The backend pin (`--port`) retains the
+receipt-verified `SNAPBACK_DEV_FIXED_PORT_STALE_LISTENER` refusal. A range with
+no remaining candidate refuses with `SNAPBACK_DEV_PORT_RANGE_EXHAUSTED`.
+Neither path adopts or signals the holder.
+
+Final readiness, `expo-supervisor.json`, and `inspection()` expose `portPlan`
+with each owner, selected port, range/pin source, and flag/environment
+provenance. A receipt-verified existing backend is recorded with `attached`
+provenance; if a flag- or environment-declared range excludes its port, attach
+refuses with `SNAPBACK_DEV_ATTACH_PORT_OUT_OF_RANGE`. To admit extra tunnel or
+forwarded origins without allocating their ports, merge them through
+`SNAPBACK_DEV_AUTH_ORIGINS`.
 
 Ignore both local-state forms before copying, staging, or archiving the app;
 the sibling restore lock records an absolute target-instance reservation and

@@ -45,6 +45,8 @@
     "index.mjs",
     "mcp-control.mjs",
     "network-profile-authority.json",
+    "port-plan.d.mts",
+    "port-plan.mjs",
     "process-teardown.mjs",
     "reference-lookup.mjs",
     "runtime-readiness.d.mts",
@@ -90,6 +92,10 @@
       "types": "./hosted-control.d.mts",
       "default": "./hosted-control.mjs"
     },
+    "./port-plan": {
+      "types": "./port-plan.d.mts",
+      "default": "./port-plan.mjs"
+    },
     "./hosted-admission-producer": {
       "types": "./hosted-admission-producer.d.mts",
       "default": "./hosted-admission-producer.mjs"
@@ -128,6 +134,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node package.test.mjs && node --test scaffold-skill-budget.test.mjs && node application-auth-fixtures.test.mjs && node cli-help.test.mjs && node --test init.test.mjs && node generate-check.test.mjs && node declaration-suggestion-cli.test.mjs && node reference-lookup.test.mjs && node packaged-store-qualification.test.mjs && node fake-expo-push.test.mjs && node hosted-control.test.mjs && node load-generated.test.mjs && node familiar-dev-loop.test.mjs && node sessions-dev-loop.test.mjs && node packed-dev-lifecycle.test.mjs && node visibility-governance-dev-loop.test.mjs && node expo-device-forwarding.test.mjs && node expo-metro-watch-advisory.test.mjs && node expo-bootstrap-exchange.test.mjs && node expo-dev-identity-checkout.test.mjs && node expo-dev-loop.test.mjs && node carrier-kit.test.mjs && node reset-dev-fresh.test.mjs && node application-ready.test.mjs && node comparator-profile.test.mjs && node verify.test.mjs && node hosted-admission-producer.test.mjs && node mcp-control.test.mjs && node agent-setup.test.mjs && node dev-cli-diagnostics.test.mjs && node dev-loop.test.mjs && node adapters/fly-machines-vm-driver.test.mjs"
+    "test": "node package.test.mjs && node --test scaffold-skill-budget.test.mjs && node application-auth-fixtures.test.mjs && node cli-help.test.mjs && node --test init.test.mjs && node generate-check.test.mjs && node declaration-suggestion-cli.test.mjs && node reference-lookup.test.mjs && node packaged-store-qualification.test.mjs && node fake-expo-push.test.mjs && node hosted-control.test.mjs && node load-generated.test.mjs && node familiar-dev-loop.test.mjs && node sessions-dev-loop.test.mjs && node packed-dev-lifecycle.test.mjs && node visibility-governance-dev-loop.test.mjs && node port-plan.test.mjs && node dev-port-range.test.mjs && node expo-port-refusal.test.mjs && node expo-device-forwarding.test.mjs && node expo-metro-watch-advisory.test.mjs && node expo-bootstrap-exchange.test.mjs && node expo-dev-identity-checkout.test.mjs && node expo-dev-loop.test.mjs && node carrier-kit.test.mjs && node reset-dev-fresh.test.mjs && node application-ready.test.mjs && node comparator-profile.test.mjs && node verify.test.mjs && node hosted-admission-producer.test.mjs && node mcp-control.test.mjs && node agent-setup.test.mjs && node dev-cli-diagnostics.test.mjs && node dev-loop.test.mjs && node adapters/fly-machines-vm-driver.test.mjs"
   }
 }

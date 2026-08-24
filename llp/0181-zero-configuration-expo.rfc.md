@@ -6,6 +6,8 @@
 Auth, Assets, Offline, Testing, Hosted environments, Code generation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
+**Revised:** 2026-08-23 (aa) — LLP 0299 replaces ephemeral supervised
+listener selection with one recorded stable range/strict-pin plan.
 **Revised:** 2026-08-23 (z) — iOS carrier ruling addendum: defer the F-A2-4
 measurement, schedule the Android USB native receipt, and classify private
 overlays as unsupported experimental fronts pending a separately admitted
@@ -784,6 +786,10 @@ supervised exchange, and the CLI emits a coded advisory for that recognizable
 mistake. The browser CORS, AppState, asset-source, and binding-admission
 boundaries remain the package contract; this selection adds no LAN/public
 listener or alternate binding format.
+
+LLP 0299 amends the address-selection step: the browser-facing front,
+bootstrap exchange, and upstream Metro ports come from the supervisor's stable
+range/strict-pin plan rather than ephemeral kernel allocation.
 
 The browser director treats readiness as a last-use capability, not a durable
 claim about a port. The supervisor descriptor records PID/start-time identities

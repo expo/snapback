@@ -6,6 +6,8 @@
 Vite/Exact clients, Headless client, Auth, Diagnostics, Verification, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
+**Revised:** 2026-08-23 (f — LLP 0299 amends tool-selected listener ports to
+one stable deterministic range with strict per-owner pins and recorded provenance)
 **Revised:** 2026-08-21 (e — D0.1 ruling amendment — records LLP 0295 D0.1's
 canonical development lifecycle: `snapback dev` stays the single lifecycle
 owner and gains a fixed-origin/external-client profile; `start
@@ -366,7 +368,8 @@ one owner with two admission postures, not a second lifecycle surface.
 
 ### Semantic contract
 
-1. **Ports.** The default posture stays tool-selected. The fixed profile
+1. **Ports.** Per LLP 0299, the default posture is one stable deterministic
+   range, with strict pins available for every owned listener. The fixed profile
    lets the caller pin the server port and declare the external client
    origin. **Port occupancy is never identity:** before attaching to a
    pinned port, the lifecycle verifies the listener is the intended
@@ -384,9 +387,11 @@ one owner with two admission postures, not a second lifecycle surface.
    declared-external clients). Port pinning and client posture are
    **orthogonal**: `snapback dev --expo` with a pinned backend port is a
    legal composition (the diary-0096/0104 case) — the supervised Metro
-   client stays supervisor-launched on a tool-selected port while the
+   client stays supervisor-launched on a plan-selected port while the
    backend listener is pinned; declaring the client external is required
-   only when the client process is externally owned.
+   only when the client process is externally owned. LLP 0299 is the narrow
+   port-selection amendment: it preserves this lifecycle and receipt contract
+   while making every supervised owner pinnable or ranged.
 3. **Lifecycle verbs.** One semantic verb set across postures: **fresh
    start**; **attach** to an already-running intended child (idempotent —
    an intended child is recognized by receipt identity, an unrelated

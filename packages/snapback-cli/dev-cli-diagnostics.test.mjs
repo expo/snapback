@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { genericClientCommandAdvisory, scaffoldApp } from './index.mjs';
+import { genericClientCommandAdvisory, runCli, scaffoldApp } from './index.mjs';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const cli = join(packageDir, 'cli.mjs');
@@ -33,6 +33,40 @@ for (const command of [
 for (const command of ['vite', 'npm run web', 'echo expo start', 'next dev']) {
   assert.equal(genericClientCommandAdvisory(command), null, `${command} is not a high-confidence Expo start command`);
 }
+
+let envPinnedRunDevOptions = null;
+assert.equal(await runCli([
+  'dev', 'snapback', '--no-watch',
+  '--external-client-origin', 'http://127.0.0.1:5173',
+], {
+  env: { SNAPBACK_DEV_PORT: '48100' },
+  async runDev(options) {
+    envPinnedRunDevOptions = options;
+    return { ok: true, close: async () => {} };
+  },
+}), 0);
+assert.deepEqual(
+  envPinnedRunDevOptions.portPlan.owners,
+  [{ owner: 'backend', port: 48100, source: 'pinned', declaredBy: 'env' }],
+);
+assert.equal(envPinnedRunDevOptions.externalClientOrigin, 'http://127.0.0.1:5173');
+
+let unpinnedRunDevCalled = false;
+await assert.rejects(
+  runCli([
+    'dev', 'snapback', '--no-watch',
+    '--external-client-origin', 'http://127.0.0.1:5173',
+  ], {
+    env: {},
+    async runDev() {
+      unpinnedRunDevCalled = true;
+      return { ok: true, close: async () => {} };
+    },
+  }),
+  (error) => error?.code === 'SNAPBACK_CLI_ARGUMENT_INVALID'
+    && /requires a backend pin/u.test(error.message),
+);
+assert.equal(unpinnedRunDevCalled, false);
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'snapback-dev-diagnostics-')));
 try {
@@ -77,6 +111,9 @@ export const listGhosts = defineQuery({ table: 'ghosts', args: {} });
   assert.match(helpSurfaced, /Lifecycle: long-running/, 'help must declare lifecycle');
   assert.match(helpSurfaced, /--expo-platform ios\|android\|web/u, 'help must expose supervised Expo web');
   assert.match(helpSurfaced, /--native-checkout/u, 'help must expose the default-off native checkout opt-in');
+  for (const flag of ['--client-port', '--bootstrap-port', '--port-range']) {
+    assert.match(helpSurfaced, new RegExp(flag, 'u'), `help must expose ${flag}`);
+  }
   assert.match(helpSurfaced, /own bundle\/component and URL scheme/u, 'help must explain the development-client boundary');
   for (const platform of ['ios', 'android', 'web']) {
     assert.match(
@@ -104,6 +141,12 @@ export const listGhosts = defineQuery({ table: 'ghosts', args: {} });
       '--expo', '--native-checkout',
       '--ios-bundle-identifier', 'dev.snapback.witness',
     ], /requires --expo-app-scheme/u],
+    [['--client-port', '48110'], /profile has owners: backend/u],
+    [['--bootstrap-port', '48120'], /profile has owners: backend/u],
+    [[
+      '--expo', '--port', '48100', '--client-port', '48100',
+    ], /backend and client cannot pin the same port 48100/u],
+    [['--port-range', '48100:48199'], /form <lo>-<hi>/u],
   ]) {
     const refused = spawnSync(process.execPath, [cli, 'dev', ...args], {
       cwd: project,
@@ -115,7 +158,22 @@ export const listGhosts = defineQuery({ table: 'ghosts', args: {} });
     assert.match(`${refused.stdout}\n${refused.stderr}`, message);
   }
 
-  console.log('dev-cli-diagnostics.test.mjs: all cases passed');
+  const envForAbsentOwner = spawnSync(process.execPath, [cli, 'dev'], {
+    cwd: project,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      SNAPBACK_DEV_CLIENT_PORT: '48110',
+    },
+    timeout: 60_000,
+  });
+  assert.equal(envForAbsentOwner.status, 1);
+  assert.match(
+    `${envForAbsentOwner.stdout}\n${envForAbsentOwner.stderr}`,
+    /profile has owners: backend/u,
+  );
+
+  console.log('dev-cli-diagnostics.test.mjs: 19 CLI refusal/help and environment-pin validation cases passed');
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

@@ -24,7 +24,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { createConnection } from 'node:net';
+import { createConnection, createServer as createNetServer } from 'node:net';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -117,6 +117,18 @@ import {
 } from './hosted-control.mjs';
 import { spawnLeasedProcess, stopProcessGroup } from './process-teardown.mjs';
 import { validateAdminConsoleSnapshot } from './admin-snapshot.mjs';
+import {
+  devPortPlanOwner,
+  materializeDevPortPlan,
+  resolveDevPortPlan,
+} from './port-plan.mjs';
+export {
+  DEFAULT_DEV_PORT_RANGE,
+  DEV_PORT_ENVIRONMENT,
+  devPortPlanOwner,
+  materializeDevPortPlan,
+  resolveDevPortPlan,
+} from './port-plan.mjs';
 export {
   addTarget,
   applyBackupPlan,
@@ -3594,6 +3606,11 @@ function canonicalDevAuthOrigin(value) {
   return url.origin;
 }
 
+function portFromUrl(value) {
+  const parsed = new URL(value);
+  return Number(parsed.port || (parsed.protocol === 'https:' ? 443 : 80));
+}
+
 function canonicalExternalClientOrigin(value) {
   const origin = canonicalDevAuthOrigin(value);
   if (origin === null) {
@@ -3621,8 +3638,11 @@ function normalizeExternalClientOrigins(options, port) {
   if (origins.length > 0 && port === null) {
     throw diagnosticError(
       'SNAPBACK_CLI_ARGUMENT_INVALID',
-      '--external-client-origin requires --port so attach identity cannot drift with port selection',
-      { supportedProfile: 'snapback dev --port <backend-port> --external-client-origin <client-origin>' },
+      '--external-client-origin requires a backend pin (--port or SNAPBACK_DEV_PORT) so attach identity cannot drift with port selection',
+      {
+        supportedProfile: 'snapback dev --port <backend-port> --external-client-origin <client-origin>',
+        environmentEquivalent: 'SNAPBACK_DEV_PORT',
+      },
     );
   }
   return origins;
@@ -3670,6 +3690,103 @@ function loopbackPortAcceptsConnections(port) {
     socket.once('connect', () => settle(true));
     socket.once('error', () => settle(false));
   });
+}
+
+async function probeLoopbackPort(port) {
+  return new Promise((resolvePort, rejectPort) => {
+    const probe = createNetServer();
+    probe.once('error', (error) => {
+      if (error?.code === 'EADDRINUSE') resolvePort(false);
+      else rejectPort(error);
+    });
+    probe.listen(port, '127.0.0.1', () => {
+      probe.close((error) => {
+        if (error) rejectPort(error);
+        else resolvePort(true);
+      });
+    });
+  });
+}
+
+function describeDevPortHolder(port) {
+  const binary = ['/usr/sbin/lsof', '/usr/bin/lsof'].find((path) => existsSync(path));
+  if (binary === undefined) return null;
+  try {
+    const result = spawnSync(binary, [
+      '-nP', `-i4TCP:${port}`, '-sTCP:LISTEN', '-Fpcn',
+    ], { encoding: 'utf8', timeout: 10_000 });
+    if (result.error || ![0, 1].includes(result.status)) return null;
+    let pid = null;
+    let command = null;
+    for (const line of result.stdout.split('\n')) {
+      if (line.startsWith('p')) pid = Number(line.slice(1));
+      else if (line.startsWith('c')) command = line.slice(1);
+      else if (line.startsWith('n') && Number.isInteger(pid)) {
+        const address = line.slice(1).replace(/\s+\(LISTEN\)$/u, '');
+        const separator = address.lastIndexOf(':');
+        const host = separator === -1 ? null : address.slice(0, separator);
+        if (
+          Number(address.slice(separator + 1)) === port
+          && (host === '127.0.0.1' || host === '0.0.0.0' || host === '*')
+        ) {
+          return Object.freeze({ pid, command: command ?? null });
+        }
+      }
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function backendRangeExhaustionError(range, occupiedPorts) {
+  const holders = [...occupiedPorts]
+    .sort((left, right) => left - right)
+    .map((port) => {
+      const holder = describeDevPortHolder(port);
+      return Object.freeze({
+        port,
+        pid: holder?.pid ?? null,
+        command: holder?.command ?? null,
+      });
+    });
+  return diagnosticError(
+    'SNAPBACK_DEV_PORT_RANGE_EXHAUSTED',
+    `the backend listener could not find a free port in ${range.lo}-${range.hi}`,
+    { owner: 'backend', range: { lo: range.lo, hi: range.hi }, holders },
+  );
+}
+
+async function observeBackendRange(plan, { stopAtFirstFree }) {
+  const heldBySupervisor = new Set(plan.owners
+    .filter(({ owner, port }) => owner !== 'backend' && Number.isInteger(port))
+    .map(({ port }) => port));
+  const occupied = [];
+  for (let port = plan.range.lo; port <= plan.range.hi; port += 1) {
+    if (heldBySupervisor.has(port)) continue;
+    if (await probeLoopbackPort(port)) {
+      if (stopAtFirstFree) return { available: true, occupied };
+    } else {
+      occupied.push(port);
+    }
+  }
+  return { available: false, occupied };
+}
+
+async function assertBackendRangeAvailable(plan) {
+  const observed = await observeBackendRange(plan, { stopAtFirstFree: true });
+  if (!observed.available) throw backendRangeExhaustionError(plan.range, observed.occupied);
+}
+
+async function translateBackendRangeExhaustion(error, plan) {
+  if (
+    devPortPlanOwner(plan, 'backend')?.source !== 'range'
+    || error?.code !== 'SNAPBACK_DEV_SERVER_START_FAILED'
+  ) return null;
+  const output = `${error?.diagnostic?.details?.stdout ?? ''}\n${error?.diagnostic?.details?.stderr ?? ''}`;
+  if (!/no available Snapback port on/u.test(output)) return null;
+  const observed = await observeBackendRange(plan, { stopAtFirstFree: false });
+  return backendRangeExhaustionError(plan.range, observed.occupied);
 }
 
 async function validateReadyDescriptorHealth(descriptor) {
@@ -5070,7 +5187,9 @@ export async function verifyDevAttach({
   requiredClientOrigins = [],
   runtimeIdentity = null,
   fixedPort = null,
+  portPlan = null,
 }) {
+  const backendOwner = devPortPlanOwner(portPlan, 'backend');
   try {
     await validateReadyDescriptorHealth(descriptor);
   } catch (error) {
@@ -5151,7 +5270,7 @@ export async function verifyDevAttach({
   if (!(generatedDescriptor.capabilities?.required ?? []).every(
     (capability) => receipt.binding.capabilities.offered.includes(capability),
   )) mismatch.push('binding.capabilities.offered');
-  if (fixedPort !== null && Number(new URL(descriptor.serverUrl).port) !== fixedPort) {
+  if (fixedPort !== null && portFromUrl(descriptor.serverUrl) !== fixedPort) {
     mismatch.push('serverPort');
   }
   if (mismatch.length > 0) {
@@ -5171,6 +5290,25 @@ export async function verifyDevAttach({
         safety: 'the listener was not adopted or terminated',
       },
     );
+  }
+  // @ref LLP 0299#7-the-plan-is-recorded-not-just-applied — adoption records
+  // attached provenance but cannot widen a flag/environment range.
+  if (
+    backendOwner?.source === 'range'
+    && portPlan.range.source !== 'default'
+  ) {
+    const attachedPort = portFromUrl(descriptor.serverUrl);
+    if (attachedPort < portPlan.range.lo || attachedPort > portPlan.range.hi) {
+      throw diagnosticError(
+        'SNAPBACK_DEV_ATTACH_PORT_OUT_OF_RANGE',
+        `the receipt-verified backend at port ${attachedPort} is outside the declared range ${portPlan.range.lo}-${portPlan.range.hi}`,
+        {
+          port: attachedPort,
+          range: { lo: portPlan.range.lo, hi: portPlan.range.hi },
+          readyFile,
+        },
+      );
+    }
   }
   return receipt;
 }
@@ -5232,6 +5370,7 @@ export function genericClientCommandAdvisory(command) {
 }
 
 export async function runDev(options = {}) {
+  const spawnRuntime = options.spawnManagedRuntime ?? spawnManagedRuntime;
   const backendRoot = resolve(options.backendDirectory ?? 'snapback');
   const projectRoot = resolve(options.projectRoot ?? dirname(backendRoot));
   const stateRoot = join(projectRoot, '.snapback');
@@ -5240,7 +5379,44 @@ export async function runDev(options = {}) {
   const applicationReadyFile = resolve(
     options.applicationReadyFile ?? `${readyFile}.application-ready`,
   );
-  const fixedPort = normalizeDevPort(options.port);
+  const requestedPortPlan = options.portPlan ?? resolveDevPortPlan({
+    profile: options.client ? 'client-command' : 'plain',
+    flags: {
+      port: options.port,
+      portRange: options.portRange,
+    },
+    env: options.env ?? process.env,
+  });
+  const requestedBackendOwner = devPortPlanOwner(requestedPortPlan, 'backend');
+  if (requestedBackendOwner === null) {
+    throw diagnosticError(
+      'SNAPBACK_CLI_ARGUMENT_INVALID',
+      'the dev port plan must include the backend owner',
+    );
+  }
+  const fixedPort = requestedBackendOwner.source === 'pinned'
+    ? normalizeDevPort(requestedBackendOwner.port)
+    : null;
+  const selectedPortRange = fixedPort === null && requestedPortPlan.range.source !== 'default'
+    ? `${requestedPortPlan.range.lo}-${requestedPortPlan.range.hi}`
+    : null;
+  const runtimePortArguments = () => fixedPort === null
+    ? selectedPortRange === null ? [] : ['--port-range', selectedPortRange]
+    : ['--port', String(fixedPort)];
+  const backendPlanTemplate = Object.freeze({
+    range: requestedPortPlan.range,
+    owners: Object.freeze([requestedBackendOwner]),
+  });
+  let backendPortPlan = materializeDevPortPlan(backendPlanTemplate);
+  const refreshBackendPortPlan = (currentDescriptor, provenance = null) => {
+    const backendPort = portFromUrl(currentDescriptor.serverUrl);
+    backendPortPlan = materializeDevPortPlan(
+      backendPlanTemplate,
+      { backend: backendPort },
+      provenance === null ? {} : { backend: provenance },
+    );
+    return backendPortPlan;
+  };
   const externalClientOrigins = normalizeExternalClientOrigins(options, fixedPort);
   const declaredClientOrigins = [...new Set([
     ...externalClientOrigins,
@@ -5396,6 +5572,7 @@ export async function runDev(options = {}) {
       clientOrigins,
       runtimeIdentity: applicationRuntimeIdentity,
       fixedPort,
+      portPlan: requestedPortPlan,
     });
   } else {
     if (options.attach === true) {
@@ -5413,13 +5590,23 @@ export async function runDev(options = {}) {
         },
       );
     }
+    if (fixedPort === null) {
+      // @ref LLP 0299#4-ranges — the lifecycle owner reports backend
+      // exhaustion under the same typed refusal as supervisor allocation.
+      // The native child captures bounded stderr, so its own uncoded
+      // "no available Snapback port on" refusal is translated below as a
+      // post-scan defense. This pre-scan supplies the typed lifecycle refusal
+      // before spawn in the ordinary exhaustion case; supervisor-held ports
+      // are deliberately skipped because this plan already owns them.
+      await assertBackendRangeAvailable(requestedPortPlan);
+    }
     removeApplicationReadyReceipt();
     refreshStartupArtifacts();
-    child = spawnManagedRuntime(runtime.binary, [
+    child = spawnRuntime(runtime.binary, [
       'start',
       '--ready-file', readyFile,
       '--db', database,
-      ...(fixedPort === null ? [] : ['--port', String(fixedPort)]),
+      ...runtimePortArguments(),
       ...(startupArtifacts ? ['--startup-artifacts', startupArtifacts] : []),
     ], {
       cwd: projectRoot,
@@ -5431,14 +5618,19 @@ export async function runDev(options = {}) {
       descriptor = validateDevTarget(await waitForReady(readyFile, child), { readyFile, database });
     } catch (error) {
       await stopProcessGroup(child);
+      const rangeExhaustion = await translateBackendRangeExhaustion(
+        error,
+        requestedPortPlan,
+      );
+      if (rangeExhaustion !== null) throw rangeExhaustion;
       const startupPin = authStartupPinRefusal(error);
       if (startupPin?.details?.observedDeployment) {
         if (existsSync(readyFile)) rmSync(readyFile, { force: true });
-        child = spawnManagedRuntime(runtime.binary, [
+        child = spawnRuntime(runtime.binary, [
           'start',
           '--ready-file', readyFile,
           '--db', database,
-          ...(fixedPort === null ? [] : ['--port', String(fixedPort)]),
+          ...runtimePortArguments(),
           ...(startupArtifacts ? ['--startup-artifacts', startupArtifacts] : []),
           '--activate-startup-successor',
         ], {
@@ -5458,6 +5650,11 @@ export async function runDev(options = {}) {
           };
         } catch (activationError) {
           await stopProcessGroup(child);
+          const rangeExhaustion = await translateBackendRangeExhaustion(
+            activationError,
+            requestedPortPlan,
+          );
+          if (rangeExhaustion !== null) throw rangeExhaustion;
           const refinedActivation = refineGeneratedArtifactFailure(activationError, {
             binary: runtime.binary,
             runtime,
@@ -5494,6 +5691,10 @@ export async function runDev(options = {}) {
       }
     }
   }
+  refreshBackendPortPlan(
+    descriptor,
+    managed ? null : { source: 'attached', declaredBy: null },
+  );
   const closeManaged = async () => {
     try {
       if (managed && child?.exitCode === null) {
@@ -5566,6 +5767,7 @@ export async function runDev(options = {}) {
     applicationReadyFile,
     serverUrl: descriptor.serverUrl,
     lifecycleProfile: fixedPort === null ? 'selected-port' : 'fixed-port',
+    get portPlan() { return backendPortPlan; },
     clientOrigins,
     runtime,
     runtimeRecovery,
@@ -5988,7 +6190,7 @@ export async function runDev(options = {}) {
         'start',
         '--ready-file', readyFile,
         '--db', database,
-        ...(fixedPort === null ? [] : ['--port', String(fixedPort)]),
+        ...runtimePortArguments(),
         ...(startupArtifacts ? ['--startup-artifacts', startupArtifacts] : []),
         ...(activateSuccessor ? ['--activate-startup-successor'] : []),
       ], {
@@ -6017,6 +6219,7 @@ export async function runDev(options = {}) {
           { readyFile, database },
         );
       }
+      refreshBackendPortPlan(descriptor);
       adminToken = managedAdminToken(descriptor, database);
       devIdentityCapability = generatedAuthMode === 'dev'
         ? resolveDevIdentityCapabilityForCli(descriptor, { readyFile, database })
@@ -6144,7 +6347,7 @@ export async function runDev(options = {}) {
         'start',
         '--ready-file', readyFile,
         '--db', database,
-        ...(fixedPort === null ? [] : ['--port', String(fixedPort)]),
+        ...runtimePortArguments(),
         ...(startupArtifacts ? ['--startup-artifacts', startupArtifacts] : []),
       ], {
         cwd: projectRoot,
@@ -6153,6 +6356,7 @@ export async function runDev(options = {}) {
       });
       attachExitWatch(child);
       descriptor = validateDevTarget(await waitForReady(readyFile, child), { readyFile, database });
+      refreshBackendPortPlan(descriptor);
       adminToken = managedAdminToken(descriptor, database);
       devIdentityCapability = generatedAuthMode === 'dev'
         ? resolveDevIdentityCapabilityForCli(descriptor, { readyFile, database })
@@ -6203,6 +6407,7 @@ export async function runDev(options = {}) {
   return {
     ...result,
     get serverUrl() { return descriptor.serverUrl; },
+    get portPlan() { return backendPortPlan; },
     get child() { return child; },
     verbs: {
       status: statusVerb,
@@ -6453,7 +6658,7 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     output: `${VERIFY_RECEIPT_SCHEMA_VERSION} receipt`, exits: '0 all required stages pass (including machine-distinct passed-without-acceptance); 1 failed/refused stage', recovery: 'Use the failed stage diagnostics and rerun against the same declared app identity.',
   },
   {
-    name: 'dev', usage: 'snapback dev [<backend-dir>] [--attach] [--no-watch] [--port <port> --external-client-origin <origin>] [--ready-file <path>] [--application-ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] [--expo] [--expo-dir <dir>] [--expo-platform ios|android|web] [--email <address>] [--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] [--native-checkout --expo-app-scheme <scheme> <--ios-bundle-identifier <id>|--android-component <component>>] [--json]',
+    name: 'dev', usage: 'snapback dev [<backend-dir>] [--attach] [--no-watch] [--port <port>] [--client-port <port>] [--bootstrap-port <port>] [--port-range <lo>-<hi>] [--external-client-origin <origin>] [--ready-file <path>] [--application-ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] [--expo] [--expo-dir <dir>] [--expo-platform ios|android|web] [--email <address>] [--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] [--native-checkout --expo-app-scheme <scheme> <--ios-bundle-identifier <id>|--android-component <component>>] [--json]',
     description: 'Generate, start or attach, load, watch, and optionally supervise a web or Expo client surface.', lifecycle: 'long-running unless --no-watch (Expo supervision is always long-running)',
     output: 'snapback.dev.v1 JSON-line events; snapback.dev-command.v1 JSON lines are accepted on non-TTY stdin while it remains open', exits: '0 requested signal/TTY quit or successful --no-watch; 1 startup/watch/server failure',
     recovery: 'Act on the event diagnostic. Non-TTY stdin EOF only closes the optional control channel; use SIGINT/SIGTERM to stop the dev loop.',
@@ -6464,6 +6669,7 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
       'Supervised Expo iOS: snapback dev snapback --expo --expo-platform ios (ios is the default).',
       'Supervised Expo Android: snapback dev snapback --expo --expo-platform android.',
       'Supervised Expo web: snapback dev snapback --expo --expo-platform web.',
+      'Every owned listener uses the stable 4287-4387 range by default; use --port/--client-port/--bootstrap-port for strict pins or --port-range for a constrained lane.',
       'Native dev-identity checkout is default-off and requires the application development client\'s own bundle/component and URL scheme; Expo Go is refused.',
       '--expo owns the bootstrap environment; --client-command is a generic child and does not install the supervised Expo bootstrap.',
     ]),
@@ -7758,6 +7964,9 @@ export async function runCli(argv, options = {}) {
     const applicationReadyFile = takeFlag(args, '--application-ready-file');
     const database = takeFlag(args, '--db');
     const port = takeFlag(args, '--port');
+    const clientPort = takeFlag(args, '--client-port');
+    const bootstrapPort = takeFlag(args, '--bootstrap-port');
+    const portRange = takeFlag(args, '--port-range');
     const externalClientOrigin = takeFlag(args, '--external-client-origin');
     const clientDirectory = takeFlag(args, '--client');
     const clientCommand = takeFlag(args, '--client-command');
@@ -7780,7 +7989,7 @@ export async function runCli(argv, options = {}) {
         'SNAPBACK_CLI_ARGUMENT_INVALID',
         `unknown dev option ${args[0]}; usage: snapback dev [<backend-dir>] [--attach] [--no-watch] `
           + '[--ready-file <path>] [--application-ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] '
-          + '[--port <port> --external-client-origin <origin>] '
+          + '[--port <port>] [--client-port <port>] [--bootstrap-port <port>] [--port-range <lo>-<hi>] [--external-client-origin <origin>] '
           + '[--expo] [--expo-dir <dir>] [--expo-platform ios|android|web] [--email <address>] '
           + '[--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] '
           + '[--native-checkout --expo-app-scheme <scheme> <--ios-bundle-identifier <id>|--android-component <component>>] [--json]',
@@ -7880,6 +8089,25 @@ export async function runCli(argv, options = {}) {
         );
       }
     }
+    const portPlan = resolveDevPortPlan({
+      profile: expo
+        ? 'expo'
+        : externalClientOrigin !== null
+          ? 'external-client'
+          : clientDirectory !== null || clientCommand !== null
+            ? 'client-command'
+            : 'plain',
+      platform: expoSelectedPlatform,
+      flags: { port, clientPort, bootstrapPort, portRange },
+      env: options.env ?? process.env,
+    });
+    if (externalClientOrigin !== null) {
+      const backendOwner = devPortPlanOwner(portPlan, 'backend');
+      normalizeExternalClientOrigins(
+        { externalClientOrigin },
+        backendOwner?.source === 'pinned' ? backendOwner.port : null,
+      );
+    }
     // Advisory only — Metro started outside the supervisor still inherits a
     // truthy CI and serves a stale bundle. Warn before either spawn path.
     const expoDevModule = await import('./expo-dev.mjs');
@@ -7952,8 +8180,14 @@ export async function runCli(argv, options = {}) {
           attach,
           devOptions: {
             ...options.devOptions,
+            portPlan,
             ...(port === null ? {} : { port }),
+            ...(portRange === null ? {} : { portRange }),
           },
+          portPlan,
+          ...(clientPort === null ? {} : { clientPort }),
+          ...(bootstrapPort === null ? {} : { bootstrapPort }),
+          ...(portRange === null ? {} : { portRange }),
           ...(readyFile ? { readyFile } : {}),
           ...(applicationReadyFile ? { applicationReadyFile } : {}),
           ...(database ? { database } : {}),
@@ -8019,6 +8253,8 @@ export async function runCli(argv, options = {}) {
       ...(applicationReadyFile ? { applicationReadyFile } : {}),
       ...(database ? { database } : {}),
       ...(port === null ? {} : { port }),
+      ...(portRange === null ? {} : { portRange }),
+      portPlan,
       ...(externalClientOrigin === null ? {} : { externalClientOrigin }),
       ...(clientDirectory || clientCommand
         ? {
@@ -8031,6 +8267,10 @@ export async function runCli(argv, options = {}) {
       onEvent(event) { console.log(JSON.stringify(event)); },
       onServerExit(code, signal) { onUnexpectedServerExit?.(code, signal); },
       ...options,
+      // The CLI-resolved plan has already applied flag > environment >
+      // default precedence. Do not let an embedding option replace it after
+      // argument validation.
+      portPlan,
     });
     // A failed dev result must reach the terminal through the same
     // printResult path every other command uses — `snapback dev` used to
@@ -8197,6 +8437,7 @@ export const __test = {
   devIdentityClientEnvironment,
   expectedActivationTargetFromActivation,
   loadGenerated,
+  portFromUrl,
   readReadyDescriptor,
   refineGeneratedArtifactFailure,
   removeManagedDatabaseState,
