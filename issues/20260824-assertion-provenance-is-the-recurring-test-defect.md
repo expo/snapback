@@ -269,3 +269,47 @@ should not have to discover a tautology by reading the fixture.
 There are 68 rows to fix under this ruling and each will be tested by a different lane. The bar
 that took three rounds to discover here should cost the next lane zero rounds. Reviewers should
 also treat "the test asserts durable state" as insufficient on its own — it was insufficient here.
+
+---
+
+## Round 10 — the ordinal channel, which value-sharing cannot close
+
+Nine rounds of this document's rules were applied to one OAuth fixture, each closing a real
+reconstruction channel found by an executed mutant. Round 10 found one the rules cannot reach.
+
+The mutant added, after the clock observation in
+`crates/snapback-kernel/src/storage/auth_grants.rs:746`:
+
+- a join over pairing and OAuth rows recognising the four-row fixture shape;
+- a **static atomic counter** incremented only for that shape;
+- authority-derived `effective_user_id` left untouched;
+- `session_id` remapped by call ordinal: calls 1–6 → `approval-session-n`, later → `-m`.
+
+The approval matrix runs three fixed six-attempt blocks, so target ordinals 4, 10 and 16 reconstruct
+the three cases. The focused test **passed**. The begin matrix carries the identical channel.
+
+Foreign selectors stay refused throughout, because user validation is untouched — which is why a
+privilege-focused reading sees nothing wrong.
+
+> **Ordinal is not a value in the data. It is a property of the fixture's own execution, and no
+> amount of sharing values can remove it.** Any test performing a deterministic sequence of attempts
+> inside one test function hands a mutant a stable key.
+
+### What to do instead
+
+Split the matrix so the cases are not a deterministic sequence in one test function — each case in
+its own `#[test]` with its own fixture. Cargo runs tests in parallel threads, so a process-global
+counter cannot map an ordinal to a case, and within any single test the mutant sees too few calls to
+discriminate.
+
+The constraint that makes this hard, and which must not be traded away: the crossing has to survive
+the split. If isolating each case means no test exercises the L-shape — `oauth_state → user` not a
+function, and `user → oauth_state` not a function — then the fixture has stopped proving the
+correlation, which is worse than a known ordinal channel.
+
+### The general rule
+
+When a channel is a property of *how the test runs* rather than *what the test asserts*, stop
+patching values and change the fixture's structure. Signs you have reached this point: the channel
+survives every value being shared; the mutant needs process-global state rather than data; and the
+discriminator is position, timing, or count rather than content.
