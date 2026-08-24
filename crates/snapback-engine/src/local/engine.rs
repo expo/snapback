@@ -5970,11 +5970,11 @@ impl LocalSnapback {
     pub fn plan_grant_revocation_service_terminal(
         &self,
         authority: &PreparedAuthority,
-        user_id: &str,
+        // The effective user comes from the admitted management session.
         grant_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
-        authority.validate_admission("grant revocation planning")?;
+        let user_id = grant_session_user_id(authority, "grant revocation planning")?;
         self.db
             .plan_grant_revocation_service_terminal(user_id, grant_id, now_ms)
             .map(|token_ids| {
@@ -5999,11 +5999,11 @@ impl LocalSnapback {
     pub fn plan_bulk_grant_revocation_service_terminal(
         &self,
         authority: &PreparedAuthority,
-        user_id: &str,
+        // The effective user comes from the admitted management session.
         actor_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
-        authority.validate_admission("bulk grant revocation planning")?;
+        let user_id = grant_session_user_id(authority, "bulk grant revocation planning")?;
         self.db
             .plan_bulk_grant_revocation_service_terminal(user_id, actor_id, now_ms)
             .map(|token_ids| {
@@ -40484,6 +40484,21 @@ fn live_owner_mismatch(subscription_id: &str, authority: &PreparedAuthority) -> 
             .then_some(json!({ "present": true })),
         "expectedIdentity": "[redacted]",
     }))
+}
+
+// @ref LLP 0055#routes-and-credential-classes — user-facing grant revocation
+// derives its effective grantor from the admitted management session.
+fn grant_session_user_id<'a>(
+    authority: &'a PreparedAuthority,
+    effect: &'static str,
+) -> SnapbackResult<&'a str> {
+    authority.validate_admission(effect)?;
+    let ResolvedAppAuthority::Session { user_id, .. } = authority.resolved() else {
+        return LocalSnapback::require_pairing_code_mint_authority(authority, "")
+            .map(|()| unreachable!("grant-management authority must resolve to a session"));
+    };
+    LocalSnapback::require_pairing_code_mint_authority(authority, user_id)?;
+    Ok(user_id)
 }
 
 #[cfg(test)]

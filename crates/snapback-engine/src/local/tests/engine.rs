@@ -28879,6 +28879,145 @@ fn test_dev_authority(source: InvocationSource) -> PreparedAuthority {
     .expect("prepare exact test dev authority")
 }
 
+#[test]
+fn grant_revocation_planners_do_not_accept_another_users_grant() {
+    let (schema, functions) = sessions_activation_pair('b', false);
+    let mut snapback = settled_sessions_activation_snapback(schema, functions);
+    let now_ms = 1_000;
+    let function_runtime = FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+        table_visibility: None,
+        table: "unused".to_owned(),
+        filters: Vec::new(),
+        membership_filters: Vec::new(),
+        order: Vec::new(),
+        limit: None,
+        indexed_by: None,
+    }));
+    let grant_functions = FunctionManifest {
+        functions: [
+            ("listItems", FunctionKind::Query),
+            ("liveItems", FunctionKind::LiveQuery),
+            ("queuedWrite", FunctionKind::Mutation),
+            ("writeAction", FunctionKind::Action),
+        ]
+        .into_iter()
+        .map(|(name, kind)| FunctionDefinition::new(name, kind, function_runtime.clone()))
+        .collect(),
+        ..FunctionManifest::default()
+    };
+    let token_id = {
+        let random = CounterRandom::new();
+        let database = snapback.auth_database_mut();
+        database
+            .reconcile_auth_scope_bases(&grant_functions)
+            .expect("install grant scope bases");
+        database
+            .auth_catalog()
+            .insert_human_user_for_test("user-a", now_ms)
+            .expect("create session user A");
+        database
+            .auth_catalog()
+            .insert_human_user_for_test("user-b", now_ms)
+            .expect("create effective user B");
+        database
+            .create_agent_principal(
+                "agent-a",
+                now_ms,
+                &crate::storage::auth_agents::AgentRegistration {
+                    display_name: Some("Agent A".to_owned()),
+                    operator_contact: None,
+                    registration_provenance: "grant-revocation-planner-test".to_owned(),
+                    owner_user_id: Some("user-a".to_owned()),
+                },
+            )
+            .expect("create user A's agent");
+        let credential = database
+            .issue_initial_agent_credential("agent-a", now_ms, &random)
+            .expect("issue agent credential");
+        database
+            .auth_catalog()
+            .insert_finite_authority_grant_for_test("grant-b", "agent-a", "user-b", now_ms)
+            .expect("create user B's grant to user A's agent");
+        database
+            .auth_catalog()
+            .insert_finite_authority_grant_for_test("grant-a", "agent-a", "user-a", now_ms)
+            .expect("create user A's grant for source validation");
+        database
+            .mint_scoped_token(&credential.secret, "grant-b", Some(60_000), now_ms, &random)
+            .expect("mint user B's grant token")
+            .token_id
+    };
+    let authority = test_live_session_authority(
+        InvocationSource::AgentGrantManagement,
+        "user-a",
+        1,
+        now_ms + 60_000,
+        None,
+    );
+
+    let single = snapback.plan_grant_revocation_service_terminal(&authority, "grant-b", now_ms);
+    let Err(error) = single else {
+        panic!("user A must be refused when planning revocation of user B's grant");
+    };
+    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_GRANT_INVALID");
+
+    let wrong_source = test_live_session_authority(
+        InvocationSource::HttpMutation,
+        "user-a",
+        1,
+        now_ms + 60_000,
+        None,
+    );
+    let wrong_source_plan =
+        snapback.plan_grant_revocation_service_terminal(&wrong_source, "grant-a", now_ms);
+    let Err(error) = wrong_source_plan else {
+        panic!("grant revocation planning must require its registered management source");
+    };
+    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_REQUIRED");
+
+    let admission = AdmissionController::from_mode_state(&settled_sessions_state())
+        .expect("managed Sessions admission controller");
+    let retired_authority = InvocationGate::prepare_admitted_authority(
+        InvocationSource::AgentGrantManagement,
+        AuthMode::Sessions,
+        ServerProfile::Test,
+        admission
+            .admit_for_mode(AuthMode::Sessions)
+            .expect("admit grant-management authority"),
+        &WireAuthorityFields::default(),
+        authority.resolved().clone(),
+        Some(
+            crate::auth::identity_core::AuthClaimsProjection::server_derived(
+                Vec::new(),
+                Vec::new(),
+            ),
+        ),
+    )
+    .expect("prepare managed grant-management authority");
+    assert_eq!(
+        admission
+            .retire_current_epoch_for_test()
+            .expect_err("outstanding authority forces retirement timeout")
+            .diagnostic
+            .code,
+        "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
+    );
+    let retired_plan =
+        snapback.plan_grant_revocation_service_terminal(&retired_authority, "grant-a", now_ms);
+    let Err(error) = retired_plan else {
+        panic!("retired grant-management authority must be refused");
+    };
+    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_MODE_PENDING");
+
+    let bulk = snapback
+        .plan_bulk_grant_revocation_service_terminal(&authority, "agent-a", now_ms)
+        .expect("bulk planning for user A excludes user B's grant");
+    assert!(
+        bulk.token_ids().is_empty(),
+        "bulk planning must not include user B's token {token_id} for user A"
+    );
+}
+
 fn test_session_admission() -> crate::auth::admission::AdmissionLease {
     test_session_authority(InvocationSource::LiveInitialQuery)
         .admission_lease()
