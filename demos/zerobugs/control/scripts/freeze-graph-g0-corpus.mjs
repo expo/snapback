@@ -27,6 +27,7 @@ const BOUNDS_PATH = join(GRAPH_ROOT, 'bound-derivation.v1.json');
 const PENDING_CASES_PATH = join(GRAPH_ROOT, 'broadcast-cases.g2-pending.v1.json');
 const PAIRED_FIXTURES_PATH = join(GRAPH_ROOT, 'paired-world-fixtures.v1.json');
 const ZERO_HASH = `sha256:${'0'.repeat(64)}`;
+const OWNER_SCOPE_DOMAIN = 'snapback:g0-corpus-authority-scope:v1:';
 const LARGE_SPOT_CHECK_COMMAND = 'ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs';
 const HOT_SPOT_CHECK_COMMAND = 'ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v11 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-hot.mjs';
 const FIXTURE_TABLES = [
@@ -42,6 +43,7 @@ const requestedFixtures = (process.argv.find(value => value.startsWith('--fixtur
   .replace(/^--fixtures=/u, '')
   .split(',');
 const checkOnly = process.argv.includes('--check');
+let corpusAuthorityOwner = null;
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
@@ -112,6 +114,116 @@ function installBinding(tables, principal, actor) {
     sourceUserID: actor.sourceUserID,
     userID: actor.userID,
   }];
+}
+
+function ownerProjectRole(projectRoleFacts) {
+  if (projectRoleFacts.isCrew) return 'crew';
+  if (projectRoleFacts.isCreator && projectRoleFacts.isAssignee) return 'creator-assignee';
+  if (projectRoleFacts.isCreator) return 'creator';
+  if (projectRoleFacts.isAssignee) return 'assignee';
+  return 'none';
+}
+
+function buildAuthorityOwner(tables, fixture) {
+  const actors = [
+    ['principal_ordinary', 'ordinary-user'],
+    ['principal_crew', 'crew-admin'],
+    ['principal_removed', 'removed-member'],
+  ];
+  const facts = actors.map(([principal, actorName]) => {
+    const actor = fixture.actorBindings[actorName];
+    const user = tables.user.find(row => row._id === actor.userID);
+    assert(user, `${principal} resolves its frozen source user`);
+    assert.equal(user.id, actor.sourceUserID, `${principal} source identity is exact`);
+    assert.equal(user.role, actor.role, `${principal} frozen role is exact`);
+    const memberships = tables.projectUserRead.filter(row => row.userID === actor.userID);
+    assert(memberships.length <= 1, `${principal} has at most one frozen project-role row`);
+    const membership = memberships[0];
+    const projectRoleFacts = {
+      isCrew: membership?.isCrew ?? false,
+      isCreator: membership?.isCreator ?? false,
+      isAssignee: membership?.isAssignee ?? false,
+    };
+    const crewMembership = user.role === 'crew';
+    assert.equal(
+      projectRoleFacts.isCrew, crewMembership,
+      `${principal} source role and project crew membership agree`,
+    );
+    const allowedValues = crewMembership ? ['internal', 'public'] : ['public'];
+    return {
+      principal, sourceUserID: actor.sourceUserID, userID: actor.userID,
+      role: user.role, crewMembership, projectRoleFacts,
+      visibilityPolicyInputs: ['issue', 'issueListRead'].map(declarationId => ({
+        declarationId, permissionFields: ['visibility'], allowedValues,
+      })),
+    };
+  });
+  return {
+    format: 'snapback.graph-corpus-authority-owner.v1',
+    scopeHashDomain: OWNER_SCOPE_DOMAIN,
+    facts,
+    equivalenceAssertions: [
+      {
+        relation: 'same', query: 'listIssueByID',
+        graphArgs: {sourceIssueID: 'zbav1_internal_issue', selectedLabelIDs: []},
+        principals: ['principal_crew', 'principal_removed'],
+      },
+      {
+        relation: 'different', query: 'listIssueByID',
+        graphArgs: {sourceIssueID: 'zbav1_internal_issue', selectedLabelIDs: []},
+        principals: ['principal_crew', 'principal_ordinary'],
+      },
+    ],
+  };
+}
+
+function authorityFact(principal) {
+  assert(corpusAuthorityOwner, 'corpus authority owner is initialized');
+  const fact = corpusAuthorityOwner.facts.find(candidate => candidate.principal === principal);
+  assert(fact, `frozen owner facts exist for ${principal}`);
+  return fact;
+}
+
+function normalizedOwnerScope(input, args, principal) {
+  const fact = authorityFact(principal);
+  const visibilityPolicyInput = fact.visibilityPolicyInputs
+    .find(candidate => candidate.declarationId === input.declarationId);
+  assert(visibilityPolicyInput, `${input.declarationId} has frozen visibility-policy facts`);
+  const scopeArguments = input.scopeArgumentIds.map(argumentId => {
+    assert(Object.hasOwn(args, argumentId), `${argumentId} is a declared scope argument`);
+    return {argumentId, value: args[argumentId]};
+  });
+  return {
+    format: 'snapback.graph-corpus-policy-equivalence-scope.v1',
+    policyInput: {
+      nodeId: input.nodeId,
+      declarationId: input.declarationId,
+      policyIdentity: input.policyIdentity,
+    },
+    rolePermissionFacts: {
+      crewMembership: fact.crewMembership,
+      projectRole: ownerProjectRole(fact.projectRoleFacts),
+      visibilityPolicyInput,
+    },
+    scopeArguments,
+  };
+}
+
+function resolvedClass2Inputs(carrier, args, principal) {
+  return carrier.normalizedPlan.authorityPartitionRule.class2Inputs.map(input => {
+    const normalizedScope = normalizedOwnerScope(input, args, principal);
+    assert(!Object.hasOwn(normalizedScope, 'principal'), 'raw principal is outside the class-2 scope preimage');
+    assert(
+      !canonical(normalizedScope).includes(JSON.stringify(principal)),
+      'raw principal value is absent from the complete class-2 scope preimage',
+    );
+    return {
+      nodeId: input.nodeId,
+      declarationId: input.declarationId,
+      scopeIdentity: domainHash(OWNER_SCOPE_DOMAIN, normalizedScope),
+      policyIdentity: input.policyIdentity,
+    };
+  });
 }
 
 function defaultListContext(overrides = {}) {
@@ -586,14 +698,7 @@ function invocation(
     partition: {
       format: 'snapback.graph-authority-partition.v1',
       graphPlanHash: carrier.planHash,
-      class2: carrier.normalizedPlan.authorityPartitionRule.class2Inputs.map(input => ({
-        nodeId: input.nodeId,
-        declarationId: input.declarationId,
-        scopeIdentity: domainHash('snapback:g0-corpus-authority-scope:v1:', {
-          principal, nodeId: input.nodeId, declarationId: input.declarationId, args,
-        }),
-        policyIdentity: input.policyIdentity,
-      })),
+      class2: resolvedClass2Inputs(carrier, args, principal),
       class3: {
         format: 'snapback.authority-partition.v1',
         principalDataScope: {
@@ -663,6 +768,7 @@ function normalizeCommentTiesForGraph(value, commentRows) {
   const normalized = deepClone(value);
   const physicalBySource = new Map(commentRows.map(row => [row.id, row._id]));
   let groups = 0;
+  const physicalIdBindings = [];
   for (let start = 0; start < normalized.comments.length;) {
     let end = start + 1;
     while (
@@ -671,6 +777,15 @@ function normalizeCommentTiesForGraph(value, commentRows) {
     ) end += 1;
     if (end - start > 1) {
       groups += 1;
+      physicalIdBindings.push(...normalized.comments.slice(start, end).map(row => {
+        const physicalId = physicalBySource.get(row.comment.id);
+        assert(physicalId, 'every tied oracle comment resolves to a physical graph comment id');
+        return {
+          sourceId: row.comment.id,
+          physicalId,
+          createdAt: row.comment.created,
+        };
+      }));
       const sorted = normalized.comments.slice(start, end).sort((left, right) => {
         const leftPhysical = physicalBySource.get(left.comment.id);
         const rightPhysical = physicalBySource.get(right.comment.id);
@@ -681,7 +796,8 @@ function normalizeCommentTiesForGraph(value, commentRows) {
     }
     start = end;
   }
-  return {value: normalized, groups};
+  physicalIdBindings.sort((left, right) => left.sourceId.localeCompare(right.sourceId));
+  return {value: normalized, groups, physicalIdBindings};
 }
 
 function pendingCases(carrier, baseInvocation) {
@@ -693,7 +809,6 @@ function pendingCases(carrier, baseInvocation) {
     sourceIssueID: '__outside_scope__', selectedLabelIDs: [],
   });
   return [
-    { caseKind: 'allowDeny', id: 'zerobugs-allow-deny-g2', plan: carrier, invocations: { allowed: baseInvocation, denied: withPrincipal('principal_removed') }, principals: { allowed: 'principal_ordinary', denied: 'principal_removed' }, expect: { allowed: completeResult(carrier, baseInvocation), denied: 'deny', deniedResultBytes: null } },
     { caseKind: 'audienceParity', id: 'zerobugs-audience-parity-g2', plan: carrier, invocations: [baseInvocation, withPrincipal('principal_crew')], principals: ['principal_ordinary', 'principal_crew'], expect: { establishment: ['allow', 'allow'], strict: ['allow', 'allow'] } },
     { caseKind: 'scopeMismatch', id: 'zerobugs-scope-mismatch-g2', plan: carrier, invocations: { memberScope: baseInvocation, presentedInstance: outsideScope }, principal: 'principal_ordinary', expect: { classification: 'query-shaped', reason: 'scope-unbound', resultBytes: null } },
     { caseKind: 'authorityTransition', id: 'zerobugs-authority-transition-g2', plan: carrier, invocations: { before: withEpoch(0), after: withEpoch(1) }, principal: 'principal_ordinary', commit: { dataChanges: [], authorityEvents: [{ kind: 'authorization-incarnation-change', cause: 'app-reset' }], afterAuthorizationVersion: { incarnation: 'g0-corpus-authorization-v1', epoch: 1 } }, observed: [{ ordinal: 0, kind: 'fence', authorizationVersion: { incarnation: 'g0-corpus-authorization-v1', epoch: 1 } }, { ordinal: 1, kind: 'delivery', authorizationVersion: { incarnation: 'g0-corpus-authorization-v1', epoch: 1 } }] },
@@ -1154,16 +1269,27 @@ async function main() {
     {
       id: 'issueDetail-comments-window-and-child-tie', query: 'issueDetail',
       fixture: 'g0-oracle-comments-window-v1', invocation: continuationArgs,
-      oracleDivergences: [{graphNodeId: commentsNodeId, kind: 'direction-tie-break', equalCreatedGroups: 1}],
+      oracleDivergence: 'direction-tie-break',
       oracle: {
         resultBytes: JSON.stringify(continuationDetail), digest: digestBytes(JSON.stringify(continuationDetail)),
+        physicalIdBindings: normalizedComments.physicalIdBindings,
         resumedInvocation: continuationResumeArgs,
         resumedResultBytes: JSON.stringify(continuationNextPage),
         resumedDigest: digestBytes(JSON.stringify(continuationNextPage)),
         resumedRowsBytes: JSON.stringify(continuationNextRows),
         resumedRowsDigest: digestBytes(JSON.stringify(continuationNextRows)),
       },
-      fieldMap: fieldMaps.issueDetail,
+      fieldMap: {
+        ...deepClone(fieldMaps.issueDetail),
+        order: {
+          graphNodeId: commentsNodeId,
+          oracleFields: [
+            'value.comments[*].comment.created',
+            'value.comments[*].comment.id',
+          ],
+          comparison: 'exact-after-id-tiebreak-normalization',
+        },
+      },
       declaredGraph: {
         planHash: carriers.issueDetail.planHash,
         resultDisposition: 'admitted-fixed-id-structural-shape', fullOracleRows: 'refused',
@@ -1202,12 +1328,20 @@ async function main() {
   const internalListRow = tables.issueListRead.find(row => row.sourceIssueID === internalIssue.id);
   const otherUserID = fixture.actorBindings['crew-admin'].userID;
   const crewPrincipal = 'principal_crew';
-  const class2Nodes = Object.fromEntries(Object.entries(carriers).map(([query, carrier]) => [
-    query,
-    carrier.normalizedPlan.nodes
-      .filter(node => node.authority.declaredClass === 2)
-      .map(node => node.nodeId),
-  ]));
+  corpusAuthorityOwner = buildAuthorityOwner(tables, fixture);
+  for (const assertion of corpusAuthorityOwner.equivalenceAssertions) {
+    const carrier = carriers[assertion.query];
+    const [left, right] = assertion.principals.map(principal => (
+      resolvedClass2Inputs(carrier, assertion.graphArgs, principal)
+        .map(input => input.scopeIdentity)
+    ));
+    if (assertion.relation === 'same') {
+      assert.deepEqual(left, right, 'same policy-equivalence class mints equal scope identities');
+    } else {
+      assert.notDeepEqual(left, right, 'different policy-equivalence classes mint different scope identities');
+    }
+    assertion.scopeIdentities = {left, right};
+  }
   const notificationOverlay = {
     _id: 'issueNotifications_g0_other_principal', userID: otherUserID,
     issueID: publicIssue._id, subscribed: true, created: 2_000_000_000_100,
@@ -1218,41 +1352,23 @@ async function main() {
   };
   const pairDefinitions = [
     {
-      id: 'g0-pair-list-crew-visible-internal-root', query: 'issueListV2', table: 'issueListRead',
+      id: 'g0-pair-list-hidden-internal-root', query: 'issueListV2', table: 'issueListRead',
       presentTables: deepClone(tables),
       absentTables: {...deepClone(tables), issueListRead: tables.issueListRead.filter(row => row._id !== internalListRow._id)},
       rowIds: [internalListRow._id], handlerArgs: listArgs,
       graphArgs: {projectID: internalIssue.projectID, selectedLabelIDs: []},
-      principal: crewPrincipal, expectedRelation: 'different',
-      coveredNodeIds: class2Nodes.issueListV2,
-      channel: 'crew-or-public policy makes removal of the internal list root observable',
+      principal: ordinaryPrincipal, coveredNodeIds: ['n0'],
+      channel: 'internal list root is wholly hidden from the ordinary principal',
     },
     {
-      id: 'g0-pair-detail-crew-visible-row-change', query: 'issueDetail', table: 'issue',
-      presentTables: {
-        ...deepClone(tables),
-        issue: tables.issue.map(row => row._id === internalIssue._id
-          ? {...row, title: `${row.title} [present-world]`}
-          : row),
-      },
-      absentTables: deepClone(tables), rowIds: [internalIssue._id],
-      handlerArgs: {idField: 'id', id: internalIssue.id},
-      graphArgs: {sourceIssueID: internalIssue.id},
-      principal: crewPrincipal, expectedRelation: 'different',
-      evaluatedParentKeys: [{table: 'issue', id: internalIssue._id}],
-      coveredNodeIds: class2Nodes.issueDetail,
-      channel: 'crew-or-public policy makes an internal detail-row change observable',
-    },
-    {
-      id: 'g0-pair-point-crew-visible-internal-root', query: 'listIssueByID', table: 'issueListRead',
+      id: 'g0-pair-point-hidden-internal-root', query: 'listIssueByID', table: 'issueListRead',
       presentTables: deepClone(tables),
       absentTables: {...deepClone(tables), issueListRead: tables.issueListRead.filter(row => row._id !== internalListRow._id)},
       rowIds: [internalListRow._id],
       handlerArgs: {listContext: defaultListContext(), idField: 'id', idValue: internalIssue.id},
       graphArgs: {sourceIssueID: internalIssue.id, selectedLabelIDs: []},
-      principal: crewPrincipal, expectedRelation: 'different',
-      coveredNodeIds: class2Nodes.listIssueByID,
-      channel: 'crew-or-public policy makes removal of the internal point root observable',
+      principal: ordinaryPrincipal, coveredNodeIds: ['n0'],
+      channel: 'internal point root is wholly hidden from the ordinary principal',
     },
     {
       id: 'g0-pair-detail-hidden-root-empty-child-demand', query: 'issueDetail', table: 'issue',
@@ -1260,7 +1376,7 @@ async function main() {
       absentTables: {...deepClone(tables), issue: tables.issue.filter(row => row._id !== internalIssue._id)},
       rowIds: [internalIssue._id], handlerArgs: {idField: 'id', id: internalIssue.id},
       graphArgs: {sourceIssueID: internalIssue.id}, coveredNodeIds: ['n0'],
-      principal: ordinaryPrincipal, expectedRelation: 'equal', evaluatedParentKeys: [],
+      principal: ordinaryPrincipal, evaluatedParentKeys: [],
       windowVectorDisposition: {
         status: 'BLOCKED',
         ticket: 'issues/20260823-graph-empty-child-demand-window-vector.md',
@@ -1273,7 +1389,7 @@ async function main() {
       presentTables: {...deepClone(tables), issueNotifications: [...tables.issueNotifications, notificationOverlay]},
       absentTables: deepClone(tables), rowIds: [notificationOverlay._id], handlerArgs: detailArgs,
       graphArgs: {sourceIssueID: publicIssue.id}, coveredNodeIds: ['n6'],
-      principal: ordinaryPrincipal, expectedRelation: 'equal',
+      principal: ordinaryPrincipal,
       evaluatedParentKeys: [{table: 'issue', id: publicIssue._id}],
       channel: 'other-principal notification row beside a hydrated issue',
     },
@@ -1282,36 +1398,28 @@ async function main() {
       presentTables: {...deepClone(tables), viewState: [...tables.viewState, viewStateOverlay]},
       absentTables: deepClone(tables), rowIds: [viewStateOverlay._id], handlerArgs: pointArgs,
       graphArgs: {sourceIssueID: publicIssue.id, selectedLabelIDs: []}, coveredNodeIds: ['n5'],
-      principal: ordinaryPrincipal, expectedRelation: 'equal',
+      principal: ordinaryPrincipal,
       channel: 'other-principal view-state row beside a hydrated point result',
     },
   ];
   const pairedWorlds = [];
   const frozenPairs = [];
   for (const definition of pairDefinitions) {
-    if (definition.principal === crewPrincipal) {
-      installBinding(definition.presentTables, crewPrincipal, fixture.actorBindings['crew-admin']);
-      installBinding(definition.absentTables, crewPrincipal, fixture.actorBindings['crew-admin']);
-    }
     const presentResult = await handlers[definition.query](
       mockContext(definition.presentTables, definition.principal), definition.handlerArgs,
     );
     const absentResult = await handlers[definition.query](
       mockContext(definition.absentTables, definition.principal), definition.handlerArgs,
     );
-    if (definition.expectedRelation === 'equal') {
-      assert.deepEqual(absentResult, presentResult, `${definition.id} hidden slice is observationally absent`);
-    } else {
-      assert.notDeepEqual(absentResult, presentResult, `${definition.id} absent world flips an oracle row`);
-    }
-    const presentMapped = expectedFromOracle(
+    assert.deepEqual(absentResult, presentResult, `${definition.id} hidden slice is observationally absent`);
+    const mapped = expectedFromOracle(
       definition.query, presentResult, fieldMaps[definition.query], {labelRows: tables.label},
     );
     const absentMapped = expectedFromOracle(
       definition.query, absentResult, fieldMaps[definition.query], {labelRows: tables.label},
     );
-    assert.equal(presentMapped.graphCompleteness, 'complete', `${definition.id} present result is complete`);
-    assert.equal(absentMapped.graphCompleteness, 'complete', `${definition.id} absent result is complete`);
+    assert.deepEqual(absentMapped, mapped, `${definition.id} mapped results exact-match`);
+    assert.equal(mapped.graphCompleteness, 'complete', `${definition.id} paired result is complete`);
     const call = invocation(
       carriers[definition.query], definition.graphArgs, definition.principal, 0,
       definition.query, definition.evaluatedParentKeys,
@@ -1329,14 +1437,13 @@ async function main() {
       id: definition.id, query: definition.query, channel: definition.channel,
       namedSlice: {table: definition.table, rowIds: definition.rowIds},
       coveredNodeIds: definition.coveredNodeIds, coveredAuthorityClasses,
-      expectedRelation: definition.expectedRelation,
       present, absent,
     });
     pairedWorlds.push({
       caseKind: 'pairedWorld', id: definition.id, query: definition.query,
       plan: carriers[definition.query], invocation: call,
       fixturePairId: definition.id, coveredNodeIds: definition.coveredNodeIds,
-      coveredAuthorityClasses, expectedRelation: definition.expectedRelation,
+      coveredAuthorityClasses,
       windowVectorDisposition: definition.windowVectorDisposition ?? {status: 'VALIDATED'},
       worlds: {
         present: {fixture: present.identity, fixtureDigest: present.fixtureDigest, hiddenSlice: [{table: definition.table, rowIds: definition.rowIds}]},
@@ -1345,11 +1452,7 @@ async function main() {
       oracleEvidence: {presentDigest: digestBytes(JSON.stringify(presentResult)), absentDigest: digestBytes(JSON.stringify(absentResult))},
       expect: completeResult(
         carriers[definition.query], call,
-        presentMapped.resultBytes, presentMapped.orderedRootIds,
-      ),
-      absentExpect: completeResult(
-        carriers[definition.query], call,
-        absentMapped.resultBytes, absentMapped.orderedRootIds,
+        mapped.resultBytes, mapped.orderedRootIds,
       ),
     });
   }
@@ -1360,13 +1463,70 @@ async function main() {
   };
   pairedFixtureCorpus.contentDigest = digestBytes(canonical(pairedFixtureCorpus));
 
+  const activationTables = deepClone(tables);
+  installBinding(activationTables, crewPrincipal, fixture.actorBindings['crew-admin']);
+  const activationHandlerArgs = {
+    listContext: defaultListContext(), idField: 'id', idValue: internalIssue.id,
+  };
+  const activationGraphArgs = {sourceIssueID: internalIssue.id, selectedLabelIDs: []};
+  const activationAllowed = await handlers.listIssueByID(
+    mockContext(activationTables, crewPrincipal), activationHandlerArgs,
+  );
+  const activationDenied = await handlers.listIssueByID(
+    mockContext(tables, ordinaryPrincipal), activationHandlerArgs,
+  );
+  assert.equal(activationAllowed[0].status, 'complete');
+  assert.equal(activationAllowed[0].items.length, 1);
+  assert.equal(activationDenied[0].status, 'not-found-authoritative');
+  assert.equal(activationDenied[0].reason, 'missing-or-outside-list-context');
+  assert.deepEqual(activationDenied[0].items, []);
+  const activationMapped = expectedFromOracle(
+    'listIssueByID', activationAllowed, fieldMaps.listIssueByID, {labelRows: tables.label},
+  );
+  assert.equal(activationMapped.graphCompleteness, 'complete');
+  const activationAllowedInvocation = invocation(
+    carriers.listIssueByID, activationGraphArgs, crewPrincipal, 0, 'listIssueByID',
+  );
+  const activationDeniedInvocation = invocation(
+    carriers.listIssueByID, activationGraphArgs, ordinaryPrincipal, 0, 'listIssueByID',
+  );
+  const allowDenyCases = [{
+    caseKind: 'allowDeny', id: 'g0-allow-deny-point-crew-internal-root',
+    query: 'listIssueByID', plan: carriers.listIssueByID,
+    invocations: {allowed: activationAllowedInvocation, denied: activationDeniedInvocation},
+    principals: {allowed: crewPrincipal, denied: ordinaryPrincipal},
+    coveredNodeIds: carriers.listIssueByID.normalizedPlan.nodes
+      .filter(node => node.authority.declaredClass === 2)
+      .map(node => node.nodeId),
+    oracleEvidence: {
+      allowedResultBytes: JSON.stringify(activationAllowed),
+      allowedDigest: digestBytes(JSON.stringify(activationAllowed)),
+      allowedMappedResultBytes: activationMapped.resultBytes,
+      allowedMappedDigest: digestBytes(activationMapped.resultBytes),
+      deniedResultBytes: JSON.stringify(activationDenied),
+      deniedDigest: digestBytes(JSON.stringify(activationDenied)),
+      deniedDisposition: {
+        status: activationDenied[0].status,
+        reason: activationDenied[0].reason,
+      },
+    },
+    expect: {
+      allowed: completeResult(
+        carriers.listIssueByID, activationAllowedInvocation,
+        activationMapped.resultBytes, activationMapped.orderedRootIds,
+      ),
+      denied: 'deny',
+      deniedResultBytes: null,
+    },
+  }];
+
   const pendingBaseInvocation = invocation(carriers.listIssueByID, {
     sourceIssueID: internalIssue.id, selectedLabelIDs: [],
   }, ordinaryPrincipal, 0, 'listIssueByID');
   const pendingCorpus = {
     format: 'snapback.graph-broadcast-cases.g2-pending.v1', version: 1,
-    description: 'Structurally frozen broadcast-adjacent records. G0 has no evaluator and executes none of these cases.',
-    caseKinds: ['allowDeny', 'audienceParity', 'scopeMismatch', 'authorityTransition', 'mixedCommit'],
+    description: 'Structurally frozen graph-evaluator records. G0 executes none of these four cases.',
+    caseKinds: ['audienceParity', 'scopeMismatch', 'authorityTransition', 'mixedCommit'],
     cases: pendingCases(carriers.listIssueByID, pendingBaseInvocation),
   };
   pendingCorpus.contentDigest = digestBytes(canonical(pendingCorpus));
@@ -1376,7 +1536,7 @@ async function main() {
     { caseKind: 'refusal', id: 'issueDetail-ordered-result-bearing-through', query: 'issueDetail', trigger: { phase: 'admission', plan: { sourceDeclaration: 'issueDetailOrderedLabelsCandidate' }, schemaFixture: 'tests/conformance/graph/zerobugs/schema.mjs', policyFixture: 'crew-or-public-permission-backing-mirror' }, expect: { reason: refusals.issueDetail, resultBytes: null } },
     { caseKind: 'refusal', id: 'listIssueByID-ordered-result-bearing-through', query: 'listIssueByID', trigger: { phase: 'admission', plan: { sourceDeclaration: 'listIssueByIDOrderedLabelsCandidate' }, schemaFixture: 'tests/conformance/graph/zerobugs/schema.mjs', policyFixture: 'crew-or-public-permission-backing-mirror' }, expect: { reason: refusals.listIssueByID, resultBytes: null } },
   ];
-  const cases = [...pairedWorlds, ...refusalCases];
+  const cases = [...pairedWorlds, ...allowDenyCases, ...refusalCases];
   const g0ExitObservations = [];
   const g0ExitObservationEvidence = [];
   const g0ExitObservationGaps = [];
@@ -1434,7 +1594,7 @@ async function main() {
   }
   const corpus = {
     format: 'snapback.graph-conformance-corpus.v1', version: 1,
-    description: 'G0 corpus: opaque oracle cases, paired worlds, and admission refusals execute; evaluator-dependent broadcast records live outside this union.',
+    description: 'G0 corpus: opaque oracle cases, exact hidden paired worlds, oracle-frozen allow/deny activation, and admission refusals execute; graph-evaluator cases live outside this union.',
     fixtures: {
       normal: 'demos/zerobugs/control/fixtures/normal-seed-v1',
       policyExtension: 'demos/zerobugs/control/fixtures/policy-extension-v1.json',
@@ -1449,19 +1609,20 @@ async function main() {
         detail: query === 'issueListV2' ? 'non-search graph-order shape admitted; search membership refused' : 'fixed-id structural shape admitted; name-ordered through-shape remains refused while mapped label arrays use labelID graph order',
       },
     })),
+    authorityOwner: corpusAuthorityOwner,
     oracleCases, oracleTranslationCoverage: translationCoverage, cases,
     caseKinds: ['pairedWorld', 'allowDeny', 'audienceParity', 'scopeMismatch', 'authorityTransition', 'mixedCommit', 'refusal'],
-    executableCaseKinds: ['pairedWorld', 'refusal'],
+    executableCaseKinds: ['pairedWorld', 'allowDeny', 'refusal'],
     pendingBroadcastCases: 'tests/conformance/graph/broadcast-cases.g2-pending.v1.json',
     broadcastInputs: [
       { label: 'G0-BCAST-CLASS', status: 'NOT SATISFIED', missingCarrier: 'every admitted Zerobugs base derives class 2 and each projection rolls up to class 3; no class-1 broadcast base or executed counterfeit-broadcast refusal exists', artifact: 'queries[*].carrier.normalizedPlan.nodes[*].authority + pairedWorld cases', caseKinds: ['pairedWorld', 'refusal'] },
-      { label: 'G0-BCAST-SEPARATION', status: 'NOT SATISFIED', missingCarrier: 'host-proven separation certificate and evaluator', artifact: 'broadcast-cases.g2-pending.v1.json', caseKinds: ['allowDeny', 'refusal'] },
-      { label: 'G0-BCAST-SCOPE', status: 'NOT SATISFIED', missingCarrier: 'executed canonical scope and P/Q mismatch evidence', artifact: 'broadcast-cases.g2-pending.v1.json', caseKinds: ['allowDeny', 'scopeMismatch'] },
+      { label: 'G0-BCAST-SEPARATION', status: 'NOT SATISFIED', missingCarrier: 'host-proven separation certificate and graph evaluator; allow/deny activation is oracle-executed only', artifact: 'corpus.v1.json allowDeny + broadcast-cases.g2-pending.v1.json', caseKinds: ['allowDeny', 'refusal'] },
+      { label: 'G0-BCAST-SCOPE', status: 'NOT SATISFIED', missingCarrier: 'executed P/Q mismatch evidence; owner-normalized P/Q-distinct scope identities are frozen and Rust-reconstructed', artifact: 'corpus.v1.json authorityOwner/allowDeny + broadcast-cases.g2-pending.v1.json', caseKinds: ['allowDeny', 'scopeMismatch'] },
       { label: 'G0-BCAST-SCOPE-BINDING', status: 'NOT SATISFIED', missingCarrier: 'executed resource-to-scope equality proof', artifact: 'broadcast-cases.g2-pending.v1.json', caseKinds: ['scopeMismatch', 'refusal'] },
-      { label: 'G0-BCAST-AUDIENCE', status: 'NOT SATISFIED', missingCarrier: 'executed establishment versus strict-evaluator parity', artifact: 'broadcast-cases.g2-pending.v1.json', caseKinds: ['allowDeny', 'audienceParity'] },
+      { label: 'G0-BCAST-AUDIENCE', status: 'NOT SATISFIED', missingCarrier: 'executed establishment versus strict-evaluator parity; allow/deny activation is oracle-executed only', artifact: 'corpus.v1.json allowDeny + broadcast-cases.g2-pending.v1.json', caseKinds: ['allowDeny', 'audienceParity'] },
       { label: 'G0-BCAST-INVALIDATION', status: 'NOT SATISFIED', missingCarrier: 'executed authority-transition and mixed-commit fence evidence', artifact: 'broadcast-cases.g2-pending.v1.json', caseKinds: ['authorityTransition', 'mixedCommit'] },
       { label: 'G0-BCAST-IDENTITY', status: 'SATISFIED', missingCarrier: null, artifact: 'full plan/instance/materialization/partition/version/cut preimages and Rust reconstruction', caseKinds: ['pairedWorld'] },
-      { label: 'G0-BCAST-CORPUS', status: 'NOT SATISFIED', missingCarrier: 'five broadcast-adjacent case kinds are structurally pending and not executable at G0', artifact: 'caseKinds schema + broadcast-cases.g2-pending.v1.json', caseKinds: ['pairedWorld', 'allowDeny', 'audienceParity', 'scopeMismatch', 'authorityTransition', 'mixedCommit', 'refusal'] },
+      { label: 'G0-BCAST-CORPUS', status: 'NOT SATISFIED', missingCarrier: 'four graph-evaluator case kinds are structurally pending and not executable at G0', artifact: 'caseKinds schema + corpus allowDeny + broadcast-cases.g2-pending.v1.json', caseKinds: ['pairedWorld', 'allowDeny', 'audienceParity', 'scopeMismatch', 'authorityTransition', 'mixedCommit', 'refusal'] },
       { label: 'G0-BCAST-BOUNDS', status: 'NOT SATISFIED', missingCarrier: 'large/hot typed exit observations and ratified non-provisional maxima', artifact: 'bound-derivation.v1.json + g0ExitObservationGaps', caseKinds: ['pairedWorld'] },
     ],
     g0ExitObservations, g0ExitObservationEvidence, g0ExitObservationGaps,
@@ -1482,7 +1643,7 @@ async function main() {
     writeFileSync(PENDING_CASES_PATH, pretty(pendingCorpus));
     writeFileSync(PAIRED_FIXTURES_PATH, pretty(pairedFixtureCorpus));
   }
-  console.log(`graph-g0-oracle-freeze: PASS normal-seed-v1 queries=3 oracleCases=${oracleCases.length} pairedWorlds=${pairedWorlds.length} refusals=${refusalCases.length}`);
+  console.log(`graph-g0-oracle-freeze: PASS normal-seed-v1 queries=3 oracleCases=${oracleCases.length} pairedWorlds=${pairedWorlds.length} allowDeny=${allowDenyCases.length} refusals=${refusalCases.length}`);
   if (!existsSync(LARGE_ROOT)) console.log('graph-g0-large-spot-check: DEFERRED receipt-only; rerun zb5 command recorded in bound-derivation.v1.json');
 }
 

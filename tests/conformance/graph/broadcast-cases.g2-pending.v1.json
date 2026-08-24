@@ -1,1269 +1,14 @@
 {
   "format": "snapback.graph-broadcast-cases.g2-pending.v1",
   "version": 1,
-  "description": "Structurally frozen broadcast-adjacent records. G0 has no evaluator and executes none of these cases.",
+  "description": "Structurally frozen graph-evaluator records. G0 executes none of these four cases.",
   "caseKinds": [
-    "allowDeny",
     "audienceParity",
     "scopeMismatch",
     "authorityTransition",
     "mixedCommit"
   ],
   "cases": [
-    {
-      "caseKind": "allowDeny",
-      "id": "zerobugs-allow-deny-g2",
-      "plan": {
-        "normalizedPlan": {
-          "arguments": [
-            {
-              "argumentId": "a0",
-              "contract": {
-                "format": "snapback.argument-binding-contract.v1",
-                "required": true,
-                "value": {
-                  "element": {
-                    "kind": "string",
-                    "maxBytes": 128
-                  },
-                  "kind": "array",
-                  "maxItems": 16
-                }
-              },
-              "contractHash": "sha256:73767cf1d41219a17ac4deee4a8820e5a0666e90cb4aeb50a34b2043008988c5",
-              "name": "selectedLabelIDs"
-            },
-            {
-              "argumentId": "a1",
-              "contract": {
-                "format": "snapback.argument-binding-contract.v1",
-                "required": true,
-                "value": {
-                  "kind": "string",
-                  "maxBytes": 128
-                }
-              },
-              "contractHash": "sha256:fde4e26c8f4389ea5470b6983bd1529e4484e085cf45397e5e6790fac5ffc094",
-              "name": "sourceIssueID"
-            }
-          ],
-          "authorityPartitionRule": {
-            "class2Inputs": [
-              {
-                "declarationId": "issueListRead",
-                "eventSelectors": [
-                  {
-                    "cause": "app-reset",
-                    "kind": "authorization-incarnation-change"
-                  },
-                  {
-                    "cause": "declared-physical-restore",
-                    "kind": "authorization-incarnation-change"
-                  },
-                  {
-                    "cause": "logical-import",
-                    "kind": "authorization-incarnation-change"
-                  },
-                  {
-                    "declarationId": "issueListRead",
-                    "kind": "authorization-metadata-activation"
-                  },
-                  {
-                    "declarationId": "issueListRead",
-                    "kind": "out-of-band-permission-revocation"
-                  },
-                  {
-                    "kind": "permission-backing-write",
-                    "permissionFields": [
-                      "visibility"
-                    ],
-                    "scope": {
-                      "kind": "all-declaration-scopes"
-                    },
-                    "table": "issueListRead"
-                  }
-                ],
-                "nodeId": "n0",
-                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e",
-                "scopeArgumentIds": []
-              },
-              {
-                "declarationId": "issue",
-                "eventSelectors": [
-                  {
-                    "cause": "app-reset",
-                    "kind": "authorization-incarnation-change"
-                  },
-                  {
-                    "cause": "declared-physical-restore",
-                    "kind": "authorization-incarnation-change"
-                  },
-                  {
-                    "cause": "logical-import",
-                    "kind": "authorization-incarnation-change"
-                  },
-                  {
-                    "declarationId": "issue",
-                    "kind": "authorization-metadata-activation"
-                  },
-                  {
-                    "declarationId": "issue",
-                    "kind": "out-of-band-permission-revocation"
-                  },
-                  {
-                    "kind": "permission-backing-write",
-                    "permissionFields": [
-                      "visibility"
-                    ],
-                    "scope": {
-                      "kind": "all-declaration-scopes"
-                    },
-                    "table": "issue"
-                  }
-                ],
-                "nodeId": "n1",
-                "policyIdentity": "sha256:9cd32697e82556ebf2b07a8e7614dcc1e2b091d8c8e090ab86007353f7bc20d8",
-                "scopeArgumentIds": []
-              },
-              {
-                "declarationId": "issueListRead",
-                "eventSelectors": [
-                  {
-                    "cause": "app-reset",
-                    "kind": "authorization-incarnation-change"
-                  },
-                  {
-                    "cause": "declared-physical-restore",
-                    "kind": "authorization-incarnation-change"
-                  },
-                  {
-                    "cause": "logical-import",
-                    "kind": "authorization-incarnation-change"
-                  },
-                  {
-                    "declarationId": "issueListRead",
-                    "kind": "authorization-metadata-activation"
-                  },
-                  {
-                    "declarationId": "issueListRead",
-                    "kind": "out-of-band-permission-revocation"
-                  },
-                  {
-                    "kind": "permission-backing-write",
-                    "permissionFields": [
-                      "visibility"
-                    ],
-                    "scope": {
-                      "kind": "all-declaration-scopes"
-                    },
-                    "table": "issueListRead"
-                  }
-                ],
-                "nodeId": "n1",
-                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e",
-                "scopeArgumentIds": []
-              },
-              {
-                "declarationId": "issueListRead",
-                "eventSelectors": [
-                  {
-                    "cause": "app-reset",
-                    "kind": "authorization-incarnation-change"
-                  },
-                  {
-                    "cause": "declared-physical-restore",
-                    "kind": "authorization-incarnation-change"
-                  },
-                  {
-                    "cause": "logical-import",
-                    "kind": "authorization-incarnation-change"
-                  },
-                  {
-                    "declarationId": "issueListRead",
-                    "kind": "authorization-metadata-activation"
-                  },
-                  {
-                    "declarationId": "issueListRead",
-                    "kind": "out-of-band-permission-revocation"
-                  },
-                  {
-                    "kind": "permission-backing-write",
-                    "permissionFields": [
-                      "visibility"
-                    ],
-                    "scope": {
-                      "kind": "all-declaration-scopes"
-                    },
-                    "table": "issueListRead"
-                  }
-                ],
-                "nodeId": "n2",
-                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e",
-                "scopeArgumentIds": []
-              },
-              {
-                "declarationId": "issueListRead",
-                "eventSelectors": [
-                  {
-                    "cause": "app-reset",
-                    "kind": "authorization-incarnation-change"
-                  },
-                  {
-                    "cause": "declared-physical-restore",
-                    "kind": "authorization-incarnation-change"
-                  },
-                  {
-                    "cause": "logical-import",
-                    "kind": "authorization-incarnation-change"
-                  },
-                  {
-                    "declarationId": "issueListRead",
-                    "kind": "authorization-metadata-activation"
-                  },
-                  {
-                    "declarationId": "issueListRead",
-                    "kind": "out-of-band-permission-revocation"
-                  },
-                  {
-                    "kind": "permission-backing-write",
-                    "permissionFields": [
-                      "visibility"
-                    ],
-                    "scope": {
-                      "kind": "all-declaration-scopes"
-                    },
-                    "table": "issueListRead"
-                  }
-                ],
-                "nodeId": "n3",
-                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e",
-                "scopeArgumentIds": []
-              },
-              {
-                "declarationId": "issueListRead",
-                "eventSelectors": [
-                  {
-                    "cause": "app-reset",
-                    "kind": "authorization-incarnation-change"
-                  },
-                  {
-                    "cause": "declared-physical-restore",
-                    "kind": "authorization-incarnation-change"
-                  },
-                  {
-                    "cause": "logical-import",
-                    "kind": "authorization-incarnation-change"
-                  },
-                  {
-                    "declarationId": "issueListRead",
-                    "kind": "authorization-metadata-activation"
-                  },
-                  {
-                    "declarationId": "issueListRead",
-                    "kind": "out-of-band-permission-revocation"
-                  },
-                  {
-                    "kind": "permission-backing-write",
-                    "permissionFields": [
-                      "visibility"
-                    ],
-                    "scope": {
-                      "kind": "all-declaration-scopes"
-                    },
-                    "table": "issueListRead"
-                  }
-                ],
-                "nodeId": "n4",
-                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e",
-                "scopeArgumentIds": []
-              }
-            ],
-            "class3": "partition-of-one",
-            "format": "snapback.graph-authority-partition-rule.v1"
-          },
-          "broadcast": {
-            "classification": "query-shaped",
-            "format": "snapback.graph-broadcast-admission.v1",
-            "reason": "base-not-class-1"
-          },
-          "capabilityId": "graph_query_v1",
-          "format": "snapback.graph-query-plan.v1",
-          "nodes": [
-            {
-              "accessIndex": "by_source_issue_id",
-              "authority": {
-                "declaredClass": 2,
-                "proof": {
-                  "declaredClass": 2,
-                  "equivalenceWitness": "declared-inputs-only",
-                  "format": "snapback.graph-partition-equivalence-proof.v1",
-                  "nodeId": "n0",
-                  "partitionFunction": "sha256:30e38fc8314e4f590413c6652f2c32ddd9f5db4df0a2da088aeb25954c82537f",
-                  "policyInputs": [
-                    {
-                      "declarationId": "issueListRead",
-                      "identity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e",
-                      "kind": "permissionBacking"
-                    }
-                  ]
-                }
-              },
-              "edgeName": "$root",
-              "filters": [
-                {
-                  "field": "sourceIssueID",
-                  "op": "Eq",
-                  "value": {
-                    "Arg": "a1"
-                  }
-                }
-              ],
-              "kind": "root-window",
-              "nodeId": "n0",
-              "order": [
-                {
-                  "direction": "Asc",
-                  "field": "sourceIssueID"
-                }
-              ],
-              "page": {
-                "kind": "demand"
-              },
-              "table": "issueListRead",
-              "visibility": {
-                "kind": "public-read"
-              }
-            },
-            {
-              "accessIndex": "by_id",
-              "authority": {
-                "declaredClass": 2,
-                "proof": {
-                  "declaredClass": 2,
-                  "equivalenceWitness": "declared-inputs-only",
-                  "format": "snapback.graph-partition-equivalence-proof.v1",
-                  "nodeId": "n1",
-                  "partitionFunction": "sha256:36706be2939db2ba2eab0dec6d5a600bf420befb366ae5d6c93be1e5a867f378",
-                  "policyInputs": [
-                    {
-                      "declarationId": "issue",
-                      "identity": "sha256:9cd32697e82556ebf2b07a8e7614dcc1e2b091d8c8e090ab86007353f7bc20d8",
-                      "kind": "permissionBacking"
-                    },
-                    {
-                      "declarationId": "issueListRead",
-                      "identity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e",
-                      "kind": "permissionBacking"
-                    }
-                  ]
-                }
-              },
-              "edgeName": "issue",
-              "joinOn": [
-                {
-                  "joinedField": "_id",
-                  "rootField": "issueID"
-                }
-              ],
-              "kind": "equality-to-one",
-              "nodeId": "n1",
-              "parentNodeId": "n0",
-              "presence": "required",
-              "table": "issue",
-              "visibility": {
-                "kind": "public-read"
-              }
-            },
-            {
-              "accessIndex": "by_issue_label",
-              "authority": {
-                "declaredClass": 2,
-                "proof": {
-                  "declaredClass": 2,
-                  "equivalenceWitness": "declared-inputs-only",
-                  "format": "snapback.graph-partition-equivalence-proof.v1",
-                  "nodeId": "n2",
-                  "partitionFunction": "sha256:30e38fc8314e4f590413c6652f2c32ddd9f5db4df0a2da088aeb25954c82537f",
-                  "policyInputs": [
-                    {
-                      "declarationId": "issueListRead",
-                      "identity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e",
-                      "kind": "permissionBacking"
-                    }
-                  ]
-                }
-              },
-              "edgeName": "labels",
-              "joinOn": [
-                {
-                  "joinedField": "issueID",
-                  "rootField": "issueID"
-                }
-              ],
-              "kind": "bounded-to-many",
-              "nodeId": "n2",
-              "order": [
-                {
-                  "direction": "Asc",
-                  "field": "labelID"
-                }
-              ],
-              "page": {
-                "direction": "forward",
-                "kind": "literal",
-                "lower": {
-                  "kind": "unbounded"
-                },
-                "take": 16,
-                "upper": {
-                  "kind": "unbounded"
-                }
-              },
-              "parentNodeId": "n0",
-              "table": "issueLabelRead",
-              "visibility": {
-                "kind": "public-read"
-              }
-            },
-            {
-              "accessIndex": "by_id",
-              "authority": {
-                "declaredClass": 2,
-                "proof": {
-                  "declaredClass": 2,
-                  "equivalenceWitness": "declared-inputs-only",
-                  "format": "snapback.graph-partition-equivalence-proof.v1",
-                  "nodeId": "n3",
-                  "partitionFunction": "sha256:30e38fc8314e4f590413c6652f2c32ddd9f5db4df0a2da088aeb25954c82537f",
-                  "policyInputs": [
-                    {
-                      "declarationId": "issueListRead",
-                      "identity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e",
-                      "kind": "permissionBacking"
-                    }
-                  ]
-                }
-              },
-              "edgeName": "label",
-              "joinOn": [
-                {
-                  "joinedField": "_id",
-                  "rootField": "labelID"
-                }
-              ],
-              "kind": "equality-to-one",
-              "nodeId": "n3",
-              "parentNodeId": "n2",
-              "presence": "required",
-              "table": "label",
-              "visibility": {
-                "kind": "public-read"
-              }
-            },
-            {
-              "argumentId": "a0",
-              "authority": {
-                "declaredClass": 2,
-                "proof": {
-                  "declaredClass": 2,
-                  "equivalenceWitness": "declared-inputs-only",
-                  "format": "snapback.graph-partition-equivalence-proof.v1",
-                  "nodeId": "n4",
-                  "partitionFunction": "sha256:30e38fc8314e4f590413c6652f2c32ddd9f5db4df0a2da088aeb25954c82537f",
-                  "policyInputs": [
-                    {
-                      "declarationId": "issueListRead",
-                      "identity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e",
-                      "kind": "permissionBacking"
-                    }
-                  ]
-                }
-              },
-              "edge": {
-                "accessIndex": "by_issue_label",
-                "joinOn": [
-                  {
-                    "joinedField": "issueID",
-                    "rootField": "issueID"
-                  }
-                ],
-                "table": "issueLabelRead",
-                "visibility": {
-                  "kind": "public-read"
-                }
-              },
-              "edgeName": "selectedLabels",
-              "filters": [
-                {
-                  "field": "labelID",
-                  "op": "In",
-                  "value": {
-                    "Arg": "a0"
-                  }
-                }
-              ],
-              "kind": "exists-semi-join",
-              "mode": "all",
-              "nodeId": "n4",
-              "parentNodeId": "n0"
-            },
-            {
-              "accessIndex": "by_issue_user",
-              "authority": {
-                "declaredClass": 3,
-                "proof": null
-              },
-              "binding": {
-                "principalField": "principal",
-                "table": "identityBinding",
-                "uniqueIndex": "by_principal",
-                "valueField": "userID",
-                "visibility": {
-                  "kind": "public-read"
-                }
-              },
-              "edgeName": "viewState",
-              "kind": "principal-bound",
-              "nodeId": "n5",
-              "parentJoin": [
-                {
-                  "joinedField": "issueID",
-                  "rootField": "issueID"
-                }
-              ],
-              "parentNodeId": "n0",
-              "principalField": "userID",
-              "principalSource": "auth.userId",
-              "table": "viewState",
-              "visibility": {
-                "kind": "public-read"
-              }
-            },
-            {
-              "authority": {
-                "declaredClass": 3,
-                "proof": null
-              },
-              "edgeName": "$result",
-              "kind": "closed-projection",
-              "nodeId": "n6",
-              "object": {
-                "fields": [
-                  {
-                    "name": "issue",
-                    "value": {
-                      "kind": "object",
-                      "nodeId": "n1",
-                      "object": {
-                        "fields": [
-                          {
-                            "name": "id",
-                            "value": {
-                              "field": "id",
-                              "kind": "field",
-                              "nodeId": "n1"
-                            }
-                          },
-                          {
-                            "name": "shortID",
-                            "value": {
-                              "field": "shortID",
-                              "kind": "field",
-                              "nodeId": "n1"
-                            }
-                          },
-                          {
-                            "name": "title",
-                            "value": {
-                              "field": "title",
-                              "kind": "field",
-                              "nodeId": "n1"
-                            }
-                          },
-                          {
-                            "name": "open",
-                            "value": {
-                              "field": "open",
-                              "kind": "field",
-                              "nodeId": "n1"
-                            }
-                          },
-                          {
-                            "name": "modified",
-                            "value": {
-                              "field": "modified",
-                              "kind": "field",
-                              "nodeId": "n1"
-                            }
-                          },
-                          {
-                            "name": "created",
-                            "value": {
-                              "field": "created",
-                              "kind": "field",
-                              "nodeId": "n1"
-                            }
-                          },
-                          {
-                            "name": "description",
-                            "value": {
-                              "field": "description",
-                              "kind": "field",
-                              "nodeId": "n1"
-                            }
-                          }
-                        ],
-                        "scopeNodeId": "n0"
-                      }
-                    }
-                  },
-                  {
-                    "name": "labels",
-                    "value": {
-                      "item": {
-                        "fields": [
-                          {
-                            "name": "label",
-                            "value": {
-                              "kind": "object",
-                              "nodeId": "n3",
-                              "object": {
-                                "fields": [
-                                  {
-                                    "name": "id",
-                                    "value": {
-                                      "field": "id",
-                                      "kind": "field",
-                                      "nodeId": "n3"
-                                    }
-                                  },
-                                  {
-                                    "name": "name",
-                                    "value": {
-                                      "field": "name",
-                                      "kind": "field",
-                                      "nodeId": "n3"
-                                    }
-                                  }
-                                ],
-                                "scopeNodeId": "n2"
-                              }
-                            }
-                          }
-                        ],
-                        "scopeNodeId": "n2"
-                      },
-                      "kind": "array",
-                      "scopeNodeId": "n2"
-                    }
-                  },
-                  {
-                    "name": "viewState",
-                    "value": {
-                      "kind": "object",
-                      "nodeId": "n5",
-                      "object": {
-                        "fields": [
-                          {
-                            "name": "viewed",
-                            "value": {
-                              "field": "viewed",
-                              "kind": "field",
-                              "nodeId": "n5"
-                            }
-                          }
-                        ],
-                        "scopeNodeId": "n0"
-                      }
-                    }
-                  }
-                ],
-                "scopeNodeId": "n0"
-              }
-            }
-          ],
-          "queryCost": {
-            "graph": {
-              "arguments": [
-                {
-                  "argumentId": "a0",
-                  "maxItems": 16
-                }
-              ],
-              "maxArgumentItems": 17,
-              "maxMaintainedWritesPerMutation": 0,
-              "maxPageResultBytes": 1048576,
-              "nodes": [
-                {
-                  "maxExaminedEntriesPerExecution": 2,
-                  "maxRootRowsPerPage": 1,
-                  "maxWindowIndexRanges": 37,
-                  "maxWindowPages": 1,
-                  "maxWindowResultBytes": 1048576,
-                  "maxWindowResultRows": 1,
-                  "maxWindowRootRows": 1,
-                  "maxWindowScannedRows": 54,
-                  "nodeId": "n0"
-                },
-                {
-                  "maxExaminedEntriesPerExecution": 1,
-                  "maxRelationshipLookupsPerExecution": 1,
-                  "nodeId": "n1"
-                },
-                {
-                  "maxChildrenPerParent": 16,
-                  "maxExaminedEntriesPerExecution": 17,
-                  "maxRelationshipLookupsPerExecution": 1,
-                  "nodeId": "n2"
-                },
-                {
-                  "maxExaminedEntriesPerExecution": 16,
-                  "maxRelationshipLookupsPerExecution": 16,
-                  "nodeId": "n3"
-                },
-                {
-                  "maxArgumentExpansion": 16,
-                  "maxChildrenPerParent": 1,
-                  "maxExaminedEntriesPerExecution": 16,
-                  "maxRelationshipLookupsPerExecution": 16,
-                  "nodeId": "n4"
-                },
-                {
-                  "maxExaminedEntriesPerExecution": 2,
-                  "maxRelationshipLookupsPerExecution": 2,
-                  "nodeId": "n5"
-                }
-              ],
-              "windowRollup": {
-                "maxWindowIndexRanges": 37,
-                "maxWindowPages": 1,
-                "maxWindowResultBytes": 1048576,
-                "maxWindowResultRows": 1,
-                "maxWindowRootRows": 1,
-                "maxWindowScannedRows": 54
-              }
-            },
-            "maxDistinctEvaluationGroups": 1024,
-            "maxEstimatedLiveFanoutMs": 5000,
-            "maxEvaluationTurnMs": 1000,
-            "maxIndexRanges": 37,
-            "maxObservers": 1024,
-            "maxResultBytes": 1048576,
-            "maxResultRows": 1,
-            "maxScannedRows": 54
-          },
-          "resultContractHash": "sha256:fa39413861e33fb430b00dc257aa2f285af74f459226265cfb5833c2dff3d0da",
-          "rootNodeId": "n0"
-        },
-        "planHash": "sha256:27ce1a8e7ecfed993d6d9e8c6dbe544a874770be3363fe8f667862ff49c63c3e"
-      },
-      "invocations": {
-        "allowed": {
-          "planHash": "sha256:27ce1a8e7ecfed993d6d9e8c6dbe544a874770be3363fe8f667862ff49c63c3e",
-          "args": {
-            "sourceIssueID": "zbav1_internal_issue",
-            "selectedLabelIDs": []
-          },
-          "windows": [
-            {
-              "nodeId": "n0",
-              "intervals": [
-                {
-                  "parentKey": null,
-                  "window": {
-                    "order": [
-                      {
-                        "direction": "Asc",
-                        "field": "sourceIssueID"
-                      }
-                    ],
-                    "direction": "forward",
-                    "lower": {
-                      "kind": "unbounded"
-                    },
-                    "upper": {
-                      "kind": "unbounded"
-                    },
-                    "take": 1
-                  }
-                }
-              ]
-            }
-          ],
-          "materialization": {
-            "format": "snapback.graph-materialization.v1",
-            "appId": "zerobugs-graph-g0-corpus",
-            "databaseId": "g0-corpus-fixtures-v1",
-            "deploymentId": "g0-stage-b",
-            "targetProfileId": "local",
-            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-            "function": {
-              "artifactKind": "functionReference",
-              "schemaVersion": "snapback.v1",
-              "appId": "zerobugs-graph-g0-corpus",
-              "id": "graph-667862ff49c63c3e",
-              "name": "listIssueByID",
-              "kind": "LiveQuery",
-              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-              "resultContractHash": "sha256:fa39413861e33fb430b00dc257aa2f285af74f459226265cfb5833c2dff3d0da",
-              "expectedGeneration": {
-                "schemaVersion": "snapback.v1",
-                "appId": "zerobugs-graph-g0-corpus",
-                "schemaHash": "corpus-schema-v1",
-                "bundleHash": "corpus-bundle-v1",
-                "inputsHash": "corpus-inputs-v1"
-              }
-            },
-            "graphInstanceHash": "sha256:fa32da3f44c87e1f6a746e569b6c1e5f3229336e7fa51b15f89f7fdf33b8efee"
-          },
-          "partition": {
-            "format": "snapback.graph-authority-partition.v1",
-            "graphPlanHash": "sha256:27ce1a8e7ecfed993d6d9e8c6dbe544a874770be3363fe8f667862ff49c63c3e",
-            "class2": [
-              {
-                "nodeId": "n0",
-                "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:8bcf17a78c7a78009ecaec602b7ea41136ff07ac0cd9e62501fd7ea5401cf111",
-                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
-              },
-              {
-                "nodeId": "n1",
-                "declarationId": "issue",
-                "scopeIdentity": "sha256:5ecd6bc65ec7db53e47479743f927cf001078e160d630107de12e84e9addb017",
-                "policyIdentity": "sha256:9cd32697e82556ebf2b07a8e7614dcc1e2b091d8c8e090ab86007353f7bc20d8"
-              },
-              {
-                "nodeId": "n1",
-                "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:53ebcdd17d84d058f9cd2e7807ef674fc153e3e41401fc894334b90b3c138396",
-                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
-              },
-              {
-                "nodeId": "n2",
-                "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:d4a866008aeaaff307a64f583540ad65ad48324b78ca7b29273f8fed34e6feb1",
-                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
-              },
-              {
-                "nodeId": "n3",
-                "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:65f91a5362ef43b8c2261d4bd13c0b6f7a9c9e15673fc289b19661385bb93bf9",
-                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
-              },
-              {
-                "nodeId": "n4",
-                "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:5c50e0df12a632ef9ee78be0891d80a162d934bb5ddc36d22861f54f54282545",
-                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
-              }
-            ],
-            "class3": {
-              "format": "snapback.authority-partition.v1",
-              "principalDataScope": {
-                "authMode": "sessions",
-                "userId": "principal_ordinary",
-                "authorizationStreamIncarnation": "g0-corpus-stream-v1"
-              },
-              "authorityInstanceId": "g0-authority-principal_ordinary",
-              "authFingerprint": "sha256:04d663c667783f185541cf2e2d91b42f0a3b6a4a484b9bf7289dca30fa1d2a6f",
-              "tenantId": null,
-              "providerId": "g0-corpus-provider",
-              "delegation": null
-            }
-          },
-          "authorizationVersion": {
-            "incarnation": "g0-corpus-authorization-v1",
-            "epoch": 0
-          },
-          "evaluationCut": 1
-        },
-        "denied": {
-          "planHash": "sha256:27ce1a8e7ecfed993d6d9e8c6dbe544a874770be3363fe8f667862ff49c63c3e",
-          "args": {
-            "sourceIssueID": "zbav1_internal_issue",
-            "selectedLabelIDs": []
-          },
-          "windows": [
-            {
-              "nodeId": "n0",
-              "intervals": [
-                {
-                  "parentKey": null,
-                  "window": {
-                    "order": [
-                      {
-                        "direction": "Asc",
-                        "field": "sourceIssueID"
-                      }
-                    ],
-                    "direction": "forward",
-                    "lower": {
-                      "kind": "unbounded"
-                    },
-                    "upper": {
-                      "kind": "unbounded"
-                    },
-                    "take": 1
-                  }
-                }
-              ]
-            }
-          ],
-          "materialization": {
-            "format": "snapback.graph-materialization.v1",
-            "appId": "zerobugs-graph-g0-corpus",
-            "databaseId": "g0-corpus-fixtures-v1",
-            "deploymentId": "g0-stage-b",
-            "targetProfileId": "local",
-            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-            "function": {
-              "artifactKind": "functionReference",
-              "schemaVersion": "snapback.v1",
-              "appId": "zerobugs-graph-g0-corpus",
-              "id": "graph-667862ff49c63c3e",
-              "name": "listIssueByID",
-              "kind": "LiveQuery",
-              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-              "resultContractHash": "sha256:fa39413861e33fb430b00dc257aa2f285af74f459226265cfb5833c2dff3d0da",
-              "expectedGeneration": {
-                "schemaVersion": "snapback.v1",
-                "appId": "zerobugs-graph-g0-corpus",
-                "schemaHash": "corpus-schema-v1",
-                "bundleHash": "corpus-bundle-v1",
-                "inputsHash": "corpus-inputs-v1"
-              }
-            },
-            "graphInstanceHash": "sha256:fa32da3f44c87e1f6a746e569b6c1e5f3229336e7fa51b15f89f7fdf33b8efee"
-          },
-          "partition": {
-            "format": "snapback.graph-authority-partition.v1",
-            "graphPlanHash": "sha256:27ce1a8e7ecfed993d6d9e8c6dbe544a874770be3363fe8f667862ff49c63c3e",
-            "class2": [
-              {
-                "nodeId": "n0",
-                "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:e1ec491d3ed2a7827ed5f75bab1e484ed51baf36118131cb8f54e0268f833075",
-                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
-              },
-              {
-                "nodeId": "n1",
-                "declarationId": "issue",
-                "scopeIdentity": "sha256:1ac79a97b7c9328caa6a6e8eac9b8cc8bb8c8aa683f91543ae357dc6ddd98811",
-                "policyIdentity": "sha256:9cd32697e82556ebf2b07a8e7614dcc1e2b091d8c8e090ab86007353f7bc20d8"
-              },
-              {
-                "nodeId": "n1",
-                "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:4473f4633059c3c2b1ba6498d71f9cf7e42551ec9e70ec29f1f2f5b4da78979c",
-                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
-              },
-              {
-                "nodeId": "n2",
-                "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:32de7460883ffc5f5b18a82ddc51ccb7e3f7063ab6d86e61903117a16272d052",
-                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
-              },
-              {
-                "nodeId": "n3",
-                "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:97f214838b5fafd7270adba2098656144766e800823e4bb056e689470b276183",
-                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
-              },
-              {
-                "nodeId": "n4",
-                "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:a14cbe047974005ee47691bbaddb04f20acf797bd891e22d2dca076c320fb8da",
-                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
-              }
-            ],
-            "class3": {
-              "format": "snapback.authority-partition.v1",
-              "principalDataScope": {
-                "authMode": "sessions",
-                "userId": "principal_removed",
-                "authorizationStreamIncarnation": "g0-corpus-stream-v1"
-              },
-              "authorityInstanceId": "g0-authority-principal_removed",
-              "authFingerprint": "sha256:28db195d840d5a0640fae0951d1835ace926d3c158b9bfbeea95bfaf545c3ff6",
-              "tenantId": null,
-              "providerId": "g0-corpus-provider",
-              "delegation": null
-            }
-          },
-          "authorizationVersion": {
-            "incarnation": "g0-corpus-authorization-v1",
-            "epoch": 0
-          },
-          "evaluationCut": 1
-        }
-      },
-      "principals": {
-        "allowed": "principal_ordinary",
-        "denied": "principal_removed"
-      },
-      "expect": {
-        "allowed": {
-          "kind": "result",
-          "label": "complete",
-          "resultBytes": "[]",
-          "orderedRootIds": [],
-          "resultLength": 0,
-          "nodeCompleteness": [
-            {
-              "nodeId": "n0",
-              "nodeKind": "root-window",
-              "label": "complete",
-              "proofClass": "whole-source",
-              "proof": {
-                "materializationHash": "sha256:dd0eb92748bf0ff55f1d400bd52c0a489cf75fa9c7a26ed4873566eacf3fae65",
-                "partitionHash": "sha256:ad2acbbeb15267a5adffdafaea8943503670dff796fbea9917c2717d12972dba",
-                "authorizationVersion": {
-                  "incarnation": "g0-corpus-authorization-v1",
-                  "epoch": 0
-                },
-                "evaluationCut": 1,
-                "kind": "root-window",
-                "label": "complete",
-                "interval": {
-                  "lower": {
-                    "kind": "unbounded"
-                  },
-                  "upper": {
-                    "kind": "unbounded"
-                  }
-                },
-                "consumed": 0,
-                "hasMore": false,
-                "sourceExhausted": true
-              }
-            },
-            {
-              "nodeId": "n1",
-              "nodeKind": "equality-to-one",
-              "label": "complete",
-              "proofClass": "unique-point",
-              "proof": {
-                "materializationHash": "sha256:dd0eb92748bf0ff55f1d400bd52c0a489cf75fa9c7a26ed4873566eacf3fae65",
-                "partitionHash": "sha256:ad2acbbeb15267a5adffdafaea8943503670dff796fbea9917c2717d12972dba",
-                "authorizationVersion": {
-                  "incarnation": "g0-corpus-authorization-v1",
-                  "epoch": 0
-                },
-                "evaluationCut": 1,
-                "kind": "equality-to-one",
-                "label": "complete",
-                "rows": []
-              }
-            },
-            {
-              "nodeId": "n2",
-              "nodeKind": "bounded-to-many",
-              "label": "complete",
-              "proofClass": "parent-ranges",
-              "proof": {
-                "materializationHash": "sha256:dd0eb92748bf0ff55f1d400bd52c0a489cf75fa9c7a26ed4873566eacf3fae65",
-                "partitionHash": "sha256:ad2acbbeb15267a5adffdafaea8943503670dff796fbea9917c2717d12972dba",
-                "authorizationVersion": {
-                  "incarnation": "g0-corpus-authorization-v1",
-                  "epoch": 0
-                },
-                "evaluationCut": 1,
-                "kind": "bounded-to-many",
-                "label": "complete",
-                "ranges": []
-              }
-            },
-            {
-              "nodeId": "n3",
-              "nodeKind": "equality-to-one",
-              "label": "complete",
-              "proofClass": "unique-point",
-              "proof": {
-                "materializationHash": "sha256:dd0eb92748bf0ff55f1d400bd52c0a489cf75fa9c7a26ed4873566eacf3fae65",
-                "partitionHash": "sha256:ad2acbbeb15267a5adffdafaea8943503670dff796fbea9917c2717d12972dba",
-                "authorizationVersion": {
-                  "incarnation": "g0-corpus-authorization-v1",
-                  "epoch": 0
-                },
-                "evaluationCut": 1,
-                "kind": "equality-to-one",
-                "label": "complete",
-                "rows": []
-              }
-            },
-            {
-              "nodeId": "n4",
-              "nodeKind": "exists-semi-join",
-              "label": "complete",
-              "proofClass": "complete-membership",
-              "proof": {
-                "materializationHash": "sha256:dd0eb92748bf0ff55f1d400bd52c0a489cf75fa9c7a26ed4873566eacf3fae65",
-                "partitionHash": "sha256:ad2acbbeb15267a5adffdafaea8943503670dff796fbea9917c2717d12972dba",
-                "authorizationVersion": {
-                  "incarnation": "g0-corpus-authorization-v1",
-                  "epoch": 0
-                },
-                "evaluationCut": 1,
-                "kind": "exists-semi-join",
-                "label": "complete",
-                "rows": []
-              }
-            },
-            {
-              "nodeId": "n5",
-              "nodeKind": "principal-bound",
-              "label": "complete",
-              "proofClass": "principal-point",
-              "proof": {
-                "materializationHash": "sha256:dd0eb92748bf0ff55f1d400bd52c0a489cf75fa9c7a26ed4873566eacf3fae65",
-                "partitionHash": "sha256:ad2acbbeb15267a5adffdafaea8943503670dff796fbea9917c2717d12972dba",
-                "authorizationVersion": {
-                  "incarnation": "g0-corpus-authorization-v1",
-                  "epoch": 0
-                },
-                "evaluationCut": 1,
-                "kind": "principal-bound",
-                "label": "complete",
-                "rows": []
-              }
-            },
-            {
-              "nodeId": "n6",
-              "nodeKind": "closed-projection",
-              "label": "complete",
-              "proofClass": "projection-composition",
-              "proof": {
-                "materializationHash": "sha256:dd0eb92748bf0ff55f1d400bd52c0a489cf75fa9c7a26ed4873566eacf3fae65",
-                "partitionHash": "sha256:ad2acbbeb15267a5adffdafaea8943503670dff796fbea9917c2717d12972dba",
-                "authorizationVersion": {
-                  "incarnation": "g0-corpus-authorization-v1",
-                  "epoch": 0
-                },
-                "evaluationCut": 1,
-                "kind": "closed-projection",
-                "label": "complete",
-                "composition": {
-                  "materializationHash": "sha256:dd0eb92748bf0ff55f1d400bd52c0a489cf75fa9c7a26ed4873566eacf3fae65",
-                  "partitionHash": "sha256:ad2acbbeb15267a5adffdafaea8943503670dff796fbea9917c2717d12972dba",
-                  "authorizationVersion": {
-                    "incarnation": "g0-corpus-authorization-v1",
-                    "epoch": 0
-                  },
-                  "evaluationCut": 1,
-                  "kind": "graph-composition",
-                  "label": "complete",
-                  "nodes": [
-                    {
-                      "nodeId": "n0",
-                      "nodeKind": "root-window",
-                      "label": "complete",
-                      "proofHash": "sha256:a52e8fe676c8807ffa7bc73f0708891707b2be0d2134656e508831fc594b4d34"
-                    },
-                    {
-                      "nodeId": "n1",
-                      "nodeKind": "equality-to-one",
-                      "label": "complete",
-                      "proofHash": "sha256:be7aaaef3111f6031734a1caafc8c426e2473179701e149cd2dcebb1654c518f"
-                    },
-                    {
-                      "nodeId": "n2",
-                      "nodeKind": "bounded-to-many",
-                      "label": "complete",
-                      "proofHash": "sha256:f7fcd727c66722aa3bd62036c9a52214e914265831846aa6f901e073ed8f09dd"
-                    },
-                    {
-                      "nodeId": "n3",
-                      "nodeKind": "equality-to-one",
-                      "label": "complete",
-                      "proofHash": "sha256:f442e828618526990a385bb46ee71df87f918b28549c9c09d1f05a1f6da968b7"
-                    },
-                    {
-                      "nodeId": "n4",
-                      "nodeKind": "exists-semi-join",
-                      "label": "complete",
-                      "proofHash": "sha256:bd32487ddedd0b73761c8cadcfe23097b9610e69f152ad81f3b950f2de594a90"
-                    },
-                    {
-                      "nodeId": "n5",
-                      "nodeKind": "principal-bound",
-                      "label": "complete",
-                      "proofHash": "sha256:9348766938fbaea61ac3d2ce749de5b28177e1021691be2149797605d0dbc839"
-                    }
-                  ],
-                  "allComplete": true
-                }
-              }
-            }
-          ],
-          "graphCompleteness": {
-            "materializationHash": "sha256:dd0eb92748bf0ff55f1d400bd52c0a489cf75fa9c7a26ed4873566eacf3fae65",
-            "partitionHash": "sha256:ad2acbbeb15267a5adffdafaea8943503670dff796fbea9917c2717d12972dba",
-            "authorizationVersion": {
-              "incarnation": "g0-corpus-authorization-v1",
-              "epoch": 0
-            },
-            "evaluationCut": 1,
-            "label": "complete",
-            "proofClass": "all-complete",
-            "proof": {
-              "materializationHash": "sha256:dd0eb92748bf0ff55f1d400bd52c0a489cf75fa9c7a26ed4873566eacf3fae65",
-              "partitionHash": "sha256:ad2acbbeb15267a5adffdafaea8943503670dff796fbea9917c2717d12972dba",
-              "authorizationVersion": {
-                "incarnation": "g0-corpus-authorization-v1",
-                "epoch": 0
-              },
-              "evaluationCut": 1,
-              "kind": "graph-composition",
-              "label": "complete",
-              "nodes": [
-                {
-                  "nodeId": "n0",
-                  "nodeKind": "root-window",
-                  "label": "complete",
-                  "proofHash": "sha256:a52e8fe676c8807ffa7bc73f0708891707b2be0d2134656e508831fc594b4d34"
-                },
-                {
-                  "nodeId": "n1",
-                  "nodeKind": "equality-to-one",
-                  "label": "complete",
-                  "proofHash": "sha256:be7aaaef3111f6031734a1caafc8c426e2473179701e149cd2dcebb1654c518f"
-                },
-                {
-                  "nodeId": "n2",
-                  "nodeKind": "bounded-to-many",
-                  "label": "complete",
-                  "proofHash": "sha256:f7fcd727c66722aa3bd62036c9a52214e914265831846aa6f901e073ed8f09dd"
-                },
-                {
-                  "nodeId": "n3",
-                  "nodeKind": "equality-to-one",
-                  "label": "complete",
-                  "proofHash": "sha256:f442e828618526990a385bb46ee71df87f918b28549c9c09d1f05a1f6da968b7"
-                },
-                {
-                  "nodeId": "n4",
-                  "nodeKind": "exists-semi-join",
-                  "label": "complete",
-                  "proofHash": "sha256:bd32487ddedd0b73761c8cadcfe23097b9610e69f152ad81f3b950f2de594a90"
-                },
-                {
-                  "nodeId": "n5",
-                  "nodeKind": "principal-bound",
-                  "label": "complete",
-                  "proofHash": "sha256:9348766938fbaea61ac3d2ce749de5b28177e1021691be2149797605d0dbc839"
-                }
-              ],
-              "allComplete": true
-            }
-          },
-          "refusalReason": null
-        },
-        "denied": "deny",
-        "deniedResultBytes": null
-      }
-    },
     {
       "caseKind": "audienceParity",
       "id": "zerobugs-audience-parity-g2",
@@ -2078,37 +823,37 @@
               {
                 "nodeId": "n0",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:8bcf17a78c7a78009ecaec602b7ea41136ff07ac0cd9e62501fd7ea5401cf111",
+                "scopeIdentity": "sha256:2993e03c84a340d4d2fee103ae42fc95deecd7d8605df59caf9b666993031e07",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n1",
                 "declarationId": "issue",
-                "scopeIdentity": "sha256:5ecd6bc65ec7db53e47479743f927cf001078e160d630107de12e84e9addb017",
+                "scopeIdentity": "sha256:f9508eb116c28ba330d543a0bf0077cac974dec0b14f5e378aa3a12a32bc9067",
                 "policyIdentity": "sha256:9cd32697e82556ebf2b07a8e7614dcc1e2b091d8c8e090ab86007353f7bc20d8"
               },
               {
                 "nodeId": "n1",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:53ebcdd17d84d058f9cd2e7807ef674fc153e3e41401fc894334b90b3c138396",
+                "scopeIdentity": "sha256:69c00a60f8b53135b980121f21f2ea58cd07dc0f6496a00731a19b48b7737b47",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n2",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:d4a866008aeaaff307a64f583540ad65ad48324b78ca7b29273f8fed34e6feb1",
+                "scopeIdentity": "sha256:471c5329acf3352a695fc3c340f7a71e9b45429a76a6293fea3faa8d7903c768",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n3",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:65f91a5362ef43b8c2261d4bd13c0b6f7a9c9e15673fc289b19661385bb93bf9",
+                "scopeIdentity": "sha256:3ec72d9e1f70da2de20cd10c0cee8c69866eb6b0bad2438e56633d55fd87905d",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n4",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:5c50e0df12a632ef9ee78be0891d80a162d934bb5ddc36d22861f54f54282545",
+                "scopeIdentity": "sha256:2740a37e6274270e864c42cf80fa4b16cc716ac4057c94f3c4487a234640678f",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               }
             ],
@@ -2198,37 +943,37 @@
               {
                 "nodeId": "n0",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:c948c3e1bfc2ad0040b83715941d6e039cd7196af1f5abd5a12770e6fe15c4b5",
+                "scopeIdentity": "sha256:ace34938a1c519bb2d9ab3211cd33c61529708401e950f8ab47f79fda33ef607",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n1",
                 "declarationId": "issue",
-                "scopeIdentity": "sha256:57ba20f710514c7a3f8807cb14bc537a463f4ec138e1ff8680dd9f01eb0ee9cb",
+                "scopeIdentity": "sha256:4604eb731a257451afbafbc0752b07f58678e23df08a3210efd717e882d69b44",
                 "policyIdentity": "sha256:9cd32697e82556ebf2b07a8e7614dcc1e2b091d8c8e090ab86007353f7bc20d8"
               },
               {
                 "nodeId": "n1",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:14bd7313e3231a045c343eb1ab0a663a942796a1b3d7ffb8d19b29e4476eac98",
+                "scopeIdentity": "sha256:d4c05fc3aa1ceb04bf38beef81de602603351cb25f9e7dab1a1daf6df78a631d",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n2",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:514451b095fe32056c31593a7c78db6532dbeb2ab1decdd4b113df394e411e96",
+                "scopeIdentity": "sha256:8cbbf53e571d99a08248968bbbe17c5546c3941c9ddf2405a444ac78358d9ed8",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n3",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:c314515b39b8a60bfb1c46f13dd02fde351b1a0286c64637bc891fcddfe61ff4",
+                "scopeIdentity": "sha256:6b72e6a08b9e85227b5a14928861d6770137c943ca57e37e696c201e57f4ba2e",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n4",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:75316ae9ca2de9ec0aeb4e8f5d6189c1b379294d4ac572b21da25aa8363b4d67",
+                "scopeIdentity": "sha256:8af47fc758db817e8d71388d7240621fc9c726f15314bd092bb2bc36f0955297",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               }
             ],
@@ -3082,37 +1827,37 @@
               {
                 "nodeId": "n0",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:8bcf17a78c7a78009ecaec602b7ea41136ff07ac0cd9e62501fd7ea5401cf111",
+                "scopeIdentity": "sha256:2993e03c84a340d4d2fee103ae42fc95deecd7d8605df59caf9b666993031e07",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n1",
                 "declarationId": "issue",
-                "scopeIdentity": "sha256:5ecd6bc65ec7db53e47479743f927cf001078e160d630107de12e84e9addb017",
+                "scopeIdentity": "sha256:f9508eb116c28ba330d543a0bf0077cac974dec0b14f5e378aa3a12a32bc9067",
                 "policyIdentity": "sha256:9cd32697e82556ebf2b07a8e7614dcc1e2b091d8c8e090ab86007353f7bc20d8"
               },
               {
                 "nodeId": "n1",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:53ebcdd17d84d058f9cd2e7807ef674fc153e3e41401fc894334b90b3c138396",
+                "scopeIdentity": "sha256:69c00a60f8b53135b980121f21f2ea58cd07dc0f6496a00731a19b48b7737b47",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n2",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:d4a866008aeaaff307a64f583540ad65ad48324b78ca7b29273f8fed34e6feb1",
+                "scopeIdentity": "sha256:471c5329acf3352a695fc3c340f7a71e9b45429a76a6293fea3faa8d7903c768",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n3",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:65f91a5362ef43b8c2261d4bd13c0b6f7a9c9e15673fc289b19661385bb93bf9",
+                "scopeIdentity": "sha256:3ec72d9e1f70da2de20cd10c0cee8c69866eb6b0bad2438e56633d55fd87905d",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n4",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:5c50e0df12a632ef9ee78be0891d80a162d934bb5ddc36d22861f54f54282545",
+                "scopeIdentity": "sha256:2740a37e6274270e864c42cf80fa4b16cc716ac4057c94f3c4487a234640678f",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               }
             ],
@@ -3202,37 +1947,37 @@
               {
                 "nodeId": "n0",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:0a4445fabf68250a41074c975e80464668868d749e692049faf2dc23812590ae",
+                "scopeIdentity": "sha256:2993e03c84a340d4d2fee103ae42fc95deecd7d8605df59caf9b666993031e07",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n1",
                 "declarationId": "issue",
-                "scopeIdentity": "sha256:198b19f127940f1c73352025bfb1ca2f2ccf3c54841b1dbe64580c085a149944",
+                "scopeIdentity": "sha256:f9508eb116c28ba330d543a0bf0077cac974dec0b14f5e378aa3a12a32bc9067",
                 "policyIdentity": "sha256:9cd32697e82556ebf2b07a8e7614dcc1e2b091d8c8e090ab86007353f7bc20d8"
               },
               {
                 "nodeId": "n1",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:4b9827e8534fd35259c8968956ff59933c163450e416dfeddd5d8d59bcf5479f",
+                "scopeIdentity": "sha256:69c00a60f8b53135b980121f21f2ea58cd07dc0f6496a00731a19b48b7737b47",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n2",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:7e6c789a6cc87e1cc13be1c71261e55063ef526b32bcfc48301b8afdcd916a92",
+                "scopeIdentity": "sha256:471c5329acf3352a695fc3c340f7a71e9b45429a76a6293fea3faa8d7903c768",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n3",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:ae37133632457fb89ce4b24df0ae7babc288ea90bd82b239f757d6766b2bd52a",
+                "scopeIdentity": "sha256:3ec72d9e1f70da2de20cd10c0cee8c69866eb6b0bad2438e56633d55fd87905d",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n4",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:da8a14ef4268f02be99c72761a9ed1453fb0ec4a36edc6a5646e586a526efb1d",
+                "scopeIdentity": "sha256:2740a37e6274270e864c42cf80fa4b16cc716ac4057c94f3c4487a234640678f",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               }
             ],
@@ -4078,37 +2823,37 @@
               {
                 "nodeId": "n0",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:8bcf17a78c7a78009ecaec602b7ea41136ff07ac0cd9e62501fd7ea5401cf111",
+                "scopeIdentity": "sha256:2993e03c84a340d4d2fee103ae42fc95deecd7d8605df59caf9b666993031e07",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n1",
                 "declarationId": "issue",
-                "scopeIdentity": "sha256:5ecd6bc65ec7db53e47479743f927cf001078e160d630107de12e84e9addb017",
+                "scopeIdentity": "sha256:f9508eb116c28ba330d543a0bf0077cac974dec0b14f5e378aa3a12a32bc9067",
                 "policyIdentity": "sha256:9cd32697e82556ebf2b07a8e7614dcc1e2b091d8c8e090ab86007353f7bc20d8"
               },
               {
                 "nodeId": "n1",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:53ebcdd17d84d058f9cd2e7807ef674fc153e3e41401fc894334b90b3c138396",
+                "scopeIdentity": "sha256:69c00a60f8b53135b980121f21f2ea58cd07dc0f6496a00731a19b48b7737b47",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n2",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:d4a866008aeaaff307a64f583540ad65ad48324b78ca7b29273f8fed34e6feb1",
+                "scopeIdentity": "sha256:471c5329acf3352a695fc3c340f7a71e9b45429a76a6293fea3faa8d7903c768",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n3",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:65f91a5362ef43b8c2261d4bd13c0b6f7a9c9e15673fc289b19661385bb93bf9",
+                "scopeIdentity": "sha256:3ec72d9e1f70da2de20cd10c0cee8c69866eb6b0bad2438e56633d55fd87905d",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n4",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:5c50e0df12a632ef9ee78be0891d80a162d934bb5ddc36d22861f54f54282545",
+                "scopeIdentity": "sha256:2740a37e6274270e864c42cf80fa4b16cc716ac4057c94f3c4487a234640678f",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               }
             ],
@@ -4198,37 +2943,37 @@
               {
                 "nodeId": "n0",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:8bcf17a78c7a78009ecaec602b7ea41136ff07ac0cd9e62501fd7ea5401cf111",
+                "scopeIdentity": "sha256:2993e03c84a340d4d2fee103ae42fc95deecd7d8605df59caf9b666993031e07",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n1",
                 "declarationId": "issue",
-                "scopeIdentity": "sha256:5ecd6bc65ec7db53e47479743f927cf001078e160d630107de12e84e9addb017",
+                "scopeIdentity": "sha256:f9508eb116c28ba330d543a0bf0077cac974dec0b14f5e378aa3a12a32bc9067",
                 "policyIdentity": "sha256:9cd32697e82556ebf2b07a8e7614dcc1e2b091d8c8e090ab86007353f7bc20d8"
               },
               {
                 "nodeId": "n1",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:53ebcdd17d84d058f9cd2e7807ef674fc153e3e41401fc894334b90b3c138396",
+                "scopeIdentity": "sha256:69c00a60f8b53135b980121f21f2ea58cd07dc0f6496a00731a19b48b7737b47",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n2",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:d4a866008aeaaff307a64f583540ad65ad48324b78ca7b29273f8fed34e6feb1",
+                "scopeIdentity": "sha256:471c5329acf3352a695fc3c340f7a71e9b45429a76a6293fea3faa8d7903c768",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n3",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:65f91a5362ef43b8c2261d4bd13c0b6f7a9c9e15673fc289b19661385bb93bf9",
+                "scopeIdentity": "sha256:3ec72d9e1f70da2de20cd10c0cee8c69866eb6b0bad2438e56633d55fd87905d",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n4",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:5c50e0df12a632ef9ee78be0891d80a162d934bb5ddc36d22861f54f54282545",
+                "scopeIdentity": "sha256:2740a37e6274270e864c42cf80fa4b16cc716ac4057c94f3c4487a234640678f",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               }
             ],
@@ -5100,37 +3845,37 @@
               {
                 "nodeId": "n0",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:8bcf17a78c7a78009ecaec602b7ea41136ff07ac0cd9e62501fd7ea5401cf111",
+                "scopeIdentity": "sha256:2993e03c84a340d4d2fee103ae42fc95deecd7d8605df59caf9b666993031e07",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n1",
                 "declarationId": "issue",
-                "scopeIdentity": "sha256:5ecd6bc65ec7db53e47479743f927cf001078e160d630107de12e84e9addb017",
+                "scopeIdentity": "sha256:f9508eb116c28ba330d543a0bf0077cac974dec0b14f5e378aa3a12a32bc9067",
                 "policyIdentity": "sha256:9cd32697e82556ebf2b07a8e7614dcc1e2b091d8c8e090ab86007353f7bc20d8"
               },
               {
                 "nodeId": "n1",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:53ebcdd17d84d058f9cd2e7807ef674fc153e3e41401fc894334b90b3c138396",
+                "scopeIdentity": "sha256:69c00a60f8b53135b980121f21f2ea58cd07dc0f6496a00731a19b48b7737b47",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n2",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:d4a866008aeaaff307a64f583540ad65ad48324b78ca7b29273f8fed34e6feb1",
+                "scopeIdentity": "sha256:471c5329acf3352a695fc3c340f7a71e9b45429a76a6293fea3faa8d7903c768",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n3",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:65f91a5362ef43b8c2261d4bd13c0b6f7a9c9e15673fc289b19661385bb93bf9",
+                "scopeIdentity": "sha256:3ec72d9e1f70da2de20cd10c0cee8c69866eb6b0bad2438e56633d55fd87905d",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n4",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:5c50e0df12a632ef9ee78be0891d80a162d934bb5ddc36d22861f54f54282545",
+                "scopeIdentity": "sha256:2740a37e6274270e864c42cf80fa4b16cc716ac4057c94f3c4487a234640678f",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               }
             ],
@@ -5220,37 +3965,37 @@
               {
                 "nodeId": "n0",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:8bcf17a78c7a78009ecaec602b7ea41136ff07ac0cd9e62501fd7ea5401cf111",
+                "scopeIdentity": "sha256:2993e03c84a340d4d2fee103ae42fc95deecd7d8605df59caf9b666993031e07",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n1",
                 "declarationId": "issue",
-                "scopeIdentity": "sha256:5ecd6bc65ec7db53e47479743f927cf001078e160d630107de12e84e9addb017",
+                "scopeIdentity": "sha256:f9508eb116c28ba330d543a0bf0077cac974dec0b14f5e378aa3a12a32bc9067",
                 "policyIdentity": "sha256:9cd32697e82556ebf2b07a8e7614dcc1e2b091d8c8e090ab86007353f7bc20d8"
               },
               {
                 "nodeId": "n1",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:53ebcdd17d84d058f9cd2e7807ef674fc153e3e41401fc894334b90b3c138396",
+                "scopeIdentity": "sha256:69c00a60f8b53135b980121f21f2ea58cd07dc0f6496a00731a19b48b7737b47",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n2",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:d4a866008aeaaff307a64f583540ad65ad48324b78ca7b29273f8fed34e6feb1",
+                "scopeIdentity": "sha256:471c5329acf3352a695fc3c340f7a71e9b45429a76a6293fea3faa8d7903c768",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n3",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:65f91a5362ef43b8c2261d4bd13c0b6f7a9c9e15673fc289b19661385bb93bf9",
+                "scopeIdentity": "sha256:3ec72d9e1f70da2de20cd10c0cee8c69866eb6b0bad2438e56633d55fd87905d",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               },
               {
                 "nodeId": "n4",
                 "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:5c50e0df12a632ef9ee78be0891d80a162d934bb5ddc36d22861f54f54282545",
+                "scopeIdentity": "sha256:2740a37e6274270e864c42cf80fa4b16cc716ac4057c94f3c4487a234640678f",
                 "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               }
             ],
@@ -5314,5 +4059,5 @@
       ]
     }
   ],
-  "contentDigest": "sha256:bb4f03d0065164baca6ef2342e043532aed67ccfa5e9e5ec9b9b1ea71f723be7"
+  "contentDigest": "sha256:98b9de2ef61745507b6faf72af5d4b89e709c643a00df3ea210a6ee3b312ce4d"
 }
