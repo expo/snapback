@@ -313,3 +313,41 @@ When a channel is a property of *how the test runs* rather than *what the test a
 patching values and change the fixture's structure. Signs you have reached this point: the channel
 survives every value being shared; the mutant needs process-global state rather than data; and the
 discriminator is position, timing, or count rather than content.
+
+---
+
+## Projection completeness is a TABLE question before it is a column question
+
+This document has stated projection completeness as "read back every written column". That wording
+let a real defect through, because a fixture can project every column of every table it knows about
+and still be blind to a table it never considered.
+
+The deny/revoke lane fixed four boundaries correctly and its matrices projected pairing requests,
+OAuth rows, grants, tokens and the authorization clock. Both revocation paths also call
+`mark_watches_dead_for_grant_on` (`crates/snapback-kernel/src/storage/watches.rs:2078`), which writes
+ten watch columns — and `_snapback_watches` appeared nowhere in the fixture or in
+`GrantRevocationDurableRowsForTest`.
+
+Proved by execution: seed an unrelated **active** watch, then delete
+`AND (anchor_grant_id = ?3 OR installation_grant_id = ?3)` and its bind from
+`mark_watches_dead_for_grant_on`.
+
+```
+2 passed; 0 failed
+```
+
+Both tests passed while the accepted cases flipped an unrelated watch from `Active` to `Dead`. The
+tests could not detect corruption in a durable table the operation under test writes.
+
+### The rule, stated in the right order
+
+1. **Enumerate every durable table the operation writes** — by following the code to its writes, not
+   by listing the tables the fixture already knows about.
+2. **Project every column of each of them.**
+3. **Include at least one row that the operation should NOT touch**, in every table it writes. A
+   fixture containing only rows the operation legitimately changes cannot distinguish "changed the
+   right rows" from "changed everything". The unrelated watch is what exposed this; without it the
+   over-broad delete is invisible.
+
+The second and third points are what the earlier wording missed. Scoping bugs — a `WHERE` clause that
+is too broad — are only visible against a row that should have survived.
