@@ -1629,7 +1629,10 @@ function capturedDependencyVector(carrier, call, tables, orderedRootIds) {
       const interval = call.windows.find(window => window.nodeId === node.nodeId).intervals[0];
       captures.push({...common(node), dependency: {
         kind: 'root-range', table: node.table, index: node.accessIndex,
-        predicate: node.filters, order: node.order, limit: interval.window.take,
+        predicate: node.filters, order: node.order,
+        direction: interval.window.direction,
+        lower: interval.window.lower, upper: interval.window.upper,
+        limit: interval.window.take,
         resultCount: orderedRootIds.length, boundary: null, complete: true,
       }});
     } else if (node.kind === 'equality-to-one') {
@@ -1658,6 +1661,8 @@ function capturedDependencyVector(carrier, call, tables, orderedRootIds) {
         captures.push({...common(node), dependency: {
         kind: 'parent-range', table: node.table, index: node.accessIndex, parentKey: parent.key,
         predicate: node.filters ?? [], order: node.order,
+        direction: interval.window.direction,
+        lower: interval.window.lower, upper: interval.window.upper,
         limit: interval.window.take, resultCount: children.length, boundary: null, complete: true,
       }});
       }

@@ -7,15 +7,15 @@
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
     AuthInput, FilterExpr, FilterOp, GraphAuthorityClassV1, GraphCapturedDependencyV1,
-    GraphCapturedReadV1, GraphChildPageV1, GraphCompletenessLabelV1, GraphCompositionProofV1,
-    GraphDataNodeKindV1, GraphEvaluationCutV1, GraphEvaluationTimeRefusalReasonV1,
-    GraphExistsModeV1, GraphIntervalEndV1, GraphLiteralPageV1, GraphMaterializedRefusalReasonV1,
-    GraphNodeCompletenessProofClassV1, GraphNodeCompletenessProofV1, GraphNodeKindV1, GraphNodeV1,
-    GraphNodeWindowIdentityV1, GraphProjectionLiteralV1, GraphProjectionObjectV1,
-    GraphProjectionValueV1, GraphQueryPlanV1, GraphRowKeyV1, GraphToOnePresenceV1,
-    GraphWindowIdentityV1, HandlerInput, OrderDirection, OrderExpr, QueryPlan, Sha256V1,
-    TableVisibilityV1, ValueExpr, graph_instance_identity_v1, graph_plan_identity_v1,
-    validate_graph_arguments_v1, validate_graph_window_vector_v1,
+    GraphCapturedReadAttachmentV1, GraphCapturedReadV1, GraphChildPageV1, GraphCompletenessLabelV1,
+    GraphCompositionProofV1, GraphDataNodeKindV1, GraphEvaluationCutV1,
+    GraphEvaluationTimeRefusalReasonV1, GraphExistsModeV1, GraphIntervalEndV1, GraphLiteralPageV1,
+    GraphMaterializedRefusalReasonV1, GraphNodeCompletenessProofClassV1,
+    GraphNodeCompletenessProofV1, GraphNodeKindV1, GraphNodeV1, GraphNodeWindowIdentityV1,
+    GraphProjectionLiteralV1, GraphProjectionObjectV1, GraphProjectionValueV1, GraphQueryPlanV1,
+    GraphRowKeyV1, GraphToOnePresenceV1, GraphWindowIdentityV1, HandlerInput, OrderDirection,
+    OrderExpr, QueryPlan, Sha256V1, TableVisibilityV1, ValueExpr, graph_instance_identity_v1,
+    graph_plan_identity_v1, validate_graph_arguments_v1, validate_graph_window_vector_v1,
 };
 use crate::storage::{CapturedReadDependency, CapturedReadKind, DbRead};
 use serde::{Deserialize, Serialize};
@@ -156,6 +156,11 @@ pub struct GraphEvaluationOutputV1 {
     /// test/test-support gate; G2-C still owns serving dispatch.
     #[serde(default)]
     pub captured_reads: Vec<CapturedReadDependency>,
+    /// Exact graph-to-ordinary companion attachment over `captured_reads`.
+    /// Sync registration attests this evaluator-authored map before the graph
+    /// matcher can consume any of the reads.
+    #[serde(default)]
+    pub capture_attachments: Vec<GraphCapturedReadAttachmentV1>,
 }
 
 fn deserialize_required_option<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
@@ -362,14 +367,20 @@ struct EvaluationState {
     materialized_refusal: Option<GraphMaterializedRefusalReasonV1>,
     capture_context: Option<GraphCaptureContext>,
     captured_reads: Vec<CapturedReadDependency>,
+    capture_attachments: Vec<GraphCapturedReadAttachmentV1>,
     work: Work,
 }
 
 impl EvaluationState {
-    fn capture_graph(&mut self, node: &GraphNodeV1, dependency: GraphCapturedDependencyV1) {
+    fn capture_graph(
+        &mut self,
+        node: &GraphNodeV1,
+        dependency: GraphCapturedDependencyV1,
+    ) -> Option<usize> {
         let Some(context) = self.capture_context.as_ref() else {
-            return;
+            return None;
         };
+        let graph_read_index = self.captured_reads.len() as u64;
         self.captured_reads.push(CapturedReadDependency {
             kind: CapturedReadKind::GraphNode,
             graph: Some(GraphCapturedReadV1 {
@@ -393,10 +404,28 @@ impl EvaluationState {
             result_count: None,
             boundary: None,
         });
+        self.capture_attachments
+            .push(GraphCapturedReadAttachmentV1 {
+                graph_read_index,
+                ordinary_read_indices: Vec::new(),
+            });
+        Some(self.capture_attachments.len() - 1)
+    }
+
+    fn capture_ordinary(&mut self, attachment: Option<usize>, dependency: CapturedReadDependency) {
+        let Some(attachment) = attachment else {
+            return;
+        };
+        let ordinary_read_index = self.captured_reads.len() as u64;
+        self.captured_reads.push(dependency);
+        self.capture_attachments[attachment]
+            .ordinary_read_indices
+            .push(ordinary_read_index);
     }
 
     fn capture_query(
         &mut self,
+        attachment: Option<usize>,
         plan: &QueryPlan,
         version: u64,
         rows: &[Value],
@@ -414,24 +443,27 @@ impl EvaluationState {
             )
             .with_details(json!({ "error": error.to_string() }))
         })?;
-        self.captured_reads.push(CapturedReadDependency {
-            kind: CapturedReadKind::Query,
-            graph: None,
-            table: Some(plan.table.clone()),
-            id: None,
-            version: Some(version),
-            predicate: Some(predicate),
-            rows: rows
-                .iter()
-                .filter_map(|row| row.get("_id").and_then(Value::as_str).map(str::to_owned))
-                .collect(),
-            field: None,
-            value: None,
-            order,
-            limit,
-            result_count,
-            boundary,
-        });
+        self.capture_ordinary(
+            attachment,
+            CapturedReadDependency {
+                kind: CapturedReadKind::Query,
+                graph: None,
+                table: Some(plan.table.clone()),
+                id: None,
+                version: Some(version),
+                predicate: Some(predicate),
+                rows: rows
+                    .iter()
+                    .filter_map(|row| row.get("_id").and_then(Value::as_str).map(str::to_owned))
+                    .collect(),
+                field: None,
+                value: None,
+                order,
+                limit,
+                result_count,
+                boundary,
+            },
+        );
         for row in rows {
             let (Some(id), Some(version)) = (
                 row.get("_id").and_then(Value::as_str),
@@ -439,44 +471,50 @@ impl EvaluationState {
             ) else {
                 continue;
             };
-            self.captured_reads.push(CapturedReadDependency {
-                kind: CapturedReadKind::Row,
-                graph: None,
-                table: Some(plan.table.clone()),
-                id: Some(id.to_owned()),
-                version: Some(version),
-                predicate: None,
-                rows: Vec::new(),
-                field: None,
-                value: None,
-                order: None,
-                limit: None,
-                result_count: None,
-                boundary: None,
-            });
+            self.capture_ordinary(
+                attachment,
+                CapturedReadDependency {
+                    kind: CapturedReadKind::Row,
+                    graph: None,
+                    table: Some(plan.table.clone()),
+                    id: Some(id.to_owned()),
+                    version: Some(version),
+                    predicate: None,
+                    rows: Vec::new(),
+                    field: None,
+                    value: None,
+                    order: None,
+                    limit: None,
+                    result_count: None,
+                    boundary: None,
+                },
+            );
         }
         Ok(())
     }
 
-    fn capture_auth_user(&mut self, user_id: &str) {
+    fn capture_auth_user(&mut self, attachment: Option<usize>, user_id: &str) {
         if self.capture_context.is_none() {
             return;
         }
-        self.captured_reads.push(CapturedReadDependency {
-            kind: CapturedReadKind::Auth,
-            graph: None,
-            table: None,
-            id: None,
-            version: None,
-            predicate: None,
-            rows: Vec::new(),
-            field: Some("userId".to_owned()),
-            value: Some(Value::String(user_id.to_owned())),
-            order: None,
-            limit: None,
-            result_count: None,
-            boundary: None,
-        });
+        self.capture_ordinary(
+            attachment,
+            CapturedReadDependency {
+                kind: CapturedReadKind::Auth,
+                graph: None,
+                table: None,
+                id: None,
+                version: None,
+                predicate: None,
+                rows: Vec::new(),
+                field: Some("userId".to_owned()),
+                value: Some(Value::String(user_id.to_owned())),
+                order: None,
+                limit: None,
+                result_count: None,
+                boundary: None,
+            },
+        );
     }
 }
 
@@ -1027,20 +1065,23 @@ fn evaluate_root(
     // @ref LLP 0209#51-captured-vocabulary-by-normalized-node — root
     // windows register both their graph identity/boundary fact and the shared
     // Query/Row dependencies used by the existing disjointness machinery.
-    state.capture_graph(
+    let attachment = state.capture_graph(
         node,
         GraphCapturedDependencyV1::RootRange {
             table: table.clone(),
             index: access_index.clone(),
             predicate: filters.clone(),
             order: order.clone(),
+            direction: Some(window.direction),
+            lower: Some(window.lower.clone()),
+            upper: Some(window.upper.clone()),
             limit: window.take,
             result_count: rows.len() as u64,
             boundary,
             complete: !has_more,
         },
     );
-    state.capture_query(&query, snapshot_version, &rows)?;
+    state.capture_query(attachment, &query, snapshot_version, &rows)?;
     state.work.root.insert(node_id.clone(), rows.len() as u64);
     state
         .work
@@ -1160,7 +1201,7 @@ fn evaluate_to_one(
             })
             .collect::<Vec<_>>();
         let Some(mut relation) = relation_filters(&parent.row, join_on) else {
-            state.capture_graph(
+            let _ = state.capture_graph(
                 node,
                 GraphCapturedDependencyV1::ParentLookupSkipped {
                     table: table.clone(),
@@ -1201,7 +1242,7 @@ fn evaluate_to_one(
             .first()
             .and_then(|row| row.get("_version"))
             .and_then(Value::as_u64);
-        state.capture_graph(
+        let attachment = state.capture_graph(
             node,
             GraphCapturedDependencyV1::ParentPoint {
                 table: table.clone(),
@@ -1213,7 +1254,7 @@ fn evaluate_to_one(
                 row_version,
             },
         );
-        state.capture_query(&query, snapshot_version, &rows)?;
+        state.capture_query(attachment, &query, snapshot_version, &rows)?;
         if !found && matches!(presence, GraphToOnePresenceV1::Required) {
             // Same register as the null-key path above; both physical miss
             // shapes produce the one additive stable diagnostic.
@@ -1325,7 +1366,7 @@ fn evaluate_to_many(
             continue;
         }
         let Some(mut relation) = relation_filters(&parent.row, join_on) else {
-            state.capture_graph(
+            let _ = state.capture_graph(
                 node,
                 GraphCapturedDependencyV1::ParentRange {
                     table: table.clone(),
@@ -1333,6 +1374,9 @@ fn evaluate_to_many(
                     parent_key: parent.key.clone(),
                     predicate: filters.clone().unwrap_or_default(),
                     order: order.clone(),
+                    direction: Some(effective.direction),
+                    lower: Some(effective.lower.clone()),
+                    upper: Some(effective.upper.clone()),
                     limit: effective.take,
                     result_count: 0,
                     boundary: None,
@@ -1399,7 +1443,7 @@ fn evaluate_to_many(
         } else {
             None
         };
-        state.capture_graph(
+        let attachment = state.capture_graph(
             node,
             GraphCapturedDependencyV1::ParentRange {
                 table: table.clone(),
@@ -1407,13 +1451,16 @@ fn evaluate_to_many(
                 parent_key: parent.key.clone(),
                 predicate: filters.clone().unwrap_or_default(),
                 order: order.clone(),
+                direction: Some(effective.direction),
+                lower: Some(effective.lower.clone()),
+                upper: Some(effective.upper.clone()),
                 limit: effective.take,
                 result_count: rows.len() as u64,
                 boundary,
                 complete: !has_more,
             },
         );
-        state.capture_query(&query, snapshot_version, &rows)?;
+        state.capture_query(attachment, &query, snapshot_version, &rows)?;
         let children = rows
             .into_iter()
             .map(|row| {
@@ -1856,7 +1903,7 @@ fn evaluate_semi_join(
             }
             matched_count += 1;
         }
-        state.capture_graph(
+        let attachment = state.capture_graph(
             node,
             GraphCapturedDependencyV1::Membership {
                 tables: dependency_tables.clone(),
@@ -1869,7 +1916,7 @@ fn evaluate_semi_join(
             },
         );
         for capture in captured_queries {
-            state.capture_query(&capture.plan, capture.version, &capture.rows)?;
+            state.capture_query(attachment, &capture.plan, capture.version, &capture.rows)?;
         }
         if state.materialized_refusal.is_some() {
             break;
@@ -1978,9 +2025,8 @@ fn evaluate_principal(
     };
     let parents = parent_instances(state, parent_node_id).to_vec();
     let mut principal = input.auth.user_id.clone();
-    if let Some(user_id) = principal.as_deref() {
-        state.capture_auth_user(user_id);
-    }
+    let auth_user = principal.clone();
+    let mut auth_attached = false;
     let mut binding_found = binding.is_none();
     let binding_lookups = u64::from(binding.is_some());
     let mut binding_consultations = 0_u64;
@@ -2008,7 +2054,7 @@ fn evaluate_principal(
         let row = binding_rows.first().cloned();
         examined += u64::from(row.is_some());
         binding_found = row.is_some();
-        state.capture_graph(
+        let attachment = state.capture_graph(
             node,
             GraphCapturedDependencyV1::PrincipalField {
                 table: binding.table.clone(),
@@ -2022,12 +2068,16 @@ fn evaluate_principal(
                 found: binding_found,
             },
         );
+        if let Some(user_id) = auth_user.as_deref() {
+            state.capture_auth_user(attachment, user_id);
+            auth_attached = true;
+        }
         let resolved_value = row
             .as_ref()
             .and_then(|row| row.get(&binding.value_field))
             .cloned();
         if let Some(value) = resolved_value.as_ref() {
-            state.capture_graph(
+            let _ = state.capture_graph(
                 node,
                 GraphCapturedDependencyV1::PrincipalField {
                     table: binding.table.clone(),
@@ -2042,7 +2092,7 @@ fn evaluate_principal(
                 },
             );
         }
-        state.capture_query(&query, query_output.version, &binding_rows)?;
+        state.capture_query(attachment, &query, query_output.version, &binding_rows)?;
         principal = row.and_then(|row| {
             row.get(&binding.value_field)
                 .and_then(Value::as_str)
@@ -2079,7 +2129,7 @@ fn evaluate_principal(
             let rows = query_output.rows;
             examined += rows.len() as u64;
             found = !rows.is_empty();
-            state.capture_graph(
+            let attachment = state.capture_graph(
                 node,
                 GraphCapturedDependencyV1::PrincipalField {
                     table: table.clone(),
@@ -2093,7 +2143,11 @@ fn evaluate_principal(
                     found,
                 },
             );
-            state.capture_query(&query, query_output.version, &rows)?;
+            if !auth_attached && let Some(user_id) = auth_user.as_deref() {
+                state.capture_auth_user(attachment, user_id);
+                auth_attached = true;
+            }
+            state.capture_query(attachment, &query, query_output.version, &rows)?;
             children_rows = rows
                 .into_iter()
                 .map(|row| {
@@ -2109,7 +2163,7 @@ fn evaluate_principal(
             // The parent relation is nullable, so no point lookup occurred.
             // The current principal scope is still the only target-table
             // scope that could become relevant after the parent itself wakes.
-            state.capture_graph(
+            let attachment = state.capture_graph(
                 node,
                 GraphCapturedDependencyV1::PrincipalField {
                     table: table.clone(),
@@ -2123,6 +2177,10 @@ fn evaluate_principal(
                     found: false,
                 },
             );
+            if !auth_attached && let Some(user_id) = auth_user.as_deref() {
+                state.capture_auth_user(attachment, user_id);
+                auth_attached = true;
+            }
         }
         output.extend(children_rows.iter().cloned());
         insert_child(state, parent_node_id, parent, node_id, children_rows)?;
@@ -2664,6 +2722,7 @@ fn refused_output(
         // A refusal publishes no page, so it cannot advance any lineage.
         window_ledgers: request.prior_window_ledgers.clone(),
         captured_reads: state.captured_reads.clone(),
+        capture_attachments: state.capture_attachments.clone(),
     })
 }
 
@@ -2826,7 +2885,7 @@ pub(crate) fn evaluate_graph_query_on(
             tuple_json(request),
             json!({"kind":"closed-projection","label":label,"composition":composition_proof}),
         );
-        state.capture_graph(
+        let _ = state.capture_graph(
             projection,
             GraphCapturedDependencyV1::Projection {
                 source_node_ids: plan
@@ -2884,6 +2943,7 @@ pub(crate) fn evaluate_graph_query_on(
             structural_work: state.work.observation(plan),
             window_ledgers,
             captured_reads: state.captured_reads.clone(),
+            capture_attachments: state.capture_attachments.clone(),
         })
     })();
     match evaluation {

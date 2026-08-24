@@ -16,8 +16,8 @@ use std::sync::OnceLock;
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 use snapback::live_matcher::{
-    GraphNodeMatchDispositionV1, LiveMatchOutcome, live_subscription_match_decision,
-    live_subscription_match_outcome,
+    GraphNodeMatchDispositionV1, LiveMatchOutcome,
+    live_subscription_match_decision_with_graph_registration, live_subscription_match_outcome,
 };
 use snapback::local::LocalSnapback;
 use snapback::manifest::*;
@@ -27,7 +27,8 @@ use snapback_engine::graph_evaluator::{
 };
 use snapback_kernel::storage::{ChangeOp, ChangedRow};
 use snapback_sync::graph_captured_read::{
-    graph_capture_carrier_is_well_formed, register_graph_subscription_dependencies,
+    RegisteredGraphSubscriptionDependenciesV1, graph_capture_carrier_is_well_formed,
+    register_graph_subscription_dependencies,
 };
 use snapback_types::diagnostic::DiagnosticSeverity;
 use snapback_types::storage::{CapturedReadDependency, CapturedReadKind};
@@ -387,7 +388,7 @@ fn normal_graph_evaluations(
     String,
     GraphQueryCarrierV1,
     HandlerInput,
-    Vec<CapturedReadDependency>,
+    RegisteredGraphSubscriptionDependenciesV1,
 )> {
     corpus["g0ExitObservationEvidence"]
         .as_array()
@@ -409,8 +410,12 @@ fn normal_graph_evaluations(
                 .evaluate_graph_query(&carrier.normalized_plan, &request)
                 .unwrap_or_else(|error| panic!("evaluate {query_name}: {error:?}"));
             let registered = register_graph_subscription_dependencies(
-                &carrier.normalized_plan,
+                &carrier,
+                &materialization.preimage.graph_instance_hash,
+                &request.materialization_hash,
+                &request.partition_hash,
                 &output.captured_reads,
+                &output.capture_attachments,
             )
             .unwrap_or_else(|error| panic!("register {query_name}: {error:?}"));
             let matcher_input = normalized_matcher_input(&carrier.normalized_plan, &request);
@@ -558,11 +563,19 @@ fn graph_match_replay_commits(corpus: &Value) -> Vec<(String, Vec<ChangedRow>)> 
     vec![
         (
             "issue-edit-in-project".to_owned(),
-            vec![update_change("issueListRead", in_project, &["open"])],
+            vec![update_change(
+                "issueListRead",
+                in_project.clone(),
+                &["open"],
+            )],
         ),
         (
             "issue-edit-out-of-project".to_owned(),
-            vec![update_change("issueListRead", out_project, &["open"])],
+            vec![update_change(
+                "issueListRead",
+                out_project.clone(),
+                &["open"],
+            )],
         ),
         (
             "label-edge-add".to_owned(),
@@ -571,7 +584,7 @@ fn graph_match_replay_commits(corpus: &Value) -> Vec<(String, Vec<ChangedRow>)> 
         ("label-edge-remove".to_owned(), vec![label_remove]),
         (
             "comment-add".to_owned(),
-            vec![insert_change("comment", comment)],
+            vec![insert_change("comment", comment.clone())],
         ),
         (
             "view-state-write-self".to_owned(),
@@ -579,11 +592,24 @@ fn graph_match_replay_commits(corpus: &Value) -> Vec<(String, Vec<ChangedRow>)> 
         ),
         (
             "view-state-write-other".to_owned(),
-            vec![insert_change("viewState", view_other)],
+            vec![insert_change("viewState", view_other.clone())],
         ),
         (
             "selected-label-membership-change".to_owned(),
             vec![insert_change("issueLabelRead", membership_change)],
+        ),
+        (
+            "ledger-multi-row-multi-table".to_owned(),
+            vec![
+                update_change("issueListRead", in_project, &["open"]),
+                update_change("issueListRead", out_project, &["open"]),
+                insert_change("comment", comment),
+                insert_change("viewState", view_other),
+                insert_change(
+                    "matcherUnrelated",
+                    json!({"_id":"g2b_unrelated", "value":true}),
+                ),
+            ],
         ),
     ]
 }
@@ -593,16 +619,16 @@ fn runtime_capture_artifact(
         String,
         GraphQueryCarrierV1,
         HandlerInput,
-        Vec<CapturedReadDependency>,
+        RegisteredGraphSubscriptionDependenciesV1,
     )],
 ) -> Value {
     let captures = runs
         .iter()
-        .map(|(query, carrier, _, reads)| {
+        .map(|(query, carrier, _, registered)| {
             json!({
                 "query": query,
                 "graphPlanHash": carrier.plan_hash,
-                "capturedDependencies": reads.iter().filter_map(|read| read.graph.as_ref()).collect::<Vec<_>>(),
+                "capturedDependencies": registered.reads().iter().filter_map(|read| read.graph.as_ref()).collect::<Vec<_>>(),
             })
         })
         .collect::<Vec<_>>();
@@ -619,7 +645,7 @@ fn match_disposition_artifact(
         String,
         GraphQueryCarrierV1,
         HandlerInput,
-        Vec<CapturedReadDependency>,
+        RegisteredGraphSubscriptionDependenciesV1,
     )],
 ) -> Value {
     let mut replays = Vec::new();
@@ -636,13 +662,18 @@ fn match_disposition_artifact(
         summary.insert(kind, [0, 0, 0]);
     }
     for (commit_id, changes) in graph_match_replay_commits(corpus) {
-        for (query, carrier, input, reads) in runs {
+        for (query, carrier, input, registered) in runs {
             let definition = FunctionDefinition::new(
                 query,
                 FunctionKind::LiveQuery,
                 FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier.clone())),
             );
-            let decision = live_subscription_match_decision(&definition, input, reads, &changes);
+            let decision = live_subscription_match_decision_with_graph_registration(
+                &definition,
+                input,
+                registered,
+                &changes,
+            );
             for node in &decision.graph_nodes {
                 let counts = summary.get_mut(&node.node_kind).unwrap();
                 counts[match node.disposition {
@@ -1512,6 +1543,8 @@ fn dependency_shapes() {
         "dependency":{
             "kind":"root-range", "table":"issues", "index":"by_updated",
             "predicate":[], "order":[{"field":"updatedAt","direction":"Desc"}],
+            "direction":"forward", "lower":{"kind":"unbounded"},
+            "upper":{"kind":"unbounded"},
             "limit":2, "resultCount":0, "boundary":null, "complete":true
         }
     }))
@@ -1519,6 +1552,16 @@ fn dependency_shapes() {
     let bound_carrier = carrier();
     let plan = &bound_carrier.normalized_plan;
     validate_graph_captured_read_v1(&graph, plan).expect("capture binds the normalized node");
+    let mut missing_range_identity = graph.clone();
+    if let GraphCapturedDependencyV1::RootRange { direction, .. } =
+        &mut missing_range_identity.dependency
+    {
+        *direction = None;
+    }
+    assert!(
+        validate_graph_captured_read_v1(&missing_range_identity, plan).is_err(),
+        "a range without its executed direction is incomplete"
+    );
     graph.node_id = "n1".to_owned();
     assert!(validate_graph_captured_read_v1(&graph, plan).is_err());
     graph.node_id = "n0".to_owned();
@@ -3383,11 +3426,13 @@ fn graph_runtime_captures_register_and_match_replays_are_frozen() {
     let corpus = graph_corpus();
     let runs = normal_graph_evaluations(&corpus);
     assert_eq!(runs.len(), 3, "all three Zerobugs graphs evaluate");
-    assert!(runs.iter().all(|(_, _, _, reads)| {
-        reads
+    assert!(runs.iter().all(|(_, _, _, registered)| {
+        registered
+            .reads()
             .iter()
             .any(|read| read.kind == CapturedReadKind::GraphNode)
-            && reads
+            && registered
+                .reads()
                 .iter()
                 .any(|read| read.kind == CapturedReadKind::Query)
     }));
@@ -3410,14 +3455,15 @@ fn graph_runtime_captures_register_and_match_replays_are_frozen() {
         dispositions,
         "graph matcher disposition corpus is stale"
     );
-    for (query, carrier, _, reads) in &runs {
+    for (query, carrier, _, registered) in &runs {
         let frozen = corpus["g0ExitObservationEvidence"]
             .as_array()
             .unwrap()
             .iter()
             .find(|row| row["graphPlanHash"] == carrier.plan_hash.as_str())
             .unwrap_or_else(|| panic!("frozen observation for {query}"));
-        let actual = reads
+        let actual = registered
+            .reads()
             .iter()
             .filter_map(|read| read.graph.as_ref())
             .collect::<Vec<_>>();

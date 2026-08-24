@@ -5,8 +5,12 @@
 //! matcher. G2-C can therefore attach serving without inventing another
 //! registration path.
 
+pub use snapback_kernel::live_matcher::RegisteredGraphSubscriptionDependenciesV1;
+#[cfg(any(test, feature = "test-support"))]
+use snapback_kernel::live_matcher::attest_graph_subscription_dependencies;
 pub use snapback_types::manifest::{
-    GraphCapturedDependencyV1, GraphCapturedReadV1, validate_graph_captured_read_v1,
+    GraphCapturedDependencyV1, GraphCapturedReadAttachmentV1, GraphCapturedReadV1,
+    validate_graph_captured_read_v1,
 };
 use snapback_types::storage::CapturedReadDependency;
 
@@ -30,43 +34,24 @@ pub fn graph_capture_carrier_is_well_formed(read: &CapturedReadDependency) -> bo
 /// payload binds the admitted plan/node and remains paired with `GraphNode`.
 #[cfg(any(test, feature = "test-support"))]
 pub fn register_graph_subscription_dependencies(
-    plan: &snapback_types::manifest::GraphQueryPlanV1,
+    carrier: &snapback_types::manifest::GraphQueryCarrierV1,
+    expected_instance_hash: &snapback_types::manifest::Sha256V1,
+    materialization_hash: &snapback_types::manifest::Sha256V1,
+    partition_hash: &snapback_types::manifest::Sha256V1,
     reads: &[CapturedReadDependency],
-) -> Result<Vec<CapturedReadDependency>, snapback_types::manifest::GraphDemandTimeRefusalReasonV1> {
-    use snapback_types::manifest::{GraphCapturedDependencyV1, GraphDemandTimeRefusalReasonV1};
-
-    if reads.iter().any(|read| !read.graph_pairing_is_valid()) {
-        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
-    }
-    let mut last_node_index = 0_usize;
-    let mut saw_graph = false;
-    let mut saw_root = false;
-    let mut saw_projection = false;
-    for capture in reads.iter().filter_map(|read| read.graph.as_ref()) {
-        validate_graph_captured_read_v1(capture, plan)?;
-        let node_index = plan
-            .nodes
-            .iter()
-            .position(|node| node.node_id() == capture.node_id)
-            .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
-        if saw_graph && node_index < last_node_index {
-            return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
-        }
-        saw_graph = true;
-        last_node_index = node_index;
-        saw_root |= matches!(
-            capture.dependency,
-            GraphCapturedDependencyV1::RootRange { .. }
-        );
-        saw_projection |= matches!(
-            capture.dependency,
-            GraphCapturedDependencyV1::Projection { .. }
-        );
-    }
-    if !saw_graph || !saw_root || !saw_projection {
-        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
-    }
-    Ok(reads.to_vec())
+    attachments: &[GraphCapturedReadAttachmentV1],
+) -> Result<
+    RegisteredGraphSubscriptionDependenciesV1,
+    snapback_types::manifest::GraphDemandTimeRefusalReasonV1,
+> {
+    attest_graph_subscription_dependencies(
+        carrier,
+        expected_instance_hash,
+        materialization_hash,
+        partition_hash,
+        reads,
+        attachments,
+    )
 }
 
 #[cfg(test)]
@@ -126,10 +111,18 @@ mod tests {
     }
 
     #[test]
-    fn registration_retains_exact_shared_vector_and_rejects_incomplete_or_reordered_graphs() {
+    fn registration_attests_exact_identity_attachment_and_node_order() {
         let carrier: GraphQueryCarrierV1 = serde_json::from_str(include_str!(
             "../../../tests/conformance/graph/minimal-carrier.v1.json"
         ))
+        .unwrap();
+        let instance_hash = snapback_types::manifest::Sha256V1::new(
+            "sha256:1111111111111111111111111111111111111111111111111111111111111111".to_owned(),
+        )
+        .unwrap();
+        let context_hash = snapback_types::manifest::Sha256V1::new(
+            "sha256:2222222222222222222222222222222222222222222222222222222222222222".to_owned(),
+        )
         .unwrap();
         let root = graph_read(
             "n0",
@@ -137,6 +130,8 @@ mod tests {
             serde_json::json!({
                 "kind":"root-range", "table":"issues", "index":"by_updated",
                 "predicate":[], "order":[{"field":"updatedAt","direction":"Desc"}],
+                "direction":"forward", "lower":{"kind":"unbounded"},
+                "upper":{"kind":"unbounded"},
                 "limit":10, "resultCount":0, "boundary":null, "complete":true
             }),
         );
@@ -146,14 +141,18 @@ mod tests {
             table: Some("issues".to_owned()),
             id: None,
             version: Some(1),
-            predicate: None,
+            predicate: Some(serde_json::json!({
+                "table":"issues", "filters":[], "membershipFilters":[],
+                "order":[{"field":"updatedAt","direction":"Desc"}],
+                "limit":10, "indexedBy":"by_updated"
+            })),
             rows: Vec::new(),
             field: None,
             value: None,
             order: None,
             limit: Some(10),
             result_count: Some(0),
-            boundary: Some(serde_json::json!({"complete":true})),
+            boundary: None,
         };
         let projection = graph_read(
             "n1",
@@ -161,23 +160,81 @@ mod tests {
             serde_json::json!({"kind":"projection", "sourceNodeIds":["n0"]}),
         );
         let reads = vec![root.clone(), query.clone(), projection.clone()];
+        let attachments = vec![
+            GraphCapturedReadAttachmentV1 {
+                graph_read_index: 0,
+                ordinary_read_indices: vec![1],
+            },
+            GraphCapturedReadAttachmentV1 {
+                graph_read_index: 2,
+                ordinary_read_indices: Vec::new(),
+            },
+        ];
         assert_eq!(
-            register_graph_subscription_dependencies(&carrier.normalized_plan, &reads).unwrap(),
-            reads,
+            register_graph_subscription_dependencies(
+                &carrier,
+                &instance_hash,
+                &context_hash,
+                &context_hash,
+                &reads,
+                &attachments,
+            )
+            .unwrap()
+            .reads(),
+            reads.as_slice(),
             "registration must preserve graph and ordinary dependency ordering byte-for-byte"
         );
         assert!(
             register_graph_subscription_dependencies(
-                &carrier.normalized_plan,
-                &[root.clone(), query]
+                &carrier,
+                &instance_hash,
+                &context_hash,
+                &context_hash,
+                &reads,
+                &attachments[..1],
             )
             .is_err(),
-            "projection is part of the complete graph capture vector"
+            "every graph read needs an explicit attachment"
         );
+        let reordered_reads = vec![projection, root, query];
+        let reordered_attachments = vec![
+            GraphCapturedReadAttachmentV1 {
+                graph_read_index: 0,
+                ordinary_read_indices: Vec::new(),
+            },
+            GraphCapturedReadAttachmentV1 {
+                graph_read_index: 1,
+                ordinary_read_indices: vec![2],
+            },
+        ];
         assert!(
-            register_graph_subscription_dependencies(&carrier.normalized_plan, &[projection, root])
-                .is_err(),
+            register_graph_subscription_dependencies(
+                &carrier,
+                &instance_hash,
+                &context_hash,
+                &context_hash,
+                &reordered_reads,
+                &reordered_attachments,
+            )
+            .is_err(),
             "normalized node order is a registration invariant"
+        );
+
+        let stale_instance = snapback_types::manifest::Sha256V1::new(
+            "sha256:3333333333333333333333333333333333333333333333333333333333333333".to_owned(),
+        )
+        .unwrap();
+        assert!(
+            register_graph_subscription_dependencies(
+                &carrier,
+                &stale_instance,
+                &context_hash,
+                &context_hash,
+                &reads,
+                &attachments,
+            )
+            .is_err(),
+            "a prior evaluation vector cannot register for a new instance"
         );
     }
 }

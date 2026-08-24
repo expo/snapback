@@ -1077,7 +1077,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-capability-unsupported"></a>`SNAPBACK_CAPABILITY_UNSUPPORTED` | capabilities | 503 | [guide](../backend/streamed-actions.md#read-the-refusal-codes) | `crates/snapback-engine/src/local/engine.rs:7786` | 28 |
 | <a id="diagnostic-snapback-capability-workerd-missing"></a>`SNAPBACK_CAPABILITY_WORKERD_MISSING` | capabilities | 503 | — | `crates/snapback-conformance/src/bin/snapback-conformance-twin.rs:790` | 4 |
 | <a id="diagnostic-snapback-captured-read-invalid"></a>`SNAPBACK_CAPTURED_READ_INVALID` | server | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:7040` | 7 |
-| <a id="diagnostic-snapback-captured-read-serialize-failed"></a>`SNAPBACK_CAPTURED_READ_SERIALIZE_FAILED` | server | 500 | — | `crates/snapback-engine/src/graph_evaluator.rs:411` | 4 |
+| <a id="diagnostic-snapback-captured-read-serialize-failed"></a>`SNAPBACK_CAPTURED_READ_SERIALIZE_FAILED` | server | 500 | — | `crates/snapback-engine/src/graph_evaluator.rs:440` | 4 |
 | <a id="diagnostic-snapback-carrier-cleanup-lease-directory"></a>`SNAPBACK_CARRIER_CLEANUP_LEASE_DIRECTORY` | cli | — | — | `packages/snapback-cli/process-teardown.mjs:18` | 1 |
 | <a id="diagnostic-snapback-carrier-process-lease-marker"></a>`SNAPBACK_CARRIER_PROCESS_LEASE_MARKER` | cli | — | — | `packages/snapback-cli/process-teardown.mjs:24` | 1 |
 | <a id="diagnostic-snapback-carrier-process-lease-run-id"></a>`SNAPBACK_CARRIER_PROCESS_LEASE_RUN_ID` | cli | — | — | `packages/snapback-cli/process-teardown.mjs:25` | 1 |
@@ -1862,7 +1862,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-generated-ir-server-only"></a>`SNAPBACK_GENERATED_IR_SERVER_ONLY` | client | — | — | `packages/snapback-client/generated-mutation-ir.mjs:69` | 2 |
 | <a id="diagnostic-snapback-generated-ir-settlement-id-invalid"></a>`SNAPBACK_GENERATED_IR_SETTLEMENT_ID_INVALID` | client | — | — | `packages/snapback-client/generated-mutation-ir.mjs:88` | 1 |
 | <a id="diagnostic-snapback-generated-ir-source-mismatch"></a>`SNAPBACK_GENERATED_IR_SOURCE_MISMATCH` | client | — | — | `packages/snapback-client/generated-mutation-ir.mjs:81` | 1 |
-| <a id="diagnostic-snapback-graph-argument-invalid"></a>`SNAPBACK_GRAPH_ARGUMENT_INVALID` | server | 400 | — | `crates/snapback-engine/src/graph_evaluator.rs:188` | 8 |
+| <a id="diagnostic-snapback-graph-argument-invalid"></a>`SNAPBACK_GRAPH_ARGUMENT_INVALID` | server | 400 | — | `crates/snapback-engine/src/graph_evaluator.rs:193` | 8 |
 | <a id="diagnostic-snapback-graph-argument-unbound"></a>`SNAPBACK_GRAPH_ARGUMENT_UNBOUND` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:181` | 18 |
 | <a id="diagnostic-snapback-graph-authority-unprovable"></a>`SNAPBACK_GRAPH_AUTHORITY_UNPROVABLE` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:172` | 9 |
 | <a id="diagnostic-snapback-graph-bound-invalid"></a>`SNAPBACK_GRAPH_BOUND_INVALID` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:178` | 9 |
@@ -1873,9 +1873,9 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-graph-broadcast-separation-unprovable"></a>`SNAPBACK_GRAPH_BROADCAST_SEPARATION_UNPROVABLE` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:174` | 5 |
 | <a id="diagnostic-snapback-graph-client-ast-forbidden"></a>`SNAPBACK_GRAPH_CLIENT_AST_FORBIDDEN` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:151` | 6 |
 | <a id="diagnostic-snapback-graph-code-forbidden"></a>`SNAPBACK_GRAPH_CODE_FORBIDDEN` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:152` | 12 |
-| <a id="diagnostic-snapback-graph-cursor-unbound"></a>`SNAPBACK_GRAPH_CURSOR_UNBOUND` | server | 400 | — | `crates/snapback-engine/src/graph_evaluator.rs:2452` | 5 |
+| <a id="diagnostic-snapback-graph-cursor-unbound"></a>`SNAPBACK_GRAPH_CURSOR_UNBOUND` | server | 400 | — | `crates/snapback-engine/src/graph_evaluator.rs:2510` | 5 |
 | <a id="diagnostic-snapback-graph-cycle"></a>`SNAPBACK_GRAPH_CYCLE` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:161` | 6 |
-| <a id="diagnostic-snapback-graph-demand-identity-mismatch"></a>`SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH` | server | 400 | — | `crates/snapback-engine/src/graph_evaluator.rs:964` | 5 |
+| <a id="diagnostic-snapback-graph-demand-identity-mismatch"></a>`SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH` | server | 400 | — | `crates/snapback-engine/src/graph_evaluator.rs:1002` | 5 |
 | <a id="diagnostic-snapback-graph-dynamic-construction"></a>`SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:154` | 20 |
 | <a id="diagnostic-snapback-graph-index-prefix-unsupported"></a>`SNAPBACK_GRAPH_INDEX_PREFIX_UNSUPPORTED` | server | 400 | — | `crates/snapback-server/src/server/api_error.rs:166` | 2 |
 | <a id="diagnostic-snapback-graph-index-unprovable"></a>`SNAPBACK_GRAPH_INDEX_UNPROVABLE` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:165` | 4 |
@@ -1887,7 +1887,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-graph-principal-binding-unprovable"></a>`SNAPBACK_GRAPH_PRINCIPAL_BINDING_UNPROVABLE` | server | 400 | — | `crates/snapback-server/src/server/api_error.rs:170` | 2 |
 | <a id="diagnostic-snapback-graph-projection-count-invalid"></a>`SNAPBACK_GRAPH_PROJECTION_COUNT_INVALID` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:156` | 5 |
 | <a id="diagnostic-snapback-graph-projection-open"></a>`SNAPBACK_GRAPH_PROJECTION_OPEN` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:169` | 7 |
-| <a id="diagnostic-snapback-graph-projection-scope-invalid"></a>`SNAPBACK_GRAPH_PROJECTION_SCOPE_INVALID` | codegen | 400 | — | `crates/snapback-engine/src/graph_evaluator.rs:2183` | 6 |
+| <a id="diagnostic-snapback-graph-projection-scope-invalid"></a>`SNAPBACK_GRAPH_PROJECTION_SCOPE_INVALID` | codegen | 400 | — | `crates/snapback-engine/src/graph_evaluator.rs:2241` | 6 |
 | <a id="diagnostic-snapback-graph-qualification-corpus-mismatch"></a>`SNAPBACK_GRAPH_QUALIFICATION_CORPUS_MISMATCH` | server | — | — | `crates/snapback-types/src/manifest/graph.rs:584` | 1 |
 | <a id="diagnostic-snapback-graph-qualification-derivation-missing"></a>`SNAPBACK_GRAPH_QUALIFICATION_DERIVATION_MISSING` | server | — | — | `crates/snapback-types/src/manifest/graph.rs:583` | 1 |
 | <a id="diagnostic-snapback-graph-recursion-forbidden"></a>`SNAPBACK_GRAPH_RECURSION_FORBIDDEN` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:153` | 6 |
@@ -1899,7 +1899,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-graph-through-table-undeclared"></a>`SNAPBACK_GRAPH_THROUGH_TABLE_UNDECLARED` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:163` | 5 |
 | <a id="diagnostic-snapback-graph-unbounded-expansion"></a>`SNAPBACK_GRAPH_UNBOUNDED_EXPANSION` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:162` | 10 |
 | <a id="diagnostic-snapback-graph-unknown-field"></a>`SNAPBACK_GRAPH_UNKNOWN_FIELD` | codegen | 400 | — | `crates/snapback-server/src/server/api_error.rs:158` | 44 |
-| <a id="diagnostic-snapback-graph-window-vector-invalid"></a>`SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID` | codegen | 400 | — | `crates/snapback-engine/src/graph_evaluator.rs:657` | 7 |
+| <a id="diagnostic-snapback-graph-window-vector-invalid"></a>`SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID` | codegen | 400 | — | `crates/snapback-engine/src/graph_evaluator.rs:695` | 7 |
 | <a id="diagnostic-snapback-guard-failed"></a>`SNAPBACK_GUARD_FAILED` | server | — | — | `crates/snapback-types/src/manifest/types.rs:14291` | 3 |
 | <a id="diagnostic-snapback-guide-identity-mismatch"></a>`SNAPBACK_GUIDE_IDENTITY_MISMATCH` | guide | — | — | `packages/snapback-admin-client/index.mjs:343` | 2 |
 | <a id="diagnostic-snapback-guide-identity-missing"></a>`SNAPBACK_GUIDE_IDENTITY_MISSING` | guide | — | — | `packages/snapback-admin-client/index.mjs:331` | 1 |
@@ -2822,10 +2822,10 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-push-session-stale"></a>`SNAPBACK_PUSH_SESSION_STALE` | server | 401 | — | `crates/snapback-kernel/src/push.rs:3064` | 4 |
 | <a id="diagnostic-snapback-push-token-invalid"></a>`SNAPBACK_PUSH_TOKEN_INVALID` | client | 400 | — | `crates/snapback-kernel/src/push.rs:3371` | 6 |
 | <a id="diagnostic-snapback-push-token-scope-collision"></a>`SNAPBACK_PUSH_TOKEN_SCOPE_COLLISION` | server | 409 | — | `crates/snapback-kernel/src/push.rs:3083` | 3 |
-| <a id="diagnostic-snapback-query-cost-bound-exceeded"></a>`SNAPBACK_QUERY_COST_BOUND_EXCEEDED` | queries | — | — | `crates/snapback-engine/src/graph_evaluator.rs:2686` | 5 |
+| <a id="diagnostic-snapback-query-cost-bound-exceeded"></a>`SNAPBACK_QUERY_COST_BOUND_EXCEEDED` | queries | — | — | `crates/snapback-engine/src/graph_evaluator.rs:2745` | 5 |
 | <a id="diagnostic-snapback-query-cost-client-unsupported"></a>`SNAPBACK_QUERY_COST_CLIENT_UNSUPPORTED` | queries | 400 | — | `crates/snapback-server/src/server/api_error.rs:187` | 3 |
-| <a id="diagnostic-snapback-query-cost-evidence-required"></a>`SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED` | queries | — | — | `crates/snapback-engine/src/graph_evaluator.rs:496` | 14 |
-| <a id="diagnostic-snapback-query-cost-index-required"></a>`SNAPBACK_QUERY_COST_INDEX_REQUIRED` | queries | — | — | `crates/snapback-engine/src/graph_evaluator.rs:1665` | 3 |
+| <a id="diagnostic-snapback-query-cost-evidence-required"></a>`SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED` | queries | — | — | `crates/snapback-engine/src/graph_evaluator.rs:534` | 14 |
+| <a id="diagnostic-snapback-query-cost-index-required"></a>`SNAPBACK_QUERY_COST_INDEX_REQUIRED` | queries | — | — | `crates/snapback-engine/src/graph_evaluator.rs:1712` | 3 |
 | <a id="diagnostic-snapback-query-cost-live-turn-refused"></a>`SNAPBACK_QUERY_COST_LIVE_TURN_REFUSED` | queries | — | — | `crates/snapback-types/src/manifest/graph.rs:554` | 2 |
 | <a id="diagnostic-snapback-query-cost-pagination-required"></a>`SNAPBACK_QUERY_COST_PAGINATION_REQUIRED` | queries | — | — | `crates/snapback-types/src/manifest/graph.rs:552` | 2 |
 | <a id="diagnostic-snapback-query-filter-bindings-exceeded"></a>`SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED` | queries | 400 | [guide](../backend/queries.md#builder-bounds-and-their-refusal-codes) | `crates/snapback-engine/src/runtime/host_glue.rs:7155` | 8 |
@@ -3274,7 +3274,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-starter-acceptance-step-timeout"></a>`SNAPBACK_STARTER_ACCEPTANCE_STEP_TIMEOUT` | acceptance | — | — | `packages/snapback-acceptance/index.mjs:766` | 1 |
 | <a id="diagnostic-snapback-storage-field-corrupt"></a>`SNAPBACK_STORAGE_FIELD_CORRUPT` | server | 500 | — | `crates/snapback-kernel/src/storage.rs:21764` | 3 |
 | <a id="diagnostic-snapback-storage-row-id-corrupt"></a>`SNAPBACK_STORAGE_ROW_ID_CORRUPT` | server | 500 | — | `crates/snapback-kernel/src/storage.rs:16478` | 2 |
-| <a id="diagnostic-snapback-storage-version-corrupt"></a>`SNAPBACK_STORAGE_VERSION_CORRUPT` | server | 503 | — | `crates/snapback-engine/src/graph_evaluator.rs:543` | 39 |
+| <a id="diagnostic-snapback-storage-version-corrupt"></a>`SNAPBACK_STORAGE_VERSION_CORRUPT` | server | 503 | — | `crates/snapback-engine/src/graph_evaluator.rs:581` | 39 |
 | <a id="diagnostic-snapback-storage-version-exhausted"></a>`SNAPBACK_STORAGE_VERSION_EXHAUSTED` | server | 503 | [guide](../backend/mutations.md#one-commit-one-version) | `crates/snapback-kernel/src/branches.rs:1410` | 8 |
 | <a id="diagnostic-snapback-store-authority-barrier-incomplete"></a>`SNAPBACK_STORE_AUTHORITY_BARRIER_INCOMPLETE` | storage | — | — | `packages/snapback-client/materialization-store.mjs:1771` | 1 |
 | <a id="diagnostic-snapback-store-authority-barrier-invalid"></a>`SNAPBACK_STORE_AUTHORITY_BARRIER_INVALID` | storage | — | — | `packages/snapback-client/materialization-store.mjs:1751` | 4 |

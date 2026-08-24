@@ -9,7 +9,8 @@
     "comment-add",
     "view-state-write-self",
     "view-state-write-other",
-    "selected-label-membership-change"
+    "selected-label-membership-change",
+    "ledger-multi-row-multi-table"
   ],
   "replays": [
     {
@@ -47,7 +48,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1548,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -64,7 +65,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1635,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -81,7 +82,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1809,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -96,7 +97,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 516,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -114,7 +115,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1037,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -129,7 +130,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -153,7 +154,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -168,7 +169,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -185,7 +186,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 23,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -202,7 +203,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -219,7 +220,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 4,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -236,7 +237,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 6,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -254,7 +255,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 7,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -271,7 +272,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -289,7 +290,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 7,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -304,7 +305,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -345,7 +346,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -362,7 +363,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 4,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -379,7 +380,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 6,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -394,7 +395,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -412,7 +413,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 7,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -427,7 +428,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -468,7 +469,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1548,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -485,7 +486,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1635,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -502,7 +503,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1809,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -517,7 +518,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 516,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -535,7 +536,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1037,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -550,7 +551,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -574,7 +575,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -589,7 +590,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -606,7 +607,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 23,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -623,7 +624,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -640,7 +641,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 4,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -657,7 +658,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 6,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -675,7 +676,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 7,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -692,7 +693,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -710,7 +711,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 7,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -725,7 +726,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -766,7 +767,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -783,7 +784,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 4,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -800,7 +801,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 6,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -815,7 +816,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -833,7 +834,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 7,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -848,7 +849,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -872,7 +873,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 518,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -889,7 +890,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1548,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -923,7 +924,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1809,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -956,7 +957,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1037,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -971,7 +972,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -995,7 +996,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1010,7 +1011,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1027,7 +1028,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 23,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1044,7 +1045,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1078,7 +1079,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 6,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1096,7 +1097,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 7,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1113,7 +1114,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1131,7 +1132,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 7,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1146,7 +1147,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -1170,7 +1171,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1187,7 +1188,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1221,7 +1222,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 6,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1254,7 +1255,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 7,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1269,7 +1270,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -1278,7 +1279,7 @@
     {
       "commit": "label-edge-remove",
       "query": "issueListV2",
-      "overallDisposition": "conservative-fallback",
+      "overallDisposition": "match",
       "nodes": [
         {
           "graphPlanHash": "sha256:5de83ed5e9a19aa6a777cdc48dc83559d9a76e99056baf5aef83602d40ae1662",
@@ -1293,7 +1294,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 518,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1310,7 +1311,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1548,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1328,8 +1329,8 @@
           ],
           "capturedDependencyCount": 1635,
           "changedRowCount": 1,
-          "disposition": "conservative-fallback",
-          "reason": "static-table-intersects"
+          "disposition": "match",
+          "reason": "captured-intersects"
         },
         {
           "graphPlanHash": "sha256:5de83ed5e9a19aa6a777cdc48dc83559d9a76e99056baf5aef83602d40ae1662",
@@ -1344,7 +1345,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1809,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1377,7 +1378,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1037,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1392,7 +1393,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -1401,7 +1402,7 @@
     {
       "commit": "label-edge-remove",
       "query": "issueDetail",
-      "overallDisposition": "conservative-fallback",
+      "overallDisposition": "skip",
       "nodes": [
         {
           "graphPlanHash": "sha256:0467e4ae034de639b2bc913150cc7265d299741d846ce23353fae160f44cccc5",
@@ -1416,7 +1417,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1431,7 +1432,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1448,7 +1449,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 23,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1465,7 +1466,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1483,8 +1484,8 @@
           ],
           "capturedDependencyCount": 4,
           "changedRowCount": 1,
-          "disposition": "conservative-fallback",
-          "reason": "static-table-intersects"
+          "disposition": "skip",
+          "reason": "captured-disjoint"
         },
         {
           "graphPlanHash": "sha256:0467e4ae034de639b2bc913150cc7265d299741d846ce23353fae160f44cccc5",
@@ -1499,7 +1500,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 6,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1517,7 +1518,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 7,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1534,7 +1535,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1552,7 +1553,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 7,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1567,7 +1568,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -1576,7 +1577,7 @@
     {
       "commit": "label-edge-remove",
       "query": "listIssueByID",
-      "overallDisposition": "conservative-fallback",
+      "overallDisposition": "match",
       "nodes": [
         {
           "graphPlanHash": "sha256:27ce1a8e7ecfed993d6d9e8c6dbe544a874770be3363fe8f667862ff49c63c3e",
@@ -1591,7 +1592,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1608,7 +1609,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1626,8 +1627,8 @@
           ],
           "capturedDependencyCount": 4,
           "changedRowCount": 1,
-          "disposition": "conservative-fallback",
-          "reason": "static-table-intersects"
+          "disposition": "skip",
+          "reason": "captured-disjoint"
         },
         {
           "graphPlanHash": "sha256:27ce1a8e7ecfed993d6d9e8c6dbe544a874770be3363fe8f667862ff49c63c3e",
@@ -1642,7 +1643,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 6,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1675,7 +1676,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 7,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1690,7 +1691,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -1714,7 +1715,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 518,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1731,7 +1732,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1548,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1748,7 +1749,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1635,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1765,7 +1766,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1809,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1780,7 +1781,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 516,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1798,7 +1799,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1037,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1813,7 +1814,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -1837,7 +1838,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1852,7 +1853,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1886,7 +1887,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1903,7 +1904,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 4,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1920,7 +1921,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 6,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1938,7 +1939,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 7,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1955,7 +1956,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1973,7 +1974,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 7,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -1988,7 +1989,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -2012,7 +2013,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2029,7 +2030,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2046,7 +2047,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 4,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2063,7 +2064,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 6,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2078,7 +2079,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2096,7 +2097,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 7,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2111,7 +2112,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -2135,7 +2136,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 518,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2152,7 +2153,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1548,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2169,7 +2170,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1635,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2186,7 +2187,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1809,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2201,7 +2202,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 516,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2234,7 +2235,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -2258,7 +2259,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2273,7 +2274,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2290,7 +2291,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 23,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2307,7 +2308,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2324,7 +2325,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 4,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2341,7 +2342,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 6,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2359,7 +2360,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 7,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2376,7 +2377,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2409,7 +2410,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -2433,7 +2434,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2450,7 +2451,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2467,7 +2468,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 4,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2484,7 +2485,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 6,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2499,7 +2500,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2532,7 +2533,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -2556,7 +2557,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 518,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2573,7 +2574,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1548,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2590,7 +2591,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1635,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2607,7 +2608,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1809,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2622,7 +2623,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 516,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2655,7 +2656,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -2679,7 +2680,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2694,7 +2695,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2711,7 +2712,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 23,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2728,7 +2729,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2745,7 +2746,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 4,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2762,7 +2763,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 6,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2780,7 +2781,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 7,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2797,7 +2798,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2830,7 +2831,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -2854,7 +2855,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2871,7 +2872,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2888,7 +2889,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 4,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2905,7 +2906,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 6,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2920,7 +2921,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2953,7 +2954,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -2977,7 +2978,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 518,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -2994,7 +2995,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1548,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -3028,7 +3029,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1809,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -3061,7 +3062,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1037,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -3076,7 +3077,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -3100,7 +3101,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -3115,7 +3116,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -3132,7 +3133,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 23,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -3149,7 +3150,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -3183,7 +3184,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 6,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -3201,7 +3202,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 7,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -3218,7 +3219,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -3236,7 +3237,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 7,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -3251,7 +3252,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -3275,7 +3276,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -3292,7 +3293,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 3,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -3326,7 +3327,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 6,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "captured-disjoint"
         },
@@ -3359,6 +3360,427 @@
             "graphNode"
           ],
           "capturedDependencyCount": 7,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:27ce1a8e7ecfed993d6d9e8c6dbe544a874770be3363fe8f667862ff49c63c3e",
+          "instanceHash": "sha256:15ae3ef92abc6493b999bed5dcde46e50bd61e0e204491b2383e32583dbe61e5",
+          "nodeId": "n6",
+          "nodeKind": "closed-projection",
+          "authorityClass": 3,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "projection-only"
+        }
+      ]
+    },
+    {
+      "commit": "ledger-multi-row-multi-table",
+      "query": "issueListV2",
+      "overallDisposition": "match",
+      "nodes": [
+        {
+          "graphPlanHash": "sha256:5de83ed5e9a19aa6a777cdc48dc83559d9a76e99056baf5aef83602d40ae1662",
+          "instanceHash": "sha256:f4d0796120e6b319e65e544003ab17e3d641081801ec3d36e792e0d3e5ca6418",
+          "nodeId": "n0",
+          "nodeKind": "root-window",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 518,
+          "changedRowCount": 2,
+          "disposition": "match",
+          "reason": "captured-intersects"
+        },
+        {
+          "graphPlanHash": "sha256:5de83ed5e9a19aa6a777cdc48dc83559d9a76e99056baf5aef83602d40ae1662",
+          "instanceHash": "sha256:f4d0796120e6b319e65e544003ab17e3d641081801ec3d36e792e0d3e5ca6418",
+          "nodeId": "n1",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1548,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5de83ed5e9a19aa6a777cdc48dc83559d9a76e99056baf5aef83602d40ae1662",
+          "instanceHash": "sha256:f4d0796120e6b319e65e544003ab17e3d641081801ec3d36e792e0d3e5ca6418",
+          "nodeId": "n2",
+          "nodeKind": "bounded-to-many",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1635,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5de83ed5e9a19aa6a777cdc48dc83559d9a76e99056baf5aef83602d40ae1662",
+          "instanceHash": "sha256:f4d0796120e6b319e65e544003ab17e3d641081801ec3d36e792e0d3e5ca6418",
+          "nodeId": "n3",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1809,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5de83ed5e9a19aa6a777cdc48dc83559d9a76e99056baf5aef83602d40ae1662",
+          "instanceHash": "sha256:f4d0796120e6b319e65e544003ab17e3d641081801ec3d36e792e0d3e5ca6418",
+          "nodeId": "n4",
+          "nodeKind": "exists-semi-join",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "graphNode"
+          ],
+          "capturedDependencyCount": 516,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5de83ed5e9a19aa6a777cdc48dc83559d9a76e99056baf5aef83602d40ae1662",
+          "instanceHash": "sha256:f4d0796120e6b319e65e544003ab17e3d641081801ec3d36e792e0d3e5ca6418",
+          "nodeId": "n5",
+          "nodeKind": "principal-bound",
+          "authorityClass": 3,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "auth",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1037,
+          "changedRowCount": 1,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:5de83ed5e9a19aa6a777cdc48dc83559d9a76e99056baf5aef83602d40ae1662",
+          "instanceHash": "sha256:f4d0796120e6b319e65e544003ab17e3d641081801ec3d36e792e0d3e5ca6418",
+          "nodeId": "n6",
+          "nodeKind": "closed-projection",
+          "authorityClass": 3,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "projection-only"
+        }
+      ]
+    },
+    {
+      "commit": "ledger-multi-row-multi-table",
+      "query": "issueDetail",
+      "overallDisposition": "match",
+      "nodes": [
+        {
+          "graphPlanHash": "sha256:0467e4ae034de639b2bc913150cc7265d299741d846ce23353fae160f44cccc5",
+          "instanceHash": "sha256:54ad56866bf746f09a94fc7d634df23516e4bce32246fb55bfb2c663295086bc",
+          "nodeId": "n0",
+          "nodeKind": "root-window",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 3,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:0467e4ae034de639b2bc913150cc7265d299741d846ce23353fae160f44cccc5",
+          "instanceHash": "sha256:54ad56866bf746f09a94fc7d634df23516e4bce32246fb55bfb2c663295086bc",
+          "nodeId": "n1",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:0467e4ae034de639b2bc913150cc7265d299741d846ce23353fae160f44cccc5",
+          "instanceHash": "sha256:54ad56866bf746f09a94fc7d634df23516e4bce32246fb55bfb2c663295086bc",
+          "nodeId": "n2",
+          "nodeKind": "bounded-to-many",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 23,
+          "changedRowCount": 1,
+          "disposition": "match",
+          "reason": "captured-intersects"
+        },
+        {
+          "graphPlanHash": "sha256:0467e4ae034de639b2bc913150cc7265d299741d846ce23353fae160f44cccc5",
+          "instanceHash": "sha256:54ad56866bf746f09a94fc7d634df23516e4bce32246fb55bfb2c663295086bc",
+          "nodeId": "n3",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 3,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:0467e4ae034de639b2bc913150cc7265d299741d846ce23353fae160f44cccc5",
+          "instanceHash": "sha256:54ad56866bf746f09a94fc7d634df23516e4bce32246fb55bfb2c663295086bc",
+          "nodeId": "n4",
+          "nodeKind": "bounded-to-many",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 4,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:0467e4ae034de639b2bc913150cc7265d299741d846ce23353fae160f44cccc5",
+          "instanceHash": "sha256:54ad56866bf746f09a94fc7d634df23516e4bce32246fb55bfb2c663295086bc",
+          "nodeId": "n5",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 6,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:0467e4ae034de639b2bc913150cc7265d299741d846ce23353fae160f44cccc5",
+          "instanceHash": "sha256:54ad56866bf746f09a94fc7d634df23516e4bce32246fb55bfb2c663295086bc",
+          "nodeId": "n6",
+          "nodeKind": "principal-bound",
+          "authorityClass": 3,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "auth",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 7,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:0467e4ae034de639b2bc913150cc7265d299741d846ce23353fae160f44cccc5",
+          "instanceHash": "sha256:54ad56866bf746f09a94fc7d634df23516e4bce32246fb55bfb2c663295086bc",
+          "nodeId": "n7",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 3,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:0467e4ae034de639b2bc913150cc7265d299741d846ce23353fae160f44cccc5",
+          "instanceHash": "sha256:54ad56866bf746f09a94fc7d634df23516e4bce32246fb55bfb2c663295086bc",
+          "nodeId": "n8",
+          "nodeKind": "principal-bound",
+          "authorityClass": 3,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "auth",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 7,
+          "changedRowCount": 1,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:0467e4ae034de639b2bc913150cc7265d299741d846ce23353fae160f44cccc5",
+          "instanceHash": "sha256:54ad56866bf746f09a94fc7d634df23516e4bce32246fb55bfb2c663295086bc",
+          "nodeId": "n9",
+          "nodeKind": "closed-projection",
+          "authorityClass": 3,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "projection-only"
+        }
+      ]
+    },
+    {
+      "commit": "ledger-multi-row-multi-table",
+      "query": "listIssueByID",
+      "overallDisposition": "skip",
+      "nodes": [
+        {
+          "graphPlanHash": "sha256:27ce1a8e7ecfed993d6d9e8c6dbe544a874770be3363fe8f667862ff49c63c3e",
+          "instanceHash": "sha256:15ae3ef92abc6493b999bed5dcde46e50bd61e0e204491b2383e32583dbe61e5",
+          "nodeId": "n0",
+          "nodeKind": "root-window",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 3,
+          "changedRowCount": 2,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:27ce1a8e7ecfed993d6d9e8c6dbe544a874770be3363fe8f667862ff49c63c3e",
+          "instanceHash": "sha256:15ae3ef92abc6493b999bed5dcde46e50bd61e0e204491b2383e32583dbe61e5",
+          "nodeId": "n1",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 3,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:27ce1a8e7ecfed993d6d9e8c6dbe544a874770be3363fe8f667862ff49c63c3e",
+          "instanceHash": "sha256:15ae3ef92abc6493b999bed5dcde46e50bd61e0e204491b2383e32583dbe61e5",
+          "nodeId": "n2",
+          "nodeKind": "bounded-to-many",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 4,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:27ce1a8e7ecfed993d6d9e8c6dbe544a874770be3363fe8f667862ff49c63c3e",
+          "instanceHash": "sha256:15ae3ef92abc6493b999bed5dcde46e50bd61e0e204491b2383e32583dbe61e5",
+          "nodeId": "n3",
+          "nodeKind": "equality-to-one",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 6,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:27ce1a8e7ecfed993d6d9e8c6dbe544a874770be3363fe8f667862ff49c63c3e",
+          "instanceHash": "sha256:15ae3ef92abc6493b999bed5dcde46e50bd61e0e204491b2383e32583dbe61e5",
+          "nodeId": "n4",
+          "nodeKind": "exists-semi-join",
+          "authorityClass": 2,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "graphNode"
+          ],
+          "capturedDependencyCount": 1,
+          "changedRowCount": 0,
+          "disposition": "skip",
+          "reason": "captured-disjoint"
+        },
+        {
+          "graphPlanHash": "sha256:27ce1a8e7ecfed993d6d9e8c6dbe544a874770be3363fe8f667862ff49c63c3e",
+          "instanceHash": "sha256:15ae3ef92abc6493b999bed5dcde46e50bd61e0e204491b2383e32583dbe61e5",
+          "nodeId": "n5",
+          "nodeKind": "principal-bound",
+          "authorityClass": 3,
+          "captureComplete": true,
+          "dependencyKinds": [
+            "row",
+            "query",
+            "auth",
+            "graphNode"
+          ],
+          "capturedDependencyCount": 7,
           "changedRowCount": 1,
           "disposition": "skip",
           "reason": "captured-disjoint"
@@ -3374,7 +3796,7 @@
             "graphNode"
           ],
           "capturedDependencyCount": 1,
-          "changedRowCount": 1,
+          "changedRowCount": 0,
           "disposition": "skip",
           "reason": "projection-only"
         }
@@ -3384,31 +3806,31 @@
   "summary": [
     {
       "nodeKind": "root-window",
-      "skip": 23,
-      "match": 1,
+      "skip": 25,
+      "match": 2,
       "conservativeFallback": 0
     },
     {
       "nodeKind": "equality-to-one",
-      "skip": 64,
+      "skip": 72,
       "match": 0,
       "conservativeFallback": 0
     },
     {
       "nodeKind": "bounded-to-many",
-      "skip": 26,
-      "match": 3,
-      "conservativeFallback": 3
+      "skip": 31,
+      "match": 5,
+      "conservativeFallback": 0
     },
     {
       "nodeKind": "exists-semi-join",
-      "skip": 10,
+      "skip": 12,
       "match": 6,
       "conservativeFallback": 0
     },
     {
       "nodeKind": "principal-bound",
-      "skip": 29,
+      "skip": 33,
       "match": 3,
       "conservativeFallback": 0
     },
@@ -3420,10 +3842,10 @@
     },
     {
       "nodeKind": "closed-projection",
-      "skip": 24,
+      "skip": 27,
       "match": 0,
       "conservativeFallback": 0
     }
   ],
-  "contentDigest": "sha256:ad94433463f453cc54981ba13732ecebeda9c26fad7eaf88218582bc92e0c056"
+  "contentDigest": "sha256:8f6fe55a1147ed112360738f6369e8fdcceaafa1211e25a3165faef55fa26294"
 }
