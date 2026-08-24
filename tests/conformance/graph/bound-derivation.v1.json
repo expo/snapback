@@ -1,0 +1,1019 @@
+{
+  "format": "snapback.graph-bound-derivation.v1",
+  "derivedAt": "2026-08-23",
+  "fixtures": {
+    "normal": {
+      "users": 14,
+      "issues": 516,
+      "comments": 924,
+      "labels": 30,
+      "issueLabelEdges": 603,
+      "maxCommentsPerIssue": 21,
+      "maxLabelsPerIssue": 5
+    },
+    "large": {
+      "users": 100,
+      "projects": 100,
+      "issues": 1000000,
+      "comments": 2527886,
+      "labels": 4810,
+      "issueLabelEdges": 2000370,
+      "receiptDigest": "sha256:d9dfd4fde488a388502773f569e829746f66826ae0f9f47263d36eef7d625a8a"
+    },
+    "source": {
+      "normalPolicyExtensionExcluded": "stable source ids beginning zbav1_",
+      "receiptShape": [
+        "comment",
+        "issue",
+        "issueLabel",
+        "label",
+        "project",
+        "total",
+        "user"
+      ],
+      "largeCsvAvailable": false
+    }
+  },
+  "oracleMeasurements": {
+    "issueListV2": {
+      "normalResultBytes": 517010,
+      "maxBytes": 517010,
+      "oracleDigest": "sha256:ebbb09fcf00829c123668cb17f6ef4b85c463140a72aa284796bf9ef27920d57"
+    },
+    "issueDetail": {
+      "normalResultBytes": 26549,
+      "maxBytes": 26549,
+      "oracleDigest": "sha256:7bb0b07afc67af3b26612714f3a60a7127129efc58941a242331c643f81671ee"
+    },
+    "listIssueByID": {
+      "normalResultBytes": 6806,
+      "maxBytes": 6806,
+      "oracleDigest": "sha256:6e4f672f309fb6d8d8c98e8317a6aee3908c08dc1d0ce8471b9a23766abe910f"
+    }
+  },
+  "queries": {
+    "issueListV2": {
+      "declarationPlanHash": "sha256:f68ed2a39be4b5e705470c1f89f94bbc6a1028b2f3bdc94154eebb66fdd07383",
+      "logical": {
+        "maxResultRows": {
+          "value": 1024,
+          "derivation": "max observed normal page 516 and hot demand 1,000; H=1.024 over hot => portable page boundary 1,024"
+        },
+        "maxResultBytes": {
+          "value": 33554432,
+          "derivation": "normal serialized-oracle maximum 517010 bytes × H=33554432/517010 => 33554432; headroom covers the declared root/child fanout and fixture text skew"
+        },
+        "maxArgumentItems": {
+          "value": 17,
+          "derivation": "one bounded scalar plus max 16 selected label ids"
+        },
+        "maxPageResultBytes": {
+          "value": 33554432,
+          "derivation": "same conservative per-result byte ceiling; one root page is one result frame"
+        },
+        "maxMaintainedWritesPerMutation": {
+          "value": 0,
+          "derivation": "G0 declares no graph maintenance or write path"
+        }
+      },
+      "physical": {
+        "observationPosture": "[G2 measures]",
+        "maxScannedRows": {
+          "value": 54273,
+          "derivation": "Σ analytical node examined-entry formulas = 54273; no graph executor observation"
+        },
+        "maxIndexRanges": {
+          "value": 36865,
+          "derivation": "Σ analytical access-path consultations = 36865; no graph executor observation"
+        },
+        "nodeLedger": [
+          {
+            "maxExaminedEntriesPerExecution": 1025,
+            "maxRootRowsPerPage": 1024,
+            "maxWindowIndexRanges": 36017105,
+            "maxWindowPages": 977,
+            "maxWindowResultBytes": 32782680064,
+            "maxWindowResultRows": 1000448,
+            "maxWindowRootRows": 1000448,
+            "maxWindowScannedRows": 53024721,
+            "nodeId": "n0",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present"
+          },
+          {
+            "maxExaminedEntriesPerExecution": 1024,
+            "maxRelationshipLookupsPerExecution": 1024,
+            "nodeId": "n1",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present"
+          },
+          {
+            "maxChildrenPerParent": 16,
+            "maxExaminedEntriesPerExecution": 17408,
+            "maxRelationshipLookupsPerExecution": 1024,
+            "nodeId": "n2",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present"
+          },
+          {
+            "maxExaminedEntriesPerExecution": 16384,
+            "maxRelationshipLookupsPerExecution": 16384,
+            "nodeId": "n3",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present"
+          },
+          {
+            "maxArgumentExpansion": 16,
+            "maxChildrenPerParent": 1,
+            "maxExaminedEntriesPerExecution": 16384,
+            "maxRelationshipLookupsPerExecution": 16384,
+            "nodeId": "n4",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present"
+          },
+          {
+            "maxExaminedEntriesPerExecution": 2048,
+            "maxRelationshipLookupsPerExecution": 2048,
+            "nodeId": "n5",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present"
+          }
+        ],
+        "windowRollup": {
+          "maxWindowIndexRanges": 36017105,
+          "maxWindowPages": 977,
+          "maxWindowResultBytes": 32782680064,
+          "maxWindowResultRows": 1000448,
+          "maxWindowRootRows": 1000448,
+          "maxWindowScannedRows": 53024721,
+          "derivation": "sum of each demand-paged node lineage: pages × induced-subtree scanned rows/ranges; result bytes conservatively charged per lineage"
+        }
+      },
+      "derivationTable": {
+        "queryCost": {
+          "maxScannedRows": {
+            "value": 54273,
+            "derivation": "checked sum of every node maxExaminedEntriesPerExecution [G2 measures]"
+          },
+          "maxIndexRanges": {
+            "value": 36865,
+            "derivation": "checked sum of every point/range/principal consultation [G2 measures]"
+          },
+          "maxResultRows": {
+            "value": 1024,
+            "derivation": "one declared page at the 1,024 hot-root boundary"
+          },
+          "maxResultBytes": {
+            "value": 33554432,
+            "derivation": "normal oracle maximum 517010 bytes × exact rational H=33554432/517010"
+          },
+          "maxEvaluationTurnMs": {
+            "value": 1000,
+            "derivation": "conservative G0 operational guardrail maxEvaluationTurnMs=1000; not a graph-executor observation"
+          },
+          "maxObservers": {
+            "value": 1024,
+            "derivation": "conservative G0 operational guardrail maxObservers=1024; not a graph-executor observation"
+          },
+          "maxDistinctEvaluationGroups": {
+            "value": 1024,
+            "derivation": "conservative G0 operational guardrail maxDistinctEvaluationGroups=1024; not a graph-executor observation"
+          },
+          "maxEstimatedLiveFanoutMs": {
+            "value": 5000,
+            "derivation": "conservative G0 operational guardrail maxEstimatedLiveFanoutMs=5000; not a graph-executor observation"
+          }
+        },
+        "graph": {
+          "nodes": [
+            {
+              "nodeId": "n0",
+              "fields": {
+                "maxExaminedEntriesPerExecution": {
+                  "value": 1025,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges"
+                },
+                "maxRootRowsPerPage": {
+                  "value": 1024,
+                  "derivation": "hot-recent-v1 requests 1,000 roots; retain the portable 1,024 boundary (H=1.024)"
+                },
+                "maxWindowIndexRanges": {
+                  "value": 36017105,
+                  "derivation": "analytical [G2 measures]: maxWindowPages × induced-subtree access-path consultations"
+                },
+                "maxWindowPages": {
+                  "value": 977,
+                  "derivation": "ceil(large fixture maximum 1,000,000 root rows / 1,024 rows per page) = 977"
+                },
+                "maxWindowResultBytes": {
+                  "value": 32782680064,
+                  "derivation": "maxWindowPages × declared maxPageResultBytes; conservative whole-result recharge per lineage"
+                },
+                "maxWindowResultRows": {
+                  "value": 1000448,
+                  "derivation": "maxWindowPages × whole-result top-level row ceiling (one for point/child lineage)"
+                },
+                "maxWindowRootRows": {
+                  "value": 1000448,
+                  "derivation": "maxWindowPages × maxRootRowsPerPage for the root; child lineage is exactly zero"
+                },
+                "maxWindowScannedRows": {
+                  "value": 53024721,
+                  "derivation": "analytical [G2 measures]: maxWindowPages × induced-subtree per-page examined entries"
+                }
+              }
+            },
+            {
+              "nodeId": "n1",
+              "fields": {
+                "maxExaminedEntriesPerExecution": {
+                  "value": 1024,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges"
+                },
+                "maxRelationshipLookupsPerExecution": {
+                  "value": 1024,
+                  "derivation": "analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations"
+                }
+              }
+            },
+            {
+              "nodeId": "n2",
+              "fields": {
+                "maxChildrenPerParent": {
+                  "value": 16,
+                  "derivation": "max(normal label edges per issue 5, documented large generator label maximum 3) × H=3.2 => 16"
+                },
+                "maxExaminedEntriesPerExecution": {
+                  "value": 17408,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges"
+                },
+                "maxRelationshipLookupsPerExecution": {
+                  "value": 1024,
+                  "derivation": "analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations"
+                }
+              }
+            },
+            {
+              "nodeId": "n3",
+              "fields": {
+                "maxExaminedEntriesPerExecution": {
+                  "value": 16384,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges"
+                },
+                "maxRelationshipLookupsPerExecution": {
+                  "value": 16384,
+                  "derivation": "analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations"
+                }
+              }
+            },
+            {
+              "nodeId": "n4",
+              "fields": {
+                "maxArgumentExpansion": {
+                  "value": 16,
+                  "derivation": "maximum selected-label collection length 16 × H=1"
+                },
+                "maxChildrenPerParent": {
+                  "value": 1,
+                  "derivation": "closed declaration value 1, derived from the normalized plan and fixture maxima"
+                },
+                "maxExaminedEntriesPerExecution": {
+                  "value": 16384,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges"
+                },
+                "maxRelationshipLookupsPerExecution": {
+                  "value": 16384,
+                  "derivation": "analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations"
+                }
+              }
+            },
+            {
+              "nodeId": "n5",
+              "fields": {
+                "maxExaminedEntriesPerExecution": {
+                  "value": 2048,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges"
+                },
+                "maxRelationshipLookupsPerExecution": {
+                  "value": 2048,
+                  "derivation": "analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations"
+                }
+              }
+            }
+          ],
+          "arguments": [
+            {
+              "argumentId": "a1",
+              "fields": {
+                "maxItems": {
+                  "value": 16,
+                  "derivation": "maximum selected-label collection cardinality 16 × H=1, within the authored contract"
+                }
+              }
+            }
+          ],
+          "maxArgumentItems": {
+            "value": 17,
+            "derivation": "one scalar plus 16 selected-label items × H=1"
+          },
+          "maxPageResultBytes": {
+            "value": 33554432,
+            "derivation": "normal oracle maximum 517010 bytes × exact rational H=33554432/517010"
+          },
+          "windowRollup": {
+            "maxWindowIndexRanges": {
+              "value": 36017105,
+              "derivation": "checked sum of demand-lineage maxWindowIndexRanges values = 36017105 [G2 measures]"
+            },
+            "maxWindowPages": {
+              "value": 977,
+              "derivation": "checked sum of demand-lineage maxWindowPages values = 977"
+            },
+            "maxWindowResultBytes": {
+              "value": 32782680064,
+              "derivation": "checked sum of demand-lineage maxWindowResultBytes values = 32782680064"
+            },
+            "maxWindowResultRows": {
+              "value": 1000448,
+              "derivation": "checked sum of demand-lineage maxWindowResultRows values = 1000448"
+            },
+            "maxWindowRootRows": {
+              "value": 1000448,
+              "derivation": "checked sum of demand-lineage maxWindowRootRows values = 1000448"
+            },
+            "maxWindowScannedRows": {
+              "value": 53024721,
+              "derivation": "checked sum of demand-lineage maxWindowScannedRows values = 53024721 [G2 measures]"
+            }
+          },
+          "maxMaintainedWritesPerMutation": {
+            "value": 0,
+            "derivation": "G0 owns no graph-maintained writes; exact declaration and observation are zero"
+          }
+        }
+      }
+    },
+    "issueDetail": {
+      "declarationPlanHash": "sha256:3d3e9b7b184094c848fb903503d4f9c15f19263a185ab2cbcea018636472fc43",
+      "logical": {
+        "maxResultRows": {
+          "value": 1,
+          "derivation": "point/detail root maximum 1 × H=1"
+        },
+        "maxResultBytes": {
+          "value": 8388608,
+          "derivation": "normal serialized-oracle maximum 26549 bytes × H=8388608/26549 => 8388608; headroom covers the declared root/child fanout and fixture text skew"
+        },
+        "maxArgumentItems": {
+          "value": 1,
+          "derivation": "one bounded scalar source issue id"
+        },
+        "maxPageResultBytes": {
+          "value": 8388608,
+          "derivation": "same conservative per-result byte ceiling; one root page is one result frame"
+        },
+        "maxMaintainedWritesPerMutation": {
+          "value": 0,
+          "derivation": "G0 declares no graph maintenance or write path"
+        }
+      },
+      "physical": {
+        "observationPosture": "[G2 measures]",
+        "maxScannedRows": {
+          "value": 1067,
+          "derivation": "Σ analytical node examined-entry formulas = 1067; no graph executor observation"
+        },
+        "maxIndexRanges": {
+          "value": 26,
+          "derivation": "Σ analytical access-path consultations = 26; no graph executor observation"
+        },
+        "nodeLedger": [
+          {
+            "maxExaminedEntriesPerExecution": 2,
+            "maxRootRowsPerPage": 1,
+            "maxWindowIndexRanges": 26,
+            "maxWindowPages": 1,
+            "maxWindowResultBytes": 8388608,
+            "maxWindowResultRows": 1,
+            "maxWindowRootRows": 1,
+            "maxWindowScannedRows": 1067,
+            "nodeId": "n0",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present"
+          },
+          {
+            "maxExaminedEntriesPerExecution": 1,
+            "maxRelationshipLookupsPerExecution": 1,
+            "nodeId": "n1",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present"
+          },
+          {
+            "maxChildrenPerParent": 1024,
+            "maxExaminedEntriesPerExecution": 1025,
+            "maxRelationshipLookupsPerExecution": 1,
+            "maxWindowIndexRanges": 21,
+            "maxWindowPages": 21,
+            "maxWindowResultBytes": 176160768,
+            "maxWindowResultRows": 21,
+            "maxWindowRootRows": 0,
+            "maxWindowScannedRows": 21525,
+            "nodeId": "n2",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present"
+          },
+          {
+            "maxExaminedEntriesPerExecution": 1,
+            "maxRelationshipLookupsPerExecution": 1,
+            "nodeId": "n3",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present"
+          },
+          {
+            "maxChildrenPerParent": 16,
+            "maxExaminedEntriesPerExecution": 17,
+            "maxRelationshipLookupsPerExecution": 1,
+            "nodeId": "n4",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present"
+          },
+          {
+            "maxExaminedEntriesPerExecution": 16,
+            "maxRelationshipLookupsPerExecution": 16,
+            "nodeId": "n5",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present"
+          },
+          {
+            "maxExaminedEntriesPerExecution": 2,
+            "maxRelationshipLookupsPerExecution": 2,
+            "nodeId": "n6",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present"
+          },
+          {
+            "maxExaminedEntriesPerExecution": 1,
+            "maxRelationshipLookupsPerExecution": 1,
+            "nodeId": "n7",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present"
+          },
+          {
+            "maxExaminedEntriesPerExecution": 2,
+            "maxRelationshipLookupsPerExecution": 2,
+            "nodeId": "n8",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present"
+          }
+        ],
+        "windowRollup": {
+          "maxWindowIndexRanges": 47,
+          "maxWindowPages": 22,
+          "maxWindowResultBytes": 184549376,
+          "maxWindowResultRows": 22,
+          "maxWindowRootRows": 1,
+          "maxWindowScannedRows": 22592,
+          "derivation": "sum of each demand-paged node lineage: pages × induced-subtree scanned rows/ranges; result bytes conservatively charged per lineage"
+        }
+      },
+      "derivationTable": {
+        "queryCost": {
+          "maxScannedRows": {
+            "value": 1067,
+            "derivation": "checked sum of every node maxExaminedEntriesPerExecution [G2 measures]"
+          },
+          "maxIndexRanges": {
+            "value": 26,
+            "derivation": "checked sum of every point/range/principal consultation [G2 measures]"
+          },
+          "maxResultRows": {
+            "value": 1,
+            "derivation": "one point/detail root"
+          },
+          "maxResultBytes": {
+            "value": 8388608,
+            "derivation": "normal oracle maximum 26549 bytes × exact rational H=8388608/26549"
+          },
+          "maxEvaluationTurnMs": {
+            "value": 1000,
+            "derivation": "conservative G0 operational guardrail maxEvaluationTurnMs=1000; not a graph-executor observation"
+          },
+          "maxObservers": {
+            "value": 1024,
+            "derivation": "conservative G0 operational guardrail maxObservers=1024; not a graph-executor observation"
+          },
+          "maxDistinctEvaluationGroups": {
+            "value": 1024,
+            "derivation": "conservative G0 operational guardrail maxDistinctEvaluationGroups=1024; not a graph-executor observation"
+          },
+          "maxEstimatedLiveFanoutMs": {
+            "value": 5000,
+            "derivation": "conservative G0 operational guardrail maxEstimatedLiveFanoutMs=5000; not a graph-executor observation"
+          }
+        },
+        "graph": {
+          "nodes": [
+            {
+              "nodeId": "n0",
+              "fields": {
+                "maxExaminedEntriesPerExecution": {
+                  "value": 2,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges"
+                },
+                "maxRootRowsPerPage": {
+                  "value": 1,
+                  "derivation": "point/detail source-id lookup emits at most one root row; H=1"
+                },
+                "maxWindowIndexRanges": {
+                  "value": 26,
+                  "derivation": "analytical [G2 measures]: maxWindowPages × induced-subtree access-path consultations"
+                },
+                "maxWindowPages": {
+                  "value": 1,
+                  "derivation": "one exhaustive point/root interval at the declared page size"
+                },
+                "maxWindowResultBytes": {
+                  "value": 8388608,
+                  "derivation": "maxWindowPages × declared maxPageResultBytes; conservative whole-result recharge per lineage"
+                },
+                "maxWindowResultRows": {
+                  "value": 1,
+                  "derivation": "maxWindowPages × whole-result top-level row ceiling (one for point/child lineage)"
+                },
+                "maxWindowRootRows": {
+                  "value": 1,
+                  "derivation": "maxWindowPages × maxRootRowsPerPage for the root; child lineage is exactly zero"
+                },
+                "maxWindowScannedRows": {
+                  "value": 1067,
+                  "derivation": "analytical [G2 measures]: maxWindowPages × induced-subtree per-page examined entries"
+                }
+              }
+            },
+            {
+              "nodeId": "n1",
+              "fields": {
+                "maxExaminedEntriesPerExecution": {
+                  "value": 1,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges"
+                },
+                "maxRelationshipLookupsPerExecution": {
+                  "value": 1,
+                  "derivation": "analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations"
+                }
+              }
+            },
+            {
+              "nodeId": "n2",
+              "fields": {
+                "maxChildrenPerParent": {
+                  "value": 1024,
+                  "derivation": "observed normal maximum comments per issue 21 × H=48.761904… => 1,024; the large generator is floored-exponential and its exact CSV maximum is deferred to the zb5 rerun, so no mean substitutes for a maximum"
+                },
+                "maxExaminedEntriesPerExecution": {
+                  "value": 1025,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges"
+                },
+                "maxRelationshipLookupsPerExecution": {
+                  "value": 1,
+                  "derivation": "analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations"
+                },
+                "maxWindowIndexRanges": {
+                  "value": 21,
+                  "derivation": "analytical [G2 measures]: maxWindowPages × induced-subtree access-path consultations"
+                },
+                "maxWindowPages": {
+                  "value": 21,
+                  "derivation": "ceil(declared 1,024-comment parent cap / corpus demand take 50) = 21"
+                },
+                "maxWindowResultBytes": {
+                  "value": 176160768,
+                  "derivation": "maxWindowPages × declared maxPageResultBytes; conservative whole-result recharge per lineage"
+                },
+                "maxWindowResultRows": {
+                  "value": 21,
+                  "derivation": "maxWindowPages × whole-result top-level row ceiling (one for point/child lineage)"
+                },
+                "maxWindowRootRows": {
+                  "value": 0,
+                  "derivation": "maxWindowPages × maxRootRowsPerPage for the root; child lineage is exactly zero"
+                },
+                "maxWindowScannedRows": {
+                  "value": 21525,
+                  "derivation": "analytical [G2 measures]: maxWindowPages × induced-subtree per-page examined entries"
+                }
+              }
+            },
+            {
+              "nodeId": "n3",
+              "fields": {
+                "maxExaminedEntriesPerExecution": {
+                  "value": 1,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges"
+                },
+                "maxRelationshipLookupsPerExecution": {
+                  "value": 1,
+                  "derivation": "analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations"
+                }
+              }
+            },
+            {
+              "nodeId": "n4",
+              "fields": {
+                "maxChildrenPerParent": {
+                  "value": 16,
+                  "derivation": "max(normal label edges per issue 5, documented large generator label maximum 3) × H=3.2 => 16"
+                },
+                "maxExaminedEntriesPerExecution": {
+                  "value": 17,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges"
+                },
+                "maxRelationshipLookupsPerExecution": {
+                  "value": 1,
+                  "derivation": "analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations"
+                }
+              }
+            },
+            {
+              "nodeId": "n5",
+              "fields": {
+                "maxExaminedEntriesPerExecution": {
+                  "value": 16,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges"
+                },
+                "maxRelationshipLookupsPerExecution": {
+                  "value": 16,
+                  "derivation": "analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations"
+                }
+              }
+            },
+            {
+              "nodeId": "n6",
+              "fields": {
+                "maxExaminedEntriesPerExecution": {
+                  "value": 2,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges"
+                },
+                "maxRelationshipLookupsPerExecution": {
+                  "value": 2,
+                  "derivation": "analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations"
+                }
+              }
+            },
+            {
+              "nodeId": "n7",
+              "fields": {
+                "maxExaminedEntriesPerExecution": {
+                  "value": 1,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges"
+                },
+                "maxRelationshipLookupsPerExecution": {
+                  "value": 1,
+                  "derivation": "analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations"
+                }
+              }
+            },
+            {
+              "nodeId": "n8",
+              "fields": {
+                "maxExaminedEntriesPerExecution": {
+                  "value": 2,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges"
+                },
+                "maxRelationshipLookupsPerExecution": {
+                  "value": 2,
+                  "derivation": "analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations"
+                }
+              }
+            }
+          ],
+          "arguments": [],
+          "maxArgumentItems": {
+            "value": 1,
+            "derivation": "one scalar argument × H=1"
+          },
+          "maxPageResultBytes": {
+            "value": 8388608,
+            "derivation": "normal oracle maximum 26549 bytes × exact rational H=8388608/26549"
+          },
+          "windowRollup": {
+            "maxWindowIndexRanges": {
+              "value": 47,
+              "derivation": "checked sum of demand-lineage maxWindowIndexRanges values = 47 [G2 measures]"
+            },
+            "maxWindowPages": {
+              "value": 22,
+              "derivation": "checked sum of demand-lineage maxWindowPages values = 22"
+            },
+            "maxWindowResultBytes": {
+              "value": 184549376,
+              "derivation": "checked sum of demand-lineage maxWindowResultBytes values = 184549376"
+            },
+            "maxWindowResultRows": {
+              "value": 22,
+              "derivation": "checked sum of demand-lineage maxWindowResultRows values = 22"
+            },
+            "maxWindowRootRows": {
+              "value": 1,
+              "derivation": "checked sum of demand-lineage maxWindowRootRows values = 1"
+            },
+            "maxWindowScannedRows": {
+              "value": 22592,
+              "derivation": "checked sum of demand-lineage maxWindowScannedRows values = 22592 [G2 measures]"
+            }
+          },
+          "maxMaintainedWritesPerMutation": {
+            "value": 0,
+            "derivation": "G0 owns no graph-maintained writes; exact declaration and observation are zero"
+          }
+        }
+      }
+    },
+    "listIssueByID": {
+      "declarationPlanHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97",
+      "logical": {
+        "maxResultRows": {
+          "value": 1,
+          "derivation": "point/detail root maximum 1 × H=1"
+        },
+        "maxResultBytes": {
+          "value": 1048576,
+          "derivation": "normal serialized-oracle maximum 6806 bytes × H=1048576/6806 => 1048576; headroom covers the declared root/child fanout and fixture text skew"
+        },
+        "maxArgumentItems": {
+          "value": 17,
+          "derivation": "one bounded scalar plus max 16 selected label ids"
+        },
+        "maxPageResultBytes": {
+          "value": 1048576,
+          "derivation": "same conservative per-result byte ceiling; one root page is one result frame"
+        },
+        "maxMaintainedWritesPerMutation": {
+          "value": 0,
+          "derivation": "G0 declares no graph maintenance or write path"
+        }
+      },
+      "physical": {
+        "observationPosture": "[G2 measures]",
+        "maxScannedRows": {
+          "value": 54,
+          "derivation": "Σ analytical node examined-entry formulas = 54; no graph executor observation"
+        },
+        "maxIndexRanges": {
+          "value": 37,
+          "derivation": "Σ analytical access-path consultations = 37; no graph executor observation"
+        },
+        "nodeLedger": [
+          {
+            "maxExaminedEntriesPerExecution": 2,
+            "maxRootRowsPerPage": 1,
+            "maxWindowIndexRanges": 37,
+            "maxWindowPages": 1,
+            "maxWindowResultBytes": 1048576,
+            "maxWindowResultRows": 1,
+            "maxWindowRootRows": 1,
+            "maxWindowScannedRows": 54,
+            "nodeId": "n0",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present"
+          },
+          {
+            "maxExaminedEntriesPerExecution": 1,
+            "maxRelationshipLookupsPerExecution": 1,
+            "nodeId": "n1",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present"
+          },
+          {
+            "maxChildrenPerParent": 16,
+            "maxExaminedEntriesPerExecution": 17,
+            "maxRelationshipLookupsPerExecution": 1,
+            "nodeId": "n2",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present"
+          },
+          {
+            "maxExaminedEntriesPerExecution": 16,
+            "maxRelationshipLookupsPerExecution": 16,
+            "nodeId": "n3",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present"
+          },
+          {
+            "maxArgumentExpansion": 16,
+            "maxChildrenPerParent": 1,
+            "maxExaminedEntriesPerExecution": 16,
+            "maxRelationshipLookupsPerExecution": 16,
+            "nodeId": "n4",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present"
+          },
+          {
+            "maxExaminedEntriesPerExecution": 2,
+            "maxRelationshipLookupsPerExecution": 2,
+            "nodeId": "n5",
+            "derivation": "P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present"
+          }
+        ],
+        "windowRollup": {
+          "maxWindowIndexRanges": 37,
+          "maxWindowPages": 1,
+          "maxWindowResultBytes": 1048576,
+          "maxWindowResultRows": 1,
+          "maxWindowRootRows": 1,
+          "maxWindowScannedRows": 54,
+          "derivation": "sum of each demand-paged node lineage: pages × induced-subtree scanned rows/ranges; result bytes conservatively charged per lineage"
+        }
+      },
+      "derivationTable": {
+        "queryCost": {
+          "maxScannedRows": {
+            "value": 54,
+            "derivation": "checked sum of every node maxExaminedEntriesPerExecution [G2 measures]"
+          },
+          "maxIndexRanges": {
+            "value": 37,
+            "derivation": "checked sum of every point/range/principal consultation [G2 measures]"
+          },
+          "maxResultRows": {
+            "value": 1,
+            "derivation": "one point/detail root"
+          },
+          "maxResultBytes": {
+            "value": 1048576,
+            "derivation": "normal oracle maximum 6806 bytes × exact rational H=1048576/6806"
+          },
+          "maxEvaluationTurnMs": {
+            "value": 1000,
+            "derivation": "conservative G0 operational guardrail maxEvaluationTurnMs=1000; not a graph-executor observation"
+          },
+          "maxObservers": {
+            "value": 1024,
+            "derivation": "conservative G0 operational guardrail maxObservers=1024; not a graph-executor observation"
+          },
+          "maxDistinctEvaluationGroups": {
+            "value": 1024,
+            "derivation": "conservative G0 operational guardrail maxDistinctEvaluationGroups=1024; not a graph-executor observation"
+          },
+          "maxEstimatedLiveFanoutMs": {
+            "value": 5000,
+            "derivation": "conservative G0 operational guardrail maxEstimatedLiveFanoutMs=5000; not a graph-executor observation"
+          }
+        },
+        "graph": {
+          "nodes": [
+            {
+              "nodeId": "n0",
+              "fields": {
+                "maxExaminedEntriesPerExecution": {
+                  "value": 2,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges"
+                },
+                "maxRootRowsPerPage": {
+                  "value": 1,
+                  "derivation": "point/detail source-id lookup emits at most one root row; H=1"
+                },
+                "maxWindowIndexRanges": {
+                  "value": 37,
+                  "derivation": "analytical [G2 measures]: maxWindowPages × induced-subtree access-path consultations"
+                },
+                "maxWindowPages": {
+                  "value": 1,
+                  "derivation": "one exhaustive point/root interval at the declared page size"
+                },
+                "maxWindowResultBytes": {
+                  "value": 1048576,
+                  "derivation": "maxWindowPages × declared maxPageResultBytes; conservative whole-result recharge per lineage"
+                },
+                "maxWindowResultRows": {
+                  "value": 1,
+                  "derivation": "maxWindowPages × whole-result top-level row ceiling (one for point/child lineage)"
+                },
+                "maxWindowRootRows": {
+                  "value": 1,
+                  "derivation": "maxWindowPages × maxRootRowsPerPage for the root; child lineage is exactly zero"
+                },
+                "maxWindowScannedRows": {
+                  "value": 54,
+                  "derivation": "analytical [G2 measures]: maxWindowPages × induced-subtree per-page examined entries"
+                }
+              }
+            },
+            {
+              "nodeId": "n1",
+              "fields": {
+                "maxExaminedEntriesPerExecution": {
+                  "value": 1,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges"
+                },
+                "maxRelationshipLookupsPerExecution": {
+                  "value": 1,
+                  "derivation": "analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations"
+                }
+              }
+            },
+            {
+              "nodeId": "n2",
+              "fields": {
+                "maxChildrenPerParent": {
+                  "value": 16,
+                  "derivation": "max(normal label edges per issue 5, documented large generator label maximum 3) × H=3.2 => 16"
+                },
+                "maxExaminedEntriesPerExecution": {
+                  "value": 17,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges"
+                },
+                "maxRelationshipLookupsPerExecution": {
+                  "value": 1,
+                  "derivation": "analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations"
+                }
+              }
+            },
+            {
+              "nodeId": "n3",
+              "fields": {
+                "maxExaminedEntriesPerExecution": {
+                  "value": 16,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges"
+                },
+                "maxRelationshipLookupsPerExecution": {
+                  "value": 16,
+                  "derivation": "analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations"
+                }
+              }
+            },
+            {
+              "nodeId": "n4",
+              "fields": {
+                "maxArgumentExpansion": {
+                  "value": 16,
+                  "derivation": "maximum selected-label collection length 16 × H=1"
+                },
+                "maxChildrenPerParent": {
+                  "value": 1,
+                  "derivation": "closed declaration value 1, derived from the normalized plan and fixture maxima"
+                },
+                "maxExaminedEntriesPerExecution": {
+                  "value": 16,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges"
+                },
+                "maxRelationshipLookupsPerExecution": {
+                  "value": 16,
+                  "derivation": "analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations"
+                }
+              }
+            },
+            {
+              "nodeId": "n5",
+              "fields": {
+                "maxExaminedEntriesPerExecution": {
+                  "value": 2,
+                  "derivation": "analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges"
+                },
+                "maxRelationshipLookupsPerExecution": {
+                  "value": 2,
+                  "derivation": "analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations"
+                }
+              }
+            }
+          ],
+          "arguments": [
+            {
+              "argumentId": "a0",
+              "fields": {
+                "maxItems": {
+                  "value": 16,
+                  "derivation": "maximum selected-label collection cardinality 16 × H=1, within the authored contract"
+                }
+              }
+            }
+          ],
+          "maxArgumentItems": {
+            "value": 17,
+            "derivation": "one scalar plus 16 selected-label items × H=1"
+          },
+          "maxPageResultBytes": {
+            "value": 1048576,
+            "derivation": "normal oracle maximum 6806 bytes × exact rational H=1048576/6806"
+          },
+          "windowRollup": {
+            "maxWindowIndexRanges": {
+              "value": 37,
+              "derivation": "checked sum of demand-lineage maxWindowIndexRanges values = 37 [G2 measures]"
+            },
+            "maxWindowPages": {
+              "value": 1,
+              "derivation": "checked sum of demand-lineage maxWindowPages values = 1"
+            },
+            "maxWindowResultBytes": {
+              "value": 1048576,
+              "derivation": "checked sum of demand-lineage maxWindowResultBytes values = 1048576"
+            },
+            "maxWindowResultRows": {
+              "value": 1,
+              "derivation": "checked sum of demand-lineage maxWindowResultRows values = 1"
+            },
+            "maxWindowRootRows": {
+              "value": 1,
+              "derivation": "checked sum of demand-lineage maxWindowRootRows values = 1"
+            },
+            "maxWindowScannedRows": {
+              "value": 54,
+              "derivation": "checked sum of demand-lineage maxWindowScannedRows values = 54 [G2 measures]"
+            }
+          },
+          "maxMaintainedWritesPerMutation": {
+            "value": 0,
+            "derivation": "G0 owns no graph-maintained writes; exact declaration and observation are zero"
+          }
+        }
+      }
+    }
+  },
+  "largeFixtureSpotCheck": {
+    "status": "deferred-to-zb5-gate-rerun",
+    "reason": "receipt is present but local CSV fixture is absent",
+    "command": "ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs"
+  },
+  "contentDigest": "sha256:62da3f6e7f1521d8755fac0c37af1c70b0927fe8d517ffbc97b562a2ba10d98a"
+}
