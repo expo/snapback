@@ -1,10 +1,13 @@
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
-    FilterExpr, FilterOp, FunctionDefinition, FunctionRuntime, GraphCapturedDependencyV1,
-    GraphCapturedReadAttachmentV1, GraphCapturedReadV1, GraphDemandTimeRefusalReasonV1,
-    GraphDirectionV1, GraphIntervalEndV1, GraphNodeKindV1, GraphNodeV1, GraphQueryCarrierV1,
-    GraphRowKeyV1, HandlerInput, HandlerPlan, OrderDirection, OrderExpr, QueryOutput, QueryPlan,
-    Sha256V1, ValueExpr, effective_query_limit, graph_plan_identity_v1,
+    FilterExpr, FilterOp, FunctionDefinition, FunctionRuntime, GraphAuthorityPartitionIdentityV1,
+    GraphCapturedDependencyV1, GraphCapturedReadAttachmentV1, GraphCapturedReadV1,
+    GraphChildPageV1, GraphDemandTimeRefusalReasonV1, GraphDirectionV1, GraphEdgeV1,
+    GraphExistsModeV1, GraphIntervalEndV1, GraphMaterializationIdentityV1, GraphNodeKindV1,
+    GraphNodeV1, GraphNodeWindowIdentityV1, GraphQueryCarrierV1, GraphRowKeyV1, HandlerInput,
+    HandlerPlan, OrderDirection, OrderExpr, QueryOutput, QueryPlan, SchemaManifest, Sha256V1,
+    TableVisibilityV1, ValueExpr, effective_query_limit, graph_authority_partition_identity_v1,
+    graph_instance_identity_v1, graph_materialization_identity_v1, graph_plan_identity_v1,
     validate_graph_captured_read_v1,
 };
 use crate::storage::{CapturedReadDependency, CapturedReadKind, ChangeOp, ChangedRow, DbRead};
@@ -96,6 +99,35 @@ pub struct LiveMatchDecisionV1 {
     pub graph_nodes: Vec<GraphNodeDecisionLedgerV1>,
 }
 
+/// Full rows returned by one ordinary query companion during graph evaluation.
+/// This internal registration input is never exposed by captured-read
+/// inspection. It lets sync reconstruct child join literals and parent output
+/// closure without treating the child graph fact as its own provenance.
+#[derive(Clone, Debug, PartialEq)]
+pub struct GraphCapturedQueryOutputV1 {
+    pub query_read_index: u64,
+    pub rows: Vec<Value>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct GraphRegistrationPermissionValuesV1 {
+    pub field: String,
+    pub allowed_values: Vec<Value>,
+}
+
+/// Complete demand/context input to graph dependency registration. Hash-only
+/// registration is deliberately impossible: the constructor rebuilds the
+/// instance, materialization, and partition identities from these preimages.
+#[derive(Clone, Debug, PartialEq)]
+pub struct GraphSubscriptionRegistrationDemandV1 {
+    pub args: Value,
+    pub windows: Vec<GraphNodeWindowIdentityV1>,
+    pub input: HandlerInput,
+    pub permission_values_by_table: BTreeMap<String, GraphRegistrationPermissionValuesV1>,
+    pub materialization: GraphMaterializationIdentityV1,
+    pub partition: GraphAuthorityPartitionIdentityV1,
+}
+
 /// Sync-attested graph dependency registration. Its private fields prevent the
 /// matcher from accepting a caller-assembled flat vector: the only constructor
 /// validates exact graph identity, attachment, cardinality, and parent closure.
@@ -133,26 +165,18 @@ impl RegisteredGraphSubscriptionDependenciesV1 {
     }
 }
 
-fn captured_parent_key(dependency: &GraphCapturedDependencyV1) -> Option<&GraphRowKeyV1> {
-    match dependency {
-        GraphCapturedDependencyV1::ParentPoint { parent_key, .. }
-        | GraphCapturedDependencyV1::ParentLookupSkipped { parent_key, .. }
-        | GraphCapturedDependencyV1::ParentRange { parent_key, .. }
-        | GraphCapturedDependencyV1::Membership { parent_key, .. } => Some(parent_key),
-        GraphCapturedDependencyV1::RootRange { .. }
-        | GraphCapturedDependencyV1::PrincipalField { .. }
-        | GraphCapturedDependencyV1::SearchTable { .. }
-        | GraphCapturedDependencyV1::Projection { .. } => None,
-    }
+struct GraphRegistrationFact<'a> {
+    graph: &'a GraphCapturedReadV1,
+    ordinary: Vec<(usize, &'a CapturedReadDependency)>,
+    query_outputs: BTreeMap<usize, &'a [Value]>,
 }
 
-fn registration_shape(
+fn registration_facts<'a>(
     carrier: &GraphQueryCarrierV1,
-    reads: &[CapturedReadDependency],
+    reads: &'a [CapturedReadDependency],
     attachments: &[GraphCapturedReadAttachmentV1],
-    expected_instance_hash: &Sha256V1,
-    expected_partition_hash: &Sha256V1,
-) -> Result<(Vec<u64>, Vec<Vec<GraphRowKeyV1>>), GraphDemandTimeRefusalReasonV1> {
+    query_outputs: &'a [GraphCapturedQueryOutputV1],
+) -> Result<(Vec<GraphRegistrationFact<'a>>, Vec<u64>), GraphDemandTimeRefusalReasonV1> {
     if !graph_plan_identity_v1(&carrier.normalized_plan)
         .is_ok_and(|identity| identity.plan_hash == carrier.plan_hash)
         || reads.iter().any(|read| !read.graph_pairing_is_valid())
@@ -162,9 +186,19 @@ fn registration_shape(
     let mut claimed = BTreeSet::new();
     let mut attached_graphs = BTreeSet::new();
     let mut cardinalities = vec![0_u64; carrier.normalized_plan.nodes.len()];
-    let mut closures =
-        vec![BTreeMap::<String, GraphRowKeyV1>::new(); carrier.normalized_plan.nodes.len()];
     let mut last_node_index = None;
+    let mut facts = Vec::with_capacity(attachments.len());
+    let mut outputs_by_query = BTreeMap::new();
+    for output in query_outputs {
+        let index = usize::try_from(output.query_read_index)
+            .map_err(|_| GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+        if outputs_by_query
+            .insert(index, output.rows.as_slice())
+            .is_some()
+        {
+            return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+        }
+    }
     for attachment in attachments {
         let graph_index = usize::try_from(attachment.graph_read_index)
             .map_err(|_| GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
@@ -177,13 +211,7 @@ fn registration_shape(
             .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
         if !attached_graphs.insert(graph_index)
             || !claimed.insert(graph_index)
-            || graph.instance_hash != *expected_instance_hash
             || validate_graph_captured_read_v1(graph, &carrier.normalized_plan).is_err()
-            || matches!(
-                &graph.dependency,
-                GraphCapturedDependencyV1::PrincipalField { partition_hash, .. }
-                    if partition_hash != expected_partition_hash
-            )
         {
             return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
         }
@@ -200,18 +228,8 @@ fn registration_shape(
         cardinalities[node_index] = cardinalities[node_index]
             .checked_add(1)
             .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
-        if let Some(parent_key) = captured_parent_key(&graph.dependency) {
-            let value = serde_json::to_value(parent_key)
-                .map_err(|_| GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
-            let key = snapback_types::rqs_contract::jcs(&value)
-                .map_err(|_| GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
-            if closures[node_index]
-                .insert(key, parent_key.clone())
-                .is_some()
-            {
-                return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
-            }
-        }
+        let mut ordinary_reads = Vec::with_capacity(attachment.ordinary_read_indices.len());
+        let mut attached_outputs = BTreeMap::new();
         for ordinary_index in &attachment.ordinary_read_indices {
             let ordinary_index = usize::try_from(*ordinary_index)
                 .map_err(|_| GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
@@ -224,18 +242,1127 @@ fn registration_shape(
             {
                 return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
             }
+            if ordinary.kind == CapturedReadKind::Query {
+                let rows = outputs_by_query
+                    .remove(&ordinary_index)
+                    .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+                attached_outputs.insert(ordinary_index, rows);
+            } else if outputs_by_query.contains_key(&ordinary_index) {
+                return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+            }
+            ordinary_reads.push((ordinary_index, ordinary));
         }
+        facts.push(GraphRegistrationFact {
+            graph,
+            ordinary: ordinary_reads,
+            query_outputs: attached_outputs,
+        });
     }
     let graph_read_count = reads.iter().filter(|read| read.graph.is_some()).count();
-    if attached_graphs.len() != graph_read_count || claimed.len() != reads.len() {
+    if attached_graphs.len() != graph_read_count
+        || claimed.len() != reads.len()
+        || !outputs_by_query.is_empty()
+    {
+        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+    }
+    Ok((facts, cardinalities))
+}
+
+fn registration_query_records<'a>(
+    fact: &'a GraphRegistrationFact<'a>,
+) -> Result<
+    Vec<(usize, &'a CapturedReadDependency, QueryPlan, &'a [Value])>,
+    GraphDemandTimeRefusalReasonV1,
+> {
+    fact.ordinary
+        .iter()
+        .filter(|(_, read)| read.kind == CapturedReadKind::Query)
+        .map(|(index, read)| {
+            let plan = serde_json::from_value::<QueryPlan>(
+                read.predicate
+                    .clone()
+                    .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?,
+            )
+            .map_err(|_| GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+            let rows = fact
+                .query_outputs
+                .get(index)
+                .copied()
+                .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+            Ok((*index, *read, plan, rows))
+        })
+        .collect()
+}
+
+fn registration_query_rows_are_attested(
+    fact: &GraphRegistrationFact<'_>,
+) -> Result<(), GraphDemandTimeRefusalReasonV1> {
+    let records = registration_query_records(fact)?;
+    let mut expected_points = Vec::new();
+    for (_, read, _, rows) in &records {
+        let table = read
+            .table
+            .as_deref()
+            .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+        let ids = rows
+            .iter()
+            .map(|row| {
+                let id = row
+                    .get("_id")
+                    .and_then(Value::as_str)
+                    .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+                let version = row
+                    .get("_version")
+                    .and_then(Value::as_u64)
+                    .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+                expected_points.push((table.to_owned(), id.to_owned(), version));
+                Ok(id.to_owned())
+            })
+            .collect::<Result<Vec<_>, GraphDemandTimeRefusalReasonV1>>()?;
+        if read.rows != ids || read.version.is_none() {
+            return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+        }
+    }
+    let mut actual_points = fact
+        .ordinary
+        .iter()
+        .filter(|(_, read)| read.kind == CapturedReadKind::Row)
+        .map(|(_, read)| {
+            Ok((
+                read.table
+                    .clone()
+                    .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?,
+                read.id
+                    .clone()
+                    .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?,
+                read.version
+                    .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?,
+            ))
+        })
+        .collect::<Result<Vec<_>, GraphDemandTimeRefusalReasonV1>>()?;
+    expected_points.sort();
+    actual_points.sort();
+    if expected_points != actual_points
+        || fact.ordinary.iter().any(|(_, read)| {
+            !matches!(
+                read.kind,
+                CapturedReadKind::Query | CapturedReadKind::Row | CapturedReadKind::Auth
+            )
+        })
+    {
+        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+    }
+    Ok(())
+}
+
+fn registration_authorized_filters(
+    table: &str,
+    declared: impl IntoIterator<Item = FilterExpr>,
+    demand: &GraphSubscriptionRegistrationDemandV1,
+) -> Vec<FilterExpr> {
+    let mut filters = declared.into_iter().collect::<Vec<_>>();
+    if let Some(permission) = demand.permission_values_by_table.get(table) {
+        filters.push(FilterExpr {
+            field: permission.field.clone(),
+            op: FilterOp::In,
+            value: ValueExpr::Literal(Value::Array(permission.allowed_values.clone())),
+        });
+    }
+    filters
+}
+
+fn registration_query_plan(
+    table: &str,
+    visibility: &TableVisibilityV1,
+    filters: Vec<FilterExpr>,
+    order: Vec<OrderExpr>,
+    limit: u64,
+    index: &str,
+    demand: &GraphSubscriptionRegistrationDemandV1,
+) -> Result<QueryPlan, GraphDemandTimeRefusalReasonV1> {
+    Ok(QueryPlan {
+        table: table.to_owned(),
+        table_visibility: (!matches!(visibility, TableVisibilityV1::PublicRead))
+            .then(|| visibility.clone()),
+        filters: registration_authorized_filters(table, filters, demand),
+        membership_filters: Vec::new(),
+        order,
+        limit: Some(
+            usize::try_from(limit)
+                .map_err(|_| GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?,
+        ),
+        indexed_by: (index != "by_id").then(|| index.to_owned()),
+    })
+}
+
+fn registration_query_is_exact(
+    read: &CapturedReadDependency,
+    supplied: &QueryPlan,
+    rows: &[Value],
+    expected: &QueryPlan,
+) -> Result<(), GraphDemandTimeRefusalReasonV1> {
+    let expected_value = serde_json::to_value(expected)
+        .map_err(|_| GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+    let (order, limit, result_count, boundary) = query_dependency_metadata(expected, rows)
+        .map_err(|_| GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+    if supplied != expected
+        || read.predicate.as_ref() != Some(&expected_value)
+        || read.table.as_deref() != Some(expected.table.as_str())
+        || read.order != order
+        || read.limit != limit
+        || read.result_count != result_count
+        || read.boundary != boundary
+        || read.rows
+            != rows
+                .iter()
+                .map(|row| row.get("_id").and_then(Value::as_str).map(str::to_owned))
+                .collect::<Option<Vec<_>>>()
+                .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?
+    {
+        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+    }
+    Ok(())
+}
+
+fn registration_relation_filters(
+    parent: &Value,
+    join: &[crate::manifest::JoinEquality],
+) -> Option<Vec<FilterExpr>> {
+    join.iter()
+        .map(|equality| {
+            let value = parent
+                .get(&equality.root_field)
+                .cloned()
+                .unwrap_or(Value::Null);
+            (!value.is_null()).then(|| FilterExpr {
+                field: equality.joined_field.clone(),
+                op: FilterOp::Eq,
+                value: ValueExpr::Literal(value),
+            })
+        })
+        .collect()
+}
+
+fn registration_row_key(
+    table: &str,
+    row: &Value,
+) -> Result<GraphRowKeyV1, GraphDemandTimeRefusalReasonV1> {
+    Ok(GraphRowKeyV1 {
+        table: table.to_owned(),
+        id: row
+            .get("_id")
+            .and_then(Value::as_str)
+            .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?
+            .to_owned(),
+    })
+}
+
+fn registration_window<'a>(
+    demand: &'a GraphSubscriptionRegistrationDemandV1,
+    node_id: &str,
+    parent_key: Option<&GraphRowKeyV1>,
+) -> Result<&'a crate::manifest::GraphWindowIdentityV1, GraphDemandTimeRefusalReasonV1> {
+    demand
+        .windows
+        .iter()
+        .find(|window| window.node_id == node_id)
+        .and_then(|window| {
+            window
+                .intervals
+                .iter()
+                .find(|interval| interval.parent_key.as_ref() == parent_key)
+        })
+        .map(|interval| &interval.window)
+        .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)
+}
+
+fn registration_index_order(
+    schema: &SchemaManifest,
+    table: &str,
+    index: &str,
+) -> Result<Vec<OrderExpr>, GraphDemandTimeRefusalReasonV1> {
+    if index == "by_id" {
+        return Ok(Vec::new());
+    }
+    schema
+        .tables
+        .iter()
+        .find(|candidate| candidate.name == table)
+        .and_then(|table| {
+            table
+                .indexes
+                .iter()
+                .find(|candidate| candidate.name == index)
+        })
+        .map(|index| {
+            index
+                .fields
+                .iter()
+                .filter(|field| field.as_str() != "_id")
+                .map(|field| OrderExpr {
+                    field: field.clone(),
+                    direction: OrderDirection::Asc,
+                    max_encoded_bytes: None,
+                })
+                .collect()
+        })
+        .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)
+}
+
+fn registration_value_digest(
+    domain: &[u8],
+    value: &Value,
+) -> Result<Sha256V1, GraphDemandTimeRefusalReasonV1> {
+    let canonical = snapback_types::rqs_contract::jcs(value)
+        .map_err(|_| GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+    let mut hasher = Sha256::new();
+    hasher.update(domain);
+    hasher.update(canonical.as_bytes());
+    Sha256V1::new(format!("sha256:{:x}", hasher.finalize()))
+        .map_err(|_| GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)
+}
+
+fn registration_bind_all_probe(
+    filters: &mut [FilterExpr],
+    argument_id: Option<&str>,
+    value: &Value,
+) {
+    let Some(argument_id) = argument_id else {
+        return;
+    };
+    for filter in filters {
+        if filter.op == FilterOp::In
+            && matches!(&filter.value, ValueExpr::Arg(bound) if bound == argument_id)
+        {
+            filter.op = FilterOp::Eq;
+            filter.value = ValueExpr::Literal(value.clone());
+        }
+    }
+}
+
+fn exact_parent_fact_set(
+    facts: &[&GraphRegistrationFact<'_>],
+    expected: &BTreeSet<GraphRowKeyV1>,
+    parent_key: impl Fn(&GraphCapturedDependencyV1) -> Option<&GraphRowKeyV1>,
+) -> Result<(), GraphDemandTimeRefusalReasonV1> {
+    let actual = facts
+        .iter()
+        .filter_map(|fact| parent_key(&fact.graph.dependency).cloned())
+        .collect::<Vec<_>>();
+    if actual.len() != expected.len()
+        || actual.iter().cloned().collect::<BTreeSet<_>>() != *expected
+    {
+        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+    }
+    Ok(())
+}
+
+type RegistrationRows = BTreeMap<GraphRowKeyV1, Value>;
+
+fn insert_registration_rows(
+    target: &mut RegistrationRows,
+    table: &str,
+    rows: &[Value],
+) -> Result<(), GraphDemandTimeRefusalReasonV1> {
+    for row in rows {
+        let key = registration_row_key(table, row)?;
+        match target.entry(key) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(row.clone());
+            }
+            std::collections::btree_map::Entry::Occupied(entry) if entry.get() == row => {}
+            std::collections::btree_map::Entry::Occupied(_) => {
+                return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+            }
+        }
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn attest_membership_fact(
+    carrier: &GraphQueryCarrierV1,
+    schema: &SchemaManifest,
+    demand: &GraphSubscriptionRegistrationDemandV1,
+    node: &GraphNodeV1,
+    mode: &GraphExistsModeV1,
+    edge: &GraphEdgeV1,
+    filters: &[FilterExpr],
+    argument_id: Option<&str>,
+    parent_rows: &RegistrationRows,
+    fact: &GraphRegistrationFact<'_>,
+) -> Result<(), GraphDemandTimeRefusalReasonV1> {
+    let GraphCapturedDependencyV1::Membership {
+        parent_key,
+        argument_id: captured_argument_id,
+        argument_digest,
+        matched_count,
+        complete: true,
+        ..
+    } = &fact.graph.dependency
+    else {
+        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+    };
+    let parent = parent_rows
+        .get(parent_key)
+        .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+    let probes = match mode {
+        GraphExistsModeV1::Exists => {
+            if captured_argument_id.is_some() || argument_digest.is_some() {
+                return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+            }
+            vec![Value::Null]
+        }
+        GraphExistsModeV1::All => {
+            if captured_argument_id.as_deref() != argument_id {
+                return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+            }
+            let argument_id =
+                argument_id.ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+            let argument_value = demand
+                .input
+                .args
+                .get(argument_id)
+                .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+            if argument_digest.as_ref()
+                != Some(&registration_value_digest(
+                    b"snapback:g0-corpus-argument:v1:",
+                    argument_value,
+                )?)
+            {
+                return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+            }
+            let values = argument_value
+                .as_array()
+                .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+            let mut canonical = BTreeMap::new();
+            for value in values {
+                canonical
+                    .entry(
+                        snapback_types::rqs_contract::jcs(value)
+                            .map_err(|_| GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?,
+                    )
+                    .or_insert_with(|| value.clone());
+            }
+            canonical.into_values().collect::<Vec<_>>()
+        }
+    };
+    let records = registration_query_records(fact)?;
+    let mut cursor = 0_usize;
+    let mut actual_matched = 0_u64;
+    let relation_join = match edge {
+        GraphEdgeV1::Direct(edge) => edge.join_on.as_slice(),
+        GraphEdgeV1::Through(edge) => edge.parent_join.as_slice(),
+    };
+    let Some(parent_relation) = registration_relation_filters(parent, relation_join) else {
+        if !records.is_empty() || *matched_count != 0 {
+            return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+        }
+        return Ok(());
+    };
+    for probe in probes {
+        let mut probe_filters = filters.to_vec();
+        if matches!(mode, GraphExistsModeV1::All) {
+            registration_bind_all_probe(&mut probe_filters, argument_id, &probe);
+        }
+        let found = match edge {
+            GraphEdgeV1::Direct(edge) => {
+                let mut relation = parent_relation.clone();
+                relation.extend(probe_filters);
+                let expected = registration_query_plan(
+                    &edge.table,
+                    &edge.visibility,
+                    relation,
+                    Vec::new(),
+                    1,
+                    &edge.access_index,
+                    demand,
+                )?;
+                let (_, read, supplied, rows) = records
+                    .get(cursor)
+                    .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+                registration_query_is_exact(read, supplied, rows, &expected)?;
+                cursor += 1;
+                !rows.is_empty()
+            }
+            GraphEdgeV1::Through(edge) => {
+                let cap = carrier
+                    .normalized_plan
+                    .query_cost
+                    .graph
+                    .nodes
+                    .iter()
+                    .find(|cost| cost.node_id == node.node_id())
+                    .and_then(|cost| cost.max_children_per_parent)
+                    .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+                let mut relation = parent_relation.clone();
+                relation.extend(probe_filters);
+                let edge_order = registration_index_order(schema, &edge.table, &edge.parent_index)?;
+                let expected = registration_query_plan(
+                    &edge.table,
+                    &edge.visibility,
+                    relation,
+                    edge_order,
+                    cap,
+                    &edge.parent_index,
+                    demand,
+                )?;
+                let (_, read, supplied, edge_rows) = records
+                    .get(cursor)
+                    .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+                registration_query_is_exact(read, supplied, edge_rows, &expected)?;
+                cursor += 1;
+                let mut found = false;
+                for edge_row in *edge_rows {
+                    let Some(target_filters) =
+                        registration_relation_filters(edge_row, &edge.target_join)
+                    else {
+                        continue;
+                    };
+                    let expected = registration_query_plan(
+                        &edge.target_table,
+                        &edge.target_visibility,
+                        target_filters,
+                        Vec::new(),
+                        1,
+                        &edge.target_index,
+                        demand,
+                    )?;
+                    let (_, read, supplied, target_rows) = records
+                        .get(cursor)
+                        .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+                    registration_query_is_exact(read, supplied, target_rows, &expected)?;
+                    cursor += 1;
+                    if !target_rows.is_empty() {
+                        found = true;
+                        break;
+                    }
+                }
+                found
+            }
+        };
+        if !found {
+            break;
+        }
+        actual_matched = actual_matched
+            .checked_add(1)
+            .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+    }
+    if cursor != records.len() || actual_matched != *matched_count {
+        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn attest_principal_facts(
+    demand: &GraphSubscriptionRegistrationDemandV1,
+    _node: &GraphNodeV1,
+    table: &str,
+    visibility: &TableVisibilityV1,
+    parent_join: &[crate::manifest::JoinEquality],
+    principal_field: &str,
+    access_index: &str,
+    binding: Option<&crate::manifest::GraphPrincipalBindingV1>,
+    filters: &[FilterExpr],
+    parent_rows: &RegistrationRows,
+    facts: &[&GraphRegistrationFact<'_>],
+    node_output: &mut RegistrationRows,
+) -> Result<(), GraphDemandTimeRefusalReasonV1> {
+    let expected_parents = parent_rows.keys().cloned().collect::<BTreeSet<_>>();
+    exact_parent_fact_set(facts, &expected_parents, |dependency| match dependency {
+        GraphCapturedDependencyV1::PrincipalField {
+            table: captured_table,
+            field,
+            parent_key: Some(parent_key),
+            ..
+        } if captured_table == table && field == principal_field => Some(parent_key),
+        _ => None,
+    })?;
+    let auth_user = demand
+        .input
+        .auth
+        .user_id
+        .as_deref()
+        .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+    let mut principal = Some(auth_user.to_owned());
+    if let Some(binding) = binding {
+        let principal_fact = facts
+            .iter()
+            .find(|fact| {
+                matches!(
+                    &fact.graph.dependency,
+                    GraphCapturedDependencyV1::PrincipalField {
+                        table,
+                        field,
+                        parent_key: None,
+                        ..
+                    } if table == &binding.table && field == &binding.principal_field
+                )
+            })
+            .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+        let records = registration_query_records(principal_fact)?;
+        if records.len() != 1 {
+            return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+        }
+        let expected = registration_query_plan(
+            &binding.table,
+            &binding.visibility,
+            vec![FilterExpr {
+                field: binding.principal_field.clone(),
+                op: FilterOp::Eq,
+                value: ValueExpr::Literal(Value::String(auth_user.to_owned())),
+            }],
+            Vec::new(),
+            1,
+            &binding.unique_index,
+            demand,
+        )?;
+        let (_, read, supplied, rows) = &records[0];
+        registration_query_is_exact(read, supplied, rows, &expected)?;
+        let GraphCapturedDependencyV1::PrincipalField {
+            value_digest,
+            found,
+            ..
+        } = &principal_fact.graph.dependency
+        else {
+            unreachable!()
+        };
+        if value_digest
+            != &registration_value_digest(
+                b"snapback:g0-corpus-principal-value:v1:",
+                &Value::String(auth_user.to_owned()),
+            )?
+            || *found != !rows.is_empty()
+        {
+            return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+        }
+        principal = rows
+            .first()
+            .and_then(|row| row.get(&binding.value_field))
+            .and_then(Value::as_str)
+            .map(str::to_owned);
+        let value_fact = facts.iter().find(|fact| {
+            matches!(
+                &fact.graph.dependency,
+                GraphCapturedDependencyV1::PrincipalField {
+                    table,
+                    field,
+                    parent_key: None,
+                    ..
+                } if table == &binding.table && field == &binding.value_field
+            )
+        });
+        match (principal.as_ref(), value_fact) {
+            (Some(value), Some(value_fact))
+                if registration_query_records(value_fact)?.is_empty()
+                    && matches!(
+                        &value_fact.graph.dependency,
+                        GraphCapturedDependencyV1::PrincipalField {
+                            value_digest,
+                            found: true,
+                            ..
+                        } if value_digest == &registration_value_digest(
+                            b"snapback:g0-corpus-principal-value:v1:",
+                            &Value::String(value.clone()),
+                        )?
+                    ) => {}
+            (None, None) => {}
+            _ => return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch),
+        }
+    }
+
+    for parent_key in expected_parents {
+        let fact = facts
+            .iter()
+            .find(|fact| {
+                matches!(
+                    &fact.graph.dependency,
+                    GraphCapturedDependencyV1::PrincipalField {
+                        table: captured_table,
+                        field,
+                        parent_key: Some(captured_parent),
+                        ..
+                    } if captured_table == table
+                        && field == principal_field
+                        && captured_parent == &parent_key
+                )
+            })
+            .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+        let parent = parent_rows
+            .get(&parent_key)
+            .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+        let records = registration_query_records(fact)?;
+        let Some(principal) = principal.as_ref() else {
+            return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+        };
+        let GraphCapturedDependencyV1::PrincipalField {
+            value_digest,
+            found,
+            ..
+        } = &fact.graph.dependency
+        else {
+            unreachable!()
+        };
+        if value_digest
+            != &registration_value_digest(
+                b"snapback:g0-corpus-principal-value:v1:",
+                &Value::String(principal.clone()),
+            )?
+        {
+            return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+        }
+        if let Some(mut relation) = registration_relation_filters(parent, parent_join) {
+            if records.len() != 1 {
+                return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+            }
+            relation.push(FilterExpr {
+                field: principal_field.to_owned(),
+                op: FilterOp::Eq,
+                value: ValueExpr::Literal(Value::String(principal.clone())),
+            });
+            relation.extend(filters.to_vec());
+            let expected = registration_query_plan(
+                table,
+                visibility,
+                relation,
+                Vec::new(),
+                1,
+                access_index,
+                demand,
+            )?;
+            let (_, read, supplied, rows) = &records[0];
+            registration_query_is_exact(read, supplied, rows, &expected)?;
+            if *found != !rows.is_empty() {
+                return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+            }
+            insert_registration_rows(node_output, table, rows)?;
+        } else if !records.is_empty() || *found {
+            return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+        }
+    }
+    Ok(())
+}
+
+fn attest_registration_semantics(
+    carrier: &GraphQueryCarrierV1,
+    schema: &SchemaManifest,
+    demand: &GraphSubscriptionRegistrationDemandV1,
+    facts: &[GraphRegistrationFact<'_>],
+) -> Result<(Vec<Vec<GraphRowKeyV1>>, Sha256V1, Sha256V1, Sha256V1), GraphDemandTimeRefusalReasonV1>
+{
+    let mut by_node = BTreeMap::<String, Vec<&GraphRegistrationFact<'_>>>::new();
+    for fact in facts {
+        registration_query_rows_are_attested(fact)?;
+        by_node
+            .entry(fact.graph.node_id.clone())
+            .or_default()
+            .push(fact);
+    }
+    let mut outputs = BTreeMap::<String, RegistrationRows>::new();
+    let mut closures = vec![Vec::new(); carrier.normalized_plan.nodes.len()];
+    for (node_index, node) in carrier.normalized_plan.nodes.iter().enumerate() {
+        let node_facts = by_node
+            .get(node.node_id())
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        let parent_rows = node
+            .parent_node_id()
+            .map(|parent| outputs.get(parent).cloned().unwrap_or_default())
+            .unwrap_or_default();
+        let expected_parents = parent_rows.keys().cloned().collect::<BTreeSet<_>>();
+        closures[node_index] = expected_parents.iter().cloned().collect();
+        let mut node_output = RegistrationRows::new();
+        match node {
+            GraphNodeV1::RootWindow {
+                table,
+                visibility,
+                filters,
+                access_index,
+                order,
+                ..
+            } => {
+                if node_facts.len() != 1 {
+                    return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+                }
+                let GraphCapturedDependencyV1::RootRange {
+                    direction: Some(direction),
+                    lower: Some(lower),
+                    upper: Some(upper),
+                    limit,
+                    ..
+                } = &node_facts[0].graph.dependency
+                else {
+                    return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+                };
+                let window = registration_window(demand, node.node_id(), None)?;
+                if direction != &window.direction
+                    || lower != &window.lower
+                    || upper != &window.upper
+                    || *limit != window.take
+                    || window.order != *order
+                {
+                    return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+                }
+                let records = registration_query_records(node_facts[0])?;
+                if records.len() != 1 {
+                    return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+                }
+                let (_, read, supplied, rows) = &records[0];
+                let expected = registration_query_plan(
+                    table,
+                    visibility,
+                    filters.clone(),
+                    order.clone(),
+                    *limit,
+                    access_index,
+                    demand,
+                )?;
+                registration_query_is_exact(read, supplied, rows, &expected)?;
+                insert_registration_rows(&mut node_output, table, rows)?;
+            }
+            GraphNodeV1::EqualityToOne {
+                table,
+                visibility,
+                join_on,
+                access_index,
+                filters,
+                ..
+            } => {
+                exact_parent_fact_set(
+                    node_facts,
+                    &expected_parents,
+                    |dependency| match dependency {
+                        GraphCapturedDependencyV1::ParentPoint { parent_key, .. }
+                        | GraphCapturedDependencyV1::ParentLookupSkipped { parent_key, .. } => {
+                            Some(parent_key)
+                        }
+                        _ => None,
+                    },
+                )?;
+                for fact in node_facts {
+                    let parent_key = match &fact.graph.dependency {
+                        GraphCapturedDependencyV1::ParentPoint { parent_key, .. }
+                        | GraphCapturedDependencyV1::ParentLookupSkipped { parent_key, .. } => {
+                            parent_key
+                        }
+                        _ => return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch),
+                    };
+                    let parent = parent_rows
+                        .get(parent_key)
+                        .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+                    let relation = registration_relation_filters(parent, join_on);
+                    let records = registration_query_records(fact)?;
+                    match (&fact.graph.dependency, relation) {
+                        (GraphCapturedDependencyV1::ParentLookupSkipped { .. }, None)
+                            if records.is_empty() => {}
+                        (
+                            GraphCapturedDependencyV1::ParentPoint {
+                                lookup_key,
+                                child_key,
+                                found,
+                                row_version,
+                                ..
+                            },
+                            Some(mut relation),
+                        ) if records.len() == 1 => {
+                            let expected_lookup = join_on
+                                .iter()
+                                .map(|join| parent.get(&join.root_field).cloned().unwrap())
+                                .collect::<Vec<_>>();
+                            if lookup_key != &expected_lookup {
+                                return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+                            }
+                            relation.extend(filters.clone().unwrap_or_default());
+                            let expected = registration_query_plan(
+                                table,
+                                visibility,
+                                relation,
+                                Vec::new(),
+                                1,
+                                access_index,
+                                demand,
+                            )?;
+                            let (_, read, supplied, rows) = &records[0];
+                            registration_query_is_exact(read, supplied, rows, &expected)?;
+                            let actual_key = rows
+                                .first()
+                                .map(|row| registration_row_key(table, row))
+                                .transpose()?;
+                            let actual_version = rows
+                                .first()
+                                .and_then(|row| row.get("_version"))
+                                .and_then(Value::as_u64);
+                            if *found != !rows.is_empty()
+                                || child_key != &actual_key
+                                || row_version != &actual_version
+                            {
+                                return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+                            }
+                            insert_registration_rows(&mut node_output, table, rows)?;
+                        }
+                        _ => return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch),
+                    }
+                }
+            }
+            GraphNodeV1::BoundedToMany {
+                table,
+                visibility,
+                join_on,
+                access_index,
+                order,
+                page,
+                filters,
+                ..
+            } => {
+                exact_parent_fact_set(
+                    node_facts,
+                    &expected_parents,
+                    |dependency| match dependency {
+                        GraphCapturedDependencyV1::ParentRange { parent_key, .. } => {
+                            Some(parent_key)
+                        }
+                        _ => None,
+                    },
+                )?;
+                for fact in node_facts {
+                    let GraphCapturedDependencyV1::ParentRange {
+                        parent_key,
+                        predicate,
+                        direction: Some(direction),
+                        lower: Some(lower),
+                        upper: Some(upper),
+                        limit,
+                        complete,
+                        ..
+                    } = &fact.graph.dependency
+                    else {
+                        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+                    };
+                    let parent = parent_rows
+                        .get(parent_key)
+                        .ok_or(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch)?;
+                    let literal_window;
+                    let window = match page {
+                        GraphChildPageV1::Demand(_) => {
+                            registration_window(demand, node.node_id(), Some(parent_key))?
+                        }
+                        GraphChildPageV1::Literal(page) => {
+                            literal_window = crate::manifest::GraphWindowIdentityV1 {
+                                order: order.clone(),
+                                direction: page.direction,
+                                lower: page.lower.clone(),
+                                upper: page.upper.clone(),
+                                take: page.take,
+                            };
+                            &literal_window
+                        }
+                    };
+                    if predicate.as_slice() != filters.as_deref().unwrap_or_default()
+                        || direction != &window.direction
+                        || lower != &window.lower
+                        || upper != &window.upper
+                        || *limit != window.take
+                        || window.order != *order
+                    {
+                        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+                    }
+                    let relation = registration_relation_filters(parent, join_on);
+                    let records = registration_query_records(fact)?;
+                    if let Some(mut relation) = relation {
+                        if records.len() != 1 {
+                            return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+                        }
+                        relation.extend(filters.clone().unwrap_or_default());
+                        let expected = registration_query_plan(
+                            table,
+                            visibility,
+                            relation,
+                            order.clone(),
+                            *limit,
+                            access_index,
+                            demand,
+                        )?;
+                        let (_, read, supplied, rows) = &records[0];
+                        registration_query_is_exact(read, supplied, rows, &expected)?;
+                        insert_registration_rows(&mut node_output, table, rows)?;
+                    } else if !records.is_empty() || *complete {
+                        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+                    }
+                }
+            }
+            GraphNodeV1::ExistsSemiJoin {
+                mode,
+                edge,
+                filters,
+                argument_id,
+                ..
+            } => {
+                exact_parent_fact_set(
+                    node_facts,
+                    &expected_parents,
+                    |dependency| match dependency {
+                        GraphCapturedDependencyV1::Membership { parent_key, .. } => {
+                            Some(parent_key)
+                        }
+                        _ => None,
+                    },
+                )?;
+                for fact in node_facts {
+                    attest_membership_fact(
+                        carrier,
+                        schema,
+                        demand,
+                        node,
+                        mode,
+                        edge,
+                        filters.as_deref().unwrap_or_default(),
+                        argument_id.as_deref(),
+                        &parent_rows,
+                        fact,
+                    )?;
+                }
+            }
+            GraphNodeV1::PrincipalBound {
+                table,
+                visibility,
+                parent_join,
+                principal_field,
+                access_index,
+                binding,
+                filters,
+                ..
+            } => {
+                attest_principal_facts(
+                    demand,
+                    node,
+                    table,
+                    visibility,
+                    parent_join,
+                    principal_field,
+                    access_index,
+                    binding.as_ref(),
+                    filters.as_deref().unwrap_or_default(),
+                    &parent_rows,
+                    node_facts,
+                    &mut node_output,
+                )?;
+            }
+            GraphNodeV1::SearchMembership { .. } => {
+                if !node_facts.is_empty() {
+                    return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+                }
+            }
+            GraphNodeV1::ClosedProjection { .. } => {
+                if node_facts.len() != 1
+                    || !registration_query_records(node_facts[0])?.is_empty()
+                    || !matches!(
+                        node_facts[0].graph.dependency,
+                        GraphCapturedDependencyV1::Projection { .. }
+                    )
+                {
+                    return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+                }
+            }
+        }
+        outputs.insert(node.node_id().to_owned(), node_output);
+    }
+
+    let evaluated_parents = carrier
+        .normalized_plan
+        .nodes
+        .iter()
+        .enumerate()
+        .filter_map(|(index, node)| {
+            matches!(
+                node,
+                GraphNodeV1::BoundedToMany {
+                    page: GraphChildPageV1::Demand(_),
+                    ..
+                }
+            )
+            .then(|| (node.node_id().to_owned(), closures[index].clone()))
+        })
+        .collect::<BTreeMap<_, _>>();
+    let instance = graph_instance_identity_v1(
+        carrier,
+        &demand.args,
+        demand.windows.clone(),
+        &evaluated_parents,
+    )?;
+    if facts
+        .iter()
+        .any(|fact| fact.graph.instance_hash != instance.instance_hash)
+    {
+        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+    }
+
+    let mut materialization_preimage = demand.materialization.preimage.clone();
+    materialization_preimage.graph_instance_hash = instance.instance_hash.clone();
+    if materialization_preimage.function.result_contract_hash
+        != carrier.normalized_plan.result_contract_hash
+    {
+        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+    }
+    let materialization = graph_materialization_identity_v1(materialization_preimage)?;
+    if materialization != demand.materialization {
+        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+    }
+
+    let declared_class2 = carrier
+        .normalized_plan
+        .authority_partition_rule
+        .class2_inputs
+        .iter()
+        .map(|input| {
+            (
+                input.node_id.clone(),
+                input.declaration_id.clone(),
+                input.policy_identity.clone(),
+            )
+        })
+        .collect::<BTreeSet<_>>();
+    let supplied_class2 = demand
+        .partition
+        .preimage
+        .class2
+        .iter()
+        .map(|input| {
+            (
+                input.node_id.clone(),
+                input.declaration_id.clone(),
+                input.policy_identity.clone(),
+            )
+        })
+        .collect::<BTreeSet<_>>();
+    let needs_class3 = carrier.normalized_plan.nodes.iter().any(|node| {
+        node.authority().declared_class == crate::manifest::GraphAuthorityClassV1::PRINCIPAL_SCOPED
+    });
+    if declared_class2 != supplied_class2
+        || demand.partition.preimage.class2.len() != supplied_class2.len()
+        || needs_class3 != demand.partition.preimage.class3.is_some()
+    {
+        return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
+    }
+    let mut partition_preimage = demand.partition.preimage.clone();
+    partition_preimage.graph_plan_hash = carrier.plan_hash.clone();
+    let partition = graph_authority_partition_identity_v1(partition_preimage)?;
+    if partition != demand.partition
+        || facts.iter().any(|fact| {
+            matches!(
+                &fact.graph.dependency,
+                GraphCapturedDependencyV1::PrincipalField { partition_hash, .. }
+                    if partition_hash != &partition.partition_hash
+            )
+        })
+    {
         return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
     }
     Ok((
-        cardinalities,
-        closures
-            .into_iter()
-            .map(|closure| closure.into_values().collect())
-            .collect(),
+        closures,
+        instance.instance_hash,
+        materialization.materialization_hash,
+        partition.partition_hash,
     ))
 }
 
@@ -245,24 +1372,21 @@ fn registration_shape(
 #[cfg(any(test, feature = "test-support"))]
 pub fn attest_graph_subscription_dependencies(
     carrier: &GraphQueryCarrierV1,
-    expected_instance_hash: &Sha256V1,
-    materialization_hash: &Sha256V1,
-    partition_hash: &Sha256V1,
+    schema: &SchemaManifest,
+    demand: &GraphSubscriptionRegistrationDemandV1,
     reads: &[CapturedReadDependency],
     attachments: &[GraphCapturedReadAttachmentV1],
+    query_outputs: &[GraphCapturedQueryOutputV1],
 ) -> Result<RegisteredGraphSubscriptionDependenciesV1, GraphDemandTimeRefusalReasonV1> {
-    let (per_node_capture_cardinalities, parent_key_closure) = registration_shape(
-        carrier,
-        reads,
-        attachments,
-        expected_instance_hash,
-        partition_hash,
-    )?;
+    let (facts, per_node_capture_cardinalities) =
+        registration_facts(carrier, reads, attachments, query_outputs)?;
+    let (parent_key_closure, instance_hash, materialization_hash, partition_hash) =
+        attest_registration_semantics(carrier, schema, demand, &facts)?;
     Ok(RegisteredGraphSubscriptionDependenciesV1 {
         graph_plan_hash: carrier.plan_hash.clone(),
-        instance_hash: expected_instance_hash.clone(),
-        materialization_hash: materialization_hash.clone(),
-        partition_hash: partition_hash.clone(),
+        instance_hash,
+        materialization_hash,
+        partition_hash,
         normalized_node_ids: carrier
             .normalized_plan
             .nodes
@@ -699,70 +1823,36 @@ fn graph_capture_facts(
         .collect()
 }
 
-fn graph_node_output_count(node: &GraphNodeV1, facts: &[&GraphCaptureFact<'_>]) -> Option<u64> {
-    match node {
-        GraphNodeV1::RootWindow { .. } => {
-            facts.iter().find_map(|fact| match &fact.graph.dependency {
-                GraphCapturedDependencyV1::RootRange { result_count, .. } => Some(*result_count),
-                _ => None,
-            })
-        }
-        GraphNodeV1::EqualityToOne { .. } => Some(
-            facts
-                .iter()
-                .filter(|fact| {
-                    matches!(
-                        fact.graph.dependency,
-                        GraphCapturedDependencyV1::ParentPoint { found: true, .. }
-                    )
-                })
-                .count() as u64,
-        ),
-        GraphNodeV1::BoundedToMany { .. } => facts.iter().try_fold(0_u64, |sum, fact| {
-            let GraphCapturedDependencyV1::ParentRange { result_count, .. } =
-                &fact.graph.dependency
-            else {
-                return None;
-            };
-            sum.checked_add(*result_count)
-        }),
-        GraphNodeV1::PrincipalBound {
-            table,
-            principal_field,
+fn graph_fact_parent_key(dependency: &GraphCapturedDependencyV1) -> Option<&GraphRowKeyV1> {
+    match dependency {
+        GraphCapturedDependencyV1::ParentPoint { parent_key, .. }
+        | GraphCapturedDependencyV1::ParentLookupSkipped { parent_key, .. }
+        | GraphCapturedDependencyV1::ParentRange { parent_key, .. }
+        | GraphCapturedDependencyV1::Membership { parent_key, .. } => Some(parent_key),
+        GraphCapturedDependencyV1::PrincipalField {
+            parent_key: Some(parent_key),
             ..
-        } => Some(
-            facts
-                .iter()
-                .filter(|fact| {
-                    matches!(
-                        &fact.graph.dependency,
-                        GraphCapturedDependencyV1::PrincipalField {
-                            table: captured_table,
-                            field,
-                            found: true,
-                            ..
-                        } if captured_table == table && field == principal_field
-                    )
-                })
-                .count() as u64,
-        ),
-        GraphNodeV1::ExistsSemiJoin { .. }
-        | GraphNodeV1::SearchMembership { .. }
-        | GraphNodeV1::ClosedProjection { .. } => Some(0),
+        } => Some(parent_key),
+        _ => None,
     }
 }
 
-fn expected_graph_parent_attempts(
-    plan: &crate::manifest::GraphQueryPlanV1,
-    node: &GraphNodeV1,
-    by_node: &BTreeMap<String, Vec<&GraphCaptureFact<'_>>>,
-) -> Option<u64> {
-    let parent_id = node.parent_node_id()?;
-    let parent = plan.nodes.iter().find(|node| node.node_id() == parent_id)?;
-    graph_node_output_count(
-        parent,
-        by_node.get(parent_id).map(Vec::as_slice).unwrap_or(&[]),
-    )
+fn graph_parent_key_closure_is_exact(
+    facts: &[&GraphCaptureFact<'_>],
+    expected: &[GraphRowKeyV1],
+    permit_node_global_facts: bool,
+) -> bool {
+    let expected_set = expected.iter().cloned().collect::<BTreeSet<_>>();
+    if expected_set.len() != expected.len() {
+        return false;
+    }
+    let actual = facts
+        .iter()
+        .filter_map(|fact| graph_fact_parent_key(&fact.graph.dependency).cloned())
+        .collect::<Vec<_>>();
+    actual.len() == expected.len()
+        && actual.into_iter().collect::<BTreeSet<_>>() == expected_set
+        && (permit_node_global_facts || facts.len() == expected.len())
 }
 
 fn graph_query_companion<'a>(
@@ -877,10 +1967,9 @@ fn graph_range_query_companion_is_complete(
 }
 
 fn graph_node_capture_is_complete(
-    plan: &crate::manifest::GraphQueryPlanV1,
     node: &GraphNodeV1,
     facts: &[&GraphCaptureFact<'_>],
-    by_node: &BTreeMap<String, Vec<&GraphCaptureFact<'_>>>,
+    expected_parent_keys: &[GraphRowKeyV1],
     input: &HandlerInput,
     identities_valid: bool,
 ) -> bool {
@@ -941,10 +2030,7 @@ fn graph_node_capture_is_complete(
                 }
         }
         GraphNodeV1::EqualityToOne { .. } => {
-            let Some(expected) = expected_graph_parent_attempts(plan, node, by_node) else {
-                return false;
-            };
-            facts.len() as u64 == expected
+            graph_parent_key_closure_is_exact(facts, expected_parent_keys, false)
                 && facts.iter().all(|fact| match &fact.graph.dependency {
                     GraphCapturedDependencyV1::ParentPoint {
                         table,
@@ -974,10 +2060,7 @@ fn graph_node_capture_is_complete(
                 })
         }
         GraphNodeV1::BoundedToMany { .. } => {
-            let Some(expected) = expected_graph_parent_attempts(plan, node, by_node) else {
-                return false;
-            };
-            facts.len() as u64 == expected
+            graph_parent_key_closure_is_exact(facts, expected_parent_keys, false)
                 && facts.iter().all(|fact| match &fact.graph.dependency {
                     GraphCapturedDependencyV1::ParentRange {
                         table,
@@ -1009,10 +2092,7 @@ fn graph_node_capture_is_complete(
             argument_id,
             ..
         } => {
-            let Some(expected) = expected_graph_parent_attempts(plan, node, by_node) else {
-                return false;
-            };
-            facts.len() as u64 == expected
+            graph_parent_key_closure_is_exact(facts, expected_parent_keys, false)
                 && facts.iter().all(|fact| {
                     let GraphCapturedDependencyV1::Membership {
                         matched_count,
@@ -1077,8 +2157,11 @@ fn graph_node_capture_is_complete(
             if input.auth.user_id.is_none() {
                 return facts.is_empty();
             }
-            if binding.is_none() && expected_graph_parent_attempts(plan, node, by_node) == Some(0) {
+            if binding.is_none() && expected_parent_keys.is_empty() {
                 return facts.is_empty();
+            }
+            if !graph_parent_key_closure_is_exact(facts, expected_parent_keys, true) {
+                return false;
             }
             let auth_complete = facts
                 .iter()
@@ -1182,9 +2265,9 @@ fn graph_node_capture_is_complete(
                 })
             });
             let expected_targets = if binding_found {
-                expected_graph_parent_attempts(plan, node, by_node)
+                expected_parent_keys.len()
             } else {
-                Some(0)
+                0
             };
             let target_count = facts
                 .iter()
@@ -1198,8 +2281,8 @@ fn graph_node_capture_is_complete(
                         } if captured_table == table && field == principal_field
                     )
                 })
-                .count() as u64;
-            expected_targets == Some(target_count)
+                .count();
+            expected_targets == target_count
         }
         GraphNodeV1::SearchMembership {
             invalidation_tables,
@@ -1584,22 +2667,8 @@ fn graph_subscription_match_decision(
         .iter()
         .map(|node| node.node_id().to_owned())
         .collect::<Vec<_>>();
-    let Ok((cardinalities, parent_key_closure)) = registration_shape(
-        carrier,
-        &registration.reads,
-        &registration.attachments,
-        &registration.instance_hash,
-        &registration.partition_hash,
-    ) else {
-        return LiveMatchDecisionV1 {
-            outcome: LiveMatchOutcome::ConservativeFallback,
-            graph_nodes: Vec::new(),
-        };
-    };
     if registration.graph_plan_hash != carrier.plan_hash
         || registration.normalized_node_ids != normalized_node_ids
-        || registration.per_node_capture_cardinalities != cardinalities
-        || registration.parent_key_closure != parent_key_closure
     {
         return LiveMatchDecisionV1 {
             outcome: LiveMatchOutcome::ConservativeFallback,
@@ -1626,17 +2695,17 @@ fn graph_subscription_match_decision(
             .get(node.node_id())
             .map(Vec::as_slice)
             .unwrap_or(&[]);
-        let identities_valid = node_facts.len() as u64 == cardinalities[node_index]
+        let identities_valid = node_facts.len() as u64
+            == registration.per_node_capture_cardinalities[node_index]
             && node_facts.iter().all(|fact| {
                 fact.graph.graph_plan_hash == carrier.plan_hash
                     && fact.graph.instance_hash == registration.instance_hash
                     && validate_graph_captured_read_v1(fact.graph, &carrier.normalized_plan).is_ok()
             });
         let capture_complete = graph_node_capture_is_complete(
-            &carrier.normalized_plan,
             node,
             node_facts,
-            &by_node,
+            &registration.parent_key_closure[node_index],
             input,
             identities_valid,
         );
@@ -2640,29 +3709,70 @@ mod dependency_gate_tests {
         include_projection: bool,
     ) -> (
         GraphQueryCarrierV1,
-        RegisteredGraphSubscriptionDependenciesV1,
+        Result<RegisteredGraphSubscriptionDependenciesV1, GraphDemandTimeRefusalReasonV1>,
     ) {
         let carrier: GraphQueryCarrierV1 = serde_json::from_str(include_str!(
             "../../../tests/conformance/graph/minimal-carrier.v1.json"
         ))
-        .unwrap();
-        let instance_hash = Sha256V1::new(
-            "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-        )
-        .unwrap();
-        let materialization_hash = Sha256V1::new(
-            "sha256:7777777777777777777777777777777777777777777777777777777777777777",
-        )
-        .unwrap();
-        let partition_hash = Sha256V1::new(
-            "sha256:2222222222222222222222222222222222222222222222222222222222222222",
-        )
         .unwrap();
         let order = vec![OrderExpr {
             field: "updatedAt".to_owned(),
             direction: OrderDirection::Desc,
             max_encoded_bytes: None,
         }];
+        let windows = vec![GraphNodeWindowIdentityV1 {
+            node_id: "n0".to_owned(),
+            intervals: vec![crate::manifest::GraphParentWindowIdentityV1 {
+                parent_key: None,
+                window: crate::manifest::GraphWindowIdentityV1 {
+                    order: order.clone(),
+                    direction: GraphDirectionV1::Forward,
+                    lower: GraphIntervalEndV1::Unbounded,
+                    upper: GraphIntervalEndV1::Unbounded,
+                    take: 2,
+                },
+            }],
+        }];
+        let instance =
+            graph_instance_identity_v1(&carrier, &json!({}), windows.clone(), &BTreeMap::new())
+                .unwrap();
+        let materialization_preimage: crate::manifest::GraphMaterializationPreimageV1 =
+            serde_json::from_value(json!({
+                "format":"snapback.graph-materialization.v1",
+                "appId":"registration-test", "databaseId":"database",
+                "deploymentId":"deployment", "targetProfileId":"local",
+                "activationHash":"sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                "function":{
+                    "artifactKind":"functionReference", "schemaVersion":"snapback.v1",
+                    "appId":"registration-test", "id":"graph-test", "name":"graphTest",
+                    "kind":"LiveQuery",
+                    "implementationHash":"sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                    "argsContractHash":"sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                    "resultContractHash":carrier.normalized_plan.result_contract_hash,
+                    "expectedGeneration":{"schemaVersion":"snapback.v1","appId":"registration-test","schemaHash":"schema","bundleHash":"bundle","inputsHash":"inputs"}
+                },
+                "graphInstanceHash":instance.instance_hash,
+            }))
+            .unwrap();
+        let materialization = graph_materialization_identity_v1(materialization_preimage).unwrap();
+        let partition = graph_authority_partition_identity_v1(
+            crate::manifest::GraphAuthorityPartitionPreimageV1 {
+                format: "snapback.graph-authority-partition.v1".to_owned(),
+                graph_plan_hash: carrier.plan_hash.clone(),
+                class2: Vec::new(),
+                class3: None,
+            },
+        )
+        .unwrap();
+        let demand = GraphSubscriptionRegistrationDemandV1 {
+            args: json!({}),
+            windows,
+            input: input(),
+            permission_values_by_table: BTreeMap::new(),
+            materialization,
+            partition,
+        };
+        let instance_hash = demand.materialization.preimage.graph_instance_hash.clone();
         let root = CapturedReadDependency {
             graph: Some(
                 serde_json::from_value(json!({
@@ -2674,7 +3784,7 @@ mod dependency_gate_tests {
                         "kind":"root-range", "table":"issues", "index":"by_updated",
                         "predicate":[], "order":order, "direction":"forward",
                         "lower":{"kind":"unbounded"}, "upper":{"kind":"unbounded"},
-                        "limit":10, "resultCount":0, "boundary":null, "complete":true
+                        "limit":2, "resultCount":0, "boundary":null, "complete":true
                     }
                 }))
                 .unwrap(),
@@ -2686,7 +3796,7 @@ mod dependency_gate_tests {
             table: query_table.to_owned(),
             filters: Vec::new(),
             order: order.clone(),
-            limit: Some(10),
+            limit: Some(2),
             membership_filters: Vec::new(),
             indexed_by: Some("by_updated".to_owned()),
         };
@@ -2701,7 +3811,7 @@ mod dependency_gate_tests {
             field: None,
             value: None,
             order: Some(serde_json::to_value(order).unwrap()),
-            limit: Some(10),
+            limit: Some(2),
             result_count: Some(0),
             boundary: None,
         };
@@ -2732,19 +3842,22 @@ mod dependency_gate_tests {
         }
         let registration = attest_graph_subscription_dependencies(
             &carrier,
-            &instance_hash,
-            &materialization_hash,
-            &partition_hash,
+            &SchemaManifest::default(),
+            &demand,
             &reads,
             &attachments,
-        )
-        .unwrap();
+            &[GraphCapturedQueryOutputV1 {
+                query_read_index: 1,
+                rows: Vec::new(),
+            }],
+        );
         (carrier, registration)
     }
 
     #[test]
     fn complete_graph_capture_empty_changes_is_seed_refresh_not_skip() {
         let (carrier, registration) = minimal_graph_registration("issues", true);
+        let registration = registration.unwrap();
         let definition = FunctionDefinition::new(
             "graphIssues",
             FunctionKind::LiveQuery,
@@ -2762,35 +3875,12 @@ mod dependency_gate_tests {
 
     #[test]
     fn attested_graph_registration_rejects_forged_companion_and_missing_node_as_incomplete() {
-        for (query_table, include_projection, incomplete_node) in
-            [("unrelated", true, "n0"), ("issues", false, "n1")]
-        {
-            let (carrier, registration) =
-                minimal_graph_registration(query_table, include_projection);
-            let definition = FunctionDefinition::new(
-                "graphIssues",
-                FunctionKind::LiveQuery,
-                FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier)),
+        for (query_table, include_projection) in [("unrelated", true), ("issues", false)] {
+            let (_, registration) = minimal_graph_registration(query_table, include_projection);
+            assert!(
+                registration.is_err(),
+                "semantic companion or node omission must be refused at registration"
             );
-            let decision = live_subscription_match_decision_with_graph_registration(
-                &definition,
-                &input(),
-                &registration,
-                &[update("unrelated", "x", json!({"_id":"x"}), &["value"])],
-            );
-            assert_eq!(decision.outcome, LiveMatchOutcome::ConservativeFallback);
-            let node = decision
-                .graph_nodes
-                .iter()
-                .find(|row| row.node_id == incomplete_node)
-                .unwrap();
-            assert!(!node.capture_complete);
-            assert_eq!(node.changed_row_count, 0);
-            assert_eq!(
-                node.disposition,
-                GraphNodeMatchDispositionV1::ConservativeFallback
-            );
-            assert_eq!(node.reason, GraphNodeMatchReasonV1::CaptureIncomplete);
         }
     }
 
@@ -3010,6 +4100,7 @@ mod dependency_gate_tests {
         let principal = graph_fact(
             json!({
                 "kind":"principal-field", "table":"viewState", "index":"by_user",
+                "parentKey":{"table":"issues","id":"i1"},
                 "partitionHash":"sha256:2222222222222222222222222222222222222222222222222222222222222222",
                 "field":"userId", "valueDigest":captured_principal_digest(&principal_value).unwrap(),
                 "found":false

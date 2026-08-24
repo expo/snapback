@@ -161,6 +161,11 @@ pub struct GraphEvaluationOutputV1 {
     /// matcher can consume any of the reads.
     #[serde(default)]
     pub capture_attachments: Vec<GraphCapturedReadAttachmentV1>,
+    /// Internal full-row provenance for ordinary query companions. These
+    /// values cross only the evaluator-to-sync registration seam and are
+    /// intentionally omitted from serialized evaluation results/inspection.
+    #[serde(skip)]
+    pub captured_query_outputs: Vec<crate::live_matcher::GraphCapturedQueryOutputV1>,
 }
 
 fn deserialize_required_option<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
@@ -368,6 +373,7 @@ struct EvaluationState {
     capture_context: Option<GraphCaptureContext>,
     captured_reads: Vec<CapturedReadDependency>,
     capture_attachments: Vec<GraphCapturedReadAttachmentV1>,
+    captured_query_outputs: Vec<crate::live_matcher::GraphCapturedQueryOutputV1>,
     work: Work,
 }
 
@@ -412,15 +418,20 @@ impl EvaluationState {
         Some(self.capture_attachments.len() - 1)
     }
 
-    fn capture_ordinary(&mut self, attachment: Option<usize>, dependency: CapturedReadDependency) {
+    fn capture_ordinary(
+        &mut self,
+        attachment: Option<usize>,
+        dependency: CapturedReadDependency,
+    ) -> Option<u64> {
         let Some(attachment) = attachment else {
-            return;
+            return None;
         };
         let ordinary_read_index = self.captured_reads.len() as u64;
         self.captured_reads.push(dependency);
         self.capture_attachments[attachment]
             .ordinary_read_indices
             .push(ordinary_read_index);
+        Some(ordinary_read_index)
     }
 
     fn capture_query(
@@ -443,7 +454,7 @@ impl EvaluationState {
             )
             .with_details(json!({ "error": error.to_string() }))
         })?;
-        self.capture_ordinary(
+        let query_read_index = self.capture_ordinary(
             attachment,
             CapturedReadDependency {
                 kind: CapturedReadKind::Query,
@@ -464,6 +475,13 @@ impl EvaluationState {
                 boundary,
             },
         );
+        if let Some(query_read_index) = query_read_index {
+            self.captured_query_outputs
+                .push(crate::live_matcher::GraphCapturedQueryOutputV1 {
+                    query_read_index,
+                    rows: rows.to_vec(),
+                });
+        }
         for row in rows {
             let (Some(id), Some(version)) = (
                 row.get("_id").and_then(Value::as_str),
@@ -2059,6 +2077,7 @@ fn evaluate_principal(
             GraphCapturedDependencyV1::PrincipalField {
                 table: binding.table.clone(),
                 index: binding.unique_index.clone(),
+                parent_key: None,
                 partition_hash: request.partition_hash.clone(),
                 field: binding.principal_field.clone(),
                 value_digest: captured_value_digest(
@@ -2082,6 +2101,7 @@ fn evaluate_principal(
                 GraphCapturedDependencyV1::PrincipalField {
                     table: binding.table.clone(),
                     index: binding.unique_index.clone(),
+                    parent_key: None,
                     partition_hash: request.partition_hash.clone(),
                     field: binding.value_field.clone(),
                     value_digest: captured_value_digest(
@@ -2134,6 +2154,7 @@ fn evaluate_principal(
                 GraphCapturedDependencyV1::PrincipalField {
                     table: table.clone(),
                     index: access_index.clone(),
+                    parent_key: Some(parent.key.clone()),
                     partition_hash: request.partition_hash.clone(),
                     field: principal_field.clone(),
                     value_digest: captured_value_digest(
@@ -2168,6 +2189,7 @@ fn evaluate_principal(
                 GraphCapturedDependencyV1::PrincipalField {
                     table: table.clone(),
                     index: access_index.clone(),
+                    parent_key: Some(parent.key.clone()),
                     partition_hash: request.partition_hash.clone(),
                     field: principal_field.clone(),
                     value_digest: captured_value_digest(
@@ -2723,6 +2745,7 @@ fn refused_output(
         window_ledgers: request.prior_window_ledgers.clone(),
         captured_reads: state.captured_reads.clone(),
         capture_attachments: state.capture_attachments.clone(),
+        captured_query_outputs: state.captured_query_outputs.clone(),
     })
 }
 
@@ -2944,6 +2967,7 @@ pub(crate) fn evaluate_graph_query_on(
             window_ledgers,
             captured_reads: state.captured_reads.clone(),
             capture_attachments: state.capture_attachments.clone(),
+            captured_query_outputs: state.captured_query_outputs.clone(),
         })
     })();
     match evaluation {

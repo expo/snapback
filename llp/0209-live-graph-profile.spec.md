@@ -5,9 +5,9 @@
 **Systems:** Live queries, Relational queries, Schema, Auth, Performance, Client SDK
 **Author:** Claude Fable 5 (commissioned by the LLP 0191 author rulings, Charlie Cheever, 2026-08-08)
 **Date:** 2026-08-09
-**Revised:** 2026-08-24 (v0.9 — G2-B round 1 makes range traversal identity
-and matcher registration/completeness attestation explicit; G2-A landed (the corpus-proven graph
-evaluator, series ending `e486f4827`) and the LLP 0268 exit extension landed
+**Revised:** 2026-08-24 (v0.9 — G2-B rounds 1–2 make range traversal identity
+and semantic-provenance registration/completeness attestation explicit; G2-A landed (the
+corpus-proven graph evaluator, series ending `e486f4827`) and the LLP 0268 exit extension landed
 (`a11054ca4`): the G0 exit is re-recorded with six 0268 §7 labels SATISFIED
 and three PARTIAL pending G2-C; 0268 B1 remains gated on exactly those three;
 the four G2-A Spec-gap notes stand as normative)
@@ -2534,6 +2534,9 @@ type GraphCapturedReadV1 = Readonly<{
         kind: "principal-field"
         table: string
         index: string
+        // Null only for node-global binding-table facts; target facts bind
+        // the captured parent output row whose lookup they attest.
+        parentKey: GraphRowKeyV1 | null
         partitionHash: Sha256V1
         field: string
         valueDigest: Sha256V1
@@ -2599,7 +2602,19 @@ graph instance and materialization identities, authority partition, exact
 normalized node-id vector and per-node cardinalities, unique parent-key
 closure, and an explicit graph-to-ordinary companion attachment. Any identity,
 node, cardinality, closure, or companion mismatch is incomplete and therefore
-cannot produce `Skip`; there is no positional companion inference.
+cannot produce `Skip`; there is no positional companion inference. Registration
+derives every ordinary companion's complete lowered `QueryPlan` independently
+from the normalized carrier, demand authority inputs, named window, and the
+captured parent output row (including its join literals), then exact-compares
+table, visibility, declared and permission filters, membership filters,
+index, order, direction/window-bound graph fact, and limit against the supplied
+query and its captured rows. It reconstructs each child node's complete
+duplicate-free `(table,_id)` parent set from those captured parent output rows,
+never from the child facts' own parent claims. Finally it reconstructs the
+graph-instance, materialization, and authority-partition preimages from the
+carrier and complete demand inputs and verifies the supplied identities by
+exact equality; a hash without its matching preimage is not registration
+evidence.
 
 ### 5.2 Per-node decision ledger
 
@@ -3359,6 +3374,14 @@ longer prover or corpus structure.
 
 ## Revision history
 
+- **v0.9 (2026-08-24).** G2-B round 1 added evaluator-owned captured reads,
+  sync-attested registration, and the per-node matcher ledger. Fix round 2
+  closes semantic provenance: registration independently reconstructs every
+  ordinary query, derives child parent closure from captured parent output
+  rows with full `(table,_id)` set equality, and re-hashes complete
+  materialization/partition preimages. Principal target facts now carry their
+  parent key; binding facts carry explicit null. Results, completeness labels,
+  and proof records are unchanged.
 - **v0.8 (2026-08-24).** G2-A landed (`e486f4827`) and the LLP 0268 exit
   extension landed (`a11054ca4`); the exit re-recorded with six §7 labels
   SATISFIED, three PARTIAL pending G2-C (see the §9 dated note). The four

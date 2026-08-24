@@ -8,6 +8,10 @@
 pub use snapback_kernel::live_matcher::RegisteredGraphSubscriptionDependenciesV1;
 #[cfg(any(test, feature = "test-support"))]
 use snapback_kernel::live_matcher::attest_graph_subscription_dependencies;
+pub use snapback_kernel::live_matcher::{
+    GraphCapturedQueryOutputV1, GraphRegistrationPermissionValuesV1,
+    GraphSubscriptionRegistrationDemandV1,
+};
 pub use snapback_types::manifest::{
     GraphCapturedDependencyV1, GraphCapturedReadAttachmentV1, GraphCapturedReadV1,
     validate_graph_captured_read_v1,
@@ -35,32 +39,34 @@ pub fn graph_capture_carrier_is_well_formed(read: &CapturedReadDependency) -> bo
 #[cfg(any(test, feature = "test-support"))]
 pub fn register_graph_subscription_dependencies(
     carrier: &snapback_types::manifest::GraphQueryCarrierV1,
-    expected_instance_hash: &snapback_types::manifest::Sha256V1,
-    materialization_hash: &snapback_types::manifest::Sha256V1,
-    partition_hash: &snapback_types::manifest::Sha256V1,
+    schema: &snapback_types::manifest::SchemaManifest,
+    demand: &GraphSubscriptionRegistrationDemandV1,
     reads: &[CapturedReadDependency],
     attachments: &[GraphCapturedReadAttachmentV1],
+    query_outputs: &[GraphCapturedQueryOutputV1],
 ) -> Result<
     RegisteredGraphSubscriptionDependenciesV1,
     snapback_types::manifest::GraphDemandTimeRefusalReasonV1,
 > {
     attest_graph_subscription_dependencies(
         carrier,
-        expected_instance_hash,
-        materialization_hash,
-        partition_hash,
+        schema,
+        demand,
         reads,
         attachments,
+        query_outputs,
     )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use snapback_types::manifest::GraphQueryCarrierV1;
+    use snapback_types::manifest::*;
     use snapback_types::storage::CapturedReadKind;
+    use std::collections::BTreeMap;
 
     fn graph_read(
+        instance_hash: &Sha256V1,
         node_id: &str,
         node_kind: &str,
         dependency: serde_json::Value,
@@ -70,7 +76,7 @@ mod tests {
             "graph":{
                 "format":"snapback.graph-captured-read.v1",
                 "graphPlanHash":"sha256:568efc828e03e4b56d4d09cc3d3dee804fc977d9e6c50f1f2d5b18709f8f1e1e",
-                "instanceHash":"sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                "instanceHash":instance_hash,
                 "nodeId":node_id,
                 "nodeKind":node_kind,
                 "authorityClass":1,
@@ -78,6 +84,81 @@ mod tests {
             }
         }))
         .unwrap()
+    }
+
+    fn registration_demand(carrier: &GraphQueryCarrierV1) -> GraphSubscriptionRegistrationDemandV1 {
+        let windows = vec![GraphNodeWindowIdentityV1 {
+            node_id: "n0".to_owned(),
+            intervals: vec![GraphParentWindowIdentityV1 {
+                parent_key: None,
+                window: GraphWindowIdentityV1 {
+                    order: vec![OrderExpr {
+                        field: "updatedAt".to_owned(),
+                        direction: OrderDirection::Desc,
+                        max_encoded_bytes: None,
+                    }],
+                    direction: GraphDirectionV1::Forward,
+                    lower: GraphIntervalEndV1::Unbounded,
+                    upper: GraphIntervalEndV1::Unbounded,
+                    take: 2,
+                },
+            }],
+        }];
+        let instance = graph_instance_identity_v1(
+            carrier,
+            &serde_json::json!({}),
+            windows.clone(),
+            &BTreeMap::new(),
+        )
+        .unwrap();
+        let materialization_preimage: GraphMaterializationPreimageV1 =
+            serde_json::from_value(serde_json::json!({
+                "format":"snapback.graph-materialization.v1",
+                "appId":"registration-test",
+                "databaseId":"database",
+                "deploymentId":"deployment",
+                "targetProfileId":"local",
+                "activationHash":"sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                "function":{
+                    "artifactKind":"functionReference",
+                    "schemaVersion":"snapback.v1",
+                    "appId":"registration-test",
+                    "id":"graph-test",
+                    "name":"graphTest",
+                    "kind":"LiveQuery",
+                    "implementationHash":"sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                    "argsContractHash":"sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                    "resultContractHash":carrier.normalized_plan.result_contract_hash,
+                    "expectedGeneration":{
+                        "schemaVersion":"snapback.v1", "appId":"registration-test",
+                        "schemaHash":"schema", "bundleHash":"bundle", "inputsHash":"inputs"
+                    }
+                },
+                "graphInstanceHash":instance.instance_hash,
+            }))
+            .unwrap();
+        let materialization = graph_materialization_identity_v1(materialization_preimage).unwrap();
+        let partition = graph_authority_partition_identity_v1(GraphAuthorityPartitionPreimageV1 {
+            format: "snapback.graph-authority-partition.v1".to_owned(),
+            graph_plan_hash: carrier.plan_hash.clone(),
+            class2: Vec::new(),
+            class3: None,
+        })
+        .unwrap();
+        GraphSubscriptionRegistrationDemandV1 {
+            args: serde_json::json!({}),
+            windows,
+            input: HandlerInput {
+                args: serde_json::json!({}),
+                auth: AuthInput::default(),
+                read_set: Vec::new(),
+                correlation: None,
+                ctx_ledger: None,
+            },
+            permission_values_by_table: BTreeMap::new(),
+            materialization,
+            partition,
+        }
     }
 
     #[test]
@@ -116,15 +197,10 @@ mod tests {
             "../../../tests/conformance/graph/minimal-carrier.v1.json"
         ))
         .unwrap();
-        let instance_hash = snapback_types::manifest::Sha256V1::new(
-            "sha256:1111111111111111111111111111111111111111111111111111111111111111".to_owned(),
-        )
-        .unwrap();
-        let context_hash = snapback_types::manifest::Sha256V1::new(
-            "sha256:2222222222222222222222222222222222222222222222222222222222222222".to_owned(),
-        )
-        .unwrap();
+        let demand = registration_demand(&carrier);
+        let instance_hash = demand.materialization.preimage.graph_instance_hash.clone();
         let root = graph_read(
+            &instance_hash,
             "n0",
             "root-window",
             serde_json::json!({
@@ -132,7 +208,7 @@ mod tests {
                 "predicate":[], "order":[{"field":"updatedAt","direction":"Desc"}],
                 "direction":"forward", "lower":{"kind":"unbounded"},
                 "upper":{"kind":"unbounded"},
-                "limit":10, "resultCount":0, "boundary":null, "complete":true
+                "limit":2, "resultCount":0, "boundary":null, "complete":true
             }),
         );
         let query = CapturedReadDependency {
@@ -142,19 +218,20 @@ mod tests {
             id: None,
             version: Some(1),
             predicate: Some(serde_json::json!({
-                "table":"issues", "filters":[], "membershipFilters":[],
+                "table":"issues", "filters":[],
                 "order":[{"field":"updatedAt","direction":"Desc"}],
-                "limit":10, "indexedBy":"by_updated"
+                "limit":2, "indexed_by":"by_updated"
             })),
             rows: Vec::new(),
             field: None,
             value: None,
-            order: None,
-            limit: Some(10),
+            order: Some(serde_json::json!([{"field":"updatedAt","direction":"Desc"}])),
+            limit: Some(2),
             result_count: Some(0),
             boundary: None,
         };
         let projection = graph_read(
+            &instance_hash,
             "n1",
             "closed-projection",
             serde_json::json!({"kind":"projection", "sourceNodeIds":["n0"]}),
@@ -170,14 +247,18 @@ mod tests {
                 ordinary_read_indices: Vec::new(),
             },
         ];
+        let query_outputs = vec![GraphCapturedQueryOutputV1 {
+            query_read_index: 1,
+            rows: Vec::new(),
+        }];
         assert_eq!(
             register_graph_subscription_dependencies(
                 &carrier,
-                &instance_hash,
-                &context_hash,
-                &context_hash,
+                &SchemaManifest::default(),
+                &demand,
                 &reads,
                 &attachments,
+                &query_outputs,
             )
             .unwrap()
             .reads(),
@@ -187,11 +268,11 @@ mod tests {
         assert!(
             register_graph_subscription_dependencies(
                 &carrier,
-                &instance_hash,
-                &context_hash,
-                &context_hash,
+                &SchemaManifest::default(),
+                &demand,
                 &reads,
                 &attachments[..1],
+                &query_outputs,
             )
             .is_err(),
             "every graph read needs an explicit attachment"
@@ -210,11 +291,14 @@ mod tests {
         assert!(
             register_graph_subscription_dependencies(
                 &carrier,
-                &instance_hash,
-                &context_hash,
-                &context_hash,
+                &SchemaManifest::default(),
+                &demand,
                 &reordered_reads,
                 &reordered_attachments,
+                &[GraphCapturedQueryOutputV1 {
+                    query_read_index: 2,
+                    rows: Vec::new(),
+                }],
             )
             .is_err(),
             "normalized node order is a registration invariant"
@@ -224,14 +308,16 @@ mod tests {
             "sha256:3333333333333333333333333333333333333333333333333333333333333333".to_owned(),
         )
         .unwrap();
+        let mut stale_demand = demand.clone();
+        stale_demand.materialization.preimage.graph_instance_hash = stale_instance;
         assert!(
             register_graph_subscription_dependencies(
                 &carrier,
-                &stale_instance,
-                &context_hash,
-                &context_hash,
+                &SchemaManifest::default(),
+                &stale_demand,
                 &reads,
                 &attachments,
+                &query_outputs,
             )
             .is_err(),
             "a prior evaluation vector cannot register for a new instance"

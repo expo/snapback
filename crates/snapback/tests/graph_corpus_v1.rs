@@ -22,11 +22,12 @@ use snapback::live_matcher::{
 use snapback::local::LocalSnapback;
 use snapback::manifest::*;
 use snapback_engine::graph_evaluator::{
-    GraphEvaluationAuthorityV1, GraphEvaluationRequestV1, GraphPermissionValuesV1,
-    GraphWindowLedgerV1,
+    GraphEvaluationAuthorityV1, GraphEvaluationOutputV1, GraphEvaluationRequestV1,
+    GraphPermissionValuesV1, GraphWindowLedgerV1,
 };
 use snapback_kernel::storage::{ChangeOp, ChangedRow};
 use snapback_sync::graph_captured_read::{
+    GraphRegistrationPermissionValuesV1, GraphSubscriptionRegistrationDemandV1,
     RegisteredGraphSubscriptionDependenciesV1, graph_capture_carrier_is_well_formed,
     register_graph_subscription_dependencies,
 };
@@ -390,6 +391,7 @@ fn normal_graph_evaluations(
     HandlerInput,
     RegisteredGraphSubscriptionDependenciesV1,
 )> {
+    let registration_schema = corpus_schema(&corpus_seed_tables(corpus));
     corpus["g0ExitObservationEvidence"]
         .as_array()
         .expect("G0 exit evidence")
@@ -409,19 +411,112 @@ fn normal_graph_evaluations(
             let output = graph_store(corpus, None)
                 .evaluate_graph_query(&carrier.normalized_plan, &request)
                 .unwrap_or_else(|error| panic!("evaluate {query_name}: {error:?}"));
+            let matcher_input = normalized_matcher_input(&carrier.normalized_plan, &request);
+            let registration_demand = GraphSubscriptionRegistrationDemandV1 {
+                args: request.args.clone(),
+                windows: request.windows.clone(),
+                input: matcher_input.clone(),
+                permission_values_by_table: request
+                    .authority
+                    .permission_values_by_table
+                    .iter()
+                    .map(|(table, permission)| {
+                        (
+                            table.clone(),
+                            GraphRegistrationPermissionValuesV1 {
+                                field: permission.field.clone(),
+                                allowed_values: permission.allowed_values.clone(),
+                            },
+                        )
+                    })
+                    .collect(),
+                materialization: materialization.clone(),
+                partition: partition.clone(),
+            };
             let registered = register_graph_subscription_dependencies(
                 &carrier,
-                &materialization.preimage.graph_instance_hash,
-                &request.materialization_hash,
-                &request.partition_hash,
+                &registration_schema,
+                &registration_demand,
                 &output.captured_reads,
                 &output.capture_attachments,
+                &output.captured_query_outputs,
             )
             .unwrap_or_else(|error| panic!("register {query_name}: {error:?}"));
-            let matcher_input = normalized_matcher_input(&carrier.normalized_plan, &request);
             (query_name, carrier, matcher_input, registered)
         })
         .collect()
+}
+
+fn registration_fixture(
+    corpus: &Value,
+    query_name: &str,
+) -> (
+    GraphQueryCarrierV1,
+    SchemaManifest,
+    GraphSubscriptionRegistrationDemandV1,
+    GraphEvaluationOutputV1,
+) {
+    let query = corpus_queries(corpus)
+        .find(|query| query["query"] == query_name)
+        .unwrap_or_else(|| panic!("missing corpus query {query_name}"));
+    let carrier: GraphQueryCarrierV1 =
+        serde_json::from_value(query["carrier"].clone()).expect("registration carrier");
+    let evidence = corpus["g0ExitObservationEvidence"]
+        .as_array()
+        .expect("G0 exit evidence")
+        .iter()
+        .find(|evidence| evidence["graphPlanHash"] == carrier.plan_hash.as_str())
+        .unwrap_or_else(|| panic!("missing invocation for {query_name}"));
+    let call = &evidence["invocation"];
+    let (materialization, partition) = validate_corpus_invocation(&carrier, call, query_name);
+    let request = evaluation_request(corpus, call, &materialization, &partition);
+    let output = graph_store(corpus, None)
+        .evaluate_graph_query(&carrier.normalized_plan, &request)
+        .unwrap_or_else(|error| panic!("evaluate {query_name}: {error:?}"));
+    let input = normalized_matcher_input(&carrier.normalized_plan, &request);
+    let demand = GraphSubscriptionRegistrationDemandV1 {
+        args: request.args.clone(),
+        windows: request.windows.clone(),
+        input,
+        permission_values_by_table: request
+            .authority
+            .permission_values_by_table
+            .iter()
+            .map(|(table, permission)| {
+                (
+                    table.clone(),
+                    GraphRegistrationPermissionValuesV1 {
+                        field: permission.field.clone(),
+                        allowed_values: permission.allowed_values.clone(),
+                    },
+                )
+            })
+            .collect(),
+        materialization,
+        partition,
+    };
+    (
+        carrier,
+        corpus_schema(&corpus_seed_tables(corpus)),
+        demand,
+        output,
+    )
+}
+
+fn first_captured_parent_key_mut(
+    reads: &mut [CapturedReadDependency],
+) -> Option<&mut GraphRowKeyV1> {
+    reads.iter_mut().find_map(|read| {
+        let dependency = &mut read.graph.as_mut()?.dependency;
+        match dependency {
+            GraphCapturedDependencyV1::ParentPoint { parent_key, .. }
+            | GraphCapturedDependencyV1::ParentLookupSkipped { parent_key, .. }
+            | GraphCapturedDependencyV1::ParentRange { parent_key, .. }
+            | GraphCapturedDependencyV1::Membership { parent_key, .. } => Some(parent_key),
+            GraphCapturedDependencyV1::PrincipalField { parent_key, .. } => parent_key.as_mut(),
+            _ => None,
+        }
+    })
 }
 
 fn content_digest(mut value: Value) -> Value {
@@ -3405,6 +3500,111 @@ fn all_semijoin_admission_requires_its_declared_collection_argument_filter() {
         graph_query_plan_faults_v1(&plan)
             .iter()
             .any(|fault| fault.reason == GraphAdmissionRefusalReasonV1::ArgumentUnbound)
+    );
+}
+
+#[test]
+fn graph_registration_refuses_semantically_forged_provenance() {
+    let corpus = graph_corpus();
+    let (carrier, schema, demand, output) = registration_fixture(&corpus, "issueListV2");
+    let register = |demand: &GraphSubscriptionRegistrationDemandV1,
+                    output: &GraphEvaluationOutputV1| {
+        register_graph_subscription_dependencies(
+            &carrier,
+            &schema,
+            demand,
+            &output.captured_reads,
+            &output.capture_attachments,
+            &output.captured_query_outputs,
+        )
+    };
+    assert!(register(&demand, &output).is_ok(), "baseline registers");
+
+    let mut forged_filter = output.clone();
+    let query_read_index = forged_filter
+        .capture_attachments
+        .iter()
+        .flat_map(|attachment| attachment.ordinary_read_indices.iter())
+        .copied()
+        .find(|index| forged_filter.captured_reads[*index as usize].kind == CapturedReadKind::Query)
+        .expect("ordinary query companion");
+    let query_read = &mut forged_filter.captured_reads[query_read_index as usize];
+    let mut query_plan: QueryPlan = serde_json::from_value(
+        query_read
+            .predicate
+            .clone()
+            .expect("query companion predicate"),
+    )
+    .expect("query companion plan");
+    query_plan.filters.push(FilterExpr {
+        field: "registrationForgery".to_owned(),
+        op: FilterOp::Eq,
+        value: ValueExpr::Literal(Value::Bool(true)),
+    });
+    query_read.predicate = Some(serde_json::to_value(&query_plan).unwrap());
+    assert!(
+        register(&demand, &forged_filter).is_err(),
+        "a companion with a forged filter cannot register"
+    );
+    let captured_rows = output
+        .captured_query_outputs
+        .iter()
+        .find(|query| query.query_read_index == query_read_index)
+        .expect("captured query output");
+    let inserted = captured_rows.rows.first().expect("non-empty root output");
+    assert!(
+        inserted.get("registrationForgery").is_none(),
+        "the inserted row satisfies the real plan, not the forged filter"
+    );
+    let definition = FunctionDefinition::new(
+        "issueListV2",
+        FunctionKind::LiveQuery,
+        FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier.clone())),
+    );
+    let outcome = live_subscription_match_outcome(
+        &definition,
+        &demand.input,
+        &forged_filter.captured_reads,
+        &[ChangedRow {
+            table: query_plan.table,
+            id: inserted["_id"].as_str().unwrap().to_owned(),
+            op: ChangeOp::Insert,
+            row: Some(inserted.clone()),
+            changed_fields: Vec::new(),
+        }],
+    );
+    assert_ne!(
+        outcome,
+        LiveMatchOutcome::Skip,
+        "an insert satisfying the real filter but not the forged filter must not skip"
+    );
+
+    let mut wrong_table = output.clone();
+    let parent_key = first_captured_parent_key_mut(&mut wrong_table.captured_reads)
+        .expect("captured child parent key");
+    parent_key.table = "wrong_parent_table".to_owned();
+    assert!(
+        register(&demand, &wrong_table).is_err(),
+        "a wrong-table parent substitution with the same id cannot register"
+    );
+
+    let mut stale_closure = output.clone();
+    let parent_key = first_captured_parent_key_mut(&mut stale_closure.captured_reads)
+        .expect("captured child parent key");
+    parent_key.id = "stale-parent-from-prior-demand".to_owned();
+    assert!(
+        register(&demand, &stale_closure).is_err(),
+        "a stale same-cardinality parent closure cannot register"
+    );
+
+    let mut bare_hash = demand.clone();
+    bare_hash.materialization.materialization_hash = Sha256V1::new(
+        "sha256:3333333333333333333333333333333333333333333333333333333333333333".to_owned(),
+    )
+    .unwrap();
+    assert!(
+        register(&bare_hash, &output).is_err(),
+        "a bare hash that disagrees with its supplied preimage cannot register"
     );
 }
 
