@@ -28802,7 +28802,7 @@ fn test_dev_authority(source: InvocationSource) -> PreparedAuthority {
 }
 
 #[test]
-fn grant_revocation_planners_do_not_accept_another_users_grant() {
+fn grant_revocation_planners_select_only_the_session_users_exact_token_set() {
     let (schema, functions) = sessions_activation_pair('b', false);
     let mut snapback = settled_sessions_activation_snapback(schema, functions);
     let now_ms = 1_000;
@@ -28827,7 +28827,7 @@ fn grant_revocation_planners_do_not_accept_another_users_grant() {
         .collect(),
         ..FunctionManifest::default()
     };
-    let token_id = {
+    let (lower_token_id, caller_token_id, upper_token_id) = {
         let random = CounterRandom::new();
         let database = snapback.auth_database_mut();
         database
@@ -28836,62 +28836,113 @@ fn grant_revocation_planners_do_not_accept_another_users_grant() {
         database
             .auth_catalog()
             .insert_human_user_for_test("user-a", now_ms)
-            .expect("create session user A");
+            .expect("create lexically lower effective user");
         database
             .auth_catalog()
-            .insert_human_user_for_test("user-b", now_ms)
-            .expect("create effective user B");
+            .insert_human_user_for_test("user-m", now_ms)
+            .expect("create caller effective user");
+        database
+            .auth_catalog()
+            .insert_human_user_for_test("user-z", now_ms)
+            .expect("create lexically upper effective user");
         database
             .create_agent_principal(
-                "agent-a",
+                "agent-shared",
                 now_ms,
                 &crate::storage::auth_agents::AgentRegistration {
-                    display_name: Some("Agent A".to_owned()),
+                    display_name: Some("Shared Agent".to_owned()),
                     operator_contact: None,
                     registration_provenance: "grant-revocation-planner-test".to_owned(),
-                    owner_user_id: Some("user-a".to_owned()),
+                    owner_user_id: Some("user-m".to_owned()),
                 },
             )
-            .expect("create user A's agent");
+            .expect("create caller's agent");
         let credential = database
-            .issue_initial_agent_credential("agent-a", now_ms, &random)
+            .issue_initial_agent_credential("agent-shared", now_ms, &random)
             .expect("issue agent credential");
         database
             .auth_catalog()
-            .insert_finite_authority_grant_for_test("grant-b", "agent-a", "user-b", now_ms)
-            .expect("create user B's grant to user A's agent");
+            .insert_finite_authority_grant_for_test("grant-lower", "agent-shared", "user-a", now_ms)
+            .expect("create lexically lower user's grant");
         database
             .auth_catalog()
-            .insert_finite_authority_grant_for_test("grant-a", "agent-a", "user-a", now_ms)
-            .expect("create user A's grant for source validation");
+            .insert_finite_authority_grant_for_test(
+                "grant-caller",
+                "agent-shared",
+                "user-m",
+                now_ms,
+            )
+            .expect("create caller's grant");
         database
-            .mint_scoped_token(&credential.secret, "grant-b", Some(60_000), now_ms, &random)
-            .expect("mint user B's grant token")
-            .token_id
+            .auth_catalog()
+            .insert_finite_authority_grant_for_test("grant-upper", "agent-shared", "user-z", now_ms)
+            .expect("create lexically upper user's grant");
+        let lower_token_id = database
+            .mint_scoped_token(
+                &credential.secret,
+                "grant-lower",
+                Some(60_000),
+                now_ms,
+                &random,
+            )
+            .expect("mint lexically lower user's grant token")
+            .token_id;
+        let caller_token_id = database
+            .mint_scoped_token(
+                &credential.secret,
+                "grant-caller",
+                Some(60_000),
+                now_ms,
+                &random,
+            )
+            .expect("mint caller's grant token")
+            .token_id;
+        let upper_token_id = database
+            .mint_scoped_token(
+                &credential.secret,
+                "grant-upper",
+                Some(60_000),
+                now_ms,
+                &random,
+            )
+            .expect("mint lexically upper user's grant token")
+            .token_id;
+        (lower_token_id, caller_token_id, upper_token_id)
     };
     let authority = test_live_session_authority(
         InvocationSource::AgentGrantManagement,
-        "user-a",
+        "user-m",
         1,
         now_ms + 60_000,
         None,
     );
 
-    let single = snapback.plan_grant_revocation_service_terminal(&authority, "grant-b", now_ms);
-    let Err(error) = single else {
-        panic!("user A must be refused when planning revocation of user B's grant");
-    };
-    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_GRANT_INVALID");
+    let own_single = snapback
+        .plan_grant_revocation_service_terminal(&authority, "grant-caller", now_ms)
+        .expect("caller can plan revocation of their own grant");
+    assert_eq!(own_single.token_ids(), &[caller_token_id.clone()]);
+
+    for (grant_id, position) in [
+        ("grant-lower", "lexically lower"),
+        ("grant-upper", "lexically upper"),
+    ] {
+        let foreign_single =
+            snapback.plan_grant_revocation_service_terminal(&authority, grant_id, now_ms);
+        let Err(error) = foreign_single else {
+            panic!("caller must be refused when planning {position} foreign grant revocation");
+        };
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_GRANT_INVALID");
+    }
 
     let wrong_source = test_live_session_authority(
         InvocationSource::HttpMutation,
-        "user-a",
+        "user-m",
         1,
         now_ms + 60_000,
         None,
     );
     let wrong_source_plan =
-        snapback.plan_grant_revocation_service_terminal(&wrong_source, "grant-a", now_ms);
+        snapback.plan_grant_revocation_service_terminal(&wrong_source, "grant-caller", now_ms);
     let Err(error) = wrong_source_plan else {
         panic!("grant revocation planning must require its registered management source");
     };
@@ -28925,19 +28976,24 @@ fn grant_revocation_planners_do_not_accept_another_users_grant() {
         "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
     );
     let retired_plan =
-        snapback.plan_grant_revocation_service_terminal(&retired_authority, "grant-a", now_ms);
+        snapback.plan_grant_revocation_service_terminal(&retired_authority, "grant-caller", now_ms);
     let Err(error) = retired_plan else {
         panic!("retired grant-management authority must be refused");
     };
     assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_MODE_PENDING");
 
     let bulk = snapback
-        .plan_bulk_grant_revocation_service_terminal(&authority, "agent-a", now_ms)
-        .expect("bulk planning for user A excludes user B's grant");
-    assert!(
-        bulk.token_ids().is_empty(),
-        "bulk planning must not include user B's token {token_id} for user A"
-    );
+        .plan_bulk_grant_revocation_service_terminal(&authority, "agent-shared", now_ms)
+        .expect("bulk planning selects the caller's grants");
+    let planned_tokens = bulk.token_ids().iter().cloned().collect::<BTreeSet<_>>();
+    let expected_positive_tokens = BTreeSet::from([caller_token_id]);
+    let expected_negative_tokens = BTreeSet::from([lower_token_id, upper_token_id]);
+    let selected_negative_tokens = planned_tokens
+        .intersection(&expected_negative_tokens)
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    assert_eq!(planned_tokens, expected_positive_tokens);
+    assert_eq!(selected_negative_tokens, BTreeSet::new());
 }
 
 fn test_session_admission() -> crate::auth::admission::AdmissionLease {
