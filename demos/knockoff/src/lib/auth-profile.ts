@@ -1,26 +1,35 @@
-export type IdentityProvider = 'apple' | 'google';
-export type DeploymentProfile = 'test' | 'development' | 'preview' | 'staging' | 'production';
+// Knockoff consumes the first-party provider-entry resolver.
+//
+// This file used to carry its own copy of the LLP 0151 selection table. That
+// copy is now `@expo/snapback-client/provider-entry`; what remains here is a
+// thin adapter from Knockoff's own input shape (which names `provider` and
+// `requested` directly) to the first-party declaration shape, plus the demo's
+// `KNOCKOFF_*` diagnostic vocabulary.
+//
+// @ref LLP 0151#resolved-provider-entry — one resolver. The demo is a consumer
+// of it, not a second implementation that could disagree with the shipped one.
+
+import {
+  createProviderEntryDispatch,
+  resolveProviderEntry as resolveFirstPartyProviderEntry,
+} from '@expo/snapback-client/provider-entry';
+import type {
+  AuthClientPlatform,
+  AuthDeploymentProfile,
+  AuthEntryAdapter,
+  AuthIdentityProvider,
+  ResolvedProviderEntryV1,
+} from '@expo/snapback-client/provider-entry';
+
+export type IdentityProvider = AuthIdentityProvider;
+export type DeploymentProfile = AuthDeploymentProfile;
 export type RequestedCredentialProfile = 'auto' | 'shared' | 'app-owned';
-export type ClientPlatform = 'ios' | 'android' | 'web';
-export type EntryAdapter =
-  | 'synthetic'
-  | 'snapback-shared-browser'
-  | 'app-owned-browser'
-  | 'app-owned-native';
+export type ClientPlatform = AuthClientPlatform;
+export type EntryAdapter = AuthEntryAdapter;
 
 export const AUTH_PROFILE_STORAGE_KEY = 'knockoff.auth-entry-profile.v1';
 
-export type ResolvedProviderEntry = Readonly<{
-  format: 'snapback.resolved-provider-entry.v1';
-  provider: IdentityProvider;
-  providerInstallationId: string;
-  adapter: EntryAdapter;
-  identityRealm: 'rehearsal' | 'application';
-  authProfileGeneration: string;
-  readiness: 'ready' | 'blocked';
-  nextAction?: string;
-  diagnosticCode?: string;
-}>;
+export type ResolvedProviderEntry = ResolvedProviderEntryV1;
 
 export type ProviderProfileInput = Readonly<{
   appId: string;
@@ -45,142 +54,55 @@ export type ProviderProfileInput = Readonly<{
   }>;
 }>;
 
-function blocked(input: ProviderProfileInput, code: string, nextAction: string): ResolvedProviderEntry {
-  return Object.freeze({
-    format: 'snapback.resolved-provider-entry.v1',
-    provider: input.provider,
-    providerInstallationId: `blocked:${input.provider}:${input.appId}`,
-    adapter: input.platform === 'web' ? 'app-owned-browser' : 'app-owned-native',
-    identityRealm: 'application',
-    authProfileGeneration: `${input.deployment}:${input.provider}:blocked:v1`,
-    readiness: 'blocked',
-    diagnosticCode: code,
-    nextAction,
-  });
-}
+// The demo's UI reads `KNOCKOFF_*` codes. Map the shipped codes onto them here
+// rather than teaching the package about a demo's vocabulary.
+const KNOCKOFF_DIAGNOSTIC_CODES: Readonly<Record<string, string>> = Object.freeze({
+  SNAPBACK_AUTH_PROVIDER_APP_OWNED_REQUIRED: 'KNOCKOFF_AUTH_APP_OWNED_REQUIRED',
+  SNAPBACK_AUTH_PROVIDER_APP_OWNED_NOT_READY: 'KNOCKOFF_AUTH_APP_OWNED_NOT_READY',
+  SNAPBACK_AUTH_PROVIDER_PREVIEW_UNAUTHORIZED: 'KNOCKOFF_AUTH_PREVIEW_REHEARSAL_REQUIRED',
+  SNAPBACK_AUTH_PROVIDER_SHARED_UNAVAILABLE: 'KNOCKOFF_AUTH_SHARED_PROFILE_UNAVAILABLE',
+});
 
-function ready(
+export function resolveProviderEntry(
   input: ProviderProfileInput,
-  adapter: EntryAdapter,
-  identityRealm: 'rehearsal' | 'application',
-  nextAction?: string,
+  nowMs = Date.now(),
 ): ResolvedProviderEntry {
-  const providerInstallationId = identityRealm === 'rehearsal'
-    ? `shared-development:${input.appId}:${input.provider}:v1`
-    : input.appOwned.installationId ?? `app-owned:${input.appId}:${input.provider}:v1`;
-  const generationParts = [
-    input.deployment,
-    input.provider,
-    adapter,
-    providerInstallationId,
-    input.appOwned.configGeneration ?? 'no-config',
-    input.nativeBuild.receipt ?? 'no-build',
-  ];
+  const entry = resolveFirstPartyProviderEntry({
+    appId: input.appId,
+    declaration: input.provider === 'apple'
+      ? { provider: 'apple', kind: 'apple', credentials: input.requested }
+      : { provider: 'google', kind: 'oidc', preset: 'google', credentials: input.requested },
+    deployment: input.deployment,
+    platform: input.platform,
+    sharedAvailable: input.sharedAvailable,
+    appOwned: input.appOwned,
+    nativeBuild: input.nativeBuild,
+    ...(input.preview === undefined ? {} : { preview: input.preview }),
+  }, nowMs);
+  if (entry.diagnosticCode === undefined) return entry;
   return Object.freeze({
-    format: 'snapback.resolved-provider-entry.v1',
-    provider: input.provider,
-    providerInstallationId,
-    adapter,
-    identityRealm,
-    authProfileGeneration: generationParts.join(':'),
-    readiness: 'ready',
-    ...(nextAction ? { nextAction } : {}),
+    ...entry,
+    diagnosticCode: KNOCKOFF_DIAGNOSTIC_CODES[entry.diagnosticCode] ?? entry.diagnosticCode,
   });
-}
-
-function appOwnedAdapter(input: ProviderProfileInput): EntryAdapter | null {
-  if (!input.appOwned.configReady) return null;
-  if (input.platform === 'web') {
-    return input.appOwned.browserReady === false ? null : 'app-owned-browser';
-  }
-  return input.nativeBuild.ready ? 'app-owned-native' : null;
-}
-
-function validPreview(input: ProviderProfileInput, nowMs: number): boolean {
-  if (!input.preview?.ownerAuthenticated || typeof input.preview.expiresAt !== 'string') return false;
-  const expiresAt = Date.parse(input.preview.expiresAt);
-  return Number.isFinite(expiresAt) && expiresAt > nowMs;
-}
-
-// @ref LLP 0151#resolved-provider-entry — one resolver freezes the Adapter
-// before sign-in. Clients never choose credentials or fall back after an
-// Adapter starts.
-export function resolveProviderEntry(input: ProviderProfileInput, nowMs = Date.now()): ResolvedProviderEntry {
-  if (!input.appId || !['apple', 'google'].includes(input.provider)) {
-    throw new TypeError('Knockoff auth profile requires an app id and supported provider');
-  }
-  if (input.deployment === 'test') return ready(input, 'synthetic', 'rehearsal');
-
-  const owned = appOwnedAdapter(input);
-  if (input.deployment === 'staging' || input.deployment === 'production') {
-    if (input.requested === 'shared' || owned === null) {
-      return blocked(
-        input,
-        'KNOCKOFF_AUTH_APP_OWNED_REQUIRED',
-        input.appOwned.configReady
-          ? 'Rebuild the client with the configured native provider integration.'
-          : `Configure app-owned ${input.provider} credentials.`,
-      );
-    }
-    return ready(input, owned, 'application');
-  }
-
-  if (input.deployment === 'preview' && !validPreview(input, nowMs)) {
-    return blocked(
-      input,
-      'KNOCKOFF_AUTH_PREVIEW_REHEARSAL_REQUIRED',
-      'Create an owner-authenticated preview with an unexpired rehearsal window.',
-    );
-  }
-
-  if (input.requested === 'app-owned') {
-    return owned === null
-      ? blocked(
-          input,
-          'KNOCKOFF_AUTH_APP_OWNED_NOT_READY',
-          input.appOwned.configReady
-            ? 'Rebuild the client with the configured native provider integration.'
-            : `Configure app-owned ${input.provider} credentials.`,
-        )
-      : ready(input, owned, 'application');
-  }
-
-  if (input.requested === 'auto' && owned !== null) return ready(input, owned, 'application');
-  if (!input.sharedAvailable) {
-    return blocked(
-      input,
-      'KNOCKOFF_AUTH_SHARED_PROFILE_UNAVAILABLE',
-      `Start the Snapback development auth broker or configure app-owned ${input.provider} credentials.`,
-    );
-  }
-  const nextAction = input.requested === 'auto' && input.appOwned.configReady && !input.nativeBuild.ready
-    ? 'Rebuild the client to activate app-owned native auth.'
-    : undefined;
-  return ready(input, 'snapback-shared-browser', 'rehearsal', nextAction);
 }
 
 type AuthAdapters<Result> = Readonly<Record<EntryAdapter, (
   entry: ResolvedProviderEntry,
 ) => Promise<Result>>>;
 
-// @ref LLP 0151#native-failures-never-fall-back — dispatch exactly the
-// resolved Adapter once. An Adapter error is the operation result.
+// @ref LLP 0151#native-failures-never-fall-back — dispatch exactly the resolved
+// Adapter once. An Adapter error is the operation result.
 export function createAuthEntryController<Result>(
   entries: Readonly<Record<IdentityProvider, ResolvedProviderEntry>>,
   adapters: AuthAdapters<Result>,
 ) {
+  const dispatch = createProviderEntryDispatch<Result>(entries, adapters);
   return Object.freeze({
     entry(provider: IdentityProvider) {
       return entries[provider];
     },
-    async signIn(provider: IdentityProvider): Promise<Result> {
-      const entry = entries[provider];
-      if (entry.readiness !== 'ready') {
-        const error = new Error(entry.nextAction ?? `${provider} sign-in is not ready`);
-        Object.assign(error, { code: entry.diagnosticCode });
-        throw error;
-      }
-      return adapters[entry.adapter](entry);
+    signIn(provider: IdentityProvider): Promise<Result> {
+      return dispatch.signIn(provider);
     },
   });
 }
