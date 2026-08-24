@@ -700,3 +700,44 @@ No fixes are implemented by this inventory.
 ### snapback-types (1)
 
 - `crates/snapback-types/src/runtime/proof_shapes.rs:26` — `MediaProjectionInvocationScopeV1::for_test`: `fn for_test(process_epoch: impl Into<String>, invocation_nonce: u64, pinned_snapshot: u64,)->Self` — production-equivalent or opaque-input-preserving.
+
+---
+
+## Addendum — independent mechanical estimate, recorded before the tiering lane reports
+
+Written 2026-08-24 by the supervising session, deliberately **before** reading the tiering
+analysis, so the two estimates stay independent and can be reconciled rather than anchored.
+
+This is a crude symbol-level grep over `pub fn *_for_test`, not the class-C set, so the
+populations differ and the numbers are not directly comparable to §2. It is recorded for the
+*shape* of the answer, not the exact figures.
+
+| Measure | Count |
+|---|---:|
+| Distinct `pub fn *_for_test` (name × defining crate) | 232 |
+| Referenced only within the defining crate | **16** |
+| Referenced from another crate, in clearly-test files only | **126** |
+| Referenced from another crate, in files that also hold production code | **≤79** |
+
+### What this suggests
+
+**The mechanical fix is small.** Only ~16 symbols could move from
+`#[cfg(feature = "test-support")]` to `#[cfg(test)]` with no other change. Recommendation 4 will
+not close this surface on its own.
+
+**The dominant tier is cross-crate test use**, which `cfg(test)` cannot serve. For those, the
+options are a non-shipping test harness, or driving production ceremonies instead of reaching for
+a raw writer.
+
+**Genuinely-external API is probably small.** The ≤79 figure is an *upper bound*, not a count:
+the classifier works at file level, and files like `engine.rs`, `server.rs` and `storage.rs`
+contain inline `#[cfg(test)] mod tests`, so a reference inside an inline test module is
+indistinguishable here from a production call. The true figure is lower, possibly much lower.
+
+### Known errors in this estimate
+
+A first run classified `crates/snapback-cli/src/cli/tests.rs` as production because the pattern
+tested for `_tests.rs` and missed a bare `tests.rs`. That inflated the non-test count from 79 to
+138. Corrected before recording. Anyone reconciling these numbers should assume the line-level
+tiering is more accurate wherever the two disagree, and treat this addendum only as a check on
+whether that analysis landed in the right order of magnitude.
