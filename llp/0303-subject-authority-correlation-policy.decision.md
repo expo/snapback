@@ -6,7 +6,7 @@
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-24
-**Revised:** 2026-08-24 (f — derivation as a lifetime property; strength of the root)
+**Revised:** 2026-08-24 (g — combinators and recycling separate a carrier from its contents)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
 `issues/20260824-liveness-row-bucket-assignment.md`,
 `issues/20260824-entitlement-predicates-for-the-live-sites.md`
@@ -183,6 +183,41 @@ sequence, bound both to clones of one database view, and installed different str
 Note the ordering of strength, because lanes keep reaching for the weakest: consuming by value is
 weaker than it looks when the type is `Clone`; **borrowing is weaker still**, since it does not even
 pretend to be single-use.
+
+### The wrapper is not the binding: combinators and recycling
+
+A lane derived its room selection from a database-produced carrier — correctly — and a reviewer
+defeated it twice without touching the derivation, by keeping the carrier and swapping what was
+inside it.
+
+**Transform-in-place.** `StagedAuthorizationMutation::map` preserves the carrier and replaces its
+contents:
+
+```
+test_support::stage_authorization_seed(seed_A) -> .map(|_| seed_B) -> normal writer-gate commit
+```
+
+A and B had identical room selectors but different durable row IDs. **B committed; A did not.** The
+exact-selector-equality check passed, because the selectors genuinely did match — it was verifying a
+property that survived the swap, while the artifact was stapled to an outcome it never produced.
+
+**Recycling.** `run_installed` plus a public `take_unused`: reserve seed A, discard its payload
+without committing, take the raw reservation, reinstall it, and commit a distinct same-selector seed
+B. **B committed.** A reservation that can be recycled into a different mutation is exactly the split
+the row existed to close.
+
+> **A carrier binds nothing if a method can preserve it while replacing its contents.** Enumerate
+> every method that can transform contents in place (`map`, `and_then`, `convert`, `into_*`), extract
+> a reusable inner value (`take_*`, `into_inner`, `into_parts`), or re-install something previously
+> obtained. For each, say whether it can yield a carrier whose contents were not produced by whatever
+> authorised the carrier.
+
+An unused or cancelled artifact must be **cancellation-only**, never a reinstallable capability.
+
+This is the same family as the constructor/setter case above: a derivation that holds at one instant
+and is undone afterwards. Setters undo it by assignment; combinators undo it by rewrapping; recycling
+undoes it by outliving its purpose. All three are answered by the same discipline — enumerate every
+method that can separate the artifact from what authorised it, and state the list in the landing.
 
 ### A test can demonstrate the exploit and call it correct
 
