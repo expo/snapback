@@ -725,6 +725,7 @@ try {
       refused.diagnostics.some((diagnostic) => diagnostic.code === code),
       `${code}: ${JSON.stringify(refused.diagnostics)}`,
     );
+    return refused;
   };
   const assertGeneratedAcceptance = async (source, message) => {
     writeFileSync(join(fixture, 'issue-graph.mjs'), source);
@@ -871,6 +872,50 @@ ${literalFunctions.slice(projectionOffset)}`;
       'Function.prototype.call.call(defineGraphQuery, null, ',
     ),
     'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+  );
+
+  const wrapperRefusal = await assertGeneratedRefusal(
+    `${importLine}
+function getBuilder() { return graphDsl.defineGraphQuery; }
+const cond = true;
+const a = [];
+const b = [];
+export const issueGraph = getBuilder()({ nodes: cond ? a : b });
+`,
+    'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+  );
+  assert(
+    wrapperRefusal.diagnostics.some((diagnostic) => (
+      diagnostic.code === 'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION'
+        && diagnostic.message.startsWith('[snapback-define] defineGraphQuery ')
+        && diagnostic.message.includes('source allowances')
+    )),
+    `wrapper indirection must fail in the runtime allowance gate: ${JSON.stringify(wrapperRefusal.diagnostics)}`,
+  );
+
+  const definitionStart = literalFunctions.indexOf('export const issueGraph =');
+  const builderSpelling = 'graphDsl.defineGraphQuery(';
+  const builderStart = literalFunctions.indexOf(builderSpelling, definitionStart);
+  const builderEnd = literalFunctions.lastIndexOf(');');
+  assert(definitionStart >= 0 && builderStart >= 0 && builderEnd > builderStart);
+  const graphSpecSource = literalFunctions.slice(builderStart + builderSpelling.length, builderEnd);
+  const exhaustedLoop = `${literalFunctions.slice(0, definitionStart)}
+let issueGraph;
+for (let attempt = 0; attempt < 2; attempt += 1) {
+  issueGraph = graphDsl.defineGraphQuery(${graphSpecSource});
+}
+export { issueGraph };
+`;
+  const loopRefusal = await assertGeneratedRefusal(
+    exhaustedLoop,
+    'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+  );
+  assert(
+    loopRefusal.diagnostics.some((diagnostic) => (
+      diagnostic.code === 'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION'
+        && diagnostic.message.includes('exhausted its proven source allowances')
+    )),
+    `the second runtime invocation must exhaust the module's one proven allowance: ${JSON.stringify(loopRefusal.diagnostics)}`,
   );
 
   writeFileSync(
