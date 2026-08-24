@@ -25,6 +25,7 @@ use crate::storage::capability_links::{
     CapabilityLinkFunctionKind, MintCapabilityLink, MintedCapabilityLink,
 };
 use serde_json::Map;
+use sha2::Digest as _;
 use std::collections::BTreeMap;
 use std::io::{Read, Seek, SeekFrom};
 use std::sync::Arc;
@@ -348,7 +349,8 @@ fn grant_denial_derives_subject_and_preserves_every_other_durable_request() {
                 now_ms + DENY_PAIRING_TTL_MS,
                 "pairing expiry is the chosen creation time plus the contract TTL"
             );
-            let code_hash = pairing.secret.token_hash().as_bytes().to_vec();
+            let code_hash =
+                sha2::Sha256::digest(pairing.secret.expose_secret().as_bytes()).to_vec();
             db.present_pairing_code(
                 &credential,
                 &pairing.request_id,
