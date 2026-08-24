@@ -8,18 +8,19 @@ use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
     AuthInput, FilterExpr, FilterOp, GraphAuthorityClassV1, GraphChildPageV1,
     GraphCompletenessLabelV1, GraphCompositionProofV1, GraphDataNodeKindV1, GraphEvaluationCutV1,
-    GraphExistsModeV1, GraphIntervalEndV1, GraphLiteralPageV1, GraphMaterializedRefusalReasonV1,
-    GraphNodeCompletenessProofClassV1, GraphNodeCompletenessProofV1, GraphNodeKindV1, GraphNodeV1,
-    GraphNodeWindowIdentityV1, GraphProjectionLiteralV1, GraphProjectionObjectV1,
-    GraphProjectionValueV1, GraphQueryPlanV1, GraphRowKeyV1, GraphToOnePresenceV1,
-    GraphWindowIdentityV1, HandlerInput, OrderDirection, OrderExpr, QueryPlan, Sha256V1,
-    TableVisibilityV1, ValueExpr, validate_graph_arguments_v1, validate_graph_window_vector_v1,
+    GraphEvaluationTimeRefusalReasonV1, GraphExistsModeV1, GraphIntervalEndV1, GraphLiteralPageV1,
+    GraphMaterializedRefusalReasonV1, GraphNodeCompletenessProofClassV1,
+    GraphNodeCompletenessProofV1, GraphNodeKindV1, GraphNodeV1, GraphNodeWindowIdentityV1,
+    GraphProjectionLiteralV1, GraphProjectionObjectV1, GraphProjectionValueV1, GraphQueryPlanV1,
+    GraphRowKeyV1, GraphToOnePresenceV1, GraphWindowIdentityV1, HandlerInput, OrderDirection,
+    OrderExpr, QueryPlan, Sha256V1, TableVisibilityV1, ValueExpr, validate_graph_arguments_v1,
+    validate_graph_window_vector_v1,
 };
 use crate::storage::DbRead;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use sha2::{Digest as _, Sha256};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// Authorization inputs already resolved by the engine's authority boundary.
 ///
@@ -32,6 +33,10 @@ pub struct GraphEvaluationAuthorityV1 {
     pub auth: AuthInput,
     #[serde(default)]
     pub permission_values_by_table: BTreeMap<String, GraphPermissionValuesV1>,
+    #[serde(default)]
+    pub resolved_membership_inputs: BTreeSet<String>,
+    #[serde(default)]
+    pub resolved_role_inputs: BTreeSet<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -47,6 +52,9 @@ pub struct GraphPermissionValuesV1 {
 pub struct GraphEvaluationRequestV1 {
     pub args: Value,
     pub windows: Vec<GraphNodeWindowIdentityV1>,
+    /// The one demand-paged node whose independent ledger lineage this
+    /// request advances. All sibling lineages are carried byte-for-byte.
+    pub advanced_node_id: String,
     pub materialization_hash: Sha256V1,
     pub partition_hash: Sha256V1,
     pub authorization_version: crate::storage::AuthorizationVersion,
@@ -424,14 +432,20 @@ fn input_for(
         let value = supplied
             .get(&argument.name)
             .or_else(|| supplied.get(&argument.argument_id))
-            .cloned()
-            .ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_GRAPH_ARGUMENT_INVALID",
-                    "query",
-                    format!("missing graph argument {}", argument.name),
-                )
-            })?;
+            .cloned();
+        let Some(value) = value else {
+            if !argument.contract.required {
+                // @ref LLP 0209#24-plan-instance-and-contextual-materialization-identity —
+                // absent optional arguments have observed cardinality zero and
+                // remain absent from the normalized handler input.
+                continue;
+            }
+            return Err(SnapbackError::error(
+                "SNAPBACK_GRAPH_ARGUMENT_INVALID",
+                "query",
+                format!("missing graph argument {}", argument.name),
+            ));
+        };
         args.insert(argument.argument_id.clone(), value);
     }
     Ok(HandlerInput {
@@ -518,6 +532,22 @@ fn class_two_context_is_complete(
         let Some(proof) = node.authority().proof.as_ref() else {
             return false;
         };
+        if proof.policy_inputs.iter().any(|input| match input.kind {
+            crate::manifest::GraphPolicyInputKindV1::PermissionBacking => !request
+                .authority
+                .permission_values_by_table
+                .contains_key(&input.declaration_id),
+            crate::manifest::GraphPolicyInputKindV1::Membership => !request
+                .authority
+                .resolved_membership_inputs
+                .contains(&input.declaration_id),
+            crate::manifest::GraphPolicyInputKindV1::Role => !request
+                .authority
+                .resolved_role_inputs
+                .contains(&input.declaration_id),
+        }) {
+            return false;
+        }
         let permission_backings = proof
             .policy_inputs
             .iter()
@@ -528,16 +558,6 @@ fn class_two_context_is_complete(
                 )
             })
             .collect::<Vec<_>>();
-        if permission_backings.is_empty()
-            || permission_backings.iter().any(|input| {
-                !request
-                    .authority
-                    .permission_values_by_table
-                    .contains_key(&input.declaration_id)
-            })
-        {
-            return false;
-        }
         let reads = match node {
             GraphNodeV1::RootWindow {
                 table, visibility, ..
@@ -797,6 +817,27 @@ fn evaluate_root(
         ));
     }
     let take = usize::try_from(window.take).unwrap_or(usize::MAX);
+    if take == 0 {
+        state.work.root.insert(node_id.clone(), 0);
+        state.work.examined.insert(node_id.clone(), 0);
+        state.work.ranges.insert(node_id.clone(), 0);
+        state.roots.clear();
+        state.by_node.insert(node_id.clone(), Vec::new());
+        state.node_proofs.push(proof_entry(
+            node_id,
+            node_kind(node),
+            GraphCompletenessLabelV1::Unknown,
+            GraphNodeCompletenessProofClassV1::None,
+            merge_json(
+                tuple_json(request),
+                json!({
+                    "kind":"root-window", "label":"unknown",
+                    "reason":"zero-take-unproved",
+                }),
+            ),
+        )?);
+        return Ok(());
+    }
     let query = query_plan(
         table,
         visibility,
@@ -1034,6 +1075,7 @@ fn evaluate_to_many(
     }
     let mut output = Vec::new();
     let mut facts = Vec::new();
+    let mut zero_take_unproved = false;
     let mut examined = 0_u64;
     let mut consultations = 0_u64;
     for parent in &parents {
@@ -1050,6 +1092,14 @@ fn evaluate_to_many(
             ));
         }
         let cap = usize::try_from(effective.take).unwrap_or(usize::MAX);
+        if cap == 0 {
+            // A zero-take range supplies no exhaustion fact and never mints a
+            // zero-progress continuation. Other parents may still contribute
+            // useful rows, but this node's only honest proof is unknown.
+            zero_take_unproved = true;
+            insert_child(state, parent_node_id, parent, node_id, Vec::new())?;
+            continue;
+        }
         let Some(mut relation) = relation_filters(&parent.row, join_on) else {
             insert_child(state, parent_node_id, parent, node_id, Vec::new())?;
             let class = if unbounded(&effective) {
@@ -1167,57 +1217,65 @@ fn evaluate_to_many(
             _ => ParentRangeComposition::Mixed,
         },
     );
-    let (label, class, evidence) = match composition {
-        ParentRangeComposition::Complete => {
-            let mut ranges = facts
-                .iter()
-                .map(|(_, complete, _, _)| complete.clone())
-                .collect::<Vec<_>>();
-            sort_parent_proof_rows(&mut ranges);
-            (
-                GraphCompletenessLabelV1::Complete,
-                GraphNodeCompletenessProofClassV1::ParentRanges,
-                json!({"kind":"bounded-to-many","label":"complete","ranges":ranges}),
-            )
-        }
-        ParentRangeComposition::Window => {
-            let mut ranges = facts
-                .iter()
-                .map(|(_, _, window, _)| window.clone())
-                .collect::<Vec<_>>();
-            sort_parent_proof_rows(&mut ranges);
-            (
-                GraphCompletenessLabelV1::Window,
-                GraphNodeCompletenessProofClassV1::ParentRanges,
-                json!({"kind":"bounded-to-many","label":"window","ranges":ranges}),
-            )
-        }
-        ParentRangeComposition::Prefix
-            if facts
-                .iter()
-                .all(|(parent, ..)| *parent == ParentRangeClass::Prefix) =>
-        {
-            let mut ranges = facts
-                .iter()
-                .filter_map(|(_, _, _, prefix)| prefix.clone())
-                .collect::<Vec<_>>();
-            sort_parent_proof_rows(&mut ranges);
-            (
-                GraphCompletenessLabelV1::Prefix,
-                GraphNodeCompletenessProofClassV1::OrderedPrefix,
-                json!({"kind":"bounded-to-many","label":"prefix","order":order,"stableOrderProof":"declared-order-with-id-tiebreak","ranges":ranges}),
-            )
-        }
-        ParentRangeComposition::Prefix => (
+    let (label, class, evidence) = if zero_take_unproved {
+        (
             GraphCompletenessLabelV1::Unknown,
             GraphNodeCompletenessProofClassV1::None,
-            json!({"kind":"bounded-to-many","label":"unknown","reason":"parent-range-unproved"}),
-        ),
-        ParentRangeComposition::Mixed => (
-            GraphCompletenessLabelV1::Unknown,
-            GraphNodeCompletenessProofClassV1::None,
-            json!({"kind":"bounded-to-many","label":"unknown","reason":"mixed-prefix-window"}),
-        ),
+            json!({"kind":"bounded-to-many","label":"unknown","reason":"zero-take-unproved"}),
+        )
+    } else {
+        match composition {
+            ParentRangeComposition::Complete => {
+                let mut ranges = facts
+                    .iter()
+                    .map(|(_, complete, _, _)| complete.clone())
+                    .collect::<Vec<_>>();
+                sort_parent_proof_rows(&mut ranges);
+                (
+                    GraphCompletenessLabelV1::Complete,
+                    GraphNodeCompletenessProofClassV1::ParentRanges,
+                    json!({"kind":"bounded-to-many","label":"complete","ranges":ranges}),
+                )
+            }
+            ParentRangeComposition::Window => {
+                let mut ranges = facts
+                    .iter()
+                    .map(|(_, _, window, _)| window.clone())
+                    .collect::<Vec<_>>();
+                sort_parent_proof_rows(&mut ranges);
+                (
+                    GraphCompletenessLabelV1::Window,
+                    GraphNodeCompletenessProofClassV1::ParentRanges,
+                    json!({"kind":"bounded-to-many","label":"window","ranges":ranges}),
+                )
+            }
+            ParentRangeComposition::Prefix
+                if facts
+                    .iter()
+                    .all(|(parent, ..)| *parent == ParentRangeClass::Prefix) =>
+            {
+                let mut ranges = facts
+                    .iter()
+                    .filter_map(|(_, _, _, prefix)| prefix.clone())
+                    .collect::<Vec<_>>();
+                sort_parent_proof_rows(&mut ranges);
+                (
+                    GraphCompletenessLabelV1::Prefix,
+                    GraphNodeCompletenessProofClassV1::OrderedPrefix,
+                    json!({"kind":"bounded-to-many","label":"prefix","order":order,"stableOrderProof":"declared-order-with-id-tiebreak","ranges":ranges}),
+                )
+            }
+            ParentRangeComposition::Prefix => (
+                GraphCompletenessLabelV1::Unknown,
+                GraphNodeCompletenessProofClassV1::None,
+                json!({"kind":"bounded-to-many","label":"unknown","reason":"parent-range-unproved"}),
+            ),
+            ParentRangeComposition::Mixed => (
+                GraphCompletenessLabelV1::Unknown,
+                GraphNodeCompletenessProofClassV1::None,
+                json!({"kind":"bounded-to-many","label":"unknown","reason":"mixed-prefix-window"}),
+            ),
+        }
     };
     state.node_proofs.push(proof_entry(
         node_id,
@@ -1979,10 +2037,20 @@ fn validate_prior_ledgers(
     plan: &GraphQueryPlanV1,
     request: &GraphEvaluationRequestV1,
 ) -> SnapbackResult<()> {
+    let expected = demand_costs(plan);
+    if !expected
+        .iter()
+        .any(|cost| cost.node_id == request.advanced_node_id)
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_GRAPH_CURSOR_UNBOUND",
+            "query",
+            "graph request does not bind one admitted demand lineage",
+        ));
+    }
     if request.prior_window_ledgers.is_empty() {
         return Ok(());
     }
-    let expected = demand_costs(plan);
     if request.prior_window_ledgers.len() != expected.len()
         || request
             .prior_window_ledgers
@@ -2003,21 +2071,25 @@ fn prior_ledger_at_or_over_bound(
     plan: &GraphQueryPlanV1,
     request: &GraphEvaluationRequestV1,
 ) -> bool {
-    request.prior_window_ledgers.iter().any(|ledger| {
-        let cost = plan
-            .query_cost
-            .graph
-            .nodes
-            .iter()
-            .find(|cost| cost.node_id == ledger.node_id)
-            .expect("prior ledger validation aligns demand costs");
-        ledger.pages >= cost.max_window_pages.unwrap_or(0)
-            || ledger.root_rows > cost.max_window_root_rows.unwrap_or(0)
-            || ledger.scanned_rows > cost.max_window_scanned_rows.unwrap_or(0)
-            || ledger.result_rows > cost.max_window_result_rows.unwrap_or(0)
-            || ledger.result_bytes > cost.max_window_result_bytes.unwrap_or(0)
-            || ledger.index_ranges > cost.max_window_index_ranges.unwrap_or(0)
-    })
+    request
+        .prior_window_ledgers
+        .iter()
+        .filter(|ledger| ledger.node_id == request.advanced_node_id)
+        .any(|ledger| {
+            let cost = plan
+                .query_cost
+                .graph
+                .nodes
+                .iter()
+                .find(|cost| cost.node_id == ledger.node_id)
+                .expect("prior ledger validation aligns demand costs");
+            ledger.pages >= cost.max_window_pages.unwrap_or(0)
+                || ledger.root_rows > cost.max_window_root_rows.unwrap_or(0)
+                || ledger.scanned_rows > cost.max_window_scanned_rows.unwrap_or(0)
+                || ledger.result_rows > cost.max_window_result_rows.unwrap_or(0)
+                || ledger.result_bytes > cost.max_window_result_bytes.unwrap_or(0)
+                || ledger.index_ranges > cost.max_window_index_ranges.unwrap_or(0)
+        })
 }
 
 fn node_is_in_subtree(plan: &GraphQueryPlanV1, node_id: &str, root_id: &str) -> bool {
@@ -2055,6 +2127,10 @@ fn next_ledgers(
                 node_id: cost.node_id.clone(),
                 ..GraphWindowLedgerV1::default()
             });
+        if cost.node_id != request.advanced_node_id {
+            output.push(ledger.clone());
+            continue;
+        }
         let is_root = plan.root_node_id == cost.node_id;
         let scanned_rows = plan
             .query_cost
@@ -2145,7 +2221,7 @@ fn refused_output(
         projection.node_id(),
         node_kind(projection),
         GraphCompletenessLabelV1::Refused,
-        GraphNodeCompletenessProofClassV1::Refusal,
+        GraphNodeCompletenessProofClassV1::ProjectionComposition,
         merge_json(
             tuple_json(request),
             json!({
@@ -2178,6 +2254,17 @@ fn refused_output(
         // A refusal publishes no page, so it cannot advance any lineage.
         window_ledgers: request.prior_window_ledgers.clone(),
     })
+}
+
+fn closed_evaluation_refusal(error: &SnapbackError) -> Option<GraphMaterializedRefusalReasonV1> {
+    // LLP 0209 §2.3 imports exact owner codes into a closed evaluation-time
+    // register. Those storage, authorization, and query-cost conditions are
+    // materialized; kernel errors outside that register (for example an
+    // unknown-index error from a malformed in-memory plan, or an unclassified
+    // SQLite I/O error) remain host errors because no owner ruling permits the
+    // evaluator to relabel them.
+    GraphEvaluationTimeRefusalReasonV1::from_code(&error.diagnostic.code)
+        .and_then(|reason| GraphMaterializedRefusalReasonV1::from_code(reason.code()))
 }
 
 /// Execute one admitted graph plan in one pinned storage snapshot.
@@ -2219,136 +2306,154 @@ pub(crate) fn evaluate_graph_query_on(
             GraphMaterializedRefusalReasonV1::AuthStaleResult,
         );
     }
-    for node in &plan.nodes {
-        match node {
-            GraphNodeV1::RootWindow { .. } => {
-                evaluate_root(&read, plan, request, &input, &mut state, node)?
-            }
-            GraphNodeV1::EqualityToOne { .. } => {
-                evaluate_to_one(&read, request, &input, &mut state, node)?;
-                if let Some(reason) = state.materialized_refusal {
-                    return refused_output(plan, request, &state, reason);
+    let evaluation = (|| -> SnapbackResult<GraphEvaluationOutputV1> {
+        for node in &plan.nodes {
+            match node {
+                GraphNodeV1::RootWindow { .. } => {
+                    evaluate_root(&read, plan, request, &input, &mut state, node)?
                 }
-            }
-            GraphNodeV1::BoundedToMany { .. } => {
-                validate_child_demand(plan, request, &state, node)?;
-                evaluate_to_many(&read, request, &input, &mut state, node)?
-            }
-            GraphNodeV1::ExistsSemiJoin { .. } => {
-                evaluate_semi_join(&read, plan, request, &input, &mut state, node)?;
-                if let Some(reason) = state.materialized_refusal {
-                    return refused_output(plan, request, &state, reason);
+                GraphNodeV1::EqualityToOne { .. } => {
+                    evaluate_to_one(&read, request, &input, &mut state, node)?
                 }
+                GraphNodeV1::BoundedToMany { .. } => {
+                    validate_child_demand(plan, request, &state, node)?;
+                    evaluate_to_many(&read, request, &input, &mut state, node)?
+                }
+                GraphNodeV1::ExistsSemiJoin { .. } => {
+                    evaluate_semi_join(&read, plan, request, &input, &mut state, node)?
+                }
+                GraphNodeV1::PrincipalBound { .. } => {
+                    evaluate_principal(&read, request, &input, &mut state, node)?
+                }
+                GraphNodeV1::SearchMembership { .. } => {
+                    // RULED for G2-A: admission continues to refuse search
+                    // membership under B1/D6/OQ-4. This arm is defense in
+                    // depth only for a hypothetically admitted in-memory plan;
+                    // it must close as materialized evidence, not invent a
+                    // provider execution contract.
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+                        "query",
+                        "search membership has no admitted G2 execution evidence",
+                    ));
+                }
+                GraphNodeV1::ClosedProjection { .. } => {}
             }
-            GraphNodeV1::PrincipalBound { .. } => {
-                evaluate_principal(&read, request, &input, &mut state, node)?
-            }
-            GraphNodeV1::SearchMembership { .. } => {
+            if let Some(reason) = state.materialized_refusal {
                 return Err(SnapbackError::error(
-                    "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+                    reason.code(),
                     "query",
-                    "G2-A has no search provider execution contract",
+                    "graph node materialized a closed evaluation refusal",
                 ));
             }
-            GraphNodeV1::ClosedProjection { .. } => {}
+        }
+        let projection = plan.nodes.last().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+                "query",
+                "graph plan has no projection",
+            )
+        })?;
+        let GraphNodeV1::ClosedProjection {
+            node_id, object, ..
+        } = projection
+        else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+                "query",
+                "graph plan projection is not last",
+            ));
+        };
+        let root_id = plan
+            .nodes
+            .first()
+            .map(GraphNodeV1::node_id)
+            .unwrap_or_default();
+        let mut rows = Vec::new();
+        for root in &state.roots {
+            let mut scope = BTreeMap::new();
+            scope.insert(root_id.to_owned(), root.row.clone());
+            rows.push(project_object(object, &state, &scope)?);
+        }
+        let result_bytes = serde_json::to_string(&rows).map_err(|error| {
+            SnapbackError::error(
+                "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+                "query",
+                error.to_string(),
+            )
+        })?;
+        let result_length = rows.len() as u64;
+        if !enforce_execution_bounds(plan, &state, result_length, result_bytes.len() as u64) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_QUERY_COST_BOUND_EXCEEDED",
+                "query",
+                "graph execution exceeded an admitted bound",
+            ));
+        }
+        let (label, class, composition_proof) =
+            composition(plan, request, &state.node_proofs, None)?;
+        let projection_proof = merge_json(
+            tuple_json(request),
+            json!({"kind":"closed-projection","label":label,"composition":composition_proof}),
+        );
+        state.node_proofs.push(proof_entry(
+            node_id,
+            node_kind(projection),
+            label,
+            GraphNodeCompletenessProofClassV1::ProjectionComposition,
+            projection_proof,
+        )?);
+        let graph_completeness = GraphCompletenessV1 {
+            materialization_hash: request.materialization_hash.clone(),
+            partition_hash: request.partition_hash.clone(),
+            authorization_version: request.authorization_version.clone(),
+            evaluation_cut: request.evaluation_cut,
+            label,
+            proof_class: class,
+            proof: composition_proof,
+        };
+        let ordered_root_ids = state
+            .roots
+            .iter()
+            .map(|root| root.root_id.clone())
+            .collect::<Vec<_>>();
+        let window_ledgers = next_ledgers(
+            plan,
+            request,
+            &state,
+            result_length,
+            result_bytes.len() as u64,
+        )
+        .ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_QUERY_COST_BOUND_EXCEEDED",
+                "query",
+                "graph window lineage exceeded an admitted bound",
+            )
+        })?;
+        Ok(GraphEvaluationOutputV1 {
+            kind: "result".to_owned(),
+            label,
+            result_bytes: Some(result_bytes),
+            ordered_root_ids,
+            result_length,
+            node_completeness: state.node_proofs.clone(),
+            graph_completeness,
+            refusal_reason: None,
+            structural_work: state.work.observation(plan),
+            window_ledgers,
+        })
+    })();
+    match evaluation {
+        Ok(output) => Ok(output),
+        Err(error) => {
+            if let Some(reason) = closed_evaluation_refusal(&error) {
+                refused_output(plan, request, &state, reason)
+            } else {
+                Err(error)
+            }
         }
     }
-    let projection = plan.nodes.last().ok_or_else(|| {
-        SnapbackError::error(
-            "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
-            "query",
-            "graph plan has no projection",
-        )
-    })?;
-    let GraphNodeV1::ClosedProjection {
-        node_id, object, ..
-    } = projection
-    else {
-        return Err(SnapbackError::error(
-            "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
-            "query",
-            "graph plan projection is not last",
-        ));
-    };
-    let root_id = plan
-        .nodes
-        .first()
-        .map(GraphNodeV1::node_id)
-        .unwrap_or_default();
-    let mut rows = Vec::new();
-    for root in &state.roots {
-        let mut scope = BTreeMap::new();
-        scope.insert(root_id.to_owned(), root.row.clone());
-        rows.push(project_object(object, &state, &scope)?);
-    }
-    let result_bytes = serde_json::to_string(&rows).map_err(|error| {
-        SnapbackError::error(
-            "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
-            "query",
-            error.to_string(),
-        )
-    })?;
-    let result_length = rows.len() as u64;
-    if !enforce_execution_bounds(plan, &state, result_length, result_bytes.len() as u64) {
-        return refused_output(
-            plan,
-            request,
-            &state,
-            GraphMaterializedRefusalReasonV1::QueryCostBoundExceeded,
-        );
-    }
-    let (label, class, composition_proof) = composition(plan, request, &state.node_proofs, None)?;
-    let projection_proof = merge_json(
-        tuple_json(request),
-        json!({"kind":"closed-projection","label":label,"composition":composition_proof}),
-    );
-    state.node_proofs.push(proof_entry(
-        node_id,
-        node_kind(projection),
-        label,
-        GraphNodeCompletenessProofClassV1::ProjectionComposition,
-        projection_proof,
-    )?);
-    let graph_completeness = GraphCompletenessV1 {
-        materialization_hash: request.materialization_hash.clone(),
-        partition_hash: request.partition_hash.clone(),
-        authorization_version: request.authorization_version.clone(),
-        evaluation_cut: request.evaluation_cut,
-        label,
-        proof_class: class,
-        proof: composition_proof,
-    };
-    let ordered_root_ids = state
-        .roots
-        .iter()
-        .map(|root| root.root_id.clone())
-        .collect::<Vec<_>>();
-    let Some(window_ledgers) = next_ledgers(
-        plan,
-        request,
-        &state,
-        result_length,
-        result_bytes.len() as u64,
-    ) else {
-        return refused_output(
-            plan,
-            request,
-            &state,
-            GraphMaterializedRefusalReasonV1::QueryCostBoundExceeded,
-        );
-    };
-    Ok(GraphEvaluationOutputV1 {
-        kind: "result".to_owned(),
-        label,
-        result_bytes: Some(result_bytes),
-        ordered_root_ids,
-        result_length,
-        node_completeness: state.node_proofs,
-        graph_completeness,
-        refusal_reason: None,
-        structural_work: state.work.observation(plan),
-        window_ledgers,
-    })
 }
 
 #[cfg(test)]

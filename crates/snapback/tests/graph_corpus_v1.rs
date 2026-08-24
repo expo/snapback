@@ -20,6 +20,7 @@ use snapback::local::LocalSnapback;
 use snapback::manifest::*;
 use snapback_engine::graph_evaluator::{
     GraphEvaluationAuthorityV1, GraphEvaluationRequestV1, GraphPermissionValuesV1,
+    GraphWindowLedgerV1,
 };
 use snapback_kernel::storage::{ChangeOp, ChangedRow};
 use snapback_sync::graph_captured_read::graph_capture_carrier_is_well_formed;
@@ -280,6 +281,8 @@ fn corpus_authority(corpus: &Value, principal: &str) -> GraphEvaluationAuthority
             ..AuthInput::default()
         },
         permission_values_by_table,
+        resolved_membership_inputs: BTreeSet::new(),
+        resolved_role_inputs: BTreeSet::new(),
     }
 }
 
@@ -295,6 +298,10 @@ fn evaluation_request(
     GraphEvaluationRequestV1 {
         args: call["args"].clone(),
         windows: serde_json::from_value(call["windows"].clone()).unwrap(),
+        advanced_node_id: call["advancedNodeId"]
+            .as_str()
+            .expect("corpus invocation binds one advanced graph lineage")
+            .to_owned(),
         materialization_hash: materialization.materialization_hash.clone(),
         partition_hash: partition.partition_hash.clone(),
         authorization_version: serde_json::from_value(call["authorizationVersion"].clone())
@@ -1793,6 +1800,8 @@ fn assert_evaluator_matches_frozen_result(
 ) {
     let actual = serde_json::to_value(actual).expect("serialize evaluator output");
     let mut expected = expected.clone();
+    assert_legal_node_proof_classes(&actual["nodeCompleteness"], case_id);
+    assert_legal_node_proof_classes(&expected["nodeCompleteness"], case_id);
     fn normalize_snapshot_tuple(value: &mut Value) {
         match value {
             Value::Object(object) => {
@@ -1857,6 +1866,43 @@ fn assert_evaluator_matches_frozen_result(
         actual["windowLedgers"], expected["windowLedgers"],
         "{case_id} window ledgers"
     );
+}
+
+fn legal_node_proof_class(kind: &str, label: &str) -> Option<&'static str> {
+    match (kind, label) {
+        ("closed-projection", _) => Some("projection-composition"),
+        (_, "refused") => Some("refusal"),
+        (_, "unknown") => Some("none"),
+        ("root-window" | "bounded-to-many", "prefix") => Some("ordered-prefix"),
+        ("root-window", "window") => Some("named-window"),
+        ("root-window", "complete") => Some("whole-source"),
+        ("equality-to-one", "complete") => Some("unique-point"),
+        ("bounded-to-many", "complete" | "window") => Some("parent-ranges"),
+        ("exists-semi-join", "complete") => Some("complete-membership"),
+        ("principal-bound", "complete") => Some("principal-point"),
+        ("search-membership", "complete") => Some("provider-certificate"),
+        _ => None,
+    }
+}
+
+fn assert_legal_node_proof_classes(nodes: &Value, context: &str) {
+    let Some(nodes) = nodes.as_array() else {
+        return;
+    };
+    for node in nodes {
+        let kind = node["nodeKind"].as_str().expect("node proof kind");
+        let label = node["label"].as_str().expect("node proof label");
+        assert_eq!(node["proof"]["kind"], kind, "{context} {kind} proof kind");
+        assert_eq!(
+            node["proof"]["label"], label,
+            "{context} {kind} proof label"
+        );
+        assert_eq!(
+            node["proofClass"].as_str(),
+            legal_node_proof_class(kind, label),
+            "{context} proofClass is legal for ({kind}, {label})",
+        );
+    }
 }
 
 fn executable_case<'a>(corpus: &'a Value, id: &str) -> &'a Value {
@@ -2086,6 +2132,7 @@ fn mixed_parent_named_child_ranges_keep_per_parent_has_more() {
     request
         .windows
         .push(serde_json::from_value(json!({"nodeId":"n2","intervals":intervals})).unwrap());
+    request.advanced_node_id = "n2".to_owned();
     let output = graph_store(&corpus, None)
         .evaluate_graph_query(&plan, &request)
         .expect("mixed named child ranges evaluate");
@@ -2111,6 +2158,99 @@ fn mixed_parent_named_child_ranges_keep_per_parent_has_more() {
         output["windowLedgers"],
         mixed_case["expect"]["windowLedgers"]
     );
+}
+
+fn zero_ledger(node_id: &str) -> GraphWindowLedgerV1 {
+    GraphWindowLedgerV1 {
+        node_id: node_id.to_owned(),
+        ..GraphWindowLedgerV1::default()
+    }
+}
+
+fn ledger_for<'a>(ledgers: &'a [GraphWindowLedgerV1], node_id: &str) -> &'a GraphWindowLedgerV1 {
+    ledgers
+        .iter()
+        .find(|ledger| ledger.node_id == node_id)
+        .unwrap_or_else(|| panic!("missing ledger for {node_id}"))
+}
+
+/// @ref LLP 0209#24-plan-instance-and-contextual-materialization-identity —
+/// one request advances exactly one demand-node lineage; an exhausted sibling
+/// ledger cannot block it and is carried byte-for-byte.
+#[test]
+fn child_and_sibling_continuations_advance_only_the_bound_lineage() {
+    let corpus = graph_corpus();
+    let case = executable_case(&corpus, "g0-pair-detail-notification-principal");
+    let (carrier, mut child_request) = request_for_case(&corpus, case);
+    child_request.advanced_node_id = "n2".to_owned();
+    let mut exhausted_root = zero_ledger("n0");
+    exhausted_root.pages = 1;
+    child_request.prior_window_ledgers = vec![exhausted_root.clone(), zero_ledger("n2")];
+    let before = child_request.prior_window_ledgers.clone();
+    let child_output = graph_store(&corpus, None)
+        .evaluate_graph_query(&carrier.normalized_plan, &child_request)
+        .expect("child-only continuation evaluates past an exhausted root sibling");
+    assert_eq!(
+        ledger_for(&child_output.window_ledgers, "n0"),
+        ledger_for(&before, "n0"),
+        "child-only continuation carries the root lineage unchanged",
+    );
+    assert_eq!(ledger_for(&child_output.window_ledgers, "n2").pages, 1);
+
+    let (carrier, mut sibling_request) = request_for_case(&corpus, case);
+    let mut plan_value = serde_json::to_value(&carrier.normalized_plan).unwrap();
+    plan_value["nodes"][4]["page"] = json!({"kind":"demand"});
+    for (field, value) in [
+        ("maxWindowPages", 1_u64),
+        ("maxWindowRootRows", 0),
+        ("maxWindowScannedRows", 64),
+        ("maxWindowResultRows", 1),
+        ("maxWindowResultBytes", 8_388_608),
+        ("maxWindowIndexRanges", 64),
+    ] {
+        plan_value["queryCost"]["graph"]["nodes"][4][field] = json!(value);
+    }
+    let sibling_plan: GraphQueryPlanV1 = serde_json::from_value(plan_value).unwrap();
+    let parent_key = sibling_request.windows[1].intervals[0]
+        .parent_key
+        .clone()
+        .expect("detail child parent");
+    let sibling_order = match &sibling_plan.nodes[4] {
+        GraphNodeV1::BoundedToMany { order, .. } => order.clone(),
+        _ => panic!("n4 is the sibling bounded range"),
+    };
+    sibling_request.windows.push(
+        serde_json::from_value(json!({
+            "nodeId":"n4",
+            "intervals":[{
+                "parentKey":parent_key,
+                "window":{
+                    "order":sibling_order,
+                    "direction":"forward",
+                    "lower":{"kind":"unbounded"},
+                    "upper":{"kind":"unbounded"},
+                    "take":16
+                }
+            }]
+        }))
+        .unwrap(),
+    );
+    sibling_request.advanced_node_id = "n4".to_owned();
+    let mut exhausted_child = zero_ledger("n2");
+    exhausted_child.pages = 1;
+    sibling_request.prior_window_ledgers = vec![exhausted_root, exhausted_child, zero_ledger("n4")];
+    let before = sibling_request.prior_window_ledgers.clone();
+    let sibling_output = graph_store(&corpus, None)
+        .evaluate_graph_query(&sibling_plan, &sibling_request)
+        .expect("sibling-only continuation evaluates past exhausted untouched lineages");
+    for untouched in ["n0", "n2"] {
+        assert_eq!(
+            ledger_for(&sibling_output.window_ledgers, untouched),
+            ledger_for(&before, untouched),
+            "sibling-only continuation carries {untouched} unchanged",
+        );
+    }
+    assert_eq!(ledger_for(&sibling_output.window_ledgers, "n4").pages, 1);
 }
 
 /// @ref LLP 0209#23-closure-admission-demand-time-evaluation-time-and-qualification-registers —
@@ -2168,6 +2308,231 @@ fn evaluator_validates_demands_and_class_two_context_before_reads() {
     assert_eq!(
         serde_json::to_value(refused).unwrap()["refusalReason"],
         "SNAPBACK_AUTH_STALE_RESULT"
+    );
+}
+
+fn class_two_plan_with_declared_kind(
+    plan: &GraphQueryPlanV1,
+    kind: GraphPolicyInputKindV1,
+) -> (GraphQueryPlanV1, BTreeSet<String>) {
+    let mut value = serde_json::to_value(plan).unwrap();
+    let mut declaration_ids = BTreeSet::new();
+    for node in value["nodes"].as_array_mut().unwrap() {
+        if node["authority"]["declaredClass"] != 2 {
+            continue;
+        }
+        let mut proof: GraphPartitionEquivalenceProofV1 =
+            serde_json::from_value(node["authority"]["proof"].clone()).unwrap();
+        for input in &mut proof.policy_inputs {
+            input.kind = kind;
+            declaration_ids.insert(input.declaration_id.clone());
+        }
+        node["authority"]["proof"] =
+            serde_json::to_value(recompute_graph_partition_equivalence_proof_v1(&proof).unwrap())
+                .unwrap();
+    }
+    (serde_json::from_value(value).unwrap(), declaration_ids)
+}
+
+#[test]
+fn class_two_context_is_complete_per_declared_policy_input_kind() {
+    let corpus = graph_corpus();
+    let case = executable_case(&corpus, "g0-pair-list-hidden-internal-root");
+    let (carrier, request) = request_for_case(&corpus, case);
+
+    for (kind, edge_case_id) in [
+        (
+            GraphPolicyInputKindV1::Membership,
+            "g2-class2-membership-only-context",
+        ),
+        (GraphPolicyInputKindV1::Role, "g2-class2-role-only-context"),
+    ] {
+        let (plan, declarations) =
+            class_two_plan_with_declared_kind(&carrier.normalized_plan, kind);
+        let mut request = request.clone();
+        request.authority.permission_values_by_table.clear();
+        match kind {
+            GraphPolicyInputKindV1::Membership => {
+                request.authority.resolved_membership_inputs = declarations;
+            }
+            GraphPolicyInputKindV1::Role => {
+                request.authority.resolved_role_inputs = declarations;
+            }
+            GraphPolicyInputKindV1::PermissionBacking => unreachable!(),
+        }
+        let output = graph_store(&corpus, None)
+            .evaluate_graph_query(&plan, &request)
+            .unwrap_or_else(|error| panic!("{edge_case_id}: {error:?}"));
+        assert_eq!(output.label, GraphCompletenessLabelV1::Complete);
+    }
+
+    let (membership_plan, _) = class_two_plan_with_declared_kind(
+        &carrier.normalized_plan,
+        GraphPolicyInputKindV1::Membership,
+    );
+    let mut missing = request;
+    missing.authority.permission_values_by_table.clear();
+    missing.authority.resolved_membership_inputs.clear();
+    let refused = graph_store(&corpus, None)
+        .evaluate_graph_query(&membership_plan, &missing)
+        .expect("missing declared membership input fails closed as a materialized result");
+    assert_eq!(
+        refused.refusal_reason,
+        Some(GraphMaterializedRefusalReasonV1::AuthStaleResult),
+    );
+}
+
+#[test]
+fn optional_argument_omission_stays_absent_with_zero_cardinality() {
+    let corpus = graph_corpus();
+    let case = executable_case(&corpus, "g0-pair-list-hidden-internal-root");
+    let (carrier, mut request) = request_for_case(&corpus, case);
+    let mut plan_value = serde_json::to_value(&carrier.normalized_plan).unwrap();
+    let optional = plan_value["arguments"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|argument| argument["name"] == "selectedLabelIDs")
+        .expect("selected-label argument");
+    optional["contract"]["required"] = json!(false);
+    let optional_id = optional["argumentId"].as_str().unwrap().to_owned();
+    let plan: GraphQueryPlanV1 = serde_json::from_value(plan_value).unwrap();
+    request
+        .args
+        .as_object_mut()
+        .unwrap()
+        .remove("selectedLabelIDs");
+
+    let output = graph_store(&corpus, None)
+        .evaluate_graph_query(&plan, &request)
+        .expect("optional omission is executable");
+    assert_eq!(
+        output
+            .structural_work
+            .argument_items_by_argument
+            .iter()
+            .find(|argument| argument.argument_id == optional_id)
+            .expect("optional argument observation")
+            .observed,
+        0,
+    );
+}
+
+#[test]
+fn root_and_child_zero_take_emit_unknown_without_continuations() {
+    let corpus = graph_corpus();
+
+    let root_case = executable_case(&corpus, "g0-pair-list-hidden-internal-root");
+    let (root_carrier, mut root_request) = request_for_case(&corpus, root_case);
+    root_request.windows[0].intervals[0].window.take = 0;
+    let root_output = graph_store(&corpus, None)
+        .evaluate_graph_query(&root_carrier.normalized_plan, &root_request)
+        .expect("root take zero evaluates without a panic path");
+    let root_proof = &root_output.node_completeness[0];
+    assert_eq!(root_proof.label, GraphCompletenessLabelV1::Unknown);
+    assert_eq!(
+        root_proof.proof_class,
+        GraphNodeCompletenessProofClassV1::None
+    );
+    assert_eq!(root_proof.proof["reason"], "zero-take-unproved");
+    assert!(root_proof.proof.get("continuation").is_none());
+
+    let child_case = executable_case(&corpus, "g0-pair-detail-notification-principal");
+    let (child_carrier, mut child_request) = request_for_case(&corpus, child_case);
+    child_request.windows[1].intervals[0].window.take = 0;
+    child_request.advanced_node_id = "n2".to_owned();
+    let child_output = graph_store(&corpus, None)
+        .evaluate_graph_query(&child_carrier.normalized_plan, &child_request)
+        .expect("child take zero evaluates without a panic path");
+    let child_proof = child_output
+        .node_completeness
+        .iter()
+        .find(|proof| proof.node_id == "n2")
+        .expect("child node proof");
+    assert_eq!(child_proof.label, GraphCompletenessLabelV1::Unknown);
+    assert_eq!(
+        child_proof.proof_class,
+        GraphNodeCompletenessProofClassV1::None,
+    );
+    assert_eq!(child_proof.proof["reason"], "zero-take-unproved");
+    assert!(child_proof.proof.get("continuation").is_none());
+}
+
+#[test]
+fn hypothetically_admitted_search_materializes_the_ruled_refusal() {
+    let corpus = graph_corpus();
+    let case = executable_case(&corpus, "g0-pair-point-view-state-principal");
+    let (carrier, request) = request_for_case(&corpus, case);
+    let mut plan = carrier.normalized_plan;
+    let search: GraphNodeV1 = serde_json::from_value(json!({
+        "nodeId":"search", "kind":"search-membership", "edgeName":"search",
+        "authority":{"declaredClass":1,"proof":null},
+        "parentNodeId":"n0", "providerCapabilityId":"search.v1",
+        "membershipIdentity":{
+            "format":"snapback.graph-search-membership-identity.v1",
+            "providerPlanHash":zero_hash(), "argumentContractHash":zero_hash(),
+            "scopeContractHash":zero_hash(), "authorityClass":1,
+            "providerVersion":"v1", "providerCompletenessClass":"complete-membership-v1",
+            "membershipHash":zero_hash()
+        },
+        "memberField":"sourceIssueID", "scopeBindings":[],
+        "invalidationTables":["issue"],
+        "providerCompletenessClass":"complete-membership-v1"
+    }))
+    .unwrap();
+    plan.nodes.insert(plan.nodes.len() - 1, search);
+
+    let output = graph_store(&corpus, None)
+        .evaluate_graph_query(&plan, &request)
+        .expect("search defense-in-depth arm materializes instead of escaping");
+    assert_eq!(
+        output.refusal_reason,
+        Some(GraphMaterializedRefusalReasonV1::QueryCostEvidenceRequired),
+    );
+    assert_eq!(output.node_completeness.len(), plan.nodes.len());
+    assert_legal_node_proof_classes(
+        &serde_json::to_value(&output.node_completeness).unwrap(),
+        "search defense-in-depth refusal",
+    );
+}
+
+#[test]
+fn kernel_read_failure_materializes_full_refusal_evidence() {
+    let corpus = graph_corpus();
+    let case = executable_case(&corpus, "g0-pair-point-view-state-principal");
+    let (carrier, request) = request_for_case(&corpus, case);
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("graph-kernel-read-failure.sqlite3");
+    let mut store = LocalSnapback::open(&path).unwrap();
+    let tables = corpus_seed_tables(&corpus);
+    let diagnostics = store.apply_schema(corpus_schema(&tables)).unwrap();
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error)
+    );
+    store.seed(SeedData { tables }).unwrap();
+    {
+        let connection = rusqlite::Connection::open(&path).unwrap();
+        connection
+            .execute("UPDATE issueListRead SET _version = -1", [])
+            .expect("inject a forced kernel row-version read failure");
+    }
+    let output = store
+        .evaluate_graph_query(&carrier.normalized_plan, &request)
+        .expect("closed kernel read failure materializes instead of returning Err");
+    assert_eq!(
+        output.refusal_reason,
+        Some(GraphMaterializedRefusalReasonV1::StorageVersionCorrupt),
+    );
+    assert_eq!(
+        output.node_completeness.len(),
+        carrier.normalized_plan.nodes.len(),
+        "refusal carries every data-node proof plus projection composition",
+    );
+    assert_legal_node_proof_classes(
+        &serde_json::to_value(&output.node_completeness).unwrap(),
+        "kernel read failure refusal",
     );
 }
 
@@ -2623,6 +2988,21 @@ fn completeness_labels() {
             projection["proof"]["composition"]["partitionHash"].as_str(),
             Some(partition.partition_hash.as_str()),
         );
+    }
+}
+
+#[test]
+fn every_frozen_node_proof_class_is_legal_including_refusals() {
+    let corpus = graph_corpus();
+    for case in corpus["cases"].as_array().expect("cases") {
+        for expected in [&case["expect"], &case["expect"]["allowed"]] {
+            if expected["nodeCompleteness"].is_array() {
+                assert_legal_node_proof_classes(
+                    &expected["nodeCompleteness"],
+                    case["id"].as_str().expect("case id"),
+                );
+            }
+        }
     }
 }
 

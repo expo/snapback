@@ -4897,9 +4897,7 @@ pub fn validate_graph_window_vector_v1(
             if interval.window.order != order {
                 return Err(GraphDemandTimeRefusalReasonV1::DemandIdentityMismatch);
             }
-            if interval.window.take == 0
-                || interval.window.take > GRAPH_MAX_SAFE_INTEGER
-                || interval.window.take > maximum_take
+            if interval.window.take > GRAPH_MAX_SAFE_INTEGER || interval.window.take > maximum_take
             {
                 return Err(GraphDemandTimeRefusalReasonV1::WindowVectorInvalid);
             }

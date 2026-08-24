@@ -789,6 +789,7 @@
               ]
             }
           ],
+          "advancedNodeId": "n0",
           "materialization": {
             "format": "snapback.graph-materialization.v1",
             "appId": "zerobugs-graph-g0-corpus",
@@ -909,6 +910,7 @@
               ]
             }
           ],
+          "advancedNodeId": "n0",
           "materialization": {
             "format": "snapback.graph-materialization.v1",
             "appId": "zerobugs-graph-g0-corpus",
@@ -1793,6 +1795,7 @@
               ]
             }
           ],
+          "advancedNodeId": "n0",
           "materialization": {
             "format": "snapback.graph-materialization.v1",
             "appId": "zerobugs-graph-g0-corpus",
@@ -1913,6 +1916,7 @@
               ]
             }
           ],
+          "advancedNodeId": "n0",
           "materialization": {
             "format": "snapback.graph-materialization.v1",
             "appId": "zerobugs-graph-g0-corpus",
@@ -2789,6 +2793,7 @@
               ]
             }
           ],
+          "advancedNodeId": "n0",
           "materialization": {
             "format": "snapback.graph-materialization.v1",
             "appId": "zerobugs-graph-g0-corpus",
@@ -2909,6 +2914,7 @@
               ]
             }
           ],
+          "advancedNodeId": "n0",
           "materialization": {
             "format": "snapback.graph-materialization.v1",
             "appId": "zerobugs-graph-g0-corpus",
@@ -3811,6 +3817,7 @@
               ]
             }
           ],
+          "advancedNodeId": "n0",
           "materialization": {
             "format": "snapback.graph-materialization.v1",
             "appId": "zerobugs-graph-g0-corpus",
@@ -3931,6 +3938,7 @@
               ]
             }
           ],
+          "advancedNodeId": "n0",
           "materialization": {
             "format": "snapback.graph-materialization.v1",
             "appId": "zerobugs-graph-g0-corpus",
@@ -4059,5 +4067,5 @@
       ]
     }
   ],
-  "contentDigest": "sha256:98b9de2ef61745507b6faf72af5d4b89e709c643a00df3ea210a6ee3b312ce4d"
+  "contentDigest": "sha256:e09ca3d9ad19572dccdea56b1f7769a452777c37f91514744636fa13f132a878"
 }

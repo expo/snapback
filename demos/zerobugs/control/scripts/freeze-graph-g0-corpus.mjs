@@ -44,7 +44,9 @@ const requestedFixtures = (process.argv.find(value => value.startsWith('--fixtur
   .split(',');
 const checkOnly = process.argv.includes('--check');
 let corpusAuthorityOwner = null;
-const freezerProofSelfChecks = {consumed: false, found: false, parentLinkage: false};
+const freezerProofSelfChecks = {
+  consumed: false, found: false, parentLinkage: false, proofClass: false,
+};
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
@@ -701,6 +703,7 @@ function invocation(
   const instanceHash = domainHash('snapback:graph-instance:v1:', instancePreimage);
   return {
     planHash: carrier.planHash, args, windows,
+    advancedNodeId: windowOptions.advancedNodeId ?? carrier.normalizedPlan.rootNodeId,
     materialization: {
       format: 'snapback.graph-materialization.v1', appId: 'zerobugs-graph-g0-corpus',
       databaseId: 'g0-corpus-fixtures-v1', deploymentId: 'g0-stage-b',
@@ -1022,6 +1025,54 @@ function exerciseFrozenProofSelfChecks(carrier, resultBytes, state, nodeComplete
   }
 }
 
+function legalNodeProofClass(nodeKind, label) {
+  if (nodeKind === 'closed-projection') return 'projection-composition';
+  if (label === 'refused') return 'refusal';
+  if (label === 'unknown') return 'none';
+  if (['root-window', 'bounded-to-many'].includes(nodeKind) && label === 'prefix') {
+    return 'ordered-prefix';
+  }
+  if (nodeKind === 'root-window' && label === 'window') return 'named-window';
+  if (nodeKind === 'root-window' && label === 'complete') return 'whole-source';
+  if (nodeKind === 'equality-to-one' && label === 'complete') return 'unique-point';
+  if (nodeKind === 'bounded-to-many' && ['complete', 'window'].includes(label)) return 'parent-ranges';
+  if (nodeKind === 'exists-semi-join' && label === 'complete') return 'complete-membership';
+  if (nodeKind === 'principal-bound' && label === 'complete') return 'principal-point';
+  if (nodeKind === 'search-membership' && label === 'complete') return 'provider-certificate';
+  return null;
+}
+
+function assertLegalNodeProofClasses(carrier, nodeCompleteness, context) {
+  assert.equal(
+    nodeCompleteness.length,
+    carrier.normalizedPlan.nodes.length,
+    `${context} has one proof per normalized node`,
+  );
+  nodeCompleteness.forEach((entry, index) => {
+    const node = carrier.normalizedPlan.nodes[index];
+    assert.equal(entry.nodeId, node.nodeId, `${context} node ${index} is canonical`);
+    assert.equal(entry.nodeKind, node.kind, `${context} node ${index} kind is canonical`);
+    assert.equal(entry.proof.kind, node.kind, `${context} node ${index} proof kind matches`);
+    assert.equal(entry.proof.label, entry.label, `${context} node ${index} proof label matches`);
+    assert.equal(
+      entry.proofClass,
+      legalNodeProofClass(entry.nodeKind, entry.label),
+      `${context} ${entry.nodeId} proofClass is legal for (${entry.nodeKind}, ${entry.label})`,
+    );
+  });
+}
+
+function exerciseProofClassSelfCheck(carrier, nodeCompleteness) {
+  if (freezerProofSelfChecks.proofClass) return;
+  const contradictory = deepClone(nodeCompleteness);
+  contradictory.at(-1).proofClass = 'refusal';
+  assert.throws(
+    () => assertLegalNodeProofClasses(carrier, contradictory, 'adversarial proof-class case'),
+    /proofClass is legal/u,
+  );
+  freezerProofSelfChecks.proofClass = true;
+}
+
 function completeResult(carrier, call, tables, resultBytes = '[]', orderedRootIds = []) {
   const materializationHash = domainHash('snapback:graph-materialization:v1:', call.materialization);
   const partitionHash = domainHash('snapback:graph-authority-partition:v1:', call.partition);
@@ -1047,6 +1098,8 @@ function completeResult(carrier, call, tables, resultBytes = '[]', orderedRootId
   // a contradictory expectation must never be written to the corpus.
   assertFrozenProofsMatchBytes(carrier, resultBytes, state, nodes);
   exerciseFrozenProofSelfChecks(carrier, resultBytes, state, nodes);
+  assertLegalNodeProofClasses(carrier, nodes, 'complete frozen result');
+  exerciseProofClassSelfCheck(carrier, nodes);
   return {
     kind: 'result', label: 'complete', resultBytes, orderedRootIds,
     resultLength: orderedRootIds.length, nodeCompleteness: nodes,
@@ -1078,9 +1131,10 @@ function materializedRefusalResult(carrier, call, reason) {
   };
   const projection = carrier.normalizedPlan.nodes.find(node => node.kind === 'closed-projection');
   nodes.push({
-    nodeId: projection.nodeId, nodeKind: projection.kind, label: 'refused', proofClass: 'refusal',
+    nodeId: projection.nodeId, nodeKind: projection.kind, label: 'refused', proofClass: 'projection-composition',
     proof: {...tuple, kind: 'closed-projection', label: 'refused', reason, composition},
   });
+  assertLegalNodeProofClasses(carrier, nodes, 'materialized refusal result');
   return {
     kind: 'result', label: 'refused', resultBytes: null, orderedRootIds: [],
     resultLength: 0, nodeCompleteness: nodes,
@@ -1125,11 +1179,11 @@ function attachFrozenExecutionWork(cases) {
     ),
     'g0-pair-detail-hidden-root-empty-child-demand': frozenExecutionWork(
       0, [0, 0, 0, 0, 0, 0, 1, 0, 1], [0, 0, 0, 0, 0, 1, 0, 1], [[2, 0], [4, 0]],
-      [1], [], [ledger('n0', 1, 0, 2, 0, 2, 3), ledger('n2', 1, 0, 0, 0, 2, 0)],
+      [1], [], [ledger('n0', 1, 0, 2, 0, 2, 3), ledger('n2', 0, 0, 0, 0, 0, 0)],
     ),
     'g0-pair-detail-notification-principal': frozenExecutionWork(
       1, [1, 0, 21, 1, 2, 2, 1, 1, 1], [1, 1, 1, 1, 2, 2, 1, 2], [[2, 21], [4, 2]],
-      [1], [], [ledger('n0', 1, 1, 30, 1, 20261, 11), ledger('n2', 1, 0, 21, 1, 20261, 1)],
+      [1], [], [ledger('n0', 1, 1, 30, 1, 20261, 11), ledger('n2', 0, 0, 0, 0, 0, 0)],
     ),
     'g0-pair-point-view-state-principal': frozenExecutionWork(
       1, [1, 1, 2, 2, 0, 1], [1, 1, 2, 0, 2], [[2, 2], [4, 0]],
@@ -2019,7 +2073,7 @@ async function main() {
         ...frozenExecutionWork(
           2, [2, 2, 3, 2, 0, 1], [2, 2, 2, 0, 3], [[2, 1], [4, 0]],
           [1, 0], [[4, 0]], [
-            {nodeId: 'n0', pages: 1, rootRows: 2, scannedRows: 10, resultRows: 2, resultBytes: 1145, indexRanges: 10},
+            {nodeId: 'n0', pages: 0, rootRows: 0, scannedRows: 0, resultRows: 0, resultBytes: 0, indexRanges: 0},
             {nodeId: 'n2', pages: 1, rootRows: 0, scannedRows: 5, resultRows: 2, resultBytes: 1145, indexRanges: 4},
           ],
         ),
@@ -2039,13 +2093,78 @@ async function main() {
         ),
       },
     },
+    {
+      id: 'g2-child-only-ledger-continuation',
+      baseCaseId: 'g0-pair-detail-notification-principal', query: 'issueDetail',
+      advancedNodeId: 'n2', untouchedNodeIds: ['n0'],
+      expect: {advancedPagesDelta: 1, untouchedLedgers: 'byte-identical'},
+    },
+    {
+      id: 'g2-sibling-only-ledger-continuation',
+      baseCaseId: 'g0-pair-detail-notification-principal', query: 'issueDetail',
+      advancedNodeId: 'n4', untouchedNodeIds: ['n0', 'n2'],
+      planMutation: 'literal-label-sibling-to-demand-with-derived-window-costs',
+      expect: {advancedPagesDelta: 1, untouchedLedgers: 'byte-identical'},
+    },
+    {
+      id: 'g2-class2-membership-only-context',
+      baseCaseId: 'g0-pair-list-hidden-internal-root', query: 'issueListV2',
+      policyInputKind: 'membership', expect: {label: 'complete'},
+    },
+    {
+      id: 'g2-class2-role-only-context',
+      baseCaseId: 'g0-pair-list-hidden-internal-root', query: 'issueListV2',
+      policyInputKind: 'role', expect: {label: 'complete'},
+    },
+    {
+      id: 'g2-class2-declared-input-missing',
+      baseCaseId: 'g0-pair-list-hidden-internal-root', query: 'issueListV2',
+      policyInputKind: 'membership', omitResolvedInput: true,
+      expect: {label: 'refused', reason: 'SNAPBACK_AUTH_STALE_RESULT'},
+    },
+    {
+      id: 'g2-optional-argument-omission',
+      baseCaseId: 'g0-pair-list-hidden-internal-root', query: 'issueListV2',
+      omittedArgument: 'selectedLabelIDs', expect: {observedCardinality: 0},
+    },
+    {
+      id: 'g2-root-zero-take',
+      baseCaseId: 'g0-pair-list-hidden-internal-root', query: 'issueListV2',
+      nodeId: 'n0', take: 0,
+      expect: {label: 'unknown', proofClass: 'none', reason: 'zero-take-unproved', continuation: null},
+    },
+    {
+      id: 'g2-child-zero-take',
+      baseCaseId: 'g0-pair-detail-notification-principal', query: 'issueDetail',
+      nodeId: 'n2', take: 0,
+      expect: {label: 'unknown', proofClass: 'none', reason: 'zero-take-unproved', continuation: null},
+    },
+    {
+      id: 'g2-search-defense-in-depth-refusal',
+      baseCaseId: 'g0-pair-point-hidden-internal-root', query: 'listIssueByID',
+      planMutation: 'insert-search-membership-bypassing-admission',
+      expect: {label: 'refused', reason: 'SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED'},
+    },
+    {
+      id: 'g2-kernel-read-failure-materializes',
+      baseCaseId: 'g0-pair-point-view-state-principal', query: 'listIssueByID',
+      fault: 'corrupt-selected-root-storage-version',
+      expect: {label: 'refused', reason: 'SNAPBACK_STORAGE_VERSION_CORRUPT'},
+    },
   ];
   const cases = [...pairedWorlds, ...allowDenyCases, ...refusalCases];
   attachFrozenExecutionWork(cases);
+  for (const testCase of cases) {
+    const results = [testCase.expect, testCase.expect?.allowed]
+      .filter(result => result?.nodeCompleteness);
+    for (const result of results) {
+      assertLegalNodeProofClasses(testCase.plan, result.nodeCompleteness, testCase.id);
+    }
+  }
   assert.deepEqual(
     freezerProofSelfChecks,
-    {consumed: true, found: true, parentLinkage: true},
-    'freezer adversarial self-checks cover result-row consumption, optional found/null, and immediate parent linkage',
+    {consumed: true, found: true, parentLinkage: true, proofClass: true},
+    'freezer adversarial self-checks cover result-row consumption, optional found/null, immediate parent linkage, and legal proof classes',
   );
   const g0ExitObservations = [];
   const g0ExitObservationEvidence = [];
