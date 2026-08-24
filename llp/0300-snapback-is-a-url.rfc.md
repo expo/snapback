@@ -11,251 +11,307 @@ seem to run into the same issues"; "maybe we should just try to be more like
 them"; "Let's make an LLP/RFC about this, then refine it, then make a spec,
 then implement")
 **Date:** 2026-08-24
+**Revised:** 2026-08-24 (c — round-1 revision: authenticity honestly
+reclassified with a credential-free discovery gate; declared-dev gated by a
+dev-only entry point, not NODE_ENV; bundler env reads move to
+application-owned source; OQ3 closed by an explicit scope ruling; receipt
+posture made compatibility-explicit; causal matrix + corrected comparisons;
+mint/disk claims narrowed)
 **Revised:** 2026-08-24 (b — Draft → Review at llp-super-refine loop start;
 author authorization: Charlie's 2026-08-24 pipeline direction)
 **Revised:** 2026-08-24 (a — initial draft)
-**Related:** LLP 0299 (supervised listener port plan — prerequisite),
-LLP 0181, LLP 0223, LLP 0258, LLP 0294, LLP 0295, LLP 0041,
+**Related:** LLP 0299 (supervised listener port plan — landed prerequisite,
+`544dd6a8e`), LLP 0181, LLP 0223, LLP 0258, LLP 0294, LLP 0295, LLP 0041,
 Diary 0100, Diary 0101, Diary 0104, Diary 0106,
 `issues/20260822-guide-gap-supervised-expo-mint-two-client.md`,
 `issues/20260823-expo-supervisor-restart-verb-port-drift.md`
 
 ## Summary
 
-Convex and Supabase never fight the class of problems that dominated the
-LLP 0295 matrix — random dev origins, split-the-stack workarounds, supervisor
-lifecycle bugs — because their entire client↔backend coupling is **one URL
-in one environment variable**, and their backends never touch the client's
-bundler. Snapback's coupling is a supervisor-issued, pre-admitted binding
-delivered over an IPC rendezvous, and the supervisor must therefore spawn,
-proxy, and enumerate the client's dev server. This RFC proposes making
-**URL-first the canonical development path**: a client configured by
-`SNAPBACK_URL` alone, with deployment identity *discovered from the URL and
-verified* instead of pre-admitted, the dev origin allowlist relaxed to
-loopback, and the dev session minted explicitly. The supervised `--expo`
-path remains as a convenience, no longer the only first-class path.
-Production binding rules do not change.
+Local Convex (`npx convex dev`, a local subprocess backend) and local
+Supabase (`supabase start`) never fight the class of problems that dominated
+the LLP 0295 matrix, because neither ever spawns, proxies, or enumerates the
+client's bundler: the whole client contract is environment configuration —
+one URL for Convex; URL plus publishable anon key for Supabase. Snapback's
+dev coupling is a supervisor-issued, pre-admitted binding delivered over an
+IPC rendezvous, and the supervisor must therefore own the client's dev
+server. This RFC makes **URL-first the canonical development path**: a
+client configured by one URL, with deployment identity discovered from that
+URL over a credential-free exchange and verified before any authenticated
+call; dev origin admission opened to literal loopback; two-process
+templates; an explicitly requested dev session. The supervised `--expo` path
+remains supported — its lines stop being *on the canonical path* and stop
+being vocabulary every agent must learn, not stop existing. Production and
+release binding admission do not change.
 
-This is a posture inversion of LLP 0181's zero-configuration goal. The
-lesson of the comparison is that *one env var is close enough to
-zero-config*, and the machinery required to reach literal zero-config —
-2,700 lines of supervisor plus its lease, reaper, proxy, attestation, and
-enumeration subsystems — costs more than the one variable it saves.
+This inverts LLP 0181's zero-configuration goal. The lesson of the
+comparison is that *one env var is close enough to zero-config*, and the
+machinery required to reach literal zero-config costs more than the one
+variable it saves.
 
-## Background: what the coupling is today, and why it is expensive
+## What each recorded failure is actually caused by
 
-Three structural choices compound (established in LLP 0299's analysis):
+| Failure class (recorded) | Cause | Addressed by |
+| --- | --- | --- |
+| Random dev origins; Clique out-of-range lanes; restart moves the origin | Ephemeral port allocation | **Already fixed** — LLP 0299 (landed) |
+| Restart-verb port drift (`issues/20260823-…-restart-verb-port-drift.md`) | Supervisor lifecycle reconciliation | Supervised-path ticket; a URL client re-verifies identity at connect (P1), so staleness is detected either way |
+| Metro IPv6 wedge; CI watch-inert; HMR storms through the proxy; listener-enumeration refusals; process-kill witnesses | Supervisor **owns the bundler** | P3 (canonical path never owns the bundler) |
+| Agents refused at raw `{ origin }`; split-the-stack rebuilds; rendezvous vocabulary tax | **Pre-admitted binding** is the only dev source | P1 |
+| Two browser contexts share one principal | **Ambient supervised mint** | P4 |
 
-1. **An origin allowlist instead of `*`.** Auth is already bearer-token
-   (`authorization: Bearer …`; no cookies anywhere in the auth path), so the
-   backend does not need the client's origin for identity. It nonetheless
-   admits only the exact loopback origins in `SNAPBACK_DEV_AUTH_ORIGINS` and
-   records them in the application-ready receipt — so the client's origin,
-   and therefore the bundler's port, is an input the backend must know
-   before it starts.
+The inversion rests on the last three rows. Rows one and two are not
+evidence for P1 and are not claimed as such.
+
+## Background: the three structural choices
+
+1. **An origin allowlist instead of `*`.** Auth is already bearer-token (no
+   cookies), so the backend does not need the client's origin for identity —
+   yet it admits only the exact origins in `SNAPBACK_DEV_AUTH_ORIGINS`,
+   which the supervisor must know before the backend starts.
 2. **A pre-admitted binding.** LLP 0181 admits no arbitrary runtime URL: the
-   client refuses a raw `{ origin }` (`SNAPBACK_APP_BINDING_UNAVAILABLE` /
-   `SNAPBACK_APP_BINDING_OVERRIDE_UNCONFIRMED`) and accepts only a binding a
-   live `snapback dev --expo` supervisor issued over the rendezvous (dev),
-   or one baked into generated target facts (release).
-3. **The supervisor that issues it.** Because the binding must be issued by
-   a live supervisor, the supervisor must exist — so it spawns Metro, fronts
-   it with a proxy, runs the bootstrap listener, mints an ambient dev
-   session, enumerates every listener with `lsof`, and owns leases/reapers
-   for all of it.
-
-Every recorded cost traces to (2) and (3): the Metro IPv6-loopback wedge,
-the CI watch-inert class, HMR storms through the proxy, listener-enumeration
-refusals, process-kill witnesses, the restart-verb port drift
-(`issues/20260823-expo-supervisor-restart-verb-port-drift.md`), the shared
-ambient mint making two browser contexts one principal
-(`issues/20260822-guide-gap-supervised-expo-mint-two-client.md`), and the
-Clique lanes' 36-minute M1 split-the-stack workaround (Diary 0106). Convex
-and Supabase structurally cannot have these bugs: `npx convex dev` and
-`supabase start` never see the bundler at all.
-
-LLP 0299 (stable default ports, strict pins, ranges) is the prerequisite
-already in flight: a durable URL is only useful if it does not change every
-morning. This RFC is the second, larger step.
+   client refuses a raw `{ origin }` and accepts only a binding a live
+   supervisor issued over the rendezvous (dev) or one baked into generated
+   target facts (release).
+3. **The supervisor that issues it.** Because a live issuer must exist, it
+   spawns Metro, fronts it with a proxy, runs the bootstrap listener, mints
+   an ambient session, and enumerates every listener.
 
 ## Proposal
 
 ### P1 — A URL is a first-class development binding source
 
-Add a `declared-dev` binding source to the client packages
-(`@expo/snapback-expo`, `@expo/snapback-react`, headless): in
-non-production builds, the provider accepts a backend URL from, in
-precedence order, an explicit `url` prop, `EXPO_PUBLIC_SNAPBACK_URL` /
-`VITE_SNAPBACK_URL` / `SNAPBACK_URL` (per bundler convention). Admission
-rules:
+Add a `declared-dev` binding source: in development builds, the provider
+accepts a backend URL passed to it by **application-owned source** (see
+"Bundler ownership" below). Admission rules:
 
-- The URL must be an absolute `http(s)` origin on loopback or an explicitly
-  private host class (see OQ3 for devices/LAN); credentials, paths, query,
-  and fragments are refused, mirroring `--external-client-origin`'s
-  canonicalization.
-- **Identity is discovered, not asserted.** On first connect the client
-  fetches the backend's identity fact (the operational-readiness surface
-  already carries the active deployment identity) and verifies it against
-  the generated `app` export's identity. A mismatch fails with the existing
-  `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` — the same safety property the
-  supervised binding provides, enforced at connect instead of at issuance.
-- Production builds prune the source entirely (the existing
-  `process.env.NODE_ENV !== 'production'` branch pattern), and release
-  bindings keep LLP 0181's rule unchanged: the target tuple must match
-  generated target facts. **No runtime or remote URL override exists in
-  production.** "Be a URL" means the URL is a build-time fact, exactly as
-  `CONVEX_URL` is.
-- The supervised rendezvous, when present, wins over the env var (a
-  supervised run is more specific than ambient configuration); a stale env
-  var pointing at a dead origin produces the ordinary connect refusal, not
-  a hang.
+- The URL must be an absolute `http(s)` origin whose host is **literal
+  loopback** (`127.0.0.1`, `localhost`, `[::1]`) or a documented
+  host-loopback **alias** (`10.0.2.2` from the Android emulator,
+  `host.docker.internal` and SSH/devcontainer port-forwards — all of which
+  terminate at the host's loopback listener). Credentials, paths, query,
+  fragments are refused; canonicalization mirrors
+  `--external-client-origin` (details: Spec). No general "private host
+  class" is admitted — see the scope ruling below.
+- **Credential-free discovery gate.** On first use the client performs one
+  unauthenticated identity exchange against the URL: no bearer, session,
+  mint, or any other client call is issued until the returned deployment
+  identity matches the generated `app` export's identity. Mismatch fails
+  with `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` naming both identities;
+  any other failure is an ordinary connect refusal, never a binding.
+- **What this does and does not provide (honest classification).**
+  Discovery is *mix-up detection*, fail-closed: a wrong-generation or
+  wrong-app backend is refused before it sees a credential. It is **not**
+  server authentication: the identity is client-visible, so a hostile
+  local listener could echo it. On the URL path, dev backend authenticity
+  is "the URL the operator configured" — exactly the posture of every
+  comparable `http://localhost` stack, including local Convex and local
+  Supabase. This is an accepted regression relative to supervised issuance,
+  and it is accepted **because the attacker it admits gains nothing**: a
+  same-UID process that can win the loopback port race can already read
+  the dev store (`.snapback/`) directly. Server authenticity against
+  same-UID local attackers is not a real control. The supervised path
+  retains its stronger issuance for whoever wants it, and **signed
+  discovery** (an identity fact signed by a store-held dev key, verified
+  against a fingerprint the client obtains out-of-band) is recorded as a
+  Spec-phase opt-in hardening obligation, noting the real constraint that
+  codegen runs without the store and cannot bake a store key fingerprint
+  into generated facts.
+- **Production gating is structural, not environmental.** `declared-dev`
+  lives in a dev-only entry point / generated artifact kind that release
+  builds cannot select; release binding admission (target-tuple match
+  against generated target facts) is authoritative regardless of
+  `NODE_ENV`, bundler mode, or runtime environment, on bundled and
+  unbundled (headless Node) clients alike. Dead-code elimination is bundle
+  hygiene, never the authorization boundary. No runtime or remote URL
+  override exists in production.
+- The supervised rendezvous, when present, wins over the declared URL; a
+  stale URL produces the connect refusal above, not a hang.
 
-### P2 — Dev origin admission opens to loopback
+**Bundler ownership.** A library cannot read `EXPO_PUBLIC_*` (Expo does not
+transform `node_modules`) and `VITE_*` is `import.meta.env`, so the env
+read lives in application-owned or generated source: templates ship the
+one-liner (`<Provider url={process.env.EXPO_PUBLIC_SNAPBACK_URL}>` /
+`import.meta.env.VITE_SNAPBACK_URL` / `process.env.SNAPBACK_URL` for
+headless) and pass the value to the provider. The one-variable experience
+is preserved at the template level; the library never guesses.
 
-With bearer auth, CORS admission on dev backends stops being an allowlist
-of exact origins: a development backend admits any loopback origin by
-default. `SNAPBACK_DEV_AUTH_ORIGINS` remains supported as opt-in narrowing
-(and stays the mechanism for admitting non-loopback tunnel/forwarded
-origins). The application-ready receipt records the admission *posture*
-(`loopback-any` or the explicit list) instead of requiring the exact client
-origin to be known before the backend starts — removing the last reason the
-backend needed the bundler's port in advance.
+### P2 — Dev origin admission opens to literal loopback
+
+A development backend admits any **literal** loopback origin
+(`localhost` / `127.0.0.1` / `[::1]` plus port — never "DNS that resolves
+to loopback", so rebinding hostnames are not admitted) by default. An
+explicit `SNAPBACK_DEV_AUTH_ORIGINS` **replaces** that default (it is
+narrowing, and remains the mechanism that admits a non-loopback client
+origin such as a tunnel front). **Accepted tradeoff, recorded:** any local
+page may now call and read the *unauthenticated* dev surface (signup,
+identity) from the browser; theft of an existing session stays closed (no
+cookies; a page cannot read another origin's token). Production admission
+is unchanged.
+
+**Compatibility.** Recording posture instead of an exact origin list is a
+receipt-visible change and is *not* pretended additive: the supervised
+path keeps injecting exact origins (its receipts and battery are
+unchanged); the plain/URL path records the posture through an additive,
+versioned representation with reader-before-writer sequencing, and
+old-CLI/new-server and new-CLI/old-receipt attach combinations get
+explicit acceptance. Exact encoding is Spec material.
 
 ### P3 — `snapback dev` prints the URL; templates go two-process
 
-The plain profile becomes the canonical template default:
-
-- `snapback dev snapback` starts/attaches the backend on its stable planned
-  port (LLP 0299), prints `SNAPBACK_URL=http://127.0.0.1:<port>` and the
-  per-platform variants (`10.0.2.2` for the Android emulator), and — on an
-  explicit flag or template opt-in, not silently — maintains it in the
-  app's `.env.local`. LLP 0223's rejection of durable env copies is
-  re-ruled for this one variable: with stable ports the copy is no longer
-  stale-prone, and staleness is now *detected* (P1 discovery) rather than
-  silent.
+- `snapback dev snapback` starts/attaches the backend on its stable
+  planned port (LLP 0299) and prints `SNAPBACK_URL=http://127.0.0.1:<port>`
+  plus the Android-emulator variant (`10.0.2.2`). On an explicit flag or
+  template opt-in — never silently — it maintains the value in the app's
+  gitignored `.env.local` (LLP 0223's rejection of durable env copies is
+  re-ruled for this one non-secret value: with stable ports it is not
+  stale-prone, and staleness is detected by P1). Bring-up order is
+  backend-then-bundler; bundlers inline env at start, so a URL written
+  after the bundler started requires a bundler restart — the template
+  scripts and guide say so.
 - Template `dev` scripts become two-process (`snapback dev snapback` +
-  `expo start` / `vite`), the shape every Convex and Supabase template
-  uses. `snapback dev --expo` remains available and documented as the
-  one-command convenience that additionally owns Metro, adb reverse rules,
+  `expo start` / `vite`). The canonical template value is
+  `http://127.0.0.1:<port>`; the Android emulator uses the printed
+  `10.0.2.2` variant manually or the supervised path's adb-reverse
+  convenience. `snapback dev --expo` remains available and documented as
+  the one-command convenience that additionally owns Metro, adb reverse,
   and listener enumeration.
 
 ### P4 — The dev session becomes explicit
 
-The URL path mints nothing ambiently. `snapback dev` prints (and
-`snapback auth dev-session` mints on demand) an explicit dev sign-in
-capability; apps and test harnesses that want distinct principals use
-ordinary signup/login per context. This closes the
-one-mint-per-origin-shared-by-every-tab defect class by construction on the
-canonical path; the supervised path keeps its mint (it is the convenience).
+The URL path mints nothing ambiently and `snapback dev` mints nothing by
+default: it prints *instructions*; `snapback auth dev-session` mints on
+explicit request, and the capability is an operator tool — templates never
+auto-consume it as the app session, and it is never written to `.env.local`
+or any bundler-public variable. Apps and harnesses wanting distinct
+principals use ordinary signup/login per context. This closes the
+one-mint-shared-by-every-tab class on the canonical path by construction.
 
 ### P5 — What does not change
 
-Bearer custody (including native SecureStore custody, LLP 0252/0258),
-loopback-only listeners, the receipt-verified lifecycle verbs
-(start/attach/regenerate/successor), release/hosted binding admission, and
-the LLP 0299 port plan. The supervisor is demoted, not deleted: its code
-paths, acceptance batteries, and Android polish remain supported.
+Bearer custody (incl. native SecureStore custody, LLP 0252/0258),
+loopback-only listeners, receipt-verified lifecycle verbs, release/hosted
+binding admission, the LLP 0299 port plan, and the supervised path's code,
+batteries, and Android polish.
+
+**Scope ruling (closes former OQ3).** The canonical URL path covers: web,
+iOS simulator, Android emulator (via the host-loopback alias),
+SSH/devcontainer port-forwards, and non-loopback *client* origins admitted
+via `SNAPBACK_DEV_AUTH_ORIGINS`. **Physical devices and any non-loopback
+backend listener remain supervised-path territory** (adb reverse today; a
+LAN listener posture would be a separate, explicitly-analyzed RFC). A
+backend reachable through an operator-run public tunnel is out of the
+canonical path's scope. The gains table below is scoped accordingly.
 
 ## Tradeoffs accepted by this RFC
 
 | We gain | We give up |
 | --- | --- |
-| M1 = start backend, read URL, start bundler — on every stack | Boot-time binding issuance; identity check moves to connect (still fail-closed) |
-| Weird setups work by construction: tunnels, devcontainers, remote VMs, multi-context Playwright, any bundler | The supervisor's proof that *every* listener (incl. Metro) is loopback-only — on the URL path Snapback vouches only for its own listener |
-| ~2.7k lines of supervisor stop being load-bearing; the Metro-quirk bug class leaves the canonical path | Ambient logged-in-on-boot dev session on the canonical path (now explicit; arguably a fix) |
-| Dev and prod converge on "a URL that is a build-time fact" | Android `adb reverse` polish is supervised-path-only; URL path prints `10.0.2.2` like every self-hosted backend |
-| The two-client / multi-persona defect class closes by construction | LLP 0181 (27 revisions) and 0223 must be re-ruled; batteries re-pointed — the real cost is documentary |
+| M1 = start backend, read URL, start bundler — web, simulators, emulators, port-forwarded containers/VMs | Boot-time binding issuance; identity check moves to a credential-free connect-time gate (still fail-closed for mix-ups) |
+| Tunnel/forwarded *client* origins and multi-context Playwright work without leaving the paved path | Supervised attestation of backend authenticity on the canonical path — accepted; a same-UID port-racing attacker already reads the dev store, and comparable stacks offer no more |
+| The supervisor's ~2.7k lines and its rendezvous vocabulary leave the canonical path (they remain supported) | The supervisor's proof that *every* listener incl. Metro is loopback-only — on the URL path Snapback vouches only for its own listener |
+| Dev and prod converge on "a URL that is a build-time fact"; the two-client shared-principal class closes by construction | Ambient logged-in-on-boot; Android `adb reverse` polish is supervised-path-only; physical devices are not on the canonical path |
+| — | LLP 0181 (27 revisions) and 0223 re-ruled; batteries re-pointed — the real cost is documentary |
 
 ## Security analysis
 
-- **Hostile local page.** With bearer auth and no cookies, a malicious page
-  on another local origin cannot use the user's credentials: it holds no
-  token, and loopback-open CORS does not leak one. The allowlist was
-  defense-in-depth for this non-attack; it remains available as narrowing.
-- **Hostile URL injection.** The dev source reads build-time env and an
-  explicit prop only — never remote configuration or application data — and
-  is pruned from production builds. Release admission is unchanged. The
-  attack LLP 0181 closed (point the app at an attacker backend at runtime)
-  stays closed.
-- **Wrong-generation backend.** Previously refused at issuance; now refused
-  at connect via discovery. Same invariant, later detection, plus it now
-  also protects the external-client and headless paths that today rely on
-  operator care.
-- **Token custody.** Unchanged: memory/SecureStore custody per LLP
-  0252/0258; nothing new is written to disk by this RFC.
+- **Hostile local page.** No cookies + bearer custody means CORS grants
+  neither possession of an existing token nor authorization. What
+  loopback-open admission *does* open is the browser channel to the
+  unauthenticated dev surface (P2, recorded tradeoff). The allowlist
+  remains available as narrowing.
+- **Hostile URL / injection.** The dev source reads application-owned
+  build-time configuration and an explicit prop — never remote config or
+  application data — and cannot be selected by release artifacts (P1
+  structural gating). The attack LLP 0181 closed stays closed in
+  production.
+- **Wrong-generation / wrong-app backend.** Refused at the credential-free
+  gate before any authenticated call (P1). Dev server *authenticity* is
+  the operator's configured URL, per the honest classification in P1.
+- **Token custody.** Unchanged. No token or session material is written to
+  disk by anything this RFC adds; the only new disk write is the opt-in,
+  gitignored, non-secret `.env.local` URL.
 
 ## Migration
 
-1. Land LLP 0299 (in flight) — stable ports.
-2. P1 + P2 (client `declared-dev` source + backend loopback admission +
-   receipt posture field) behind no flag: additive, nothing existing
-   breaks. The Spec (see pipeline below) defines the discovery fact,
-   refusal codes, and precedence exactly.
+1. LLP 0299 — **already landed** (`544dd6a8e`).
+2. P1 + P2: client `declared-dev` source (dev-only entry point), discovery
+   gate, loopback admission with the compatibility posture of P2. The Spec
+   defines the discovery fact (identity + admission posture ONLY — no
+   receipts, tokens, foreign ports, or lease state), refusal codes,
+   precedence, and receipt encoding.
 3. P3 + P4: template flips, URL printing/`.env` opt-in, explicit dev
    session; guide rewrite teaching URL-first with the supervisor as the
    convenience appendix.
-4. Re-rule LLP 0181 (supervised baseline → one of two admitted dev
-   sources) and LLP 0223 (lifecycle ownership: the backend lifecycle stays
-   owned; the client process is ordinarily caller-owned); amendment notes,
-   not rewrites. Tombstone nothing.
-5. Publish per LLP 0041 (rapid): each phase rides the next npm cut.
+4. Re-rule LLP 0181 and LLP 0223 via amendment notes (supervised baseline →
+   one of two admitted dev sources; client process ordinarily
+   caller-owned). Tombstone nothing.
+5. Publish per LLP 0041; each phase rides the next npm cut.
 
 ## Acceptance
 
-1. An agent with only `guide/start/expo-chat.md` brings up the template by
-   running `snapback dev snapback` and `expo start` in two terminals,
-   pasting one printed env var, with a working authenticated app — no
-   supervisor knowledge, no binding vocabulary, on a cold machine.
-2. Two Playwright contexts against that app hold two distinct principals
-   via ordinary signup — no `resolveSupervisedAuthority` skip recipe.
-3. The same app behind a devcontainer port-forward and behind a tunnel
-   origin (admitted via `SNAPBACK_DEV_AUTH_ORIGINS`) works unchanged.
-4. A URL pointing at a wrong-generation backend refuses with
-   `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` naming both identities.
-5. A production build containing a `SNAPBACK_URL` env var refuses/ignores
-   it (pruned source), and release binding admission is byte-identical to
-   pre-RFC behavior.
-6. `snapback dev --expo` continues to pass its existing acceptance battery
-   unchanged.
+1. A cold agent with only the start packet brings up the template with
+   `snapback dev snapback` + `expo start`, pasting one printed env var; the
+   app boots **logged out**, and ordinary signup completes against the
+   backend. No supervisor knowledge, no binding vocabulary.
+2. Two Playwright contexts hold two distinct principals via ordinary
+   signup — no skip recipe, no shared ambient mint.
+3. The same app behind a devcontainer/SSH port-forward works unchanged; a
+   tunnel *client* origin admitted via `SNAPBACK_DEV_AUTH_ORIGINS` works;
+   literal-loopback matching rejects a rebinding hostname.
+4. A URL at a wrong-generation backend refuses with
+   `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` naming both identities, and no
+   credentialed request was sent before the refusal.
+5. Release admission is **behaviorally** unchanged: a production Expo
+   build, a production Vite build (including with a misleading
+   `NODE_ENV`), and an unbundled headless Node process can none of them
+   select `declared-dev`; release target-tuple admission behaves exactly
+   as before.
+6. The `--expo` battery passes; supervised receipts keep exact origins;
+   old/new attach combinations from P2's compatibility posture pass.
+7. Per-bundler cold-template acceptance: Expo (web + iOS sim + Android
+   emulator via `10.0.2.2`), Vite, headless Node — each reading its own
+   convention from application-owned source.
 
-## Open questions (for the refine loop and the author)
+## Open questions
 
-- **OQ1 — env naming.** `EXPO_PUBLIC_SNAPBACK_URL` / `VITE_SNAPBACK_URL` /
-  `SNAPBACK_URL`: exact set and precedence, and whether the CLI writes
-  `.env.local` by default in templates or only on opt-in.
-- **OQ2 — discovery fact shape.** Reuse the operational-readiness surface
-  as-is, or mint a minimal unauthenticated `/_snapback/identity` projection
-  (identity + posture only, no receipts)? The Spec decides; the RFC
-  requires only: unauthenticated, loopback, identity-bearing, stable.
-- **OQ3 — devices and LAN.** The URL path on a physical device requires a
-  reachable host (LAN IP or tunnel). Is printing the LAN candidate behind
-  an explicit `--lan` acceptable, or does the loopback-only posture demand
-  the supervised path for physical devices entirely?
-- **OQ4 — `--external-client-origin`'s future.** With P2, the external
-  client profile's allowlist declaration becomes redundant on loopback.
-  Keep it as narrowing, or deprecate toward `SNAPBACK_DEV_AUTH_ORIGINS`?
-- **OQ5 — how demoted is the supervisor?** Documentation-demoted only
-  (this RFC), or should new capabilities stop landing on the supervised
-  path unless they cannot exist elsewhere?
+- **OQ1 — env naming and precedence only** (`EXPO_PUBLIC_SNAPBACK_URL` /
+  `VITE_SNAPBACK_URL` / `SNAPBACK_URL`; prop > env). The `.env.local`
+  write policy is settled in P3.
+- **OQ2 — discovery fact path/shape only** (`/_snapback/identity` vs a
+  reduced readiness projection). The RFC already rules it unauthenticated
+  and identity+posture-only; reuse of the full readiness surface as-is is
+  struck.
+- **OQ4 — `--external-client-origin`'s future**: keep as narrowing, or
+  deprecate toward `SNAPBACK_DEV_AUTH_ORIGINS`?
+- **OQ5 — how demoted is the supervisor?** Documentation-demoted only, or
+  do new capabilities stop landing supervised-only unless they cannot
+  exist elsewhere?
+- **Spec obligations recorded:** opt-in signed discovery (P1); receipt
+  posture encoding (P2); URL canonicalization details (P1); prune
+  predicate mechanics per bundler (P1).
 
 ## Alternatives considered
 
-- **Status quo + LLP 0299 only.** Stable ports remove the sharpest pain,
-  but every agent still learns the binding/rendezvous vocabulary, and the
-  supervisor stays load-bearing for every Expo app. Rejected by the
-  author's direction.
-- **Bootstrap-on-backend.** Folding the rendezvous listener into the Rust
-  server removes one port but keeps issuance, the supervisor, and the
+- **Status quo + LLP 0299 only.** Stable ports remove the sharpest pain;
+  every agent still learns the binding vocabulary and the supervisor stays
+  load-bearing for every Expo app. Rejected by the author's direction.
+- **Caller-owned bundler + pre-admitted binding (the middle).** Keep
+  issuance but stop owning Metro: `snapback dev` writes/serves a signed
+  binding the app consumes. This removes the bundler-ownership bug class
+  but keeps a live-issuer requirement, the rendezvous/binding vocabulary,
+  and the refusal of plain URLs — and its attestation value against local
+  same-UID attackers is the same theater P1 declines to rely on. The
+  simpler contract dominates it.
+- **Bootstrap-on-backend.** Fewer ports, same issuance machinery and
   vocabulary. Strictly weaker than P1.
-- **Full supervisor removal.** Deletes the Android polish and the
-  one-command path that existing users and batteries rely on, for no
-  additional simplification of the canonical path. Rejected; demotion is
+- **Full supervisor removal.** Deletes Android polish and the one-command
+  path for no additional canonical-path simplification. Demotion is
   enough.
 
 ## Pipeline
 
-Per the author's direction: this RFC → `llp-super-refine` (dual-family,
-until READY/READY) → author acceptance → a Spec (owner boundaries, exact
-codes, discovery fact, precedence, template diffs) → implementation program
-(codex lanes) with its own review gates. The Spec and implementation must
-not begin before this RFC is Accepted.
+This RFC → `llp-super-refine` (dual-family, until READY/READY) → author
+acceptance → a Spec (owner boundaries, exact codes, discovery fact,
+precedence, receipt encoding, template diffs) → implementation program with
+its own review gates. The Spec and implementation must not begin before
+this RFC is Accepted.
