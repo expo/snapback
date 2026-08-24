@@ -28909,15 +28909,27 @@ fn test_dev_authority(source: InvocationSource) -> PreparedAuthority {
 fn grant_approval_derives_exact_user_and_session_from_management_authority() {
     use crate::storage::auth_agents::AgentRegistration;
     use crate::storage::auth_grants::{
-        GrantApproval, GrantApprovalDurableRowsForTest, GrantApprovalGrantRowForTest,
-        GrantApprovalPairingRowForTest, GrantScopeRequest, PairingPresentation, ScopedFunctionKind,
+        ExactGrantScope, GrantApproval, GrantApprovalDurableRowsForTest,
+        GrantApprovalGrantRowForTest, GrantApprovalMetaRowForTest, GrantApprovalPairingRowForTest,
+        GrantScopeRequest, PairingPresentation, ScopedFunctionKind,
     };
 
     const NOW_MS: u64 = 2_000;
+    const FIXTURE_CLOCK_HIGH_WATER_MS: u64 = 1_131;
+    const GRANT_TTL_MS: u64 = 40_000;
+    const AUTH_CLOCK_META_KEY: &str = "auth_invalidation_clock_high_water_ms_v1";
+    const EXPECTED_SCOPES_JSON: &str =
+        r#"[{"fn":"fn:grantApprovalRead","kind":"query","basis":0,"authorityCreating":false}]"#;
+    const AGENT_REGISTRATION_PROVENANCE: &str = "grant-approval-authority-test";
+    const OTHER_OWNER_AGENT_WARNING: &str = "You do not own this agent. Its owner can re-credential it and use memberships or roles that this grant creates for the agent.";
     const FIRST_GRANTOR: &str = "user-m";
-    const FIRST_GRANTOR_SESSION: &str = "session-m";
+    // PreparedAuthority remains caller-constructible, so successful cases
+    // deliberately cross these notional session owners. This proves only that
+    // approval derives both claims carried by the authority; it does not claim
+    // that a durable provider session with mismatched ownership is constructible.
+    const FIRST_USER_SESSION: &str = "session-m";
     const SECOND_GRANTOR: &str = "user-x";
-    const SECOND_GRANTOR_SESSION: &str = "session-x";
+    const SECOND_USER_SESSION: &str = "session-x";
     const FIRST_AGENT_OWNER: &str = "user-owner-a";
     const SECOND_AGENT_OWNER: &str = "user-owner-b";
     const FIRST_AGENT: &str = "agent-grant-approval-a";
@@ -28964,7 +28976,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                             &AgentRegistration {
                                 display_name: Some(format!("Grant Approval Agent {agent}")),
                                 operator_contact: None,
-                                registration_provenance: "grant-approval-authority-test".to_owned(),
+                                registration_provenance: AGENT_REGISTRATION_PROVENANCE.to_owned(),
                                 owner_user_id: Some(owner.to_owned()),
                             },
                         )
@@ -29082,6 +29094,51 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
         }
     }
 
+    fn expected_consent_digest(agent_user_id: &str, expires_at_ms: u64) -> [u8; 32] {
+        use sha2::Digest as _;
+
+        #[derive(serde::Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct ExpectedScope<'a> {
+            #[serde(rename = "fn")]
+            function_id: &'a str,
+            kind: &'a str,
+            basis: u64,
+            authority_creating: bool,
+        }
+
+        #[derive(serde::Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct ExpectedConsent<'a> {
+            agent_user_id: &'a str,
+            display_name: &'a str,
+            registration_provenance: &'a str,
+            owner_assumption: &'a str,
+            owner_assumption_warning: &'a str,
+            scopes: &'a [ExpectedScope<'a>],
+            expires_at_ms: u64,
+        }
+
+        let display_name = format!("Grant Approval Agent {agent_user_id}");
+        let scopes = [ExpectedScope {
+            function_id: "fn:grantApprovalRead",
+            kind: "query",
+            basis: 0,
+            authority_creating: false,
+        }];
+        let encoded = serde_json::to_vec(&ExpectedConsent {
+            agent_user_id,
+            display_name: &display_name,
+            registration_provenance: AGENT_REGISTRATION_PROVENANCE,
+            owner_assumption: "ownedByAnotherUser",
+            owner_assumption_warning: OTHER_OWNER_AGENT_WARNING,
+            scopes: &scopes,
+            expires_at_ms,
+        })
+        .expect("serialize independent expected consent record");
+        sha2::Sha256::digest(encoded).into()
+    }
+
     #[derive(Clone, Copy)]
     enum Case {
         FirstExact,
@@ -29111,8 +29168,8 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
 
         fn expected_session(self) -> &'static str {
             match self {
-                Self::SecondExact => SECOND_GRANTOR_SESSION,
-                _ => FIRST_GRANTOR_SESSION,
+                Self::SecondExact => FIRST_USER_SESSION,
+                _ => SECOND_USER_SESSION,
             }
         }
 
@@ -29147,7 +29204,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                 test_grant_session_authority(
                     InvocationSource::AgentGrantManagement,
                     FIRST_GRANTOR,
-                    FIRST_GRANTOR_SESSION,
+                    SECOND_USER_SESSION,
                 ),
                 fixture.first_grantor_request_id.clone(),
             ),
@@ -29155,7 +29212,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                 test_grant_session_authority(
                     InvocationSource::AgentGrantManagement,
                     SECOND_GRANTOR,
-                    SECOND_GRANTOR_SESSION,
+                    FIRST_USER_SESSION,
                 ),
                 fixture.second_grantor_request_id.clone(),
             ),
@@ -29163,7 +29220,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                 test_grant_session_authority(
                     InvocationSource::HttpQuery,
                     FIRST_GRANTOR,
-                    FIRST_GRANTOR_SESSION,
+                    SECOND_USER_SESSION,
                 ),
                 fixture.first_grantor_request_id.clone(),
             ),
@@ -29171,7 +29228,7 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                 test_grant_session_authority(
                     InvocationSource::AgentGrantManagement,
                     FIRST_GRANTOR,
-                    FIRST_GRANTOR_SESSION,
+                    SECOND_USER_SESSION,
                 ),
                 fixture.lower_request_id.clone(),
             ),
@@ -29179,14 +29236,20 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                 test_grant_session_authority(
                     InvocationSource::AgentGrantManagement,
                     FIRST_GRANTOR,
-                    FIRST_GRANTOR_SESSION,
+                    SECOND_USER_SESSION,
                 ),
                 fixture.upper_request_id.clone(),
             ),
         };
         let approval = fixture
             .snapback
-            .approve_grant_request(&authority, &selected_request_id, None, None, NOW_MS)
+            .approve_grant_request(
+                &authority,
+                &selected_request_id,
+                Some(GRANT_TTL_MS),
+                None,
+                NOW_MS,
+            )
             .map(|approval| match approval {
                 GrantApproval::Created(grant) | GrantApproval::Existing(grant) => grant,
             })
@@ -29233,11 +29296,42 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
     );
 
     for observation in observations {
+        let expected_clock_high_water_ms = if matches!(observation.case, Case::WrongSource) {
+            FIXTURE_CLOCK_HIGH_WATER_MS
+        } else {
+            NOW_MS
+        };
+        assert_eq!(
+            observation.rows.authorization_clock,
+            GrantApprovalMetaRowForTest {
+                key: AUTH_CLOCK_META_KEY.to_owned(),
+                value: expected_clock_high_water_ms.to_string(),
+            },
+            "{} authorization-clock durable row",
+            observation.case.name(),
+        );
         match observation.approval {
             Ok(grant) => {
+                let expected_created_at_ms = NOW_MS;
+                let expected_expires_at_ms = expected_created_at_ms + GRANT_TTL_MS;
+                let expected_scopes = [ExactGrantScope {
+                    function_id: "fn:grantApprovalRead".to_owned(),
+                    kind: ScopedFunctionKind::Query,
+                    basis: 0,
+                    authority_creating: false,
+                }];
+                let expected_consent_digest = expected_consent_digest(
+                    observation.case.expected_agent(),
+                    expected_expires_at_ms,
+                );
+                assert!(grant.grant_id.starts_with("grt_"));
                 assert_eq!(grant.request_id, observation.selected_request_id);
                 assert_eq!(grant.actor_user_id, observation.case.expected_agent());
                 assert_eq!(grant.effective_user_id, observation.case.expected_grantor());
+                assert_eq!(grant.scopes.as_slice(), expected_scopes.as_slice());
+                assert!(grant.expires_at_ms > expected_created_at_ms);
+                assert_eq!(grant.expires_at_ms, expected_expires_at_ms);
+                assert_eq!(grant.consent_digest, expected_consent_digest);
                 let mut expected_pairing_rows = observation.pending_rows;
                 let approved = expected_pairing_rows
                     .iter_mut()
@@ -29252,8 +29346,14 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                         grant_id: grant.grant_id,
                         actor_user_id: observation.case.expected_agent().to_owned(),
                         effective_user_id: observation.case.expected_grantor().to_owned(),
+                        scopes: EXPECTED_SCOPES_JSON.to_owned(),
+                        created_at_ms: expected_created_at_ms,
+                        expires_at_ms: expected_expires_at_ms,
+                        revoked_at_ms: None,
                         created_by: format!("session:{}", observation.case.expected_session()),
                         request_id: observation.selected_request_id,
+                        consent_digest: expected_consent_digest.to_vec(),
+                        last_used_at_ms: expected_created_at_ms,
                     }]
                 );
             }
