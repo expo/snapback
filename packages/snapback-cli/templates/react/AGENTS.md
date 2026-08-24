@@ -1,7 +1,7 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin react digest=sha256:80e031e7a2d699ec9110261240780ba8ca3fbd6d2a1cd43e0425d21be2ad0206 -->
+<!-- start-packet:begin react digest=sha256:afb6e2ad6229a36c6dba1501b74d9cb5e8d989af6681c53cdeaeea2a382ea425 -->
 This packet is the whole required first read for this app (LLP 0259
 Rung A). Open the edit targets below and work; open one further Guide page
 only via `snapback guide <query>` or on a trigger — the brief is outside
@@ -11,8 +11,13 @@ this packet, a structured `SNAPBACK_*` refusal, or a failed `prove`.
 
 Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
 → `bun run generate` → `bun run dev` (backend; writes `.env.local`) plus
-`bun run dev:client` in a second terminal (previously one supervisor:
-Vite; it prints the admin console URL) → `bun run prove`.
+`bun run dev:client` in a second terminal (Vite) → `bun run prove`.
+
+Expo templates retain optional `dev:supervised`. Android emulator: paste
+printed `androidEmulatorUrl` (`10.0.2.2`) as `EXPO_PUBLIC_SNAPBACK_URL`, then
+restart Metro. Remove leftover `SNAPBACK_DEV_CLIENT_PORT` /
+`SNAPBACK_DEV_BOOTSTRAP_PORT`; plain dev refuses them with
+`SNAPBACK_CLI_ARGUMENT_INVALID`.
 
 `bun run prove` (`npm run prove` is equivalent) is the acceptance command:
 it runs the registered live profile through `snapback verify` and writes

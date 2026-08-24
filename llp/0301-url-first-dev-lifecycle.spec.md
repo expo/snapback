@@ -1,13 +1,18 @@
 # LLP 0301: URL-first dev lifecycle — server, CLI, and wire contract
 
 **Type:** Spec
-**Status:** Accepted
+**Status:** Implemented
 **Systems:** Server, CLI, Local server lifecycle, Auth, Templates, Guide,
 Diagnostics
 **Author:** Claude (Fable 5), commissioned by Charlie Cheever (standing
 overnight directive 2026-08-24: RFC → refine → Specs → refine →
 implementation)
 **Date:** 2026-08-24
+**Revised:** 2026-08-24 (h — Accepted → Implemented. Server/identity work
+landed in `05dfbba22`; client discovery and the LLP 0302 §8a stream-less
+per-operation battery landed in `9653d21d2`; CLI, env writer, explicit dev
+session, and template flips landed in `158744901`; packet reconciliation
+landed in `aa2de2d85`; Lane D completes the documentary and generated chain.)
 **Revised:** 2026-08-24 (g — Review → Accepted; the refine loop never
 applies acceptance — this transition is applied by the orchestrator under
 the author's standing overnight directive of 2026-08-24, after the
@@ -45,7 +50,7 @@ deliverables and the nine-row traceability table added; signed discovery
 designed at spec altitude, implementation excluded from this set)
 **Revised:** 2026-08-24 (b — Draft → Review at loop start)
 **Revised:** 2026-08-24 (a — initial draft)
-**Related:** LLP 0300 (Accepted — the governing RFC), LLP 0299, LLP 0302
+**Related:** LLP 0300 (Implemented — the governing RFC), LLP 0299, LLP 0302
 (the client-side sibling), LLP 0010, LLP 0181, LLP 0223
 
 ## Summary
@@ -347,7 +352,8 @@ this table as a checked test-inventory comment.
 ## 9. Signed discovery — explicitly deferred (non-normative sketch)
 
 The normative design is **deferred to a future Spec** and is not part of
-this implementation set (tracked by an issue filed at landing). The
+this implementation set (tracked by
+`issues/20260824-signed-discovery-future-spec.md`). The
 non-normative sketch — a store-minted dev-identity key signing the fact,
 a fingerprint delivered out-of-band, refusal when configured — carries
 known open problems a future Spec must solve before anything freezes:

@@ -6,6 +6,10 @@
 Vite/Exact clients, Headless client, Auth, Diagnostics, Verification, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
+**Revised:** 2026-08-24 (g — LLP 0300–0302 re-rule the supervised
+zero-config baseline as one of two admitted development sources. URL-first is
+canonical and the client process is ordinarily caller-owned; the supervised
+injection path remains optional. See the dated amendment.)
 **Revised:** 2026-08-23 (f — LLP 0299 amends tool-selected listener ports to
 one stable deterministic range with strict per-owner pins and recorded provenance)
 **Revised:** 2026-08-21 (e — D0.1 ruling amendment — records LLP 0295 D0.1's
@@ -503,3 +507,23 @@ its pre-agreed outcome — a run-scoped `snapback connect` export — is
 replaced by the fixed profile plus the authoritative receipt; option 3
 stays rejected, and the Decision's injection-fallback constraint continues
 to bind.
+
+## Dated amendment — 2026-08-24: URL-first supersedes the supervised baseline
+
+Implemented LLP 0300–0302 admit two development binding sources. URL-first
+`declared-dev` is now canonical: `snapback dev` owns the backend lifecycle and
+prints the URL, while the caller ordinarily owns the Expo/Metro, Vite, or
+headless client process and passes one application-read environment value to
+the provider. The supervised rendezvous remains a supported optional source
+and retains the zero-config injection, transient descriptor, exact-origin
+admission, client-process ownership, and issuance behavior this Plan proved.
+
+This narrows the earlier "auto-inject, do not auto-write" ruling to the
+supervised source. On the canonical URL source, the explicit `--write-env`
+option may maintain a marked `.env.local` block containing only the non-secret
+backend URL; identity discovery detects a stale or replaced endpoint before
+credentials flow. It is not a durable binding export, and a running bundler
+must restart after the value changes. The authoritative lifecycle receipt and
+fixed-profile history above remain applicable where those paths are used, but
+they no longer make the supervisor the baseline or imply that Snapback
+ordinarily owns the client process.

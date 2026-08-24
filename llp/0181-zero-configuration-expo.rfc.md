@@ -6,6 +6,10 @@
 Auth, Assets, Offline, Testing, Hosted environments, Code generation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
+**Revised:** 2026-08-24 (ab) — LLP 0300–0302 re-rule the supervised
+no-URL baseline as one of two admitted development sources. URL-first is the
+canonical path and the client process is ordinarily caller-owned; supervised
+Expo remains the optional supervisor-owned path. See the dated amendment.
 **Revised:** 2026-08-23 (aa) — LLP 0299 replaces ephemeral supervised
 listener selection with one recorded stable range/strict-pin plan.
 **Revised:** 2026-08-23 (z) — iOS carrier ruling addendum: defer the F-A2-4
@@ -1506,3 +1510,22 @@ the Android USB native receipt through
 peer-authenticated private overlay as an unsupported experimental front, not
 an admitted carrier, until a separate reviewed design says otherwise. None of
 these rulings claims an iOS local carrier or advances E5.
+
+## Amendment — 2026-08-24 (LLP 0300–0302 URL-first development)
+
+LLP 0300–0302 replace this RFC's supervised-only development baseline with
+two admitted development sources. The canonical source is `declared-dev`: the
+application passes one URL from its bundler-native environment variable, the
+client verifies the generated deployment identity against the backend before
+every new connection episode, and the caller ordinarily starts and owns the
+Expo/Metro or Vite process. The second source is the existing
+`supervised-dev` rendezvous, still supported as an optional convenience in
+which Snapback owns Metro, bootstrap, listener enumeration, and applicable
+Android forwarding. A completed supervised rendezvous wins over a configured
+URL; a configured but failed rendezvous never falls back within that boot.
+
+Accordingly, this RFC's no-URL and supervisor-ownership claims remain the
+contract of the supervised source, not the universal or default development
+contract. Release admission, generated target identity, auth custody, and the
+supervised source's stronger issuance remain unchanged. URL-first is a dev-only
+generated capability and cannot be selected by release artifacts.

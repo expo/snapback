@@ -1,6 +1,7 @@
 # guide-gap: supervised Expo mint is one shared session across browser contexts
 
-**Status:** Open
+**Status:** Closed
+**Closed:** 2026-08-24
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 4
@@ -56,3 +57,14 @@ custom relay or binding middleware was needed. This R1 run exercises the
 proposed skip recipe only; the ticket's default-adoption/two-browser claim
 continues to rest on the earlier Diary/Clique evidence. The retained record is
 `benchmarks/runs/2026-08-22-r1-cold-probes/record.md`.
+
+## Resolution — 2026-08-24
+
+Implemented LLP 0300–0302 close the ask by making URL-first, two-process
+development canonical. Plain `snapback dev` mints no ambient app session;
+each browser context uses ordinary signup/sign-in and therefore can hold a
+distinct principal. `snapback auth dev-session` is explicit and is never
+template-consumed. The `expo-chat` start packet now states the separate-context
+rule, and `guide/clients/react-expo.md` records both the supervised shared-mint
+footgun and the URL-first escape. The optional supervised path remains
+supported for lanes that deliberately want its lifecycle conveniences.

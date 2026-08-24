@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:af60cec978c15012c89eceda7637fda109286e66b74dd365163f07e54a2a22e1"
+    "sourceDigest": "sha256:24c0456ced25931a48d1292cdc2659e2408fe49da5880aca2a4a338ee916e603"
   },
   "limits": {
     "lookupBytes": 16384
@@ -12,7 +12,7 @@
     "sourceFiles": 601,
     "emittingSites": 12683,
     "httpClassified": 1722,
-    "guideAnchored": 456
+    "guideAnchored": 457
   },
   "diagnostics": {
     "SNAPBACK_ACTION_CAPACITY_EXCEEDED": {
@@ -7225,6 +7225,7 @@
       "guideAnchor": "/_snapback/guide/clients/react-expo.md#diagnose-a-binding-identity-mismatch",
       "guideAnchors": [
         "/_snapback/guide/clients/react-expo.md#diagnose-a-binding-identity-mismatch",
+        "/_snapback/guide/clients/react-expo.md#start-the-url-first-development-loop",
         "/_snapback/guide/retrieval-eval.md#seed-intents"
       ]
     },
@@ -37428,8 +37429,14 @@
       ],
       "httpStatus": 500,
       "httpStatusClass": "5xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/clients/react-expo.md#start-the-url-first-development-loop",
+      "guideAnchors": [
+        "/_snapback/guide/clients/react-expo.md#start-the-url-first-development-loop",
+        "/_snapback/guide/start/crud-dashboard.md#scripts",
+        "/_snapback/guide/start/expo-chat.md#the-loop",
+        "/_snapback/guide/start/media-feed.md#scripts",
+        "/_snapback/guide/start/react.md#the-loop"
+      ]
     },
     "SNAPBACK_CLI_FAILED": {
       "code": "SNAPBACK_CLI_FAILED",
@@ -44942,7 +44949,12 @@
       "httpStatusClass": null,
       "guideAnchor": "/_snapback/guide/clients/react-expo.md#pin-or-range-the-supervised-ports",
       "guideAnchors": [
-        "/_snapback/guide/clients/react-expo.md#pin-or-range-the-supervised-ports"
+        "/_snapback/guide/clients/react-expo.md#pin-or-range-the-supervised-ports",
+        "/_snapback/guide/clients/react-expo.md#start-the-url-first-development-loop",
+        "/_snapback/guide/start/crud-dashboard.md#scripts",
+        "/_snapback/guide/start/expo-chat.md#the-loop",
+        "/_snapback/guide/start/media-feed.md#scripts",
+        "/_snapback/guide/start/react.md#the-loop"
       ]
     },
     "SNAPBACK_DEV_CLIENT_COMMAND_MISSING": {
@@ -44974,7 +44986,12 @@
       "httpStatusClass": null,
       "guideAnchor": "/_snapback/guide/clients/react-expo.md#pin-or-range-the-supervised-ports",
       "guideAnchors": [
-        "/_snapback/guide/clients/react-expo.md#pin-or-range-the-supervised-ports"
+        "/_snapback/guide/clients/react-expo.md#pin-or-range-the-supervised-ports",
+        "/_snapback/guide/clients/react-expo.md#start-the-url-first-development-loop",
+        "/_snapback/guide/start/crud-dashboard.md#scripts",
+        "/_snapback/guide/start/expo-chat.md#the-loop",
+        "/_snapback/guide/start/media-feed.md#scripts",
+        "/_snapback/guide/start/react.md#the-loop"
       ]
     },
     "SNAPBACK_DEV_CLIENT_SPAWN_FAILED": {
@@ -97968,7 +97985,12 @@
       "guideAnchors": [
         "/_snapback/guide/auth/agent-principals.md#register-an-agent",
         "/_snapback/guide/auth/passwords.md#use-the-same-owner-through-expo",
-        "/_snapback/guide/getting-started/the-authoring-loop.md#the-authoring-loop"
+        "/_snapback/guide/capabilities.md#capabilities",
+        "/_snapback/guide/clients/react-expo.md#start-the-url-first-development-loop",
+        "/_snapback/guide/getting-started/the-authoring-loop.md#the-authoring-loop",
+        "/_snapback/guide/start/expo-chat.md#the-loop",
+        "/_snapback/guide/start/media-feed.md#scripts",
+        "/_snapback/guide/start/react.md#the-loop"
       ]
     },
     "SNAPBACK_V8_COMPAT_CONFIG_INVALID": {

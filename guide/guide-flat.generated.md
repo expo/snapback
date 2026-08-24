@@ -128,7 +128,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | clients.optimistic-mutation-view | Ordinary generated-IR projection for create/edit/delete/archive/reorder, inspectable server-only/filtered pending state, durable restart and automatic-drain replay, explicit prediction authority, deterministic rebase, and reflection-validated exact retirement; cross-table dependency degrades safely; explicit view remains compatible | generated optimistic mutation, createOptimisticMutationView, optimistic create, edit, delete, reorder, logical mint, idMap, restart replay | local | shipped | packages/snapback-client/generated-optimistic-default.test.mjs + packages/snapback-client/optimistic-rebase-acceptance.test.mjs | llp/0133, llp/0155, llp/0270 | clients/headless.md |
 | clients.optimistic-create | Explicit typed React-provider wrapper over the ordinary generated-IR insert path, with canonical/provisional identity union, `select`, logical-mint settlement, replay recovery, and provider lifecycle ownership | React optimistic create, useSnapbackOptimisticCreate, optimistic insert hook, ProvisionalId, idMap, response loss | local | shipped | `useSnapbackOptimisticCreate` in packages/snapback-react/index.mjs + `optimistic-create.test.mjs` + demos/_kit/tests/provider-live-conformance.mjs | llp/0107, llp/0133, llp/0155, llp/0270 | recipes/optimistic-create.md |
 | clients.surfaces | Generated application surfaces bind one screen/resource's reads, ordinary mutations, asset-bearing commands, raw assets, and presence around shared params; React and headless projections share canonical owners. The closed command task composes zero/one asset child with one ordinary mutation and reports truthful failure, ambiguity, and residue provenance. | defineSurface, useSurface, observeSnapbackSurface, application surface, screen surface, one hook for a screen, bind query and mutation, surface presence, conversation surface, useSnapbackSurface, defineCommand, useSnapbackCommand, image send, upload then mutate, command task | local | partial | `useSnapbackCommand` in packages/snapback-react/index.d.mts | llp/0179, llp/0180, llp/0114, llp/0176 | clients/surfaces.md |
-| clients.react-expo | No-URL Expo boot and Expo web durable ship. Native durable-required is source-shipped at `single-runtime` on iOS/Android; UNPUBLISHED behind issues/20260816-custody-first-publish-gate.md. Android USB proven; iOS USB/LAN/release unclaimed. | Expo auth, SnapbackExpoProvider, useSnapbackAuth, auth.application-bootstrap.v1, --expo-platform web, snapback dev --expo, pinned ports, port range | local | shipped | packages/snapback-expo/provider-auth-bootstrap.test.mjs + packages/snapback-expo/provider-native-custody.test.mjs + demos/native-custody-probes/evidence/20260816T214639Z-0a6c91ed-phase2-android + demos/native-custody-probes/evidence/20260817T023429Z-1c2624fb-phase2-ios | llp/0299, llp/0258, llp/0181, llp/0064 | clients/react-expo.md |
+| clients.react-expo | URL-first two-process Expo/React dev with identity discovery; supervised no-URL Expo remains optional. Native durable-required ships at `single-runtime` on iOS/Android; Android USB proven; iOS USB/LAN/release unclaimed. | SNAPBACK_URL, url provider, identity discovery, two-process dev, Expo auth, SnapbackExpoProvider, useSnapbackAuth, dev:supervised, snapback dev --expo, pinned ports | local | shipped | packages/snapback-client/declared-dev-episode.test.mjs + packages/snapback-expo/provider-auth-bootstrap.test.mjs + packages/snapback-expo/provider-native-custody.test.mjs | llp/0300, llp/0301, llp/0302, llp/0299, llp/0258, llp/0181 | clients/react-expo.md |
 | clients.compose-existing-app | Backend-only initialization and dependency composition for adding Snapback to an existing React/Expo app without scaffolding a second whole project | compose into existing app, add Snapback, snapback init, backend initializer, create-expo-app | none | design-only | packages/snapback-cli/index.mjs (`snapback new` creates whole projects; no backend-only initializer) | llp/0196, llp/0181 | GAP (owner: unassigned, review: 2026-09-12; issue: issues/20260808-guide-gap-compose-snapback-into-existing-app.md); clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance; crash detection | run server, ports, bindPortExactly, lifecycle, watchdog, crash, prebuilt binary, seed reset | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010, llp/0030 | testing/acceptance.md |
 | operating.instance-forks | Partial contributor-source finite-TTL local forks: expiry, bounded renew/inspect, resource admission, recover/diff, safe cleanup, parallel guidance, exact drop. Publishes only macOS/arm64 and Linux/x86_64; fail-closed deny-all; host-mediated isolation is non-promotable. Scoped source drift reports `requalificationDue`; bad frozen chain refuses. Unclaimed: released/npm parity, normal/public install, hosted/remote, merge-back. | fork, derived instance, fork per worktree, parallel suite, inspect, status, recover, renew, diff, automatic reap, resource limits | local | partial | crates/snapback-activation/src/local-agent-safe-derived-deployment-fork-publication.anchor.json → tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json | llp/0158, llp/0185, llp/0189 | operating/instance-forks.md |
@@ -16506,13 +16506,13 @@ id: clients.react-expo
 order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, llp/0299-supervised-listener-port-plan.spec.md, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/templates/expo-chat/App.tsx, packages/snapback-client/app-client.mjs, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider-auth-bootstrap.test.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-binding-cache.mjs, packages/snapback-expo/supervised-environment.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/tandem-expo-bakeoff/snapback/scripts/dev-backend.mjs, demos/tandem-expo-bakeoff/snapback/src/backend.tsx, demos/_kit/eas-stage-build.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, llp/0299-supervised-listener-port-plan.spec.md, llp/0300-snapback-is-a-url.rfc.md, llp/0301-url-first-dev-lifecycle.spec.md, llp/0302-declared-dev-client-binding.spec.md, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/templates/expo-chat/App.tsx, packages/snapback-client/app-client.mjs, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider-auth-bootstrap.test.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-binding-cache.mjs, packages/snapback-expo/supervised-environment.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/tandem-expo-bakeoff/snapback/scripts/dev-backend.mjs, demos/tandem-expo-bakeoff/snapback/src/backend.tsx, demos/_kit/eas-stage-build.mjs]
 examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md, demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md, demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md, demos/expo-golden-path-fixture/receipts/physical-device-online-checklist.md, demos/partiful-matrix/native/react-expo, packages/snapback-cli/expo-device-forwarding.test.mjs, packages/snapback-cli/expo-bootstrap-exchange.test.mjs, packages/snapback-cli/expo-dev-loop.test.mjs, packages/snapback-expo/asset-source.test.mjs, packages/snapback-expo/supervised-offline-fallback.test.mjs, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-expo/provider.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-react/cold-boot-binding.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/snapback/src/backend.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs, benchmarks/lanes/native-simulator.md]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:299115fe806bead910521204724986e78926c9c97645a649e2ff36500595f62d
+reviewed: 2026-08-24
+reviewed-authorities-digest: sha256:b5d93f72d1c45ebafe15d09274241dca2c4b3f349400f00e96c9a11ff04adb12
 ---
 
 # React Expo Online clients
@@ -16536,6 +16536,62 @@ store consequence, queue refusal, and reconnect honesty. In particular,
 optimistic mutations work unchanged: for a like/favorite button backed by a
 live feed, use [the optimistic toggle recipe](../recipes/optimistic-toggle.md)
 rather than component state plus a local counter delta.
+
+## Start the URL-first development loop
+
+The ordinary local loop has two caller-owned processes. Start the backend
+first so it can print and, in the shipped templates, write the URL:
+
+```sh
+# Terminal 1: backend; --write-env maintains one marked block in .env.local
+bun run dev
+```
+
+Then start the bundler yourself:
+
+```sh
+# Terminal 2: Expo/Metro or Vite
+bun run dev:client
+```
+
+The application reads exactly one bundler-native variable and passes it as
+the provider/client `url`: Expo/Metro uses
+`EXPO_PUBLIC_SNAPBACK_URL`, Vite uses `VITE_SNAPBACK_URL`, and a headless
+Node client uses `SNAPBACK_URL`. The library does not read the environment.
+The Expo template shows the complete app-owned handoff:
+
+```tsx source=packages/snapback-cli/templates/expo-chat/App.tsx
+    <SnapbackExpoProvider app={app} url={process.env.EXPO_PUBLIC_SNAPBACK_URL} fallback={(state: ExpoBootState) => <BootFallback state={state} />}>
+```
+
+Bundlers inline public environment values when they start. If the backend
+rewrites `.env.local` after Metro or Vite is already running, stop and restart
+the bundler; hot reload cannot see the new URL. The provider performs a
+credential-free identity discovery before signup, login, or any credentialed
+request, and repeats it for every new connection episode. If another app or
+backend generation has taken the same URL, it fails closed with
+`SNAPBACK_APP_BINDING_IDENTITY_MISMATCH`, names both identities, and sends no
+application credential to the replacement.
+
+For persistence-sensitive browser lanes, keep the browser origin stable too:
+pin Vite with `vite --port <port> --strictPort` or Metro with
+`expo start --port <port>`. A changed bundler port does not lose backend data,
+but browser-origin-scoped bearer storage and IndexedDB appear fresh and the
+user must sign in again.
+
+The URL printed for the host is not reachable as host loopback from an Android
+emulator. Copy the printed `androidEmulatorUrl` value manually — the managed
+`.env.local` block leaves its `10.0.2.2` spelling commented — set
+`EXPO_PUBLIC_SNAPBACK_URL` to it, and restart Metro. Do not uncomment that line
+inside the managed block. The supervised appendix below remains the optional
+one-command path when you want Snapback to own Metro, listener enumeration,
+and Android `adb reverse` setup.
+
+When migrating from the old supervised-only shape, remove leftover
+`SNAPBACK_DEV_CLIENT_PORT` and `SNAPBACK_DEV_BOOTSTRAP_PORT` variables before
+plain `bun run dev`. Those pins name absent supervisor-owned processes, so
+plain development deliberately refuses them with
+`SNAPBACK_CLI_ARGUMENT_INVALID`.
 
 <!-- since: 0.1.23 -->
 ## Add first-party application auth
@@ -16726,13 +16782,13 @@ operator surface, not part of the Expo bundle; the command derives a browser
 credential without exposing the master admin token. Check it before falling
 back to `curl`, raw host operations, or a one-off verification script.
 
-## Run the supervised Expo development loop
+## Appendix: Run the supervised Expo development loop
 
-If the backend origin or Metro process must instead be owned and pinned by an
-external harness, use the
-[fixed-origin attach recipe](../recipes/fixed-origin-development.md). Do not
-pass a raw origin as a `SnapbackExpoProvider` binding override or wrap an
-independently owned fixed listener in the supervised `--expo` loop.
+Use this optional path when Snapback should own Metro, its bootstrap exchange,
+listener enumeration, and Android `adb reverse` setup. If a harness owns the
+backend or client process instead, stay on the URL-first path above or use the
+[fixed-origin attach recipe](../recipes/fixed-origin-development.md); do not
+wrap an independently owned listener in the supervised `--expo` loop.
 
 <!-- since: 0.1.10 -->
 
@@ -16755,9 +16811,10 @@ independently owned fixed listener in the supervised `--expo` loop.
 > Do not patch `node_modules` or mix source and registry packages to hide a
 > boundary on an older closure.
 
-The north-star boot has three application-visible pieces: the config-plugin
-entry, the generated `app`, and `SnapbackExpoProvider`. There is no backend URL
-prop and no second application model ([LLP 0181 §Config plugin](repo:llp/0181-zero-configuration-expo.rfc.md#config-plugin),
+This supervised boot has three application-visible pieces: the config-plugin
+entry, the generated `app`, and `SnapbackExpoProvider`; the rendezvous wins
+over any configured URL, so the older no-URL composition remains valid here
+([LLP 0181 §Config plugin](repo:llp/0181-zero-configuration-expo.rfc.md#config-plugin),
 [LLP 0181 §Provider](repo:llp/0181-zero-configuration-expo.rfc.md#provider)).
 The working fixture's plugin entry is:
 
@@ -16800,6 +16857,13 @@ sessions mode and adopt a separate ordinary session for each test persona when
 the app needs product-shaped multi-persona behavior. The checkpoint-era
 `useSnapbackQuery({ provider, query, userId })` bridge in an older demo is a
 test-era workaround, not the packaged path.
+
+The supervised mint is one session for the supervised origin, so every browser
+context that adopts it becomes the same principal. A two-user browser proof
+must decline that ambient authority and use ordinary password signup/sign-in
+with separate custody per context. The canonical URL-first path avoids this
+footgun by minting nothing at startup; use `snapback auth dev-session` only as
+an explicit operator tool, never as a template-consumed app session.
 
 From an Expo app whose backend is the conventional `snapback/` child, select
 the supervised carrier explicitly (iOS remains the default when the platform
@@ -30757,7 +30821,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-client-wire-version-echo-missing"></a>`SNAPBACK_CLIENT_WIRE_VERSION_ECHO_MISSING` | client | — | — | `packages/snapback-client/index.mjs:5473` | 1 |
 | <a id="diagnostic-snapback-client-wire-version-legacy-cached"></a>`SNAPBACK_CLIENT_WIRE_VERSION_LEGACY_CACHED` | client | — | — | `packages/snapback-client/index.mjs:5485` | 1 |
 | <a id="diagnostic-snapback-client-wire-version-strict"></a>`SNAPBACK_CLIENT_WIRE_VERSION_STRICT` | client | — | — | `packages/snapback-client/index.mjs:5368` | 1 |
-| <a id="diagnostic-snapback-cli-argument-invalid"></a>`SNAPBACK_CLI_ARGUMENT_INVALID` | cli | 500 | — | `crates/snapback-cli/src/cli.rs:2491` | 78 |
+| <a id="diagnostic-snapback-cli-argument-invalid"></a>`SNAPBACK_CLI_ARGUMENT_INVALID` | cli | 500 | [guide](../clients/react-expo.md#start-the-url-first-development-loop) | `crates/snapback-cli/src/cli.rs:2491` | 78 |
 | <a id="diagnostic-snapback-cli-failed"></a>`SNAPBACK_CLI_FAILED` | create-snapback-app | — | — | `crates/snapback-cli/src/cli.rs:2546` | 3 |
 | <a id="diagnostic-snapback-codegen-"></a>`SNAPBACK_CODEGEN_` | codegen | — | — | `packages/snapback-codegen/index.mjs:21387` | 1 |
 | <a id="diagnostic-snapback-codegen-artifact-auth-tuple-unsupported"></a>`SNAPBACK_CODEGEN_ARTIFACT_AUTH_TUPLE_UNSUPPORTED` | codegen | — | — | `packages/snapback-codegen/index.mjs:20592` | 1 |
@@ -70977,13 +71041,13 @@ id: start.react
 order: 3
 audience: agent-first
 capabilities: []
-authorities: [llp/0259-agent-first-read-budget.rfc.md, packages/snapback-cli/templates/react/snapback/schema.mjs, packages/snapback-cli/templates/react/src/App.tsx]
+authorities: [llp/0259-agent-first-read-budget.rfc.md, llp/0300-snapback-is-a-url.rfc.md, llp/0301-url-first-dev-lifecycle.spec.md, llp/0302-declared-dev-client-binding.spec.md, packages/snapback-cli/templates/react/snapback/schema.mjs, packages/snapback-cli/templates/react/src/App.tsx]
 examples: [packages/snapback-cli/templates/react]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:bb51fb7bff16d6c94335925cb0522657982e212144f54e5be6a224438bc6f82e
+reviewed: 2026-08-24
+reviewed-authorities-digest: sha256:9e2e713ea922a413fa77477b0bdefa8c205cc9b8e812528bd719eb71f58ab386
 ---
 
 # Start packet: the `react` template
@@ -70998,8 +71062,13 @@ this packet, a structured `SNAPBACK_*` refusal, or a failed `prove`.
 
 Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
 → `bun run generate` → `bun run dev` (backend; writes `.env.local`) plus
-`bun run dev:client` in a second terminal (previously one supervisor:
-Vite; it prints the admin console URL) → `bun run prove`.
+`bun run dev:client` in a second terminal (Vite) → `bun run prove`.
+
+Expo templates retain optional `dev:supervised`. Android emulator: paste
+printed `androidEmulatorUrl` (`10.0.2.2`) as `EXPO_PUBLIC_SNAPBACK_URL`, then
+restart Metro. Remove leftover `SNAPBACK_DEV_CLIENT_PORT` /
+`SNAPBACK_DEV_BOOTSTRAP_PORT`; plain dev refuses them with
+`SNAPBACK_CLI_ARGUMENT_INVALID`.
 
 `bun run prove` (`npm run prove` is equivalent) is the acceptance command:
 it runs the registered live profile through `snapback verify` and writes
@@ -71095,45 +71164,47 @@ id: start.expo-chat
 order: 4
 audience: agent-first
 capabilities: []
-authorities: [llp/0259-agent-first-read-budget.rfc.md, llp/0299-supervised-listener-port-plan.spec.md, packages/snapback-cli/templates/expo-chat/snapback/schema.mjs, packages/snapback-cli/templates/expo-chat/App.tsx]
+authorities: [llp/0259-agent-first-read-budget.rfc.md, llp/0299-supervised-listener-port-plan.spec.md, llp/0300-snapback-is-a-url.rfc.md, llp/0301-url-first-dev-lifecycle.spec.md, llp/0302-declared-dev-client-binding.spec.md, packages/snapback-cli/templates/expo-chat/snapback/schema.mjs, packages/snapback-cli/templates/expo-chat/App.tsx]
 examples: [packages/snapback-cli/templates/expo-chat]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:fa5149534a7e89282b33bbc909f7bf781c85381bb7d3b0771d1f0bcfd095c65a
+reviewed: 2026-08-24
+reviewed-authorities-digest: sha256:e409ac99f8cf13246c81236bc680e4dd89fc8ee753fa34a890a166cd05190b19
 ---
 
 # Start packet: the `expo-chat` template
 
 <!-- start-packet:begin expo-chat -->
-This packet is the whole required first read for this app (LLP 0259
-Rung A). Open the edit targets below and work; open one further Guide page
-only via `snapback guide <query>` or on a trigger — the brief is outside
-this packet, a structured `SNAPBACK_*` refusal, or a failed `prove`.
+This is the whole first read (LLP 0259 Rung A). Work from the edit targets;
+open one more page only for a brief, `SNAPBACK_*` refusal, or failed `prove`,
+via `snapback guide <query>`.
 
 ## The loop
 
 Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
-→ `bun run generate` → `bun run dev` + `bun run dev:client` in a second
-terminal (`dev:supervised` = one-command convenience; it never
+→ `bun run generate` → `bun run dev` (backend + `.env.local`) and
+`bun run dev:client` in a second terminal (`dev:supervised` = optional
+one-command convenience; it never
 launches a device or simulator — Expo Go, a dev client, or
 `expo run:ios|android` is your job) → `bun run prove`.
 
-Before extending or ejecting the proof runner, read
-`node_modules/@expo/snapback-acceptance/README.md`; it is the supported
-compatibility and ownership contract.
+Android emulator: paste printed `androidEmulatorUrl` (`10.0.2.2`) as
+`EXPO_PUBLIC_SNAPBACK_URL`, then restart Metro; leave its managed-block line
+commented. Remove leftover `SNAPBACK_DEV_CLIENT_PORT` /
+`SNAPBACK_DEV_BOOTSTRAP_PORT`; plain dev refuses them with
+`SNAPBACK_CLI_ARGUMENT_INVALID`.
+
+Before changing proof, read `node_modules/@expo/snapback-acceptance/README.md`.
 
 <!-- script-glossary:begin -->
 ## Script glossary
 
-`bun run prove`: ordinary completion and the only done-oracle—the authoritative
-aggregate `snapback verify` receipt (acceptance evidence, not formal proof).
-`npm test`: raw acceptance implementation that `prove` wraps (debugging).
-`bun run test:static`: no-server source/generated coherence.
-`bun run carry:headless`, `bun run carry:web-browser`, `bun run carry:native-simulator`: observation artifacts after accepting the `prove` receipt,
-never proof authority. `bun run carry:self-check` checks carrier wiring only.
-Migration: `test:live` was removed; use `npm test` for the same raw acceptance command.
+`prove`: only done-oracle; writes the authoritative aggregate `snapback verify`
+receipt. `npm test`: raw acceptance debug path. `test:static`: no-server
+coherence. `carry:headless`, `carry:web-browser`, `carry:native-simulator`:
+observations after `prove`; `carry:self-check`: wiring only. Removed
+`test:live` → `npm test`.
 <!-- script-glossary:end -->
 
 The native carrier owns simulator boot, drive, and screenshots. Self-started
@@ -71162,6 +71233,8 @@ Metro must not inherit `CI=1` (it disables watching).
   app reaches anonymous `ready`; call `auth.enterAsGuest()` on the same
   `useSnapbackAuth()` owner before sends or image upload, or use ordinary
   password entry. Recovery codes surface once after signup or guest claim.
+  URL-first dev mints no ambient session; multi-browser proofs sign up or sign
+  in separately in each context instead of adopting the supervised mint.
 - **Custody: `volatile-explicit`.** This disposable template deliberately says
   memory custody, so a native process restart returns anonymous and must enter
   again. It does not silently weaken a durable policy; select
@@ -71190,10 +71263,8 @@ Metro must not inherit `CI=1` (it disables watching).
 
 ## Escalate
 
-`snapback guide <query>` returns exact symbols, diagnostic codes, and page
-anchors — budgeted lookups do not count as extra pages. The
-[capability index](../capabilities.md) is the completeness registry: look
-up, do not linear-read. Deeper pages, only when triggered:
+`snapback guide <query>` returns exact symbols, codes, and anchors. Use the
+[capability index](../capabilities.md) as a lookup, not a first read. On trigger:
 [react-expo clients](../clients/react-expo.md),
 [surfaces](../clients/surfaces.md),
 [sessions and principals](../auth/sessions-and-principals.md),
@@ -71216,36 +71287,37 @@ id: start.crud-dashboard
 order: 5
 audience: agent-first
 capabilities: []
-authorities: [llp/0259-agent-first-read-budget.rfc.md, packages/snapback-cli/templates/crud-dashboard/snapback/schema.mjs]
+authorities: [llp/0259-agent-first-read-budget.rfc.md, llp/0300-snapback-is-a-url.rfc.md, llp/0301-url-first-dev-lifecycle.spec.md, llp/0302-declared-dev-client-binding.spec.md, packages/snapback-cli/templates/crud-dashboard/snapback/schema.mjs]
 examples: [packages/snapback-cli/templates/crud-dashboard]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:b1f8201cab1348a01e401a2f12412ee36b6412cc13d389d089b33b61e5bbe396
+reviewed: 2026-08-24
+reviewed-authorities-digest: sha256:fec37765ca46bdda9d4e8e1e59d2d88ba3af242da2629f088332fc38da5e13af
 ---
 
 # Start stub: the `crud-dashboard` template
 
 <!-- start-packet:begin crud-dashboard -->
-Mental model: [Snapback in one screen](./mental-model.md); with this stub it is
-the whole first read.
+Read [Snapback in one screen](./mental-model.md); with this stub it is the
+whole first read.
 
 <!-- script-glossary:begin -->
 ## Scripts
 
-`prove`: only done-oracle; writes the authoritative aggregate `snapback verify`
-receipt (acceptance evidence, not formal proof). `npm test`: unwrapped
-`acceptance.mjs` debug path. `test:static`: no-server coherence.
-`bun run carry:headless`, `bun run carry:web-browser`: observations only after `prove`, never proof.
-`carry:self-check`: wiring only.
+`prove`: only done-oracle; writes the authoritative `snapback verify` receipt.
+`npm test`: acceptance debug path. `test:static`: no-server coherence.
+`carry:*`: observations after `prove`; `carry:self-check`: wiring only.
 <!-- script-glossary:end -->
 
 Edit `snapback/{schema,functions}.mjs`, `seed.json`, `src/App.tsx` →
-`generate` → `dev` → `prove`; generated files are codegen-owned. The consumer
-uses `useSnapbackQuery` / `useSnapbackMutation`. Keep `projectDirectory`'s
-team-join uniqueness. Sample data/mutations are public for sign-in-free demos,
-not a production auth pattern. Escalate: `snapback guide <query>`.
+`generate` → `dev` (backend + env) and `dev:client` (Vite) in terminal 2 →
+`prove`. Expo has optional `dev:supervised`; Android emulators manually paste
+printed `androidEmulatorUrl` (`10.0.2.2`) and restart Metro. Remove leftover
+`SNAPBACK_DEV_CLIENT_PORT` / `SNAPBACK_DEV_BOOTSTRAP_PORT`; plain dev refuses
+them with `SNAPBACK_CLI_ARGUMENT_INVALID`. Generated files are owned. Keep
+`projectDirectory` team-join uniqueness; demo-public mutations are not a
+production auth pattern. Escalate: `snapback guide <query>`.
 <!-- start-packet:end -->
 
 ---
@@ -71257,36 +71329,37 @@ id: start.media-feed
 order: 6
 audience: agent-first
 capabilities: []
-authorities: [llp/0259-agent-first-read-budget.rfc.md, packages/snapback-cli/templates/media-feed/snapback/schema.mjs]
+authorities: [llp/0259-agent-first-read-budget.rfc.md, llp/0300-snapback-is-a-url.rfc.md, llp/0301-url-first-dev-lifecycle.spec.md, llp/0302-declared-dev-client-binding.spec.md, packages/snapback-cli/templates/media-feed/snapback/schema.mjs]
 examples: [packages/snapback-cli/templates/media-feed]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:f805ed361a34d8e055b4cf2e28c744733ae6c5c2162736f9c4bc3ddb23da9dde
+reviewed: 2026-08-24
+reviewed-authorities-digest: sha256:50a482a3bf66cda132be785279830df6706b1111daaa3fd029b82d9524e5cdc5
 ---
 
 # Start stub: the `media-feed` template
 
 <!-- start-packet:begin media-feed -->
-Mental model: [Snapback in one screen](./mental-model.md); with this stub it is
-the whole first read.
+Read [Snapback in one screen](./mental-model.md); with this stub it is the
+whole first read.
 
 <!-- script-glossary:begin -->
 ## Scripts
 
-`prove`: only done-oracle; writes the authoritative aggregate `snapback verify`
-receipt (acceptance evidence, not formal proof). `npm test`: unwrapped
-`acceptance.mjs` debug path. `test:static`: no-server coherence.
-`bun run carry:headless`, `bun run carry:web-browser`, `bun run carry:native-simulator`: observations only after `prove`, never proof.
-`carry:self-check`: wiring only.
+`prove`: only done-oracle; writes the authoritative `snapback verify` receipt.
+`npm test`: acceptance debug path. `test:static`: no-server coherence.
+`carry:*`: observations after `prove`; `carry:self-check`: wiring only.
 <!-- script-glossary:end -->
 
 Edit `snapback/{schema,functions}.mjs`, `seed.json`, `App.tsx`, and
-`pagination.mjs` → `generate` → `dev` → `prove`. `publishEntry` owns
-upload/finalize/attach; app uploads require sessions custody. Paginate on
-immutable `pageKey`; dedupe accumulated pages by `_id`. Escalate:
-`snapback guide <query>`.
+`pagination.mjs` → `generate` → `dev` (backend + env) and `dev:client` (Metro)
+in terminal 2 → `prove`; `dev:supervised` is optional. Android emulator: paste
+printed `androidEmulatorUrl` (`10.0.2.2`) as `EXPO_PUBLIC_SNAPBACK_URL`, then
+restart Metro. Remove leftover `SNAPBACK_DEV_CLIENT_PORT` /
+`SNAPBACK_DEV_BOOTSTRAP_PORT`; plain dev refuses them with
+`SNAPBACK_CLI_ARGUMENT_INVALID`. `publishEntry` owns upload/finalize/attach;
+paginate on immutable `pageKey`. Escalate: `snapback guide <query>`.
 <!-- start-packet:end -->
 
 ---
