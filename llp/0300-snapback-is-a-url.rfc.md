@@ -11,6 +11,14 @@ seem to run into the same issues"; "maybe we should just try to be more like
 them"; "Let's make an LLP/RFC about this, then refine it, then make a spec,
 then implement")
 **Date:** 2026-08-24
+**Revised:** 2026-08-24 (d — round-2 delta revision: same-UID lemma recast
+and a shared-host trust boundary stated; discovery gate made a standing
+invariant with an origin-reassignment acceptance case; P1 host list aligned
+to the scope ruling (literal loopback + `10.0.2.2`; forwards are topology;
+`host.docker.internal` dropped); non-loopback/device cases classified out of
+scope with exact supported transports named; entry-point lead-in; Acceptance
+5 strengthened to URL-present; allowlist-restates-loopback sentence; OQ1
+names-only)
 **Revised:** 2026-08-24 (c — round-1 revision: authenticity honestly
 reclassified with a credential-free discovery gate; declared-dev gated by a
 dev-only entry point, not NODE_ENV; bundler env reads move to
@@ -80,24 +88,33 @@ evidence for P1 and are not claimed as such.
 
 ### P1 — A URL is a first-class development binding source
 
-Add a `declared-dev` binding source: in development builds, the provider
-accepts a backend URL passed to it by **application-owned source** (see
-"Bundler ownership" below). Admission rules:
+Add a `declared-dev` binding source, carried by a dev-only entry point /
+generated artifact kind that release artifacts cannot select regardless of
+`NODE_ENV` or bundler mode: through it, the provider accepts a backend URL
+passed by **application-owned source** (see "Bundler ownership" below) as
+its single `url` argument. Admission rules:
 
 - The URL must be an absolute `http(s)` origin whose host is **literal
-  loopback** (`127.0.0.1`, `localhost`, `[::1]`) or a documented
-  host-loopback **alias** (`10.0.2.2` from the Android emulator,
-  `host.docker.internal` and SSH/devcontainer port-forwards — all of which
-  terminate at the host's loopback listener). Credentials, paths, query,
-  fragments are refused; canonicalization mirrors
-  `--external-client-origin` (details: Spec). No general "private host
-  class" is admitted — see the scope ruling below.
-- **Credential-free discovery gate.** On first use the client performs one
-  unauthenticated identity exchange against the URL: no bearer, session,
-  mint, or any other client call is issued until the returned deployment
-  identity matches the generated `app` export's identity. Mismatch fails
-  with `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` naming both identities;
-  any other failure is an ordinary connect refusal, never a binding.
+  loopback** (`127.0.0.1`, `localhost`, `[::1]`) or the one documented
+  host-loopback alias, `10.0.2.2` from inside the Android emulator.
+  SSH and devcontainer port-forwards are *topologies*, not hosts: the
+  client's URL remains literal loopback on its own side of the forward and
+  is admitted as such. `host.docker.internal` is not admitted — it names a
+  non-loopback host interface that P5's loopback-only listeners do not
+  serve. Credentials, paths, query, fragments are refused; canonicalization
+  mirrors `--external-client-origin` (details: Spec). No general "private
+  host class" is admitted — see the scope ruling below.
+- **Credential-free discovery gate — a standing invariant, not a
+  first-use step.** No credentialed call is ever issued without a
+  successful identity match against the backend *currently* at the URL:
+  the unauthenticated identity exchange precedes credentialed traffic on
+  every new connect episode — initial use, reconnect after transport
+  loss, and backend generation change included — so a different app or
+  generation taking the same stable port is refused before it sees a
+  credential. Re-verification cadence mechanics are Spec material; the
+  invariant is not. Mismatch fails with
+  `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` naming both identities; any
+  other failure is an ordinary connect refusal, never a binding.
 - **What this does and does not provide (honest classification).**
   Discovery is *mix-up detection*, fail-closed: a wrong-generation or
   wrong-app backend is refused before it sees a credential. It is **not**
@@ -106,11 +123,21 @@ accepts a backend URL passed to it by **application-owned source** (see
   is "the URL the operator configured" — exactly the posture of every
   comparable `http://localhost` stack, including local Convex and local
   Supabase. This is an accepted regression relative to supervised issuance,
-  and it is accepted **because the attacker it admits gains nothing**: a
-  same-UID process that can win the loopback port race can already read
-  the dev store (`.snapback/`) directly. Server authenticity against
-  same-UID local attackers is not a real control. The supervised path
-  retains its stronger issuance for whoever wants it, and **signed
+  and it is accepted on two grounds. First, a same-UID attacker who can
+  win the loopback port race has already compromised the development
+  host as this client's user — debugger, filesystem, and environment
+  access included — so server authenticity is not a meaningful control
+  against them (note: it is *not* claimed such an attacker "gains
+  nothing"; an impersonating listener can capture in-flight bearers from
+  ordinary signup — it is that the machine was already lost). Second,
+  the remaining localhost-impersonation exposure is exactly the URL-trust
+  posture of every comparable local stack. **Trust boundary, stated:**
+  the canonical URL path assumes a single-user development host. On
+  shared or multi-user hosts — where another UID in the same network
+  namespace can bind an unprivileged port without having compromised
+  your account — use the supervised path or the signed-discovery
+  hardening below. The supervised path retains its stronger issuance
+  for whoever wants it, and **signed
   discovery** (an identity fact signed by a store-held dev key, verified
   against a fingerprint the client obtains out-of-band) is recorded as a
   Spec-phase opt-in hardening obligation, noting the real constraint that
@@ -140,9 +167,9 @@ is preserved at the template level; the library never guesses.
 A development backend admits any **literal** loopback origin
 (`localhost` / `127.0.0.1` / `[::1]` plus port — never "DNS that resolves
 to loopback", so rebinding hostnames are not admitted) by default. An
-explicit `SNAPBACK_DEV_AUTH_ORIGINS` **replaces** that default (it is
-narrowing, and remains the mechanism that admits a non-loopback client
-origin such as a tunnel front). **Accepted tradeoff, recorded:** any local
+explicit `SNAPBACK_DEV_AUTH_ORIGINS` **replaces** that default and is the
+complete allowlist: an operator admitting a tunnel origin who still wants
+loopback clients admitted must list the loopback origins too. **Accepted tradeoff, recorded:** any local
 page may now call and read the *unauthenticated* dev surface (signup,
 identity) from the browser; theft of an existing session stays closed (no
 cookies; a page cannot read another origin's token). Production admission
@@ -194,20 +221,24 @@ binding admission, the LLP 0299 port plan, and the supervised path's code,
 batteries, and Android polish.
 
 **Scope ruling (closes former OQ3).** The canonical URL path covers: web,
-iOS simulator, Android emulator (via the host-loopback alias),
-SSH/devcontainer port-forwards, and non-loopback *client* origins admitted
-via `SNAPBACK_DEV_AUTH_ORIGINS`. **Physical devices and any non-loopback
-backend listener remain supervised-path territory** (adb reverse today; a
-LAN listener posture would be a separate, explicitly-analyzed RFC). A
-backend reachable through an operator-run public tunnel is out of the
-canonical path's scope. The gains table below is scoped accordingly.
+iOS simulator, Android emulator (via `10.0.2.2`), SSH/devcontainer
+port-forwards (literal-loopback URLs across a forward), and non-loopback
+*client* origins admitted via `SNAPBACK_DEV_AUTH_ORIGINS`. The supervised
+path's established physical-device transports are exactly: Android
+emulator and Android USB via verified `adb reverse` (iOS USB forwarding is
+refused today — `SNAPBACK_EXPO_IOS_USB_REVERSE_FORWARD_UNAVAILABLE`).
+Everything else — other physical-device transports, any non-loopback
+backend listener, a backend reached through an operator-run public
+tunnel — is **out of scope** for both paths pending its own
+explicitly-analyzed RFC, not silently "supervised territory." The gains
+table below is scoped accordingly.
 
 ## Tradeoffs accepted by this RFC
 
 | We gain | We give up |
 | --- | --- |
 | M1 = start backend, read URL, start bundler — web, simulators, emulators, port-forwarded containers/VMs | Boot-time binding issuance; identity check moves to a credential-free connect-time gate (still fail-closed for mix-ups) |
-| Tunnel/forwarded *client* origins and multi-context Playwright work without leaving the paved path | Supervised attestation of backend authenticity on the canonical path — accepted; a same-UID port-racing attacker already reads the dev store, and comparable stacks offer no more |
+| Tunnel/forwarded *client* origins and multi-context Playwright work without leaving the paved path | Supervised attestation of backend authenticity on the canonical path — accepted on single-user hosts (a same-UID port-racer has already compromised the client's user; comparable stacks offer no more); shared/multi-user hosts are directed to supervised issuance or signed discovery |
 | The supervisor's ~2.7k lines and its rendezvous vocabulary leave the canonical path (they remain supported) | The supervisor's proof that *every* listener incl. Metro is loopback-only — on the URL path Snapback vouches only for its own listener |
 | Dev and prod converge on "a URL that is a build-time fact"; the two-client shared-principal class closes by construction | Ambient logged-in-on-boot; Android `adb reverse` polish is supervised-path-only; physical devices are not on the canonical path |
 | — | LLP 0181 (27 revisions) and 0223 re-ruled; batteries re-pointed — the real cost is documentary |
@@ -260,12 +291,16 @@ canonical path's scope. The gains table below is scoped accordingly.
    literal-loopback matching rejects a rebinding hostname.
 4. A URL at a wrong-generation backend refuses with
    `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` naming both identities, and no
-   credentialed request was sent before the refusal.
+   credentialed request was sent before the refusal — including after a
+   correct initial connection when a different backend has since taken the
+   same origin: the next connect episode re-verifies and refuses before
+   any credentialed traffic.
 5. Release admission is **behaviorally** unchanged: a production Expo
    build, a production Vite build (including with a misleading
-   `NODE_ENV`), and an unbundled headless Node process can none of them
-   select `declared-dev`; release target-tuple admission behaves exactly
-   as before.
+   `NODE_ENV`), and an unbundled headless Node process — each **with the
+   URL env var and provider prop set** — can none of them select
+   `declared-dev`; release target-tuple admission behaves exactly as
+   before.
 6. The `--expo` battery passes; supervised receipts keep exact origins;
    old/new attach combinations from P2's compatibility posture pass.
 7. Per-bundler cold-template acceptance: Expo (web + iOS sim + Android
@@ -274,9 +309,10 @@ canonical path's scope. The gains table below is scoped accordingly.
 
 ## Open questions
 
-- **OQ1 — env naming and precedence only** (`EXPO_PUBLIC_SNAPBACK_URL` /
-  `VITE_SNAPBACK_URL` / `SNAPBACK_URL`; prop > env). The `.env.local`
-  write policy is settled in P3.
+- **OQ1 — template env variable names only** (`EXPO_PUBLIC_SNAPBACK_URL` /
+  `VITE_SNAPBACK_URL` / `SNAPBACK_URL`). The library takes a single `url`
+  argument; any precedence among sources lives in application-owned
+  source. The `.env.local` write policy is settled in P3.
 - **OQ2 — discovery fact path/shape only** (`/_snapback/identity` vs a
   reduced readiness projection). The RFC already rules it unauthenticated
   and identity+posture-only; reuse of the full readiness surface as-is is
@@ -287,8 +323,10 @@ canonical path's scope. The gains table below is scoped accordingly.
   do new capabilities stop landing supervised-only unless they cannot
   exist elsewhere?
 - **Spec obligations recorded:** opt-in signed discovery (P1); receipt
-  posture encoding (P2); URL canonicalization details (P1); prune
-  predicate mechanics per bundler (P1).
+  posture encoding (P2); URL canonicalization details (P1); per-bundler
+  dev-entry / generated-kind exclusion mechanics (resolution or codegen —
+  never dead-code elimination, which is bundle hygiene only) (P1);
+  re-verification cadence for the standing discovery invariant (P1).
 
 ## Alternatives considered
 
@@ -299,9 +337,10 @@ canonical path's scope. The gains table below is scoped accordingly.
   issuance but stop owning Metro: `snapback dev` writes/serves a signed
   binding the app consumes. This removes the bundler-ownership bug class
   but keeps a live-issuer requirement, the rendezvous/binding vocabulary,
-  and the refusal of plain URLs — and its attestation value against local
-  same-UID attackers is the same theater P1 declines to rely on. The
-  simpler contract dominates it.
+  and the refusal of plain URLs — and on a single-user host its
+  attestation defends against an attacker who has already compromised the
+  client's user, while on shared hosts P1 directs to supervised issuance
+  or signed discovery anyway. The simpler contract dominates it.
 - **Bootstrap-on-backend.** Fewer ports, same issuance machinery and
   vocabulary. Strictly weaker than P1.
 - **Full supervisor removal.** Deletes Android polish and the one-command

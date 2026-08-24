@@ -45,3 +45,29 @@
    **Concrete change:** Decide whether `snapback dev` mints a capability by default; preferably print instructions and mint only on explicit request. State that no credential is written to `.env.local` or any public bundler variable, describe the capability’s sharing posture, and test that declared-dev boot has no authenticated principal before explicit sign-in. Change the disk claim to “no token or session material is written.”
 
 NOT READY
+## Round 2 — delta round — 2026-08-24
+
+- Target: llp/0300-snapback-is-a-url.rfc.md @ revision (c), landed a95cdc859, sha256 e68ef18932fa4a85e5dc68b1d9c5dd65b6c31897b8012637e2033af4ea1935a8
+- Capsule: refine-0300/capsule-r2 (revision c + b→c unified diff + LLP 0299 + 2 tickets), dirhash 27bae16f5faf136b423bd475877ffceace2ceec49cf7a8412b1fb3a202976687
+- Delta round: instructions enumerated the b→c delta and required IN-DELTA vs PRE-EXISTING classification
+- Blindness: structural; fresh session
+- Received: complete response; verbatim body follows
+
+1. **MATERIAL · IN-DELTA · P1 “honest classification,” Tradeoffs, Alternatives.** The accepted-regression argument covers only same-UID attackers, but another UID in the same network namespace can also claim an unprivileged loopback port—particularly relevant to the newly admitted SSH/shared-host scenarios. Such an attacker cannot necessarily read `.snapback/`, yet can echo the client-visible identity and receive subsequent credentials; even a same-UID listener may capture plaintext credentials unavailable from the store. Replace “gains nothing” with an explicit threat model: either limit URL-first to trusted single-user namespaces and direct shared/multi-user environments to supervised/authenticated discovery, or require signed discovery there. Update the gains table and the dismissal of the middle alternative accordingly.
+
+2. **MATERIAL · IN-DELTA · P1 discovery gate, causal matrix, Acceptance.** “On first use … performs one” exchange conflicts with “re-verifies identity at connect.” If a valid backend disappears and another backend takes the origin, cached approval could send a bearer before rediscovery, violating the stated mix-up guarantee. Require discovery for every new binding/connect episode, including reconnect after transport loss, before credentialed traffic. Add acceptance that verifies a correct initial connection followed by origin reassignment to a wrong backend.
+
+3. **MINOR · IN-DELTA · P5 Scope ruling.** The RFC preserves loopback-only listeners but says non-loopback backend listeners “remain supervised-path territory,” while immediately admitting LAN listening needs another RFC. Those listeners are currently out of scope, not supervised. Likewise, “physical devices” overstates the named fallback: only Android `adb reverse` is established. State the exact supported supervised physical-device transports; classify all remaining physical-device and non-loopback-listener cases as out of scope.
+
+4. **NIT · IN-DELTA · P1 URL admission / Scope ruling.** SSH and devcontainer port-forwards are topologies, not URL host aliases. Describe them as producing a literal-loopback URL; reserve the host allowlist for concrete literals and explicitly named aliases such as `10.0.2.2` and `host.docker.internal`.
+
+5. **NIT · IN-DELTA · Open questions / Spec obligations.** “Prune predicate mechanics per bundler” risks reintroducing tree-shaking as the boundary after P1 correctly rejects that model. Rename the obligation to structural entry-point/generated-artifact selection and release refusal mechanics; list pruning separately as bundle hygiene.
+
+The structural production gate, application-owned bundler reads, compatibility posture, and causal decomposition are sound at RFC altitude. Exact packaging, receipt encoding, and canonicalization remain appropriately Spec-phase details.
+
+**IN-DELTA:** MATERIAL findings #1–2.  
+**PRE-EXISTING:** no MATERIAL findings.  
+**Scope-ruling dimension:** no MATERIAL findings.  
+**Entry-point-gating dimension:** no MATERIAL findings.
+
+NOT READY

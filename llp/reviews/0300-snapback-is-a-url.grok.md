@@ -103,3 +103,76 @@ Named for the Spec, **not** RFC blockers: discovery path and JSON shape (within 
 ---
 
 NOT READY
+
+## Round 2 — delta round — 2026-08-24
+
+- Target: llp/0300-snapback-is-a-url.rfc.md @ revision (c), landed a95cdc859, sha256 e68ef18932fa4a85e5dc68b1d9c5dd65b6c31897b8012637e2033af4ea1935a8
+- Capsule: refine-0300/capsule-r2 (revision c + b→c unified diff + LLP 0299 + 2 tickets), dirhash 27bae16f5faf136b423bd475877ffceace2ceec49cf7a8412b1fb3a202976687
+- Delta round: instructions enumerated the b→c delta and required IN-DELTA vs PRE-EXISTING classification
+- Blindness: structural; fresh session
+- Received: complete response; verbatim body follows
+
+The prompt is truncated, so I’ll read the offloaded full request first and then review only that text.## Dimension verdicts
+
+1. Credential-free discovery / accepted-regression: **no MATERIAL findings** (decision sound; supporting lemma is overstated).
+2. Entry-point / artifact gating: **no MATERIAL findings**.
+3. Bundler env reads in application-owned source: **no MATERIAL findings**.
+4. Scope ruling: **MATERIAL** (P1 host allowlist does not match the ruling, and one listed “alias” does not terminate on loopback).
+5. Receipt compatibility posture: **no MATERIAL findings**.
+6. Causal matrix / comparisons / middle alternative: **no MATERIAL findings**.
+7. Mint / disk claims: **no MATERIAL findings**.
+8. Literal-loopback origin matching / list-replaces-default: **no MATERIAL findings**.
+9. Acceptance / OQs: **no MATERIAL findings**.
+
+No PRE-EXISTING findings. No PRE-EXISTING MATERIAL findings.
+
+---
+
+## Findings
+
+1. **MATERIAL, IN-DELTA, P1 admission rules (conflicts with P5 + Scope ruling).**  
+   P1 admits `host.docker.internal` and “SSH/devcontainer port-forwards” as a single **host-loopback alias** class with `10.0.2.2`, claiming they “terminate at the host’s loopback listener.” That class is false as stated and wider than the scope ruling. `10.0.2.2` (Android emulator) is a real host-loopback alias. An SSH/devcontainer **port-forward** is not a hostname; the client URL stays `http://127.0.0.1:<port>` (already admitted as literal loopback). `host.docker.internal` resolves to the host’s docker-gateway / host IP, not `127.0.0.1`. With P5’s unchanged loopback-only listeners, that URL does not reach the backend, and the string allowlist admits a host that targets a **non-loopback** host interface.  
+   **Change:** Make P1’s admitted hosts match the scope ruling: literal loopback (`127.0.0.1` / `localhost` / `[::1]`) plus `10.0.2.2` only. Describe SSH/devcontainer as a **topology** that still uses `127.0.0.1`. Drop `host.docker.internal` unless this RFC adds an explicit host-side loopback forward and treats that as a separate, analyzed path.
+
+2. **MINOR, IN-DELTA, P1 “honest classification” / Tradeoffs / Security.**  
+   Accepting mix-up detection instead of server authentication is sound (same posture as local Convex/Supabase; same-UID authenticity is not a control). The warrant “the attacker it admits **gains nothing** because a same-UID port-racer can already read `.snapback/`” is not true under this revision’s own P4: the canonical path no longer puts the app session in the store, so an impersonating listener can still collect **in-flight** bearer tokens from ordinary signup. Same-UID already implies debugger/ptrace/filesystem on the client; that is the real lemma.  
+   **Change:** Keep the decision. Replace the store-read “gains nothing” sentence with: same-UID is already local compromise of the client; remaining localhost impersonation is the accepted URL-trust of comparable stacks. Apply the same recast to the middle alternative’s “same theater” line.
+
+3. **MINOR, IN-DELTA, P1 vs causal matrix.**  
+   P1 runs the gate “on **first use**”; the matrix and Summary require identity verified **at connect** / before any authenticated call. Under LLP 0299 stable ports, a still-running client can keep sending credentials after a different app/generation takes the same port.  
+   **Change:** State a standing prefix: no credentialed call without a successful match for the backend currently at that URL (reconnect / generation change included). Cadence details may go to Spec.
+
+4. **MINOR, IN-DELTA, P1 opening sentence vs “Production gating is structural.”**  
+   Lead-in still says “in **development builds**, the provider accepts…”, which is the NODE_ENV framing this revision rejected.  
+   **Change:** “From the dev-only entry point / generated artifact kind, the provider accepts… Release artifacts cannot select it, regardless of `NODE_ENV`.”
+
+5. **MINOR, IN-DELTA, Acceptance 5 (weaker than the gating claim).**  
+   Structural gating exists to survive a URL being **present**. Revision b tested a production build that contains `SNAPBACK_URL`; revision c dropped that and only names a misleading `NODE_ENV`. Templates still pass `url={process.env…}` from application source.  
+   **Change:** Acceptance 5 must include: production Expo, production Vite, and unbundled headless with the URL env/prop set still cannot select `declared-dev`; target-tuple admission unchanged.
+
+6. **MINOR, IN-DELTA, P2 explicit-list-replaces-default.**  
+   Replace-not-union is the right narrowing rule, but the paved tunnel-client path then requires restating loopback or localhost dies when the operator sets `SNAPBACK_DEV_AUTH_ORIGINS` to a tunnel origin alone.  
+   **Change:** One sentence: the explicit list is the full allowlist; include literal loopback origins if they must remain admitted.
+
+7. **MINOR, IN-DELTA, OQ1.**  
+   After delta (3) the library does not read env; “prop > env” is leftover library-precedence. Precedence lives in application-owned source.  
+   **Change:** OQ1 = template env **names** only. Drop library-level prop/env precedence, or state that the library has a single `url` argument.
+
+8. **NIT, IN-DELTA, Open questions “Spec obligations” vs P1 gating.**  
+   “Prune predicate mechanics per bundler” reads as DCE, which P1 says is not the authorization boundary.  
+   **Change:** “Dev-entry / generated-kind exclusion per bundler (resolution or codegen, not DCE).”
+
+---
+
+## Decisions (not defective)
+
+- **Accepted regression:** mix-up detection, fail-closed, not server authentication; supervised issuance retained; signed discovery opt-in with the codegen/store constraint recorded. Keep it; fix finding 2’s lemma only.
+- **Entry-point / generated-artifact gating, including unbundled headless:** correct inversion of NODE_ENV/DCE. Spec chooses entry vs generated kind; both are valid if release cannot select `declared-dev`.
+- **Scope ruling (former OQ3):** canonical = web, iOS sim, Android emulator via `10.0.2.2`, port-forwards, tunnel **client** origins via narrowing; physical devices and non-loopback **listeners** supervised; no private-host class; public-tunneled **backend** out of scope. Sound once P1’s host list matches (finding 1).
+- **Application-owned env read, P2 literal origins (no DNS-to-loopback), list-replaces-default, receipt dual-path compatibility, causal matrix, middle alternative, mint/disk narrowing, logged-out acceptance:** sound.
+
+## Spec-phase (do not block)
+
+Receipt posture encoding and old/new attach parse behavior; URL canonicalization (`localhost` vs `127.0.0.1`, `[::1]` brackets, `http` vs `https`); discovery path/shape (OQ2); production Provider behavior when `url` is passed; re-verify cadence; per-bundler exclusion of the dev artifact; whether an explicit origin list must restate loopback (finding 6 is the RFC sentence; mechanics stay Spec).
+
+NOT READY
