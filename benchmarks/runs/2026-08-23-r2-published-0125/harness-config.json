@@ -120,13 +120,23 @@
         "recordSchema": "benchmarks/schema/social-messenger/run-record.schema.json",
         "recordSchemaSha256": "3403455e98fad656125ea2ab0993f780bdb112849fb127bd8bcfcbcf6f2b8a64",
         "extensionSchemaSha256": "1cf39ff49e9b34465a1086f4a4d37491289c6590aca657652285c39138542983",
-        "recordValidatorSha256": "fa1b179a617db743ec15d9d87017458e594cab070b798ccd72b5349ccf373238",
+        "recordValidatorSha256": "6083bf88cf29feac9e625093b5bc026377c644c7a963195f920cc6b17edcd727",
         "meterSha256": "d19aa6764c513af489e43b00ef15f8560d347dc84998254d1cceb4bf9e4d5a62",
         "laneSetupSha256": "b46ddce548b4415dfd791eb32c97eba581adb0d9794da557f314fd2b34c9e71f",
         "laneControllerSha256": "e5fac8225f912b675081977ade585d2adbbdb22508e3d5983d4975231132f6f2",
         "productionDriverSha256": "5fa15c7ede74b030cf06b61176bbe8b9649ec09a8d85be264af21251021ff295",
         "signalSha256": "f2f835538bc92cd5ea2af0098e43ca0e97cf3934101c713f6c13ede55066a712"
       },
+      "instrumentMigrations": [
+        {
+          "date": "2026-08-24",
+          "reason": "finalizer repairs after cell-1 corrupt token_count and sidecar-identity defects",
+          "commits": ["a4ad07029", "7b828efca"],
+          "recordValidatorSha256From": "fa1b179a617db743ec15d9d87017458e594cab070b798ccd72b5349ccf373238",
+          "recordValidatorSha256To": "6083bf88cf29feac9e625093b5bc026377c644c7a963195f920cc6b17edcd727",
+          "semantics": "fail-closed additions only: aggregate-total checksum, pre-validation identity canonicalization"
+        }
+      ],
       "observabilityBump": {
         "issue": "issues/20260821-clique-instrument-observability-version-bump.md",
         "status": "landed",
