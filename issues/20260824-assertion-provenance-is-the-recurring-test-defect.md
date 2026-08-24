@@ -131,6 +131,37 @@ mutants actually died. It confirmed three and found a fourth that reasoning had 
 Where a lane or reviewer can compile, **executed mutation results outrank argued ones**. An argued
 mutation review is a hypothesis; a run one is evidence.
 
+## Round 8: two varied axes are still one axis if they co-vary
+
+Round 5 required varying every derived axis. A lane complied by *crossing* them — successful cases
+mapped `user-m -> session-x` and `user-x -> session-m`. Both axes now varied. The defect survived,
+because a bijection is still a functional dependency:
+
+```rust
+let session_id = if user_id == "user-m" { "session-x" } else { "session-m" };
+```
+
+Every assertion passes. Crossing the axes inverted the dependency rather than removing it. The same
+fixture also derived `authority_instance_id` from `session_id`, giving a second reconstruction route
+through a third value.
+
+> **To prove X is derived from A and not reconstructed from B, the fixture must contain two cases
+> with the SAME B and DIFFERENT X.** Varying two axes is insufficient when they co-vary one-to-one.
+
+Concretely: one user with two different successful sessions, *and* one session across two different
+users. Any value the test computes from another varied value (an instance id derived from a session
+id) must instead be chosen independently, or it becomes a third reconstruction route.
+
+## Round 8b: evidence a reviewer cannot reproduce is weak evidence
+
+The same review could not execute a single mutant — the review checkout was read-only,
+`vendor/ibex` uninitialised, and `cargo test` could not resolve its path dependency. The lane's 15
+reported mutation deaths were therefore unverified by anyone but the lane itself.
+
+A lane reporting executed mutations must record, in the commit message, the exact command sequence
+needed to reproduce them — including the ibex bootstrap step and the precise test invocation and
+filters. Otherwise the strongest available evidence degrades to a claim on landing.
+
 ## The rule this yields
 
 > **For every assertion, ask where the expected value comes from.** If it comes from the same read
