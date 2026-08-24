@@ -1,0 +1,177 @@
+{
+  "appId": "membership-digest-fixture",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "sessions"
+  },
+  "authoredSourceHash": "sha256:da721a4dfd7de042fa66dfef28a1ee5d7901573bd094918a83382ad4087dbd09",
+  "authoringProfile": "snapback-explicit-v1",
+  "ephemeralCollections": [
+    {
+      "burst": 60,
+      "defaultTtlMs": 1000,
+      "dispatchMs": 33,
+      "hardMaxValueBytes": 4096,
+      "keyMode": "Connection",
+      "maxPendingEphemeralKeys": 1024,
+      "maxTtlMs": 30000,
+      "maxValueBytes": 1024,
+      "name": "typing",
+      "permissionBacking": {
+        "allowedRoles": [
+          "owner",
+          "member"
+        ],
+        "roleField": "role",
+        "scopeFields": {
+          "conversationId": "conversationId"
+        },
+        "subjectField": "userId",
+        "table": "conversationMembers"
+      },
+      "publish": {
+        "RequireRoomPermission": {
+          "prefix": "m_conversation_members"
+        }
+      },
+      "routingFields": [
+        "conversationId"
+      ],
+      "scopeContract": {
+        "allowExtra": false,
+        "fields": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "conversations"
+            }
+          }
+        ],
+        "kind": "object"
+      },
+      "scopeFields": [
+        "conversationId"
+      ],
+      "subscribe": {
+        "RequireRoomPermission": {
+          "prefix": "m_conversation_members"
+        }
+      },
+      "sustainedHz": 20,
+      "valueContract": {
+        "allowExtra": false,
+        "fields": [
+          {
+            "name": "active",
+            "required": true,
+            "value": {
+              "kind": "boolean"
+            }
+          }
+        ],
+        "kind": "object"
+      },
+      "withdrawalVisibilityDeadlineMs": 500
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:4aaee22db67bb4bda7bd90a4a30a2d7ffaf4faf99f3d9c3afa6588e1b31cb081",
+  "portabilityFlags": [],
+  "requiredCapabilities": [
+    "auth.sessions.v1"
+  ],
+  "schemaHash": "snapback.v1:sessions:schema:sha256:0dfcc6f142e291f9817d23e7ef94d2e121da3edc09b206d1925ecad08faa14ec",
+  "schemaVersion": "snapback.v1",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "name": "conversations",
+      "syncable": false,
+      "visibility": {
+        "kind": "public-read"
+      }
+    },
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "conversations"
+            }
+          },
+          "name": "conversationId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "role",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "membership": {
+        "id": "conversation_members",
+        "pendingRoles": [
+          "invited"
+        ],
+        "principal": "userId",
+        "resource": "conversationId",
+        "resourceTable": "conversations",
+        "role": "role",
+        "roles": [
+          "owner",
+          "member",
+          "moderator"
+        ],
+        "scope": "resource",
+        "transitions": [
+          {
+            "by": [
+              "owner"
+            ],
+            "from": [
+              "member"
+            ],
+            "op": "remove",
+            "target": "other"
+          },
+          {
+            "by": [
+              "owner"
+            ],
+            "from": [
+              "member"
+            ],
+            "op": "setRole",
+            "target": "other",
+            "to": [
+              "moderator"
+            ]
+          }
+        ]
+      },
+      "name": "conversationMembers",
+      "syncable": false,
+      "visibility": {
+        "field": "userId",
+        "kind": "owner"
+      }
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

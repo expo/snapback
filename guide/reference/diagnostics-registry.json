@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:9dc3285dc11d41da1f2527e86ac61518292afe0ee225a06b60f1b50944db8bc0"
+    "sourceDigest": "sha256:2f00c451f477915149225f67fff882a2619ddaddc1a6425a15fa24bc9c1c02e1"
   },
   "limits": {
     "lookupBytes": 16384
@@ -25593,47 +25593,47 @@
         },
         {
           "file": "crates/snapback-sync/src/ephemeral.rs",
-          "line": 3502,
+          "line": 3326,
           "column": 18
         },
         {
           "file": "crates/snapback-sync/src/ephemeral.rs",
-          "line": 3517,
+          "line": 3341,
           "column": 18
         },
         {
           "file": "crates/snapback-sync/src/ephemeral.rs",
-          "line": 3716,
+          "line": 3540,
           "column": 18
         },
         {
           "file": "crates/snapback-sync/src/ephemeral.rs",
-          "line": 3730,
+          "line": 3554,
           "column": 18
         },
         {
           "file": "crates/snapback-sync/src/ephemeral.rs",
-          "line": 3739,
+          "line": 3563,
           "column": 22
         },
         {
           "file": "crates/snapback-sync/src/ephemeral.rs",
-          "line": 3770,
+          "line": 3594,
           "column": 18
         },
         {
           "file": "crates/snapback-sync/src/ephemeral.rs",
-          "line": 3824,
+          "line": 3648,
           "column": 18
         },
         {
           "file": "crates/snapback-sync/src/ephemeral.rs",
-          "line": 9593,
+          "line": 9417,
           "column": 14
         },
         {
           "file": "crates/snapback-sync/src/ephemeral.rs",
-          "line": 9607,
+          "line": 9431,
           "column": 14
         }
       ],
@@ -27439,7 +27439,7 @@
         },
         {
           "file": "crates/snapback-sync/src/ephemeral.rs",
-          "line": 9838,
+          "line": 9662,
           "column": 44
         },
         {
@@ -41205,7 +41205,7 @@
         },
         {
           "file": "crates/snapback-sync/src/ephemeral.rs",
-          "line": 8392,
+          "line": 8216,
           "column": 14
         }
       ],
@@ -47074,7 +47074,7 @@
         },
         {
           "file": "crates/snapback-sync/src/ephemeral.rs",
-          "line": 8485,
+          "line": 8309,
           "column": 18
         },
         {
