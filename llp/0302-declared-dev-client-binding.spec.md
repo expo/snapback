@@ -1,13 +1,17 @@
 # LLP 0302: declared-dev client binding — generated kind, discovery gate, provider contract
 
 **Type:** Spec
-**Status:** Review
+**Status:** Accepted
 **Systems:** Client integration, React/Expo, Vite/Exact clients, Headless
 client, Code generation, Templates, Guide, Diagnostics
 **Author:** Claude (Fable 5), commissioned by Charlie Cheever (standing
 overnight directive 2026-08-24: RFC → refine → Specs → refine →
 implementation)
 **Date:** 2026-08-24
+**Revised:** 2026-08-24 (f — Review → Accepted; the refine loop never
+applies acceptance — this transition is applied by the orchestrator under
+the author's standing overnight directive of 2026-08-24, after the
+cluster's dual READY per-target and set verdicts)
 **Revised:** 2026-08-24 (e — post-freeze corrections from punch-list round
 3: full non-2xx un-verify restored (fail-closed beats 4xx noise; subsumes
 the 3xx gap); release-variant leftover sentence rewritten to the sentinel;

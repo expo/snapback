@@ -294,3 +294,19 @@ Non-material leftover (not a live contradiction): 0301 §8.2 still says loopback
 0301: READY  
 0302: READY  
 SET: READY
+
+## Cluster round 5 (micro punch-list, final) — 2026-08-24
+
+- Targets: 0301(f) at 58cdd4d21 + 0302(e) at bc922c027; hashes in run journal
+- Received: complete response; verbatim body follows
+
+#1: VERIFIED
+#2: VERIFIED
+
+**Diff soundness:** The e→f patch is exactly the two round-4 folds. `http://localhost.` leaves the syntax-refusal list and lands in the host-policy-refusal list with the explicit-allowlist parenthetical; remaining syntax/host-policy vectors are untouched. §8.2 now keys loopback-any on host-policy accepts, refuses both syntax and host-policy negatives (rebinding and trailing-dot named), and adds the syntax-canonical explicit-allowlist clause (tunnels included) without colliding with the existing tunnel-only / flag-only / merge sentences. The revision-f header matches the change. No soundness defects.
+
+Non-blocking (does not hold READY): §8.2’s phrase “host-policy accepts” is inferred from the matcher literals plus syntax-accepts minus host-policy refusals; §2b never labels an accept list by that name. Surface-scoped reading is unambiguous (`10.0.2.2` remains 0302-only).
+
+0301: READY
+0302: READY
+SET: READY

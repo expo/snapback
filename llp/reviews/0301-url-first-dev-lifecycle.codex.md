@@ -123,3 +123,16 @@ Obligations:
 0301: NOT READY
 0302: READY
 SET: NOT READY
+## Cluster round 5 (micro punch-list, final) — 2026-08-24
+
+- Targets: 0301(f) at 58cdd4d21 + 0302(e) at bc922c027; hashes in run journal
+- Received: complete response; verbatim body follows
+
+#1: VERIFIED
+#2: VERIFIED
+
+Diff soundness: no findings.
+
+0301: READY
+0302: READY
+SET: READY

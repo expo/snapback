@@ -1,13 +1,17 @@
 # LLP 0301: URL-first dev lifecycle — server, CLI, and wire contract
 
 **Type:** Spec
-**Status:** Review
+**Status:** Accepted
 **Systems:** Server, CLI, Local server lifecycle, Auth, Templates, Guide,
 Diagnostics
 **Author:** Claude (Fable 5), commissioned by Charlie Cheever (standing
 overnight directive 2026-08-24: RFC → refine → Specs → refine →
 implementation)
 **Date:** 2026-08-24
+**Revised:** 2026-08-24 (g — Review → Accepted; the refine loop never
+applies acceptance — this transition is applied by the orchestrator under
+the author's standing overnight directive of 2026-08-24, after the
+cluster's dual READY per-target and set verdicts)
 **Revised:** 2026-08-24 (f — punch-list round-4 corrections: `localhost.`
 reclassified from the syntax set to the host-policy set (a canonical
 trailing-dot origin is admissible in an explicit allowlist); §8.2 worded
