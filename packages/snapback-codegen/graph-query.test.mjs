@@ -899,23 +899,42 @@ export const issueGraph = getBuilder()({ nodes: cond ? a : b });
   const builderEnd = literalFunctions.lastIndexOf(');');
   assert(definitionStart >= 0 && builderStart >= 0 && builderEnd > builderStart);
   const graphSpecSource = literalFunctions.slice(builderStart + builderSpelling.length, builderEnd);
-  const exhaustedLoop = `${literalFunctions.slice(0, definitionStart)}
-let issueGraph;
-for (let attempt = 0; attempt < 2; attempt += 1) {
-  issueGraph = graphDsl.defineGraphQuery(${graphSpecSource});
+  const zeroIterationLoop = `${literalFunctions.slice(0, definitionStart)}
+for (let i = 0; i < 0; i += 1) {
+  graphDsl.defineGraphQuery(${graphSpecSource});
 }
-export { issueGraph };
+function getBuilder() { return graphDsl.defineGraphQuery; }
+export const issueGraph = getBuilder()(${graphSpecSource});
 `;
   const loopRefusal = await assertGeneratedRefusal(
-    exhaustedLoop,
+    zeroIterationLoop,
     'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
   );
   assert(
     loopRefusal.diagnostics.some((diagnostic) => (
       diagnostic.code === 'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION'
-        && diagnostic.message.includes('exhausted its proven source allowances')
+        && diagnostic.message.includes('top-level expressions or direct exported const initializers')
     )),
-    `the second runtime invocation must exhaust the module's one proven allowance: ${JSON.stringify(loopRefusal.diagnostics)}`,
+    `a zero-iteration loop must be an AST refusal and mint no allowance for a wrapper call: ${JSON.stringify(loopRefusal.diagnostics)}`,
+  );
+
+  const conditionalCall = `${literalFunctions.slice(0, definitionStart)}
+let issueGraph;
+if (true) {
+  issueGraph = graphDsl.defineGraphQuery(${graphSpecSource});
+}
+export { issueGraph };
+`;
+  const conditionalCallRefusal = await assertGeneratedRefusal(
+    conditionalCall,
+    'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
+  );
+  assert(
+    conditionalCallRefusal.diagnostics.some((diagnostic) => (
+      diagnostic.code === 'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION'
+        && diagnostic.message.includes('top-level expressions or direct exported const initializers')
+    )),
+    `a builder call beneath an if statement must be an AST refusal: ${JSON.stringify(conditionalCallRefusal.diagnostics)}`,
   );
 
   writeFileSync(

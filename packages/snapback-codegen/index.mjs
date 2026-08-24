@@ -19979,30 +19979,17 @@ function validateGraphAuthoringSource(source, path, bindings) {
   const isProvenTopLevelCall = (call) => {
     let current = call;
     while (current.parent && unwrap(current.parent) === current) current = current.parent;
-    for (let ancestor = current.parent; ancestor && ancestor !== sourceFile; ancestor = ancestor.parent) {
-      if (ts.isVariableDeclaration(ancestor)) {
-        const declarationList = ancestor.parent;
-        const statement = declarationList?.parent;
-        return unwrap(ancestor.initializer) === call
-          && ts.isVariableDeclarationList(declarationList)
-          && (declarationList.flags & ts.NodeFlags.Const) !== 0
-          && ts.isVariableStatement(statement)
-          && statement.parent === sourceFile
-          && hasExportModifier(statement);
-      }
-      if (ts.isFunctionLike(ancestor)
-        || ts.isClassLike(ancestor)
-        || ts.isIfStatement(ancestor)
-        || ts.isConditionalExpression(ancestor)
-        || ts.isSwitchStatement(ancestor)
-        || ts.isTryStatement(ancestor)
-        || ts.isBinaryExpression(ancestor) && [
-          ts.SyntaxKind.AmpersandAmpersandToken,
-          ts.SyntaxKind.BarBarToken,
-          ts.SyntaxKind.QuestionQuestionToken,
-        ].includes(ancestor.operatorToken.kind)) return false;
-    }
-    return true;
+    const container = current.parent;
+    if (ts.isExpressionStatement(container)) return container.parent === sourceFile;
+    if (!ts.isVariableDeclaration(container)) return false;
+    const declarationList = container.parent;
+    const statement = declarationList?.parent;
+    return unwrap(container.initializer) === call
+      && ts.isVariableDeclarationList(declarationList)
+      && (declarationList.flags & ts.NodeFlags.Const) !== 0
+      && ts.isVariableStatement(statement)
+      && statement.parent === sourceFile
+      && hasExportModifier(statement);
   };
   const calls = [];
   const collect = (node) => {

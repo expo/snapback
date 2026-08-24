@@ -2,11 +2,11 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:6b9f1138cf09880543f5ea14b9db5e1a564a298309c746b322180bf48b0ddd43"
+    "sourceDigest": "sha256:68de9473e2895c53edcd1c26c71ec9832aedef34f5654bfb7c93cf1bf6268254"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
-    "newestPublished": "0.1.24"
+    "newestPublished": "0.1.25"
   },
   "nav": {
     ".": [
@@ -1022,7 +1022,7 @@
       ],
       "reviewed": "2026-08-16",
       "reviewedAuthoritiesDigest": "sha256:eaff689bf18067532fde1b0fc3ed72bc259043893ac37fd2c914974a76df01bd",
-      "sha256": "809cfb07a755bcfd2a055238b3e6926fdc2b227845c91cead58e26b88659c808",
+      "sha256": "e95d36b73f247b96289603eced5aeadd27aca0be7107842419d22b6e0ca49390",
       "snippets": [
         {
           "lang": "js",
@@ -1291,6 +1291,7 @@
       "maturity": "shipped",
       "capabilities": [
         "auth.sessions",
+        "auth.guest-sessions",
         "auth.browser-session-custody",
         "auth.scoped-queries"
       ],
@@ -1333,7 +1334,7 @@
       ],
       "reviewed": "2026-08-21",
       "reviewedAuthoritiesDigest": "sha256:11c9d2853afe66d5857b7ec3dd3bde9bcb8b3b342a6b686beaf8a44ee212a767",
-      "sha256": "10b3a80867bb790b96def873f2623c735f5908d1f40f335ffb8a8284d6c9298b",
+      "sha256": "72b317778c0e3e156df14bb3eed0172eff551ed8dc19683bb272bd945deac263",
       "snippets": [
         {
           "lang": "js",
@@ -2928,7 +2929,7 @@
       "examples": [],
       "reviewed": "2026-08-22",
       "reviewedAuthoritiesDigest": "sha256:d6eec55da534593e1752c945db0d2955d4a85dde8ad31c43bba75e4dc1c1f84f",
-      "sha256": "2f32733839e12b27a15e8702d0d9d5ab1bc5af00da3d4650974e782c190d9d91",
+      "sha256": "5e7df6e6cb23479f310460ad63048a2984e752aced873355bd634f64bc4c71ab",
       "snippets": []
     },
     "clients.app-cli": {
@@ -3295,7 +3296,7 @@
       ],
       "reviewed": "2026-08-21",
       "reviewedAuthoritiesDigest": "sha256:299115fe806bead910521204724986e78926c9c97645a649e2ff36500595f62d",
-      "sha256": "1976ae313f846b1fdbb13732f25678e93530744e8191e13f06877c41a7e8daf2",
+      "sha256": "8e8a9ca50ab5d47ae36d3bea01dcef648db6b200e4c7f39730d57d37df5aee40",
       "snippets": [
         {
           "lang": "json",
@@ -3424,7 +3425,7 @@
       ],
       "reviewed": "2026-08-21",
       "reviewedAuthoritiesDigest": "sha256:4956122aa0f8dce10514700c2cf5f7295427c63747befe08f216789dc0cea856",
-      "sha256": "46ff3799e22ae21a60ef0439656c2afc5146afdec101fdaa6b02b5758713e734",
+      "sha256": "cb80c8466bca2c47eb921e9d01affcce0369afd9dd8f40e94b24095981d997a8",
       "snippets": [
         {
           "lang": "ts",
@@ -3891,7 +3892,7 @@
       ],
       "reviewed": "2026-08-21",
       "reviewedAuthoritiesDigest": "sha256:d8b4dfcc49fbaa6a1fcd618cc68a024136ddcdcc44f3f5c39a5a1d34c3336574",
-      "sha256": "419d598d8726257b09bc8c9a84d8fdcfbf7f166c7b20ea8af99ae54bffa263f3",
+      "sha256": "034313cdea88cc64d295c4e0f39119b9ec10597d9a3658c1f22a15f1700a77e7",
       "snippets": [
         {
           "lang": "ts",
@@ -4043,7 +4044,7 @@
       ],
       "reviewed": "2026-08-21",
       "reviewedAuthoritiesDigest": "sha256:5263e12d419fe89fd2f635df8795357d1d344add33becfa5dcc8d07af0d312b2",
-      "sha256": "ae26b60ec86faf166f371415124a52b7ccf897a30b2a82d0a8beb6b422bd908c",
+      "sha256": "baab56eff0cf0a585dd4e9774df9102337977617f79320cdd2e03e42ee0cf1e9",
       "snippets": [
         {
           "lang": "json",
@@ -4934,7 +4935,7 @@
       ],
       "reviewed": "2026-08-21",
       "reviewedAuthoritiesDigest": "sha256:dc636112af1bf4c02640204a13226a5e75261f71c7ea013eb578170b04bfaf6b",
-      "sha256": "526f14cb0ccf2beef773b7b2d91c238fc7d5419d3b363dd072785cdd7d7c0d73",
+      "sha256": "3e066b88609cabb75aca1e17035fcfb8de428a360eed5d001ce75741811f0299",
       "snippets": [
         {
           "lang": "js",
@@ -5910,8 +5911,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:a4d031751a7727b6d6b80246a29dfde4464662d20ca48a86191dc2d9548363f2",
-      "sha256": "6e672ca43c3e0d4fce9fb3d7dacaeebb779cf4424067622ba283846f7dadf77b",
+      "reviewedAuthoritiesDigest": "sha256:0d6f039bb69517bce5bd2a47579116225ce4b847662f3a8f890b04595e4f2358",
+      "sha256": "c76ffba2ef83d94586327d0cfbe575419194a065e7b5f02bb02263ec4b070beb",
       "snippets": []
     },
     "reference.api.expo.snapback.cli.verify": {
@@ -5933,7 +5934,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:d280478384be1d1cdf3b1c9603089419abe13fb106e93c178340091a2f8d1f32",
-      "sha256": "c5bcf6d9cf953d29f1950656721504d4ea2db7a843880b15f2b85c885aaf3a06",
+      "sha256": "51e4cc072ea808ba83ca3cf49ea9af0080877ca7b425f34a8df667bb03f63eec",
       "snippets": [
         {
           "lang": "ts",
@@ -6068,7 +6069,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:6190936b9ca638b2e6a7333797d8c6c835e56d0ab536f50e1824ae9c1a256ec0",
-      "sha256": "86bd7876016bbabb5c8493bf3da411e0065cb02fa5d108b2c977b92d58cbe969",
+      "sha256": "ee0b2eb10da821ee0d3f0e1c357ee80e3e8795388abdc470f44f663760d9a027",
       "snippets": [
         {
           "lang": "ts",
@@ -6159,7 +6160,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:975e5865a4359611b97a20f1f53fc72f3026788de8ceeddf519322d09b1c2f57",
-      "sha256": "391ee481f81587dab5f7ec07e43705213fb1de7ced166882869d5766fb6855fe",
+      "sha256": "401a0b8a4dc085a38568563ff64322e1ff589b6673107a5244efc33ae5a6df41",
       "snippets": [
         {
           "lang": "ts",
@@ -6206,7 +6207,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:e85543eb5dd60c0e769b9d4aa455da3c8c16b7042fa0387c72d846b36f7b3f19",
-      "sha256": "23007945c1c9e0fdaff2af10766c951c9bd4e2bb32adc903aaa5201c8650053d",
+      "sha256": "c234dbd168278bb562073c4babded028d7480e5ed4dbdccccf91408d3bc2d463",
       "snippets": [
         {
           "lang": "ts",
@@ -6265,7 +6266,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:b5d24cdd786b802ad281b7dbe2da252bff975c52c50e6d363087ec1f2d127015",
-      "sha256": "f52004f2621e5afcaeb67b74c9feb5d13d509b949095191b1fd3666e3d818424",
+      "sha256": "7f12c3fa3d5494a0949cd49aa0067bb0855de82cf4b42ba7736759df7b8d3275",
       "snippets": [
         {
           "lang": "ts",
@@ -6312,7 +6313,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:f48ebbc36f9a7434e672beafd00c2353e185882962353a55273a2193a8f43fb1",
-      "sha256": "3eed1ce85fe9be3b0f782c97fbb63147fb248cbd85c0e5af537dec7e4b20b079",
+      "sha256": "e6f9427e47e4c6a8e51092405d5bc5735dcd4bb276f71c8c002e6beff3c49b02",
       "snippets": [
         {
           "lang": "ts",
@@ -6471,7 +6472,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:c8ca289b660ef9ade819bafb3b2b1591be1254f36f05cb0bac37526dcac352d1",
-      "sha256": "5a6f97cc892b36e196b288b05a5834f55f273c44cae2714f0b3de72f722f6c0e",
+      "sha256": "8c28d682b1051f49c7c68006eedc404a036b62044cf135386c37d07f0853df4e",
       "snippets": [
         {
           "lang": "ts",
@@ -6534,7 +6535,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:4255e5647ff7510f10a30314be9cf2b0ae4fb71875f4309694c31673517eac86",
-      "sha256": "55fbf868f64dd82f082ca8e55cfbe54ae11fdee04d44118c0fbaf5ce8d2974d4",
+      "sha256": "94daabbb515b0a1b650e2dda48d1e025d6831c6895017b5e2f9ff0a78c53857a",
       "snippets": [
         {
           "lang": "ts",
@@ -6573,7 +6574,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:01a5f47d6a8ae38493fdcb7f765bcdd3a2276577aea11f465dc15a3b751b48c0",
-      "sha256": "1ba89e6828f100f49389870f68b56ed7e0b5c7c62c297377578adf924aa9ecb3",
+      "sha256": "3f855e53c0f3ee4916c025823485e088fd2cff4fc847a9ab1b75facdaa9d2e33",
       "snippets": [
         {
           "lang": "ts",
@@ -6660,7 +6661,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:39fbbd555051db7edb88650d3f4cd9d52200060bc563016bdbaa68adf4b1b09e",
-      "sha256": "3f6620ca46d7aa8e17ce119f654884ffb363bed82861ba4ef8fd70a591d3ac15",
+      "sha256": "021fad333194a7cd65e841ba63a29167da85c4b4a5cc82e3461b9e7326d52dd4",
       "snippets": [
         {
           "lang": "ts",
@@ -6795,7 +6796,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:a40dce3b7bf45c358f142dd669814fe33f6526f7c057fb0f3235790ec00391d7",
-      "sha256": "a06e9f3b1a555de0ef050a99bb5d386659afe95119c5c79cf971d7a32f7a8dfb",
+      "sha256": "ab73913047b63e358d2bf99f6fd8b8385ee5040e6f04e00bee5eb7508cdec310",
       "snippets": [
         {
           "lang": "ts",
@@ -6846,7 +6847,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:fe313c8609cd816098947ba87316c44bf603c93d6d02a704fbdbcc10bea0eece",
-      "sha256": "e0a601522c217c6a45e7baa4e7f13dd7675ca9a07470d0121e78c19f9b5ad89a",
+      "sha256": "29f95715d2985174197ae9e5c0a0456460cce3c4c80a0b1e64d5921db0b26ccd",
       "snippets": [
         {
           "lang": "ts",
@@ -6893,7 +6894,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:b9940869d395efcb2f3ab075ae36e2e0a010d0636d4cfc34b8748a639ae763c3",
-      "sha256": "724348a05b043f38487f87748020877fc1d1c85d34d3b55d97cd2fc41ef1c083",
+      "sha256": "829965a1729c3ae7cbcedac99643fdeb73858f64265fc2c1a21494d30706dcb8",
       "snippets": [
         {
           "lang": "ts",
@@ -6976,7 +6977,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:b872c471e58a72e87c27d9b28b855b3263dfad997a9e0dd8be92a386401541d5",
-      "sha256": "ca502366ad38ec4e2e08406f7b2305527632b917f172c0aaca24b4cd6fe12d6f",
+      "sha256": "99eea02ea70a208804d14940417cc13acd0a3cfd5b3047244958b97c9d4bb988",
       "snippets": [
         {
           "lang": "ts",
@@ -7007,7 +7008,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:c3e67db85c38c07538e6055eb1f7ce30e7adcf6f2d4a23d1eff84b65fd607e93",
-      "sha256": "7322030ed923b7f909894270f62de697aef5582c957713f8816c1f766afe604b",
+      "sha256": "d4e90a1e29ef8e98796a18be5a13a2ff9e32d97d9553bc1a65dca1a39009941b",
       "snippets": [
         {
           "lang": "ts",
@@ -7098,7 +7099,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:de523fa37164a06137fc63cd1adf085981f64144eecc4589a339e4c912a4093e",
-      "sha256": "fe3ea9c11c78854ccbde4e18d960d24d2fe184c53a7e980f6a6c8728f1f737bb",
+      "sha256": "1ea3077b82df1573078e12d5a07b85df74e6c6d529742e0b2308bfe0ccf8bf45",
       "snippets": [
         {
           "lang": "ts",
@@ -7145,7 +7146,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:eadd0fe0108ed3e199206efc18a356ebb9cb42406982d72e7b19125e9e466a69",
-      "sha256": "56936382811d46f1a408beab695bf753b1368f8631481f40a88367ddf94cbdd2",
+      "sha256": "5047d690ec4e2d7325b001bc906f94fd57c2f61f9d09a517d7c987b3a0259ebe",
       "snippets": [
         {
           "lang": "ts",
@@ -7248,7 +7249,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:27f9f916aaef90665c8fb6231df75450cf996a283ea2a18afda493718b20b647",
-      "sha256": "13fdd787f880d57934bb994ad140e466ffeb78d101a42c9110f3f68b8cb66bf2",
+      "sha256": "52326a172d63e7818f128c19e9f5eba0829e4e8e04bc8191c515c0deeb9c2a01",
       "snippets": [
         {
           "lang": "ts",
@@ -7367,7 +7368,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:5e17302691ced849901140f45270a4fb736c8b5ae68ea8c7fe3e1b91f05c9579",
-      "sha256": "de82cc722c9985cffd64c32a946253601e7c1c9aaacadfe23d082b79442a8f77",
+      "sha256": "9894700d3568fd1cb5c61585f75055bfefaee33a3f5172c21ce10a26fb11c5ee",
       "snippets": [
         {
           "lang": "ts",
@@ -7454,7 +7455,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:4766a385db57ba9c98e05cf7b72c2ddfc1f72f981f8a719bfaa99de84bc1a064",
-      "sha256": "4fa638df946c10d8a9dc93124c4e68241f8666b4c05e0fafe0975bf6777b0abb",
+      "sha256": "795c7f82bff5f3072680089ac76b1b39ed0e2b024324599359754144b8c9abd8",
       "snippets": [
         {
           "lang": "ts",
@@ -7493,7 +7494,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:da139bd8140b6770ecb929afb1570f7b6cd73f891378944eb6c297a799b1bba7",
-      "sha256": "2d647b00ec4b7671b3d673c30c9d5462ac39ab672d0f3a4b84d552ad017c292d",
+      "sha256": "2c241565eab943455c6859a863c127360988ee857faad42f9b8c9d01cc5a84a1",
       "snippets": [
         {
           "lang": "ts",
@@ -7552,7 +7553,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:d36af46626c7cf6004ba1c504264924ede56ec673dc3be19c44a605d5286ee6a",
-      "sha256": "a65b02eca4d5cd0336988049c4bd76f3c0886a8a74ca631f1bc0df1a5bfef8af",
+      "sha256": "09a8e94572b1c5e4adbb300215d552d018d419e81ee5f5c5fb0b5a80d3bffaa6",
       "snippets": [
         {
           "lang": "ts",
@@ -7591,7 +7592,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:ae0165bb0cc3bc222c01a6bd39d381ee603abca35c45b03e3362439fa6edaf87",
-      "sha256": "6f96f67c13937fbba288346743f271ff3766e997e226239492a63db714cfd127",
+      "sha256": "6bb4a192eed438a6ad7540f31ce201e5267c6540e22ca5f6a0acb6c47f6a344d",
       "snippets": [
         {
           "lang": "ts",
@@ -7662,7 +7663,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:685be75e9b4356f740e3a48fe4637350ae51a740b9870dc82b26f4255065f2e5",
-      "sha256": "e4d68bce260398b9745b29ef2c7a9b95043f4a08a5ba39865496188f696efdc0",
+      "sha256": "8b73280148731dbbbe11b6cb7bad55feef82c41d7ae26ac41f40157ee39a7a7d",
       "snippets": [
         {
           "lang": "ts",
@@ -7789,7 +7790,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:aaf591c02a0d05359279c695b8c1684e123be72eb447a01dae8d2c67562aab62",
-      "sha256": "93891a47cf8658a49f3d74f28339e2771665e15990c74790dd9fc3db688f4cff",
+      "sha256": "0ceb95c972848b6227242d17a5b24f8fd03c73c304de93b600f33c401dc223cf",
       "snippets": [
         {
           "lang": "ts",
@@ -7828,7 +7829,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:e9bcdea2703af83d9b2f96cc5f7314d643f1732ea0ab3e39ff026cc4575b4313",
-      "sha256": "613e5980d6e50ef565501d80be0db3d6e1b0a40aef63ab0280330cd3da5c5116",
+      "sha256": "932ee83e0e3fc1a9cfa487b583d146b06294871be2f73d1c8d52c5f2c838d14f",
       "snippets": [
         {
           "lang": "ts",
@@ -7879,7 +7880,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:c4a2cb9665c2cb19841e776480f391d7203a226d0832fba535feb4623f7b488c",
-      "sha256": "2061fca87528ae035f13c2e0f345278b928841aa633241996f2e97fdad835dac",
+      "sha256": "fcfdb681573bf8de0f8220509580fd6f2f56383cad862e12df7cb33d49a2f6e1",
       "snippets": [
         {
           "lang": "ts",
@@ -7986,7 +7987,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:ba5760af358b2ffb90f3a928a07a5d27dc01464aea7245d8cfe5a83db3ea6347",
-      "sha256": "bccf045df3715d6f9fdfae7140e7aa2766f7a2c3f79da1f44db579c71bd54faf",
+      "sha256": "08801cb86a6fb53485dc61cbdf46f7071bc1cdbd432b5a4d76daa4a525c81929",
       "snippets": [
         {
           "lang": "ts",
@@ -8025,7 +8026,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:076682d395535d4ae9f546e167a05b9b7078d52b93588ce681c44fab0292768b",
-      "sha256": "c9b6480b5d3ae4d89e82e29b71184d4f441f7601a8cbcca60dbc8ebbedb14995",
+      "sha256": "52db0d63138925a5987c8aedc5100e433b0df4a9e9556901559a9870debda3d4",
       "snippets": [
         {
           "lang": "ts",
@@ -8084,7 +8085,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:2283bbf069746752338eac5e2f9f7d952a102e912c7472d7bbd49ac2c2f6e2e1",
-      "sha256": "fe1ad27e9691e9527f3c88ca60aabcb3590295328b40be6d6beea8415324c7b9",
+      "sha256": "4a0394b442468770cdb056ad826148c0b2dd30007336a76cb0c5786889115d78",
       "snippets": [
         {
           "lang": "ts",
@@ -8195,7 +8196,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:cea8edd9ccad6702b9ac73877db706afb76110c4ec7def0f471c4107624c04e7",
-      "sha256": "e32f58eeff1898275d9121ada6e089782788f545782274979b737a269f350a1f",
+      "sha256": "2e84bf71eb68dafafb70a6af1a852a1ded59851bde3559e5e1edd97927b72a1e",
       "snippets": [
         {
           "lang": "ts",
@@ -8262,7 +8263,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:cbe02065a4b36b450fa637b6a6bd77d3f3b2a5eb57e2ed01fe84a6ae635d76b1",
-      "sha256": "ae91f89179717e566783c9af0857b87f98b6023febc1bbb0d6d1ddc7c183eb42",
+      "sha256": "9f9e791da4e67776486f76528f5fa264acb5ef6a99af06c57baec4f3417d8342",
       "snippets": [
         {
           "lang": "ts",
@@ -8345,7 +8346,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:f1871d5ce8013951c224701003618c7f71863eb28c03d9ba0eb26bf9efd49c1c",
-      "sha256": "00a922e050efe01eeeab5e7f705618c46a3a351b2c4ec73d0967fbd5f54e97de",
+      "sha256": "03217d8f0acfdb489fd7b021cc6e6c4ef0e1f3fef0a923fe2005f64de17e708a",
       "snippets": [
         {
           "lang": "ts",
@@ -8424,7 +8425,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:dd552f84379ff98cb37ef2daa00bbffb87f93e1e0a928cc3530dbe3343a833a5",
-      "sha256": "2ea11a37b54afd7c06ce61830549753ae87ed84c3cb947221af6be4e875b0589",
+      "sha256": "5708c2ed7641770afb3d9fda0a17f542245af27ad016bd37182a4052f993c8d9",
       "snippets": [
         {
           "lang": "ts",
@@ -8475,7 +8476,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:af9d3b16c2053a94c7a096b83d2e0f8a9c7073c3e87331e73cad4f83d576aa97",
-      "sha256": "61240c4c5741312638da1b16a8c2a2c993252362cae258e9a0d259eec0ff7931",
+      "sha256": "37020ffab916b59d89662f040a0c8b7633f7a57f4fd32d74151a2a070a187554",
       "snippets": [
         {
           "lang": "ts",
@@ -8546,7 +8547,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:89805ff084e59263ea0ee31b0476fce309e53852e700a2566957ee2d5cc11535",
-      "sha256": "c1449932afd2c023d0bace4510efbaccd2da419d0d6dc0cc2bdd855ec85ed368",
+      "sha256": "34f8132e1b922fb60bbee1ec0919991639325b90475587028561e2a066535685",
       "snippets": [
         {
           "lang": "ts",
@@ -8605,7 +8606,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:557086556faffdd50114febdca42cde731f77e9c7f1e344ccc3c52712d6d0ac9",
-      "sha256": "c9162dc6d8d7ab8a5c1c3a2b74a570e039cabdd6a32caf4c2a050a347482c44b",
+      "sha256": "05f029bbcfc9fd5f9b90c1f89901535c13b9dd89324f65b0b1551e70772223b4",
       "snippets": [
         {
           "lang": "ts",
@@ -8724,7 +8725,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:ff42cd478d9b988d52584160c1e8970f780695a31f57c3c825fbe38cb4cda784",
-      "sha256": "1b7d6fc1b95fe856beb796a53df548db7d8801740c25fd1bb852a22e25307767",
+      "sha256": "ddcb9126bb900d53117178a4eb09e810b057a762311343ebd539d8790ae9c9b9",
       "snippets": [
         {
           "lang": "ts",
@@ -8863,7 +8864,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:0aa7d8ef48a5c0bf04040c13b1dcf2f5c9148ccd8af5021ce1b15ad60a93adf3",
-      "sha256": "54a820a7a41dfe841a3d3421a86bd4b291b61ff61f535f8850be477b6a7bc98c",
+      "sha256": "6f3c64726b884328ec59ee87e22208b144106ab2736b90b94b16de6ae4fada21",
       "snippets": [
         {
           "lang": "ts",
@@ -8930,7 +8931,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:91428925f0c6914c55dbf7fddefac05eccc7a2fd10900c83af3b159095dc0b8a",
-      "sha256": "c3d142ccb5489e73a6879688871d439026420d8c46a510eb6bee8d70ee0fe23c",
+      "sha256": "c4352dd9595e049817aac3b71ec4e3806f3e6d31ea5a80c9cd8074aba7ad7fbd",
       "snippets": [
         {
           "lang": "ts",
@@ -8972,8 +8973,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:e3eecf37de10eb4b48fe8bfdec049f29487e6fb4daa21c6d4d21e5b1745bb3c8",
-      "sha256": "7524212693e38171837dd32fe721997349a4bab562e1eb93d295a274fc41bfe6",
+      "reviewedAuthoritiesDigest": "sha256:56e97fef71ebfe5a72a8c1038541c3c93ddf3584e01e93e909f0eb78b4ac6dc8",
+      "sha256": "ae32df45a33d630a820a1a88ef24f4c1d68322705201081a0492f81bf4ff178a",
       "snippets": [
         {
           "lang": "ts",
@@ -10248,7 +10249,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:cb57a18e21995660d8aebfb898812bbc46e8d7662b11e83c7e7c9d1263589722",
-      "sha256": "f69c0e228873c6a53a2a397526f30e95e49a921fecec67619390695abbfd98e0",
+      "sha256": "02be37fcabfe830a263f1993c62afc447267e97c11136f215cfb31e9d4eb8cd1",
       "snippets": [
         {
           "lang": "ts",
@@ -10451,7 +10452,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:3b4ad7f96c5994fdace341b205c386130c7257a4f785b08db484a80c6be579ca",
-      "sha256": "37b275b007875733dcb75ef52808c10d5fc17e1ebff14a0e92f80f5135f072cc",
+      "sha256": "cc120f883e26d3419d94a5af3256ab00c415be5bcaefa82b2c7c2200f8d55931",
       "snippets": [
         {
           "lang": "ts",
@@ -10526,7 +10527,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:7bcc32020cec4783a426623ca783be2fa2111ab908ed1c8173df1741c384147a",
-      "sha256": "54c59c6c2ab4a6bf03dfb938ba4da461ab6593f80ef72a5d0939ed58f012ec48",
+      "sha256": "34b235eea891ccac4146fa2d107a31b0eee5216d3e77026a2afacdba1b054321",
       "snippets": [
         {
           "lang": "ts",
@@ -10573,7 +10574,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:0622eb1c4e32db5292654bc5f31147dbf4b0772f31700f8505e2180c68cedba6",
-      "sha256": "2eff163897b57e5a31e0d14728f08df099fccc3363d25c40907c098d825cce4b",
+      "sha256": "bb956b92c5762fba944137c660ef3a856bd1361b75a641d122cca0f5d3e8323c",
       "snippets": [
         {
           "lang": "ts",
@@ -10624,7 +10625,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:7bcc32020cec4783a426623ca783be2fa2111ab908ed1c8173df1741c384147a",
-      "sha256": "0dab1e23f241da2df622b3f049fc6768e6e161aa28de7557d8a82a226fec7df2",
+      "sha256": "caa46645fdaf547da349c1d017ad356d8bce6760851acadbb4f4e523734e267f",
       "snippets": [
         {
           "lang": "ts",
@@ -10671,7 +10672,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:7e38f65edfa27951c99571309413b0400a4dce17027fda6ce91fdbf4b05841af",
-      "sha256": "795d48d787dd1b78b16e9ed160b96a884fed78d91a968d331d6a032cea8f1c44",
+      "sha256": "516ef7522123df53c4d5b83d6c8043ecf6dcb2014c9283d7f007baaa9560eb9d",
       "snippets": [
         {
           "lang": "ts",
@@ -10742,7 +10743,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:73bc7e96b968c98649f791b9faa21fe6b6317603ef59d8ea2df0c783afcc1997",
-      "sha256": "b7ba18e085e30c01c1f38833150c9762643ff9856c46ea83b7a70aa1f02c6a85",
+      "sha256": "cbb10822eff00e51f8b9393c3af2e6d44cf3d496bd4e38f08d7f2d9b9ad3733c",
       "snippets": [
         {
           "lang": "ts",
@@ -11560,8 +11561,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:bd88294d61503995a1fdc05c898393597446d228eac6d2aa764f0d4852f39d02",
-      "sha256": "71068fa935f0d7874d14a9ae3ec0865ec22eaeedce2ba15cc9c3b311638cba47",
+      "reviewedAuthoritiesDigest": "sha256:d73e297b80a9afb0a574ccb4e1c49ffee7e50eb2b202f3edb685622cf75ff046",
+      "sha256": "26cdd31aa6d086f2aec2fcca8137694b1eb8a8212e92bd9d27f65e8405150bcf",
       "snippets": [
         {
           "lang": "ts",
@@ -11855,8 +11856,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:41cdea18b0261f575ce41636013df6596d005816bf1656f875eb48f7779343dc",
-      "sha256": "7798cff5b2390d3f20e973454c0870049ab12e0bbbc76eab22439d3a9ca254dd",
+      "reviewedAuthoritiesDigest": "sha256:06709ad2e33e19399c906f7dca6a9bd9a66a4a39e9d08d66462be6c8fabaa42e",
+      "sha256": "f932aa1b46edbb2cb5bc5209f0588d5fd9688f1ddb7346dfb85173822bdb602d",
       "snippets": [
         {
           "lang": "ts",
@@ -11946,8 +11947,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:0b3e403877273b5fc147f131f77efb43b9901e3b61b52e99d6b6f49abd42d611",
-      "sha256": "d1bd85e57704ece7cf5d0cc3746b483dd817db016b3c6526785304ec9fbdb094",
+      "reviewedAuthoritiesDigest": "sha256:a0d5f2ba2fa134356a97e976230002d69da5dba4de65e83e8459da49e0869ba6",
+      "sha256": "179b9d5e8e7343eae3f6d249ba4dcc21f4aa3403fa6838c9eb31ed5ba1703157",
       "snippets": [
         {
           "lang": "ts",
@@ -11989,8 +11990,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:63e7cb128e1e495f9f8ca2f72df4a9fc9ccd279066a3d64e442342d9640271a3",
-      "sha256": "8d45c21dff5699cf86555e3f664016526b6df875319ad66b4b323436b22467e8",
+      "reviewedAuthoritiesDigest": "sha256:83441d323196cb49169a1a877e1b1428ddf88c00f7c3fca051a56159ed0159e4",
+      "sha256": "2495c9c2ee1565c6c56fc64e6f140ccf12184bf9b07d00970deb2e8deac72002",
       "snippets": [
         {
           "lang": "ts",
@@ -12610,7 +12611,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:a1196b654ff0249aaa9feccfa9c15b6666ead1b769f592a13f9b63a2b9cfbad2",
-      "sha256": "04a3321746ee07c20b9b6030ddaf88c7f6c399015a466bbd5400e2285cedc264",
+      "sha256": "f15e0412bb32e72381ff991ae1b8edacd31dc946f020676e5084307ba84d2007",
       "snippets": []
     },
     "meta.retrieval-eval": {
@@ -12630,7 +12631,7 @@
       "examples": [],
       "reviewed": "2026-08-22",
       "reviewedAuthoritiesDigest": "sha256:10af46608872447c531a418afe66fcbdafccb07872e6f8a0a20c6b3257b73c57",
-      "sha256": "5bf1baee61ba0773817f7be43537edb72cd11538c71b2ac259d30be7b9972678",
+      "sha256": "6480e06ea845d51b2c1a02d133aedcd9c10688b6f99e939df7aa7b0089ef4ac6",
       "snippets": []
     },
     "start.crud-dashboard": {
@@ -12675,7 +12676,7 @@
       ],
       "reviewed": "2026-08-21",
       "reviewedAuthoritiesDigest": "sha256:fa5149534a7e89282b33bbc909f7bf781c85381bb7d3b0771d1f0bcfd095c65a",
-      "sha256": "79d61e1bbd59764cdb5b5553915c72e547324fc40aae491ca815ff989a9049e0",
+      "sha256": "9450257672cfcdbe45d303c5bbf7a4e455dd0987b475c962e6a43d5d3c21996c",
       "snippets": []
     },
     "start.index": {
@@ -12804,7 +12805,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:ecc5fe3900eaed7359f58b7e31139a32a633368e04b81e44db0110d621b48a9a",
-      "sha256": "cf8984a2beb6f0740f4092aaec9eb857b11abc645eee98ca95708d5796f8ffc5",
+      "sha256": "7dda6f36b47a743cb5f9be2ae2c2eae2fc3563d5ac767a731d0e879e126b4ca5",
       "snippets": []
     },
     "sync.offline-and-retention": {
@@ -13130,8 +13131,8 @@
       "path": "guide/reference/registry.json",
       "title": "Build-bound public API symbol registry",
       "mediaType": "application/json",
-      "bytes": 4876212,
-      "sha256": "26893fdbc7c36b1e98a1bfcf0b4b0a6be236d8e1b936f37aefa9d6525d9e1e59",
+      "bytes": 4885031,
+      "sha256": "724d4ed7a63781ddf510f7e483b7c337be1c03aed8b6121f95cdab8ff85b5397",
       "uri": "snapback-guide://reference/registry",
       "servedPath": "/_snapback/guide/reference/registry.json",
       "projections": {
@@ -13140,7 +13141,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-symbol-registry.v1",
-      "sourceDigest": "sha256:15e205a17371d193a74565fba2c8e01c3b4467f9ab278fe512f1ce1175feb070",
+      "sourceDigest": "sha256:93511c1f02b3cd5d8a56b73bde7f8c86f57edb6938fb98834df2e3dbb7a296f3",
       "modules": 52,
       "symbols": 1370
     },
@@ -13148,8 +13149,8 @@
       "path": "guide/reference/diagnostics-registry.json",
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
-      "bytes": 2716562,
-      "sha256": "135c8e9c65a73fe49b37e4163a347dbffd40859bbe87a0cfc5d234f2bfd78b86",
+      "bytes": 2729265,
+      "sha256": "ba93b2a75cd901b02622fe8bb911f5dc384ad454622c00b9532b8f5b7f4e0e0e",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -13158,9 +13159,9 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:373bf7f99212bd5a83c370606c4645114bbc52cb00c0f86b22c7457ed632087c",
-      "codes": 3584,
-      "emittingSites": 12486
+      "sourceDigest": "sha256:462e248f90cd5ab936e4e2cddb2d510a262a2c45b4b4ce5701e2ec57d2801710",
+      "codes": 3595,
+      "emittingSites": 12553
     }
   },
   "capabilities": {
@@ -13174,6 +13175,7 @@
       "auth.authorized-leases",
       "auth.browser-session-custody",
       "auth.external-identity-broker",
+      "auth.guest-sessions",
       "auth.invalidation-barrier",
       "auth.logical-transfer",
       "auth.passwords",
@@ -13292,7 +13294,7 @@
     ]
   },
   "surfaces": {
-    "routes": 171,
+    "routes": 173,
     "hostOps": 51
   },
   "flatProjections": {
@@ -13300,23 +13302,23 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3809747,
-      "sha256": "7cc3c174937e665c010d32e7c6ca40ad7bfc5a9328c891671337fe55dc840eaa"
+      "bytes": 3820268,
+      "sha256": "bf8978b4556956cf93c412965a789085b25086e6679d18c869a0f6434d49f6b8"
     },
     "sections": {
       "meta": {
         "path": "guide/guide-flat.meta.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.meta.generated.md",
         "uri": "snapback-guide://flat/meta",
-        "bytes": 172333,
-        "sha256": "32548f8025050374303aa0d74a6d28516044b7663c615045ef4dad053b7fb591"
+        "bytes": 173839,
+        "sha256": "c2cea744636cf014d39118e63923e3bf94a2cfcb7a415dd02459cde8c808112c"
       },
       "auth": {
         "path": "guide/guide-flat.auth.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.auth.generated.md",
         "uri": "snapback-guide://flat/auth",
-        "bytes": 168250,
-        "sha256": "8f734d50ccd5aabed55c6840ba5151b1f3a72cf2855fab3a19cd0b78a2f020fe"
+        "bytes": 173047,
+        "sha256": "ba6a320624defd5bd8ef3d9602ea9aab874c2a2af943e5297c88ac17a1d8c683"
       },
       "backend": {
         "path": "guide/guide-flat.backend.generated.md",
@@ -13329,8 +13331,8 @@
         "path": "guide/guide-flat.clients.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.clients.generated.md",
         "uri": "snapback-guide://flat/clients",
-        "bytes": 259930,
-        "sha256": "d9cee486d04e39360059372e507744fbf65a04f3bc90afb14320271d21948400"
+        "bytes": 259799,
+        "sha256": "d1d1be82b6c770f0c892174bba3376b317d5e7009993f6d90ad7481a91414ac6"
       },
       "deploying": {
         "path": "guide/guide-flat.deploying.generated.md",
@@ -13343,8 +13345,8 @@
         "path": "guide/guide-flat.getting-started.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.getting-started.generated.md",
         "uri": "snapback-guide://flat/getting-started",
-        "bytes": 65201,
-        "sha256": "bd72219bc9888ae845b88245d47365de43eee8531c488d56b6e4418adcb653b1"
+        "bytes": 65120,
+        "sha256": "53d0acee3c0b965540b6146eb484e960969a09b3b04f557b0eb523e8d156d54b"
       },
       "operating": {
         "path": "guide/guide-flat.operating.generated.md",
@@ -13371,22 +13373,22 @@
         "path": "guide/guide-flat.recipes.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.recipes.generated.md",
         "uri": "snapback-guide://flat/recipes",
-        "bytes": 240195,
-        "sha256": "82efe6c5b11d50f62f53b34b1dcdd9a4fe5421cab52f05391e6d7ee3a77a264d"
+        "bytes": 240404,
+        "sha256": "8f57716d61117f889c236e84cd4476152ea2cb5f7821cc32a3a45644d962462e"
       },
       "reference": {
         "path": "guide/guide-flat.reference.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.reference.generated.md",
         "uri": "snapback-guide://flat/reference",
-        "bytes": 2126333,
-        "sha256": "5d5879450293fa3b12fef45294f7e92bfdbe22caf6b20f1588e694d1fb8cd5a2"
+        "bytes": 2130468,
+        "sha256": "227a9f6e744990f1d31fc6b7e27cb5a6010ede14f6704d259c8e61f47c6043ee"
       },
       "start": {
         "path": "guide/guide-flat.start.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.start.generated.md",
         "uri": "snapback-guide://flat/start",
-        "bytes": 20292,
-        "sha256": "7be089df2e25797b5038c10e99e61f3ff700ee69437fb6ea9d27af8eb86c4b44"
+        "bytes": 20378,
+        "sha256": "234a53a9ecbb305fb2bf39300bdc7225c8b1bf214668c7080f0b0cd9ea0376f2"
       },
       "sync": {
         "path": "guide/guide-flat.sync.generated.md",
@@ -13404,5 +13406,5 @@
       }
     }
   },
-  "contentHash": "6b9f1138cf09880543f5ea14b9db5e1a564a298309c746b322180bf48b0ddd43"
+  "contentHash": "68de9473e2895c53edcd1c26c71ec9832aedef34f5654bfb7c93cf1bf6268254"
 }

@@ -84,7 +84,7 @@
       ]
     }
   },
-  "inputsHash": "f07a87a21cae44dcc904aced9d5c4ef20de551c9e1714c24a40ccf26d4560e16",
+  "inputsHash": "f0db453b31f73410e89fa871a69e85da69cbe900f8a3f2b1f34e66b9e460a6c3",
   "mutationSettlement": {
     "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
     "dispositions": [
@@ -615,6 +615,16 @@
       "sourceFields": [
         {
           "bootstrapProjection": [],
+          "disposition": "auth-abuse-policy-source",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared generated abuse-policy extension"
+          },
+          "field": "abuseBudgets",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
+        {
+          "bootstrapProjection": [],
           "disposition": "semantic-source-no-bootstrap-field",
           "familiarDisposition": {
             "disposition": 1,
@@ -648,8 +658,10 @@
           "semanticIdentityEffect": "included-in-normalized-auth-program"
         },
         {
-          "bootstrapProjection": [],
-          "disposition": "semantic-source-not-anonymous-public",
+          "bootstrapProjection": [
+            "entryMechanisms"
+          ],
+          "disposition": "guest-entry-policy-source",
           "familiarDisposition": {
             "disposition": 1,
             "route": "shared auth extension"
@@ -1117,6 +1129,40 @@
         {
           "configured": false,
           "familiarHook": "useAuth",
+          "mechanism": "guest-v1",
+          "operations": [
+            {
+              "applicationFacadeMethod": "enterAsGuest",
+              "clientMethod": "authEnterAsGuest",
+              "clientNamespaceMethod": "authEnterAsGuest",
+              "facadeMethod": "enterAsGuest",
+              "facadeOwner": "SnapbackAppClient.auth",
+              "operation": "enter",
+              "predecessor": "settled-anonymous-or-process-local-supervised-adopted",
+              "recoveryProjection": "none",
+              "resultType": "Promise<AuthCredentialPublicProjectionV1>"
+            },
+            {
+              "applicationFacadeMethod": "claimGuestWithPassword",
+              "clientMethod": "authClaimGuestWithPassword",
+              "clientNamespaceMethod": "authClaimGuestWithPassword",
+              "collisionContract": "different-principal-refuses-without-link-merge-or-switch",
+              "facadeMethod": "claimGuestWithPassword",
+              "facadeOwner": "SnapbackAppClient.auth",
+              "operation": "claim-password",
+              "predecessor": "settled-active-guest-same-session-and-authority",
+              "recoveryProjection": "one-time-response",
+              "resultType": "Promise<AuthRecoveryCredentialPublicProjectionV1>",
+              "targetCapability": "auth.guest-sessions"
+            }
+          ],
+          "phase": "shipped",
+          "reactHook": "useSnapbackAuth",
+          "targetCapability": "auth.guest-sessions"
+        },
+        {
+          "configured": false,
+          "familiarHook": "useAuth",
           "mechanism": "password-v1",
           "operations": [
             {
@@ -1213,8 +1259,8 @@
       ],
       "sourceMechanisms": [
         {
-          "disposition": "excluded-guest-principal-is-not-entry",
-          "entryMechanism": null,
+          "disposition": "shipped-policy-gated-entry",
+          "entryMechanism": "guest-v1",
           "kind": "guest"
         },
         {
