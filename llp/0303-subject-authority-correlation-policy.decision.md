@@ -6,7 +6,7 @@
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-24
-**Revised:** 2026-08-24 (c — binding coverage added to the corollary)
+**Revised:** 2026-08-24 (d — VERIFY-vs-DERIVE root cause of coverage leaks)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
 `issues/20260824-liveness-row-bucket-assignment.md`,
 `issues/20260824-entitlement-predicates-for-the-live-sites.md`
@@ -96,6 +96,36 @@ authorize finalization. Partial coverage must be declared, never assumed from th
 
 Check the binding *predicate* too, not only its presence: Q03's issuance check ran, passed, and
 proved nothing, because it examined a collection the attacking plan left empty.
+
+### Why coverage kept leaking: both lanes chose VERIFY where DERIVE was available
+
+Q03 and Q05 reached round 3 and round 4 with the same story — correct primitive, leaking coverage —
+and the common cause is a disposition choice this ruling already warned about.
+
+A binding compared at a call site is **VERIFY**. It must be repeated at every carrier that can
+authorize a durable mutation, and any carrier added later silently opts out. That is not a
+maintenance risk in the abstract; it is what both lanes actually shipped. Q05 was reachable
+**through the production API with no `test-support` at all**: `AddressAdmission` minted one identity
+and `plan_mint_session` cloned it, so two mint plans were one operation, and `into_issue` released
+one operation's plaintext against another operation's durable session.
+
+The reviewer's fix for that names the alternative exactly:
+
+> mint inside `plan_mint_session`, or take `AddressAdmission` by value so a second plan is
+> unconstructible.
+
+That is **DERIVE**, and it is what this ruling prefers. Two rules follow:
+
+1. **Mint identity where the object is created, not upstream of it.** An identity minted at
+   admission and cloned into each plan makes every plan from that admission the same operation. Mint
+   per plan.
+2. **Consume by value what must not be reused.** `self` rather than `&self` turns "a second one
+   would be rejected" into "a second one cannot be built" — and needs no check at any call site,
+   including sites that do not exist yet.
+
+Reach for a comparison only when the pairing genuinely cannot be made unconstructible, and say why
+in the landing. A lane answering a coverage finding by adding one more comparison is treating the
+symptom; the finding is evidence that the disposition was wrong.
 
 ### A test can demonstrate the exploit and call it correct
 
