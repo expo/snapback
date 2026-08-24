@@ -1,7 +1,7 @@
 # LLP 0300: Snapback is a URL — URL-first development binding
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Review
 **Systems:** Client integration, React/Expo, Vite/Exact clients, Headless
 client, CLI, Local server lifecycle, Auth, Templates, Guide, Developer
 experience
@@ -11,6 +11,8 @@ seem to run into the same issues"; "maybe we should just try to be more like
 them"; "Let's make an LLP/RFC about this, then refine it, then make a spec,
 then implement")
 **Date:** 2026-08-24
+**Revised:** 2026-08-24 (b — Draft → Review at llp-super-refine loop start;
+author authorization: Charlie's 2026-08-24 pipeline direction)
 **Revised:** 2026-08-24 (a — initial draft)
 **Related:** LLP 0299 (supervised listener port plan — prerequisite),
 LLP 0181, LLP 0223, LLP 0258, LLP 0294, LLP 0295, LLP 0041,
