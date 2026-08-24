@@ -28870,6 +28870,7 @@ fn test_grant_session_authority(
     source: InvocationSource,
     user_id: &str,
     session_id: &str,
+    authority_instance_id: &str,
 ) -> PreparedAuthority {
     InvocationGate::prepare_authority(
         source,
@@ -28883,7 +28884,7 @@ fn test_grant_session_authority(
             session_id: session_id.to_owned(),
             provider: "email-code".to_owned(),
             generation: 1,
-            authority_instance_id: format!("grant-authority-{session_id}"),
+            authority_instance_id: authority_instance_id.to_owned(),
             session_not_after_ms: u64::MAX / 2,
             provider_not_after_ms: None,
             rehearsal_provenance: None,
@@ -28924,12 +28925,15 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
     const OTHER_OWNER_AGENT_WARNING: &str = "You do not own this agent. Its owner can re-credential it and use memberships or roles that this grant creates for the agent.";
     const FIRST_GRANTOR: &str = "user-m";
     // PreparedAuthority remains caller-constructible, so successful cases
-    // deliberately cross these notional session owners. This proves only that
-    // approval derives both claims carried by the authority; it does not claim
-    // that a durable provider session with mismatched ownership is constructible.
-    const FIRST_USER_SESSION: &str = "session-m";
+    // form a non-functional claim matrix: the same user and authority instance
+    // carry two sessions, while the same session and authority instance carry
+    // two users. This proves only that approval derives both carried claims; it
+    // does not claim that these durable provider sessions are constructible.
+    const FIRST_SESSION: &str = "session-m";
+    const SECOND_SESSION: &str = "session-x";
     const SECOND_GRANTOR: &str = "user-x";
-    const SECOND_USER_SESSION: &str = "session-x";
+    const SHARED_AUTHORITY_INSTANCE: &str = "grant-authority-independent-alpha";
+    const SECOND_AUTHORITY_INSTANCE: &str = "grant-authority-independent-beta";
     const FIRST_AGENT_OWNER: &str = "user-owner-a";
     const SECOND_AGENT_OWNER: &str = "user-owner-b";
     const FIRST_AGENT: &str = "agent-grant-approval-a";
@@ -29142,6 +29146,8 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
     #[derive(Clone, Copy)]
     enum Case {
         FirstExact,
+        SameUserSecondSession,
+        SameSessionSecondUser,
         SecondExact,
         WrongSource,
         LowerSubject,
@@ -29152,6 +29158,8 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
         fn name(self) -> &'static str {
             match self {
                 Self::FirstExact => "first-exact",
+                Self::SameUserSecondSession => "same-user-second-session",
+                Self::SameSessionSecondUser => "same-session-second-user",
                 Self::SecondExact => "second-exact",
                 Self::WrongSource => "wrong-source",
                 Self::LowerSubject => "lower-subject",
@@ -29161,21 +29169,28 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
 
         fn expected_grantor(self) -> &'static str {
             match self {
-                Self::SecondExact => SECOND_GRANTOR,
+                Self::SameSessionSecondUser | Self::SecondExact => SECOND_GRANTOR,
                 _ => FIRST_GRANTOR,
             }
         }
 
         fn expected_session(self) -> &'static str {
             match self {
-                Self::SecondExact => FIRST_USER_SESSION,
-                _ => SECOND_USER_SESSION,
+                Self::SameUserSecondSession | Self::SecondExact => SECOND_SESSION,
+                _ => FIRST_SESSION,
+            }
+        }
+
+        fn authority_instance_id(self) -> &'static str {
+            match self {
+                Self::SecondExact => SECOND_AUTHORITY_INSTANCE,
+                _ => SHARED_AUTHORITY_INSTANCE,
             }
         }
 
         fn expected_agent(self) -> &'static str {
             match self {
-                Self::SecondExact => SECOND_AGENT,
+                Self::SameSessionSecondUser | Self::SecondExact => SECOND_AGENT,
                 _ => FIRST_AGENT,
             }
         }
@@ -29191,6 +29206,8 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
 
     let observations = [
         Case::FirstExact,
+        Case::SameUserSecondSession,
+        Case::SameSessionSecondUser,
         Case::SecondExact,
         Case::WrongSource,
         Case::LowerSubject,
@@ -29204,15 +29221,35 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                 test_grant_session_authority(
                     InvocationSource::AgentGrantManagement,
                     FIRST_GRANTOR,
-                    SECOND_USER_SESSION,
+                    case.expected_session(),
+                    case.authority_instance_id(),
                 ),
                 fixture.first_grantor_request_id.clone(),
+            ),
+            Case::SameUserSecondSession => (
+                test_grant_session_authority(
+                    InvocationSource::AgentGrantManagement,
+                    FIRST_GRANTOR,
+                    case.expected_session(),
+                    case.authority_instance_id(),
+                ),
+                fixture.first_grantor_request_id.clone(),
+            ),
+            Case::SameSessionSecondUser => (
+                test_grant_session_authority(
+                    InvocationSource::AgentGrantManagement,
+                    SECOND_GRANTOR,
+                    case.expected_session(),
+                    case.authority_instance_id(),
+                ),
+                fixture.second_grantor_request_id.clone(),
             ),
             Case::SecondExact => (
                 test_grant_session_authority(
                     InvocationSource::AgentGrantManagement,
                     SECOND_GRANTOR,
-                    FIRST_USER_SESSION,
+                    case.expected_session(),
+                    case.authority_instance_id(),
                 ),
                 fixture.second_grantor_request_id.clone(),
             ),
@@ -29220,7 +29257,8 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                 test_grant_session_authority(
                     InvocationSource::HttpQuery,
                     FIRST_GRANTOR,
-                    SECOND_USER_SESSION,
+                    FIRST_SESSION,
+                    SHARED_AUTHORITY_INSTANCE,
                 ),
                 fixture.first_grantor_request_id.clone(),
             ),
@@ -29228,7 +29266,8 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                 test_grant_session_authority(
                     InvocationSource::AgentGrantManagement,
                     FIRST_GRANTOR,
-                    SECOND_USER_SESSION,
+                    FIRST_SESSION,
+                    SHARED_AUTHORITY_INSTANCE,
                 ),
                 fixture.lower_request_id.clone(),
             ),
@@ -29236,7 +29275,8 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                 test_grant_session_authority(
                     InvocationSource::AgentGrantManagement,
                     FIRST_GRANTOR,
-                    SECOND_USER_SESSION,
+                    FIRST_SESSION,
+                    SHARED_AUTHORITY_INSTANCE,
                 ),
                 fixture.upper_request_id.clone(),
             ),
@@ -29285,7 +29325,15 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
                 .map(|code| (observation.case.name(), code.as_str()))
         })
         .collect::<Vec<_>>();
-    assert_eq!(accepted, vec!["first-exact", "second-exact"]);
+    assert_eq!(
+        accepted,
+        vec![
+            "first-exact",
+            "same-user-second-session",
+            "same-session-second-user",
+            "second-exact",
+        ]
+    );
     assert_eq!(
         refused,
         vec![
