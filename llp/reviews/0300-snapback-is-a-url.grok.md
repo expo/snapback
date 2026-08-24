@@ -203,3 +203,178 @@ The prompt was truncated; I’ll read the offloaded full request so the review c
 Delta (1) is an honest warrant plus a stated single-user trust boundary; shared-host direction to supervised issuance or signed discovery matches the gains table and the middle alternative. Delta (2) correctly makes mix-up detection a standing fail-closed invariant and pushes only cadence to Spec. Deltas (3)–(4) make P1 hosts, P5 listeners, and paved device transports the same set; `host.docker.internal` is rightly refused as a non-loopback interface. Deltas (5)–(9) align lead-in, Acceptance 5, allowlist replacement, library `url`, and Spec obligations with decisions already on the page. Remaining underspecification (connect-episode definition, exclusion mechanics, canonicalization) identifies no defective RFC decision and stays Spec-phase.
 
 READY
+
+## Cluster round 1 (LLP 0299 + LLP 0300 lockstep) — 2026-08-24
+
+- Cluster: 0299 (amendable Implemented sibling, author-directed) + 0300 (Review target); per-target + set verdicts; cluster review preserved once here (primary target 0300)
+- Pre-launch record + hashes: see llp/reviews/0300-snapback-is-a-url.run-journal.md (cluster section)
+- Received: complete response; verbatim body follows
+
+I'll read the full offloaded prompt first so the review covers both documents completely, then evaluate them against the lockstep criteria.0300 does change 0299. It does not simplify 0299’s supervised allocator; it re-rules 0299’s **origin-admission and receipt** contracts on the profile 0300 makes canonical, and 0299 still writes those contracts as universal. Until both documents state the same path-split (and 0300 stops claiming 0299 is unchanged), the set is not consistent.
+
+0299’s four-owner scan, pins, placeholder Metro hold, and `--expo` batteries can stay as landed. What 0300 actually makes easier is the *canonical* port surface: plain `snapback dev` owns only `backend`. The documents do not yet say that.
+
+---
+
+**1. MATERIAL — 0300 P2 (opening sentence + Compatibility) vs P5**
+
+P2 says “a development backend admits any literal loopback origin by default.” P5 says the LLP 0299 port plan and the supervised path’s code/batteries do not change. Compatibility then says the supervised path “keeps injecting exact origins (its receipts and battery are unchanged).”
+
+Those cannot all be true as written. Two incompatible systems both implement the RFC:
+
+- **Path-split (matches P5 / Acceptance 6):** `--expo` keeps 0299 exact-origin *admission* plus exact receipts; only the plain/URL profile opens loopback and records posture.
+- **Unify (the simplification the charter is reaching for):** every dev backend admits any literal loopback; planned `client` ports and `localhost`/`[::1]` aliases stop being what makes CORS work; receipts that still list exact origins *understate* the allowlist.
+
+That is a defective decision because it is stated as if decided and is not. It is also the fork that determines whether 0299 gets simpler or is merely demoted.
+
+**Change:** Pick one in P2, in one sentence, and make P5 match.
+
+Recommended (minimum behavior change, honest with Acceptance 6): *URL/plain admission is any literal loopback; `--expo` retains 0299 exact-origin admission and exact receipts.* Then P5 becomes: 0299 allocation/pins/ranges/env/holder-naming/`portPlan` are unchanged; P2 re-rules origin admission and application-ready receipt encoding **only** for the plain/URL profile.
+
+Alternative (actually simplifies 0299): unify admission on every dev backend; record that `--expo` admission **widens** (batteries still pass because injected origins remain a subset); stop pretending supervised receipts are a complete allowlist unless they too move to the versioned posture. If you want 0299 easier, this is the choice — but it *is* a supervised-path change and P5 must say so.
+
+---
+
+**2. MATERIAL — 0300 P5 + Migration + (missing) amendments-to-0299**
+
+P5’s “the LLP 0299 port plan [does not change]” is false under either fork above. 0299 is not only an allocator. It also contracts:
+
+- problem-statement (1) retained (backend must know the client origin before start);
+- §1 “declare what it does not own”;
+- §5 AUTH_ORIGINS **merge**;
+- §7 application-ready receipt **not changed**, and it **contains the planned `client` port**.
+
+P2 re-rules all four for the canonical profile. An RFC may re-rule a Spec; it may not claim it hasn’t.
+
+**Change:** Replace the P5 bullet with an explicit amendment list for 0299 (mirror 0299’s own “Amendments to other documents”). Migration step 1 should read “0299 landed the allocator; this RFC amends 0299’s origin-admission/receipt/declaration prose as listed.” Do not tombstone 0299.
+
+---
+
+**3. MATERIAL — 0299, “The problem…” (item 1) + “This Spec fixes (3)… (1) is retained”**
+
+0300 P2 is a re-rule of (1) on the canonical path: the backend no longer needs the bundler port before it starts. Leaving “is retained” as a Spec-level decision double-owns origin admission with 0300.
+
+**Change:** Keep (1) as the *pre-0300* diagnosis. Replace the retention sentence with: *LLP 0300 P2 re-rules (1) for the plain/URL profile (any literal loopback, posture recorded). The supervised `--expo` path keeps exact-origin injection as in §7/§9 unless 0300 explicitly unifies admission. (2) is answered by 0300 P1; see §8.*
+
+---
+
+**4. MATERIAL — 0299 §7 (application-ready receipt)**
+
+“The application-ready receipt (`snapback.application-ready.v1`) is not changed: it already embeds the admitted client origins, which now contain the planned `client` port” is a universal contract. 0300 P2 says the plain/URL path records **posture**, not an exact origin list, via an additive versioned representation — “not pretended additive.” After 0300, the canonical profile has no `client` owner, so “planned `client` port in the receipt” is not the canonical story.
+
+Implementing 0300 while 0299 §7 still forbids a receipt change is a collision.
+
+**Change:** Split §7:
+
+- `portPlan` in `ready` / `inspection()`: unchanged for all profiles (plain: `backend` only).
+- Supervised application-ready receipt: still exact origins, including planned `client` plus `localhost`/`[::1]` aliases (§9.1). That is a **supervised-path** contract.
+- Plain/URL receipt: LLP 0300 P2; do not claim this Spec froze that encoding.
+
+---
+
+**5. MATERIAL — 0299 §5 last paragraph vs 0300 P2 (`SNAPBACK_DEV_AUTH_ORIGINS` merge vs replace)**
+
+0299: AUTH_ORIGINS is an **environment merge** of additional origins on a **supervised** run.
+
+0300: an explicit AUTH_ORIGINS **replaces** the default and is the complete allowlist.
+
+If replace is universal, `SNAPBACK_DEV_AUTH_ORIGINS=https://tunnel.example` on `snapback dev --expo` drops the planned Metro origin and contradicts “supervised receipts and battery are unchanged.” If replace is URL-path-only, 0299’s merge can stand — but 0300 never says that. Acceptance 3 (“a tunnel *client* origin admitted via AUTH_ORIGINS works”) does not say whether loopback was restated, so it does not disambiguate.
+
+**Change:**
+
+- 0300 P2: *Replace applies to the URL/plain default (any loopback). `--expo` keeps 0299 merge onto injected exact origins. Setting AUTH_ORIGINS never drops supervisor-injected origins.*
+- 0299 §5: *Merge remains the supervised escape hatch. LLP 0300’s replace rule is the URL-path default-posture rule, not this paragraph.*
+
+(If you instead unify on replace, that is a 0299 behavior change: say it, and require `--expo` batteries that set AUTH_ORIGINS to restate injected origins.)
+
+---
+
+**6. MATERIAL — 0299 §1 (“declared, never allocated”) + §6 `--external-client-origin` row**
+
+0299’s design rule is *pin what Snapback owns, declare what it does not.* 0300’s canonical path neither owns the client nor requires a declaration for loopback clients. `--external-client-origin` is how 0299 names that declaration; 0300 Acceptance 1 never uses it; 0300 OQ4 leaves the flag’s future open.
+
+That is not “detail.” Specs cannot implement “any loopback by default” and 0299 §6’s declared-client profile without a rule for the flag.
+
+**Change:**
+
+- 0299 §1: *On the LLP 0300 URL path, loopback clients are admitted without declaration. Declaration (`SNAPBACK_DEV_AUTH_ORIGINS` / `--external-client-origin`) is for non-loopback client origins and for narrowing. `--client-port` / `--bootstrap-port` remain `--expo`-only refusals.*
+- 0300 P2 or OQ4 (close it as a product rule, even if deprecation timing stays open): *`--external-client-origin` is not required on the URL path. While it exists, it narrows like AUTH_ORIGINS (replace the default with that origin), and it stays refused with `--expo`.* Do not leave “required vs optional vs deprecated” as three live readings.
+
+---
+
+**7. MINOR — 0299 §8 OQ1 / OQ2 (0300 already answered them)**
+
+OQ2 is 0300 P1 (`declared-dev` / a URL is a first-class source). OQ1 is only partly 0300 P2: not CORS `*`, not “origin identity does not exist”; default widened to literal loopback; tunnels/preview still allowlisted.
+
+Leaving both open in an Implemented Spec while a sibling RFC decides them invites a third document.
+
+**Change:** Close OQ2 by reference to 0300 P1. Close OQ1 by reference to 0300 P2 with the “not `*`” bound. Point the bootstrap-on-backend non-goal at 0300’s matching reject.
+
+---
+
+**8. MINOR — 0299 §2 (“cookies, sessions, and IndexedDB survive”) vs bearer-only (0299 problem item 1 and 0300 P2/Security)**
+
+0299 already says Snapback auth is bearer, no cookies. §2 then uses cookie survival as the reason for stable ports. 0300 is consistent (no cookies; theft of an existing session stays closed). The remaining truths are: (a) **backend** stability so `SNAPBACK_URL` / attach / Clique ranges hold; (b) **supervised client** origin stability so *app-origin* storage survives — bundler-owned on the URL path, not a 0299 job.
+
+**Change:** Rewrite the §2 consequence paragraph to (a) and (b). Do not imply Snapback sessions live in cookies. 0300 P3’s “stable ports ⇒ `.env.local` is not stale-prone” is the canonical-path rationale; 0299 should cite it.
+
+---
+
+**9. MINOR — 0299 Summary / §3 / §5 / title: supervised-only surfaces not framed as such**
+
+These are already `--expo`-only in the §1 table and §6 refusals — not dead, and must not be deleted:
+
+| Surface | Disposition |
+| --- | --- |
+| Owners `client`, `bootstrap`, `metro` | Keep; `--expo` only |
+| `--client-port`, `--bootstrap-port`, `SNAPBACK_DEV_CLIENT_PORT`, `SNAPBACK_DEV_BOOTSTRAP_PORT` | Keep; refuse on plain (now the canonical default — refusal becomes the common miss) |
+| Descending scan, bind-at-allocation, Metro placeholder | Keep; supervised allocator |
+| Alias origin injection in the receipt | Keep as supervised exact-allowlist bookkeeping; unnecessary for URL-path admission |
+| `adb reverse` carrying planned ports | Keep; 0300 already calls this supervised polish |
+| `--client . --client-command vite` | Keep as a launcher; 0300 templates are two-process, not this profile |
+
+Nothing in the landed allocator is dead. What is dead as a *general* claim is “this composes the same way for Expo, external-client, and plain” as a product story.
+
+**Change:** One banner under the Summary: *LLP 0300 makes the §6 plain profile the canonical dev path. This Spec’s backend range/pin/`portPlan` is that path’s whole port surface. Multi-owner planning, client/bootstrap pins and env vars, Metro, and alias injection are the `--expo` convenience path.* 0300 Migration should warn that `SNAPBACK_DEV_CLIENT_PORT` / `_BOOTSTRAP_PORT` leftover in the environment will fail canonical `snapback dev` with `SNAPBACK_CLI_ARGUMENT_INVALID`.
+
+---
+
+**10. MINOR — 0300 P3 vs 0299 §6 (two-process templates vs `--client` / expo-chat `dev`)**
+
+0300 flips templates to `snapback dev snapback` + bundler. 0299 §6 still presents `--client . --client-command vite` as a peer profile, and §9.5 binds “identical origins” to “the expo-chat template’s `dev` script” as if that script stayed `--expo`.
+
+**Change:** 0299 §9.5: scope to the supervised `--expo` invocation, not “the” template script. 0300 P3: one line that `--client` remains a non-allocating launcher and is not the template.
+
+---
+
+**11. MINOR — 0300 Acceptance 3**
+
+P2’s restated-loopback rule is not in the acceptance list. A test that sets AUTH_ORIGINS to only a tunnel origin would pass Acceptance 3 and fail P2.
+
+**Change:** Acceptance 3 (or a new item): tunnel-only AUTH_ORIGINS admits the tunnel and **does not** admit loopback unless restated; restating both works.
+
+---
+
+**12. NIT — 0299 Related / Amendments**
+
+Add LLP 0300. Add the amendment notes implied by findings 3–7.
+
+---
+
+**Spec-readiness (do not block — no defective decision hiding except as already listed)**
+
+Already on 0300’s list, still Spec-phase: signed discovery; receipt posture **encoding**; URL canonicalization; dev-entry / generated-kind exclusion; re-verification cadence; OQ1 names; OQ2 path/shape.
+
+Not on the list, but **decisions** (findings 1, 5, 6) — those block this RFC, not the future Spec: admission scope; AUTH_ORIGINS combine rule per profile; `--external-client-origin` vs the new default.
+
+OQ5 (how demoted is the supervisor) is policy for later work; it does not block P1–P5.
+
+Altitude: help text, `portPlan` JSON examples, how the client detects a live rendezvous, attach-print of `SNAPBACK_URL`, Clique lane width on the plain profile (already one owner) — Spec/implementation.
+
+---
+
+**Simplification, answered:** Implementing 0300 does **not** make the 0299 allocator smaller. It makes most *users* never run it. The only way 0300 makes 0299 itself easier is finding 1’s unify option (decouple CORS from planned client ports). Path-split is the conservative compatible choice; then 0299’s job is accurate scope, not a smaller algorithm.
+
+0299: NOT READY
+0300: NOT READY
+SET: NOT READY

@@ -9,6 +9,12 @@ Developer experience, Diagnostics, Guide, Templates
 able to handle all kinds of weird setups, not handle this as an Expo
 one-off")
 **Date:** 2026-08-23
+**Revised:** 2026-08-24 (d — LLP 0300 harmonization amendment, cluster
+refine round 1: canonical-path banner; problem item (1) scoped as the
+pre-0300 diagnosis; §5 merge scoped to the supervised path; §7 split into
+universal `portPlan` vs supervised-only exact-origin receipt; §2
+consequence rewritten off the cookie claim; web/native listener counts;
+OQ1/OQ2 closed by reference to LLP 0300)
 **Revised:** 2026-08-24 (c — Implemented at landing; renumbered 0298→0299
 after `c2f1b283a` claimed 0298 for durable-effect scope; dual-family review
 rounds closed — grok READY, codex deltas fixed in round 3)
@@ -16,16 +22,17 @@ rounds closed — grok READY, codex deltas fixed in round 3)
 attach-out-of-range refusal; placeholder-held Metro port; first-owner
 exhaustion reporting; backend exhaustion surfaced by the lifecycle owner)
 **Revised:** 2026-08-23 (a — initial ruling and contract)
-**Related:** LLP 0010, LLP 0181, LLP 0223, LLP 0294, LLP 0295,
+**Related:** LLP 0300, LLP 0010, LLP 0181, LLP 0223, LLP 0294, LLP 0295,
 Diary 0100, Diary 0101, Diary 0104, Diary 0106,
 `issues/closed/20260823-supervised-listeners-unpinnable.md`,
 `benchmarks/runs/2026-08-22-clique-local-main-grok/record.md`
 
 ## Summary
 
-`snapback dev --expo` starts four listeners — the Snapback backend, the
-bootstrap exchange, the browser-facing client front (Expo web), and the Metro
-process — and until this Spec only the backend could be pinned. The other
+`snapback dev --expo` starts four listeners on web — the Snapback backend,
+the bootstrap exchange, the browser-facing client front, and the Metro
+process — and three on native, where Metro is itself the client; until this
+Spec only the backend could be pinned. The other
 three were allocated with `listen(0)`, so every restart moved the origin the
 browser had just stored a session for, pinned-range sandboxes (Clique lanes)
 were pushed out of contract, and the only escape was to leave the supervised
@@ -41,6 +48,15 @@ strict refusals, and provenance in the readiness record. The design is
 deliberately not Expo-specific: the rule is *pin what Snapback owns, declare
 what it does not*, and it composes the same way for the Expo, external-client,
 and plain profiles.
+
+> **Scope after LLP 0300 (amendment, 2026-08-24).** LLP 0300 makes the §6
+> plain profile the canonical development path. On that path this Spec's
+> backend range/pin/`portPlan` surface is the *whole* port surface.
+> Multi-owner planning, `--client-port` / `--bootstrap-port` and their
+> environment equivalents, the `metro` owner, and alias-origin injection
+> are the supervised `--expo` convenience path's surface — kept, not dead.
+> LLP 0300 P2 re-rules origin admission and the plain-profile receipt; the
+> supervised path keeps exact-origin injection and receipts unchanged.
 
 ## The problem, and why Convex and Supabase do not have it
 
@@ -74,9 +90,12 @@ Snapback made three choices that compound:
    strictly and hard-fails on `AddrInUse` — and the Node supervisor did not
    follow it.
 
-This Spec fixes (3) in a way that generalizes. (1) is retained. (2) is real
-design debt and is recorded as an open author question (§8), not acted on
-here.
+This Spec fixes (3) in a way that generalizes. (1) and (2) were this
+Spec's pre-LLP 0300 diagnosis: LLP 0300 P2 re-rules (1) for the plain/URL
+profile (any literal loopback origin is admitted by default; posture, not
+an exact list, is recorded), and LLP 0300 P1 answers (2) with the
+`declared-dev` URL source. The supervised `--expo` path keeps exact-origin
+injection as described in §7 and §9.
 
 ## 1. Owners
 
@@ -110,10 +129,15 @@ With no port flags, every owner is allocated from the **default range
   `client` 4387, `bootstrap` 4386, `metro` 4385 and the two scans meet only
   when the range is nearly full.
 
-The consequence is the Convex/Vite experience: the same ports every morning,
-so the browser's cookies, sessions, and IndexedDB survive a restart; under
-contention (the fleet, a second project) the scan walks and the readiness
-record says where it landed. Ephemeral kernel-assigned ports are no longer a
+The consequence is the Convex/Vite experience: the same ports every
+morning. Backend stability keeps `SNAPBACK_URL`-style configuration,
+attach identity, and constrained lanes valid across restarts (LLP 0300 P3
+relies on exactly this); supervised client-origin stability preserves the
+browser's origin-scoped bearer storage and IndexedDB. Auth is bearer-token
+— no cookies — and on the URL path the client origin is bundler-owned, so
+backend stability alone does not stabilize a caller-owned browser origin.
+Under contention (the fleet, a second project) the scan walks and the
+readiness record says where it landed. Ephemeral kernel-assigned ports are no longer a
 default for anything a client, cookie, or receipt depends on.
 
 ## 3. Pins are strict
@@ -183,10 +207,13 @@ not have is refused, not ignored — a silently ignored pin is how a lane ends
 up out of its allowed range without knowing. The readiness record names the
 source of each port (§7) so the precedence that applied is visible.
 
-Additional *admitted* client origins for a supervised run (a tunnel host, a
-port-forwarded devcontainer reached under another name) remain the
-`SNAPBACK_DEV_AUTH_ORIGINS` environment merge that `snapback dev` already
-performs; this Spec documents it as the escape hatch and does not add a flag.
+Additional *admitted* client origins for a **supervised** run (a tunnel
+host, a forwarded origin reached under another name) remain the
+`SNAPBACK_DEV_AUTH_ORIGINS` environment **merge** that `snapback dev
+--expo` performs — merged origins never drop the supervisor-injected exact
+origins. LLP 0300 P2's *replace* rule is the plain/URL profile's
+default-posture rule, not this paragraph; on that path loopback clients
+are admitted without any declaration, and this Spec adds no flag.
 
 ## 6. Profiles
 
@@ -227,8 +254,10 @@ The final readiness event, the `expo-supervisor.json` descriptor, and
 }
 ```
 
-`source` is `pinned`, `range`, or `attached`; `range.source` is `default`,
-`flag`, or `env`; `declaredBy` is `flag`, `env`, or `null`. `attached` is the
+`portPlan` and its provenance are universal across profiles (the plain
+profile carries only the `backend` owner). `source` is `pinned`, `range`,
+or `attached`; `range.source` is `default`, `flag`, or `env`; `declaredBy`
+is `flag`, `env`, or `null`. `attached` is the
 backend owner's provenance when `--attach` (or automatic attach) adopts an
 already-running, receipt-verified backend: its port was chosen by that
 earlier run, not by this plan. Attach never widens a declared constraint —
@@ -238,9 +267,11 @@ port lies outside it, the run refuses with
 port as planned; under the default range an attached backend at any loopback
 port is admitted and recorded as `attached`. The plain profile's `ready`
 event carries the same shape with only the `backend` owner. The
-application-ready receipt (`snapback.application-ready.v1`) is not changed:
-it already embeds the admitted client origins, which now contain the planned
-`client` port, and its format is receipt-verified across attach.
+exact-origin application-ready receipt (`snapback.application-ready.v1`) —
+embedding the admitted client origins, which contain the planned `client`
+port — is the **supervised path's** contract and is receipt-verified across
+attach. The plain/URL profile's receipt follows LLP 0300 P2's additive
+versioned posture encoding; this Spec does not freeze that encoding.
 
 The `--json` help/usage and `snapback dev --help` name every flag.
 
@@ -254,13 +285,13 @@ The `--json` help/usage and `snapback dev --help` name every flag.
   stays `127.0.0.1` with the IPv4-first Metro DNS order
   (issues/closed/20260805-expo-supervisor-metro-ipv6-loopback.md). A
   `--host` for IPv6-only hosts is a separate ruling.
-- **OQ1 (author):** the origin-scoped session posture (§"why Convex…" item 1)
-  is retained. Should a bearer-carrier client posture exist for setups where
-  origin identity is hostile (tunnels, preview hosts)? Not decided here.
-- **OQ2 (author):** supervisor-owned bundler (item 2). Whether the raw
-  `{ origin }` client path should become a supported, receipt-verified
-  profile rather than a refusal is a lifecycle-ownership question for
-  LLP 0223's owner.
+- **OQ1 — closed by LLP 0300 P2** (2026-08-24): the plain/URL profile
+  admits any literal loopback origin by default (not `*`); non-loopback
+  and narrowing go through the explicit allowlist. The supervised path
+  keeps exact-origin injection.
+- **OQ2 — closed by LLP 0300 P1** (2026-08-24): a URL with a standing
+  credential-free identity-discovery gate is the supported first-class dev
+  source; LLP 0300 chose it over a receipt-verified raw-origin profile.
 
 ## 9. Acceptance
 
@@ -282,8 +313,11 @@ The `--json` help/usage and `snapback dev --help` name every flag.
    `SNAPBACK_DEV_PORT_RANGE_EXHAUSTED`.
 4. `SNAPBACK_DEV_CLIENT_PORT=48110` without the flag pins `client`
    (`declaredBy: "env"`); the flag wins when both are present.
-5. With no flags and no environment, two consecutive runs of the expo-chat
-   template's `dev` script on a quiet host publish identical origins.
+5. With no flags and no environment, two consecutive supervised runs
+   (`snapback dev snapback --expo --expo-platform web`) on a quiet host
+   publish identical origins. (LLP 0300 P3 moves the template's `dev`
+   script to the two-process plain profile; this acceptance binds to the
+   explicit supervised invocation, not to the template script.)
 6. `snapback dev snapback --port-range 48100-48199` (plain profile) binds
    the backend at 48100; `snapback start --port-range` refuses when combined
    with `--port`, and refuses malformed ranges.

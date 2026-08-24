@@ -86,3 +86,34 @@ All nine c→d resolutions are sound at RFC altitude. The remaining cadence, sig
 **PRE-EXISTING:** No MATERIAL findings.
 
 READY
+## Cluster round 1 (LLP 0299 + LLP 0300 lockstep) — 2026-08-24
+
+- Cluster: 0299 (amendable Implemented sibling, author-directed) + 0300 (Review target); per-target + set verdicts; cluster review preserved once here (primary target 0300)
+- Pre-launch record + hashes: see llp/reviews/0300-snapback-is-a-url.run-journal.md (cluster section)
+- Received: complete response; verbatim body follows
+
+1. **MATERIAL — 0300, P3 / Tradeoffs / Acceptance; seam with 0299 §2 and §6.** URL-first stops Snapback from owning or pinning the browser-facing client port. P2 prevents a moved bundler origin from breaking backend admission, but bearer tokens and IndexedDB remain browser-origin-scoped; a port change can still lose the visible session. 0300 neither accepts that regression nor requires bundler-native stable ports. **Change:** state that canonical development delegates client-origin stability to the bundler, explicitly accept possible state loss under port movement, and document bundler-native pinning for lanes requiring persistence. Add a restart/collision acceptance case.
+
+2. **MATERIAL — 0300, P2 Compatibility and OQ4; contradiction with 0299 §5–§7.** P2 says `SNAPBACK_DEV_AUTH_ORIGINS` replaces the default and is the complete allowlist for “a development backend,” while 0299 preserves it as an additive merge for supervised runs. P2 later says supervised behavior is unchanged. Meanwhile OQ4 leaves `--external-client-origin` semantics undecided. This is security-sensitive behavior the implementation Specs cannot infer safely. **Change:** scope replacement semantics explicitly to the plain/URL profile; preserve supervised computed exact origins plus 0299’s additive merge; resolve OQ4 now. A simple disposition is to deprecate `--external-client-origin` as a compatibility shorthand for an explicit one-origin allowlist, with a defined conflict rule when the environment variable is also present.
+
+3. **MATERIAL — 0300, P2 and Security analysis.** The stated CORS tradeoff is incomplete. A hostile page served from another literal-loopback origin cannot steal an existing bearer, but it can call ordinary signup, read the returned bearer, become an authenticated new principal, and exercise every capability available to new users. Therefore “CORS grants neither … authorization” is false as written. **Change:** record and explicitly accept the new-principal/signup authority exposure, including shared-data or side-effect consequences, or narrow the default admission rule. Add an acceptance/security case demonstrating the chosen boundary.
+
+4. **MINOR — 0299, Summary and §§1, 3, 5, 6; 0300 P3/P5.** 0299 lacks the post-0300 scope classification. Backend `--port`/`--port-range` remains canonical; `client`, `bootstrap`, `metro`, their pins and environment variables, alias-origin injection, and associated diagnostics are supervised-only. `--client . --client-command …` also becomes a noncanonical convenience. None of this landed behavior is dead. **Change:** add a dated LLP 0300 amendment stating those scopes, and change 0300 P5 from the overly broad “LLP 0299 port plan … does not change” to “landed allocation behavior remains; its non-backend surfaces are supervised-only.”
+
+5. **MINOR — 0299, §7 and Acceptance 5.** The receipt prose says the application-ready receipt is unchanged and embeds planned client origins; after 0300 that remains true only for supervised runs, while plain/URL receipts gain posture encoding. Acceptance 5 also depends on the expo-chat template’s `dev` script invoking the supervisor, which P3 removes. **Change:** qualify the exact-origin receipt contract as supervised-only, reference 0300 P2 for plain receipts, and repoint Acceptance 5 to an explicit `snapback dev --expo` fixture or battery. The template-based test reference—not the feature—is dead.
+
+6. **MINOR — 0299, §8 OQ1/OQ2.** Both questions are answered by 0300 and should not remain open. **Change:** close OQ1 by reference to 0300 P2’s loopback-wide URL posture and explicit non-loopback client allowlist; close OQ2 by reference to P1’s `declared-dev` URL plus identity discovery, noting that 0300 chose this instead of a receipt-verified raw-origin profile.
+
+7. **MINOR — 0299, Summary and §1.** The Summary says `--expo` starts four listeners, but native profiles have three because Metro is `client`; only Expo web has four. **Change:** distinguish web from native in the Summary.
+
+8. **MINOR — 0299, §2.** “Cookies … survive” contradicts both documents’ bearer-only/no-cookie posture and overstates the plain profile’s guarantee. **Change:** say that stable supervised client origins preserve origin-scoped bearer/session storage and IndexedDB; backend stability alone does not stabilize a caller-owned browser origin.
+
+9. **MINOR — 0300, P3.** The `.env.local` rationale says stable ports are “not stale-prone,” although 0299 deliberately permits movement under contention, attach, and range scanning. P1 detects a stale URL but does not discover the replacement URL or restart the bundler. **Change:** say stable ports reduce churn and stale values fail closed; require opted-in writers to refresh after every ready/attach/rebind and instruct that an already-running bundler must restart. Add this lifecycle to the Spec obligations.
+
+10. **MINOR — 0300, P4/P5 and OQ5.** “`snapback dev` mints nothing by default” is insufficiently scoped against the promise that supervised behavior remains unchanged, and OQ5 leaves the current demotion policy unnecessarily open. **Change:** say plain URL-first `snapback dev snapback` mints nothing, while `--expo` retains its existing issuance behavior. Close OQ5 for this RFC as documentation/template demotion only; future supervised-only capabilities can require separate justification.
+
+11. **NIT — 0300, Spec obligations.** Add the already-implied implementation-spec work for `snapback auth dev-session` targeting/output/refusals, `.env.local` ownership and no-clobber behavior, and the exact supervised-versus-declared source transition. These are Spec-phase details and do not independently block readiness; the actual hidden decisions are Findings 1–3.
+
+0299: READY
+0300: NOT READY
+SET: NOT READY

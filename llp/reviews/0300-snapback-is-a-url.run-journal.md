@@ -39,3 +39,22 @@ mobile-transport naming) and is UNREVIEWED by the loop. Final verdicts bind
 to revision (d), not (e). Altitude dispositions: every deferred item is
 enumerated in the r2/r3 bodies above and recorded as Spec obligations in the
 RFC. Recommendation to the author: ACCEPT (the author applies status).
+# llp-super-refine run journal — cluster: LLP 0299 + LLP 0300
+Loop start 2026-08-24 (overnight). Author authorization: Charlie's directive
+("do an /llp-super-refine on 0299 and 0300. Consider whether implementing
+0300 changes 0299... Make your own decisions about extending budgets or
+granting additional rounds... don't stop to ask"). Orchestrator ruling:
+0299 (Implemented) participates as an amendable sibling — status untouched;
+0300 (Review) is the status-bearing target. Author's directive stands in
+for downstream acceptance gates; recorded here. Topology: lockstep cluster,
+per-target + set verdicts. Reviser: orchestrator. Budget: 3 rounds,
+orchestrator may extend per author grant.
+
+## Round 1 (pre-launch)
+- targets: 0299 sha256 16421893db4e8bff2f5ee31a82dae8b6c44167521b35a5797d8a6586fed459c1 ; 0300 sha256 f2d2806dbd852e6201bbdfeab90044f604c168c204e2738f76f81f83f3ed28c6 (both at a07d44bd0)
+- capsule: refine-cluster/capsule-r1 (both docs + 2 tickets), dirhash a7507aa77c8cc4434835eadd33436e31a241719ff8f69906864f59de04a95b1a
+- instruction hashes: codex=9c0e5476fa90c301176328c3c4de0faef3cdc624a53ef2047d90a27c7bcb293a grok=d20980101bc3355b463039559840e8c91905953fea9b54609a14b6d04c702dc6
+- blindness: structural (no llp/reviews/*, no journal in capsule)
+- r1 verdicts: codex 0299 READY / 0300 NOT READY / SET NOT READY; grok all NOT READY.
+- Reviser rulings (author-delegated): PATH-SPLIT admission (grok f1 recommended arm; codex f2 aligned); signup/new-principal exposure accepted + recorded + acceptance case (codex f3); client-origin stability delegated to bundler with pinning + restart acceptance (codex f1); 0299 harmonization amendment (banner, item-1 scoping, §5 merge scoping, §7 split, §2 rewrite, OQ1/OQ2 closed, §9.5 repoint, web/native counts); 0300 P5 -> explicit amendment list; OQ4+OQ5 closed; .env lifecycle + dev-session + transition-rule Spec obligations; migration env-leftover warning; tunnel-only allowlist acceptance.
+- Revisions: 0299 (d), 0300 (f). Round 2 = cluster delta round.

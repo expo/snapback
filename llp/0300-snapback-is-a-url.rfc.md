@@ -11,6 +11,14 @@ seem to run into the same issues"; "maybe we should just try to be more like
 them"; "Let's make an LLP/RFC about this, then refine it, then make a spec,
 then implement")
 **Date:** 2026-08-24
+**Revised:** 2026-08-24 (f — cluster round 1 with LLP 0299: the admission
+fork is decided as PATH-SPLIT (plain/URL profile opens to literal loopback
+with replace-semantics allowlist; supervised keeps exact-origin injection
+with merge semantics); the signup/new-principal exposure is recorded and
+accepted with the allowlist as narrowing; client-origin stability is
+delegated to the bundler with documented pinning; P5 rewritten as an
+explicit 0299 amendment list; OQ4 and OQ5 closed; `.env.local` refresh
+lifecycle and dev-session contract added to Spec obligations)
 **Revised:** 2026-08-24 (e — post-convergence wording repairs, applied
 verbatim from the round-3 reviews and UNREVIEWED by the loop; the loop's
 dual-READY verdicts bind to revision (d): the discovery gate precedes every
@@ -172,26 +180,41 @@ one-liner (`<Provider url={process.env.EXPO_PUBLIC_SNAPBACK_URL}>` /
 headless) and pass the value to the provider. The one-variable experience
 is preserved at the template level; the library never guesses.
 
-### P2 — Dev origin admission opens to literal loopback
+### P2 — Dev origin admission opens to literal loopback (plain/URL profile only)
 
-A development backend admits any **literal** loopback origin
-(`localhost` / `127.0.0.1` / `[::1]` plus port — never "DNS that resolves
-to loopback", so rebinding hostnames are not admitted) by default. An
-explicit `SNAPBACK_DEV_AUTH_ORIGINS` **replaces** that default and is the
-complete allowlist: an operator admitting a tunnel origin who still wants
-loopback clients admitted must list the loopback origins too. **Accepted tradeoff, recorded:** any local
-page may now call and read the *unauthenticated* dev surface (signup,
-identity) from the browser; theft of an existing session stays closed (no
-cookies; a page cannot read another origin's token). Production admission
-is unchanged.
+**Path-split, decided.** Admission semantics differ by profile, on purpose:
+
+- **Plain/URL profile (canonical):** the backend admits any **literal**
+  loopback origin (`localhost` / `127.0.0.1` / `[::1]` plus port — never
+  "DNS that resolves to loopback", so rebinding hostnames are not
+  admitted) by default. An explicit `SNAPBACK_DEV_AUTH_ORIGINS`
+  **replaces** that default and is the complete allowlist: an operator
+  admitting a tunnel origin who still wants loopback clients admitted must
+  list the loopback origins too. `--external-client-origin`, where used,
+  contributes to the same explicit allowlist (union with the environment
+  list when both are set); it is never required on this profile.
+- **Supervised `--expo` profile:** unchanged. The supervisor injects the
+  exact planned client origins; `SNAPBACK_DEV_AUTH_ORIGINS` **merges**
+  additional origins and never drops the injected ones (LLP 0299 §5);
+  receipts stay exact-origin.
+
+**Accepted tradeoffs, recorded.** (1) Any local page may call and read the
+*unauthenticated* dev surface from the browser; theft of an existing
+session stays closed (no cookies; a page cannot read another origin's
+token). (2) Sharper: a hostile literal-loopback page can call open
+**signup**, obtain a fresh bearer, and act as a **new principal** with
+whatever authority the app's schema grants new users. This is the local
+Convex/Supabase posture and is accepted for dev; lanes that care narrow
+via the explicit allowlist, which closes it. Production admission is
+unchanged.
 
 **Compatibility.** Recording posture instead of an exact origin list is a
-receipt-visible change and is *not* pretended additive: the supervised
-path keeps injecting exact origins (its receipts and battery are
-unchanged); the plain/URL path records the posture through an additive,
-versioned representation with reader-before-writer sequencing, and
-old-CLI/new-server and new-CLI/old-receipt attach combinations get
-explicit acceptance. Exact encoding is Spec material.
+receipt-visible change on the plain/URL path and is *not* pretended
+additive: it uses an additive, versioned representation with
+reader-before-writer sequencing, and old-CLI/new-server and
+new-CLI/old-receipt attach combinations get explicit acceptance. The
+supervised path's exact-origin receipts are untouched. Exact encoding is
+Spec material.
 
 ### P3 — `snapback dev` prints the URL; templates go two-process
 
@@ -211,24 +234,49 @@ explicit acceptance. Exact encoding is Spec material.
   `10.0.2.2` variant manually or the supervised path's adb-reverse
   convenience. `snapback dev --expo` remains available and documented as
   the one-command convenience that additionally owns Metro, adb reverse,
-  and listener enumeration.
+  and listener enumeration; `--client <dir> --client-command <cmd>`
+  remains a non-allocating child launcher, not the template shape.
+- **Client-origin stability is the bundler's, delegated knowingly.** The
+  canonical path does not pin the browser-facing origin; bearer storage
+  and IndexedDB are browser-origin-scoped, so a bundler that restarts on
+  a different port loses that origin's local state (the backend session
+  and data are unaffected — identity re-verifies and sign-in
+  re-establishes). Bundlers default stable (`vite` 5173, Metro 8081);
+  persistence-sensitive lanes pin them natively (`vite --port
+  --strictPort`, `expo start --port`). Recorded as an accepted tradeoff.
+- **Opt-in `.env.local` writers own freshness:** a writer refreshes the
+  value after every ready/attach/rebind that changes the backend origin,
+  never clobbers unmanaged keys, and the guide states that an
+  already-running bundler must restart to see it (env is inlined at
+  bundler start).
 
 ### P4 — The dev session becomes explicit
 
-The URL path mints nothing ambiently and `snapback dev` mints nothing by
-default: it prints *instructions*; `snapback auth dev-session` mints on
+The URL path mints nothing ambiently and plain `snapback dev snapback`
+mints nothing by default: it prints *instructions*; the supervised
+`--expo` path retains its existing issuance behavior unchanged; `snapback auth dev-session` mints on
 explicit request, and the capability is an operator tool — templates never
 auto-consume it as the app session, and it is never written to `.env.local`
 or any bundler-public variable. Apps and harnesses wanting distinct
 principals use ordinary signup/login per context. This closes the
 one-mint-shared-by-every-tab class on the canonical path by construction.
 
-### P5 — What does not change
+### P5 — What does not change, and what this RFC amends in LLP 0299
 
-Bearer custody (incl. native SecureStore custody, LLP 0252/0258),
-loopback-only listeners, receipt-verified lifecycle verbs, release/hosted
-binding admission, the LLP 0299 port plan, and the supervised path's code,
-batteries, and Android polish.
+Unchanged: bearer custody (incl. native SecureStore custody, LLP
+0252/0258), loopback-only listeners, receipt-verified lifecycle verbs,
+release/hosted binding admission, LLP 0299's landed allocation behavior —
+owners, pins, ranges, env equivalents, holder-naming refusals, `portPlan`
+provenance — and the supervised path's code, batteries, and Android
+polish.
+
+Amended in LLP 0299 (dated amendment notes there, not a tombstone): the
+canonical-path scope banner (plain profile is canonical; multi-owner
+surfaces are supervised-only); problem item (1) scoped as the pre-0300
+diagnosis; §5's `SNAPBACK_DEV_AUTH_ORIGINS` merge scoped to the
+supervised path; §7 split into universal `portPlan` vs supervised-only
+exact-origin receipts; the §2 stable-port consequence restated for
+bearer-only auth; OQ1/OQ2 closed by reference to this RFC.
 
 **Scope ruling (closes former OQ3).** The canonical URL path covers: web,
 iOS simulator, Android emulator (via `10.0.2.2`), SSH/devcontainer
@@ -275,7 +323,12 @@ table below is scoped accordingly.
 
 ## Migration
 
-1. LLP 0299 — **already landed** (`544dd6a8e`).
+1. LLP 0299 — **already landed** (`544dd6a8e`): the allocator. This RFC
+   amends 0299's origin-admission/receipt/scope prose as listed in P5.
+   Migration note: a leftover `SNAPBACK_DEV_CLIENT_PORT` /
+   `SNAPBACK_DEV_BOOTSTRAP_PORT` in the environment fails plain
+   `snapback dev` with `SNAPBACK_CLI_ARGUMENT_INVALID` (LLP 0299 §5
+   refuses pins for absent owners); the guide's migration text names this.
 2. P1 + P2: client `declared-dev` source (dev-only entry point), discovery
    gate, loopback admission with the compatibility posture of P2. The Spec
    defines the discovery fact (identity + admission posture ONLY — no
@@ -299,7 +352,9 @@ table below is scoped accordingly.
    signup — no skip recipe, no shared ambient mint.
 3. The same app behind a devcontainer/SSH port-forward works unchanged; a
    tunnel *client* origin admitted via `SNAPBACK_DEV_AUTH_ORIGINS` works;
-   literal-loopback matching rejects a rebinding hostname.
+   a tunnel-only allowlist does **not** admit loopback unless restated,
+   and restating both works; literal-loopback matching rejects a
+   rebinding hostname.
 4. A URL at a wrong-generation backend refuses with
    `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` naming both identities, and no
    credentialed request was sent before the refusal — including after a
@@ -317,6 +372,14 @@ table below is scoped accordingly.
 7. Per-bundler cold-template acceptance: Expo (web + iOS sim + Android
    emulator via `10.0.2.2`), Vite, headless Node — each reading its own
    convention from application-owned source.
+8. A bundler restarted on a new port still reaches the backend (admission
+   is loopback-open) with that origin's browser-local state reset — the
+   accepted P3 tradeoff — and the backend's data is intact after ordinary
+   re-sign-in.
+9. A page on a second literal-loopback origin can complete open signup as
+   a NEW principal (the accepted P2 exposure) but cannot read another
+   principal's data; setting an explicit allowlist without that origin
+   closes even the signup channel.
 
 ## Open questions
 
@@ -328,16 +391,24 @@ table below is scoped accordingly.
   reduced readiness projection). The RFC already rules it unauthenticated
   and identity+posture-only; reuse of the full readiness surface as-is is
   struck.
-- **OQ4 — `--external-client-origin`'s future**: keep as narrowing, or
-  deprecate toward `SNAPBACK_DEV_AUTH_ORIGINS`?
-- **OQ5 — how demoted is the supervisor?** Documentation-demoted only, or
-  do new capabilities stop landing supervised-only unless they cannot
-  exist elsewhere?
+- **OQ4 — closed (this revision):** `--external-client-origin` is never
+  required on the URL path; where used it contributes to the explicit
+  allowlist (union with the environment list), keeps its `--port`
+  requirement and its `--expo` refusal, and is documented as a
+  compatibility spelling of the allowlist. Deprecation timing is
+  implementation-phase.
+- **OQ5 — closed for this RFC:** the demotion is documentation and
+  template demotion only. Whether future capabilities may land
+  supervised-only is a per-capability justification question, not ruled
+  here.
 - **Spec obligations recorded:** opt-in signed discovery (P1); receipt
   posture encoding (P2); URL canonicalization details (P1); per-bundler
   dev-entry / generated-kind exclusion mechanics (resolution or codegen —
   never dead-code elimination, which is bundle hygiene only) (P1);
-  re-verification cadence for the standing discovery invariant (P1).
+  re-verification cadence for the standing discovery invariant (P1);
+  `snapback auth dev-session` targeting/output/refusals (P4); `.env.local`
+  writer ownership, no-clobber, and refresh-on-rebind lifecycle (P3); the
+  exact supervised-rendezvous-vs-declared-URL source transition rule (P1).
 
 ## Alternatives considered
 
