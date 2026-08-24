@@ -43,6 +43,7 @@ uuid = { version = "1.23.4", features = ["v4", "v7", "serde"] }
 zeroize = "1.8"
 
 [dev-dependencies]
+rusqlite = { version = "0.31", features = ["bundled"] }
 snapback-activation = { path = "../snapback-activation", features = ["test-support"] }
 snapback-auth = { path = "../snapback-auth", features = ["test-support"] }
 snapback-kernel = { path = "../snapback-kernel", features = ["test-support"] }

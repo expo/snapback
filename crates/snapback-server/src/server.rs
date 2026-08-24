@@ -17549,14 +17549,12 @@ async fn auth_grant_request_deny(
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
-    let (user_id, _) = require_grant_session(&authority)?;
+    require_grant_session(&authority)?;
     let provider = require_agent_routes_available(&runtime)?;
     let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
     let now_ms = provider.now_ms();
-    let effect_authority = authority.clone();
     with_snapback(&runtime.snapback, move |snapback| {
-        let _effect = effect_authority.effect_guard("grant denial transaction")?;
-        snapback.deny_grant_request(&_effect, &user_id, &request_id, now_ms)
+        snapback.deny_grant_request(&authority, &request_id, now_ms)
     })
     .await?;
     Ok(StatusCode::NO_CONTENT.into_response())

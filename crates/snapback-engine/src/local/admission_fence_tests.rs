@@ -142,6 +142,251 @@ impl crate::auth::crypto::RandomSource for FenceRandom {
     }
 }
 
+const DENY_CALLER_USER: &str = "middle-deny-user";
+const DENY_LOWER_USER: &str = "aaa-deny-user";
+const DENY_UPPER_USER: &str = "zzz-deny-user";
+
+fn grant_management_authority_for_user(
+    controller: &AdmissionController,
+    user_id: &str,
+    source: InvocationSource,
+) -> PreparedAuthority {
+    prepare_authority(
+        controller,
+        source,
+        ResolvedAppAuthority::Session {
+            user_id: user_id.to_owned(),
+            session_id: format!("{user_id}-session"),
+            provider: "email-code".to_owned(),
+            generation: 1,
+            authority_instance_id: AUTHORITY_INSTANCE_ID.to_owned(),
+            session_not_after_ms: u64::MAX,
+            provider_not_after_ms: None,
+            rehearsal_provenance: None,
+        },
+    )
+}
+
+fn durable_pairing_request_rows(database_path: &std::path::Path) -> Vec<(String, String, String)> {
+    let connection = rusqlite::Connection::open_with_flags(
+        database_path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )
+    .expect("open independent durable grant-request reader");
+    let mut statement = connection
+        .prepare(
+            "SELECT id, minted_by_user_id, state
+             FROM _auth_pairing_requests
+             ORDER BY minted_by_user_id, id",
+        )
+        .expect("prepare durable grant-request readback");
+    statement
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+        .expect("read durable grant-request rows")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("decode durable grant-request rows")
+}
+
+fn expected_pairing_request_rows(
+    requests: &[(String, &'static str)],
+    denied_request_ids: &[&str],
+) -> Vec<(String, String, String)> {
+    let mut rows = requests
+        .iter()
+        .map(|(request_id, user_id)| {
+            let state = if denied_request_ids.contains(&request_id.as_str()) {
+                "denied"
+            } else {
+                "pending"
+            };
+            (request_id.clone(), (*user_id).to_owned(), state.to_owned())
+        })
+        .collect::<Vec<_>>();
+    rows.sort_by(|left, right| (&left.1, &left.0).cmp(&(&right.1, &right.0)));
+    rows
+}
+
+#[derive(Debug, Eq, PartialEq)]
+struct GrantDenialObservation {
+    outcomes: Vec<(&'static str, String)>,
+    durable_rows_after_each_call: Vec<Vec<(String, String, String)>>,
+}
+
+#[test]
+fn grant_denial_derives_subject_and_preserves_every_other_durable_request() {
+    assert!(DENY_LOWER_USER < DENY_CALLER_USER);
+    assert!(DENY_CALLER_USER < DENY_UPPER_USER);
+
+    let directory = tempfile::tempdir().expect("grant-denial fixture directory");
+    let database_path = directory.path().join("grant-denial.sqlite3");
+    let random = FenceRandom::new();
+    let mut snapback = LocalSnapback::open(&database_path).expect("open grant-denial fixture");
+    let requests = {
+        let db = snapback.auth_database_mut();
+        db.activate_current_auth_catalog()
+            .expect("activate grant-denial auth catalog");
+        for user_id in [DENY_LOWER_USER, DENY_CALLER_USER, DENY_UPPER_USER] {
+            db.auth_catalog()
+                .insert_human_user_for_test(user_id, NOW_MS)
+                .expect("insert grant-denial human fixture");
+        }
+        db.create_agent_principal(
+            "grant-denial-agent",
+            NOW_MS,
+            &crate::storage::auth_agents::AgentRegistration {
+                display_name: Some("Grant Denial Agent".to_owned()),
+                operator_contact: None,
+                registration_provenance: "grant-denial-authority-test".to_owned(),
+                owner_user_id: Some(DENY_CALLER_USER.to_owned()),
+            },
+        )
+        .expect("create grant-denial agent");
+        let credential = db
+            .issue_initial_agent_credential("grant-denial-agent", NOW_MS, &random)
+            .expect("issue grant-denial agent credential")
+            .secret;
+        db.auth_catalog()
+            .insert_step_up_scope_bases_for_test()
+            .expect("insert grant-denial scope bases");
+
+        [
+            DENY_LOWER_USER,
+            DENY_CALLER_USER,
+            DENY_CALLER_USER,
+            DENY_CALLER_USER,
+            DENY_UPPER_USER,
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(index, user_id)| {
+            let now_ms = NOW_MS + index as u64 + 1;
+            let pairing = db
+                .mint_pairing_code(user_id, now_ms, &random)
+                .expect("mint grant-denial pairing code");
+            db.present_pairing_code(
+                &credential,
+                &pairing.request_id,
+                &pairing.secret,
+                &[crate::storage::auth_grants::GrantScopeRequest::Exact {
+                    function_id: "fn:listItems".to_owned(),
+                    kind: crate::storage::auth_grants::ScopedFunctionKind::Query,
+                }],
+                now_ms,
+            )
+            .expect("present grant-denial pairing code");
+            (pairing.request_id, user_id)
+        })
+        .collect::<Vec<_>>()
+    };
+    let lower_request = requests[0].0.clone();
+    let caller_lower_request = requests[1].0.clone();
+    let accepted_request = requests[2].0.clone();
+    let caller_upper_request = requests[3].0.clone();
+    let upper_request = requests[4].0.clone();
+    assert!(caller_lower_request < accepted_request);
+    assert!(accepted_request < caller_upper_request);
+
+    assert_eq!(
+        durable_pairing_request_rows(&database_path),
+        expected_pairing_request_rows(&requests, &[]),
+        "fixture starts with exactly five independently bound pending rows"
+    );
+
+    let controller = synchronize_sessions(&snapback);
+    let management_authority = grant_management_authority_for_user(
+        &controller,
+        DENY_CALLER_USER,
+        InvocationSource::AgentGrantManagement,
+    );
+    let wrong_source_authority = grant_management_authority_for_user(
+        &controller,
+        DENY_CALLER_USER,
+        InvocationSource::HttpMutation,
+    );
+    let mut actual = GrantDenialObservation {
+        outcomes: Vec::new(),
+        durable_rows_after_each_call: Vec::new(),
+    };
+    let calls = [
+        (
+            "own-request",
+            &management_authority,
+            accepted_request.as_str(),
+        ),
+        (
+            "own-request-idempotent-repeat",
+            &management_authority,
+            accepted_request.as_str(),
+        ),
+        (
+            "foreign-lower-subject",
+            &management_authority,
+            lower_request.as_str(),
+        ),
+        (
+            "foreign-upper-subject",
+            &management_authority,
+            upper_request.as_str(),
+        ),
+        ("missing-lower-id", &management_authority, ""),
+        (
+            "missing-upper-id",
+            &management_authority,
+            "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+        ),
+        (
+            "wrong-source-own-request",
+            &wrong_source_authority,
+            caller_lower_request.as_str(),
+        ),
+    ];
+    for (label, authority, request_id) in calls {
+        let result = snapback.deny_grant_request(authority, request_id, NOW_MS + 10);
+        actual.outcomes.push((
+            label,
+            result
+                .as_ref()
+                .map(|_| "accepted".to_owned())
+                .unwrap_or_else(|error| error.diagnostic.code.clone()),
+        ));
+        actual
+            .durable_rows_after_each_call
+            .push(durable_pairing_request_rows(&database_path));
+    }
+
+    let accepted_only = expected_pairing_request_rows(&requests, &[&accepted_request]);
+    let expected = GrantDenialObservation {
+        outcomes: vec![
+            ("own-request", "accepted".to_owned()),
+            ("own-request-idempotent-repeat", "accepted".to_owned()),
+            (
+                "foreign-lower-subject",
+                "SNAPBACK_AUTH_GRANT_INVALID".to_owned(),
+            ),
+            (
+                "foreign-upper-subject",
+                "SNAPBACK_AUTH_GRANT_INVALID".to_owned(),
+            ),
+            ("missing-lower-id", "SNAPBACK_AUTH_GRANT_INVALID".to_owned()),
+            ("missing-upper-id", "SNAPBACK_AUTH_GRANT_INVALID".to_owned()),
+            (
+                "wrong-source-own-request",
+                "SNAPBACK_AUTH_REQUIRED".to_owned(),
+            ),
+        ],
+        durable_rows_after_each_call: vec![
+            accepted_only.clone(),
+            accepted_only.clone(),
+            accepted_only.clone(),
+            accepted_only.clone(),
+            accepted_only.clone(),
+            accepted_only.clone(),
+            accepted_only,
+        ],
+    };
+    assert_eq!(actual, expected);
+}
+
 fn retire_at_next_effect(
     site: AdmissionEffectSite,
     controller: AdmissionController,

@@ -5949,12 +5949,15 @@ impl LocalSnapback {
 
     pub fn deny_grant_request(
         &mut self,
-        effect: &AdmissionEffectGuard<'_>,
-        user_id: &str,
+        authority: &PreparedAuthority,
         request_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<()> {
-        let _ = effect;
+        // @ref LLP 0303#the-governing-principle — the denial subject comes
+        // from the admitted management session, never an adjacent user id.
+        let user_id =
+            Self::require_agent_grant_management_session(authority, "grant denial transaction")?;
+        let _effect = authority.effect_guard("grant denial transaction")?;
         self.db.deny_grant_request(user_id, request_id, now_ms)
     }
 
