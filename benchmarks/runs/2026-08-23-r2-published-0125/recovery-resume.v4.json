@@ -7,7 +7,7 @@
   "transition": "recovered-cell-1-v3-to-immutable-instrument-host-bound-locked-per-cell-admission",
   "integrity": {
     "algorithm": "sha256-canonical-json-without-integrity",
-    "sha256": "sha256:8ddaebff6d4af8262683bd434f58857d1bd73ecca71def9801400438e46225bb"
+    "sha256": "sha256:3c17b573f8e5d6ed4dc1968a968f500d5d5f7579504ed2257896b1ea4c7a0012"
   },
   "completedCell": "sol-clique-explicit",
   "completedCellRecoveryVersion": "snapback.r2-recovery-resume.v3",
@@ -15,11 +15,11 @@
   "recoveredCell": {
     "record": {
       "path": "cells/sol-clique-explicit/record.json",
-      "sha256": "sha256:c31661407b0f7fd3e45db9fdf345746d3a64ce31b2e23c75a7e39871da21ffec"
+      "sha256": "sha256:e72f8aee0ff61b7473e83cd83a196c99ea2719a9906c81b602c26cc63a4f1bc9"
     },
     "metering": {
       "path": "cells/sol-clique-explicit/metering.json",
-      "sha256": "sha256:4195c94e8f459c64646dfa23da7adade33e3f4c6357295bfef43bf4ce6ecc832"
+      "sha256": "sha256:9e2256b4516092668e282be28d3707900e1cdd78e7fd43d79cd2c2d56c0cb17d"
     },
     "nativeStream": {
       "path": "cells/sol-clique-explicit/events/codex-rollout.jsonl",
@@ -48,9 +48,9 @@
   },
   "resumeInstrument": {
     "path": "../../instrument.manifest.json",
-    "sha256": "sha256:7934976c3bbd93869da20f8f379e7fd259e3a400457ebe27c22d16f04501957e",
-    "materializedRoot": "/Users/ccheever/bench-matrix-20260823-r2/instrument-resume-20260824",
-    "materializationCommand": "node benchmarks/tools/materialize-instrument.mjs --out /Users/ccheever/bench-matrix-20260823-r2/instrument-resume-20260824",
+    "sha256": "sha256:1320261386aadb2dfdf0ebd161df8845f0d8582f37000aa77aebd334107c2833",
+    "materializedRoot": "/Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260824-v4",
+    "materializationCommand": "node benchmarks/tools/materialize-instrument.mjs --out /Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260824-v4",
     "transition": "new immutable non-overwriting snapshot; the old /instrument archive remains cell-1-only"
   },
   "resumeAllowedHostId": "mac-mini-durand",
@@ -74,8 +74,8 @@
     "staleRecovery": "explicit-only; an existing private cell is finalization-only and can never be relaunched"
   },
   "historicalDryRunValidator": {
-    "sourceCommit": "bbce397ca397dda82a65dbfc35c6f30ceba3330f",
-    "sourceTree": "0994a3a50930e60c8dd5805db9da29f088f05da7",
+    "sourceCommit": "30337e038fcf9e0b2b7e53d78b4fcfab21adae0d",
+    "sourceTree": "e8f99ff8ba7fc4cb2508c684f0dd52460e57d776",
     "sources": {
       "base": {
         "path": "benchmarks/schema/run-record.schema.json",
@@ -91,7 +91,7 @@
       },
       "semantic": {
         "path": "benchmarks/tools/social-messenger/record-validator.mjs",
-        "sha256": "sha256:fa1b179a617db743ec15d9d87017458e594cab070b798ccd72b5349ccf373238"
+          "sha256": "sha256:6083bf88cf29feac9e625093b5bc026377c644c7a963195f920cc6b17edcd727"
       }
     }
   },

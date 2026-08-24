@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "snapback.r2-retained-rejoin.v1",
+  "finalizerVersion": "snapback.r2-retained-familiar-finalizer.v1",
+  "cellId": "sol-clique-familiar",
+  "mode": "deterministic-retained-evidence-rejoin",
+  "rerun": false,
+  "sourceFailureReport": "../../BLOCKED-sol-clique-familiar-finalization.md",
+  "meteringDisposition": {
+    "result": "unavailable-fail-closed",
+    "adapterVersion": "codex-rollout-jsonl.v3",
+    "unavailableReason": "retained-session-token-event-corrupt",
+    "sourceSession": {
+      "nativeSessionId": "01a03511-bb6c-7733-a250-e10c9b6dd878",
+      "path": "events/codex-rollout.jsonl",
+      "sha256": "sha256:1b9962de0a5e47bd313f0686fb60d44459e0f21fce3a8dcfc62363c7e5402047"
+    },
+    "corruptEvent": {
+      "ordinal": 839,
+      "record": 840,
+      "precedingCumulativeOrdinal": 835,
+      "rawCumulativeDeltaTotal": 0,
+      "lastTokenUsageAggregateTotal": 14133,
+      "error": "Codex token_count record 840 cumulative delta does not equal last_token_usage.total_tokens; received 0 and 14133"
+    },
+    "diagnostic": "stage=codex-token-count-delta-join source=\"/Users/ccheever/.codex/sessions/2026/08/24/rollout-2026-08-24T11-39-09-01a03511-bb6c-7733-a250-e10c9b6dd878.jsonl\" streamLine=840 eventOrdinal=839 eventType=\"event_msg/token_count\" cause=\"Codex token_count record 840 cumulative delta does not equal last_token_usage.total_tokens; received 0 and 14133\" rawPayloadExcerpt=\"{\\\"timestamp\\\":\\\"2026-08-24T19:04:31.916Z\\\",\\\"ordinal\\\":839,\\\"type\\\":\\\"event_msg\\\",\\\"payload\\\":{\\\"type\\\":\\\"token_count\\\",\\\"info\\\":{\\\"total_token_usage\\\":{\\\"input_tokens\\\":20223008,\\\"cached_input_tokens\\\":19911168,\\\"cache_write_input_tokens\\\":0,\\\"output_tokens\\\":42907,\\\"reasoning_output_tokens\\\":16517,\\\"total_tokens\\\":20265915},\\\"last_token_usage\\\":{\\\"input_tokens\\\":0,\\\"cached_input_tokens\\\":0,\\\"cache_write_input_tokens\\\":0,\\\"output_tokens\\\":0,\\\"reasoning_output_tokens\\\":0,\\\"total_tokens\\\":14133},\\\"model_context_window\\\":258400},\\\"rate_limits\\\":{\\\"limit_id\\\":…<truncated 304 chars>\"",
+    "rule": "A corrupt native aggregate cannot be silently accepted or estimated; retained product evidence remains valid while usage and scorecard eligibility become unavailable."
+  },
+  "normalization": {
+    "reason": "The failed driver retained green markers and controller transition/final observations but no derived boundary file.",
+    "clockCorrelation": "deterministic retained-evidence rejoin uses the shared host clock and exact controller transition/final observation stamps",
+    "milestones": {
+      "M1": "2026-08-24T19:06:10.235Z",
+      "M2": "2026-08-24T19:19:47.583Z",
+      "M3": "2026-08-24T19:32:00.010Z"
+    }
+  }
+}

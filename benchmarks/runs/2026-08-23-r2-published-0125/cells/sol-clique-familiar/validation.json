@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "snapback.r2-cell-validation.v1",
+  "finalizerVersion": "snapback.r2-retained-familiar-finalizer.v1",
+  "campaignCellRerun": false,
+  "checks": {
+    "schemaErrors": 0,
+    "semanticErrors": 0,
+    "registeredSourceHashesValid": true,
+    "nativeCorruptionNamedAndFailClosed": true,
+    "manifestAndSourceHashesValid": true,
+    "deterministicRecordCompositionValid": true
+  },
+  "record": {
+    "path": "record.json",
+    "bytes": 46758,
+    "sha256": "sha256:06d935137298f0151cec9c2108f564810eb80dffdbbd44aec5eb2f4dd5fce6da"
+  },
+  "metering": {
+    "path": "metering.json",
+    "bytes": 41837,
+    "sha256": "sha256:f600e955eb1d55cf387473e3af92a0ac37f8626054bb8beea2fd95ff22b9c5b4"
+  },
+  "manifest": {
+    "path": "metering-manifest.json",
+    "bytes": 3897,
+    "sha256": "sha256:8c4d805eb35d2a0300e0b5fd7355d5d1cbeee3891ffa249bde3fc5fd5445768d"
+  },
+  "evidenceFileCount": 38
+}

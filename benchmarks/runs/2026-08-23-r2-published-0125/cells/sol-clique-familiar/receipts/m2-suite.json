@@ -1,0 +1,171 @@
+{
+  "schemaVersion": "clique-suite-receipt.v1",
+  "milestone": "m2",
+  "pass": true,
+  "startedAt": "2026-08-24T19:13:05.092Z",
+  "endedAt": "2026-08-24T19:13:18.926Z",
+  "coveredAssertions": [
+    "m2-a01",
+    "m2-a02",
+    "m2-a03",
+    "m2-a06",
+    "m2-a08",
+    "m2-a09",
+    "m2-a10",
+    "m2-a11",
+    "m2-a12",
+    "m2-a13",
+    "m2-a15",
+    "m2-a16",
+    "m2-a17",
+    "m2-a18",
+    "m2-a20",
+    "m2-a21",
+    "m2-a22",
+    "m2-a23",
+    "m2-a24",
+    "m2-a25",
+    "m2-a26",
+    "m2-a27"
+  ],
+  "tests": [
+    {
+      "assertion": "m2-a01",
+      "name": "create text post",
+      "pass": true,
+      "durationMs": 50.90004200000112
+    },
+    {
+      "assertion": "m2-a02",
+      "name": "create post with two fixture images",
+      "pass": true,
+      "durationMs": 50.50324999999975
+    },
+    {
+      "assertion": "m2-a03",
+      "name": "create fixture video post",
+      "pass": true,
+      "durationMs": 51.363624999999956
+    },
+    {
+      "assertion": "m2-a06",
+      "name": "following projects Alice posts into Bob Following",
+      "pass": true,
+      "durationMs": 84.39749999999913
+    },
+    {
+      "assertion": "m2-a08",
+      "name": "unfollow removes old Alice posts from Following on next load",
+      "pass": true,
+      "durationMs": 80.90416699999878
+    },
+    {
+      "assertion": "m2-a09",
+      "name": "unfollow leaves Alice post in Global documents",
+      "pass": true,
+      "durationMs": 24.04583300000013
+    },
+    {
+      "assertion": "m2-a10",
+      "name": "unfollowed Carol post appears globally",
+      "pass": true,
+      "durationMs": 22.50316600000042
+    },
+    {
+      "assertion": "m2-a11",
+      "name": "unfollowed Carol post absent from Following",
+      "pass": true,
+      "durationMs": 54.541292000001704
+    },
+    {
+      "assertion": "m2-a12",
+      "name": "http URL is wired to tappable system-browser text",
+      "pass": true,
+      "durationMs": 0.21287500000107684
+    },
+    {
+      "assertion": "m2-a13",
+      "name": "feed does not render URL preview cards",
+      "pass": true,
+      "durationMs": 0.10341699999844423
+    },
+    {
+      "assertion": "m2-a15",
+      "name": "unlike clears set-state and decrements count",
+      "pass": true,
+      "durationMs": 72.38287499999933
+    },
+    {
+      "assertion": "m2-a16",
+      "name": "repost stores attributable reposter identity",
+      "pass": true,
+      "durationMs": 48.46504199999981
+    },
+    {
+      "assertion": "m2-a17",
+      "name": "second repost intent clears repost",
+      "pass": true,
+      "durationMs": 45.9659159999992
+    },
+    {
+      "assertion": "m2-a18",
+      "name": "followed user repost surfaces original in Following",
+      "pass": true,
+      "durationMs": 128.03449999999975
+    },
+    {
+      "assertion": "m2-a20",
+      "name": "thread is parent followed by chronological direct replies",
+      "pass": true,
+      "durationMs": 21.87816699999894
+    },
+    {
+      "assertion": "m2-a21",
+      "name": "replies are excluded from both feed projections",
+      "pass": true,
+      "durationMs": 54.913666999998895
+    },
+    {
+      "assertion": "m2-a22",
+      "name": "Following pagination exposes a second 20-item page",
+      "pass": true,
+      "durationMs": 23.59729200000038
+    },
+    {
+      "assertion": "m2-a23",
+      "name": "Global pagination exposes a second 20-item page",
+      "pass": true,
+      "durationMs": 23.07183299999997
+    },
+    {
+      "assertion": "m2-a24",
+      "name": "pagination has no duplicate or gap across loaded pages",
+      "pass": true,
+      "durationMs": 22.857500000000073
+    },
+    {
+      "assertion": "m2-a25",
+      "name": "implicit self membership retains Bob original posts",
+      "pass": true,
+      "durationMs": 38.25408299999981
+    },
+    {
+      "assertion": "m2-a26",
+      "name": "implicit self membership retains Bob reposts",
+      "pass": true,
+      "durationMs": 75.96133399999962
+    },
+    {
+      "assertion": "m2-a27",
+      "name": "implicit self membership does not create a follow edge",
+      "pass": true,
+      "durationMs": 20.775791000000027
+    }
+  ],
+  "replay": {
+    "actions": 68,
+    "m2Actions": 52,
+    "receipt": "receipts/m2-seed.jsonl"
+  },
+  "generatedProfile": "snapback-familiar-ts-v1"
+}

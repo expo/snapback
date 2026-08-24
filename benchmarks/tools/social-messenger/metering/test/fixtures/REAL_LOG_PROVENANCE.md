@@ -47,3 +47,18 @@ Its line SHA-256 is
 The older sidecar wrote the cell-local suffix `opus-clique-explicit`; the
 versioned observation admission canonicalizes that suffix to the manifest's
 full lane identity and still refuses every unrelated value.
+
+The three `real-*-familiar-*.jsonl` fixtures are exact single-event bytes from
+the retained `sol-clique-familiar` attempt. The Codex event is native ordinal
+839 (line 840 of the rollout), whose unchanged cumulative snapshot conflicts
+with `last_token_usage.total_tokens: 14133`; its line SHA-256 is
+`3d2a694a775989b52854f50e99f6e6caa2251714b206a4b5cf5287ae0a11210f`.
+The transition event is controller sequence 195, timestamped 1 ms before the
+later M2 gate-file write; its line SHA-256 is
+`df18cf7baf2bd8cba89e10549c32d548b7c823bd04ecc77f6cebe8ec131e4c5c`.
+The orphaned correction is controller sequence 291, whose named recovery
+episode never received a retained closure event; its line SHA-256 is
+`70c7c4eb8fdba926d8776e6b77a9d1405e8e51facef7e0cccaea155d81ff25ea`.
+The versioned admission preserves the correction action but downgrades the
+incomplete recovery block to an explicit non-claim; it never synthesizes an
+episode.

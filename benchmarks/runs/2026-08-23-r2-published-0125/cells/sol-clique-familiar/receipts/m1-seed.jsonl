@@ -1,0 +1,16 @@
+{"line":1,"actor":"alice","verb":"register","disposition":"signed-in-existing","settled":true}
+{"line":2,"actor":"alice","verb":"profile-set","settled":true}
+{"line":3,"actor":"bob","verb":"register","disposition":"signed-in-existing","settled":true}
+{"line":4,"actor":"bob","verb":"profile-set","settled":true}
+{"line":5,"actor":"carol","verb":"register","disposition":"signed-in-existing","settled":true}
+{"line":6,"actor":"carol","verb":"profile-set","settled":true}
+{"line":7,"actor":"dave","verb":"register","disposition":"signed-in-existing","settled":true}
+{"line":8,"actor":"dave","verb":"profile-set","settled":true}
+{"line":9,"actor":"erin","verb":"register","disposition":"signed-in-existing","settled":true}
+{"line":10,"actor":"erin","verb":"profile-set","settled":true}
+{"line":11,"actor":"frank","verb":"register","disposition":"signed-in-existing","settled":true}
+{"line":12,"actor":"frank","verb":"profile-set","settled":true}
+{"line":13,"actor":"grace","verb":"register","disposition":"signed-in-existing","settled":true}
+{"line":14,"actor":"grace","verb":"profile-set","settled":true}
+{"line":15,"actor":"henry","verb":"register","disposition":"signed-in-existing","settled":true}
+{"line":16,"actor":"henry","verb":"profile-set","settled":true}

@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "lane": "snapback",
+  "laneVariant": "skill",
+  "brief": "social-messenger",
+  "harness": {
+    "name": "codex-sol 0.149.0",
+    "model": "gpt-5.6-sol",
+    "effort": "xhigh",
+    "environment": {
+      "node": "v24.18.0",
+      "snapback": "0.1.25",
+      "instrument": "social-messenger@0.3.3-m8",
+      "harnessVersionFlag": "same-harness-version-change-accepted:0.147.0->0.149.0"
+    }
+  },
+  "timestamps": {
+    "startedAt": "1970-01-01T00:00:00.000Z",
+    "finishedAt": "1970-01-01T00:00:00.000Z"
+  },
+  "firstGreenProofAt": null,
+  "wallClock": {
+    "totalSeconds": 0,
+    "phases": {
+      "orientation": 0,
+      "authoring": 0,
+      "verification": 0,
+      "diagnosis": 0
+    }
+  },
+  "tokens": {
+    "input": null,
+    "output": null,
+    "source": null,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null
+    }
+  },
+  "toolUses": null,
+  "correctionLoops": [],
+  "handAuthoredLoc": {
+    "lines": 0,
+    "files": 0
+  },
+  "diary": "diary.md",
+  "socialMessenger": {
+    "extensionVersion": 2,
+    "instrumentVersion": "social-messenger@0.3.3-m8",
+    "orientation": {
+      "schemaVersion": "benchmark-orientation.v1",
+      "laneKind": "snapback-web-clique",
+      "instrument": {
+        "pin": "social-messenger@0.3.3-m8",
+        "manifest": {
+          "path": "instrument.manifest.json",
+          "sha256": "a3ff59a5e9d4b351953d35be68652dd7a4a1a298b4593a3fcc4754263ca14841"
+        },
+        "versions": {
+          "schema": "0.3.0-m8",
+          "ui": "0.3.1-m8",
+          "choreography": "0.3.3-m8"
+        }
+      },
+      "selectedSkills": [
+        "snapback-authoring"
+      ],
+      "artifacts": [
+        {
+          "id": "rendered-cell-prompt",
+          "kind": "orientation",
+          "path": "rendered-prompt.md",
+          "bytes": 5275,
+          "sha256": "94c6f19216d439b057273bfd2aefbc56931d040fe074ebdac17a84e3fbdc92c3",
+          "deduplicated": false
+        }
+      ],
+      "uniqueBytes": 5275,
+      "deliveredBytes": 5275,
+      "preflightWarnings": []
+    },
+    "runScope": "reduced",
+    "capFamily": "gpt-frontier",
+    "deploymentPosture": "local-dev-server",
+    "milestones": {
+      "M1": {
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        }
+      },
+      "M2": {
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        }
+      },
+      "M3": {
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        }
+      }
+    },
+    "termination": {
+      "terminatedEarly": false,
+      "reason": null,
+      "afterMilestone": null
+    },
+    "compaction": {
+      "policy": "codex-sol-native-default",
+      "events": []
+    },
+    "firstProductEdit": {
+      "at": null,
+      "orientationBytes": null,
+      "orientationTokens": {
+        "input": null,
+        "output": null,
+        "cacheRead": null,
+        "cacheWrite": null,
+        "reasoning": null
+      },
+      "selectedSkills": []
+    },
+    "meteringProvenance": {},
+    "coverageManifest": {
+      "path": "coverage-manifest.json",
+      "sha256": null,
+      "validated": false
+    },
+    "assertionManifest": {
+      "path": "schema/social-messenger/assertions.json",
+      "version": "0.3.0-m8",
+      "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+    },
+    "clocks": {
+      "grading": {
+        "sessions": [
+          {
+            "wallSeconds": 0,
+            "tokens": {
+              "input": null,
+              "output": null,
+              "cacheRead": null,
+              "cacheWrite": null,
+              "reasoning": null
+            }
+          }
+        ]
+      }
+    },
+    "grading": {
+      "graderReportPath": null,
+      "graderFamily": null,
+      "sameFamilyGraded": false,
+      "usableGradingRecord": false
+    }
+  }
+}

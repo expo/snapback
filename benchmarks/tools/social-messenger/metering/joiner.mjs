@@ -7,6 +7,7 @@ import {
 } from "./counts.mjs";
 import { milestoneBoundaryAt, normalizeBoundaryMap } from "./boundaries.mjs";
 import { timestampMillis } from "./jsonl.mjs";
+import { withEventDiagnostic } from "./finalization-diagnostics.mjs";
 import {
   CURRENT_INSTRUMENT_PIN,
   OBSERVATION_VERSION,
@@ -204,33 +205,37 @@ export function joinUsageToMilestones({
     (event) => !attemptedMilestones.has(event.milestone),
   );
   if (outsideAttempt !== undefined) {
-    throw new Error(
-      `observation event ${outsideAttempt.type} names unattempted milestone ${outsideAttempt.milestone}`,
-    );
+    withEventDiagnostic("observation-window-join", outsideAttempt, () => {
+      throw new Error(
+        `observation event ${outsideAttempt.type} names unattempted milestone ${outsideAttempt.milestone}`,
+      );
+    });
   }
   const orderedByMilestone = new Map(ordered.map((item, index) => [item.milestone, index]));
   for (const event of observationEvents) {
-    const index = orderedByMilestone.get(event.milestone);
-    const eventAt = Date.parse(event.at);
-    const upper = ordered[index].atMs;
-    const lower = index === 0 ? originMs : ordered[index - 1].atMs;
-    const retainedExactException = observationWindowExceptions.some((exception) => (
-      exception.observationSourceId === event.evidenceSourceId
-      && exception.milestone === event.milestone
-      && exception.sequence === event.sequence
-      && exception.at === event.at
-      && exception.type === event.type
-    ));
-    if (eventAt > upper + maxClockSkewMs && !retainedExactException) {
-      throw new Error(
-        `${event.milestone} observation ${event.type} is after its terminal boundary`,
-      );
-    }
-    if (lower !== null && eventAt < lower - maxClockSkewMs && !retainedExactException) {
-      throw new Error(
-        `${event.milestone} observation ${event.type} predates its milestone window`,
-      );
-    }
+    withEventDiagnostic("observation-window-join", event, () => {
+      const index = orderedByMilestone.get(event.milestone);
+      const eventAt = Date.parse(event.at);
+      const upper = ordered[index].atMs;
+      const lower = index === 0 ? originMs : ordered[index - 1].atMs;
+      const retainedExactException = observationWindowExceptions.some((exception) => (
+        exception.observationSourceId === event.evidenceSourceId
+        && exception.milestone === event.milestone
+        && exception.sequence === event.sequence
+        && exception.at === event.at
+        && exception.type === event.type
+      ));
+      if (eventAt > upper + maxClockSkewMs && !retainedExactException) {
+        throw new Error(
+          `${event.milestone} observation ${event.type} is after its terminal boundary`,
+        );
+      }
+      if (lower !== null && eventAt < lower - maxClockSkewMs && !retainedExactException) {
+        throw new Error(
+          `${event.milestone} observation ${event.type} predates its milestone window`,
+        );
+      }
+    });
   }
   for (const [index, item] of ordered.entries()) {
     if (originMs !== null && item.atMs < originMs - maxClockSkewMs) {
@@ -304,6 +309,7 @@ export function joinUsageToMilestones({
         events: observationEvents,
         evidence: observationEvidence,
         milestone: item.milestone,
+        joinExceptions: observations?.joinExceptions ?? [],
       }),
     };
     boundarySnapshots[item.milestone] = {

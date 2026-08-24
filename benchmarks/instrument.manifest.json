@@ -80,12 +80,12 @@
     "recordValidator": {
       "kind": "file",
       "path": "tools/social-messenger/record-validator.mjs",
-      "sha256": "4986ba54b0bb7872840211b4a88530d8f2155b8a4ed41ff61d3b85e2252ee93b"
+      "sha256": "8961b078f128eabaec2b121ad2907219c5f14b89ba52ee6a6e4df3b833b8a1e4"
     },
     "meteringRoot": {
       "kind": "directory",
       "path": "tools/social-messenger/metering",
-      "sha256": "dc62b9c6876b34b29d468e3642cea2564fc40714b545770a1ed615536e6fb5bf"
+      "sha256": "c0f36423443562734885ee8504086add1c117b216fefd920ddac73fbe3f6a415"
     }
   }
 }

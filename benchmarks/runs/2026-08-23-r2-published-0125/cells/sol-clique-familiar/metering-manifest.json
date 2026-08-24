@@ -1,0 +1,103 @@
+{
+  "manifestVersion": "social-messenger-metering-manifest.v1",
+  "laneRunId": "2026-08-23-r2-published-0125/sol-clique-familiar",
+  "capFamily": "gpt-frontier",
+  "adapter": "unavailable",
+  "unavailableReason": "retained-session-token-event-corrupt",
+  "sessions": [],
+  "receipts": [
+    {
+      "sourceId": "m1-choreography",
+      "runId": "892577b0-eea6-4c99-b98e-7032a67e5daa",
+      "milestone": "M1",
+      "path": "receipts/m1-choreography.jsonl",
+      "sha256": "sha256:b0f9b84fee748d6b1719b4adc96516cb3d1c8d64f456c2771ce8ec39a130ead2"
+    },
+    {
+      "sourceId": "m2-choreography",
+      "runId": "b5b53775-ae72-4ade-adff-65876d2f6635",
+      "milestone": "M2",
+      "path": "receipts/m2-choreography.jsonl",
+      "sha256": "sha256:36a84d5b4a167cbd19214d0e3ebf43f655efa18fc43175acd33e1829dfe9b894"
+    },
+    {
+      "sourceId": "m3-choreography",
+      "runId": "ef9e7b78-c4eb-4ba5-9f23-4f9958249dad",
+      "milestone": "M3",
+      "path": "receipts/m3-choreography.jsonl",
+      "sha256": "sha256:85975cfeec40e585ca3c2cee4806ef88a669342c999a866aad8a0ad3dc0912ee"
+    }
+  ],
+  "observations": [
+    {
+      "sourceId": "m1-suite-observations",
+      "path": "receipts/m1-suite.observations.jsonl",
+      "sha256": "sha256:0986adecb525efbca59bc5b9a6f156b7949f643b564ca056303be2de72c0cefd"
+    },
+    {
+      "sourceId": "m1-choreography-observations",
+      "path": "receipts/m1-choreography.jsonl.observations.jsonl",
+      "sha256": "sha256:ef9359fa343d735ba5941aad75f72aeaf15eb5d461a29e174bad75f97bff8881"
+    },
+    {
+      "sourceId": "m2-suite-observations",
+      "path": "receipts/m2-suite.observations.jsonl",
+      "sha256": "sha256:48300095975b559533bd3cfeed5e673abbdb81ec86f4f81cc0ed040804598a73"
+    },
+    {
+      "sourceId": "m2-choreography-observations",
+      "path": "receipts/m2-choreography.jsonl.observations.jsonl",
+      "sha256": "sha256:6b0d2f13c930dda0162599692451e64803775e631778044098b8250d15313d77"
+    },
+    {
+      "sourceId": "m3-suite-observations",
+      "path": "receipts/m3-suite.observations.jsonl",
+      "sha256": "sha256:6c5411504a359be2ccbd3151ea41b854430ee82b84f19c1c3006f16675ce12c3"
+    },
+    {
+      "sourceId": "m3-choreography-observations",
+      "path": "receipts/m3-choreography.jsonl.observations.jsonl",
+      "sha256": "sha256:7cbf3c4ebaa79cb1ce766992e464aa24540416bd96fcff64812a6adb9f512816"
+    },
+    {
+      "sourceId": "2026-08-23-r2-published-0125/sol-clique-familiar-lane-controller",
+      "path": "events/lane-controller-observations.jsonl",
+      "sha256": "sha256:1f83b7d80352bc3c9174637fdf467fb3c20e52671811c4c1627dbf7b9c6eb13a"
+    }
+  ],
+  "observationCompatibility": [
+    {
+      "ruleId": "retained-orphaned-recovery-episode-nonclaim.v1",
+      "observationSourceId": "2026-08-23-r2-published-0125/sol-clique-familiar-lane-controller",
+      "milestone": "M3",
+      "sequence": 291,
+      "at": "2026-08-24T19:31:34.471Z",
+      "type": "semantic-action",
+      "actionId": "native-m3-205",
+      "episodeId": "episode-m3-15"
+    }
+  ],
+  "suiteStatus": {
+    "path": "suite-status.json",
+    "sha256": "sha256:1397953294c863eb93959dc9e0eb04e9e82762b599fb7f09668da5a719beb453"
+  },
+  "boundaries": {
+    "path": "terminal-boundaries.json",
+    "sha256": "sha256:b4d76802853c3a29ad0a4841964bd9f0eef4143110f3d4d2685159c9e6865bff"
+  },
+  "firstProductEdit": null,
+  "recordBase": {
+    "path": "record-base.json",
+    "sha256": "sha256:8f5fdcd794599fd3434fe9ee96b6e952ccfb70b63d6b716d287af94d4dcc3aae"
+  },
+  "driver": {
+    "id": "social-messenger-r2-native-cli-driver.v1",
+    "startedAt": "2026-08-24T18:39:07.969Z",
+    "stampedAt": "2026-08-24T19:32:00.010Z"
+  },
+  "clockCorrelation": {
+    "method": "rfc3339-with-bounded-skew",
+    "maxSkewMillis": 0,
+    "evidence": "deterministic retained-evidence rejoin uses the shared host clock and exact controller transition/final observation stamps"
+  }
+}

@@ -1,1 +1,28 @@
-{"schemaVersion":"snapback.r2-cell-slot.v1","cellId":"sol-clique-familiar","status":"not-started","waveConfig":"../../harness-config.json","recordOutput":"record.json","recordSchema":"../../../../schema/social-messenger/run-record.schema.json","checkedValidator":"../../../../tools/social-messenger/record-validator.mjs"}
+{
+  "schemaVersion": "snapback.r2-cell-slot.v1",
+  "cellId": "sol-clique-familiar",
+  "status": "recovered-finalized",
+  "attemptCount": 1,
+  "campaignCellRerun": false,
+  "recoveryVersion": "snapback.r2-retained-familiar-finalizer.v1",
+  "waveConfig": "../../harness-config.json",
+  "recordOutput": "record.json",
+  "recordSchema": "../../../../schema/social-messenger/run-record.schema.json",
+  "checkedValidator": "../../../../tools/social-messenger/record-validator.mjs",
+  "record": {
+    "path": "record.json",
+    "sha256": "sha256:06d935137298f0151cec9c2108f564810eb80dffdbbd44aec5eb2f4dd5fce6da"
+  },
+  "metering": {
+    "path": "metering.json",
+    "sha256": "sha256:f600e955eb1d55cf387473e3af92a0ac37f8626054bb8beea2fd95ff22b9c5b4"
+  },
+  "retainedNativeStream": {
+    "path": "events/codex-rollout.jsonl",
+    "sha256": "sha256:1b9962de0a5e47bd313f0686fb60d44459e0f21fce3a8dcfc62363c7e5402047"
+  },
+  "originalInstrument": {
+    "path": "instrument.manifest.json",
+    "sha256": "sha256:a3ff59a5e9d4b351953d35be68652dd7a4a1a298b4593a3fcc4754263ca14841"
+  }
+}

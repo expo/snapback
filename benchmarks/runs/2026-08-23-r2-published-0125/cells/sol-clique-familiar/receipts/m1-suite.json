@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "clique-suite-receipt.v1",
+  "milestone": "m1",
+  "pass": true,
+  "startedAt": "2026-08-24T19:02:18.011Z",
+  "endedAt": "2026-08-24T19:02:18.799Z",
+  "coveredAssertions": [
+    "m1-a01",
+    "m1-a02",
+    "m1-a03",
+    "m1-a04",
+    "m1-a08",
+    "m1-a10",
+    "m1-a11"
+  ],
+  "tests": [
+    {
+      "assertion": "m1-a01",
+      "name": "password signup succeeds",
+      "pass": true,
+      "durationMs": 20.924082999999996
+    },
+    {
+      "assertion": "m1-a02",
+      "name": "signup settles authenticated principal",
+      "pass": true,
+      "durationMs": 0.018791999999962172
+    },
+    {
+      "assertion": "m1-a03",
+      "name": "duplicate handle is refused and wired to visible profile error",
+      "pass": true,
+      "durationMs": 44.458375000000046
+    },
+    {
+      "assertion": "m1-a04",
+      "name": "duplicate email is refused and auth error is visible",
+      "pass": true,
+      "durationMs": 16.968124999999986
+    },
+    {
+      "assertion": "m1-a08",
+      "name": "display name and bio edit persist",
+      "pass": true,
+      "durationMs": 43.21524999999997
+    },
+    {
+      "assertion": "m1-a10",
+      "name": "fixture avatar replacement settles through profile mutation",
+      "pass": true,
+      "durationMs": 25.048167000000035
+    },
+    {
+      "assertion": "m1-a11",
+      "name": "saved fixture avatar projects on profile",
+      "pass": true,
+      "durationMs": 18.942833999999948
+    }
+  ],
+  "replay": {
+    "actions": 16,
+    "receipt": "receipts/m1-seed.jsonl"
+  },
+  "generatedProfile": "snapback-familiar-ts-v1"
+}

@@ -24,7 +24,11 @@ import {
   observationLaneRunIdMatches,
   parseObservationJsonLines,
 } from "./observations.mjs";
-import { withEventDiagnostic } from "./finalization-diagnostics.mjs";
+import {
+  rawEventContext,
+  retainRawEventContext,
+  withEventDiagnostic,
+} from "./finalization-diagnostics.mjs";
 import { assertCapFamily } from "./sources.mjs";
 import { validateJsonSchema } from "../../lib/json-schema.mjs";
 
@@ -257,16 +261,68 @@ async function loadObservations(manifestDirectory, observations, laneRunId) {
         event.laneRunId = laneRunId;
       });
     }
-    events.push(...sourceEvents.map((event) => ({
-      ...event,
-      evidenceSourceId: sourceId,
-    })));
+    events.push(...sourceEvents.map((event) => {
+      const projected = { ...event, evidenceSourceId: sourceId };
+      const context = rawEventContext(event);
+      if (context !== null) retainRawEventContext(projected, context);
+      return projected;
+    }));
     provenance.push({ sourceId, path: observation.path, sha256: artifact.sha256 });
   }
   events.sort((left, right) => (
     Date.parse(left.at) - Date.parse(right.at) || left.sequence - right.sequence
   ));
   return { events, provenance };
+}
+
+export function loadObservationCompatibility(manifest, observationResult) {
+  const rules = manifest.observationCompatibility ?? [];
+  if (!Array.isArray(rules)) {
+    throw new TypeError("manifest.observationCompatibility must be an array");
+  }
+  const admitted = [];
+  for (const [index, rule] of rules.entries()) {
+    const label = `manifest.observationCompatibility[${index}]`;
+    if (rule?.ruleId !== "retained-orphaned-recovery-episode-nonclaim.v1") {
+      throw new Error(`${label}.ruleId is unsupported`);
+    }
+    const event = observationResult.events.find((candidate) => (
+      candidate.evidenceSourceId === rule.observationSourceId
+      && candidate.milestone === rule.milestone
+      && candidate.sequence === rule.sequence
+      && candidate.at === rule.at
+      && candidate.type === rule.type
+      && candidate.actionId === rule.actionId
+      && candidate.episodeId === rule.episodeId
+    ));
+    if (
+      event === undefined
+      || event.type !== "semantic-action"
+      || event.disposition !== "correction"
+      || event.episodeId === null
+    ) {
+      throw new Error(`${label} does not bind one exact retained correction action`);
+    }
+    const episodeExists = observationResult.events.some((candidate) => (
+      candidate.milestone === event.milestone
+      && candidate.type === "recovery-episode"
+      && candidate.episodeId === event.episodeId
+    ));
+    if (episodeExists) {
+      throw new Error(`${label} cannot downgrade a complete recovery episode`);
+    }
+    admitted.push({
+      ruleId: rule.ruleId,
+      observationSourceId: event.evidenceSourceId,
+      milestone: event.milestone,
+      sequence: event.sequence,
+      at: event.at,
+      type: event.type,
+      actionId: event.actionId,
+      episodeId: event.episodeId,
+    });
+  }
+  return admitted;
 }
 
 // @ref LLP 0201#d2--quantitative-instrument — the protocol terminal and the
@@ -787,6 +843,7 @@ export async function loadMeteringManifest(manifestPath) {
   const recordBase = recordBaseArtifact === null
     ? null
     : JSON.parse(recordBaseArtifact.text);
+  const observationJoinExceptions = loadObservationCompatibility(manifest, observations);
 
   return {
     channel,
@@ -797,6 +854,7 @@ export async function loadMeteringManifest(manifestPath) {
     observations: {
       events: driverCompatibility.observationEvents,
       evidence: observations.provenance.map(({ path, sha256 }) => ({ path, sha256 })),
+      joinExceptions: observationJoinExceptions,
       windowExceptions: driverCompatibility.compatibilityEvents
         .flatMap((event) => event.observationTerminalInclusions ?? []),
     },

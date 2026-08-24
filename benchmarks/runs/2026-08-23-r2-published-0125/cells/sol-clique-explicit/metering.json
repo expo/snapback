@@ -972,6 +972,7 @@
     "eligible": false,
     "correctionActionTargetEligible": false,
     "ineligibilityReasons": [
+      "orientation-evidence-unavailable",
       "phase-usage-unavailable"
     ]
   },
@@ -1028,13 +1029,23 @@
   "meteringProvenance": {
     "manifestVersion": "social-messenger-metering-manifest.v1",
     "laneRunId": "2026-08-23-r2-published-0125/sol-clique-explicit",
+    "manifest": {
+      "path": "metering-manifest.json",
+      "sha256": "sha256:fd7ba65cbd31265d832e2b29fb9f83dff4091fad51fdd21662cd1ead08aab8fb"
+    },
     "driver": {
       "id": "social-messenger-r2-native-cli-driver.v1",
       "stampedAt": "2026-08-24T10:10:23.198Z",
-      "startedAt": "2026-08-24T09:05:53.827Z"
+      "startedAt": "2026-08-24T09:05:53.827Z",
+      "compatibilityEvents": []
     },
-    "manifestSha256": "sha256:0475614ac8db156cc8a90288094d77a4badc52f7aa1a313617830abaa2ad7b73",
+    "manifestSha256": "sha256:fd7ba65cbd31265d832e2b29fb9f83dff4091fad51fdd21662cd1ead08aab8fb",
     "unavailableReason": "retained-session-token-event-corrupt",
+    "adapter": {
+      "id": "unavailable-null",
+      "version": "unavailable-null.v1",
+      "compatibilityEvents": []
+    },
     "clockCorrelation": {
       "method": "rfc3339-with-bounded-skew",
       "maxSkewMillis": 0,
@@ -1105,7 +1116,11 @@
       "path": "terminal-boundaries.json",
       "sha256": "sha256:e4fd80893282d46f2b6ce86ae9c6b15aedcfb70c81e0de70a873faa27da7132d"
     },
-    "firstProductEdit": null
+    "firstProductEdit": null,
+    "recordBase": {
+      "path": "record-base.json",
+      "sha256": "sha256:51583a9a5bcebdcfc54c2940eb5936b6b7a461645efe59c81cb109b7e3c1d0ea"
+    }
   },
   "suiteStatusLinkage": {
     "input": {

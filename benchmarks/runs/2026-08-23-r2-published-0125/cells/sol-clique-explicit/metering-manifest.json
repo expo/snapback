@@ -74,6 +74,10 @@
     "sha256": "sha256:e4fd80893282d46f2b6ce86ae9c6b15aedcfb70c81e0de70a873faa27da7132d"
   },
   "firstProductEdit": null,
+  "recordBase": {
+    "path": "record-base.json",
+    "sha256": "sha256:51583a9a5bcebdcfc54c2940eb5936b6b7a461645efe59c81cb109b7e3c1d0ea"
+  },
   "driver": {
     "id": "social-messenger-r2-native-cli-driver.v1",
     "startedAt": "2026-08-24T09:05:53.827Z",

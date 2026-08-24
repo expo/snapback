@@ -88,7 +88,7 @@
     {
       "id": "versioned-instrument-materialization",
       "status": "fail",
-      "observed": "Recovered cell 1 remains bound to immutable instrument manifest 8a13dcc5. Continuation requires a new non-overwriting snapshot at /Users/ccheever/bench-matrix-20260823-r2/instrument-resume-20260824, materialized from resume manifest sha256:7934976c3bbd93869da20f8f379e7fd259e3a400457ebe27c22d16f04501957e by the registered refusal-on-overwrite tool.",
+      "observed": "Recovered cell evidence remains bound to its original immutable instrument manifests. Continuation uses the non-overwriting corpus-hardening snapshot at /Users/ccheever/bench-matrix-20260823-r2/instrument-corpus-hardening-20260824-v4, materialized from manifest sha256:1320261386aadb2dfdf0ebd161df8845f0d8582f37000aa77aebd334107c2833 by the registered refusal-on-overwrite tool.",
       "detail": "Run the recovery-resume.v4 materializationCommand after this commit lands and before admission. The old /instrument archive and cell-1 snapshot remain untouched."
     },
     {

@@ -513,7 +513,7 @@ function episodeProjection(events, milestone, evidence) {
   };
 }
 
-function validateActionEpisodeJoin(events, milestone) {
+function validateActionEpisodeJoin(events, milestone, joinExceptions = []) {
   const actions = milestoneEvents(events, milestone, "semantic-action");
   const episodes = milestoneEvents(events, milestone, "recovery-episode");
   const episodeById = new Map(episodes.map((episode) => [episode.episodeId, episode]));
@@ -526,7 +526,20 @@ function validateActionEpisodeJoin(events, milestone) {
     actionIds.add(action.actionId);
     if (action.episodeId === null) continue;
     if (!episodeById.has(action.episodeId)) {
-      throw new Error(`${milestone} correction action ${action.actionId} names missing episode ${action.episodeId}`);
+      const admitted = joinExceptions.some((exception) => (
+        exception.ruleId === "retained-orphaned-recovery-episode-nonclaim.v1"
+        && exception.observationSourceId === action.evidenceSourceId
+        && exception.milestone === action.milestone
+        && exception.sequence === action.sequence
+        && exception.at === action.at
+        && exception.type === action.type
+        && exception.actionId === action.actionId
+        && exception.episodeId === action.episodeId
+      ));
+      if (admitted) continue;
+      withEventDiagnostic("observation-action-episode-join", action, () => {
+        throw new Error(`${milestone} correction action ${action.actionId} names missing episode ${action.episodeId}`);
+      });
     }
     actionCountByEpisode.set(
       action.episodeId,
@@ -541,6 +554,9 @@ function validateActionEpisodeJoin(events, milestone) {
       );
     }
   }
+  return actions.every((action) => (
+    action.episodeId === null || episodeById.has(action.episodeId)
+  ));
 }
 
 function lifecycleProjection(events, milestone, evidence) {
@@ -686,7 +702,12 @@ const PROJECTORS = Object.freeze({
   apiInterruptions: apiProjection,
 });
 
-export function projectMilestoneObservability({ events = [], evidence = [], milestone }) {
+export function projectMilestoneObservability({
+  events = [],
+  evidence = [],
+  milestone,
+  joinExceptions = [],
+}) {
   const result = {};
   for (const block of OBSERVABILITY_BLOCKS) {
     if (block === "browserAssertionWait") {
@@ -712,7 +733,16 @@ export function projectMilestoneObservability({ events = [], evidence = [], mile
     }
   }
   if (result.semanticActions.claimed && result.failureToRecoveryEpisodes.claimed) {
-    validateActionEpisodeJoin(events, milestone);
+    const complete = validateActionEpisodeJoin(events, milestone, joinExceptions);
+    if (!complete) {
+      // This is a fail-closed downgrade, not a synthesized recovery episode:
+      // the exact retained correction action remains in semanticActions while
+      // the internally incomplete recovery block becomes an explicit non-claim.
+      result.failureToRecoveryEpisodes = nonClaim(
+        "failureToRecoveryEpisodes",
+        "retained-recovery-episode-stream-incomplete",
+      );
+    }
   }
   return result;
 }

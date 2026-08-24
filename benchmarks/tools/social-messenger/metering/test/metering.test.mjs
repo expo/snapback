@@ -46,9 +46,8 @@ import {
 } from "../finalization-diagnostics.mjs";
 import { parseJsonLines } from "../jsonl.mjs";
 import {
-  applyR2DriverV1TerminalCompatibility,
+  loadObservationCompatibility,
   loadMeteringManifest,
-  R2_DRIVER_V1_TERMINAL_RULE,
 } from "../manifest.mjs";
 import {
   completeAdmittedDriverPreflight,
@@ -478,17 +477,13 @@ test("optional null cache and reasoning orientation counters preserve measured o
   );
 });
 
-test("retained R2 Codex ordering settles signal usage without stealing the next milestone", async () => {
+test("retained R2 Codex ordering remains exact and metering fails closed", async () => {
   const cellRoot = new URL(
     "benchmarks/runs/2026-08-23-r2-published-0125/cells/sol-clique-explicit/",
     ROOT,
   );
   const manifestText = await readFile(new URL("metering-manifest.json", cellRoot), "utf8");
   const manifest = JSON.parse(manifestText);
-  const boundaryValue = JSON.parse(await readFile(
-    new URL("terminal-boundaries.json", cellRoot),
-    "utf8",
-  ));
   const rolloutText = await readFile(new URL("events/codex-rollout.jsonl", cellRoot), "utf8");
   assert.equal(
     sha256(rolloutText),
@@ -515,130 +510,25 @@ test("retained R2 Codex ordering settles signal usage without stealing the next 
     Object.keys(records[222].payload.item.changes).map((path) => path.split("/").at(-1)),
     ["package.json"],
   );
-  const observationEvents = [];
-  for (const source of manifest.observations) {
-    const events = parseObservationJsonLines(
-      await readFile(new URL(source.path, cellRoot), "utf8"),
-      source.path,
-    );
-    observationEvents.push(...events.map((event) => ({
-      ...event,
-      evidenceSourceId: source.sourceId,
-    })));
-  }
-  const result = applyR2DriverV1TerminalCompatibility({
-    manifest,
-    boundaryValue,
-    observationEvents,
-    clockCorrelation: manifest.clockCorrelation,
-    loadedSessions: [{
-      ...manifest.sessions[0],
-      records,
-      nativeCliVersion: "0.149.0",
-      resolvedSha256: manifest.sessions[0].sha256,
-    }],
-  });
+  assert.equal(manifest.adapter, "unavailable");
+  assert.equal(manifest.unavailableReason, "retained-session-token-event-corrupt");
 
-  assert.equal(
-    boundaryValue.milestones.M1.terminalAt,
-    "2026-08-24T09:54:04.184Z",
-    "the immutable original boundary remains unchanged",
-  );
-  assert.deepEqual(
-    Object.values(result.boundaryValue.milestones).map((boundary) => boundary.terminalAt),
-    [
-      "2026-08-24T09:54:04.184Z",
-      "2026-08-24T10:01:49.197Z",
-      "2026-08-24T10:05:46.005Z",
-    ],
-  );
-  assert.equal(result.clockCorrelation.maxSkewMillis, 0);
-  assert.deepEqual(
-    result.compatibilityEvents[0].usageSettlements.map((adjustment) => ({
-      milestone: adjustment.milestone,
-      signalRecordOrdinal: adjustment.signalRecordOrdinal,
-      usageRecordOrdinal: adjustment.usageRecordOrdinal,
-      usageSettledAt: adjustment.usageSettledAt,
-      settlementKind: adjustment.settlementKind,
-    })),
-    [
-      { milestone: "M1", signalRecordOrdinal: 1229, usageRecordOrdinal: 1231, usageSettledAt: "2026-08-24T09:54:54.157Z", settlementKind: "signal-turn-token-count" },
-      { milestone: "M2", signalRecordOrdinal: 1413, usageRecordOrdinal: 1415, usageSettledAt: "2026-08-24T10:02:30.911Z", settlementKind: "signal-turn-token-count" },
-      { milestone: "M3", signalRecordOrdinal: 1557, usageRecordOrdinal: 1564, usageSettledAt: "2026-08-24T10:10:21.856Z", settlementKind: "final-native-token-count" },
-    ],
-  );
-  assert.equal(result.compatibilityEvents[0].ruleId, R2_DRIVER_V1_TERMINAL_RULE);
-  assert.deepEqual(
-    result.compatibilityEvents[0].observationHandoffExclusions.map((event) => event.sequence),
-    [209, 244],
-  );
-  assert.deepEqual(
-    result.compatibilityEvents[0].usageSettlements.map((event) => event.usageSettledAt),
-    [
-      "2026-08-24T09:54:54.157Z",
-      "2026-08-24T10:02:30.911Z",
-      "2026-08-24T10:10:21.856Z",
-    ],
-  );
-
-  const joined = joinUsageToMilestones({
-    channel: adaptCodexSessionTree([{
+  let adapterFailure = null;
+  try {
+    adaptCodexSessionTree([{
       sourceId: "builder",
-      nativeSessionId: manifest.sessions[0].nativeSessionId,
+      nativeSessionId: "01a03304-e4e2-71d0-892e-bf0440eac5b2",
       records,
-    }]),
-    boundaries: result.boundaryValue,
-    usageSettlements: result.usageSettlements,
-    firstProductEdit: null,
-    wallClockOrigin: manifest.driver.startedAt,
-  });
-  assert.deepEqual(joined.milestones.M1.authoring.tokens, counts(544_314, 103_534, 24_087_808, 0, 29_142));
-  assert.deepEqual(joined.milestones.M2.authoring.tokens, counts(50_096, 7_770, 5_335_296, 0, 2_314));
-  assert.deepEqual(joined.milestones.M3.authoring.tokens, counts(62_057, 13_299, 4_985_856, 0, 4_668));
-  assert.deepEqual(joined.totals, counts(656_467, 124_603, 34_408_960, 0, 36_124));
-
-  const unversioned = applyR2DriverV1TerminalCompatibility({
-    manifest: { driver: { id: "some-other-driver" } },
-    boundaryValue,
-    observationEvents,
-    clockCorrelation: manifest.clockCorrelation,
-  });
-  assert.equal(unversioned.boundaryValue, boundaryValue);
-  assert.deepEqual(unversioned.compatibilityEvents, []);
-
-  for (const offsetMillis of [-999, 999]) {
-    const futureManifest = structuredClone(manifest);
-    futureManifest.driver.instrumentationCommandsObserved = false;
-    const futureObservations = observationEvents.filter((event) => ![209, 244].includes(event.sequence));
-    const nextMilestone = structuredClone(observationEvents.find((event) => event.sequence === 210));
-    nextMilestone.sequence = offsetMillis < 0 ? 9_001 : 9_002;
-    nextMilestone.actionId = `legitimate-next-milestone-progress-${offsetMillis}`;
-    nextMilestone.at = new Date(
-      Date.parse(result.usageSettlements[0].signalCompletedAt) + offsetMillis,
-    ).toISOString();
-    futureObservations.push(nextMilestone);
-    const future = applyR2DriverV1TerminalCompatibility({
-      manifest: futureManifest,
-      boundaryValue,
-      observationEvents: futureObservations,
-      clockCorrelation: manifest.clockCorrelation,
-      loadedSessions: [{
-        ...manifest.sessions[0],
-        records,
-        nativeCliVersion: "0.149.0",
-        resolvedSha256: manifest.sessions[0].sha256,
-      }],
-    });
-    assert.deepEqual(
-      future.compatibilityEvents[0].observationHandoffExclusions,
-      [],
-      "a filtered future stream must skip the recovered-cell handoff heuristic entirely",
-    );
-    assert.ok(
-      future.observationEvents.some((event) => event.actionId === nextMilestone.actionId),
-      `legitimate next-milestone progress at ${offsetMillis}ms must survive`,
-    );
+    }]);
+  } catch (error) {
+    adapterFailure = error;
   }
+  const adapterDiagnostic = formatFinalizationFailure(adapterFailure);
+  assert.match(adapterDiagnostic, /stage=codex-token-count-delta-join/u);
+  assert.match(adapterDiagnostic, /eventOrdinal=710/u);
+  assert.match(adapterDiagnostic, /eventType="event_msg\/token_count"/u);
+  assert.match(adapterDiagnostic, /received 0 and 15283/u);
+
 });
 
 test("closed Codex failure without a later native token_count is explicitly unavailable", () => {
@@ -808,6 +698,90 @@ test("exact retained Opus shorthand lane identity canonicalizes to its full lane
     laneRunId: "2026-08-23-r2-published-0125/sol-clique-explicit",
   });
   assert.equal(unrelated.laneRunId, "opus-clique-explicit");
+});
+
+test("exact retained Familiar failures stay named, transition-bound, and fail-closed", async () => {
+  const native = await fixtureText("real-codex-familiar-corrupt-token-count.jsonl");
+  assert.equal(
+    sha256(native.trimEnd()),
+    "sha256:3d2a694a775989b52854f50e99f6e6caa2251714b206a4b5cf5287ae0a11210f",
+  );
+  const [tokenEvent] = parseJsonLines(native, "retained Familiar rollout excerpt");
+  assert.equal(tokenEvent.ordinal, 839);
+  assert.equal(tokenEvent.payload.info.last_token_usage.total_tokens, 14_133);
+
+  const transition = await fixtureText("real-familiar-transition-observation.jsonl");
+  assert.equal(
+    sha256(transition.trimEnd()),
+    "sha256:df18cf7baf2bd8cba89e10549c32d548b7c823bd04ecc77f6cebe8ec131e4c5c",
+  );
+  const [transitionEvent] = parseObservationJsonLines(transition, "retained Familiar transition");
+  assert.equal(transitionEvent.sequence, 195);
+  assert.ok(
+    Date.parse(transitionEvent.at) < Date.parse("2026-08-24T19:06:10.236Z"),
+    "the native observation transition precedes the later gate-file write by 1ms",
+  );
+
+  const orphanText = await fixtureText("real-familiar-orphaned-correction.jsonl");
+  assert.equal(
+    sha256(orphanText.trimEnd()),
+    "sha256:70c7c4eb8fdba926d8776e6b77a9d1405e8e51facef7e0cccaea155d81ff25ea",
+  );
+  const [orphan] = parseObservationJsonLines(orphanText, "retained Familiar controller");
+  orphan.evidenceSourceId = `${orphan.laneRunId}-lane-controller`;
+  const base = {
+    version: OBSERVATION_VERSION,
+    laneRunId: orphan.laneRunId,
+    milestone: "M3",
+    at: orphan.at,
+    type: "block-claim",
+    owner: null,
+  };
+  const events = [
+    { ...base, sequence: 1, block: "semanticActions", claimed: true, reason: null },
+    { ...base, sequence: 2, block: "failureToRecoveryEpisodes", claimed: true, reason: null },
+    { ...base, sequence: 3, block: "restartReseed", claimed: false, reason: "lane-lifecycle-events-unavailable" },
+    { ...base, sequence: 4, block: "hostLoad", claimed: false, reason: "host-load-sampling-unavailable" },
+    { ...base, sequence: 5, block: "apiInterruptions", claimed: false, reason: "api-request-events-unavailable" },
+    { ...base, sequence: 6, block: "browserAssertionWait", owner: "suite", claimed: false, reason: "complete-suite-and-choreography-waits-unavailable" },
+    { ...base, sequence: 7, block: "browserAssertionWait", owner: "choreography", claimed: false, reason: "complete-suite-and-choreography-waits-unavailable" },
+    orphan,
+  ];
+  let failure = null;
+  try {
+    projectMilestoneObservability({ events, evidence: [{ path: "exact", sha256: sha256(orphanText) }], milestone: "M3" });
+  } catch (error) {
+    failure = error;
+  }
+  assert.match(formatFinalizationFailure(failure), /stage=observation-action-episode-join/u);
+  assert.match(formatFinalizationFailure(failure), /eventType="semantic-action"/u);
+  assert.match(formatFinalizationFailure(failure), /native-m3-205/u);
+
+  const rule = {
+    ruleId: "retained-orphaned-recovery-episode-nonclaim.v1",
+    observationSourceId: orphan.evidenceSourceId,
+    milestone: orphan.milestone,
+    sequence: orphan.sequence,
+    at: orphan.at,
+    type: orphan.type,
+    actionId: orphan.actionId,
+    episodeId: orphan.episodeId,
+  };
+  const joinExceptions = loadObservationCompatibility(
+    { observationCompatibility: [rule] },
+    { events },
+  );
+  const projected = projectMilestoneObservability({
+    events,
+    evidence: [{ path: "exact", sha256: sha256(orphanText) }],
+    milestone: "M3",
+    joinExceptions,
+  });
+  assert.deepEqual(projected.failureToRecoveryEpisodes, {
+    claimed: false,
+    reason: "retained-recovery-episode-stream-incomplete",
+  });
+  assert.equal(projected.semanticActions.total, 1);
 });
 
 test("meter binds suite-status bytes to receipts at record-write time", async (t) => {
@@ -1501,7 +1475,7 @@ function composedErrors(record, artifactRoot = null) {
   });
 }
 
-test("current R2 compatibility provenance rejects deletion and fabrication", async () => {
+test("current R2 unavailable provenance rejects deletion and fabricated measurements", async () => {
   const root = fileURLToPath(new URL(
     "benchmarks/runs/2026-08-23-r2-published-0125/cells/sol-clique-explicit/",
     ROOT,
@@ -1512,43 +1486,19 @@ test("current R2 compatibility provenance rejects deletion and fabrication", asy
 
   for (const mutate of [
     (candidate) => { delete candidate.socialMessenger.meteringProvenance.adapter; },
-    (candidate) => { delete candidate.socialMessenger.meteringProvenance.driver.compatibilityEvents; },
-    (candidate) => { delete candidate.socialMessenger.meteringProvenance.sessions[0].nativeCliVersion; },
+    (candidate) => { delete candidate.socialMessenger.meteringProvenance.unavailableReason; },
+    (candidate) => { candidate.socialMessenger.meteringProvenance.adapter.id = "codex-rollout"; },
+    (candidate) => { candidate.tokens.input = 1; },
+    (candidate) => { candidate.socialMessenger.milestones.M1.authoring.tokens.output = 1; },
   ]) {
     const candidate = structuredClone(record);
     mutate(candidate);
-    assert.notDeepEqual(composedErrors(candidate, root), [], "omitted current-R2 provenance must fail");
+    assert.notDeepEqual(
+      composedErrors(candidate, root),
+      [],
+      "unavailable retained evidence cannot acquire fabricated measurements",
+    );
   }
-
-  const fabricatedAdapter = structuredClone(record);
-  fabricatedAdapter.socialMessenger.meteringProvenance.adapter.compatibilityEvents = [];
-  assert.match(
-    composedErrors(fabricatedAdapter, root).join("\n"),
-    /adapter.*native adapter replay/u,
-  );
-
-  const fabricatedNativeVersion = structuredClone(record);
-  fabricatedNativeVersion.socialMessenger.meteringProvenance.sessions[0].nativeCliVersion = "0.150.0";
-  assert.match(
-    composedErrors(fabricatedNativeVersion, root).join("\n"),
-    /nativeCliVersion/u,
-  );
-
-  const fabricatedDriver = structuredClone(record);
-  fabricatedDriver.socialMessenger.meteringProvenance.driver.compatibilityEvents[0]
-    .usageSettlements[0].usageRecordOrdinal = 1230;
-  assert.match(
-    composedErrors(fabricatedDriver, root).join("\n"),
-    /driver.*native boundary replay/u,
-  );
-
-  const fabricatedHandoff = structuredClone(record);
-  fabricatedHandoff.socialMessenger.meteringProvenance.driver.compatibilityEvents[0]
-    .observationHandoffExclusions[0].sequence = 210;
-  assert.match(
-    composedErrors(fabricatedHandoff, root).join("\n"),
-    /driver.*native boundary replay/u,
-  );
 
   const disguisedDriver = structuredClone(record);
   disguisedDriver.socialMessenger.meteringProvenance.driver.id = "fixture-driver";
@@ -1557,42 +1507,6 @@ test("current R2 compatibility provenance rejects deletion and fabrication", asy
     [],
     "a current R2 record cannot evade provenance replay by renaming its driver",
   );
-});
-
-test("recovered signal handoff cannot be replaced by an arbitrary overlapping process event", async () => {
-  const sourceRoot = fileURLToPath(new URL(
-    "benchmarks/runs/2026-08-23-r2-published-0125/cells/sol-clique-explicit/",
-    ROOT,
-  ));
-  const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-handoff-mutation-")));
-  await cp(sourceRoot, temp, { recursive: true });
-  try {
-    const eventPath = join(temp, "events/lane-controller-observations.jsonl");
-    const events = parseObservationJsonLines(await readFile(eventPath, "utf8"), eventPath);
-    events.find((event) => event.sequence === 209).actionId = "arbitrary-product-process";
-    const eventText = `${events.map((event) => JSON.stringify(event)).join("\n")}\n`;
-    await writeFile(eventPath, eventText);
-    const manifestPath = join(temp, "metering-manifest.json");
-    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-    const descriptor = manifest.observations.find(
-      (item) => item.sourceId.endsWith("lane-controller"),
-    );
-    descriptor.sha256 = sha256(eventText);
-    const manifestText = `${JSON.stringify(manifest, null, 2)}\n`;
-    await writeFile(manifestPath, manifestText);
-    const record = JSON.parse(await readFile(join(temp, "record.json"), "utf8"));
-    record.socialMessenger.meteringProvenance.manifest.sha256 = sha256(manifestText);
-    record.socialMessenger.meteringProvenance.manifestSha256 = sha256(manifestText);
-    record.socialMessenger.meteringProvenance.observations.find(
-      (item) => item.sourceId.endsWith("lane-controller"),
-    ).sha256 = descriptor.sha256;
-    assert.match(
-      composedErrors(record, temp).join("\n"),
-      /exact versioned native\/observation handoff registration/u,
-    );
-  } finally {
-    await rm(temp, { recursive: true, force: true });
-  }
 });
 
 test("current R2 complete replay rejects coordinated quantitative fabrication", async () => {
@@ -1619,59 +1533,6 @@ test("current R2 complete replay rejects coordinated quantitative fabrication", 
       /complete hash-bound native metering replay|native boundary replay/u,
       label,
     );
-  }
-});
-
-test("current R2 validates the complete immutable commandless FileChange set", async (context) => {
-  const sourceRoot = fileURLToPath(new URL(
-    "benchmarks/runs/2026-08-23-r2-published-0125/cells/sol-clique-explicit/",
-    ROOT,
-  ));
-  const mutations = [
-    ["source ID", () => {}, true],
-    ["deletion", (events) => { events.splice(1, 1); }],
-    ["fabrication", (events) => { events.push({ ...events[0], sequence: 99_999, actionId: "fabricated" }); }],
-    ["action identity", (events) => { events[0].actionId = "fabricated"; }],
-    ["action class", (events) => { events[0].actionClass = "edit"; }],
-    ["milestone", (events) => { events[0].milestone = "M2"; }],
-    ["sequence", (events) => { events[0].sequence += 1; }],
-    ["timestamp", (events) => { events[0].at = "2026-08-24T09:12:15.377Z"; }],
-  ];
-  for (const [label, mutate, mutateSourceId = false] of mutations) {
-    await context.test(label, async () => {
-      const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-file-change-mutation-")));
-      await cp(sourceRoot, temp, { recursive: true });
-      try {
-        const eventPath = join(temp, "events/codex-file-change-observations.jsonl");
-        const events = parseObservationJsonLines(await readFile(eventPath, "utf8"), eventPath);
-        mutate(events);
-        const eventText = `${events.map((event) => JSON.stringify(event)).join("\n")}\n`;
-        await writeFile(eventPath, eventText);
-        const manifestPath = join(temp, "metering-manifest.json");
-        const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-        const descriptor = manifest.observations.find(
-          (item) => item.sourceId === "codex-file-change-observations",
-        );
-        if (mutateSourceId) descriptor.sourceId = "fabricated-file-change-source";
-        descriptor.sha256 = sha256(eventText);
-        const manifestText = `${JSON.stringify(manifest, null, 2)}\n`;
-        await writeFile(manifestPath, manifestText);
-        const record = JSON.parse(await readFile(join(temp, "record.json"), "utf8"));
-        record.socialMessenger.meteringProvenance.manifest.sha256 = sha256(manifestText);
-        record.socialMessenger.meteringProvenance.manifestSha256 = sha256(manifestText);
-        const source = record.socialMessenger.meteringProvenance.observations.find(
-          (item) => item.sourceId === "codex-file-change-observations",
-        );
-        source.sha256 = descriptor.sha256;
-        if (mutateSourceId) source.sourceId = descriptor.sourceId;
-        assert.match(
-          composedErrors(record, temp).join("\n"),
-          /commandless FileChange|complete hash-bound native metering replay/u,
-        );
-      } finally {
-        await rm(temp, { recursive: true, force: true });
-      }
-    });
   }
 });
 
@@ -2463,7 +2324,7 @@ async function makeFinalizeExistingFixture({ targetOutsideRepository = false } =
   const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-finalize-existing-")));
   const registeredRunRoot = await mkdtemp(join(ROOT_PATH, "benchmarks/runs/.r2-finalize-existing-"));
   const publicationRunRoot = targetOutsideRepository ? join(temp, "escaped-run") : registeredRunRoot;
-  const cellId = "sol-clique-explicit";
+  const cellId = "opus-clique-explicit";
   const privateCell = join(temp, "private", "cells", cellId);
   const targetCell = join(publicationRunRoot, "cells", cellId);
   const configPath = join(registeredRunRoot, "harness-config.json");
@@ -2472,7 +2333,7 @@ async function makeFinalizeExistingFixture({ targetOutsideRepository = false } =
     "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json",
     ROOT,
   ), "utf8"));
-  const sourceCell = structuredClone(sourceConfig.cells[0]);
+  const sourceCell = structuredClone(sourceConfig.cells.find((cell) => cell.id === cellId));
   sourceConfig.cells = [sourceCell];
   sourceConfig.cellOrder = [cellId];
   sourceConfig.paths.committedRunRoot = targetOutsideRepository
@@ -2648,11 +2509,31 @@ async function makeFinalizeExistingFixture({ targetOutsideRepository = false } =
     `benchmarks/runs/2026-08-23-r2-published-0125/cells/${cellId}/`,
     ROOT,
   )), privateCell, { recursive: true, force: false });
+  await Promise.all([
+    cp(fileURLToPath(new URL(
+      "benchmarks/runs/2026-08-23-r2-published-0125/cells/sol-clique-explicit/schema/",
+      ROOT,
+    )), join(privateCell, "schema"), { recursive: true, force: false }),
+    copyFile(fileURLToPath(new URL(
+      "benchmarks/runs/2026-08-23-r2-published-0125/cells/sol-clique-explicit/coverage-manifest.json",
+      ROOT,
+    )), join(privateCell, "coverage-manifest.json")),
+  ]);
   const retainedManifest = JSON.parse(await readFile(join(privateCell, "metering-manifest.json"), "utf8"));
+  retainedManifest.recordBase = {
+    path: "record-base.json",
+    sha256: sha256(await readFile(join(privateCell, "record-base.json"))),
+  };
+  await writeFile(
+    join(privateCell, "metering-manifest.json"),
+    `${JSON.stringify(retainedManifest, null, 2)}\n`,
+  );
   const ownershipPath = join(privateCell, "process-ownership.json");
   const ownership = JSON.parse(await readFile(ownershipPath, "utf8"));
   ownership.nativeHarnessPid = 424_242;
-  ownership.nativeHarnessStartedAt = "2026-08-24T09:05:53.900Z";
+  ownership.nativeHarnessStartedAt = new Date(
+    Date.parse(retainedManifest.driver.startedAt) + 1,
+  ).toISOString();
   ownership.nativeHarness = {
     pid: ownership.nativeHarnessPid,
     harnessKey: sourceCell.harness,
@@ -2669,8 +2550,6 @@ async function makeFinalizeExistingFixture({ targetOutsideRepository = false } =
   };
   ownership.updatedAt = retainedManifest.driver.stampedAt;
   await writeFile(ownershipPath, `${JSON.stringify(ownership, null, 2)}\n`);
-  const expectedRecord = await readFile(join(privateCell, "record.json"));
-  const expectedMetering = await readFile(join(privateCell, "metering.json"));
   await Promise.all([
     rm(join(privateCell, "record.json")),
     rm(join(privateCell, "metering.json")),
@@ -2699,8 +2578,6 @@ async function makeFinalizeExistingFixture({ targetOutsideRepository = false } =
     configPath,
     harnessConfig: sourceConfig,
     artifact,
-    expectedRecord,
-    expectedMetering,
     pristineSlot,
     dependencies,
     async resetTarget() {
@@ -2732,6 +2609,8 @@ test("finalize-existing publishes the complete provenance graph and resumes ever
     );
     const manifestOnly = await finalizeExisting({ ...baseOptions, publish: false });
     assert.equal(manifestOnly.published, false);
+    const expectedRecord = await readFile(join(fixture.privateCell, "record.json"));
+    const expectedMetering = await readFile(join(fixture.privateCell, "metering.json"));
     const publication = JSON.parse(await readFile(join(fixture.privateCell, "publication-manifest.json"), "utf8"));
     assert.ok(publication.files.some((file) => file.path === "rendered-prompt.md"));
     assert.ok(publication.files.some((file) => file.path === "schema/social-messenger/assertions.json"));
@@ -2790,8 +2669,8 @@ test("finalize-existing publishes the complete provenance graph and resumes ever
       expectedMilestones: ["M1", "M2", "M3"],
       requireCommitted: false,
     });
-    assert.deepEqual(await readFile(join(fixture.privateCell, "metering.json")), fixture.expectedMetering);
-    assert.deepEqual(await readFile(join(fixture.privateCell, "record.json")), fixture.expectedRecord);
+    assert.deepEqual(await readFile(join(fixture.privateCell, "metering.json")), expectedMetering);
+    assert.deepEqual(await readFile(join(fixture.privateCell, "record.json")), expectedRecord);
   } finally {
     await fixture.cleanup();
   }
@@ -3174,7 +3053,7 @@ test("instrument materialization succeeds once, is immutable, and refuses overwr
 
 test("historical dry-run validation binds immutable Git commit and tree bytes", async () => {
   const recovery = JSON.parse(await readFile(
-    new URL("benchmarks/runs/2026-08-23-r2-published-0125/recovery-resume.v3.json", ROOT),
+    new URL("benchmarks/runs/2026-08-23-r2-published-0125/recovery-resume.v4.json", ROOT),
     "utf8",
   ));
   const evidence = fileURLToPath(new URL(

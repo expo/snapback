@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "clique-suite-receipt.v1",
+  "milestone": "m3",
+  "pass": true,
+  "startedAt": "2026-08-24T19:26:23.356Z",
+  "endedAt": "2026-08-24T19:26:51.511Z",
+  "coveredAssertions": [
+    "m3-a03",
+    "m3-a04",
+    "m3-a05",
+    "m3-a10",
+    "m3-a11",
+    "m3-a14",
+    "m3-a15"
+  ],
+  "tests": [
+    {
+      "assertion": "m3-a03",
+      "name": "starting the same DM reuses one pair channel",
+      "pass": true,
+      "durationMs": 47.88824999999997
+    },
+    {
+      "assertion": "m3-a04",
+      "name": "create Alice Bob Carol group",
+      "pass": true,
+      "durationMs": 67.28741600000103
+    },
+    {
+      "assertion": "m3-a05",
+      "name": "second same-roster group remains distinct",
+      "pass": true,
+      "durationMs": 54.34062500000073
+    },
+    {
+      "assertion": "m3-a10",
+      "name": "quoted reply persists and renders original excerpt",
+      "pass": true,
+      "durationMs": 24.25554099999863
+    },
+    {
+      "assertion": "m3-a11",
+      "name": "quoted excerpt action jumps to original message position",
+      "pass": true,
+      "durationMs": 0.1791670000002341
+    },
+    {
+      "assertion": "m3-a14",
+      "name": "non-owner cannot remove a group member",
+      "pass": true,
+      "durationMs": 51.29358300000058
+    },
+    {
+      "assertion": "m3-a15",
+      "name": "second complete starter replay creates no duplicates",
+      "pass": true,
+      "durationMs": 13934.723334
+    }
+  ],
+  "replay": {
+    "actions": 87,
+    "m3Actions": 19,
+    "receipt": "receipts/m3-seed.jsonl",
+    "idempotencyRuns": 2
+  },
+  "generatedProfile": "snapback-familiar-ts-v1"
+}

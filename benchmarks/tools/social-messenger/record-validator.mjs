@@ -12,6 +12,7 @@ import {
 } from "./metering/codex-native-evidence.mjs";
 import {
   applyR2DriverV1TerminalCompatibility,
+  loadObservationCompatibility,
 } from "./metering/manifest.mjs";
 import {
   boundariesFromReceiptRecords,
@@ -313,6 +314,14 @@ function validateCurrentMeteringProvenance(errors, record, extension, artifactRo
   if (!sameJson(provenance.observations, expectedObservations)) {
     errors.push(`${path}/observations: current observation provenance must equal the manifest's complete hash-bound source set`);
   }
+  let observationJoinExceptions = [];
+  try {
+    observationJoinExceptions = loadObservationCompatibility(manifest, {
+      events: observationEvents,
+    });
+  } catch (error) {
+    errors.push(`${path}/observations: compatibility admission failed: ${error.message}`);
+  }
 
   const boundaryLoaded = resolveArtifact(
     errors,
@@ -509,6 +518,7 @@ function validateCurrentMeteringProvenance(errors, record, extension, artifactRo
           path: evidencePath,
           sha256: evidenceSha,
         })),
+        joinExceptions: observationJoinExceptions,
         windowExceptions: recovery.compatibilityEvents
           .flatMap((event) => event.observationTerminalInclusions ?? []),
       },
@@ -761,6 +771,27 @@ function validateObservationBinding(errors, record, extension, artifactRoot, cur
   }
 
   const loaded = loadObservationEvidence(errors, extension, artifactRoot);
+  let observationJoinExceptions = [];
+  if (currentInstrument && extension.meteringProvenance?.manifest) {
+    const manifestLoaded = resolveArtifact(
+      errors,
+      artifactRoot,
+      extension.meteringProvenance.manifest,
+      "$/socialMessenger/meteringProvenance/manifest",
+    );
+    const manifest = parseArtifactJson(
+      errors,
+      manifestLoaded,
+      "$/socialMessenger/meteringProvenance/manifest",
+    );
+    if (manifest !== null) {
+      try {
+        observationJoinExceptions = loadObservationCompatibility(manifest, loaded);
+      } catch (error) {
+        errors.push(`$/socialMessenger/meteringProvenance/observations: compatibility admission failed: ${error.message}`);
+      }
+    }
+  }
   const exclusions = extension.meteringProvenance?.driver?.compatibilityEvents
     ?.flatMap((event) => event.observationHandoffExclusions ?? []) ?? [];
   const withoutInstrumentation = loaded.events.filter((event) => !exclusions.some((excluded) => (
@@ -820,6 +851,7 @@ function validateObservationBinding(errors, record, extension, artifactRoot, cur
         events: effectiveEvents,
         evidence: loaded.evidence,
         milestone,
+        joinExceptions: observationJoinExceptions,
       });
     } catch (error) {
       errors.push(`${path}: observation projection failed: ${error.message}`);
