@@ -74,3 +74,9 @@ measurement. Each slice review-gated and landed per LLP 0232/0189.
 
 - 2026-08-24 — commissioned; packet landed.
 - 2026-08-24 — **G2-A LANDED** (series ending `e486f4827`; 4 fix rounds, dual-family READY; records `llp/reviews/0209-g2-a.*`). Remaining: G2-B (matcher consumption + per-node ledger), G2-C (observations, sidecar case kinds, serving integration behind the kill switch, D2-H2 A/B measurement).
+
+- 2026-08-25 — **G2-B LANDED** (`0310fe817..c40bf169b`) and **G2-C LANDED**
+  (`62e9f4890` + `8d796b798`); D2-H2 evidence recorded (LLP 0209 v0.9 §9).
+  **This commission is COMPLETE**; the only successor tail is
+  `issues/20260824-g0-bcast-bounds-large-hot-observations.md` (published-claim
+  N≥3 + large/hot arms). Moving to `issues/closed/`.

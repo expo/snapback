@@ -46,3 +46,8 @@ conflicts; this lane rebases.
 
 - 2026-08-24 — commissioned; packet landed.
 - 2026-08-24 — **LANDED** `a11054ca4` (ported onto the landed G2-A evaluator after a real-conflict rebase was redone as a port; fidelity-reviewed READY; records `llp/reviews/0268-exit-extension.*`). Exit re-recorded in LLP 0209 v0.8: six labels SATISFIED, three PARTIAL pending G2-C — 0268 B1 stays gated on exactly those. This ticket stays open until the G2-C re-record completes it.
+
+- 2026-08-25 — **COMPLETE to its input-carrier boundary** (LLP 0209 v0.9):
+  eight §7 labels SATISFIED; `G0-BCAST-BOUNDS` PARTIAL solely on
+  `issues/20260824-g0-bcast-bounds-large-hot-observations.md`, which now
+  carries the 0268 B1 gate. Moving to `issues/closed/`.

@@ -3335,6 +3335,37 @@ or identities.
   LLP 0190's owner at that point, not before; until ruled, no §7 delta
   is claimed replica-applicable.
 
+### v0.9 — the G2 program record (dated note, 2026-08-25)
+
+**G2 is complete.** G2-B (`0310fe817..c40bf169b`) made the evaluator emit
+honest per-node captures and the matcher consume them through attested,
+independently-derived registrations (records `llp/reviews/0209-g2-b.*`;
+the review loop's false-skip hunt forced seed-signal conservatism,
+direction/interval-aware range matching, semantic-provenance attestation,
+and per-node ledger honesty). G2-C (`62e9f4890` + `8d796b798`) served
+graph subscriptions end-to-end behind BOTH the target capability
+declaration (test-support-only until a production class-2 resolver seam
+exists) and `SNAPBACK_GRAPH_EXEC_DISABLED`, riding LLP 0200's scheduler
+contracts unchanged; the frozen `authorityTransition`/`mixedCommit` cases
+execute through the served path with fence-before-delivery proofs; every
+`[G2 measures]` declaration now has a real served observation (71/71
+fit); the LLP 0267 §5 graph-scoped `maxGraphIndexRanges` amendment landed
+with the measured evidence (records `llp/reviews/0209-g2-c.*`).
+
+**D2-H2 evidence and honest scope:** on the frozen normal-fixture commit
+replay, conservative-fallback rate is **0** across every node kind and no
+table-granular full-graph wake occurs for commits provably disjoint at a
+node — N=1 shape evidence on `normal-seed-v1` per `benchmarks/protocol.md`;
+the published-claim threshold (N≥3, large/hot arms, the zb5-hot A/B rerun)
+remains open and its commands are pinned in the corpus artifacts. No
+capability publication is made or implied (LLP 0183 §D2's gate untouched).
+
+**0268 completion:** the §7 labels re-record as eight SATISFIED with
+`G0-BCAST-BOUNDS` PARTIAL solely on the large/hot observations
+(`issues/20260824-g0-bcast-bounds-large-hot-observations.md`;
+authoritative detail `tests/conformance/graph/0268-COMPLETION-DRAFT.md`).
+Per LLP 0268 §0, 0268 B1 is gated on exactly that ticket and nothing else.
+
 ### v0.8 exit re-record — G2-A landed; the 0268 extension landed (dated note, 2026-08-24)
 
 **G2-A** (commission `issues/20260824-llp0209-g2-commission.md`, deliverable 1)
@@ -3374,6 +3405,9 @@ longer prover or corpus structure.
 
 ## Revision history
 
+- **v0.9 (2026-08-25).** The G2 program record (see §9): G2-A/B/C landed;
+  D2-H2 met on the corpus replay at N=1 honest scope; 0268 §7 eight
+  SATISFIED + BOUNDS PARTIAL on the ticketed large/hot observations.
 - **v0.9 (2026-08-24).** G2-B round 1 added evaluator-owned captured reads,
   sync-attested registration, and the per-node matcher ledger. Fix round 2
   closes semantic provenance: registration independently reconstructs every
