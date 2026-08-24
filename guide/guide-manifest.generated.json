@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:96a816fbcaff2c9cee3f4fbf77c293daea7e53bf9dbbf803f3abc19da467d886"
+    "sourceDigest": "sha256:95fdc3bfc1760c2edfb00de09dd8d45578d3645ff740422817d02b28732ea139"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -4127,7 +4127,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedAuthoritiesDigest": "sha256:75f5b707ea9db54c16456455dbb49bbe5b8e4d5217ecb69f6cc061b87d64e04e",
-      "sha256": "9ff69eeb094e3a2f97c3396fa749071a2b796d5a53b31f8119561daa9ae5af4b",
+      "sha256": "3fd26921874435d49a9ad48075f443f4f0746dcd9ea730f89dc0274af49f0330",
       "snippets": []
     },
     "operating.backup-and-copy": {
@@ -12758,7 +12758,7 @@
       ],
       "reviewed": "2026-08-21",
       "reviewedAuthoritiesDigest": "sha256:fa5149534a7e89282b33bbc909f7bf781c85381bb7d3b0771d1f0bcfd095c65a",
-      "sha256": "3cfc326d0074d6f5bfeb33cabba5e61e04a7e491b1287b83f3a1f8f770eeee5d",
+      "sha256": "010e049c5651f3e639b8f9f529b9552a3c5cc3b418306b21729c894ba153fe18",
       "snippets": []
     },
     "start.index": {
@@ -12841,7 +12841,7 @@
       ],
       "reviewed": "2026-08-15",
       "reviewedAuthoritiesDigest": "sha256:bb51fb7bff16d6c94335925cb0522657982e212144f54e5be6a224438bc6f82e",
-      "sha256": "003ab1a36e9c60c0264d9d336845dbae07c3b6fdb81d2daf5e722b6555946cc8",
+      "sha256": "d4c38bdc41d6bf278891c74dfe7fa1ab21a217e36be128113c2acf131c20fa39",
       "snippets": []
     },
     "start.todo-contract": {
@@ -13232,7 +13232,7 @@
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
       "bytes": 2751764,
-      "sha256": "6ee3a54923f84c65839db9c7254620f3dff9b751580b0efade10dfa3ad50dec7",
+      "sha256": "5d843bb21eb67d36e9d64805c76efdf420659bb9a9bc5143ddaad406c9a064a9",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -13241,7 +13241,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:bd8675acfe5294d02022a7710114c4fc85a690527947f55579b55f10a004aea1",
+      "sourceDigest": "sha256:af60cec978c15012c89eceda7637fda109286e66b74dd365163f07e54a2a22e1",
       "codes": 3612,
       "emittingSites": 12683
     }
@@ -13384,8 +13384,8 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3838946,
-      "sha256": "125a0ed213af0589d8db923071bfc50b23caf2e3f3c7f7e9a49035f2645c849e"
+      "bytes": 3839019,
+      "sha256": "f9464ab59a898b5c4e4b1ce7484f4ec2552c6873b0879f53f183e6c19445fe81"
     },
     "sections": {
       "meta": {
@@ -13434,8 +13434,8 @@
         "path": "guide/guide-flat.operating.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.operating.generated.md",
         "uri": "snapback-guide://flat/operating",
-        "bytes": 179510,
-        "sha256": "b36d7892fb0113d80614648cf0531339915f1bff2f1582626ed7b2f7d5dbabba"
+        "bytes": 179615,
+        "sha256": "814b0a4c5b9b87f39d47946440e525d9913a7abc88a469270dfebfced06b74d2"
       },
       "protocol": {
         "path": "guide/guide-flat.protocol.generated.md",
@@ -13469,8 +13469,8 @@
         "path": "guide/guide-flat.start.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.start.generated.md",
         "uri": "snapback-guide://flat/start",
-        "bytes": 20565,
-        "sha256": "0ed61e8251881d4483c0a155acb369bcdb1b4769259e1b1fbb703f3efbbf1ac9"
+        "bytes": 20533,
+        "sha256": "b903cb433ef3d97e701df97d00dc53ee51d6b40865aa09501067a2b9fd0c5cd9"
       },
       "sync": {
         "path": "guide/guide-flat.sync.generated.md",
@@ -13488,5 +13488,5 @@
       }
     }
   },
-  "contentHash": "96a816fbcaff2c9cee3f4fbf77c293daea7e53bf9dbbf803f3abc19da467d886"
+  "contentHash": "95fdc3bfc1760c2edfb00de09dd8d45578d3645ff740422817d02b28732ea139"
 }

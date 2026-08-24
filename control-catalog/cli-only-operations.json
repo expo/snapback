@@ -1017,7 +1017,11 @@
     "idempotent": false,
     "openWorld": false,
     "persistsAcrossRestart": true
-   }
+   },
+   "mcpDeferralReason": "dev-session mints a local development bearer for an operator at a terminal; MCP exposure of credential minting is deliberately withheld.",
+   "sources": [
+    "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.auth"
+   ]
   }
  ]
 }

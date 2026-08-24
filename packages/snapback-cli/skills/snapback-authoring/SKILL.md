@@ -59,8 +59,8 @@ This skill maps a packet and one budgeted lookup at a time.
    `generated/artifacts.json`; never hand-edit outputs.
 4. **Dev loop.** `bun run dev` runs the one supervisor: generate →
    start/attach server → load → client → watch. It infers `dev` vs
-   `sessions` mode from the schema; supervised Expo accepts strict
-   `--port`/`--client-port`/`--bootstrap-port` pins or one `--port-range`.
+   `sessions` mode from the schema; supervised Expo accepts port pins
+   and `--port-range`.
 5. **First query.** Use the generated references with the first-party
    provider and the template's own consumer spelling —
    `useSnapbackQuery`, `useSnapbackQueries`, `useSnapbackMutation`, or a

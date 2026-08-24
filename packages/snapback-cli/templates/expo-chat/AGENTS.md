@@ -1,7 +1,7 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin expo-chat digest=sha256:8ff12f3adc8254b6338a1e6e8ebf5ab10082267b4f272afd26a080a4a74ccd79 -->
+<!-- start-packet:begin expo-chat digest=sha256:0cfab66cb2fd34b274239bf633fc3df9608a39aa3eb90bbaf404372b51a23024 -->
 This packet is the whole required first read for this app (LLP 0259
 Rung A). Open the edit targets below and work; open one further Guide page
 only via `snapback guide <query>` or on a trigger — the brief is outside
@@ -10,9 +10,8 @@ this packet, a structured `SNAPBACK_*` refusal, or a failed `prove`.
 ## The loop
 
 Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
-→ `bun run generate` → `bun run dev` (backend; writes `.env.local`) plus
-`bun run dev:client` in a second terminal (`dev:supervised` = one-command
-convenience; it never
+→ `bun run generate` → `bun run dev` + `bun run dev:client` in a second
+terminal (`dev:supervised` = one-command convenience; it never
 launches a device or simulator — Expo Go, a dev client, or
 `expo run:ios|android` is your job) → `bun run prove`.
 

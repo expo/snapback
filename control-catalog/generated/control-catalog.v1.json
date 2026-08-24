@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:b99ba61f3035ef82eb85e79dfa3a950dbf07f684d6a2a2fa8656057b51c04512",
+  "catalogDigest": "sha256:4d32b5d0d12dca59777972e5ab9c9a4838ba80f35f5f0f6cac70593cc935d054",
   "buildIdentity": {
-    "sourceCommit": "f53ccb297afff7f0a8f0b0b32c0ff4acc2b7f451",
+    "sourceCommit": "a6202eee2ba25831179a20063284c4025876880a",
     "dirty": true
   },
-  "generatedAtCommit": "f53ccb297afff7f0a8f0b0b32c0ff4acc2b7f451",
+  "generatedAtCommit": "a6202eee2ba25831179a20063284c4025876880a",
   "entries": [
     {
       "operation": "acceptance.run",
@@ -3903,6 +3903,60 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.audit"
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "cli.packaged.auth",
+      "title": "Explicit dev-session mint (dev-session); every other auth subcommand delegates to the native CLI",
+      "intents": [
+        "dev session",
+        "explicit dev sign-in",
+        "mint a dev bearer",
+        "snapback auth dev-session"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "dev-session mints a local development bearer for an operator at a terminal; MCP exposure of credential minting is deliberately withheld.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "none",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback auth",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "clients/react-expo.md",
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.auth"
       ],
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",

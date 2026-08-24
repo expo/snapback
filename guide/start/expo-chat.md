@@ -24,9 +24,8 @@ this packet, a structured `SNAPBACK_*` refusal, or a failed `prove`.
 ## The loop
 
 Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
-→ `bun run generate` → `bun run dev` (backend; writes `.env.local`) plus
-`bun run dev:client` in a second terminal (`dev:supervised` = one-command
-convenience; it never
+→ `bun run generate` → `bun run dev` + `bun run dev:client` in a second
+terminal (`dev:supervised` = one-command convenience; it never
 launches a device or simulator — Expo Go, a dev client, or
 `expo run:ios|android` is your job) → `bun run prove`.
 
@@ -117,5 +116,3 @@ and outside this template. If a brief selects it, read the
 <!-- /llp0259:stop-fence -->
 <!-- start-packet:end -->
 
-Constrained lanes: `--port`/`--client-port`/`--bootstrap-port` pins or
-`--port-range`.
