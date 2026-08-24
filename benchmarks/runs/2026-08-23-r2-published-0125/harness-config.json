@@ -6,7 +6,7 @@
   "recoveryResume": {
     "version": "snapback.r2-recovery-resume.v4",
     "path": "recovery-resume.v4.json",
-    "sha256": "3a198f52a57724ceebf5520f03ae3a1cb3ab2be0004fe28fabf82a311eb56988",
+    "sha256": "9015bdb22773ad8918fbc0cbd1f46f34eaac68910d912952d522a68d2117a413",
     "nextCell": "sol-clique-familiar"
   },
   "governing": [

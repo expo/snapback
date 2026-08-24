@@ -7,10 +7,10 @@
   "transition": "recovered-cell-1-v3-to-immutable-instrument-host-bound-locked-per-cell-admission",
   "integrity": {
     "algorithm": "sha256-canonical-json-without-integrity",
-    "sha256": "sha256:3c17b573f8e5d6ed4dc1968a968f500d5d5f7579504ed2257896b1ea4c7a0012"
+    "sha256": "sha256:45c454551335977e3e09cac73f203e2d71f40f2ef51b9bba03360b1369a9d900"
   },
   "completedCell": "sol-clique-explicit",
-  "completedCellRecoveryVersion": "snapback.r2-recovery-resume.v3",
+  "completedCellRecoveryVersion": "snapback.r2-retained-corrupt-finalization.v1",
   "completedAttemptCount": 1,
   "recoveredCell": {
     "record": {
