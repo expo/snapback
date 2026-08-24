@@ -20,6 +20,8 @@ import type {
   DataSubscription,
 } from '@exact/contract/runtime';
 
+import { SnapbackClient } from '../../../packages/snapback-client/online.mjs';
+import type { EphemeralOverlay } from '../../../packages/snapback-client/index.mjs';
 import { startServer } from '../../_kit/server-process.mjs';
 import { loadGeneratedJson } from '../snapback/generated-artifacts.mjs';
 import { installM3Fixtures } from '../snapback/seed-m3.mjs';
@@ -83,6 +85,93 @@ type TypingParticipant = {
   displayName: string;
   expiresAt: string;
 };
+
+type BackendTypingValue = {
+  profileId: string;
+  userId: string;
+  displayName: string;
+};
+
+type InstrumentedTypingOverlay = EphemeralOverlay<
+  { conversationId: string },
+  BackendTypingValue
+> & {
+  apply(input: unknown): string;
+};
+
+type TypingOverlayCapture = {
+  connectionId: string;
+  overlay: InstrumentedTypingOverlay;
+  frames: unknown[];
+};
+
+type CapturedEphemeralMessage = {
+  Remove?: {
+    key: string;
+    reason: string;
+    room?: { scope?: Record<string, string> };
+  };
+};
+
+function ephemeralMessage(frame: unknown): CapturedEphemeralMessage | undefined {
+  const candidate = frame as {
+    Ephemeral?: CapturedEphemeralMessage;
+    kind?: string;
+    message?: CapturedEphemeralMessage;
+  } | null;
+  if (candidate?.Ephemeral) return candidate.Ephemeral;
+  if (candidate?.kind === 'ephemeral') return candidate.message;
+  return candidate?.message ?? candidate ?? undefined;
+}
+
+function instrumentTypingOverlays(captures: TypingOverlayCapture[]): () => void {
+  const original = SnapbackClient.prototype.subscribeEphemeral;
+  Reflect.set(
+    SnapbackClient.prototype,
+    'subscribeEphemeral',
+    async function instrumentedSubscribeEphemeral(this: SnapbackClient, ...args: unknown[]) {
+      const overlay = await Reflect.apply(original, this, args) as InstrumentedTypingOverlay;
+      const reference = args[0] as { name?: unknown } | undefined;
+      const options = args[1] as { connectionId?: unknown } | undefined;
+      if (reference?.name !== 'typing' || typeof options?.connectionId !== 'string') {
+        return overlay;
+      }
+      const capture: TypingOverlayCapture = {
+        connectionId: options.connectionId,
+        overlay,
+        frames: [],
+      };
+      const apply = overlay.apply.bind(overlay);
+      overlay.apply = (input: unknown) => {
+        capture.frames.push(input);
+        return apply(input);
+      };
+      captures.push(capture);
+      return overlay;
+    },
+  );
+  return () => {
+    Reflect.set(SnapbackClient.prototype, 'subscribeEphemeral', original);
+  };
+}
+
+async function waitForTypingFrame(
+  captures: readonly TypingOverlayCapture[],
+  predicate: (capture: TypingOverlayCapture, message: CapturedEphemeralMessage) => boolean,
+  timeoutMs = 4_000,
+): Promise<{ capture: TypingOverlayCapture; message: CapturedEphemeralMessage }> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    for (const capture of captures) {
+      for (const frame of capture.frames) {
+        const message = ephemeralMessage(frame);
+        if (message && predicate(capture, message)) return { capture, message };
+      }
+    }
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 10));
+  }
+  throw new Error('timed out waiting for captured typing frame');
+}
 
 type Chat = {
   id: string;
@@ -241,6 +330,8 @@ integrationTest(
     const scratch = mkdtempSync(join(tmpdir(), 'coterie-provider-'));
     const providers = new Set<ReturnType<typeof createCoterieSnapbackProvider>>();
     const subscriptions = new Set<{ dispose(): void }>();
+    const typingOverlayCaptures: TypingOverlayCapture[] = [];
+    const restoreTypingOverlayInstrumentation = instrumentTypingOverlays(typingOverlayCaptures);
     let server: Awaited<ReturnType<typeof startServer>> | null = null;
 
     const provider = (
@@ -537,6 +628,7 @@ integrationTest(
         await clientM3Carol.mutate('login', carolCredentials),
         'client M3 Carol login',
       );
+      const mappedTypingCaptureStart = typingOverlayCaptures.length;
       const aliceMappedTyping = readyStream<TypingParticipant[]>(
         clientA,
         'observeTyping',
@@ -562,10 +654,13 @@ integrationTest(
         await clientM3Carol.mutate('setTyping', { chatId: mappedGroup.chatId, active: true }),
         'Carol setTyping before removal',
       );
-      expect(await carolTypingVisible).toContainEqual(expect.objectContaining({
+      const carolTypingRows = await carolTypingVisible;
+      expect(carolTypingRows).toContainEqual(expect.objectContaining({
         chatId: mappedGroup.chatId,
         userId: 'carol',
       }));
+      const carolTypingEntryKey = carolTypingRows.find((row) => row.userId === 'carol')?.id;
+      expect(carolTypingEntryKey).toBeDefined();
       mutationValue(
         await clientA.mutate('promoteAdmin', { chatId: mappedGroup.chatId, userId: 'bob' }),
         'promoteAdmin operation matrix',
@@ -603,10 +698,33 @@ integrationTest(
           message: 'Conversation membership is required.',
         },
       });
+      const mappedTypingCaptures = typingOverlayCaptures.slice(mappedTypingCaptureStart);
+      const removedTypingCapture = mappedTypingCaptures.find((capture) => (
+        capture.connectionId.includes('-observeTyping-')
+        && capture.overlay.terminalDiagnostic?.details?.reason === 'AuthRevoked'
+      ));
+      expect(removedTypingCapture).toBeDefined();
+      const { capture: survivorTypingCapture, message: survivorRemoval } = await waitForTypingFrame(
+        mappedTypingCaptures,
+        (capture, message) => (
+          capture.connectionId.includes('-observeTyping-')
+          && capture.overlay.terminalDiagnostic == null
+          && message.Remove?.key === carolTypingEntryKey
+          && message.Remove?.reason === 'AuthRevoked'
+          && message.Remove.room?.scope?.conversationId === mappedGroup.chatId
+        ),
+      );
+      expect(survivorRemoval.Remove).toMatchObject({
+        key: carolTypingEntryKey,
+        reason: 'AuthRevoked',
+        room: { scope: { conversationId: mappedGroup.chatId } },
+      });
+      expect(survivorTypingCapture.overlay.terminalDiagnostic).toBeNull();
       expect(await carolTypingRemoved).not.toContainEqual(expect.objectContaining({
         userId: 'carol',
       }));
       const carolTerminalCellCount = carolMappedTyping.cells.length;
+      const carolTerminalFrameCount = removedTypingCapture!.frames.length;
       expect(await clientM3Carol.mutate('setTyping', {
         chatId: mappedGroup.chatId,
         active: true,
@@ -627,6 +745,8 @@ integrationTest(
         'survivor clears typing after Carol removal',
       );
       await survivorPostRevocationTyping;
+      expect(await removedTypingCapture!.overlay.drain()).toEqual([]);
+      expect(removedTypingCapture!.frames).toHaveLength(carolTerminalFrameCount);
       expect(carolMappedTyping.cells).toHaveLength(carolTerminalCellCount);
       await clientAM3Chats.next((rows) => rows.some((chat) => (
         chat.id === mappedGroup.chatId && !chat.memberIds.includes('carol')
@@ -1631,6 +1751,7 @@ integrationTest(
         },
       });
     } finally {
+      restoreTypingOverlayInstrumentation();
       for (const subscription of subscriptions) subscription.dispose();
       await Promise.allSettled([...providers].map((value) => value.close()));
       await server?.stop();

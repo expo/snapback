@@ -71,6 +71,12 @@ function typingValue(actor) {
   };
 }
 
+function ephemeralMessage(frame) {
+  if (frame?.Ephemeral) return frame.Ephemeral;
+  if (frame?.kind === 'ephemeral') return frame.message;
+  return frame?.message ?? frame;
+}
+
 async function releaseTyping(client, overlay, connectionId, conversationId) {
   overlay.dispose();
   await client.unsubscribeEphemeral(api.ephemeral.typing, {
@@ -523,6 +529,11 @@ test('Coterie Snapback M3 backend', { timeout: 1_800_000 }, async (t) => {
     const formerScope = { conversationId: formerConversation };
     const formerObserverConnection = 'coterie-m3-typing-former-observer-active';
     const formerWriterConnection = 'coterie-m3-typing-former-writer-active';
+    const formerObserverFrames = [];
+    const unregisterFormerObserverFrames = alice.client.registerEphemeralConsumer(
+      formerObserverConnection,
+      (frame) => formerObserverFrames.push(frame),
+    );
     const formerObserver = await alice.client.subscribeEphemeral(api.ephemeral.typing, {
       connectionId: formerObserverConnection,
       scope: formerScope,
@@ -538,7 +549,7 @@ test('Coterie Snapback M3 backend', { timeout: 1_800_000 }, async (t) => {
       formerWriterResults.push(result);
     });
     try {
-      await formerWriter.publish(typingValue(carol), { ttlMs: 5_000 });
+      const published = await formerWriter.publish(typingValue(carol), { ttlMs: 5_000 });
       await eventually(async () => {
         await formerObserver.drain();
         assert(formerObserver.currentEntries().some(
@@ -555,6 +566,13 @@ test('Coterie Snapback M3 backend', { timeout: 1_800_000 }, async (t) => {
           'SNAPBACK_AUTH_PERMISSION_DENIED',
         );
         assert.equal(formerWriter.terminalDiagnostic?.details?.reason, 'AuthRevoked');
+        const removal = formerObserverFrames
+          .map(ephemeralMessage)
+          .find((message) => (
+            message?.Remove?.key === published.key
+            && message.Remove.reason === 'AuthRevoked'
+          ));
+        assert(removal, 'the survivor did not receive Carol\'s AuthRevoked removal frame');
       }, 'the already-live former-member overlay did not become terminal', 20_000);
       assert.equal(
         formerWriterResults.filter((result) => result === 'terminal_error').length,
@@ -580,7 +598,11 @@ test('Coterie Snapback M3 backend', { timeout: 1_800_000 }, async (t) => {
           (entry) => entry.value.userId === 'alice',
         ));
       }, 'the survivor did not receive a post-revocation typing frame', 20_000);
-      await formerWriter.drain();
+      assert.deepEqual(
+        await formerWriter.drain(),
+        [],
+        'the terminal former-member overlay must drain no post-revocation frames',
+      );
       assert.equal(
         formerWriterResults.length,
         terminalChangeCount,
@@ -589,6 +611,7 @@ test('Coterie Snapback M3 backend', { timeout: 1_800_000 }, async (t) => {
       assert.deepEqual(formerWriter.currentEntries({ prune: false }), []);
     } finally {
       offFormerWriter();
+      unregisterFormerObserverFrames();
       await Promise.all([
         releaseTyping(
           alice.client,
