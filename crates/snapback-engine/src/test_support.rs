@@ -178,6 +178,20 @@ pub fn subscribe_graph_corpus_case(
     snapback.subscribe_graph_corpus_case_for_test(name, input, connection)
 }
 
+/// Establish the same corpus graph under a second owner-issued authority
+/// instance for partition-isolation evidence. Both instances resolve to the
+/// fixed corpus principal and session; only the host-owned prepared authority
+/// instance rotates, matching the engine's authority-isolation test pattern.
+pub fn subscribe_graph_corpus_partition_case(
+    snapback: &mut LocalSnapback,
+    name: &str,
+    input: LiveSubscribeInput,
+    connection: crate::auth::invalidation::AuthorizationInvalidationConnection,
+) -> SnapbackResult<LiveSubscribeOutput> {
+    snapback.require_host_plan_for_test_support(name)?;
+    snapback.subscribe_graph_corpus_partition_case_for_test(name, input, connection)
+}
+
 /// Commit one declarative corpus mutation through the ordinary mutation and
 /// post-commit fan-out path. Caller-loaded JavaScript remains refused.
 pub fn invoke_graph_corpus_mutation(
@@ -202,6 +216,28 @@ pub fn measure_graph_serving_groups(
     snapback: &mut LocalSnapback,
 ) -> SnapbackResult<serde_json::Value> {
     snapback.measure_graph_serving_groups_for_test()
+}
+
+/// Drive either every retained graph or one named subscription through the
+/// production refresh scheduler. The targeted arm exists for tuple-isolation
+/// cases where predecessor memo holders must remain installed.
+pub fn refresh_graph_corpus_scheduler(
+    snapback: &mut LocalSnapback,
+    only_subscription: Option<&str>,
+) -> SnapbackResult<bool> {
+    snapback.refresh_graph_corpus_scheduler_for_test(only_subscription)
+}
+
+pub fn set_graph_corpus_memo_limits(
+    snapback: &mut LocalSnapback,
+    max_entries: usize,
+    max_bytes: usize,
+) {
+    snapback.set_graph_corpus_memo_limits_for_test(max_entries, max_bytes);
+}
+
+pub fn graph_corpus_memo_entries(snapback: &LocalSnapback) -> serde_json::Value {
+    snapback.graph_corpus_memo_entries_for_test()
 }
 
 #[cfg(test)]

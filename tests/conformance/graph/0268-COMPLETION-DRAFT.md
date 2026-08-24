@@ -52,9 +52,9 @@ ratchet.
 
 | Graph | Group count | Subscriber fan-out | Result bytes | Dependency bytes | Group-state bytes |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `issueListV2` | 1 | 1 | 436,163 | 2,754,464 | 3,192,038 |
-| `issueDetail` | 1 | 1 | 20,261 | 16,672 | 38,512 |
-| `listIssueByID` | 1 | 1 | 6,479 | 9,647 | 17,488 |
+| `issueListV2` | 1 | 1 | 436,163 | 2,754,464 | 3,194,719 |
+| `issueDetail` | 1 | 1 | 20,261 | 16,672 | 41,206 |
+| `listIssueByID` | 1 | 1 | 6,479 | 9,647 | 20,224 |
 
 The source rows are `corpus.v1.json.g0ExitObservations`; the served physical
 counter source is `served-observations.g2-c.v1.json`, and its declaration

@@ -27,8 +27,10 @@ use snapback_engine::graph_evaluator::{
     GraphPermissionValuesV1, GraphWindowLedgerV1,
 };
 use snapback_engine::test_support::{
-    configure_graph_corpus_scheduler, graph_corpus_authorization_frames,
-    invoke_graph_corpus_mutation, measure_graph_serving_groups, subscribe_graph_corpus_case,
+    configure_graph_corpus_scheduler, graph_corpus_authorization_frames, graph_corpus_memo_entries,
+    invoke_graph_corpus_mutation, measure_graph_serving_groups, refresh_graph_corpus_scheduler,
+    set_graph_corpus_memo_limits, subscribe_graph_corpus_case,
+    subscribe_graph_corpus_partition_case,
 };
 use snapback_kernel::storage::{ChangeOp, ChangedRow};
 use snapback_sync::graph_captured_read::{
@@ -54,6 +56,8 @@ const GRAPH_CORPUS_AUTHORITY_TABLE: &str = "graphSchedulerAuthority";
 const GRAPH_CORPUS_AUTHORITY_ROW: &str = "graph_scheduler_authority";
 const GRAPH_CORPUS_AUTHORITY_MUTATION: &str = "graphCorpusAuthorityTransition";
 const GRAPH_CORPUS_MIXED_MUTATION: &str = "graphCorpusMixedCommit";
+const GRAPH_CORPUS_MATCHING_DATA_MUTATION: &str = "graphCorpusMatchingDataCommit";
+const GRAPH_CORPUS_DISJOINT_DATA_MUTATION: &str = "graphCorpusDisjointDataCommit";
 const OWNER_SCOPE_DOMAIN: &str = "snapback:g0-corpus-authority-scope:v1:";
 const CORPUS_SCHEMA_HASH: &str =
     "sha256:1111111111111111111111111111111111111111111111111111111111111111";
@@ -957,11 +961,18 @@ fn served_graph_carriers(
 }
 
 fn graph_corpus_scheduler_mutations(corpus: &Value) -> Vec<FunctionDefinition> {
-    let issue_id = corpus_seed_tables(corpus)["issue"]
+    let tables = corpus_seed_tables(corpus);
+    let disjoint_issue_id = tables["issue"]
         .iter()
         .find(|row| row["id"] == "zbav1_internal_issue")
         .and_then(|row| row["_id"].as_str())
         .expect("scheduler mixed-commit issue row")
+        .to_owned();
+    let matching_issue_id = tables["issue"]
+        .iter()
+        .find(|row| row["id"] == "SZ8UieCHMznEsf_Q6EybI")
+        .and_then(|row| row["_id"].as_str())
+        .expect("scheduler matcher-wake issue row")
         .to_owned();
     let authority_patch = || MutationStep::Patch {
         table: GRAPH_CORPUS_AUTHORITY_TABLE.to_owned(),
@@ -989,7 +1000,7 @@ fn graph_corpus_scheduler_mutations(corpus: &Value) -> Vec<FunctionDefinition> {
             steps: vec![
                 MutationStep::Patch {
                     table: "issue".to_owned(),
-                    id: ValueExpr::Literal(json!(issue_id)),
+                    id: ValueExpr::Literal(json!(disjoint_issue_id.clone())),
                     values: BTreeMap::from([(
                         "title".to_owned(),
                         ValueExpr::Arg("title".to_owned()),
@@ -1001,7 +1012,33 @@ fn graph_corpus_scheduler_mutations(corpus: &Value) -> Vec<FunctionDefinition> {
         })),
     );
     mixed.authority_creating = true;
-    vec![authority, mixed]
+    let matching_data = FunctionDefinition::new(
+        GRAPH_CORPUS_MATCHING_DATA_MUTATION,
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
+            steps: vec![MutationStep::Patch {
+                table: "issue".to_owned(),
+                id: ValueExpr::Literal(json!(matching_issue_id)),
+                values: BTreeMap::from([("title".to_owned(), ValueExpr::Arg("title".to_owned()))]),
+            }],
+            return_value: None,
+        })),
+    );
+    let disjoint_data = FunctionDefinition::new(
+        GRAPH_CORPUS_DISJOINT_DATA_MUTATION,
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
+            steps: vec![MutationStep::Patch {
+                table: "issue".to_owned(),
+                id: ValueExpr::Literal(json!(disjoint_issue_id)),
+                values: BTreeMap::from([("title".to_owned(), ValueExpr::Arg("title".to_owned()))]),
+            }],
+            return_value: None,
+        })),
+    );
+    vec![authority, mixed, matching_data, disjoint_data]
 }
 
 fn served_graph_manifest(
@@ -1037,6 +1074,97 @@ fn scheduler_invocation_from_observation(call: &Value, observation: &Value) -> V
         "authorizationVersion": observation["authorizationVersion"],
         "evaluationCut": observation["evaluationCut"],
     })
+}
+
+fn graph_scheduler_memo_fixture(
+    corpus: &Value,
+) -> (
+    LocalSnapback,
+    String,
+    Value,
+    GraphEvaluationAuthorityV1,
+    snapback::auth::invalidation::AuthorizationInvalidationConnection,
+) {
+    let case = corpus["cases"]
+        .as_array()
+        .expect("graph cases")
+        .iter()
+        .find(|case| case["caseKind"] == "authorityTransition")
+        .expect("authority scheduler case");
+    let call = case["invocations"]["before"].clone();
+    let authorization: snapback_types::storage::AuthorizationVersion =
+        serde_json::from_value(call["authorizationVersion"].clone())
+            .expect("scheduler authorization version");
+    let mut snapback = graph_store(corpus, None);
+    snapback.declare_graph_query_v1_capability();
+    let carriers = served_graph_carriers(&snapback, corpus);
+    let diagnostics = snapback.load_functions(served_graph_manifest(corpus, &carriers));
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+        "scheduler memo graph manifest diagnostics: {diagnostics:?}",
+    );
+    let (name, _, _) = carriers
+        .iter()
+        .find(|(_, carrier, _)| carrier.plan_hash.as_str() == call["planHash"].as_str().unwrap())
+        .expect("scheduler memo carrier");
+    let principal = call["partition"]["class3"]["principalDataScope"]["userId"]
+        .as_str()
+        .expect("scheduler memo principal");
+    let authority = corpus_authority(corpus, principal);
+    snapback.install_graph_serving_authority_context_for_test(
+        name,
+        GraphServingAuthorityContextV1 {
+            evaluation: authority.clone(),
+            class2: serde_json::from_value(call["partition"]["class2"].clone())
+                .expect("scheduler memo class-2 inputs"),
+        },
+    );
+    let connection = configure_graph_corpus_scheduler(
+        &mut snapback,
+        authorization,
+        GRAPH_CORPUS_DATA_VERSION_STREAM,
+    )
+    .expect("configure graph memo scheduler");
+    (snapback, name.clone(), call, authority, connection)
+}
+
+fn graph_scheduler_memo_input(
+    call: &Value,
+    authority: &GraphEvaluationAuthorityV1,
+    connection_id: &str,
+    query_instance_id: u64,
+    args_override: Option<Value>,
+) -> LiveSubscribeInput {
+    let args = args_override.unwrap_or_else(|| call["args"].clone());
+    let mut args = args.as_object().expect("scheduler memo args").clone();
+    args.insert(
+        snapback_engine::graph_evaluator::GRAPH_SERVING_DEMAND_ARG.to_owned(),
+        json!({
+            "format":"snapback.graph-serving-demand.v1",
+            "windows":call["windows"],
+            "advancedNodeId":call["advancedNodeId"],
+            "priorWindowLedgers":[],
+        }),
+    );
+    LiveSubscribeInput {
+        connection_id: connection_id.to_owned(),
+        input: HandlerInput {
+            args: Value::Object(args),
+            auth: authority.auth.clone(),
+            read_set: Vec::new(),
+            correlation: None,
+            ctx_ledger: None,
+        },
+        authorization_namespace: Some(QueryNamespace {
+            client_store_id: "g3-a-graph-corpus".to_owned(),
+            query_key: "same-authority-partition-memo".to_owned(),
+            query_instance_id,
+        }),
+        supersedes: None,
+        resume_from_token: None,
+    }
 }
 
 fn execute_served_scheduler_case(corpus: &Value, case: &Value) -> Value {
@@ -1133,6 +1261,24 @@ fn execute_served_scheduler_case(corpus: &Value, case: &Value) -> Value {
         before_observation["instanceHash"],
         before_observation["materialization"]["graphInstanceHash"],
     );
+    assert!(
+        refresh_graph_corpus_scheduler(&mut snapback, Some(&established.subscription_id))
+            .expect("prime scheduler-case graph memo"),
+    );
+    let primed_entries = graph_corpus_memo_entries(&snapback);
+    assert_eq!(primed_entries.as_array().unwrap().len(), 1);
+    assert_eq!(
+        primed_entries[0]["authorizationVersion"],
+        before["authorizationVersion"],
+    );
+    assert_eq!(primed_entries[0]["evaluationCut"], before["evaluationCut"]);
+    let _ = snapback.drain_live_stream(&connection_id);
+    let _ = graph_corpus_authorization_frames(&mut snapback, &connection_id)
+        .expect("drain graph memo priming projection");
+    let memo_before = snapback
+        .inspect_core()
+        .expect("inspect scheduler memo before transition")
+        .live_evaluation;
 
     let (mutation, mutation_args) = if case["caseKind"] == "mixedCommit" {
         (
@@ -1219,6 +1365,29 @@ fn execute_served_scheduler_case(corpus: &Value, case: &Value) -> Value {
     assert_eq!(deliveries[0]["authorizationVersion"], *successor);
     let observed = vec![fences[0].clone(), deliveries[0].clone()];
 
+    let memo_after = snapback
+        .inspect_core()
+        .expect("inspect scheduler memo after transition")
+        .live_evaluation;
+    let post_fence_evaluations = memo_after.evaluations_executed - memo_before.evaluations_executed;
+    assert!(
+        post_fence_evaluations >= 1,
+        "the post-fence graph restoration evaluates fresh",
+    );
+    assert!(
+        memo_after.memo_misses > memo_before.memo_misses,
+        "the restored successor evaluation must miss rather than serving predecessor bytes",
+    );
+    assert_eq!(memo_after.memo_hits - memo_before.memo_hits, 0);
+    assert!(
+        memo_after.memo_retirements > memo_before.memo_retirements,
+        "the authorization advance retires the predecessor graph memo",
+    );
+    let successor_entries = graph_corpus_memo_entries(&snapback);
+    assert_eq!(successor_entries.as_array().unwrap().len(), 1);
+    assert_eq!(successor_entries[0]["authorizationVersion"], *successor);
+    assert_eq!(successor_entries[0]["evaluationCut"], committed.version);
+
     let after_observation = snapback
         .graph_serving_observation_for_test(&established.subscription_id)
         .expect("served scheduler successor observation");
@@ -1255,6 +1424,417 @@ fn execute_served_scheduler_case(corpus: &Value, case: &Value) -> Value {
         "commit": case["commit"],
         "observed": observed,
     })
+}
+
+fn drain_graph_scheduler_snapshots(
+    snapback: &mut LocalSnapback,
+    connection_id: &str,
+) -> Vec<Value> {
+    let mut frames = snapback.drain_live_stream(connection_id);
+    frames.extend(
+        graph_corpus_authorization_frames(snapback, connection_id)
+            .expect("project graph scheduler authorization frames"),
+    );
+    frames
+        .into_iter()
+        .map(|frame| serde_json::from_str::<Value>(&frame).expect("graph scheduler frame JSON"))
+        .filter(|frame| {
+            frame["kind"] == "authorization_invalidation" && frame.get("snapshot").is_some()
+        })
+        .collect()
+}
+
+#[test]
+fn graph_scheduler_case_same_key_memoizes_one_turn_and_delivers_three() {
+    const N: usize = 3;
+    let corpus = graph_corpus();
+    let (mut snapback, name, call, authority, connection) = graph_scheduler_memo_fixture(&corpus);
+    let connection_id = "g3-a-same-key";
+    let mut subscriptions = Vec::new();
+    for ordinal in 0..N {
+        let established = subscribe_graph_corpus_case(
+            &mut snapback,
+            &name,
+            graph_scheduler_memo_input(
+                &call,
+                &authority,
+                connection_id,
+                (ordinal + 1) as u64,
+                None,
+            ),
+            connection.clone(),
+        )
+        .expect("subscribe same-key graph observer");
+        subscriptions.push(established.subscription_id);
+    }
+    assert!(snapback.drain_live_stream(connection_id).is_empty());
+    let before = snapback.inspect_core().expect("inspect before graph memo");
+
+    assert!(
+        refresh_graph_corpus_scheduler(&mut snapback, None)
+            .expect("refresh same-key graph observers"),
+    );
+
+    let after = snapback.inspect_core().expect("inspect after graph memo");
+    assert_eq!(
+        after.live_evaluation.evaluations_started - before.live_evaluation.evaluations_started,
+        N as u64,
+        "delivery remains one scheduler turn per subscription",
+    );
+    assert_eq!(
+        after.live_evaluation.evaluations_executed - before.live_evaluation.evaluations_executed,
+        1,
+    );
+    assert_eq!(
+        after.live_evaluation.memo_misses - before.live_evaluation.memo_misses,
+        1,
+    );
+    assert_eq!(
+        after.live_evaluation.memo_hits - before.live_evaluation.memo_hits,
+        (N - 1) as u64,
+    );
+    assert_eq!(
+        after.live_delivery.total_deliveries - before.live_delivery.total_deliveries,
+        N as u64,
+        "a hit skips evaluation only, never per-subscription delivery",
+    );
+    let snapshots = drain_graph_scheduler_snapshots(&mut snapback, connection_id);
+    assert_eq!(snapshots.len(), N);
+    let delivered_subscriptions = snapshots
+        .iter()
+        .map(|frame| frame["snapshot"]["subscriptionId"].as_str().unwrap())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        delivered_subscriptions,
+        subscriptions.iter().map(String::as_str).collect(),
+    );
+    assert!(snapshots.iter().all(|frame| {
+        frame.get("obligation").is_some()
+            && frame["obligation"]["witness"]["authorization"] == call["authorizationVersion"]
+    }));
+    let row_bytes = snapshots
+        .iter()
+        .map(|frame| serde_json::to_vec(&frame["snapshot"]["rows"]).unwrap())
+        .collect::<Vec<_>>();
+    assert!(row_bytes.windows(2).all(|pair| pair[0] == pair[1]));
+
+    let entries = graph_corpus_memo_entries(&snapback);
+    assert_eq!(entries.as_array().unwrap().len(), 1);
+    assert_eq!(entries[0]["holders"].as_array().unwrap().len(), N);
+    let observation = snapback
+        .graph_serving_observation_for_test(&subscriptions[0])
+        .expect("same-key graph observation");
+    assert_eq!(
+        entries[0]["materializationHash"],
+        observation["materializationHash"]
+    );
+    assert_ne!(
+        entries[0]["materializationHash"], observation["instanceHash"],
+        "the memo key uses the outer materialization identity, never the inner instance hash",
+    );
+    assert_eq!(
+        entries[0]["materializationIdentity"]["materializationHash"],
+        observation["materializationHash"],
+    );
+    assert_eq!(
+        entries[0]["authorityPartitionHash"],
+        observation["partitionHash"]
+    );
+}
+
+#[test]
+fn graph_scheduler_case_matcher_wake_retires_then_reevaluates_once() {
+    const N: usize = 3;
+    let corpus = graph_corpus();
+    let (mut snapback, name, call, authority, connection) = graph_scheduler_memo_fixture(&corpus);
+    let connection_id = "g3-a-matcher-wake";
+    let visible_args = json!({
+        "sourceIssueID":"SZ8UieCHMznEsf_Q6EybI",
+        "selectedLabelIDs":[],
+    });
+    for ordinal in 0..N {
+        subscribe_graph_corpus_case(
+            &mut snapback,
+            &name,
+            graph_scheduler_memo_input(
+                &call,
+                &authority,
+                connection_id,
+                (ordinal + 1) as u64,
+                Some(visible_args.clone()),
+            ),
+            connection.clone(),
+        )
+        .expect("subscribe matcher-wake graph observer");
+    }
+    assert!(refresh_graph_corpus_scheduler(&mut snapback, None).unwrap());
+    let _ = drain_graph_scheduler_snapshots(&mut snapback, connection_id);
+    let before = snapback
+        .inspect_core()
+        .expect("inspect before matcher wake");
+    let replacement_title = "G3-A matcher wake replacement";
+
+    let committed = invoke_graph_corpus_mutation(
+        &mut snapback,
+        GRAPH_CORPUS_MATCHING_DATA_MUTATION,
+        HandlerInput {
+            args: json!({"title":replacement_title}),
+            ..HandlerInput::default()
+        },
+    )
+    .expect("commit matching graph data change");
+    assert!(snapback.flush_pending_live_fanout());
+
+    let after = snapback.inspect_core().expect("inspect after matcher wake");
+    assert_eq!(
+        after.live_evaluation.evaluations_executed - before.live_evaluation.evaluations_executed,
+        1,
+    );
+    assert_eq!(
+        after.live_evaluation.memo_misses - before.live_evaluation.memo_misses,
+        1,
+    );
+    assert_eq!(
+        after.live_evaluation.memo_hits - before.live_evaluation.memo_hits,
+        (N - 1) as u64,
+    );
+    assert!(
+        after.live_evaluation.memo_retirements > before.live_evaluation.memo_retirements,
+        "the first holder wake retires the shared predecessor entry",
+    );
+    let snapshots = drain_graph_scheduler_snapshots(&mut snapback, connection_id);
+    assert_eq!(snapshots.len(), N);
+    assert!(snapshots.iter().all(|frame| {
+        serde_json::to_string(&frame["snapshot"]["rows"])
+            .unwrap()
+            .contains(replacement_title)
+    }));
+    let entries = graph_corpus_memo_entries(&snapback);
+    assert_eq!(entries.as_array().unwrap().len(), 1);
+    assert_eq!(entries[0]["evaluationCut"], committed.version);
+}
+
+#[test]
+fn graph_scheduler_case_materialization_and_partition_keys_do_not_share() {
+    let corpus = graph_corpus();
+    let (mut snapback, name, call, authority, connection) = graph_scheduler_memo_fixture(&corpus);
+    let connection_id = "g3-a-mixed-keys";
+    let alternate_args = json!({
+        "sourceIssueID":"SZ8UieCHMznEsf_Q6EybI",
+        "selectedLabelIDs":[],
+    });
+    subscribe_graph_corpus_case(
+        &mut snapback,
+        &name,
+        graph_scheduler_memo_input(&call, &authority, connection_id, 1, None),
+        connection.clone(),
+    )
+    .expect("subscribe base graph key");
+    subscribe_graph_corpus_case(
+        &mut snapback,
+        &name,
+        graph_scheduler_memo_input(&call, &authority, connection_id, 2, Some(alternate_args)),
+        connection.clone(),
+    )
+    .expect("subscribe different materialization");
+    subscribe_graph_corpus_partition_case(
+        &mut snapback,
+        &name,
+        graph_scheduler_memo_input(&call, &authority, connection_id, 3, None),
+        connection,
+    )
+    .expect("subscribe different authority partition");
+    let before = snapback.inspect_core().expect("inspect before mixed keys");
+
+    assert!(refresh_graph_corpus_scheduler(&mut snapback, None).unwrap());
+
+    let after = snapback.inspect_core().expect("inspect after mixed keys");
+    assert_eq!(
+        after.live_evaluation.evaluations_executed - before.live_evaluation.evaluations_executed,
+        3,
+    );
+    assert_eq!(
+        after.live_evaluation.memo_misses - before.live_evaluation.memo_misses,
+        3,
+    );
+    assert_eq!(
+        after.live_evaluation.memo_hits - before.live_evaluation.memo_hits,
+        0,
+    );
+    let entries = graph_corpus_memo_entries(&snapback);
+    let entries = entries.as_array().unwrap();
+    assert_eq!(entries.len(), 3);
+    assert_eq!(
+        entries
+            .iter()
+            .map(|entry| entry["materializationHash"].as_str().unwrap())
+            .collect::<BTreeSet<_>>()
+            .len(),
+        2,
+    );
+    assert_eq!(
+        entries
+            .iter()
+            .map(|entry| entry["authorityPartitionHash"].as_str().unwrap())
+            .collect::<BTreeSet<_>>()
+            .len(),
+        2,
+    );
+}
+
+#[test]
+fn graph_scheduler_case_evaluation_cut_does_not_share() {
+    let corpus = graph_corpus();
+    let (mut snapback, name, call, authority, connection) = graph_scheduler_memo_fixture(&corpus);
+    let connection_id = "g3-a-cut-isolation";
+    let disjoint_args = json!({
+        "sourceIssueID":"SZ8UieCHMznEsf_Q6EybI",
+        "selectedLabelIDs":[],
+    });
+    let first = subscribe_graph_corpus_case(
+        &mut snapback,
+        &name,
+        graph_scheduler_memo_input(
+            &call,
+            &authority,
+            connection_id,
+            1,
+            Some(disjoint_args.clone()),
+        ),
+        connection.clone(),
+    )
+    .expect("subscribe predecessor-cut graph");
+    assert!(refresh_graph_corpus_scheduler(&mut snapback, Some(&first.subscription_id)).unwrap(),);
+    let predecessor_entries = graph_corpus_memo_entries(&snapback);
+    assert_eq!(predecessor_entries.as_array().unwrap().len(), 1);
+    let predecessor_cut = predecessor_entries[0]["evaluationCut"].as_u64().unwrap();
+    let _ = drain_graph_scheduler_snapshots(&mut snapback, connection_id);
+
+    let committed = invoke_graph_corpus_mutation(
+        &mut snapback,
+        GRAPH_CORPUS_DISJOINT_DATA_MUTATION,
+        HandlerInput {
+            args: json!({"title":"G3-A disjoint cut advance"}),
+            ..HandlerInput::default()
+        },
+    )
+    .expect("commit disjoint cut advance");
+    assert!(committed.version > predecessor_cut);
+    let second = subscribe_graph_corpus_case(
+        &mut snapback,
+        &name,
+        graph_scheduler_memo_input(&call, &authority, connection_id, 2, Some(disjoint_args)),
+        connection,
+    )
+    .expect("subscribe successor-cut graph");
+    let before = snapback
+        .inspect_core()
+        .expect("inspect before cut isolation");
+
+    assert!(refresh_graph_corpus_scheduler(&mut snapback, Some(&second.subscription_id)).unwrap(),);
+
+    let after = snapback
+        .inspect_core()
+        .expect("inspect after cut isolation");
+    assert_eq!(
+        after.live_evaluation.evaluations_executed - before.live_evaluation.evaluations_executed,
+        1,
+    );
+    assert_eq!(
+        after.live_evaluation.memo_misses - before.live_evaluation.memo_misses,
+        1,
+    );
+    assert_eq!(
+        after.live_evaluation.memo_hits - before.live_evaluation.memo_hits,
+        0,
+    );
+    let entries = graph_corpus_memo_entries(&snapback);
+    assert_eq!(entries.as_array().unwrap().len(), 2);
+    assert_eq!(
+        entries
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|entry| entry["evaluationCut"].as_u64().unwrap())
+            .collect::<BTreeSet<_>>(),
+        BTreeSet::from([predecessor_cut, committed.version]),
+    );
+}
+
+#[test]
+fn graph_scheduler_case_tiny_budget_evicts_oldest_and_reevaluates() {
+    let corpus = graph_corpus();
+    let (mut snapback, name, call, authority, connection) = graph_scheduler_memo_fixture(&corpus);
+    let connection_id = "g3-a-eviction";
+    let alternate_args = json!({
+        "sourceIssueID":"SZ8UieCHMznEsf_Q6EybI",
+        "selectedLabelIDs":[],
+    });
+    let subscriptions = [None, Some(alternate_args), None]
+        .into_iter()
+        .enumerate()
+        .map(|(ordinal, args)| {
+            subscribe_graph_corpus_case(
+                &mut snapback,
+                &name,
+                graph_scheduler_memo_input(
+                    &call,
+                    &authority,
+                    connection_id,
+                    (ordinal + 1) as u64,
+                    args,
+                ),
+                connection.clone(),
+            )
+            .expect("subscribe eviction graph observer")
+            .subscription_id
+        })
+        .collect::<Vec<_>>();
+    set_graph_corpus_memo_limits(&mut snapback, 1, usize::MAX);
+    let before = snapback
+        .inspect_core()
+        .expect("inspect before graph eviction");
+    for subscription_id in &subscriptions {
+        assert!(refresh_graph_corpus_scheduler(&mut snapback, Some(subscription_id)).unwrap());
+    }
+
+    let after = snapback
+        .inspect_core()
+        .expect("inspect after graph eviction");
+    assert_eq!(
+        after.live_evaluation.evaluations_executed - before.live_evaluation.evaluations_executed,
+        3,
+    );
+    assert_eq!(
+        after.live_evaluation.memo_misses - before.live_evaluation.memo_misses,
+        3,
+    );
+    assert_eq!(
+        after.live_evaluation.memo_hits - before.live_evaluation.memo_hits,
+        0,
+    );
+    assert!(after.live_evaluation.memo_evictions - before.live_evaluation.memo_evictions >= 2,);
+    assert_eq!(
+        graph_corpus_memo_entries(&snapback)
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    let snapshots = drain_graph_scheduler_snapshots(&mut snapback, connection_id);
+    assert_eq!(snapshots.len(), subscriptions.len());
+    let delivered = subscriptions
+        .iter()
+        .map(|subscription_id| {
+            let snapshot = snapshots
+                .iter()
+                .find(|frame| frame["snapshot"]["subscriptionId"] == *subscription_id)
+                .expect("targeted graph refresh delivered its own snapshot");
+            serde_json::to_vec(&snapshot["snapshot"]["rows"]).unwrap()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(delivered[0], delivered[2]);
+    assert_ne!(delivered[0], delivered[1]);
 }
 
 /// Establish all three normal-fixture corpus graphs through the same

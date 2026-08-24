@@ -1180,30 +1180,91 @@ fn graph_serving_kill_switch_is_exactly_one() {
     for value in [None, Some("0"), Some("true"), Some("yes")] {
         assert!(!super::graph_execution_disabled(value));
     }
-    if std::env::var(CHILD_MARKER).as_deref() != Ok("1") {
-        let output = std::process::Command::new(
-            std::env::current_exe().expect("resolve the graph test binary"),
-        )
-        .args([
-            "--exact",
-            "local::engine::tests::engine::graph_serving_kill_switch_is_exactly_one",
-            "--nocapture",
-            "--test-threads=1",
-        ])
-        .env(CHILD_MARKER, "1")
-        .env("SNAPBACK_GRAPH_EXEC_DISABLED", "1")
-        .output()
-        .expect("run isolated graph kill-switch child");
-        assert!(
-            output.status.success(),
-            "graph kill-switch child failed:\nstdout:\n{}\nstderr:\n{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr),
-        );
+    let child_mode = std::env::var(CHILD_MARKER).ok();
+    if child_mode.is_none() {
+        for mode in ["disabled", "flip"] {
+            let mut command = std::process::Command::new(
+                std::env::current_exe().expect("resolve the graph test binary"),
+            );
+            command
+                .args([
+                    "--exact",
+                    "local::engine::tests::engine::graph_serving_kill_switch_is_exactly_one",
+                    "--nocapture",
+                    "--test-threads=1",
+                ])
+                .env(CHILD_MARKER, mode);
+            if mode == "disabled" {
+                command.env("SNAPBACK_GRAPH_EXEC_DISABLED", "1");
+            } else {
+                command.env_remove("SNAPBACK_GRAPH_EXEC_DISABLED");
+            }
+            let output = command
+                .output()
+                .expect("run isolated graph kill-switch child");
+            assert!(
+                output.status.success(),
+                "graph kill-switch {mode} child failed:\nstdout:\n{}\nstderr:\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr),
+            );
+        }
         return;
     }
 
     let mut snapback = graph_serving_fixture();
+    if child_mode.as_deref() == Some("flip") {
+        install_live_memo_scheduler(&mut snapback);
+        let established = snapback
+            .subscribe_live("graphIssues", graph_serving_live_input("memo-kill-flip"))
+            .expect("establish graph before kill-switch flip");
+        snapback.notify_live_subscriptions(&[]);
+        assert!(snapback.flush_pending_live_fanout());
+        assert_eq!(
+            snapback.pending_live_fanout.evaluation_memo.entries.len(),
+            1
+        );
+        let before = snapback.live_evaluation_stats.clone();
+        let _ = snapback.drain_live_stream("memo-kill-flip");
+
+        // This process is an isolated, single-test child specifically so the
+        // process-global kill switch can transition without racing another
+        // environment reader.
+        unsafe { std::env::set_var("SNAPBACK_GRAPH_EXEC_DISABLED", "1") };
+        snapback.notify_live_subscriptions(&[]);
+        assert!(snapback.flush_pending_live_fanout());
+        assert!(
+            snapback
+                .pending_live_fanout
+                .evaluation_memo
+                .entries
+                .is_empty()
+        );
+        assert!(
+            snapback.live_evaluation_stats.memo_retirements > before.memo_retirements,
+            "the flip retires the enabled-era graph entry before lookup",
+        );
+        assert_eq!(snapback.live_evaluation_stats.memo_hits, before.memo_hits);
+        assert!(
+            snapback
+                .drain_live_stream("memo-kill-flip")
+                .iter()
+                .all(|frame| {
+                    let frame: Value = serde_json::from_str(frame).expect("kill-switch frame JSON");
+                    frame["kind"] != "live_replace"
+                        || frame["subscriptionId"] != established.subscription_id
+                })
+        );
+        assert!(
+            snapback
+                .inspect_core()
+                .expect("inspect kill-switch diagnostics")
+                .recent_diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "SNAPBACK_GRAPH_EXEC_DISABLED")
+        );
+        return;
+    }
     let error = snapback
         .invoke_query("graphIssues", graph_serving_live_input("disabled").input)
         .expect_err("the kill switch refuses before graph evaluation");
@@ -2712,7 +2773,11 @@ fn live_evaluation_memo_same_key_executes_again_in_a_later_drain_cycle() {
             .evaluation_memo
             .entries
             .keys()
-            .all(|key| key.drain_cycle == snapback.pending_live_fanout.drain_cycle),
+            .all(|key| matches!(
+                key,
+                LiveEvaluationMemoKey::Opaque(key)
+                    if key.drain_cycle == snapback.pending_live_fanout.drain_cycle
+            )),
         "predecessor-cycle entries are retired at the next cycle boundary"
     );
 }

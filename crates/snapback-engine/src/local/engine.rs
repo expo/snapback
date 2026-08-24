@@ -142,8 +142,9 @@ const MAX_RECENT_DIAGNOSTICS: usize = 100;
 const MAINTENANCE_DIAGNOSTIC_MIN_INTERVAL_MS: u64 = 60_000;
 /// The byte budget must hold at least one measured hot-shape result: LLP 0209
 /// §1 records 61–68 MB replace frames. 256 MiB leaves room for a few
-/// concurrent keys; eviction still only costs a re-evaluation. These are fixed
-/// implementation constants for G1, not authoring surface.
+/// concurrent keys; eviction still only costs a re-evaluation. G3-A reuses
+/// these conservative per-instance G1 bounds for graph results; they remain
+/// fixed implementation constants, not authoring surface.
 const LIVE_EVALUATION_MEMO_MAX_ENTRIES: usize = 256;
 const LIVE_EVALUATION_MEMO_MAX_ESTIMATED_BYTES: usize = 256 * 1024 * 1024;
 const LIVE_EVALUATION_MEMO_ENTRY_OVERHEAD_BYTES: usize = 256;
@@ -928,7 +929,7 @@ fn runtime_cost_plan_identity(
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-struct LiveEvaluationMemoKey {
+struct OpaqueLiveEvaluationMemoKey {
     drain_cycle: u64,
     function_generation: u64,
     function: String,
@@ -937,12 +938,54 @@ struct LiveEvaluationMemoKey {
     cut_version: u64,
 }
 
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct GraphLiveEvaluationMemoKey {
+    /// Canonical JCS of the complete OUTER GraphMaterializationIdentityV1,
+    /// including its contextual preimage and outer hash. Hash-only or inner
+    /// graph-instance equality is deliberately not representable here.
+    materialization_identity: String,
+    materialization_hash: String,
+    /// Canonical JCS of the owner-recomputed partition identity. Retaining the
+    /// complete identity makes any preimage/hash disagreement fail closed.
+    authority_partition_identity: String,
+    authority_partition_hash: String,
+    authorization_incarnation: String,
+    authorization_epoch: u64,
+    evaluation_cut: u64,
+    /// Redundant, owner-derived projection used only by inspect/test grouping;
+    /// the normative identity is already closed inside `materialization`.
+    function: String,
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum LiveEvaluationMemoKey {
+    Opaque(OpaqueLiveEvaluationMemoKey),
+    Graph(GraphLiveEvaluationMemoKey),
+}
+
 impl LiveEvaluationMemoKey {
     fn estimated_bytes(&self) -> usize {
-        std::mem::size_of::<Self>()
-            .saturating_add(self.function.len())
-            .saturating_add(self.canonical_arguments.len())
-            .saturating_add(self.authority.len())
+        match self {
+            Self::Opaque(key) => std::mem::size_of::<Self>()
+                .saturating_add(key.function.len())
+                .saturating_add(key.canonical_arguments.len())
+                .saturating_add(key.authority.len()),
+            Self::Graph(key) => std::mem::size_of::<Self>()
+                .saturating_add(key.materialization_identity.len())
+                .saturating_add(key.materialization_hash.len())
+                .saturating_add(key.authority_partition_identity.len())
+                .saturating_add(key.authority_partition_hash.len())
+                .saturating_add(key.authorization_incarnation.len())
+                .saturating_add(key.function.len()),
+        }
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    fn function(&self) -> &str {
+        match self {
+            Self::Opaque(key) => &key.function,
+            Self::Graph(key) => &key.function,
+        }
     }
 }
 
@@ -1078,9 +1121,9 @@ impl LiveEvaluationMemo {
         evictions
     }
 
-    fn retire_subscription(&mut self, subscription_id: &str) {
+    fn retire_subscription(&mut self, subscription_id: &str) -> u64 {
         if self.disabled {
-            return;
+            return 0;
         }
         let retired = self
             .entries
@@ -1088,48 +1131,115 @@ impl LiveEvaluationMemo {
             .filter(|(_, entry)| entry.holders.contains(subscription_id))
             .map(|(key, _)| key.clone())
             .collect::<Vec<_>>();
+        let mut retirements = 0_u64;
         for key in retired {
             if let Some(entry) = self.entries.remove(&key) {
                 self.estimated_bytes = self.estimated_bytes.saturating_sub(entry.estimated_bytes);
+                retirements = retirements.saturating_add(1);
             }
         }
+        retirements
     }
 
-    fn retire_authority(&mut self, authority: &str) {
+    fn retire_authority(&mut self, authority: &str) -> u64 {
         if self.disabled {
-            return;
+            return 0;
         }
         let retired = self
             .entries
             .keys()
-            .filter(|key| key.authority == authority)
+            .filter(|key| {
+                matches!(key, LiveEvaluationMemoKey::Opaque(key) if key.authority == authority)
+            })
             .cloned()
             .collect::<Vec<_>>();
+        let mut retirements = 0_u64;
         for key in retired {
             if let Some(entry) = self.entries.remove(&key) {
                 self.estimated_bytes = self.estimated_bytes.saturating_sub(entry.estimated_bytes);
+                retirements = retirements.saturating_add(1);
             }
         }
+        retirements
     }
 
-    fn begin_drain_cycle(&mut self, drain_cycle: u64) {
+    fn retire_graph_authorization_versions_except(
+        &mut self,
+        current: &crate::storage::AuthorizationVersion,
+    ) -> u64 {
         if self.disabled {
-            return;
+            return 0;
         }
         let retired = self
             .entries
             .keys()
-            .filter(|key| key.drain_cycle != drain_cycle)
+            .filter(|key| {
+                matches!(
+                    key,
+                    LiveEvaluationMemoKey::Graph(key)
+                        if key.authorization_incarnation != current.incarnation
+                            || key.authorization_epoch != current.epoch
+                )
+            })
             .cloned()
             .collect::<Vec<_>>();
+        let mut retirements = 0_u64;
         for key in retired {
             if let Some(entry) = self.entries.remove(&key) {
                 self.estimated_bytes = self.estimated_bytes.saturating_sub(entry.estimated_bytes);
+                retirements = retirements.saturating_add(1);
             }
         }
+        retirements
     }
 
-    #[cfg(test)]
+    fn retire_graph_entries(&mut self) -> u64 {
+        if self.disabled {
+            return 0;
+        }
+        let retired = self
+            .entries
+            .keys()
+            .filter(|key| matches!(key, LiveEvaluationMemoKey::Graph(_)))
+            .cloned()
+            .collect::<Vec<_>>();
+        let mut retirements = 0_u64;
+        for key in retired {
+            if let Some(entry) = self.entries.remove(&key) {
+                self.estimated_bytes = self.estimated_bytes.saturating_sub(entry.estimated_bytes);
+                retirements = retirements.saturating_add(1);
+            }
+        }
+        retirements
+    }
+
+    fn begin_drain_cycle(&mut self, drain_cycle: u64) -> u64 {
+        if self.disabled {
+            return 0;
+        }
+        // @ref LLP 0209#6 — opaque G1 entries retain their conservative
+        // drain-cycle boundary because arbitrary handlers have ambient inputs.
+        // Graph entries use the complete §6 tuple and therefore remain live
+        // until their matcher or authority owner retires them.
+        let retired = self
+            .entries
+            .keys()
+            .filter(|key| {
+                matches!(key, LiveEvaluationMemoKey::Opaque(key) if key.drain_cycle != drain_cycle)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        let mut retirements = 0_u64;
+        for key in retired {
+            if let Some(entry) = self.entries.remove(&key) {
+                self.estimated_bytes = self.estimated_bytes.saturating_sub(entry.estimated_bytes);
+                retirements = retirements.saturating_add(1);
+            }
+        }
+        retirements
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
     fn set_limits(&mut self, max_entries: usize, max_bytes: usize) {
         self.max_entries = max_entries;
         self.max_bytes = max_bytes;
@@ -1178,10 +1288,11 @@ impl PendingLiveScheduler {
         self.next_generation
     }
 
-    fn push(&mut self, subscription_id: String, mut pending: PendingLiveFanout) {
+    fn push(&mut self, subscription_id: String, mut pending: PendingLiveFanout) -> u64 {
+        let mut retirements = 0;
         if self.entries.is_empty() {
             self.drain_cycle = self.drain_cycle.wrapping_add(1).max(1);
-            self.evaluation_memo.begin_drain_cycle(self.drain_cycle);
+            retirements = self.evaluation_memo.begin_drain_cycle(self.drain_cycle);
         }
         let generation = self.next_generation();
         pending.generation = generation;
@@ -1224,6 +1335,7 @@ impl PendingLiveScheduler {
             PendingLiveLane::Refresh => self.refresh.push_back((subscription_id, generation)),
             PendingLiveLane::Data => self.data.push_back((subscription_id, generation)),
         }
+        retirements
     }
 
     fn peek(&mut self) -> Option<String> {
@@ -1373,6 +1485,7 @@ pub struct LiveEvaluationStats {
     pub evaluations_executed: u64,
     pub memo_hits: u64,
     pub memo_misses: u64,
+    pub memo_retirements: u64,
     pub memo_evictions: u64,
     pub memo_oversize_refusals: u64,
     pub cumulative_duration_ms: f64,
@@ -8219,6 +8332,195 @@ impl LocalSnapback {
         .ok()
     }
 
+    fn record_live_evaluation_memo_retirements(&mut self, retirements: u64) {
+        self.live_evaluation_stats.memo_retirements = self
+            .live_evaluation_stats
+            .memo_retirements
+            .saturating_add(retirements);
+    }
+
+    fn retire_live_evaluation_memo_subscription(&mut self, subscription_id: &str) {
+        let retirements = self
+            .pending_live_fanout
+            .evaluation_memo
+            .retire_subscription(subscription_id);
+        self.record_live_evaluation_memo_retirements(retirements);
+    }
+
+    fn retire_live_evaluation_memo_authority(&mut self, authority: &str) {
+        let retirements = self
+            .pending_live_fanout
+            .evaluation_memo
+            .retire_authority(authority);
+        self.record_live_evaluation_memo_retirements(retirements);
+    }
+
+    fn push_pending_live_fanout(&mut self, subscription_id: String, pending: PendingLiveFanout) {
+        let retirements = self.pending_live_fanout.push(subscription_id, pending);
+        self.record_live_evaluation_memo_retirements(retirements);
+    }
+
+    fn graph_live_evaluation_memo_key_from_identities(
+        materialization: &crate::manifest::GraphMaterializationIdentityV1,
+        partition: &crate::manifest::GraphAuthorityPartitionIdentityV1,
+        authorization_version: &crate::storage::AuthorizationVersion,
+        evaluation_cut: crate::manifest::GraphEvaluationCutV1,
+    ) -> Option<GraphLiveEvaluationMemoKey> {
+        // @ref LLP 0209#6 — equality retains the complete owner-recomputed
+        // OUTER materialization and partition identities, not merely the inner
+        // graph instance hash or a process-local alias. Recomputing each hash
+        // from its preimage makes any in-memory disagreement a fail-closed
+        // miss before the values become a memo key.
+        let rebuilt_materialization =
+            crate::manifest::graph_materialization_identity_v1(materialization.preimage.clone())
+                .ok()?;
+        let rebuilt_partition =
+            crate::manifest::graph_authority_partition_identity_v1(partition.preimage.clone())
+                .ok()?;
+        if rebuilt_materialization != *materialization || rebuilt_partition != *partition {
+            return None;
+        }
+        let materialization_identity =
+            crate::watches::canonical_json(&serde_json::to_value(&rebuilt_materialization).ok()?)
+                .ok()?;
+        let authority_partition_identity =
+            crate::watches::canonical_json(&serde_json::to_value(&rebuilt_partition).ok()?).ok()?;
+        Some(GraphLiveEvaluationMemoKey {
+            materialization_identity,
+            materialization_hash: rebuilt_materialization
+                .materialization_hash
+                .as_str()
+                .to_owned(),
+            authority_partition_identity,
+            authority_partition_hash: rebuilt_partition.partition_hash.as_str().to_owned(),
+            authorization_incarnation: authorization_version.incarnation.clone(),
+            authorization_epoch: authorization_version.epoch,
+            evaluation_cut: evaluation_cut.0,
+            function: rebuilt_materialization.preimage.function.name,
+        })
+    }
+
+    fn graph_live_evaluation_memo_key(
+        &self,
+        subscription: &LiveSubscription,
+        authority: &PreparedAuthority,
+    ) -> Option<GraphLiveEvaluationMemoKey> {
+        let function = resolve_invocation_function(
+            &self.function_generation_recovery_state,
+            &self.functions,
+            &subscription.function,
+            &[FunctionKind::Query, FunctionKind::LiveQuery],
+        )
+        .ok()?;
+        let FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier)) = &function.runtime else {
+            return None;
+        };
+        if !self.graph_query_v1_target_declared.load(Ordering::Acquire) {
+            return None;
+        }
+        let prepared = InvocationGate::prepare_function(authority.clone(), function).ok()?;
+        prepared
+            .validate_admission("graph live-evaluation memo key")
+            .ok()?;
+        let input = prepared.canonicalize_input(subscription.input.clone());
+        let (input, demand) = graph_serving_demand(input).ok()?;
+        crate::args_contract::validate_function_args(function, &input.args).ok()?;
+        let cut_version = self.current_live_evaluation.as_ref()?.cut_version;
+        let db = DbRead::Live(&self.db);
+        if db.current_version().ok()? != cut_version {
+            return None;
+        }
+        let (authorization_version, _) = db.membership_cursor_custody_snapshot().ok()?;
+        let materialization = graph_materialization(
+            &db,
+            function,
+            carrier,
+            &input,
+            &demand,
+            RelationalCursorAuthority {
+                app_id: &self.functions.app_id,
+                keyring: &self.resume_keyring,
+                schema_hash: self.db.schema().schema_hash.as_deref(),
+                function_bundle_hash: self.functions.bundle_hash.as_deref(),
+                function_inputs_hash: self.functions.inputs_hash.as_deref(),
+                function_publication_generation: self.app_generation,
+                target_profile: self.db.schema().target_profile.as_deref(),
+            },
+        )
+        .ok()?;
+        let partition = graph_authority_partition(
+            carrier,
+            &prepared,
+            &input,
+            &authorization_version,
+            self.graph_serving_authority_context(&subscription.function)
+                .as_ref(),
+        )
+        .ok()?;
+        Self::graph_live_evaluation_memo_key_from_identities(
+            &materialization,
+            &partition,
+            &authorization_version,
+            crate::manifest::GraphEvaluationCutV1(cut_version),
+        )
+    }
+
+    fn graph_live_evaluation_memo_key_from_result(
+        result: &QueryInvocation,
+    ) -> Option<GraphLiveEvaluationMemoKey> {
+        let graph = result.graph_serving.as_ref()?;
+        if result.output.version != graph.evaluation_cut.0
+            || graph.dependencies.materialization_hash()
+                != &graph.materialization.materialization_hash
+            || graph.dependencies.partition_hash() != &graph.partition.partition_hash
+        {
+            return None;
+        }
+        Self::graph_live_evaluation_memo_key_from_identities(
+            &graph.materialization,
+            &graph.partition,
+            &graph.authorization_version,
+            graph.evaluation_cut,
+        )
+    }
+
+    #[cfg(debug_assertions)]
+    fn debug_assert_graph_live_evaluation_memo_convergence(
+        cached: &QueryInvocation,
+        fresh: &QueryInvocation,
+    ) {
+        let cached_output = serde_json::to_vec(&cached.output)
+            .expect("a memoized graph query output remains serializable");
+        let fresh_output =
+            serde_json::to_vec(&fresh.output).expect("a fresh graph query output is serializable");
+        debug_assert_eq!(
+            cached_output, fresh_output,
+            "graph memo hit diverged from a fresh evaluation's exact result bytes"
+        );
+        debug_assert_eq!(cached.read_dependencies, fresh.read_dependencies);
+        let cached_graph = cached
+            .graph_serving
+            .as_ref()
+            .expect("a graph-keyed memo entry carries graph registration");
+        let fresh_graph = fresh
+            .graph_serving
+            .as_ref()
+            .expect("the graph convergence oracle carries graph registration");
+        debug_assert_eq!(cached_graph.materialization, fresh_graph.materialization);
+        debug_assert_eq!(cached_graph.partition, fresh_graph.partition);
+        debug_assert_eq!(
+            cached_graph.authorization_version,
+            fresh_graph.authorization_version
+        );
+        debug_assert_eq!(cached_graph.evaluation_cut, fresh_graph.evaluation_cut);
+        debug_assert_eq!(cached_graph.structural_work, fresh_graph.structural_work);
+        debug_assert_eq!(cached_graph.window_ledgers, fresh_graph.window_ledgers);
+        debug_assert_eq!(
+            cached_graph.dependencies.reads(),
+            fresh_graph.dependencies.reads()
+        );
+    }
+
     fn live_evaluation_memo_key(
         &mut self,
         subscription: &LiveSubscription,
@@ -8226,6 +8528,51 @@ impl LocalSnapback {
     ) -> Option<LiveEvaluationMemoKey> {
         if self.pending_live_fanout.evaluation_memo.disabled {
             return None;
+        }
+        let graph_function =
+            self.functions
+                .function(&subscription.function)
+                .is_some_and(|function| {
+                    matches!(
+                        &function.runtime,
+                        FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(_))
+                    )
+                });
+        if graph_function {
+            // The execution kill switch is dynamic. Retire graph entries
+            // before declining the lookup so a value computed while enabled
+            // can never bypass a later disabled evaluation.
+            if graph_execution_disabled(
+                std::env::var("SNAPBACK_GRAPH_EXEC_DISABLED")
+                    .ok()
+                    .as_deref(),
+            ) {
+                let retirements = self
+                    .pending_live_fanout
+                    .evaluation_memo
+                    .retire_graph_entries();
+                self.record_live_evaluation_memo_retirements(retirements);
+                return None;
+            }
+            let key = self.graph_live_evaluation_memo_key(subscription, authority)?;
+            let current_authorization = crate::storage::AuthorizationVersion {
+                incarnation: key.authorization_incarnation.clone(),
+                epoch: key.authorization_epoch,
+            };
+            let retirements = self
+                .pending_live_fanout
+                .evaluation_memo
+                .retire_graph_authorization_versions_except(&current_authorization);
+            self.record_live_evaluation_memo_retirements(retirements);
+            #[cfg(test)]
+            {
+                self.pending_live_fanout.evaluation_memo.keys_built = self
+                    .pending_live_fanout
+                    .evaluation_memo
+                    .keys_built
+                    .saturating_add(1);
+            }
+            return Some(LiveEvaluationMemoKey::Graph(key));
         }
         // Exhaustive on purpose: a future HandlerInput field must be assigned
         // to the key, the refusal rule, or a documented result-irrelevant
@@ -8260,14 +8607,14 @@ impl LocalSnapback {
         // module state are not proven identical across cycles under LLP 0190
         // §4.3's complete-inputs standard. The containing scheduler makes
         // LocalSnapback instance identity implicit.
-        let key = LiveEvaluationMemoKey {
+        let key = LiveEvaluationMemoKey::Opaque(OpaqueLiveEvaluationMemoKey {
             drain_cycle: self.pending_live_fanout.drain_cycle,
             function_generation: self.app_generation,
             function: subscription.function.clone(),
             canonical_arguments,
             authority: authority_component,
             cut_version,
-        };
+        });
         #[cfg(test)]
         {
             self.pending_live_fanout.evaluation_memo.keys_built = self
@@ -8294,6 +8641,20 @@ impl LocalSnapback {
                 .evaluation_memo
                 .get(key, &subscription.id)
         {
+            #[cfg(debug_assertions)]
+            if matches!(key, LiveEvaluationMemoKey::Graph(_)) {
+                // @ref LLP 0209#6 — the graph corpus/test-support path follows
+                // DK-3's convergence pattern: every debug memo hit is checked
+                // against a fresh owner evaluation, while release builds skip
+                // the evaluation turn exactly as the mechanism requires.
+                let fresh = self.invoke_query_with_dependencies_prepared_generation(
+                    &subscription.function,
+                    subscription.input.clone(),
+                    authority,
+                    subscription.expected_generation.as_ref(),
+                )?;
+                Self::debug_assert_graph_live_evaluation_memo_convergence(&cached, &fresh);
+            }
             // @ref LLP 0209#6 — a hit skips only the query invocation. The
             // caller continues through the subscription-specific authority
             // gate, obligations, dependency update, serialization, and
@@ -8336,7 +8697,18 @@ impl LocalSnapback {
             .current_live_evaluation
             .as_ref()
             .is_some_and(|evaluation| !evaluation.control.is_abandoned());
-        if turn_is_publishable && let Some(key) = key {
+        let insertion_key = match (key, result.graph_serving.as_ref()) {
+            (Some(LiveEvaluationMemoKey::Graph(expected)), Some(_)) => {
+                Self::graph_live_evaluation_memo_key_from_result(&result)
+                    .filter(|actual| actual == &expected)
+                    .map(LiveEvaluationMemoKey::Graph)
+            }
+            (Some(LiveEvaluationMemoKey::Opaque(key)), None) => {
+                Some(LiveEvaluationMemoKey::Opaque(key))
+            }
+            _ => None,
+        };
+        if turn_is_publishable && let Some(key) = insertion_key {
             let evictions = self.pending_live_fanout.evaluation_memo.insert(
                 key,
                 &subscription.id,
@@ -9786,7 +10158,14 @@ impl LocalSnapback {
         }
         self.subscriptions.clear();
         let memo_disabled = self.pending_live_fanout.evaluation_memo.disabled;
+        let memo_retirements = self
+            .pending_live_fanout
+            .evaluation_memo
+            .entries
+            .len()
+            .min(u64::MAX as usize) as u64;
         self.pending_live_fanout = PendingLiveScheduler::empty_with_memo_disabled(memo_disabled);
+        self.record_live_evaluation_memo_retirements(memo_retirements);
         self.live_evaluation_timeout_streaks.clear();
         if let Some(coalescer) = &self.live_coalescer {
             for subscription in &dropped_subscriptions {
@@ -12258,6 +12637,7 @@ impl LocalSnapback {
     #[cfg(any(test, feature = "test-support"))]
     fn graph_corpus_session_authority_for_test(
         source: InvocationSource,
+        alternate_instance: bool,
     ) -> SnapbackResult<PreparedAuthority> {
         InvocationGate::prepare_authority(
             source,
@@ -12271,7 +12651,11 @@ impl LocalSnapback {
                 session_id: "graph-corpus-session".to_owned(),
                 provider: "email-code".to_owned(),
                 generation: 1,
-                authority_instance_id: "graph-corpus-authority".to_owned(),
+                authority_instance_id: if alternate_instance {
+                    "graph-corpus-authority-alt".to_owned()
+                } else {
+                    "graph-corpus-authority".to_owned()
+                },
                 session_not_after_ms: 4_000_000_000_000,
                 provider_not_after_ms: None,
                 rehearsal_provenance: None,
@@ -12289,7 +12673,32 @@ impl LocalSnapback {
         self.subscribe_live_prepared_with_invalidation(
             name,
             input,
-            Self::graph_corpus_session_authority_for_test(InvocationSource::LiveInitialQuery)?,
+            Self::graph_corpus_session_authority_for_test(
+                InvocationSource::LiveInitialQuery,
+                false,
+            )?,
+            LiveInvalidationAdmission {
+                session_mode: true,
+                connection: Some(connection),
+                effect_fence: None,
+            },
+        )
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub(crate) fn subscribe_graph_corpus_partition_case_for_test(
+        &mut self,
+        name: &str,
+        input: LiveSubscribeInput,
+        connection: AuthorizationInvalidationConnection,
+    ) -> SnapbackResult<LiveSubscribeOutput> {
+        self.subscribe_live_prepared_with_invalidation(
+            name,
+            input,
+            Self::graph_corpus_session_authority_for_test(
+                InvocationSource::LiveInitialQuery,
+                true,
+            )?,
             LiveInvalidationAdmission {
                 session_mode: true,
                 connection: Some(connection),
@@ -12307,7 +12716,7 @@ impl LocalSnapback {
         self.invoke_mutation_with_authority(
             name,
             input,
-            Self::graph_corpus_session_authority_for_test(InvocationSource::HttpMutation)?,
+            Self::graph_corpus_session_authority_for_test(InvocationSource::HttpMutation, false)?,
         )
     }
 
@@ -12316,10 +12725,12 @@ impl LocalSnapback {
         &mut self,
         connection_id: &str,
     ) -> SnapbackResult<Vec<String>> {
-        let admission =
-            Self::graph_corpus_session_authority_for_test(InvocationSource::LiveInitialQuery)?
-                .admission_lease()
-                .clone();
+        let admission = Self::graph_corpus_session_authority_for_test(
+            InvocationSource::LiveInitialQuery,
+            false,
+        )?
+        .admission_lease()
+        .clone();
         self.authorization_invalidation_frames(connection_id, &admission)
             .map(|frames| {
                 frames
@@ -12355,7 +12766,7 @@ impl LocalSnapback {
                     .evaluation_memo
                     .entries
                     .iter()
-                    .filter(|(key, _)| key.function == subscription.function)
+                    .filter(|(key, _)| key.function() == subscription.function)
                     .map(|(_, entry)| {
                         json!({
                             "resultBytes": serialized_json_estimated_bytes(&entry.result.output.rows),
@@ -12378,6 +12789,87 @@ impl LocalSnapback {
             })
             .collect::<Vec<_>>();
         Ok(Value::Array(measurements))
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub(crate) fn refresh_graph_corpus_scheduler_for_test(
+        &mut self,
+        only_subscription: Option<&str>,
+    ) -> SnapbackResult<bool> {
+        if self.live_coalescer.is_none() {
+            self.install_live_fanout_coalescer(Arc::new(
+                crate::live_coalesce::LiveFanoutCoalescer::new(),
+            ));
+        }
+        self.pending_live_fanout.evaluation_memo.disabled = false;
+        if let Some(subscription_id) = only_subscription {
+            if !self.subscriptions.contains_key(subscription_id) {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_TEST_FIXTURE_INVALID",
+                    "query",
+                    "the graph corpus targeted an unknown retained subscription",
+                ));
+            }
+            let frame_version = self.db.versions_read().current_version()?;
+            self.push_pending_live_fanout(
+                subscription_id.to_owned(),
+                PendingLiveFanout {
+                    lane: PendingLiveLane::Refresh,
+                    work: PendingLiveWork::Refresh,
+                    changes: Vec::new(),
+                    force_replace: true,
+                    frames: 1,
+                    coverage_through: frame_version,
+                    first_deferred_at: Instant::now(),
+                    trace_commit_versions: Vec::new(),
+                    trace_queued_ms: crate::spike_trace::timestamp_ms(),
+                    generation: 0,
+                },
+            );
+        } else {
+            self.notify_live_subscriptions(&[]);
+        }
+        Ok(self.flush_pending_live_fanout())
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub(crate) fn set_graph_corpus_memo_limits_for_test(
+        &mut self,
+        max_entries: usize,
+        max_bytes: usize,
+    ) {
+        self.pending_live_fanout
+            .evaluation_memo
+            .set_limits(max_entries, max_bytes);
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub(crate) fn graph_corpus_memo_entries_for_test(&self) -> Value {
+        Value::Array(
+            self.pending_live_fanout
+                .evaluation_memo
+                .entries
+                .iter()
+                .filter_map(|(key, entry)| {
+                    let LiveEvaluationMemoKey::Graph(key) = key else {
+                        return None;
+                    };
+                    Some(json!({
+                        "materializationIdentity":serde_json::from_str::<Value>(&key.materialization_identity).ok()?,
+                        "materializationHash":key.materialization_hash,
+                        "authorityPartitionIdentity":serde_json::from_str::<Value>(&key.authority_partition_identity).ok()?,
+                        "authorityPartitionHash":key.authority_partition_hash,
+                        "authorizationVersion":{
+                            "incarnation":key.authorization_incarnation,
+                            "epoch":key.authorization_epoch,
+                        },
+                        "evaluationCut":key.evaluation_cut,
+                        "function":key.function,
+                        "holders":entry.holders,
+                    }))
+                })
+                .collect(),
+        )
     }
 
     /// Replay one committed change shape against the exact attested
@@ -21912,9 +22404,7 @@ impl LocalSnapback {
                 retired.observation.finish(200, None, "superseded");
             }
             self.runtime_cost.retire_subscription(&old_id);
-            self.pending_live_fanout
-                .evaluation_memo
-                .retire_subscription(&old_id);
+            self.retire_live_evaluation_memo_subscription(&old_id);
             if let (Some(state), Some((scope, candidate, retirement))) =
                 (self.auth_invalidation.as_mut(), prepared_retirement)
             {
@@ -22291,9 +22781,7 @@ impl LocalSnapback {
         self.touch_connection(&input.connection_id, now_millis());
         self.subscriptions.remove(&subscription.id);
         self.runtime_cost.retire_subscription(&subscription.id);
-        self.pending_live_fanout
-            .evaluation_memo
-            .retire_subscription(&subscription.id);
+        self.retire_live_evaluation_memo_subscription(&subscription.id);
         subscription.observation.finish(200, None, "unsubscribed");
         self.refresh_auth_scoped_live_connections();
         let scope_retirement = match (self.auth_invalidation.as_mut(), prepared_retirement) {
@@ -25060,9 +25548,7 @@ impl LocalSnapback {
             .retain(|_, subscription| subscription.connection_id != connection_id);
         for subscription_id in retired_subscription_ids {
             self.runtime_cost.retire_subscription(&subscription_id);
-            self.pending_live_fanout
-                .evaluation_memo
-                .retire_subscription(&subscription_id);
+            self.retire_live_evaluation_memo_subscription(&subscription_id);
         }
         self.refresh_auth_scoped_live_connections();
         if let Some(state) = self.auth_invalidation.as_mut() {
@@ -27133,9 +27619,7 @@ impl LocalSnapback {
         });
         for subscription_id in retired_subscription_ids {
             self.runtime_cost.retire_subscription(&subscription_id);
-            self.pending_live_fanout
-                .evaluation_memo
-                .retire_subscription(&subscription_id);
+            self.retire_live_evaluation_memo_subscription(&subscription_id);
         }
         if let Some(state) = self.auth_invalidation.as_mut() {
             for scope in retired_scopes {
@@ -28784,9 +29268,7 @@ impl LocalSnapback {
             };
             self.subscriptions.remove(&subscription.id);
             self.runtime_cost.retire_subscription(&subscription.id);
-            self.pending_live_fanout
-                .evaluation_memo
-                .retire_subscription(&subscription.id);
+            self.retire_live_evaluation_memo_subscription(&subscription.id);
             subscription
                 .observation
                 .finish(200, None, "schema_publication");
@@ -29626,7 +30108,7 @@ impl LocalSnapback {
                 continue;
             }
             if is_refresh {
-                self.pending_live_fanout.push(
+                self.push_pending_live_fanout(
                     subscription_id,
                     PendingLiveFanout {
                         lane: PendingLiveLane::Refresh,
@@ -29686,7 +30168,7 @@ impl LocalSnapback {
                     // keeps the absorbed commit versions through `push` so the
                     // A/B can attribute the refresh evaluation to its real
                     // commits without resetting its queue timestamp.
-                    self.pending_live_fanout.push(
+                    self.push_pending_live_fanout(
                         subscription_id,
                         PendingLiveFanout {
                             lane: PendingLiveLane::Refresh,
@@ -29709,7 +30191,7 @@ impl LocalSnapback {
                     );
                 }
             } else {
-                self.pending_live_fanout.push(
+                self.push_pending_live_fanout(
                     subscription_id,
                     PendingLiveFanout {
                         lane: PendingLiveLane::Data,
@@ -29792,7 +30274,7 @@ impl LocalSnapback {
         {
             return;
         }
-        self.pending_live_fanout.push(
+        self.push_pending_live_fanout(
             subscription_id.clone(),
             PendingLiveFanout {
                 lane: PendingLiveLane::Refresh,
@@ -29840,7 +30322,7 @@ impl LocalSnapback {
             .entries
             .get(&subscription_id)
             .map_or_else(Instant::now, |pending| pending.first_deferred_at);
-        self.pending_live_fanout.push(
+        self.push_pending_live_fanout(
             subscription_id.clone(),
             PendingLiveFanout {
                 lane: PendingLiveLane::Authority,
@@ -29968,7 +30450,7 @@ impl LocalSnapback {
         // overdue data frame has exceeded scheduler capacity. Convert it to
         // the priority refresh obligation without resetting inherited age or
         // trace; Authority and already-Refresh work retain their semantics.
-        self.pending_live_fanout.push(
+        self.push_pending_live_fanout(
             subscription_id.clone(),
             PendingLiveFanout {
                 lane: PendingLiveLane::Refresh,
@@ -30503,7 +30985,7 @@ impl LocalSnapback {
                     .function(&subscription.function)
                     .and_then(|function| runtime_cost_plan_identity(function, self.db.schema()));
                 let runtime_wave_seq = self.runtime_cost.reserve_wave_seq();
-                self.pending_live_fanout.push(
+                self.push_pending_live_fanout(
                     subscription_id.to_owned(),
                     PendingLiveFanout {
                         lane: PendingLiveLane::Refresh,
@@ -30535,9 +31017,7 @@ impl LocalSnapback {
             return;
         };
         self.runtime_cost.retire_subscription(subscription_id);
-        self.pending_live_fanout
-            .evaluation_memo
-            .retire_subscription(subscription_id);
+        self.retire_live_evaluation_memo_subscription(subscription_id);
         if let Ok(_publication) = admission.effect_guard("live timeout teardown publication")
             && let Ok(payload) = serde_json::to_vec(&LiveEnvelope::ResyncRequired {
                 network_profile: None,
@@ -31533,13 +32013,22 @@ impl LocalSnapback {
         }
 
         if !self.pending_live_fanout.evaluation_memo.disabled {
+            // @ref LLP 0209#6 — authorizationVersion is an adjacent mandatory
+            // graph-key axis. Its owner advances the global version before
+            // restoration, so every unequal predecessor entry retires even
+            // when partition and data cut happen to remain byte-equal.
+            let retirements = self
+                .pending_live_fanout
+                .evaluation_memo
+                .retire_graph_authorization_versions_except(authorization);
+            self.record_live_evaluation_memo_retirements(retirements);
             let claims_now_ms = now_millis();
             for subscription in subscriptions {
                 // @ref LLP 0209#6 — an authority fence retires the complete
-                // predecessor authority component, independent of current
-                // holder membership. That includes orphaned entries left by
-                // any earlier lifecycle defect; the delivery gate remains the
-                // safety boundary.
+                // predecessor graph entry held by this subscription plus the
+                // opaque predecessor authority component. The delivery gate
+                // remains the safety boundary for any in-flight turn.
+                self.retire_live_evaluation_memo_subscription(&subscription.id);
                 let resolved = subscription.authority.resolved();
                 // Memo-key reconstruction is not a new InvocationSource.
                 // Resolve the same catalog half, then use the sole projection
@@ -31555,9 +32044,7 @@ impl LocalSnapback {
                     &projection,
                     &resolved.invalidation_subject(),
                 ) {
-                    self.pending_live_fanout
-                        .evaluation_memo
-                        .retire_authority(&authority_component);
+                    self.retire_live_evaluation_memo_authority(&authority_component);
                 }
             }
         }
@@ -31626,6 +32113,11 @@ impl LocalSnapback {
                 counters.version_advances += 1;
             },
         );
+        let retirements = self
+            .pending_live_fanout
+            .evaluation_memo
+            .retire_graph_authorization_versions_except(&authorization.version);
+        self.record_live_evaluation_memo_retirements(retirements);
         let subscriptions = self
             .subscriptions
             .values()
@@ -31886,9 +32378,7 @@ impl LocalSnapback {
         for (subscription, payload) in subscriptions.iter().zip(payloads) {
             self.subscriptions.remove(&subscription.id);
             self.runtime_cost.retire_subscription(&subscription.id);
-            self.pending_live_fanout
-                .evaluation_memo
-                .retire_subscription(&subscription.id);
+            self.retire_live_evaluation_memo_subscription(&subscription.id);
             let cause = if subscription.expected_generation.is_some() {
                 "artifact_identity_mismatch"
             } else {
@@ -31994,6 +32484,7 @@ impl LocalSnapback {
             Vec::new()
         };
         let mut matcher_stats = LiveMatcherDecisionStats::default();
+        let mut matcher_memo_retirements = 0_u64;
         // Reserved asset-record projections re-run natively below. Every
         // non-empty frame includes them conservatively: the recompute is a
         // few point reads, and delivery is fingerprint-deduplicated inside
@@ -32022,9 +32513,11 @@ impl LocalSnapback {
                 // @ref LLP 0209#6 — the existing matcher decision is the
                 // memo's coherence authority. A wake by any holder retires
                 // the complete shared entry before evaluation selection.
-                self.pending_live_fanout
-                    .evaluation_memo
-                    .retire_subscription(&subscription.id);
+                matcher_memo_retirements = matcher_memo_retirements.saturating_add(
+                    self.pending_live_fanout
+                        .evaluation_memo
+                        .retire_subscription(&subscription.id),
+                );
                 matcher_stats.conservative_fallback =
                     matcher_stats.conservative_fallback.saturating_add(1);
                 crate::spike_trace::matcher_decision(
@@ -32106,9 +32599,11 @@ impl LocalSnapback {
             }
             // @ref LLP 0209#6 — retirement is attached directly to the
             // matcher wake, with no TTL or parallel invalidation protocol.
-            self.pending_live_fanout
-                .evaluation_memo
-                .retire_subscription(&subscription.id);
+            matcher_memo_retirements = matcher_memo_retirements.saturating_add(
+                self.pending_live_fanout
+                    .evaluation_memo
+                    .retire_subscription(&subscription.id),
+            );
             let delta_plan = match &function.runtime {
                 // @ref LLP 0056#what-exists-what-this-adds — membership-gated
                 // (semi-join) queries ride the conservative re-query/
@@ -32179,6 +32674,7 @@ impl LocalSnapback {
             );
             affected.push((subscription.clone(), delta_plan, match_outcome));
         }
+        self.record_live_evaluation_memo_retirements(matcher_memo_retirements);
         self.live_matcher_stats.match_replace = self
             .live_matcher_stats
             .match_replace

@@ -9098,6 +9098,11 @@
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
+        },
+        "memoRetirements": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
         }
       },
       "required": [
@@ -9107,6 +9112,7 @@
         "evaluationsExecuted",
         "memoHits",
         "memoMisses",
+        "memoRetirements",
         "memoEvictions",
         "memoOversizeRefusals",
         "cumulativeDurationMs",
