@@ -29146,15 +29146,19 @@ fn oauth_consent_request_derives_the_durable_user_from_authority() {
     enum Case {
         FirstExact,
         SecondExact,
+        ThirdExact,
         WrongSource,
         AbsentUser,
     }
 
     impl Case {
+        // This name is assertion-only; production receives the separately
+        // crossed authority, session, and OAuth-state values below.
         fn name(self) -> &'static str {
             match self {
                 Self::FirstExact => "first-exact",
                 Self::SecondExact => "second-exact",
+                Self::ThirdExact => "third-exact",
                 Self::WrongSource => "wrong-source",
                 Self::AbsentUser => "absent-user",
             }
@@ -29168,6 +29172,20 @@ fn oauth_consent_request_derives_the_durable_user_from_authority() {
             }
         }
 
+        fn session_id(self) -> &'static str {
+            match self {
+                Self::FirstExact | Self::WrongSource => "begin-session-n",
+                _ => "begin-session-m",
+            }
+        }
+
+        fn oauth_state(self) -> &'static str {
+            match self {
+                Self::ThirdExact => "alternate-state",
+                _ => "shared-state",
+            }
+        }
+
         fn source(self) -> InvocationSource {
             if matches!(self, Self::WrongSource) {
                 InvocationSource::HttpMutation
@@ -29178,18 +29196,57 @@ fn oauth_consent_request_derives_the_durable_user_from_authority() {
 
         fn expected_error(self) -> Option<&'static str> {
             match self {
-                Self::FirstExact | Self::SecondExact => None,
+                Self::FirstExact | Self::SecondExact | Self::ThirdExact => None,
                 Self::WrongSource => Some("SNAPBACK_AUTH_REQUIRED"),
                 Self::AbsentUser => Some("SNAPBACK_AUTH_OAUTH_ACCESS_DENIED"),
             }
         }
     }
 
+    let success_cases = [Case::FirstExact, Case::SecondExact, Case::ThirdExact];
+    assert_eq!(
+        success_cases
+            .iter()
+            .filter(|case| case.user_id() == "user-m")
+            .map(|case| case.oauth_state())
+            .collect::<BTreeSet<_>>(),
+        BTreeSet::from(["alternate-state", "shared-state"]),
+        "one user must begin consent through two distinct OAuth states"
+    );
+    assert_eq!(
+        success_cases
+            .iter()
+            .filter(|case| case.oauth_state() == "shared-state")
+            .map(|case| case.user_id())
+            .collect::<BTreeSet<_>>(),
+        BTreeSet::from(["user-m", "user-z"]),
+        "one OAuth state must occur across two distinct users"
+    );
+    assert_eq!(
+        success_cases
+            .iter()
+            .filter(|case| case.user_id() == "user-m")
+            .map(|case| case.session_id())
+            .collect::<BTreeSet<_>>(),
+        BTreeSet::from(["begin-session-m", "begin-session-n"]),
+        "one user must begin consent through two distinct sessions"
+    );
+    assert_eq!(
+        success_cases
+            .iter()
+            .filter(|case| case.session_id() == "begin-session-m")
+            .map(|case| case.user_id())
+            .collect::<BTreeSet<_>>(),
+        BTreeSet::from(["user-m", "user-z"]),
+        "one session id must occur across two distinct users"
+    );
+
     let mut accepted = Vec::new();
     let mut refused = Vec::new();
     for case in [
         Case::FirstExact,
         Case::SecondExact,
+        Case::ThirdExact,
         Case::WrongSource,
         Case::AbsentUser,
     ] {
@@ -29198,11 +29255,7 @@ fn oauth_consent_request_derives_the_durable_user_from_authority() {
         let authority = test_live_session_authority_with_session(
             case.source(),
             case.user_id(),
-            if matches!(case, Case::SecondExact) {
-                "begin-session-z"
-            } else {
-                "begin-session-m"
-            },
+            case.session_id(),
             1,
             NOW_MS + 60_000,
             None,
@@ -29215,7 +29268,7 @@ fn oauth_consent_request_derives_the_durable_user_from_authority() {
             OAUTH_TEST_REDIRECT_URI,
             &[OAUTH_TEST_BUNDLE.to_owned()],
             OAUTH_TEST_CODE_CHALLENGE,
-            Some(case.name()),
+            Some(case.oauth_state()),
             NOW_MS,
             &random,
         );
@@ -29298,7 +29351,7 @@ fn oauth_consent_request_derives_the_durable_user_from_authority() {
         assert_eq!(durable_authorization.consenting_user_id, case.user_id());
         assert_eq!(
             durable_authorization.oauth_state.as_deref(),
-            Some(case.name())
+            Some(case.oauth_state())
         );
         assert_eq!(durable_authorization.created_at_ms, NOW_MS);
         assert!(durable_authorization.expires_at_ms > durable_authorization.created_at_ms);
@@ -29327,7 +29380,7 @@ fn oauth_consent_request_derives_the_durable_user_from_authority() {
             redirect_uri: OAUTH_TEST_REDIRECT_URI.to_owned(),
             code_challenge: OAUTH_TEST_CODE_CHALLENGE.to_owned(),
             bundle_names_json: OAUTH_TEST_BUNDLES_JSON.to_owned(),
-            oauth_state: Some(case.name().to_owned()),
+            oauth_state: Some(case.oauth_state().to_owned()),
             status: "pending".to_owned(),
             code_hash: None,
             grant_id: None,
@@ -29346,10 +29399,17 @@ fn oauth_consent_request_derives_the_durable_user_from_authority() {
             .authorizations
             .sort_by(|left, right| left.request_id.cmp(&right.request_id));
         assert_eq!(after, expected, "{} accepted durable snapshot", case.name());
-        accepted.push(case.name());
+        accepted.push((case.user_id(), case.session_id(), case.oauth_state()));
     }
 
-    assert_eq!(accepted, ["first-exact", "second-exact"]);
+    assert_eq!(
+        accepted,
+        [
+            ("user-m", "begin-session-n", "shared-state"),
+            ("user-z", "begin-session-m", "shared-state"),
+            ("user-m", "begin-session-m", "alternate-state"),
+        ]
+    );
     assert_eq!(
         refused,
         [
@@ -29365,8 +29425,9 @@ fn oauth_consent_request_derives_the_durable_user_from_authority() {
 #[test]
 fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
     let (mut snapback, client_id, principal_user_id) = oauth_consent_ownership_fixture();
-    let now_ms = 1_000;
-    seed_oauth_consent_users(&mut snapback, now_ms);
+    const REQUESTED_AT_MS: u64 = 1_000;
+    const APPROVED_AT_MS: u64 = 2_000;
+    seed_oauth_consent_users(&mut snapback, REQUESTED_AT_MS);
     let random = CounterRandom::new();
 
     #[derive(Clone)]
@@ -29385,21 +29446,17 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
         ("z-upper", "user-z"),
     ]
     .into_iter()
-    .enumerate()
-    .map(|(offset, (label, user_id))| {
-        let created_at_ms = now_ms + offset as u64;
-        ApprovalRequestFixture {
-            label,
+    .map(|(label, user_id)| ApprovalRequestFixture {
+        label,
+        user_id,
+        request_id: begin_oauth_request_for_test(
+            &mut snapback,
             user_id,
-            request_id: begin_oauth_request_for_test(
-                &mut snapback,
-                user_id,
-                &client_id,
-                created_at_ms,
-                &random,
-            ),
-            created_at_ms,
-        }
+            &client_id,
+            REQUESTED_AT_MS,
+            &random,
+        ),
+        created_at_ms: REQUESTED_AT_MS,
     })
     .collect::<Vec<_>>();
 
@@ -29419,7 +29476,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
             .find(|row| row.key == OAUTH_AUTH_CLOCK_META_KEY)
             .expect("approval fixture authorization clock")
             .value,
-        "1004"
+        REQUESTED_AT_MS.to_string()
     );
     for (offset, request) in requests.iter().enumerate() {
         let pairing = initial_rows
@@ -29488,7 +29545,6 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
         user_id: &'static str,
         session_id: &'static str,
         target_label: &'static str,
-        approved_at_ms: u64,
     }
     let authorities = [
         AuthorityCase {
@@ -29496,21 +29552,18 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
             user_id: "user-m",
             session_id: "approval-session-n",
             target_label: "m-target",
-            approved_at_ms: 2_000,
         },
         AuthorityCase {
             label: "m-session-m",
             user_id: "user-m",
             session_id: "approval-session-m",
             target_label: "m-second-target",
-            approved_at_ms: 3_000,
         },
         AuthorityCase {
             label: "n-session-m",
             user_id: "user-n",
             session_id: "approval-session-m",
             target_label: "n-target",
-            approved_at_ms: 4_000,
         },
     ];
     assert_eq!(
@@ -29536,7 +29589,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
         authorities[0].user_id,
         authorities[0].session_id,
         1,
-        now_ms + 60_000,
+        REQUESTED_AT_MS + 60_000,
         None,
     );
     let before_wrong_source = oauth_durable_state_for_test(&mut snapback);
@@ -29544,7 +29597,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
         &wrong_source,
         &request_by_label[authorities[0].target_label].request_id,
         None,
-        authorities[0].approved_at_ms,
+        APPROVED_AT_MS,
     );
     assert_eq!(
         wrong_source_result
@@ -29571,7 +29624,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
             authority_case.user_id,
             authority_case.session_id,
             1,
-            now_ms + 60_000,
+            REQUESTED_AT_MS + 60_000,
             None,
         );
         let attempts = [
@@ -29604,16 +29657,12 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
         ];
         for (attempt_label, request_id) in attempts {
             let before = oauth_durable_state_for_test(&mut snapback);
-            let result = snapback.approve_oauth_grant_request(
-                &authority,
-                request_id,
-                None,
-                authority_case.approved_at_ms,
-            );
+            let result =
+                snapback.approve_oauth_grant_request(&authority, request_id, None, APPROVED_AT_MS);
             let after = oauth_durable_state_for_test(&mut snapback);
             assert_eq!(
                 oauth_authorization_clock(&after),
-                authority_case.approved_at_ms.to_string(),
+                APPROVED_AT_MS.to_string(),
                 "{attempt_label} authorization clock"
             );
             if attempt_label == authority_case.target_label {
@@ -29631,7 +29680,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
                     authority_case.session_id,
                     request_id,
                     &approval.grant_id,
-                    authority_case.approved_at_ms,
+                    APPROVED_AT_MS,
                 );
                 assert!(approval.grant_id.starts_with("grt_"));
                 assert_eq!(
@@ -29647,7 +29696,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
                     serde_json::to_string(&approval.scopes).expect("encode returned scopes"),
                     expected_grant.scopes
                 );
-                assert!(approval.expires_at_ms > authority_case.approved_at_ms);
+                assert!(approval.expires_at_ms > APPROVED_AT_MS);
                 assert_eq!(
                     approval.expires_at_ms,
                     expected_grant.expires_at_ms.unwrap()
@@ -29669,7 +29718,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
                     Some(authority_case.user_id)
                 );
                 assert_eq!(durable_grant.scopes, OAUTH_TEST_SCOPES_JSON);
-                assert_eq!(durable_grant.created_at_ms, authority_case.approved_at_ms);
+                assert_eq!(durable_grant.created_at_ms, APPROVED_AT_MS);
                 assert!(durable_grant.expires_at_ms.unwrap() > durable_grant.created_at_ms);
                 assert_eq!(
                     durable_grant.expires_at_ms.unwrap() - durable_grant.created_at_ms,
@@ -29694,8 +29743,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
                     Some(approval.grant_id.as_str())
                 );
 
-                let mut expected =
-                    with_oauth_authorization_clock(before, authority_case.approved_at_ms);
+                let mut expected = with_oauth_authorization_clock(before, APPROVED_AT_MS);
                 expected.grants.push(expected_grant);
                 expected
                     .grants
@@ -29721,7 +29769,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
                 assert_eq!(code, "SNAPBACK_AUTH_GRANT_INVALID");
                 assert_eq!(
                     after,
-                    with_oauth_authorization_clock(before, authority_case.approved_at_ms),
+                    with_oauth_authorization_clock(before, APPROVED_AT_MS),
                     "{attempt_label} refusal advances only the authorization clock"
                 );
                 refused
