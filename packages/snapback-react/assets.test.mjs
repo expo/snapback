@@ -73,6 +73,7 @@ const generatedManifest = Object.freeze({
 
 function createFakeClient(activeMode = 'dev') {
   const barriers = [];
+  const runtimeCostAssetIssuances = [];
   const client = {
     authProtocols: {},
     liveQuery() {},
@@ -95,9 +96,12 @@ function createFakeClient(activeMode = 'dev') {
       barriers.push(participant);
       return async () => {};
     },
+    __recordRuntimeCostAssetIssuance(fact) {
+      runtimeCostAssetIssuances.push(Object.freeze({ ...fact }));
+    },
     async releaseConnection() { return { released: true }; },
   };
-  return { client, barriers };
+  return { client, barriers, runtimeCostAssetIssuances };
 }
 
 class FakeTask {
@@ -444,11 +448,11 @@ const file = Object.freeze({
 });
 
 async function harness({ activeMode = 'dev' } = {}) {
-  const { client, barriers } = createFakeClient(activeMode);
+  const { client, barriers, runtimeCostAssetIssuances } = createFakeClient(activeMode);
   const binding = await prepareReactBindingForClient(client, { generatedManifest });
   const assets = createFakeAssets();
   const provider = createSnapbackReactProvider(binding, { assets });
-  return { provider, assets, barriers };
+  return { provider, assets, barriers, runtimeCostAssetIssuances };
 }
 
 function renderHook(provider, hook, { strict = false } = {}) {
@@ -631,7 +635,7 @@ function renderHook(provider, hook, { strict = false } = {}) {
 }
 
 {
-  const { provider, assets } = await harness();
+  const { provider, assets, runtimeCostAssetIssuances } = await harness();
   const options = { variant: 'feed', widthPx: 640 };
   const outputs = [null, null];
   function Probe({ index }) {
@@ -653,6 +657,16 @@ function renderHook(provider, hook, { strict = false } = {}) {
   assert.equal(assets.issuedUrlStoreCount, 1, 'equal keys share one client store entry');
   assert.equal(store.listeners.size, 2);
   assert.equal(store.issuanceLoops, 1, 'equal consumers drive one issuance loop');
+  assert.equal(runtimeCostAssetIssuances.length, 2, 'each hook issuance reports one fact');
+  assert.deepEqual(
+    runtimeCostAssetIssuances.map((fact) => fact.assetIdentity),
+    ['asset-url-shared', 'asset-url-shared'],
+  );
+  assert.equal(
+    new Set(runtimeCostAssetIssuances.map((fact) => fact.ownerLabel)).size,
+    1,
+    'framework owner attribution is stable across equivalent hook issuances',
+  );
   act(() => {
     store.publish({
       url: 'http://fixture/assets/signed/asset-url-shared',

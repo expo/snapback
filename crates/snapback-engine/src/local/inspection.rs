@@ -45,6 +45,10 @@ pub struct InspectState {
     pub ephemeral: EphemeralDiagnostics,
     pub cron: CronInspectState,
     pub maintenance: MaintenanceDiagnostics,
+    /// Local-development equivalent-work facts. This field is deliberately
+    /// dropped by `PublicInspect`; hosted/default-prod recorders stay off.
+    #[serde(rename = "equivalentWork")]
+    pub equivalent_work: EquivalentWorkInspect,
     /// Current loss-tolerant telemetry producer state. Raw retained events do
     /// not appear here; this is the D3 buffer depth/drop/freshness instant.
     pub telemetry: crate::telemetry::BufferDiagnostics,
@@ -54,6 +58,30 @@ pub struct InspectState {
     pub recent_diagnostics: Vec<Diagnostic>,
     #[serde(rename = "capabilityGaps", alias = "capability_gaps")]
     pub capability_gaps: Vec<String>,
+}
+
+/// Bounded, value-free mutation no-op counters (LLP 0267 §§7.5-7.7).
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct EquivalentWorkInspect {
+    pub enabled: bool,
+    pub key_capacity: usize,
+    pub noop_commits: Vec<NoopCommitFact>,
+    pub other_keys: EquivalentWorkOtherKeys,
+    pub evicted_keys: u64,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct NoopCommitFact {
+    pub function_id: String,
+    pub count: u64,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct EquivalentWorkOtherKeys {
+    pub noop_commits: u64,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -384,6 +412,7 @@ impl From<InspectState> for PublicInspect {
             ephemeral,
             cron,
             maintenance,
+            equivalent_work: _,
             telemetry: _,
             push_registry: _,
             recent_diagnostics,

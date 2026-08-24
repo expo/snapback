@@ -2458,6 +2458,50 @@ test('opt-in client range transport allocates before first mutation and reuses o
   assert.equal(retained[0].status, 'settled');
 });
 
+test('equivalent enqueue integration keeps generated function ids from distinct apps separate', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async () => Response.json({ result: { ok: true }, version: 1 });
+  const store = createDurableTestStore();
+  const client = new SnapbackClient('https://runtime-enqueue-function-id.test', {
+    rqsStore: store,
+    __runtimeCostDiagnosticsOptions: {
+      enabled: true,
+      equivalentEnqueueWarningThreshold: 2,
+    },
+  });
+  const reference = (appId) => Object.freeze({
+    artifactKind: 'functionReference',
+    schemaVersion: 'snapback.v0',
+    appId,
+    id: `${appId}:sharedWrite`,
+    name: 'sharedWrite',
+    kind: 'Mutation',
+    argsContract: Object.freeze({ fields: Object.freeze([]) }),
+  });
+  const appA = reference('runtime-app-a');
+  const appB = reference('runtime-app-b');
+
+  await client.mutate(appA, { args: {}, clientMutationId: 'cm-runtime-app-a-1', queue: true });
+  await client.mutate(appA, { args: {}, clientMutationId: 'cm-runtime-app-a-2', queue: true });
+  await client.mutate(appB, { args: {}, clientMutationId: 'cm-runtime-app-b-1', queue: true });
+
+  const durable = await store.outboxRecords();
+  assert.deepEqual(durable.map(({ function: name }) => name), [
+    'sharedWrite',
+    'sharedWrite',
+    'sharedWrite',
+  ]);
+  const facts = client.localResourceInspection().runtimeCostDiagnostics.equivalentEnqueues.facts;
+  assert.deepEqual(facts.map((fact) => ({
+    functionId: fact.functionId,
+    enqueueCount: fact.enqueueCount,
+    equivalentEnqueueCount: fact.equivalentEnqueueCount,
+  })), [
+    { functionId: 'runtime-app-a:sharedWrite', enqueueCount: 2, equivalentEnqueueCount: 1 },
+    { functionId: 'runtime-app-b:sharedWrite', enqueueCount: 1, equivalentEnqueueCount: 0 },
+  ]);
+});
+
 test('foreground range preparation defers while an authorization root remains active', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();

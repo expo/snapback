@@ -682,6 +682,23 @@ fetches, custody headers, URL caches, expiry timers, or one cache per
 component; those were pilot workarounds and are now replaced by
 `signedUrl`, `issuedUrlStore`, and `useSnapbackAssetUrl`.
 
+### Asset-issuance multiplicity diagnostics
+
+In positively identified local development, every `useSnapbackAssetUrl`
+issuance contributes one bounded fact keyed by the opaque asset identity and
+the framework-minted provider/hook owner label. Reaching the short-window
+threshold emits the structured warning
+`SNAPBACK_ASSET_ISSUANCE_MULTIPLICITY`, naming only the opaque identity, owner
+label, count, and remediation anchor—never the signed URL, bearer material, or
+application payload.
+
+The warning does not refuse issuance or change URL/cache semantics. Prefer one
+shared `issuedUrlStore` projection above a repeated component subtree when the
+owner label identifies many equivalent hooks. The recorder retains at most
+1,024 keys, merges evictions into exact `otherKeys.issuanceCount`, and is
+disabled (with no hidden buffer or public/hosted projection) outside the local
+development gate.
+
 ### Upload when you only need the ready asset id
 
 Use `assets.upload(uploadRef, source, { args? })` when the caller needs only a

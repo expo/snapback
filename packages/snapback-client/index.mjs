@@ -86,6 +86,7 @@ import {
   DEFAULT_QUEUED_MUTATION_WEDGE_WARNING_MS,
   positiveDevelopmentEnvironment,
 } from './client-diagnostics.mjs';
+import { createRuntimeCostDiagnostics } from './runtime-cost-diagnostics.mjs';
 import { readInlineBootPayload as readInlineBootPayloadForRegistration } from './rqs-preload-core.mjs';
 import {
   deriveLegacyResumeAnswerV1,
@@ -162,6 +163,7 @@ export {
 } from './external-store.mjs';
 
 import {
+  argsHash,
   base64UrlNoPad,
   membershipWitnessOfRows,
   rowsMatchDigest,
@@ -2875,6 +2877,9 @@ export class SnapbackClient {
     __allowLegacyDevAssertion = false,
     __clientDiagnosticsOptions = null,
     __devDiagnosticsReporterOptions = null,
+    // LLP 0267 fixture seam. Product callers omit it; positive development
+    // detection controls the recorder and production absence stays disabled.
+    __runtimeCostDiagnosticsOptions = null,
     __defaultRqsStoreAppPlatform = null,
     __defaultRqsStoreAppOwnerKey = null,
     // Deterministic package-test seam. Product callers omit this and use the
@@ -3080,6 +3085,10 @@ export class SnapbackClient {
     this.__clientDiagnosticsChannel = createClientDiagnosticsChannel(
       __clientDiagnosticsOptions ?? undefined,
     );
+    this.__runtimeCostDiagnostics = createRuntimeCostDiagnostics({
+      diagnosticsChannel: this.__clientDiagnosticsChannel,
+      ...(__runtimeCostDiagnosticsOptions ?? {}),
+    });
     this.__outboxListeners = new Set();
     // @ref LLP 0219#decision — default console delivery exists only under a
     // positive dev/HMR signal; absence of production markers never enables it.
@@ -6650,14 +6659,7 @@ export class SnapbackClient {
     return fact;
   }
 
-  // @ref LLP 0107#package-and-acceptance — retained cleanup evidence inspects
-  // only caller-known labels and finite resource counts; it never exposes
-  // grant tokens, wire ids, payloads, or authority facts.
-  localResourceInspection(connectionIds = null) {
-    const selected = connectionIds === null
-      ? null
-      : new Set(Array.from(connectionIds, (value) => String(value)));
-    const includes = (connectionId) => selected === null || selected.has(connectionId);
+  #runtimeCostOwnershipTuple() {
     const authority = this.authorityTransitionStatus();
     const settledAuthority = Object.freeze({
       state: authority.state,
@@ -6667,12 +6669,79 @@ export class SnapbackClient {
     });
     let serverOrigin = this.baseUrl;
     try { serverOrigin = new URL(this.baseUrl).origin; } catch { /* relative development base */ }
-    const ownershipTuple = Object.freeze({
+    return Object.freeze({
       canonicalAppId: this.__inspectionAppId,
       storagePartition: this.clientStoreId,
       serverOrigin,
       settledAuthority,
     });
+  }
+
+  #runtimeCostOwnershipIdentityTuple({ authorityCapture, userId, appId }) {
+    const projection = this.#runtimeCostOwnershipTuple();
+    const settledAuthority = typeof authorityCapture?.authorityKey === 'string'
+      ? Object.freeze({ kind: 'authority-key', authorityKey: authorityCapture.authorityKey })
+      : typeof userId === 'string'
+        ? Object.freeze({ kind: 'development-user', userId })
+        : Object.freeze({ kind: 'anonymous' });
+    return Object.freeze({
+      canonicalAppId: typeof appId === 'string' ? appId : projection.canonicalAppId,
+      storagePartition: projection.storagePartition,
+      serverOrigin: projection.serverOrigin,
+      settledAuthority,
+    });
+  }
+
+  #recordRuntimeCostOutboxEnqueue(stored, functionId) {
+    if (stored?.insertionOwned !== true) return;
+    try {
+      this.__runtimeCostDiagnostics.recordEquivalentEnqueue({
+        functionId,
+        args: stored.args,
+      });
+      this.__runtimeCostDiagnostics.recordHousekeepingSupersessions(
+        stored.housekeepingSupersessions,
+      );
+    } catch { /* diagnostics are observational and cannot own enqueue */ }
+  }
+
+  // Internal framework adapters report only already-admitted, value-free
+  // ownership facts. These methods are intentionally absent from index.d.mts.
+  __registerRuntimeCostSubscription(token, {
+    functionId,
+    args,
+    ownerLabel,
+    ownershipTuple = this.#runtimeCostOwnershipTuple(),
+  }) {
+    try {
+      this.__runtimeCostDiagnostics.registerSubscription({
+        token,
+        functionId,
+        args,
+        ownerLabel,
+        ownershipTuple,
+      });
+    } catch { /* diagnostics are observational and cannot own subscribe */ }
+  }
+
+  __unregisterRuntimeCostSubscription(token) {
+    try { this.__runtimeCostDiagnostics.unregisterSubscription(token); } catch { /* observational */ }
+  }
+
+  __recordRuntimeCostAssetIssuance(fact) {
+    try { this.__runtimeCostDiagnostics.recordAssetIssuance(fact); } catch { /* observational */ }
+  }
+
+  // @ref LLP 0107#package-and-acceptance — retained cleanup evidence inspects
+  // only caller-known labels and finite resource counts; it never exposes
+  // grant tokens, wire ids, payloads, or authority facts.
+  localResourceInspection(connectionIds = null) {
+    const selected = connectionIds === null
+      ? null
+      : new Set(Array.from(connectionIds, (value) => String(value)));
+    const includes = (connectionId) => selected === null || selected.has(connectionId);
+    const authority = this.authorityTransitionStatus();
+    const ownershipTuple = this.#runtimeCostOwnershipTuple();
     const outboxSuspensionReason = authority.transitionOwner !== null
       ? 'auth-barrier'
       : this.__outboxDrainStartBlockedReason
@@ -6729,6 +6798,7 @@ export class SnapbackClient {
       laneConsumers,
       subscriptions,
       subscriptionCount: subscriptions.length,
+      runtimeCostDiagnostics: this.__runtimeCostDiagnostics.snapshot(),
       socketDemand: managers.reduce((sum, manager) => sum + manager.socketDemand, 0),
       timers: managers.reduce(
         (sum, manager) => sum + manager.reconnectTimer + manager.heartbeatTimer,
@@ -7826,6 +7896,9 @@ export class SnapbackClient {
       this.__liveStreamManagers?.clear?.();
       this.__connectionGrants.clear();
       this.__laneConsumers.clear();
+      for (const token of this.__liveQueryOwners.keys()) {
+        this.__unregisterRuntimeCostSubscription(token);
+      }
       this.__liveQueryOwners.clear();
 
       this.__storeRuntimeClosed = true;
@@ -9888,7 +9961,11 @@ export class SnapbackClient {
   async #enqueueOfflineMutation(
     store,
     record,
-    { alreadyCommitted = false, queueReasonClass = 'connectivity' } = {},
+    {
+      alreadyCommitted = false,
+      functionId = record.function,
+      queueReasonClass = 'connectivity',
+    } = {},
   ) {
     try {
       let authority = null;
@@ -9922,6 +9999,7 @@ export class SnapbackClient {
           this.#recordWithQueueAuthority(record, authority),
           queueFence,
         );
+        this.#recordRuntimeCostOutboxEnqueue(stored, functionId);
       }
       if (
         !alreadyCommitted
@@ -11736,6 +11814,7 @@ export class SnapbackClient {
       diagnosticsChannel: this.__clientDiagnosticsChannel,
     });
     const name = functionName(ref);
+    const functionId = typeof ref?.id === 'string' ? ref.id : name;
     const generatedReference = ref?.mutationIr?.format === 'snapback.generated-mutation-ir.v1';
     const generatedPresentationEnabled = generatedReference && __generatedOptimistic === true;
     if (typeof __generatedOptimistic !== 'boolean') {
@@ -11794,6 +11873,7 @@ export class SnapbackClient {
         successorTargetedHousekeeping: true,
         capturedNow: Date.now(),
       }, queueFence);
+      this.#recordRuntimeCostOutboxEnqueue(stored, functionId);
       this.#notifyOutboxListeners();
       return Object.freeze({
         status: 'queued',
@@ -12202,6 +12282,7 @@ export class SnapbackClient {
               queueFence,
             )
           ));
+          this.#recordRuntimeCostOutboxEnqueue(stored, functionId);
           let preparationFence = outboxAuthorizationFenceFrom(stored);
           durableOnlineStoredRecord = stored;
           queueInsertionOwnership = outboxInsertionOwnershipFrom(stored);
@@ -12323,6 +12404,7 @@ export class SnapbackClient {
           const stored = await enqueueDurably((queueFence) => (
             queueStore.outboxEnqueue(durableMutationRecord, queueFence)
           ));
+          this.#recordRuntimeCostOutboxEnqueue(stored, functionId);
           durableOnlineStoredRecord = stored;
           queueInsertionOwnership = outboxInsertionOwnershipFrom(stored);
           if (!await this.#compensateStaleQueueWrite(
@@ -12680,6 +12762,7 @@ export class SnapbackClient {
               },
               {
                 alreadyCommitted: durableOnlineRecord,
+                functionId,
                 queueReasonClass: this.#connectivityQueueReasonClass(error),
               },
             );
@@ -14027,6 +14110,9 @@ export class SnapbackClient {
     correlation = null,
     stream: streamOptions = {},
     ownerLabel = null,
+    // Internal React/provider seam. Unlike public ownerLabel, this string is
+    // framework-minted and may remain verbatim on gated local inspection.
+    __frameworkOwnerLabel = null,
     // Channel B (LLP 0090 D3): per-subscription persist opt-out — the
     // client-option stand-in for the per-manifest-entry `persist: false`
     // until rollout cluster 0C carries it in the manifest.
@@ -14091,6 +14177,15 @@ export class SnapbackClient {
     const name = functionName(ref);
     if (ownerLabel !== null && (typeof ownerLabel !== 'string' || ownerLabel.length === 0)) {
       throw new TypeError('liveQuery ownerLabel must be null or a non-empty string');
+    }
+    if (
+      __frameworkOwnerLabel !== null
+      && (typeof __frameworkOwnerLabel !== 'string' || __frameworkOwnerLabel.length === 0)
+    ) {
+      throw new TypeError('liveQuery __frameworkOwnerLabel must be null or a non-empty string');
+    }
+    if (ownerLabel !== null && __frameworkOwnerLabel !== null) {
+      throw new TypeError('liveQuery owner labels must have exactly one provenance');
     }
     // Generated argument validation is a call-boundary refusal. Keep it ahead
     // of auth discovery, local-store preparation, and every establishment
@@ -17595,6 +17690,7 @@ export class SnapbackClient {
       };
       try {
         if (ownerInspectionToken !== null) {
+          client.__unregisterRuntimeCostSubscription(ownerInspectionToken);
           client.__liveQueryOwners.delete(ownerInspectionToken);
           ownerInspectionToken = null;
         }
@@ -17700,12 +17796,24 @@ export class SnapbackClient {
         client.__outboxBarrierProviders.delete(outboxBarrierProvider);
       };
       ownerInspectionToken = {};
+      const inspectedOwnerLabel = __frameworkOwnerLabel
+        ?? (ownerLabel === null ? `headless:${name}` : argsHash(ownerLabel));
       client.__liveQueryOwners.set(ownerInspectionToken, Object.freeze({
-        owner: ownerLabel ?? `headless:${name}`,
+        owner: inspectedOwnerLabel,
         connectionId,
         functionName: name,
         handle,
       }));
+      client.__registerRuntimeCostSubscription(ownerInspectionToken, {
+        functionId: typeof ref?.id === 'string' ? ref.id : name,
+        args,
+        ownerLabel: inspectedOwnerLabel,
+        ownershipTuple: client.#runtimeCostOwnershipIdentityTuple({
+          authorityCapture: handleAuthorityCapture,
+          userId: userId ?? null,
+          appId: ref?.appId ?? null,
+        }),
+      });
     } catch (error) {
       closeAutomaticOptimisticView();
       activeRegistration.release();

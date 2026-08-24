@@ -1436,6 +1436,93 @@ fn unbound_local_snapback_defaults_governance_activation_to_prod() {
     assert_eq!(snapback.server_profile_for_test(), ServerProfile::Prod);
 }
 
+// @ref LLP 0267#75-repeated-equivalent-writes-and-effects-bounded-to-what-the-framework-knows — the fixture proves fresh empty commits mechanically, excludes exact replay, and keeps the fact out of public inspect.
+#[test]
+fn equivalent_work_counts_only_fresh_noop_commits_in_local_development() {
+    let noop = FunctionDefinition::new(
+        "noOp",
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
+            steps: Vec::new(),
+            return_value: Some(ReturnValue::ChangedCount),
+        })),
+    );
+    let noop_function_id = noop.id.clone();
+    let mut functions = rqs_functions();
+    functions.functions.push(noop);
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.server_profile = ServerProfile::Dev;
+    snapback.apply_schema(rqs_schema()).expect("schema");
+    snapback.load_functions(functions);
+
+    let replay_id = crate::ids::mint_time_ordered(crate::ids::Kind::Mutation);
+    snapback
+        .invoke_mutation_recording_with_id("noOp", input(), Some(replay_id.clone()), "test")
+        .0
+        .expect("fresh no-op commits");
+    snapback
+        .invoke_mutation_recording_with_id("noOp", input(), Some(replay_id), "test")
+        .0
+        .expect("exact replay returns without a commit");
+    snapback
+        .invoke_mutation("noOp", input())
+        .expect("second fresh no-op commits");
+
+    let inspect = snapback.inspect().expect("gated local inspect");
+    assert!(inspect.equivalent_work.enabled);
+    assert_eq!(
+        inspect.equivalent_work.noop_commits,
+        vec![NoopCommitFact {
+            function_id: noop_function_id,
+            count: 2,
+        }],
+        "the exact replay does not inflate the fresh-commit counter",
+    );
+    let public = serde_json::to_value(PublicInspect::from(inspect)).unwrap();
+    assert!(
+        public.get("equivalentWork").is_none(),
+        "anonymous/public inspect has no equivalent-work surface",
+    );
+
+    snapback.hosted_serving_present = true;
+    snapback
+        .invoke_mutation("noOp", input())
+        .expect("hosted-mode warning recorder does not refuse work");
+    let hosted = snapback.inspect().expect("hosted inspect");
+    assert!(!hosted.equivalent_work.enabled);
+    assert!(hosted.equivalent_work.noop_commits.is_empty());
+}
+
+#[test]
+fn equivalent_work_noop_counter_lru_overflow_preserves_exact_aggregate() {
+    let mut recorder = NoopCommitRecorder::with_capacity(2);
+    recorder.record("fn:a");
+    recorder.record("fn:a");
+    recorder.record("fn:b");
+    recorder.record("fn:c");
+    let inspect = recorder.inspect(true);
+    assert_eq!(
+        inspect
+            .noop_commits
+            .iter()
+            .map(|fact| (fact.function_id.as_str(), fact.count))
+            .collect::<Vec<_>>(),
+        vec![("fn:b", 1), ("fn:c", 1)],
+    );
+    assert_eq!(inspect.other_keys.noop_commits, 2);
+    assert_eq!(inspect.evicted_keys, 1);
+    assert_eq!(
+        inspect.other_keys.noop_commits
+            + inspect
+                .noop_commits
+                .iter()
+                .map(|fact| fact.count)
+                .sum::<u64>(),
+        4,
+    );
+}
+
 #[test]
 fn authored_profile_shaped_name_cannot_publish_authority_transition_receipts() {
     let mut function = FunctionDefinition::new(

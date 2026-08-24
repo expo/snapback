@@ -5159,6 +5159,54 @@
       ],
       "type": "object"
     },
+    "EquivalentWorkInspect": {
+      "description": "Bounded, value-free mutation no-op counters (LLP 0267 §§7.5-7.7).",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "evictedKeys": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "keyCapacity": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "noopCommits": {
+          "items": {
+            "$ref": "#/$defs/NoopCommitFact"
+          },
+          "type": "array"
+        },
+        "otherKeys": {
+          "$ref": "#/$defs/EquivalentWorkOtherKeys"
+        }
+      },
+      "required": [
+        "enabled",
+        "keyCapacity",
+        "noopCommits",
+        "otherKeys",
+        "evictedKeys"
+      ],
+      "type": "object"
+    },
+    "EquivalentWorkOtherKeys": {
+      "properties": {
+        "noopCommits": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "noopCommits"
+      ],
+      "type": "object"
+    },
     "ExternalTls": {
       "enum": [
         "unavailable",
@@ -10111,6 +10159,23 @@
         }
       ]
     },
+    "NoopCommitFact": {
+      "properties": {
+        "count": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "functionId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "functionId",
+        "count"
+      ],
+      "type": "object"
+    },
     "OrderDirection": {
       "enum": [
         "Asc",
@@ -13889,6 +13954,10 @@
     "ephemeral": {
       "$ref": "#/$defs/EphemeralDiagnostics"
     },
+    "equivalentWork": {
+      "$ref": "#/$defs/EquivalentWorkInspect",
+      "description": "Local-development equivalent-work facts. This field is deliberately\ndropped by `PublicInspect`; hosted/default-prod recorders stay off."
+    },
     "functions": {
       "$ref": "#/$defs/FunctionManifest"
     },
@@ -13990,6 +14059,7 @@
     "ephemeral",
     "cron",
     "maintenance",
+    "equivalentWork",
     "telemetry",
     "pushRegistry",
     "recentDiagnostics",

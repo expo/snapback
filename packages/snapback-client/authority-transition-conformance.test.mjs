@@ -295,6 +295,9 @@ test('housekeeping coalesces latest-wins with typed supersession and preserves p
     dispatchLane: 'foreground',
   });
   const second = await store.outboxEnqueue(record('hk-second', 2));
+  assert.deepEqual(second.housekeepingSupersessions, [
+    { functionId: 'refreshCache', count: 1 },
+  ]);
   let records = await store.outboxRecords();
   assert.equal(records.find(({ id }) => id === first.id).failure.code, 'SNAPBACK_HOUSEKEEPING_SUPERSEDED');
   assert.equal(records.find(({ id }) => id === second.id).status, 'pending');
@@ -304,6 +307,7 @@ test('housekeeping coalesces latest-wins with typed supersession and preserves p
   const prepared = await store.outboxPrepareSubmission(second.id, { markDispatched: true });
   assert.equal(prepared.record.timing.enqueuedAtMs < prepared.record.timing.dispatchedAtMs, true);
   const third = await store.outboxEnqueue(record('hk-third', 3));
+  assert.equal(third.housekeepingSupersessions, undefined);
   records = await store.outboxRecords();
   assert.equal(
     records.find(({ id }) => id === second.id).status,

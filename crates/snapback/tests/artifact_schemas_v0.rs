@@ -69,9 +69,10 @@ use snapback::diagnostic::Diagnostic;
 use snapback::ephemeral::{EphemeralDiagnostics, EphemeralRoomDiagnostics, Scope};
 use snapback::live_coalesce::LiveCoalesceStats;
 use snapback::local::{
-    InspectState, LiveAuthorityLaneStats, LiveDeliveryStats, LiveEvaluationStats,
-    LiveMatcherDecisionStats, LiveResumeInput, LiveSettlementStats, LiveSubscribeInput,
-    LiveUnsubscribeInput, LiveWatermarkStats, MaintenanceDiagnostics, PublicInspect,
+    EquivalentWorkInspect, InspectState, LiveAuthorityLaneStats, LiveDeliveryStats,
+    LiveEvaluationStats, LiveMatcherDecisionStats, LiveResumeInput, LiveSettlementStats,
+    LiveSubscribeInput, LiveUnsubscribeInput, LiveWatermarkStats, MaintenanceDiagnostics,
+    PublicInspect,
 };
 use snapback::manifest::{
     ArtifactGeneration, AuthInput, AuthorityDescriptor, CLIENT_MUTATION_ACK_MAX_IDS,
@@ -1860,6 +1861,7 @@ fn representative_inspect() -> InspectState {
             last_permission_resolution_failure_ms: Some(7),
             last_journal_prune_failure_ms: Some(8),
         },
+        equivalent_work: EquivalentWorkInspect::default(),
         telemetry: Default::default(),
         push_registry: snapback::push::PushRegistryInspectionV1 {
             live_tokens: 1,

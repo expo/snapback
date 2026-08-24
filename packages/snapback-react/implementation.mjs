@@ -1571,7 +1571,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     try {
       handle = client.startLiveQuery(store.reference, {
         connectionId,
-        ownerLabel: `provider:${providerInstanceId}/query:${store.reference?.name ?? store.reference?.id ?? 'unknown'}`,
+        __frameworkOwnerLabel: `provider:${providerInstanceId}/query:${store.reference?.name ?? store.reference?.id ?? 'unknown'}`,
         args: store.args,
       transport: 'stream',
       fallbackToPoll: false,
@@ -7621,6 +7621,7 @@ const EMPTY_ASSET_URL_STORE = Object.freeze({
 export function useSnapbackAssetUrl(assetIdOrNull, options = {}) {
   const provider = useProvider();
   const registry = assetRegistryFor(provider);
+  const client = preparedReactBindingClient(provider.binding);
   const optionsKey = assetIdOrNull == null ? null : canonicalHookInputKey(options);
   const authorityGeneration = useSyncExternalStore(
     registry.subscribeIssuedUrlGeneration,
@@ -7633,6 +7634,16 @@ export function useSnapbackAssetUrl(assetIdOrNull, options = {}) {
       : registry.assets.issuedUrlStore(assetIdOrNull, options)),
     [registry, assetIdOrNull, optionsKey, authorityGeneration],
   );
+  // @ref LLP 0267#76-reactprovider-and-asset-multiplicity-consumes-d05-budgets--decided — a hook
+  // issuance reports only opaque identity plus framework-minted ownership to
+  // the client's positively gated bounded recorder.
+  useEffect(() => {
+    if (assetIdOrNull == null) return;
+    client.__recordRuntimeCostAssetIssuance?.({
+      assetIdentity: assetIdOrNull,
+      ownerLabel: `provider:${provider.providerInstanceId}/hook:useSnapbackAssetUrl`,
+    });
+  }, [client, provider.providerInstanceId, assetIdOrNull, authorityGeneration]);
   const subscribe = useCallback(
     (listener) => store.subscribe(listener),
     [store],

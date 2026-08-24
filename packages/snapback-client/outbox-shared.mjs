@@ -387,7 +387,11 @@ const durableReplayIdentity = (record) => {
 
 /// Serialized-size guard shared by every arm.
 export function outboxRecordBytes(stored) {
-  const { insertionOwned: _atomicReceipt, ...durableRecord } = stored;
+  const {
+    insertionOwned: _atomicReceipt,
+    housekeepingSupersessions: _runtimeCostFact,
+    ...durableRecord
+  } = stored;
   return new TextEncoder().encode(JSON.stringify(durableRecord)).length;
 }
 
@@ -1359,6 +1363,11 @@ export const outboxOps = {
     const bytes = outboxRecordBytes(admitted);
     if (bytes > OUTBOX_MAX_RECORD_BYTES) throw outboxOversizeError(bytes);
     const records = { ...state.records };
+    // @ref LLP 0267#75-repeated-equivalent-writes-and-effects-bounded-to-what-the-framework-knows
+    //   — the queue already owns the mechanical supersession disposition, so
+    //   its insertion receipt can report exact per-function counts without
+    //   interpreting housekeeping intent.
+    const housekeepingSupersessions = new Map();
     if (admitted.dispatchLane === 'housekeeping') {
       for (const [id, candidate] of Object.entries(records)) {
         if (
@@ -1367,6 +1376,10 @@ export const outboxOps = {
           || candidate.housekeepingKey !== admitted.housekeepingKey
           || candidate.timing?.dispatchedAtMs != null
         ) continue;
+        housekeepingSupersessions.set(
+          candidate.function,
+          (housekeepingSupersessions.get(candidate.function) ?? 0) + 1,
+        );
         records[id] = {
           ...candidate,
           status: 'failed',
@@ -1386,7 +1399,15 @@ export const outboxOps = {
       // `insertionOwned` is an atomic receipt for this call, not durable
       // record state. Compensation pairs it with the monotone sequence and
       // may remove only that exact still-pending insertion.
-      result: { ...admitted, insertionOwned: true },
+      result: {
+        ...admitted,
+        insertionOwned: true,
+        ...(housekeepingSupersessions.size === 0 ? {} : {
+          housekeepingSupersessions: [...housekeepingSupersessions.entries()]
+            .sort(([left], [right]) => left.localeCompare(right))
+            .map(([functionId, count]) => ({ functionId, count })),
+        }),
+      },
     };
   },
   /// Atomically install a server response (when present), consume one finite

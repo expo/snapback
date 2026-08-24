@@ -957,6 +957,28 @@ exact current-authority-bound settlement identity without dispatching removed
 code. After ACK garbage collection, the same call follows ordinary function
 selection and returns `SNAPBACK_UNKNOWN_FUNCTION`.
 
+## Equivalent-work diagnostics
+
+In a positively identified local development process,
+`client.localResourceInspection().runtimeCostDiagnostics` reports bounded,
+value-free facts about repeated queue work. `equivalentEnqueues` uses the exact
+function identity plus the canonical argument hash; it never stores arguments,
+and two calls with different arguments never become one equivalence claim.
+`housekeepingSupersessions` counts the existing
+`SNAPBACK_HOUSEKEEPING_SUPERSEDED` dispositions per function.
+
+`SNAPBACK_EQUIVALENT_MUTATION_ENQUEUE_MULTIPLICITY` is a structured warning
+when one identical function/hash pair reaches the short-window threshold. It
+does not refuse or delay the enqueue. Coalesce an implementation-owned burst
+when the calls truly have the same desired effect; do not infer equivalence
+for differing arguments or use the warning to discard work.
+
+Each keyed map retains at most 1,024 identities. Least-recently-observed keys
+merge into the visible exact `otherKeys` aggregate and increment
+`evictedKeys`. Production and hosted-default recorders take a disabled branch:
+they retain no hidden buffer, emit no warning, and add no server/public
+inspection or upload surface.
+
 ## Migration boundaries: quarantine, don't fail
 
 A schema publication can refuse a replay with one of two stable codes, and

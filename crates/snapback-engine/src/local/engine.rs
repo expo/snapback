@@ -123,10 +123,10 @@ use generation_host::*;
 
 pub use inspection::MaintenanceOperation;
 pub use inspection::{
-    ForceLiveResyncReceipt, InspectState, LiveSubscriptionInfo, MaintenanceDiagnostics,
-    PublicCronInspectState, PublicEphemeralDiagnostics, PublicIbexCliCapability,
-    PublicIbexSubmoduleCapability, PublicInspect, PublicRuntimeCapabilities, PublicStorageInfo,
-    PublicSubscriptionInfo,
+    EquivalentWorkInspect, EquivalentWorkOtherKeys, ForceLiveResyncReceipt, InspectState,
+    LiveSubscriptionInfo, MaintenanceDiagnostics, NoopCommitFact, PublicCronInspectState,
+    PublicEphemeralDiagnostics, PublicIbexCliCapability, PublicIbexSubmoduleCapability,
+    PublicInspect, PublicRuntimeCapabilities, PublicStorageInfo, PublicSubscriptionInfo,
 };
 pub(crate) use snapback_sync::local::live_protocol::LiveTransportPublication;
 pub use snapback_sync::local::live_protocol::{
@@ -3505,6 +3505,101 @@ impl EngineAppStateBindings {
     }
 }
 
+const EQUIVALENT_WORK_KEY_CAPACITY: usize = 1_024;
+
+#[derive(Clone, Debug)]
+struct NoopCommitCounterEntry {
+    count: u64,
+    last_observed_sequence: u64,
+}
+
+#[derive(Clone, Debug)]
+struct NoopCommitRecorder {
+    key_capacity: usize,
+    by_function: BTreeMap<String, NoopCommitCounterEntry>,
+    other_noop_commits: u64,
+    evicted_keys: u64,
+    observation_sequence: u64,
+}
+
+impl Default for NoopCommitRecorder {
+    fn default() -> Self {
+        Self::with_capacity(EQUIVALENT_WORK_KEY_CAPACITY)
+    }
+}
+
+impl NoopCommitRecorder {
+    fn with_capacity(key_capacity: usize) -> Self {
+        assert!(
+            key_capacity > 0,
+            "equivalent-work key capacity must be positive"
+        );
+        Self {
+            key_capacity,
+            by_function: BTreeMap::new(),
+            other_noop_commits: 0,
+            evicted_keys: 0,
+            observation_sequence: 0,
+        }
+    }
+
+    fn record(&mut self, function_id: &str) {
+        self.observation_sequence += 1;
+        if let Some(entry) = self.by_function.get_mut(function_id) {
+            entry.count += 1;
+            entry.last_observed_sequence = self.observation_sequence;
+            return;
+        }
+        if self.by_function.len() >= self.key_capacity {
+            let evicted = self
+                .by_function
+                .iter()
+                .min_by_key(|(_, entry)| entry.last_observed_sequence)
+                .map(|(function_id, _)| function_id.clone())
+                .expect("a saturated positive-capacity map has an eviction candidate");
+            let evicted = self
+                .by_function
+                .remove(&evicted)
+                .expect("the selected equivalent-work eviction remains present");
+            self.other_noop_commits += evicted.count;
+            self.evicted_keys += 1;
+        }
+        self.by_function.insert(
+            function_id.to_owned(),
+            NoopCommitCounterEntry {
+                count: 1,
+                last_observed_sequence: self.observation_sequence,
+            },
+        );
+    }
+
+    fn inspect(&self, enabled: bool) -> EquivalentWorkInspect {
+        if !enabled {
+            return EquivalentWorkInspect {
+                enabled: false,
+                key_capacity: self.key_capacity,
+                ..EquivalentWorkInspect::default()
+            };
+        }
+        EquivalentWorkInspect {
+            enabled: true,
+            key_capacity: self.key_capacity,
+            noop_commits: self
+                .by_function
+                .iter()
+                .map(|(function_id, entry)| NoopCommitFact {
+                    function_id: function_id.clone(),
+                    count: entry.count,
+                })
+                .collect(),
+            other_keys: EquivalentWorkOtherKeys {
+                noop_commits: self.other_noop_commits,
+            },
+            evicted_keys: self.evicted_keys,
+        }
+    }
+}
+
 pub struct LocalSnapback {
     db: crate::storage::ServingDatabase,
     /// Process-local service-authority policy lives above the storage kernel;
@@ -3623,6 +3718,9 @@ pub struct LocalSnapback {
     cron_tick_errors: u64,
     asset_runner_errors: u64,
     maintenance: MaintenanceDiagnostics,
+    /// LLP 0267 §§7.5-7.7: process-local, bounded, value-free no-op facts.
+    /// Recording remains a positive local profile branch and never persists.
+    noop_commit_recorder: NoopCommitRecorder,
     maintenance_permission_reported_at_ms: Option<u64>,
     maintenance_prune_reported_at_ms: Option<u64>,
     // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L5: idle means
@@ -11798,6 +11896,14 @@ impl LocalSnapback {
         Ok(inspect)
     }
 
+    fn runtime_cost_diagnostics_enabled(&self) -> bool {
+        !self.hosted_serving_present
+            && matches!(
+                self.server_profile,
+                ServerProfile::Dev | ServerProfile::Demo | ServerProfile::Test
+            )
+    }
+
     /// Capture Local/SQLite-owned inspect state only. Managed server callers
     /// release Local before composing [`EphemeralDiagnostics`] on their
     /// blocking owner; direct-library [`Self::inspect`] remains synchronous.
@@ -11849,6 +11955,9 @@ impl LocalSnapback {
             ephemeral: EphemeralDiagnostics::default(),
             cron,
             maintenance: self.maintenance.clone(),
+            equivalent_work: self
+                .noop_commit_recorder
+                .inspect(self.runtime_cost_diagnostics_enabled()),
             telemetry: self.telemetry.diagnostics(),
             push_registry: self.db.push_registry_inspection()?,
             recent_diagnostics: self.recent_diagnostics.iter().cloned().collect(),
@@ -18995,6 +19104,25 @@ impl LocalSnapback {
             || !commit.asset_changes.is_empty()
             || !commit.job_enqueues.is_empty()
             || !commit.sequence_allocations.is_empty();
+        // `authorization: Some` is the storage witness for a fresh durable
+        // commit; dry runs and exact replays carry `None`. Count only the
+        // already-computed empty row/system-effect delta, never inferred
+        // semantic intent from the handler name or arguments.
+        // @ref LLP 0267#75-repeated-equivalent-writes-and-effects-bounded-to-what-the-framework-knows — no-op commits are a mechanical local fact and remain warning-only inspection data.
+        if commit.authorization.is_some()
+            && !has_observable_effect
+            && self.runtime_cost_diagnostics_enabled()
+        {
+            let function_id = self
+                .functions
+                .functions
+                .iter()
+                .find(|function| function.name == mutation)
+                .map(|function| function.id.as_str())
+                .unwrap_or(mutation)
+                .to_owned();
+            self.noop_commit_recorder.record(&function_id);
+        }
         if !commit.job_changes.is_empty() {
             // The enqueue is already durable. Arm the autonomous worker before
             // this Local authority can be released so a concurrent empty-queue
@@ -27416,6 +27544,7 @@ impl LocalSnapback {
             cron_tick_errors: 0,
             asset_runner_errors: 0,
             maintenance: MaintenanceDiagnostics::default(),
+            noop_commit_recorder: NoopCommitRecorder::default(),
             maintenance_permission_reported_at_ms: None,
             maintenance_prune_reported_at_ms: None,
             cron_active: Arc::new(AtomicBool::new(false)),

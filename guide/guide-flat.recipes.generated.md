@@ -5047,6 +5047,22 @@ subscriptions, demand, timers, and listeners. These inspections are
 acceptance/debug facts only; they are neither application state nor authority
 evidence, and the readable `connectionId` is not the server's opaque wire id.
 
+## Duplicate-subscription diagnostics
+
+The same positively identified local recorder groups active subscriptions by
+function identity, canonical argument hash, and the complete provider
+ownership tuple. The readable owner label is deliberately not part of that
+key: two providers that open the same query under the same custody tuple form
+one duplicate fact whose `ownerLabels` attribute both owners. Different
+arguments or a different settled-authority/storage/origin tuple never form the
+same fact.
+
+`SNAPBACK_LIVE_DUPLICATE_SUBSCRIPTION_MULTIPLICITY` is warning-only. Use its
+owner labels to move the common provider or external-store owner above the
+duplicate consumers. It neither refuses a subscription nor changes the
+existing 16-warning/64-hard envelope, and it is absent from hosted/public
+diagnostic surfaces.
+
 ## Enforce the warning budget without narrowing correctness
 
 The provisional ordinary-view budget is 16 logical subscriptions. The 17th

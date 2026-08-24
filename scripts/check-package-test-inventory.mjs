@@ -184,6 +184,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'remediation.test.mjs',
       'reservation-retry.test.mjs',
       'result-transform.test.mjs',
+      'runtime-cost-diagnostics.test.mjs',
       'rqs-digest-parity.test.mjs',
       'rqs-resume-expo.test.mjs',
       'rqs-resume-memory.test.mjs',

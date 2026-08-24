@@ -1579,6 +1579,46 @@ export interface SnapbackOwnershipTupleInspection {
   }>;
 }
 
+export interface SnapbackRuntimeCostDiagnosticsInspection {
+  readonly enabled: boolean;
+  readonly keyCapacity: number;
+  readonly equivalentEnqueues: Readonly<{
+    facts: readonly Readonly<{
+      functionId: string;
+      canonicalInputHash: `sha256:${string}`;
+      enqueueCount: number;
+      equivalentEnqueueCount: number;
+    }>[];
+    otherKeys: Readonly<{ enqueueCount: number; equivalentEnqueueCount: number }>;
+    evictedKeys: number;
+  }>;
+  readonly housekeepingSupersessions: Readonly<{
+    facts: readonly Readonly<{ functionId: string; supersededCount: number }>[];
+    otherKeys: Readonly<{ supersededCount: number }>;
+    evictedKeys: number;
+  }>;
+  readonly duplicateSubscriptions: Readonly<{
+    facts: readonly Readonly<{
+      functionId: string;
+      canonicalInputHash: `sha256:${string}`;
+      ownershipTupleHash: `sha256:${string}`;
+      count: number;
+      ownerLabels: readonly string[];
+    }>[];
+    otherKeys: Readonly<{ registrationCount: number }>;
+    evictedKeys: number;
+  }>;
+  readonly assetIssuanceMultiplicity: Readonly<{
+    facts: readonly Readonly<{
+      assetIdentity: string;
+      ownerLabel: string;
+      issuanceCount: number;
+    }>[];
+    otherKeys: Readonly<{ issuanceCount: number }>;
+    evictedKeys: number;
+  }>;
+}
+
 export interface SnapbackLocalResourceInspection {
   readonly managers: readonly SnapbackLiveManagerInspection[];
   readonly managerCount: number;
@@ -1603,6 +1643,7 @@ export interface SnapbackLocalResourceInspection {
     outboxSuspensionReason: string | null;
   }>[];
   readonly subscriptionCount: number;
+  readonly runtimeCostDiagnostics: SnapbackRuntimeCostDiagnosticsInspection;
   readonly socketDemand: number;
   readonly timers: number;
   readonly listeners: number;
