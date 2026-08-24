@@ -6,7 +6,7 @@
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-24
-**Revised:** 2026-08-24 (e — artifact question restated by shape; Clone/linearity added)
+**Revised:** 2026-08-24 (f — derivation as a lifetime property; strength of the root)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
 `issues/20260824-liveness-row-bucket-assignment.md`,
 `issues/20260824-entitlement-predicates-for-the-live-sites.md`
@@ -150,6 +150,39 @@ That is **DERIVE**, and it is what this ruling prefers. Two rules follow:
 Reach for a comparison only when the pairing genuinely cannot be made unconstructible, and say why
 in the landing. A lane answering a coverage finding by adding one more comparison is treating the
 symptom; the finding is evidence that the disposition was wrong.
+
+### Derivation is a lifetime property, not a constructor event
+
+Found when a lane correctly derived three fields in a constructor and a reviewer set all three back
+immediately afterwards, from a separate dependent crate, with two executed compositions:
+
+- `advance_authenticated_authorization` took an independently supplied authorization.
+- `replace_authenticated_expectation` took an independently supplied authorization, version stream
+  **and** issuer ID.
+
+> **Deriving at construction establishes nothing if the object exposes setters for the derived
+> fields.** The subject must be derived for as long as the object can act, not for the instant it was
+> built.
+
+A lane that derives a field must therefore enumerate **every** method that can mutate it, and for
+each one either remove it, make it derive from the same authority, or make it consume the object so
+a mutated value cannot outlive its verification. State the complete list in the landing: a method not
+enumerated is a method not fixed.
+
+### A derivation is only as strong as its root
+
+The same review found the chain's root was caller-constructible. `LiveInvalidationIssuer::new` only
+**shape-checked** a caller-built `AuthenticatedBootIssuer` — it did not authenticate the MAC or prove
+the boot sequence had been reserved — and the type is `Clone` while its consumer merely **borrows**
+it. A dependent crate built two independent issuers from one fake descriptor with an unreserved boot
+sequence, bound both to clones of one database view, and installed different streams.
+
+> **Deriving from a forgeable authority derives nothing.** Follow the chain to its root and check that
+> the root authenticates rather than shape-checks.
+
+Note the ordering of strength, because lanes keep reaching for the weakest: consuming by value is
+weaker than it looks when the type is `Clone`; **borrowing is weaker still**, since it does not even
+pretend to be single-use.
 
 ### A test can demonstrate the exploit and call it correct
 
