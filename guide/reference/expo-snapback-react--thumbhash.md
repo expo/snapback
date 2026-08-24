@@ -1,7 +1,7 @@
 ---
 title: API reference — @expo/snapback-react/thumbhash
 id: reference.api.expo.snapback.react.thumbhash
-order: 853
+order: 854
 audience: agent-first
 capabilities: []
 authorities: [llp/0194-generated-api-reference.rfc.md, guide/reference/lifecycle.json, packages/snapback-react/package.json, packages/snapback-react/thumbhash.d.mts]
@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:a0d5f2ba2fa134356a97e976230002d69da5dba4de65
 # @expo/snapback-react/thumbhash
 
 Build-bound public API projection for `@expo/snapback-react/thumbhash`. Canonical registry identity:
-`sha256:ce912e04e8a0600b59471ba990079374d3f2df7161aa0dc00b180db24218a4be`.
+`sha256:e3849ac684de104d185f5c43801372ba76486c8a5e904a0703e0b5e1185ff348`.
 Runtime parity condition:
 `import` → `packages/snapback-react/thumbhash.mjs`.
 

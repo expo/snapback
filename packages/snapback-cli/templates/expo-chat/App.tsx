@@ -131,7 +131,7 @@ function AccountEntry() {
 export default function App() {
   const [thread, setThread] = useState<Thread | null>(null);
   return (
-    <SnapbackExpoProvider app={app} fallback={(state: ExpoBootState) => <BootFallback state={state} />}>
+    <SnapbackExpoProvider app={app} url={process.env.EXPO_PUBLIC_SNAPBACK_URL} fallback={(state: ExpoBootState) => <BootFallback state={state} />}>
       <TestPersonaProvider>
         <AccountEntry />
         {thread

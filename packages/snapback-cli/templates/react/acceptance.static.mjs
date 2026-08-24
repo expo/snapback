@@ -20,6 +20,7 @@ const runtimeAcceptance = readFileSync(new URL('./acceptance.mjs', import.meta.u
 const packageManifest = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 const agentInstructions = readFileSync(new URL('./AGENTS.md', import.meta.url), 'utf8');
 const carrierSource = readFileSync(new URL('./carrier.mjs', import.meta.url), 'utf8');
+const devModuleTypes = readFileSync(new URL('./src/snapback-dev.d.ts', import.meta.url), 'utf8');
 assert.equal(artifacts.artifactKind, 'artifactIndex');
 assert.deepEqual(functions.functions.map((fn) => fn.name).sort(), ['createTodo', 'listTodos']);
 assert.match(app, /useSnapbackQueries/);
@@ -30,7 +31,9 @@ assert.match(app, /signUpWithPassword/);
 assert.match(app, /signInWithPassword/);
 assert.match(app, /auth\.signOut/);
 assert.match(main, /createSnapbackAppClient/);
-assert.match(main, /createSnapbackDevAppBinding/);
+assert.match(main, /url:\s*import\.meta\.env\.VITE_SNAPBACK_URL/u);
+assert.doesNotMatch(main, /createSnapbackDevAppBinding/u);
+assert.doesNotMatch(devModuleTypes, /createSnapbackDevAppBinding/u);
 assert.match(main, /<SnapbackProvider/u);
 assert.doesNotMatch(main, /new SnapbackClient|createSnapbackReactProvider|AuthCoordinator|bearer|adoptAuthority/u);
 assert.match(schemaSource, /kind:\s*'password'/u);
@@ -66,6 +69,8 @@ assert.doesNotMatch(
   'runtime acceptance must not restore browser-side provisioning or seed ownership',
 );
 assert.match(runtimeAcceptance, /createSnapbackAppClient/);
+assert.match(runtimeAcceptance, /url:\s*process\.env\.SNAPBACK_URL/u);
+assert.doesNotMatch(runtimeAcceptance, /bindingFor|createSnapbackDevAppBinding/u);
 assert.match(runtimeAcceptance, /operation:\s*api\.listTodos/);
 assert.match(runtimeAcceptance, /operation:\s*api\.createTodo/);
 assert.doesNotMatch(runtimeAcceptance, /AuthCoordinator|adoptAuthority/u);

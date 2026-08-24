@@ -515,6 +515,9 @@ type SnapbackProviderSharedProps = Readonly<{
   fallback?: any | ((state: AuthBootstrapSnapshot) => any);
   outboxDrain?: 'auto' | 'manual';
   outboxDrainOptions?: Omit<OutboxDrainOptions, 'automatic'>;
+  onDiagnostic?: (
+    diagnostic: SnapbackDiagnostic | import('@expo/snapback-client').SnapbackAppClientDebugEvent
+  ) => void;
 }>;
 
 export type SnapbackProviderProps = SnapbackProviderSharedProps & (
@@ -522,26 +525,30 @@ export type SnapbackProviderProps = SnapbackProviderSharedProps & (
       appClient: SnapbackAppClient;
       app?: never;
       binding?: never;
+      url?: never;
       platform?: never;
       storagePartition?: never;
       now?: never;
       provider?: never;
     }>
-  | Readonly<{
+  | (Readonly<{
       app: SnapbackApplicationDescriptorV1;
-      binding: SnapbackAppBindingV1;
       platform: SnapbackAppClientPlatform;
       storagePartition?: string;
       /** Injected binding-admission clock; defaults to Date.now. */
       now?: () => number;
       appClient?: never;
       provider?: never;
-    }>
+    }> & (
+      | Readonly<{ binding: SnapbackAppBindingV1; url?: string }>
+      | Readonly<{ binding?: never; url: string }>
+    ))
   | Readonly<{
       binding?: PreparedReactBinding;
       provider?: SnapbackReactProvider;
       appClient?: never;
       app?: never;
+      url?: never;
       platform?: never;
       storagePartition?: never;
       now?: never;

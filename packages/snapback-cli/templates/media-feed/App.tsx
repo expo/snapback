@@ -154,7 +154,7 @@ function Feed() {
 }
 
 export default function App() {
-  return <SnapbackExpoProvider app={app} fallback={(state: ExpoBootState) => <BootFallback state={state} />}><Feed /></SnapbackExpoProvider>;
+  return <SnapbackExpoProvider app={app} url={process.env.EXPO_PUBLIC_SNAPBACK_URL} fallback={(state: ExpoBootState) => <BootFallback state={state} />}><Feed /></SnapbackExpoProvider>;
 }
 
 const styles = StyleSheet.create({

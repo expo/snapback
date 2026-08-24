@@ -142,6 +142,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'client-diagnostics.test.mjs',
       'commands.test.mjs',
       'connection-open-stream-reset-retry.test.mjs',
+      'declared-dev-episode.test.mjs',
       'demand-broker.test.mjs',
       'diagnostic-error.test.mjs',
       'ephemeral-room.test.mjs',
@@ -284,9 +285,11 @@ export const PACKAGE_TEST_INVENTORIES = [
     packageDir: 'packages/snapback-expo',
     testDir: '.',
     suffix: '.test.mjs',
+    scriptNames: ['pretest', 'test'],
     expectedFiles: [
       'activity-presence.test.mjs',
       'app-binding.test.mjs',
+      'declared-dev-binding.test.mjs',
       'asset-source.test.mjs',
       'auth-partition-digest.test.mjs',
       'config-plugin.test.mjs',
@@ -368,6 +371,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'custom-authorization.test.mjs',
       'data-tier-corpus.test.mjs',
       'declaration-suggestion.test.mjs',
+      'declared-dev-generation.test.mjs',
       'dependency-graph.test.mjs',
       'effect-ceiling.test.mjs',
       'familiar-phase-a.test.mjs',
@@ -580,7 +584,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 335,
+  expectedTotal = 338,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1081,6 +1085,8 @@ export function checkPackageTestInventories(options = {}) {
 // and Rust-host admission conformance suite.
 // 332 -> 335 (2026-08-23, LLP 0299): @expo/snapback-cli gains the pure port
 // plan matrix, plain ranged-backend proof, and supervised refusal/allocation proof.
+// 335 -> 338 (2026-08-24, LLP 0302 Lane C): codegen, Expo admission/source
+// precedence, and client transport-episode batteries cover declared-dev.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

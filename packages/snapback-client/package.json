@@ -43,6 +43,10 @@
     "commands.mjs",
     "demand-broker.mjs",
     "dev-identity-capability.mjs",
+    "declared-dev-capability.mjs",
+    "declared-dev-episode.mjs",
+    "internal/declared-dev-mint.d.mts",
+    "internal/declared-dev-mint.mjs",
     "diagnostic-error.d.mts",
     "diagnostic-error.mjs",
     "diagnostic-codes.d.mts",
@@ -139,6 +143,10 @@
     "./app-client-internal": {
       "types": "./app-client-internal.d.mts",
       "import": "./app-client-internal.mjs"
+    },
+    "./internal/declared-dev-mint": {
+      "types": "./internal/declared-dev-mint.d.mts",
+      "import": "./internal/declared-dev-mint.mjs"
     },
     "./argument-normalization": {
       "types": "./argument-normalization.d.mts",
@@ -293,7 +301,7 @@
     "access": "public"
   },
   "scripts": {
-    "pretest": "node authority-transition-conformance.test.mjs && node generated-mutation-ir.test.mjs && node generated-optimistic-default.test.mjs && node commands.test.mjs && node reference-kind.test.mjs && node remediation.test.mjs",
+    "pretest": "node declared-dev-episode.test.mjs && node authority-transition-conformance.test.mjs && node generated-mutation-ir.test.mjs && node generated-optimistic-default.test.mjs && node commands.test.mjs && node reference-kind.test.mjs && node remediation.test.mjs",
     "test": "node app-client-module-graph.test.mjs && node package.test.mjs && node export-parity.test.mjs && node client-diagnostics.test.mjs && node diagnostic-error.test.mjs && node ir-evaluator.test.mjs && node local-read-admission.test.mjs && node optimistic-rebase.test.mjs && node optimistic-rebase-acceptance.test.mjs && node result-transform.test.mjs && node micro.test.mjs && node micro-operational.test.mjs && node push-registry.test.mjs && node attribution.test.mjs && node app-data.test.mjs && node assets.test.mjs && node assets-watch-authorization.test.mjs && node authorization-invalidation.test.mjs && node lifecycle-disposal.test.mjs && node bearer-rotation.test.mjs && node unrecognized-authority-recovery.test.mjs && node auth-anonymous-read-recovery.test.mjs && node auth-exchange-concurrency.test.mjs && node password-auth.test.mjs && node app-client.test.mjs && node webcrypto-fallback.test.mjs && node argument-validation.test.mjs && node argument-normalization.test.mjs && node reservation-retry.test.mjs && node search.test.mjs && node external-store.test.mjs && node evaluation-floor.test.mjs && node sender-proof.test.mjs && node sender-transport.test.mjs && node connection-open-stream-reset-retry.test.mjs && node hosted-browser.test.mjs && node hosted-ephemeral.test.mjs && node ephemeral-room.test.mjs && node rqs-digest-parity.test.mjs && node mixed-route-v2.test.mjs && node rqs-store.test.mjs && node rqs-store-file.test.mjs && node rqs-store-sqlite.test.mjs && node rqs-store-v3.test.mjs && node logout-v3-bridge.test.mjs && node materialization-store.test.mjs && node materialization-bridge.test.mjs && node registration-ledger.test.mjs && node answer-classes.test.mjs && node carrier-capability-honesty.test.mjs && node demand-broker.test.mjs && node store-policy.test.mjs && node store-runtime-wiring.test.mjs && node lease-convergence.test.mjs && node outbox-store.test.mjs && node outbox-custody.test.mjs && node outbox-drain.test.mjs && node outbox-quarantine.test.mjs && node rqs-resume.test.mjs && node rqs-resume-native.test.mjs && node rqs-resume-memory.test.mjs && node rqs-store-expo.test.mjs && node rqs-resume-expo.test.mjs && node subscribe-retry.test.mjs && node bundle.test.mjs && node browser-closure.test.mjs && node wire-version.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler exact-reference-types.fixture.ts push-registry-types.fixture.ts auth-identity-types.fixture.ts app-client-types.fixture.ts"
   }
 }

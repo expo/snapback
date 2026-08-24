@@ -8,3 +8,10 @@ export {
   __createSnapbackAppClientWithBootstrapObserver as createSnapbackAppClientWithBootstrapObserver,
   __createProviderValidatedExpoNativePlatform as createProviderValidatedExpoNativePlatform,
 } from './app-client.mjs';
+export {
+  canonicalDeclaredDevOrigin,
+  declaredDevCapabilityFromApp,
+  deploymentIdentitiesEqual,
+  normalizeDeploymentIdentity,
+  stampedDeclaredDevIdentity,
+} from './declared-dev-capability.mjs';

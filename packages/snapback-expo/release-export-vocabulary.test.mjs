@@ -5,19 +5,15 @@ import { build } from 'esbuild';
 
 const entryPoint = fileURLToPath(new URL('./index.mjs', import.meta.url));
 const forbiddenVocabulary = [
-  'EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN',
   '/_snapback/expo/v1/bootstrap',
-  'localhost',
-  '10.0.2.2',
   '/_snapback/expo/v1/dev-identity-checkout',
   'x-snapback-dev-identity-checkout',
   'SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE',
-  '__SNAPBACK_EXPO_SUPERVISOR_ORIGIN__',
-  '10.0.2',
-  '[::1]',
-  '127(?:',
 ];
-const g4Vocabulary = forbiddenVocabulary.slice(0, 7);
+const structuralRendezvousVocabulary = [
+  'EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN',
+  '__SNAPBACK_EXPO_SUPERVISOR_ORIGIN__',
+];
 
 async function bundle({ nodeEnv, minify }) {
   const result = await build({
@@ -48,8 +44,12 @@ for (const [profile, output] of [
     assert(!output.includes(forbidden), `${profile} export retained ${forbidden}`);
   }
 }
-for (const expected of g4Vocabulary) {
+for (const expected of [...forbiddenVocabulary, ...structuralRendezvousVocabulary]) {
   assert(development.includes(expected), `development export lost ${expected}`);
 }
+for (const expected of structuralRendezvousVocabulary) {
+  assert(productionMinified.includes(expected), `production export pruned structural signal ${expected}`);
+  assert(productionUnminified.includes(expected), `production export pruned structural signal ${expected}`);
+}
 
-console.log('release-export-vocabulary.test.mjs: production exports prune supervised endpoint vocabulary and development retains it');
+console.log('release-export-vocabulary.test.mjs: production prunes supervised endpoints but retains structural rendezvous signals');

@@ -6,6 +6,21 @@ or local-retention surface; use `@expo/snapback-react` for React bindings.
 The full build-matched documentation becomes available after the Snapback
 development server is installed and running.
 
+## Declared-development operation episodes
+
+`createSnapbackAppClient({ app, url, platform })` shares identity verification
+only while a managed live socket is observably open. Before the socket opens,
+after it drops, and for an HTTP-only client, every outbound transport-bearing
+operation receives its own identity preflight automatically. `streamless:
+true` forces that stronger cadence even while another consumer keeps a live
+socket open. Composite and concurrent operation phases never inherit an
+unrelated verification slot.
+
+`@expo/snapback-client/internal/declared-dev-mint` is not public API. It is an
+explicit generated-code seam used only by Snapback codegen to install the
+library-minted capability on the exact generated `app` object. Applications
+and providers pass that `app`; direct capability options are refused.
+
 Exports:
 
 - `@expo/snapback-client` — `SnapbackClient`, auth/custody helpers, and compatibility

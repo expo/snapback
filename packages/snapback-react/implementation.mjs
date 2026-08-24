@@ -4789,7 +4789,26 @@ function reactAuthOwnerRefusal(message, details = {}) {
   return error;
 }
 
-function ordinaryProviderController({ appClient, app, binding, platform, storagePartition, now }) {
+function declaredDevProviderRefusal() {
+  const error = diagnosticError(
+    'SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED',
+    'The declared-dev capability is accepted only from the imported generated app object.',
+    { suppliedAsOption: true },
+  );
+  error.remediations = Object.freeze([]);
+  return error;
+}
+
+function ordinaryProviderController({
+  appClient,
+  app,
+  binding,
+  url,
+  platform,
+  storagePartition,
+  now,
+  onDiagnostic,
+}) {
   let generation = 0;
   let retained = appClient;
   let acquisition = null;
@@ -4803,10 +4822,12 @@ function ordinaryProviderController({ appClient, app, binding, platform, storage
     acquisition ??= createSnapbackAppClientWithBootstrapObserver(
       {
         app,
-        binding,
+        ...(binding === null ? {} : { binding }),
+        ...(url === undefined ? {} : { url }),
         platform,
         ...(storagePartition === undefined ? {} : { storagePartition }),
         ...(now === undefined ? {} : { now }),
+        ...(onDiagnostic === undefined ? {} : { onDiagnostic }),
       },
       publishConstruction,
     ).then((next) => {
@@ -4855,9 +4876,11 @@ function OrdinarySnapbackProvider({
   appClient = null,
   app = null,
   binding = null,
+  url = undefined,
   platform = null,
   storagePartition = undefined,
   now = undefined,
+  onDiagnostic = undefined,
   fallback = null,
   children = null,
   createProvider,
@@ -4869,10 +4892,12 @@ function OrdinarySnapbackProvider({
     appClient,
     app,
     binding,
+    url,
     platform,
     storagePartition,
     now,
-  }), [app, appClient, binding, now, platform, storagePartition]);
+    onDiagnostic,
+  }), [app, appClient, binding, now, onDiagnostic, platform, storagePartition, url]);
   const store = useMemo(() => {
     const listeners = new Set();
     let current = Object.freeze({
@@ -4929,7 +4954,7 @@ function OrdinarySnapbackProvider({
           generatedManifest: generatedApp,
         });
         if (!active) return;
-        provider = createProvider(prepared);
+        provider = createProvider(prepared, { onDiagnostic });
         provider.start?.();
         syncBootstrap();
       } catch (error) {
@@ -4948,7 +4973,7 @@ function OrdinarySnapbackProvider({
       const providerDisposal = Promise.resolve(provider?.dispose?.());
       controller.releaseAfterReplayWindow(token, providerDisposal);
     };
-  }, [app, controller, createProvider, store]);
+  }, [app, controller, createProvider, onDiagnostic, store]);
 
   if (current.provider === null || current.appClient === null) {
     return typeof fallback === 'function' ? fallback(current.bootstrap) : fallback;
@@ -4973,8 +4998,10 @@ function providerOwnershipMode({
   appClient = null,
   app = null,
   binding = null,
+  url = undefined,
   provider = null,
 }) {
+  const hasRealUrl = url !== undefined && url !== null && url !== '';
   // @ref LLP 0258#d6-react-and-expo-project-the-same-owner — a provider
   // instance selects exactly one construction owner. Mixing app-client/app
   // ownership with the prepared/provider injection seam refuses synchronously.
@@ -4984,7 +5011,7 @@ function providerOwnershipMode({
       { ordinaryForms: Object.freeze(['appClient', 'app+binding']) },
     );
   }
-  if (appClient !== null && (binding !== null || provider !== null)) {
+  if (appClient !== null && (binding !== null || hasRealUrl || provider !== null)) {
     throw reactAuthOwnerRefusal(
       'appClient ownership cannot be combined with prepared binding or provider injection.',
       { ordinary: 'appClient', advanced: provider !== null ? 'provider' : 'binding' },
@@ -4996,9 +5023,14 @@ function providerOwnershipMode({
       { ordinary: 'app+binding', advanced: 'provider' },
     );
   }
-  if (app !== null && binding === null) {
-    throw reactAuthOwnerRefusal('app ownership requires an admitted AppBinding.', {
-      ordinary: 'app+binding',
+  if (app === null && hasRealUrl) {
+    throw reactAuthOwnerRefusal('url ownership requires a generated app.', {
+      ordinary: 'app+url',
+    });
+  }
+  if (app !== null && binding === null && !hasRealUrl) {
+    throw reactAuthOwnerRefusal('app ownership requires an admitted AppBinding or the declared-development url option.', {
+      ordinary: 'app+binding-or-url',
     });
   }
   return appClient !== null || app !== null ? 'ordinary' : 'advanced';
@@ -5024,6 +5056,9 @@ function assertProjectedAppClientOwnership(props) {
 }
 
 export function SnapbackCoreProvider(props) {
+  if (Object.hasOwn(props, 'declaredDev') || Object.hasOwn(props, 'declaredDevCapability')) {
+    throw declaredDevProviderRefusal();
+  }
   if (props.__appClientProjection !== undefined) {
     assertProjectedAppClientOwnership(props);
     return React.createElement(
@@ -5043,6 +5078,9 @@ export function SnapbackCoreProvider(props) {
 }
 
 export function SnapbackFullProvider(props) {
+  if (Object.hasOwn(props, 'declaredDev') || Object.hasOwn(props, 'declaredDevCapability')) {
+    throw declaredDevProviderRefusal();
+  }
   if (props.__appClientProjection !== undefined) {
     assertProjectedAppClientOwnership(props);
     return React.createElement(

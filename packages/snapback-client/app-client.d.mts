@@ -5,6 +5,7 @@ import type {
   SnapbackDiagnostic,
 } from './index.mjs';
 import type { SnapbackAuthCustodyStorage } from '@expo/snapback-contract/auth-coordinator';
+import type { DeclaredDevCapability } from './internal/declared-dev-mint.mjs';
 
 export { DEFAULT_AUTH_STORAGE_PARTITION } from './app-client-defaults.mjs';
 
@@ -32,6 +33,7 @@ export type SnapbackApplicationDescriptorV1 = Readonly<{
     descriptor: string;
   }>;
   authBootstrap: ApplicationAuthBootstrapV1;
+  readonly declaredDev?: DeclaredDevCapability | null;
 }>;
 
 export type SnapbackAppBindingV1 = Readonly<{
@@ -207,9 +209,24 @@ export interface SnapbackAppClient {
   dispose(): Promise<void>;
 }
 
+/** Code-less advisory emitted when an option is intentionally ignored. */
+export type SnapbackAppClientDebugEvent = Readonly<{
+  schemaVersion: 'snapback.client-debug-event.v1';
+  event: 'snapback.declared-dev-url-ignored';
+  severity: 'debug';
+  message: string;
+  details: Readonly<Record<string, unknown>>;
+}>;
+
 export function createSnapbackAppClient(input: Readonly<{
   app: SnapbackApplicationDescriptorV1;
-  binding: SnapbackAppBindingV1;
+  binding?: SnapbackAppBindingV1;
+  /** Explicit application-owned URL; selected only by a branded generated
+   * development app. The library does not read an environment variable. */
+  url?: string;
+  /** Headless request/response mode: every transport-bearing operation phase
+   * receives an independent identity preflight. */
+  streamless?: boolean;
   platform: SnapbackAppClientPlatform;
   storagePartition?: string;
   /** Injected clock for binding-expiry admission (epoch milliseconds);
@@ -221,4 +238,7 @@ export function createSnapbackAppClient(input: Readonly<{
   signal?: AbortSignal;
   /** Provider-resolved RQS store/default-resolution. */
   rqsStore?: unknown;
+  /** Optional source-selection diagnostics. Debug events deliberately carry
+   * no stable refusal code. */
+  onDiagnostic?: (diagnostic: SnapbackDiagnostic | SnapbackAppClientDebugEvent) => void;
 }>): Promise<SnapbackAppClient>;

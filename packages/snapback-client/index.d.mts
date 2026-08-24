@@ -28,6 +28,7 @@ export type {
   PublicAuthCustodyFacts,
   SnapbackAppBindingV1,
   SnapbackAppClient,
+  SnapbackAppClientDebugEvent,
   SnapbackAppClientPlatform,
   SnapbackApplicationDescriptorV1,
   SnapbackAuthFacade,

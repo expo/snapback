@@ -3,6 +3,7 @@ export type {
   AppBindingV1,
   AppBindingValidationProblem,
   AppDescriptorV1Like,
+  DeclaredDevAppBindingV1,
   HostedDevelopmentAppBindingV1,
   PublicBindingFacts,
   ReleaseAppBindingV1,

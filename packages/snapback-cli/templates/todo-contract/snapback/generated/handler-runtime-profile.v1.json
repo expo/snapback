@@ -2,7 +2,7 @@
   "admissionVersion": "snapback.handler-admission.legacy.v1",
   "appId": "todo-contract",
   "artifactKind": "handlerRuntimeProfile",
-  "authoredSourceHash": "sha256:76a80fefe75ac9eb4a707327e1e7268c3182bfb7f9db888622f6f08a90cd73f3",
+  "authoredSourceHash": "sha256:d601f5e881895225d4f9063f2304517a303e064456f5fb93f95dacfdb562a502",
   "computedAccess": {
     "dynamicProperties": "forbidden",
     "forbiddenReflectionProperties": [
@@ -564,7 +564,7 @@
       ]
     }
   },
-  "inputsHash": "c94125ecab4b97e4e046429be49c4cdc15db7fb2d966141589b768a276bc03c8",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:1c71cd0873b7ebb21995d8ebe7ef1a0f6dcb5b2b4438a6c567cc459d7993e55b",
   "moduleGraph": {
     "admittedSpecifiers": [],
     "cycles": "forbidden",

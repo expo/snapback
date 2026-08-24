@@ -77,12 +77,13 @@ void pickerAdapter({
   mimeType: 'image/png',
 });
 createSnapbackExpoBoot({ app: generatedApp, binding, environment });
+createSnapbackExpoBoot({ app: generatedApp, url: 'http://localhost:4287', environment });
 const state: ExpoBootState = boot.getSnapshot();
 if (state.status === 'starting') {
   const stage: 'binding' | 'custody' | 'authority' | 'client' = state.stage;
   void stage;
 } else if (state.status === 'ready') {
-  const source: 'supervised-dev' | 'hosted-development' | 'release' = state.binding.source;
+  const source: 'supervised-dev' | 'hosted-development' | 'declared-dev' | 'release' = state.binding.source;
   void source;
   if ('authority' in state) {
     const kind: 'session' = state.authority.kind;

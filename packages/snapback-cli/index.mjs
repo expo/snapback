@@ -1491,7 +1491,10 @@ export async function buildRelease(options = {}) {
   assertDisjointTrees(backendRoot, requestedOutputRoot);
   if (options.webDirectory) assertDisjointTrees(resolve(options.webDirectory), requestedOutputRoot);
   const targetProfile = options.targetProfile ?? 'local-dev-sqlite-ibex';
-  const generated = await generateApp(backendRoot, { targetProfile });
+  const generated = await generateApp(backendRoot, {
+    targetProfile,
+    appBindingMode: 'release',
+  });
   if (!generated.ok) {
     throw diagnosticError('SNAPBACK_DEPLOY_GENERATION_FAILED', 'release generation failed', { diagnostics: generated.diagnostics ?? [] });
   }
@@ -3430,12 +3433,13 @@ export function initApp(target = process.cwd(), options = {}) {
   };
 }
 
-async function generateAppThroughNode(backendDirectory, { targetProfile, check }) {
+async function generateAppThroughNode(backendDirectory, { targetProfile, appBindingMode, check }) {
   const args = [
     require.resolve('@expo/snapback-codegen'),
     resolve(backendDirectory),
     '--json',
     '--target-profile', targetProfile,
+    '--app-binding-mode', appBindingMode,
     ...(check ? ['--check'] : []),
   ];
   const allowedEnvironment = new Set([
@@ -3511,6 +3515,7 @@ async function generateAppThroughNode(backendDirectory, { targetProfile, check }
 
 export async function generateApp(backendDirectory, options = {}) {
   const targetProfile = options.targetProfile ?? 'local-dev-sqlite-ibex';
+  const appBindingMode = options.appBindingMode ?? 'development';
   const check = options.check === true;
   // @ref LLP 0010#generated-artifacts — definition evaluation still occurs
   // under Node 24's permission model when a Bun-hosted Vite process owns the
@@ -3518,12 +3523,13 @@ export async function generateApp(backendDirectory, options = {}) {
   const canEvaluateIsolatedDefinitions = process.allowedNodeEnvironmentFlags
     ?.has('--permission') === true;
   const result = canEvaluateIsolatedDefinitions
-    ? await generate(resolve(backendDirectory), { targetProfile, check })
-    : await generateAppThroughNode(backendDirectory, { targetProfile, check });
+    ? await generate(resolve(backendDirectory), { targetProfile, appBindingMode, check })
+    : await generateAppThroughNode(backendDirectory, { targetProfile, appBindingMode, check });
   return {
     schemaVersion: 'snapback.generate.v1',
     ...result,
     targetProfile,
+    appBindingMode,
     check,
   };
 }
@@ -5470,7 +5476,7 @@ export async function runDev(options = {}) {
       },
     );
   }
-  const generated = await generateApp(backendRoot);
+  const generated = await generateApp(backendRoot, { appBindingMode: 'development' });
   if (!generated.ok) return { ...generated, state: 'generation-failed' };
   let devRuntimeEnvironment;
   const prepareVisibilityGovernanceDevEnvironment =
@@ -5824,7 +5830,7 @@ export async function runDev(options = {}) {
     removeApplicationReadyReceipt();
     let next;
     try {
-      next = await generateApp(backendRoot);
+      next = await generateApp(backendRoot, { appBindingMode: 'development' });
     } catch (error) {
       const refined = refineGeneratedArtifactFailure(error, {
         binary: runtime.binary,
@@ -7438,7 +7444,11 @@ export async function runCli(argv, options = {}) {
         'usage: snapback generate [<backend-dir>] [--target-profile <id>] [--check] [--json]',
       );
     }
-    const result = await generateApp(backendDirectory, { targetProfile, check });
+    const result = await generateApp(backendDirectory, {
+      targetProfile,
+      appBindingMode: 'development',
+      check,
+    });
     printResult(result, json);
     return result.ok ? 0 : 1;
   }

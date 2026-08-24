@@ -4,6 +4,7 @@ import type {
   PreparedReactBinding,
   SnapbackAppClient,
   SnapbackAppClientPlatform,
+  SnapbackAppClientDebugEvent,
   SnapbackAppBindingV1,
   SnapbackApplicationDescriptorV1,
   SnapbackClient,
@@ -15,6 +16,7 @@ import type {
 } from '@expo/snapback-react';
 
 export * from '@expo/snapback-react';
+export type { SnapbackAppClientDebugEvent } from '@expo/snapback-client';
 export { useSnapbackActivityPresence } from './activity-presence.mjs';
 export {
   adaptExpoAssetSource,
@@ -37,7 +39,7 @@ export type AppBindingTargetV1 = Readonly<{
   schema: string;
   functions: string;
   origin: string;
-  routing: 'loopback' | 'port-forward' | 'https';
+  routing: 'loopback' | 'port-forward' | 'declared-dev' | 'https';
 }>;
 
 export type SupervisedDevAppBindingV1 = Readonly<{
@@ -98,9 +100,35 @@ export type HostedDevelopmentAppBindingV1 = Readonly<{
   integrity: Readonly<{ channel: 'hosted-target-admission' }>;
 }>;
 
+export type DeclaredDevAppBindingV1 = Readonly<{
+  format: 'snapback.app-binding.v1';
+  source: 'declared-dev';
+  descriptorIdentity: string;
+  target: Readonly<{
+    app: string;
+    schema: string;
+    functions: string;
+    origin: string;
+    routing: 'declared-dev';
+  }>;
+  capabilities: Readonly<{ offered: readonly CapabilityOffer[] }>;
+  provenance: Readonly<{
+    deploymentIdentity: Readonly<{
+      schemaVersion: string;
+      authMode: string;
+      appId: string;
+      schemaHash: string;
+      bundleHash: string;
+      inputsHash: string;
+    }>;
+  }>;
+  integrity: Readonly<{ channel: 'generated-declared-dev' }>;
+}>;
+
 export type AppBindingV1 =
   | SupervisedDevAppBindingV1
   | HostedDevelopmentAppBindingV1
+  | DeclaredDevAppBindingV1
   | ReleaseAppBindingV1;
 
 export interface AppDescriptorV1Like {
@@ -123,6 +151,7 @@ export interface AppDescriptorV1Like {
   readonly commands: Readonly<Record<string, unknown>>;
   readonly surfaces: Readonly<Record<string, unknown>>;
   readonly capabilities: Readonly<{ required: readonly string[] }>;
+  readonly declaredDev?: unknown;
 }
 
 export interface AppBindingValidationProblem {
@@ -144,7 +173,7 @@ export type TypedRemediation = Readonly<{
 
 export type PublicBindingFacts = Readonly<{
   format: 'snapback.app-binding.v1';
-  source: 'supervised-dev' | 'hosted-development' | 'release';
+  source: 'supervised-dev' | 'hosted-development' | 'declared-dev' | 'release';
   descriptorIdentity: string;
   target: AppBindingTargetV1;
   capabilities: Readonly<{ offered: readonly CapabilityOffer[] }>;
@@ -153,6 +182,7 @@ export type PublicBindingFacts = Readonly<{
     channel:
       | 'local-supervised-ipc'
       | 'hosted-target-admission'
+      | 'generated-declared-dev'
       | 'signed-artifact'
       | 'embedded-at-build';
   }>;
@@ -271,6 +301,7 @@ export interface SnapbackExpoEnvironmentV1 {
     app: AppDescriptorV1Like;
     bindingOverride: AppBindingV1 | null;
     signal: AbortSignal;
+    url?: string;
   }>): Promise<Readonly<{
     binding: AppBindingV1;
     admission: AppBindingAdmissionEvidenceV1;
@@ -328,7 +359,7 @@ export interface SnapbackExpoEnvironmentV1 {
         remediations: readonly TypedRemediation[];
       }>
   >;
-  onDiagnostic?(diagnostic: SnapbackDiagnostic): void;
+  onDiagnostic?(diagnostic: SnapbackDiagnostic | SnapbackAppClientDebugEvent): void;
 }
 
 export function validateAppBindingV1(candidate: unknown): readonly AppBindingValidationProblem[];
@@ -369,11 +400,12 @@ export function resolveDefaultExpoSqliteTarget(options?: Readonly<{
   architecture?: string;
   distribution: 'development' | 'release';
   deviceClass?: 'real-device' | 'emulator' | 'simulator';
-}>>;
+  }>>;
 
 export function createSnapbackExpoBoot(options: Readonly<{
   app: AppDescriptorV1Like;
   binding?: AppBindingV1 | null;
+  url?: string;
   environment?: SnapbackExpoEnvironmentV1;
   /** Explicit store or null opt-out. Omission requests the evidence-gated
    * default; pending/unqualified target rows resolve to the reported volatile
@@ -390,7 +422,8 @@ export function createSnapbackExpoBoot(options: Readonly<{
   ) => Readonly<{ dispose(): void; settled(): Promise<void> }>;
   createApplicationClient?: (input: Readonly<{
     app: SnapbackApplicationDescriptorV1;
-    binding: SnapbackAppBindingV1;
+    binding?: SnapbackAppBindingV1;
+    url?: string;
     platform: SnapbackAppClientPlatform;
     now?: () => number;
     signal?: AbortSignal;
@@ -411,6 +444,7 @@ export function createSnapbackExpoBoot(options: Readonly<{
 export function SnapbackExpoProvider(props: Readonly<{
   app: AppDescriptorV1Like;
   binding?: AppBindingV1 | null;
+  url?: string;
   environment?: SnapbackExpoEnvironmentV1;
   /** Explicit store or null opt-out. Omission requests the evidence-gated
    * default; pending/unqualified target rows resolve to the reported volatile

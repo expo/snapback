@@ -13,6 +13,12 @@ import {
   installDevIdentityCapability,
   validateDevIdentityCapability,
 } from './dev-identity-capability.mjs';
+import {
+  canonicalDeclaredDevOrigin,
+  declaredDevCapabilityFromApp,
+  deploymentIdentitiesEqual,
+  stampedDeclaredDevIdentity,
+} from './declared-dev-capability.mjs';
 import { SnapbackClient } from './index.mjs';
 import { isDefaultRqsStoreResolution } from './rqs-store-default.mjs';
 
@@ -331,11 +337,11 @@ function validateAppPolicy(app) {
   return policy;
 }
 
-function validateBinding(binding, app, policy, now = Date.now) {
+function validateBinding(binding, app, policy, now = Date.now, declaredDevInternal = false) {
   if (
     !exactKeys(binding, BINDING_KEYS)
     || binding.format !== 'snapback.app-binding.v1'
-    || !['supervised-dev', 'hosted-development', 'release'].includes(binding.source)
+    || !['supervised-dev', 'hosted-development', 'declared-dev', 'release'].includes(binding.source)
     || !nonEmptyString(binding.descriptorIdentity)
     || !exactKeys(binding.target, TARGET_KEYS)
     || !TARGET_KEYS.filter((key) => key !== 'routing').every(
@@ -359,6 +365,14 @@ function validateBinding(binding, app, policy, now = Date.now) {
   // arm; it cannot inherit supervised loopback/forwarding semantics.
   const supervised = binding.source === 'supervised-dev';
   const hostedDevelopment = binding.source === 'hosted-development';
+  const declaredDevelopment = binding.source === 'declared-dev';
+  if (declaredDevelopment && !declaredDevInternal) {
+    throw refusal(
+      'SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED',
+      'A declared-dev binding must be constructed from the generated capability by the library.',
+      { branded: false },
+    );
+  }
   const supervisedProvenance = exactKeys(
     binding.provenance,
     ['expiresAt', 'issuedAt', 'supervisorGeneration'],
@@ -388,6 +402,13 @@ function validateBinding(binding, app, policy, now = Date.now) {
   );
   const hostedDevelopmentIntegrity = exactKeys(binding.integrity, ['channel'])
     && binding.integrity.channel === 'hosted-target-admission';
+  const declaredDevelopmentProvenance = exactKeys(binding.provenance, ['deploymentIdentity'])
+    && deploymentIdentitiesEqual(
+      binding.provenance.deploymentIdentity,
+      stampedDeclaredDevIdentity(declaredDevCapabilityFromApp(app)),
+    );
+  const declaredDevelopmentIntegrity = exactKeys(binding.integrity, ['channel'])
+    && binding.integrity.channel === 'generated-declared-dev';
   const hostedDevelopmentOrigin = hostedDevelopment
     && targetBase !== null && targetBase.kind === 'absolute-origin'
     ? targetBase.url
@@ -415,6 +436,7 @@ function validateBinding(binding, app, policy, now = Date.now) {
       [retryBootstrap('SNAPBACK_APP_BINDING_TARGET_INVALID')],
     );
   }
+  const declaredDevelopmentOrigin = canonicalDeclaredDevOrigin(binding.target.origin);
   const validRoute = targetBase !== null && (supervised
     ? targetBase.kind === 'same-origin-relay'
       ? binding.target.routing === 'loopback'
@@ -423,6 +445,10 @@ function validateBinding(binding, app, policy, now = Date.now) {
         && (isLoopbackHost(targetBase.url.hostname)
           || (binding.target.routing === 'port-forward'
             && targetBase.url.hostname === '10.0.2.2'))
+    : declaredDevelopment
+      ? declaredDevelopmentOrigin.ok
+        && declaredDevelopmentOrigin.origin === binding.target.origin
+        && binding.target.routing === 'declared-dev'
     : targetBase.kind === 'absolute-origin'
       && binding.target.routing === 'https'
       && targetBase.url.protocol === 'https:');
@@ -432,7 +458,9 @@ function validateBinding(binding, app, policy, now = Date.now) {
       ? !supervisedProvenance || !supervisedIntegrity
       : hostedDevelopment
         ? !hostedDevelopmentProvenance || !hostedDevelopmentIntegrity
-        : !releaseProvenance || !releaseIntegrity)
+        : declaredDevelopment
+          ? !declaredDevelopmentProvenance || !declaredDevelopmentIntegrity
+          : !releaseProvenance || !releaseIntegrity)
     || binding.target.app !== app.identity.app
     || binding.target.schema !== app.identity.schema
     || binding.target.functions !== app.identity.functions
@@ -583,19 +611,47 @@ function normalizePlatform(platform) {
 
 function preflight(input) {
   if (!isRecord(input)) throw new TypeError('createSnapbackAppClient requires an options object');
-  const expectedInputKeys = ['app', 'binding', 'platform'];
+  if (Object.hasOwn(input, 'declaredDev') || Object.hasOwn(input, 'declaredDevCapability')) {
+    throw refusal(
+      'SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED',
+      'The declared-dev capability is accepted only from the imported generated app object.',
+      { suppliedAsOption: true },
+    );
+  }
+  const expectedInputKeys = ['app', 'platform'];
+  if (Object.hasOwn(input, 'binding')) expectedInputKeys.push('binding');
+  if (Object.hasOwn(input, 'url')) expectedInputKeys.push('url');
+  if (Object.hasOwn(input, 'streamless')) expectedInputKeys.push('streamless');
   if (Object.hasOwn(input, 'storagePartition')) expectedInputKeys.push('storagePartition');
   if (Object.hasOwn(input, 'now')) expectedInputKeys.push('now');
   if (Object.hasOwn(input, 'signal')) expectedInputKeys.push('signal');
   if (Object.hasOwn(input, 'rqsStore')) expectedInputKeys.push('rqsStore');
+  if (Object.hasOwn(input, 'onDiagnostic')) expectedInputKeys.push('onDiagnostic');
   if (!exactKeys(input, expectedInputKeys)) {
     throw refusal(
       'SNAPBACK_AUTH_BOOTSTRAP_INPUT_INVALID',
-      'createSnapbackAppClient accepts only app, binding, platform, and optional storagePartition, now, signal, and rqsStore.',
+      'createSnapbackAppClient accepts app, platform, one binding source, and optional storagePartition, now, signal, rqsStore, streamless, and onDiagnostic.',
       { actualKeys: Object.keys(input).sort() },
     );
   }
-  const { app, binding } = input;
+  const { app } = input;
+  const onDiagnostic = input.onDiagnostic ?? null;
+  if (onDiagnostic !== null && typeof onDiagnostic !== 'function') {
+    throw new TypeError('createSnapbackAppClient `onDiagnostic` must be a function when provided');
+  }
+  const emitDebug = (event, message, details) => {
+    try {
+      onDiagnostic?.(Object.freeze({
+        schemaVersion: 'snapback.client-debug-event.v1',
+        event,
+        severity: 'debug',
+        message,
+        details: Object.freeze({ ...details }),
+      }));
+    } catch {
+      // Debug observation never owns source selection.
+    }
+  };
   const now = input.now ?? Date.now;
   if (typeof now !== 'function' || !Number.isFinite(now())) {
     throw new TypeError('createSnapbackAppClient `now` must be a function returning a finite timestamp');
@@ -613,7 +669,73 @@ function preflight(input) {
     throw new TypeError('createSnapbackAppClient `signal` must be an AbortSignal');
   }
   const policy = validateAppPolicy(app);
-  validateBinding(binding, app, policy, now);
+  const appDeclaredDev = app?.declaredDev;
+  const declaredDevCapability = declaredDevCapabilityFromApp(app);
+  if (appDeclaredDev !== undefined && appDeclaredDev !== null && declaredDevCapability === null) {
+    throw refusal(
+      'SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED',
+      'The declared-dev capability is not installed on this exact generated app object.',
+      { suppliedAsOption: false, generatedApp: false },
+    );
+  }
+  let binding = input.binding;
+  let declaredDevInternal = false;
+  const hasRealUrl = Object.hasOwn(input, 'url')
+    && input.url !== undefined
+    && input.url !== null
+    && input.url !== '';
+  if (declaredDevCapability === null && hasRealUrl) {
+    emitDebug(
+      'snapback.declared-dev-url-ignored',
+      'The release-generated app has no declared-dev capability; the url option was ignored for binding source selection.',
+      { selectedSource: binding === undefined ? null : 'binding', ignoredUrl: input.url },
+    );
+  }
+  if (binding === undefined && hasRealUrl && declaredDevCapability !== null) {
+    const deploymentIdentity = stampedDeclaredDevIdentity(declaredDevCapability);
+    const canonical = canonicalDeclaredDevOrigin(input.url);
+    if (!canonical.ok) {
+      throw refusal(
+        'SNAPBACK_APP_BINDING_URL_INVALID',
+        `The declared-dev URL was refused by rule ${canonical.rule}.`,
+        { rule: canonical.rule, url: input.url },
+      );
+    }
+    const offered = new Set(app.capabilities.required);
+    if (policy.entryMechanisms.includes('password-v1')) offered.add('auth.passwords');
+    if (policy.entryMechanisms.includes('guest-v1')) offered.add('auth.guest-sessions');
+    binding = Object.freeze({
+      format: 'snapback.app-binding.v1',
+      source: 'declared-dev',
+      descriptorIdentity: app.identity.descriptor,
+      target: Object.freeze({
+        app: app.identity.app,
+        schema: app.identity.schema,
+        functions: app.identity.functions,
+        origin: canonical.origin,
+        routing: 'declared-dev',
+      }),
+      capabilities: Object.freeze({ offered: Object.freeze([...offered]) }),
+      provenance: Object.freeze({ deploymentIdentity }),
+      integrity: Object.freeze({ channel: 'generated-declared-dev' }),
+    });
+    declaredDevInternal = true;
+  }
+  if (binding === undefined) {
+    throw refusal(
+      'SNAPBACK_APP_BINDING_UNAVAILABLE',
+      'createSnapbackAppClient requires an admitted binding; the url option is available only on a development-generated app.',
+      {
+        actualKeys: Object.keys(input).sort(),
+        declaredDevPresent: declaredDevCapability !== null,
+        urlOptionPresent: hasRealUrl,
+      },
+    );
+  }
+  if (input.streamless !== undefined && typeof input.streamless !== 'boolean') {
+    throw new TypeError('createSnapbackAppClient `streamless` must be boolean when provided');
+  }
+  validateBinding(binding, app, policy, now, declaredDevInternal);
   const platform = normalizePlatform(input.platform);
   const storagePartition = validateStoragePartition(
     input.storagePartition ?? DEFAULT_AUTH_STORAGE_PARTITION,
@@ -674,6 +796,10 @@ function preflight(input) {
     signal,
     rqsStore,
     rqsStoreIdentity: Object.hasOwn(input, 'rqsStore') ? rqsStore : undefined,
+    declaredDevDeploymentIdentity: binding.source === 'declared-dev'
+      ? stampedDeclaredDevIdentity(declaredDevCapabilityFromApp(app))
+      : null,
+    declaredDevStreamless: input.streamless === true,
     rqsStoreAppPlatform: volatileQueueLifetime
       ? Object.freeze({ kind: 'memory' })
       : platform,
@@ -1131,6 +1257,8 @@ async function constructOwner(preflighted, bootstrapObservers, onOwner) {
         appId: preflighted.app.identity.app,
         storagePartition: preflighted.storagePartition,
       }),
+      declaredDevDeploymentIdentity: preflighted.declaredDevDeploymentIdentity,
+      declaredDevStreamless: preflighted.declaredDevStreamless,
     });
     const restoredCapture = await awaitConstructionBoundary(
       owner.coordinator.synchronize(),

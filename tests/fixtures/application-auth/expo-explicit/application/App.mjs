@@ -19,6 +19,7 @@ export function Application({ environment, onSnapshot }) {
     {
       app,
       environment,
+      rqsStore: null,
       fallback: (state) => React.createElement(
         'pre',
         { 'data-fixture': 'boot' },

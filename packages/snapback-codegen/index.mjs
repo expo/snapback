@@ -1145,6 +1145,8 @@ export function experimentalTargetCapabilityIdsCanonicalJson() {
 const LOCAL_MAX_PENDING_EPHEMERAL_KEYS = 1_024;
 const TARGET_PROFILE_LOCAL = 'local-dev-sqlite-ibex';
 const TARGET_PROFILE_REMOTE = 'remote-service-sqlite-ibex';
+const APP_BINDING_MODE_DEVELOPMENT = 'development';
+const APP_BINDING_MODE_RELEASE = 'release';
 const MICRO_PROFILE_INPUT_FILE = 'micro.profile.json';
 const MICRO_PROFILE_REQUIRED_MODULES = Object.freeze([
   'authority-fence',
@@ -2034,17 +2036,21 @@ export async function generateInProcess(backendDir, options = {}, testHooks = un
   });
 
   const targetProfile = options?.targetProfile ?? TARGET_PROFILE_LOCAL;
+  const appBindingMode = options?.appBindingMode ?? APP_BINDING_MODE_RELEASE;
   // @ref LLP 0237#d5-preflight-is-available-before-generation — both normal
   // generation and --check enter this one full checker; only the final
   // complete-graph publication step differs.
   const checkOnly = options?.check === true;
   const targetConfig = TARGET_PROFILES.get(targetProfile);
   if (!targetConfig
+      || ![APP_BINDING_MODE_DEVELOPMENT, APP_BINDING_MODE_RELEASE].includes(appBindingMode)
       || (options?.check !== undefined && typeof options.check !== 'boolean')
-      || Object.keys(options ?? {}).some((key) => !['targetProfile', 'check'].includes(key))) {
-    err('CODEGEN_TARGET_PROFILE_UNSUPPORTED', 'codegen', `unsupported target profile ${String(targetProfile)}`, {
+      || Object.keys(options ?? {}).some((key) => !['targetProfile', 'appBindingMode', 'check'].includes(key))) {
+    err('CODEGEN_TARGET_PROFILE_UNSUPPORTED', 'codegen', `unsupported target profile or app binding mode ${String(targetProfile)} / ${String(appBindingMode)}`, {
       targetProfile,
+      appBindingMode,
       supported: [...TARGET_PROFILES.keys()],
+      supportedAppBindingModes: [APP_BINDING_MODE_DEVELOPMENT, APP_BINDING_MODE_RELEASE],
     });
     return { ok: false, diagnostics };
   }
@@ -2063,6 +2069,7 @@ export async function generateInProcess(backendDir, options = {}, testHooks = un
         backendRoot,
         targetProfile,
         targetConfig,
+        appBindingMode,
         diagnostics,
         infoDiagnostics,
         err,
@@ -2082,6 +2089,7 @@ async function generateInProcessLocked({
   backendRoot,
   targetProfile,
   targetConfig,
+  appBindingMode,
   diagnostics,
   infoDiagnostics,
   err,
@@ -8188,6 +8196,7 @@ async function generateInProcessLocked({
   const appBindingIdentity = compositionDomainHash('snapback:app-binding:v1:', {
     descriptor: appDescriptor.identity.descriptor,
     artifacts: { trustedCompositionActivation },
+    appBindingMode,
     ...(hostedDevelopmentAdmissions.length === 0 ? {} : { hostedDevelopmentAdmissions }),
   });
   const contentAddressedDescriptorFile = contentAddressedArtifactPath(
@@ -8203,6 +8212,15 @@ async function generateInProcessLocked({
     appDescriptor.identity.descriptor,
     trustedCompositionActivation,
     hostedDevelopmentAdmissions,
+    appBindingMode,
+    {
+      schemaVersion: artifactVersion,
+      authMode,
+      appId,
+      schemaHash,
+      bundleHash,
+      inputsHash,
+    },
   );
   const appBindingModule = renderAppBindingAlias(
     functionManifest.functions,
@@ -16546,6 +16564,8 @@ function renderAppBindingModule(
   descriptorIdentity,
   trustedCompositionActivation = null,
   hostedDevelopmentAdmissions = [],
+  appBindingMode = APP_BINDING_MODE_RELEASE,
+  deploymentIdentity = null,
 ) {
   const standalone = standaloneIdentifierFunctions(functions);
   const aliases = standalone.map(({ name, kind }) => {
@@ -16556,7 +16576,14 @@ function renderAppBindingModule(
   // @ref LLP 0181#hosted-development-binding — the hydrated generated app is
   // the trust root: its frozen, non-enumerable record owns both the exact
   // hosted target set and the target-bound receipt predicate.
+  const declaredDevImport = appBindingMode === APP_BINDING_MODE_DEVELOPMENT
+    ? `import { unsafeInstallDeclaredDevCapabilityForGeneratedCode } from '@expo/snapback-client/internal/declared-dev-mint';\n`
+    : '';
+  const declaredDevConstruction = appBindingMode === APP_BINDING_MODE_DEVELOPMENT
+    ? `export const declaredDev = unsafeInstallDeclaredDevCapabilityForGeneratedCode(hydratedDescriptor, ${stableJson(deploymentIdentity)});\n`
+    : `export const declaredDev = null;\nObject.defineProperty(hydratedDescriptor, 'declaredDev', { value: declaredDev, enumerable: false });\n`;
   return `${HEADER}\n` +
+    declaredDevImport +
     `import descriptorDocument from ${JSON.stringify(descriptorSpecifier)} with { type: 'json' };\n` +
     `const deepFreeze = (value) => { if (value && typeof value === 'object' && !Object.isFrozen(value)) { for (const child of Object.values(value)) deepFreeze(child); Object.freeze(value); } return value; };\n` +
     `const hostedDevelopmentAdmissions = deepFreeze(${stableJson(hostedDevelopmentAdmissions)});\n` +
@@ -16567,6 +16594,7 @@ function renderAppBindingModule(
     `/** @type {import('./api.d.ts').GeneratedArtifacts} */\n` +
     `export const artifacts = deepFreeze(${stableJson({ trustedCompositionActivation })});\n` +
     `const hydratedDescriptor = structuredClone(descriptorDocument);\n` +
+    declaredDevConstruction +
     `Object.defineProperty(hydratedDescriptor, Symbol.for('@expo/snapback-client/generated-hosted-development-admission.v1'), { value: generatedHostedDevelopmentAdmission, enumerable: false });\n` +
     `const hydrateFunctionReference = (reference) => { reference.authoringProfile = hydratedDescriptor.authoringProfile; reference.retention ??= 'none'; if (reference.kind === 'LiveQuery') reference.delivery = 'live'; else if (reference.kind === 'Query') reference.delivery = 'read'; Object.defineProperty(reference, 'artifacts', { value: artifacts, enumerable: false }); };\n` +
     `for (const namespace of [hydratedDescriptor.api.queries, hydratedDescriptor.api.mutations]) { for (const reference of Object.values(namespace)) hydrateFunctionReference(reference); }\n` +
@@ -16582,7 +16610,7 @@ function renderAppBindingModule(
 
 function renderAppBindingAlias(functions, appBindingIdentity) {
   const standalone = standaloneIdentifierFunctions(functions);
-  const reexports = ['app', 'artifacts', ...standalone.map(({ name }) => name)].join(', ');
+  const reexports = ['app', 'artifacts', 'declaredDev', ...standalone.map(({ name }) => name)].join(', ');
   const bindingSpecifier = contentAddressedModuleSpecifier('./app.binding.mjs', appBindingIdentity);
   return `${HEADER}\n` +
     `// Stable compatibility alias; the digest-named module is the sole hydrated binding.\n` +
@@ -16592,7 +16620,7 @@ function renderAppBindingAlias(functions, appBindingIdentity) {
 
 function renderAppModule(functions, appBindingIdentity) {
   const standalone = standaloneIdentifierFunctions(functions);
-  const reexports = ['app', 'artifacts', ...standalone.map(({ name }) => name)].join(', ');
+  const reexports = ['app', 'artifacts', 'declaredDev', ...standalone.map(({ name }) => name)].join(', ');
   const bindingSpecifier = contentAddressedModuleSpecifier('./app.binding.mjs', appBindingIdentity);
   return `${HEADER}\n` +
     `export { ${reexports} } from ${JSON.stringify(bindingSpecifier)};\n` +
@@ -16663,6 +16691,7 @@ function renderAppTypes(
   const lines = [
     HEADER,
     "import type { GeneratedApi, GeneratedArtifacts, GeneratedCommandTargets, GeneratedEphemeral, GeneratedQueryGroups, Id, Principal } from './api.d.ts';",
+    "export type GeneratedDeclaredDevCapability = Readonly<{ format: 'snapback.declared-dev-capability.v1'; deploymentIdentity: Readonly<{ schemaVersion: string; authMode: string; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }> }>;",
     `export type GeneratedAppQueryName = ${union(queryNames)};`,
     `export type GeneratedAppMutationName = ${union(mutationNames)};`,
     `export type GeneratedAppAssetName = ${union(assetNames)};`,
@@ -16765,9 +16794,11 @@ function renderAppTypes(
     '  readonly commands: Readonly<GeneratedAppCommands>;',
     '  readonly surfaces: Readonly<GeneratedAppSurfaces>;',
     '  readonly capabilities: Readonly<{ required: readonly CapabilityRequirement[] }>;',
+    '  readonly declaredDev: GeneratedDeclaredDevCapability | null;',
     '}',
     'export type GeneratedAppDescriptorV1 = AppDescriptorV1;',
     'export declare const artifacts: GeneratedArtifacts;',
+    'export declare const declaredDev: GeneratedDeclaredDevCapability | null;',
     'export declare const app: GeneratedAppDescriptorV1;',
   ];
   for (const { name, kind } of standalone.filter(({ name }) => IDENT.test(name))) {
@@ -19602,7 +19633,8 @@ function graphAuthoringBindingResolver(modules) {
     if (!module) return null;
     for (const statement of module.sourceFile.statements) {
       if (ts.isExportDeclaration(statement)) {
-        const target = ts.isStringLiteral(statement.moduleSpecifier)
+        const target = statement.moduleSpecifier
+          && ts.isStringLiteral(statement.moduleSpecifier)
           ? importedPath(statement.moduleSpecifier.text, module.path)
           : null;
         if (statement.exportClause && ts.isNamedExports(statement.exportClause)) {
@@ -22033,8 +22065,17 @@ export async function runCodegenCli(argv = process.argv) {
     targetProfile = args[targetFlag + 1];
     args.splice(targetFlag, 2);
   }
+  const appBindingModeFlag = args.indexOf('--app-binding-mode');
+  // The standalone codegen command is an authoring workflow. Release owners
+  // pass the closed release mode explicitly instead of inheriting ambient
+  // NODE_ENV or publication state.
+  let appBindingMode = APP_BINDING_MODE_DEVELOPMENT;
+  if (appBindingModeFlag !== -1) {
+    appBindingMode = args[appBindingModeFlag + 1];
+    args.splice(appBindingModeFlag, 2);
+  }
   const backendDir = resolve(args[0] ?? join(packageDir(), '..', '..', 'demos', 'todo', 'snapback'));
-  const result = await generate(backendDir, { targetProfile, check });
+  const result = await generate(backendDir, { targetProfile, appBindingMode, check });
   // @ref LLP 0264#d9-authorization-review-projection — the summary owns the
   // grouped human rendering while --json and authorization-review keep every
   // independently actionable table/site fact.

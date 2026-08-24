@@ -58,7 +58,9 @@ writeFileSync(3, JSON.stringify({
 // (application-ready receipt facts, RunDevOptions extensions) pushed
 // expo-snapback-client.md 62 bytes over; the budget is a practical projection
 // guard (LLP 0194), not a semantic contract.
-const modulePageBudgetBytes = 471_040;
+// 2026-08-24: LLP 0302 adds the app-client URL/streamless/debug surface and
+// generated descriptor capability type; raise one bounded 1 KiB notch.
+const modulePageBudgetBytes = 472_064;
 const indexPageBudgetBytes = 32_768;
 const scopes = [
   { manifest: 'packages/snapback-client/package.json', exports: 'all' },

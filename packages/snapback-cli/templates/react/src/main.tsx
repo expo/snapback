@@ -3,13 +3,12 @@ import { createRoot } from 'react-dom/client';
 import { createSnapbackAppClient } from '@expo/snapback-client';
 import type { AuthBootstrapSnapshot } from '@expo/snapback-client';
 import { SnapbackProvider } from '@expo/snapback-react';
-import { createSnapbackDevAppBinding } from 'virtual:snapback/dev';
 import { App } from './App';
 import { app } from '../snapback/generated/app.mjs';
 
 const appClient = await createSnapbackAppClient({
   app,
-  binding: createSnapbackDevAppBinding(app),
+  url: import.meta.env.VITE_SNAPBACK_URL,
   platform: 'browser',
 });
 createRoot(document.getElementById('root')!).render(
