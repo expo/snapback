@@ -29380,6 +29380,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
     let requests = [
         ("a-lower", "user-a"),
         ("m-target", "user-m"),
+        ("m-second-target", "user-m"),
         ("n-target", "user-n"),
         ("z-upper", "user-z"),
     ]
@@ -29418,7 +29419,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
             .find(|row| row.key == OAUTH_AUTH_CLOCK_META_KEY)
             .expect("approval fixture authorization clock")
             .value,
-        "1003"
+        "1004"
     );
     for (offset, request) in requests.iter().enumerate() {
         let pairing = initial_rows
@@ -29483,6 +29484,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
     );
 
     struct AuthorityCase {
+        label: &'static str,
         user_id: &'static str,
         session_id: &'static str,
         target_label: &'static str,
@@ -29490,20 +29492,45 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
     }
     let authorities = [
         AuthorityCase {
+            label: "m-session-n",
             user_id: "user-m",
             session_id: "approval-session-n",
             target_label: "m-target",
             approved_at_ms: 2_000,
         },
         AuthorityCase {
+            label: "m-session-m",
+            user_id: "user-m",
+            session_id: "approval-session-m",
+            target_label: "m-second-target",
+            approved_at_ms: 3_000,
+        },
+        AuthorityCase {
+            label: "n-session-m",
             user_id: "user-n",
             session_id: "approval-session-m",
             target_label: "n-target",
-            approved_at_ms: 3_000,
+            approved_at_ms: 4_000,
         },
     ];
-    assert_ne!(authorities[0].user_id, authorities[1].user_id);
-    assert_ne!(authorities[0].session_id, authorities[1].session_id);
+    assert_eq!(
+        authorities
+            .iter()
+            .filter(|authority| authority.user_id == "user-m")
+            .map(|authority| authority.session_id)
+            .collect::<BTreeSet<_>>(),
+        BTreeSet::from(["approval-session-m", "approval-session-n"]),
+        "one user must succeed through two distinct sessions"
+    );
+    assert_eq!(
+        authorities
+            .iter()
+            .filter(|authority| authority.session_id == "approval-session-m")
+            .map(|authority| authority.user_id)
+            .collect::<BTreeSet<_>>(),
+        BTreeSet::from(["user-m", "user-n"]),
+        "one session id must occur across two distinct users"
+    );
     let wrong_source = test_live_session_authority_with_session(
         InvocationSource::HttpMutation,
         authorities[0].user_id,
@@ -29531,7 +29558,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
         before_wrong_source,
         "wrong-source refusal stops before the authorization clock"
     );
-    let mut accepted = BTreeMap::<String, BTreeSet<String>>::new();
+    let mut accepted = BTreeMap::<String, String>::new();
     let mut refused = BTreeMap::<String, BTreeMap<String, String>>::new();
 
     for authority_case in authorities {
@@ -29681,10 +29708,11 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
                 pairing.state = "approved".to_owned();
                 pairing.grant_id = Some(approval.grant_id);
                 assert_eq!(after, expected);
-                accepted
-                    .entry(authority_case.user_id.to_owned())
-                    .or_default()
-                    .insert(attempt_label.to_owned());
+                assert_eq!(
+                    accepted.insert(authority_case.label.to_owned(), attempt_label.to_owned()),
+                    None,
+                    "each authority case succeeds exactly once"
+                );
             } else {
                 let code = result
                     .expect_err("foreign or nonexistent OAuth approval must be refused")
@@ -29697,7 +29725,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
                     "{attempt_label} refusal advances only the authorization clock"
                 );
                 refused
-                    .entry(authority_case.user_id.to_owned())
+                    .entry(authority_case.label.to_owned())
                     .or_default()
                     .insert(attempt_label.to_owned(), code);
             }
@@ -29707,8 +29735,9 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
     assert_eq!(
         accepted,
         BTreeMap::from([
-            ("user-m".to_owned(), BTreeSet::from(["m-target".to_owned()])),
-            ("user-n".to_owned(), BTreeSet::from(["n-target".to_owned()])),
+            ("m-session-m".to_owned(), "m-second-target".to_owned()),
+            ("m-session-n".to_owned(), "m-target".to_owned()),
+            ("n-session-m".to_owned(), "n-target".to_owned()),
         ])
     );
     let exact_refusals = BTreeMap::from([
@@ -29736,8 +29765,9 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
     assert_eq!(
         refused,
         BTreeMap::from([
-            ("user-m".to_owned(), exact_refusals.clone()),
-            ("user-n".to_owned(), exact_refusals),
+            ("m-session-m".to_owned(), exact_refusals.clone()),
+            ("m-session-n".to_owned(), exact_refusals.clone()),
+            ("n-session-m".to_owned(), exact_refusals),
         ])
     );
 }
