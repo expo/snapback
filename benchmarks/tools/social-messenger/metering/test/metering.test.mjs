@@ -29,7 +29,6 @@ import {
 import {
   adaptCodexSession,
   adaptCodexSessionTree,
-  CODEX_0149_ZERO_DELTA_RULE,
   CODEX_ADAPTER_VERSION,
 } from "../adapters/codex-session.mjs";
 import { adaptUnavailableFamily } from "../adapters/unavailable.mjs";
@@ -380,7 +379,7 @@ test("Codex adapter differences every session's cumulative counters", async () =
   );
 });
 
-test("Codex 0.149 unchanged cumulative snapshot ignores only its malformed advisory total", async () => {
+test("exact retained Codex ordinal 710 fails closed on its contradictory usage checksum", async () => {
   const fixture = await fixtureText("real-codex-0149-zero-delta.jsonl");
   const lines = fixture.trimEnd().split("\n");
   assert.equal(
@@ -394,61 +393,23 @@ test("Codex 0.149 unchanged cumulative snapshot ignores only its malformed advis
     nativeSessionId: "01a03304-e4e2-71d0-892e-bf0440eac5b2",
     records,
   };
-  const channel = adaptCodexSessionTree([retainedSession]);
-  assert.equal(channel.adapterVersion, CODEX_ADAPTER_VERSION);
-  assert.equal(channel.turns.length, 111, "the repeated cumulative snapshot cannot create a turn");
-  assert.deepEqual(channel.compatibilityEvents, [{
-    ruleId: CODEX_0149_ZERO_DELTA_RULE,
-    sourceId: "builder",
-    nativeSessionId: "01a03304-e4e2-71d0-892e-bf0440eac5b2",
-    recordIndex: 113,
-    recordedAt: "2026-08-24T09:38:08.701Z",
-    nativeCliVersion: "0.149.0",
-    cumulativeUnchanged: true,
-    ignoredLastTokenUsage: {
-      inputTokens: 0,
-      cachedInputTokens: 0,
-      cacheWriteInputTokens: 0,
-      outputTokens: 0,
-      reasoningOutputTokens: 0,
-      totalTokens: 15_283,
-    },
-  }]);
-
-  const joined = joinUsageToMilestones({
-    channel,
-    boundaries: {
-      M1: {
-        status: "aborted",
-        firstGreenAt: null,
-        suitePassAt: null,
-        choreoPassAt: null,
-        terminalAt: "2026-08-24T09:38:09.000Z",
-        terminalSequence: 1,
-        terminalReason: "abort",
-      },
-    },
-  });
-  assert.deepEqual(joined.totals, counts(321_961, 64_301, 15_223_040, 0, 20_864));
-  assert.deepEqual(joined.milestones.M1.authoring.tokens, joined.totals);
-
-  const advancing = structuredClone(records);
-  const advancingUsage = advancing.at(-1).payload.info.total_token_usage;
-  advancingUsage.input_tokens += 1;
-  advancingUsage.total_tokens += 1;
-  assert.throws(
-    () => adaptCodexSessionTree([{ ...retainedSession, records: advancing }]),
-    /last_token_usage\.total_tokens does not equal input_tokens \+ output_tokens/u,
-    "the 0.149 rule must not excuse malformed last usage when cumulative usage advances",
+  let failure = null;
+  try {
+    adaptCodexSessionTree([retainedSession]);
+  } catch (error) {
+    failure = error;
+  }
+  assert.notEqual(failure, null);
+  const diagnostic = formatFinalizationFailure(failure);
+  assert.match(diagnostic, /stage=codex-token-count-delta-join/u);
+  assert.match(diagnostic, /eventOrdinal=710/u);
+  assert.match(diagnostic, /eventType="event_msg\/token_count"/u);
+  assert.match(
+    diagnostic,
+    /cumulative delta does not equal last_token_usage\.total_tokens; received 0 and 15283/u,
   );
-
-  const wrongVersion = structuredClone(records);
-  wrongVersion[0].payload.cli_version = "0.148.0";
-  assert.throws(
-    () => adaptCodexSessionTree([{ ...retainedSession, records: wrongVersion }]),
-    /last_token_usage\.total_tokens does not equal input_tokens \+ output_tokens/u,
-    "the compatibility rule must stay tied to the observed 0.149.0 native shape",
-  );
+  assert.match(diagnostic, /rawPayloadExcerpt=.*ordinal/u);
+  assert.equal(CODEX_ADAPTER_VERSION, "codex-rollout-jsonl.v3");
 });
 
 test("Codex preserves an absent optional reasoning counter as null", () => {

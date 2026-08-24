@@ -34,4 +34,7 @@ line SHA-256 is
 That event repeats the prior cumulative snapshot unchanged while carrying zero
 component counters and the contradictory advisory
 `last_token_usage.total_tokens: 15283`. No credentials or application content
-are copied into the fixture.
+are copied into the fixture. Adapter `codex-rollout-jsonl.v3` retains this as a
+fail-closed regression: the zero cumulative delta cannot checksum the nonzero
+aggregate, so the parser names ordinal 710 and refuses to invent or discard
+usage.

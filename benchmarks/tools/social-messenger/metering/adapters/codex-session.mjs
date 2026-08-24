@@ -1,4 +1,5 @@
 import {
+  nullTokenCounts,
   subtractTokenCounts,
   tokenCountsEqual,
   zeroTokenCounts,
@@ -7,9 +8,7 @@ import { timestampMillis } from "../jsonl.mjs";
 import { TOKEN_SOURCES } from "../sources.mjs";
 import { withEventDiagnostic } from "../finalization-diagnostics.mjs";
 
-export const CODEX_ADAPTER_VERSION = "codex-rollout-jsonl.v2";
-export const CODEX_0149_ZERO_DELTA_RULE =
-  "codex-0.149.0-unchanged-cumulative-zero-components-advisory-total.v1";
+export const CODEX_ADAPTER_VERSION = "codex-rollout-jsonl.v3";
 
 function requiredCount(value, label) {
   if (!Number.isInteger(value) || value < 0) {
@@ -32,58 +31,6 @@ function codexCliVersion(records) {
     throw new Error("Codex session carries conflicting cli_version values");
   }
   return [...versions][0] ?? null;
-}
-
-function diagnosticLastTokenUsage(usage, label) {
-  return {
-    inputTokens: optionalCount(usage?.input_tokens, `${label}.input_tokens`),
-    cachedInputTokens: optionalCount(
-      usage?.cached_input_tokens,
-      `${label}.cached_input_tokens`,
-    ),
-    cacheWriteInputTokens: optionalCount(
-      usage?.cache_write_input_tokens,
-      `${label}.cache_write_input_tokens`,
-    ),
-    outputTokens: optionalCount(usage?.output_tokens, `${label}.output_tokens`),
-    reasoningOutputTokens: optionalCount(
-      usage?.reasoning_output_tokens,
-      `${label}.reasoning_output_tokens`,
-    ),
-    totalTokens: optionalCount(usage?.total_tokens, `${label}.total_tokens`),
-  };
-}
-
-function zeroDeltaCompatibilityEvent({
-  entry,
-  nativeCliVersion,
-  nativeSessionId,
-  sourceId,
-}) {
-  if (nativeCliVersion !== "0.149.0" || entry.lastRaw === null) return null;
-  const label = `Codex token_count record ${entry.recordIndex}.last_token_usage`;
-  const carried = diagnosticLastTokenUsage(entry.lastRaw, label);
-  if (
-    carried.inputTokens !== 0
-    || carried.cachedInputTokens !== 0
-    || carried.cacheWriteInputTokens !== 0
-    || carried.outputTokens !== 0
-    || carried.reasoningOutputTokens !== 0
-    || carried.totalTokens === null
-    || carried.totalTokens === 0
-  ) {
-    return null;
-  }
-  return {
-    ruleId: CODEX_0149_ZERO_DELTA_RULE,
-    sourceId,
-    nativeSessionId,
-    recordIndex: entry.recordIndex,
-    recordedAt: entry.completedAt,
-    nativeCliVersion,
-    cumulativeUnchanged: true,
-    ignoredLastTokenUsage: carried,
-  };
 }
 
 function normalizeCodexCumulative(usage, label) {
@@ -121,6 +68,36 @@ function normalizeCodexCumulative(usage, label) {
   };
 }
 
+function normalizeCodexLast(usage, label) {
+  const aggregateTotal = requiredCount(usage?.total_tokens, `${label}.total_tokens`);
+  try {
+    return {
+      version: "codex-last-token-usage.v1",
+      counts: normalizeCodexCumulative(usage, label),
+      aggregateTotal,
+    };
+  } catch (error) {
+    const aggregateOnly = aggregateTotal > 0
+      && [
+        "input_tokens",
+        "cached_input_tokens",
+        "cache_write_input_tokens",
+        "output_tokens",
+        "reasoning_output_tokens",
+      ].every((field) => usage?.[field] === 0);
+    if (!aggregateOnly) throw error;
+    return {
+      version: "codex-last-token-usage.aggregate-only.v1",
+      counts: nullTokenCounts(),
+      aggregateTotal,
+    };
+  }
+}
+
+function rawTokenTotal(counts) {
+  return counts.input + counts.output + counts.cacheRead + counts.cacheWrite;
+}
+
 function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
   const nativeCliVersion = codexCliVersion(records);
   const cumulativeRecords = [];
@@ -144,7 +121,12 @@ function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
           info.total_token_usage,
           `Codex token_count record ${index + 1}.total_token_usage`,
         ),
-        lastRaw: info.last_token_usage ?? null,
+        last: info.last_token_usage === undefined
+          ? null
+          : normalizeCodexLast(
+              info.last_token_usage,
+              `Codex token_count record ${index + 1}.last_token_usage`,
+            ),
       };
     });
     if (entry !== null) cumulativeRecords.push(entry);
@@ -153,48 +135,36 @@ function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
 
   let previous = zeroTokenCounts();
   const turns = [];
-  const compatibilityEvents = [];
   for (const entry of cumulativeRecords) {
     withEventDiagnostic("codex-token-count-delta-join", entry.rawRecord, () => {
-      if (tokenCountsEqual(entry.cumulative, previous)) {
-        if (entry.lastRaw === null) return;
-        try {
-          normalizeCodexCumulative(
-            entry.lastRaw,
-            `Codex token_count record ${entry.recordIndex}.last_token_usage`,
-          );
-        } catch (error) {
-          // @ref LLP 0201#d2--quantitative-instrument — charged usage comes
-          // only from validated cumulative component deltas. Codex 0.149.0 can
-          // repeat an unchanged cumulative status with zero last components and
-          // a contradictory advisory total; retain that native shape but do not
-          // invent a turn or tokens for it.
-          const compatibilityEvent = zeroDeltaCompatibilityEvent({
-            entry,
-            nativeCliVersion,
-            nativeSessionId,
-            sourceId,
-          });
-          if (compatibilityEvent === null) throw error;
-          compatibilityEvents.push(compatibilityEvent);
-        }
+      const usage = subtractTokenCounts(entry.cumulative, previous);
+      const cumulativeChanged = !tokenCountsEqual(entry.cumulative, previous);
+      if (
+        !cumulativeChanged
+        && entry.last?.version !== "codex-last-token-usage.aggregate-only.v1"
+      ) {
         return;
       }
-      const usage = subtractTokenCounts(entry.cumulative, previous);
-      if (entry.lastRaw === null) {
+      if (entry.last === null) {
         throw new Error(
           `Codex token_count record ${entry.recordIndex} changed cumulative usage without last_token_usage`,
         );
       }
-      const last = normalizeCodexCumulative(
-        entry.lastRaw,
-        `Codex token_count record ${entry.recordIndex}.last_token_usage`,
-      );
-      if (!tokenCountsEqual(usage, last)) {
+      const cumulativeDeltaTotal = rawTokenTotal(usage);
+      if (cumulativeDeltaTotal !== entry.last.aggregateTotal) {
+        throw new RangeError(
+          `Codex token_count record ${entry.recordIndex} cumulative delta does not equal last_token_usage.total_tokens; received ${cumulativeDeltaTotal} and ${entry.last.aggregateTotal}`,
+        );
+      }
+      if (
+        entry.last.version === "codex-last-token-usage.v1"
+        && !tokenCountsEqual(usage, entry.last.counts)
+      ) {
         throw new RangeError(
           `Codex token_count record ${entry.recordIndex} cumulative delta does not equal last_token_usage`,
         );
       }
+      if (!cumulativeChanged) return;
       const cumulativeIdentity = [
         entry.cumulative.input,
         entry.cumulative.output,
@@ -211,7 +181,7 @@ function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
       previous = entry.cumulative;
     });
   }
-  return { turns, compatibilityEvents, nativeCliVersion };
+  return { turns, compatibilityEvents: [], nativeCliVersion };
 }
 
 export function adaptCodexSessionTree(sessions) {

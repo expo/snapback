@@ -24,6 +24,7 @@ import {
   CURRENT_INSTRUMENT_PIN,
   OBSERVABILITY_BLOCKS,
   OBSERVATION_VERSION,
+  observationLaneRunIdMatches,
   parseObservationJsonLines,
   projectMilestoneObservability,
   scorecardEligibility,
@@ -289,7 +290,11 @@ function validateCurrentMeteringProvenance(errors, record, extension, artifactRo
     if (loaded === null) continue;
     let events;
     try {
-      events = parseObservationJsonLines(loaded.text, descriptor.path);
+      events = parseObservationJsonLines(
+        loaded.text,
+        descriptor.path,
+        { laneRunId: provenance.laneRunId },
+      );
     } catch (error) {
       errors.push(`${observationPath}: invalid observation stream: ${error.message}`);
       continue;
@@ -707,15 +712,23 @@ function loadObservationEvidence(errors, extension, artifactRoot) {
     if (loaded === null) continue;
     let sourceEvents;
     try {
-      sourceEvents = parseObservationJsonLines(loaded.text, artifact.path);
+      sourceEvents = parseObservationJsonLines(
+        loaded.text,
+        artifact.path,
+        { laneRunId: extension.meteringProvenance?.laneRunId },
+      );
     } catch (error) {
       errors.push(`${path}: invalid observation event stream: ${error.message}`);
       continue;
     }
     for (const event of sourceEvents) {
-      if (event.laneRunId !== extension.meteringProvenance?.laneRunId) {
+      if (!observationLaneRunIdMatches(
+        event.laneRunId,
+        extension.meteringProvenance?.laneRunId,
+      )) {
         errors.push(`${path}: observation laneRunId does not match metering provenance`);
       }
+      event.laneRunId = extension.meteringProvenance?.laneRunId;
     }
     events.push(...sourceEvents.map((event) => ({
       ...event,

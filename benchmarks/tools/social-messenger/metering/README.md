@@ -44,15 +44,14 @@ The emitted `meteringProvenance` block retains all identities, hashes, and clock
 evidence.
 
 The Codex parser is versioned independently from the manifest. Adapter
-`codex-rollout-jsonl.v2` has one bounded compatibility rule for the observed
-Codex CLI 0.149.0 native shape: when a validated cumulative component snapshot
-is unchanged, and `last_token_usage` carries zero for every component but a
-contradictory positive advisory `total_tokens`, the repeated status creates no
-turn and charges no tokens. The parser records the rule ID, native CLI version,
-source/session identity, record index/timestamp, and every ignored advisory
-counter under `meteringProvenance.adapter.compatibilityEvents`. The exception
-never applies when any cumulative component advances; those records still
-require an internally valid `last_token_usage` equal to the cumulative delta.
+`codex-rollout-jsonl.v3` validates the aggregate `last_token_usage.total_tokens`
+against the exact cumulative-component delta even when Codex reports only an
+aggregate last-turn total. A repeated cumulative snapshot with a nonzero
+aggregate therefore fails closed: treating that value as advisory would discard
+unexplained charged usage. When cumulative usage advances, an aggregate-only
+last-turn shape may be admitted only when its aggregate equals the exact
+cumulative delta; full component shapes must additionally equal that delta
+component by component.
 Optional native counters that are genuinely absent remain `null` where the
 record schema allows null; the adapter does not manufacture zeroes.
 

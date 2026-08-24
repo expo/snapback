@@ -15,6 +15,17 @@ export const OBSERVATION_VERSION = "social-messenger-observation.v1";
 export const CURRENT_INSTRUMENT_PIN = "social-messenger@0.3.3-m8";
 export const COSTLY_EPISODE_THRESHOLD_ACTIONS = 2;
 
+export function observationLaneRunIdMatches(value, laneRunId) {
+  if (value === laneRunId) return true;
+  if (typeof value !== "string" || typeof laneRunId !== "string") return false;
+  const separator = laneRunId.lastIndexOf("/");
+  return separator !== -1 && value === laneRunId.slice(separator + 1);
+}
+
+export function canonicalObservationLaneRunId(value, laneRunId) {
+  return observationLaneRunIdMatches(value, laneRunId) ? laneRunId : value;
+}
+
 export const OBSERVABILITY_BLOCKS = Object.freeze([
   "semanticActions",
   "failureToRecoveryEpisodes",
@@ -362,7 +373,11 @@ export function normalizeObservationEvent(event, label = "observation") {
   }
 }
 
-export function parseObservationJsonLines(text, label = "observations") {
+export function parseObservationJsonLines(
+  text,
+  label = "observations",
+  { laneRunId = null } = {},
+) {
   const events = [];
   for (const [index, line] of text.split(/\r?\n/u).entries()) {
     if (line.trim() === "") continue;
@@ -385,11 +400,23 @@ export function parseObservationJsonLines(text, label = "observations") {
       streamLine: index + 1,
       rawPayload: line,
     });
-    events.push(withEventDiagnostic(
+    const normalized = withEventDiagnostic(
       "observation-event-normalize",
       event,
       () => normalizeObservationEvent(event, `${label}:${index + 1}`),
-    ));
+    );
+    if (laneRunId !== null) {
+      normalized.laneRunId = canonicalObservationLaneRunId(
+        normalized.laneRunId,
+        laneRunId,
+      );
+    }
+    retainRawEventContext(normalized, {
+      source: label,
+      streamLine: index + 1,
+      rawPayload: line,
+    });
+    events.push(normalized);
   }
   const identities = new Set();
   for (const event of events) {

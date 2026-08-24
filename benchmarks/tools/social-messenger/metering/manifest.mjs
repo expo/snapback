@@ -20,7 +20,11 @@ import {
   R2_CODEX_SHARED_HOST_CLOCK_EVIDENCE,
   recoverCodexSignalSettlements,
 } from "./codex-native-evidence.mjs";
-import { parseObservationJsonLines } from "./observations.mjs";
+import {
+  observationLaneRunIdMatches,
+  parseObservationJsonLines,
+} from "./observations.mjs";
+import { withEventDiagnostic } from "./finalization-diagnostics.mjs";
 import { assertCapFamily } from "./sources.mjs";
 import { validateJsonSchema } from "../../lib/json-schema.mjs";
 
@@ -240,11 +244,18 @@ async function loadObservations(manifestDirectory, observations, laneRunId) {
     if (sourceIds.has(sourceId)) throw new Error(`duplicate observation sourceId ${sourceId}`);
     sourceIds.add(sourceId);
     const artifact = await readArtifact(manifestDirectory, observation, label);
-    const sourceEvents = parseObservationJsonLines(artifact.text, artifact.path);
+    const sourceEvents = parseObservationJsonLines(
+      artifact.text,
+      artifact.path,
+      { laneRunId },
+    );
     for (const event of sourceEvents) {
-      if (event.laneRunId !== laneRunId) {
-        throw new Error(`${label} event does not belong to laneRunId ${laneRunId}`);
-      }
+      withEventDiagnostic("observation-lane-identity", event, () => {
+        if (!observationLaneRunIdMatches(event.laneRunId, laneRunId)) {
+          throw new Error(`${label} event does not belong to laneRunId ${laneRunId}`);
+        }
+        event.laneRunId = laneRunId;
+      });
     }
     events.push(...sourceEvents.map((event) => ({
       ...event,
