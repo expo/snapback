@@ -8,6 +8,13 @@ client, Code generation, Templates, Guide, Diagnostics
 overnight directive 2026-08-24: RFC → refine → Specs → refine →
 implementation)
 **Date:** 2026-08-24
+**Revised:** 2026-08-24 (d — round-2 revision, after which the normative
+surface is FROZEN per the Spec-type default: stream-less consumers get a
+normative per-operation preflight (the idle-swap residual is closed, not
+merely stated); the precedence table is scoped to capability-present with
+named rendezvous signals; the release variant is import-stable; the brand
+is a library-internal stamp; un-verify narrowed to transport failure,
+drop, or 5xx; malformed-fact and refusal codes pinned via LLP 0301 §7a)
 **Revised:** 2026-08-24 (c — round-1 revision: gating rebuilt on an
 always-emitted generated module with a module-private brand (release
 builds succeed with `url` set); the episode machine rebuilt on transport
@@ -22,6 +29,13 @@ server/CLI sibling; owns the identity fact and the shared canonicalization
 this Spec consumes), LLP 0299, LLP 0181
 
 ## Summary
+
+> **Scope freeze (2026-08-24).** Per LLP 0010 §2's Spec-type default, the
+> normative surface of this Spec froze after the round-2 revision (d):
+> subsequent revisions make corrections and restorations only, and any
+> demand for new normative closure is recorded as an obligation, never
+> folded as new prose.
+
 
 The client half of LLP 0300 P1/P4: the `declared-dev` binding source,
 gated structurally by an **always-emitted generated module whose dev and
@@ -43,24 +57,29 @@ builds must still **succeed** with the URL env and `url` argument present
   release emits the variant that does not export or construct that source
   at all. Generated output is replaced atomically, and a dirty
   dev→release transition (stale files) is covered by acceptance.
-- **Module-private brand:** the dev variant mints its capability with a
-  brand private to the module instance (an unexported closure value); the
-  admission arm (§2) accepts a `declared-dev` candidate only when it
-  carries that brand. The app's public deployment identity is *checked*
+- **Library-internal stamp (the brand):** the dev variant obtains its
+  capability by calling a library mint; the library stamps it internally
+  (a private Symbol/WeakMap the library owns), and the admission arm (§2)
+  accepts a `declared-dev` candidate only when the library's own stamp is
+  present — unforgeable from public API. The app's public deployment identity is *checked*
   (below) but is **not** the brand — a candidate assembled from public
   data is refused. `admitAppBindingV1` gains no option that constructs
   one from raw application data.
-- **Capability-absent rule:** when the running artifact's generated
-  variant is the release one, a provided `url` is ignored for source
-  selection (a debug-level diagnostic names that `declared-dev` is not
-  present in this artifact); the existing `release` / `hosted-development`
-  / `supervised-dev` admission runs byte-for-byte unchanged. The release
-  build with `url` set therefore builds, boots, and admits exactly as
-  before.
+- **Import-stable release variant:** the release variant exports the
+  same named surface at the same path (a sentinel that constructs
+  nothing), and the generated `app` surface is replaced in the same
+  atomic step as the variant, so importers never fail to resolve or
+  load. **Capability-absent rule:** with the release variant, a provided
+  `url` is ignored for source selection (a debug-level diagnostic names
+  that `declared-dev` is not present); the existing `release` /
+  `hosted-development` / `supervised-dev` admission runs byte-for-byte
+  unchanged. The release build with `url` set therefore builds, boots,
+  and admits exactly as before.
 - Generation-provenance check: the dev capability embeds the generating
-  `app`'s DeploymentIdentity; admission refuses (typed) when it differs
-  from the importing generated `app`'s identity, using the LLP 0301 §2a
-  comparator.
+  `app`'s DeploymentIdentity; admission refuses with
+  `SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED` (also the unbranded-candidate
+  code) when it differs from the importing generated `app`'s identity,
+  using the LLP 0301 §2a comparator.
 
 ## 2. The `declared-dev` admission arm
 
@@ -81,9 +100,10 @@ is the degenerate case below.
 - **Episode start:** (a) first use of the origin by this client instance;
   (b) establishment of a new standing stream (including every reconnect
   after a stream drop); (c) any transport error, connection drop, or
-  non-2xx on a **non-identity** call — which immediately *un-verifies*
-  the episode: the failed call is not retried and no other call is made
-  until re-verification.
+  **5xx** on a non-identity call — which immediately *un-verifies* the
+  episode: the failed call is not retried and no other call is made until
+  re-verification. (Application-level 4xx does not un-verify; it cannot
+  indicate process replacement.)
 - In an unverified episode the only permitted request is
   `GET /_snapback/api/app/identity`, sent credential-free with cache
   bypass (`cache: 'no-store'`; no conditional headers) and refusing
@@ -95,20 +115,29 @@ is the degenerate case below.
   credentialed calls.
 - **Mismatch** → `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` naming both
   identities. **Malformed fact** — wrong/missing `formatVersion`, missing
-  or digest-incomplete `deployment`, missing `admissionPosture` — or any
-  network refusal, non-2xx (including Prod's
-  `SNAPBACK_APP_IDENTITY_UNAVAILABLE`), or redirect → an ordinary connect
-  refusal naming the code; never a binding. `admissionPosture` is
+  or digest-incomplete `deployment`, missing `admissionPosture` —
+  refuses with `SNAPBACK_APP_IDENTITY_FACT_INVALID`; any network refusal,
+  non-2xx (including Prod's `SNAPBACK_APP_IDENTITY_UNAVAILABLE`), or
+  redirect is an ordinary connect refusal naming the code; never a
+  binding. `admissionPosture` is
   otherwise echoed in diagnostics and not consumed.
-- Cadence: no timer. **Stated residual (accepted):** a purely stateless
-  consumer that observes no failure across an instant backend swap on the
-  same port could send one post-swap call unverified; clients that hold
-  the standing stream do not have this window (the old process's death
-  drops the stream). This is the same single-user-host residual LLP 0300
-  accepts, and headless consumers that need better start a standing
-  stream or re-instantiate the client per operation.
+- Cadence: no timer for streamed clients — the standing stream's drop is
+  the replacement signal, so no unverified call can follow a swap.
+  **Stream-less mode is normatively closed, not a residual:** a consumer
+  operating without the standing stream (an explicitly stream-less
+  headless configuration) MUST re-verify before **every top-level
+  operation** — each operation is its own episode. There is no mode in
+  which a call may reach a replaced backend without a preceding match;
+  LLP 0300's standing invariant holds for both shapes.
 
 ## 4. Source precedence — rendezvous wins, literally
+
+This table applies when the generated dev capability is present (§1);
+with the release variant, §1's capability-absent rule takes precedence and
+`url` is never a source selector. "Configured" means the supervised
+environment signal is installed — `EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN`
+or the injected `__SNAPBACK_EXPO_SUPERVISOR_ORIGIN__` global; "absent"
+means neither is set.
 
 | Rendezvous state | Selected source |
 | --- | --- |

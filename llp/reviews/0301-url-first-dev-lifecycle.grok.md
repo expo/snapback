@@ -95,3 +95,128 @@ The 0302 spec is truncated in the prompt. I’ll read the offloaded full request
 0301: NOT READY  
 0302: NOT READY  
 SET: NOT READY
+
+## Cluster round 2 (delta) — 2026-08-24
+
+- Targets: 0301(c)+0302(c) at bda23afc7; capsule + hashes in run journal
+- Received: complete response; verbatim body follows
+
+The prompt was truncated; I’ll read the offloaded full request so the review covers both specs and diffs, then classify findings without any other tools.The prompt file continues past the 0302 diff; I’ll read the remaining governing RFC text next.The delta’s thirteen resolutions are mostly sound and implementable. One mixed-version attach cell is still internally contradictory; that is the only MATERIAL. Everything else is either clean or a non-blocking clarification the implementation phase can carry.
+
+---
+
+**1. MATERIAL / IN-DELTA / LLP 0301 §3 (attach contract, old-CLI × new-plain cell)**
+
+The four mixed-version outcomes are specified, but the refuse mechanism for **old-CLI / new-plain (`loopback-any`)** cannot be the mechanism the paragraph names.
+
+- **old-CLI / new-supervised** succeeds because the field is additive and the verifier’s unknown-field posture ignores it; attach is the **old** origin-list comparison.
+- **old-CLI / new-plain** is required to **refuse**, yet the text says “the unknown-field tolerance applies to parsing, and **the recorded-contract comparison above** is what refuses.” “Above” is the **new** posture+declarations comparison. An already-shipped old CLI does not run that comparison.
+- The same unknown-field ignore that lets old-CLI / new-supervised succeed will also ignore `admissionPosture: "loopback-any"`. After that, the old CLI only sees `clientOrigins: []`. If its requested list is also empty, the old comparison **matches** and attach **succeeds** — the opposite of the cell.
+
+The distinguishing old-CLI-visible signal cannot be “a posture it does not know”; that field is unknown in **both** new-receipt cells.
+
+**Concrete change:** Derive this cell only from behavior the old CLI already has. Pin requested-vs-recorded **origin lists** (e.g. old CLI requests a non-empty explicit/default list; new-plain writes `clientOrigins: []` → mismatch → refuse). Delete the claim that the new posture-aware comparison runs on the old CLI. If a true old CLI would accept `clientOrigins: []`, **change the cell** (success with degraded allowlist semantics, or a breaking receipt signal old validation actually rejects). Do not freeze a SHALL that only the new CLI could implement.
+
+---
+
+**2. MINOR / IN-DELTA / LLP 0302 §4 + §1 (source-selection axes)**
+
+The three-row table is a correct literal of rendezvous-vs-`url`. It does not mention the release / capability-absent axis. Read alone, row 3 (“absent rendezvous + `url` → `declared-dev`”) contradicts §1 (release variant must not select `declared-dev`).
+
+**Concrete change:** One preamble sentence: §4 applies only when the generated variant provides the capability; §1 capability-absent takes precedence and `url` is not a source selector. Do not add `SOURCE_CONFLICT` back.
+
+---
+
+**3. MINOR / IN-DELTA / LLP 0302 §1 (release variant export surface)**
+
+“Always the same module path” + “application source imports nothing that can be absent” + “does not export or construct that source at all” can be read as a missing named export (load/build throw). Acceptance 1 requires release builds with `url` set to **succeed**.
+
+**Concrete change:** State that the release variant is import-stable at that path (stub / sentinel / no constructor) and that the generated app surface is replaced in the same atomic step as the variant, so importers never fail to resolve.
+
+---
+
+**4. MINOR / IN-DELTA / LLP 0302 §1 (brand check)**
+
+A brand that is only an unexported closure in the generated module is not observable by library `admitAppBindingV1`. The intended property is unforgeability from public API.
+
+**Concrete change:** Call it a library-internal stamp (Symbol / WeakMap) applied only by a mint the generated module calls; `admitAppBindingV1` checks that stamp; public `DeploymentIdentity` is checked separately and is not the stamp. Keep “no public constructor from raw application data.”
+
+---
+
+**5. MINOR / IN-DELTA / LLP 0301 §3 (new-CLI / old-receipt attach)**
+
+The fourth cell states the **reader** rule (`explicit-list`) but not the **attach** success/fail that composition implies: new CLI with no declarations requests `loopback-any`; recorded legacy is `explicit-list` → mismatch → refuse (restart). New CLI with matching explicit declarations succeeds.
+
+**Concrete change:** Add those two attach outcomes so the four cells are all attach outcomes, not a mix of attach and parse.
+
+---
+
+**6. MINOR / IN-DELTA / LLP 0302 §4 (“configured” / “absent”)**
+
+Revision (b) named the signals (`EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN` / injected global). (c) replaced that with “configured” / “absent.”
+
+**Concrete change:** Restore those existing signals so the three rows are executable without tribal knowledge. Keep the three outcomes.
+
+---
+
+**7. SUGGESTION / IN-DELTA / LLP 0302 §3 (episode start (c))**
+
+“Any … non-2xx on a non-identity call” un-verifies on application 4xx (400/401/429), not only transport/process replacement. Fail-closed and implementable; noisier than mix-up detection needs.
+
+**Concrete change (optional):** Limit (c) to transport failure, stream drop, and 5xx, or explicitly accept 4xx as un-verify. Do not reopen the stated idle-swap residual.
+
+---
+
+**8. SUGGESTION / IN-DELTA / LLP 0301 §4 (writer insert vs refuse)**
+
+“Exactly one well-formed block required” plus refuse-rather-than-guess can be misread as refusing a first write (zero blocks).
+
+**Concrete change:** Missing file or zero snapback blocks → insert; refuse is for duplicate/malformed blocks, managed keys outside the block, and a manually uncommented Android line.
+
+---
+
+**9. SUGGESTION / IN-DELTA / LLP 0301 §2 vs §2b**
+
+§2 still says hostname **exactly** `localhost` / `127.0.0.1` / `[::1]`. §2b admits `127.1` via WHATWG parse. Acceptance 2 already requires the shared vectors, so this will not survive tests, but §2 should say “after §2b canonicalization.”
+
+---
+
+**10. SUGGESTION / IN-DELTA / LLP 0301 §4 (dropped `--expo` URL print)**
+
+(b) printed the backend origin line on both profiles. (c) prints only for plain-profile ready/attach/rebind. Supervised does not need `SNAPBACK_URL`; confirm the drop is intentional.
+
+---
+
+**11. SUGGESTION / IN-DELTA / LLP 0301 §4 / attach diagnostics**
+
+Writer and attach-mismatch refusals are “typed diagnostics” with no code tokens. Identity/posture/dev-session codes are named.
+
+**Concrete change:** Name them or explicitly reuse an existing CLI code, in the same s5_d10 landing as §7.
+
+---
+
+## Clean dimensions (no MATERIAL findings)
+
+| Delta | Verdict |
+| --- | --- |
+| (1) `startupNonce` removed; identity+posture only; `no-store` / no validators; client cache-bypass + redirect refusal | Sound. Mix-up detection is transport + cache-bust, not a nonce. |
+| (2) Episode machine on the standing live-query stream; signup/login forbidden pre-match; idle-swap residual stated and accepted | Sound and implementable. Residual matches the single-user-host argument. |
+| (3) Always-emitted module; brand; capability-absent; atomic dirty transition | Direction is correct and matches LLP 0300 row 5. Minors 2–4 only. |
+| (4) Three-row rendezvous-wins table; `SOURCE_CONFLICT` dropped | Sound. Completing rendezvous must not refuse because `url` exists. Minor 2/6 only. |
+| (5) Writer matrix, `loopback-any` reader rule (`clientOrigins` never the allowlist), attach mismatch, reader-before-writer | Matrix, reader rule, and **new-CLI** attach comparison are sound. MATERIAL is only the old-CLI / new-plain **mechanism**. |
+| (6) `SNAPBACK_DEV_ADMISSION_POSTURE` spawn-owned; `runDev` always overwrites; invalid pairs refuse startup | Sound. Replaces silent fail-closed-to-`explicit-list`. |
+| (7) `dev-session` target, existing managed admin token, no new disk credential, stdout schemas, disk-sweep | Sound. |
+| (8) `DeploymentIdentity` = existing readiness serialization; field-wise equality after JSON parse; unknown version malformed | Sound at spec altitude (existing type is the schema). |
+| (9) One WHATWG algorithm + shared vectors; `127.1` in; `localhost.` out; Origin-less admitted under both postures | Sound. Conformance set is the pin across Rust/JS. |
+| (10) Single marker block, atomic replace, outside-duplicate refuse, commented Android line, byte-equality, camelCase JSON | Sound. Suggestions 8/10/11 only. |
+| (11) Nine-row traceability, including forwarded-loopback, release success, row 8 data preservation, row 9 custody | Sound. Every LLP 0300 row names an executable battery. |
+| (12) Documentary deliverables own guide / 0181 / 0223 / start packets / `--client` | Sound. `--client` is not the template shape. |
+| (13) Signed discovery designed in 0301 §9; excluded from this implementation set; 0302 §6 names the punt | Sound. Additive `identitySignature` later will not break this set’s malformed-fact list. |
+
+LLP 0300 decisions are treated as settled (path split, rendezvous-wins, release-must-succeed-with-`url`, no new disk credential, signed discovery not in this set).
+
+---
+
+0301: NOT READY
+0302: READY
+SET: NOT READY

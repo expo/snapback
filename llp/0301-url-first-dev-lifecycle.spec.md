@@ -8,6 +8,14 @@ Diagnostics
 overnight directive 2026-08-24: RFC → refine → Specs → refine →
 implementation)
 **Date:** 2026-08-24
+**Revised:** 2026-08-24 (d — round-2 revision, after which the normative
+surface is FROZEN per the Spec-type default: canonicalization split into
+syntax vs host policy (tunnel origins admitted in explicit lists); the
+mixed-version attach cells rewritten from legacy-CLI behavior with a
+stated dev-only safety note; §9 downgraded to an explicitly deferred
+non-normative sketch; a diagnostic-code matrix pinning every typed branch;
+writer zero-block insert rule; supervised URL print restored; §2 wording
+tied to §2b)
 **Revised:** 2026-08-24 (c — round-1 revision: `startupNonce` dropped from
 the fact; caching rules; posture variable specified as spawn-owned; receipt
 writer/reader matrix + attach contract; dev-session full contract on the
@@ -21,6 +29,13 @@ designed at spec altitude, implementation excluded from this set)
 (the client-side sibling), LLP 0010, LLP 0181, LLP 0223
 
 ## Summary
+
+> **Scope freeze (2026-08-24).** Per LLP 0010 §2's Spec-type default, the
+> normative surface of this Spec froze after the round-2 revision (d):
+> subsequent revisions make corrections and restorations only, and any
+> demand for new normative closure is recorded as an obligation, never
+> folded as new prose.
+
 
 The server/CLI half of LLP 0300: the identity-discovery wire contract, the
 path-split origin-admission implementation, the receipt posture field, URL
@@ -97,11 +112,11 @@ Posture × list pairs (exhaustive):
 | `explicit-list` | non-empty | the complete allowlist (plain: union of declarations; supervised: merged exact origins) |
 | `explicit-list` | unset/empty | **invalid** — refuse startup |
 
-- **Literal loopback matcher:** scheme `http`/`https`, hostname exactly
-  `localhost`, `127.0.0.1`, or `[::1]`, any port, via a new shared
-  normalizer `canonical_dev_client_origin` that **extends** today's
-  `canonical_loopback_http_origin` (which is the http-focused seam) —
-  named honestly as an extension, with no DNS resolution ever performed.
+- **Literal loopback matcher:** after §2b canonicalization, hostname
+  string-equal to `localhost`, `127.0.0.1`, or `[::1]`, any port, via a
+  new shared normalizer `canonical_dev_client_origin` that **extends**
+  today's `canonical_loopback_http_origin` — named honestly as an
+  extension, with no DNS resolution ever performed.
 - **Plain profile:** no declarations → `loopback-any`. Declarations
   (`SNAPBACK_DEV_AUTH_ORIGINS` and/or `--external-client-origin`) →
   `explicit-list` with the union; flag-only is the singleton complete
@@ -113,14 +128,22 @@ Posture × list pairs (exhaustive):
   it is a *URL host* (LLP 0302 §2), never an Origin-allowlist entry here
   (the browser never runs at a `10.0.2.2` origin).
 
-### 2b. URL/origin canonicalization — one normative algorithm
+### 2b. Origin canonicalization and host policy — separated
 
-Used by the server matcher, the CLI flags, and all LLP 0302 consumers:
-parse with the WHATWG URL parser; refuse on parse failure, credentials,
-non-empty path (other than `/`), query, or fragment; require scheme
-`http`/`https`; lowercase the hostname; the post-parse hostname must be
-**string-equal** to one of the admitted literals for the surface (`localhost`,
-`127.0.0.1`, `[::1]` — plus `10.0.2.2` for LLP 0302's URL admission).
+**Syntax (all surfaces):** parse with the WHATWG URL parser; refuse on
+parse failure, credentials, non-empty path (other than `/`), query, or
+fragment; require scheme `http`/`https`; lowercase the hostname; the
+canonical form is the parser's `origin` serialization. This syntactic rule
+alone governs entries in an **explicit allowlist**
+(`SNAPBACK_DEV_AUTH_ORIGINS` / `--external-client-origin`): a declared
+origin may be any canonical HTTP(S) origin, tunnels included —
+`https://lane.trycloudflare.com` is a valid explicit entry (LLP 0300 P2 /
+Acceptance 3).
+
+**Host policy (fixed-set surfaces):** after canonicalization, the
+post-parse hostname must be **string-equal** to the surface's literal set:
+the `loopback-any` matcher admits `localhost`, `127.0.0.1`, `[::1]`;
+LLP 0302's URL admission adds `10.0.2.2`.
 Parser normalization is the canonicalizer: `127.1` normalizes to
 `127.0.0.1` and is thereby admitted; `localhost.` (trailing dot) does not
 normalize away and is refused; default ports normalize to none; the
@@ -132,7 +155,8 @@ canonical form is the parser's `origin` serialization. **Shared vectors**
 (even if DNS-loopback), `http://127.0.0.1:4287/path`, `http://user@127.0.0.1`,
 `http://127.0.0.1?x`, `ws://127.0.0.1`, `http://0.0.0.0`,
 `http://192.168.1.10:4287`. (`http://10.0.2.2:4287` ✓ on the LLP 0302 URL
-surface only.)
+surface only; `https://lane.trycloudflare.com` ✓ as an explicit-allowlist
+entry and refused on every fixed-set surface.)
 
 ## 3. Receipt posture — writer matrix, reader rule, attach contract
 
@@ -151,18 +175,23 @@ declarations-only and MAY be empty — it is **never** the allowlist; a
 reader must not interpret empty as "admit nobody".
 
 **Attach contract:** an attaching CLI cannot change a running server's
-posture. Attach compares the *requested* admission contract (posture +
-declarations of the attaching invocation) against the *recorded* one; on
-mismatch it refuses with a typed diagnostic naming both (no adoption, no
-restart side-effect) — deliberate restart remains the operator's move.
-The four CLI×receipt cells and their expected outcomes: old-CLI/old-receipt
-= today; old-CLI/new-supervised-receipt = attach succeeds (additive field
-tolerated by the verifier's unknown-field posture); old-CLI/new-plain
-(`loopback-any`) receipt = attach **refuses** (the old CLI cannot honor a
-posture it does not know — the unknown-field tolerance applies to parsing,
-and the recorded-contract comparison above is what refuses);
-new-CLI/old-receipt = `explicit-list` per the reader rule. Readers ship
-before writers within one publication.
+posture. A **new** CLI compares the *requested* admission contract
+(posture + declarations) against the *recorded* one; on mismatch it
+refuses with `SNAPBACK_DEV_ATTACH_ADMISSION_MISMATCH` naming both (no
+adoption, no restart side-effect). A **legacy** CLI runs only the
+comparison it already ships — requested-vs-recorded origin *lists* — and
+the cells below claim nothing a legacy CLI cannot execute:
+
+| CLI | Receipt | Attach outcome |
+| --- | --- | --- |
+| old | old | today's behavior |
+| old | new supervised | succeeds (additive field ignored; origin lists match as today) |
+| old, no declarations | new plain (`loopback-any`, `clientOrigins: []`) | **succeeds** by the old empty-vs-empty list comparison, with degraded semantics: the old CLI models an exact empty list while the server admits loopback-any. Safety analysis, stated: the server admits *more* browser origins than the old CLI's model — the exposure is exactly LLP 0300 P2's accepted dev posture, and no origin the old CLI believed admitted is dropped. Dev-only; accepted. |
+| old, with declarations | new plain | refuses via the old list comparison (non-empty requested vs `[]` recorded) |
+| new, no declarations (requests `loopback-any`) | old (`explicit-list`) | refuses (`SNAPBACK_DEV_ATTACH_ADMISSION_MISMATCH`); deliberate restart is the operator's move |
+| new, declarations matching the recorded list | old | succeeds |
+
+Readers ship before writers within one publication.
 
 ## 4. `snapback dev` prints the URL; the opt-in writer
 
@@ -170,19 +199,21 @@ before writers within one publication.
   the human line `SNAPBACK_URL=http://127.0.0.1:<port>` plus an
   Android-emulator note, and emits `--json` fields `snapbackUrl` and
   `androidEmulatorUrl` (camelCase; the human line keeps the env spelling).
+- The backend-origin line prints on the supervised profile too (additive
+  to its readiness output), so both profiles expose the same fact.
 - `--write-env [path]` (default `./.env.local`; opt-in only): writes
   `EXPO_PUBLIC_SNAPBACK_URL`, `VITE_SNAPBACK_URL`, `SNAPBACK_URL`, each
   byte-equal to the printed `snapbackUrl`, inside exactly one marker block
   (`# >>> snapback dev >>>` … `# <<< snapback dev <<<`). Rules: atomic
   replace (temp file + rename) preserving unrelated bytes and file mode;
   refresh after every ready/attach/rebind that changes the origin, with
-  the bundler-must-restart caveat printed on rewrite; exactly one
-  well-formed block required — duplicate or malformed blocks, or a managed
-  key present *outside* the block, refuse with a typed diagnostic rather
-  than guessing; an Android `10.0.2.2` line may be written **commented**
-  inside the block and a manually-uncommented value is never silently
-  overwritten (the writer re-comments nothing; it refuses with the same
-  typed diagnostic). No credential bytes ever (LLP 0300 P4); unignored
+  the bundler-must-restart caveat printed on rewrite; a missing file or zero
+  snapback blocks means **insert** (first write); refusal —
+  `SNAPBACK_DEV_ENV_WRITER_CONFLICT` — is for duplicate or malformed
+  blocks, a managed key present *outside* the block, or a manually
+  uncommented Android line; an Android `10.0.2.2` line may be written **commented**
+  inside the block; a manually uncommented value is never silently
+  overwritten (the writer refuses as above). No credential bytes ever (LLP 0300 P4); unignored
   target file → warn.
 - Android-emulator teaching (start packets): paste `androidEmulatorUrl` by
   hand; the writer's block is the host-loopback value.
@@ -217,6 +248,22 @@ media-feed follows), plus: `--client <dir> --client-command <cmd>` remains
 a non-allocating child launcher and is not the template shape; migration
 text names the leftover `SNAPBACK_DEV_CLIENT_PORT` /
 `SNAPBACK_DEV_BOOTSTRAP_PORT` footgun.
+
+## 7a. Diagnostic-code matrix (pinned before the freeze)
+
+| Branch | Code |
+| --- | --- |
+| Posture/list invalid at startup | `SNAPBACK_DEV_ADMISSION_POSTURE_INVALID` (new, Rust) |
+| Identity route on Prod | `SNAPBACK_APP_IDENTITY_UNAVAILABLE` (new, Rust) |
+| Attach admission mismatch (new CLI) | `SNAPBACK_DEV_ATTACH_ADMISSION_MISMATCH` (new, JS) |
+| Writer structural conflict | `SNAPBACK_DEV_ENV_WRITER_CONFLICT` (new, JS) |
+| dev-session target missing/stale | `SNAPBACK_DEV_SESSION_TARGET_MISSING` (new, JS) |
+| dev-session mint-mode refusals | existing supervised-mint codes, verbatim |
+| Malformed identity fact (client) | `SNAPBACK_APP_IDENTITY_FACT_INVALID` (new, JS — LLP 0302 §3) |
+| declared-dev URL refused | `SNAPBACK_APP_BINDING_URL_INVALID` (new, JS — LLP 0302 §2) |
+| Unbranded / generation-mismatch declared-dev candidate | `SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED` (new, JS — LLP 0302 §1) |
+
+All new codes are s5_d10-classified with the landing.
 
 ## 7. Documentary deliverables (owned here)
 
@@ -271,19 +318,17 @@ backend-data preservation and ordinary re-sign-in); 9 → 0301.6 + 0302.5.
 Every row names at least one executable battery; the implementation ships
 this table as a checked test-inventory comment.
 
-## 9. Signed discovery — designed, excluded from this set
+## 9. Signed discovery — explicitly deferred (non-normative sketch)
 
-Protocol (design pinned at spec altitude; **implementation explicitly
-excluded from this implementation set**, tracked by an issue filed at
-landing): the store mints an Ed25519 dev-identity key at initialization;
-the identity fact gains optional `identitySignature` over the canonical
-JSON bytes of `deployment`+`admissionPosture`; the fingerprint reaches the
-client out-of-band via the printed line
-(`SNAPBACK_URL_FINGERPRINT=<fp>`) and an optional provider argument;
-a client configured with a fingerprint refuses an unsigned or wrongly
-signed fact (typed); absent configuration runs unsigned (opt-in
-hardening, per LLP 0300); store re-key rotates the key and fingerprint
-together. Shared-host lanes are the trigger audience.
+The normative design is **deferred to a future Spec** and is not part of
+this implementation set (tracked by an issue filed at landing). The
+non-normative sketch — a store-minted dev-identity key signing the fact,
+a fingerprint delivered out-of-band, refusal when configured — carries
+known open problems a future Spec must solve before anything freezes:
+public-key carriage (a fingerprint alone verifies nothing), replay by a
+replacement listener (freshness/transport binding), and rotation. Nothing
+in this set's wire contract precludes the future additive
+`identitySignature` field. Shared-host lanes are the trigger audience.
 
 ## 10. Out of scope
 

@@ -44,3 +44,25 @@ Dimension status: **FAITHFULNESS — MATERIAL findings; IMPLEMENTABILITY — MAT
 0301: NOT READY  
 0302: NOT READY  
 SET: NOT READY
+## Cluster round 2 (delta) — 2026-08-24
+
+- Targets: 0301(c)+0302(c) at bda23afc7; capsule + hashes in run journal
+- Received: complete response; verbatim body follows
+
+1. **MATERIAL — IN-DELTA — LLP 0301 §2b.** The canonicalizer applies a fixed loopback hostname set to CLI declarations, contradicting LLP 0300 P2/Acceptance 3, which permits explicitly declared non-loopback client origins. Separate syntactic origin canonicalization from host-policy admission: explicit lists may contain canonical HTTP(S) origins; `loopback-any` and `declared-dev` retain their fixed host sets. Add a positive tunnel-origin vector.
+
+2. **MATERIAL — IN-DELTA — LLP 0301 §3.** `old-CLI/new-plain-receipt = refuses` is not implementable as specified. A legacy CLI that ignores `admissionPosture` cannot execute the new posture comparison, and `clientOrigins: []` does not guarantee its existing verifier refuses. Either use an encoding/version that legacy readers already reject, or permit legacy attachment with an explicit safety analysis. Also state an actual success/refusal outcome for `new-CLI/old-receipt`, not merely its interpretation as `explicit-list`.
+
+3. **MATERIAL — IN-DELTA — LLP 0301 §9.** Signed discovery is not yet a viable protocol. A fingerprint alone cannot verify Ed25519 without the public key, and a static signature over `deployment + admissionPosture` is replayable by a replacement listener. Fully specify key carriage, fingerprint and signature encodings, freshness, and binding to the ensuing transport—or explicitly defer the protocol’s normative design to a future Spec instead of freezing §9 as designed.
+
+4. **MATERIAL — IN-DELTA — LLP 0302 §3.** The request/response residual violates LLP 0300’s settled standing gate. Without a standing stream, a successful same-port replacement produces none of the listed episode starts; therefore potentially every later call—not merely one—can reach the replacement without re-verification. The single-user-host authenticity tradeoff does not cover accidental wrong-generation mix-ups. Require request/response consumers to verify before every operation, or define every unmonitored transport use as a new episode.
+
+5. **MINOR — IN-DELTA — LLP 0302 §§1, 4.** The literal precedence table says absent rendezvous plus `url` always selects `declared-dev`, while §1 says release artifacts ignore `url`. Qualify the table as applying only when the generated capability is present, or add capability availability as a table dimension.
+
+6. **MATERIAL — IN-DELTA — LLP 0301 §§3–4, 7 and LLP 0302 §§1, 3, 7.** Several newly typed refusal branches have no pinned diagnostic code: attach-contract mismatch, writer structural conflicts, malformed identity facts, unbranded candidates, and generation-provenance mismatch. Before the normative surface freezes, add a matrix assigning each branch an exact new or explicitly reused code.
+
+No MATERIAL findings: PRE-EXISTING surface in either target; identity caching/redirect rules, spawn-owned posture validation, dev-session contract, traceability, structural generation gating, and rendezvous-wins resolution.
+
+0301: NOT READY
+0302: NOT READY
+SET: NOT READY
