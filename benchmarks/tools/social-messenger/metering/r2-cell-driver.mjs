@@ -266,7 +266,18 @@ function actionClass(command) {
 }
 
 function queueObservation(state, operation) {
-  state.observationQueue = state.observationQueue.then(operation, operation);
+  // A queued observation runs outside the controller's guarded finalization
+  // flow; an unhandled throw here previously exited the process before any
+  // failure-shaped record could be written. Route failures into the state so
+  // finalization fails closed with the named cause instead.
+  const guarded = async () => {
+    try {
+      await operation();
+    } catch (error) {
+      state.observationFailure ??= error;
+    }
+  };
+  state.observationQueue = state.observationQueue.then(guarded, guarded);
 }
 
 function queueStreamWrite(state, operation) {
@@ -355,7 +366,12 @@ function handleNativeRecord(state, record) {
       disposition: failed || retry ? "correction" : "progress",
       episodeId,
       retriedClass: retry ? klass : null,
-      binaryExcavation: klass === "source-inspection" && /node_modules|\.codex|\.claude/iu.test(command),
+      // binaryExcavation is a source-inspection sub-attribution; a RETRY of a
+      // source-inspection carries the retriedClass linkage instead — stamping
+      // the flag on a retry event contradicts the observation schema.
+      binaryExcavation: !retry
+        && klass === "source-inspection"
+        && /node_modules|\.codex|\.claude/iu.test(command),
     });
     if (klass === "reseed") {
       await state.controls.reseed({ destructive: /reset|drop|delete/iu.test(command) }, async () => {});
@@ -824,7 +840,14 @@ export async function finalize({ config, error }) {
     state.child.kill("SIGTERM");
     await state.closed;
   }
-  await writeTerminalArtifacts(state, error);
+  // Drain the observation queue so late queued failures are captured, then
+  // fail closed on the first observation failure with its named cause.
+  await state.observationQueue.catch(() => {});
+  const effectiveError = error
+    ?? (state.observationFailure
+      ? new Error(`observation stream failed: ${state.observationFailure.message}`, { cause: state.observationFailure })
+      : null);
+  await writeTerminalArtifacts(state, effectiveError);
 }
 
 export function observationSources({ config }) {
