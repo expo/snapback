@@ -188,6 +188,38 @@ path = "src/bin/shared_serving_database_unmediated_insert.rs"
 name = "shared-serving-database-deref-unmediated-insert"
 path = "src/bin/shared_serving_database_deref_unmediated_insert.rs"
 
+[[bin]]
+name = "name-capsule-internal-phase"
+path = "src/bin/name_capsule_internal_phase.rs"
+
+[[bin]]
+name = "supply-capsule-destination-parts"
+path = "src/bin/supply_capsule_destination_parts.rs"
+
+[[bin]]
+name = "implement-capsule-pending"
+path = "src/bin/implement_capsule_pending.rs"
+
+[[bin]]
+name = "fake-watch-pending"
+path = "src/bin/fake_watch_pending.rs"
+
+[[bin]]
+name = "construct-exact-commit-rows"
+path = "src/bin/construct_exact_commit_rows.rs"
+
+[[bin]]
+name = "construct-watch-intended-rows"
+path = "src/bin/construct_watch_intended_rows.rs"
+
+[[bin]]
+name = "extract-capsule-origin-authority"
+path = "src/bin/extract_capsule_origin_authority.rs"
+
+[[bin]]
+name = "name-raw-capsule-authority"
+path = "src/bin/name_raw_capsule_authority.rs"
+
 # Harness-only counterexample: never part of attacks.v1.json.
 [[bin]]
 name = "unrelated-error-satisfies-regex"

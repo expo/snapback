@@ -21,6 +21,58 @@ use std::sync::{Mutex as StdMutex, OnceLock};
 use std::time::Instant;
 
 #[cfg(test)]
+#[derive(Clone, Default)]
+pub(super) struct BoundedWorkerHandoffProbeForTest {
+    mutex_acquired: Arc<std::sync::atomic::AtomicUsize>,
+    handoff_enqueued: Arc<std::sync::atomic::AtomicUsize>,
+    worker_claimed: Arc<std::sync::atomic::AtomicUsize>,
+}
+
+#[cfg(test)]
+static BOUNDED_WORKER_HANDOFF_PROBES_FOR_TEST: OnceLock<
+    StdMutex<Vec<(usize, BoundedWorkerHandoffProbeForTest)>>,
+> = OnceLock::new();
+
+#[cfg(test)]
+pub(super) fn install_bounded_worker_handoff_probe_for_test(
+    state: &SharedSnapback,
+) -> BoundedWorkerHandoffProbeForTest {
+    let probe = BoundedWorkerHandoffProbeForTest::default();
+    BOUNDED_WORKER_HANDOFF_PROBES_FOR_TEST
+        .get_or_init(|| StdMutex::new(Vec::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .push((Arc::as_ptr(state) as usize, probe.clone()));
+    probe
+}
+
+#[cfg(test)]
+impl BoundedWorkerHandoffProbeForTest {
+    pub(super) fn counts(&self) -> (usize, usize, usize) {
+        (
+            self.mutex_acquired.load(Ordering::SeqCst),
+            self.handoff_enqueued.load(Ordering::SeqCst),
+            self.worker_claimed.load(Ordering::SeqCst),
+        )
+    }
+}
+
+#[cfg(test)]
+fn take_bounded_worker_handoff_probe_for_test(
+    state: &SharedSnapback,
+) -> Option<BoundedWorkerHandoffProbeForTest> {
+    let mut probes = BOUNDED_WORKER_HANDOFF_PROBES_FOR_TEST
+        .get_or_init(|| StdMutex::new(Vec::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let state_identity = Arc::as_ptr(state) as usize;
+    probes
+        .iter()
+        .position(|(identity, _)| *identity == state_identity)
+        .map(|position| probes.swap_remove(position).1)
+}
+
+#[cfg(test)]
 struct ManagedHandoffWaiterTestHook {
     handoff_identity: usize,
     reached: Arc<tokio::sync::Notify>,
@@ -183,7 +235,13 @@ where
     F: FnOnce(&mut LocalSnapback) -> T + Send + 'static,
     T: Send + 'static,
 {
+    #[cfg(test)]
+    let probe = take_bounded_worker_handoff_probe_for_test(state);
     let guard = lock_managed_snapback_until(state, deadline, None).await?;
+    #[cfg(test)]
+    if let Some(probe) = &probe {
+        probe.mutex_acquired.fetch_add(1, Ordering::SeqCst);
+    }
     if Instant::now() >= deadline {
         drop(guard);
         drop(work);
@@ -191,6 +249,12 @@ where
     }
     let handoff = BoundedSnapbackHandoff::new(guard, work);
     let worker_handoff = handoff.worker_cell();
+    #[cfg(test)]
+    if let Some(probe) = &probe {
+        probe.handoff_enqueued.fetch_add(1, Ordering::SeqCst);
+    }
+    #[cfg(test)]
+    let worker_probe = probe.clone();
     let mut worker = tokio::task::spawn_blocking(move || {
         let Some((guard, work)) = worker_handoff
             .lock()
@@ -199,6 +263,10 @@ where
         else {
             return None;
         };
+        #[cfg(test)]
+        if let Some(probe) = &worker_probe {
+            probe.worker_claimed.fetch_add(1, Ordering::SeqCst);
+        }
         if Instant::now() >= deadline {
             return None;
         }

@@ -1574,6 +1574,10 @@ impl Drop for AuthorizedEffectCommitGuard<'_> {
                 guards.remove(&self.test_reservation_identity);
             }
         });
+        #[cfg(any(test, feature = "test-support"))]
+        snapback_kernel::storage::exit_authorized_effect_guard_for_test(
+            self.test_reservation_identity,
+        );
     }
 }
 
@@ -1704,6 +1708,7 @@ impl AuthorizedEffectReservation {
             LIVE_AUTHORIZED_EFFECT_COMMIT_GUARDS_FOR_TEST.with(|guards| {
                 *guards.borrow_mut().entry(self.test_identity).or_default() += 1;
             });
+            snapback_kernel::storage::enter_authorized_effect_guard_for_test(self.test_identity);
             self.scope_probe_for_test
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)

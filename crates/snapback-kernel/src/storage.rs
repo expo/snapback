@@ -294,6 +294,7 @@ struct DurableCommitObservationStateForTest {
 struct DurableCommitObserverForTest {
     remaining: usize,
     expected_guard: AdmissionEffectGuardIdentityForTest,
+    expected_reservation: Option<u64>,
     observation: std::sync::Arc<DurableCommitObservationStateForTest>,
 }
 
@@ -309,12 +310,44 @@ thread_local! {
     static LIVE_ADMISSION_EFFECT_GUARDS_FOR_TEST:
         std::cell::RefCell<std::collections::BTreeMap<AdmissionEffectGuardIdentityForTest, usize>> =
         const { std::cell::RefCell::new(std::collections::BTreeMap::new()) };
+    static LIVE_AUTHORIZED_EFFECT_GUARDS_FOR_TEST:
+        std::cell::RefCell<std::collections::BTreeMap<u64, usize>> =
+        const { std::cell::RefCell::new(std::collections::BTreeMap::new()) };
     /// Passive commit-attempt observation for admission-fence proofs. Commit
     /// sites compare the exact expected guard identity and update counters;
     /// they do not invoke caller code.
     static DURABLE_COMMIT_OBSERVER_FOR_TEST:
         std::cell::RefCell<Option<DurableCommitObserverForTest>> =
         const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub fn enter_authorized_effect_guard_for_test(identity: u64) {
+    LIVE_AUTHORIZED_EFFECT_GUARDS_FOR_TEST.with(|guards| {
+        *guards.borrow_mut().entry(identity).or_default() += 1;
+    });
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub fn exit_authorized_effect_guard_for_test(identity: u64) {
+    LIVE_AUTHORIZED_EFFECT_GUARDS_FOR_TEST.with(|guards| {
+        let mut guards = guards.borrow_mut();
+        let count = guards
+            .get_mut(&identity)
+            .expect("authorized-effect guard identity depth underflowed");
+        *count -= 1;
+        if *count == 0 {
+            guards.remove(&identity);
+        }
+    });
+}
+
+#[cfg(any(test, feature = "test-support"))]
+fn current_thread_authorized_effect_guard_depth_for_test(identity: u64) -> usize {
+    LIVE_AUTHORIZED_EFFECT_GUARDS_FOR_TEST
+        .with(|guards| guards.borrow().get(&identity).copied().unwrap_or_default())
 }
 
 /// Construct the identity used only by cross-crate admission-fence tests.
@@ -369,12 +402,15 @@ pub fn exit_admission_effect_guard_for_test(identity: AdmissionEffectGuardIdenti
 pub fn current_thread_holds_admission_effect_guard_for_test(
     identity: AdmissionEffectGuardIdentityForTest,
 ) -> bool {
-    LIVE_ADMISSION_EFFECT_GUARDS_FOR_TEST.with(|guards| {
-        guards
-            .borrow()
-            .get(&identity)
-            .is_some_and(|count| *count > 0)
-    })
+    current_thread_admission_effect_guard_depth_for_test(identity) > 0
+}
+
+#[cfg(any(test, feature = "test-support"))]
+fn current_thread_admission_effect_guard_depth_for_test(
+    identity: AdmissionEffectGuardIdentityForTest,
+) -> usize {
+    LIVE_ADMISSION_EFFECT_GUARDS_FOR_TEST
+        .with(|guards| guards.borrow().get(&identity).copied().unwrap_or_default())
 }
 
 /// RAII scope for one operation's passive durable-commit observation.
@@ -471,6 +507,7 @@ pub fn observe_next_durable_commits_for_test(
         *slot.borrow_mut() = Some(DurableCommitObserverForTest {
             remaining: count,
             expected_guard,
+            expected_reservation: None,
             observation: observation.clone(),
         });
     });
@@ -478,6 +515,26 @@ pub fn observe_next_durable_commits_for_test(
         observation,
         _not_send: std::marker::PhantomData,
     }
+}
+
+/// Observe the actual storage cut and require both the exact mode guard and
+/// the exact authorized-effect reservation that the capsule recorded at
+/// reserve time.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub fn observe_next_authorized_durable_commits_for_test(
+    count: usize,
+    expected_guard: AdmissionEffectGuardIdentityForTest,
+    expected_reservation: u64,
+) -> DurableCommitObservationForTest {
+    let observation = observe_next_durable_commits_for_test(count, expected_guard);
+    DURABLE_COMMIT_OBSERVER_FOR_TEST.with(|slot| {
+        slot.borrow_mut()
+            .as_mut()
+            .expect("the authorized durable observer was just installed")
+            .expected_reservation = Some(expected_reservation);
+    });
+    observation
 }
 
 #[cfg(any(test, feature = "test-support"))]
@@ -488,7 +545,12 @@ fn observe_durable_commit_for_test() {
         let Some(mut observer) = slot.borrow_mut().take() else {
             return;
         };
-        if current_thread_holds_admission_effect_guard_for_test(observer.expected_guard) {
+        let exact_reservation = observer.expected_reservation.is_none_or(|identity| {
+            current_thread_authorized_effect_guard_depth_for_test(identity) == 1
+        });
+        if current_thread_admission_effect_guard_depth_for_test(observer.expected_guard) == 1
+            && exact_reservation
+        {
             observer
                 .observation
                 .matching_commits
@@ -834,17 +896,12 @@ impl DatabaseBinding {
     }
 }
 
-/// Opaque commit authority whose private binding identifies one database. The
-/// binding cannot be synthesized or redirected, and concrete kernel pending
-/// transactions can compare it before COMMIT. The value is nevertheless
-/// cloneable and exposed by current composition APIs; it is not held only by
-/// `FinalCommitCut`.
-///
-/// @ref LLP 0225#3-transaction-and-commit-boundaries--who-may-commit-what —
-/// concrete cross-crate pending COMMIT implementations can require matching
-/// database identity; custody remains an open structural residual.
+/// Kernel-private commit authority whose binding identifies one database.
+/// Higher crates receive only [`CommitCapsuleOrigin`], whose closed methods
+/// accept kernel-minted pending operations; the raw authority is no longer a
+/// capture-reachable composition value.
 #[derive(Clone, Debug)]
-pub struct CommitCapsuleAuthority {
+pub(crate) struct CommitCapsuleAuthority {
     binding: DatabaseBinding,
 }
 
@@ -854,64 +911,81 @@ impl CommitCapsuleAuthority {
     }
 }
 
-/// An intent supplies the typed operation identifier a bounded commit capsule
-/// compares at witness consumption. The associated type prevents accidental
-/// cross-intent-type comparison, and `map` preserves the identifier.
+/// Opaque database origin for the bounded commit capsule.
 ///
-/// Identifiers remain caller-constructible, have no uniqueness ledger, and do
-/// not bind an intent instance or intended-row fingerprint. Equal identifiers
-/// can therefore describe semantically different intents.
+/// This carrier intentionally exposes no binding, conversion, constructor, or
+/// generic commit callback. Its closed operation methods live with the
+/// kernel-owned pending types they consume. Cloning preserves one database
+/// origin; it does not expose raw commit authority.
 ///
 /// @ref LLP 0225#3-transaction-and-commit-boundaries--who-may-commit-what —
-/// exact reconciliation currently compares database and typed operation
-/// identifier; the stronger intent-instance binding remains fix-forward.
+/// the storage kernel owns the canonical transaction and the operation-shaped
+/// COMMIT surface; the transport adapter receives no raw authority.
+#[derive(Clone, Debug)]
+pub struct CommitCapsuleOrigin {
+    authority: CommitCapsuleAuthority,
+}
+
+impl CommitCapsuleOrigin {
+    fn matches(&self, binding: &DatabaseBinding) -> bool {
+        self.authority.matches(binding)
+    }
+}
+
+/// An intent supplies both the typed routing identity and the canonical
+/// semantic fingerprint a bounded commit capsule compares at witness
+/// consumption. The associated type prevents accidental cross-intent-type
+/// comparison, and `map` preserves both comparisons.
+///
+/// @ref LLP 0225#3-transaction-and-commit-boundaries--who-may-commit-what —
+/// exact reconciliation compares database, typed operation identity, and the
+/// canonical semantic successor fingerprint minted by the kernel operation.
 pub trait CommitCapsuleIntent {
     type OperationIdentity: AsRef<str> + Clone + Eq;
 
     fn operation_identity(&self) -> &Self::OperationIdentity;
+
+    /// Canonical fingerprint of every field that defines this intended
+    /// successor. Operation identifiers are routing keys, never semantic
+    /// identity by themselves.
+    fn semantic_fingerprint(&self) -> [u8; 32];
 }
 
 /// Kernel-minted proof that one reconciliation query observed the successor
 /// described by its supplied intended-row carrier in one database.
 ///
 /// The server capsule may consume this proof, but cannot construct one from a
-/// caller-supplied value. Consumption rejects another database or an unequal
-/// operation identifier. It does not distinguish two semantically different
-/// intents that share a caller-constructed identifier.
+/// caller-supplied value. Consumption rejects another database, an unequal
+/// operation identifier, or a different canonical semantic successor.
 ///
 /// @ref LLP 0059#rollback-and-ambiguous-commit — ambiguous success requires
 /// kernel-observed exact intended rows, not a caller assertion.
 pub struct ExactCommitRows<I: CommitCapsuleIntent, T> {
     binding: DatabaseBinding,
     operation_identity: I::OperationIdentity,
+    semantic_fingerprint: [u8; 32],
     value: T,
 }
 
 impl<I: CommitCapsuleIntent, T> ExactCommitRows<I, T> {
-    pub(crate) fn new(
-        binding: DatabaseBinding,
-        operation_identity: I::OperationIdentity,
-        value: T,
-    ) -> Self {
+    pub(crate) fn new(binding: DatabaseBinding, intent: &I, value: T) -> Self {
         Self {
             binding,
-            operation_identity,
+            operation_identity: intent.operation_identity().clone(),
+            semantic_fingerprint: intent.semantic_fingerprint(),
             value,
         }
     }
 
-    pub fn into_value_for(
-        self,
-        authority: &CommitCapsuleAuthority,
-        intent: &I,
-    ) -> SnapbackResult<T> {
-        if !authority.matches(&self.binding)
+    pub fn into_value_for(self, origin: &CommitCapsuleOrigin, intent: &I) -> SnapbackResult<T> {
+        if !origin.matches(&self.binding)
             || &self.operation_identity != intent.operation_identity()
+            || self.semantic_fingerprint != intent.semantic_fingerprint()
         {
             return Err(SnapbackError::error(
                 "SNAPBACK_COMMIT_RECONCILIATION_WITNESS_MISMATCH",
                 "storage",
-                "the exact-row witness belongs to another database or operation",
+                "the exact-row witness belongs to another database or semantic successor",
             ));
         }
         Ok(self.value)
@@ -921,6 +995,7 @@ impl<I: CommitCapsuleIntent, T> ExactCommitRows<I, T> {
         ExactCommitRows {
             binding: self.binding,
             operation_identity: self.operation_identity,
+            semantic_fingerprint: self.semantic_fingerprint,
             value: map(self.value),
         }
     }
@@ -1723,9 +1798,11 @@ impl ServingDatabase {
 
     /// Delegate only database identity, never the kernel's root commit
     /// authority, to the server-owned bounded capsule.
-    pub fn commit_capsule_authority(&self) -> CommitCapsuleAuthority {
-        CommitCapsuleAuthority {
-            binding: self.authority.binding(),
+    pub fn commit_capsule_origin(&self) -> CommitCapsuleOrigin {
+        CommitCapsuleOrigin {
+            authority: CommitCapsuleAuthority {
+                binding: self.authority.binding(),
+            },
         }
     }
 

@@ -66,6 +66,14 @@ thread_local! {
     static AFTER_LOCAL_OWNERS: RefCell<Vec<AfterLocalOwner>> = const { RefCell::new(Vec::new()) };
 }
 
+/// Test-only observation that reservation hooks run outside the managed Local
+/// scope. Reading the TLS counter takes no product lock.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+pub fn local_snapback_write_scope_active_for_test() -> bool {
+    LOCAL_APP_WRITE_DEPTH.with(|depth| depth.get() > 0)
+}
+
 /// Marks the current thread as sanctioned for blocking work until dropped.
 /// Nested acquisition is harmless (restores the previous state).
 pub struct BlockingSanction {

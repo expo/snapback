@@ -3149,7 +3149,7 @@ impl AssetStoreConfig {
 /// commit capsule. The kernel commit root never leaves storage.
 pub struct EngineAppStateBindings {
     admission: AdmissionController,
-    commit_capsule_authority: crate::storage::CommitCapsuleAuthority,
+    commit_capsule_origin: crate::storage::CommitCapsuleOrigin,
     graph_identity: EngineAppStateGraphIdentity,
     telemetry: crate::telemetry::Telemetry,
     derived_instance_identity: Option<crate::instance_fork::DerivedForkLineageV1>,
@@ -3164,6 +3164,14 @@ pub struct EngineAppStateBindings {
 #[derive(Clone)]
 pub struct EngineAppStateGraphIdentity {
     identity: Arc<()>,
+}
+
+impl EngineAppStateGraphIdentity {
+    /// Recheck that a managed worker still owns the process-local graph that
+    /// was sealed into its `AppState` binding.
+    pub fn matches_local(&self, local: &LocalSnapback) -> bool {
+        Arc::ptr_eq(&self.identity, &local.app_state_graph_identity)
+    }
 }
 
 /// Exact composition-owned authority for operator commands. The private
@@ -3425,7 +3433,7 @@ impl EngineAppStateBindings {
         local: &LocalSnapback,
     ) -> SnapbackResult<(
         AdmissionController,
-        crate::storage::CommitCapsuleAuthority,
+        crate::storage::CommitCapsuleOrigin,
         EngineAppStateGraphIdentity,
         crate::telemetry::Telemetry,
         Option<crate::instance_fork::DerivedForkLineageV1>,
@@ -3448,7 +3456,7 @@ impl EngineAppStateBindings {
         }
         Ok((
             self.admission,
-            self.commit_capsule_authority,
+            self.commit_capsule_origin,
             self.graph_identity,
             self.telemetry,
             self.derived_instance_identity,
@@ -6888,7 +6896,7 @@ impl LocalSnapback {
         self.auth_deployment = auth_deployment;
         Ok(EngineAppStateBindings {
             admission: self.admission.clone(),
-            commit_capsule_authority: self.db.commit_capsule_authority(),
+            commit_capsule_origin: self.db.commit_capsule_origin(),
             graph_identity: EngineAppStateGraphIdentity {
                 identity: self.app_state_graph_identity.clone(),
             },
@@ -24996,7 +25004,7 @@ impl LocalSnapback {
     ) -> SnapbackResult<
         Option<
             crate::storage::ExactCommitRows<
-                crate::storage::watches::WatchManagementIntent,
+                crate::storage::watches::WatchManagementIntendedRows,
                 crate::storage::watches::WatchManagementCommit,
             >,
         >,

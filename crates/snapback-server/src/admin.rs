@@ -2576,50 +2576,6 @@ struct AuthModeRuntimeSnapshot {
     desired_policy: PolicyAuthMode,
 }
 
-/// Private common-origin binding for the bounded-commit runtime. Construction
-/// first consumes engine bindings beside the exact graph identity that minted
-/// them, then packages that graph's `SharedSnapback`, admission controller,
-/// graph identity, and database commit authority without exposing a parts API.
-///
-/// @ref LLP 0225#3-transaction-and-commit-boundaries--who-may-commit-what —
-/// adapters retain one kernel-bound destination instead of composing database
-/// and admission authority independently.
-#[derive(Clone)]
-pub(crate) struct CommitCapsuleRuntimeBinding {
-    state: SharedSnapback,
-    admission: AuthAdmissionController,
-    _graph_identity: crate::local::EngineAppStateGraphIdentity,
-    authority: crate::storage::CommitCapsuleAuthority,
-}
-
-impl CommitCapsuleRuntimeBinding {
-    fn new(
-        state: SharedSnapback,
-        admission: AuthAdmissionController,
-        graph_identity: crate::local::EngineAppStateGraphIdentity,
-        authority: crate::storage::CommitCapsuleAuthority,
-    ) -> Self {
-        Self {
-            state,
-            admission,
-            _graph_identity: graph_identity,
-            authority,
-        }
-    }
-
-    pub(crate) fn state(&self) -> &SharedSnapback {
-        &self.state
-    }
-
-    pub(crate) fn admission(&self) -> &AuthAdmissionController {
-        &self.admission
-    }
-
-    pub(crate) fn authority(&self) -> &crate::storage::CommitCapsuleAuthority {
-        &self.authority
-    }
-}
-
 /// Whether a hosted authority installed through the public adapter has been
 /// coupled to the concrete loopback listener that will serve it. The
 /// `NotRequired` state is reserved for crate-internal authority fixtures; no
@@ -2682,7 +2638,7 @@ pub struct AppState {
     /// roots in one process-local epoch domain.
     pub(crate) auth_admission: AuthAdmissionController,
     /// Exact graph-bound runtime destination used by the bounded capsule.
-    pub(crate) commit_capsule_runtime: CommitCapsuleRuntimeBinding,
+    pub(crate) commit_capsule_runtime: crate::server::commit_capsule::CommitCapsuleRuntimeBinding,
     /// Opaque exact-engine operator authority minted by the one-shot graph
     /// claim. Administrative engine commands require this in addition to the
     /// request's admitted invocation.
@@ -2888,7 +2844,7 @@ impl AppState {
             };
             let (
                 admission,
-                commit_capsule_authority,
+                commit_capsule_origin,
                 graph_identity,
                 telemetry,
                 derived,
@@ -2896,12 +2852,13 @@ impl AppState {
                 profiles,
                 operator,
             ) = bindings.into_parts_for_app_state(&instance)?;
-            let commit_capsule_runtime = CommitCapsuleRuntimeBinding::new(
-                snapback.clone(),
-                admission,
-                graph_identity,
-                commit_capsule_authority,
-            );
+            let commit_capsule_runtime =
+                crate::server::commit_capsule::CommitCapsuleRuntimeBinding::new(
+                    snapback.clone(),
+                    admission,
+                    graph_identity,
+                    commit_capsule_origin,
+                );
             let coordinator = instance.build_stream_auth_coordinator()?;
             instance.bind_auth_coordinator(coordinator.as_ref())?;
             (

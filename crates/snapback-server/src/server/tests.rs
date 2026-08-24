@@ -464,7 +464,7 @@ use crate::contract_types::{
     AuthAbuseBudgetPolicyManifestV1, AuthBudgetProfilesManifestV1, AuthBudgetTermsManifestV1,
     AuthMechanismManifestV1, AuthProgramManifestV1, AuthProviderProfile, GuestCleanupActionV1,
     GuestCleanupContractV1, GuestPolicyManifestV1, GuestReapingPolicyV1, RevocationReason,
-    ServerProfile,
+    ServerProfile, TerminalAuthorityDisposition,
 };
 use crate::cron::CronRunOutcome;
 use crate::diagnostic::SnapbackError;
@@ -40539,6 +40539,319 @@ watch_management_race_tests!(
     WatchManagementRaceSite::Renew
 );
 
+fn direct_watch_suspend_intent(
+    watch_id: &str,
+    operation_identity: &str,
+) -> crate::storage::watches::WatchManagementIntent {
+    crate::storage::watches::WatchManagementIntent::Transition {
+        operation_identity: crate::storage::watches::WatchManagementOperationIdentity::new(
+            operation_identity,
+        ),
+        watch_id: watch_id.to_owned(),
+        target: crate::watches::WatchStatus::Suspended,
+        resume_job_id: None,
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn origin_bound_watch_selected_cut_has_exact_nonempty_guarded_commit_and_permit_free_outcome()
+{
+    let fixture = watch_management_race_fixture(WatchManagementRaceSite::Suspend).await;
+    let before = watch_management_facts(&fixture).await;
+    let operation_identity = format!("origin-bound-selected-cut:{}", fixture.watch_id);
+    let controller = fixture.state.auth_admission_controller();
+    let expected_guard =
+        controller.effect_guard_identity_for_test(controller.snapshot().admission_epoch);
+    let probe = super::commit_capsule::install_watch_capsule_probe_for_test(
+        &operation_identity,
+        expected_guard,
+        Duration::from_secs(5),
+    );
+    let authority = prepared_test_session_route_authority(
+        &fixture.state,
+        InvocationSource::WatchManagement,
+        &fixture.bearer,
+    );
+    let destination = super::CommitCapsuleDestination::bind(&fixture.state, authority)
+        .expect("bind selected watch operation once");
+    let intent = direct_watch_suspend_intent(&fixture.watch_id, &operation_identity);
+    let (finished_sender, finished_receiver) = tokio::sync::oneshot::channel();
+    let response_release = Arc::new(tokio::sync::Notify::new());
+    let response_waiter = response_release.clone();
+    let execution = tokio::spawn(async move {
+        let outcome = destination.execute_watch_management(intent, None).await;
+        finished_sender
+            .send(())
+            .expect("selected capsule reaches its permit-free outcome");
+        response_waiter.notified().await;
+        outcome
+    });
+    tokio::time::timeout(Duration::from_secs(5), finished_receiver)
+        .await
+        .expect("selected capsule finishes")
+        .expect("selected capsule finish signal");
+
+    assert_eq!(
+        probe.invocations(),
+        1,
+        "the selected adapter ran exactly once"
+    );
+    assert_ne!(probe.reservation_identity(), 0);
+    assert_eq!(
+        probe.events(),
+        vec![
+            "before-reservation",
+            "reserved",
+            "worker-claimed",
+            "staged",
+            "guarded",
+            "commit-returned",
+            "guard-released",
+            "reservation-released",
+        ]
+    );
+    let receipt = probe.receipt().expect("selected storage-cut receipt");
+    assert_eq!(receipt.matching_commits(), 1);
+    assert_eq!(receipt.mismatched_commits(), 0);
+    assert!(probe.scope().is_inactive());
+    let after = watch_management_facts(&fixture).await;
+    assert_watch_management_effect(WatchManagementRaceSite::Suspend, &before, &after);
+
+    // The outcome is deliberately withheld as response work while logout
+    // completes. A returned permit-owning state would keep this drain pinned.
+    let logout = tokio::time::timeout(
+        Duration::from_secs(5),
+        fixture.router.clone().oneshot(session_auth_http_request(
+            "/auth/logout",
+            br#"{}"#.to_vec(),
+            &fixture.bearer,
+        )),
+    )
+    .await
+    .expect("logout completes while the permit-free outcome is withheld")
+    .expect("selected-cut logout response");
+    assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+    assert!(!execution.is_finished());
+    response_release.notify_one();
+    assert!(matches!(
+        execution.await.expect("selected execution joins"),
+        super::CommitCapsuleOutcome::Committed {
+            reconciled: false,
+            ..
+        }
+    ));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn origin_bound_watch_returns_the_typed_terminal_cause_without_string_reconstruction() {
+    let fixture = watch_management_race_fixture(WatchManagementRaceSite::Suspend).await;
+    let authority = prepared_test_session_route_authority(
+        &fixture.state,
+        InvocationSource::WatchManagement,
+        &fixture.bearer,
+    );
+    let destination = super::CommitCapsuleDestination::bind(&fixture.state, authority)
+        .expect("bind authority before terminal retirement");
+    let logout = fixture
+        .router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/logout",
+            br#"{}"#.to_vec(),
+            &fixture.bearer,
+        ))
+        .await
+        .expect("terminal fixture logout");
+    assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+    let outcome = destination
+        .execute_watch_management(
+            direct_watch_suspend_intent(
+                &fixture.watch_id,
+                &format!("origin-bound-terminal:{}", fixture.watch_id),
+            ),
+            None,
+        )
+        .await;
+    assert!(matches!(
+        outcome,
+        super::CommitCapsuleOutcome::CallerTerminal(
+            crate::auth::invocation::CallerAuthorityTerminalCause::SessionRetired {
+                disposition: TerminalAuthorityDisposition::DurableDelete,
+                ..
+            }
+        )
+    ));
+    let after = watch_management_facts(&fixture).await;
+    assert_eq!(after.watch.status, crate::watches::WatchStatus::Active);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn origin_bound_watch_rejects_post_bind_local_referent_replacement() {
+    let fixture = watch_management_race_fixture(WatchManagementRaceSite::Suspend).await;
+    let authority = prepared_test_session_route_authority(
+        &fixture.state,
+        InvocationSource::WatchManagement,
+        &fixture.bearer,
+    );
+    let destination = super::CommitCapsuleDestination::bind(&fixture.state, authority)
+        .expect("bind correlated graph A before referent replacement");
+    let replacement = tokio::task::spawn_blocking(|| {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        LocalSnapback::memory().expect("open in-memory graph B")
+    })
+    .await
+    .expect("join graph B construction");
+    with_snapback(&fixture.state.snapback, move |slot| *slot = replacement).await;
+
+    let outcome = destination
+        .execute_watch_management(
+            direct_watch_suspend_intent(
+                &fixture.watch_id,
+                &format!("origin-bound-post-bind-splice:{}", fixture.watch_id),
+            ),
+            None,
+        )
+        .await;
+    let super::CommitCapsuleOutcome::Rejected(error) = outcome else {
+        panic!("post-bind {{state B, admission A, origin A}} must be refused")
+    };
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_COMMIT_CAPSULE_DESTINATION_MISMATCH"
+    );
+}
+
+#[test]
+fn origin_bound_watch_deadline_covers_mutex_to_blocking_worker_handoff() {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .max_blocking_threads(1)
+        .enable_all()
+        .build()
+        .expect("single-blocking-worker origin-bound runtime");
+    runtime.block_on(async {
+        let fixture = watch_management_race_fixture(WatchManagementRaceSite::Suspend).await;
+        let before = watch_management_facts(&fixture).await;
+        let provider = fixture
+            .state
+            .auth_provider
+            .clone()
+            .expect("origin-bound handoff provider");
+        let coordinator = fixture
+            .state
+            .auth_coordinator
+            .clone()
+            .expect("origin-bound handoff coordinator");
+        let admission = provider.admit().await;
+        let logout_bearer = fixture.bearer.clone();
+        let logout_now_ms = provider.now_ms();
+        let planned_logout = with_snapback(&fixture.state.snapback, move |snapback| {
+            snapback.execute_auth_plan(admission.plan_logout_plan(&logout_bearer, logout_now_ms))
+        })
+        .await
+        .expect("plan origin-bound handoff logout before saturation");
+        let crate::auth::provider::PlannedLogout::Revoke(logout_plan) = planned_logout else {
+            panic!("origin-bound handoff logout must plan exact revocation")
+        };
+        let operation_identity = format!("origin-bound-handoff:{}", fixture.watch_id);
+        let controller = fixture.state.auth_admission_controller();
+        let expected_guard =
+            controller.effect_guard_identity_for_test(controller.snapshot().admission_epoch);
+        let capsule_probe = super::commit_capsule::install_watch_capsule_probe_for_test(
+            &operation_identity,
+            expected_guard,
+            Duration::from_millis(150),
+        );
+        let handoff_probe = super::writer_gate::install_bounded_worker_handoff_probe_for_test(
+            &fixture.state.snapback,
+        );
+        let authority = prepared_test_session_route_authority(
+            &fixture.state,
+            InvocationSource::WatchManagement,
+            &fixture.bearer,
+        );
+        let destination = super::CommitCapsuleDestination::bind(&fixture.state, authority)
+            .expect("bind handoff deadline destination");
+
+        let (saturated_sender, saturated_receiver) = tokio::sync::oneshot::channel();
+        let (release_sender, release_receiver) = std::sync::mpsc::sync_channel(1);
+        let saturator = tokio::task::spawn_blocking(move || {
+            let _ = saturated_sender.send(());
+            let _ = release_receiver.recv();
+        });
+        saturated_receiver
+            .await
+            .expect("blocking pool saturator starts");
+        let intent = direct_watch_suspend_intent(&fixture.watch_id, &operation_identity);
+        let target =
+            tokio::spawn(async move { destination.execute_watch_management(intent, None).await });
+        tokio::time::timeout(Duration::from_secs(1), async {
+            loop {
+                if handoff_probe.counts() == (1, 1, 0) {
+                    break;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("capsule acquires mutex and enqueues an unclaimed worker handoff");
+        let outcome = tokio::time::timeout(Duration::from_secs(1), target)
+            .await
+            .expect("handoff deadline expires while the pool remains saturated")
+            .expect("handoff deadline task joins");
+        assert!(matches!(
+            outcome,
+            super::CommitCapsuleOutcome::TimedOut {
+                phase: super::CommitTimeoutPhase::WriterAcquire
+            }
+        ));
+        assert_eq!(handoff_probe.counts(), (1, 1, 0));
+        assert!(capsule_probe.scope().is_inactive());
+
+        let carrier = tokio::time::timeout(
+            Duration::from_secs(1),
+            coordinator.premark_revocation(logout_plan),
+        )
+        .await
+        .expect("logout premark drains the timed-out capsule permit")
+        .expect("origin-bound handoff logout premark succeeds");
+        let cleanup_error = SnapbackError::error(
+            "SNAPBACK_TEST_ROLLBACK",
+            "test",
+            "reopen origin-bound handoff logout premark",
+        );
+        let (cleanup, committed_revocations) = coordinator
+            .finish_revocation(carrier, AuthTransactionAttempt::RolledBack(cleanup_error))
+            .into_parts();
+        assert_eq!(
+            cleanup
+                .expect_err("handoff test rolls its terminal premark back")
+                .diagnostic
+                .code,
+            "SNAPBACK_TEST_ROLLBACK"
+        );
+        assert!(committed_revocations.is_empty());
+
+        release_sender.send(()).expect("release blocking pool");
+        saturator.await.expect("blocking pool saturator exits");
+        let logout = fixture.router.clone().oneshot(session_auth_http_request(
+            "/auth/logout",
+            br#"{}"#.to_vec(),
+            &fixture.bearer,
+        ));
+        assert_eq!(
+            tokio::time::timeout(Duration::from_secs(5), logout)
+                .await
+                .expect("handoff logout completes")
+                .expect("handoff logout response")
+                .status(),
+            StatusCode::NO_CONTENT
+        );
+        assert_eq!(watch_management_facts(&fixture).await, before);
+        assert_eq!(handoff_probe.counts(), (1, 1, 0));
+    });
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn watch_renewal_samples_durable_timestamp_after_the_writer_wait() {
     let mut fixture = watch_management_race_fixture(WatchManagementRaceSite::Renew).await;
@@ -41186,7 +41499,7 @@ impl<Gate: Send + 'static> super::PendingCommit for FinalCutReuseProbe<Gate> {
 
     fn commit(
         self,
-        _authority: &crate::storage::CommitCapsuleAuthority,
+        _origin: &crate::storage::CommitCapsuleOrigin,
     ) -> crate::diagnostic::SnapbackResult<Self::Output> {
         Ok(self.value)
     }
@@ -41219,7 +41532,7 @@ impl<Gate: Send + 'static> super::PendingCommit for CommitCapsulePending<'_, Gat
 
     fn commit(
         mut self,
-        authority: &crate::storage::CommitCapsuleAuthority,
+        origin: &crate::storage::CommitCapsuleOrigin,
     ) -> crate::diagnostic::SnapbackResult<Self::Output> {
         if let Some(barrier) = &self.during_commit {
             barrier.block();
@@ -41230,7 +41543,7 @@ impl<Gate: Send + 'static> super::PendingCommit for CommitCapsulePending<'_, Gat
             .expect("commit capsule pending transaction");
         match self.injection {
             CommitCapsuleInjection::Success => {
-                let value = pending.commit(authority)?;
+                let value = origin.commit_prototype(pending)?;
                 self.gate
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -41240,17 +41553,20 @@ impl<Gate: Send + 'static> super::PendingCommit for CommitCapsulePending<'_, Gat
             CommitCapsuleInjection::SuccessWithLostAcknowledgement
             | CommitCapsuleInjection::CommitErrorRowsPresent
             | CommitCapsuleInjection::CommitErrorRowsPartial => {
-                let _committed = pending.commit(authority)?;
+                let _committed = origin.commit_prototype(pending)?;
                 Err(commit_capsule_injected_storage_error())
             }
-            CommitCapsuleInjection::CommitErrorRowsAbsent => pending
-                .commit_error_without_rows(authority, commit_capsule_injected_storage_error()),
+            CommitCapsuleInjection::CommitErrorRowsAbsent => origin
+                .commit_error_prototype_without_rows(
+                    pending,
+                    commit_capsule_injected_storage_error(),
+                ),
             CommitCapsuleInjection::PanicDuringCommitBeforeStorage => {
                 pending.observe_commit_attempt_before_panic();
                 panic!("injected bounded commit capsule panic during COMMIT")
             }
             CommitCapsuleInjection::PanicAfterCommit => {
-                let _committed = pending.commit(authority)?;
+                let _committed = origin.commit_prototype(pending)?;
                 panic!("injected bounded commit capsule panic after SQLite COMMIT")
             }
             CommitCapsuleInjection::RollbackBeforeCommit => {

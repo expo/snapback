@@ -2,7 +2,7 @@
 
 use super::jobs::{BufferedJobEnqueue, JobProducer};
 use super::{
-    CommitCapsuleAuthority, CommitCapsuleIntent, DatabaseBinding, ExactCommitRows, LocalDatabase,
+    CommitCapsuleIntent, CommitCapsuleOrigin, DatabaseBinding, ExactCommitRows, LocalDatabase,
     SnapbackResult,
 };
 use crate::diagnostic::SnapbackError;
@@ -219,6 +219,13 @@ impl CommitCapsuleIntent for WatchManagementIntent {
     fn operation_identity(&self) -> &Self::OperationIdentity {
         self.operation_identity()
     }
+
+    fn semantic_fingerprint(&self) -> [u8; 32] {
+        let mut digest = Sha256::new();
+        digest.update(b"snapback/watch-management-request/v1\0");
+        digest.update(format!("{self:?}").as_bytes());
+        digest.finalize().into()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -263,6 +270,42 @@ pub struct WatchManagementIntendedRows {
     watch: WatchRecord,
     durable_watch: WatchDurableRow,
     effect: WatchManagementIntendedEffect,
+    minted_fingerprint: [u8; 32],
+}
+
+impl CommitCapsuleIntent for WatchManagementIntendedRows {
+    type OperationIdentity = WatchManagementOperationIdentity;
+
+    fn operation_identity(&self) -> &Self::OperationIdentity {
+        &self.operation_identity
+    }
+
+    fn semantic_fingerprint(&self) -> [u8; 32] {
+        watch_management_successor_fingerprint(
+            &self.operation_identity,
+            &self.watch,
+            &self.durable_watch,
+            &self.effect,
+        )
+    }
+}
+
+fn watch_management_successor_fingerprint(
+    operation_identity: &WatchManagementOperationIdentity,
+    watch: &WatchRecord,
+    durable_watch: &WatchDurableRow,
+    effect: &WatchManagementIntendedEffect,
+) -> [u8; 32] {
+    let mut digest = Sha256::new();
+    digest.update(b"snapback/watch-management-successor/v1\0");
+    digest.update(operation_identity.as_bytes());
+    digest.update([0]);
+    digest.update(format!("{watch:?}").as_bytes());
+    digest.update([0]);
+    digest.update(format!("{durable_watch:?}").as_bytes());
+    digest.update([0]);
+    digest.update(format!("{effect:?}").as_bytes());
+    digest.finalize().into()
 }
 
 #[derive(Clone, Debug)]
@@ -314,16 +357,8 @@ impl WatchManagementPending<'_> {
         Ok(())
     }
 
-    /// Commit after checking that the supplied opaque authority identifies
-    /// this pending transaction's database. Current composition APIs expose a
-    /// clone of that authority, so callers can capture it and reach this method
-    /// without the capsule's `FinalCommitCut`; custody is not structurally
-    /// sealed.
-    pub fn commit(
-        self,
-        authority: &CommitCapsuleAuthority,
-    ) -> SnapbackResult<WatchManagementCommit> {
-        if !authority.matches(&self.binding) {
+    fn commit(self, origin: &CommitCapsuleOrigin) -> SnapbackResult<WatchManagementCommit> {
+        if !origin.matches(&self.binding) {
             self.tx.rollback()?;
             return Err(SnapbackError::error(
                 "SNAPBACK_COMMIT_CAPSULE_DESTINATION_MISMATCH",
@@ -335,6 +370,28 @@ impl WatchManagementPending<'_> {
         super::observe_durable_commit_for_test();
         self.tx.commit()?;
         Ok(self.value)
+    }
+}
+
+impl CommitCapsuleOrigin {
+    /// Consume one kernel-minted watch transaction for this exact database.
+    /// No raw commit authority or generic commit behavior crosses the kernel
+    /// boundary.
+    pub fn commit_watch_management(
+        &self,
+        pending: WatchManagementPending<'_>,
+    ) -> SnapbackResult<WatchManagementCommit> {
+        pending.commit(self)
+    }
+
+    /// Consume a kernel-minted exact-row witness only beside the complete
+    /// semantic successor that minted it.
+    pub fn accept_watch_management_reconciliation(
+        &self,
+        witness: ExactCommitRows<WatchManagementIntendedRows, WatchManagementCommit>,
+        intended: &WatchManagementIntendedRows,
+    ) -> SnapbackResult<WatchManagementCommit> {
+        witness.into_value_for(self, intended)
     }
 }
 
@@ -738,15 +795,23 @@ impl LocalDatabase {
                 let watch = row_for_id_on(&tx, watch_id)?.ok_or_else(catalog_corrupt)?;
                 let durable_watch =
                     durable_watch_row_on(&tx, watch_id)?.ok_or_else(catalog_corrupt)?;
+                let effect = WatchManagementIntendedEffect::Transition {
+                    resume_job_id: resume_job_id.clone(),
+                    now_ms,
+                    available_at_ms,
+                };
+                let minted_fingerprint = watch_management_successor_fingerprint(
+                    operation_identity,
+                    &watch,
+                    &durable_watch,
+                    &effect,
+                );
                 let intended = WatchManagementIntendedRows {
                     operation_identity: operation_identity.clone(),
                     watch: watch.clone(),
                     durable_watch,
-                    effect: WatchManagementIntendedEffect::Transition {
-                        resume_job_id: resume_job_id.clone(),
-                        now_ms,
-                        available_at_ms,
-                    },
+                    effect,
+                    minted_fingerprint,
                 };
                 Ok(WatchManagementPending {
                     tx,
@@ -880,14 +945,22 @@ impl LocalDatabase {
                     durable_watch_row_on(&tx, watch_id)?.ok_or_else(catalog_corrupt)?;
                 let replacement_anchor =
                     anchor_grant_row_on(&tx, replacement_grant_id)?.ok_or_else(catalog_corrupt)?;
+                let effect = WatchManagementIntendedEffect::Renewal {
+                    old_anchor,
+                    replacement_anchor,
+                };
+                let minted_fingerprint = watch_management_successor_fingerprint(
+                    operation_identity,
+                    &watch,
+                    &durable_watch,
+                    &effect,
+                );
                 let intended = WatchManagementIntendedRows {
                     operation_identity: operation_identity.clone(),
                     watch: watch.clone(),
                     durable_watch,
-                    effect: WatchManagementIntendedEffect::Renewal {
-                        old_anchor,
-                        replacement_anchor,
-                    },
+                    effect,
+                    minted_fingerprint,
                 };
                 Ok(WatchManagementPending {
                     tx,
@@ -907,7 +980,11 @@ impl LocalDatabase {
     pub fn reconcile_watch_management(
         &mut self,
         intended: &WatchManagementIntendedRows,
-    ) -> SnapbackResult<Option<ExactCommitRows<WatchManagementIntent, WatchManagementCommit>>> {
+    ) -> SnapbackResult<Option<ExactCommitRows<WatchManagementIntendedRows, WatchManagementCommit>>>
+    {
+        if intended.minted_fingerprint != intended.semantic_fingerprint() {
+            return Ok(None);
+        }
         if durable_watch_row_on(&self.conn, &intended.watch.id)?.as_ref()
             != Some(&intended.durable_watch)
         {
@@ -952,7 +1029,7 @@ impl LocalDatabase {
         };
         Ok(Some(ExactCommitRows::new(
             self.binding(),
-            intended.operation_identity.clone(),
+            intended,
             WatchManagementCommit {
                 record: watch,
                 evaluation_enqueued,
@@ -2796,23 +2873,25 @@ mod tests {
             target: WatchStatus::Active,
             resume_job_id: Some(job_id.to_owned()),
         };
-        let authority = CommitCapsuleAuthority {
-            binding: db.binding(),
+        let origin = CommitCapsuleOrigin {
+            authority: crate::storage::CommitCapsuleAuthority {
+                binding: db.binding(),
+            },
         };
         let pending = db
             .stage_watch_management(&intent, "integration-principal", TEST_NOW_MS + 20)
             .expect("stage exact resume successor");
         let intended = pending.intended_rows().clone();
-        pending
-            .commit(&authority)
+        origin
+            .commit_watch_management(pending)
             .expect("simulate COMMIT whose acknowledgement was lost");
 
         let witness = db
             .reconcile_watch_management(&intended)
             .expect("reconcile exact resume successor")
             .expect("status, pending link, and exact job establish success");
-        let committed = witness
-            .into_value_for(&authority, &intent)
+        let committed = origin
+            .accept_watch_management_reconciliation(witness, &intended)
             .expect("database- and identifier-matched resume witness");
         assert!(committed.evaluation_enqueued);
 
@@ -2831,6 +2910,61 @@ mod tests {
                 .expect("reconcile partial resume successor")
                 .is_none(),
             "a status-only resume successor must remain commit-uncertain"
+        );
+    }
+
+    #[test]
+    fn reconciliation_witness_rejects_same_id_with_a_different_semantic_successor() {
+        let mut db = integration_watch_database();
+        let active = db
+            .create_watch(integration_watch_request(
+                "watch-reconciliation-semantic-seal",
+                "watch-reconciliation-semantic-seal-anchor",
+            ))
+            .expect("create semantic-seal fixture");
+        let intent = WatchManagementIntent::Transition {
+            operation_identity: WatchManagementOperationIdentity::new(
+                "watch-reconciliation-semantic-seal:shared-id",
+            ),
+            watch_id: active.id,
+            target: WatchStatus::Suspended,
+            resume_job_id: None,
+        };
+        let origin = CommitCapsuleOrigin {
+            authority: crate::storage::CommitCapsuleAuthority {
+                binding: db.binding(),
+            },
+        };
+        let pending = db
+            .stage_watch_management(&intent, "integration-principal", TEST_NOW_MS + 20)
+            .expect("stage semantic-seal successor");
+        let intended = pending.intended_rows().clone();
+        origin
+            .commit_watch_management(pending)
+            .expect("commit semantic-seal fixture");
+
+        let witness = db
+            .reconcile_watch_management(&intended)
+            .expect("query exact semantic-seal successor")
+            .expect("exact committed successor mints a witness");
+        let mut different = intended.clone();
+        different.watch.updated_at_ms += 1;
+        different.minted_fingerprint = different.semantic_fingerprint();
+        let error = origin
+            .accept_watch_management_reconciliation(witness, &different)
+            .expect_err("same operation ID cannot substitute another semantic successor");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_COMMIT_RECONCILIATION_WITNESS_MISMATCH"
+        );
+
+        let mut tampered = intended.clone();
+        tampered.watch.updated_at_ms += 1;
+        assert!(
+            db.reconcile_watch_management(&tampered)
+                .expect("query tampered intended carrier")
+                .is_none(),
+            "a caller-mutated carrier cannot mint a witness"
         );
     }
 }
@@ -2867,7 +3001,8 @@ impl super::ServingDatabase {
     pub fn reconcile_watch_management(
         &mut self,
         intended: &WatchManagementIntendedRows,
-    ) -> SnapbackResult<Option<ExactCommitRows<WatchManagementIntent, WatchManagementCommit>>> {
+    ) -> SnapbackResult<Option<ExactCommitRows<WatchManagementIntendedRows, WatchManagementCommit>>>
+    {
         self.db.reconcile_watch_management(intended)
     }
     pub fn transition_watch(

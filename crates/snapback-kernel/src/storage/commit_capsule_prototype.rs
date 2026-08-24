@@ -6,11 +6,12 @@
 //!   stays in the storage kernel.
 
 use super::{
-    CommitCapsuleAuthority, CommitCapsuleIntent, DatabaseBinding, ExactCommitRows, LocalDatabase,
+    CommitCapsuleIntent, CommitCapsuleOrigin, DatabaseBinding, ExactCommitRows, LocalDatabase,
     observe_durable_commit_for_test,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use rusqlite::{Connection, OptionalExtension as _, Transaction, TransactionBehavior, params};
+use sha2::{Digest, Sha256};
 use std::fmt;
 use std::path::Path;
 
@@ -59,6 +60,19 @@ impl CommitCapsuleIntent for PrototypeIntent {
 
     fn operation_identity(&self) -> &Self::OperationIdentity {
         &self.operation_id
+    }
+
+    fn semantic_fingerprint(&self) -> [u8; 32] {
+        let mut digest = Sha256::new();
+        digest.update(b"snapback/commit-capsule-prototype/v1\0");
+        digest.update(self.operation_id.as_bytes());
+        digest.update([0]);
+        digest.update(self.payload.as_bytes());
+        digest.update([0]);
+        digest.update(self.proof_id.as_bytes());
+        digest.update([0]);
+        digest.update(self.response.as_bytes());
+        digest.finalize().into()
     }
 }
 
@@ -149,7 +163,7 @@ pub fn stage<'connection>(
         if exact {
             return Ok(PrototypeStage::Existing(ExactCommitRows::new(
                 binding,
-                intent.operation_id.clone(),
+                intent,
                 PrototypeValue {
                     operation_id: intent.operation_id.as_ref().to_owned(),
                     response,
@@ -210,8 +224,8 @@ impl PrototypePending<'_> {
         Ok(())
     }
 
-    pub fn commit(self, authority: &CommitCapsuleAuthority) -> SnapbackResult<PrototypeValue> {
-        if !authority.matches(&self.binding) {
+    fn commit(self, origin: &CommitCapsuleOrigin) -> SnapbackResult<PrototypeValue> {
+        if !origin.matches(&self.binding) {
             self.tx.rollback()?;
             return Err(SnapbackError::error(
                 "SNAPBACK_COMMIT_CAPSULE_DESTINATION_MISMATCH",
@@ -227,12 +241,12 @@ impl PrototypePending<'_> {
     /// Model a storage COMMIT error whose durable predecessor is still exact.
     /// The observer still records a COMMIT attempt, while explicit rollback
     /// makes the absent-row reconciliation deterministic.
-    pub fn commit_error_without_rows(
+    fn commit_error_without_rows(
         self,
-        authority: &CommitCapsuleAuthority,
+        origin: &CommitCapsuleOrigin,
         error: SnapbackError,
     ) -> SnapbackResult<PrototypeValue> {
-        if !authority.matches(&self.binding) {
+        if !origin.matches(&self.binding) {
             self.tx.rollback()?;
             return Err(SnapbackError::error(
                 "SNAPBACK_COMMIT_CAPSULE_DESTINATION_MISMATCH",
@@ -251,6 +265,31 @@ impl PrototypePending<'_> {
     /// not provide that proof on an unwind.
     pub fn observe_commit_attempt_before_panic(&self) {
         observe_durable_commit_for_test();
+    }
+}
+
+impl CommitCapsuleOrigin {
+    pub fn commit_prototype(
+        &self,
+        pending: PrototypePending<'_>,
+    ) -> SnapbackResult<PrototypeValue> {
+        pending.commit(self)
+    }
+
+    pub fn commit_error_prototype_without_rows(
+        &self,
+        pending: PrototypePending<'_>,
+        error: SnapbackError,
+    ) -> SnapbackResult<PrototypeValue> {
+        pending.commit_error_without_rows(self, error)
+    }
+
+    pub fn accept_prototype_reconciliation(
+        &self,
+        witness: ExactCommitRows<PrototypeIntent, PrototypeValue>,
+        intent: &PrototypeIntent,
+    ) -> SnapbackResult<PrototypeValue> {
+        witness.into_value_for(self, intent)
     }
 }
 
@@ -298,7 +337,7 @@ pub fn exact_reconciliation(
     Ok(exact.then(|| {
         ExactCommitRows::new(
             db.binding(),
-            intent.operation_id.clone(),
+            intent,
             PrototypeValue {
                 operation_id: intent.operation_id.as_ref().to_owned(),
                 response,

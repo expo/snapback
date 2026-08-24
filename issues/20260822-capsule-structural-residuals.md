@@ -20,6 +20,25 @@ as evidence for adapter sealing, captured-authority exclusion, or semantic inten
 
 ## Residuals and shortest violating paths
 
+### Landing 1 closure in progress — production watch capsule adapter, captured authority, and semantic replay
+
+The origin-bound capsule's first landing removes three of the watch path's production seams:
+
+- the open `PendingCommit` adapter is test-only; production watch execution accepts only the
+  kernel-owned `WatchManagementPending` through a closed operation on `CommitCapsuleOrigin`;
+- raw `CommitCapsuleAuthority` is kernel-private, while the higher crates retain only the opaque
+  origin with no binding accessor or generic commit operation; and
+- `ExactCommitRows` binds the database, typed operation identity, and canonical intended-successor
+  fingerprint. A same-ID/different-successor witness is rejected, and a mutated intended carrier
+  cannot mint a witness.
+
+These are scoped closures for the migrated watch operation, not a corpus-wide completion claim.
+The post-construction `LocalSnapback` referent-replacement residual below remains constructible and
+is only detected by the worker graph recheck plus rejected by the kernel origin check. Upstream
+`PreparedAuthority` publication setters also remain open pending the route-context migrations; see
+the explicit Landing 1 boundary in
+`issues/20260823-origin-bound-commit-capsule-design.md`.
+
 ### High — post-construction aliasing can recreate `{B,A,A}` (found in review of the closure itself)
 
 `AppState` exposes its `Arc<Mutex<LocalSnapback>>` publicly
@@ -85,7 +104,7 @@ confirmation changed only the origin guard to
 `if false && !Arc::ptr_eq(...)`; AppState then constructed the splice and the test failed at its
 explicit refusal assertion. Restoring the guard made the test pass.
 
-### High — PendingCommit can mint or redirect committed outcomes
+### Resolved for production watch execution in Landing 1 — PendingCommit adapter spoofing
 
 File: `crates/snapback-server/src/server/commit_capsule.rs:148-173,618-678`.
 
@@ -95,10 +114,12 @@ result to `CommitAttemptState::Committed` even though no database write occurred
 implementation can hold database B's pending value and authority, ignore the authority A supplied
 by a final cut holding A's admission guard, and commit B instead.
 
-Disposition: High, latent. Seal the adapter behind concrete database- and operation-bound kernel
-types; do not treat the current trait contract as compiler-enforced proof.
+Landing 1 disposition: the generic trait and capsule prototype are `cfg(test)` only. The production
+executor names the concrete kernel pending type, whose commit method is private and can be consumed
+only by the opaque origin's closed watch operation. The external attack fixture that attempts to
+implement `PendingCommit` must fail at its exact attack span.
 
-### High — captured authority bypasses reservation and FinalCommitCut
+### Resolved for production watch execution in Landing 1 — captured raw commit authority
 
 Files: `crates/snapback-server/src/admin.rs:2621`,
 `crates/snapback-engine/src/local/engine.rs:3314-3334,24483-24514`, and
@@ -113,10 +134,12 @@ transaction commits without an `AuthorizedEffectReservation` and without `FinalC
 Narrowing the capsule closure's parameter list does not constrain closure captures or other Local
 closures.
 
-Disposition: High, latent. Remove raw authority/stage/commit composition from capture-reachable
-surfaces as part of the sealed construction and concrete commit-path work.
+Landing 1 disposition: `CommitCapsuleAuthority` is kernel-private. Engine/server bindings carry
+only `CommitCapsuleOrigin`; it exposes neither the raw binding nor a generic commit method. Watch
+pending commit is private and the staging authority view is derived inside the executor from the
+same reservation. External attacks separately pin raw-authority naming and origin-field extraction.
 
-### High — same-ID semantic intent replay
+### Resolved for the watch reconciliation carrier in Landing 1 — same-ID semantic intent replay
 
 File: `crates/snapback-kernel/src/storage.rs:895-909`.
 
@@ -126,6 +149,8 @@ the witness value to B's response shape, and call `into_value_for(authority, &B)
 only database identity and operation-ID equality, so it accepts the decoy witness. The identifier
 newtypes are caller-constructible and have no uniqueness ledger.
 
-Disposition: High, latent. Bind reconciliation evidence to the intent instance or a canonical
-intended-row fingerprint backed by a uniqueness rule; unequal-ID tests are not evidence for this
-property.
+Landing 1 disposition: the kernel-minted witness stores a canonical semantic fingerprint in
+addition to the database binding and typed operation identity. Watch intended rows carry a private
+minted fingerprint, and witness minting rejects a carrier whose fields no longer match it. The
+same-ID/different-successor test changes a semantically relevant row, recomputes a self-consistent
+fingerprint for that different successor, and proves that the original witness still rejects it.

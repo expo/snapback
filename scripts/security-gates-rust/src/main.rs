@@ -79,6 +79,8 @@ const SEED_TYPES: &[&str] = &[
     "RefusePendingEffectCommand",
     "PromotionContentionReservation",
     "AskSpendReservation",
+    "CommitCapsuleOrigin",
+    "ExactCommitRows",
 ];
 
 // @ref LLP 0285#1-what-closed-means-here — these public carriers are

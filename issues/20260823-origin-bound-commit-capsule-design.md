@@ -1,11 +1,36 @@
 # Design: origin-bound authorized commit capsule
 
-Status: Proposed — design complete, implementation not dispatched
+Status: Implemented — landing 1 (primitive plus watch adopter)
 Created: 2026-08-23
 Related: llp/0297-durable-effect-scope.decision.md,
 issues/20260823-remeasurement-under-llp-0297.md (the nine-item closure set),
 issues/20260822-capsule-structural-residuals.md (why the previous attempt failed),
 issues/20260823-detached-action-nested-mutation-fence-design.md
+
+## Landing 1 implementation boundary
+
+Landing 1 replaces the production capsule surface and migrates watch management only. Its bound
+destination consumes one prepared caller authority and exposes one consuming watch operation;
+`Bound`, `Reserved`, `WorkerOwned`, `Guarded`, and `Finished` are private, consuming implementation
+states. The kernel exposes an opaque origin with closed watch commit/reconciliation operations, not
+raw commit authority or a pending-commit interface. Compile-fail attacks pin those exclusions.
+
+This landing does **not** claim the stronger authority/publication construction seal described in
+section 2. `PreparedAuthority::with_fenced_publication` and `with_service_publication` remain
+production-reachable because closing them requires the route-context migration allocated to later
+landings. Performing that migration here would necessarily touch the explicitly out-of-scope grant,
+OAuth, pairing, pending-effect, and grant-approval routes. The Landing 1 claim is therefore narrowed
+to correlation from the already-prepared authority through reservation, staging, the exact storage
+cut, and reconciliation; it is not a claim that every upstream `PreparedAuthority` was constructed
+as an indivisible authority/publication bundle.
+
+Landing 1 also cannot claim the section 7 FIFO mutation oracle. Replacing the bounded acquisition's
+queued `lock_owned` future with repeated `try_lock_owned` made both the naïve watch test and the
+prescribed `bounded_commit_capsule_queue_timeout_preserves_fifo_and_drains_logout` final oracle pass.
+The implementation was restored to queued Tokio acquisition, but that surviving mutant means the
+test does not structurally distinguish FIFO participation from polling. Acceptance for that one
+guarantee stops here under the design's abandonment rule; the verbatim run is retained with the
+Landing 1 mutation evidence.
 
 ## Why this was commissioned
 
