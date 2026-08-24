@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:a8390c37f423698320a21e54d9bf9607e4b9f0dd3aa4
 # @expo/snapback-client/materialization-store
 
 Build-bound public API projection for `@expo/snapback-client/materialization-store`. Canonical registry identity:
-`sha256:65beaf7d972c266eea79cecb444257b26f74954e3a634740ebd7111293b341b9`.
+`sha256:32c07ebef0f3f1f9619d9df760d4cf6a1cb899b3342fab9ebaa7d06111d0affb`.
 Runtime parity condition:
 `import` → `packages/snapback-client/materialization-store.mjs`.
 

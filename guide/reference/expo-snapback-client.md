@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:cdb5fbe12501c85bd8aeddad7a83fb7dce66eb5d38dc
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Canonical registry identity:
-`sha256:65beaf7d972c266eea79cecb444257b26f74954e3a634740ebd7111293b341b9`.
+`sha256:32c07ebef0f3f1f9619d9df760d4cf6a1cb899b3342fab9ebaa7d06111d0affb`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -8949,6 +8949,7 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_DEV_APPLICATION_READY_UNSAFE'
   | 'SNAPBACK_DEV_APP_BINDING_UNAVAILABLE'
   | 'SNAPBACK_DEV_ATTACH_PORT_OUT_OF_RANGE'
+  | 'SNAPBACK_DEV_AUTH_DEPLOYMENT_PROFILE'
   | 'SNAPBACK_DEV_AUTH_MODE_INVALID'
   | 'SNAPBACK_DEV_AUTH_ORIGINS'
   | 'SNAPBACK_DEV_BOOTSTRAP_PORT'
@@ -8974,6 +8975,7 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_DEV_IDENTITY_FILE_INVALID'
   | 'SNAPBACK_DEV_IDENTITY_FS_CHECKS_DISABLED'
   | 'SNAPBACK_DEV_IDENTITY_REFUSED'
+  | 'SNAPBACK_DEV_IMPERSONATION_CAPABILITY_UNAVAILABLE'
   | 'SNAPBACK_DEV_PORT'
   | 'SNAPBACK_DEV_PORT_RANGE'
   | 'SNAPBACK_DEV_PORT_RANGE_EXHAUSTED'

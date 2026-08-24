@@ -35,6 +35,10 @@ import {
   expoAssetFetch,
 } from './asset-source.mjs';
 import { resolveSnapbackExpoLifecycleSource } from './lifecycle-source.mjs';
+import {
+  createSharedBrowserAdapter,
+  resolveExpoSharedBrowserModules,
+} from './shared-browser-adapter.mjs';
 import { acquireExpoSqliteDefaultRqsStore } from './expo-sqlite-carrier.mjs';
 import {
   createExpoCryptoSha256DigestAdapter,
@@ -155,6 +159,51 @@ async function resolveExpoSqliteRuntimeKind(environment) {
     return typeof kind === 'string' && kind.length > 0 ? kind : 'unsupported-host';
   }
   return 'main-app';
+}
+
+const EXPO_AUTH_CLIENT_PLATFORMS = Object.freeze({
+  browser: 'web',
+  'expo-web': 'web',
+});
+
+/**
+ * Build the provider Adapter set for a supervised Expo client.
+ *
+ * Returns null — not an empty set — when this app declares no provider, so the
+ * ordinary construction path is byte-for-byte what it was before providers
+ * existed.
+ *
+ * @ref LLP 0151#native-readiness-requires-both-halves — no app-owned native
+ * readiness is asserted here. Expo Go carries no app-owned provider
+ * integration, so the resolver sees an unready build and keeps development on
+ * the shared browser Adapter until a rebuilt client says otherwise.
+ */
+async function resolveExpoAuthProviders({ app, binding, platform, environment }) {
+  const declared = app?.authBootstrap?.providers ?? [];
+  if (declared.length === 0) return null;
+  const projection = typeof environment.resolveSharedDevelopmentAuth === 'function'
+    ? environment.resolveSharedDevelopmentAuth({ binding })
+    : null;
+  const adapters = {};
+  if (projection?.available === true) {
+    const modules = await resolveExpoSharedBrowserModules();
+    if (modules !== null) {
+      adapters['snapback-shared-browser'] = createSharedBrowserAdapter({
+        projection,
+        appId: app.authBootstrap.appId,
+        openAuthSession: modules.openAuthSession,
+        createUrl: modules.createUrl,
+      });
+    }
+  }
+  return Object.freeze({
+    context: Object.freeze({
+      deployment: 'development',
+      platform: EXPO_AUTH_CLIENT_PLATFORMS[platform?.kind] ?? 'ios',
+      sharedAvailable: Object.hasOwn(adapters, 'snapback-shared-browser'),
+    }),
+    adapters: Object.freeze(adapters),
+  });
 }
 
 function firstPartyBootstrapOptIn(app) {
@@ -482,6 +531,15 @@ export function createSnapbackExpoBoot({
 
       if (firstPartyBootstrapOptIn(app)) {
         const platform = await awaitBoundary(resolveAppClientPlatform(environment, app));
+        // @ref LLP 0151#resolved-provider-entry — Adapters resolve once, here,
+        // from the declaration plus the supervisor's credential-free shared-auth
+        // projection. An app that declares no provider builds none.
+        const authProviders = await awaitBoundary(resolveExpoAuthProviders({
+          app,
+          binding: admittedBinding,
+          platform,
+          environment,
+        }));
         applicationClient = await awaitBoundary(createApplicationClient(
           {
             app,
@@ -490,6 +548,7 @@ export function createSnapbackExpoBoot({
             now,
             signal: controller.signal,
             rqsStore: resolvedRqsStore,
+            ...(authProviders === null ? {} : { authProviders }),
           },
           (snapshot) => {
             if (!disposed && snapshot.status !== 'ready') publish(snapshot);
