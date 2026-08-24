@@ -14,10 +14,15 @@ use super::invocation::{
 };
 use super::provider::{
     AUTH_SESSION_SLIDING_WINDOW_MS, AUTH_SESSION_SUPERSESSION_GRACE_MS, AuthenticatedUse,
-    CredentialIssue, PlannedIssuanceCommit, PlannedPasswordChangeCommit, PlannedRevocationCommit,
-    PlannedRotationCommit, ProviderPasswordChangePlan, ProviderRevocationPlan,
-    ProviderSessionIssuancePlan, ProviderTokenRotationPlan, SessionRevocation,
+    BoundIssuanceAttempt, BoundPasswordChangeAttempt, BoundRevocationAttempt, BoundRotationAttempt,
+    CredentialIssue, MatchedIssuanceAttempt, MatchedIssuanceOutcome, MatchedPasswordChangeAttempt,
+    MatchedPasswordChangeOutcome, MatchedRevocationAttempt, MatchedRevocationOutcome,
+    MatchedRotationAttempt, MatchedRotationOutcome, ProviderPasswordChangePlan,
+    ProviderRevocationPlan, ProviderSessionIssuancePlan, ProviderTokenRotationPlan,
+    SessionRevocation,
 };
+#[cfg(test)]
+use super::provider::{PlannedIssuanceCommit, PlannedRevocationCommit, PlannedRotationCommit};
 use super::session_projection::{
     AUTH_LOCK_RANK_TOPOLOGY, AuthorityWorkDrain, BoundConnectionSessionIdentity, DueExpiryBatch,
     DueExpiryFinalization, FencedPublication, FinalizedRotationPublicationCut, MutationTicket,
@@ -1025,11 +1030,25 @@ impl AuthCoordinator {
     pub fn finish_revocation(
         &self,
         carrier: PremarkedRevocation,
-        attempt: AuthTransactionAttempt<PlannedRevocationCommit>,
+        attempt: BoundRevocationAttempt,
     ) -> AuthFinish<RevocationFinish> {
+        let attempt = match attempt.join(&carrier.plan) {
+            Ok(attempt) => attempt,
+            Err(_) => {
+                if let Ok(mut topology) = self.lock_topology() {
+                    fail_session_closed(
+                        &mut topology,
+                        &carrier.ticket,
+                        carrier.plan.session_id(),
+                        None,
+                    );
+                }
+                return AuthFinish::new(Err(projection_unavailable()), Vec::new());
+            }
+        };
         let committed_revocation = matches!(
             &attempt,
-            AuthTransactionAttempt::Committed(PlannedRevocationCommit::Committed(_))
+            MatchedRevocationAttempt::Committed(MatchedRevocationOutcome::Committed(_))
         )
         .then(|| vec![carrier.terminal_target.clone()])
         .unwrap_or_default();
@@ -1037,18 +1056,28 @@ impl AuthCoordinator {
         AuthFinish::new(outcome, committed_revocation)
     }
 
-    fn finish_revocation_outcome(
+    #[cfg(test)]
+    fn finish_revocation_raw_for_test(
         &self,
         carrier: PremarkedRevocation,
         attempt: AuthTransactionAttempt<PlannedRevocationCommit>,
+    ) -> AuthFinish<RevocationFinish> {
+        let attempt = BoundRevocationAttempt::for_test(carrier.plan(), attempt);
+        self.finish_revocation(carrier, attempt)
+    }
+
+    fn finish_revocation_outcome(
+        &self,
+        carrier: PremarkedRevocation,
+        attempt: MatchedRevocationAttempt,
     ) -> SnapbackResult<RevocationFinish> {
         let mut topology = self.lock_topology()?;
         match attempt {
-            AuthTransactionAttempt::RolledBack(error) => {
+            MatchedRevocationAttempt::RolledBack(error) => {
                 exact_unmark_revocation(&mut topology, &carrier)?;
                 Err(error)
             }
-            AuthTransactionAttempt::CommitUncertain(_error) => {
+            MatchedRevocationAttempt::CommitUncertain(_error) => {
                 fail_session_closed(
                     &mut topology,
                     &carrier.ticket,
@@ -1057,34 +1086,19 @@ impl AuthCoordinator {
                 );
                 Err(revocation_uncertain())
             }
-            AuthTransactionAttempt::Committed(PlannedRevocationCommit::PredecessorChanged) => {
+            MatchedRevocationAttempt::Committed(MatchedRevocationOutcome::PredecessorChanged) => {
                 exact_unmark_revocation(&mut topology, &carrier)?;
                 Ok(RevocationFinish::PredecessorChanged)
             }
-            AuthTransactionAttempt::Committed(PlannedRevocationCommit::AlreadyTerminal {
+            MatchedRevocationAttempt::Committed(MatchedRevocationOutcome::AlreadyTerminal {
                 generation,
                 reason,
             }) => {
                 exact_unmark_revocation(&mut topology, &carrier)?;
                 Ok(RevocationFinish::AlreadyTerminal { generation, reason })
             }
-            AuthTransactionAttempt::Committed(PlannedRevocationCommit::Committed(revocation)) => {
-                let expected_generation = carrier
-                    .plan
-                    .expected_generation()
-                    .checked_add(1)
-                    .ok_or_else(projection_unavailable)?;
-                if revocation.session_id != carrier.plan.session_id()
-                    || revocation.generation != expected_generation
-                {
-                    fail_session_closed(
-                        &mut topology,
-                        &carrier.ticket,
-                        carrier.plan.session_id(),
-                        Some(revocation.generation),
-                    );
-                    return Err(projection_unavailable());
-                }
+            MatchedRevocationAttempt::Committed(MatchedRevocationOutcome::Committed(commit)) => {
+                let revocation = commit.into_revocation();
                 if self.take_finalize_failpoint()
                     || topology
                         .projection
@@ -1131,15 +1145,28 @@ impl AuthCoordinator {
     pub fn finish_rotation(
         &self,
         carrier: PremarkedRotation,
-        attempt: AuthTransactionAttempt<PlannedRotationCommit>,
+        attempt: BoundRotationAttempt,
     ) -> SnapbackResult<RotationFinish> {
+        let attempt = match attempt.join(&carrier.plan) {
+            Ok(attempt) => attempt,
+            Err(_) => {
+                let mut topology = self.lock_topology()?;
+                fail_session_closed(
+                    &mut topology,
+                    &carrier.ticket,
+                    carrier.plan.session_id(),
+                    None,
+                );
+                return Err(projection_unavailable());
+            }
+        };
         let mut topology = self.lock_topology()?;
         match attempt {
-            AuthTransactionAttempt::RolledBack(error) => {
+            MatchedRotationAttempt::RolledBack(error) => {
                 exact_unmark_rotation(&mut topology, &carrier)?;
                 Err(error)
             }
-            AuthTransactionAttempt::CommitUncertain(_error) => {
+            MatchedRotationAttempt::CommitUncertain(_error) => {
                 fail_session_closed(
                     &mut topology,
                     &carrier.ticket,
@@ -1148,15 +1175,15 @@ impl AuthCoordinator {
                 );
                 Err(revocation_uncertain())
             }
-            AuthTransactionAttempt::Committed(PlannedRotationCommit::PredecessorChanged) => {
+            MatchedRotationAttempt::Committed(MatchedRotationOutcome::PredecessorChanged) => {
                 exact_unmark_rotation(&mut topology, &carrier)?;
                 Ok(RotationFinish::PredecessorChanged)
             }
-            AuthTransactionAttempt::Committed(PlannedRotationCommit::CandidateCollision) => {
+            MatchedRotationAttempt::Committed(MatchedRotationOutcome::CandidateCollision) => {
                 exact_unmark_rotation(&mut topology, &carrier)?;
                 Ok(RotationFinish::CandidateCollision)
             }
-            AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed { session }) => {
+            MatchedRotationAttempt::Committed(MatchedRotationOutcome::Committed(commit)) => {
                 let response_publication =
                     topology.projection.prepare_rotation_response_publication(
                         &carrier.ticket,
@@ -1205,25 +1232,44 @@ impl AuthCoordinator {
                     }))),
                 };
                 Ok(RotationFinish::Committed {
-                    issue: carrier.plan.into_issue(session),
+                    issue: carrier.plan.into_issue(commit),
                     outcome,
                 })
             }
         }
     }
 
+    #[cfg(test)]
+    fn finish_rotation_raw_for_test(
+        &self,
+        carrier: PremarkedRotation,
+        attempt: AuthTransactionAttempt<PlannedRotationCommit>,
+    ) -> SnapbackResult<RotationFinish> {
+        let attempt = BoundRotationAttempt::for_test(carrier.plan(), attempt);
+        self.finish_rotation(carrier, attempt)
+    }
+
     pub fn finish_issuance(
         &self,
         carrier: PremarkedIssuance,
-        attempt: AuthTransactionAttempt<PlannedIssuanceCommit>,
+        attempt: BoundIssuanceAttempt,
         epoch_now_ms: u64,
         monotonic_now: Instant,
     ) -> AuthFinish<IssuanceFinish> {
+        let attempt = match attempt.join(&carrier.plan) {
+            Ok(attempt) => attempt,
+            Err(_) => {
+                if let Ok(mut topology) = self.lock_topology() {
+                    fail_issuance_closed(&mut topology, &carrier);
+                }
+                return AuthFinish::new(Err(projection_unavailable()), Vec::new());
+            }
+        };
         let committed_revocations = match &attempt {
-            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
-                committed_revocations,
-                ..
-            }) if committed_revocations.len() == carrier.revocation_terminal_targets.len() => {
+            MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::Committed(commit))
+                if commit.committed_revocations().len()
+                    == carrier.revocation_terminal_targets.len() =>
+            {
                 carrier.revocation_terminal_targets.clone()
             }
             _ => Vec::new(),
@@ -1232,51 +1278,63 @@ impl AuthCoordinator {
         AuthFinish::new(outcome, committed_revocations)
     }
 
-    fn finish_issuance_outcome(
+    #[cfg(test)]
+    fn finish_issuance_raw_for_test(
         &self,
         carrier: PremarkedIssuance,
         attempt: AuthTransactionAttempt<PlannedIssuanceCommit>,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> AuthFinish<IssuanceFinish> {
+        let attempt = BoundIssuanceAttempt::for_test(carrier.plan(), attempt);
+        self.finish_issuance(carrier, attempt, epoch_now_ms, monotonic_now)
+    }
+
+    fn finish_issuance_outcome(
+        &self,
+        carrier: PremarkedIssuance,
+        attempt: MatchedIssuanceAttempt,
         epoch_now_ms: u64,
         monotonic_now: Instant,
     ) -> SnapbackResult<IssuanceFinish> {
         let mut topology = self.lock_topology()?;
         let session_id = carrier.plan.projected_insert().session_id;
         match attempt {
-            AuthTransactionAttempt::RolledBack(error) => {
+            MatchedIssuanceAttempt::RolledBack(error) => {
                 exact_unmark_issuance(&mut topology, &carrier)?;
                 Err(error)
             }
-            AuthTransactionAttempt::CommitUncertain(_) => {
+            MatchedIssuanceAttempt::CommitUncertain(_) => {
                 fail_issuance_closed(&mut topology, &carrier);
                 Err(revocation_uncertain())
             }
-            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::PredecessorChanged) => {
+            MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::PredecessorChanged) => {
                 exact_unmark_issuance(&mut topology, &carrier)?;
                 Ok(IssuanceFinish::PredecessorChanged)
             }
-            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CandidateCollision) => {
+            MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::CandidateCollision) => {
                 exact_unmark_issuance(&mut topology, &carrier)?;
                 Ok(IssuanceFinish::CandidateCollision)
             }
-            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CodeInvalid) => {
+            MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::CodeInvalid) => {
                 exact_unmark_issuance(&mut topology, &carrier)?;
                 Ok(IssuanceFinish::CodeInvalid)
             }
-            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CodeLocked) => {
+            MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::CodeLocked) => {
                 exact_unmark_issuance(&mut topology, &carrier)?;
                 Ok(IssuanceFinish::CodeLocked)
             }
-            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CredentialInvalid {
+            MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::CredentialInvalid {
                 ..
             }) => {
                 exact_unmark_issuance(&mut topology, &carrier)?;
                 Ok(IssuanceFinish::CredentialInvalid)
             }
-            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CredentialThrottled) => {
+            MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::CredentialThrottled) => {
                 exact_unmark_issuance(&mut topology, &carrier)?;
                 Ok(IssuanceFinish::CredentialThrottled)
             }
-            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::GuestBudgetRefused {
+            MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::GuestBudgetRefused {
                 budget_name,
                 retry_after_ms,
                 correlation_id,
@@ -1288,44 +1346,27 @@ impl AuthCoordinator {
                     correlation_id,
                 })
             }
-            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::GuestIdempotencyConflict) => {
+            MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::GuestIdempotencyConflict) => {
                 exact_unmark_issuance(&mut topology, &carrier)?;
                 Ok(IssuanceFinish::GuestIdempotencyConflict)
             }
-            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::SenderKeyBound) => {
+            MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::SenderKeyBound) => {
                 exact_unmark_issuance(&mut topology, &carrier)?;
                 Ok(IssuanceFinish::SenderKeyBound)
             }
-            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::RehearsalReplay(value)) => {
+            MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::RehearsalReplay(value)) => {
                 exact_unmark_issuance(&mut topology, &carrier)?;
                 Ok(IssuanceFinish::RehearsalReplay(value))
             }
-            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::RehearsalDenied(error)) => {
+            MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::RehearsalDenied(error)) => {
                 exact_unmark_issuance(&mut topology, &carrier)?;
                 Ok(IssuanceFinish::RehearsalDenied(error))
             }
-            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
-                session,
-                committed_revocations,
-            }) => {
-                let revocations_match = committed_revocations.len()
-                    == carrier.plan.revocations().len()
-                    && committed_revocations
-                        .iter()
-                        .zip(carrier.plan.revocations())
-                        .all(|(committed, planned)| {
-                            committed.session_id == planned.session_id()
-                                && committed.generation
-                                    == planned.expected_generation().saturating_add(1)
-                        });
-                if session.id != session_id || !revocations_match {
-                    fail_issuance_closed(&mut topology, &carrier);
-                    return Err(projection_unavailable());
-                }
+            MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::Committed(commit)) => {
                 for (ticket, revocation) in carrier
                     .revocation_tickets
                     .iter()
-                    .zip(&committed_revocations)
+                    .zip(commit.committed_revocations())
                 {
                     if topology
                         .projection
@@ -1360,7 +1401,7 @@ impl AuthCoordinator {
                     }))),
                 };
                 Ok(IssuanceFinish::Committed {
-                    issue: carrier.plan.into_issue(session, committed_revocations),
+                    issue: carrier.plan.into_issue(commit),
                     outcome,
                 })
             }
@@ -1370,13 +1411,23 @@ impl AuthCoordinator {
     pub fn finish_password_change(
         &self,
         carrier: PremarkedPasswordChange,
-        attempt: AuthTransactionAttempt<PlannedPasswordChangeCommit>,
+        attempt: BoundPasswordChangeAttempt,
     ) -> AuthFinish<PasswordChangeFinish> {
+        let attempt = match attempt.join(&carrier.plan) {
+            Ok(attempt) => attempt,
+            Err(_) => {
+                if let Ok(mut topology) = self.lock_topology() {
+                    fail_password_change_closed(&mut topology, &carrier);
+                }
+                return AuthFinish::new(Err(projection_unavailable()), Vec::new());
+            }
+        };
         let terminal_targets = match &attempt {
-            AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::Committed {
-                committed_revocations,
-                ..
-            }) if committed_revocations.len() == carrier.revocation_terminal_targets.len() => {
+            MatchedPasswordChangeAttempt::Committed(MatchedPasswordChangeOutcome::Committed(
+                commit,
+            )) if commit.committed_revocations().len()
+                == carrier.revocation_terminal_targets.len() =>
+            {
                 carrier.revocation_terminal_targets.clone()
             }
             _ => Vec::new(),
@@ -1388,46 +1439,56 @@ impl AuthCoordinator {
     fn finish_password_change_outcome(
         &self,
         carrier: PremarkedPasswordChange,
-        attempt: AuthTransactionAttempt<PlannedPasswordChangeCommit>,
+        attempt: MatchedPasswordChangeAttempt,
     ) -> SnapbackResult<PasswordChangeFinish> {
         let mut topology = self.lock_topology()?;
         match attempt {
-            AuthTransactionAttempt::RolledBack(error) => {
+            MatchedPasswordChangeAttempt::RolledBack(error) => {
                 exact_unmark_password_change(&mut topology, &carrier)?;
                 Err(error)
             }
-            AuthTransactionAttempt::CommitUncertain(_) => {
+            MatchedPasswordChangeAttempt::CommitUncertain(_) => {
                 fail_password_change_closed(&mut topology, &carrier);
                 Err(revocation_uncertain())
             }
-            AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::PredecessorChanged) => {
+            MatchedPasswordChangeAttempt::Committed(
+                MatchedPasswordChangeOutcome::PredecessorChanged,
+            ) => {
                 exact_unmark_password_change(&mut topology, &carrier)?;
                 Ok(PasswordChangeFinish::PredecessorChanged)
             }
-            AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::CandidateCollision) => {
+            MatchedPasswordChangeAttempt::Committed(
+                MatchedPasswordChangeOutcome::CandidateCollision,
+            ) => {
                 exact_unmark_password_change(&mut topology, &carrier)?;
                 Ok(PasswordChangeFinish::CandidateCollision)
             }
-            AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::CredentialInvalid {
-                ..
-            }) => {
+            MatchedPasswordChangeAttempt::Committed(
+                MatchedPasswordChangeOutcome::CredentialInvalid { .. },
+            ) => {
                 exact_unmark_password_change(&mut topology, &carrier)?;
                 Ok(PasswordChangeFinish::CredentialInvalid)
             }
-            AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::CredentialThrottled) => {
+            MatchedPasswordChangeAttempt::Committed(
+                MatchedPasswordChangeOutcome::CredentialThrottled,
+            ) => {
                 exact_unmark_password_change(&mut topology, &carrier)?;
                 Ok(PasswordChangeFinish::CredentialThrottled)
             }
-            AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::GuestClaimCollision) => {
+            MatchedPasswordChangeAttempt::Committed(
+                MatchedPasswordChangeOutcome::GuestClaimCollision,
+            ) => {
                 exact_unmark_password_change(&mut topology, &carrier)?;
                 Ok(PasswordChangeFinish::GuestClaimCollision)
             }
-            AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::GuestAlreadyClaimed) => {
+            MatchedPasswordChangeAttempt::Committed(
+                MatchedPasswordChangeOutcome::GuestAlreadyClaimed,
+            ) => {
                 exact_unmark_password_change(&mut topology, &carrier)?;
                 Ok(PasswordChangeFinish::GuestAlreadyClaimed)
             }
-            AuthTransactionAttempt::Committed(
-                PlannedPasswordChangeCommit::GuestBudgetRefused {
+            MatchedPasswordChangeAttempt::Committed(
+                MatchedPasswordChangeOutcome::GuestBudgetRefused {
                     budget_name,
                     retry_after_ms,
                 },
@@ -1438,28 +1499,13 @@ impl AuthCoordinator {
                     retry_after_ms,
                 })
             }
-            AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::Committed {
-                session,
-                committed_revocations,
-            }) => {
-                let revocations_match = committed_revocations.len()
-                    == carrier.plan.revocations().len()
-                    && committed_revocations
-                        .iter()
-                        .zip(carrier.plan.revocations())
-                        .all(|(committed, planned)| {
-                            committed.session_id == planned.session_id()
-                                && committed.generation
-                                    == planned.expected_generation().saturating_add(1)
-                        });
-                if session.id != carrier.plan.rotation().session_id() || !revocations_match {
-                    fail_password_change_closed(&mut topology, &carrier);
-                    return Err(projection_unavailable());
-                }
+            MatchedPasswordChangeAttempt::Committed(MatchedPasswordChangeOutcome::Committed(
+                commit,
+            )) => {
                 for (ticket, revocation) in carrier
                     .revocation_tickets
                     .iter()
-                    .zip(&committed_revocations)
+                    .zip(commit.committed_revocations())
                 {
                     if topology
                         .projection
@@ -1484,7 +1530,7 @@ impl AuthCoordinator {
                     return Err(projection_unavailable());
                 }
                 Ok(PasswordChangeFinish::Committed(
-                    carrier.plan.into_issue(session),
+                    carrier.plan.into_issue(commit),
                 ))
             }
         }
@@ -2340,6 +2386,121 @@ mod tests {
         }
     }
 
+    fn rotation_attempt(
+        fixture: &Fixture,
+        kind: &str,
+    ) -> AuthTransactionAttempt<PlannedRotationCommit> {
+        match kind {
+            "committed" => AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed {
+                session: committed_rotation_session(fixture),
+            }),
+            "rolled_back" => AuthTransactionAttempt::RolledBack(SnapbackError::error(
+                "TEST_ROLLBACK",
+                "test",
+                "known rollback",
+            )),
+            "commit_uncertain" => AuthTransactionAttempt::CommitUncertain(SnapbackError::error(
+                "TEST_UNCERTAIN",
+                "test",
+                "unknown commit",
+            )),
+            "candidate_collision" => {
+                AuthTransactionAttempt::Committed(PlannedRotationCommit::CandidateCollision)
+            }
+            "predecessor_changed" => {
+                AuthTransactionAttempt::Committed(PlannedRotationCommit::PredecessorChanged)
+            }
+            other => panic!("unknown rotation attempt {other}"),
+        }
+    }
+
+    fn issuance_plan_for_operation_test() -> ProviderSessionIssuancePlan {
+        let bearer = SessionBearer::generate(&FixedRandom(9)).unwrap();
+        ProviderSessionIssuancePlan::for_test(
+            ProjectedSessionInsert {
+                session_id: uuid_v7(20, 20),
+                user_id: uuid_v7(21, 21),
+                provider: "email-code".to_owned(),
+                authority_instance_id: uuid_v7(22, 22),
+                generation: 1,
+                token_digest: TokenDigest::from_token_hash(&bearer.token_hash()),
+                created_at_ms: 200,
+                expires_at_ms: 1_000,
+                absolute_expires_at_ms: 2_000,
+                rehearsal_provenance: None,
+            },
+            bearer,
+        )
+    }
+
+    fn issuance_attempt(kind: &str) -> AuthTransactionAttempt<PlannedIssuanceCommit> {
+        match kind {
+            "committed" => AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
+                session: crate::auth::wire::SessionResponse {
+                    id: uuid_v7(20, 20),
+                    user_id: uuid_v7(21, 21),
+                    provider: "email-code".to_owned(),
+                    created_at: 200,
+                    expires_at: 1_000,
+                    absolute_expires_at: 2_000,
+                    authority_instance_id: uuid_v7(22, 22),
+                    generation: 1,
+                },
+                committed_revocations: Vec::new(),
+            }),
+            "rolled_back" => AuthTransactionAttempt::RolledBack(SnapbackError::error(
+                "TEST_ROLLBACK",
+                "test",
+                "known rollback",
+            )),
+            "commit_uncertain" => AuthTransactionAttempt::CommitUncertain(SnapbackError::error(
+                "TEST_UNCERTAIN",
+                "test",
+                "unknown commit",
+            )),
+            "code_invalid" => AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CodeInvalid),
+            "code_locked" => AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CodeLocked),
+            "credential_invalid" => {
+                AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CredentialInvalid {
+                    committed_attempt: None,
+                })
+            }
+            "credential_throttled" => {
+                AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CredentialThrottled)
+            }
+            "guest_budget_refused" => {
+                AuthTransactionAttempt::Committed(PlannedIssuanceCommit::GuestBudgetRefused {
+                    budget_name: "auth.guest.create",
+                    retry_after_ms: 500,
+                    correlation_id: "fixture-correlation".to_owned(),
+                })
+            }
+            "guest_idempotency_conflict" => {
+                AuthTransactionAttempt::Committed(PlannedIssuanceCommit::GuestIdempotencyConflict)
+            }
+            "sender_key_bound" => {
+                AuthTransactionAttempt::Committed(PlannedIssuanceCommit::SenderKeyBound)
+            }
+            "candidate_collision" => {
+                AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CandidateCollision)
+            }
+            "predecessor_changed" => {
+                AuthTransactionAttempt::Committed(PlannedIssuanceCommit::PredecessorChanged)
+            }
+            "rehearsal_replay" => AuthTransactionAttempt::Committed(
+                PlannedIssuanceCommit::RehearsalReplay(serde_json::json!({ "fixture": true })),
+            ),
+            "rehearsal_denied" => AuthTransactionAttempt::Committed(
+                PlannedIssuanceCommit::RehearsalDenied(SnapbackError::error(
+                    "TEST_REHEARSAL_DENIED",
+                    "test",
+                    "known rehearsal refusal",
+                )),
+            ),
+            other => panic!("unknown issuance attempt {other}"),
+        }
+    }
+
     async fn wait_until_publication_closed(
         publication: &FencedPublication,
         epoch_now_ms: u64,
@@ -2444,7 +2605,7 @@ mod tests {
         let rollback = SnapbackError::error("TEST_ROLLBACK", "test", "known rollback");
         let error = fixture
             .coordinator
-            .finish_revocation(carrier, AuthTransactionAttempt::RolledBack(rollback))
+            .finish_revocation_raw_for_test(carrier, AuthTransactionAttempt::RolledBack(rollback))
             .unwrap_err();
         assert_eq!(error.diagnostic.code, "TEST_ROLLBACK");
         fixture.coordinator.check_invariants().unwrap();
@@ -2492,7 +2653,10 @@ mod tests {
         assert_eq!(
             fixture
                 .coordinator
-                .finish_revocation(carrier, AuthTransactionAttempt::RolledBack(rollback))
+                .finish_revocation_raw_for_test(
+                    carrier,
+                    AuthTransactionAttempt::RolledBack(rollback),
+                )
                 .unwrap_err()
                 .diagnostic
                 .code,
@@ -2601,7 +2765,7 @@ mod tests {
         let blocked_publication = publication.clone();
         let outcome = cancel_waiter_with_owned_rollback_blocked_on_local(
             local_blocker_fixture(),
-            move |attempt| finish_coordinator.finish_revocation(carrier, attempt),
+            move |attempt| finish_coordinator.finish_revocation_raw_for_test(carrier, attempt),
             move || {
                 assert!(
                     blocked_publication
@@ -2648,7 +2812,7 @@ mod tests {
         let blocked_publication = publication.clone();
         let outcome = cancel_waiter_with_owned_rollback_blocked_on_local(
             local_blocker_fixture(),
-            move |attempt| finish_coordinator.finish_rotation(carrier, attempt),
+            move |attempt| finish_coordinator.finish_rotation_raw_for_test(carrier, attempt),
             move || {
                 assert!(
                     blocked_publication
@@ -2701,7 +2865,12 @@ mod tests {
         let outcome = cancel_waiter_with_owned_rollback_blocked_on_local(
             local_blocker_fixture(),
             move |attempt| {
-                finish_coordinator.finish_issuance(carrier, attempt, 200, monotonic_start)
+                finish_coordinator.finish_issuance_raw_for_test(
+                    carrier,
+                    attempt,
+                    200,
+                    monotonic_start,
+                )
             },
             move || {
                 assert!(
@@ -2807,7 +2976,7 @@ mod tests {
         assert!(fixture.coordinator.topology.try_lock().is_ok());
         let error = fixture
             .coordinator
-            .finish_rotation(
+            .finish_rotation_raw_for_test(
                 carrier,
                 AuthTransactionAttempt::RolledBack(SnapbackError::error(
                     "TEST_ROLLBACK",
@@ -2818,6 +2987,226 @@ mod tests {
             .unwrap_err();
         assert_eq!(error.diagnostic.code, "TEST_ROLLBACK");
         fixture.coordinator.check_invariants().unwrap();
+    }
+
+    #[tokio::test]
+    async fn rotation_attempts_join_only_the_operation_that_produced_them() {
+        const OUTCOMES: [&str; 5] = [
+            "committed",
+            "rolled_back",
+            "commit_uncertain",
+            "candidate_collision",
+            "predecessor_changed",
+        ];
+        let mut accepted = Vec::new();
+        let mut provider_refused = Vec::new();
+        let mut coordinator_refused = Vec::new();
+
+        for kind in OUTCOMES {
+            let fixture = fixture();
+            let plan_a = ProviderTokenRotationPlan::for_test(
+                fixture.session_id.clone(),
+                1,
+                fixture.digest,
+                SessionBearer::generate(&FixedRandom(8)).unwrap(),
+                250,
+            );
+            let plan_b = ProviderTokenRotationPlan::for_test(
+                fixture.session_id.clone(),
+                1,
+                fixture.digest,
+                SessionBearer::generate(&FixedRandom(8)).unwrap(),
+                250,
+            );
+
+            BoundRotationAttempt::for_test(&plan_a, rotation_attempt(&fixture, kind))
+                .join(&plan_a)
+                .expect("same operation joins every underlying outcome");
+            accepted.push(kind);
+
+            let provider_error =
+                BoundRotationAttempt::for_test(&plan_b, rotation_attempt(&fixture, kind))
+                    .join(&plan_a)
+                    .err()
+                    .expect("cross-operation provider join must fail");
+            assert_eq!(provider_error.diagnostic().code, "INTERNAL_AUTH_STATE");
+            provider_refused.push(kind);
+
+            // A and B deliberately share every visible field. The fixture
+            // therefore breaks reconstruction from session, generation,
+            // digests, bearer, timestamp, and committed response.
+            let attempt_b =
+                BoundRotationAttempt::for_test(&plan_b, rotation_attempt(&fixture, kind));
+            let carrier_a = fixture.coordinator.premark_rotation(plan_a).await.unwrap();
+            let error = fixture
+                .coordinator
+                .finish_rotation(carrier_a, attempt_b)
+                .expect_err("cross-operation coordinator join must fail closed");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+            );
+            coordinator_refused.push(kind);
+        }
+
+        assert_eq!(accepted, OUTCOMES);
+        assert_eq!(provider_refused, OUTCOMES);
+        assert_eq!(coordinator_refused, OUTCOMES);
+    }
+
+    #[tokio::test]
+    async fn issuance_attempts_join_only_the_operation_that_produced_them() {
+        const OUTCOMES: [&str; 14] = [
+            "committed",
+            "rolled_back",
+            "commit_uncertain",
+            "code_invalid",
+            "code_locked",
+            "credential_invalid",
+            "credential_throttled",
+            "guest_budget_refused",
+            "guest_idempotency_conflict",
+            "sender_key_bound",
+            "candidate_collision",
+            "predecessor_changed",
+            "rehearsal_replay",
+            "rehearsal_denied",
+        ];
+        let mut accepted = Vec::new();
+        let mut provider_refused = Vec::new();
+        let mut coordinator_refused = Vec::new();
+
+        for kind in OUTCOMES {
+            let plan_a = issuance_plan_for_operation_test();
+            let plan_b = issuance_plan_for_operation_test();
+            BoundIssuanceAttempt::for_test(&plan_a, issuance_attempt(kind))
+                .join(&plan_a)
+                .expect("same operation joins every underlying issuance outcome");
+            accepted.push(kind);
+
+            let provider_error = BoundIssuanceAttempt::for_test(&plan_b, issuance_attempt(kind))
+                .join(&plan_a)
+                .err()
+                .expect("cross-operation provider join must fail");
+            assert_eq!(provider_error.diagnostic().code, "INTERNAL_AUTH_STATE");
+            provider_refused.push(kind);
+
+            let fixture = fixture();
+            let plan_a = issuance_plan_for_operation_test();
+            let plan_b = issuance_plan_for_operation_test();
+            let attempt_b = BoundIssuanceAttempt::for_test(&plan_b, issuance_attempt(kind));
+            let carrier_a = fixture.coordinator.premark_issuance(plan_a).await.unwrap();
+            let (outcome, terminal_targets) = fixture
+                .coordinator
+                .finish_issuance(carrier_a, attempt_b, 200, fixture.monotonic_start)
+                .into_parts();
+            assert!(terminal_targets.is_empty());
+            assert_eq!(
+                outcome
+                    .expect_err("cross-operation coordinator join must fail closed")
+                    .diagnostic
+                    .code,
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+            );
+            coordinator_refused.push(kind);
+        }
+
+        assert_eq!(accepted, OUTCOMES);
+        assert_eq!(provider_refused, OUTCOMES);
+        assert_eq!(coordinator_refused, OUTCOMES);
+    }
+
+    #[test]
+    fn rotation_operation_fixture_breaks_subject_session_bijections() {
+        const CASES: [(&str, &str, &str); 4] = [
+            ("first-exact", "subject-a", "session-z"),
+            ("same-subject-second-session", "subject-a", "session-a"),
+            ("same-session-second-subject", "subject-z", "session-z"),
+            ("second-exact", "subject-z", "session-a"),
+        ];
+        let predecessor = TokenDigest::from_token_hash(
+            &SessionBearer::generate(&FixedRandom(6))
+                .unwrap()
+                .token_hash(),
+        );
+        let mut accepted = Vec::new();
+        let mut refused = Vec::new();
+
+        for (name, user_id, session_id) in CASES {
+            let plan = ProviderTokenRotationPlan::for_test(
+                session_id.to_owned(),
+                1,
+                predecessor,
+                SessionBearer::generate(&FixedRandom(8)).unwrap(),
+                250,
+            );
+            let response = crate::auth::wire::SessionResponse {
+                id: session_id.to_owned(),
+                user_id: user_id.to_owned(),
+                provider: "email-code".to_owned(),
+                created_at: 3,
+                expires_at: 1_000,
+                absolute_expires_at: 9_000_000_000,
+                authority_instance_id: "authority-independent".to_owned(),
+                generation: 1,
+            };
+            assert!(matches!(
+                BoundRotationAttempt::for_test(
+                    &plan,
+                    AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed {
+                        session: response.clone(),
+                    }),
+                )
+                .join(&plan)
+                .expect("the exact operation joins"),
+                MatchedRotationAttempt::Committed(MatchedRotationOutcome::Committed(_))
+            ));
+            accepted.push(name);
+
+            let other_operation = ProviderTokenRotationPlan::for_test(
+                session_id.to_owned(),
+                1,
+                predecessor,
+                SessionBearer::generate(&FixedRandom(8)).unwrap(),
+                250,
+            );
+            let error = BoundRotationAttempt::for_test(
+                &other_operation,
+                AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed {
+                    session: response,
+                }),
+            )
+            .join(&plan)
+            .err()
+            .expect("matching visible claims from another operation are refused");
+            assert_eq!(error.diagnostic().code, "INTERNAL_AUTH_STATE");
+            refused.push((name, error.diagnostic().code.clone()));
+        }
+
+        assert_eq!(
+            accepted,
+            [
+                "first-exact",
+                "same-subject-second-session",
+                "same-session-second-subject",
+                "second-exact",
+            ]
+        );
+        assert_eq!(
+            refused,
+            [
+                ("first-exact", "INTERNAL_AUTH_STATE".to_owned()),
+                (
+                    "same-subject-second-session",
+                    "INTERNAL_AUTH_STATE".to_owned(),
+                ),
+                (
+                    "same-session-second-subject",
+                    "INTERNAL_AUTH_STATE".to_owned(),
+                ),
+                ("second-exact", "INTERNAL_AUTH_STATE".to_owned()),
+            ]
+        );
     }
 
     #[tokio::test]
@@ -2853,7 +3242,7 @@ mod tests {
 
         let RotationFinish::Committed { issue, outcome } = fixture
             .coordinator
-            .finish_rotation(
+            .finish_rotation_raw_for_test(
                 winner,
                 AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed {
                     session: committed_rotation_session(&fixture),
@@ -2889,7 +3278,7 @@ mod tests {
         assert!(matches!(
             fixture
                 .coordinator
-                .finish_rotation(
+                .finish_rotation_raw_for_test(
                     loser,
                     AuthTransactionAttempt::Committed(PlannedRotationCommit::PredecessorChanged),
                 )
@@ -2924,7 +3313,7 @@ mod tests {
             ..
         } = successor_fixture
             .coordinator
-            .finish_rotation(
+            .finish_rotation_raw_for_test(
                 first_rotation,
                 AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed {
                     session: committed_rotation_session(&successor_fixture),
@@ -2950,7 +3339,7 @@ mod tests {
         assert!(matches!(
             successor_fixture
                 .coordinator
-                .finish_rotation(
+                .finish_rotation_raw_for_test(
                     second_rotation,
                     AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed {
                         session: committed_rotation_session(&successor_fixture),
@@ -2998,7 +3387,7 @@ mod tests {
             ..
         } = deadline_fixture
             .coordinator
-            .finish_rotation(
+            .finish_rotation_raw_for_test(
                 deadline_rotation,
                 AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed {
                     session: committed_rotation_session(&deadline_fixture),
@@ -3057,7 +3446,7 @@ mod tests {
             .unwrap();
         let RotationFinish::Committed { outcome, .. } = revocation_fixture
             .coordinator
-            .finish_rotation(
+            .finish_rotation_raw_for_test(
                 winner,
                 AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed {
                     session: committed_rotation_session(&revocation_fixture),
@@ -3082,7 +3471,7 @@ mod tests {
         assert!(matches!(
             revocation_fixture
                 .coordinator
-                .finish_revocation(
+                .finish_revocation_raw_for_test(
                     revocation,
                     AuthTransactionAttempt::Committed(PlannedRevocationCommit::PredecessorChanged),
                 )
@@ -3109,14 +3498,17 @@ mod tests {
             let (winner, loser) = if second_wins { (b, a) } else { (a, b) };
             let outcome = fixture
                 .coordinator
-                .finish_revocation(winner, committed(&fixture))
+                .finish_revocation_raw_for_test(winner, committed(&fixture))
                 .unwrap();
             assert!(matches!(outcome, RevocationFinish::Committed { .. }));
             let rollback = SnapbackError::error("TEST_ROLLBACK", "test", "known rollback");
             assert_eq!(
                 fixture
                     .coordinator
-                    .finish_revocation(loser, AuthTransactionAttempt::RolledBack(rollback))
+                    .finish_revocation_raw_for_test(
+                        loser,
+                        AuthTransactionAttempt::RolledBack(rollback),
+                    )
                     .unwrap_err()
                     .diagnostic
                     .code,
@@ -3145,7 +3537,7 @@ mod tests {
             .unwrap();
         let RevocationFinish::Committed { outcome, .. } = logout_fixture
             .coordinator
-            .finish_revocation(carrier, committed(&logout_fixture))
+            .finish_revocation_raw_for_test(carrier, committed(&logout_fixture))
             .unwrap()
         else {
             panic!("logout revocation committed");
@@ -3184,7 +3576,7 @@ mod tests {
             .unwrap();
         let RevocationFinish::Committed { outcome, .. } = family_fixture
             .coordinator
-            .finish_revocation(carrier, committed(&family_fixture))
+            .finish_revocation_raw_for_test(carrier, committed(&family_fixture))
             .unwrap()
         else {
             panic!("family-alarm revocation committed");
@@ -3214,7 +3606,7 @@ mod tests {
             .unwrap();
         let RevocationFinish::Committed { outcome, .. } = fixture
             .coordinator
-            .finish_revocation(carrier, committed(&fixture))
+            .finish_revocation_raw_for_test(carrier, committed(&fixture))
             .unwrap()
         else {
             panic!("logout revocation committed");
@@ -3252,11 +3644,11 @@ mod tests {
             .unwrap();
         fixture
             .coordinator
-            .finish_revocation(winner, committed(&fixture))
+            .finish_revocation_raw_for_test(winner, committed(&fixture))
             .unwrap();
         let outcome = fixture
             .coordinator
-            .finish_revocation(
+            .finish_revocation_raw_for_test(
                 loser,
                 AuthTransactionAttempt::Committed(PlannedRevocationCommit::AlreadyTerminal {
                     generation: 2,
@@ -3285,7 +3677,7 @@ mod tests {
         fixture.coordinator.inject_finalize_failure();
         let (outcome, terminal_target) = fixture
             .coordinator
-            .finish_revocation(carrier, committed(&fixture))
+            .finish_revocation_raw_for_test(carrier, committed(&fixture))
             .into_parts();
         let error = outcome.unwrap_err();
         assert_eq!(
@@ -3320,7 +3712,7 @@ mod tests {
             .unwrap();
         let error = fixture
             .coordinator
-            .finish_revocation(
+            .finish_revocation_raw_for_test(
                 carrier,
                 AuthTransactionAttempt::CommitUncertain(SnapbackError::error(
                     "SNAPBACK_SQLITE_ERROR",

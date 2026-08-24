@@ -24,6 +24,105 @@ use zeroize::Zeroizing;
 pub const INTERNAL_AUTH_COLLISION: &str = "INTERNAL_AUTH_COLLISION";
 pub(super) const GUEST_IDEMPOTENCY_TABLE: &str = "_snapback_auth_guest_idempotency";
 
+/// Test-only physical projection of every durable column ordinary identity
+/// session issuance and token rotation can write.
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuthSessionDurableRowsForTest {
+    pub users: Vec<AuthSessionUserRowForTest>,
+    pub identities: Vec<AuthSessionIdentityRowForTest>,
+    pub sessions: Vec<AuthSessionRowForTest>,
+    pub tokens: Vec<AuthSessionTokenRowForTest>,
+    pub challenges: Vec<AuthSessionChallengeRowForTest>,
+    pub metadata: Vec<AuthSessionMetaRowForTest>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuthSessionUserRowForTest {
+    pub id: String,
+    pub created_at_ms: u64,
+    pub kind: String,
+    pub display_name: Option<String>,
+    pub operator_contact: Option<String>,
+    pub registration_provenance: Option<String>,
+    pub deactivated_at_ms: Option<u64>,
+    pub owner_user_id: Option<String>,
+    pub guest_state: String,
+    pub guest_expires_at_ms: Option<u64>,
+    pub guest_claimed_at_ms: Option<u64>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuthSessionIdentityRowForTest {
+    pub id: String,
+    pub user_id: String,
+    pub kind: String,
+    pub provider: String,
+    pub issuer: Option<String>,
+    pub subject: String,
+    pub canonical_value: Option<String>,
+    pub created_at_ms: u64,
+    pub verified_at_ms: u64,
+    pub disabled_at_ms: Option<u64>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuthSessionRowForTest {
+    pub id: String,
+    pub user_id: String,
+    pub identity_id: Option<String>,
+    pub credential_id: Option<String>,
+    pub authn_source: String,
+    pub authority_instance_id: String,
+    pub token_hash: Vec<u8>,
+    pub generation: u64,
+    pub created_at_ms: u64,
+    pub last_used_at_ms: u64,
+    pub expires_at_ms: u64,
+    pub absolute_expires_at_ms: u64,
+    pub revoked_at_ms: Option<u64>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuthSessionTokenRowForTest {
+    pub token_hash: Vec<u8>,
+    pub session_id: String,
+    pub superseded_at_ms: u64,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuthSessionChallengeRowForTest {
+    pub challenge_id: String,
+    pub canonical_address: String,
+    pub code_digest: Vec<u8>,
+    pub key_id: String,
+    pub attempts: u64,
+    pub max_attempts: u64,
+    pub requested_at_ms: u64,
+    pub expires_at_ms: u64,
+    pub consumed_at_ms: Option<u64>,
+    pub superseded_by: Option<String>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+#[doc(hidden)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuthSessionMetaRowForTest {
+    pub key: String,
+    pub value: String,
+}
+
 pub fn guest_refusal_correlation_id(key_digest: &[u8; 32], request_digest: &[u8; 32]) -> String {
     let mut digest = Sha256::new();
     digest.update(b"snapback.auth.guest-entry.refusal-correlation.v1\0");
@@ -3917,6 +4016,141 @@ impl LocalDatabase {
         })
     }
 
+    /// Read every physical column ordinary identity-session issuance and
+    /// token rotation can create or update. Product projections are bypassed
+    /// so cross-operation tests can prove the durable outcome independently.
+    #[cfg(any(test, feature = "test-support"))]
+    pub(super) fn auth_session_durable_rows_for_test(
+        &self,
+    ) -> SnapbackResult<AuthSessionDurableRowsForTest> {
+        self.with_auth_read(|connection| {
+            let mut users_statement = connection.prepare(
+                "SELECT id, created_at_ms, kind, display_name, operator_contact,
+                        registration_provenance, deactivated_at_ms, owner_user_id,
+                        guest_state, guest_expires_at_ms, guest_claimed_at_ms
+                 FROM _auth_users ORDER BY id",
+            )?;
+            let users = users_statement
+                .query_map([], |row| {
+                    Ok(AuthSessionUserRowForTest {
+                        id: row.get(0)?,
+                        created_at_ms: row.get(1)?,
+                        kind: row.get(2)?,
+                        display_name: row.get(3)?,
+                        operator_contact: row.get(4)?,
+                        registration_provenance: row.get(5)?,
+                        deactivated_at_ms: row.get(6)?,
+                        owner_user_id: row.get(7)?,
+                        guest_state: row.get(8)?,
+                        guest_expires_at_ms: row.get(9)?,
+                        guest_claimed_at_ms: row.get(10)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+            let mut identities_statement = connection.prepare(
+                "SELECT id, user_id, kind, provider, issuer, subject,
+                        canonical_value, created_at_ms, verified_at_ms,
+                        disabled_at_ms
+                 FROM _auth_identities ORDER BY id",
+            )?;
+            let identities = identities_statement
+                .query_map([], |row| {
+                    Ok(AuthSessionIdentityRowForTest {
+                        id: row.get(0)?,
+                        user_id: row.get(1)?,
+                        kind: row.get(2)?,
+                        provider: row.get(3)?,
+                        issuer: row.get(4)?,
+                        subject: row.get(5)?,
+                        canonical_value: row.get(6)?,
+                        created_at_ms: row.get(7)?,
+                        verified_at_ms: row.get(8)?,
+                        disabled_at_ms: row.get(9)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+            let mut sessions_statement = connection.prepare(
+                "SELECT id, user_id, identity_id, credential_id, authn_source,
+                        authority_instance_id, token_hash, generation,
+                        created_at_ms, last_used_at_ms, expires_at_ms,
+                        absolute_expires_at_ms, revoked_at_ms
+                 FROM _auth_sessions ORDER BY id",
+            )?;
+            let sessions = sessions_statement
+                .query_map([], |row| {
+                    Ok(AuthSessionRowForTest {
+                        id: row.get(0)?,
+                        user_id: row.get(1)?,
+                        identity_id: row.get(2)?,
+                        credential_id: row.get(3)?,
+                        authn_source: row.get(4)?,
+                        authority_instance_id: row.get(5)?,
+                        token_hash: row.get(6)?,
+                        generation: row.get(7)?,
+                        created_at_ms: row.get(8)?,
+                        last_used_at_ms: row.get(9)?,
+                        expires_at_ms: row.get(10)?,
+                        absolute_expires_at_ms: row.get(11)?,
+                        revoked_at_ms: row.get(12)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+            let mut tokens_statement = connection.prepare(
+                "SELECT token_hash, session_id, superseded_at_ms
+                 FROM _auth_session_tokens ORDER BY token_hash",
+            )?;
+            let tokens = tokens_statement
+                .query_map([], |row| {
+                    Ok(AuthSessionTokenRowForTest {
+                        token_hash: row.get(0)?,
+                        session_id: row.get(1)?,
+                        superseded_at_ms: row.get(2)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+            let mut challenges_statement = connection.prepare(
+                "SELECT challenge_id, canonical_address, code_digest, key_id,
+                        attempts, max_attempts, requested_at_ms, expires_at_ms,
+                        consumed_at_ms, superseded_by
+                 FROM _auth_verification_codes ORDER BY challenge_id",
+            )?;
+            let challenges = challenges_statement
+                .query_map([], |row| {
+                    Ok(AuthSessionChallengeRowForTest {
+                        challenge_id: row.get(0)?,
+                        canonical_address: row.get(1)?,
+                        code_digest: row.get(2)?,
+                        key_id: row.get(3)?,
+                        attempts: row.get(4)?,
+                        max_attempts: row.get(5)?,
+                        requested_at_ms: row.get(6)?,
+                        expires_at_ms: row.get(7)?,
+                        consumed_at_ms: row.get(8)?,
+                        superseded_by: row.get(9)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+            let mut metadata_statement =
+                connection.prepare("SELECT key, value FROM _snapback_meta ORDER BY key")?;
+            let metadata = metadata_statement
+                .query_map([], |row| {
+                    Ok(AuthSessionMetaRowForTest {
+                        key: row.get(0)?,
+                        value: row.get(1)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(AuthSessionDurableRowsForTest {
+                users,
+                identities,
+                sessions,
+                tokens,
+                challenges,
+                metadata,
+            })
+        })
+    }
+
     #[cfg(any(test, feature = "test-support"))]
     pub(super) fn auth_change_journal_count_for_test(&self) -> SnapbackResult<i64> {
         self.with_auth_read(|connection| {
@@ -5327,6 +5561,11 @@ impl<'a> AuthCatalogKernel<'a> {
     #[cfg(any(test, feature = "test-support"))]
     pub fn session_count_for_test(&self) -> SnapbackResult<i64> {
         self.read_db().auth_session_count_for_test()
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn session_durable_rows_for_test(&self) -> SnapbackResult<AuthSessionDurableRowsForTest> {
+        self.read_db().auth_session_durable_rows_for_test()
     }
 
     #[cfg(any(test, feature = "test-support"))]

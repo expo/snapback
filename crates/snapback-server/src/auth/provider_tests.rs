@@ -33,7 +33,13 @@ mod tests {
     use base64::Engine;
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
     use serde_json::Value;
-    use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+    use sha2::{Digest as _, Sha256};
+    use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, AtomicUsize, Ordering};
+
+    use crate::storage::auth_catalog_ops::{
+        AuthSessionDurableRowsForTest, AuthSessionIdentityRowForTest, AuthSessionRowForTest,
+        AuthSessionTokenRowForTest, AuthSessionUserRowForTest,
+    };
 
     struct CountingConstantRandom {
         fills: AtomicUsize,
@@ -57,6 +63,29 @@ mod tests {
         fn fill(&self, destination: &mut [u8]) -> Result<(), super::super::crypto::CryptoError> {
             self.fills.fetch_add(1, Ordering::SeqCst);
             destination.fill(self.byte);
+            Ok(())
+        }
+    }
+
+    struct MutableConstantRandom {
+        byte: AtomicU8,
+    }
+
+    impl MutableConstantRandom {
+        fn new(byte: u8) -> Self {
+            Self {
+                byte: AtomicU8::new(byte),
+            }
+        }
+
+        fn set(&self, byte: u8) {
+            self.byte.store(byte, Ordering::SeqCst);
+        }
+    }
+
+    impl RandomSource for MutableConstantRandom {
+        fn fill(&self, destination: &mut [u8]) -> Result<(), super::super::crypto::CryptoError> {
+            destination.fill(self.byte.load(Ordering::SeqCst));
             Ok(())
         }
     }
@@ -212,14 +241,13 @@ mod tests {
             panic!("fresh key must plan");
         };
         let committed = provider.commit_guest_issuance(&mut database, &plan.commit_plan());
-        let AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
-            session,
-            committed_revocations,
-        }) = committed
+        let MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::Committed(commit)) = plan
+            .join_attempt_for_test(committed)
+            .expect("same guest operation")
         else {
             panic!("initial guest must commit");
         };
-        let initial = plan.into_issue(session, committed_revocations);
+        let initial = plan.into_issue(commit);
         let replay = provider
             .plan_guest_session(
                 &mut database,
@@ -502,7 +530,10 @@ mod tests {
             .await
             .expect("premark password issuance");
         let commit_plan = carrier.plan().commit_plan();
-        let attempt = provider.commit_password_issuance(database, &commit_plan);
+        let attempt = BoundIssuanceAttempt::for_test(
+            carrier.plan(),
+            provider.commit_password_issuance(database, &commit_plan),
+        );
         let (outcome, targets) = coordinator
             .finish_issuance(carrier, attempt, now_ms, provider.monotonic_now())
             .into_parts();
@@ -577,11 +608,18 @@ mod tests {
             .plan_mint_session(database, now_ms)
             .expect("email issuance plan");
         let commit_plan = plan.commit_plan();
+        drop(admission);
         let carrier = coordinator
             .premark_issuance(plan)
             .await
             .expect("premark email issuance");
-        let attempt = admission.commit_planned_issuance(database, &commit_plan);
+        let commit_admission = provider
+            .admit()
+            .await
+            .for_planned_issuance(commit_plan)
+            .await
+            .expect("planned email issuance admission");
+        let attempt = commit_admission.commit_for_test(database);
         let (finish, targets) = coordinator
             .finish_issuance(carrier, attempt, now_ms, provider.monotonic_now())
             .into_parts();
@@ -590,6 +628,26 @@ mod tests {
             panic!("email issuance must commit");
         };
         issue
+    }
+
+    async fn commit_address_issuance_for_test(
+        provider: &Arc<AuthProvider>,
+        database: &mut LocalDatabase,
+        planning_admission: AddressAdmission,
+        plan: &ProviderSessionIssuancePlan,
+    ) -> MatchedIssuanceAttempt {
+        let commit_plan = plan.commit_plan();
+        drop(planning_admission);
+        let admission = provider
+            .admit()
+            .await
+            .for_planned_issuance(commit_plan)
+            .await
+            .expect("reacquire from owned issuance plan");
+        admission
+            .commit_for_test(database)
+            .join(plan)
+            .expect("same issuance operation")
     }
 
     async fn password_change_for_test(
@@ -620,7 +678,10 @@ mod tests {
             .premark_password_change(plan)
             .await
             .expect("premark password change");
-        let attempt = provider.commit_password_change(database, &commit_plan);
+        let attempt = BoundPasswordChangeAttempt::for_test(
+            carrier.plan(),
+            provider.commit_password_change(database, &commit_plan),
+        );
         let (finish, targets) = coordinator
             .finish_password_change(carrier, attempt)
             .into_parts();
@@ -1207,7 +1268,11 @@ mod tests {
             collision.diagnostic().code,
             "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
         );
-        assert_eq!(random.fills() - fills_before_collision, 6);
+        assert_eq!(
+            random.fills() - fills_before_collision,
+            6 + 1,
+            "three challenge candidates consume six fills plus one opaque operation identity"
+        );
         provider
             .mailbox_entry(&first.challenge_id)
             .await
@@ -1234,7 +1299,11 @@ mod tests {
             collision.diagnostic().code,
             "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
         );
-        assert_eq!(session_random.fills() - fills_before_collision, 15);
+        assert_eq!(
+            session_random.fills() - fills_before_collision,
+            15 + 1,
+            "three session candidates consume fifteen fills plus one opaque operation identity"
+        );
         let sessions: i64 = session_database
             .auth_catalog_read()
             .session_count_for_test()
@@ -2036,13 +2105,15 @@ mod tests {
         let successor_digest = plan.successor_digest();
         let superseded_at_ms = plan.superseded_at_ms();
         let attempt = admission.commit_planned_rotation(&mut database, &plan.commit_plan());
-        let AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed { session }) =
-            attempt
+        let MatchedRotationAttempt::Committed(MatchedRotationOutcome::Committed(commit)) =
+            BoundRotationAttempt::for_test(&plan, attempt)
+                .join(&plan)
+                .expect("same rotation operation")
         else {
             panic!("exact rotation must commit");
         };
         assert_eq!(superseded_at_ms, start_ms + 1);
-        let issue = plan.into_issue(session);
+        let issue = plan.into_issue(commit);
         let successor = issue_token(&issue);
         assert_eq!(
             TokenDigest::from_token_hash(&SessionBearer::parse(&successor).unwrap().token_hash()),
@@ -2107,12 +2178,15 @@ mod tests {
         else {
             panic!("current bearer must rotate");
         };
-        let AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed { session }) =
-            admission.commit_planned_rotation(&mut database, &rotation.commit_plan())
+        let attempt = admission.commit_planned_rotation(&mut database, &rotation.commit_plan());
+        let MatchedRotationAttempt::Committed(MatchedRotationOutcome::Committed(commit)) =
+            BoundRotationAttempt::for_test(&rotation, attempt)
+                .join(&rotation)
+                .expect("same rotation operation")
         else {
             panic!("rotation commit");
         };
-        drop(rotation.into_issue(session));
+        drop(rotation.into_issue(commit));
         let alarm_at = start_ms + 1 + AUTH_SESSION_SUPERSESSION_GRACE_MS + 1;
         let alarm = admission
             .plan_family_alarm(&database, &predecessor, alarm_at)
@@ -2152,12 +2226,15 @@ mod tests {
         else {
             panic!("current bearer must rotate");
         };
-        let AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed { session }) =
-            admission.commit_planned_rotation(&mut database, &rotation.commit_plan())
+        let attempt = admission.commit_planned_rotation(&mut database, &rotation.commit_plan());
+        let MatchedRotationAttempt::Committed(MatchedRotationOutcome::Committed(commit)) =
+            BoundRotationAttempt::for_test(&rotation, attempt)
+                .join(&rotation)
+                .expect("same rotation operation")
         else {
             panic!("rotation commit");
         };
-        drop(rotation.into_issue(session));
+        drop(rotation.into_issue(commit));
         drop(admission);
 
         let predecessor_hash = SessionBearer::parse(&predecessor).unwrap().token_hash();
@@ -2201,8 +2278,9 @@ mod tests {
             )
             .unwrap();
         assert!(matches!(
-            issuance.commit_planned_issuance(&mut database, &issuance_commit),
-            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CandidateCollision)
+            commit_address_issuance_for_test(&provider, &mut database, issuance, &issuance_plan,)
+                .await,
+            MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::CandidateCollision)
         ));
         let second_exists: i64 = database
             .auth_catalog_read()
@@ -2255,11 +2333,9 @@ mod tests {
             CatalogIssuanceReconcile::ExactPredecessor
         ));
         assert!(matches!(
-            admission.commit_planned_issuance(&mut database, &commit_plan),
-            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
-                committed_revocations,
-                ..
-            }) if committed_revocations.is_empty()
+            commit_address_issuance_for_test(&provider, &mut database, admission, &plan).await,
+            MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::Committed(ref commit))
+                if commit.committed_revocations().is_empty()
         ));
         assert!(matches!(
             database
@@ -2271,6 +2347,318 @@ mod tests {
                 ..
             } if committed_revocations.is_empty()
         ));
+    }
+
+    #[tokio::test]
+    async fn address_issuance_admission_derives_the_exact_planning_operation() {
+        const NOW_MS: u64 = 41_000;
+        const ADDRESS: &str = "operation-origin@example.com";
+        let random = Arc::new(MutableConstantRandom::new(0x31));
+        let (provider, mut database) =
+            provider_database_with_random(NOW_MS, random.clone() as Arc<dyn RandomSource>);
+        let (other_provider, _) =
+            provider_database_with_random(NOW_MS, Arc::new(CountingConstantRandom::new(0x41)));
+        let planning_admission = provider
+            .admit_email(ADDRESS)
+            .await
+            .expect("planning address admission");
+        let plan = planning_admission
+            .plan_mint_session(&database, NOW_MS)
+            .expect("issuance plan");
+        let commit_plan = plan.commit_plan();
+        drop(planning_admission);
+
+        let before = database
+            .auth_catalog_read()
+            .session_durable_rows_for_test()
+            .expect("physical predecessor rows");
+        assert!(before.users.is_empty());
+        assert!(before.identities.is_empty());
+        assert!(before.sessions.is_empty());
+        assert!(before.tokens.is_empty());
+        assert!(before.challenges.is_empty());
+
+        let mut accepted = Vec::new();
+        let mut refused = Vec::new();
+        let error = other_provider
+            .admit()
+            .await
+            .for_planned_issuance(commit_plan.clone())
+            .await
+            .expect_err("another provider cannot admit an independently supplied plan");
+        assert_eq!(error.diagnostic().code, "INTERNAL_AUTH_STATE");
+        refused.push(("other-provider", error.diagnostic().code.clone()));
+        assert_eq!(
+            database
+                .auth_catalog_read()
+                .session_durable_rows_for_test()
+                .expect("rows after refused admission"),
+            before,
+            "refusal occurs before every durable auth-catalog write"
+        );
+
+        let commit_admission = provider
+            .admit()
+            .await
+            .for_planned_issuance(commit_plan)
+            .await
+            .expect("the exact provider operation reacquires its address admission");
+        let MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::Committed(commit)) =
+            commit_admission
+                .commit_for_test(&mut database)
+                .join(&plan)
+                .expect("the exact operation joins its durable commit")
+        else {
+            panic!("ordinary address issuance must commit");
+        };
+        accepted.push("exact-provider-operation");
+        let issue = plan.into_issue(commit);
+        let returned_token = issue_token(&issue);
+        let expected_token_hash = Sha256::digest(returned_token.as_bytes()).to_vec();
+
+        let expected_user_id = "usr_1h64rk2c9h64rk2c9h64rk2c9h".to_owned();
+        let expected_identity_id = "idn_0000001818e4rv2c9h64rk2c9h".to_owned();
+        let expected_session_id = "ses_0000001818e4rv2c9h64rk2c9h".to_owned();
+        let expected_authority_id = "aut_0000001818e4rv2c9h64rk2c9h".to_owned();
+        let after = database
+            .auth_catalog_read()
+            .session_durable_rows_for_test()
+            .expect("physical successor rows");
+        assert_eq!(accepted, ["exact-provider-operation"]);
+        assert_eq!(
+            refused,
+            [("other-provider", "INTERNAL_AUTH_STATE".to_owned())]
+        );
+        assert_eq!(
+            after,
+            AuthSessionDurableRowsForTest {
+                users: vec![AuthSessionUserRowForTest {
+                    id: expected_user_id.clone(),
+                    created_at_ms: NOW_MS,
+                    kind: "human".to_owned(),
+                    display_name: None,
+                    operator_contact: None,
+                    registration_provenance: None,
+                    deactivated_at_ms: None,
+                    owner_user_id: None,
+                    guest_state: "never".to_owned(),
+                    guest_expires_at_ms: None,
+                    guest_claimed_at_ms: None,
+                }],
+                identities: vec![AuthSessionIdentityRowForTest {
+                    id: expected_identity_id.clone(),
+                    user_id: expected_user_id.clone(),
+                    kind: "email".to_owned(),
+                    provider: "email-code".to_owned(),
+                    issuer: None,
+                    subject: ADDRESS.to_owned(),
+                    canonical_value: Some(ADDRESS.to_owned()),
+                    created_at_ms: NOW_MS,
+                    verified_at_ms: NOW_MS,
+                    disabled_at_ms: None,
+                }],
+                sessions: vec![AuthSessionRowForTest {
+                    id: expected_session_id.clone(),
+                    user_id: expected_user_id.clone(),
+                    identity_id: Some(expected_identity_id.clone()),
+                    credential_id: None,
+                    authn_source: "identity".to_owned(),
+                    authority_instance_id: expected_authority_id.clone(),
+                    token_hash: expected_token_hash.clone(),
+                    generation: 1,
+                    created_at_ms: NOW_MS,
+                    last_used_at_ms: NOW_MS,
+                    expires_at_ms: NOW_MS + AUTH_SESSION_SLIDING_WINDOW_MS,
+                    absolute_expires_at_ms: NOW_MS + AUTH_SESSION_ABSOLUTE_WINDOW_MS,
+                    revoked_at_ms: None,
+                }],
+                tokens: Vec::new(),
+                challenges: Vec::new(),
+                metadata: before.metadata.clone(),
+            }
+        );
+
+        let physical_identity = &after.identities[0];
+        let physical_session = &after.sessions[0];
+        assert_eq!(physical_identity.user_id, after.users[0].id);
+        assert_eq!(physical_session.user_id, after.users[0].id);
+        assert_eq!(
+            physical_session.identity_id.as_deref(),
+            Some(physical_identity.id.as_str())
+        );
+        assert_eq!(
+            physical_identity.subject,
+            physical_identity.canonical_value.as_deref().unwrap()
+        );
+        assert_eq!(
+            physical_session.expires_at_ms - physical_session.created_at_ms,
+            AUTH_SESSION_SLIDING_WINDOW_MS
+        );
+        assert_eq!(
+            physical_session.absolute_expires_at_ms - physical_session.created_at_ms,
+            AUTH_SESSION_ABSOLUTE_WINDOW_MS
+        );
+        assert_eq!(physical_session.token_hash, expected_token_hash);
+        assert_eq!(issue.response().session.id, expected_session_id);
+        assert_eq!(issue.response().session.user_id, expected_user_id);
+        assert_eq!(
+            issue.response().session.authority_instance_id,
+            expected_authority_id
+        );
+        assert_eq!(
+            issue.response().refresh_after,
+            NOW_MS + AUTH_SESSION_REFRESH_CADENCE_MS
+        );
+        assert_eq!(
+            after.metadata, before.metadata,
+            "issuance writes no meta row"
+        );
+    }
+
+    #[tokio::test]
+    async fn rotation_finalization_refuses_another_operations_durable_commit() {
+        const NOW_MS: u64 = 42_000;
+        const ROTATED_AT_MS: u64 = NOW_MS + 10;
+        let random = Arc::new(MutableConstantRandom::new(0x21));
+        let (provider, mut database) =
+            provider_database_with_random(NOW_MS, random.clone() as Arc<dyn RandomSource>);
+        let first = mint(
+            &provider,
+            &mut database,
+            "shared-subject@example.com",
+            NOW_MS,
+        )
+        .await;
+        random.set(0x22);
+        let second = mint(
+            &provider,
+            &mut database,
+            "shared-subject@example.com",
+            NOW_MS + 1,
+        )
+        .await;
+        assert_eq!(
+            first.response().session.user_id,
+            second.response().session.user_id
+        );
+        assert_ne!(first.response().session.id, second.response().session.id);
+        let first_token = issue_token(&first);
+        let second_token = issue_token(&second);
+        let first_predecessor = Sha256::digest(first_token.as_bytes()).to_vec();
+        let second_predecessor = Sha256::digest(second_token.as_bytes()).to_vec();
+        let before = database
+            .auth_catalog_read()
+            .session_durable_rows_for_test()
+            .expect("two-session physical predecessor");
+
+        let projection = SessionProjection::rebuild_with_fresh_startup_id(
+            database
+                .session_projection_source()
+                .expect("projection source"),
+            ROTATED_AT_MS,
+            provider.monotonic_now(),
+        )
+        .expect("two-session projection");
+        let coordinator = Arc::new(AuthCoordinator::new(projection).expect("coordinator"));
+
+        random.set(0x51);
+        let first_admission = provider.admit().await;
+        let PlannedRefresh::Rotate(first_rotation) = first_admission
+            .plan_refresh(&database, &first_token, ROTATED_AT_MS)
+            .expect("first rotation plan")
+        else {
+            panic!("first predecessor must rotate");
+        };
+        let first_carrier = coordinator
+            .premark_rotation(first_rotation)
+            .await
+            .expect("premark first rotation");
+
+        random.set(0x52);
+        let second_admission = provider.admit().await;
+        let PlannedRefresh::Rotate(second_rotation) = second_admission
+            .plan_refresh(&database, &second_token, ROTATED_AT_MS)
+            .expect("second rotation plan")
+        else {
+            panic!("second predecessor must rotate");
+        };
+        let second_commit_plan = second_rotation.commit_plan();
+        let raw_second_attempt =
+            second_admission.commit_planned_rotation(&mut database, &second_commit_plan);
+        assert!(matches!(
+            &raw_second_attempt,
+            AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed { .. })
+        ));
+        let second_attempt = BoundRotationAttempt::for_test(&second_rotation, raw_second_attempt);
+        let error = coordinator
+            .finish_rotation(first_carrier, second_attempt)
+            .expect_err("the first carrier cannot finalize the second durable commit");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
+
+        let expected_successor =
+            SessionBearer::generate(&CountingConstantRandom::new(0x52)).unwrap();
+        let second_successor =
+            Sha256::digest(expected_successor.expose_secret().as_bytes()).to_vec();
+        let after = database
+            .auth_catalog_read()
+            .session_durable_rows_for_test()
+            .expect("physical rows after refused cross-finalization");
+        assert_eq!(after.users, before.users);
+        assert_eq!(after.identities, before.identities);
+        assert_eq!(after.challenges, before.challenges);
+        assert_eq!(after.metadata, before.metadata);
+        assert_eq!(after.sessions.len(), 2);
+
+        let first_before = before
+            .sessions
+            .iter()
+            .find(|row| row.id == first.response().session.id)
+            .expect("first predecessor row");
+        let first_after = after
+            .sessions
+            .iter()
+            .find(|row| row.id == first.response().session.id)
+            .expect("first successor row");
+        assert_eq!(first_before.token_hash, first_predecessor);
+        assert_eq!(
+            first_after, first_before,
+            "operation A has no durable successor"
+        );
+
+        let second_before = before
+            .sessions
+            .iter()
+            .find(|row| row.id == second.response().session.id)
+            .expect("second predecessor row");
+        let second_after = after
+            .sessions
+            .iter()
+            .find(|row| row.id == second.response().session.id)
+            .expect("second successor row");
+        assert_eq!(second_before.token_hash, second_predecessor);
+        let mut expected_second_after = second_before.clone();
+        expected_second_after.token_hash = second_successor.clone();
+        assert_eq!(second_after, &expected_second_after);
+        assert_ne!(second_after.token_hash, first_predecessor);
+        assert_eq!(
+            after.tokens,
+            [AuthSessionTokenRowForTest {
+                token_hash: second_predecessor,
+                session_id: second.response().session.id.clone(),
+                superseded_at_ms: ROTATED_AT_MS,
+            }]
+        );
+        assert_eq!(second_after.token_hash, second_successor);
+        let projection_error = coordinator
+            .resolve_required_bearer(&first_token, ROTATED_AT_MS, provider.monotonic_now())
+            .expect_err("a mismatched durable result fails the projection closed");
+        assert_eq!(
+            projection_error.diagnostic.code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
     }
 
     #[tokio::test]
@@ -2310,8 +2698,14 @@ mod tests {
             CatalogIssuanceReconcile::ExactPredecessor
         ));
         assert!(matches!(
-            admission.commit_planned_issuance(database.auth_database_mut(), &commit_plan),
-            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed { .. })
+            commit_address_issuance_for_test(
+                &provider,
+                database.auth_database_mut(),
+                admission,
+                &plan,
+            )
+            .await,
+            MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::Committed(_))
         ));
         assert!(matches!(
             database
@@ -2365,14 +2759,15 @@ mod tests {
             .bind_sender_issuance(first_commitment, &OsRandom)
             .expect("bind first sender issuance");
         assert!(matches!(
-            first_admission
-                .commit_planned_issuance(database.auth_database_mut(), &first_plan.commit_plan()),
-            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed { .. })
+            commit_address_issuance_for_test(
+                &provider,
+                database.auth_database_mut(),
+                first_admission,
+                &first_plan,
+            )
+            .await,
+            MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::Committed(_))
         ));
-        // Address admissions retain their stripe guard. Release it before
-        // admitting another address: the randomized stripe assignment may
-        // legitimately collide, and holding both would deadlock this test.
-        drop(first_admission);
 
         let second_admission = provider
             .admit_email("sender-key-bound-second@example.com")
@@ -2394,13 +2789,16 @@ mod tests {
         second_plan
             .bind_sender_issuance(second_commitment, &OsRandom)
             .expect("bind second sender issuance");
-        let second_commit_plan = second_plan.commit_plan();
         assert!(matches!(
-            second_admission
-                .commit_planned_issuance(database.auth_database_mut(), &second_commit_plan),
-            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::SenderKeyBound)
+            commit_address_issuance_for_test(
+                &provider,
+                database.auth_database_mut(),
+                second_admission,
+                &second_plan,
+            )
+            .await,
+            MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::SenderKeyBound)
         ));
-        drop(second_admission);
 
         let facts: (i64, i64, i64, String, i64) = database
             .auth_catalog_read()
@@ -2439,9 +2837,14 @@ mod tests {
             .bind_sender_issuance(third_commitment, &OsRandom)
             .expect("bind third sender issuance");
         assert!(matches!(
-            third_admission
-                .commit_planned_issuance(database.auth_database_mut(), &third_plan.commit_plan()),
-            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed { .. })
+            commit_address_issuance_for_test(
+                &provider,
+                database.auth_database_mut(),
+                third_admission,
+                &third_plan,
+            )
+            .await,
+            MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::Committed(_))
         ));
     }
 
@@ -2546,13 +2949,12 @@ mod tests {
             Some(oldest.as_str())
         );
         let commit_plan = plan.commit_plan();
-        let AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
-            committed_revocations,
-            ..
-        }) = admission.commit_planned_issuance(&mut database, &commit_plan)
+        let MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::Committed(commit)) =
+            commit_address_issuance_for_test(&provider, &mut database, admission, &plan).await
         else {
             panic!("twenty-first issuance must commit exact cap eviction");
         };
+        let committed_revocations = commit.committed_revocations();
         assert_eq!(committed_revocations.len(), 1);
         assert_eq!(committed_revocations[0].session_id, oldest);
         assert_eq!(committed_revocations[0].generation, 2);
@@ -2654,7 +3056,10 @@ mod tests {
             .premark_rotation(rotation)
             .await
             .expect("premark password-session refresh");
-        let attempt = admission.commit_planned_rotation(&mut database, &commit_plan);
+        let attempt = BoundRotationAttempt::for_test(
+            carrier.plan(),
+            admission.commit_planned_rotation(&mut database, &commit_plan),
+        );
         let RotationFinish::Committed {
             issue: refreshed, ..
         } = coordinator
@@ -2954,7 +3359,10 @@ mod tests {
             .premark_password_change(plan)
             .await
             .expect("premark password change");
-        let attempt = provider.commit_password_change(&mut database, &commit_plan);
+        let attempt = BoundPasswordChangeAttempt::for_test(
+            carrier.plan(),
+            provider.commit_password_change(&mut database, &commit_plan),
+        );
         let (finish, targets) = coordinator
             .finish_password_change(carrier, attempt)
             .into_parts();
@@ -3648,7 +4056,10 @@ mod tests {
             .premark_password_change(claim)
             .await
             .expect("premark guest claim");
-        let attempt = provider.commit_password_change(&mut database, &commit_plan);
+        let attempt = BoundPasswordChangeAttempt::for_test(
+            carrier.plan(),
+            provider.commit_password_change(&mut database, &commit_plan),
+        );
         let (claim_finish, claim_targets) = coordinator
             .finish_password_change(carrier, attempt)
             .into_parts();

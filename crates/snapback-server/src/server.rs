@@ -28,10 +28,12 @@ use crate::auth::lease::{
     AUTHORIZED_LEASE_PROTOCOL_VERSION, AuthorizedLease, AuthorizedLeaseRequestIdentity,
 };
 use crate::auth::provider::{
-    AddressAdmission, AuthProvider, AuthProviderReadiness, CredentialIssue, ExchangeAdmission,
-    PasswordIssuanceCustody, PlannedExchange, PlannedFamilyAlarmCommit, PlannedLogout,
-    PlannedRefresh, PlannedRevocationCommit, ProviderError, ProviderGuestSessionIssuancePlan,
-    ProviderSessionIssuancePlan, StepUpBinding, auth_required as provider_auth_required,
+    AddressAdmission, AuthProvider, AuthProviderReadiness, BoundFamilyAlarmAttempt,
+    BoundIssuanceAttempt, BoundPasswordChangeAttempt, BoundRevocationAttempt, BoundRotationAttempt,
+    CredentialIssue, ExchangeAdmission, MatchedFamilyAlarmAttempt, MatchedFamilyAlarmOutcome,
+    PasswordIssuanceCustody, PlannedExchange, PlannedLogout, PlannedRefresh, ProviderError,
+    ProviderGuestSessionIssuancePlan, ProviderSessionIssuancePlan, StepUpBinding,
+    auth_required as provider_auth_required,
     credential_superseded as provider_credential_superseded,
     refresh_superseded as provider_refresh_superseded, session_expired as provider_session_expired,
     session_revoked as provider_session_revoked,
@@ -18472,26 +18474,26 @@ async fn coordinated_mint_session(
         let owned_provider = provider.clone();
         let owned_coordinator = coordinator.clone();
         let snapback = runtime.snapback.clone();
-        let commit_address = address.clone();
         let transaction = spawn_owned_auth_transaction(async move {
             let attempt = match owned_provider
                 .admit()
                 .await
-                .for_address(commit_address)
+                .for_planned_issuance(commit_plan)
                 .await
             {
                 Ok(admission) => {
                     with_snapback(&snapback, move |snapback| {
                         match effect_admission.effect_guard("auth mint-session transaction") {
-                            Ok(_effect) => snapback.execute_auth_plan(
-                                admission.commit_planned_issuance_plan(&commit_plan),
-                            ),
-                            Err(error) => AuthTransactionAttempt::RolledBack(error),
+                            Ok(_effect) => snapback.execute_auth_plan(admission.commit_plan()),
+                            Err(error) => admission.rolled_back(error),
                         }
                     })
                     .await
                 }
-                Err(error) => AuthTransactionAttempt::RolledBack(error.into_snapback_error()),
+                Err(error) => BoundIssuanceAttempt::rolled_back_for_plan(
+                    carrier.plan(),
+                    error.into_snapback_error(),
+                ),
             };
             let finish = owned_coordinator.finish_issuance(
                 carrier,
@@ -18556,7 +18558,7 @@ async fn commit_password_issuance_plan(
             match effect_admission.effect_guard(effect) {
                 Ok(_effect) => snapback
                     .execute_auth_plan(admission.commit_password_issuance_plan(&commit_plan)),
-                Err(error) => AuthTransactionAttempt::RolledBack(error),
+                Err(error) => BoundIssuanceAttempt::rolled_back(&commit_plan, error),
             }
         })
         .await;
@@ -18603,7 +18605,7 @@ async fn commit_session_password_issuance_plan(
             match effect_authority.effect_guard(effect) {
                 Ok(_effect) => snapback
                     .execute_auth_plan(_admission.commit_password_issuance_plan(&commit_plan)),
-                Err(error) => AuthTransactionAttempt::RolledBack(error),
+                Err(error) => BoundIssuanceAttempt::rolled_back(&commit_plan, error),
             }
         })
         .await;
@@ -18661,12 +18663,15 @@ async fn commit_password_reset_plan(
                         Ok(_effect) => snapback.execute_auth_plan(
                             exchange.commit_planned_issuance_plan(&commit_plan, &code),
                         ),
-                        Err(error) => AuthTransactionAttempt::RolledBack(error),
+                        Err(error) => BoundIssuanceAttempt::rolled_back(&commit_plan, error),
                     }
                 })
                 .await
             }
-            Err(error) => AuthTransactionAttempt::RolledBack(error.into_snapback_error()),
+            Err(error) => BoundIssuanceAttempt::rolled_back_for_plan(
+                carrier.plan(),
+                error.into_snapback_error(),
+            ),
         };
         let finish = owned_coordinator.finish_issuance(
             carrier,
@@ -18799,14 +18804,17 @@ async fn coordinated_exchange_session(
                                             &commit_code,
                                         ),
                                     ),
-                                    Err(error) => AuthTransactionAttempt::RolledBack(error),
+                                    Err(error) => {
+                                        BoundIssuanceAttempt::rolled_back(&commit_plan, error)
+                                    }
                                 }
                             })
                             .await
                         }
-                        Err(error) => {
-                            AuthTransactionAttempt::RolledBack(error.into_snapback_error())
-                        }
+                        Err(error) => BoundIssuanceAttempt::rolled_back_for_plan(
+                            carrier.plan(),
+                            error.into_snapback_error(),
+                        ),
                     };
                     let finish = owned_coordinator.finish_issuance(
                         carrier,
@@ -19283,7 +19291,7 @@ async fn commit_guest_issuance_plan(
                 Ok(_effect) => {
                     snapback.execute_auth_plan(admission.commit_guest_issuance_plan(&commit_plan))
                 }
-                Err(error) => AuthTransactionAttempt::RolledBack(error),
+                Err(error) => BoundIssuanceAttempt::rolled_back_for_guest(&commit_plan, error),
             }
         })
         .await;
@@ -19934,7 +19942,7 @@ async fn commit_password_change_plan(
                 Ok(_effect) => {
                     snapback.execute_auth_plan(admission.commit_password_change_plan(&commit_plan))
                 }
-                Err(error) => AuthTransactionAttempt::RolledBack(error),
+                Err(error) => BoundPasswordChangeAttempt::rolled_back(&commit_plan, error),
             }
         })
         .await;
@@ -20185,7 +20193,7 @@ async fn auth_refresh(
                         Ok(_effect) => snapback.execute_auth_plan(
                             admission.commit_planned_rotation_plan(&commit_plan),
                         ),
-                        Err(error) => AuthTransactionAttempt::RolledBack(error),
+                        Err(error) => BoundRotationAttempt::rolled_back(&commit_plan, error),
                     })
                     .await;
                     owned_coordinator.finish_rotation(carrier, attempt)
@@ -20224,7 +20232,7 @@ async fn auth_refresh(
                         Ok(_effect) => snapback.execute_auth_plan(
                             admission.commit_planned_revocation_plan(&commit_plan, now_ms),
                         ),
-                        Err(error) => AuthTransactionAttempt::RolledBack(error),
+                        Err(error) => BoundRevocationAttempt::rolled_back(&commit_plan, error),
                     })
                     .await;
                     let finish = owned_coordinator.finish_revocation(carrier, attempt);
@@ -20319,7 +20327,7 @@ async fn auth_logout(
                     Ok(_effect) => snapback.execute_auth_plan(
                         admission.commit_planned_revocation_plan(&commit_plan, now_ms),
                     ),
-                    Err(error) => AuthTransactionAttempt::RolledBack(error),
+                    Err(error) => BoundRevocationAttempt::rolled_back(&commit_plan, error),
                 }
             })
             .await;
@@ -20490,38 +20498,47 @@ async fn auth_family_alarm(
             None => {
                 let effect_admission = route_admission.clone();
                 let admission = provider.admit().await;
+                let join_plan = commit_plan.clone();
                 match with_snapback(&runtime.snapback, move |snapback| {
                     match effect_admission.effect_guard("auth family-alarm transaction") {
                         Ok(_effect) => snapback.execute_auth_plan(
                             admission.commit_planned_family_alarm_plan(&commit_plan),
                         ),
-                        Err(error) => AuthTransactionAttempt::RolledBack(error),
+                        Err(error) => BoundFamilyAlarmAttempt::rolled_back(&commit_plan, error),
                     }
                 })
                 .await
                 {
-                    AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Noop)
-                    | AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Retry) => {
-                        accepted = true;
-                        break;
-                    }
-                    AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Revoked(_)) => {
-                        return Err(ApiError::from(SnapbackError::error(
-                            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
-                            "auth",
-                            "dummy family alarm unexpectedly changed authority",
-                        )));
-                    }
-                    AuthTransactionAttempt::RolledBack(error) => {
-                        return Err(ApiError::from(error));
-                    }
-                    AuthTransactionAttempt::CommitUncertain(_) => {
-                        return Err(ApiError::from(SnapbackError::error(
-                            "SNAPBACK_AUTH_REVOCATION_UNCERTAIN",
-                            "auth",
-                            "family alarm commit could not be reconciled",
-                        )));
-                    }
+                    attempt => match attempt
+                        .join(&join_plan)
+                        .map_err(ProviderError::into_snapback_error)
+                        .map_err(ApiError::from)?
+                    {
+                        MatchedFamilyAlarmAttempt::Committed(MatchedFamilyAlarmOutcome::Noop)
+                        | MatchedFamilyAlarmAttempt::Committed(MatchedFamilyAlarmOutcome::Retry) => {
+                            accepted = true;
+                            break;
+                        }
+                        MatchedFamilyAlarmAttempt::Committed(
+                            MatchedFamilyAlarmOutcome::Revoked(_),
+                        ) => {
+                            return Err(ApiError::from(SnapbackError::error(
+                                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                                "auth",
+                                "dummy family alarm unexpectedly changed authority",
+                            )));
+                        }
+                        MatchedFamilyAlarmAttempt::RolledBack(error) => {
+                            return Err(ApiError::from(error));
+                        }
+                        MatchedFamilyAlarmAttempt::CommitUncertain(_) => {
+                            return Err(ApiError::from(SnapbackError::error(
+                                "SNAPBACK_AUTH_REVOCATION_UNCERTAIN",
+                                "auth",
+                                "family alarm commit could not be reconciled",
+                            )));
+                        }
+                    },
                 }
             }
             Some(revocation) => {
@@ -20542,29 +20559,11 @@ async fn auth_family_alarm(
                             Ok(_effect) => snapback.execute_auth_plan(
                                 admission.commit_planned_family_alarm_plan(&commit_plan),
                             ),
-                            Err(error) => AuthTransactionAttempt::RolledBack(error),
+                            Err(error) => BoundFamilyAlarmAttempt::rolled_back(&commit_plan, error),
                         }
                     })
                     .await;
-                    let attempt = match family_attempt {
-                        AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Revoked(
-                            revocation,
-                        )) => AuthTransactionAttempt::Committed(
-                            PlannedRevocationCommit::Committed(revocation),
-                        ),
-                        AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Retry)
-                        | AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Noop) => {
-                            AuthTransactionAttempt::Committed(
-                                PlannedRevocationCommit::PredecessorChanged,
-                            )
-                        }
-                        AuthTransactionAttempt::RolledBack(error) => {
-                            AuthTransactionAttempt::RolledBack(error)
-                        }
-                        AuthTransactionAttempt::CommitUncertain(error) => {
-                            AuthTransactionAttempt::CommitUncertain(error)
-                        }
-                    };
+                    let attempt = family_attempt.into_revocation_attempt();
                     let finish = owned_coordinator.finish_revocation(carrier, attempt);
                     finish_auth_with_terminal_propagation(
                         &owned_state,

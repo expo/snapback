@@ -77,6 +77,10 @@ name = "auth-commit-prepared-factory"
 path = "src/bin/auth_commit_prepared_factory.rs"
 
 [[bin]]
+name = "address-admission-supplied-issuance-plan"
+path = "src/bin/address_admission_supplied_issuance_plan.rs"
+
+[[bin]]
 name = "service-interlock-factory"
 path = "src/bin/service_interlock_factory.rs"
 

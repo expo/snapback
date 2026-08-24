@@ -554,8 +554,73 @@ pub enum PlannedTokenSource {
     Superseded { superseded_at_ms: u64 },
 }
 
+/// Process-local identity joining one provider planning operation to every
+/// later admission, transaction attempt, durable result, projection finalize,
+/// and plaintext release. It is intentionally non-serializable and exposes no
+/// textual representation.
+///
+/// @ref LLP 0303#the-governing-principle — durable session results derive from
+/// the exact provider operation that planned them rather than from a
+/// caller-supplied tuple with matching visible fields.
+#[derive(Clone)]
+struct AuthSessionOperationId {
+    provider_instance: Arc<AuthSessionOperationOrigin>,
+    nonce: [u8; 16],
+}
+
+#[derive(Debug)]
+struct AuthSessionOperationOrigin;
+
+impl fmt::Debug for AuthSessionOperationId {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("AuthSessionOperationId([OPAQUE])")
+    }
+}
+
+impl PartialEq for AuthSessionOperationId {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.provider_instance, &other.provider_instance) && self.nonce == other.nonce
+    }
+}
+
+impl Eq for AuthSessionOperationId {}
+
+#[cfg(any(test, feature = "test-support"))]
+impl AuthSessionOperationId {
+    fn for_test() -> Self {
+        static NEXT: AtomicU64 = AtomicU64::new(1);
+        let mut nonce = [0_u8; 16];
+        nonce[8..].copy_from_slice(&NEXT.fetch_add(1, Ordering::Relaxed).to_be_bytes());
+        Self {
+            provider_instance: Arc::new(AuthSessionOperationOrigin),
+            nonce,
+        }
+    }
+}
+
+fn require_same_auth_operation(
+    expected: &AuthSessionOperationId,
+    observed: &AuthSessionOperationId,
+) -> ProviderResult<()> {
+    if expected == observed {
+        Ok(())
+    } else {
+        Err(ProviderError::from(internal_state_snapback()))
+    }
+}
+
+fn bind_revocations_to_operation(
+    revocations: &mut [ProviderRevocationPlan],
+    operation_id: &AuthSessionOperationId,
+) {
+    for revocation in revocations {
+        revocation.operation_id = operation_id.clone();
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProviderRevocationPlan {
+    operation_id: AuthSessionOperationId,
     session_id: String,
     expected_generation: u64,
     presented_digest: TokenDigest,
@@ -598,6 +663,7 @@ impl ProviderRevocationPlan {
         reason: RevocationReason,
     ) -> Self {
         Self {
+            operation_id: AuthSessionOperationId::for_test(),
             session_id,
             expected_generation,
             presented_digest,
@@ -608,6 +674,7 @@ impl ProviderRevocationPlan {
 }
 
 pub struct ProviderTokenRotationPlan {
+    operation_id: AuthSessionOperationId,
     session_id: String,
     expected_generation: u64,
     predecessor_digest: TokenDigest,
@@ -621,6 +688,7 @@ pub struct ProviderTokenRotationPlan {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProviderTokenRotationCommitPlan {
+    operation_id: AuthSessionOperationId,
     session_id: String,
     expected_generation: u64,
     predecessor_digest: TokenDigest,
@@ -651,6 +719,7 @@ impl ProviderTokenRotationPlan {
 
     pub fn commit_plan(&self) -> ProviderTokenRotationCommitPlan {
         ProviderTokenRotationCommitPlan {
+            operation_id: self.operation_id.clone(),
             session_id: self.session_id.clone(),
             expected_generation: self.expected_generation,
             predecessor_digest: self.predecessor_digest,
@@ -659,7 +728,8 @@ impl ProviderTokenRotationPlan {
         }
     }
 
-    pub fn into_issue(mut self, session: SessionResponse) -> CredentialIssue {
+    pub fn into_issue(mut self, commit: MatchedRotationCommit) -> CredentialIssue {
+        let session = commit.session;
         let token = self
             .successor
             .bearer
@@ -688,6 +758,7 @@ impl ProviderTokenRotationPlan {
         };
         let successor_digest = TokenDigest::from_token_hash(&successor.token_hash);
         Self {
+            operation_id: AuthSessionOperationId::for_test(),
             session_id,
             expected_generation,
             predecessor_digest,
@@ -726,6 +797,7 @@ impl fmt::Debug for ProviderTokenRotationPlan {
 
 #[allow(dead_code)] // Staged first-class password change route consumes this carrier next.
 pub struct ProviderPasswordChangePlan {
+    operation_id: AuthSessionOperationId,
     mutation: crate::storage::auth_identity::CredentialRotationMutation,
     rotation: ProviderTokenRotationPlan,
     revocations: Vec<ProviderRevocationPlan>,
@@ -835,6 +907,7 @@ impl fmt::Debug for PasswordResetPreparation {
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProviderPasswordChangeCommitPlan {
+    operation_id: AuthSessionOperationId,
     mutation: crate::storage::auth_identity::CredentialRotationMutation,
     rotation: ProviderTokenRotationCommitPlan,
     revocations: Vec<ProviderRevocationPlan>,
@@ -861,6 +934,7 @@ impl ProviderPasswordChangePlan {
 
     pub fn commit_plan(&self) -> ProviderPasswordChangeCommitPlan {
         ProviderPasswordChangeCommitPlan {
+            operation_id: self.operation_id.clone(),
             mutation: self.mutation.clone(),
             rotation: self.rotation.commit_plan(),
             revocations: self.revocations.clone(),
@@ -874,9 +948,9 @@ impl ProviderPasswordChangePlan {
         self.successor_provider
     }
 
-    pub fn into_issue(mut self, session: SessionResponse) -> CredentialIssue {
+    pub fn into_issue(mut self, commit: MatchedPasswordChangeCommit) -> CredentialIssue {
         self.rotation
-            .into_issue(session)
+            .into_issue(commit.rotation)
             .with_recovery_codes(self.recovery_codes.take())
     }
 }
@@ -940,6 +1014,7 @@ pub enum PlannedRefresh {
 /// the writer based on whether the preliminary lookup found a tombstone.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProviderFamilyAlarmPlan {
+    operation_id: AuthSessionOperationId,
     session_id: String,
     expected_generation: u64,
     presented_digest: TokenDigest,
@@ -955,6 +1030,7 @@ pub struct ProviderFamilyAlarmPlan {
 impl ProviderFamilyAlarmPlan {
     pub fn revocation_plan(&self) -> Option<ProviderRevocationPlan> {
         self.actionable.then(|| ProviderRevocationPlan {
+            operation_id: self.operation_id.clone(),
             session_id: self.session_id.clone(),
             expected_generation: self.expected_generation,
             presented_digest: self.presented_digest,
@@ -1003,6 +1079,7 @@ struct ProviderGuestIssuanceState {
 }
 
 pub struct ProviderSessionIssuancePlan {
+    operation_id: AuthSessionOperationId,
     address: CanonicalAddress,
     now_ms: u64,
     identity: PlannedIdentityState,
@@ -1025,6 +1102,7 @@ impl fmt::Debug for ProviderSessionIssuancePlan {
 
 #[derive(Clone, Eq, PartialEq)]
 pub struct ProviderSessionIssuanceCommitPlan {
+    operation_id: AuthSessionOperationId,
     address: CanonicalAddress,
     now_ms: u64,
     identity: PlannedIdentityState,
@@ -1087,12 +1165,16 @@ impl ProviderGuestSessionIssuancePlan {
         )
     }
 
-    pub fn into_issue(
-        self,
-        session: SessionResponse,
-        committed_revocations: Vec<SessionRevocation>,
-    ) -> CredentialIssue {
-        self.issuance.into_issue(session, committed_revocations)
+    pub fn into_issue(self, commit: MatchedIssuanceCommit) -> CredentialIssue {
+        self.issuance.into_issue(commit)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn join_attempt_for_test(
+        &self,
+        attempt: AuthTransactionAttempt<PlannedIssuanceCommit>,
+    ) -> ProviderResult<MatchedIssuanceAttempt> {
+        BoundIssuanceAttempt::for_test(&self.issuance, attempt).join(&self.issuance)
     }
 }
 
@@ -1205,6 +1287,7 @@ impl ProviderSessionIssuancePlan {
 
     pub fn commit_plan(&self) -> ProviderSessionIssuanceCommitPlan {
         ProviderSessionIssuanceCommitPlan {
+            operation_id: self.operation_id.clone(),
             address: self.address.clone(),
             now_ms: self.now_ms,
             identity: self.identity.clone(),
@@ -1236,6 +1319,7 @@ impl ProviderSessionIssuancePlan {
             token_hash,
         };
         Self {
+            operation_id: AuthSessionOperationId::for_test(),
             address: CanonicalAddress::parse("issuance-test@example.com")
                 .expect("fixed issuance test address"),
             now_ms: projected.created_at_ms,
@@ -1255,11 +1339,11 @@ impl ProviderSessionIssuancePlan {
         }
     }
 
-    pub fn into_issue(
-        mut self,
-        session: SessionResponse,
-        committed_revocations: Vec<SessionRevocation>,
-    ) -> CredentialIssue {
+    pub fn into_issue(mut self, commit: MatchedIssuanceCommit) -> CredentialIssue {
+        let MatchedIssuanceCommit {
+            session,
+            committed_revocations,
+        } = commit;
         let bearer = self
             .candidate
             .bearer
@@ -1356,6 +1440,511 @@ pub enum PlannedIssuanceCommit {
     PredecessorChanged,
     RehearsalReplay(serde_json::Value),
     RehearsalDenied(SnapbackError),
+}
+
+pub struct MatchedIssuanceCommit {
+    session: SessionResponse,
+    committed_revocations: Vec<SessionRevocation>,
+}
+
+impl MatchedIssuanceCommit {
+    pub fn session(&self) -> &SessionResponse {
+        &self.session
+    }
+
+    pub fn committed_revocations(&self) -> &[SessionRevocation] {
+        &self.committed_revocations
+    }
+}
+
+pub struct MatchedRotationCommit {
+    session: SessionResponse,
+}
+
+impl MatchedRotationCommit {
+    pub fn session(&self) -> &SessionResponse {
+        &self.session
+    }
+}
+
+pub struct MatchedRevocationCommit {
+    revocation: SessionRevocation,
+}
+
+pub struct MatchedPasswordChangeCommit {
+    rotation: MatchedRotationCommit,
+    committed_revocations: Vec<SessionRevocation>,
+}
+
+impl MatchedPasswordChangeCommit {
+    pub fn session(&self) -> &SessionResponse {
+        self.rotation.session()
+    }
+
+    pub fn committed_revocations(&self) -> &[SessionRevocation] {
+        &self.committed_revocations
+    }
+}
+
+impl MatchedRevocationCommit {
+    pub fn revocation(&self) -> &SessionRevocation {
+        &self.revocation
+    }
+
+    pub fn into_revocation(self) -> SessionRevocation {
+        self.revocation
+    }
+}
+
+pub enum MatchedIssuanceAttempt {
+    RolledBack(SnapbackError),
+    CommitUncertain(SnapbackError),
+    Committed(MatchedIssuanceOutcome),
+}
+
+pub enum MatchedIssuanceOutcome {
+    Committed(MatchedIssuanceCommit),
+    CodeInvalid,
+    CodeLocked,
+    CredentialInvalid {
+        committed_attempt: Option<crate::storage::auth_identity::PasswordAttemptState>,
+    },
+    CredentialThrottled,
+    GuestBudgetRefused {
+        budget_name: &'static str,
+        retry_after_ms: u64,
+        correlation_id: String,
+    },
+    GuestIdempotencyConflict,
+    SenderKeyBound,
+    CandidateCollision,
+    PredecessorChanged,
+    RehearsalReplay(serde_json::Value),
+    RehearsalDenied(SnapbackError),
+}
+
+pub enum MatchedRotationAttempt {
+    RolledBack(SnapbackError),
+    CommitUncertain(SnapbackError),
+    Committed(MatchedRotationOutcome),
+}
+
+pub enum MatchedRotationOutcome {
+    Committed(MatchedRotationCommit),
+    CandidateCollision,
+    PredecessorChanged,
+}
+
+pub enum MatchedRevocationAttempt {
+    RolledBack(SnapbackError),
+    CommitUncertain(SnapbackError),
+    Committed(MatchedRevocationOutcome),
+}
+
+pub enum MatchedRevocationOutcome {
+    Committed(MatchedRevocationCommit),
+    AlreadyTerminal {
+        generation: u64,
+        reason: Option<RevocationReason>,
+    },
+    PredecessorChanged,
+}
+
+pub enum MatchedPasswordChangeAttempt {
+    RolledBack(SnapbackError),
+    CommitUncertain(SnapbackError),
+    Committed(MatchedPasswordChangeOutcome),
+}
+
+pub enum MatchedPasswordChangeOutcome {
+    Committed(MatchedPasswordChangeCommit),
+    CredentialInvalid {
+        committed_attempt: Option<crate::storage::auth_identity::PasswordAttemptState>,
+    },
+    CredentialThrottled,
+    GuestClaimCollision,
+    GuestAlreadyClaimed,
+    GuestBudgetRefused {
+        budget_name: &'static str,
+        retry_after_ms: u64,
+    },
+    CandidateCollision,
+    PredecessorChanged,
+}
+
+pub enum MatchedFamilyAlarmAttempt {
+    RolledBack(SnapbackError),
+    CommitUncertain(SnapbackError),
+    Committed(MatchedFamilyAlarmOutcome),
+}
+
+pub enum MatchedFamilyAlarmOutcome {
+    Revoked(MatchedRevocationCommit),
+    Retry,
+    Noop,
+}
+
+pub struct BoundIssuanceAttempt {
+    operation_id: AuthSessionOperationId,
+    attempt: AuthTransactionAttempt<PlannedIssuanceCommit>,
+}
+
+pub struct BoundRotationAttempt {
+    operation_id: AuthSessionOperationId,
+    attempt: AuthTransactionAttempt<PlannedRotationCommit>,
+}
+
+pub struct BoundRevocationAttempt {
+    operation_id: AuthSessionOperationId,
+    attempt: AuthTransactionAttempt<PlannedRevocationCommit>,
+}
+
+pub struct BoundPasswordChangeAttempt {
+    operation_id: AuthSessionOperationId,
+    attempt: AuthTransactionAttempt<PlannedPasswordChangeCommit>,
+}
+
+pub struct BoundFamilyAlarmAttempt {
+    operation_id: AuthSessionOperationId,
+    attempt: AuthTransactionAttempt<PlannedFamilyAlarmCommit>,
+}
+
+impl BoundIssuanceAttempt {
+    fn new(
+        operation_id: AuthSessionOperationId,
+        attempt: AuthTransactionAttempt<PlannedIssuanceCommit>,
+    ) -> Self {
+        Self {
+            operation_id,
+            attempt,
+        }
+    }
+
+    pub fn rolled_back(plan: &ProviderSessionIssuanceCommitPlan, error: SnapbackError) -> Self {
+        Self::new(
+            plan.operation_id.clone(),
+            AuthTransactionAttempt::RolledBack(error),
+        )
+    }
+
+    pub fn rolled_back_for_plan(plan: &ProviderSessionIssuancePlan, error: SnapbackError) -> Self {
+        Self::new(
+            plan.operation_id.clone(),
+            AuthTransactionAttempt::RolledBack(error),
+        )
+    }
+
+    pub fn rolled_back_for_guest(
+        plan: &ProviderGuestSessionIssuanceCommitPlan,
+        error: SnapbackError,
+    ) -> Self {
+        Self::new(
+            plan.issuance.operation_id.clone(),
+            AuthTransactionAttempt::RolledBack(error),
+        )
+    }
+
+    pub fn join(
+        self,
+        plan: &ProviderSessionIssuancePlan,
+    ) -> ProviderResult<MatchedIssuanceAttempt> {
+        require_same_auth_operation(&plan.operation_id, &self.operation_id)?;
+        Ok(match self.attempt {
+            AuthTransactionAttempt::RolledBack(error) => MatchedIssuanceAttempt::RolledBack(error),
+            AuthTransactionAttempt::CommitUncertain(error) => {
+                MatchedIssuanceAttempt::CommitUncertain(error)
+            }
+            AuthTransactionAttempt::Committed(outcome) => {
+                MatchedIssuanceAttempt::Committed(match outcome {
+                    PlannedIssuanceCommit::Committed {
+                        session,
+                        committed_revocations,
+                    } => MatchedIssuanceOutcome::Committed(MatchedIssuanceCommit {
+                        session,
+                        committed_revocations,
+                    }),
+                    PlannedIssuanceCommit::CodeInvalid => MatchedIssuanceOutcome::CodeInvalid,
+                    PlannedIssuanceCommit::CodeLocked => MatchedIssuanceOutcome::CodeLocked,
+                    PlannedIssuanceCommit::CredentialInvalid { committed_attempt } => {
+                        MatchedIssuanceOutcome::CredentialInvalid { committed_attempt }
+                    }
+                    PlannedIssuanceCommit::CredentialThrottled => {
+                        MatchedIssuanceOutcome::CredentialThrottled
+                    }
+                    PlannedIssuanceCommit::GuestBudgetRefused {
+                        budget_name,
+                        retry_after_ms,
+                        correlation_id,
+                    } => MatchedIssuanceOutcome::GuestBudgetRefused {
+                        budget_name,
+                        retry_after_ms,
+                        correlation_id,
+                    },
+                    PlannedIssuanceCommit::GuestIdempotencyConflict => {
+                        MatchedIssuanceOutcome::GuestIdempotencyConflict
+                    }
+                    PlannedIssuanceCommit::SenderKeyBound => MatchedIssuanceOutcome::SenderKeyBound,
+                    PlannedIssuanceCommit::CandidateCollision => {
+                        MatchedIssuanceOutcome::CandidateCollision
+                    }
+                    PlannedIssuanceCommit::PredecessorChanged => {
+                        MatchedIssuanceOutcome::PredecessorChanged
+                    }
+                    PlannedIssuanceCommit::RehearsalReplay(value) => {
+                        MatchedIssuanceOutcome::RehearsalReplay(value)
+                    }
+                    PlannedIssuanceCommit::RehearsalDenied(error) => {
+                        MatchedIssuanceOutcome::RehearsalDenied(error)
+                    }
+                })
+            }
+        })
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn for_test(
+        plan: &ProviderSessionIssuancePlan,
+        attempt: AuthTransactionAttempt<PlannedIssuanceCommit>,
+    ) -> Self {
+        Self::new(plan.operation_id.clone(), attempt)
+    }
+}
+
+impl BoundRotationAttempt {
+    fn new(
+        operation_id: AuthSessionOperationId,
+        attempt: AuthTransactionAttempt<PlannedRotationCommit>,
+    ) -> Self {
+        Self {
+            operation_id,
+            attempt,
+        }
+    }
+
+    pub fn rolled_back(plan: &ProviderTokenRotationCommitPlan, error: SnapbackError) -> Self {
+        Self::new(
+            plan.operation_id.clone(),
+            AuthTransactionAttempt::RolledBack(error),
+        )
+    }
+
+    pub fn join(self, plan: &ProviderTokenRotationPlan) -> ProviderResult<MatchedRotationAttempt> {
+        require_same_auth_operation(&plan.operation_id, &self.operation_id)?;
+        Ok(match self.attempt {
+            AuthTransactionAttempt::RolledBack(error) => MatchedRotationAttempt::RolledBack(error),
+            AuthTransactionAttempt::CommitUncertain(error) => {
+                MatchedRotationAttempt::CommitUncertain(error)
+            }
+            AuthTransactionAttempt::Committed(outcome) => {
+                MatchedRotationAttempt::Committed(match outcome {
+                    PlannedRotationCommit::Committed { session } => {
+                        MatchedRotationOutcome::Committed(MatchedRotationCommit { session })
+                    }
+                    PlannedRotationCommit::CandidateCollision => {
+                        MatchedRotationOutcome::CandidateCollision
+                    }
+                    PlannedRotationCommit::PredecessorChanged => {
+                        MatchedRotationOutcome::PredecessorChanged
+                    }
+                })
+            }
+        })
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn for_test(
+        plan: &ProviderTokenRotationPlan,
+        attempt: AuthTransactionAttempt<PlannedRotationCommit>,
+    ) -> Self {
+        Self::new(plan.operation_id.clone(), attempt)
+    }
+}
+
+impl BoundRevocationAttempt {
+    fn new(
+        operation_id: AuthSessionOperationId,
+        attempt: AuthTransactionAttempt<PlannedRevocationCommit>,
+    ) -> Self {
+        Self {
+            operation_id,
+            attempt,
+        }
+    }
+
+    pub fn rolled_back(plan: &ProviderRevocationPlan, error: SnapbackError) -> Self {
+        Self::new(
+            plan.operation_id.clone(),
+            AuthTransactionAttempt::RolledBack(error),
+        )
+    }
+
+    pub fn join(self, plan: &ProviderRevocationPlan) -> ProviderResult<MatchedRevocationAttempt> {
+        require_same_auth_operation(&plan.operation_id, &self.operation_id)?;
+        Ok(match self.attempt {
+            AuthTransactionAttempt::RolledBack(error) => {
+                MatchedRevocationAttempt::RolledBack(error)
+            }
+            AuthTransactionAttempt::CommitUncertain(error) => {
+                MatchedRevocationAttempt::CommitUncertain(error)
+            }
+            AuthTransactionAttempt::Committed(outcome) => {
+                MatchedRevocationAttempt::Committed(match outcome {
+                    PlannedRevocationCommit::Committed(revocation) => {
+                        MatchedRevocationOutcome::Committed(MatchedRevocationCommit { revocation })
+                    }
+                    PlannedRevocationCommit::AlreadyTerminal { generation, reason } => {
+                        MatchedRevocationOutcome::AlreadyTerminal { generation, reason }
+                    }
+                    PlannedRevocationCommit::PredecessorChanged => {
+                        MatchedRevocationOutcome::PredecessorChanged
+                    }
+                })
+            }
+        })
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn for_test(
+        plan: &ProviderRevocationPlan,
+        attempt: AuthTransactionAttempt<PlannedRevocationCommit>,
+    ) -> Self {
+        Self::new(plan.operation_id.clone(), attempt)
+    }
+}
+
+impl BoundPasswordChangeAttempt {
+    fn new(
+        operation_id: AuthSessionOperationId,
+        attempt: AuthTransactionAttempt<PlannedPasswordChangeCommit>,
+    ) -> Self {
+        Self {
+            operation_id,
+            attempt,
+        }
+    }
+
+    pub fn rolled_back(plan: &ProviderPasswordChangeCommitPlan, error: SnapbackError) -> Self {
+        Self::new(
+            plan.operation_id.clone(),
+            AuthTransactionAttempt::RolledBack(error),
+        )
+    }
+
+    pub fn join(
+        self,
+        plan: &ProviderPasswordChangePlan,
+    ) -> ProviderResult<MatchedPasswordChangeAttempt> {
+        require_same_auth_operation(&plan.operation_id, &self.operation_id)?;
+        Ok(match self.attempt {
+            AuthTransactionAttempt::RolledBack(error) => {
+                MatchedPasswordChangeAttempt::RolledBack(error)
+            }
+            AuthTransactionAttempt::CommitUncertain(error) => {
+                MatchedPasswordChangeAttempt::CommitUncertain(error)
+            }
+            AuthTransactionAttempt::Committed(outcome) => {
+                MatchedPasswordChangeAttempt::Committed(match outcome {
+                    PlannedPasswordChangeCommit::Committed {
+                        session,
+                        committed_revocations,
+                    } => MatchedPasswordChangeOutcome::Committed(MatchedPasswordChangeCommit {
+                        rotation: MatchedRotationCommit { session },
+                        committed_revocations,
+                    }),
+                    PlannedPasswordChangeCommit::CredentialInvalid { committed_attempt } => {
+                        MatchedPasswordChangeOutcome::CredentialInvalid { committed_attempt }
+                    }
+                    PlannedPasswordChangeCommit::CredentialThrottled => {
+                        MatchedPasswordChangeOutcome::CredentialThrottled
+                    }
+                    PlannedPasswordChangeCommit::GuestClaimCollision => {
+                        MatchedPasswordChangeOutcome::GuestClaimCollision
+                    }
+                    PlannedPasswordChangeCommit::GuestAlreadyClaimed => {
+                        MatchedPasswordChangeOutcome::GuestAlreadyClaimed
+                    }
+                    PlannedPasswordChangeCommit::GuestBudgetRefused {
+                        budget_name,
+                        retry_after_ms,
+                    } => MatchedPasswordChangeOutcome::GuestBudgetRefused {
+                        budget_name,
+                        retry_after_ms,
+                    },
+                    PlannedPasswordChangeCommit::CandidateCollision => {
+                        MatchedPasswordChangeOutcome::CandidateCollision
+                    }
+                    PlannedPasswordChangeCommit::PredecessorChanged => {
+                        MatchedPasswordChangeOutcome::PredecessorChanged
+                    }
+                })
+            }
+        })
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn for_test(
+        plan: &ProviderPasswordChangePlan,
+        attempt: AuthTransactionAttempt<PlannedPasswordChangeCommit>,
+    ) -> Self {
+        Self::new(plan.operation_id.clone(), attempt)
+    }
+}
+
+impl BoundFamilyAlarmAttempt {
+    fn new(
+        operation_id: AuthSessionOperationId,
+        attempt: AuthTransactionAttempt<PlannedFamilyAlarmCommit>,
+    ) -> Self {
+        Self {
+            operation_id,
+            attempt,
+        }
+    }
+
+    pub fn rolled_back(plan: &ProviderFamilyAlarmPlan, error: SnapbackError) -> Self {
+        Self::new(
+            plan.operation_id.clone(),
+            AuthTransactionAttempt::RolledBack(error),
+        )
+    }
+
+    pub fn join(self, plan: &ProviderFamilyAlarmPlan) -> ProviderResult<MatchedFamilyAlarmAttempt> {
+        require_same_auth_operation(&plan.operation_id, &self.operation_id)?;
+        Ok(match self.attempt {
+            AuthTransactionAttempt::RolledBack(error) => {
+                MatchedFamilyAlarmAttempt::RolledBack(error)
+            }
+            AuthTransactionAttempt::CommitUncertain(error) => {
+                MatchedFamilyAlarmAttempt::CommitUncertain(error)
+            }
+            AuthTransactionAttempt::Committed(outcome) => {
+                MatchedFamilyAlarmAttempt::Committed(match outcome {
+                    PlannedFamilyAlarmCommit::Revoked(revocation) => {
+                        MatchedFamilyAlarmOutcome::Revoked(MatchedRevocationCommit { revocation })
+                    }
+                    PlannedFamilyAlarmCommit::Retry => MatchedFamilyAlarmOutcome::Retry,
+                    PlannedFamilyAlarmCommit::Noop => MatchedFamilyAlarmOutcome::Noop,
+                })
+            }
+        })
+    }
+
+    pub fn into_revocation_attempt(self) -> BoundRevocationAttempt {
+        let attempt = match self.attempt {
+            AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Revoked(revocation)) => {
+                AuthTransactionAttempt::Committed(PlannedRevocationCommit::Committed(revocation))
+            }
+            AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Retry)
+            | AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Noop) => {
+                AuthTransactionAttempt::Committed(PlannedRevocationCommit::PredecessorChanged)
+            }
+            AuthTransactionAttempt::RolledBack(error) => AuthTransactionAttempt::RolledBack(error),
+            AuthTransactionAttempt::CommitUncertain(error) => {
+                AuthTransactionAttempt::CommitUncertain(error)
+            }
+        };
+        BoundRevocationAttempt::new(self.operation_id, attempt)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1469,6 +2058,7 @@ fn guest_entry_seed(key: &AuthKeyMaterial, key_digest: &[u8; 32]) -> [u8; 32] {
 }
 
 pub struct AuthProvider {
+    operation_origin: Arc<AuthSessionOperationOrigin>,
     profile: AuthProviderProfile,
     budgets: ResolvedCompatibilityAuthBudgetPolicy,
     #[cfg(any(test, feature = "test-support"))]
@@ -1524,6 +2114,15 @@ impl fmt::Debug for AuthProvider {
 
 #[allow(dead_code)] // Password route integration consumes the staged core methods next.
 impl AuthProvider {
+    fn mint_session_operation_id(&self) -> ProviderResult<AuthSessionOperationId> {
+        let mut nonce = [0_u8; 16];
+        fill_random_or_unavailable(self.random.as_ref(), &mut nonce)?;
+        Ok(AuthSessionOperationId {
+            provider_instance: self.operation_origin.clone(),
+            nonce,
+        })
+    }
+
     pub fn new(
         profile: AuthProviderProfile,
         keyring: Arc<AuthKeyringStore>,
@@ -1595,6 +2194,7 @@ impl AuthProvider {
             crate::storage::auth_identity::PasswordSecurityProfile::for_provider(profile)
                 .with_minimum_password_length(minimum_password_length)?;
         Ok(Self {
+            operation_origin: Arc::new(AuthSessionOperationOrigin),
             profile,
             budgets,
             keyring,
@@ -1785,6 +2385,9 @@ impl AuthProvider {
         };
         let plan = ProviderGuestSessionIssuancePlan {
             issuance: ProviderSessionIssuancePlan {
+                operation_id: self
+                    .mint_session_operation_id()
+                    .map_err(ProviderError::into_snapback_error)?,
                 address: CanonicalAddress::parse("guest@snapback.invalid")
                     .map_err(|_| provider_unavailable().into_snapback_error())?,
                 now_ms,
@@ -1832,9 +2435,21 @@ impl AuthProvider {
                 authority_instance_id: durable.session.authority_instance_id,
                 generation: durable.session.generation,
             };
-            return Ok(ProviderGuestSessionPlan::Replay(
-                plan.into_issue(session, Vec::new()),
-            ));
+            let matched = BoundIssuanceAttempt::new(
+                plan.issuance.operation_id.clone(),
+                AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
+                    session,
+                    committed_revocations: Vec::new(),
+                }),
+            )
+            .join(&plan.issuance)
+            .map_err(ProviderError::into_snapback_error)?;
+            let MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::Committed(commit)) =
+                matched
+            else {
+                return Err(internal_state_snapback());
+            };
+            return Ok(ProviderGuestSessionPlan::Replay(plan.into_issue(commit)));
         }
         Ok(ProviderGuestSessionPlan::Planned(plan))
     }
@@ -1996,6 +2611,9 @@ impl AuthProvider {
             },
         };
         Ok(ProviderSessionIssuancePlan {
+            operation_id: self
+                .mint_session_operation_id()
+                .map_err(ProviderError::into_snapback_error)?,
             address,
             now_ms,
             identity,
@@ -2077,16 +2695,20 @@ impl AuthProvider {
             )
         })?;
         let predecessor = database.password_authentication_predecessor(&canonical, mode)?;
+        let operation_id = self
+            .mint_session_operation_id()
+            .map_err(ProviderError::into_snapback_error)?;
         let revocations = match predecessor.credential.as_ref() {
-            Some(snapshot) => {
-                classify_session_cap(database.auth_catalog_read().session_cap_facts(
+            Some(snapshot) => classify_session_cap(
+                &operation_id,
+                database.auth_catalog_read().session_cap_facts(
                     &snapshot.user_id,
                     now_ms,
                     AUTH_SESSION_LIVE_LIMIT as u64,
-                )?)?
-                .into_iter()
-                .collect()
-            }
+                )?,
+            )?
+            .into_iter()
+            .collect(),
             None => Vec::new(),
         };
         Ok(PasswordAuthenticationPreparation {
@@ -2111,7 +2733,7 @@ impl AuthProvider {
             canonical,
             address,
             predecessor,
-            revocations,
+            mut revocations,
         } = preparation;
         let _lock_observed_at_admission = predecessor
             .ledger
@@ -2166,7 +2788,12 @@ impl AuthProvider {
             )?,
             rehearsal_provenance: None,
         };
+        let operation_id = self
+            .mint_session_operation_id()
+            .map_err(ProviderError::into_snapback_error)?;
+        bind_revocations_to_operation(&mut revocations, &operation_id);
         Ok(ProviderSessionIssuancePlan {
+            operation_id,
             address,
             now_ms,
             identity,
@@ -2299,7 +2926,11 @@ impl AuthProvider {
         })?;
         let planning =
             database.password_set_planning(acting, email_identity_id, &canonical, now_ms)?;
+        let operation_id = self
+            .mint_session_operation_id()
+            .map_err(ProviderError::into_snapback_error)?;
         let mut revocations = plan_user_session_revocations(
+            &operation_id,
             database,
             &planning.predecessor.acting_user_id,
             None,
@@ -2308,6 +2939,7 @@ impl AuthProvider {
         )?;
         if let Some(displaced) = &planning.displaced {
             for revocation in plan_user_session_revocations(
+                &operation_id,
                 database,
                 &displaced.user_id,
                 None,
@@ -2348,7 +2980,7 @@ impl AuthProvider {
             canonical,
             address,
             planning,
-            revocations,
+            mut revocations,
         } = preparation;
         let password = self.hash_password_bounded(password).await?;
         let (recovery_codes, recovery) = crate::storage::auth_identity::prepare_recovery_set(
@@ -2389,7 +3021,12 @@ impl AuthProvider {
                 recovery,
             },
         };
+        let operation_id = self
+            .mint_session_operation_id()
+            .map_err(ProviderError::into_snapback_error)?;
+        bind_revocations_to_operation(&mut revocations, &operation_id);
         Ok(ProviderSessionIssuancePlan {
+            operation_id,
             address,
             now_ms,
             identity: PlannedIdentityState::Create {
@@ -2481,6 +3118,9 @@ impl AuthProvider {
         require_password_bearer_custody(custody)?;
         validate_now(now_ms).map_err(ProviderError::into_snapback_error)?;
         let planning = database.password_change_planning(acting, now_ms)?;
+        let operation_id = self
+            .mint_session_operation_id()
+            .map_err(ProviderError::into_snapback_error)?;
         if planning.sender_constrained {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_PASSWORD_SENDER_CONSTRAINED_UNSUPPORTED",
@@ -2489,6 +3129,7 @@ impl AuthProvider {
             ));
         }
         let revocations = plan_user_session_revocations(
+            &operation_id,
             database,
             &planning.credential.user_id,
             Some(&planning.acting_session_id),
@@ -2512,7 +3153,7 @@ impl AuthProvider {
         require_password_bearer_custody(custody)?;
         let PasswordChangePreparation {
             planning,
-            revocations,
+            mut revocations,
         } = preparation;
         let verification = self
             .verify_password_bounded(current, planning.credential.hash_phc.clone(), false)
@@ -2521,6 +3162,9 @@ impl AuthProvider {
         let successor =
             BearerCandidate::generate(self).map_err(ProviderError::into_snapback_error)?;
         let rotation = ProviderTokenRotationPlan {
+            operation_id: self
+                .mint_session_operation_id()
+                .map_err(ProviderError::into_snapback_error)?,
             session_id: planning.acting_session_id.clone(),
             expected_generation: planning.acting_generation,
             predecessor_digest: planning.acting_token_digest,
@@ -2528,7 +3172,9 @@ impl AuthProvider {
             superseded_at_ms: now_ms,
             successor,
         };
+        bind_revocations_to_operation(&mut revocations, &rotation.operation_id);
         Ok(ProviderPasswordChangePlan {
+            operation_id: rotation.operation_id.clone(),
             mutation: crate::storage::auth_identity::CredentialRotationMutation::PasswordChange(
                 crate::storage::auth_identity::PasswordChangeCommitPlan {
                     credential: planning.credential,
@@ -2622,7 +3268,11 @@ impl AuthProvider {
         // both occupied and available subjects through the same KDF. The
         // writer transaction rechecks the all-provider predicate.
         let _collision_observed = database.password_identity_subject_is_owned(&canonical, mode)?;
+        let operation_id = self
+            .mint_session_operation_id()
+            .map_err(ProviderError::into_snapback_error)?;
         let revocations = plan_user_session_revocations(
+            &operation_id,
             database,
             &predecessor.user_id,
             Some(&predecessor.session_id),
@@ -2655,7 +3305,7 @@ impl AuthProvider {
             canonical,
             mode,
             predecessor,
-            revocations,
+            mut revocations,
         } = preparation;
         let password = self.hash_password_bounded(password).await?;
         let (recovery_codes, recovery) = crate::storage::auth_identity::prepare_recovery_set(
@@ -2669,6 +3319,9 @@ impl AuthProvider {
         let identity_id = mint_catalog_id(crate::ids::Kind::Identity, self.random.as_ref(), now_ms)
             .map_err(ProviderError::into_snapback_error)?;
         let rotation = ProviderTokenRotationPlan {
+            operation_id: self
+                .mint_session_operation_id()
+                .map_err(ProviderError::into_snapback_error)?,
             session_id: predecessor.session_id.clone(),
             expected_generation: predecessor.generation,
             predecessor_digest: predecessor.token_digest,
@@ -2676,8 +3329,10 @@ impl AuthProvider {
             superseded_at_ms: now_ms,
             successor,
         };
+        bind_revocations_to_operation(&mut revocations, &rotation.operation_id);
         let _ = address;
         Ok(ProviderPasswordChangePlan {
+            operation_id: rotation.operation_id.clone(),
             mutation: crate::storage::auth_identity::CredentialRotationMutation::GuestClaim(
                 crate::storage::auth_identity::PasswordIssuanceCommitPlan {
                     canonical_identifier: canonical,
@@ -2763,8 +3418,17 @@ impl AuthProvider {
             )?;
         let candidate =
             SessionCandidate::generate(self, now_ms).map_err(ProviderError::into_snapback_error)?;
-        let revocations =
-            plan_user_session_revocations(database, &predecessor.user_id, None, None, now_ms)?;
+        let operation_id = self
+            .mint_session_operation_id()
+            .map_err(ProviderError::into_snapback_error)?;
+        let revocations = plan_user_session_revocations(
+            &operation_id,
+            database,
+            &predecessor.user_id,
+            None,
+            None,
+            now_ms,
+        )?;
         let projected = ProjectedSessionInsert {
             session_id: candidate.session_id.clone(),
             user_id: predecessor.user_id.clone(),
@@ -2783,6 +3447,7 @@ impl AuthProvider {
         let identity_id = predecessor.identity_id.clone();
         let user_id = predecessor.user_id.clone();
         Ok(ProviderSessionIssuancePlan {
+            operation_id,
             address,
             now_ms,
             identity: PlannedIdentityState::Existing {
@@ -2863,7 +3528,11 @@ impl AuthProvider {
             .map_err(|_| provider_unavailable().into_snapback_error())??;
         let candidate =
             SessionCandidate::generate(self, now_ms).map_err(ProviderError::into_snapback_error)?;
+        let operation_id = self
+            .mint_session_operation_id()
+            .map_err(ProviderError::into_snapback_error)?;
         let revocations = plan_user_session_revocations(
+            &operation_id,
             database,
             &planning.credential.user_id,
             None,
@@ -2888,6 +3557,7 @@ impl AuthProvider {
             rehearsal_provenance: None,
         };
         Ok(ProviderSessionIssuancePlan {
+            operation_id,
             address: CanonicalAddress::parse(&planning.canonical_identifier).map_err(|_| {
                 SnapbackError::error(
                     "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_INVALID",
@@ -3163,6 +3833,23 @@ impl fmt::Debug for AuthAdmission {
 }
 
 impl AuthAdmission {
+    pub async fn for_planned_issuance(
+        self,
+        plan: ProviderSessionIssuanceCommitPlan,
+    ) -> ProviderResult<PlannedIssuanceAdmission> {
+        let provider_identity = AuthSessionOperationId {
+            provider_instance: self.provider.operation_origin.clone(),
+            nonce: plan.operation_id.nonce,
+        };
+        require_same_auth_operation(&provider_identity, &plan.operation_id)?;
+        let stripe = self.provider.stripe(&plan.address).lock_owned().await;
+        Ok(PlannedIssuanceAdmission {
+            _admission: self,
+            plan,
+            _stripe: stripe,
+        })
+    }
+
     pub fn plan_guest_session_plan(
         &self,
         now_ms: u64,
@@ -3198,11 +3885,12 @@ impl AuthAdmission {
     pub fn commit_guest_issuance_plan<'a>(
         &'a self,
         plan: &'a ProviderGuestSessionIssuanceCommitPlan,
-    ) -> impl super::database_plan::AuthDatabasePlan<
-        Output = AuthTransactionAttempt<PlannedIssuanceCommit>,
-    > + 'a {
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = BoundIssuanceAttempt> + 'a {
         super::database_plan::plan(move |database| {
-            self.provider.commit_guest_issuance(database, plan)
+            BoundIssuanceAttempt::new(
+                plan.issuance.operation_id.clone(),
+                self.provider.commit_guest_issuance(database, plan),
+            )
         })
     }
 
@@ -3252,22 +3940,24 @@ impl AuthAdmission {
     pub fn commit_password_issuance_plan<'a>(
         &'a self,
         plan: &'a ProviderSessionIssuanceCommitPlan,
-    ) -> impl super::database_plan::AuthDatabasePlan<
-        Output = AuthTransactionAttempt<PlannedIssuanceCommit>,
-    > + 'a {
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = BoundIssuanceAttempt> + 'a {
         super::database_plan::plan(move |database| {
-            self.provider.commit_password_issuance(database, plan)
+            BoundIssuanceAttempt::new(
+                plan.operation_id.clone(),
+                self.provider.commit_password_issuance(database, plan),
+            )
         })
     }
 
     pub fn commit_password_change_plan<'a>(
         &'a self,
         plan: &'a ProviderPasswordChangeCommitPlan,
-    ) -> impl super::database_plan::AuthDatabasePlan<
-        Output = AuthTransactionAttempt<PlannedPasswordChangeCommit>,
-    > + 'a {
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = BoundPasswordChangeAttempt> + 'a {
         super::database_plan::plan(move |database| {
-            self.provider.commit_password_change(database, plan)
+            BoundPasswordChangeAttempt::new(
+                plan.operation_id.clone(),
+                self.provider.commit_password_change(database, plan),
+            )
         })
     }
 
@@ -3353,31 +4043,38 @@ impl AuthAdmission {
     pub fn commit_planned_family_alarm_plan<'a>(
         &'a self,
         plan: &'a ProviderFamilyAlarmPlan,
-    ) -> impl super::database_plan::AuthDatabasePlan<
-        Output = AuthTransactionAttempt<PlannedFamilyAlarmCommit>,
-    > + 'a {
-        super::database_plan::plan(move |database| self.commit_planned_family_alarm(database, plan))
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = BoundFamilyAlarmAttempt> + 'a {
+        super::database_plan::plan(move |database| {
+            BoundFamilyAlarmAttempt::new(
+                plan.operation_id.clone(),
+                self.commit_planned_family_alarm(database, plan),
+            )
+        })
     }
 
     pub fn commit_planned_revocation_plan<'a>(
         &'a self,
         plan: &'a ProviderRevocationPlan,
         now_ms: u64,
-    ) -> impl super::database_plan::AuthDatabasePlan<
-        Output = AuthTransactionAttempt<PlannedRevocationCommit>,
-    > + 'a {
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = BoundRevocationAttempt> + 'a {
         super::database_plan::plan(move |database| {
-            self.commit_planned_revocation(database, plan, now_ms)
+            BoundRevocationAttempt::new(
+                plan.operation_id.clone(),
+                self.commit_planned_revocation(database, plan, now_ms),
+            )
         })
     }
 
     pub fn commit_planned_rotation_plan<'a>(
         &'a self,
         plan: &'a ProviderTokenRotationCommitPlan,
-    ) -> impl super::database_plan::AuthDatabasePlan<
-        Output = AuthTransactionAttempt<PlannedRotationCommit>,
-    > + 'a {
-        super::database_plan::plan(move |database| self.commit_planned_rotation(database, plan))
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = BoundRotationAttempt> + 'a {
+        super::database_plan::plan(move |database| {
+            BoundRotationAttempt::new(
+                plan.operation_id.clone(),
+                self.commit_planned_rotation(database, plan),
+            )
+        })
     }
 
     /// Seal one authenticated-use transaction for execution by the engine
@@ -3588,6 +4285,7 @@ impl AuthAdmission {
         let bearer = SessionBearer::parse_any_version(bearer).map_err(|_| auth_required())?;
         let token_hash = bearer.token_hash();
         let digest = TokenDigest::from_token_hash(&token_hash);
+        let operation_id = self.provider.mint_session_operation_id()?;
         let lookup = database
             .auth_catalog_read()
             .lookup_presented_session(&token_hash)
@@ -3599,6 +4297,7 @@ impl AuthAdmission {
                     PlannedLogout::SessionExpired
                 } else {
                     PlannedLogout::Revoke(revocation_plan(
+                        &operation_id,
                         &session,
                         digest,
                         PlannedTokenSource::Current,
@@ -3620,6 +4319,7 @@ impl AuthAdmission {
                     PlannedLogout::CredentialSuperseded
                 } else {
                     PlannedLogout::Revoke(revocation_plan(
+                        &operation_id,
                         &session,
                         digest,
                         PlannedTokenSource::Superseded { superseded_at_ms },
@@ -3640,6 +4340,7 @@ impl AuthAdmission {
         let bearer = SessionBearer::parse_any_version(bearer).map_err(|_| auth_required())?;
         let token_hash = bearer.token_hash();
         let digest = TokenDigest::from_token_hash(&token_hash);
+        let operation_id = self.provider.mint_session_operation_id()?;
         let (lookup, sender_bound) = database
             .auth_catalog_read()
             .lookup_presented_session_with_sender_binding(&token_hash)
@@ -3657,6 +4358,7 @@ impl AuthAdmission {
                     };
                     let successor_digest = TokenDigest::from_token_hash(&successor.token_hash);
                     PlannedRefresh::Rotate(ProviderTokenRotationPlan {
+                        operation_id: operation_id.clone(),
                         session_id: session.session.session_id,
                         expected_generation: session.session.generation,
                         predecessor_digest: digest,
@@ -3680,6 +4382,7 @@ impl AuthAdmission {
                     PlannedRefresh::SupersededInsideGrace
                 } else {
                     PlannedRefresh::ReuseRevoke(revocation_plan(
+                        &operation_id,
                         &session,
                         digest,
                         PlannedTokenSource::Superseded { superseded_at_ms },
@@ -3706,6 +4409,7 @@ impl AuthAdmission {
             .map(SessionBearer::token_hash)
             .unwrap_or_else(|| TokenHash::from_bytes(*self.provider.dummy_token_hash.as_bytes()));
         let digest = TokenDigest::from_token_hash(&token_hash);
+        let operation_id = self.provider.mint_session_operation_id()?;
         let lookup = database
             .auth_catalog_read()
             .lookup_presented_session(&token_hash)
@@ -3715,6 +4419,7 @@ impl AuthAdmission {
                 session,
                 superseded_at_ms,
             } if parsed.is_some() && session.live_at(now_ms) => ProviderFamilyAlarmPlan {
+                operation_id: operation_id.clone(),
                 session_id: session.session.session_id,
                 expected_generation: session.session.generation,
                 presented_digest: digest,
@@ -3724,6 +4429,7 @@ impl AuthAdmission {
                 publish_not_before,
             },
             _ => ProviderFamilyAlarmPlan {
+                operation_id,
                 // This canonical value is process-independent but cannot be a
                 // provider-minted UUIDv7 session id. It still drives the same
                 // statement bindings and exact row-count checks.
@@ -3900,12 +4606,17 @@ impl AuthAdmission {
                 }
                 PlannedRefresh::Rotate(rotation) => {
                     let commit_plan = rotation.commit_plan();
-                    match self.commit_planned_rotation(database, &commit_plan) {
-                        AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed {
-                            session,
-                        }) => return Ok(rotation.into_issue(session)),
-                        AuthTransactionAttempt::Committed(
-                            PlannedRotationCommit::CandidateCollision,
+                    let attempt = BoundRotationAttempt::new(
+                        commit_plan.operation_id.clone(),
+                        self.commit_planned_rotation(database, &commit_plan),
+                    )
+                    .join(&rotation)?;
+                    match attempt {
+                        MatchedRotationAttempt::Committed(MatchedRotationOutcome::Committed(
+                            commit,
+                        )) => return Ok(rotation.into_issue(commit)),
+                        MatchedRotationAttempt::Committed(
+                            MatchedRotationOutcome::CandidateCollision,
                         ) => continue,
                         _ => return Err(provider_unavailable()),
                     }
@@ -4030,9 +4741,11 @@ impl AuthAdmission {
     }
 
     pub async fn for_address(self, address: CanonicalAddress) -> ProviderResult<AddressAdmission> {
+        let operation_id = self.provider.mint_session_operation_id()?;
         let stripe = self.provider.stripe(&address).lock_owned().await;
         Ok(AddressAdmission {
             admission: self,
+            operation_id,
             address,
             _stripe: stripe,
         })
@@ -4079,11 +4792,12 @@ impl ExchangeAdmission {
         &'a self,
         plan: &'a ProviderSessionIssuanceCommitPlan,
         code: &'a str,
-    ) -> impl super::database_plan::AuthDatabasePlan<
-        Output = AuthTransactionAttempt<PlannedIssuanceCommit>,
-    > + 'a {
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = BoundIssuanceAttempt> + 'a {
         super::database_plan::plan(move |database| {
-            self.commit_planned_issuance(database, plan, code)
+            BoundIssuanceAttempt::new(
+                plan.operation_id.clone(),
+                self.commit_planned_issuance(database, plan, code),
+            )
         })
     }
 
@@ -4128,14 +4842,19 @@ impl ExchangeAdmission {
                 };
                 let candidate = SessionCandidate::generate(provider, now_ms)
                     .map_err(ProviderError::into_snapback_error)?;
+                let operation_id = provider
+                    .mint_session_operation_id()
+                    .map_err(ProviderError::into_snapback_error)?;
                 let facts = database.auth_catalog_read().session_issuance_facts(
                     &address,
                     &candidate.user_id,
                     now_ms,
                     AUTH_SESSION_LIVE_LIMIT as u64,
                 )?;
-                let (identity, eviction) = classify_session_issuance(facts, &candidate)?;
+                let (identity, eviction) =
+                    classify_session_issuance(&operation_id, facts, &candidate)?;
                 build_session_issuance_plan(
+                    operation_id,
                     address,
                     now_ms,
                     candidate,
@@ -4175,9 +4894,15 @@ impl ExchangeAdmission {
         if !email_plan_matches {
             return Ok(PasswordResetPreparation::PrincipalInvalid);
         }
-        plan.revocations =
-            plan_user_session_revocations(database, &credential.user_id, None, None, now_ms)
-                .map_err(|_| provider_unavailable())?;
+        plan.revocations = plan_user_session_revocations(
+            &plan.operation_id,
+            database,
+            &credential.user_id,
+            None,
+            None,
+            now_ms,
+        )
+        .map_err(|_| provider_unavailable())?;
         Ok(PasswordResetPreparation::Ready {
             plan,
             email_identity_id,
@@ -4287,21 +5012,25 @@ impl ExchangeAdmission {
                 }
                 PlannedExchange::Issue(issuance) => {
                     let commit_plan = issuance.commit_plan();
-                    match self.commit_planned_issuance(database, &commit_plan, code) {
-                        AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
-                            session,
-                            committed_revocations,
-                        }) => {
+                    let attempt = BoundIssuanceAttempt::new(
+                        commit_plan.operation_id.clone(),
+                        self.commit_planned_issuance(database, &commit_plan, code),
+                    )
+                    .join(&issuance)?;
+                    match attempt {
+                        MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::Committed(
+                            commit,
+                        )) => {
                             provider.mailbox.erase(&self.coordination.challenge_id);
-                            return Ok(issuance.into_issue(session, committed_revocations));
+                            return Ok(issuance.into_issue(commit));
                         }
-                        AuthTransactionAttempt::Committed(
-                            PlannedIssuanceCommit::CandidateCollision,
+                        MatchedIssuanceAttempt::Committed(
+                            MatchedIssuanceOutcome::CandidateCollision,
                         ) => continue,
-                        AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CodeInvalid) => {
+                        MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::CodeInvalid) => {
                             return Err(code_invalid());
                         }
-                        AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CodeLocked) => {
+                        MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::CodeLocked) => {
                             return Err(code_locked());
                         }
                         _ => return Err(provider_unavailable()),
@@ -4313,10 +5042,50 @@ impl ExchangeAdmission {
     }
 }
 
+/// Reacquired address admission derived from the owned issuance commit plan.
+/// No caller-supplied address or second plan can be recombined at commit.
+pub struct PlannedIssuanceAdmission {
+    _admission: AuthAdmission,
+    plan: ProviderSessionIssuanceCommitPlan,
+    _stripe: OwnedMutexGuard<()>,
+}
+
+impl fmt::Debug for PlannedIssuanceAdmission {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("PlannedIssuanceAdmission([REDACTED])")
+    }
+}
+
+impl PlannedIssuanceAdmission {
+    pub fn commit_plan(
+        &self,
+    ) -> impl super::database_plan::AuthDatabasePlan<Output = BoundIssuanceAttempt> + '_ {
+        super::database_plan::plan(move |database| {
+            BoundIssuanceAttempt::new(
+                self.plan.operation_id.clone(),
+                attempt_planned_session_issuance(database, &self.plan, None, None),
+            )
+        })
+    }
+
+    pub fn rolled_back(&self, error: SnapbackError) -> BoundIssuanceAttempt {
+        BoundIssuanceAttempt::rolled_back(&self.plan, error)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn commit_for_test(&self, database: &mut LocalDatabase) -> BoundIssuanceAttempt {
+        BoundIssuanceAttempt::new(
+            self.plan.operation_id.clone(),
+            attempt_planned_session_issuance(database, &self.plan, None, None),
+        )
+    }
+}
+
 /// Shared-maintenance plus one canonical-address stripe. This guard may be
 /// moved into `with_snapback`; no method acquires an earlier lock from it.
 pub struct AddressAdmission {
     admission: AuthAdmission,
+    operation_id: AuthSessionOperationId,
     address: CanonicalAddress,
     _stripe: OwnedMutexGuard<()>,
 }
@@ -4443,15 +5212,6 @@ impl AddressAdmission {
         Output = ProviderResult<ProviderSessionIssuancePlan>,
     > + '_ {
         super::database_plan::plan(move |database| self.plan_mint_session(database, now_ms))
-    }
-
-    pub fn commit_planned_issuance_plan<'a>(
-        &'a self,
-        plan: &'a ProviderSessionIssuanceCommitPlan,
-    ) -> impl super::database_plan::AuthDatabasePlan<
-        Output = AuthTransactionAttempt<PlannedIssuanceCommit>,
-    > + 'a {
-        super::database_plan::plan(move |database| self.commit_planned_issuance(database, plan))
     }
 
     pub fn address(&self) -> &CanonicalAddress {
@@ -4721,6 +5481,7 @@ impl AddressAdmission {
             return Err(provider_unavailable());
         }
         let candidate = SessionCandidate::generate(self.provider(), now_ms)?;
+        let operation_id = self.operation_id.clone();
         let facts = database
             .auth_catalog_read()
             .session_issuance_facts(
@@ -4730,9 +5491,10 @@ impl AddressAdmission {
                 AUTH_SESSION_LIVE_LIMIT as u64,
             )
             .map_err(|_| provider_unavailable())?;
-        let (identity, eviction) =
-            classify_session_issuance(facts, &candidate).map_err(|_| provider_unavailable())?;
+        let (identity, eviction) = classify_session_issuance(&operation_id, facts, &candidate)
+            .map_err(|_| provider_unavailable())?;
         build_session_issuance_plan(
+            operation_id,
             self.address.clone(),
             now_ms,
             candidate,
@@ -4741,14 +5503,6 @@ impl AddressAdmission {
             None,
         )
         .map_err(|_| provider_unavailable())
-    }
-
-    pub fn commit_planned_issuance(
-        &self,
-        database: &mut LocalDatabase,
-        plan: &ProviderSessionIssuanceCommitPlan,
-    ) -> AuthTransactionAttempt<PlannedIssuanceCommit> {
-        attempt_planned_session_issuance(database, plan, None, None)
     }
 
     /// Reusable host-operation core. Item 4 owns the AdminWrite and
@@ -4767,12 +5521,16 @@ impl AddressAdmission {
         for _ in 0..AUTH_MAX_COLLISION_ATTEMPTS {
             let issuance = self.plan_mint_session(database, now_ms)?;
             let commit_plan = issuance.commit_plan();
-            match self.commit_planned_issuance(database, &commit_plan) {
-                AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
-                    session,
-                    committed_revocations,
-                }) => return Ok(issuance.into_issue(session, committed_revocations)),
-                AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CandidateCollision) => {
+            let attempt = BoundIssuanceAttempt::new(
+                commit_plan.operation_id.clone(),
+                attempt_planned_session_issuance(database, &commit_plan, None, None),
+            )
+            .join(&issuance)?;
+            match attempt {
+                MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::Committed(commit)) => {
+                    return Ok(issuance.into_issue(commit));
+                }
+                MatchedIssuanceAttempt::Committed(MatchedIssuanceOutcome::CandidateCollision) => {
                     continue;
                 }
                 _ => return Err(provider_unavailable()),
@@ -4964,12 +5722,14 @@ fn resolve_ordinary_lookup(
 }
 
 fn revocation_plan(
+    operation_id: &AuthSessionOperationId,
     session: &SessionRecord,
     presented_digest: TokenDigest,
     source: PlannedTokenSource,
     reason: RevocationReason,
 ) -> ProviderRevocationPlan {
     ProviderRevocationPlan {
+        operation_id: operation_id.clone(),
         session_id: session.session.session_id.clone(),
         expected_generation: session.session.generation,
         presented_digest,
@@ -5014,6 +5774,7 @@ fn classify_exchange_challenge(
 }
 
 fn classify_session_issuance(
+    operation_id: &AuthSessionOperationId,
     facts: SessionIssuanceFacts,
     candidate: &SessionCandidate,
 ) -> SnapbackResult<(PlannedIdentityState, Option<ProviderRevocationPlan>)> {
@@ -5035,6 +5796,7 @@ fn classify_session_issuance(
             .oldest_live_session
             .ok_or_else(internal_state_snapback)?;
         Some(ProviderRevocationPlan {
+            operation_id: operation_id.clone(),
             session_id: oldest.session_id,
             expected_generation: oldest.generation,
             presented_digest: oldest.token_digest,
@@ -5050,7 +5812,10 @@ fn classify_session_issuance(
     Ok((identity, eviction))
 }
 
-fn classify_session_cap(facts: SessionCapFacts) -> SnapbackResult<Option<ProviderRevocationPlan>> {
+fn classify_session_cap(
+    operation_id: &AuthSessionOperationId,
+    facts: SessionCapFacts,
+) -> SnapbackResult<Option<ProviderRevocationPlan>> {
     if facts.live_session_count > AUTH_SESSION_LIVE_LIMIT as u64 {
         return Err(internal_state_snapback());
     }
@@ -5059,6 +5824,7 @@ fn classify_session_cap(facts: SessionCapFacts) -> SnapbackResult<Option<Provide
             .oldest_live_session
             .ok_or_else(internal_state_snapback)?;
         return Ok(Some(ProviderRevocationPlan {
+            operation_id: operation_id.clone(),
             session_id: oldest.session_id,
             expected_generation: oldest.generation,
             presented_digest: oldest.token_digest,
@@ -5073,11 +5839,13 @@ fn classify_session_cap(facts: SessionCapFacts) -> SnapbackResult<Option<Provide
 }
 
 fn classify_user_session_revocations(
+    operation_id: &AuthSessionOperationId,
     facts: Vec<SessionRevocationCandidateFact>,
 ) -> Vec<ProviderRevocationPlan> {
     facts
         .into_iter()
         .map(|fact| ProviderRevocationPlan {
+            operation_id: operation_id.clone(),
             session_id: fact.session_id,
             expected_generation: fact.generation,
             presented_digest: fact.token_digest,
@@ -5088,6 +5856,7 @@ fn classify_user_session_revocations(
 }
 
 fn plan_user_session_revocations(
+    operation_id: &AuthSessionOperationId,
     database: &LocalDatabase,
     user_id: &str,
     excluded_session_id: Option<&str>,
@@ -5097,10 +5866,11 @@ fn plan_user_session_revocations(
     database
         .auth_catalog_read()
         .user_session_revocation_facts(user_id, excluded_session_id, identity_id, now_ms)
-        .map(classify_user_session_revocations)
+        .map(|facts| classify_user_session_revocations(operation_id, facts))
 }
 
 fn build_session_issuance_plan(
+    operation_id: AuthSessionOperationId,
     address: CanonicalAddress,
     now_ms: u64,
     candidate: SessionCandidate,
@@ -5129,6 +5899,7 @@ fn build_session_issuance_plan(
         rehearsal_provenance: None,
     };
     Ok(ProviderSessionIssuancePlan {
+        operation_id,
         address,
         now_ms,
         identity,

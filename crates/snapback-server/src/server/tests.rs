@@ -36012,8 +36012,12 @@ fn pairing_code_mint_saturated_blocking_pool_times_out_and_logout_premark_drains
             "test",
             "clean up saturated-pool logout premark",
         );
+        let cleanup_attempt = crate::auth::provider::BoundRevocationAttempt::for_test(
+            carrier.plan(),
+            AuthTransactionAttempt::RolledBack(cleanup_error),
+        );
         let (cleanup, committed_revocations) = coordinator
-            .finish_revocation(carrier, AuthTransactionAttempt::RolledBack(cleanup_error))
+            .finish_revocation(carrier, cleanup_attempt)
             .into_parts();
         assert_eq!(
             cleanup
