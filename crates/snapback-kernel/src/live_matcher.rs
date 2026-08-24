@@ -1,11 +1,17 @@
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
-    FilterExpr, FilterOp, FunctionDefinition, FunctionRuntime, HandlerInput, HandlerPlan,
-    OrderDirection, QueryOutput, QueryPlan, ValueExpr, effective_query_limit,
+    FilterExpr, FilterOp, FunctionDefinition, FunctionRuntime, GraphCapturedDependencyV1,
+    GraphCapturedReadV1, GraphNodeKindV1, GraphNodeV1, GraphQueryCarrierV1, HandlerInput,
+    HandlerPlan, OrderDirection, QueryOutput, QueryPlan, ValueExpr, effective_query_limit,
+    validate_graph_captured_read_v1,
 };
 use crate::storage::{CapturedReadDependency, CapturedReadKind, ChangeOp, ChangedRow, DbRead};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use sha2::{Digest as _, Sha256};
 use std::cmp::Ordering;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub type QueryDependencyMetadata = (Option<Value>, Option<usize>, Option<usize>, Option<Value>);
 
@@ -21,6 +27,71 @@ impl LiveMatchOutcome {
     pub fn may_be_affected(self) -> bool {
         self != Self::Skip
     }
+}
+
+#[derive(
+    Clone, Copy, Debug, Deserialize, Eq, JsonSchema, Ord, PartialEq, PartialOrd, Serialize,
+)]
+#[serde(rename_all = "kebab-case")]
+pub enum GraphNodeMatchDispositionV1 {
+    Skip,
+    Match,
+    ConservativeFallback,
+}
+
+#[derive(
+    Clone, Copy, Debug, Deserialize, Eq, JsonSchema, Ord, PartialEq, PartialOrd, Serialize,
+)]
+#[serde(rename_all = "kebab-case")]
+pub enum GraphNodeMatchReasonV1 {
+    CapturedDisjoint,
+    CapturedIntersects,
+    CaptureIncomplete,
+    StaticTableIntersects,
+    SearchTableWrite,
+    SearchCaptureIncomplete,
+    ProjectionOnly,
+}
+
+/// One value-free per-node graph matcher decision in normalized plan order.
+///
+/// @ref LLP 0209#52-per-node-decision-ledger — node/instance values remain in
+/// the decision row used by tests and traces; stats aggregate without exposing
+/// row, argument, principal, or scope values.
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GraphNodeDecisionLedgerV1 {
+    pub graph_plan_hash: String,
+    pub instance_hash: String,
+    pub node_id: String,
+    pub node_kind: GraphNodeKindV1,
+    pub authority_class: crate::manifest::GraphAuthorityClassV1,
+    pub capture_complete: bool,
+    pub dependency_kinds: Vec<CapturedReadKind>,
+    pub captured_dependency_count: u64,
+    pub changed_row_count: u64,
+    pub disposition: GraphNodeMatchDispositionV1,
+    pub reason: GraphNodeMatchReasonV1,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GraphNodeDecisionStatsV1 {
+    pub graph_plan_hash: String,
+    pub node_kind: GraphNodeKindV1,
+    pub disposition: GraphNodeMatchDispositionV1,
+    pub reason: GraphNodeMatchReasonV1,
+    pub decisions: u64,
+    pub skips: u64,
+    pub matches: u64,
+    pub conservative_fallbacks: u64,
+    pub capture_incomplete: u64,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct LiveMatchDecisionV1 {
+    pub outcome: LiveMatchOutcome,
+    pub graph_nodes: Vec<GraphNodeDecisionLedgerV1>,
 }
 
 pub fn query_dependencies_from_plan(
@@ -169,6 +240,35 @@ pub fn live_subscription_match_outcome(
     read_dependencies: &[CapturedReadDependency],
     changes: &[ChangedRow],
 ) -> LiveMatchOutcome {
+    live_subscription_match_decision(definition, input, read_dependencies, changes).outcome
+}
+
+pub fn live_subscription_match_decision(
+    definition: &FunctionDefinition,
+    input: &HandlerInput,
+    read_dependencies: &[CapturedReadDependency],
+    changes: &[ChangedRow],
+) -> LiveMatchDecisionV1 {
+    if let FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier)) = &definition.runtime {
+        return graph_subscription_match_decision(carrier, input, read_dependencies, changes);
+    }
+    LiveMatchDecisionV1 {
+        outcome: live_subscription_match_outcome_non_graph(
+            definition,
+            input,
+            read_dependencies,
+            changes,
+        ),
+        graph_nodes: Vec::new(),
+    }
+}
+
+fn live_subscription_match_outcome_non_graph(
+    definition: &FunctionDefinition,
+    input: &HandlerInput,
+    read_dependencies: &[CapturedReadDependency],
+    changes: &[ChangedRow],
+) -> LiveMatchOutcome {
     if changes.is_empty() {
         return LiveMatchOutcome::ConservativeFallback;
     }
@@ -180,10 +280,8 @@ pub fn live_subscription_match_outcome(
     if definition.custom_authorization.is_some() {
         return LiveMatchOutcome::ConservativeFallback;
     }
-    // @ref LLP 0209#25-additive-sibling-carrier-stage-b-plan-not-shipped-surface —
-    // Stage B installs no graph executor or dependency consumer. Keep this
-    // ahead of the generic dependency gate so even forged captured facts can
-    // never turn the reserved sibling into a false `Skip`.
+    // Direct callers cannot reach this arm through the public decision path;
+    // keep it conservative as defense in depth.
     if matches!(
         definition.runtime,
         FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(_))
@@ -349,6 +447,750 @@ pub fn live_subscription_match_outcome(
             LiveMatchOutcome::ConservativeFallback
         }
     }
+}
+
+struct GraphCaptureFact<'a> {
+    graph: &'a GraphCapturedReadV1,
+    ordinary: Vec<&'a CapturedReadDependency>,
+}
+
+fn graph_capture_facts(
+    reads: &[CapturedReadDependency],
+) -> (
+    Vec<GraphCaptureFact<'_>>,
+    Vec<&CapturedReadDependency>,
+    bool,
+) {
+    let mut facts: Vec<GraphCaptureFact<'_>> = Vec::new();
+    let mut global = Vec::new();
+    let mut pending_auth = Vec::new();
+    let mut pairing_valid = true;
+    for read in reads {
+        pairing_valid &= read.graph_pairing_is_valid();
+        if let Some(graph) = read.graph.as_ref() {
+            facts.push(GraphCaptureFact {
+                graph,
+                ordinary: std::mem::take(&mut pending_auth),
+            });
+        } else if read.kind == CapturedReadKind::Auth {
+            // The evaluator emits Auth immediately before the first graph
+            // fact for one principal node. Hold it across that segment
+            // boundary so graphs with multiple principal nodes do not charge
+            // every Auth fact to every node.
+            pending_auth.push(read);
+        } else if let Some(fact) = facts.last_mut() {
+            fact.ordinary.push(read);
+        } else {
+            global.push(read);
+        }
+    }
+    global.extend(pending_auth);
+    (facts, global, pairing_valid)
+}
+
+fn graph_node_output_count(node: &GraphNodeV1, facts: &[&GraphCaptureFact<'_>]) -> Option<u64> {
+    match node {
+        GraphNodeV1::RootWindow { .. } => {
+            facts.iter().find_map(|fact| match &fact.graph.dependency {
+                GraphCapturedDependencyV1::RootRange { result_count, .. } => Some(*result_count),
+                _ => None,
+            })
+        }
+        GraphNodeV1::EqualityToOne { .. } => Some(
+            facts
+                .iter()
+                .filter(|fact| {
+                    matches!(
+                        fact.graph.dependency,
+                        GraphCapturedDependencyV1::ParentPoint { found: true, .. }
+                    )
+                })
+                .count() as u64,
+        ),
+        GraphNodeV1::BoundedToMany { .. } => facts.iter().try_fold(0_u64, |sum, fact| {
+            let GraphCapturedDependencyV1::ParentRange { result_count, .. } =
+                &fact.graph.dependency
+            else {
+                return None;
+            };
+            sum.checked_add(*result_count)
+        }),
+        GraphNodeV1::PrincipalBound {
+            table,
+            principal_field,
+            ..
+        } => Some(
+            facts
+                .iter()
+                .filter(|fact| {
+                    matches!(
+                        &fact.graph.dependency,
+                        GraphCapturedDependencyV1::PrincipalField {
+                            table: captured_table,
+                            field,
+                            found: true,
+                            ..
+                        } if captured_table == table && field == principal_field
+                    )
+                })
+                .count() as u64,
+        ),
+        GraphNodeV1::ExistsSemiJoin { .. }
+        | GraphNodeV1::SearchMembership { .. }
+        | GraphNodeV1::ClosedProjection { .. } => Some(0),
+    }
+}
+
+fn expected_graph_parent_attempts(
+    plan: &crate::manifest::GraphQueryPlanV1,
+    node: &GraphNodeV1,
+    by_node: &BTreeMap<String, Vec<&GraphCaptureFact<'_>>>,
+) -> Option<u64> {
+    let parent_id = node.parent_node_id()?;
+    let parent = plan.nodes.iter().find(|node| node.node_id() == parent_id)?;
+    graph_node_output_count(
+        parent,
+        by_node.get(parent_id).map(Vec::as_slice).unwrap_or(&[]),
+    )
+}
+
+fn graph_node_capture_is_complete(
+    plan: &crate::manifest::GraphQueryPlanV1,
+    node: &GraphNodeV1,
+    facts: &[&GraphCaptureFact<'_>],
+    by_node: &BTreeMap<String, Vec<&GraphCaptureFact<'_>>>,
+    input: &HandlerInput,
+    identities_valid: bool,
+) -> bool {
+    if !identities_valid {
+        return false;
+    }
+    let has_query = |fact: &&GraphCaptureFact<'_>| {
+        fact.ordinary
+            .iter()
+            .any(|read| read.kind == CapturedReadKind::Query)
+    };
+    let query_rows_are_backed_by_points = |fact: &&GraphCaptureFact<'_>| {
+        let queries = fact
+            .ordinary
+            .iter()
+            .filter(|read| read.kind == CapturedReadKind::Query)
+            .collect::<Vec<_>>();
+        !queries.is_empty()
+            && queries.iter().all(|query| {
+                query.table.as_deref().is_some_and(|table| {
+                    query.rows.iter().all(|id| {
+                        fact.ordinary.iter().any(|read| {
+                            read.kind == CapturedReadKind::Row
+                                && read.table.as_deref() == Some(table)
+                                && read.id.as_deref() == Some(id.as_str())
+                                && read.version.is_some()
+                        })
+                    })
+                })
+            })
+    };
+    match node {
+        GraphNodeV1::RootWindow { .. } => {
+            facts.len() == 1
+                && matches!(
+                    facts[0].graph.dependency,
+                    GraphCapturedDependencyV1::RootRange { .. }
+                )
+                && has_query(&facts[0])
+                && query_rows_are_backed_by_points(&facts[0])
+        }
+        GraphNodeV1::EqualityToOne { .. } => {
+            let Some(expected) = expected_graph_parent_attempts(plan, node, by_node) else {
+                return false;
+            };
+            facts.len() as u64 == expected
+                && facts.iter().all(|fact| match &fact.graph.dependency {
+                    GraphCapturedDependencyV1::ParentPoint {
+                        table,
+                        child_key,
+                        found,
+                        row_version,
+                        ..
+                    } if *found => child_key.as_ref().is_some_and(|child_key| {
+                        child_key.table == *table
+                            && fact.ordinary.iter().any(|read| {
+                                read.kind == CapturedReadKind::Row
+                                    && read.table.as_deref() == Some(table.as_str())
+                                    && read.id.as_deref() == Some(child_key.id.as_str())
+                                    && read.version == *row_version
+                            })
+                    }),
+                    // The shipped MissingRow carrier identifies only a
+                    // physical `_id`, while graph unique points are commonly
+                    // secondary-index keys and have no physical id on a miss.
+                    // The equivalent empty Query is therefore the only honest
+                    // absence dependency for those admitted points.
+                    GraphCapturedDependencyV1::ParentPoint { found: false, .. } => {
+                        has_query(fact) && query_rows_are_backed_by_points(fact)
+                    }
+                    GraphCapturedDependencyV1::ParentLookupSkipped { .. } => true,
+                    _ => false,
+                })
+        }
+        GraphNodeV1::BoundedToMany { .. } => {
+            let Some(expected) = expected_graph_parent_attempts(plan, node, by_node) else {
+                return false;
+            };
+            facts.len() as u64 == expected
+                && facts.iter().all(|fact| {
+                    matches!(
+                        fact.graph.dependency,
+                        GraphCapturedDependencyV1::ParentRange { .. }
+                    ) && has_query(fact)
+                        && query_rows_are_backed_by_points(fact)
+                })
+        }
+        GraphNodeV1::ExistsSemiJoin {
+            mode,
+            edge,
+            argument_id,
+            ..
+        } => {
+            let Some(expected) = expected_graph_parent_attempts(plan, node, by_node) else {
+                return false;
+            };
+            facts.len() as u64 == expected
+                && facts.iter().all(|fact| {
+                    let GraphCapturedDependencyV1::Membership {
+                        matched_count,
+                        complete: true,
+                        ..
+                    } = &fact.graph.dependency
+                    else {
+                        return false;
+                    };
+                    let edge_table = match edge {
+                        crate::manifest::GraphEdgeV1::Direct(edge) => edge.table.as_str(),
+                        crate::manifest::GraphEdgeV1::Through(edge) => edge.table.as_str(),
+                    };
+                    let edge_query_count = fact
+                        .ordinary
+                        .iter()
+                        .filter(|read| {
+                            read.kind == CapturedReadKind::Query
+                                && read.table.as_deref() == Some(edge_table)
+                        })
+                        .count() as u64;
+                    let minimum_consulted_probes = match mode {
+                        crate::manifest::GraphExistsModeV1::Exists => u64::from(*matched_count > 0),
+                        crate::manifest::GraphExistsModeV1::All => {
+                            let argument_count = argument_id
+                                .as_ref()
+                                .and_then(|argument_id| input.args.get(argument_id))
+                                .and_then(Value::as_array)
+                                .and_then(|values| {
+                                    values
+                                        .iter()
+                                        .map(snapback_types::rqs_contract::jcs)
+                                        .collect::<Result<BTreeSet<_>, _>>()
+                                        .ok()
+                                })
+                                .map(|values| values.len() as u64);
+                            let Some(argument_count) = argument_count else {
+                                return false;
+                            };
+                            if *matched_count > argument_count {
+                                return false;
+                            }
+                            matched_count.saturating_add(u64::from(
+                                *matched_count > 0 && *matched_count < argument_count,
+                            ))
+                        }
+                    };
+                    edge_query_count >= minimum_consulted_probes
+                        && (fact
+                            .ordinary
+                            .iter()
+                            .all(|read| read.kind != CapturedReadKind::Query)
+                            || query_rows_are_backed_by_points(fact))
+                })
+        }
+        GraphNodeV1::PrincipalBound {
+            table,
+            principal_field,
+            binding,
+            ..
+        } => {
+            if input.auth.user_id.is_none() {
+                return facts.is_empty();
+            }
+            let auth_complete = facts
+                .iter()
+                .flat_map(|fact| fact.ordinary.iter())
+                .filter(|read| {
+                    read.kind == CapturedReadKind::Auth
+                        && read.field.as_deref() == Some("userId")
+                        && read.value.as_ref().and_then(Value::as_str)
+                            == input.auth.user_id.as_deref()
+                })
+                .count()
+                == 1;
+            if !auth_complete
+                || facts.iter().any(|fact| {
+                    fact.ordinary
+                        .iter()
+                        .any(|read| read.kind == CapturedReadKind::Query)
+                        && !query_rows_are_backed_by_points(fact)
+                })
+            {
+                return false;
+            }
+            let target_found = facts
+                .iter()
+                .filter(|fact| {
+                    matches!(
+                        &fact.graph.dependency,
+                        GraphCapturedDependencyV1::PrincipalField {
+                            table: captured_table,
+                            field,
+                            found: true,
+                            ..
+                        } if captured_table == table && field == principal_field
+                    )
+                })
+                .count();
+            let target_rows = facts
+                .iter()
+                .flat_map(|fact| fact.ordinary.iter())
+                .filter(|read| {
+                    read.kind == CapturedReadKind::Row
+                        && read.table.as_deref() == Some(table.as_str())
+                        && read.version.is_some()
+                })
+                .count();
+            if target_rows < target_found {
+                return false;
+            }
+            let binding_complete =
+                binding.as_ref().is_none_or(|binding| {
+                    let principal = facts.iter().find(|fact| {
+                        matches!(
+                            &fact.graph.dependency,
+                            GraphCapturedDependencyV1::PrincipalField {
+                                table,
+                                field,
+                                ..
+                            } if table == &binding.table && field == &binding.principal_field
+                        )
+                    });
+                    principal.is_some()
+                        && principal.is_some_and(|principal| match &principal.graph.dependency {
+                            GraphCapturedDependencyV1::PrincipalField { found: true, .. } => {
+                                let value_field = facts.iter().any(|fact| {
+                                matches!(
+                                    &fact.graph.dependency,
+                                    GraphCapturedDependencyV1::PrincipalField {
+                                        table,
+                                        field,
+                                        ..
+                                    } if table == &binding.table && field == &binding.value_field
+                                )
+                            });
+                                let row = facts.iter().flat_map(|fact| fact.ordinary.iter()).any(
+                                    |read| {
+                                        read.kind == CapturedReadKind::Row
+                                            && read.table.as_deref() == Some(binding.table.as_str())
+                                            && read.version.is_some()
+                                    },
+                                );
+                                value_field && row
+                            }
+                            GraphCapturedDependencyV1::PrincipalField { found: false, .. } => true,
+                            _ => false,
+                        })
+                });
+            if !binding_complete {
+                return false;
+            }
+            let binding_found = binding.as_ref().is_none_or(|binding| {
+                facts.iter().any(|fact| {
+                    matches!(
+                        &fact.graph.dependency,
+                        GraphCapturedDependencyV1::PrincipalField {
+                            table,
+                            field,
+                            found: true,
+                            ..
+                        } if table == &binding.table && field == &binding.principal_field
+                    )
+                })
+            });
+            let expected_targets = if binding_found {
+                expected_graph_parent_attempts(plan, node, by_node)
+            } else {
+                Some(0)
+            };
+            let target_count = facts
+                .iter()
+                .filter(|fact| {
+                    matches!(
+                        &fact.graph.dependency,
+                        GraphCapturedDependencyV1::PrincipalField {
+                            table: captured_table,
+                            field,
+                            ..
+                        } if captured_table == table && field == principal_field
+                    )
+                })
+                .count() as u64;
+            expected_targets == Some(target_count)
+        }
+        GraphNodeV1::SearchMembership {
+            invalidation_tables,
+            ..
+        } => {
+            let captured = facts
+                .iter()
+                .filter_map(|fact| match &fact.graph.dependency {
+                    GraphCapturedDependencyV1::SearchTable { table, .. } => Some(table.clone()),
+                    _ => None,
+                })
+                .collect::<BTreeSet<_>>();
+            captured.len() == facts.len()
+                && captured == invalidation_tables.iter().cloned().collect::<BTreeSet<_>>()
+        }
+        GraphNodeV1::ClosedProjection { .. } => {
+            facts.len() == 1
+                && matches!(
+                    facts[0].graph.dependency,
+                    GraphCapturedDependencyV1::Projection { .. }
+                )
+        }
+    }
+}
+
+fn keyset_boundary_value(key: &crate::manifest::KeysetKeyV1, complete: bool) -> Value {
+    let mut last = key
+        .entries
+        .iter()
+        .map(|(_, value)| value.clone())
+        .collect::<Vec<_>>();
+    last.push(Value::String(key.id.clone()));
+    json!({ "first": last, "last": last, "complete": complete })
+}
+
+fn captured_query_fact_outcome(
+    fact: &GraphCaptureFact<'_>,
+    input: &HandlerInput,
+    changes: &[ChangedRow],
+    boundary: Option<(&crate::manifest::KeysetKeyV1, bool)>,
+    complete: bool,
+) -> LiveMatchOutcome {
+    let Some(query) = fact
+        .ordinary
+        .iter()
+        .find(|read| read.kind == CapturedReadKind::Query)
+    else {
+        return LiveMatchOutcome::ConservativeFallback;
+    };
+    let Some(predicate) = query.predicate.as_ref() else {
+        return LiveMatchOutcome::ConservativeFallback;
+    };
+    let Ok(plan) = serde_json::from_value::<QueryPlan>(predicate.clone()) else {
+        return LiveMatchOutcome::ConservativeFallback;
+    };
+    let mut dependency = (*query).clone();
+    dependency.boundary = match boundary {
+        Some((key, exhausted)) => Some(keyset_boundary_value(key, exhausted)),
+        None if complete => Some(json!({ "complete": true })),
+        None => None,
+    };
+    changes
+        .iter()
+        .map(|change| query_plan_change_outcome(&plan, input, change, Some(&dependency)))
+        .max_by_key(|outcome| match outcome {
+            LiveMatchOutcome::Skip => 0,
+            LiveMatchOutcome::Match => 1,
+            LiveMatchOutcome::ConservativeFallback => 2,
+        })
+        .unwrap_or(LiveMatchOutcome::Skip)
+}
+
+fn captured_principal_digest(value: &Value) -> Option<String> {
+    let canonical = snapback_types::rqs_contract::jcs(value).ok()?;
+    let mut hasher = Sha256::new();
+    hasher.update(b"snapback:g0-corpus-principal-value:v1:");
+    hasher.update(canonical.as_bytes());
+    Some(format!("sha256:{:x}", hasher.finalize()))
+}
+
+fn graph_fact_outcome(
+    fact: &GraphCaptureFact<'_>,
+    input: &HandlerInput,
+    changes: &[ChangedRow],
+) -> LiveMatchOutcome {
+    match &fact.graph.dependency {
+        GraphCapturedDependencyV1::RootRange {
+            boundary, complete, ..
+        }
+        | GraphCapturedDependencyV1::ParentRange {
+            boundary, complete, ..
+        } => captured_query_fact_outcome(
+            fact,
+            input,
+            changes,
+            boundary.as_ref().map(|key| (key, *complete)),
+            *complete,
+        ),
+        GraphCapturedDependencyV1::ParentPoint {
+            table,
+            child_key: Some(child_key),
+            found: true,
+            ..
+        } => bool_outcome(
+            changes
+                .iter()
+                .any(|change| change.table == *table && change.id == child_key.id),
+        ),
+        GraphCapturedDependencyV1::ParentPoint { found: false, .. } => {
+            captured_query_fact_outcome(fact, input, changes, None, true)
+        }
+        GraphCapturedDependencyV1::ParentPoint { .. } => LiveMatchOutcome::ConservativeFallback,
+        GraphCapturedDependencyV1::ParentLookupSkipped { .. }
+        | GraphCapturedDependencyV1::Projection { .. } => LiveMatchOutcome::Skip,
+        GraphCapturedDependencyV1::Membership {
+            tables, complete, ..
+        } => {
+            if !complete {
+                LiveMatchOutcome::ConservativeFallback
+            } else {
+                bool_outcome(changes.iter().any(|change| tables.contains(&change.table)))
+            }
+        }
+        GraphCapturedDependencyV1::PrincipalField {
+            table,
+            field,
+            value_digest,
+            ..
+        } => changes
+            .iter()
+            .filter(|change| change.table == *table)
+            .map(|change| {
+                let Some(row) = change.row.as_ref() else {
+                    return LiveMatchOutcome::ConservativeFallback;
+                };
+                let Some(value) = row.get(field) else {
+                    return LiveMatchOutcome::ConservativeFallback;
+                };
+                if captured_principal_digest(value).as_deref() == Some(value_digest.as_str()) {
+                    LiveMatchOutcome::Match
+                } else if change.op == ChangeOp::Update
+                    && (change.changed_fields.is_empty()
+                        || change.changed_fields.iter().any(|changed| changed == field))
+                {
+                    LiveMatchOutcome::ConservativeFallback
+                } else {
+                    LiveMatchOutcome::Skip
+                }
+            })
+            .max_by_key(|outcome| match outcome {
+                LiveMatchOutcome::Skip => 0,
+                LiveMatchOutcome::Match => 1,
+                LiveMatchOutcome::ConservativeFallback => 2,
+            })
+            .unwrap_or(LiveMatchOutcome::Skip),
+        GraphCapturedDependencyV1::SearchTable { table, .. } => {
+            bool_outcome(changes.iter().any(|change| change.table == *table))
+        }
+    }
+}
+
+fn graph_subscription_match_decision(
+    carrier: &GraphQueryCarrierV1,
+    input: &HandlerInput,
+    read_dependencies: &[CapturedReadDependency],
+    changes: &[ChangedRow],
+) -> LiveMatchDecisionV1 {
+    let (facts, _global, pairing_valid) = graph_capture_facts(read_dependencies);
+    let mut by_node: BTreeMap<String, Vec<&GraphCaptureFact<'_>>> = BTreeMap::new();
+    for fact in &facts {
+        by_node
+            .entry(fact.graph.node_id.clone())
+            .or_default()
+            .push(fact);
+    }
+    let instance_hash = facts
+        .first()
+        .map(|fact| fact.graph.instance_hash.as_str().to_owned())
+        .unwrap_or_default();
+    let consistent_instance = facts
+        .iter()
+        .all(|fact| fact.graph.instance_hash.as_str() == instance_hash);
+    let mut rows = Vec::with_capacity(carrier.normalized_plan.nodes.len());
+    for node in &carrier.normalized_plan.nodes {
+        let node_facts = by_node
+            .get(node.node_id())
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        let identities_valid = pairing_valid
+            && consistent_instance
+            && node_facts.iter().all(|fact| {
+                fact.graph.graph_plan_hash == carrier.plan_hash
+                    && validate_graph_captured_read_v1(fact.graph, &carrier.normalized_plan).is_ok()
+            });
+        let capture_complete = graph_node_capture_is_complete(
+            &carrier.normalized_plan,
+            node,
+            node_facts,
+            &by_node,
+            input,
+            identities_valid,
+        );
+        let (disposition, reason) = if matches!(node, GraphNodeV1::ClosedProjection { .. }) {
+            (
+                GraphNodeMatchDispositionV1::Skip,
+                GraphNodeMatchReasonV1::ProjectionOnly,
+            )
+        } else if !capture_complete {
+            let reason = if matches!(node, GraphNodeV1::SearchMembership { .. }) {
+                GraphNodeMatchReasonV1::SearchCaptureIncomplete
+            } else {
+                GraphNodeMatchReasonV1::CaptureIncomplete
+            };
+            (GraphNodeMatchDispositionV1::ConservativeFallback, reason)
+        } else {
+            let outcome = node_facts
+                .iter()
+                .map(|fact| graph_fact_outcome(fact, input, changes))
+                .max_by_key(|outcome| match outcome {
+                    LiveMatchOutcome::Skip => 0,
+                    LiveMatchOutcome::Match => 1,
+                    LiveMatchOutcome::ConservativeFallback => 2,
+                })
+                .unwrap_or(LiveMatchOutcome::Skip);
+            let disposition = match outcome {
+                LiveMatchOutcome::Skip => GraphNodeMatchDispositionV1::Skip,
+                LiveMatchOutcome::Match => GraphNodeMatchDispositionV1::Match,
+                LiveMatchOutcome::ConservativeFallback => {
+                    GraphNodeMatchDispositionV1::ConservativeFallback
+                }
+            };
+            let reason = if matches!(node, GraphNodeV1::SearchMembership { .. })
+                && disposition == GraphNodeMatchDispositionV1::Match
+            {
+                GraphNodeMatchReasonV1::SearchTableWrite
+            } else {
+                match disposition {
+                    GraphNodeMatchDispositionV1::Skip => GraphNodeMatchReasonV1::CapturedDisjoint,
+                    GraphNodeMatchDispositionV1::Match => {
+                        GraphNodeMatchReasonV1::CapturedIntersects
+                    }
+                    GraphNodeMatchDispositionV1::ConservativeFallback => {
+                        GraphNodeMatchReasonV1::StaticTableIntersects
+                    }
+                }
+            };
+            (disposition, reason)
+        };
+        let mut dependency_kinds = node_facts
+            .iter()
+            .flat_map(|fact| {
+                std::iter::once(&CapturedReadKind::GraphNode)
+                    .chain(fact.ordinary.iter().map(|read| &read.kind))
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        dependency_kinds.sort_by_key(captured_read_kind_rank);
+        dependency_kinds.dedup();
+        let captured_dependency_count = node_facts
+            .iter()
+            .map(|fact| 1_u64.saturating_add(fact.ordinary.len() as u64))
+            .sum::<u64>();
+        rows.push(GraphNodeDecisionLedgerV1 {
+            graph_plan_hash: carrier.plan_hash.as_str().to_owned(),
+            instance_hash: instance_hash.clone(),
+            node_id: node.node_id().to_owned(),
+            node_kind: node.kind(),
+            authority_class: node.authority().declared_class,
+            capture_complete,
+            dependency_kinds,
+            captured_dependency_count,
+            changed_row_count: changes.len() as u64,
+            disposition,
+            reason,
+        });
+    }
+    let outcome = if rows.iter().any(|row| {
+        row.node_kind != GraphNodeKindV1::ClosedProjection
+            && row.disposition == GraphNodeMatchDispositionV1::ConservativeFallback
+    }) {
+        LiveMatchOutcome::ConservativeFallback
+    } else if rows
+        .iter()
+        .any(|row| row.disposition == GraphNodeMatchDispositionV1::Match)
+    {
+        LiveMatchOutcome::Match
+    } else {
+        LiveMatchOutcome::Skip
+    };
+    LiveMatchDecisionV1 {
+        outcome,
+        graph_nodes: rows,
+    }
+}
+
+fn captured_read_kind_rank(kind: &CapturedReadKind) -> u8 {
+    match kind {
+        CapturedReadKind::Row => 0,
+        CapturedReadKind::MissingRow => 1,
+        CapturedReadKind::Query => 2,
+        CapturedReadKind::Auth => 3,
+        CapturedReadKind::Permission => 4,
+        CapturedReadKind::GraphNode => 5,
+    }
+}
+
+pub fn rollup_graph_node_decisions(
+    decisions: &[GraphNodeDecisionLedgerV1],
+) -> Vec<GraphNodeDecisionStatsV1> {
+    let mut groups = BTreeMap::<
+        (
+            String,
+            GraphNodeKindV1,
+            GraphNodeMatchDispositionV1,
+            GraphNodeMatchReasonV1,
+        ),
+        GraphNodeDecisionStatsV1,
+    >::new();
+    for decision in decisions {
+        let key = (
+            decision.graph_plan_hash.clone(),
+            decision.node_kind,
+            decision.disposition,
+            decision.reason,
+        );
+        let row = groups
+            .entry(key)
+            .or_insert_with(|| GraphNodeDecisionStatsV1 {
+                graph_plan_hash: decision.graph_plan_hash.clone(),
+                node_kind: decision.node_kind,
+                disposition: decision.disposition,
+                reason: decision.reason,
+                decisions: 0,
+                skips: 0,
+                matches: 0,
+                conservative_fallbacks: 0,
+                capture_incomplete: 0,
+            });
+        row.decisions = row.decisions.saturating_add(1);
+        match decision.disposition {
+            GraphNodeMatchDispositionV1::Skip => row.skips = row.skips.saturating_add(1),
+            GraphNodeMatchDispositionV1::Match => row.matches = row.matches.saturating_add(1),
+            GraphNodeMatchDispositionV1::ConservativeFallback => {
+                row.conservative_fallbacks = row.conservative_fallbacks.saturating_add(1)
+            }
+        }
+        if !decision.capture_complete {
+            row.capture_incomplete = row.capture_incomplete.saturating_add(1);
+        }
+    }
+    groups.into_values().collect()
 }
 
 fn bool_outcome(value: bool) -> LiveMatchOutcome {
@@ -1134,6 +1976,276 @@ mod dependency_gate_tests {
                 &[update("other", "1", json!({"_id":"1"}), &["value"])],
             ),
             LiveMatchOutcome::ConservativeFallback
+        );
+    }
+
+    fn graph_fact(
+        dependency: Value,
+        ordinary: Vec<&CapturedReadDependency>,
+    ) -> GraphCaptureFact<'_> {
+        let graph = Box::leak(Box::new(
+            serde_json::from_value::<GraphCapturedReadV1>(json!({
+                "format":"snapback.graph-captured-read.v1",
+                "graphPlanHash":"sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                "instanceHash":"sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                "nodeId":"n0",
+                "nodeKind":"root-window",
+                "authorityClass":1,
+                "dependency":dependency,
+            }))
+            .unwrap(),
+        ));
+        GraphCaptureFact { graph, ordinary }
+    }
+
+    #[test]
+    fn graph_node_dependency_kinds_prove_skip_match_and_conservative_fallback() {
+        let query = completed_todos_query_dependency();
+        let disjoint = update("other", "1", json!({"_id":"1"}), &["value"]);
+        let relevant = ChangedRow {
+            table: "todos".to_owned(),
+            id: "2".to_owned(),
+            op: ChangeOp::Insert,
+            row: Some(json!({"_id":"2", "completed":true})),
+            changed_fields: Vec::new(),
+        };
+        let unprovable = ChangedRow {
+            table: "todos".to_owned(),
+            id: "2".to_owned(),
+            op: ChangeOp::Delete,
+            row: None,
+            changed_fields: Vec::new(),
+        };
+        for dependency in [
+            json!({
+                "kind":"root-range", "table":"todos", "index":"by_completed",
+                "predicate":[], "order":[], "limit":10, "resultCount":0,
+                "boundary":null, "complete":true
+            }),
+            json!({
+                "kind":"parent-range", "table":"todos", "index":"by_completed",
+                "parentKey":{"table":"parents","id":"p1"}, "predicate":[],
+                "order":[], "limit":10, "resultCount":0,
+                "boundary":null, "complete":true
+            }),
+            json!({
+                "kind":"parent-point", "table":"todos", "index":"by_completed",
+                "parentKey":{"table":"parents","id":"p1"}, "lookupKey":[true],
+                "childKey":null, "found":false, "rowVersion":null
+            }),
+        ] {
+            let fact = graph_fact(dependency, vec![&query]);
+            assert_eq!(
+                graph_fact_outcome(&fact, &input(), &[disjoint.clone()]),
+                LiveMatchOutcome::Skip
+            );
+            assert_eq!(
+                graph_fact_outcome(&fact, &input(), &[relevant.clone()]),
+                LiveMatchOutcome::Match
+            );
+            assert_eq!(
+                graph_fact_outcome(&fact, &input(), &[unprovable.clone()]),
+                LiveMatchOutcome::ConservativeFallback
+            );
+        }
+
+        let complete_membership = graph_fact(
+            json!({
+                "kind":"membership", "tables":["memberships"], "indexes":["by_parent_member"],
+                "parentKey":{"table":"parents","id":"p1"}, "argumentId":null,
+                "matchedCount":0, "complete":true
+            }),
+            Vec::new(),
+        );
+        assert_eq!(
+            graph_fact_outcome(&complete_membership, &input(), &[disjoint.clone()]),
+            LiveMatchOutcome::Skip
+        );
+        assert_eq!(
+            graph_fact_outcome(
+                &complete_membership,
+                &input(),
+                &[update("memberships", "m1", json!({"_id":"m1"}), &["value"])]
+            ),
+            LiveMatchOutcome::Match
+        );
+        let incomplete_membership = graph_fact(
+            json!({
+                "kind":"membership", "tables":["memberships"], "indexes":["by_parent_member"],
+                "parentKey":{"table":"parents","id":"p1"}, "argumentId":null,
+                "matchedCount":0, "complete":false
+            }),
+            Vec::new(),
+        );
+        assert_eq!(
+            graph_fact_outcome(&incomplete_membership, &input(), &[disjoint.clone()]),
+            LiveMatchOutcome::ConservativeFallback
+        );
+
+        let principal_value = json!("ada");
+        let principal = graph_fact(
+            json!({
+                "kind":"principal-field", "table":"viewState", "index":"by_user",
+                "partitionHash":"sha256:2222222222222222222222222222222222222222222222222222222222222222",
+                "field":"userId", "valueDigest":captured_principal_digest(&principal_value).unwrap(),
+                "found":false
+            }),
+            Vec::new(),
+        );
+        assert_eq!(
+            graph_fact_outcome(
+                &principal,
+                &input(),
+                &[update("other", "1", json!({"_id":"1"}), &["value"])]
+            ),
+            LiveMatchOutcome::Skip
+        );
+        assert_eq!(
+            graph_fact_outcome(
+                &principal,
+                &input(),
+                &[ChangedRow {
+                    table: "viewState".to_owned(),
+                    id: "v1".to_owned(),
+                    op: ChangeOp::Insert,
+                    row: Some(json!({"_id":"v1", "userId":"ada"})),
+                    changed_fields: Vec::new(),
+                }]
+            ),
+            LiveMatchOutcome::Match
+        );
+        assert_eq!(
+            graph_fact_outcome(
+                &principal,
+                &input(),
+                &[update(
+                    "viewState",
+                    "v1",
+                    json!({"_id":"v1", "userId":"grace"}),
+                    &["userId"]
+                )]
+            ),
+            LiveMatchOutcome::ConservativeFallback
+        );
+
+        let search = graph_fact(
+            json!({
+                "kind":"search-table", "table":"searchDocs",
+                "membershipIdentity":{
+                    "format":"snapback.graph-search-membership-identity.v1",
+                    "providerPlanHash":"sha256:3333333333333333333333333333333333333333333333333333333333333333",
+                    "argumentContractHash":"sha256:4444444444444444444444444444444444444444444444444444444444444444",
+                    "scopeContractHash":"sha256:5555555555555555555555555555555555555555555555555555555555555555",
+                    "authorityClass":1, "providerVersion":"v1",
+                    "providerCompletenessClass":"complete-membership-v1",
+                    "membershipHash":"sha256:6666666666666666666666666666666666666666666666666666666666666666"
+                },
+                "providerVersion":"v1"
+            }),
+            Vec::new(),
+        );
+        assert_eq!(
+            graph_fact_outcome(&search, &input(), &[disjoint]),
+            LiveMatchOutcome::Skip
+        );
+        assert_eq!(
+            graph_fact_outcome(
+                &search,
+                &input(),
+                &[update("searchDocs", "s1", json!({"_id":"s1"}), &["text"])]
+            ),
+            LiveMatchOutcome::Match
+        );
+        let mut search_carrier: crate::manifest::GraphQueryCarrierV1 = serde_json::from_str(
+            include_str!("../../../tests/conformance/graph/minimal-carrier.v1.json"),
+        )
+        .unwrap();
+        let search_node: GraphNodeV1 = serde_json::from_value(json!({
+            "nodeId":"search", "kind":"search-membership", "edgeName":"search",
+            "authority":{"declaredClass":1,"proof":null},
+            "parentNodeId":"n0", "providerCapabilityId":"search.v1",
+            "membershipIdentity":{
+                "format":"snapback.graph-search-membership-identity.v1",
+                "providerPlanHash":"sha256:3333333333333333333333333333333333333333333333333333333333333333",
+                "argumentContractHash":"sha256:4444444444444444444444444444444444444444444444444444444444444444",
+                "scopeContractHash":"sha256:5555555555555555555555555555555555555555555555555555555555555555",
+                "authorityClass":1, "providerVersion":"v1",
+                "providerCompletenessClass":"complete-membership-v1",
+                "membershipHash":"sha256:6666666666666666666666666666666666666666666666666666666666666666"
+            },
+            "memberField":"id", "scopeBindings":[],
+            "invalidationTables":["searchDocs"],
+            "providerCompletenessClass":"complete-membership-v1"
+        }))
+        .unwrap();
+        let projection_index = search_carrier.normalized_plan.nodes.len() - 1;
+        search_carrier
+            .normalized_plan
+            .nodes
+            .insert(projection_index, search_node);
+        let incomplete_search = CapturedReadDependency {
+            graph: Some(
+                serde_json::from_value(json!({
+                    "format":"snapback.graph-captured-read.v1",
+                    "graphPlanHash":search_carrier.plan_hash,
+                    "instanceHash":"sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                    "nodeId":"search", "nodeKind":"search-membership", "authorityClass":1,
+                    "dependency":{
+                        "kind":"search-table", "table":"wrongTable",
+                        "membershipIdentity":{
+                            "format":"snapback.graph-search-membership-identity.v1",
+                            "providerPlanHash":"sha256:3333333333333333333333333333333333333333333333333333333333333333",
+                            "argumentContractHash":"sha256:4444444444444444444444444444444444444444444444444444444444444444",
+                            "scopeContractHash":"sha256:5555555555555555555555555555555555555555555555555555555555555555",
+                            "authorityClass":1, "providerVersion":"v1",
+                            "providerCompletenessClass":"complete-membership-v1",
+                            "membershipHash":"sha256:6666666666666666666666666666666666666666666666666666666666666666"
+                        },
+                        "providerVersion":"v1"
+                    }
+                }))
+                .unwrap(),
+            ),
+            ..empty_dependency(CapturedReadKind::GraphNode)
+        };
+        let decision = graph_subscription_match_decision(
+            &search_carrier,
+            &input(),
+            &[incomplete_search],
+            &[update("other", "1", json!({"_id":"1"}), &["value"])],
+        );
+        let search_decision = decision
+            .graph_nodes
+            .iter()
+            .find(|node| node.node_id == "search")
+            .unwrap();
+        assert_eq!(
+            search_decision.disposition,
+            GraphNodeMatchDispositionV1::ConservativeFallback
+        );
+        assert_eq!(
+            search_decision.reason,
+            GraphNodeMatchReasonV1::SearchCaptureIncomplete
+        );
+
+        let skipped = graph_fact(
+            json!({
+                "kind":"parent-lookup-skipped", "table":"todos", "index":"by_completed",
+                "parentKey":{"table":"parents","id":"p1"}, "reason":"null-or-omitted-key"
+            }),
+            Vec::new(),
+        );
+        assert_eq!(
+            graph_fact_outcome(&skipped, &input(), &[relevant]),
+            LiveMatchOutcome::Skip
+        );
+        let projection = graph_fact(
+            json!({"kind":"projection", "sourceNodeIds":["n0"]}),
+            Vec::new(),
+        );
+        assert_eq!(
+            graph_fact_outcome(&projection, &input(), &[unprovable]),
+            LiveMatchOutcome::Skip
         );
     }
 

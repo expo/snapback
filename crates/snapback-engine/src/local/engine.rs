@@ -50,8 +50,9 @@ use crate::ephemeral::{
     validate_collection_permission_backing,
 };
 use crate::live_matcher::{
-    LiveDeltaKind, LiveDeltaOutcome, LiveMatchOutcome, compute_live_delta,
-    live_subscription_match_outcome, query_dependencies_from_plan,
+    GraphNodeDecisionStatsV1, LiveDeltaKind, LiveDeltaOutcome, LiveMatchOutcome,
+    compute_live_delta, live_subscription_match_decision, live_subscription_match_outcome,
+    query_dependencies_from_plan, rollup_graph_node_decisions,
 };
 use crate::live_wire::{
     AuthorizationInvalidationSnapshot, LiveDeltaOpKind, LiveDeltaWireOp, LiveEnvelope,
@@ -1264,6 +1265,43 @@ pub struct LiveMatcherDecisionStats {
     pub match_delta: u64,
     pub skip: u64,
     pub conservative_fallback: u64,
+    /// Value-free per-node graph matcher roll-up, grouped by the LLP 0209
+    /// §5.2 identity. Empty while graph serving remains support-false.
+    #[serde(default)]
+    pub graph_nodes: Vec<GraphNodeDecisionStatsV1>,
+}
+
+fn merge_graph_node_matcher_stats(
+    target: &mut Vec<GraphNodeDecisionStatsV1>,
+    incoming: impl IntoIterator<Item = GraphNodeDecisionStatsV1>,
+) {
+    for incoming in incoming {
+        if let Some(existing) = target.iter_mut().find(|existing| {
+            existing.graph_plan_hash == incoming.graph_plan_hash
+                && existing.node_kind == incoming.node_kind
+                && existing.disposition == incoming.disposition
+                && existing.reason == incoming.reason
+        }) {
+            existing.decisions = existing.decisions.saturating_add(incoming.decisions);
+            existing.skips = existing.skips.saturating_add(incoming.skips);
+            existing.matches = existing.matches.saturating_add(incoming.matches);
+            existing.conservative_fallbacks = existing
+                .conservative_fallbacks
+                .saturating_add(incoming.conservative_fallbacks);
+            existing.capture_incomplete = existing
+                .capture_incomplete
+                .saturating_add(incoming.capture_incomplete);
+        } else {
+            target.push(incoming);
+        }
+    }
+    target.sort_by(|left, right| {
+        left.graph_plan_hash
+            .cmp(&right.graph_plan_hash)
+            .then_with(|| left.node_kind.cmp(&right.node_kind))
+            .then_with(|| left.disposition.cmp(&right.disposition))
+            .then_with(|| left.reason.cmp(&right.reason))
+    });
 }
 
 /// Scheduler evaluation lifecycle and wire-output accounting.
@@ -31067,11 +31105,16 @@ impl LocalSnapback {
                 );
                 continue;
             }
-            let match_outcome = live_subscription_match_outcome(
+            let match_decision = live_subscription_match_decision(
                 function,
                 &subscription.input,
                 &subscription.read_dependencies,
                 changes,
+            );
+            let match_outcome = match_decision.outcome;
+            merge_graph_node_matcher_stats(
+                &mut matcher_stats.graph_nodes,
+                rollup_graph_node_decisions(&match_decision.graph_nodes),
             );
             if match_outcome == LiveMatchOutcome::Skip {
                 skipped += 1;
@@ -31180,6 +31223,10 @@ impl LocalSnapback {
             .live_matcher_stats
             .conservative_fallback
             .saturating_add(matcher_stats.conservative_fallback);
+        merge_graph_node_matcher_stats(
+            &mut self.live_matcher_stats.graph_nodes,
+            matcher_stats.graph_nodes,
+        );
         self.live_delivery.total_skipped += skipped;
         self.live_delivery.last_skipped += skipped as usize;
 

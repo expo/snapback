@@ -28,6 +28,7 @@ const BOUNDS_PATH = join(GRAPH_ROOT, 'bound-derivation.v1.json');
 const PENDING_CASES_PATH = join(GRAPH_ROOT, 'broadcast-cases.g2-pending.v1.json');
 const PROVER_DISPOSITIONS_PATH = join(GRAPH_ROOT, 'broadcast-prover-dispositions.v1.json');
 const PAIRED_FIXTURES_PATH = join(GRAPH_ROOT, 'paired-world-fixtures.v1.json');
+const RUNTIME_CAPTURES_PATH = join(GRAPH_ROOT, 'runtime-captures.g2-b.v1.json');
 const ZERO_HASH = `sha256:${'0'.repeat(64)}`;
 const OWNER_SCOPE_DOMAIN = 'snapback:g0-corpus-authority-scope:v1:';
 const LARGE_SPOT_CHECK_COMMAND = 'ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs';
@@ -1598,6 +1599,21 @@ function oracleTranslationCoverage(fieldMaps, oracleCases) {
 }
 
 function capturedDependencyVector(carrier, call, tables, orderedRootIds) {
+  // G2-B makes the evaluator, rather than this JS oracle freezer, authoritative
+  // for the graph-specific capture vocabulary. The Rust corpus generator writes
+  // this sidecar from a real snapshot-pinned evaluation; retaining the older
+  // construction below gives a clean-checkout bootstrap path until that
+  // sidecar exists, but it is no longer the frozen source of truth.
+  // @ref LLP 0209#51-captured-vocabulary-by-normalized-node — captures are
+  // runtime observations and the freezer only embeds their stable projection.
+  if (existsSync(RUNTIME_CAPTURES_PATH)) {
+    const runtime = readJson(RUNTIME_CAPTURES_PATH);
+    assert.equal(runtime.format, 'snapback.graph-runtime-captures.g2-b.v1');
+    assert.equal(runtime.version, 1);
+    const record = runtime.captures.find(row => row.graphPlanHash === carrier.planHash);
+    assert.ok(record, `missing runtime capture vector for ${carrier.planHash}`);
+    return deepClone(record.capturedDependencies);
+  }
   const root = carrier.normalizedPlan.nodes.find(node => node.kind === 'root-window');
   const state = frozenGraphState(carrier, call, tables, orderedRootIds);
   const instanceHash = call.materialization.graphInstanceHash;
