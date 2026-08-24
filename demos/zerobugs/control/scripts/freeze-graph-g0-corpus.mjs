@@ -24,6 +24,8 @@ const NORMAL_ROOT = join(CONTROL_ROOT, 'fixtures/normal-seed-v1');
 const LARGE_ROOT = join(REPO_ROOT, 'demos/zerobugs/fixtures-local/large-seed42-v1');
 const CORPUS_PATH = join(GRAPH_ROOT, 'corpus.v1.json');
 const BOUNDS_PATH = join(GRAPH_ROOT, 'bound-derivation.v1.json');
+const PENDING_CASES_PATH = join(GRAPH_ROOT, 'broadcast-cases.g2-pending.v1.json');
+const PAIRED_FIXTURES_PATH = join(GRAPH_ROOT, 'paired-world-fixtures.v1.json');
 const ZERO_HASH = `sha256:${'0'.repeat(64)}`;
 const LARGE_SPOT_CHECK_COMMAND = 'ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs';
 const HOT_SPOT_CHECK_COMMAND = 'ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v11 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-hot.mjs';
@@ -348,15 +350,27 @@ function compactNullable(value, fields) {
   return Object.fromEntries(fields.map(field => [field, value[field]]));
 }
 
-function mapListRows(items) {
+function labelsInGraphOrder(values, labelRows) {
+  const physicalBySource = new Map(labelRows.map(row => [row.id, row._id]));
+  assert.equal(physicalBySource.size, labelRows.length, 'label source ids are unique');
+  return [...values].sort((left, right) => {
+    const leftID = physicalBySource.get(left.id);
+    const rightID = physicalBySource.get(right.id);
+    assert(leftID && rightID, 'every oracle label resolves to a physical graph label id');
+    return leftID < rightID ? -1 : leftID > rightID ? 1 : 0;
+  });
+}
+
+function mapListRows(items, labelRows) {
   return items.map(item => ({
     issue: compactIssue(item.issue),
-    labels: item.labels.map(value => ({label: {id: value.id, name: value.name}})),
+    labels: labelsInGraphOrder(item.labels, labelRows)
+      .map(value => ({label: {id: value.id, name: value.name}})),
     viewState: compactNullable(item.viewState, ['viewed']),
   }));
 }
 
-function mapDetailRows(value) {
+function mapDetailRows(value, labelRows) {
   if (value === null) return [];
   return [{
     issueId: value.issue.id,
@@ -369,7 +383,8 @@ function mapDetailRows(value) {
     project: compactNullable(value.project, ['id', 'name']),
     creator: compactNullable(value.creator, ['id', 'login']),
     assignee: compactNullable(value.assignee, ['id', 'login']),
-    labels: value.labels.map(labelValue => ({label: {id: labelValue.id, name: labelValue.name}})),
+    labels: labelsInGraphOrder(value.labels, labelRows)
+      .map(labelValue => ({label: {id: labelValue.id, name: labelValue.name}})),
     comments: value.comments.map(row => ({
       id: row.comment.id, created: row.comment.created, body: row.comment.body,
     })),
@@ -413,7 +428,10 @@ function expectedFromOracle(query, result, map, options = {}) {
   assert.equal(result.length, 1, `${query} harness returns one envelope`);
   const envelope = result[0];
   const items = options.items ?? envelope.items;
-  const rows = query === 'issueDetail' ? mapDetailRows(envelope.value) : mapListRows(items);
+  const detailValue = options.detailValue ?? envelope.value;
+  const rows = query === 'issueDetail'
+    ? mapDetailRows(detailValue, options.labelRows)
+    : mapListRows(items, options.labelRows);
   const orderedRootIds = query === 'issueDetail'
     ? (envelope.value === null ? [] : [envelope.value.issue.id])
     : items.map(item => item.issue.id);
@@ -421,20 +439,25 @@ function expectedFromOracle(query, result, map, options = {}) {
   if (query === 'issueDetail') {
     const labelsMap = map.nodeCompleteness.find(entry => entry.oracleStatusField === 'value.labelsCompleteness');
     const commentsMap = map.nodeCompleteness.find(entry => entry.oracleStatusField === 'value.commentsCompleteness');
-    nodeCompleteness.push({
-      graphNodeId: labelsMap.graphNodeId,
-      rows: [{rootId: envelope.value.issue.id, ...applyTranslation(
-        labelsMap, envelope.value.labelsCompleteness, null,
-        envelope.value.commentsCursor, envelope.value.labels,
-      )}],
-    });
-    nodeCompleteness.push({
-      graphNodeId: commentsMap.graphNodeId,
-      rows: [{rootId: envelope.value.issue.id, ...applyTranslation(
-        commentsMap, envelope.value.commentsCompleteness, null,
-        envelope.value.commentsCursor, envelope.value.comments,
-      )}],
-    });
+    if (envelope.value === null) {
+      nodeCompleteness.push({graphNodeId: labelsMap.graphNodeId, rows: []});
+      nodeCompleteness.push({graphNodeId: commentsMap.graphNodeId, rows: []});
+    } else {
+      nodeCompleteness.push({
+        graphNodeId: labelsMap.graphNodeId,
+        rows: [{rootId: envelope.value.issue.id, ...applyTranslation(
+          labelsMap, envelope.value.labelsCompleteness, null,
+          envelope.value.commentsCursor, envelope.value.labels,
+        )}],
+      });
+      nodeCompleteness.push({
+        graphNodeId: commentsMap.graphNodeId,
+        rows: [{rootId: envelope.value.issue.id, ...applyTranslation(
+          commentsMap, envelope.value.commentsCompleteness, null,
+          envelope.value.commentsCursor, envelope.value.comments,
+        )}],
+      });
+    }
   } else {
     const labelsMap = map.nodeCompleteness[0];
     nodeCompleteness.push({
@@ -456,12 +479,12 @@ function expectedFromOracle(query, result, map, options = {}) {
   ];
   const continuation = map.continuation.map(entry => {
     const hasMore = query === 'issueDetail'
-      ? envelope.value?.commentsCursor !== null
+      ? envelope.value !== null && envelope.value.commentsCursor !== null
       : envelope.hasMore;
     const nextRows = options.nextResult
       ? (query === 'issueDetail'
-          ? mapDetailRows(options.nextResult[0].value)
-          : mapListRows(options.nextResult[0].items))
+          ? mapDetailRows(options.nextResult[0].value, options.labelRows)
+          : mapListRows(options.nextResult[0].items, options.labelRows))
       : [];
     return {
       graphNodeId: entry.graphNodeId, hasMore,
@@ -483,18 +506,25 @@ function expectedFromOracle(query, result, map, options = {}) {
 function windowVector(carrier, args, direction = 'forward') {
   return carrier.normalizedPlan.nodes
     .filter(node => node.kind === 'root-window' || (node.kind === 'bounded-to-many' && node.page.kind === 'demand'))
-    .map(node => ({
-      nodeId: node.nodeId,
-      intervals: node.kind === 'root-window' ? [{
-        parentKey: null,
-        window: {
-          order: node.order,
-          direction,
-          lower: { kind: 'unbounded' }, upper: { kind: 'unbounded' },
-          take: 1,
-        },
-      }] : [],
-    }));
+    .map(node => {
+      const cost = carrier.normalizedPlan.queryCost.graph.nodes.find(entry => entry.nodeId === node.nodeId);
+      const parent = node.kind === 'root-window'
+        ? null
+        : carrier.normalizedPlan.nodes.find(entry => entry.nodeId === node.parentNodeId);
+      const parentID = String(args.sourceIssueID ?? args.issueID ?? 'g0-corpus-parent-v1');
+      return {
+        nodeId: node.nodeId,
+        intervals: [{
+          parentKey: node.kind === 'root-window' ? null : { table: parent.table, id: parentID },
+          window: {
+            order: node.order,
+            direction,
+            lower: { kind: 'unbounded' }, upper: { kind: 'unbounded' },
+            take: node.kind === 'root-window' ? 1 : cost.maxChildrenPerParent,
+          },
+        }],
+      };
+    });
 }
 
 function invocation(
@@ -514,7 +544,7 @@ function invocation(
     planHash: carrier.planHash, args, windows,
     materialization: {
       format: 'snapback.graph-materialization.v1', appId: 'zerobugs-graph-g0-corpus',
-      databaseId: 'normal-seed-v1', deploymentId: 'g0-stage-b',
+      databaseId: 'g0-corpus-fixtures-v1', deploymentId: 'g0-stage-b',
       targetProfileId: 'local', activationHash: ZERO_HASH,
       function: {
         artifactKind: 'functionReference', schemaVersion: 'snapback.v1',
@@ -525,13 +555,27 @@ function invocation(
       },
       graphInstanceHash: instanceHash,
     },
-    partition: { kind: 'partition-of-one', principal },
-    authorizationVersion: { incarnation: 'normal-seed-v1', epoch },
+    partition: {
+      format: 'snapback.graph-authority-partition.v1',
+      graphPlanHash: carrier.planHash,
+      class2: [],
+      class3: {
+        format: 'snapback.authority-partition.v1',
+        principalDataScope: {
+          authMode: 'sessions', userId: principal,
+          authorizationStreamIncarnation: 'g0-corpus-stream-v1',
+        },
+        authorityInstanceId: `g0-authority-${principal}`,
+        authFingerprint: domainHash('snapback:g0-corpus-auth-fingerprint:v1:', {principal}),
+        tenantId: null, providerId: 'g0-corpus-provider', delegation: null,
+      },
+    },
+    authorizationVersion: { incarnation: 'g0-corpus-authorization-v1', epoch },
     evaluationCut: 1,
   };
 }
 
-function completeEmptyResult(carrier, call) {
+function completeResult(carrier, call, resultBytes = '[]', orderedRootIds = []) {
   const materializationHash = domainHash('snapback:graph-materialization:v1:', call.materialization);
   const partitionHash = domainHash('snapback:graph-authority-partition:v1:', call.partition);
   const tuple = {
@@ -539,12 +583,18 @@ function completeEmptyResult(carrier, call) {
     authorizationVersion: call.authorizationVersion, evaluationCut: call.evaluationCut,
   };
   const nodes = [];
+  const rootNode = carrier.normalizedPlan.nodes.find(node => node.kind === 'root-window');
+  const parentRows = orderedRootIds.map(id => ({table: rootNode.table, id}));
   for (const node of carrier.normalizedPlan.nodes.filter(node => node.kind !== 'closed-projection')) {
     const evidence = node.kind === 'root-window'
-      ? { interval: { lower: { kind: 'unbounded' }, upper: { kind: 'unbounded' } }, consumed: 0, hasMore: false, sourceExhausted: true }
+      ? { interval: { lower: { kind: 'unbounded' }, upper: { kind: 'unbounded' } }, consumed: orderedRootIds.length, hasMore: false, sourceExhausted: true }
       : node.kind === 'bounded-to-many'
-        ? { ranges: [] }
-        : { rows: [] };
+        ? { ranges: parentRows.map(parentKey => ({parentKey, consumed: 0, cap: node.page.kind === 'literal' ? node.page.take : carrier.normalizedPlan.queryCost.graph.nodes.find(cost => cost.nodeId === node.nodeId).maxChildrenPerParent, hasMore: false})) }
+        : node.kind === 'equality-to-one'
+          ? { rows: parentRows.map(parentKey => ({parentKey, found: true})) }
+          : node.kind === 'exists-semi-join'
+            ? { rows: parentRows.map(parentKey => ({parentKey, existenceBit: false})) }
+            : { rows: parentRows.map(parentKey => ({parentKey, bindingFound: true, targetFound: false})) };
     const proof = { ...tuple, kind: node.kind, label: 'complete', ...evidence };
     nodes.push({ nodeId: node.nodeId, nodeKind: node.kind, label: 'complete', proofClass: node.kind === 'root-window' ? 'whole-source' : node.kind === 'equality-to-one' ? 'unique-point' : node.kind === 'bounded-to-many' ? 'parent-ranges' : node.kind === 'exists-semi-join' ? 'complete-membership' : 'principal-point', proof });
   }
@@ -556,49 +606,180 @@ function completeEmptyResult(carrier, call) {
   const projection = carrier.normalizedPlan.nodes.find(node => node.kind === 'closed-projection');
   nodes.push({ nodeId: projection.nodeId, nodeKind: projection.kind, label: 'complete', proofClass: 'projection-composition', proof: { ...tuple, kind: 'closed-projection', label: 'complete', composition } });
   return {
-    kind: 'result', label: 'complete', resultBytes: '[]', orderedRootIds: [],
-    resultLength: 0, nodeCompleteness: nodes,
+    kind: 'result', label: 'complete', resultBytes, orderedRootIds,
+    resultLength: orderedRootIds.length, nodeCompleteness: nodes,
     graphCompleteness: { ...tuple, label: 'complete', proofClass: 'all-complete', proof: composition },
     refusalReason: null,
   };
 }
 
-function normalizeBackwardTies(envelope, issueListRead) {
-  const physicalBySource = new Map(issueListRead.map(row => [row.sourceIssueID, row.issueID]));
-  assert.equal(physicalBySource.size, issueListRead.length, 'source-to-physical issue identity must be unique');
-  const items = deepClone(envelope.items);
-  let tiedRows = 0;
+function countDeclaredTieGroups(items, field) {
+  let groups = 0;
   for (let start = 0; start < items.length;) {
     let end = start + 1;
-    while (end < items.length && items[end].issue.modified === items[start].issue.modified) end += 1;
+    while (end < items.length && items[end].issue[field] === items[start].issue[field]) end += 1;
+    if (end - start > 1) groups += 1;
+    start = end;
+  }
+  return groups;
+}
+
+function normalizeCommentTiesForGraph(value, commentRows) {
+  const normalized = deepClone(value);
+  const physicalBySource = new Map(commentRows.map(row => [row.id, row._id]));
+  let groups = 0;
+  for (let start = 0; start < normalized.comments.length;) {
+    let end = start + 1;
+    while (
+      end < normalized.comments.length
+      && normalized.comments[end].comment.created === normalized.comments[start].comment.created
+    ) end += 1;
     if (end - start > 1) {
-      tiedRows += end - start;
-      const sorted = items.slice(start, end).sort((left, right) => {
-        const leftPhysical = physicalBySource.get(left.issue.id);
-        const rightPhysical = physicalBySource.get(right.issue.id);
-        assert(leftPhysical && rightPhysical, 'every oracle source id resolves through issueListRead');
+      groups += 1;
+      const sorted = normalized.comments.slice(start, end).sort((left, right) => {
+        const leftPhysical = physicalBySource.get(left.comment.id);
+        const rightPhysical = physicalBySource.get(right.comment.id);
+        assert(leftPhysical && rightPhysical, 'every oracle comment resolves to a physical graph comment id');
         return leftPhysical < rightPhysical ? -1 : leftPhysical > rightPhysical ? 1 : 0;
       });
-      items.splice(start, end - start, ...sorted);
+      normalized.comments.splice(start, end - start, ...sorted);
     }
     start = end;
   }
-  assert(tiedRows >= 2, 'direction-tie-break case must contain a tied group');
-  return items;
+  return {value: normalized, groups};
 }
 
 function pendingCases(carrier, baseInvocation) {
-  const withEpoch = epoch => ({ ...deepClone(baseInvocation), authorizationVersion: { incarnation: 'normal-seed-v1', epoch } });
+  const withEpoch = epoch => ({ ...deepClone(baseInvocation), authorizationVersion: { incarnation: 'g0-corpus-authorization-v1', epoch } });
+  const withPrincipal = principal => invocation(
+    carrier, deepClone(baseInvocation.args), principal, 0, 'listIssueByID',
+  );
   const outsideScope = invocation(carrier, {
     sourceIssueID: '__outside_scope__', selectedLabelIDs: [],
   });
   return [
-    { caseKind: 'allowDeny', id: 'zerobugs-allow-deny-g2', pending: 'G2', plan: carrier, invocations: { allowed: baseInvocation, denied: { ...deepClone(baseInvocation), partition: { kind: 'partition-of-one', principal: 'principal_removed' } } }, principals: { allowed: 'principal_ordinary', denied: 'principal_removed' }, expect: { allowed: completeEmptyResult(carrier, baseInvocation), denied: 'deny', deniedResultBytes: null } },
-    { caseKind: 'audienceParity', id: 'zerobugs-audience-parity-g2', pending: 'G2', plan: carrier, invocations: [baseInvocation, { ...deepClone(baseInvocation), partition: { kind: 'partition-of-one', principal: 'principal_crew' } }], principals: ['principal_ordinary', 'principal_crew'], expect: { establishment: ['allow', 'allow'], strict: ['allow', 'allow'] } },
-    { caseKind: 'scopeMismatch', id: 'zerobugs-scope-mismatch-g2', pending: 'G2', plan: carrier, invocations: { memberScope: baseInvocation, presentedInstance: outsideScope }, principal: 'principal_ordinary', expect: { classification: 'query-shaped', reason: 'scope-unbound', resultBytes: null } },
-    { caseKind: 'authorityTransition', id: 'zerobugs-authority-transition-g2', pending: 'G2', plan: carrier, invocations: { before: withEpoch(0), after: withEpoch(1) }, principal: 'principal_ordinary', commit: { dataChanges: [], authorityEvents: [{ kind: 'authorization-incarnation-change', cause: 'app-reset' }], afterAuthorizationVersion: { incarnation: 'normal-seed-v1', epoch: 1 } }, observed: [{ ordinal: 0, kind: 'fence', authorizationVersion: { incarnation: 'normal-seed-v1', epoch: 1 } }, { ordinal: 1, kind: 'delivery', authorizationVersion: { incarnation: 'normal-seed-v1', epoch: 1 } }] },
-    { caseKind: 'mixedCommit', id: 'zerobugs-mixed-commit-g2', pending: 'G2', plan: carrier, invocations: { before: withEpoch(0), after: withEpoch(1) }, principal: 'principal_ordinary', commit: { dataChanges: [{ table: 'issue', rowId: '__corpus_issue__' }], authorityEvents: [{ kind: 'authorization-incarnation-change', cause: 'app-reset' }], afterAuthorizationVersion: { incarnation: 'normal-seed-v1', epoch: 1 } }, observed: [{ ordinal: 0, kind: 'fence', authorizationVersion: { incarnation: 'normal-seed-v1', epoch: 1 } }, { ordinal: 1, kind: 'delivery', authorizationVersion: { incarnation: 'normal-seed-v1', epoch: 1 } }] },
+    { caseKind: 'allowDeny', id: 'zerobugs-allow-deny-g2', plan: carrier, invocations: { allowed: baseInvocation, denied: withPrincipal('principal_removed') }, principals: { allowed: 'principal_ordinary', denied: 'principal_removed' }, expect: { allowed: completeResult(carrier, baseInvocation), denied: 'deny', deniedResultBytes: null } },
+    { caseKind: 'audienceParity', id: 'zerobugs-audience-parity-g2', plan: carrier, invocations: [baseInvocation, withPrincipal('principal_crew')], principals: ['principal_ordinary', 'principal_crew'], expect: { establishment: ['allow', 'allow'], strict: ['allow', 'allow'] } },
+    { caseKind: 'scopeMismatch', id: 'zerobugs-scope-mismatch-g2', plan: carrier, invocations: { memberScope: baseInvocation, presentedInstance: outsideScope }, principal: 'principal_ordinary', expect: { classification: 'query-shaped', reason: 'scope-unbound', resultBytes: null } },
+    { caseKind: 'authorityTransition', id: 'zerobugs-authority-transition-g2', plan: carrier, invocations: { before: withEpoch(0), after: withEpoch(1) }, principal: 'principal_ordinary', commit: { dataChanges: [], authorityEvents: [{ kind: 'authorization-incarnation-change', cause: 'app-reset' }], afterAuthorizationVersion: { incarnation: 'g0-corpus-authorization-v1', epoch: 1 } }, observed: [{ ordinal: 0, kind: 'fence', authorizationVersion: { incarnation: 'g0-corpus-authorization-v1', epoch: 1 } }, { ordinal: 1, kind: 'delivery', authorizationVersion: { incarnation: 'g0-corpus-authorization-v1', epoch: 1 } }] },
+    { caseKind: 'mixedCommit', id: 'zerobugs-mixed-commit-g2', plan: carrier, invocations: { before: withEpoch(0), after: withEpoch(1) }, principal: 'principal_ordinary', commit: { dataChanges: [{ table: 'issue', rowId: '__corpus_issue__' }], authorityEvents: [{ kind: 'authorization-incarnation-change', cause: 'app-reset' }], afterAuthorizationVersion: { incarnation: 'g0-corpus-authorization-v1', epoch: 1 } }, observed: [{ ordinal: 0, kind: 'fence', authorizationVersion: { incarnation: 'g0-corpus-authorization-v1', epoch: 1 } }, { ordinal: 1, kind: 'delivery', authorizationVersion: { incarnation: 'g0-corpus-authorization-v1', epoch: 1 } }] },
   ];
+}
+
+function oracleTranslationCoverage(fieldMaps, oracleCases) {
+  const matches = (translationRow, actual) => (
+    translationRow.oracleStatus === actual.oracleStatus
+    && translationRow.oracleReason === actual.oracleReason
+    && (translationRow.when.cursor === 'any' || translationRow.when.cursor === actual.when.cursor)
+    && (translationRow.when.rows === 'any' || translationRow.when.rows === actual.when.rows)
+  );
+  const coverage = [];
+  for (const [query, map] of Object.entries(fieldMaps)) {
+    const queryCases = oracleCases.filter(caseRow => caseRow.query === query);
+    const surfaces = [
+      {surface: 'outerStatusReason', map: map.outerStatusReason, actual: caseRow => [caseRow.declaredGraph.expected.outerStatusReason]},
+      ...map.nodeCompleteness.map(entry => ({
+        surface: `node:${entry.graphNodeId}:${entry.oracleStatusField}`,
+        map: entry,
+        actual: caseRow => caseRow.declaredGraph.expected.nodeCompleteness
+          .find(actual => actual.graphNodeId === entry.graphNodeId)?.rows ?? [],
+      })),
+    ];
+    for (const surface of surfaces) {
+      for (const [translationIndex, translationRow] of surface.map.translations.entries()) {
+        const exercisedBy = queryCases
+          .filter(caseRow => surface.actual(caseRow).some(actual => matches(translationRow, actual)))
+          .map(caseRow => caseRow.id)
+          .sort();
+        coverage.push({
+          query, surface: surface.surface, translationIndex,
+          translation: translationRow, exercisedBy,
+          unexercised: exercisedBy.length === 0
+            ? 'not produced by the normal or corpus-local G0 opaque-oracle fixtures; retained as a closed translation row'
+            : null,
+        });
+      }
+    }
+  }
+  return coverage;
+}
+
+function capturedDependencyVector(carrier, call, orderedRootIds) {
+  const root = carrier.normalizedPlan.nodes.find(node => node.kind === 'root-window');
+  const rootKeys = orderedRootIds.map(id => ({table: root.table, id}));
+  const instanceHash = call.materialization.graphInstanceHash;
+  const partitionHash = domainHash('snapback:graph-authority-partition:v1:', call.partition);
+  const common = node => ({
+    format: 'snapback.graph-captured-read.v1', graphPlanHash: carrier.planHash,
+    instanceHash, nodeId: node.nodeId, nodeKind: node.kind,
+    authorityClass: node.authority.declaredClass,
+  });
+  const captures = [];
+  for (const node of carrier.normalizedPlan.nodes) {
+    if (node.kind === 'root-window') {
+      const cost = carrier.normalizedPlan.queryCost.graph.nodes.find(row => row.nodeId === node.nodeId);
+      captures.push({...common(node), dependency: {
+        kind: 'root-range', table: node.table, index: node.accessIndex,
+        predicate: node.filters, order: node.order, limit: cost.maxRootRowsPerPage,
+        resultCount: orderedRootIds.length, boundary: null, complete: true,
+      }});
+    } else if (node.kind === 'equality-to-one') {
+      for (const parentKey of rootKeys) captures.push({...common(node), dependency: {
+        kind: 'parent-point', table: node.table, index: node.accessIndex, parentKey,
+        lookupKey: [parentKey.id], childKey: {table: node.table, id: `${parentKey.id}:${node.nodeId}`},
+        found: true, rowVersion: 1,
+      }});
+    } else if (node.kind === 'bounded-to-many') {
+      const cost = carrier.normalizedPlan.queryCost.graph.nodes.find(row => row.nodeId === node.nodeId);
+      for (const parentKey of rootKeys) captures.push({...common(node), dependency: {
+        kind: 'parent-range', table: node.table, index: node.accessIndex, parentKey,
+        predicate: node.filters ?? [], order: node.order,
+        limit: cost.maxChildrenPerParent, resultCount: 0, boundary: null, complete: true,
+      }});
+    } else if (node.kind === 'exists-semi-join') {
+      const edge = node.edge;
+      const direct = edge.targetTable === undefined;
+      const tables = direct ? [edge.table] : [edge.table, edge.targetTable];
+      const indexes = direct ? [edge.accessIndex] : [edge.parentIndex, edge.targetIndex];
+      const argumentName = carrier.normalizedPlan.arguments
+        .find(argument => argument.argumentId === node.argumentId)?.name;
+      for (const parentKey of rootKeys) captures.push({...common(node), dependency: {
+        kind: 'membership', tables, indexes, parentKey,
+        argumentId: node.argumentId,
+        ...(node.argumentId === null ? {} : {argumentDigest: domainHash('snapback:g0-corpus-argument:v1:', call.args[argumentName])}),
+        matchedCount: 0, complete: true,
+      }});
+    } else if (node.kind === 'principal-bound') {
+      for (const parentKey of rootKeys) captures.push({...common(node), dependency: {
+        kind: 'principal-field', table: node.table, index: node.accessIndex,
+        partitionHash, field: node.principalField,
+        valueDigest: domainHash('snapback:g0-corpus-principal-value:v1:', call.partition.class3.principalDataScope.userId),
+        found: false,
+      }});
+    } else if (node.kind === 'closed-projection') {
+      captures.push({...common(node), dependency: {
+        kind: 'projection',
+        sourceNodeIds: carrier.normalizedPlan.nodes
+          .filter(source => source.kind !== 'closed-projection')
+          .map(source => source.nodeId),
+      }});
+    }
+  }
+  return captures;
+}
+
+function frozenWorld(identity, tables, input, sliceTable) {
+  assert.notEqual(identity, 'normal-seed-v1');
+  const tableDigests = Object.fromEntries(Object.keys(tables).sort().map(table => [
+    table, digestBytes(canonical(tables[table])),
+  ]));
+  const inputDigest = digestBytes(canonical(input));
+  const fixtureDigest = digestBytes(canonical({tableDigests, inputDigest}));
+  return {
+    identity, fixtureDigest,
+    identityDigest: digestBytes(canonical({identity, fixtureDigest})),
+    inputDigest, tableDigests, sliceTableRows: tables[sliceTable],
+  };
 }
 
 function maximumRowsPerKey(rows, key) {
@@ -645,6 +826,15 @@ function boundDerivation(carriers, measurements, tables) {
   const facts = {
     normal,
     large: largeFacts,
+    documentedPerIssueDistribution: {
+      labels: {method: 'uniform integer draw in the closed interval 1..3', maximum: 3},
+      comments: {
+        method: 'floor of a seeded exponential draw; the distribution has no finite per-issue ceiling',
+        obtainableReceiptCeiling: large.comment,
+        exactSeed42Maximum: 'requires the preserved CSV shards',
+      },
+      hotWorkingSet: {method: 'manifest-defined greatest-project interval truncated to W', maximum: 1_000},
+    },
     source: {
       normalPolicyExtensionExcluded: 'stable source ids beginning zbav1_',
       receiptShape: Object.keys(large).sort(), largeCsvAvailable: existsSync(LARGE_ROOT),
@@ -655,44 +845,66 @@ function boundDerivation(carriers, measurements, tables) {
     const plan = carrier.normalizedPlan;
     const logical = plan.queryCost.graph;
     const wrapFields = (record, reason) => Object.fromEntries(Object.entries(record).map(
-      ([field, value]) => [field, { value, derivation: reason(field, value) }],
+      ([field, value]) => {
+        const detail = reason(field, value);
+        return [field, {value, ...(typeof detail === 'string' ? {derivation: detail} : detail)}];
+      },
     ));
+    const provisional = (derivation, command = LARGE_SPOT_CHECK_COMMAND) => ({
+      derivation, provisional: true, validationCommand: command,
+    });
     const fixtureReason = (field, value, node = null) => {
       if (field === 'maxRootRowsPerPage') {
         return value === 1
           ? 'point/detail source-id lookup emits at most one root row; H=1'
-          : 'hot-recent-v1 requests 1,000 roots; retain the portable 1,024 boundary (H=1.024)';
+          : provisional('hot-recent-v1 defines W as 1,000 filtered roots; retain the portable 1,024 boundary (H=1.024)', HOT_SPOT_CHECK_COMMAND);
       }
-      if (field === 'maxChildrenPerParent' && value === 16) return 'max(normal label edges per issue 5, documented large generator label maximum 3) × H=3.2 => 16';
-      if (field === 'maxChildrenPerParent' && value === 1_024) return 'observed normal maximum comments per issue 21 × H=48.761904… => 1,024; the large generator is floored-exponential and its exact CSV maximum is deferred to the zb5 rerun, so no mean substitutes for a maximum';
+      if (field === 'maxChildrenPerParent' && value === 16) return 'max(normal label edges per issue 5, documented generator closed maximum 3) × H=3.2 => 16';
+      if (field === 'maxChildrenPerParent' && value === 1_024) return provisional('the control refuses the collection at exactly 1,024 comments; normal maximum is 21, while the documented floored-exponential generator has no finite per-issue ceiling and the receipt supplies only the 2,527,886-row absolute ceiling');
       if (field === 'maxArgumentExpansion' && value === 16) return 'maximum selected-label collection length 16 × H=1';
-      if (field === 'maxWindowPages' && query === 'issueListV2') return 'ceil(large fixture maximum 1,000,000 root rows / 1,024 rows per page) = 977';
-      if (field === 'maxWindowPages' && query === 'issueDetail' && node?.maxRootRowsPerPage === undefined) return 'ceil(declared 1,024-comment parent cap / corpus demand take 50) = 21';
+      if (field === 'maxWindowPages' && query === 'issueListV2') return provisional('ceil(max currently obtainable filtered interval max(normal project 516, manifest-defined hot W 1,000) / 1,024) = 1; the large selected-project full interval is not the whole-table 1,000,000-row receipt count and awaits zb5');
+      if (field === 'maxWindowPages' && query === 'issueDetail' && node?.maxRootRowsPerPage === undefined) return 'ceil(declared 1,024-comment refusal threshold / corpus demand take 50) = 21';
       if (field === 'maxWindowPages') return 'one exhaustive point/root interval at the declared page size';
-      if (field === 'maxWindowRootRows') return 'maxWindowPages × maxRootRowsPerPage for the root; child lineage is exactly zero';
-      if (field === 'maxWindowResultRows') return 'maxWindowPages × whole-result top-level row ceiling (one for point/child lineage)';
-      if (field === 'maxWindowResultBytes') return 'maxWindowPages × declared maxPageResultBytes; conservative whole-result recharge per lineage';
-      if (field === 'maxExaminedEntriesPerExecution') return 'analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges';
-      if (field === 'maxRelationshipLookupsPerExecution') return 'analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations';
-      if (field === 'maxWindowScannedRows') return 'analytical [G2 measures]: maxWindowPages × induced-subtree per-page examined entries';
-      if (field === 'maxWindowIndexRanges') return 'analytical [G2 measures]: maxWindowPages × induced-subtree access-path consultations';
+      if (field === 'maxWindowRootRows') return query === 'issueListV2'
+        ? provisional('maxWindowPages × maxRootRowsPerPage for the filtered list interval; child lineage is exactly zero')
+        : 'maxWindowPages × maxRootRowsPerPage for the root; child lineage is exactly zero';
+      if (field === 'maxWindowResultRows') return query === 'issueListV2'
+        ? provisional('maxWindowPages × whole-result top-level row ceiling for the filtered list interval')
+        : 'maxWindowPages × whole-result top-level row ceiling (one for point/child lineage)';
+      if (field === 'maxWindowResultBytes') return provisional('maxWindowPages × provisional maxPageResultBytes; conservative whole-result recharge per lineage');
+      if (field === 'maxExaminedEntriesPerExecution') return (query === 'issueListV2' || value >= 1_025)
+        ? provisional('analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges')
+        : 'analytical [G2 measures]: P(node) × node-kind entries formula, including cap+1 for bounded ranges';
+      if (field === 'maxRelationshipLookupsPerExecution') return query === 'issueListV2'
+        ? provisional('analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations')
+        : 'analytical [G2 measures]: attempted parent population × distinct argument expansion/consultations';
+      if (field === 'maxWindowScannedRows') return (query === 'issueListV2' || value >= 1_025)
+        ? provisional('analytical [G2 measures]: maxWindowPages × induced-subtree per-page examined entries')
+        : 'analytical [G2 measures]: maxWindowPages × induced-subtree per-page examined entries';
+      if (field === 'maxWindowIndexRanges') return query === 'issueListV2'
+        ? provisional('analytical [G2 measures]: maxWindowPages × induced-subtree access-path consultations')
+        : 'analytical [G2 measures]: maxWindowPages × induced-subtree access-path consultations';
       return `closed declaration value ${value}, derived from the normalized plan and fixture maxima`;
     };
     queryRows[query] = {
       declarationPlanHash: carrier.planHash,
       logical: {
-        maxResultRows: { value: plan.queryCost.maxResultRows, derivation: query === 'issueListV2' ? 'max observed normal page 516 and hot demand 1,000; H=1.024 over hot => portable page boundary 1,024' : 'point/detail root maximum 1 × H=1' },
-        maxResultBytes: { value: plan.queryCost.maxResultBytes, derivation: `normal serialized-oracle maximum ${measurements[query].maxBytes} bytes × H=${plan.queryCost.maxResultBytes}/${measurements[query].maxBytes} => ${plan.queryCost.maxResultBytes}; headroom covers the declared root/child fanout and fixture text skew` },
+        maxResultRows: { value: plan.queryCost.maxResultRows, ...(query === 'issueListV2' ? provisional('normal filtered page maximum 516 and manifest-defined hot W 1,000; H=1.024 over hot => portable page boundary 1,024', HOT_SPOT_CHECK_COMMAND) : {derivation: 'point/detail root maximum 1 × H=1'}) },
+        maxResultBytes: { value: plan.queryCost.maxResultBytes, ...provisional(`normal serialized mapped-result maximum ${measurements[query].maxBytes} bytes × H=${plan.queryCost.maxResultBytes}/${measurements[query].maxBytes} => ${plan.queryCost.maxResultBytes}; large/hot result-byte maxima await zb5`) },
         maxArgumentItems: { value: logical.maxArgumentItems, derivation: query === 'issueDetail' ? 'one bounded scalar source issue id' : 'one bounded scalar plus max 16 selected label ids' },
-        maxPageResultBytes: { value: logical.maxPageResultBytes, derivation: 'same conservative per-result byte ceiling; one root page is one result frame' },
+        maxPageResultBytes: { value: logical.maxPageResultBytes, ...provisional('same provisional per-result byte ceiling; one root page is one result frame') },
         maxMaintainedWritesPerMutation: { value: 0, derivation: 'G0 declares no graph maintenance or write path' },
       },
       physical: {
         observationPosture: '[G2 measures]',
-        maxScannedRows: { value: plan.queryCost.maxScannedRows, derivation: `Σ analytical node examined-entry formulas = ${plan.queryCost.maxScannedRows}; no graph executor observation` },
-        maxIndexRanges: { value: plan.queryCost.maxIndexRanges, derivation: `Σ analytical access-path consultations = ${plan.queryCost.maxIndexRanges}; no graph executor observation` },
-        nodeLedger: plan.queryCost.graph.nodes.map(node => ({ ...node, derivation: 'P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present' })),
-        windowRollup: { ...logical.windowRollup, derivation: 'sum of each demand-paged node lineage: pages × induced-subtree scanned rows/ranges; result bytes conservatively charged per lineage' },
+        maxScannedRows: { value: plan.queryCost.maxScannedRows, ...provisional(`Σ analytical node examined-entry formulas = ${plan.queryCost.maxScannedRows}; inputs that depend on large/hot maxima remain provisional and no graph executor observation exists`) },
+        maxIndexRanges: { value: plan.queryCost.maxIndexRanges, ...provisional(`Σ analytical access-path consultations = ${plan.queryCost.maxIndexRanges}; inputs that depend on large/hot maxima remain provisional and no graph executor observation exists`) },
+        nodeLedger: plan.queryCost.graph.nodes.map(node => ({
+          ...node,
+          derivation: 'P(node) × kind formula; bounded-to-many charges cap+1, to-one charges P, principal-bound charges P×2 when binding is present',
+          provisional: true, validationCommand: LARGE_SPOT_CHECK_COMMAND,
+        })),
+        windowRollup: { ...logical.windowRollup, ...provisional('sum of each demand-paged node lineage; list filtered-interval and whole-result byte inputs remain provisional') },
       },
       derivationTable: {
         queryCost: wrapFields({
@@ -705,11 +917,11 @@ function boundDerivation(carriers, measurements, tables) {
           maxDistinctEvaluationGroups: plan.queryCost.maxDistinctEvaluationGroups,
           maxEstimatedLiveFanoutMs: plan.queryCost.maxEstimatedLiveFanoutMs,
         }, (field, value) => {
-          if (field === 'maxScannedRows') return 'checked sum of every node maxExaminedEntriesPerExecution [G2 measures]';
-          if (field === 'maxIndexRanges') return 'checked sum of every point/range/principal consultation [G2 measures]';
-          if (field === 'maxResultRows') return query === 'issueListV2' ? 'one declared page at the 1,024 hot-root boundary' : 'one point/detail root';
-          if (field === 'maxResultBytes') return `normal oracle maximum ${measurements[query].maxBytes} bytes × exact rational H=${value}/${measurements[query].maxBytes}`;
-          return `conservative G0 operational guardrail ${field}=${value}; not a graph-executor observation`;
+          if (field === 'maxScannedRows') return provisional('checked sum of every node maxExaminedEntriesPerExecution [G2 measures]');
+          if (field === 'maxIndexRanges') return provisional('checked sum of every point/range/principal consultation [G2 measures]');
+          if (field === 'maxResultRows') return query === 'issueListV2' ? provisional('one declared page at the 1,024 hot-root boundary', HOT_SPOT_CHECK_COMMAND) : 'one point/detail root';
+          if (field === 'maxResultBytes') return provisional(`normal mapped-result maximum ${measurements[query].maxBytes} bytes × exact rational H=${value}/${measurements[query].maxBytes}`);
+          return provisional(`conservative G0 operational guardrail ${field}=${value}; large/hot maximum and graph-executor observation are unavailable`);
         }),
         graph: {
           nodes: logical.nodes.map(node => ({
@@ -724,8 +936,8 @@ function boundDerivation(carriers, measurements, tables) {
             fields: { maxItems: { value: argument.maxItems, derivation: 'maximum selected-label collection cardinality 16 × H=1, within the authored contract' } },
           })),
           maxArgumentItems: { value: logical.maxArgumentItems, derivation: query === 'issueDetail' ? 'one scalar argument × H=1' : 'one scalar plus 16 selected-label items × H=1' },
-          maxPageResultBytes: { value: logical.maxPageResultBytes, derivation: `normal oracle maximum ${measurements[query].maxBytes} bytes × exact rational H=${logical.maxPageResultBytes}/${measurements[query].maxBytes}` },
-          windowRollup: wrapFields(logical.windowRollup, (field, value) => `checked sum of demand-lineage ${field} values = ${value}${field.includes('Scanned') || field.includes('IndexRanges') ? ' [G2 measures]' : ''}`),
+          maxPageResultBytes: { value: logical.maxPageResultBytes, ...provisional(`normal mapped-result maximum ${measurements[query].maxBytes} bytes × exact rational H=${logical.maxPageResultBytes}/${measurements[query].maxBytes}`) },
+          windowRollup: wrapFields(logical.windowRollup, (field, value) => provisional(`checked sum of demand-lineage ${field} values = ${value}${field.includes('Scanned') || field.includes('IndexRanges') ? ' [G2 measures]' : ''}`)),
           maxMaintainedWritesPerMutation: { value: logical.maxMaintainedWritesPerMutation, derivation: 'G0 owns no graph-maintained writes; exact declaration and observation are zero' },
         },
       },
@@ -780,30 +992,77 @@ async function main() {
   const pointArgs = { listContext: defaultListContext(), idField: 'id', idValue: publicIssue.id };
   const point = await handlers.listIssueByID(context, pointArgs);
   const oracleValues = { issueListV2: list, issueDetail: detail, listIssueByID: point };
-  const measurements = Object.fromEntries(Object.entries(oracleValues).map(([query, value]) => {
-    const bytes = Buffer.byteLength(JSON.stringify(value));
-    return [query, { normalResultBytes: bytes, maxBytes: bytes, oracleDigest: digestBytes(JSON.stringify(value)) }];
-  }));
-
   const fieldMaps = Object.fromEntries(Object.entries(carriers).map(
     ([query, carrier]) => [query, fieldMap(query, carrier)],
   ));
-  const tiedNormalizedItems = normalizeBackwardTies(listBackward[0], tables.issueListRead);
-  const tiedFieldMap = deepClone(fieldMaps.issueListV2);
-  tiedFieldMap.order.comparison = 'exact-after-id-tiebreak-normalization';
+  const normalCases = Object.entries(oracleValues).map(([query, result]) => ({
+    id: `${query}-normal`, query, fixture: 'normal-seed-v1',
+    invocation: query === 'issueListV2' ? listArgs : query === 'issueDetail' ? detailArgs : pointArgs,
+    oracle: { resultBytes: JSON.stringify(result), digest: digestBytes(JSON.stringify(result)) },
+    fieldMap: fieldMaps[query],
+    declaredGraph: {
+      planHash: carriers[query].planHash,
+      resultDisposition: query === 'issueListV2' ? 'admitted-non-search-graph-order-shape' : 'admitted-fixed-id-structural-shape',
+      fullOracleRows: 'refused',
+      expected: expectedFromOracle(query, result, fieldMaps[query], {labelRows: tables.label}),
+    },
+  }));
+  const measurements = Object.fromEntries(normalCases.map(caseRow => {
+    const mappedBytes = Buffer.byteLength(caseRow.declaredGraph.expected.resultBytes);
+    return [caseRow.query, {
+      normalResultBytes: mappedBytes, maxBytes: mappedBytes,
+      mappedResultDigest: caseRow.declaredGraph.expected.digest,
+      rawOracleEnvelopeBytes: Buffer.byteLength(caseRow.oracle.resultBytes),
+      oracleDigest: caseRow.oracle.digest,
+    }];
+  }));
+
+  const noCommentIssues = tables.issue.filter(row => (
+    row.visibility === 'public' && (commentsByIssue.get(row._id) ?? 0) === 0
+  ));
+  assert(noCommentIssues.length >= 2, 'normal fixture has two public zero-comment issues');
+  const commentOverlay = (issueRow, count, prefix) => Array.from({length: count}, (_, index) => ({
+    _id: `comment_${prefix}_${String(index).padStart(4, '0')}`,
+    id: index === 0 ? `${prefix}_a` : index === 1 ? `${prefix}_z` : `${prefix}_${String(index).padStart(4, '0')}`,
+    issueID: issueRow._id,
+    created: index < 2 ? 2_000_000_000_000 : 2_000_000_000_000 - index,
+    body: `${prefix} comment ${index}`,
+    creatorID: fixture.actorBindings['ordinary-user'].userID,
+  }));
+  const continuationTables = deepClone(tables);
+  continuationTables.comment.push(...commentOverlay(noCommentIssues[0], 51, 'g0_window'));
+  const continuationArgs = {idField: 'id', id: noCommentIssues[0].id};
+  const continuationDetail = await handlers.issueDetail(
+    mockContext(continuationTables, ordinaryPrincipal), continuationArgs,
+  );
+  assert.equal(continuationDetail[0].value.comments.length, 50);
+  assert.notEqual(continuationDetail[0].value.commentsCursor, null);
+  const normalizedComments = normalizeCommentTiesForGraph(
+    continuationDetail[0].value, continuationTables.comment,
+  );
+  assert.equal(normalizedComments.groups, 1, 'continuation case carries one equal-created child tie');
+
+  const costBoundTables = deepClone(tables);
+  costBoundTables.comment.push(...commentOverlay(noCommentIssues[1], 1_024, 'g0_cost_bound'));
+  const costBoundArgs = {idField: 'id', id: noCommentIssues[1].id};
+  const costBoundDetail = await handlers.issueDetail(
+    mockContext(costBoundTables, ordinaryPrincipal), costBoundArgs,
+  );
+  assert.equal(costBoundDetail[0].value.comments.length, 0);
+  assert.equal(costBoundDetail[0].value.commentsCursor, null);
+  assert.equal(costBoundDetail[0].value.commentsCompleteness, 'incomplete');
+
+  const missArgs = {idField: 'id', id: '__g0_authoritative_miss__'};
+  const missDetail = await handlers.issueDetail(context, missArgs);
+  assert.equal(missDetail[0].status, 'not-found-authoritative');
+  assert.equal(missDetail[0].value, null);
+
+  const backwardTieGroups = countDeclaredTieGroups(listBackward[0].items, 'modified');
+  assert.equal(backwardTieGroups, 69, 'all 69 modified ties are resolved by explicit sourceIssueID order');
+  const commentsNodeId = carriers.issueDetail.normalizedPlan.nodes
+    .find(node => node.edgeName === 'comments').nodeId;
   const oracleCases = [
-    ...Object.entries(oracleValues).map(([query, result]) => ({
-      id: `${query}-normal`, query, fixture: 'normal-seed-v1',
-      invocation: query === 'issueListV2' ? listArgs : query === 'issueDetail' ? detailArgs : pointArgs,
-      oracle: { resultBytes: JSON.stringify(result), digest: digestBytes(JSON.stringify(result)) },
-      fieldMap: fieldMaps[query],
-      declaredGraph: {
-        planHash: carriers[query].planHash,
-        resultDisposition: query === 'issueListV2' ? 'admitted-non-search-fixed-order-shape' : 'admitted-fixed-id-structural-shape',
-        fullOracleRows: 'refused',
-        expected: expectedFromOracle(query, result, fieldMaps[query]),
-      },
-    })),
+    ...normalCases,
     {
       id: 'issueListV2-forward-page-and-resume', query: 'issueListV2', fixture: 'normal-seed-v1',
       invocation: listPageArgs,
@@ -819,120 +1078,294 @@ async function main() {
         resultDisposition: 'admitted-non-search-fixed-order-shape',
         fullOracleRows: 'refused',
         expected: expectedFromOracle(
-          'issueListV2', listPage, fieldMaps.issueListV2, {nextResult: listNextPage},
+          'issueListV2', listPage, fieldMaps.issueListV2,
+          {nextResult: listNextPage, labelRows: tables.label},
         ),
       },
     },
     {
       id: 'issueListV2-backward-tied-modified', query: 'issueListV2', fixture: 'normal-seed-v1',
-      oracleDivergence: 'direction-tie-break', invocation: listBackwardArgs,
+      invocation: listBackwardArgs,
       oracle: { resultBytes: JSON.stringify(listBackward), digest: digestBytes(JSON.stringify(listBackward)) },
-      fieldMap: tiedFieldMap,
+      fieldMap: fieldMaps.issueListV2,
       declaredGraph: {
         planHash: carriers.issueListV2.planHash,
-        orderedSourceIssueIDs: tiedNormalizedItems.map(item => item.issue.id),
-        rowSetDigest: digestBytes(canonical(tiedNormalizedItems.map(item => item.issue.id).sort())),
-        comparison: 'exact-after-id-tiebreak-normalization',
+        orderedSourceIssueIDs: listBackward[0].items.map(item => item.issue.id),
+        rowSetDigest: digestBytes(canonical(listBackward[0].items.map(item => item.issue.id).sort())),
+        declaredTieGroups: backwardTieGroups, residualImplicitTieGroups: 0,
+        comparison: 'exact-id-order',
         expected: expectedFromOracle(
-          'issueListV2', listBackward, tiedFieldMap, {items: tiedNormalizedItems},
+          'issueListV2', listBackward, fieldMaps.issueListV2,
+          {items: listBackward[0].items, labelRows: tables.label},
         ),
       },
     },
+    {
+      id: 'issueDetail-comments-window-and-child-tie', query: 'issueDetail',
+      fixture: 'g0-oracle-comments-window-v1', invocation: continuationArgs,
+      oracleDivergences: [{graphNodeId: commentsNodeId, kind: 'direction-tie-break', equalCreatedGroups: 1}],
+      oracle: {resultBytes: JSON.stringify(continuationDetail), digest: digestBytes(JSON.stringify(continuationDetail))},
+      fieldMap: fieldMaps.issueDetail,
+      declaredGraph: {
+        planHash: carriers.issueDetail.planHash,
+        resultDisposition: 'admitted-fixed-id-structural-shape', fullOracleRows: 'refused',
+        expected: expectedFromOracle('issueDetail', continuationDetail, fieldMaps.issueDetail, {
+          detailValue: normalizedComments.value, labelRows: tables.label,
+        }),
+      },
+    },
+    {
+      id: 'issueDetail-comments-cost-bound-refusal', query: 'issueDetail',
+      fixture: 'g0-oracle-comments-cost-bound-v1', invocation: costBoundArgs,
+      oracle: {resultBytes: JSON.stringify(costBoundDetail), digest: digestBytes(JSON.stringify(costBoundDetail))},
+      fieldMap: fieldMaps.issueDetail,
+      declaredGraph: {
+        planHash: carriers.issueDetail.planHash,
+        resultDisposition: 'materialized-cost-bound-refusal', fullOracleRows: 'refused',
+        expected: expectedFromOracle('issueDetail', costBoundDetail, fieldMaps.issueDetail, {labelRows: tables.label}),
+      },
+    },
+    {
+      id: 'issueDetail-authoritative-miss', query: 'issueDetail',
+      fixture: 'g0-oracle-authoritative-miss-v1', invocation: missArgs,
+      oracle: {resultBytes: JSON.stringify(missDetail), digest: digestBytes(JSON.stringify(missDetail))},
+      fieldMap: fieldMaps.issueDetail,
+      declaredGraph: {
+        planHash: carriers.issueDetail.planHash,
+        resultDisposition: 'authoritative-empty-result', fullOracleRows: 'refused',
+        expected: expectedFromOracle('issueDetail', missDetail, fieldMaps.issueDetail, {labelRows: tables.label}),
+      },
+    },
   ];
+  const translationCoverage = oracleTranslationCoverage(fieldMaps, oracleCases);
 
-  const pairedInvocation = invocation(carriers.listIssueByID, {
-    sourceIssueID: 'zbav1_internal_issue', selectedLabelIDs: [],
+  const publicIssueIDs = new Set(tables.issue.filter(row => row.visibility === 'public').map(row => row._id));
+  const labelPopulation = tables.label.map(labelRow => ({
+    label: labelRow,
+    count: tables.issueLabelRead.filter(edge => edge.labelID === labelRow._id && publicIssueIDs.has(edge.issueID)).length,
+  })).sort((left, right) => left.count - right.count || left.label._id.localeCompare(right.label._id));
+  const [sparseLabel, secondSparseLabel] = labelPopulation.slice(0, 2).map(row => row.label);
+  const internalIssue = tables.issue.find(row => row.id === 'zbav1_internal_issue');
+  const internalListRow = tables.issueListRead.find(row => row.sourceIssueID === internalIssue.id);
+  const otherUserID = fixture.actorBindings['crew-admin'].userID;
+  const labelEdgeOverlay = labelRow => ({
+    _id: `issueLabelRead_g0_${labelRow._id.slice(-12)}`,
+    projectID: internalIssue.projectID, issueID: internalIssue._id, labelID: labelRow._id,
   });
-  const pairedExpect = completeEmptyResult(carriers.listIssueByID, pairedInvocation);
-  const hiddenSlices = [
-    ['issue', tables.issue.filter(row => row.visibility === 'internal').map(row => row._id)],
-    ['comment', tables.comment.filter(row => row.id === 'zbav1_internal_comment').map(row => row._id)],
-    ['emoji', tables.emoji.filter(row => row.id?.startsWith('zbav1_internal_')).map(row => row._id)],
-    ['viewState', tables.viewState.filter(row => row.issueID === 'issue_ded0c2976675c34f4756035d' && row.userID !== fixture.actorBindings['ordinary-user'].userID).map(row => row._id)],
-    ['userPref', tables.userPref.filter(row => row.key === 'zerobugs-acceptance.v1').map(row => row._id)],
-    ['issueNotifications', tables.issueNotifications.filter(row => row.issueID === 'issue_ded0c2976675c34f4756035d').map(row => row._id)],
+  const notificationOverlay = {
+    _id: 'issueNotifications_g0_other_principal', userID: otherUserID,
+    issueID: publicIssue._id, subscribed: true, created: 2_000_000_000_100,
+  };
+  const viewStateOverlay = {
+    _id: 'viewState_g0_other_principal', userID: otherUserID,
+    issueID: publicIssue._id, viewed: 2_000_000_000_200,
+  };
+  const listPairArgs = labelRow => ({
+    listContext: defaultListContext({labels: [labelRow.id]}),
+    limit: 1_023, start: null, dir: 'forward', inclusive: false,
+  });
+  const pairDefinitions = [
+    {
+      id: 'g0-pair-list-internal-root', query: 'issueListV2', table: 'issueListRead',
+      presentTables: deepClone(tables),
+      absentTables: {...deepClone(tables), issueListRead: tables.issueListRead.filter(row => row._id !== internalListRow._id)},
+      rowIds: [internalListRow._id], handlerArgs: listPairArgs(sparseLabel),
+      graphArgs: {projectID: internalIssue.projectID, selectedLabelIDs: [sparseLabel._id]},
+      coveredNodeIds: ['n0'], channel: 'internal list root filtered by authority before publication',
+    },
+    {
+      id: 'g0-pair-list-label-edge', query: 'issueListV2', table: 'issueLabelRead',
+      presentTables: {...deepClone(tables), issueLabelRead: [...tables.issueLabelRead, labelEdgeOverlay(sparseLabel)]},
+      absentTables: deepClone(tables), rowIds: [labelEdgeOverlay(sparseLabel)._id],
+      handlerArgs: listPairArgs(sparseLabel),
+      graphArgs: {projectID: internalIssue.projectID, selectedLabelIDs: [sparseLabel._id]},
+      coveredNodeIds: ['n2', 'n3'], channel: 'issue-label child edge under a hidden parent',
+    },
+    {
+      id: 'g0-pair-list-membership-edge', query: 'issueListV2', table: 'issueLabelRead',
+      presentTables: {...deepClone(tables), issueLabelRead: [...tables.issueLabelRead, labelEdgeOverlay(secondSparseLabel)]},
+      absentTables: deepClone(tables), rowIds: [labelEdgeOverlay(secondSparseLabel)._id],
+      handlerArgs: listPairArgs(secondSparseLabel),
+      graphArgs: {projectID: internalIssue.projectID, selectedLabelIDs: [secondSparseLabel._id]},
+      coveredNodeIds: ['n4'], channel: 'selected-label membership row under a hidden parent',
+    },
+    {
+      id: 'g0-pair-detail-internal-root', query: 'issueDetail', table: 'issue',
+      presentTables: deepClone(tables),
+      absentTables: {...deepClone(tables), issue: tables.issue.filter(row => row._id !== internalIssue._id)},
+      rowIds: [internalIssue._id], handlerArgs: {idField: 'id', id: internalIssue.id},
+      graphArgs: {sourceIssueID: internalIssue.id}, coveredNodeIds: ['n0'],
+      channel: 'internal detail root collapsed into the authoritative not-found channel',
+    },
+    {
+      id: 'g0-pair-detail-notification-principal', query: 'issueDetail', table: 'issueNotifications',
+      presentTables: {...deepClone(tables), issueNotifications: [...tables.issueNotifications, notificationOverlay]},
+      absentTables: deepClone(tables), rowIds: [notificationOverlay._id], handlerArgs: detailArgs,
+      graphArgs: {sourceIssueID: publicIssue.id}, coveredNodeIds: ['n6'],
+      channel: 'other-principal notification row beside a hydrated issue',
+    },
+    {
+      id: 'g0-pair-point-view-state-principal', query: 'listIssueByID', table: 'viewState',
+      presentTables: {...deepClone(tables), viewState: [...tables.viewState, viewStateOverlay]},
+      absentTables: deepClone(tables), rowIds: [viewStateOverlay._id], handlerArgs: pointArgs,
+      graphArgs: {sourceIssueID: publicIssue.id, selectedLabelIDs: []}, coveredNodeIds: ['n5'],
+      channel: 'other-principal view-state row beside a hydrated point result',
+    },
   ];
   const pairedWorlds = [];
-  for (const [table, rowIds] of hiddenSlices) {
-    const internalPointArgs = {
-      listContext: defaultListContext(), idField: 'id', idValue: 'zbav1_internal_issue',
-    };
-    const presentResult = await handlers.listIssueByID(context, internalPointArgs);
-    const absentTables = deepClone(tables);
-    absentTables[table] = absentTables[table].filter(row => !rowIds.includes(row._id));
-    const absentResult = await handlers.listIssueByID(
-      mockContext(absentTables, ordinaryPrincipal), internalPointArgs,
+  const frozenPairs = [];
+  for (const definition of pairDefinitions) {
+    const presentResult = await handlers[definition.query](
+      mockContext(definition.presentTables, ordinaryPrincipal), definition.handlerArgs,
     );
-    assert.deepEqual(absentResult, presentResult, `${table} hidden slice must be observationally absent`);
+    const absentResult = await handlers[definition.query](
+      mockContext(definition.absentTables, ordinaryPrincipal), definition.handlerArgs,
+    );
+    assert.deepEqual(absentResult, presentResult, `${definition.id} hidden slice is observationally absent`);
+    const mapped = expectedFromOracle(
+      definition.query, presentResult, fieldMaps[definition.query], {labelRows: tables.label},
+    );
+    assert.equal(mapped.graphCompleteness, 'complete', `${definition.id} paired result is complete`);
+    const call = invocation(
+      carriers[definition.query], definition.graphArgs, ordinaryPrincipal, 0, definition.query,
+    );
+    const input = {query: definition.query, handlerArgs: definition.handlerArgs, graphArgs: definition.graphArgs, principal: ordinaryPrincipal};
+    const present = frozenWorld(`${definition.id}-present-v1`, definition.presentTables, input, definition.table);
+    const absent = frozenWorld(`${definition.id}-absent-v1`, definition.absentTables, input, definition.table);
+    const planNodes = new Map(carriers[definition.query].normalizedPlan.nodes.map(node => [node.nodeId, node]));
+    const coveredAuthorityClasses = [...new Set(definition.coveredNodeIds.map(nodeId => {
+      const node = planNodes.get(nodeId);
+      assert(node, `${definition.id} covers an actual graph node ${nodeId}`);
+      return node.authority.declaredClass;
+    }))].sort();
+    frozenPairs.push({
+      id: definition.id, query: definition.query, channel: definition.channel,
+      namedSlice: {table: definition.table, rowIds: definition.rowIds},
+      coveredNodeIds: definition.coveredNodeIds, coveredAuthorityClasses,
+      present, absent,
+    });
     pairedWorlds.push({
-      caseKind: 'pairedWorld', id: `zerobugs-hidden-${table}`,
-      plan: carriers.listIssueByID, invocation: pairedInvocation,
-      worlds: { present: { fixture: 'policy-extension-v1', hiddenSlice: [{ table, rowIds }] }, absent: { fixture: 'normal-seed-v1', hiddenSlice: [] } },
-      oracleEvidence: { presentDigest: digestBytes(JSON.stringify(presentResult)), absentDigest: digestBytes(JSON.stringify(absentResult)) },
-      expect: pairedExpect,
+      caseKind: 'pairedWorld', id: definition.id, query: definition.query,
+      plan: carriers[definition.query], invocation: call,
+      fixturePairId: definition.id, coveredNodeIds: definition.coveredNodeIds,
+      coveredAuthorityClasses,
+      worlds: {
+        present: {fixture: present.identity, fixtureDigest: present.fixtureDigest, hiddenSlice: [{table: definition.table, rowIds: definition.rowIds}]},
+        absent: {fixture: absent.identity, fixtureDigest: absent.fixtureDigest, hiddenSlice: []},
+      },
+      oracleEvidence: {presentDigest: digestBytes(JSON.stringify(presentResult)), absentDigest: digestBytes(JSON.stringify(absentResult))},
+      expect: completeResult(carriers[definition.query], call, mapped.resultBytes, mapped.orderedRootIds),
     });
   }
+  const pairedFixtureCorpus = {
+    format: 'snapback.graph-paired-world-fixtures.v1', version: 1,
+    source: 'corpus-local worlds reconstructed by the freezer; world identities are not normal-seed-v1',
+    pairs: frozenPairs,
+  };
+  pairedFixtureCorpus.contentDigest = digestBytes(canonical(pairedFixtureCorpus));
+
+  const pendingBaseInvocation = invocation(carriers.listIssueByID, {
+    sourceIssueID: internalIssue.id, selectedLabelIDs: [],
+  }, ordinaryPrincipal, 0, 'listIssueByID');
+  const pendingCorpus = {
+    format: 'snapback.graph-broadcast-cases.g2-pending.v1', version: 1,
+    description: 'Structurally frozen broadcast-adjacent records. G0 has no evaluator and executes none of these cases.',
+    caseKinds: ['allowDeny', 'audienceParity', 'scopeMismatch', 'authorityTransition', 'mixedCommit'],
+    cases: pendingCases(carriers.listIssueByID, pendingBaseInvocation),
+  };
+  pendingCorpus.contentDigest = digestBytes(canonical(pendingCorpus));
 
   const refusalCases = [
     { caseKind: 'refusal', id: 'issueListV2-search-membership', query: 'issueListV2', trigger: { phase: 'admission', plan: { sourceDeclaration: 'issueListSearchCandidate' }, schemaFixture: 'tests/conformance/graph/zerobugs/schema.mjs', policyFixture: 'public-read-corpus-mirror' }, expect: { reason: refusals.issueListV2, resultBytes: null } },
     { caseKind: 'refusal', id: 'issueDetail-ordered-result-bearing-through', query: 'issueDetail', trigger: { phase: 'admission', plan: { sourceDeclaration: 'issueDetailOrderedLabelsCandidate' }, schemaFixture: 'tests/conformance/graph/zerobugs/schema.mjs', policyFixture: 'public-read-corpus-mirror' }, expect: { reason: refusals.issueDetail, resultBytes: null } },
     { caseKind: 'refusal', id: 'listIssueByID-ordered-result-bearing-through', query: 'listIssueByID', trigger: { phase: 'admission', plan: { sourceDeclaration: 'listIssueByIDOrderedLabelsCandidate' }, schemaFixture: 'tests/conformance/graph/zerobugs/schema.mjs', policyFixture: 'public-read-corpus-mirror' }, expect: { reason: refusals.listIssueByID, resultBytes: null } },
   ];
-  const cases = [
-    ...pairedWorlds,
-    ...pendingCases(carriers.listIssueByID, pairedInvocation),
-    ...refusalCases,
-  ];
+  const cases = [...pairedWorlds, ...refusalCases];
+  const g0ExitObservations = [];
+  const g0ExitObservationEvidence = [];
+  const g0ExitObservationGaps = [];
+  const observationGraphArgs = {
+    issueListV2: {projectID: internalIssue.projectID, selectedLabelIDs: []},
+    issueDetail: {sourceIssueID: publicIssue.id},
+    listIssueByID: {sourceIssueID: publicIssue.id, selectedLabelIDs: []},
+  };
+  for (const [query, carrier] of Object.entries(carriers)) {
+    const normalCase = normalCases.find(caseRow => caseRow.query === query);
+    const call = invocation(carrier, observationGraphArgs[query], ordinaryPrincipal, 0, query);
+    const resultBytes = normalCase.declaredGraph.expected.resultBytes;
+    const capturedDependencies = capturedDependencyVector(
+      carrier, call, normalCase.declaredGraph.expected.orderedRootIds,
+    );
+    const proofTuple = {
+      materializationHash: domainHash('snapback:graph-materialization:v1:', call.materialization),
+      partitionHash: domainHash('snapback:graph-authority-partition:v1:', call.partition),
+      authorizationVersion: call.authorizationVersion, evaluationCut: call.evaluationCut,
+    };
+    const groupState = {result: JSON.parse(resultBytes), proofTuple};
+    const dependencyVectorBytes = JSON.stringify(capturedDependencies);
+    const groupStateBytes = JSON.stringify(groupState);
+    const evidence = {
+      fixture: 'normal-seed-v1', graphPlanHash: carrier.planHash,
+      invocation: call, resultBytes,
+      resultDigest: digestBytes(resultBytes),
+      capturedDependencies,
+      capturedDependencyVectorDigest: digestBytes(canonical(capturedDependencies)),
+      groupState,
+      groupStateDigest: digestBytes(canonical(groupState)),
+    };
+    g0ExitObservationEvidence.push(evidence);
+    g0ExitObservations.push({
+      format: 'snapback.graph-g0-exit-observation.v1', fixture: 'normal-seed-v1',
+      graphPlanHash: carrier.planHash, groupCount: 1, subscriberFanout: 1,
+      groups: [{
+        groupOrdinal: 0,
+        resultBytes: Buffer.byteLength(resultBytes),
+        dependencyBytes: Buffer.byteLength(dependencyVectorBytes),
+        groupStateBytes: Buffer.byteLength(groupStateBytes),
+      }],
+    });
+    for (const fixtureName of ['large-seed42-v1', 'hot-recent-v1']) {
+      g0ExitObservationGaps.push({
+        fixture: fixtureName, query, graphPlanHash: carrier.planHash,
+        status: 'NOT SATISFIED',
+        missingCarrier: 'GraphG0ExitObservationV1 has no deferred arm; no typed pseudo-record is emitted',
+        command: fixtureName === 'large-seed42-v1' ? LARGE_SPOT_CHECK_COMMAND : HOT_SPOT_CHECK_COMMAND,
+      });
+    }
+  }
   const corpus = {
     format: 'snapback.graph-conformance-corpus.v1', version: 1,
-    description: 'G0 corpus: declarations compile/refuse; opaque JS handlers remain the oracle; G2-only evaluator cases are frozen but pending.',
-    fixtures: { normal: 'demos/zerobugs/control/fixtures/normal-seed-v1', policyExtension: 'demos/zerobugs/control/fixtures/policy-extension-v1.json', large: 'demos/zerobugs/manifest/large-seed42-v1.receipt.json' },
+    description: 'G0 corpus: opaque oracle cases, paired worlds, and admission refusals execute; evaluator-dependent broadcast records live outside this union.',
+    fixtures: {
+      normal: 'demos/zerobugs/control/fixtures/normal-seed-v1',
+      policyExtension: 'demos/zerobugs/control/fixtures/policy-extension-v1.json',
+      pairedWorlds: 'tests/conformance/graph/paired-world-fixtures.v1.json',
+      large: 'demos/zerobugs/manifest/large-seed42-v1.receipt.json',
+    },
     queries: Object.entries(carriers).map(([query, carrier]) => ({
       query, carrier, fieldMap: fieldMaps[query],
       disposition: {
         structuralDeclaration: 'admitted', fullOracleRows: 'refused',
         reason: refusals[query],
-        detail: query === 'issueListV2' ? 'non-search fixed-order shape admitted; search membership refused' : 'fixed-id structural shape admitted; exact label-name-ordered through rows refused',
+        detail: query === 'issueListV2' ? 'non-search graph-order shape admitted; search membership refused' : 'fixed-id structural shape admitted; name-ordered through-shape remains refused while mapped label arrays use labelID graph order',
       },
     })),
-    oracleCases, cases,
+    oracleCases, oracleTranslationCoverage: translationCoverage, cases,
     caseKinds: ['pairedWorld', 'allowDeny', 'audienceParity', 'scopeMismatch', 'authorityTransition', 'mixedCommit', 'refusal'],
+    executableCaseKinds: ['pairedWorld', 'refusal'],
+    pendingBroadcastCases: 'tests/conformance/graph/broadcast-cases.g2-pending.v1.json',
     broadcastInputs: [
-      { label: 'G0-BCAST-CLASS', artifact: 'queries[*].carrier.normalizedPlan.nodes[*].authority', caseKinds: ['pairedWorld', 'refusal'] },
-      { label: 'G0-BCAST-SEPARATION', artifact: 'queries[*].carrier.normalizedPlan.broadcast', caseKinds: ['allowDeny', 'refusal'] },
-      { label: 'G0-BCAST-SCOPE', artifact: 'queries[*].carrier.normalizedPlan.broadcast', caseKinds: ['allowDeny', 'scopeMismatch'] },
-      { label: 'G0-BCAST-SCOPE-BINDING', artifact: 'cases[scopeMismatch].invocations', caseKinds: ['scopeMismatch', 'refusal'] },
-      { label: 'G0-BCAST-AUDIENCE', artifact: 'cases[audienceParity]', caseKinds: ['allowDeny', 'audienceParity'] },
-      { label: 'G0-BCAST-INVALIDATION', artifact: 'cases[authorityTransition|mixedCommit].commit', caseKinds: ['authorityTransition', 'mixedCommit'] },
-      { label: 'G0-BCAST-IDENTITY', artifact: 'queries[*].carrier + cases[*].invocation', caseKinds: ['pairedWorld', 'audienceParity', 'scopeMismatch', 'authorityTransition'] },
-      { label: 'G0-BCAST-CORPUS', artifact: 'caseKinds + cases', caseKinds: ['pairedWorld', 'allowDeny', 'audienceParity', 'scopeMismatch', 'authorityTransition', 'mixedCommit', 'refusal'] },
-      { label: 'G0-BCAST-BOUNDS', artifact: 'bound-derivation.v1.json + g0ExitObservations', caseKinds: ['pairedWorld', 'allowDeny', 'audienceParity', 'scopeMismatch', 'authorityTransition', 'mixedCommit'] },
+      { label: 'G0-BCAST-CLASS', status: 'SATISFIED', missingCarrier: null, artifact: 'queries[*].carrier.normalizedPlan.nodes[*].authority + pairedWorld cases', caseKinds: ['pairedWorld', 'refusal'] },
+      { label: 'G0-BCAST-SEPARATION', status: 'NOT SATISFIED', missingCarrier: 'host-proven separation certificate and evaluator', artifact: 'broadcast-cases.g2-pending.v1.json', caseKinds: ['allowDeny', 'refusal'] },
+      { label: 'G0-BCAST-SCOPE', status: 'NOT SATISFIED', missingCarrier: 'executed canonical scope and P/Q mismatch evidence', artifact: 'broadcast-cases.g2-pending.v1.json', caseKinds: ['allowDeny', 'scopeMismatch'] },
+      { label: 'G0-BCAST-SCOPE-BINDING', status: 'NOT SATISFIED', missingCarrier: 'executed resource-to-scope equality proof', artifact: 'broadcast-cases.g2-pending.v1.json', caseKinds: ['scopeMismatch', 'refusal'] },
+      { label: 'G0-BCAST-AUDIENCE', status: 'NOT SATISFIED', missingCarrier: 'executed establishment versus strict-evaluator parity', artifact: 'broadcast-cases.g2-pending.v1.json', caseKinds: ['allowDeny', 'audienceParity'] },
+      { label: 'G0-BCAST-INVALIDATION', status: 'NOT SATISFIED', missingCarrier: 'executed authority-transition and mixed-commit fence evidence', artifact: 'broadcast-cases.g2-pending.v1.json', caseKinds: ['authorityTransition', 'mixedCommit'] },
+      { label: 'G0-BCAST-IDENTITY', status: 'SATISFIED', missingCarrier: null, artifact: 'full plan/instance/materialization/partition/version/cut preimages and Rust reconstruction', caseKinds: ['pairedWorld'] },
+      { label: 'G0-BCAST-CORPUS', status: 'NOT SATISFIED', missingCarrier: 'five broadcast-adjacent case kinds are structurally pending and not executable at G0', artifact: 'caseKinds schema + broadcast-cases.g2-pending.v1.json', caseKinds: ['pairedWorld', 'allowDeny', 'audienceParity', 'scopeMismatch', 'authorityTransition', 'mixedCommit', 'refusal'] },
+      { label: 'G0-BCAST-BOUNDS', status: 'NOT SATISFIED', missingCarrier: 'large/hot typed exit observations and ratified non-provisional maxima', artifact: 'bound-derivation.v1.json + g0ExitObservationGaps', caseKinds: ['pairedWorld'] },
     ],
-    g0ExitObservations: Object.entries(carriers).flatMap(([query, carrier]) => {
-      const normalResultBytes = measurements[query].normalResultBytes;
-      const dependencyBytes = Buffer.byteLength(JSON.stringify(
-        carrier.normalizedPlan.nodes.filter(node => node.kind !== 'closed-projection'),
-      ));
-      const normal = {
-        format: 'snapback.graph-g0-exit-observation.v1', fixture: 'normal-seed-v1',
-        graphPlanHash: carrier.planHash, groupCount: 1, subscriberFanout: 1,
-        groups: [{
-          groupOrdinal: 0, resultBytes: normalResultBytes, dependencyBytes,
-          groupStateBytes: Buffer.byteLength(JSON.stringify({ graphPlanHash: carrier.planHash, resultBytes: normalResultBytes, dependencyBytes })),
-        }],
-        evidence: 'measured serialized opaque-oracle result plus frozen declared-dependency carrier; no graph executor exists',
-      };
-      return [
-        normal,
-        ...['large-seed42-v1', 'hot-recent-v1'].map(fixtureName => ({
-          format: 'snapback.graph-g0-exit-observation.v1', fixture: fixtureName,
-          graphPlanHash: carrier.planHash, pending: 'zb5-gate-rerun',
-          command: fixtureName === 'large-seed42-v1'
-            ? LARGE_SPOT_CHECK_COMMAND
-            : HOT_SPOT_CHECK_COMMAND,
-        })),
-      ];
-    }),
+    g0ExitObservations, g0ExitObservationEvidence, g0ExitObservationGaps,
     requestedFixtures,
   };
   corpus.contentDigest = digestBytes(canonical(corpus));
@@ -942,9 +1375,13 @@ async function main() {
   if (checkOnly) {
     assert.equal(readFileSync(CORPUS_PATH, 'utf8'), pretty(corpus), 'corpus.v1.json is stale');
     assert.equal(readFileSync(BOUNDS_PATH, 'utf8'), pretty(bounds), 'bound-derivation.v1.json is stale');
+    assert.equal(readFileSync(PENDING_CASES_PATH, 'utf8'), pretty(pendingCorpus), 'broadcast pending corpus is stale');
+    assert.equal(readFileSync(PAIRED_FIXTURES_PATH, 'utf8'), pretty(pairedFixtureCorpus), 'paired-world fixtures are stale');
   } else {
     writeFileSync(CORPUS_PATH, pretty(corpus));
     writeFileSync(BOUNDS_PATH, pretty(bounds));
+    writeFileSync(PENDING_CASES_PATH, pretty(pendingCorpus));
+    writeFileSync(PAIRED_FIXTURES_PATH, pretty(pairedFixtureCorpus));
   }
   console.log(`graph-g0-oracle-freeze: PASS normal-seed-v1 queries=3 oracleCases=${oracleCases.length} pairedWorlds=${pairedWorlds.length} refusals=${refusalCases.length}`);
   if (!existsSync(LARGE_ROOT)) console.log('graph-g0-large-spot-check: DEFERRED receipt-only; rerun zb5 command recorded in bound-derivation.v1.json');

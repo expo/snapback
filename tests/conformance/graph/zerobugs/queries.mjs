@@ -19,7 +19,8 @@ export const issueListV2 = graph.defineGraphQuery({
       nodeId: 'listRoot', kind: 'root-window', edgeName: '$root', authorityClass: 1,
       table: issueListRead,
       filters: [{ field: 'projectID', op: 'Eq', value: graph.arg('projectID') }],
-      accessIndex: 'by_project_modified', order: [graph.desc('modified')],
+      accessIndex: 'by_project_modified',
+      order: [graph.desc('modified'), graph.desc('sourceIssueID')],
     },
     {
       nodeId: 'issueRow', kind: 'equality-to-one', edgeName: 'issue', authorityClass: 1,
@@ -98,7 +99,7 @@ export const issueListV2 = graph.defineGraphQuery({
   },
   queryCost: { graph: {
     nodes: [
-      { nodeId: 'listRoot', maxRootRowsPerPage: 1_024, maxExaminedEntriesPerExecution: 1_025, maxWindowPages: 977, maxWindowRootRows: 1_000_448, maxWindowScannedRows: 53_024_721, maxWindowResultRows: 1_000_448, maxWindowResultBytes: 32_782_680_064, maxWindowIndexRanges: 36_017_105 },
+      { nodeId: 'listRoot', maxRootRowsPerPage: 1_024, maxExaminedEntriesPerExecution: 1_025, maxWindowPages: 1, maxWindowRootRows: 1_024, maxWindowScannedRows: 54_273, maxWindowResultRows: 1_024, maxWindowResultBytes: 33_554_432, maxWindowIndexRanges: 36_865 },
       { nodeId: 'issueRow', maxExaminedEntriesPerExecution: 1_024, maxRelationshipLookupsPerExecution: 1_024 },
       { nodeId: 'labelEdges', maxExaminedEntriesPerExecution: 17_408, maxRelationshipLookupsPerExecution: 1_024, maxChildrenPerParent: 16 },
       { nodeId: 'labelRow', maxExaminedEntriesPerExecution: 16_384, maxRelationshipLookupsPerExecution: 16_384 },
@@ -107,7 +108,7 @@ export const issueListV2 = graph.defineGraphQuery({
     ],
     arguments: [{ argumentId: 'selectedLabelIDs', maxItems: 16 }],
     maxArgumentItems: 17, maxPageResultBytes: 33_554_432,
-    windowRollup: { maxWindowPages: 977, maxWindowRootRows: 1_000_448, maxWindowScannedRows: 53_024_721, maxWindowResultRows: 1_000_448, maxWindowResultBytes: 32_782_680_064, maxWindowIndexRanges: 36_017_105 },
+    windowRollup: { maxWindowPages: 1, maxWindowRootRows: 1_024, maxWindowScannedRows: 54_273, maxWindowResultRows: 1_024, maxWindowResultBytes: 33_554_432, maxWindowIndexRanges: 36_865 },
     maxMaintainedWritesPerMutation: 0,
   } },
   broadcast: { classification: 'query-shaped' },
@@ -121,7 +122,7 @@ export const issueDetail = graph.defineGraphQuery({
       accessIndex: 'by_source_id', order: [graph.asc('id')],
     },
     { nodeId: 'assignee', kind: 'equality-to-one', edgeName: 'assignee', authorityClass: 1, parentNodeId: 'issueRoot', table: user, joinOn: [{ rootField: 'assigneeID', joinedField: '_id' }], accessIndex: 'by_id', presence: 'optional' },
-    { nodeId: 'comments', kind: 'bounded-to-many', edgeName: 'comments', authorityClass: 1, parentNodeId: 'issueRoot', table: comment, joinOn: [{ rootField: '_id', joinedField: 'issueID' }], accessIndex: 'by_issue_created', order: [graph.asc('created')], page: { kind: 'demand' } },
+    { nodeId: 'comments', kind: 'bounded-to-many', edgeName: 'comments', authorityClass: 1, parentNodeId: 'issueRoot', table: comment, joinOn: [{ rootField: '_id', joinedField: 'issueID' }], accessIndex: 'by_issue_created', order: [graph.desc('created')], page: { kind: 'demand' } },
     { nodeId: 'creator', kind: 'equality-to-one', edgeName: 'creator', authorityClass: 1, parentNodeId: 'issueRoot', table: user, joinOn: [{ rootField: 'creatorID', joinedField: '_id' }], accessIndex: 'by_id', presence: 'required' },
     { nodeId: 'labelEdges', kind: 'bounded-to-many', edgeName: 'labels', authorityClass: 1, parentNodeId: 'issueRoot', table: issueLabelRead, joinOn: [{ rootField: '_id', joinedField: 'issueID' }], accessIndex: 'by_issue_label', order: [graph.asc('labelID')], page: { kind: 'literal', direction: 'forward', lower: { kind: 'unbounded' }, upper: { kind: 'unbounded' }, take: 16 } },
     { nodeId: 'labelRow', kind: 'equality-to-one', edgeName: 'label', authorityClass: 1, parentNodeId: 'labelEdges', table: label, joinOn: [{ rootField: 'labelID', joinedField: '_id' }], accessIndex: 'by_id', presence: 'required' },

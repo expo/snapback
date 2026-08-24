@@ -3,8 +3,9 @@
 //! B1 freezes identity/capture/no-runtime-consumer behavior. B3 adds the
 //! corpus-owned Zerobugs declarations, opaque-handler oracle records, closed
 //! completeness proofs, fixture-derived logical bounds, analytical physical
-//! declarations, all seven case kinds, and the nine LLP 0268 inputs. No test
-//! in this file executes a graph; execution remains G2.
+//! declarations, the seven-kind schema, executable G0 oracle/paired/refusal
+//! evidence, and honest gaps for the LLP 0268 inputs. No test in this file
+//! executes a graph; evaluator-dependent cases remain structurally frozen for G2.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
@@ -20,6 +21,8 @@ use snapback_types::storage::{CapturedReadDependency, CapturedReadKind};
 
 const CORPUS_FILE: &str = "tests/conformance/graph/corpus.v1.json";
 const BOUNDS_FILE: &str = "tests/conformance/graph/bound-derivation.v1.json";
+const PENDING_CASES_FILE: &str = "tests/conformance/graph/broadcast-cases.g2-pending.v1.json";
+const PAIRED_FIXTURES_FILE: &str = "tests/conformance/graph/paired-world-fixtures.v1.json";
 
 fn repository_path(relative: &str) -> PathBuf {
     PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).join(relative)
@@ -41,6 +44,14 @@ fn graph_bounds() -> Value {
     load_json(BOUNDS_FILE)
 }
 
+fn pending_broadcast_cases() -> Value {
+    load_json(PENDING_CASES_FILE)
+}
+
+fn paired_world_fixtures() -> Value {
+    load_json(PAIRED_FIXTURES_FILE)
+}
+
 fn jcs_domain_hash(domain: &str, value: &Value) -> String {
     let canonical = snapback_types::rqs_contract::jcs(value).expect("corpus value canonicalizes");
     let mut hasher = Sha256::new();
@@ -57,7 +68,67 @@ fn corpus_queries(corpus: &Value) -> impl Iterator<Item = &Value> {
     corpus["queries"].as_array().expect("queries array").iter()
 }
 
-fn validate_corpus_invocation(carrier: &GraphQueryCarrierV1, call: &Value, function_name: &str) {
+fn assert_label_arrays_follow_graph_order(
+    value: &Value,
+    physical_by_source: &BTreeMap<String, String>,
+) {
+    match value {
+        Value::Array(values) => {
+            for value in values {
+                assert_label_arrays_follow_graph_order(value, physical_by_source);
+            }
+        }
+        Value::Object(fields) => {
+            if let Some(labels) = fields.get("labels").and_then(Value::as_array) {
+                let physical_ids = labels
+                    .iter()
+                    .map(|entry| {
+                        let source_id = entry["label"]["id"]
+                            .as_str()
+                            .expect("mapped label source id");
+                        physical_by_source
+                            .get(source_id)
+                            .unwrap_or_else(|| {
+                                panic!("mapped label {source_id} resolves physically")
+                            })
+                            .clone()
+                    })
+                    .collect::<Vec<_>>();
+                assert!(
+                    physical_ids.windows(2).all(|pair| pair[0] < pair[1]),
+                    "mapped label arrays follow labelID ASC graph order",
+                );
+            }
+            for value in fields.values() {
+                assert_label_arrays_follow_graph_order(value, physical_by_source);
+            }
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
+    }
+}
+
+fn assert_exact_object_keys(value: &Value, expected: &[&str], label: &str) {
+    let actual = value
+        .as_object()
+        .unwrap_or_else(|| panic!("{label} is an object"))
+        .keys()
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        actual,
+        expected.iter().copied().collect(),
+        "{label} closed keys"
+    );
+}
+
+fn validate_corpus_invocation(
+    carrier: &GraphQueryCarrierV1,
+    call: &Value,
+    function_name: &str,
+) -> (
+    GraphMaterializationIdentityV1,
+    GraphAuthorityPartitionIdentityV1,
+) {
     assert_eq!(
         call["planHash"].as_str(),
         Some(carrier.plan_hash.as_str()),
@@ -67,8 +138,6 @@ fn validate_corpus_invocation(carrier: &GraphQueryCarrierV1, call: &Value, funct
         call["materialization"]["function"]["name"], function_name,
         "materialization binds the declared corpus function",
     );
-    assert_eq!(call["partition"]["kind"], "partition-of-one");
-    assert!(call["partition"]["principal"].as_str().is_some());
     assert!(
         call["authorizationVersion"]["incarnation"]
             .as_str()
@@ -81,11 +150,19 @@ fn validate_corpus_invocation(carrier: &GraphQueryCarrierV1, call: &Value, funct
         serde_json::from_value(call["windows"].clone()).expect("invocation windows");
     let evaluated_parents = windows
         .iter()
-        .filter(|window| window.intervals.is_empty())
-        .map(|window| (window.node_id.clone(), Vec::<GraphRowKeyV1>::new()))
+        .filter_map(|window| {
+            let parents = window
+                .intervals
+                .iter()
+                .map(|interval| interval.parent_key.clone())
+                .collect::<Option<Vec<GraphRowKeyV1>>>()?;
+            Some((window.node_id.clone(), parents))
+        })
         .collect::<BTreeMap<_, _>>();
     let instance = graph_instance_identity_v1(carrier, &call["args"], windows, &evaluated_parents)
-        .expect("invocation instance identity reconstructs");
+        .unwrap_or_else(|reason| {
+            panic!("{function_name} invocation instance identity reconstructs: {reason:?}")
+        });
     let materialization: GraphMaterializationPreimageV1 =
         serde_json::from_value(call["materialization"].clone())
             .expect("invocation materialization preimage");
@@ -93,8 +170,22 @@ fn validate_corpus_invocation(carrier: &GraphQueryCarrierV1, call: &Value, funct
         materialization.graph_instance_hash, instance.instance_hash,
         "materialization binds the rebuilt instance",
     );
-    graph_materialization_identity_v1(materialization)
+    let materialization = graph_materialization_identity_v1(materialization)
         .expect("invocation materialization identity reconstructs");
+    let partition_preimage: GraphAuthorityPartitionPreimageV1 =
+        serde_json::from_value(call["partition"].clone())
+            .expect("invocation carries the complete authority-partition preimage");
+    assert_eq!(
+        partition_preimage.graph_plan_hash, carrier.plan_hash,
+        "partition preimage binds the exact plan",
+    );
+    assert!(
+        partition_preimage.class3.is_some(),
+        "the three corpus graphs all roll up principal-scoped nodes as partition-of-one",
+    );
+    let partition = graph_authority_partition_identity_v1(partition_preimage)
+        .expect("Rust reconstructs the complete authority-partition identity");
+    (materialization, partition)
 }
 
 fn carrier() -> GraphQueryCarrierV1 {
@@ -451,10 +542,53 @@ fn zerobugs_declarations_admit_with_host_identities() {
         );
         assert_eq!(query["disposition"]["structuralDeclaration"], "admitted");
         assert_eq!(query["disposition"]["fullOracleRows"], "refused");
+        let nodes = query["carrier"]["normalizedPlan"]["nodes"]
+            .as_array()
+            .expect("normalized nodes");
+        let root = nodes
+            .iter()
+            .find(|node| node["kind"] == "root-window")
+            .expect("root node");
+        match query["query"].as_str().unwrap() {
+            "issueListV2" => assert_eq!(
+                root["order"],
+                json!([
+                    {"field":"modified","direction":"Desc"},
+                    {"field":"sourceIssueID","direction":"Desc"}
+                ]),
+            ),
+            "issueDetail" => {
+                let comments = nodes
+                    .iter()
+                    .find(|node| node["edgeName"] == "comments")
+                    .expect("comments child");
+                assert_eq!(
+                    comments["order"],
+                    json!([{"field":"created","direction":"Desc"}]),
+                );
+            }
+            "listIssueByID" => assert_eq!(
+                root["order"],
+                json!([{"field":"sourceIssueID","direction":"Asc"}]),
+            ),
+            _ => unreachable!(),
+        }
     }
 
     let oracle_cases = corpus["oracleCases"].as_array().expect("oracle cases");
-    assert_eq!(oracle_cases.len(), 5);
+    assert_eq!(oracle_cases.len(), 8);
+    let labels = load_json("demos/zerobugs/control/fixtures/normal-seed-v1/label.json");
+    let physical_by_source = labels
+        .as_array()
+        .expect("normal labels")
+        .iter()
+        .map(|row| {
+            (
+                row["id"].as_str().unwrap().to_owned(),
+                row["_id"].as_str().unwrap().to_owned(),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
     for case in oracle_cases {
         let bytes = case["oracle"]["resultBytes"]
             .as_str()
@@ -483,6 +617,7 @@ fn zerobugs_declarations_admit_with_host_identities() {
                 .as_u64()
                 .map(|value| value as usize),
         );
+        assert_label_arrays_follow_graph_order(&expected_rows, &physical_by_source);
         assert!(matches!(
             expected["graphCompleteness"].as_str(),
             Some("complete" | "prefix" | "window" | "refused" | "unknown")
@@ -500,9 +635,8 @@ fn zerobugs_declarations_admit_with_host_identities() {
             }
         }
         assert_eq!(case["fieldMap"]["query"], case["query"]);
-        if case.get("oracleDivergence").is_none() {
-            assert_eq!(case["fieldMap"]["order"]["comparison"], "exact-id-order");
-        }
+        assert!(case.get("oracleDivergence").is_none());
+        assert_eq!(case["fieldMap"]["order"]["comparison"], "exact-id-order");
         if let Some(resumed_bytes) = case["oracle"]["resumedResultBytes"].as_str() {
             assert_eq!(
                 case["oracle"]["resumedDigest"].as_str(),
@@ -512,17 +646,12 @@ fn zerobugs_declarations_admit_with_host_identities() {
     }
     let tied = oracle_cases
         .iter()
-        .find(|case| case["oracleDivergence"] == "direction-tie-break")
-        .expect("one backward tied-key disposition");
+        .find(|case| case["id"] == "issueListV2-backward-tied-modified")
+        .expect("backward list tie case");
     assert_eq!(tied["invocation"]["dir"], "backward");
-    assert_eq!(
-        tied["declaredGraph"]["comparison"],
-        "exact-after-id-tiebreak-normalization"
-    );
-    assert_eq!(
-        tied["fieldMap"]["order"]["comparison"],
-        "exact-after-id-tiebreak-normalization"
-    );
+    assert_eq!(tied["declaredGraph"]["comparison"], "exact-id-order");
+    assert_eq!(tied["declaredGraph"]["declaredTieGroups"], 69);
+    assert_eq!(tied["declaredGraph"]["residualImplicitTieGroups"], 0);
     assert_eq!(
         tied["declaredGraph"]["orderedSourceIssueIDs"],
         tied["declaredGraph"]["expected"]["orderedRootIds"],
@@ -531,7 +660,42 @@ fn zerobugs_declarations_admit_with_host_identities() {
         tied["declaredGraph"]["orderedSourceIssueIDs"]
             .as_array()
             .is_some_and(|rows| rows.len() >= 2),
-        "the disposition is backed by a nontrivial tied result",
+        "the explicit sourceIssueID order is backed by a nontrivial tied result",
+    );
+    let detail_tie = oracle_cases
+        .iter()
+        .find(|case| case["id"] == "issueDetail-comments-window-and-child-tie")
+        .expect("detail continuation with a child tie");
+    assert_eq!(
+        detail_tie["oracleDivergences"],
+        json!([{
+            "graphNodeId":"n2", "kind":"direction-tie-break",
+            "equalCreatedGroups":1
+        }]),
+    );
+    let detail_continuation = &detail_tie["declaredGraph"]["expected"]["continuation"][0];
+    assert_eq!(detail_continuation["hasMore"], true);
+    assert_eq!(detail_continuation["cursorPresent"], true);
+    let cost_bound = oracle_cases
+        .iter()
+        .find(|case| case["id"] == "issueDetail-comments-cost-bound-refusal")
+        .expect("detail null-cursor empty cost-bound case");
+    assert_eq!(
+        cost_bound["declaredGraph"]["expected"]["graphCompleteness"],
+        "refused"
+    );
+    assert_eq!(
+        cost_bound["declaredGraph"]["expected"]["continuation"][0]["hasMore"],
+        false
+    );
+    let miss = oracle_cases
+        .iter()
+        .find(|case| case["id"] == "issueDetail-authoritative-miss")
+        .expect("detail authoritative miss case");
+    assert_eq!(miss["declaredGraph"]["expected"]["resultBytes"], "[]");
+    assert_eq!(
+        miss["declaredGraph"]["expected"]["continuation"][0]["hasMore"],
+        false
     );
     let page = oracle_cases
         .iter()
@@ -555,6 +719,7 @@ fn zerobugs_declarations_admit_with_host_identities() {
 #[test]
 fn oracle_field_maps_and_refusals_are_closed() {
     let corpus = graph_corpus();
+    let mut translation_count = 0usize;
     for query in corpus_queries(&corpus) {
         let map = &query["fieldMap"];
         assert_eq!(map["query"], query["query"]);
@@ -600,6 +765,7 @@ fn oracle_field_maps_and_refusals_are_closed() {
                 .map(|entry| &entry["translations"]),
         );
         for translations in translation_sets {
+            translation_count += translations.as_array().expect("translations").len();
             let mut keys = BTreeSet::new();
             for translation in translations.as_array().expect("translations") {
                 let cursor = translation["when"]["cursor"].as_str().expect("when.cursor");
@@ -652,6 +818,34 @@ fn oracle_field_maps_and_refusals_are_closed() {
         }
     }
 
+    let coverage = corpus["oracleTranslationCoverage"]
+        .as_array()
+        .expect("translation coverage rows");
+    assert_eq!(coverage.len(), translation_count);
+    let mut coverage_keys = BTreeSet::new();
+    for row in coverage {
+        assert!(row["query"].as_str().is_some());
+        assert!(row["surface"].as_str().is_some());
+        assert!(row["translationIndex"].as_u64().is_some());
+        let exercised = row["exercisedBy"].as_array().expect("exercisedBy");
+        let unexercised = row["unexercised"].as_str();
+        assert_ne!(
+            !exercised.is_empty(),
+            unexercised.is_some(),
+            "every translation is either exercised or explicitly marked unexercised",
+        );
+        let key = format!(
+            "{}:{}:{}",
+            row["query"].as_str().unwrap(),
+            row["surface"].as_str().unwrap(),
+            row["translationIndex"].as_u64().unwrap(),
+        );
+        assert!(
+            coverage_keys.insert(key),
+            "translation coverage key is unique"
+        );
+    }
+
     let expected = BTreeMap::from([
         ("issueListV2", "SNAPBACK_GRAPH_SEARCH_UNADMITTED"),
         ("issueDetail", "SNAPBACK_GRAPH_NODE_KIND_UNSUPPORTED"),
@@ -672,72 +866,221 @@ fn oracle_field_maps_and_refusals_are_closed() {
     }
 }
 
-/// Six policy-extension hidden slices are exercised through the opaque
-/// point/list oracle. The graph invocation remains identical across worlds,
-/// and Rust rebuilds its instance/materialization identities.
+/// Six corpus-local present/absent fixture pairs differ only by the named
+/// slice, feed real nodes in all three graph declarations, and cover every
+/// authority class those declarations install.
 #[test]
 fn paired_worlds() {
     let corpus = graph_corpus();
+    let fixtures = paired_world_fixtures();
+    let mut fixtures_without_digest = fixtures.clone();
+    fixtures_without_digest
+        .as_object_mut()
+        .unwrap()
+        .remove("contentDigest");
+    assert_eq!(
+        fixtures["contentDigest"].as_str(),
+        Some(jcs_domain_hash("", &fixtures_without_digest).as_str()),
+    );
     let cases = corpus["cases"]
         .as_array()
         .expect("cases")
         .iter()
         .filter(|case| case["caseKind"] == "pairedWorld")
         .collect::<Vec<_>>();
-    assert_eq!(
-        cases.len(),
-        6,
-        "one pair per policy-extension hidden table slice"
-    );
-    let mut tables = BTreeSet::new();
+    assert_eq!(cases.len(), 6, "six real graph-channel pairs");
+    let fixture_pairs = fixtures["pairs"].as_array().expect("fixture pairs");
+    assert_eq!(fixture_pairs.len(), 6);
+    let mut covered_classes = BTreeSet::new();
+    let mut covered_queries = BTreeSet::new();
     for case in cases {
-        assert!(case.get("pending").is_none(), "paired worlds execute at G0");
         assert_eq!(
             case["oracleEvidence"]["presentDigest"], case["oracleEvidence"]["absentDigest"],
             "{} opaque rows must be indistinguishable",
             case["id"],
         );
-        let hidden = case["worlds"]["present"]["hiddenSlice"]
-            .as_array()
-            .expect("hidden slice");
-        assert_eq!(hidden.len(), 1);
-        tables.insert(hidden[0]["table"].as_str().expect("hidden table"));
-
         let carrier: GraphQueryCarrierV1 =
             serde_json::from_value(case["plan"].clone()).expect("paired plan");
         let call = &case["invocation"];
-        validate_corpus_invocation(&carrier, call, "listIssueByID");
-        assert_eq!(case["expect"]["resultBytes"], "[]");
+        let query = case["query"].as_str().expect("paired query");
+        covered_queries.insert(query);
+        validate_corpus_invocation(&carrier, call, query);
         assert_eq!(case["expect"]["label"], "complete");
+        assert_eq!(
+            case["expect"]["resultLength"].as_u64().unwrap() as usize,
+            case["expect"]["orderedRootIds"].as_array().unwrap().len(),
+        );
+
+        let pair = fixture_pairs
+            .iter()
+            .find(|pair| pair["id"] == case["fixturePairId"])
+            .expect("case links one frozen fixture pair");
+        assert_eq!(pair["query"], case["query"]);
+        assert_eq!(pair["coveredNodeIds"], case["coveredNodeIds"]);
+        assert_eq!(
+            pair["coveredAuthorityClasses"],
+            case["coveredAuthorityClasses"]
+        );
+        let slice_table = pair["namedSlice"]["table"].as_str().unwrap();
+        let slice_ids = pair["namedSlice"]["rowIds"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|id| id.as_str().unwrap())
+            .collect::<BTreeSet<_>>();
+        let present = &pair["present"];
+        let absent = &pair["absent"];
+        assert_ne!(present["identity"], "normal-seed-v1");
+        assert_ne!(absent["identity"], "normal-seed-v1");
+        assert_ne!(present["identity"], absent["identity"]);
+        assert_eq!(case["worlds"]["present"]["fixture"], present["identity"]);
+        assert_eq!(case["worlds"]["absent"]["fixture"], absent["identity"]);
+        assert_eq!(
+            case["worlds"]["present"]["fixtureDigest"],
+            present["fixtureDigest"]
+        );
+        assert_eq!(
+            case["worlds"]["absent"]["fixtureDigest"],
+            absent["fixtureDigest"]
+        );
+        assert_eq!(present["inputDigest"], absent["inputDigest"]);
+        for (table, present_digest) in present["tableDigests"].as_object().unwrap() {
+            if table != slice_table {
+                assert_eq!(
+                    present_digest, &absent["tableDigests"][table],
+                    "{} non-slice table {table} is byte-identical",
+                    case["id"],
+                );
+            }
+        }
+        for world in [present, absent] {
+            let fixture_preimage = json!({
+                "tableDigests": world["tableDigests"],
+                "inputDigest": world["inputDigest"],
+            });
+            assert_eq!(
+                world["fixtureDigest"].as_str(),
+                Some(jcs_domain_hash("", &fixture_preimage).as_str()),
+            );
+            let identity_preimage = json!({
+                "identity": world["identity"],
+                "fixtureDigest": world["fixtureDigest"],
+            });
+            assert_eq!(
+                world["identityDigest"].as_str(),
+                Some(jcs_domain_hash("", &identity_preimage).as_str()),
+            );
+        }
+        let present_rows = present["sliceTableRows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|row| (row["_id"].as_str().unwrap(), row))
+            .collect::<BTreeMap<_, _>>();
+        let absent_rows = absent["sliceTableRows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|row| (row["_id"].as_str().unwrap(), row))
+            .collect::<BTreeMap<_, _>>();
+        let changed = present_rows
+            .keys()
+            .chain(absent_rows.keys())
+            .copied()
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .filter(|id| present_rows.get(id) != absent_rows.get(id))
+            .collect::<BTreeSet<_>>();
+        assert_eq!(changed, slice_ids, "only the named slice differs");
+
+        let node_classes = carrier
+            .normalized_plan
+            .nodes
+            .iter()
+            .filter(|node| {
+                case["coveredNodeIds"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|id| id.as_str() == Some(node.node_id()))
+            })
+            .map(|node| node.authority().declared_class.0)
+            .collect::<BTreeSet<_>>();
+        let recorded_classes = case["coveredAuthorityClasses"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|class| class.as_u64().unwrap() as u8)
+            .collect::<BTreeSet<_>>();
+        assert_eq!(node_classes, recorded_classes);
+        covered_classes.extend(recorded_classes);
     }
     assert_eq!(
-        tables,
-        BTreeSet::from([
-            "comment",
-            "emoji",
-            "issue",
-            "issueNotifications",
-            "userPref",
-            "viewState"
-        ]),
+        covered_queries,
+        BTreeSet::from(["issueDetail", "issueListV2", "listIssueByID"])
+    );
+    let declared_classes = corpus_queries(&corpus)
+        .flat_map(|query| {
+            let carrier: GraphQueryCarrierV1 =
+                serde_json::from_value(query["carrier"].clone()).unwrap();
+            carrier
+                .normalized_plan
+                .nodes
+                .into_iter()
+                .map(|node| node.authority().declared_class.0)
+        })
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        covered_classes, declared_classes,
+        "six pairs cover every declared authority class across the three graphs",
     );
 }
 
-/// G2-only records are not executed in Stage B, but they are closed corpus
-/// inputs: every plan and invocation identity reconstructs, and every case
-/// carries the exact kind-specific invocation/result or commit/fence shape.
+/// G2-only records are outside the executable G0 corpus. Their separate file
+/// is a closed structural carrier: every plan and invocation reconstructs,
+/// but this test performs no case evaluation or certificate claim.
 #[test]
-fn g2_cases_are_structurally_frozen() {
-    let corpus = graph_corpus();
-    let cases = corpus["cases"]
-        .as_array()
-        .expect("cases")
-        .iter()
-        .filter(|case| case["pending"] == "G2")
-        .collect::<Vec<_>>();
+fn g2_pending_broadcast_cases_are_structurally_frozen() {
+    let pending = pending_broadcast_cases();
+    assert_exact_object_keys(
+        &pending,
+        &[
+            "format",
+            "version",
+            "description",
+            "caseKinds",
+            "cases",
+            "contentDigest",
+        ],
+        "pending corpus",
+    );
+    let mut without_digest = pending.clone();
+    without_digest
+        .as_object_mut()
+        .unwrap()
+        .remove("contentDigest");
+    assert_eq!(
+        pending["contentDigest"].as_str(),
+        Some(jcs_domain_hash("", &without_digest).as_str()),
+    );
+    assert_eq!(
+        pending["caseKinds"],
+        json!([
+            "allowDeny",
+            "audienceParity",
+            "scopeMismatch",
+            "authorityTransition",
+            "mixedCommit"
+        ]),
+    );
+    let cases = pending["cases"].as_array().expect("pending cases");
     assert_eq!(cases.len(), 5);
 
     for case in cases {
+        assert!(
+            case.get("pending").is_none(),
+            "the closed case union has no pending arm"
+        );
         let carrier: GraphQueryCarrierV1 =
             serde_json::from_value(case["plan"].clone()).expect("pending carrier");
         assert_eq!(
@@ -746,6 +1089,18 @@ fn g2_cases_are_structurally_frozen() {
         );
         match case["caseKind"].as_str().expect("pending case kind") {
             "allowDeny" => {
+                assert_exact_object_keys(
+                    case,
+                    &[
+                        "caseKind",
+                        "id",
+                        "plan",
+                        "invocations",
+                        "principals",
+                        "expect",
+                    ],
+                    "allowDeny case",
+                );
                 validate_corpus_invocation(
                     &carrier,
                     &case["invocations"]["allowed"],
@@ -764,6 +1119,18 @@ fn g2_cases_are_structurally_frozen() {
                 assert!(case["expect"]["deniedResultBytes"].is_null());
             }
             "audienceParity" => {
+                assert_exact_object_keys(
+                    case,
+                    &[
+                        "caseKind",
+                        "id",
+                        "plan",
+                        "invocations",
+                        "principals",
+                        "expect",
+                    ],
+                    "audienceParity case",
+                );
                 let invocations = case["invocations"].as_array().expect("audience pair");
                 let principals = case["principals"].as_array().expect("principal pair");
                 assert_eq!(invocations.len(), 2);
@@ -775,6 +1142,18 @@ fn g2_cases_are_structurally_frozen() {
                 assert_eq!(case["expect"]["strict"], json!(["allow", "allow"]));
             }
             "scopeMismatch" => {
+                assert_exact_object_keys(
+                    case,
+                    &[
+                        "caseKind",
+                        "id",
+                        "plan",
+                        "invocations",
+                        "principal",
+                        "expect",
+                    ],
+                    "scopeMismatch case",
+                );
                 validate_corpus_invocation(
                     &carrier,
                     &case["invocations"]["memberScope"],
@@ -795,6 +1174,19 @@ fn g2_cases_are_structurally_frozen() {
                 assert!(case["expect"]["resultBytes"].is_null());
             }
             "authorityTransition" | "mixedCommit" => {
+                assert_exact_object_keys(
+                    case,
+                    &[
+                        "caseKind",
+                        "id",
+                        "plan",
+                        "invocations",
+                        "principal",
+                        "commit",
+                        "observed",
+                    ],
+                    "transition case",
+                );
                 validate_corpus_invocation(
                     &carrier,
                     &case["invocations"]["before"],
@@ -863,6 +1255,11 @@ fn completeness_labels() {
         .filter(|case| case["caseKind"] == "pairedWorld")
     {
         let plan: GraphQueryCarrierV1 = serde_json::from_value(case["plan"].clone()).unwrap();
+        let (materialization, partition) = validate_corpus_invocation(
+            &plan,
+            &case["invocation"],
+            case["query"].as_str().expect("paired query"),
+        );
         let expected = &case["expect"];
         let nodes = expected["nodeCompleteness"]
             .as_array()
@@ -874,6 +1271,15 @@ fn completeness_labels() {
             assert_eq!(entry["label"], entry["proof"]["label"]);
             serde_json::from_value::<GraphNodeCompletenessProofV1>(entry["proof"].clone())
                 .expect("closed node completeness proof");
+            assert_eq!(
+                entry["proof"]["partitionHash"].as_str(),
+                Some(partition.partition_hash.as_str()),
+                "every node proof binds the Rust-reconstructed partition",
+            );
+            assert_eq!(
+                entry["proof"]["materializationHash"].as_str(),
+                Some(materialization.materialization_hash.as_str()),
+            );
         }
         let composition: GraphCompositionProofV1 =
             serde_json::from_value(expected["graphCompleteness"]["proof"].clone())
@@ -882,6 +1288,15 @@ fn completeness_labels() {
             .as_array()
             .expect("composition citations");
         assert_eq!(citations.len() + 1, nodes.len());
+        assert_eq!(
+            expected["graphCompleteness"]["partitionHash"].as_str(),
+            Some(partition.partition_hash.as_str()),
+        );
+        assert_eq!(
+            expected["graphCompleteness"]["proof"]["partitionHash"].as_str(),
+            Some(partition.partition_hash.as_str()),
+            "composition proof binds the reconstructed partition",
+        );
         for (citation, entry) in citations.iter().zip(nodes) {
             assert_eq!(citation["nodeId"], entry["nodeId"]);
             assert_eq!(citation["nodeKind"], entry["nodeKind"]);
@@ -897,6 +1312,14 @@ fn completeness_labels() {
             projection["proof"]["composition"],
             serde_json::to_value(composition).unwrap()
         );
+        assert_eq!(
+            projection["proof"]["partitionHash"].as_str(),
+            Some(partition.partition_hash.as_str()),
+        );
+        assert_eq!(
+            projection["proof"]["composition"]["partitionHash"].as_str(),
+            Some(partition.partition_hash.as_str()),
+        );
     }
 }
 
@@ -911,6 +1334,32 @@ fn assert_derived_field(derived: &Value, actual: &Value, location: &str) {
             .is_some_and(|text| !text.trim().is_empty()),
         "{location} has a derivation",
     );
+}
+
+fn assert_provisional_records_name_validation(value: &Value) {
+    match value {
+        Value::Array(values) => {
+            for value in values {
+                assert_provisional_records_name_validation(value);
+            }
+        }
+        Value::Object(fields) => {
+            if fields.get("provisional") == Some(&Value::Bool(true)) {
+                let command = fields
+                    .get("validationCommand")
+                    .and_then(Value::as_str)
+                    .expect("every provisional record names its validation command");
+                assert!(
+                    command.contains("zb5-large.mjs") || command.contains("zb5-hot.mjs"),
+                    "provisional validation is a pinned zb5 command",
+                );
+            }
+            for value in fields.values() {
+                assert_provisional_records_name_validation(value);
+            }
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
+    }
 }
 
 /// Every numeric declaration has a neighboring derivation record. Logical
@@ -932,6 +1381,15 @@ fn bounds_are_fixture_derived() {
     assert_eq!(bounds["fixtures"]["large"]["comments"], 2_527_886);
     assert_eq!(bounds["fixtures"]["large"]["labels"], 4_810);
     assert_eq!(bounds["fixtures"]["large"]["issueLabelEdges"], 2_000_370);
+    assert_eq!(
+        bounds["fixtures"]["documentedPerIssueDistribution"]["labels"]["maximum"],
+        3,
+    );
+    assert_eq!(
+        bounds["fixtures"]["documentedPerIssueDistribution"]["comments"]["obtainableReceiptCeiling"],
+        2_527_886,
+    );
+    assert_provisional_records_name_validation(&bounds);
 
     let mut without_digest = bounds.clone();
     without_digest
@@ -949,6 +1407,10 @@ fn bounds_are_fixture_derived() {
             serde_json::from_value(query["carrier"].clone()).unwrap();
         let actual = serde_json::to_value(&carrier.normalized_plan.query_cost).unwrap();
         let derivation = &bounds["queries"][name]["derivationTable"];
+        assert_eq!(
+            derivation["queryCost"]["maxResultBytes"]["provisional"], true,
+            "large/hot result-byte maxima are not yet verified",
+        );
         assert_eq!(
             bounds["queries"][name]["physical"]["observationPosture"],
             "[G2 measures]"
@@ -1012,6 +1474,17 @@ fn bounds_are_fixture_derived() {
         }
     }
 
+    let list_root_pages = &bounds["queries"]["issueListV2"]["derivationTable"]["graph"]["nodes"][0]
+        ["fields"]["maxWindowPages"];
+    assert_eq!(list_root_pages["value"], 1);
+    assert_eq!(list_root_pages["provisional"], true);
+    assert!(
+        list_root_pages["derivation"]
+            .as_str()
+            .is_some_and(|text| text.contains("filtered interval") && !text.contains("/ 1,000,000")),
+        "list pages derive from the filtered interval rather than whole-table rows",
+    );
+
     let spot = &bounds["largeFixtureSpotCheck"];
     let large_fixture = repository_path("demos/zerobugs/fixtures-local/large-seed42-v1");
     if large_fixture.exists() {
@@ -1025,21 +1498,15 @@ fn bounds_are_fixture_derived() {
     }
 }
 
-/// The corpus is closed over all seven case kinds and all nine exact LLP 0268
-/// labels. Evaluator-dependent records are data-complete but explicitly G2;
-/// paired worlds and admission refusals are the executable G0 records.
+/// The corpus retains the seven-kind schema without pretending G2 records ran.
+/// All nine LLP 0268 labels are present with exact satisfied/not-satisfied
+/// posture, and only complete normal observation records inhabit the typed arm.
 #[test]
 fn broadcast_inputs_complete() {
     let corpus = graph_corpus();
-    let kinds = corpus["cases"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|case| case["caseKind"].as_str().unwrap())
-        .collect::<BTreeSet<_>>();
     assert_eq!(
-        kinds,
-        BTreeSet::from([
+        corpus["caseKinds"],
+        json!([
             "pairedWorld",
             "allowDeny",
             "audienceParity",
@@ -1049,15 +1516,24 @@ fn broadcast_inputs_complete() {
             "refusal"
         ]),
     );
-    for case in corpus["cases"].as_array().unwrap() {
-        match case["caseKind"].as_str().unwrap() {
-            "pairedWorld" | "refusal" => assert!(case.get("pending").is_none()),
-            _ => assert_eq!(case["pending"], "G2"),
-        }
-    }
-    let labels = corpus["broadcastInputs"]
+    assert_eq!(
+        corpus["executableCaseKinds"],
+        json!(["pairedWorld", "refusal"]),
+    );
+    let kinds = corpus["cases"]
         .as_array()
-        .expect("broadcast inputs")
+        .unwrap()
+        .iter()
+        .map(|case| case["caseKind"].as_str().unwrap())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(kinds, BTreeSet::from(["pairedWorld", "refusal"]),);
+    for case in corpus["cases"].as_array().unwrap() {
+        assert!(case.get("pending").is_none());
+    }
+    let input_rows = corpus["broadcastInputs"]
+        .as_array()
+        .expect("broadcast inputs");
+    let labels = input_rows
         .iter()
         .map(|entry| entry["label"].as_str().unwrap())
         .collect::<BTreeSet<_>>();
@@ -1075,45 +1551,142 @@ fn broadcast_inputs_complete() {
             "G0-BCAST-BOUNDS",
         ]),
     );
+    let satisfied = input_rows
+        .iter()
+        .filter(|entry| entry["status"] == "SATISFIED")
+        .map(|entry| entry["label"].as_str().unwrap())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        satisfied,
+        BTreeSet::from(["G0-BCAST-CLASS", "G0-BCAST-IDENTITY"]),
+    );
+    for entry in input_rows {
+        match entry["status"].as_str().unwrap() {
+            "SATISFIED" => assert!(entry["missingCarrier"].is_null()),
+            "NOT SATISFIED" => assert!(
+                entry["missingCarrier"]
+                    .as_str()
+                    .is_some_and(|value| !value.is_empty())
+            ),
+            status => panic!("unexpected broadcast input status {status}"),
+        }
+    }
     let observations = corpus["g0ExitObservations"]
         .as_array()
         .expect("observations");
-    assert_eq!(observations.len(), 9);
-    assert_eq!(
-        observations
-            .iter()
-            .filter(|row| row["fixture"] == "normal-seed-v1")
-            .count(),
-        3,
-    );
+    assert_eq!(observations.len(), 3);
+    let evidence_rows = corpus["g0ExitObservationEvidence"]
+        .as_array()
+        .expect("normal observation evidence");
+    assert_eq!(evidence_rows.len(), 3);
     for observation in observations {
-        if observation["fixture"] == "normal-seed-v1" {
-            assert_eq!(
-                observation["format"],
-                "snapback.graph-g0-exit-observation.v1"
-            );
-            assert_eq!(observation["groupCount"], 1);
-            assert_eq!(observation["subscriberFanout"], 1);
-            let groups = observation["groups"].as_array().unwrap();
-            assert_eq!(groups.len(), 1);
-            assert_eq!(groups[0]["groupOrdinal"], 0);
-            assert!(
-                groups[0]["resultBytes"]
-                    .as_u64()
-                    .is_some_and(|value| value > 0)
-            );
-            assert!(
-                groups[0]["dependencyBytes"]
-                    .as_u64()
-                    .is_some_and(|value| value > 0)
-            );
-            assert!(
-                groups[0]["groupStateBytes"]
-                    .as_u64()
-                    .is_some_and(|value| value > 0)
-            );
-        } else {
-            assert_eq!(observation["pending"], "zb5-gate-rerun");
+        assert_exact_object_keys(
+            observation,
+            &[
+                "format",
+                "fixture",
+                "graphPlanHash",
+                "groupCount",
+                "subscriberFanout",
+                "groups",
+            ],
+            "typed G0 exit observation",
+        );
+        assert_eq!(observation["fixture"], "normal-seed-v1");
+        assert_eq!(
+            observation["format"],
+            "snapback.graph-g0-exit-observation.v1"
+        );
+        assert_eq!(observation["groupCount"], 1);
+        assert_eq!(observation["subscriberFanout"], 1);
+        let groups = observation["groups"].as_array().unwrap();
+        assert_eq!(groups.len(), 1);
+        assert_exact_object_keys(
+            &groups[0],
+            &[
+                "groupOrdinal",
+                "resultBytes",
+                "dependencyBytes",
+                "groupStateBytes",
+            ],
+            "observation group",
+        );
+        assert_eq!(groups[0]["groupOrdinal"], 0);
+        let evidence = evidence_rows
+            .iter()
+            .find(|row| row["graphPlanHash"] == observation["graphPlanHash"])
+            .expect("observation has exact normal evidence");
+        let result_bytes = evidence["resultBytes"].as_str().unwrap();
+        assert_eq!(
+            evidence["resultDigest"].as_str(),
+            Some(byte_hash(result_bytes).as_str()),
+        );
+        let dependencies = evidence["capturedDependencies"]
+            .as_array()
+            .expect("captured dependency vector");
+        let query = corpus_queries(&corpus)
+            .find(|query| query["carrier"]["planHash"] == observation["graphPlanHash"])
+            .expect("observation plan carrier");
+        let carrier: GraphQueryCarrierV1 =
+            serde_json::from_value(query["carrier"].clone()).unwrap();
+        for dependency in dependencies {
+            let capture: GraphCapturedReadV1 =
+                serde_json::from_value(dependency.clone()).expect("typed captured dependency");
+            validate_graph_captured_read_v1(&capture, &carrier.normalized_plan)
+                .expect("captured dependency binds the exact plan node");
         }
+        assert_eq!(
+            evidence["capturedDependencyVectorDigest"].as_str(),
+            Some(jcs_domain_hash("", &evidence["capturedDependencies"]).as_str()),
+        );
+        assert_eq!(
+            evidence["groupStateDigest"].as_str(),
+            Some(jcs_domain_hash("", &evidence["groupState"]).as_str()),
+        );
+        assert_exact_object_keys(
+            &evidence["groupState"],
+            &["result", "proofTuple"],
+            "memo-entry equivalent group state",
+        );
+        let (_, partition) = validate_corpus_invocation(
+            &carrier,
+            &evidence["invocation"],
+            query["query"].as_str().unwrap(),
+        );
+        assert_eq!(
+            evidence["groupState"]["proofTuple"]["partitionHash"].as_str(),
+            Some(partition.partition_hash.as_str()),
+        );
+        assert_eq!(
+            groups[0]["resultBytes"],
+            result_bytes.as_bytes().len() as u64,
+        );
+        assert_eq!(
+            groups[0]["dependencyBytes"],
+            serde_json::to_string(&evidence["capturedDependencies"])
+                .unwrap()
+                .as_bytes()
+                .len() as u64,
+        );
+        assert_eq!(
+            groups[0]["groupStateBytes"],
+            serde_json::to_string(&evidence["groupState"])
+                .unwrap()
+                .as_bytes()
+                .len() as u64,
+        );
+    }
+    let gaps = corpus["g0ExitObservationGaps"]
+        .as_array()
+        .expect("large/hot gap table");
+    assert_eq!(gaps.len(), 6);
+    for gap in gaps {
+        assert_eq!(gap["status"], "NOT SATISFIED");
+        assert!(gap["missingCarrier"].as_str().is_some());
+        assert!(
+            gap["command"]
+                .as_str()
+                .is_some_and(|command| command.contains("zb5-"))
+        );
     }
 }

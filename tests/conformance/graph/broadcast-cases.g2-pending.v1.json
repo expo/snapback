@@ -1,0 +1,3453 @@
+{
+  "format": "snapback.graph-broadcast-cases.g2-pending.v1",
+  "version": 1,
+  "description": "Structurally frozen broadcast-adjacent records. G0 has no evaluator and executes none of these cases.",
+  "caseKinds": [
+    "allowDeny",
+    "audienceParity",
+    "scopeMismatch",
+    "authorityTransition",
+    "mixedCommit"
+  ],
+  "cases": [
+    {
+      "caseKind": "allowDeny",
+      "id": "zerobugs-allow-deny-g2",
+      "plan": {
+        "normalizedPlan": {
+          "arguments": [
+            {
+              "argumentId": "a0",
+              "contract": {
+                "format": "snapback.argument-binding-contract.v1",
+                "required": true,
+                "value": {
+                  "element": {
+                    "kind": "string",
+                    "maxBytes": 128
+                  },
+                  "kind": "array",
+                  "maxItems": 16
+                }
+              },
+              "contractHash": "sha256:73767cf1d41219a17ac4deee4a8820e5a0666e90cb4aeb50a34b2043008988c5",
+              "name": "selectedLabelIDs"
+            },
+            {
+              "argumentId": "a1",
+              "contract": {
+                "format": "snapback.argument-binding-contract.v1",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 128
+                }
+              },
+              "contractHash": "sha256:fde4e26c8f4389ea5470b6983bd1529e4484e085cf45397e5e6790fac5ffc094",
+              "name": "sourceIssueID"
+            }
+          ],
+          "authorityPartitionRule": {
+            "class2Inputs": [],
+            "class3": "partition-of-one",
+            "format": "snapback.graph-authority-partition-rule.v1"
+          },
+          "broadcast": {
+            "classification": "query-shaped",
+            "format": "snapback.graph-broadcast-admission.v1",
+            "reason": "base-not-class-1"
+          },
+          "capabilityId": "graph_query_v1",
+          "format": "snapback.graph-query-plan.v1",
+          "nodes": [
+            {
+              "accessIndex": "by_source_issue_id",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "$root",
+              "filters": [
+                {
+                  "field": "sourceIssueID",
+                  "op": "Eq",
+                  "value": {
+                    "Arg": "a1"
+                  }
+                }
+              ],
+              "kind": "root-window",
+              "nodeId": "n0",
+              "order": [
+                {
+                  "direction": "Asc",
+                  "field": "sourceIssueID"
+                }
+              ],
+              "page": {
+                "kind": "demand"
+              },
+              "table": "issueListRead",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "accessIndex": "by_id",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "issue",
+              "joinOn": [
+                {
+                  "joinedField": "_id",
+                  "rootField": "issueID"
+                }
+              ],
+              "kind": "equality-to-one",
+              "nodeId": "n1",
+              "parentNodeId": "n0",
+              "presence": "required",
+              "table": "issue",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "accessIndex": "by_issue_label",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "labels",
+              "joinOn": [
+                {
+                  "joinedField": "issueID",
+                  "rootField": "issueID"
+                }
+              ],
+              "kind": "bounded-to-many",
+              "nodeId": "n2",
+              "order": [
+                {
+                  "direction": "Asc",
+                  "field": "labelID"
+                }
+              ],
+              "page": {
+                "direction": "forward",
+                "kind": "literal",
+                "lower": {
+                  "kind": "unbounded"
+                },
+                "take": 16,
+                "upper": {
+                  "kind": "unbounded"
+                }
+              },
+              "parentNodeId": "n0",
+              "table": "issueLabelRead",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "accessIndex": "by_id",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "label",
+              "joinOn": [
+                {
+                  "joinedField": "_id",
+                  "rootField": "labelID"
+                }
+              ],
+              "kind": "equality-to-one",
+              "nodeId": "n3",
+              "parentNodeId": "n2",
+              "presence": "required",
+              "table": "label",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "argumentId": "a0",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edge": {
+                "accessIndex": "by_issue_label",
+                "joinOn": [
+                  {
+                    "joinedField": "issueID",
+                    "rootField": "issueID"
+                  }
+                ],
+                "table": "issueLabelRead",
+                "visibility": {
+                  "kind": "public-read"
+                }
+              },
+              "edgeName": "selectedLabels",
+              "filters": [
+                {
+                  "field": "labelID",
+                  "op": "In",
+                  "value": {
+                    "Arg": "a0"
+                  }
+                }
+              ],
+              "kind": "exists-semi-join",
+              "mode": "all",
+              "nodeId": "n4",
+              "parentNodeId": "n0"
+            },
+            {
+              "accessIndex": "by_issue_user",
+              "authority": {
+                "declaredClass": 3,
+                "proof": null
+              },
+              "binding": {
+                "principalField": "principal",
+                "table": "identityBinding",
+                "uniqueIndex": "by_principal",
+                "valueField": "userID",
+                "visibility": {
+                  "kind": "public-read"
+                }
+              },
+              "edgeName": "viewState",
+              "kind": "principal-bound",
+              "nodeId": "n5",
+              "parentJoin": [
+                {
+                  "joinedField": "issueID",
+                  "rootField": "issueID"
+                }
+              ],
+              "parentNodeId": "n0",
+              "principalField": "userID",
+              "principalSource": "auth.userId",
+              "table": "viewState",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "authority": {
+                "declaredClass": 3,
+                "proof": null
+              },
+              "edgeName": "$result",
+              "kind": "closed-projection",
+              "nodeId": "n6",
+              "object": {
+                "fields": [
+                  {
+                    "name": "issue",
+                    "value": {
+                      "kind": "object",
+                      "nodeId": "n1",
+                      "object": {
+                        "fields": [
+                          {
+                            "name": "id",
+                            "value": {
+                              "field": "id",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "shortID",
+                            "value": {
+                              "field": "shortID",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "title",
+                            "value": {
+                              "field": "title",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "open",
+                            "value": {
+                              "field": "open",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "modified",
+                            "value": {
+                              "field": "modified",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "created",
+                            "value": {
+                              "field": "created",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "description",
+                            "value": {
+                              "field": "description",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          }
+                        ],
+                        "scopeNodeId": "n0"
+                      }
+                    }
+                  },
+                  {
+                    "name": "labels",
+                    "value": {
+                      "item": {
+                        "fields": [
+                          {
+                            "name": "label",
+                            "value": {
+                              "kind": "object",
+                              "nodeId": "n3",
+                              "object": {
+                                "fields": [
+                                  {
+                                    "name": "id",
+                                    "value": {
+                                      "field": "id",
+                                      "kind": "field",
+                                      "nodeId": "n3"
+                                    }
+                                  },
+                                  {
+                                    "name": "name",
+                                    "value": {
+                                      "field": "name",
+                                      "kind": "field",
+                                      "nodeId": "n3"
+                                    }
+                                  }
+                                ],
+                                "scopeNodeId": "n2"
+                              }
+                            }
+                          }
+                        ],
+                        "scopeNodeId": "n2"
+                      },
+                      "kind": "array",
+                      "scopeNodeId": "n2"
+                    }
+                  },
+                  {
+                    "name": "viewState",
+                    "value": {
+                      "kind": "object",
+                      "nodeId": "n5",
+                      "object": {
+                        "fields": [
+                          {
+                            "name": "viewed",
+                            "value": {
+                              "field": "viewed",
+                              "kind": "field",
+                              "nodeId": "n5"
+                            }
+                          }
+                        ],
+                        "scopeNodeId": "n0"
+                      }
+                    }
+                  }
+                ],
+                "scopeNodeId": "n0"
+              }
+            }
+          ],
+          "queryCost": {
+            "graph": {
+              "arguments": [
+                {
+                  "argumentId": "a0",
+                  "maxItems": 16
+                }
+              ],
+              "maxArgumentItems": 17,
+              "maxMaintainedWritesPerMutation": 0,
+              "maxPageResultBytes": 1048576,
+              "nodes": [
+                {
+                  "maxExaminedEntriesPerExecution": 2,
+                  "maxRootRowsPerPage": 1,
+                  "maxWindowIndexRanges": 37,
+                  "maxWindowPages": 1,
+                  "maxWindowResultBytes": 1048576,
+                  "maxWindowResultRows": 1,
+                  "maxWindowRootRows": 1,
+                  "maxWindowScannedRows": 54,
+                  "nodeId": "n0"
+                },
+                {
+                  "maxExaminedEntriesPerExecution": 1,
+                  "maxRelationshipLookupsPerExecution": 1,
+                  "nodeId": "n1"
+                },
+                {
+                  "maxChildrenPerParent": 16,
+                  "maxExaminedEntriesPerExecution": 17,
+                  "maxRelationshipLookupsPerExecution": 1,
+                  "nodeId": "n2"
+                },
+                {
+                  "maxExaminedEntriesPerExecution": 16,
+                  "maxRelationshipLookupsPerExecution": 16,
+                  "nodeId": "n3"
+                },
+                {
+                  "maxArgumentExpansion": 16,
+                  "maxChildrenPerParent": 1,
+                  "maxExaminedEntriesPerExecution": 16,
+                  "maxRelationshipLookupsPerExecution": 16,
+                  "nodeId": "n4"
+                },
+                {
+                  "maxExaminedEntriesPerExecution": 2,
+                  "maxRelationshipLookupsPerExecution": 2,
+                  "nodeId": "n5"
+                }
+              ],
+              "windowRollup": {
+                "maxWindowIndexRanges": 37,
+                "maxWindowPages": 1,
+                "maxWindowResultBytes": 1048576,
+                "maxWindowResultRows": 1,
+                "maxWindowRootRows": 1,
+                "maxWindowScannedRows": 54
+              }
+            },
+            "maxDistinctEvaluationGroups": 1024,
+            "maxEstimatedLiveFanoutMs": 5000,
+            "maxEvaluationTurnMs": 1000,
+            "maxIndexRanges": 37,
+            "maxObservers": 1024,
+            "maxResultBytes": 1048576,
+            "maxResultRows": 1,
+            "maxScannedRows": 54
+          },
+          "resultContractHash": "sha256:fa39413861e33fb430b00dc257aa2f285af74f459226265cfb5833c2dff3d0da",
+          "rootNodeId": "n0"
+        },
+        "planHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97"
+      },
+      "invocations": {
+        "allowed": {
+          "planHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97",
+          "args": {
+            "sourceIssueID": "zbav1_internal_issue",
+            "selectedLabelIDs": []
+          },
+          "windows": [
+            {
+              "nodeId": "n0",
+              "intervals": [
+                {
+                  "parentKey": null,
+                  "window": {
+                    "order": [
+                      {
+                        "direction": "Asc",
+                        "field": "sourceIssueID"
+                      }
+                    ],
+                    "direction": "forward",
+                    "lower": {
+                      "kind": "unbounded"
+                    },
+                    "upper": {
+                      "kind": "unbounded"
+                    },
+                    "take": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "materialization": {
+            "format": "snapback.graph-materialization.v1",
+            "appId": "zerobugs-graph-g0-corpus",
+            "databaseId": "g0-corpus-fixtures-v1",
+            "deploymentId": "g0-stage-b",
+            "targetProfileId": "local",
+            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "function": {
+              "artifactKind": "functionReference",
+              "schemaVersion": "snapback.v1",
+              "appId": "zerobugs-graph-g0-corpus",
+              "id": "graph-57a50abcb4dcab97",
+              "name": "listIssueByID",
+              "kind": "LiveQuery",
+              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "resultContractHash": "sha256:fa39413861e33fb430b00dc257aa2f285af74f459226265cfb5833c2dff3d0da",
+              "expectedGeneration": {
+                "schemaVersion": "snapback.v1",
+                "appId": "zerobugs-graph-g0-corpus",
+                "schemaHash": "corpus-schema-v1",
+                "bundleHash": "corpus-bundle-v1",
+                "inputsHash": "corpus-inputs-v1"
+              }
+            },
+            "graphInstanceHash": "sha256:3ad629fcfab3cf4460fe6f677181402447dcec3ff56a2da903554151fcdbe27d"
+          },
+          "partition": {
+            "format": "snapback.graph-authority-partition.v1",
+            "graphPlanHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97",
+            "class2": [],
+            "class3": {
+              "format": "snapback.authority-partition.v1",
+              "principalDataScope": {
+                "authMode": "sessions",
+                "userId": "principal_ordinary",
+                "authorizationStreamIncarnation": "g0-corpus-stream-v1"
+              },
+              "authorityInstanceId": "g0-authority-principal_ordinary",
+              "authFingerprint": "sha256:04d663c667783f185541cf2e2d91b42f0a3b6a4a484b9bf7289dca30fa1d2a6f",
+              "tenantId": null,
+              "providerId": "g0-corpus-provider",
+              "delegation": null
+            }
+          },
+          "authorizationVersion": {
+            "incarnation": "g0-corpus-authorization-v1",
+            "epoch": 0
+          },
+          "evaluationCut": 1
+        },
+        "denied": {
+          "planHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97",
+          "args": {
+            "sourceIssueID": "zbav1_internal_issue",
+            "selectedLabelIDs": []
+          },
+          "windows": [
+            {
+              "nodeId": "n0",
+              "intervals": [
+                {
+                  "parentKey": null,
+                  "window": {
+                    "order": [
+                      {
+                        "direction": "Asc",
+                        "field": "sourceIssueID"
+                      }
+                    ],
+                    "direction": "forward",
+                    "lower": {
+                      "kind": "unbounded"
+                    },
+                    "upper": {
+                      "kind": "unbounded"
+                    },
+                    "take": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "materialization": {
+            "format": "snapback.graph-materialization.v1",
+            "appId": "zerobugs-graph-g0-corpus",
+            "databaseId": "g0-corpus-fixtures-v1",
+            "deploymentId": "g0-stage-b",
+            "targetProfileId": "local",
+            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "function": {
+              "artifactKind": "functionReference",
+              "schemaVersion": "snapback.v1",
+              "appId": "zerobugs-graph-g0-corpus",
+              "id": "graph-57a50abcb4dcab97",
+              "name": "listIssueByID",
+              "kind": "LiveQuery",
+              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "resultContractHash": "sha256:fa39413861e33fb430b00dc257aa2f285af74f459226265cfb5833c2dff3d0da",
+              "expectedGeneration": {
+                "schemaVersion": "snapback.v1",
+                "appId": "zerobugs-graph-g0-corpus",
+                "schemaHash": "corpus-schema-v1",
+                "bundleHash": "corpus-bundle-v1",
+                "inputsHash": "corpus-inputs-v1"
+              }
+            },
+            "graphInstanceHash": "sha256:3ad629fcfab3cf4460fe6f677181402447dcec3ff56a2da903554151fcdbe27d"
+          },
+          "partition": {
+            "format": "snapback.graph-authority-partition.v1",
+            "graphPlanHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97",
+            "class2": [],
+            "class3": {
+              "format": "snapback.authority-partition.v1",
+              "principalDataScope": {
+                "authMode": "sessions",
+                "userId": "principal_removed",
+                "authorizationStreamIncarnation": "g0-corpus-stream-v1"
+              },
+              "authorityInstanceId": "g0-authority-principal_removed",
+              "authFingerprint": "sha256:28db195d840d5a0640fae0951d1835ace926d3c158b9bfbeea95bfaf545c3ff6",
+              "tenantId": null,
+              "providerId": "g0-corpus-provider",
+              "delegation": null
+            }
+          },
+          "authorizationVersion": {
+            "incarnation": "g0-corpus-authorization-v1",
+            "epoch": 0
+          },
+          "evaluationCut": 1
+        }
+      },
+      "principals": {
+        "allowed": "principal_ordinary",
+        "denied": "principal_removed"
+      },
+      "expect": {
+        "allowed": {
+          "kind": "result",
+          "label": "complete",
+          "resultBytes": "[]",
+          "orderedRootIds": [],
+          "resultLength": 0,
+          "nodeCompleteness": [
+            {
+              "nodeId": "n0",
+              "nodeKind": "root-window",
+              "label": "complete",
+              "proofClass": "whole-source",
+              "proof": {
+                "materializationHash": "sha256:92104cad2f4138596fdd567ae0ad83280d1abca82dd3ddee53a5a9b13207ca34",
+                "partitionHash": "sha256:bfda0d7477b7efac49f4f84362177cec3fb9bac106424a1e0686f16fb0be7c21",
+                "authorizationVersion": {
+                  "incarnation": "g0-corpus-authorization-v1",
+                  "epoch": 0
+                },
+                "evaluationCut": 1,
+                "kind": "root-window",
+                "label": "complete",
+                "interval": {
+                  "lower": {
+                    "kind": "unbounded"
+                  },
+                  "upper": {
+                    "kind": "unbounded"
+                  }
+                },
+                "consumed": 0,
+                "hasMore": false,
+                "sourceExhausted": true
+              }
+            },
+            {
+              "nodeId": "n1",
+              "nodeKind": "equality-to-one",
+              "label": "complete",
+              "proofClass": "unique-point",
+              "proof": {
+                "materializationHash": "sha256:92104cad2f4138596fdd567ae0ad83280d1abca82dd3ddee53a5a9b13207ca34",
+                "partitionHash": "sha256:bfda0d7477b7efac49f4f84362177cec3fb9bac106424a1e0686f16fb0be7c21",
+                "authorizationVersion": {
+                  "incarnation": "g0-corpus-authorization-v1",
+                  "epoch": 0
+                },
+                "evaluationCut": 1,
+                "kind": "equality-to-one",
+                "label": "complete",
+                "rows": []
+              }
+            },
+            {
+              "nodeId": "n2",
+              "nodeKind": "bounded-to-many",
+              "label": "complete",
+              "proofClass": "parent-ranges",
+              "proof": {
+                "materializationHash": "sha256:92104cad2f4138596fdd567ae0ad83280d1abca82dd3ddee53a5a9b13207ca34",
+                "partitionHash": "sha256:bfda0d7477b7efac49f4f84362177cec3fb9bac106424a1e0686f16fb0be7c21",
+                "authorizationVersion": {
+                  "incarnation": "g0-corpus-authorization-v1",
+                  "epoch": 0
+                },
+                "evaluationCut": 1,
+                "kind": "bounded-to-many",
+                "label": "complete",
+                "ranges": []
+              }
+            },
+            {
+              "nodeId": "n3",
+              "nodeKind": "equality-to-one",
+              "label": "complete",
+              "proofClass": "unique-point",
+              "proof": {
+                "materializationHash": "sha256:92104cad2f4138596fdd567ae0ad83280d1abca82dd3ddee53a5a9b13207ca34",
+                "partitionHash": "sha256:bfda0d7477b7efac49f4f84362177cec3fb9bac106424a1e0686f16fb0be7c21",
+                "authorizationVersion": {
+                  "incarnation": "g0-corpus-authorization-v1",
+                  "epoch": 0
+                },
+                "evaluationCut": 1,
+                "kind": "equality-to-one",
+                "label": "complete",
+                "rows": []
+              }
+            },
+            {
+              "nodeId": "n4",
+              "nodeKind": "exists-semi-join",
+              "label": "complete",
+              "proofClass": "complete-membership",
+              "proof": {
+                "materializationHash": "sha256:92104cad2f4138596fdd567ae0ad83280d1abca82dd3ddee53a5a9b13207ca34",
+                "partitionHash": "sha256:bfda0d7477b7efac49f4f84362177cec3fb9bac106424a1e0686f16fb0be7c21",
+                "authorizationVersion": {
+                  "incarnation": "g0-corpus-authorization-v1",
+                  "epoch": 0
+                },
+                "evaluationCut": 1,
+                "kind": "exists-semi-join",
+                "label": "complete",
+                "rows": []
+              }
+            },
+            {
+              "nodeId": "n5",
+              "nodeKind": "principal-bound",
+              "label": "complete",
+              "proofClass": "principal-point",
+              "proof": {
+                "materializationHash": "sha256:92104cad2f4138596fdd567ae0ad83280d1abca82dd3ddee53a5a9b13207ca34",
+                "partitionHash": "sha256:bfda0d7477b7efac49f4f84362177cec3fb9bac106424a1e0686f16fb0be7c21",
+                "authorizationVersion": {
+                  "incarnation": "g0-corpus-authorization-v1",
+                  "epoch": 0
+                },
+                "evaluationCut": 1,
+                "kind": "principal-bound",
+                "label": "complete",
+                "rows": []
+              }
+            },
+            {
+              "nodeId": "n6",
+              "nodeKind": "closed-projection",
+              "label": "complete",
+              "proofClass": "projection-composition",
+              "proof": {
+                "materializationHash": "sha256:92104cad2f4138596fdd567ae0ad83280d1abca82dd3ddee53a5a9b13207ca34",
+                "partitionHash": "sha256:bfda0d7477b7efac49f4f84362177cec3fb9bac106424a1e0686f16fb0be7c21",
+                "authorizationVersion": {
+                  "incarnation": "g0-corpus-authorization-v1",
+                  "epoch": 0
+                },
+                "evaluationCut": 1,
+                "kind": "closed-projection",
+                "label": "complete",
+                "composition": {
+                  "materializationHash": "sha256:92104cad2f4138596fdd567ae0ad83280d1abca82dd3ddee53a5a9b13207ca34",
+                  "partitionHash": "sha256:bfda0d7477b7efac49f4f84362177cec3fb9bac106424a1e0686f16fb0be7c21",
+                  "authorizationVersion": {
+                    "incarnation": "g0-corpus-authorization-v1",
+                    "epoch": 0
+                  },
+                  "evaluationCut": 1,
+                  "kind": "graph-composition",
+                  "label": "complete",
+                  "nodes": [
+                    {
+                      "nodeId": "n0",
+                      "nodeKind": "root-window",
+                      "label": "complete",
+                      "proofHash": "sha256:f45b53eb73b7c20564f6db909411e7a4f0f7c6c93732512aa8d08ddcf247ddac"
+                    },
+                    {
+                      "nodeId": "n1",
+                      "nodeKind": "equality-to-one",
+                      "label": "complete",
+                      "proofHash": "sha256:81b192824bbac122d962d63c094fde639b3e2d902d74c182f8a09568f31391e8"
+                    },
+                    {
+                      "nodeId": "n2",
+                      "nodeKind": "bounded-to-many",
+                      "label": "complete",
+                      "proofHash": "sha256:96445f5ee693f06670addfb3d639de811cd7fa2fcfacab01512ae8e279ecefe6"
+                    },
+                    {
+                      "nodeId": "n3",
+                      "nodeKind": "equality-to-one",
+                      "label": "complete",
+                      "proofHash": "sha256:e7f56ed8b556f618b7f9e590d100fd7f0209e3715b27cc976e71a175c50d4236"
+                    },
+                    {
+                      "nodeId": "n4",
+                      "nodeKind": "exists-semi-join",
+                      "label": "complete",
+                      "proofHash": "sha256:b761e65b87ade6a71679e74be5534e96814ff020f8441e2b9ad8ba41b83eadb1"
+                    },
+                    {
+                      "nodeId": "n5",
+                      "nodeKind": "principal-bound",
+                      "label": "complete",
+                      "proofHash": "sha256:6808e625b2ccdf553d842145a754986108bdf5db9c7e14236596d22ede2105cd"
+                    }
+                  ],
+                  "allComplete": true
+                }
+              }
+            }
+          ],
+          "graphCompleteness": {
+            "materializationHash": "sha256:92104cad2f4138596fdd567ae0ad83280d1abca82dd3ddee53a5a9b13207ca34",
+            "partitionHash": "sha256:bfda0d7477b7efac49f4f84362177cec3fb9bac106424a1e0686f16fb0be7c21",
+            "authorizationVersion": {
+              "incarnation": "g0-corpus-authorization-v1",
+              "epoch": 0
+            },
+            "evaluationCut": 1,
+            "label": "complete",
+            "proofClass": "all-complete",
+            "proof": {
+              "materializationHash": "sha256:92104cad2f4138596fdd567ae0ad83280d1abca82dd3ddee53a5a9b13207ca34",
+              "partitionHash": "sha256:bfda0d7477b7efac49f4f84362177cec3fb9bac106424a1e0686f16fb0be7c21",
+              "authorizationVersion": {
+                "incarnation": "g0-corpus-authorization-v1",
+                "epoch": 0
+              },
+              "evaluationCut": 1,
+              "kind": "graph-composition",
+              "label": "complete",
+              "nodes": [
+                {
+                  "nodeId": "n0",
+                  "nodeKind": "root-window",
+                  "label": "complete",
+                  "proofHash": "sha256:f45b53eb73b7c20564f6db909411e7a4f0f7c6c93732512aa8d08ddcf247ddac"
+                },
+                {
+                  "nodeId": "n1",
+                  "nodeKind": "equality-to-one",
+                  "label": "complete",
+                  "proofHash": "sha256:81b192824bbac122d962d63c094fde639b3e2d902d74c182f8a09568f31391e8"
+                },
+                {
+                  "nodeId": "n2",
+                  "nodeKind": "bounded-to-many",
+                  "label": "complete",
+                  "proofHash": "sha256:96445f5ee693f06670addfb3d639de811cd7fa2fcfacab01512ae8e279ecefe6"
+                },
+                {
+                  "nodeId": "n3",
+                  "nodeKind": "equality-to-one",
+                  "label": "complete",
+                  "proofHash": "sha256:e7f56ed8b556f618b7f9e590d100fd7f0209e3715b27cc976e71a175c50d4236"
+                },
+                {
+                  "nodeId": "n4",
+                  "nodeKind": "exists-semi-join",
+                  "label": "complete",
+                  "proofHash": "sha256:b761e65b87ade6a71679e74be5534e96814ff020f8441e2b9ad8ba41b83eadb1"
+                },
+                {
+                  "nodeId": "n5",
+                  "nodeKind": "principal-bound",
+                  "label": "complete",
+                  "proofHash": "sha256:6808e625b2ccdf553d842145a754986108bdf5db9c7e14236596d22ede2105cd"
+                }
+              ],
+              "allComplete": true
+            }
+          },
+          "refusalReason": null
+        },
+        "denied": "deny",
+        "deniedResultBytes": null
+      }
+    },
+    {
+      "caseKind": "audienceParity",
+      "id": "zerobugs-audience-parity-g2",
+      "plan": {
+        "normalizedPlan": {
+          "arguments": [
+            {
+              "argumentId": "a0",
+              "contract": {
+                "format": "snapback.argument-binding-contract.v1",
+                "required": true,
+                "value": {
+                  "element": {
+                    "kind": "string",
+                    "maxBytes": 128
+                  },
+                  "kind": "array",
+                  "maxItems": 16
+                }
+              },
+              "contractHash": "sha256:73767cf1d41219a17ac4deee4a8820e5a0666e90cb4aeb50a34b2043008988c5",
+              "name": "selectedLabelIDs"
+            },
+            {
+              "argumentId": "a1",
+              "contract": {
+                "format": "snapback.argument-binding-contract.v1",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 128
+                }
+              },
+              "contractHash": "sha256:fde4e26c8f4389ea5470b6983bd1529e4484e085cf45397e5e6790fac5ffc094",
+              "name": "sourceIssueID"
+            }
+          ],
+          "authorityPartitionRule": {
+            "class2Inputs": [],
+            "class3": "partition-of-one",
+            "format": "snapback.graph-authority-partition-rule.v1"
+          },
+          "broadcast": {
+            "classification": "query-shaped",
+            "format": "snapback.graph-broadcast-admission.v1",
+            "reason": "base-not-class-1"
+          },
+          "capabilityId": "graph_query_v1",
+          "format": "snapback.graph-query-plan.v1",
+          "nodes": [
+            {
+              "accessIndex": "by_source_issue_id",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "$root",
+              "filters": [
+                {
+                  "field": "sourceIssueID",
+                  "op": "Eq",
+                  "value": {
+                    "Arg": "a1"
+                  }
+                }
+              ],
+              "kind": "root-window",
+              "nodeId": "n0",
+              "order": [
+                {
+                  "direction": "Asc",
+                  "field": "sourceIssueID"
+                }
+              ],
+              "page": {
+                "kind": "demand"
+              },
+              "table": "issueListRead",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "accessIndex": "by_id",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "issue",
+              "joinOn": [
+                {
+                  "joinedField": "_id",
+                  "rootField": "issueID"
+                }
+              ],
+              "kind": "equality-to-one",
+              "nodeId": "n1",
+              "parentNodeId": "n0",
+              "presence": "required",
+              "table": "issue",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "accessIndex": "by_issue_label",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "labels",
+              "joinOn": [
+                {
+                  "joinedField": "issueID",
+                  "rootField": "issueID"
+                }
+              ],
+              "kind": "bounded-to-many",
+              "nodeId": "n2",
+              "order": [
+                {
+                  "direction": "Asc",
+                  "field": "labelID"
+                }
+              ],
+              "page": {
+                "direction": "forward",
+                "kind": "literal",
+                "lower": {
+                  "kind": "unbounded"
+                },
+                "take": 16,
+                "upper": {
+                  "kind": "unbounded"
+                }
+              },
+              "parentNodeId": "n0",
+              "table": "issueLabelRead",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "accessIndex": "by_id",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "label",
+              "joinOn": [
+                {
+                  "joinedField": "_id",
+                  "rootField": "labelID"
+                }
+              ],
+              "kind": "equality-to-one",
+              "nodeId": "n3",
+              "parentNodeId": "n2",
+              "presence": "required",
+              "table": "label",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "argumentId": "a0",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edge": {
+                "accessIndex": "by_issue_label",
+                "joinOn": [
+                  {
+                    "joinedField": "issueID",
+                    "rootField": "issueID"
+                  }
+                ],
+                "table": "issueLabelRead",
+                "visibility": {
+                  "kind": "public-read"
+                }
+              },
+              "edgeName": "selectedLabels",
+              "filters": [
+                {
+                  "field": "labelID",
+                  "op": "In",
+                  "value": {
+                    "Arg": "a0"
+                  }
+                }
+              ],
+              "kind": "exists-semi-join",
+              "mode": "all",
+              "nodeId": "n4",
+              "parentNodeId": "n0"
+            },
+            {
+              "accessIndex": "by_issue_user",
+              "authority": {
+                "declaredClass": 3,
+                "proof": null
+              },
+              "binding": {
+                "principalField": "principal",
+                "table": "identityBinding",
+                "uniqueIndex": "by_principal",
+                "valueField": "userID",
+                "visibility": {
+                  "kind": "public-read"
+                }
+              },
+              "edgeName": "viewState",
+              "kind": "principal-bound",
+              "nodeId": "n5",
+              "parentJoin": [
+                {
+                  "joinedField": "issueID",
+                  "rootField": "issueID"
+                }
+              ],
+              "parentNodeId": "n0",
+              "principalField": "userID",
+              "principalSource": "auth.userId",
+              "table": "viewState",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "authority": {
+                "declaredClass": 3,
+                "proof": null
+              },
+              "edgeName": "$result",
+              "kind": "closed-projection",
+              "nodeId": "n6",
+              "object": {
+                "fields": [
+                  {
+                    "name": "issue",
+                    "value": {
+                      "kind": "object",
+                      "nodeId": "n1",
+                      "object": {
+                        "fields": [
+                          {
+                            "name": "id",
+                            "value": {
+                              "field": "id",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "shortID",
+                            "value": {
+                              "field": "shortID",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "title",
+                            "value": {
+                              "field": "title",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "open",
+                            "value": {
+                              "field": "open",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "modified",
+                            "value": {
+                              "field": "modified",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "created",
+                            "value": {
+                              "field": "created",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "description",
+                            "value": {
+                              "field": "description",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          }
+                        ],
+                        "scopeNodeId": "n0"
+                      }
+                    }
+                  },
+                  {
+                    "name": "labels",
+                    "value": {
+                      "item": {
+                        "fields": [
+                          {
+                            "name": "label",
+                            "value": {
+                              "kind": "object",
+                              "nodeId": "n3",
+                              "object": {
+                                "fields": [
+                                  {
+                                    "name": "id",
+                                    "value": {
+                                      "field": "id",
+                                      "kind": "field",
+                                      "nodeId": "n3"
+                                    }
+                                  },
+                                  {
+                                    "name": "name",
+                                    "value": {
+                                      "field": "name",
+                                      "kind": "field",
+                                      "nodeId": "n3"
+                                    }
+                                  }
+                                ],
+                                "scopeNodeId": "n2"
+                              }
+                            }
+                          }
+                        ],
+                        "scopeNodeId": "n2"
+                      },
+                      "kind": "array",
+                      "scopeNodeId": "n2"
+                    }
+                  },
+                  {
+                    "name": "viewState",
+                    "value": {
+                      "kind": "object",
+                      "nodeId": "n5",
+                      "object": {
+                        "fields": [
+                          {
+                            "name": "viewed",
+                            "value": {
+                              "field": "viewed",
+                              "kind": "field",
+                              "nodeId": "n5"
+                            }
+                          }
+                        ],
+                        "scopeNodeId": "n0"
+                      }
+                    }
+                  }
+                ],
+                "scopeNodeId": "n0"
+              }
+            }
+          ],
+          "queryCost": {
+            "graph": {
+              "arguments": [
+                {
+                  "argumentId": "a0",
+                  "maxItems": 16
+                }
+              ],
+              "maxArgumentItems": 17,
+              "maxMaintainedWritesPerMutation": 0,
+              "maxPageResultBytes": 1048576,
+              "nodes": [
+                {
+                  "maxExaminedEntriesPerExecution": 2,
+                  "maxRootRowsPerPage": 1,
+                  "maxWindowIndexRanges": 37,
+                  "maxWindowPages": 1,
+                  "maxWindowResultBytes": 1048576,
+                  "maxWindowResultRows": 1,
+                  "maxWindowRootRows": 1,
+                  "maxWindowScannedRows": 54,
+                  "nodeId": "n0"
+                },
+                {
+                  "maxExaminedEntriesPerExecution": 1,
+                  "maxRelationshipLookupsPerExecution": 1,
+                  "nodeId": "n1"
+                },
+                {
+                  "maxChildrenPerParent": 16,
+                  "maxExaminedEntriesPerExecution": 17,
+                  "maxRelationshipLookupsPerExecution": 1,
+                  "nodeId": "n2"
+                },
+                {
+                  "maxExaminedEntriesPerExecution": 16,
+                  "maxRelationshipLookupsPerExecution": 16,
+                  "nodeId": "n3"
+                },
+                {
+                  "maxArgumentExpansion": 16,
+                  "maxChildrenPerParent": 1,
+                  "maxExaminedEntriesPerExecution": 16,
+                  "maxRelationshipLookupsPerExecution": 16,
+                  "nodeId": "n4"
+                },
+                {
+                  "maxExaminedEntriesPerExecution": 2,
+                  "maxRelationshipLookupsPerExecution": 2,
+                  "nodeId": "n5"
+                }
+              ],
+              "windowRollup": {
+                "maxWindowIndexRanges": 37,
+                "maxWindowPages": 1,
+                "maxWindowResultBytes": 1048576,
+                "maxWindowResultRows": 1,
+                "maxWindowRootRows": 1,
+                "maxWindowScannedRows": 54
+              }
+            },
+            "maxDistinctEvaluationGroups": 1024,
+            "maxEstimatedLiveFanoutMs": 5000,
+            "maxEvaluationTurnMs": 1000,
+            "maxIndexRanges": 37,
+            "maxObservers": 1024,
+            "maxResultBytes": 1048576,
+            "maxResultRows": 1,
+            "maxScannedRows": 54
+          },
+          "resultContractHash": "sha256:fa39413861e33fb430b00dc257aa2f285af74f459226265cfb5833c2dff3d0da",
+          "rootNodeId": "n0"
+        },
+        "planHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97"
+      },
+      "invocations": [
+        {
+          "planHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97",
+          "args": {
+            "sourceIssueID": "zbav1_internal_issue",
+            "selectedLabelIDs": []
+          },
+          "windows": [
+            {
+              "nodeId": "n0",
+              "intervals": [
+                {
+                  "parentKey": null,
+                  "window": {
+                    "order": [
+                      {
+                        "direction": "Asc",
+                        "field": "sourceIssueID"
+                      }
+                    ],
+                    "direction": "forward",
+                    "lower": {
+                      "kind": "unbounded"
+                    },
+                    "upper": {
+                      "kind": "unbounded"
+                    },
+                    "take": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "materialization": {
+            "format": "snapback.graph-materialization.v1",
+            "appId": "zerobugs-graph-g0-corpus",
+            "databaseId": "g0-corpus-fixtures-v1",
+            "deploymentId": "g0-stage-b",
+            "targetProfileId": "local",
+            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "function": {
+              "artifactKind": "functionReference",
+              "schemaVersion": "snapback.v1",
+              "appId": "zerobugs-graph-g0-corpus",
+              "id": "graph-57a50abcb4dcab97",
+              "name": "listIssueByID",
+              "kind": "LiveQuery",
+              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "resultContractHash": "sha256:fa39413861e33fb430b00dc257aa2f285af74f459226265cfb5833c2dff3d0da",
+              "expectedGeneration": {
+                "schemaVersion": "snapback.v1",
+                "appId": "zerobugs-graph-g0-corpus",
+                "schemaHash": "corpus-schema-v1",
+                "bundleHash": "corpus-bundle-v1",
+                "inputsHash": "corpus-inputs-v1"
+              }
+            },
+            "graphInstanceHash": "sha256:3ad629fcfab3cf4460fe6f677181402447dcec3ff56a2da903554151fcdbe27d"
+          },
+          "partition": {
+            "format": "snapback.graph-authority-partition.v1",
+            "graphPlanHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97",
+            "class2": [],
+            "class3": {
+              "format": "snapback.authority-partition.v1",
+              "principalDataScope": {
+                "authMode": "sessions",
+                "userId": "principal_ordinary",
+                "authorizationStreamIncarnation": "g0-corpus-stream-v1"
+              },
+              "authorityInstanceId": "g0-authority-principal_ordinary",
+              "authFingerprint": "sha256:04d663c667783f185541cf2e2d91b42f0a3b6a4a484b9bf7289dca30fa1d2a6f",
+              "tenantId": null,
+              "providerId": "g0-corpus-provider",
+              "delegation": null
+            }
+          },
+          "authorizationVersion": {
+            "incarnation": "g0-corpus-authorization-v1",
+            "epoch": 0
+          },
+          "evaluationCut": 1
+        },
+        {
+          "planHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97",
+          "args": {
+            "sourceIssueID": "zbav1_internal_issue",
+            "selectedLabelIDs": []
+          },
+          "windows": [
+            {
+              "nodeId": "n0",
+              "intervals": [
+                {
+                  "parentKey": null,
+                  "window": {
+                    "order": [
+                      {
+                        "direction": "Asc",
+                        "field": "sourceIssueID"
+                      }
+                    ],
+                    "direction": "forward",
+                    "lower": {
+                      "kind": "unbounded"
+                    },
+                    "upper": {
+                      "kind": "unbounded"
+                    },
+                    "take": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "materialization": {
+            "format": "snapback.graph-materialization.v1",
+            "appId": "zerobugs-graph-g0-corpus",
+            "databaseId": "g0-corpus-fixtures-v1",
+            "deploymentId": "g0-stage-b",
+            "targetProfileId": "local",
+            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "function": {
+              "artifactKind": "functionReference",
+              "schemaVersion": "snapback.v1",
+              "appId": "zerobugs-graph-g0-corpus",
+              "id": "graph-57a50abcb4dcab97",
+              "name": "listIssueByID",
+              "kind": "LiveQuery",
+              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "resultContractHash": "sha256:fa39413861e33fb430b00dc257aa2f285af74f459226265cfb5833c2dff3d0da",
+              "expectedGeneration": {
+                "schemaVersion": "snapback.v1",
+                "appId": "zerobugs-graph-g0-corpus",
+                "schemaHash": "corpus-schema-v1",
+                "bundleHash": "corpus-bundle-v1",
+                "inputsHash": "corpus-inputs-v1"
+              }
+            },
+            "graphInstanceHash": "sha256:3ad629fcfab3cf4460fe6f677181402447dcec3ff56a2da903554151fcdbe27d"
+          },
+          "partition": {
+            "format": "snapback.graph-authority-partition.v1",
+            "graphPlanHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97",
+            "class2": [],
+            "class3": {
+              "format": "snapback.authority-partition.v1",
+              "principalDataScope": {
+                "authMode": "sessions",
+                "userId": "principal_crew",
+                "authorizationStreamIncarnation": "g0-corpus-stream-v1"
+              },
+              "authorityInstanceId": "g0-authority-principal_crew",
+              "authFingerprint": "sha256:61a7aaf57d089f5d4d02c5c1adcc816e4d74ad4055a935e1f87eb1dbb60a6bb6",
+              "tenantId": null,
+              "providerId": "g0-corpus-provider",
+              "delegation": null
+            }
+          },
+          "authorizationVersion": {
+            "incarnation": "g0-corpus-authorization-v1",
+            "epoch": 0
+          },
+          "evaluationCut": 1
+        }
+      ],
+      "principals": [
+        "principal_ordinary",
+        "principal_crew"
+      ],
+      "expect": {
+        "establishment": [
+          "allow",
+          "allow"
+        ],
+        "strict": [
+          "allow",
+          "allow"
+        ]
+      }
+    },
+    {
+      "caseKind": "scopeMismatch",
+      "id": "zerobugs-scope-mismatch-g2",
+      "plan": {
+        "normalizedPlan": {
+          "arguments": [
+            {
+              "argumentId": "a0",
+              "contract": {
+                "format": "snapback.argument-binding-contract.v1",
+                "required": true,
+                "value": {
+                  "element": {
+                    "kind": "string",
+                    "maxBytes": 128
+                  },
+                  "kind": "array",
+                  "maxItems": 16
+                }
+              },
+              "contractHash": "sha256:73767cf1d41219a17ac4deee4a8820e5a0666e90cb4aeb50a34b2043008988c5",
+              "name": "selectedLabelIDs"
+            },
+            {
+              "argumentId": "a1",
+              "contract": {
+                "format": "snapback.argument-binding-contract.v1",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 128
+                }
+              },
+              "contractHash": "sha256:fde4e26c8f4389ea5470b6983bd1529e4484e085cf45397e5e6790fac5ffc094",
+              "name": "sourceIssueID"
+            }
+          ],
+          "authorityPartitionRule": {
+            "class2Inputs": [],
+            "class3": "partition-of-one",
+            "format": "snapback.graph-authority-partition-rule.v1"
+          },
+          "broadcast": {
+            "classification": "query-shaped",
+            "format": "snapback.graph-broadcast-admission.v1",
+            "reason": "base-not-class-1"
+          },
+          "capabilityId": "graph_query_v1",
+          "format": "snapback.graph-query-plan.v1",
+          "nodes": [
+            {
+              "accessIndex": "by_source_issue_id",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "$root",
+              "filters": [
+                {
+                  "field": "sourceIssueID",
+                  "op": "Eq",
+                  "value": {
+                    "Arg": "a1"
+                  }
+                }
+              ],
+              "kind": "root-window",
+              "nodeId": "n0",
+              "order": [
+                {
+                  "direction": "Asc",
+                  "field": "sourceIssueID"
+                }
+              ],
+              "page": {
+                "kind": "demand"
+              },
+              "table": "issueListRead",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "accessIndex": "by_id",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "issue",
+              "joinOn": [
+                {
+                  "joinedField": "_id",
+                  "rootField": "issueID"
+                }
+              ],
+              "kind": "equality-to-one",
+              "nodeId": "n1",
+              "parentNodeId": "n0",
+              "presence": "required",
+              "table": "issue",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "accessIndex": "by_issue_label",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "labels",
+              "joinOn": [
+                {
+                  "joinedField": "issueID",
+                  "rootField": "issueID"
+                }
+              ],
+              "kind": "bounded-to-many",
+              "nodeId": "n2",
+              "order": [
+                {
+                  "direction": "Asc",
+                  "field": "labelID"
+                }
+              ],
+              "page": {
+                "direction": "forward",
+                "kind": "literal",
+                "lower": {
+                  "kind": "unbounded"
+                },
+                "take": 16,
+                "upper": {
+                  "kind": "unbounded"
+                }
+              },
+              "parentNodeId": "n0",
+              "table": "issueLabelRead",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "accessIndex": "by_id",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "label",
+              "joinOn": [
+                {
+                  "joinedField": "_id",
+                  "rootField": "labelID"
+                }
+              ],
+              "kind": "equality-to-one",
+              "nodeId": "n3",
+              "parentNodeId": "n2",
+              "presence": "required",
+              "table": "label",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "argumentId": "a0",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edge": {
+                "accessIndex": "by_issue_label",
+                "joinOn": [
+                  {
+                    "joinedField": "issueID",
+                    "rootField": "issueID"
+                  }
+                ],
+                "table": "issueLabelRead",
+                "visibility": {
+                  "kind": "public-read"
+                }
+              },
+              "edgeName": "selectedLabels",
+              "filters": [
+                {
+                  "field": "labelID",
+                  "op": "In",
+                  "value": {
+                    "Arg": "a0"
+                  }
+                }
+              ],
+              "kind": "exists-semi-join",
+              "mode": "all",
+              "nodeId": "n4",
+              "parentNodeId": "n0"
+            },
+            {
+              "accessIndex": "by_issue_user",
+              "authority": {
+                "declaredClass": 3,
+                "proof": null
+              },
+              "binding": {
+                "principalField": "principal",
+                "table": "identityBinding",
+                "uniqueIndex": "by_principal",
+                "valueField": "userID",
+                "visibility": {
+                  "kind": "public-read"
+                }
+              },
+              "edgeName": "viewState",
+              "kind": "principal-bound",
+              "nodeId": "n5",
+              "parentJoin": [
+                {
+                  "joinedField": "issueID",
+                  "rootField": "issueID"
+                }
+              ],
+              "parentNodeId": "n0",
+              "principalField": "userID",
+              "principalSource": "auth.userId",
+              "table": "viewState",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "authority": {
+                "declaredClass": 3,
+                "proof": null
+              },
+              "edgeName": "$result",
+              "kind": "closed-projection",
+              "nodeId": "n6",
+              "object": {
+                "fields": [
+                  {
+                    "name": "issue",
+                    "value": {
+                      "kind": "object",
+                      "nodeId": "n1",
+                      "object": {
+                        "fields": [
+                          {
+                            "name": "id",
+                            "value": {
+                              "field": "id",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "shortID",
+                            "value": {
+                              "field": "shortID",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "title",
+                            "value": {
+                              "field": "title",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "open",
+                            "value": {
+                              "field": "open",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "modified",
+                            "value": {
+                              "field": "modified",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "created",
+                            "value": {
+                              "field": "created",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "description",
+                            "value": {
+                              "field": "description",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          }
+                        ],
+                        "scopeNodeId": "n0"
+                      }
+                    }
+                  },
+                  {
+                    "name": "labels",
+                    "value": {
+                      "item": {
+                        "fields": [
+                          {
+                            "name": "label",
+                            "value": {
+                              "kind": "object",
+                              "nodeId": "n3",
+                              "object": {
+                                "fields": [
+                                  {
+                                    "name": "id",
+                                    "value": {
+                                      "field": "id",
+                                      "kind": "field",
+                                      "nodeId": "n3"
+                                    }
+                                  },
+                                  {
+                                    "name": "name",
+                                    "value": {
+                                      "field": "name",
+                                      "kind": "field",
+                                      "nodeId": "n3"
+                                    }
+                                  }
+                                ],
+                                "scopeNodeId": "n2"
+                              }
+                            }
+                          }
+                        ],
+                        "scopeNodeId": "n2"
+                      },
+                      "kind": "array",
+                      "scopeNodeId": "n2"
+                    }
+                  },
+                  {
+                    "name": "viewState",
+                    "value": {
+                      "kind": "object",
+                      "nodeId": "n5",
+                      "object": {
+                        "fields": [
+                          {
+                            "name": "viewed",
+                            "value": {
+                              "field": "viewed",
+                              "kind": "field",
+                              "nodeId": "n5"
+                            }
+                          }
+                        ],
+                        "scopeNodeId": "n0"
+                      }
+                    }
+                  }
+                ],
+                "scopeNodeId": "n0"
+              }
+            }
+          ],
+          "queryCost": {
+            "graph": {
+              "arguments": [
+                {
+                  "argumentId": "a0",
+                  "maxItems": 16
+                }
+              ],
+              "maxArgumentItems": 17,
+              "maxMaintainedWritesPerMutation": 0,
+              "maxPageResultBytes": 1048576,
+              "nodes": [
+                {
+                  "maxExaminedEntriesPerExecution": 2,
+                  "maxRootRowsPerPage": 1,
+                  "maxWindowIndexRanges": 37,
+                  "maxWindowPages": 1,
+                  "maxWindowResultBytes": 1048576,
+                  "maxWindowResultRows": 1,
+                  "maxWindowRootRows": 1,
+                  "maxWindowScannedRows": 54,
+                  "nodeId": "n0"
+                },
+                {
+                  "maxExaminedEntriesPerExecution": 1,
+                  "maxRelationshipLookupsPerExecution": 1,
+                  "nodeId": "n1"
+                },
+                {
+                  "maxChildrenPerParent": 16,
+                  "maxExaminedEntriesPerExecution": 17,
+                  "maxRelationshipLookupsPerExecution": 1,
+                  "nodeId": "n2"
+                },
+                {
+                  "maxExaminedEntriesPerExecution": 16,
+                  "maxRelationshipLookupsPerExecution": 16,
+                  "nodeId": "n3"
+                },
+                {
+                  "maxArgumentExpansion": 16,
+                  "maxChildrenPerParent": 1,
+                  "maxExaminedEntriesPerExecution": 16,
+                  "maxRelationshipLookupsPerExecution": 16,
+                  "nodeId": "n4"
+                },
+                {
+                  "maxExaminedEntriesPerExecution": 2,
+                  "maxRelationshipLookupsPerExecution": 2,
+                  "nodeId": "n5"
+                }
+              ],
+              "windowRollup": {
+                "maxWindowIndexRanges": 37,
+                "maxWindowPages": 1,
+                "maxWindowResultBytes": 1048576,
+                "maxWindowResultRows": 1,
+                "maxWindowRootRows": 1,
+                "maxWindowScannedRows": 54
+              }
+            },
+            "maxDistinctEvaluationGroups": 1024,
+            "maxEstimatedLiveFanoutMs": 5000,
+            "maxEvaluationTurnMs": 1000,
+            "maxIndexRanges": 37,
+            "maxObservers": 1024,
+            "maxResultBytes": 1048576,
+            "maxResultRows": 1,
+            "maxScannedRows": 54
+          },
+          "resultContractHash": "sha256:fa39413861e33fb430b00dc257aa2f285af74f459226265cfb5833c2dff3d0da",
+          "rootNodeId": "n0"
+        },
+        "planHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97"
+      },
+      "invocations": {
+        "memberScope": {
+          "planHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97",
+          "args": {
+            "sourceIssueID": "zbav1_internal_issue",
+            "selectedLabelIDs": []
+          },
+          "windows": [
+            {
+              "nodeId": "n0",
+              "intervals": [
+                {
+                  "parentKey": null,
+                  "window": {
+                    "order": [
+                      {
+                        "direction": "Asc",
+                        "field": "sourceIssueID"
+                      }
+                    ],
+                    "direction": "forward",
+                    "lower": {
+                      "kind": "unbounded"
+                    },
+                    "upper": {
+                      "kind": "unbounded"
+                    },
+                    "take": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "materialization": {
+            "format": "snapback.graph-materialization.v1",
+            "appId": "zerobugs-graph-g0-corpus",
+            "databaseId": "g0-corpus-fixtures-v1",
+            "deploymentId": "g0-stage-b",
+            "targetProfileId": "local",
+            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "function": {
+              "artifactKind": "functionReference",
+              "schemaVersion": "snapback.v1",
+              "appId": "zerobugs-graph-g0-corpus",
+              "id": "graph-57a50abcb4dcab97",
+              "name": "listIssueByID",
+              "kind": "LiveQuery",
+              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "resultContractHash": "sha256:fa39413861e33fb430b00dc257aa2f285af74f459226265cfb5833c2dff3d0da",
+              "expectedGeneration": {
+                "schemaVersion": "snapback.v1",
+                "appId": "zerobugs-graph-g0-corpus",
+                "schemaHash": "corpus-schema-v1",
+                "bundleHash": "corpus-bundle-v1",
+                "inputsHash": "corpus-inputs-v1"
+              }
+            },
+            "graphInstanceHash": "sha256:3ad629fcfab3cf4460fe6f677181402447dcec3ff56a2da903554151fcdbe27d"
+          },
+          "partition": {
+            "format": "snapback.graph-authority-partition.v1",
+            "graphPlanHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97",
+            "class2": [],
+            "class3": {
+              "format": "snapback.authority-partition.v1",
+              "principalDataScope": {
+                "authMode": "sessions",
+                "userId": "principal_ordinary",
+                "authorizationStreamIncarnation": "g0-corpus-stream-v1"
+              },
+              "authorityInstanceId": "g0-authority-principal_ordinary",
+              "authFingerprint": "sha256:04d663c667783f185541cf2e2d91b42f0a3b6a4a484b9bf7289dca30fa1d2a6f",
+              "tenantId": null,
+              "providerId": "g0-corpus-provider",
+              "delegation": null
+            }
+          },
+          "authorizationVersion": {
+            "incarnation": "g0-corpus-authorization-v1",
+            "epoch": 0
+          },
+          "evaluationCut": 1
+        },
+        "presentedInstance": {
+          "planHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97",
+          "args": {
+            "sourceIssueID": "__outside_scope__",
+            "selectedLabelIDs": []
+          },
+          "windows": [
+            {
+              "nodeId": "n0",
+              "intervals": [
+                {
+                  "parentKey": null,
+                  "window": {
+                    "order": [
+                      {
+                        "direction": "Asc",
+                        "field": "sourceIssueID"
+                      }
+                    ],
+                    "direction": "forward",
+                    "lower": {
+                      "kind": "unbounded"
+                    },
+                    "upper": {
+                      "kind": "unbounded"
+                    },
+                    "take": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "materialization": {
+            "format": "snapback.graph-materialization.v1",
+            "appId": "zerobugs-graph-g0-corpus",
+            "databaseId": "g0-corpus-fixtures-v1",
+            "deploymentId": "g0-stage-b",
+            "targetProfileId": "local",
+            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "function": {
+              "artifactKind": "functionReference",
+              "schemaVersion": "snapback.v1",
+              "appId": "zerobugs-graph-g0-corpus",
+              "id": "graph-57a50abcb4dcab97",
+              "name": "listIssueByID",
+              "kind": "LiveQuery",
+              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "resultContractHash": "sha256:fa39413861e33fb430b00dc257aa2f285af74f459226265cfb5833c2dff3d0da",
+              "expectedGeneration": {
+                "schemaVersion": "snapback.v1",
+                "appId": "zerobugs-graph-g0-corpus",
+                "schemaHash": "corpus-schema-v1",
+                "bundleHash": "corpus-bundle-v1",
+                "inputsHash": "corpus-inputs-v1"
+              }
+            },
+            "graphInstanceHash": "sha256:a7645e4cf64cc6ae85d6bf3d9659aa5bc3599a144e529dec9e36979b9d89db91"
+          },
+          "partition": {
+            "format": "snapback.graph-authority-partition.v1",
+            "graphPlanHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97",
+            "class2": [],
+            "class3": {
+              "format": "snapback.authority-partition.v1",
+              "principalDataScope": {
+                "authMode": "sessions",
+                "userId": "principal_ordinary",
+                "authorizationStreamIncarnation": "g0-corpus-stream-v1"
+              },
+              "authorityInstanceId": "g0-authority-principal_ordinary",
+              "authFingerprint": "sha256:04d663c667783f185541cf2e2d91b42f0a3b6a4a484b9bf7289dca30fa1d2a6f",
+              "tenantId": null,
+              "providerId": "g0-corpus-provider",
+              "delegation": null
+            }
+          },
+          "authorizationVersion": {
+            "incarnation": "g0-corpus-authorization-v1",
+            "epoch": 0
+          },
+          "evaluationCut": 1
+        }
+      },
+      "principal": "principal_ordinary",
+      "expect": {
+        "classification": "query-shaped",
+        "reason": "scope-unbound",
+        "resultBytes": null
+      }
+    },
+    {
+      "caseKind": "authorityTransition",
+      "id": "zerobugs-authority-transition-g2",
+      "plan": {
+        "normalizedPlan": {
+          "arguments": [
+            {
+              "argumentId": "a0",
+              "contract": {
+                "format": "snapback.argument-binding-contract.v1",
+                "required": true,
+                "value": {
+                  "element": {
+                    "kind": "string",
+                    "maxBytes": 128
+                  },
+                  "kind": "array",
+                  "maxItems": 16
+                }
+              },
+              "contractHash": "sha256:73767cf1d41219a17ac4deee4a8820e5a0666e90cb4aeb50a34b2043008988c5",
+              "name": "selectedLabelIDs"
+            },
+            {
+              "argumentId": "a1",
+              "contract": {
+                "format": "snapback.argument-binding-contract.v1",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 128
+                }
+              },
+              "contractHash": "sha256:fde4e26c8f4389ea5470b6983bd1529e4484e085cf45397e5e6790fac5ffc094",
+              "name": "sourceIssueID"
+            }
+          ],
+          "authorityPartitionRule": {
+            "class2Inputs": [],
+            "class3": "partition-of-one",
+            "format": "snapback.graph-authority-partition-rule.v1"
+          },
+          "broadcast": {
+            "classification": "query-shaped",
+            "format": "snapback.graph-broadcast-admission.v1",
+            "reason": "base-not-class-1"
+          },
+          "capabilityId": "graph_query_v1",
+          "format": "snapback.graph-query-plan.v1",
+          "nodes": [
+            {
+              "accessIndex": "by_source_issue_id",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "$root",
+              "filters": [
+                {
+                  "field": "sourceIssueID",
+                  "op": "Eq",
+                  "value": {
+                    "Arg": "a1"
+                  }
+                }
+              ],
+              "kind": "root-window",
+              "nodeId": "n0",
+              "order": [
+                {
+                  "direction": "Asc",
+                  "field": "sourceIssueID"
+                }
+              ],
+              "page": {
+                "kind": "demand"
+              },
+              "table": "issueListRead",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "accessIndex": "by_id",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "issue",
+              "joinOn": [
+                {
+                  "joinedField": "_id",
+                  "rootField": "issueID"
+                }
+              ],
+              "kind": "equality-to-one",
+              "nodeId": "n1",
+              "parentNodeId": "n0",
+              "presence": "required",
+              "table": "issue",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "accessIndex": "by_issue_label",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "labels",
+              "joinOn": [
+                {
+                  "joinedField": "issueID",
+                  "rootField": "issueID"
+                }
+              ],
+              "kind": "bounded-to-many",
+              "nodeId": "n2",
+              "order": [
+                {
+                  "direction": "Asc",
+                  "field": "labelID"
+                }
+              ],
+              "page": {
+                "direction": "forward",
+                "kind": "literal",
+                "lower": {
+                  "kind": "unbounded"
+                },
+                "take": 16,
+                "upper": {
+                  "kind": "unbounded"
+                }
+              },
+              "parentNodeId": "n0",
+              "table": "issueLabelRead",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "accessIndex": "by_id",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "label",
+              "joinOn": [
+                {
+                  "joinedField": "_id",
+                  "rootField": "labelID"
+                }
+              ],
+              "kind": "equality-to-one",
+              "nodeId": "n3",
+              "parentNodeId": "n2",
+              "presence": "required",
+              "table": "label",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "argumentId": "a0",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edge": {
+                "accessIndex": "by_issue_label",
+                "joinOn": [
+                  {
+                    "joinedField": "issueID",
+                    "rootField": "issueID"
+                  }
+                ],
+                "table": "issueLabelRead",
+                "visibility": {
+                  "kind": "public-read"
+                }
+              },
+              "edgeName": "selectedLabels",
+              "filters": [
+                {
+                  "field": "labelID",
+                  "op": "In",
+                  "value": {
+                    "Arg": "a0"
+                  }
+                }
+              ],
+              "kind": "exists-semi-join",
+              "mode": "all",
+              "nodeId": "n4",
+              "parentNodeId": "n0"
+            },
+            {
+              "accessIndex": "by_issue_user",
+              "authority": {
+                "declaredClass": 3,
+                "proof": null
+              },
+              "binding": {
+                "principalField": "principal",
+                "table": "identityBinding",
+                "uniqueIndex": "by_principal",
+                "valueField": "userID",
+                "visibility": {
+                  "kind": "public-read"
+                }
+              },
+              "edgeName": "viewState",
+              "kind": "principal-bound",
+              "nodeId": "n5",
+              "parentJoin": [
+                {
+                  "joinedField": "issueID",
+                  "rootField": "issueID"
+                }
+              ],
+              "parentNodeId": "n0",
+              "principalField": "userID",
+              "principalSource": "auth.userId",
+              "table": "viewState",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "authority": {
+                "declaredClass": 3,
+                "proof": null
+              },
+              "edgeName": "$result",
+              "kind": "closed-projection",
+              "nodeId": "n6",
+              "object": {
+                "fields": [
+                  {
+                    "name": "issue",
+                    "value": {
+                      "kind": "object",
+                      "nodeId": "n1",
+                      "object": {
+                        "fields": [
+                          {
+                            "name": "id",
+                            "value": {
+                              "field": "id",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "shortID",
+                            "value": {
+                              "field": "shortID",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "title",
+                            "value": {
+                              "field": "title",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "open",
+                            "value": {
+                              "field": "open",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "modified",
+                            "value": {
+                              "field": "modified",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "created",
+                            "value": {
+                              "field": "created",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "description",
+                            "value": {
+                              "field": "description",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          }
+                        ],
+                        "scopeNodeId": "n0"
+                      }
+                    }
+                  },
+                  {
+                    "name": "labels",
+                    "value": {
+                      "item": {
+                        "fields": [
+                          {
+                            "name": "label",
+                            "value": {
+                              "kind": "object",
+                              "nodeId": "n3",
+                              "object": {
+                                "fields": [
+                                  {
+                                    "name": "id",
+                                    "value": {
+                                      "field": "id",
+                                      "kind": "field",
+                                      "nodeId": "n3"
+                                    }
+                                  },
+                                  {
+                                    "name": "name",
+                                    "value": {
+                                      "field": "name",
+                                      "kind": "field",
+                                      "nodeId": "n3"
+                                    }
+                                  }
+                                ],
+                                "scopeNodeId": "n2"
+                              }
+                            }
+                          }
+                        ],
+                        "scopeNodeId": "n2"
+                      },
+                      "kind": "array",
+                      "scopeNodeId": "n2"
+                    }
+                  },
+                  {
+                    "name": "viewState",
+                    "value": {
+                      "kind": "object",
+                      "nodeId": "n5",
+                      "object": {
+                        "fields": [
+                          {
+                            "name": "viewed",
+                            "value": {
+                              "field": "viewed",
+                              "kind": "field",
+                              "nodeId": "n5"
+                            }
+                          }
+                        ],
+                        "scopeNodeId": "n0"
+                      }
+                    }
+                  }
+                ],
+                "scopeNodeId": "n0"
+              }
+            }
+          ],
+          "queryCost": {
+            "graph": {
+              "arguments": [
+                {
+                  "argumentId": "a0",
+                  "maxItems": 16
+                }
+              ],
+              "maxArgumentItems": 17,
+              "maxMaintainedWritesPerMutation": 0,
+              "maxPageResultBytes": 1048576,
+              "nodes": [
+                {
+                  "maxExaminedEntriesPerExecution": 2,
+                  "maxRootRowsPerPage": 1,
+                  "maxWindowIndexRanges": 37,
+                  "maxWindowPages": 1,
+                  "maxWindowResultBytes": 1048576,
+                  "maxWindowResultRows": 1,
+                  "maxWindowRootRows": 1,
+                  "maxWindowScannedRows": 54,
+                  "nodeId": "n0"
+                },
+                {
+                  "maxExaminedEntriesPerExecution": 1,
+                  "maxRelationshipLookupsPerExecution": 1,
+                  "nodeId": "n1"
+                },
+                {
+                  "maxChildrenPerParent": 16,
+                  "maxExaminedEntriesPerExecution": 17,
+                  "maxRelationshipLookupsPerExecution": 1,
+                  "nodeId": "n2"
+                },
+                {
+                  "maxExaminedEntriesPerExecution": 16,
+                  "maxRelationshipLookupsPerExecution": 16,
+                  "nodeId": "n3"
+                },
+                {
+                  "maxArgumentExpansion": 16,
+                  "maxChildrenPerParent": 1,
+                  "maxExaminedEntriesPerExecution": 16,
+                  "maxRelationshipLookupsPerExecution": 16,
+                  "nodeId": "n4"
+                },
+                {
+                  "maxExaminedEntriesPerExecution": 2,
+                  "maxRelationshipLookupsPerExecution": 2,
+                  "nodeId": "n5"
+                }
+              ],
+              "windowRollup": {
+                "maxWindowIndexRanges": 37,
+                "maxWindowPages": 1,
+                "maxWindowResultBytes": 1048576,
+                "maxWindowResultRows": 1,
+                "maxWindowRootRows": 1,
+                "maxWindowScannedRows": 54
+              }
+            },
+            "maxDistinctEvaluationGroups": 1024,
+            "maxEstimatedLiveFanoutMs": 5000,
+            "maxEvaluationTurnMs": 1000,
+            "maxIndexRanges": 37,
+            "maxObservers": 1024,
+            "maxResultBytes": 1048576,
+            "maxResultRows": 1,
+            "maxScannedRows": 54
+          },
+          "resultContractHash": "sha256:fa39413861e33fb430b00dc257aa2f285af74f459226265cfb5833c2dff3d0da",
+          "rootNodeId": "n0"
+        },
+        "planHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97"
+      },
+      "invocations": {
+        "before": {
+          "planHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97",
+          "args": {
+            "sourceIssueID": "zbav1_internal_issue",
+            "selectedLabelIDs": []
+          },
+          "windows": [
+            {
+              "nodeId": "n0",
+              "intervals": [
+                {
+                  "parentKey": null,
+                  "window": {
+                    "order": [
+                      {
+                        "direction": "Asc",
+                        "field": "sourceIssueID"
+                      }
+                    ],
+                    "direction": "forward",
+                    "lower": {
+                      "kind": "unbounded"
+                    },
+                    "upper": {
+                      "kind": "unbounded"
+                    },
+                    "take": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "materialization": {
+            "format": "snapback.graph-materialization.v1",
+            "appId": "zerobugs-graph-g0-corpus",
+            "databaseId": "g0-corpus-fixtures-v1",
+            "deploymentId": "g0-stage-b",
+            "targetProfileId": "local",
+            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "function": {
+              "artifactKind": "functionReference",
+              "schemaVersion": "snapback.v1",
+              "appId": "zerobugs-graph-g0-corpus",
+              "id": "graph-57a50abcb4dcab97",
+              "name": "listIssueByID",
+              "kind": "LiveQuery",
+              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "resultContractHash": "sha256:fa39413861e33fb430b00dc257aa2f285af74f459226265cfb5833c2dff3d0da",
+              "expectedGeneration": {
+                "schemaVersion": "snapback.v1",
+                "appId": "zerobugs-graph-g0-corpus",
+                "schemaHash": "corpus-schema-v1",
+                "bundleHash": "corpus-bundle-v1",
+                "inputsHash": "corpus-inputs-v1"
+              }
+            },
+            "graphInstanceHash": "sha256:3ad629fcfab3cf4460fe6f677181402447dcec3ff56a2da903554151fcdbe27d"
+          },
+          "partition": {
+            "format": "snapback.graph-authority-partition.v1",
+            "graphPlanHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97",
+            "class2": [],
+            "class3": {
+              "format": "snapback.authority-partition.v1",
+              "principalDataScope": {
+                "authMode": "sessions",
+                "userId": "principal_ordinary",
+                "authorizationStreamIncarnation": "g0-corpus-stream-v1"
+              },
+              "authorityInstanceId": "g0-authority-principal_ordinary",
+              "authFingerprint": "sha256:04d663c667783f185541cf2e2d91b42f0a3b6a4a484b9bf7289dca30fa1d2a6f",
+              "tenantId": null,
+              "providerId": "g0-corpus-provider",
+              "delegation": null
+            }
+          },
+          "authorizationVersion": {
+            "incarnation": "g0-corpus-authorization-v1",
+            "epoch": 0
+          },
+          "evaluationCut": 1
+        },
+        "after": {
+          "planHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97",
+          "args": {
+            "sourceIssueID": "zbav1_internal_issue",
+            "selectedLabelIDs": []
+          },
+          "windows": [
+            {
+              "nodeId": "n0",
+              "intervals": [
+                {
+                  "parentKey": null,
+                  "window": {
+                    "order": [
+                      {
+                        "direction": "Asc",
+                        "field": "sourceIssueID"
+                      }
+                    ],
+                    "direction": "forward",
+                    "lower": {
+                      "kind": "unbounded"
+                    },
+                    "upper": {
+                      "kind": "unbounded"
+                    },
+                    "take": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "materialization": {
+            "format": "snapback.graph-materialization.v1",
+            "appId": "zerobugs-graph-g0-corpus",
+            "databaseId": "g0-corpus-fixtures-v1",
+            "deploymentId": "g0-stage-b",
+            "targetProfileId": "local",
+            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "function": {
+              "artifactKind": "functionReference",
+              "schemaVersion": "snapback.v1",
+              "appId": "zerobugs-graph-g0-corpus",
+              "id": "graph-57a50abcb4dcab97",
+              "name": "listIssueByID",
+              "kind": "LiveQuery",
+              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "resultContractHash": "sha256:fa39413861e33fb430b00dc257aa2f285af74f459226265cfb5833c2dff3d0da",
+              "expectedGeneration": {
+                "schemaVersion": "snapback.v1",
+                "appId": "zerobugs-graph-g0-corpus",
+                "schemaHash": "corpus-schema-v1",
+                "bundleHash": "corpus-bundle-v1",
+                "inputsHash": "corpus-inputs-v1"
+              }
+            },
+            "graphInstanceHash": "sha256:3ad629fcfab3cf4460fe6f677181402447dcec3ff56a2da903554151fcdbe27d"
+          },
+          "partition": {
+            "format": "snapback.graph-authority-partition.v1",
+            "graphPlanHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97",
+            "class2": [],
+            "class3": {
+              "format": "snapback.authority-partition.v1",
+              "principalDataScope": {
+                "authMode": "sessions",
+                "userId": "principal_ordinary",
+                "authorizationStreamIncarnation": "g0-corpus-stream-v1"
+              },
+              "authorityInstanceId": "g0-authority-principal_ordinary",
+              "authFingerprint": "sha256:04d663c667783f185541cf2e2d91b42f0a3b6a4a484b9bf7289dca30fa1d2a6f",
+              "tenantId": null,
+              "providerId": "g0-corpus-provider",
+              "delegation": null
+            }
+          },
+          "authorizationVersion": {
+            "incarnation": "g0-corpus-authorization-v1",
+            "epoch": 1
+          },
+          "evaluationCut": 1
+        }
+      },
+      "principal": "principal_ordinary",
+      "commit": {
+        "dataChanges": [],
+        "authorityEvents": [
+          {
+            "kind": "authorization-incarnation-change",
+            "cause": "app-reset"
+          }
+        ],
+        "afterAuthorizationVersion": {
+          "incarnation": "g0-corpus-authorization-v1",
+          "epoch": 1
+        }
+      },
+      "observed": [
+        {
+          "ordinal": 0,
+          "kind": "fence",
+          "authorizationVersion": {
+            "incarnation": "g0-corpus-authorization-v1",
+            "epoch": 1
+          }
+        },
+        {
+          "ordinal": 1,
+          "kind": "delivery",
+          "authorizationVersion": {
+            "incarnation": "g0-corpus-authorization-v1",
+            "epoch": 1
+          }
+        }
+      ]
+    },
+    {
+      "caseKind": "mixedCommit",
+      "id": "zerobugs-mixed-commit-g2",
+      "plan": {
+        "normalizedPlan": {
+          "arguments": [
+            {
+              "argumentId": "a0",
+              "contract": {
+                "format": "snapback.argument-binding-contract.v1",
+                "required": true,
+                "value": {
+                  "element": {
+                    "kind": "string",
+                    "maxBytes": 128
+                  },
+                  "kind": "array",
+                  "maxItems": 16
+                }
+              },
+              "contractHash": "sha256:73767cf1d41219a17ac4deee4a8820e5a0666e90cb4aeb50a34b2043008988c5",
+              "name": "selectedLabelIDs"
+            },
+            {
+              "argumentId": "a1",
+              "contract": {
+                "format": "snapback.argument-binding-contract.v1",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 128
+                }
+              },
+              "contractHash": "sha256:fde4e26c8f4389ea5470b6983bd1529e4484e085cf45397e5e6790fac5ffc094",
+              "name": "sourceIssueID"
+            }
+          ],
+          "authorityPartitionRule": {
+            "class2Inputs": [],
+            "class3": "partition-of-one",
+            "format": "snapback.graph-authority-partition-rule.v1"
+          },
+          "broadcast": {
+            "classification": "query-shaped",
+            "format": "snapback.graph-broadcast-admission.v1",
+            "reason": "base-not-class-1"
+          },
+          "capabilityId": "graph_query_v1",
+          "format": "snapback.graph-query-plan.v1",
+          "nodes": [
+            {
+              "accessIndex": "by_source_issue_id",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "$root",
+              "filters": [
+                {
+                  "field": "sourceIssueID",
+                  "op": "Eq",
+                  "value": {
+                    "Arg": "a1"
+                  }
+                }
+              ],
+              "kind": "root-window",
+              "nodeId": "n0",
+              "order": [
+                {
+                  "direction": "Asc",
+                  "field": "sourceIssueID"
+                }
+              ],
+              "page": {
+                "kind": "demand"
+              },
+              "table": "issueListRead",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "accessIndex": "by_id",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "issue",
+              "joinOn": [
+                {
+                  "joinedField": "_id",
+                  "rootField": "issueID"
+                }
+              ],
+              "kind": "equality-to-one",
+              "nodeId": "n1",
+              "parentNodeId": "n0",
+              "presence": "required",
+              "table": "issue",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "accessIndex": "by_issue_label",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "labels",
+              "joinOn": [
+                {
+                  "joinedField": "issueID",
+                  "rootField": "issueID"
+                }
+              ],
+              "kind": "bounded-to-many",
+              "nodeId": "n2",
+              "order": [
+                {
+                  "direction": "Asc",
+                  "field": "labelID"
+                }
+              ],
+              "page": {
+                "direction": "forward",
+                "kind": "literal",
+                "lower": {
+                  "kind": "unbounded"
+                },
+                "take": 16,
+                "upper": {
+                  "kind": "unbounded"
+                }
+              },
+              "parentNodeId": "n0",
+              "table": "issueLabelRead",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "accessIndex": "by_id",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edgeName": "label",
+              "joinOn": [
+                {
+                  "joinedField": "_id",
+                  "rootField": "labelID"
+                }
+              ],
+              "kind": "equality-to-one",
+              "nodeId": "n3",
+              "parentNodeId": "n2",
+              "presence": "required",
+              "table": "label",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "argumentId": "a0",
+              "authority": {
+                "declaredClass": 1,
+                "proof": null
+              },
+              "edge": {
+                "accessIndex": "by_issue_label",
+                "joinOn": [
+                  {
+                    "joinedField": "issueID",
+                    "rootField": "issueID"
+                  }
+                ],
+                "table": "issueLabelRead",
+                "visibility": {
+                  "kind": "public-read"
+                }
+              },
+              "edgeName": "selectedLabels",
+              "filters": [
+                {
+                  "field": "labelID",
+                  "op": "In",
+                  "value": {
+                    "Arg": "a0"
+                  }
+                }
+              ],
+              "kind": "exists-semi-join",
+              "mode": "all",
+              "nodeId": "n4",
+              "parentNodeId": "n0"
+            },
+            {
+              "accessIndex": "by_issue_user",
+              "authority": {
+                "declaredClass": 3,
+                "proof": null
+              },
+              "binding": {
+                "principalField": "principal",
+                "table": "identityBinding",
+                "uniqueIndex": "by_principal",
+                "valueField": "userID",
+                "visibility": {
+                  "kind": "public-read"
+                }
+              },
+              "edgeName": "viewState",
+              "kind": "principal-bound",
+              "nodeId": "n5",
+              "parentJoin": [
+                {
+                  "joinedField": "issueID",
+                  "rootField": "issueID"
+                }
+              ],
+              "parentNodeId": "n0",
+              "principalField": "userID",
+              "principalSource": "auth.userId",
+              "table": "viewState",
+              "visibility": {
+                "kind": "public-read"
+              }
+            },
+            {
+              "authority": {
+                "declaredClass": 3,
+                "proof": null
+              },
+              "edgeName": "$result",
+              "kind": "closed-projection",
+              "nodeId": "n6",
+              "object": {
+                "fields": [
+                  {
+                    "name": "issue",
+                    "value": {
+                      "kind": "object",
+                      "nodeId": "n1",
+                      "object": {
+                        "fields": [
+                          {
+                            "name": "id",
+                            "value": {
+                              "field": "id",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "shortID",
+                            "value": {
+                              "field": "shortID",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "title",
+                            "value": {
+                              "field": "title",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "open",
+                            "value": {
+                              "field": "open",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "modified",
+                            "value": {
+                              "field": "modified",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "created",
+                            "value": {
+                              "field": "created",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          },
+                          {
+                            "name": "description",
+                            "value": {
+                              "field": "description",
+                              "kind": "field",
+                              "nodeId": "n1"
+                            }
+                          }
+                        ],
+                        "scopeNodeId": "n0"
+                      }
+                    }
+                  },
+                  {
+                    "name": "labels",
+                    "value": {
+                      "item": {
+                        "fields": [
+                          {
+                            "name": "label",
+                            "value": {
+                              "kind": "object",
+                              "nodeId": "n3",
+                              "object": {
+                                "fields": [
+                                  {
+                                    "name": "id",
+                                    "value": {
+                                      "field": "id",
+                                      "kind": "field",
+                                      "nodeId": "n3"
+                                    }
+                                  },
+                                  {
+                                    "name": "name",
+                                    "value": {
+                                      "field": "name",
+                                      "kind": "field",
+                                      "nodeId": "n3"
+                                    }
+                                  }
+                                ],
+                                "scopeNodeId": "n2"
+                              }
+                            }
+                          }
+                        ],
+                        "scopeNodeId": "n2"
+                      },
+                      "kind": "array",
+                      "scopeNodeId": "n2"
+                    }
+                  },
+                  {
+                    "name": "viewState",
+                    "value": {
+                      "kind": "object",
+                      "nodeId": "n5",
+                      "object": {
+                        "fields": [
+                          {
+                            "name": "viewed",
+                            "value": {
+                              "field": "viewed",
+                              "kind": "field",
+                              "nodeId": "n5"
+                            }
+                          }
+                        ],
+                        "scopeNodeId": "n0"
+                      }
+                    }
+                  }
+                ],
+                "scopeNodeId": "n0"
+              }
+            }
+          ],
+          "queryCost": {
+            "graph": {
+              "arguments": [
+                {
+                  "argumentId": "a0",
+                  "maxItems": 16
+                }
+              ],
+              "maxArgumentItems": 17,
+              "maxMaintainedWritesPerMutation": 0,
+              "maxPageResultBytes": 1048576,
+              "nodes": [
+                {
+                  "maxExaminedEntriesPerExecution": 2,
+                  "maxRootRowsPerPage": 1,
+                  "maxWindowIndexRanges": 37,
+                  "maxWindowPages": 1,
+                  "maxWindowResultBytes": 1048576,
+                  "maxWindowResultRows": 1,
+                  "maxWindowRootRows": 1,
+                  "maxWindowScannedRows": 54,
+                  "nodeId": "n0"
+                },
+                {
+                  "maxExaminedEntriesPerExecution": 1,
+                  "maxRelationshipLookupsPerExecution": 1,
+                  "nodeId": "n1"
+                },
+                {
+                  "maxChildrenPerParent": 16,
+                  "maxExaminedEntriesPerExecution": 17,
+                  "maxRelationshipLookupsPerExecution": 1,
+                  "nodeId": "n2"
+                },
+                {
+                  "maxExaminedEntriesPerExecution": 16,
+                  "maxRelationshipLookupsPerExecution": 16,
+                  "nodeId": "n3"
+                },
+                {
+                  "maxArgumentExpansion": 16,
+                  "maxChildrenPerParent": 1,
+                  "maxExaminedEntriesPerExecution": 16,
+                  "maxRelationshipLookupsPerExecution": 16,
+                  "nodeId": "n4"
+                },
+                {
+                  "maxExaminedEntriesPerExecution": 2,
+                  "maxRelationshipLookupsPerExecution": 2,
+                  "nodeId": "n5"
+                }
+              ],
+              "windowRollup": {
+                "maxWindowIndexRanges": 37,
+                "maxWindowPages": 1,
+                "maxWindowResultBytes": 1048576,
+                "maxWindowResultRows": 1,
+                "maxWindowRootRows": 1,
+                "maxWindowScannedRows": 54
+              }
+            },
+            "maxDistinctEvaluationGroups": 1024,
+            "maxEstimatedLiveFanoutMs": 5000,
+            "maxEvaluationTurnMs": 1000,
+            "maxIndexRanges": 37,
+            "maxObservers": 1024,
+            "maxResultBytes": 1048576,
+            "maxResultRows": 1,
+            "maxScannedRows": 54
+          },
+          "resultContractHash": "sha256:fa39413861e33fb430b00dc257aa2f285af74f459226265cfb5833c2dff3d0da",
+          "rootNodeId": "n0"
+        },
+        "planHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97"
+      },
+      "invocations": {
+        "before": {
+          "planHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97",
+          "args": {
+            "sourceIssueID": "zbav1_internal_issue",
+            "selectedLabelIDs": []
+          },
+          "windows": [
+            {
+              "nodeId": "n0",
+              "intervals": [
+                {
+                  "parentKey": null,
+                  "window": {
+                    "order": [
+                      {
+                        "direction": "Asc",
+                        "field": "sourceIssueID"
+                      }
+                    ],
+                    "direction": "forward",
+                    "lower": {
+                      "kind": "unbounded"
+                    },
+                    "upper": {
+                      "kind": "unbounded"
+                    },
+                    "take": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "materialization": {
+            "format": "snapback.graph-materialization.v1",
+            "appId": "zerobugs-graph-g0-corpus",
+            "databaseId": "g0-corpus-fixtures-v1",
+            "deploymentId": "g0-stage-b",
+            "targetProfileId": "local",
+            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "function": {
+              "artifactKind": "functionReference",
+              "schemaVersion": "snapback.v1",
+              "appId": "zerobugs-graph-g0-corpus",
+              "id": "graph-57a50abcb4dcab97",
+              "name": "listIssueByID",
+              "kind": "LiveQuery",
+              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "resultContractHash": "sha256:fa39413861e33fb430b00dc257aa2f285af74f459226265cfb5833c2dff3d0da",
+              "expectedGeneration": {
+                "schemaVersion": "snapback.v1",
+                "appId": "zerobugs-graph-g0-corpus",
+                "schemaHash": "corpus-schema-v1",
+                "bundleHash": "corpus-bundle-v1",
+                "inputsHash": "corpus-inputs-v1"
+              }
+            },
+            "graphInstanceHash": "sha256:3ad629fcfab3cf4460fe6f677181402447dcec3ff56a2da903554151fcdbe27d"
+          },
+          "partition": {
+            "format": "snapback.graph-authority-partition.v1",
+            "graphPlanHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97",
+            "class2": [],
+            "class3": {
+              "format": "snapback.authority-partition.v1",
+              "principalDataScope": {
+                "authMode": "sessions",
+                "userId": "principal_ordinary",
+                "authorizationStreamIncarnation": "g0-corpus-stream-v1"
+              },
+              "authorityInstanceId": "g0-authority-principal_ordinary",
+              "authFingerprint": "sha256:04d663c667783f185541cf2e2d91b42f0a3b6a4a484b9bf7289dca30fa1d2a6f",
+              "tenantId": null,
+              "providerId": "g0-corpus-provider",
+              "delegation": null
+            }
+          },
+          "authorizationVersion": {
+            "incarnation": "g0-corpus-authorization-v1",
+            "epoch": 0
+          },
+          "evaluationCut": 1
+        },
+        "after": {
+          "planHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97",
+          "args": {
+            "sourceIssueID": "zbav1_internal_issue",
+            "selectedLabelIDs": []
+          },
+          "windows": [
+            {
+              "nodeId": "n0",
+              "intervals": [
+                {
+                  "parentKey": null,
+                  "window": {
+                    "order": [
+                      {
+                        "direction": "Asc",
+                        "field": "sourceIssueID"
+                      }
+                    ],
+                    "direction": "forward",
+                    "lower": {
+                      "kind": "unbounded"
+                    },
+                    "upper": {
+                      "kind": "unbounded"
+                    },
+                    "take": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "materialization": {
+            "format": "snapback.graph-materialization.v1",
+            "appId": "zerobugs-graph-g0-corpus",
+            "databaseId": "g0-corpus-fixtures-v1",
+            "deploymentId": "g0-stage-b",
+            "targetProfileId": "local",
+            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "function": {
+              "artifactKind": "functionReference",
+              "schemaVersion": "snapback.v1",
+              "appId": "zerobugs-graph-g0-corpus",
+              "id": "graph-57a50abcb4dcab97",
+              "name": "listIssueByID",
+              "kind": "LiveQuery",
+              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "resultContractHash": "sha256:fa39413861e33fb430b00dc257aa2f285af74f459226265cfb5833c2dff3d0da",
+              "expectedGeneration": {
+                "schemaVersion": "snapback.v1",
+                "appId": "zerobugs-graph-g0-corpus",
+                "schemaHash": "corpus-schema-v1",
+                "bundleHash": "corpus-bundle-v1",
+                "inputsHash": "corpus-inputs-v1"
+              }
+            },
+            "graphInstanceHash": "sha256:3ad629fcfab3cf4460fe6f677181402447dcec3ff56a2da903554151fcdbe27d"
+          },
+          "partition": {
+            "format": "snapback.graph-authority-partition.v1",
+            "graphPlanHash": "sha256:31e8a7278b244a645e7ffc689765e637b10e0500e66c585957a50abcb4dcab97",
+            "class2": [],
+            "class3": {
+              "format": "snapback.authority-partition.v1",
+              "principalDataScope": {
+                "authMode": "sessions",
+                "userId": "principal_ordinary",
+                "authorizationStreamIncarnation": "g0-corpus-stream-v1"
+              },
+              "authorityInstanceId": "g0-authority-principal_ordinary",
+              "authFingerprint": "sha256:04d663c667783f185541cf2e2d91b42f0a3b6a4a484b9bf7289dca30fa1d2a6f",
+              "tenantId": null,
+              "providerId": "g0-corpus-provider",
+              "delegation": null
+            }
+          },
+          "authorizationVersion": {
+            "incarnation": "g0-corpus-authorization-v1",
+            "epoch": 1
+          },
+          "evaluationCut": 1
+        }
+      },
+      "principal": "principal_ordinary",
+      "commit": {
+        "dataChanges": [
+          {
+            "table": "issue",
+            "rowId": "__corpus_issue__"
+          }
+        ],
+        "authorityEvents": [
+          {
+            "kind": "authorization-incarnation-change",
+            "cause": "app-reset"
+          }
+        ],
+        "afterAuthorizationVersion": {
+          "incarnation": "g0-corpus-authorization-v1",
+          "epoch": 1
+        }
+      },
+      "observed": [
+        {
+          "ordinal": 0,
+          "kind": "fence",
+          "authorizationVersion": {
+            "incarnation": "g0-corpus-authorization-v1",
+            "epoch": 1
+          }
+        },
+        {
+          "ordinal": 1,
+          "kind": "delivery",
+          "authorizationVersion": {
+            "incarnation": "g0-corpus-authorization-v1",
+            "epoch": 1
+          }
+        }
+      ]
+    }
+  ],
+  "contentDigest": "sha256:7d2facf6953ca04fee11d5ecb28ae5c86c1ba580e22baff951ef132354685dcf"
+}
