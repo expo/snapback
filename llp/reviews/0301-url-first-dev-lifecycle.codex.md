@@ -98,3 +98,28 @@ RECORD-AS-OBLIGATION — Define “top-level operation” for stream-less client
 0301: NOT READY
 0302: NOT READY
 SET: NOT READY
+## Cluster round 4 (post-freeze punch-list) — 2026-08-24
+
+- Targets: 0301(e)+0302(e) at bc922c027; own-family punch list; hashes in run journal
+- Received: complete response; verbatim body follows
+
+#1: DISPOSITION ERROR — `http://localhost.` remains misclassified as a syntax refusal despite §2b assigning its rejection to fixed-set host policy. This also incorrectly refuses an explicitly allowlisted `localhost.` origin.
+
+#2: VERIFIED
+
+#3: VERIFIED
+
+#4: VERIFIED
+
+#5: VERIFIED
+
+Diff soundness: UNSOUND — 0301 §8.2 was not reconciled with the new two-stage vectors. It says `loopback-any` admits all shared-vector accepts, which now includes `https://lane.trycloudflare.com`, while host policy requires refusing that origin.
+
+Obligations:
+
+- The stream-less top-level-operation definition and executable preflight battery are correctly recorded in 0302 §8a.
+- No additional obligations.
+
+0301: NOT READY
+0302: READY
+SET: NOT READY

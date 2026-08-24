@@ -261,3 +261,36 @@ The prompt was truncated; I’ll load the offloaded full request first so the pu
 0301: NOT READY
 0302: NOT READY
 SET: NOT READY
+
+## Cluster round 4 (post-freeze punch-list) — 2026-08-24
+
+- Targets: 0301(e)+0302(e) at bc922c027; own-family punch list; hashes in run journal
+- Received: complete response; verbatim body follows
+
+The prompt was truncated in transit. I’ll load the offloaded full request so the punch-list review can use the complete 0301/0302 text, then I’ll review only that text with no further tools.#1: VERIFIED  
+#2: VERIFIED  
+#3: VERIFIED  
+#4: VERIFIED  
+#5: VERIFIED  
+#6: VERIFIED  
+#7: VERIFIED  
+
+**Diff-soundness.** The d→e edits are corrections or an allowed restoration, and they match the claimed dispositions.
+
+- 0301 §2b now has two vector sets: syntax (every surface, tunnel origin accepted) and host-policy (fixed-set only, tunnel/private/attacker/0.0.0.0 refused). Explicit allowlists use syntax only. That is the round-3 split.
+- 0301 §8 item 3 now requires the six §3 CLI×receipt cells.
+- 0302 §1 release variant no longer says it does not export; it does not construct, and the same-path named export is the import-stable sentinel.
+- 0302 §7 lists all three new client codes, aligned with 0301 §7a.
+- 0302 §8.3 uses “library stamp.”
+- 0302 §8a records the stream-less atom + preflight battery as an implementation obligation, not new Spec prose.
+- 0302 §3(c) restores un-verify on any non-2xx of a non-identity call. 3xx is a non-2xx class; identity 3xx remains a connect refusal / redirect refusal. Identity calls are excluded from (c), so a non-2xx identity response cannot loop the episode machine.
+
+Non-material leftover (not a live contradiction): 0301 §8.2 still says loopback-any “admits the shared-vector accepts.” After the split, the syntax-accept list includes `https://lane.trycloudflare.com`. §2b host-policy still additionally refuses that origin on loopback-any, and the same §8.2 sentence still tests a tunnel-only explicit list, so the algorithm does not admit tunnels under loopback-any.
+
+**Obligations** (non-blocking; already recorded)
+
+- 0302 §8a: define the stream-less “top-level operation” atom (nested and concurrent included) in the implementation’s client documentation, and ship an executable per-operation preflight battery for §3 stream-less mode.
+
+0301: READY  
+0302: READY  
+SET: READY

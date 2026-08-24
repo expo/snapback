@@ -8,6 +8,10 @@ Diagnostics
 overnight directive 2026-08-24: RFC → refine → Specs → refine →
 implementation)
 **Date:** 2026-08-24
+**Revised:** 2026-08-24 (f — punch-list round-4 corrections: `localhost.`
+reclassified from the syntax set to the host-policy set (a canonical
+trailing-dot origin is admissible in an explicit allowlist); §8.2 worded
+against the host-policy accepts)
 **Revised:** 2026-08-24 (e — post-freeze corrections from punch-list round
 3: vector table split into syntax vectors (all surfaces) vs host-policy
 vectors (fixed-set surfaces only); acceptance updated to the six §3 cells)
@@ -156,11 +160,13 @@ canonical form is the parser's `origin` serialization. **Shared vectors, in two 
 `http://127.1:4287` (→ `127.0.0.1`); `HTTP://LOCALHOST:80` (→
 `http://localhost`); `https://lane.trycloudflare.com`; refuse (syntax):
 `http://127.0.0.1:4287/path`, `http://user@127.0.0.1`, `http://127.0.0.1?x`,
-`ws://127.0.0.1`, `http://localhost.` (parse-preserved trailing dot), and
-any parse failure. *Host-policy vectors (fixed-set surfaces only —
+`ws://127.0.0.1`, and any parse failure. *Host-policy vectors (fixed-set surfaces only —
 `loopback-any` matcher and the LLP 0302 URL surface):* additionally refuse
-`http://attacker.dev` (even if DNS-loopback), `http://0.0.0.0`,
-`http://192.168.1.10:4287`, `https://lane.trycloudflare.com`; the LLP 0302
+`http://localhost.` (the parse-preserved trailing dot is not a fixed-set
+literal, though it is a canonical origin admissible in an explicit
+allowlist), `http://attacker.dev` (even if DNS-loopback),
+`http://0.0.0.0`, `http://192.168.1.10:4287`,
+`https://lane.trycloudflare.com`; the LLP 0302
 URL surface alone accepts `http://10.0.2.2:4287`. An explicit allowlist
 applies the syntax vectors only.
 
@@ -293,8 +299,10 @@ All new codes are s5_d10-classified with the landing.
 1. Identity fact: dev serves the v1 three-field shape with
    `Cache-Control: no-store` and no validators; Prod refuses typed; an
    Origin-less GET succeeds under both postures.
-2. Admission: loopback-any admits the shared-vector accepts on any port
-   and refuses every shared-vector refusal (rebinding hostname included);
+2. Admission: loopback-any admits the host-policy accepts on any port and
+   refuses every syntax refusal and every host-policy refusal (rebinding
+   hostname and trailing-dot included); an explicit allowlist admits its
+   syntax-canonical entries, tunnel origins included;
    tunnel-only explicit list refuses loopback unless restated; flag-only
    equals singleton list; supervised merge never drops injected origins;
    an SSH/devcontainer-forwarded literal-loopback URL works end-to-end
