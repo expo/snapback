@@ -224,3 +224,17 @@ exit LLP 0268 binds on. It moves no latency number itself; the first
 measured payoff is G3 on the first admitted hot shape. This ticket stays
 the evidence anchor; the hot gate's A/B rerun remains the acceptance
 instrument for every rung.
+
+
+## 2026-08-23 — G0 exit recorded (LLP 0209 v0.6)
+
+Stage A `77ed8394d`, B1 `73232029d`, B2 `4627f9d95`, B3 `40e76924c` landed
+the same day under the sbs roster with dual-family review at every slice.
+G0 exited honestly: the IR, identities, refusal registers, codegen
+authoring with the allowance handshake, the Zerobugs corpus, and the
+fixture-derived (provisional) bounds are in; the broadcast-side LLP 0268
+inputs and the large-fixture measurements are recorded as not yet
+satisfied. **G2 (per-node precision on admitted graphs) and G3 (delta
+lanes) are now unblocked** — those are the rungs that remove the
+per-turn re-evaluation floor this ticket anchors. This ticket stays the
+evidence anchor; the zb5-hot A/B rerun remains the acceptance instrument.

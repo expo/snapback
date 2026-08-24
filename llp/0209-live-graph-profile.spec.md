@@ -1,14 +1,11 @@
 # LLP 0209: The bounded live graph profile — precision, shared evaluation, and incremental maintenance (the D2 owner-Spec)
 
 **Type:** Spec
-**Status:** Draft
+**Status:** Review
 **Systems:** Live queries, Relational queries, Schema, Auth, Performance, Client SDK
 **Author:** Claude Fable 5 (commissioned by the LLP 0191 author rulings, Charlie Cheever, 2026-08-08)
 **Date:** 2026-08-09
-**Revised:** 2026-08-23 (v0.5, Stage A — the G0 graph IR, identity,
-authorization proofs, completeness composition, dependency vocabulary,
-bounds derivation, broadcast inputs, and exit checklist are concrete; code
-and fixture measurements remain Stage B; Status remains Draft)
+**Revised:** 2026-08-23 (v0.6 — G0 exit recorded: Stage A/B1/B2/B3 landed; exit checklist rows 1/2/5/9 COMPLETE, 3/4/6/7 PARTIAL, 8 NOT SATISFIED; LLP 0268 §7 labels satisfied only for G0-BCAST-IDENTITY — the exit must be extended and re-recorded before 0268 B1; author ratification table provisional where large-fixture maxima are unverified; Status Draft → Review for §2–§5)
 **Related:** LLP 0183 (D2 charter this Spec owns), LLP 0191 (evidence and the
 five-rung ladder), LLP 0200 (the D4-side sibling: scheduling/settlement;
 measured Phase-1 record in its §6a), LLP 0008 (DK-3 `live_delta` precedent,
@@ -3017,102 +3014,185 @@ filters are stable test names, not prose descriptions.
 
 ### Exit — v0.6 G0 exit note
 
-G0 exits only in a dated **v0.6 (“G0 exit”)** revision-history note. That
-note checks all nine rows above, links the Stage B commit/evidence, records
-the oracle/corpus digests, records any `direction-tie-break` dispositions as
-the known frozen-control deviation together with the B3 follow-up ticket
-against the control, replaces every **[Stage B fills]**, and records the
-author's ratification of every **[author-ratify]** decision. It
-moves the §2–§4 content from Draft to Review, while making no G2/G3/runtime or
-publication claim. In particular, the author ratifies §2.6's ruled G0
-declaration/observation ruling: every logical placeholder is replaced by its
-fixture/oracle derivation, every physical field has a complete analytical
-plan-shape derivation and remains explicitly **[G2 measures]**, and LLP 0267
-observed-value consumption begins only at G2. The exit run is:
+#### G0 exit record (dated note, 2026-08-23)
+
+Landed evidence: Stage A `77ed8394d` (this Spec v0.5), Stage B1 series ending `73232029d` (graph IR, identities, registers, `HandlerPlan::GraphQuery`, fail-closed matcher arm), Stage B2 series ending `4627f9d95` (`defineGraphQuery`, JS lowering with RFC 8785 JCS parity, source-stage refusals with the allowance handshake, shared JS/Rust parity corpus), Stage B3 series ending `40e76924c` (Zerobugs declarations, `tests/conformance/graph/corpus.v1.json`, `bound-derivation.v1.json`, `paired-world-fixtures.v1.json`, `broadcast-cases.g2-pending.v1.json`, the oracle freezer). Review records: `llp/reviews/0209-g0-stage-{a,b1,b2,b3}.*`.
+
+The exit is recorded **as measured, not as hoped**: the checklist rows the artifacts support are marked COMPLETE; rows that depend on an evaluator (G2), on the large fixture (absent locally — only its receipt), or on host-proven broadcast certificates (which B1 refuses by design until owner proofs exist) are PARTIAL or NOT SATISFIED. Per LLP 0268 §0, this exit does **not** unblock 0268 B1: it must be extended and re-recorded with the eight missing §7 inputs. G2 and G3 are unblocked by rows 1, 2, 5, 9 and the frozen corpus.
+
+The verbatim exit draft that the B3 lane produced and both review families checked follows; it is the authoritative row-by-row status and the author-ratification table (provisional entries carry their zb5 validation command).
+
+### LLP 0209 v0.6 G0 exit note — orchestrator draft
+
+**Draft date:** 2026-08-23  
+**Contract:** LLP 0209 v0.5  
+**Stage A evidence:** `50c1b610d` through converged record `77ed8394d`  
+**Stage B1 evidence:** series ending `73232029d`  
+**Stage B2 evidence:** series ending `4627f9d95`  
+**Stage B3 evidence:** series ending `40e76924c`
+
+This draft does **not** claim G0 exit. It records the evidence available now
+and the missing carriers without making a G2, G3, runtime, publication,
+latency, or graph-executor claim. It does not change LLP 0209's status.
+
+#### Stage B checklist
+
+| # | Status | Evidence and remaining gap | Verification |
+| ---: | --- | --- | --- |
+| 1 | COMPLETE | B1 closed plan/node vocabulary and fail-closed matcher; B2 codegen constructor | `cargo test -p snapback-types`; codegen graph suite |
+| 2 | COMPLETE | Rust/JS vectors plus three host-admitted Zerobugs carriers | `identity_vectors`; `zerobugs_declarations_admit_with_host_identities` |
+| 3 | PARTIAL | The crew-or-public `visibility` inputs derive class 2, principal-bound nodes derive class 3, five paired worlds exact-match across wholly hidden rows, and the executable `allowDeny` case freezes the legitimate crew/ordinary activation against the oracle. Class-2 scope identities are owner-resolved from frozen role, membership, and visibility facts and independently reconstructed by Rust. The hidden-root detail pair correctly has an empty child vector, but B1 still refuses that form; no graph evaluator or host-proven broadcast certificate exists at G0. | `paired_worlds`; `allow_deny_cases_are_oracle_frozen_and_structurally_executable`; `owner_resolved_class2_scope_identities_partition_equivalence`; `issues/20260823-graph-empty-child-demand-window-vector.md` |
+| 4 | PARTIAL | Every paired-world result and the allowed activation result carries a proof tuple whose materialization and partition hashes are reconstructed by Rust. The hidden-root detail pair remains explicitly blocked on B1 accepting the empty-child interval vector, so this row does not claim universal instance admission. | `completeness_labels`; `paired_worlds` |
+| 5 | COMPLETE | Closed `GraphCapturedReadV1` vocabulary and one top-level captured-read arm exist; execution consumption remains deferred by the staged contract | `dependency_shapes`; snapback-types graph-capture tests |
+| 6 | PARTIAL | Three declarations, eight executable oracle cases, five exact-match paired worlds, one executable oracle-frozen `allowDeny`, three executable refusals, closed translation coverage, a real detail resume through `commentsPage`, authoritative miss and closed cost-refusal cases, graph-order labels, and the one live comments tie disposition are frozen. The large fixture spot check and graph evaluator remain unavailable. | corpus freezer; `oracle_field_maps_and_refusals_are_closed`; `paired_worlds`; `allow_deny_cases_are_oracle_frozen_and_structurally_executable` |
+| 7 | PARTIAL | Normal-fixture typed exit observations are complete for all three graphs. Large/hot maxima and observations are unavailable, and every affected bound field is explicitly provisional with its validation command. | `bounds_are_fixture_derived`; `broadcast_inputs_complete` |
+| 8 | NOT SATISFIED | Only `G0-BCAST-IDENTITY` is satisfied. Every admitted base is class 2 and every projection rolls up to class 3, so all three plans record `base-not-class-1`; no class-1 broadcast base or executed counterfeit-broadcast refusal exists. `allowDeny` is executable in the main corpus; four graph-evaluator case kinds remain non-executable structural records, and eight LLP 0268 §7 labels lack named carriers. | `g2_pending_broadcast_cases_are_structurally_frozen`; `broadcast_inputs_complete` |
+| 9 | COMPLETE | Additive sibling arm/capability/constructor; relational corpus unchanged; no serving consumer | `no_runtime_consumer`; relational corpus suite |
+
+The executable G0 corpus contains five exact-match `pairedWorld` cases, one
+oracle-frozen `allowDeny` case, and three `refusal` cases. The eight oracle
+comparison cases execute through the fixture oracle/freezer. The sidecar
+contains only `audienceParity`, `scopeMismatch`, `authorityTransition`, and
+`mixedCommit`; those four graph-evaluator records are structurally closed,
+carry no `pending` arm, and are not executed.
+
+#### LLP 0268 §7 inputs
+
+| Label | Status | Evidence or specific missing carrier |
+| --- | --- | --- |
+| `G0-BCAST-CLASS` | NOT SATISFIED | `issueListV2` and `listIssueByID` derive n0–n4 as class 2 and n5–n6 as class 3; `issueDetail` derives n0–n5/n7 as class 2 and n6/n8/n9 as class 3. All three broadcast admissions therefore say `base-not-class-1`; no class-1 base or executed counterfeit-broadcast refusal is frozen. |
+| `G0-BCAST-SEPARATION` | NOT SATISFIED | Missing host-proven separation certificate and evaluator |
+| `G0-BCAST-SCOPE` | NOT SATISFIED | Owner-normalized scope identities and same/different equivalence assertions are frozen and Rust-reconstructed; executed P/Q mismatch evidence remains missing |
+| `G0-BCAST-SCOPE-BINDING` | NOT SATISFIED | Missing executed resource-to-scope equality proof |
+| `G0-BCAST-AUDIENCE` | NOT SATISFIED | Missing executed establishment/strict-evaluator parity |
+| `G0-BCAST-INVALIDATION` | NOT SATISFIED | Missing executed authority-transition and mixed-commit fence evidence |
+| `G0-BCAST-IDENTITY` | SATISFIED | Full plan, instance, materialization, partition, authorization-version, and evaluation-cut preimages with Rust reconstruction |
+| `G0-BCAST-CORPUS` | NOT SATISFIED | Four graph-evaluator case kinds are structurally pending and non-executable at G0; `allowDeny` is executable in `corpus.v1.json` |
+| `G0-BCAST-BOUNDS` | NOT SATISFIED | Missing large/hot typed observations and non-provisional maxima with pending author ratification (v0.6) |
+
+The machine-readable source is `corpus.v1.json.broadcastInputs`. Per LLP 0268
+§0, G0 exit must be extended and re-recorded before LLP 0268 B1; the eight
+unsatisfied labels cannot be carried forward as an implicit claim.
+
+#### Bounds and provisional ratification
+
+No aggregate or average substitutes for a maximum. The freezer derives normal
+maxima from rows, large totals from the receipt, label fanout from the
+generator's closed uniform `1..3` rule, comment fanout from the documented
+floored-exponential rule (which has no finite per-issue ceiling), and the hot
+working set from the manifest-defined `W = 1,000` interval.
+
+| Query / field | Declared value | Basis | Ratification |
+| --- | ---: | --- | --- |
+| `issueListV2.maxRootRowsPerPage` | 1,024 | hot filtered interval maximum 1,000 with portable-boundary headroom | PROVISIONAL — hot validation required |
+| `issueListV2.maxWindowPages` | 1 | `ceil(max(normal filtered project 516, hot W 1,000) / 1,024)`; never the million-row whole-table receipt | PROVISIONAL — large selected-project interval required |
+| list/point label `maxChildrenPerParent` | 16 | max(normal 5, generator closed maximum 3), with declared headroom | derived — provisional, pending author ratification (v0.6) |
+| selected-label `maxItems` / expansion | 16 | authored collection ceiling | derived — provisional, pending author ratification (v0.6) |
+| `issueListV2.maxResultRows` | 1,024 | one admitted hot page | PROVISIONAL — hot validation required |
+| `issueListV2.maxResultBytes` | 33,554,432 | normal mapped result 436,163 bytes with exact declared ratio | PROVISIONAL — large validation required |
+| detail comment `maxChildrenPerParent` | 1,024 | control refusal boundary; normal maximum 21; large receipt ceiling 2,527,886; seed-42 per-issue maximum unavailable | PROVISIONAL — large validation required |
+| detail comments `maxWindowPages` | 1 | `ceil(normal maxCommentsPerIssue 21 / maxChildrenPerParent 1,024)` | PROVISIONAL — seed-42 per-issue maximum requires zb5 |
+| detail comments lineage | pages 1; scanned rows 1,025; index ranges 1; result rows 1; result bytes 8,388,608 | one declared comments page at the normal maximum | PROVISIONAL — seed-42 per-issue maximum requires zb5 |
+| detail `windowRollup` | pages 2; root rows 1; scanned rows 2,092; result rows 2; result bytes 16,777,216; index ranges 27 | root lineage plus one planned comments lineage, per §2.6 | PROVISIONAL — seed-42 per-issue maximum requires zb5 |
+| `issueDetail.maxResultRows` | 1 | point root | derived — provisional, pending author ratification (v0.6) |
+| `issueDetail.maxResultBytes` | 8,388,608 | normal mapped result 20,261 bytes with exact declared ratio | PROVISIONAL — large validation required |
+| `listIssueByID.maxResultRows` | 1 | point root | derived — provisional, pending author ratification (v0.6) |
+| `listIssueByID.maxResultBytes` | 1,048,576 | normal mapped result 6,479 bytes with exact declared ratio | PROVISIONAL — large validation required |
+| all graphs `maxMaintainedWritesPerMutation` | 0 | G0 owns no graph-maintained writes | derived — provisional, pending author ratification (v0.6) |
+
+Every provisional field in `bound-derivation.v1.json`, including analytical
+physical and operational fields omitted from this compact table, carries the
+applicable command:
 
 ```sh
-cargo test -p snapback-types graph_query_v1
-volta run --node 24.18.0 node --test packages/snapback-codegen/graph-query.test.mjs
-cargo test -p snapback --test graph_corpus_v1
-cargo test -p snapback --test relational_corpus_v0
-volta run --node 24.18.0 node scripts/check-inventories.mjs
-./ref-check --verbose
+ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs
+ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v11 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-hot.mjs
 ```
 
-The exit record is incomplete if any command is absent/red, any checklist row
-lacks an evidence pointer, any LLP 0268 label is missing, or any bound retains
-a placeholder, missing analytical derivation, or unexplained inherited
-ceiling. A physical field's `[G2 measures]` label is a required observation
-posture, not a G0 placeholder.
+Normal facts are 14 users, 516 issues, 924 comments, 30 labels, and 603
+issue-label edges, with per-issue maxima of 21 comments and 5 labels. The
+large receipt records 100 users, 100 projects, 1,000,000 issues, 2,527,886
+comments, 4,810 labels, and 2,000,370 issue-label edges; the preserved CSV
+shards needed for the exact seed-42 per-issue maximum are absent.
 
-- **G0 — IR, identity, vocabulary, corpus (first; no runtime semantics
-  change).** Specify the node kinds, bounds, authority classification,
-  and plan identity; compile the Zerobugs issue-list and issue-detail
-  queries (the control's corpus, per LLP 0191 §5) to admitted graphs or
-  explicit refusals; freeze the conformance corpus (results, labels,
-  refusals) against the oracle. Exit: corpus compiles/refuses with
-  host-recomputed identities; **declared bound values sized from the
-  normal and large fixtures or analytically from normalized plan shape**
-  under §2.6's ruled logical/physical split (LLP 0183 §D2's sizing
-  requirement — v0.5 carries only the packet's first-cut candidates, and G0
-  cannot exit until Stage B replaces every logical placeholder and records
-  every physical derivation with `[G2 measures]`); per-node dependency
-  capture specified for every admitted node kind; the §3 paired-world
-  authorization rows present in the corpus.
-  (OQ-1's grammar ruling is a G0 input.)
-- **G1 — same-partition memoization (rung 3), behind a kill switch.**
-  Scheduler memo keyed per §6, `SNAPBACK_LIVE_EVAL_MEMO_DISABLED=1` as
-  the control arm. **D2-H1:** on the same-partition six-observer burst
-  arm, trigger settle p50 within 2× of the one-observer arm (vs ~6×
-  serial today) and evaluation count ≈ one per drain cycle (vs six);
-  mixed-partition arm unchanged; oracle-exact rows throughout. This
-  phase does not require G0's full profile, but its pre-G0 scope is
-  deliberately narrower than the partition key: **same-principal dedup
-  only** — identical (function, canonical args, principal, cut version)
-  tuples, exactly the spike's measured same-partition shape. That is
-  re-execution deduplication, not plan inference: with LLP 0009's VM
-  denying ambient nondeterminism (deterministic Date/Math policy) and
-  every declared input identical including the principal, N
-  re-executions are N copies of one evaluation. Partition-level
-  memoization — sharing across principals inside one partition — waits
-  for G0's §3 classification, because a deterministic VM proves nothing
-  about *which* ambient authority inputs feed an opaque handler —
-  LLP 0190 §4.3 admits conclusions about an opaque handler only from an
-  extraction that proves its complete inputs, which same-principal
-  identity sidesteps and partition-level sharing cannot.
-- **G2 — graph-profile server execution + per-node matching (rung 2's
-  required half).** Admitted graphs execute server-side with per-node
-  captured dependencies feeding the existing matcher; the decision
-  ledger reports per node kind. **D2-H2:** on the graph corpus, wake
-  precision is at least the single-table baseline — conservative-
-  fallback rate ≈ 0 and no table-granular full-graph wakes for commits
-  provably disjoint at a node — with correctness pinned by the
-  conformance corpus.
-- **G3 — delta lanes for measured-hot admitted shapes (rung 4).**
-  Per-node-kind delta rules from §7, narrowest first (root window +
-  to-one), each behind the convergence assertion. **D2-H3:** on the
-  target shape's arm, delivered frame bytes and per-commit evaluation
-  cost drop materially (target sized at G2 from the ledger), replace
-  fallback remains correct and honest, assertion green across the
-  corpus.
-- **Demand-gated, deliberately unscheduled:** rung-2 widening beyond
-  per-node capture (§5's gate) and cross-principal sharing (§6's gate).
+#### Exit observations
 
-Capability publication rides LLP 0183 §D2's gate unchanged: the first D2
-capability publishes only when the complete named corpus — pinned project
-restriction, role visibility, open/creator/assignee/all-label/search
-filters, selectable orders, two-way windows, private overlays, list
-relations, and detail relations — passes one conformance corpus on every
-claimed target. The G-phase exits above are engineering gates; none of
-them is that publication.
+All fields of `GraphG0ExitObservationV1` are present for the normal fixture.
+Each group-state measurement is the serialized mapped result plus its proof
+tuple, and dependency bytes are the serialized typed captured-dependency
+vector.
 
-Ordering rationale: E-3 gives G1 measured ~6× headroom for a cache
-whose invalidation already exists; E-2 says precision work has no
-measured payoff before graphs exist, so it rides in with the IR (G2)
-rather than ahead of it; E-1 says delta maintenance pays orders of
-magnitude but only per admitted shape, so it goes last and
-shape-by-shape. Each phase lands separately and is A/B'd on the landed
-commit per LLP 0189; no phase's claim outruns its arm.
+| Query | Result bytes | Captured-dependency bytes | Group-state bytes |
+| --- | ---: | ---: | ---: |
+| `issueListV2` | 436,163 | 1,459,700 | 436,471 |
+| `issueDetail` | 20,261 | 5,341 | 20,569 |
+| `listIssueByID` | 6,479 | 3,752 | 6,787 |
+
+Large and hot observations are **NOT SATISFIED** for each of the three queries.
+They remain outside the typed observation array and appear only in
+`g0ExitObservationGaps`, with the commands above. `GraphG0ExitObservationV1`
+has no deferred/unavailable arm; that missing arm is a Spec gap for the v0.6
+note. No incomplete pseudo-observation is emitted.
+
+#### Oracle dispositions
+
+- All mapped `labels` arrays are ordered by graph `labelID` before freezing.
+  The exact through-target `label.name` ordering remains an admission refusal
+  for all three full oracle shapes.
+- `issueListV2` declares `modified DESC, sourceIssueID DESC`. The 69 equal-
+  `modified` groups are resolved by the explicit secondary field; only the
+  residual physical `_id` layer is eligible for `direction-tie-break`, and the
+  frozen fixture has zero residual groups.
+- `issueDetail` comments declare `created DESC`. Its executable continuation
+  case emits the singular `oracleDivergence: "direction-tie-break"` and uses
+  `exact-after-id-tiebreak-normalization`: row sets exact-match, and physical
+  `_id` normalization applies only within the one tied `createdAt` group.
+- The detail oracle suite resumes its frozen non-null cursor through the
+  control's `commentsPage` seam and exact-compares the non-empty mapped next
+  page (`g0_window_0050`, digest
+  `sha256:766a764b9762f427c38d04926229681841d0b09dba80e46c026dee86dfcbd19b`).
+  It also includes the null-cursor/empty cost-bound refusal and an
+  authoritative miss. Every
+  `(status, reason, when)` translation row is linked to an executable case or
+  explicitly marked unexercised in the corpus.
+
+Normal raw-oracle and mapped-result measurements:
+
+| Query | Raw bytes / digest | Mapped bytes / digest |
+| --- | --- | --- |
+| `issueListV2` | 517,010 / `sha256:ebbb09fcf00829c123668cb17f6ef4b85c463140a72aa284796bf9ef27920d57` | 436,163 / `sha256:91cae199e894962f4a8b65c27f96e6ccdb267978eedd9c599ac02c5c27073e5a` |
+| `issueDetail` | 26,549 / `sha256:7bb0b07afc67af3b26612714f3a60a7127129efc58941a242331c643f81671ee` | 20,261 / `sha256:3c9376a566186db13c096228213bf38cf41634c68b0b8f500547078b8b14637a` |
+| `listIssueByID` | 6,806 / `sha256:6e4f672f309fb6d8d8c98e8317a6aee3908c08dc1d0ce8471b9a23766abe910f` | 6,479 / `sha256:401b1a6821acac378d285223eeff07b74a0ecfeb7938556f42b6c7d3726adee8` |
+
+#### Frozen artifact digests
+
+| Artifact | Content digest |
+| --- | --- |
+| `corpus.v1.json` | `sha256:bd28f10b51057cfec697c31eb0104ee9e30d9999a4e571d495fd1e77d25932d3` |
+| `bound-derivation.v1.json` | `sha256:3e2f942c7d627da65eb8af0b7545e7e164c1d0a312aca5d5d9817f9b71a59430` |
+| `paired-world-fixtures.v1.json` | `sha256:afcb09c4d2599a0fff1efb3123f6b9692e31ab43c99ae236314caeb6a9cb9d25` |
+| `broadcast-cases.g2-pending.v1.json` | `sha256:98b9de2ef61745507b6faf72af5d4b89e709c643a00df3ea210a6ee3b312ce4d` |
+
+#### Remaining gaps
+
+- Eight LLP 0268 §7 broadcast inputs are not satisfied; their exact missing
+  carriers are listed above.
+- The hidden/missing-root detail pair has the correct empty comments interval
+  vector but remains blocked on B1's empty-child acceptance ticket.
+- Large/hot maxima and typed exit observations require the recorded zb5 runs.
+- `GraphG0ExitObservationV1` needs a deferred/unavailable arm or an explicit
+  owner ruling in the v0.6 note.
+- LLP 0267's physical-window wording and hard retained group-state/frame/
+  handoff bounds remain owner work; normal measurements here are observations,
+  not those hard bounds.
+- The exact label-name-ordered through shape remains unrepresentable in v1 and
+  is refused rather than approximated.
+
+#### Exit command block
+
+The orchestrator appends the final verbatim results after all requested checks
+run. Until the missing carriers above are supplied, those green checks validate
+this partial record; they do not convert it into a G0 exit claim.
 
 ## 10. Non-goals
 
@@ -3222,6 +3302,7 @@ or identities.
 
 ## Revision history
 
+- **v0.6 (2026-08-23).** **G0 exit recorded** (see §9 "Exit"). Stages A, B1, B2, B3 landed; checklist rows 1/2/5/9 COMPLETE, 3/4/6/7 PARTIAL, 8 NOT SATISFIED (only `G0-BCAST-IDENTITY` of the LLP 0268 §7 labels is satisfied; the exit must be extended and re-recorded before 0268 B1). Author ratification owed on: the six hash domains, `CapturedReadKind::GraphNode`, the headroom factors and the fixture-derived bound values (provisional where large-fixture maxima are unverified), and the logical/physical bound split. Status Draft → Review. Open follow-ups: `issues/20260823-graph-empty-child-demand-window-vector.md` (B1 hidden-root pair), `issues/20260823-graph-codegen-rust-admission-parity-gaps.md`, `issues/20260823-zerobugs-control-descending-tiebreak-deviation.md` (control-owned), the large-fixture spot check (zb5 rerun), and the 0267/0268 drift requests listed in v0.5.
 - **v0.5 (2026-08-23, Stage A).** Tightened G0 as a docs-only landing:
   §2 now fixes the normalized graph record, all seven node kinds and their
   edges/cardinalities, stable refusal precedence, plan/instance identity,

@@ -77,3 +77,10 @@ deliverables ratified at exit — packet and lane plan in
 v0.4. LLP 0200 (D4-side) completed its four-phase program 2026-08-09
 (§6d) and sits at Review. This ticket still waits on the Specs'
 review/acceptance disposition.
+
+
+**D2-side G0 exited (2026-08-23):** LLP 0209 v0.6 records the G0 exit
+(Status Draft → Review); Stages A/B1/B2/B3 landed (`77ed8394d`,
+`73232029d`, `4627f9d95`, `40e76924c`). The D4-side (LLP 0200) sits at
+Review since 2026-08-09. Both commissioned Specs are now at Review; this
+ticket waits only on the author's acceptance disposition of the two Specs.
