@@ -55,7 +55,7 @@ assert.equal(packageManifest.scripts['test:live'], undefined);
 assert.equal(packageManifest.scripts['carry:headless'], 'node carrier.mjs headless');
 assert.equal(packageManifest.scripts['carry:web-browser'], 'node carrier.mjs web-browser');
 assert.equal(packageManifest.scripts['carry:native-simulator'], 'node carrier.mjs native-simulator');
-assert.match(instructions, /carry:native-simulator/);
+assert.match(instructions, /`carry:\*`/);
 assert.match(carrierSource, /bundleId:\s*'host\.exp\.Exponent'/);
 assert.match(carrierSource, /driveUrl:\s*'exp:/);
 assert.match(carrierSource, /'--expo-platform',\s*'web'/);

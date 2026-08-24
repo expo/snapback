@@ -36,7 +36,7 @@ assert.match(instructions, /only done-oracle/);
 assert.equal(packageManifest.scripts['test:live'], undefined);
 assert.equal(packageManifest.scripts['carry:headless'], 'node carrier.mjs headless');
 assert.equal(packageManifest.scripts['carry:web-browser'], 'node carrier.mjs web-browser');
-assert.match(instructions, /carry:web-browser/);
+assert.match(instructions, /`carry:\*`/);
 assert.match(carrierSource, /'web-browser'/);
 assert(!appSource.includes(' as '), 'starter UI must not need generated-result casts');
 assert.match(runtimeAcceptance, /from '@expo\/snapback-acceptance'/);
