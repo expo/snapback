@@ -9,6 +9,17 @@ export const OBSERVATION_VERSION = "social-messenger-observation.v1";
 export const CURRENT_INSTRUMENT_PIN = "social-messenger@0.3.3-m8";
 export const COSTLY_EPISODE_THRESHOLD_ACTIONS = 2;
 
+export function observationLaneRunIdMatches(value, laneRunId) {
+  if (value === laneRunId) return true;
+  if (typeof value !== "string" || typeof laneRunId !== "string") return false;
+  const separator = laneRunId.lastIndexOf("/");
+  return separator !== -1 && value === laneRunId.slice(separator + 1);
+}
+
+export function canonicalObservationLaneRunId(value, laneRunId) {
+  return observationLaneRunIdMatches(value, laneRunId) ? laneRunId : value;
+}
+
 export const OBSERVABILITY_BLOCKS = Object.freeze([
   "semanticActions",
   "failureToRecoveryEpisodes",
@@ -695,9 +706,17 @@ export function scorecardEligibility({ milestones, phaseUsageAvailable }) {
 }
 
 export class ObservationWriter {
-  constructor({ path, laneRunId, now = () => new Date().toISOString() }) {
+  constructor({
+    path,
+    laneRunId,
+    canonicalLaneRunId = process.env.R2_LANE_RUN_ID ?? laneRunId,
+    now = () => new Date().toISOString(),
+  }) {
     this.path = path;
-    this.laneRunId = requiredString(laneRunId, "laneRunId");
+    this.laneRunId = canonicalObservationLaneRunId(
+      requiredString(laneRunId, "laneRunId"),
+      requiredString(canonicalLaneRunId, "canonicalLaneRunId"),
+    );
     this.now = now;
     this.sequence = 0;
     this.initialized = false;

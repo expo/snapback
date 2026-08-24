@@ -7,6 +7,7 @@ import {
   CURRENT_INSTRUMENT_PIN,
   OBSERVABILITY_BLOCKS,
   OBSERVATION_VERSION,
+  observationLaneRunIdMatches,
   parseObservationJsonLines,
   projectMilestoneObservability,
   scorecardEligibility,
@@ -268,7 +269,10 @@ function loadObservationEvidence(errors, extension, artifactRoot) {
       continue;
     }
     for (const event of sourceEvents) {
-      if (event.laneRunId !== extension.meteringProvenance?.laneRunId) {
+      if (!observationLaneRunIdMatches(
+        event.laneRunId,
+        extension.meteringProvenance?.laneRunId,
+      )) {
         errors.push(`${path}: observation laneRunId does not match metering provenance`);
       }
     }

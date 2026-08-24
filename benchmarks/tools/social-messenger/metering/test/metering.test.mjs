@@ -271,6 +271,64 @@ test("Codex adapter differences every session's cumulative counters", async () =
   );
 });
 
+test("Codex adapter admits retained aggregate-only compaction token_count", async () => {
+  const records = parseJsonLines(
+    await fixtureText("real-codex-aggregate-only-token-count.jsonl"),
+    "retained aggregate-only Codex fixture",
+  );
+  const channel = adaptCodexSession(records);
+  assert.deepEqual(channel.turns.map((turn) => turn.usage), [
+    counts(321_961, 64_301, 15_223_040, 0, 20_864),
+  ]);
+});
+
+test("observation writer canonicalizes cell identity and rejoin accepts retained spelling", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "snapback-observation-identity-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  for (const name of [
+    "boundaries.json",
+    "first-product-edit.json",
+    "receipts-m1.jsonl",
+    "receipts-m2.jsonl",
+  ]) {
+    await copyFile(new URL(name, FIXTURES), join(directory, name));
+  }
+  const observationPath = join(directory, "observations.jsonl");
+  const writer = new ObservationWriter({
+    path: observationPath,
+    laneRunId: "fixture-cell",
+    canonicalLaneRunId: "fixture-run/fixture-cell",
+  });
+  await writer.initialize();
+  await writer.claim("M1", "browserAssertionWait", { owner: "suite" });
+  const [written] = parseObservationJsonLines(await readFile(observationPath, "utf8"));
+  assert.equal(written.laneRunId, "fixture-run/fixture-cell");
+
+  const retained = `${JSON.stringify({ ...written, laneRunId: "fixture-cell" })}\n`;
+  await writeFile(observationPath, retained);
+  const manifest = await fixtureJson("unavailable-manifest.json");
+  manifest.laneRunId = "fixture-run/fixture-cell";
+  for (const [name, field] of [
+    ["boundaries.json", "boundaries"],
+    ["first-product-edit.json", "firstProductEdit"],
+  ]) {
+    const value = await fixtureJson(name);
+    value.laneRunId = manifest.laneRunId;
+    const text = `${JSON.stringify(value)}\n`;
+    await writeFile(join(directory, name), text);
+    manifest[field].sha256 = sha256(text);
+  }
+  manifest.observations = [{
+    sourceId: "retained-cell-spelling",
+    path: "observations.jsonl",
+    sha256: sha256(retained),
+  }];
+  const manifestPath = join(directory, "manifest.json");
+  await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
+  const loaded = await loadMeteringManifest(manifestPath);
+  assert.equal(loaded.observations.events[0].laneRunId, "fixture-run/fixture-cell");
+});
+
 test("retained real Codex parent and subagent deltas checksum and aggregate independently", async () => {
   const parent = parseJsonLines(
     await fixtureText("real-codex-tree-parent.jsonl"),
