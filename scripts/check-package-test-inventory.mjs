@@ -1094,6 +1094,16 @@ export function checkPackageTestInventories(options = {}) {
 // admission-posture matrix, atomic env writer, and explicit dev-session suites.
 // 338 -> 341 (2026-08-24, LLP 0301+0302 integration): the union of both
 // lanes' suites — posture/writer/dev-session and the declared-dev batteries.
+// LLP 0300 nine-row acceptance traceability (0301 §8 set-level table):
+// 1 cold bring-up -> templates/*/acceptance.mjs + declared-dev-episode.test.mjs;
+// 2 two principals -> declared-dev-episode.test.mjs; 3 forwards/tunnel/rebinding
+// -> snapback-server admission tests (dev_admission*); 4 gate ordering/reassignment
+// -> declared-dev-episode.test.mjs; 5 release matrix w/ url set ->
+// declared-dev-generation.test.mjs + generate-check.test.mjs; 6 receipt cells +
+// supervised battery -> application-ready.test.mjs + dev-admission-posture.test.mjs;
+// 7 per-bundler cold templates -> template acceptances + declared-dev-binding.test.mjs;
+// 8 bundler restart/data preservation -> declared-dev-episode.test.mjs;
+// 9 signup boundary/bearer non-theft -> snapback-server tests + declared-dev-episode.test.mjs.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');
