@@ -5,7 +5,7 @@
 **Systems:** Assets, Security, Code generation, Storage, Deployment, Testing
 **Author:** Codex, commissioned by Charlie Cheever for the 2026-08-24 design-revision round
 **Date:** 2026-08-24
-**Revised:** 2026-08-24 (v0.1 — initial Review revision after convergent hostile design reviews; design only, implementation and capability claims remain open)
+**Revised:** 2026-08-24 (v0.2 — closes the delta-review residuals with checked-integer duration identities, corrected OTI/AOT classification, trusted still-image detection, frozen numeric ceilings, and pinned public/oracle fields; design only, implementation and capability claims remain open)
 **Related:** LLP 0000, LLP 0012, LLP 0037, LLP 0044, LLP 0189, LLP 0225, LLP 0269, LLP 0276, LLP 0277, Diary 0086, `issues/20260817-upload-intent-codec-duration-admission-facts.md`
 
 ## Summary and authority
@@ -150,6 +150,29 @@ revalidation; public safe facts may expose the upward-rounded milliseconds.
 consumer cannot confuse sample-entry configuration with decoded payload
 identity.
 
+The public admission member is exactly `videoAdmission`, whose closed result
+shape is:
+
+```text
+VideoAdmissionResultV1 {
+  declaredContainer: "mp4" | "quicktime",
+  declaredVideoCodec: "h264",
+  declaredAudioCodec: "aac" | null,
+  declaredDurationMs: positive JavaScript-safe integer,
+}
+```
+
+All four keys are required; `declaredAudioCodec` is `null` when no audio track
+exists. V1's closed codec map makes the singular codec keys lossless even when
+multiple tracks or sample descriptions are present. The admission result must
+not add or substitute `container`, `codec`, `codecs`, `videoCodec`,
+`audioCodec`, or `durationMs` aliases. Existing enclosing rendition/media
+facts may retain their legacy generic `durationMs` compatibility projection,
+but it is derived from `declaredDurationMs` and is not a key of
+`VideoAdmissionResultV1`. Receipts, SDKs, diagnostics, capability prose, and
+Diary 0086 must preserve the `declared*` distinction and must not present these
+values as decoded-payload identity.
+
 The parser requires exactly one top-level `ftyp`, one top-level `moov`, and one
 `mvhd`. Duplicate or structurally contradictory forms yield
 `SNAPBACK_ASSET_VIDEO_FACTS_UNAVAILABLE`; malformed box encoding retains
@@ -190,6 +213,35 @@ Only a result from this table is compared with `containers`. A valid table
 result outside the intent allowlist produces
 `SNAPBACK_ASSET_VIDEO_CONTAINER_UNSUPPORTED`; absence of a video-container
 fact produces facts-unavailable instead.
+
+### Trusted MIME and still-image detection
+
+The trusted content-type detector and this brand classifier are one closed
+decision, not two widening gates. Detection must parse the complete bounded
+top-level `ftyp` brand vector before emitting an ISO-BMFF video MIME; checking
+only bytes 8–11 or treating every non-`qt  ` `ftyp` as `video/mp4` is
+nonconforming. It applies these rules before media-type policy dispatch:
+
+- major `heic`, `mif1`, `msf1`, and `avif` detect as `image/heic`,
+  `image/heif`, `image/heif-sequence`, and `image/avif`, respectively, even
+  when `isom` is compatible;
+- any still-image/image-sequence brand in the compatible vector of a video-
+  family major is a contradictory image/video signature and detects as
+  unavailable/unknown content, never `video/mp4` or `video/quicktime`;
+- a recognized Motion Photo or other still-image wrapper keeps the primary
+  still image's MIME (for example `image/jpeg`), or detects as unavailable if
+  that wrapper is unsupported; an embedded or appended `ftyp` cannot promote
+  the wrapper to video; and
+- `video/mp4` or `video/quicktime` is emitted only when the complete brand
+  vector produces the corresponding result in the closed table above. An
+  incomplete, over-budget, contradictory, or unlisted vector emits no video
+  MIME.
+
+Thus a mixed image+video intent routes an actual HEIC/HEIF/AVIF/Motion-Photo
+object through its image/unsupported branch rather than first misclassifying
+it as video and reaching video facts. The detector and admission parser share
+the same parser-semantics version and brand-table fixtures; disagreement is a
+conformance failure, not a policy outcome.
 
 ### Same-file sample layout
 
@@ -240,11 +292,24 @@ Classification uses the sample entry and its decoder configuration, not
   arrays cannot establish the fact.
 - An audio sample entry normalizes to declared `aac` only when its entry is
   `mp4a`, its bounded iterative `esds` graph contains the expected MPEG-4 Audio
-  decoder configuration and exactly one parseable AudioSpecificConfig, and the
-  decoded Audio Object Type is in the closed set `{1 (AAC Main), 2 (AAC LC),
-  5 (SBR/HE-AAC), 29 (PS/HE-AAC v2)}`. Escape-form object types are decoded
-  before membership comparison. Object type 64 and every other unlisted value
-  are not AAC for v1.
+  decoder configuration whose DecoderConfigDescriptor
+  `objectTypeIndication` is exactly hexadecimal `0x40`, exactly one parseable
+  AudioSpecificConfig, and a decoded ASC Audio Object Type in the closed set
+  `{1 (AAC Main), 2 (AAC LC), 5 (SBR/HE-AAC), 29 (PS/HE-AAC v2)}`.
+  Escape-form AOTs are decoded before membership comparison. The OTI and AOT
+  are different namespaces: the [MP4RA Object Types
+  registry](https://mp4ra.org/registered-types/object-types) assigns `0x40`
+  to MPEG-4 Audio, `0x69` to ISO/IEC 13818-3 audio, and `0x6B` to ISO/IEC
+  11172-3 audio; [RFC 6381
+  §3.3](https://www.rfc-editor.org/rfc/rfc6381.html#section-3.3) separately
+  identifies AAC LC as decimal AOT `2` in `mp4a.40.2`. ASC AOT 64 is a
+  separately named, parseable unsupported-AOT case; it is not the MP3 fixture
+  and is not confused with OTI `0x40`.
+- A structurally coherent `mp4a`/`esds` declaration with OTI `0x6B` (MPEG-1
+  audio, including an MP3 Layer III fixture) or the applicable `0x69` MPEG-2
+  audio OTI is recognized as non-AAC and yields
+  `SNAPBACK_ASSET_VIDEO_CODEC_UNSUPPORTED` without requiring an AAC ASC. Any
+  other known non-`0x40` audio OTI follows the same known-but-unlisted rule.
 - `encv` and `enca` are unsupported. V1 does not unwrap `sinf/frma` to claim
   the underlying `avc1`, `avc3`, or `mp4a` configuration.
 - A structurally valid known-but-unlisted entry, encrypted entry, unlisted AAC
@@ -276,65 +341,151 @@ the exact comparisons below yields
 `SNAPBACK_ASSET_VIDEO_FACTS_UNAVAILABLE`, never admission as zero and never a
 truncation-dependent result.
 
-For each admitted audio/video-class track:
+The following are checked-integer identities. No step converts to binary or
+decimal floating point, milliseconds, or a rounded timescale. An
+implementation may use a fixed-width integer only when every addition,
+subtraction, multiplication, negation, and cross-product is checked before it
+is committed; overflow refuses facts. Exact rational comparison of `a/b` and
+`c/d`, for positive denominators, is the checked comparison of `a*d` and
+`c*b` (or an algebraically equivalent GCD-cancelled/big-integer comparison).
+Rational reduction is optional and cannot change a verdict.
 
-1. Stream the bounded `stts` run-length entries. Counts and deltas must be
-   positive, their sample-count sum must equal `stsz`/`stz2`, and their checked
-   duration sum `D = Σ(sample_count × sample_delta)` must equal
-   `mdhd.duration` in the **media** timescale.
-2. If `ctts` is absent, every composition offset is zero. If present, v0
-   unsigned and v1 signed offsets are supported; other forms are unavailable.
-   Its positive run counts must sum to the same sample count. Stream-merge its
-   runs with `stts` without materializing samples. For sample `i`, use checked
-   signed arithmetic for `PTS_i = DTS_i + composition_offset_i` and compute
-   `U = (max_i(PTS_i + sample_delta_i) - min_i(PTS_i)) / mdhd.timescale`.
-   `U` must be positive and must exactly equal `D / mdhd.timescale`. A valid
-   negative-offset reordering can pass; an offset that creates an unexplained
-   gap/span, a large-value overflow, or a disagreement cannot.
-3. Support only these edit-list shapes, all at exactly 1.0 media rate:
+Only version 0 and version 1 `mdhd`, `tkhd`, `mvhd`, and `elst` encodings are
+supported. For `elst`, v0 has unsigned 32-bit `segment_duration` and signed
+32-bit `media_time`; v1 has unsigned 64-bit `segment_duration` and signed
+64-bit `media_time`. The empty-edit sentinel is the signed value `-1` (raw
+v0 bits `0xFFFFFFFF`; raw v1 bits `0xFFFFFFFFFFFFFFFF`). Media rate is exactly
+1.0 only when its signed 16.16 fields encode `media_rate_integer == 1` and
+`media_rate_fraction == 0`, raw `0x00010000`; no float comparison is allowed.
 
-   - no `elst`;
-   - one non-empty media edit with `media_time >= 0`; or
-   - one leading empty edit (`media_time == -1`) followed by exactly one
-     non-empty media edit with `media_time >= 0`.
+For each admitted audio/video-class track, define:
 
-   Segment durations must be positive and not all-1s. The selected media
-   interval must lie within the unedited sample timeline under an exact
-   comparison that pairs `elst.media_time` with the media timescale and
-   `elst.segment_duration` with the movie timescale. Empty-only, trailing
-   empty, multiple media edits, dwell/repeat, negative non-empty media time,
-   or any media rate other than exactly 1.0 is unsupported and yields
-   facts-unavailable.
-4. Let `E` be `U` when no edit exists, otherwise the sum of the supported edit
-   segments in movie time. `tkhd.duration / mvhd.timescale` must exactly equal
-   `E`. The per-track admission span is `P = max(U, E)`: an edit list may add a
-   leading empty interval or lengthen presentation, but it can never shorten
-   the admission duration below unedited media. Thus a 90-second sample
-   timeline edited and header-declared as 60 seconds still compares as at
-   least 90 seconds.
+- `M_t = mdhd.timescale` and `M_m = mvhd.timescale`, both positive integers;
+- `n_i` and `delta_i` as each positive `stts` run count and delta;
+- `S = Σ_i(n_i × delta_i)`, in media ticks;
+- `DTS_0 = 0` and `DTS_i = Σ_{k < i} delta_k` after streaming expansion;
+- `offset_i = 0` without `ctts`, otherwise the v0 unsigned or v1 signed
+  composition offset for sample `i`;
+- `PTS_i = DTS_i + offset_i`,
+  `C_min = min_i(PTS_i)`, `C_max = max_i(PTS_i + delta_i)`, and
+  `C = C_max - C_min`, all checked signed media-tick integers; and
+- the unedited media duration `U = U_num/U_den = S/M_t`.
 
-After all tracks, `mvhd.duration / mvhd.timescale` must exactly equal the
-maximum edited track span `E` represented by the `tkhd` values. A non-A/V
-track, duplicate summary, or other structure that makes that movie-header
-cross-check ambiguous yields facts-unavailable. The final admission duration
-is the maximum `P` across admitted audio/video tracks.
+The run-count sums for `stts` and `ctts` must equal the exact sample count.
+The parser must establish these checked integer equalities before considering
+an edit:
 
-All comparisons — table/header agreement and
-`presentationDuration <= maxDurationMs / 1000` — use checked exact-rational
-cross multiplication before any millisecond conversion. Only after policy
-comparison does the safe persisted `durationMs` round upward. When
-`accept.video` is present, the existing rendition/media
-`facts.durationMs` becomes this upward-rounded admission fact; there is not a
-second competing duration field. When the block is absent, legacy
-`mvhd`-derived behavior stays byte- and behavior-compatible until a separate
-versioned migration changes it.
+```text
+S == mdhd.duration
+C == S
+U == mdhd.duration / M_t          because S == mdhd.duration
+```
+
+Thus `stts` is the unedited-duration authority, `mdhd` is its same-clock
+cross-check, and `ctts` may reorder presentation but may not introduce an
+unexplained composition gap or longer/shorter span. A positive `S`, `C`, and
+`mdhd.duration` is required.
+
+V1 supports only no `elst`, one non-empty media edit, or one leading empty edit
+followed by one non-empty media edit. For each non-empty edit let
+`m = media_time` in media ticks and `l = segment_duration` in movie ticks.
+Require `m >= 0`, `l > 0`, and exact containment of the selected composition
+interval in `[C_min, C_max]`:
+
+```text
+m >= C_min
+m × M_m + l × M_t <= C_max × M_m
+```
+
+The leading empty edit, when present, has `media_time == -1` and positive
+`segment_duration`; it selects no media. Let `L = Σ segment_duration` over all
+supported empty and non-empty edits, in movie ticks. Define the edit-list
+presentation span exactly as:
+
+```text
+no elst:     E = E_num/E_den = S/M_t = U
+with elst:   E = E_num/E_den = L/M_m
+```
+
+Let `K = tkhd.duration`, in movie ticks. The track-header cross-check is the
+following checked integer equality, chosen by edit presence:
+
+```text
+no elst:     K × M_t == S × M_m       (K/M_m == U)
+with elst:   K == L                   (K/M_m == E)
+```
+
+Any disagreement refuses facts. The per-track admission span is the exact
+rational `P = max(U, E)`. Therefore an edit can never shorten admission below
+the unedited sample duration: a 90-second `U` edited and header-declared as a
+60-second `E` still has `P = 90 seconds`.
+
+The movie-header cross-check is also an integer equality. The parser reads one
+supported-version `tkhd` from **every** `trak`, including non-A/V handlers such
+as `tmcd`, `text`, `subt`, `sbtl`, and `clcp`, and defines
+`K_movie = max_j(tkhd_j.duration)` in movie ticks. It requires:
+
+```text
+mvhd.duration == K_movie
+```
+
+The mere presence of a non-A/V track is therefore **not fatal** and its inner
+sample/codec timeline is not admitted by v1. Its `tkhd` still participates in
+the same-clock `mvhd` summary cross-check; a missing, duplicated, unsupported,
+all-1s, or structurally invalid `tkhd`, or disagreement with `mvhd`, refuses
+facts. Non-A/V tracks do not enter the codec allowlists and do not enter the
+final admission span. The final admission duration is `P_final = max(P_t)`
+over admitted audio/video-class tracks only.
+
+The inclusive policy check is exactly:
+
+```text
+P_final_num × 1000 <= maxDurationMs × P_final_den
+```
+
+Only after that comparison is `declaredDurationMs` computed as
+`ceil(P_final_num × 1000 / P_final_den)`. A 60.000-second `U` with a supported
+edit whose leading/composition-delay presentation adds two frames has
+`E > 60.000 seconds`, hence `P = E` and intentionally refuses a 60,000 ms
+ceiling; no frame, tick, or millisecond rounding may admit it. When
+`accept.video` is absent, legacy `mvhd`-derived behavior stays byte- and
+behavior-compatible until a separate versioned migration changes it.
 
 ## Deterministic bounds and allocation discipline
 
-Every implementation and capability profile publishes concrete numeric values
-for one global `maxWorkUnits` and one global `maxTemporaryAllocationBytes`, as
-well as the structural ceilings below. The semantic refusal is based on these
-deterministic counters, not elapsed wall-clock time.
+Parser semantics `snapback.video-admission.iso-bmff.v1` freezes this exact
+numeric tuple. These are semantic content limits, not deploy-time knobs or
+target-profile recommendations:
+
+| Ceiling | Exact v1 value | Scope |
+| --- | ---: | --- |
+| `maxWorkUnits` | 2,000,000 | one parser invocation |
+| `maxTemporaryAllocationBytes` | 16,777,216 | non-refunded logical arena reservations per invocation |
+| `maxWholeFileParseBytes` | 536,870,912 | canonical object length |
+| `maxBoxDepth` | 32 | nested box depth, counting the top-level box as depth 1 |
+| `maxBoxCount` | 100,000 | all decoded box headers, including skipped payload boxes |
+| `maxMetadataBytes` | 16,777,216 | sum of box headers and payload bytes actually parsed; `mdat` payload bytes excluded |
+| `maxCompatibleBrandEntries` | 64 | complete `ftyp` vector |
+| `maxTracks` | 64 | all `trak` boxes, including non-A/V |
+| `maxDrefEntriesPerTrack` | 64 | one track |
+| `maxSampleDescriptionsPerTrack` | 64 | one track |
+| `maxAvcCParameterSetsPerDescription` | 512 | all SPS/PPS/extension parameter-set records combined |
+| `maxEsdsBytesPerDescription` | 1,048,576 | complete `esds` box |
+| `maxEsdsDescriptorDepth` | 16 | iterative descriptor nesting |
+| `maxEsdsDescriptorCountPerDescription` | 4,096 | all descriptors |
+| `maxElstEntriesPerTrack` | 2 | one track; exactly the largest supported v1 shape |
+| `maxSttsEntriesPerTrack` | 262,144 | one track |
+| `maxCttsEntriesPerTrack` | 262,144 | one track |
+| `maxStscEntriesPerTrack` | 262,144 | one track |
+| `maxSampleCountPerTrack` | 10,000,000 | expanded count, including fixed-size `stsz` |
+| `maxEncodedSampleSizeEntriesPerTrack` | 10,000,000 | explicit `stsz`/`stz2` entries |
+| `maxChunkOffsetEntriesPerTrack` | 1,000,000 | `stco` or `co64` entries |
+
+Every implementation and capability fact publishes these exact numbers. A
+target cannot raise or lower one while claiming v1. Changing any value,
+charging scope, or entry-count definition requires a successor parser-
+semantics version and new capability identity. The semantic refusal is based
+on these deterministic counters, not elapsed wall-clock time.
 
 One work unit is charged before each of these operations:
 
@@ -361,11 +512,8 @@ box, their per-structure ceiling, the remaining work units, and the remaining
 allocation budget **before allocation**. Implementation-dependent `Vec`
 growth is not an accounting mechanism.
 
-At minimum, capability facts carry ceilings for whole-file parse bytes, box
-depth/count, metadata bytes, compatible-brand entries, tracks, `dref` entries,
-sample descriptions, `avcC` parameter arrays, `esds` bytes/descriptor
-depth/descriptor count, edit-list entries, `stts` entries, `ctts` entries,
-`stsc` entries, sample count/encoded size entries, and chunk-offset entries.
+Capability facts carry every named table entry above, without aliases or
+omissions.
 `esds` is parsed iteratively with an explicit depth/count state; recursive
 descent without the same counters is nonconforming. `stts`, `ctts`, sample
 sizes, and chunk extents are streamed; the parser never creates a `Vec` per
@@ -384,8 +532,9 @@ stable resource refusal.
 The initial semantic identity is
 `snapback.video-admission.iso-bmff.v1`. It names the complete brand table,
 sample/data-reference checks, codec-configuration map, duration algorithm,
-work-unit schedule, allocation accounting, refusal precedence, and safe-fact
-shape — not merely a crate version.
+work-unit schedule, allocation accounting, **the exact numeric ceiling tuple
+above**, refusal precedence, and safe-fact shape — not merely a crate version.
+There is no conforming “v1 with locally tuned limits.”
 
 When `accept.video` is present:
 
@@ -423,7 +572,7 @@ video codec, audio codec, duration.
 | `SNAPBACK_ASSET_VIDEO_BOUNDS_EXCEEDED` | A deterministic published count, work-unit, encoded-size, parse-byte, or temporary-allocation ceiling is exceeded. | ceiling name and configured value |
 | `SNAPBACK_ASSET_VIDEO_FACTS_UNAVAILABLE` | A structurally parseable object cannot produce every scoped v1 fact: excluded/unknown/contradictory brands; any fragment syntax; missing primary video; external data; invalid sample extents/counts; handler/config mismatch; zero/unspecified/disagreeing duration; or unsupported edit/timeline form. | `fact`, bounded `reasonClass`, detected MIME; never raw metadata or payload |
 | `SNAPBACK_ASSET_VIDEO_CONTAINER_UNSUPPORTED` | A closed-table `mp4`/`quicktime` result is outside `containers`. | allowed/detected container and bounded brands |
-| `SNAPBACK_ASSET_VIDEO_CODEC_UNSUPPORTED` | A structurally coherent declared video/audio configuration is outside its allowlist or closed v1 map, including encryption. | track kind/ordinal, allowed/declared codec or `unknown`, bounded entry FourCC/AOT |
+| `SNAPBACK_ASSET_VIDEO_CODEC_UNSUPPORTED` | A structurally coherent declared video/audio configuration is outside its allowlist or closed v1 map, including encryption. | track kind/ordinal, allowed/declared codec or `unknown`, bounded entry FourCC/OTI/AOT |
 | `SNAPBACK_ASSET_VIDEO_DURATION_EXCEEDED` | The exact-rational admission span is greater than the inclusive ceiling. | `maxDurationMs`, upward-rounded `detectedDurationMs` |
 
 A content-policy refusal makes the current attempt `failed`, records the
@@ -470,6 +619,10 @@ passes.
 - Codegen accepts the exact Coterie spelling, rejects unknown/empty/duplicate
   or invalid-bound forms, rejects no-supported-video `mediaTypes`, and rejects
   every unsupported `video/*` member in a mixed list.
+- Generated schemas, SDKs, receipts, persistence, and real-server results pin
+  `videoAdmission.{declaredContainer,declaredVideoCodec,declaredAudioCodec,declaredDurationMs}`
+  exactly, including `declaredAudioCodec: null` for silent video, and reject
+  payload-identity aliases.
 - The Rust-owned carrier/schema artifacts regenerate, and intents without
   `accept.video` retain byte-identical manifest and policy-hash artifacts.
 - Metamorphic fixtures prove each policy or parser-semantics change bumps only
@@ -491,17 +644,24 @@ passes.
 - Timeline vectors cover understated `stts` versus headers, negative and large
   `ctts`, duration 0, all-1s unspecified duration, a shortening `elst` that
   cannot reduce the unedited ceiling, leading-empty edit, edit rate other than
-  1.0, unsupported edit shape, count mismatch, duplicate `moov`/`mvhd`, and a
-  short-`moov`/long-`moof` hybrid plus standalone `moof`, `traf`, and `mvex`.
+  raw 16.16 `0x00010000`, a 60.000-second timeline plus a two-frame
+  composition-delay edit that must refuse the inclusive 60,000 ms ceiling,
+  unsupported edit shape, count mismatch, duplicate `moov`/`mvhd`, supported
+  `tmcd`/caption siblings whose `tkhd` values participate in the `mvhd`
+  equality without entering `P`, and a short-`moov`/long-`moof` hybrid plus
+  standalone `moof`, `traf`, and `mvex`.
 - Data-layout vectors cover external `dref`, invalid data-reference and sample-
   description indices, out-of-range and outside-`mdat` chunks, overflow,
   overlap/contradiction, zero samples, zero-sized video samples, and a valid
   multi-chunk same-file file with at least one presentable video sample.
 - Codec vectors cover handler/sample-entry mismatch, no `vide` handler,
-  `auxv` validation, MP3-in-MP4 expressed through unlisted `esds`/ASC object
-  type 64, empty/no-SPS `avcC`, extra or mismatched decoder configuration,
-  encrypted `encv`/`enca`, unknown codec entries, and unused unsupported
-  alternate descriptions.
+  `auxv` validation, AAC LC as OTI `0x40` plus ASC AOT 2, a genuine
+  MP3-in-MP4 `mp4a`/`esds` declaration with OTI `0x6B` (and an applicable
+  MPEG-2 case with OTI `0x69`) that must be codec-unsupported, a separately
+  named OTI `0x40` plus parseable ASC AOT 64 unsupported-AOT case,
+  empty/no-SPS `avcC`, extra or mismatched decoder configuration, encrypted
+  `encv`/`enca`, unknown codec entries, and unused unsupported alternate
+  descriptions.
 - A descriptor-versus-payload spoof fixture has valid same-file extents and
   valid `avc1`/`avcC` declarations but non-H.264 sample payload. The test may
   derive declared `h264`; it must prove that no fact, receipt, capability, or
@@ -521,6 +681,26 @@ digest, as the codec/payload/timeline oracle. It is test evidence, never the
 production authority. The oracle comparison must include the descriptor-
 versus-payload spoof and understated-sample-timeline cases, not only a happy
 fixture.
+
+The Coterie oracle's pinned timeline field is exactly
+`timeline.packetPtsSpan`, an exact rational derived from `ffprobe
+-show_packets` integer `pts`, integer `duration`, and per-stream `time_base`:
+for each admitted A/V stream it is
+`(max(packet.pts + packet.duration) - min(packet.pts)) × time_base`, and the
+file value is the maximum exact rational across those streams. A fixture with
+a missing required packet timestamp/duration is oracle-unavailable and cannot
+pass the gate. For each no-edit oracle vector, including Coterie's positive and
+understated-timeline adversary, the comparison is exactly
+`timeline.packetPtsSpan == U`; because those vectors have `E == U`, it also
+compares directly with Snapback's exact final `P` before either side is rounded
+to milliseconds. Edit-list vectors separately assert the checked `E` and
+`P = max(U,E)` identities above; they do not substitute a summary-box field
+when an FFmpeg demux presentation has already applied an edit. The oracle must
+not use `format.duration`, `stream.duration`, `mvhd`, or `tkhd` as its timeline
+field.
+Decode-to-null remains the independent payload/codec oracle; its deliberate
+disagreement with declared `h264` on the descriptor/payload spoof is honesty
+evidence, not a Snapback false negative.
 
 Coterie's real-server M2 rerun declares MP4 + H.264 + AAC + inclusive 60 s
 alongside the existing 50 MB and location-strip rules. It exercises at least
@@ -579,6 +759,14 @@ Open questions for a later version:
 
 ## Revision history
 
+- **v0.2 (2026-08-24, Review).** Closes the residual delta-review findings:
+  checked-integer `U`/`E`/`P` identities and header equalities, explicit
+  non-A/V `tkhd` handling and conservative composition-delay behavior;
+  separate MP4RA OTI versus ASC AOT classification with genuine MP3 vectors;
+  closed trusted still-image MIME detection; exact numeric v1 ceilings; and
+  pinned public `declared*` result keys plus Coterie's packet-PTS-span oracle.
+  Status remains Review, the implementation ticket remains open, and no
+  capability is claimed.
 - **v0.1 (2026-08-24, Review).** Extracts the proposed admission contract from
   Accepted LLP 0269 into the asset authority, incorporates the convergent
   hostile-review corrections for sample-timeline duration, syntactic fragment
