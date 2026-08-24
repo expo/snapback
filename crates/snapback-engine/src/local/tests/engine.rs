@@ -29324,6 +29324,7 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
     assert_eq!(initial_rows.pairing_requests, expected_pairing_requests);
     assert_eq!(initial_rows.authorizations, expected_authorizations);
 
+    let mut durable_code_hashes = Vec::new();
     for (user_id, request_id, grant_id) in &requests {
         let before = oauth_consent_rows_for_test(&mut snapback);
         let result =
@@ -29352,6 +29353,12 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
                 Some(expected_code_hash.as_slice()),
                 "durable OAuth selector must be the SHA-256 of the returned code"
             );
+            durable_code_hashes.push(
+                updated
+                    .code_hash
+                    .clone()
+                    .expect("issued OAuth row must retain its durable selector"),
+            );
 
             let mut expected = before;
             let expected_updated = expected
@@ -29375,6 +29382,64 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
             assert_eq!(after, before);
         }
     }
+
+    assert_eq!(durable_code_hashes.len(), 1);
+    let second_authority = test_live_session_authority(
+        InvocationSource::AgentGrantManagement,
+        "user-z",
+        1,
+        now_ms + 60_000,
+        None,
+    );
+    let (_, second_request_id, second_grant_id) = requests
+        .iter()
+        .find(|(user_id, _, _)| user_id == "user-z")
+        .expect("second authority user's OAuth request exists");
+    let before = oauth_consent_rows_for_test(&mut snapback);
+    let issued = snapback
+        .issue_oauth_authorization_code(&second_authority, second_request_id, now_ms + 100, &random)
+        .expect("second authority user can issue their own OAuth code");
+    let expected_code_hash: [u8; 32] = {
+        use sha2::Digest as _;
+
+        sha2::Sha256::digest(issued.code.expose_secret().as_bytes()).into()
+    };
+    let after = oauth_consent_rows_for_test(&mut snapback);
+    let updated = after
+        .authorizations
+        .iter()
+        .find(|row| row.request_id == *second_request_id)
+        .expect("second authority user's durable OAuth row exists");
+    assert_eq!(updated.status, "approved");
+    assert_eq!(updated.grant_id.as_deref(), Some(second_grant_id.as_str()));
+    assert_eq!(updated.code_expires_at_ms, Some(61_100));
+    assert_eq!(
+        updated.code_hash.as_deref(),
+        Some(expected_code_hash.as_slice()),
+        "second durable OAuth selector must be the SHA-256 of its own returned code"
+    );
+    durable_code_hashes.push(
+        updated
+            .code_hash
+            .clone()
+            .expect("second issued OAuth row must retain its durable selector"),
+    );
+
+    let mut expected = before;
+    let expected_updated = expected
+        .authorizations
+        .iter_mut()
+        .find(|row| row.request_id == *second_request_id)
+        .expect("second authority user's expected OAuth row exists");
+    expected_updated.status = "approved".to_owned();
+    expected_updated.code_hash = Some(expected_code_hash.to_vec());
+    expected_updated.grant_id = Some(second_grant_id.clone());
+    expected_updated.code_expires_at_ms = Some(61_100);
+    assert_eq!(after, expected);
+    assert_ne!(
+        durable_code_hashes[0], durable_code_hashes[1],
+        "independently issued OAuth codes must have distinct durable selectors"
+    );
 }
 
 #[test]
