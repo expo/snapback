@@ -80,19 +80,67 @@ pub struct ReleasedScopedToken {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResolvedScopedToken {
-    pub token_id: String,
-    pub grant_id: String,
-    pub actor_user_id: String,
-    pub effective_user_id: Option<String>,
-    pub credential_id: String,
-    pub credential_generation: u64,
-    pub scopes: Vec<ExactGrantScope>,
-    pub expires_at_ms: u64,
-    pub grant_expires_at_ms: Option<u64>,
-    pub integration_status: Option<super::auth_integrations::IntegrationStatus>,
+    token_id: String,
+    grant_id: String,
+    actor_user_id: String,
+    effective_user_id: Option<String>,
+    credential_id: String,
+    credential_generation: u64,
+    scopes: Vec<ExactGrantScope>,
+    expires_at_ms: u64,
+    grant_expires_at_ms: Option<u64>,
+    integration_status: Option<super::auth_integrations::IntegrationStatus>,
+    /// Private proof that these fields came from the exact token-secret and
+    /// durable-grant resolver in this module. Downstream crates may inspect
+    /// the resolved facts but cannot assemble a service-authority input from
+    /// copied identifiers.
+    _resolution: ResolvedScopedTokenResolution,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ResolvedScopedTokenResolution;
+
 impl ResolvedScopedToken {
+    pub fn token_id(&self) -> &str {
+        &self.token_id
+    }
+
+    pub fn grant_id(&self) -> &str {
+        &self.grant_id
+    }
+
+    pub fn actor_user_id(&self) -> &str {
+        &self.actor_user_id
+    }
+
+    pub fn effective_user_id(&self) -> Option<&str> {
+        self.effective_user_id.as_deref()
+    }
+
+    pub fn credential_id(&self) -> &str {
+        &self.credential_id
+    }
+
+    pub fn credential_generation(&self) -> u64 {
+        self.credential_generation
+    }
+
+    pub fn scopes(&self) -> &[ExactGrantScope] {
+        &self.scopes
+    }
+
+    pub fn expires_at_ms(&self) -> u64 {
+        self.expires_at_ms
+    }
+
+    pub fn grant_expires_at_ms(&self) -> Option<u64> {
+        self.grant_expires_at_ms
+    }
+
+    pub fn integration_status(&self) -> Option<super::auth_integrations::IntegrationStatus> {
+        self.integration_status
+    }
+
     /// Project this kernel-owned token into the leaf-owned fence witness.
     ///
     /// The kernel owns `ResolvedScopedToken`, so it owns the conversion into
@@ -1188,6 +1236,7 @@ impl LocalDatabase {
                     .transpose()
                     .map_err(|_| agent_credential_state_corrupt())?,
                 integration_status,
+                _resolution: ResolvedScopedTokenResolution,
             })
         })
     }
@@ -1283,6 +1332,7 @@ impl LocalDatabase {
                     .transpose()
                     .map_err(|_| agent_credential_state_corrupt())?,
                 integration_status,
+                _resolution: ResolvedScopedTokenResolution,
             })
         })
     }

@@ -164,6 +164,43 @@ pub struct AdmissionController {
     inner: Arc<AdmissionInner>,
 }
 
+/// Opaque identity for the process-local admission graph that minted a
+/// lease. Authority resolvers retain this value so invocation preparation
+/// can compare provenance by pointer identity instead of trusting matching
+/// mode counters supplied by a caller.
+#[derive(Clone)]
+pub struct AdmissionLeaseOrigin {
+    controller: Arc<AdmissionInner>,
+}
+
+impl fmt::Debug for AdmissionLeaseOrigin {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("AdmissionLeaseOrigin")
+            .finish_non_exhaustive()
+    }
+}
+
+impl PartialEq for AdmissionLeaseOrigin {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.controller, &other.controller)
+    }
+}
+
+impl Eq for AdmissionLeaseOrigin {}
+
+impl AdmissionLeaseOrigin {
+    /// Whether `lease` was minted by the exact controller retained by this
+    /// opaque origin. Counter equality is deliberately irrelevant.
+    pub fn owns(&self, lease: &AdmissionLease) -> bool {
+        lease
+            .token
+            .controller
+            .as_ref()
+            .is_some_and(|controller| Arc::ptr_eq(controller, &self.controller))
+    }
+}
+
 /// Public semantic name used by server composition.
 pub type AuthAdmissionController = AdmissionController;
 
@@ -209,6 +246,14 @@ pub struct AdmissionSnapshot {
 }
 
 impl AdmissionController {
+    /// Retain the exact process-local origin used to correlate a later
+    /// resolved authority with its admission lease.
+    pub fn lease_origin(&self) -> AdmissionLeaseOrigin {
+        AdmissionLeaseOrigin {
+            controller: self.inner.clone(),
+        }
+    }
+
     /// Prove that a lease was minted by this exact process-local controller.
     /// Composition uses this before preparing authority off the writer lane;
     /// matching counters alone are never admission evidence.
@@ -866,6 +911,18 @@ impl Drop for LeaseToken {
 }
 
 impl AdmissionLease {
+    /// Retain the process-local controller identity carried by a managed
+    /// lease. Diagnostic/unmanaged test leases intentionally have no origin
+    /// and therefore cannot be joined to resolved session or service facts.
+    pub fn origin(&self) -> Option<AdmissionLeaseOrigin> {
+        self.token
+            .controller
+            .as_ref()
+            .map(|controller| AdmissionLeaseOrigin {
+                controller: controller.clone(),
+            })
+    }
+
     /// Compatibility bridge for call sites the HTTP composition lane has not
     /// yet moved onto the app's controller. Such a lease carries the exact
     /// fields but deliberately cannot claim to participate in quiescence.

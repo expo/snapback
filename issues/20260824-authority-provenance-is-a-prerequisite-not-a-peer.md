@@ -57,3 +57,30 @@ lease and the resolved authority as independent parameters, so one lease can pre
 authorities (`issues/20260824-unverified-findings-backlog-resolved.md`, V5). That was filed as
 evidence against a lease-keyed correlation predicate. It was also evidence that authority
 construction is unsealed, and that implication was missed at the time.
+
+## 2026-08-24 first-stage implementation
+
+The first coherent stage seals the subject-bearing resolution routes without claiming global
+closure:
+
+- downstream crates cannot construct the `Session`, `ServicePrincipal`, or
+  `RevalidatedPrincipal` arms by enum literal because each now requires private provenance;
+- downstream crates cannot construct `ResolvedScopedToken`, the asset-callback service principal,
+  or the durable-watch anchor by struct literal; resolved scoped-token fields are private and
+  read-only outside the kernel;
+- the feature-enabled synthetic `AuthCoordinator::new` route is gone; coordinator construction
+  consumes a kernel-minted opaque catalog snapshot;
+- `prepare_admitted_authority` is crate-private, while public session/service preparation consumes
+  a carrier that privately retains the resolved subject and its publication reservation;
+- session/service preparation compares the carrier's process-local admission origin to the lease,
+  so a lease manufactured from public mode-state fields cannot be joined to authority resolved by
+  another controller, and also compares every projected authority fact to the private fact seal so
+  mutation of a genuine resolved enum value cannot prepare a different subject;
+
+This issue remains open. `System`, `AdminBypass`, and `DevImpersonation` are still public
+non-resolution construction routes, and not every engine consumer yet proves that an already
+prepared authority belongs to that exact engine graph. Operator authority is already separately
+closed by its private engine-owned `Arc<()>`; rehearsal session authority has no separate producer
+and now enters only through the sealed session resolver. A later stage must close the named public
+non-resolution routes and the remaining cross-engine prepared-authority seams before any global
+unconstructibility claim is sound.

@@ -522,6 +522,86 @@ fn test_detached_app_state(snapback: LocalSnapback) -> AppState {
     AppState::try_detached(snapback).expect("detached test app state")
 }
 
+fn install_resolved_service_fixture(
+    snapback: &mut LocalSnapback,
+    mode: &AuthModeStateRecord,
+    actor_user_id: &str,
+    effective_user_id: &str,
+    scopes: Vec<crate::storage::auth_grants::ExactGrantScope>,
+    now_ms: u64,
+    expires_at_ms: u64,
+) -> (
+    crate::local::ResolvedServiceAuthority,
+    String,
+    String,
+    ServiceAuthorityFenceRegistry,
+) {
+    snapback
+        .synchronize_auth_mode_admission(mode)
+        .expect("bind service fixture admission graph");
+    let random = OsRandom;
+    let token;
+    let credential_id;
+    {
+        let database = snapback.remainder_auth_database_mut();
+        database
+            .activate_current_auth_catalog()
+            .expect("activate service fixture catalog");
+        database
+            .auth_catalog()
+            .insert_human_user_for_test(effective_user_id, now_ms)
+            .expect("insert service fixture effective user");
+        database
+            .create_agent_principal(
+                actor_user_id,
+                now_ms,
+                &crate::storage::auth_agents::AgentRegistration {
+                    display_name: Some("Server authority provenance fixture".to_owned()),
+                    operator_contact: None,
+                    registration_provenance: r#"{"source":"server-authority-provenance-test"}"#
+                        .to_owned(),
+                    owner_user_id: Some(effective_user_id.to_owned()),
+                },
+            )
+            .expect("insert service fixture principal");
+        let credential = database
+            .issue_initial_agent_credential(actor_user_id, now_ms, &random)
+            .expect("issue service fixture credential");
+        credential_id = credential.credential_id.clone();
+        let grant_id = format!("grant-{actor_user_id}");
+        database
+            .auth_catalog()
+            .insert_exact_grant_for_test(
+                &grant_id,
+                actor_user_id,
+                Some(effective_user_id),
+                &scopes,
+                now_ms,
+                expires_at_ms,
+            )
+            .expect("insert service fixture exact grant");
+        token = database
+            .mint_scoped_token(
+                &credential.secret,
+                &grant_id,
+                Some(expires_at_ms.saturating_sub(now_ms)),
+                now_ms,
+                &random,
+            )
+            .expect("mint service fixture scoped token");
+    }
+    let keyring = Arc::new(AuthKeyringStore::in_memory());
+    let provider = Arc::new(
+        AuthProvider::new(AuthProviderProfile::Test, keyring)
+            .expect("construct service fixture provider"),
+    );
+    let resolution = snapback
+        .resolve_scoped_token_route_authority(&token.secret, now_ms, Instant::now(), provider)
+        .expect("resolve service fixture token and durable grant");
+    let registry = snapback.service_authority_fences_for_test();
+    (resolution, token.token_id, credential_id, registry)
+}
+
 fn operator_delete_server_fixture(profile: ServerProfile, derived: bool) -> AppState {
     let mut context = ServerContext::detached();
     context.profile = profile;
@@ -5458,12 +5538,11 @@ async fn effect_approval_reprepares_original_session_with_catalog_claims() {
     let prepared = coordinator
         .resolve_required_bearer(approver_bearer, provider.now_ms(), provider.monotonic_now())
         .expect("resolve effect approver session");
-    let (resolved, publication) = prepared.into_parts();
     let ResolvedAppAuthority::Session {
         user_id: approver_user_id,
         session_id,
         ..
-    } = &resolved
+    } = prepared.resolved()
     else {
         panic!("effect approver must resolve to session authority")
     };
@@ -5478,17 +5557,16 @@ async fn effect_approval_reprepares_original_session_with_catalog_claims() {
     })
     .await
     .unwrap();
-    let management = InvocationGate::prepare_admitted_authority(
-        InvocationSource::EffectManagement,
-        AuthMode::Sessions,
-        state.server.profile,
-        test_route_admission(&state).0,
-        &WireAuthorityFields::default(),
-        resolved,
-        Some(claims),
-    )
-    .unwrap()
-    .with_fenced_publication(publication);
+    let management = prepared
+        .prepare_with_claims(
+            InvocationSource::EffectManagement,
+            AuthMode::Sessions,
+            state.server.profile,
+            test_route_admission(&state).0,
+            &WireAuthorityFields::default(),
+            claims,
+        )
+        .unwrap();
 
     let execution =
         super::effects::prepare_original_authority(&state, &management, &effect, &approver_user_id)
@@ -8513,17 +8591,15 @@ async fn install_after_local_production_subscription(
         prepare_invalidation_session_connection_act(state, bearer, connection_id);
     state.ephemeral.touch_connection(connection_id);
     let admission = test_route_admission(state).0;
-    let subscribe_authority = InvocationGate::prepare_admitted_authority(
-        InvocationSource::LiveInitialQuery,
-        AuthMode::Sessions,
-        state.server.profile,
-        admission,
-        &WireAuthorityFields::default(),
-        connection_act.resolved.clone(),
-        test_session_claims_for(&connection_act.resolved),
-    )
-    .expect("prepare after-Local live authority")
-    .with_fenced_publication(connection_act.bound.publication().clone());
+    let subscribe_authority = connection_act
+        .prepare_route_authority(
+            InvocationSource::LiveInitialQuery,
+            state.server.profile,
+            admission,
+            &WireAuthorityFields::default(),
+            test_session_claims_for(&connection_act.resolved),
+        )
+        .expect("prepare after-Local live authority");
     let effect_fence = connection_act.effect_fence();
     let invalidation = connection_act.authorization_invalidation.clone();
     let connection = connection_id.to_owned();
@@ -9352,18 +9428,15 @@ async fn service_terminal_gate_does_not_hold_local_while_staged_work_drains() {
         .clone();
 
     let admission = test_route_admission(&fixture.state).0;
-    let authority = InvocationGate::prepare_admitted_authority(
-        InvocationSource::LiveInitialQuery,
-        AuthMode::Sessions,
-        fixture.state.server.profile,
-        admission.clone(),
-        &WireAuthorityFields::default(),
-        connection_act.resolved.clone(),
-        test_session_claims_for(&connection_act.resolved),
-    )
-    .expect("prepare staged service authority")
-    .with_fenced_publication(connection_act.bound.publication().clone())
-    .with_service_publication(service_publication.clone());
+    let authority = connection_act
+        .prepare_route_authority(
+            InvocationSource::LiveInitialQuery,
+            fixture.state.server.profile,
+            admission.clone(),
+            &WireAuthorityFields::default(),
+            test_session_claims_for(&connection_act.resolved),
+        )
+        .expect("prepare staged service authority");
     let effect_fence = connection_act.effect_fence();
     let staged = with_snapback(&fixture.state.snapback, {
         let connection_id = connection_id.clone();
@@ -9879,17 +9952,15 @@ async fn direct_outbox_http_response(
     connection_act: &super::PreparedConnectionAct,
 ) -> Result<axum::response::Response, super::ApiError> {
     let admission = test_route_admission(state).0;
-    let authority = InvocationGate::prepare_admitted_authority(
-        InvocationSource::OutboxDrain,
-        AuthMode::Sessions,
-        state.server.profile,
-        admission.clone(),
-        &WireAuthorityFields::default(),
-        connection_act.resolved.clone(),
-        test_session_claims_for(&connection_act.resolved),
-    )
-    .expect("prepare direct outbox authority")
-    .with_fenced_publication(connection_act.bound.publication().clone());
+    let authority = connection_act
+        .prepare_route_authority(
+            InvocationSource::OutboxDrain,
+            state.server.profile,
+            admission.clone(),
+            &WireAuthorityFields::default(),
+            test_session_claims_for(&connection_act.resolved),
+        )
+        .expect("prepare direct outbox authority");
     let response = super::drain_outbox(
         State(state.clone()),
         Extension(authority.clone()),
@@ -9990,20 +10061,19 @@ fn prepared_provider_route_authority(
     let prepared = coordinator
         .resolve_family_bearer(bearer, provider.now_ms(), provider.monotonic_now())
         .expect("resolve provider-route bearer through projection");
-    let (resolved, publication) = prepared.into_parts();
-    let session_claims = test_session_claims_for(&resolved);
+    let session_claims = test_session_claims_for(prepared.resolved())
+        .expect("resolved provider bearer has session claims");
     Extension(
-        InvocationGate::prepare_admitted_authority(
-            source,
-            AuthMode::Sessions,
-            state.server.profile,
-            test_route_admission(state).0,
-            &WireAuthorityFields::default(),
-            resolved,
-            session_claims,
-        )
-        .expect("prepare provider-route authority")
-        .with_fenced_publication(publication),
+        prepared
+            .prepare_with_claims(
+                source,
+                AuthMode::Sessions,
+                state.server.profile,
+                test_route_admission(state).0,
+                &WireAuthorityFields::default(),
+                session_claims,
+            )
+            .expect("prepare provider-route authority"),
     )
 }
 
@@ -10433,18 +10503,15 @@ fn sender_issuance_durable_counts(
 async fn settlement_acknowledgement_uses_prepared_authority_not_body_identity() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
     let prepared = |user_id: &str| {
-        InvocationGate::prepare_admitted_authority(
+        InvocationGate::prepare_admitted_dev_principal(
             InvocationSource::MutationSettlementAcknowledgement,
             AuthMode::Dev,
             ServerProfile::Test,
             state.auth_admission_controller().admit_dev().unwrap(),
             &WireAuthorityFields::default(),
-            ResolvedAppAuthority::DevImpersonation {
-                user_id: user_id.to_owned(),
-                roles: Vec::new(),
-                local_dev_only: true,
-            },
-            None,
+            user_id.to_owned(),
+            Vec::new(),
+            true,
         )
         .unwrap()
     };
@@ -18976,23 +19043,21 @@ async fn guest_entry_authorizes_claims_reaps_and_refuses_policy_or_input_failure
         .auth_provider
         .clone()
         .expect("installed auth provider");
-    let source = with_snapback(&state.snapback, |snapback| {
+    let snapshot = with_snapback(&state.snapback, |snapback| {
         snapback
             .remainder_auth_database_mut()
-            .session_projection_source()
+            .admitted_session_projection_snapshot()
     })
     .await
-    .expect("read projection source after guest reaping");
-    let rebuilt =
-        crate::auth::session_projection::SessionProjection::rebuild_with_fresh_startup_id(
-            source,
+    .expect("read admitted projection snapshot after guest reaping");
+    state.auth_coordinator = Some(Arc::new(
+        crate::auth::coordinator::AuthCoordinator::from_admitted_snapshot(
+            snapshot,
+            state.auth_admission_controller(),
             provider.now_ms(),
             provider.monotonic_now(),
         )
-        .expect("rebuild projection after guest reaping");
-    state.auth_coordinator = Some(Arc::new(
-        crate::auth::coordinator::AuthCoordinator::new(rebuilt)
-            .expect("install rebuilt auth coordinator"),
+        .expect("install rebuilt auth coordinator"),
     ));
     let refused = app(state.clone())
         .clone()
@@ -22135,6 +22200,7 @@ async fn grant_step_up_is_domain_separated_target_bound_and_single_effect() {
         .unwrap();
     assert_eq!(login_as_step_up.status(), StatusCode::UNAUTHORIZED);
 
+    let challenge_started_at_ms = provider.now_ms();
     let challenge_response = router
         .clone()
         .oneshot(session_auth_http_request(
@@ -22148,6 +22214,7 @@ async fn grant_step_up_is_domain_separated_target_bound_and_single_effect() {
         ))
         .await
         .unwrap();
+    let challenge_completed_at_ms = provider.now_ms();
     assert_eq!(challenge_response.status(), StatusCode::OK);
     assert_eq!(
         challenge_response.headers()[header::CACHE_CONTROL],
@@ -22156,8 +22223,8 @@ async fn grant_step_up_is_domain_separated_target_bound_and_single_effect() {
     let challenge = response_json(challenge_response).await;
     let challenge_id = challenge["challengeId"].as_str().unwrap().to_owned();
     let expires_at = challenge["expiresAt"].as_u64().unwrap();
-    assert!(expires_at >= now_ms + crate::auth::provider::AUTH_STEP_UP_TTL_MS);
-    assert!(expires_at <= now_ms + crate::auth::provider::AUTH_STEP_UP_TTL_MS + 1_000);
+    assert!(expires_at >= challenge_started_at_ms + crate::auth::provider::AUTH_STEP_UP_TTL_MS);
+    assert!(expires_at <= challenge_completed_at_ms + crate::auth::provider::AUTH_STEP_UP_TTL_MS);
     let mailbox =
         serde_json::to_value(provider.mailbox_entry(&challenge_id).await.unwrap()).unwrap();
     let code = mailbox["code"].as_str().unwrap().to_owned();
@@ -22564,8 +22631,8 @@ async fn unpolled_http_batch_is_suppressed_and_requeued_after_authority_mismatch
         FencedPublication::anonymous_for_unmanaged_dev_connection();
     let mismatch_authority = synthetic_session_bound(
         &replacement_incarnation,
-        "mismatch-session",
-        "mismatch-user",
+        "018f0d90-7b24-7a22-8c33-445566778801",
+        "018f0d90-7b24-7a22-8c33-445566778802",
         "email-code",
         1,
         u64::MAX,
@@ -22643,8 +22710,8 @@ async fn no_lease_projection_still_revalidates_exact_grant_at_first_poll() {
     let (incarnation, publication) = FencedPublication::anonymous_for_unmanaged_dev_connection();
     let mismatch = synthetic_session_bound(
         &incarnation,
-        "direct-session",
-        "direct-user",
+        "018f0d90-7b24-7a22-8c33-445566778803",
+        "018f0d90-7b24-7a22-8c33-445566778804",
         "email-code",
         1,
         u64::MAX,
@@ -22933,17 +23000,15 @@ async fn sessions_live_update_stream_sends_one_frame_per_subscription_version() 
         .expect("register exact sessions stream owner");
     let admission = test_route_admission(&state).0;
 
-    let subscribe_authority = InvocationGate::prepare_admitted_authority(
-        InvocationSource::LiveInitialQuery,
-        AuthMode::Sessions,
-        state.server.profile,
-        admission.clone(),
-        &WireAuthorityFields::default(),
-        connection_act.resolved.clone(),
-        test_session_claims_for(&connection_act.resolved),
-    )
-    .expect("prepare sessions live authority")
-    .with_fenced_publication(connection_act.bound.publication().clone());
+    let subscribe_authority = connection_act
+        .prepare_route_authority(
+            InvocationSource::LiveInitialQuery,
+            state.server.profile,
+            admission.clone(),
+            &WireAuthorityFields::default(),
+            test_session_claims_for(&connection_act.resolved),
+        )
+        .expect("prepare sessions live authority");
     let effect_fence = connection_act.effect_fence();
     let invalidation = connection_act.authorization_invalidation.clone();
     let subscribed = with_snapback(&state.snapback, {
@@ -23527,8 +23592,8 @@ fn prepared_handoff_linearizes_before_concurrent_mismatch_retirement() {
     let retirement = std::thread::spawn(move || {
         let mismatch_authority = synthetic_session_bound(
             &mismatch_incarnation,
-            "paused-session",
-            "paused-user",
+            "018f0d90-7b24-7a22-8c33-445566778805",
+            "018f0d90-7b24-7a22-8c33-445566778806",
             "email-code",
             1,
             u64::MAX,
@@ -24142,10 +24207,12 @@ async fn successful_finite_session_use_extends_the_projection_deadline() {
         )
         .expect("construct manual-clock auth provider"),
     );
-    let state = test_app_state_from_snapback(snapback, bound_loopback_context())
-        .with_policy_auth_mode(PolicyAuthMode::Sessions)
-        .try_with_auth_provider(provider)
-        .expect("auth provider app state");
+    let state = activate_test_sessions(
+        test_app_state_from_snapback(snapback, bound_loopback_context())
+            .with_policy_auth_mode(PolicyAuthMode::Sessions)
+            .try_with_auth_provider(provider)
+            .expect("auth provider app state"),
+    );
     let credential = mint_test_credential(&state, "sliding-use@example.com").await;
     let bearer = credential["token"].as_str().unwrap().to_owned();
     let coordinator = state.auth_coordinator.clone().unwrap();
@@ -24155,18 +24222,18 @@ async fn successful_finite_session_use_extends_the_projection_deadline() {
     let prepared = coordinator
         .resolve_required_bearer(&bearer, use_at_ms, clock.monotonic_now())
         .expect("resolve current bearer before finite use");
-    let (resolved, publication) = prepared.into_parts();
-    let authority = InvocationGate::prepare_authority(
-        InvocationSource::HttpQuery,
-        AuthMode::Sessions,
-        ServerProfile::Test,
-        0,
-        0,
-        &WireAuthorityFields::default(),
-        resolved,
-    )
-    .expect("prepare finite request authority")
-    .with_fenced_publication(publication);
+    let claims = test_session_claims_for(prepared.resolved())
+        .expect("resolved finite bearer has session claims");
+    let authority = prepared
+        .prepare_with_claims(
+            InvocationSource::HttpQuery,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            test_route_admission(&state).0,
+            &WireAuthorityFields::default(),
+            claims,
+        )
+        .expect("prepare finite request authority");
     super::record_successful_finite_session_use(&state, &authority)
         .await
         .expect("record successful finite session use");
@@ -29087,60 +29154,69 @@ async fn watch_reaction_ctx_push_send_without_caller_publication_commits() {
     );
     let watch_owner =
         crate::ids::mint(crate::ids::Kind::User).expect("watch-reaction push owner principal");
-    with_snapback(&state.snapback, {
+    let watch_authority_instance = crate::ids::mint(crate::ids::Kind::AuthorityInstance)
+        .expect("watch-reaction authority instance");
+    let watch_principal = with_snapback(&state.snapback, {
         let watch_owner = watch_owner.clone();
+        let watch_authority_instance = watch_authority_instance.clone();
         move |snapback| {
             let declaration = immediate_push_declaration();
-            let database = snapback.remainder_auth_database_mut();
-            database.activate_push_registry_for_test(declaration.clone())?;
-            let mut schema = database.schema().clone();
-            schema.push_seam = Some(declaration);
-            schema.tables.push(TableManifest {
-                name: "app_members".to_owned(),
-                fields: vec![
-                    FieldManifest {
-                        name: "principal".to_owned(),
-                        field_type: FieldType::Principal,
-                        optional: false,
-                    },
-                    FieldManifest {
-                        name: "role".to_owned(),
-                        field_type: FieldType::String,
-                        optional: false,
-                    },
-                ],
-                indexes: Vec::new(),
-                syncable: true,
-                permission_backing: false,
-                permission_fields: None,
-                search_indexes: Vec::new(),
-                vector_indexes: Vec::new(),
-                search_live_limits: None,
-                membership: Some(crate::manifest::MembershipManifest {
-                    id: Some("app_members".to_owned()),
-                    principal: "principal".to_owned(),
-                    resource: None,
-                    role: "role".to_owned(),
-                    roles: vec!["sender".to_owned()],
-                    pending_roles: None,
-                    bootstrap_role: None,
-                    last_holder: None,
-                    expiry: None,
-                    incidental: None,
-                    provenance: None,
-                    transitions: Vec::new(),
-                    principal_addressed_writes: None,
-                    scope: crate::manifest::MembershipScope::App,
-                    resource_table: None,
-                }),
-                authority_profile: None,
-                asset_sharing: None,
-                visibility: None,
-                history: None,
-            });
-            database
-                .push_registry()
-                .install_immediate_sender_for_test(schema, &watch_owner)?;
+            let now_ms = super::now_millis();
+            {
+                let database = snapback.remainder_auth_database_mut();
+                database
+                    .auth_catalog()
+                    .insert_human_user_for_test(&watch_owner, now_ms)?;
+                database.activate_push_registry_for_test(declaration.clone())?;
+                let mut schema = database.schema().clone();
+                schema.push_seam = Some(declaration);
+                schema.tables.push(TableManifest {
+                    name: "app_members".to_owned(),
+                    fields: vec![
+                        FieldManifest {
+                            name: "principal".to_owned(),
+                            field_type: FieldType::Principal,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "role".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
+                    ],
+                    indexes: Vec::new(),
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
+                    search_live_limits: None,
+                    membership: Some(crate::manifest::MembershipManifest {
+                        id: Some("app_members".to_owned()),
+                        principal: "principal".to_owned(),
+                        resource: None,
+                        role: "role".to_owned(),
+                        roles: vec!["sender".to_owned()],
+                        pending_roles: None,
+                        bootstrap_role: None,
+                        last_holder: None,
+                        expiry: None,
+                        incidental: None,
+                        provenance: None,
+                        transitions: Vec::new(),
+                        principal_addressed_writes: None,
+                        scope: crate::manifest::MembershipScope::App,
+                        resource_table: None,
+                    }),
+                    authority_profile: None,
+                    asset_sharing: None,
+                    visibility: None,
+                    history: None,
+                });
+                database
+                    .push_registry()
+                    .install_immediate_sender_for_test(schema, &watch_owner)?;
+            }
             let diagnostics = snapback.load_functions(generation_test_manifest());
             assert!(
                 diagnostics.iter().all(|diagnostic| {
@@ -29148,25 +29224,74 @@ async fn watch_reaction_ctx_push_send_without_caller_publication_commits() {
                 }),
                 "watch-reaction push functions load: {diagnostics:?}"
             );
-            Ok::<_, SnapbackError>(())
+            snapback
+                .remainder_auth_database_mut()
+                .revalidate_watch_principal(&crate::storage::watches::WatchRecord {
+                    id: crate::ids::mint_time_ordered(crate::ids::Kind::Watch),
+                    owner_kind: crate::watches::WatchOwnerKind::User,
+                    owner_principal_id: watch_owner,
+                    owner_authority_instance_id: watch_authority_instance,
+                    authority_mode: crate::watches::WatchAuthorityMode::RevalidatePrincipal,
+                    anchor_grant_id: None,
+                    installation_grant_id: None,
+                    anchor_expires_at_ms: 0,
+                    query_function_id: "watch-reaction-query".to_owned(),
+                    query_function_name: "heldAction".to_owned(),
+                    query_basis: 1,
+                    query_args: json!({}),
+                    query_args_digest: "watch-reaction-query-args".to_owned(),
+                    read_dependencies: Vec::new(),
+                    predicate: json!({"path": "/rows", "op": "exists"}),
+                    reaction_kind: crate::watches::WatchReactionKind::Function,
+                    reaction_function_id: "watch-reaction-function".to_owned(),
+                    reaction_function_name: "heldAction".to_owned(),
+                    reaction_function_kind: crate::watches::WatchFunctionKind::Action,
+                    reaction_basis: 1,
+                    reaction_args: json!({}),
+                    reaction_args_digest: "watch-reaction-args".to_owned(),
+                    webhook_url: None,
+                    webhook_secret_ref: None,
+                    status: crate::watches::WatchStatus::Active,
+                    status_reason: None,
+                    notification: None,
+                    daily_firing_budget: crate::watches::DEFAULT_DAILY_FIRING_BUDGET,
+                    firings_today: 0,
+                    debounce_ms: crate::watches::DEFAULT_DEBOUNCE_MS,
+                    pending: false,
+                    last_predicate_state: false,
+                    evaluation_count: 0,
+                    coalesced_invalidation_count: 0,
+                    firing_count: 0,
+                    last_evaluated_at_ms: None,
+                    last_fired_at_ms: None,
+                    last_firing_outcome: None,
+                    last_diagnostic_code: None,
+                    created_at_ms: now_ms,
+                    updated_at_ms: now_ms,
+                    recent_firings: Vec::new(),
+                    pending_job_id: None,
+                    pending_firing_ordinal: None,
+                    pending_firing_job_id: None,
+                })?
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_TEST_FIXTURE_INVALID",
+                        "watches",
+                        "watch-reaction principal did not revalidate",
+                    )
+                })
         }
     })
     .await
-    .expect("activate watch-reaction push seam and action");
+    .expect("activate watch-reaction push seam and revalidate its principal");
 
     let staged = stage_held_action(&state.snapback);
     let mut host = held_action_host(state.snapback.clone(), &staged);
-    host.authority = InvocationGate::prepare_admitted_authority(
+    host.authority = InvocationGate::prepare_admitted_revalidated_principal(
         InvocationSource::WatchReaction,
-        AuthMode::Sessions,
         state.server.profile,
         test_route_admission(&state).0,
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::RevalidatedPrincipal {
-            user_id: watch_owner,
-            authority_instance_id: "watch-reaction-push-authority".into(),
-        },
-        None,
+        watch_principal,
     )
     .expect("prepare credential-free watch-reaction authority");
     assert!(
@@ -30235,8 +30360,8 @@ async fn provider_settlement_abandonment_case(authority_latch_first: bool) {
     );
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn service_principal_terminalization_fences_stream_open_and_discards_late_bytes() {
+#[test]
+fn service_principal_terminalization_fences_stream_open_and_discards_late_bytes() {
     // @ref LLP 0076#authority-and-lifecycle — the ServicePrincipal tier
     // of the per-read fence, end to end: a REAL prepared scoped-token
     // authority (sessions-mode admission, HttpAction source, registered
@@ -30286,46 +30411,41 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
         requested_deployment: None,
         quarantine: None,
     };
-    let controller = crate::auth::admission::AdmissionController::from_mode_state(&mode)
-        .expect("sessions admission controller");
-    let registry = ServiceAuthorityFenceRegistry::default();
-    let monotonic = Instant::now();
     let epoch_now_ms = super::now_millis();
     let expires_at_ms = epoch_now_ms + 60_000;
-    let publication = registry
-        .synthetic_publication_for_test(
-            "stream-fence-token",
-            epoch_now_ms,
-            expires_at_ms,
-            monotonic,
-        )
-        .expect("register service publication");
-    let authority = InvocationGate::prepare_admitted_authority(
-        InvocationSource::HttpAction,
-        AuthMode::Sessions,
-        ServerProfile::Test,
-        controller
-            .admit_for_mode(AuthMode::Sessions)
-            .expect("admit sessions action"),
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::ServicePrincipal {
-            actor_user_id: "agent-a".to_owned(),
-            credential_id: "credential-a".to_owned(),
-            credential_generation: 1,
-            grant_id: "durable-grant-a".to_owned(),
-            token_id: "stream-fence-token".to_owned(),
-            effective_user_id: Some("user-a".to_owned()),
-            scopes: Vec::new(),
-            token_expires_at_ms: expires_at_ms,
-            integration_status: None,
-        },
-        None,
-    )
-    .expect("prepare scoped-token action authority")
-    .with_service_publication(publication);
-
     let mut snapback = LocalSnapback::memory().expect("service fence host state");
-    snapback.load_functions(generation_test_manifest());
+    let functions = generation_test_manifest();
+    let action_function_id = functions
+        .functions
+        .iter()
+        .find(|function| function.name == "heldAction")
+        .expect("streaming action declaration")
+        .id
+        .clone();
+    snapback.load_functions(functions);
+    let (resolution, token_id, credential_id, registry) = install_resolved_service_fixture(
+        &mut snapback,
+        &mode,
+        "018f0d90-7b24-7a22-8c33-445566778807",
+        "018f0d90-7b24-7a22-8c33-445566778808",
+        vec![crate::storage::auth_grants::ExactGrantScope {
+            function_id: action_function_id,
+            kind: crate::storage::auth_grants::ScopedFunctionKind::Action,
+            basis: 0,
+            authority_creating: false,
+        }],
+        epoch_now_ms,
+        expires_at_ms,
+    );
+    let authority = snapback
+        .prepare_resolved_connection_service_authority(
+            resolution,
+            InvocationSource::HttpAction,
+            ServerProfile::Test,
+            &WireAuthorityFields::default(),
+            epoch_now_ms,
+        )
+        .expect("prepare scoped-token action authority");
     let state = Arc::new(Mutex::new(snapback));
     let staged = stage_held_action(&state);
     let mut host = held_action_host(state, &staged);
@@ -30337,7 +30457,7 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
     host.stream_runner_host = stream_runner_host;
     host.output_stream_function_id = Some("heldAction".to_owned());
     host.output_stream_initiator = Some(crate::stream_attempt::StreamInitiator::ServiceCredential(
-        "credential-a".to_owned(),
+        credential_id,
     ));
     host.initialize_output_stream()
         .expect("scoped-service streaming action opens its durable attempt");
@@ -30346,7 +30466,7 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
         .clone()
         .expect("output attempt token");
 
-    let (opened, discarded) = tokio::task::block_in_place(|| {
+    let (opened, discarded) = {
         let opened = host
             .open_response_stream(ActionStreamRequest {
                 url: format!("http://{address}/service-fence"),
@@ -30366,6 +30486,7 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
         // Terminalize the service authority 200 ms into the ~900 ms
         // stall, while the second pull is already blocked awaiting bytes.
         let terminal_registry = registry.clone();
+        let terminal_token_id = token_id.clone();
         let terminal = std::thread::spawn(move || {
             std::thread::sleep(Duration::from_millis(200));
             let runtime = tokio::runtime::Builder::new_current_thread()
@@ -30375,14 +30496,14 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
             runtime.block_on(async {
                 let gate = terminal_registry
                     .acquire_terminal_gate(
-                        &["stream-fence-token".to_owned()],
+                        &[terminal_token_id.clone()],
                         ServiceAuthorityDisposition::DurableDelete,
                     )
                     .await
                     .expect("close and drain service domain");
                 with_service_authority_terminal_gate(gate, || {
                     terminal_registry.commit_terminal_for_test(
-                        &["stream-fence-token".to_owned()],
+                        &[terminal_token_id.clone()],
                         ServiceAuthorityDisposition::DurableDelete,
                     )
                 })
@@ -30394,7 +30515,7 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
             .expect_err("late bytes must be discarded after terminalization");
         terminal.join().expect("terminal thread joins");
         (opened, discarded)
-    });
+    };
     assert_eq!(
         discarded.diagnostic.code, "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
         "the service tier's exact authority refusal must surface"
@@ -30455,7 +30576,7 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
 
     // A new open under the terminalized authority is refused at the
     // pre-open leg with the same code.
-    let refused = tokio::task::block_in_place(|| {
+    let refused = {
         host.open_response_stream(ActionStreamRequest {
             url: format!("http://{address}/service-fence-2"),
             method: "GET".to_owned(),
@@ -30466,7 +30587,7 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
             secret_slots: Vec::new(),
         })
         .expect_err("terminalized authority cannot open a stream")
-    });
+    };
     assert_eq!(
         refused.diagnostic.code,
         "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
@@ -30505,13 +30626,8 @@ fn scoped_service_retirement_eventually_latches_cancelled_before_child_commit() 
         requested_deployment: None,
         quarantine: None,
     };
-    let controller = crate::auth::admission::AdmissionController::from_mode_state(&mode)
-        .expect("sessions admission controller");
-    let registry = ServiceAuthorityFenceRegistry::default();
-    let monotonic = Instant::now();
     let epoch_now_ms = super::now_millis();
     let expires_at_ms = epoch_now_ms + 60_000;
-    let token_id = "pre-reservation-stream-fence-token";
     let functions = generation_test_manifest();
     let nested_function_id = functions
         .functions
@@ -30520,42 +30636,46 @@ fn scoped_service_retirement_eventually_latches_cancelled_before_child_commit() 
         .expect("pre-reservation nested mutation declaration")
         .id
         .clone();
-    let publication = registry
-        .synthetic_publication_for_test(token_id, epoch_now_ms, expires_at_ms, monotonic)
-        .expect("register pre-reservation service publication");
-    let authority = InvocationGate::prepare_admitted_authority(
-        InvocationSource::HttpAction,
-        AuthMode::Sessions,
-        ServerProfile::Test,
-        controller
-            .admit_for_mode(AuthMode::Sessions)
-            .expect("admit sessions action"),
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::ServicePrincipal {
-            actor_user_id: "agent-pre-reservation".to_owned(),
-            credential_id: "credential-pre-reservation".to_owned(),
-            credential_generation: 1,
-            grant_id: "grant-pre-reservation".to_owned(),
-            token_id: token_id.to_owned(),
-            effective_user_id: Some("user-pre-reservation".to_owned()),
-            scopes: vec![crate::auth::invocation::ResolvedGrantScope::from_exact(
-                crate::storage::auth_grants::ExactGrantScope {
-                    function_id: nested_function_id,
-                    kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
-                    basis: 0,
-                    authority_creating: false,
-                },
-            )],
-            token_expires_at_ms: expires_at_ms,
-            integration_status: None,
-        },
-        None,
-    )
-    .expect("prepare pre-reservation scoped-token action authority")
-    .with_service_publication(publication);
-
     let mut snapback = LocalSnapback::memory().expect("pre-reservation service host state");
+    let action_function_id = functions
+        .functions
+        .iter()
+        .find(|function| function.name == "heldAction")
+        .expect("pre-reservation action declaration")
+        .id
+        .clone();
     snapback.load_functions(functions);
+    let (resolution, token_id, credential_id, registry) = install_resolved_service_fixture(
+        &mut snapback,
+        &mode,
+        "agent-pre-reservation",
+        "user-pre-reservation",
+        vec![
+            crate::storage::auth_grants::ExactGrantScope {
+                function_id: action_function_id,
+                kind: crate::storage::auth_grants::ScopedFunctionKind::Action,
+                basis: 0,
+                authority_creating: false,
+            },
+            crate::storage::auth_grants::ExactGrantScope {
+                function_id: nested_function_id,
+                kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
+                basis: 0,
+                authority_creating: false,
+            },
+        ],
+        epoch_now_ms,
+        expires_at_ms,
+    );
+    let authority = snapback
+        .prepare_resolved_connection_service_authority(
+            resolution,
+            InvocationSource::HttpAction,
+            ServerProfile::Test,
+            &WireAuthorityFields::default(),
+            epoch_now_ms,
+        )
+        .expect("prepare pre-reservation scoped-token action authority");
     let state = Arc::new(Mutex::new(snapback));
     let staged = stage_held_action(&state);
     let mut host = held_action_host(state, &staged);
@@ -30566,7 +30686,7 @@ fn scoped_service_retirement_eventually_latches_cancelled_before_child_commit() 
     host.stream_runner_host = stream_runner_host;
     host.output_stream_function_id = Some("heldAction".to_owned());
     host.output_stream_initiator = Some(crate::stream_attempt::StreamInitiator::ServiceCredential(
-        "credential-pre-reservation".to_owned(),
+        credential_id,
     ));
     host.initialize_output_stream()
         .expect("pre-reservation action initializes its durable output attempt");
@@ -31913,30 +32033,66 @@ async fn stream_transcript_route_is_initiator_private_with_exact_403_and_404() {
     );
 }
 
+fn resolved_session_route_for_test(
+    user_id: &str,
+    session_id: &str,
+    generation: u64,
+    deadline_ms: u64,
+) -> crate::auth::coordinator::PreparedBearerAuthority {
+    let mut snapback = LocalSnapback::memory().expect("connection session authority fixture");
+    snapback
+        .remainder_auth_database_mut()
+        .activate_current_auth_catalog()
+        .expect("activate connection session catalog");
+    let bearer = crate::auth::crypto::SessionBearer::generate(&OsRandom)
+        .expect("generate connection session bearer");
+    let identity_id =
+        crate::ids::mint(crate::ids::Kind::Identity).expect("mint connection session identity");
+    snapback
+        .remainder_auth_database_mut()
+        .auth_catalog()
+        .bind_email_session_bearer_for_test(
+            user_id,
+            &identity_id,
+            session_id,
+            &Uuid::now_v7().to_string(),
+            &format!("{session_id}@connection-authority.example.test"),
+            bearer.token_hash().as_bytes(),
+            generation,
+            1,
+            deadline_ms.min(crate::storage::SEQUENCE_MAX_SAFE_INTEGER),
+        )
+        .expect("bind connection session bearer");
+    let keyring = Arc::new(AuthKeyringStore::in_memory());
+    let provider = AuthProvider::new(AuthProviderProfile::Test, keyring)
+        .expect("construct connection session provider");
+    let coordinator = snapback
+        .build_auth_coordinator(&provider, true)
+        .expect("build connection session coordinator");
+    coordinator
+        .resolve_required_bearer(bearer.expose_secret(), 1, provider.monotonic_now())
+        .expect("resolve connection session bearer")
+}
+
 fn synthetic_connection_authority(bound: BoundGrantAuthority) -> PreparedConnectionOpenAuthority {
-    let resolved = match &bound {
-        BoundGrantAuthority::Anonymous { .. } => ResolvedAppAuthority::Anonymous,
-        BoundGrantAuthority::ServicePrincipal { authority, .. } => authority.clone(),
+    let (resolved, session_route_authority) = match &bound {
+        BoundGrantAuthority::Anonymous { .. } => (ResolvedAppAuthority::Anonymous, None),
+        BoundGrantAuthority::ServicePrincipal { authority, .. } => (authority.clone(), None),
         BoundGrantAuthority::Session {
             session_id,
             user_id,
-            provider,
             generation,
+            deadline_ms,
             ..
-        } => ResolvedAppAuthority::Session {
-            user_id: user_id.clone(),
-            session_id: session_id.clone(),
-            provider: provider.clone(),
-            generation: *generation,
-            authority_instance_id: Uuid::now_v7().to_string(),
-            session_not_after_ms: u64::MAX,
-            provider_not_after_ms: None,
-            rehearsal_provenance: None,
-        },
+        } => {
+            let prepared =
+                resolved_session_route_for_test(user_id, session_id, *generation, *deadline_ms);
+            (prepared.resolved().clone(), Some(prepared))
+        }
     };
     PreparedConnectionOpenAuthority {
         resolved,
-        session_route_authority: None,
+        session_route_authority,
         service_route_authority: match &bound {
             BoundGrantAuthority::ServicePrincipal {
                 route_authority, ..
@@ -32033,27 +32189,48 @@ fn synthetic_session_bound(
 }
 
 fn synthetic_service_bound(token_id: &str) -> BoundGrantAuthority {
+    let mut snapback = LocalSnapback::memory().expect("connection service authority fixture");
+    let now_ms = 1;
+    let expires_at_ms = 4_000_000_000_000;
+    let secret = crate::auth::crypto::ScopedToken::generate(&OsRandom)
+        .expect("generate connection service token");
+    snapback
+        .remainder_auth_database_mut()
+        .activate_current_auth_catalog()
+        .expect("activate connection service catalog");
+    snapback
+        .remainder_auth_database_mut()
+        .auth_catalog()
+        .install_service_replay_authority_for_test(
+            now_ms,
+            expires_at_ms,
+            &[(
+                token_id.to_owned(),
+                "grant-a".to_owned(),
+                secret.token_hash().as_bytes().to_vec(),
+                1,
+            )],
+        )
+        .expect("install connection service facts");
+    let mode = settled_sessions_state();
+    snapback
+        .synchronize_auth_mode_admission(&mode)
+        .expect("bind connection service admission graph");
+    let keyring = Arc::new(AuthKeyringStore::in_memory());
+    let provider = Arc::new(
+        AuthProvider::new(AuthProviderProfile::Test, keyring)
+            .expect("construct connection service provider"),
+    );
+    let route_authority = snapback
+        .resolve_scoped_token_route_authority(&secret, now_ms, Instant::now(), provider)
+        .expect("resolve connection service token");
+    let authority = route_authority.resolved().clone();
+    let service_publication = route_authority.publication().clone();
     let (authorization_stream_incarnation, publication) =
         FencedPublication::anonymous_for_unmanaged_dev_connection();
-    let authority = ResolvedAppAuthority::ServicePrincipal {
-        actor_user_id: "agent-a".to_owned(),
-        credential_id: "credential-a".to_owned(),
-        credential_generation: 1,
-        grant_id: "durable-grant-a".to_owned(),
-        token_id: token_id.to_owned(),
-        effective_user_id: Some("user-a".to_owned()),
-        scopes: Vec::new(),
-        token_expires_at_ms: u64::MAX,
-        integration_status: None,
-    };
-    let service_publication =
-        crate::auth::service_fence::ServiceAuthorityPublication::synthetic_for_test(token_id);
     BoundGrantAuthority::ServicePrincipal {
         authorization_stream_incarnation,
-        route_authority: crate::local::ResolvedServiceAuthority::synthetic_for_test(
-            authority.clone(),
-            service_publication.clone(),
-        ),
+        route_authority,
         authority,
         token_id: token_id.to_owned(),
         deadline_ms: u64::MAX,
@@ -32147,13 +32324,15 @@ fn connection_previous_token_reuse_compares_every_authority_field() {
         );
     let session_id = Uuid::now_v7().to_string();
     let user_id = Uuid::now_v7().to_string();
+    let base_deadline_ms = super::now_millis() + 10_000;
+    let later_deadline_ms = base_deadline_ms + 10_000;
     let base = synthetic_session_bound(
         &incarnation,
         &session_id,
         &user_id,
         "email-code",
         7,
-        10_000,
+        base_deadline_ms,
         publication.clone(),
     );
     let mismatches = [
@@ -32167,7 +32346,7 @@ fn connection_previous_token_reuse_compares_every_authority_field() {
             &user_id,
             "email-code",
             7,
-            10_000,
+            base_deadline_ms,
             publication.clone(),
         ),
         synthetic_session_bound(
@@ -32176,7 +32355,7 @@ fn connection_previous_token_reuse_compares_every_authority_field() {
             &user_id,
             "email-code",
             7,
-            10_000,
+            base_deadline_ms,
             publication.clone(),
         ),
         synthetic_session_bound(
@@ -32185,7 +32364,7 @@ fn connection_previous_token_reuse_compares_every_authority_field() {
             &Uuid::now_v7().to_string(),
             "email-code",
             7,
-            10_000,
+            base_deadline_ms,
             publication.clone(),
         ),
         synthetic_session_bound(
@@ -32194,7 +32373,7 @@ fn connection_previous_token_reuse_compares_every_authority_field() {
             &user_id,
             "different-provider",
             7,
-            10_000,
+            base_deadline_ms,
             publication.clone(),
         ),
         synthetic_session_bound(
@@ -32203,7 +32382,7 @@ fn connection_previous_token_reuse_compares_every_authority_field() {
             &user_id,
             "email-code",
             8,
-            10_000,
+            base_deadline_ms,
             publication.clone(),
         ),
     ];
@@ -32262,7 +32441,7 @@ fn connection_previous_token_reuse_compares_every_authority_field() {
         &user_id,
         "email-code",
         7,
-        20_000,
+        later_deadline_ms,
         publication,
     );
     let reused = registry
@@ -32286,9 +32465,9 @@ fn connection_previous_token_reuse_compares_every_authority_field() {
             .get(&reused.grant.connection_id)
             .map(|record| &record.authority),
         Some(BoundGrantAuthority::Session {
-            deadline_ms: 20_000,
+            deadline_ms,
             ..
-        })
+        }) if *deadline_ms == later_deadline_ms
     ));
     state.assert_grant_indexes_consistent();
 }
@@ -32811,6 +32990,7 @@ fn connection_reverse_indexes_do_not_leave_ghosts() {
     let user_id = Uuid::now_v7().to_string();
     let first_session = Uuid::now_v7().to_string();
     let second_session = Uuid::now_v7().to_string();
+    let deadline_ms = super::now_millis() + 10_000;
     for connection_id in ["session-a-1", "session-a-2"] {
         registry
             .open_prepared(ConnectionOpenAttempt::new(
@@ -32823,7 +33003,7 @@ fn connection_reverse_indexes_do_not_leave_ghosts() {
                     &user_id,
                     "email-code",
                     3,
-                    10_000,
+                    deadline_ms,
                     publication.clone(),
                 )),
                 1,
@@ -32843,7 +33023,7 @@ fn connection_reverse_indexes_do_not_leave_ghosts() {
                 &user_id,
                 "email-code",
                 1,
-                10_000,
+                deadline_ms,
                 publication.clone(),
             )),
             1,
@@ -33785,17 +33965,15 @@ async fn committed_live_stage_finalize_outlives_request_cancellation_and_retains
     assert!(connection_act.authorization_invalidation.is_some());
 
     let admission = test_route_admission(&state).0;
-    let authority = InvocationGate::prepare_admitted_authority(
-        InvocationSource::LiveInitialQuery,
-        AuthMode::Sessions,
-        state.server.profile,
-        admission.clone(),
-        &WireAuthorityFields::default(),
-        connection_act.resolved.clone(),
-        test_session_claims_for(&connection_act.resolved),
-    )
-    .expect("prepare staged live authority")
-    .with_fenced_publication(connection_act.bound.publication().clone());
+    let authority = connection_act
+        .prepare_route_authority(
+            InvocationSource::LiveInitialQuery,
+            state.server.profile,
+            admission.clone(),
+            &WireAuthorityFields::default(),
+            test_session_claims_for(&connection_act.resolved),
+        )
+        .expect("prepare staged live authority");
     let connection_id = opened.grant.connection_id.clone();
     let effect_fence = connection_act.effect_fence();
     let staged = with_snapback(&state.snapback, {
@@ -33983,17 +34161,15 @@ async fn refused_connection_act_abandons_staged_subscribe_without_publication() 
         )
         .expect("prepare exact staged connection act");
     let admission = test_route_admission(&state).0;
-    let authority = InvocationGate::prepare_admitted_authority(
-        InvocationSource::LiveInitialQuery,
-        AuthMode::Sessions,
-        state.server.profile,
-        admission.clone(),
-        &WireAuthorityFields::default(),
-        connection_act.resolved.clone(),
-        test_session_claims_for(&connection_act.resolved),
-    )
-    .expect("prepare staged live authority")
-    .with_fenced_publication(connection_act.bound.publication().clone());
+    let authority = connection_act
+        .prepare_route_authority(
+            InvocationSource::LiveInitialQuery,
+            state.server.profile,
+            admission.clone(),
+            &WireAuthorityFields::default(),
+            test_session_claims_for(&connection_act.resolved),
+        )
+        .expect("prepare staged live authority");
 
     // Stage preparation still succeeds, but the exact act must observe
     // that retirement removed this grant before invoking its closure.
@@ -35073,19 +35249,18 @@ fn prepared_test_session_route_authority(
     let prepared = coordinator
         .resolve_required_bearer(bearer, provider.now_ms(), provider.monotonic_now())
         .expect("resolve authorized-effect session bearer");
-    let (resolved, publication) = prepared.into_parts();
-    let session_claims = test_session_claims_for(&resolved);
-    InvocationGate::prepare_admitted_authority(
-        source,
-        AuthMode::Sessions,
-        state.server.profile,
-        test_route_admission(state).0,
-        &WireAuthorityFields::default(),
-        resolved,
-        session_claims,
-    )
-    .expect("prepare authorized-effect session authority")
-    .with_fenced_publication(publication)
+    let session_claims = test_session_claims_for(prepared.resolved())
+        .expect("resolved authorized-effect bearer has session claims");
+    prepared
+        .prepare_with_claims(
+            source,
+            AuthMode::Sessions,
+            state.server.profile,
+            test_route_admission(state).0,
+            &WireAuthorityFields::default(),
+            session_claims,
+        )
+        .expect("prepare authorized-effect session authority")
 }
 
 async fn prepared_test_service_route_authority(
@@ -39648,14 +39823,12 @@ async fn hosted_ephemeral_post_verification_errors_repeat_the_instance() {
         .auth_admission_controller()
         .admit_for_mode(AuthMode::Dev)
         .expect("admit dev ephemeral request");
-    let authority = InvocationGate::prepare_admitted_authority(
+    let authority = InvocationGate::prepare_admitted_anonymous(
         InvocationSource::EphemeralPublish,
         AuthMode::Dev,
         state.server.profile,
         admission.clone(),
         &WireAuthorityFields::default(),
-        ResolvedAppAuthority::Anonymous,
-        None,
     )
     .expect("prepare anonymous dev authority");
     let mut headers = HeaderMap::new();

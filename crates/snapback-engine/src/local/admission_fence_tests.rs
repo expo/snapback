@@ -1,7 +1,6 @@
 use super::*;
-use crate::auth::identity_core::AuthClaimsProjection;
 use crate::auth::invocation::{
-    InvocationGate, InvocationSource, PreparedAuthority, ResolvedAppAuthority, WireAuthorityFields,
+    InvocationGate, InvocationSource, PreparedAuthority, WireAuthorityFields,
 };
 use crate::auth::mode::{
     AuthModeStateRecord, AuthProgramReadiness, DeploymentIdentity, FUNCTION_V1_PREFIX,
@@ -30,8 +29,8 @@ use std::io::{Read, Seek, SeekFrom};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
-const USER_ID: &str = "admission-fence-user";
-const SESSION_ID: &str = "admission-fence-session";
+const USER_ID: &str = "018f0d90-7b22-7a22-8c33-445566778899";
+const SESSION_ID: &str = "018f0d90-7b23-7a22-8c33-445566778899";
 const AUTHORITY_INSTANCE_ID: &str = "018f0d90-7b24-7a22-8c33-445566778899";
 const NOW_MS: u64 = 1_000;
 
@@ -66,65 +65,47 @@ fn synchronize_sessions(snapback: &LocalSnapback) -> AdmissionController {
     snapback.admission_controller()
 }
 
-fn prepare_authority(
-    controller: &AdmissionController,
+fn session_management_authority(snapback: &mut LocalSnapback) -> PreparedAuthority {
+    session_authority_for_source(snapback, InvocationSource::CapabilityLinkManagement)
+}
+
+fn session_authority_for_source(
+    snapback: &mut LocalSnapback,
     source: InvocationSource,
-    resolved: ResolvedAppAuthority,
 ) -> PreparedAuthority {
-    let session_claims = matches!(resolved, ResolvedAppAuthority::Session { .. })
-        .then(|| AuthClaimsProjection::server_derived(Vec::new(), Vec::new()));
-    InvocationGate::prepare_admitted_authority(
+    snapback.prepare_resolved_session_for_test(
         source,
+        USER_ID,
+        SESSION_ID,
+        AUTHORITY_INSTANCE_ID,
+        1,
+        u64::MAX,
+    )
+}
+
+fn link_invocation_authority(controller: &AdmissionController) -> PreparedAuthority {
+    InvocationGate::prepare_admitted_anonymous(
+        InvocationSource::HttpCapabilityLink,
         AuthMode::Sessions,
         ServerProfile::Test,
         controller
             .admit_for_mode(AuthMode::Sessions)
             .expect("managed sessions admission"),
         &WireAuthorityFields::default(),
-        resolved,
-        session_claims,
     )
-    .expect("prepared managed authority")
-}
-
-fn session_management_authority(controller: &AdmissionController) -> PreparedAuthority {
-    session_authority_for_source(controller, InvocationSource::CapabilityLinkManagement)
-}
-
-fn session_authority_for_source(
-    controller: &AdmissionController,
-    source: InvocationSource,
-) -> PreparedAuthority {
-    prepare_authority(
-        controller,
-        source,
-        ResolvedAppAuthority::Session {
-            user_id: USER_ID.to_owned(),
-            session_id: SESSION_ID.to_owned(),
-            provider: "email-code".to_owned(),
-            generation: 1,
-            authority_instance_id: AUTHORITY_INSTANCE_ID.to_owned(),
-            session_not_after_ms: u64::MAX,
-            provider_not_after_ms: None,
-            rehearsal_provenance: None,
-        },
-    )
-}
-
-fn link_invocation_authority(controller: &AdmissionController) -> PreparedAuthority {
-    prepare_authority(
-        controller,
-        InvocationSource::HttpCapabilityLink,
-        ResolvedAppAuthority::Anonymous,
-    )
+    .expect("prepared link authority")
 }
 
 fn system_authority(controller: &AdmissionController) -> PreparedAuthority {
-    prepare_authority(
-        controller,
+    InvocationGate::prepare_admitted_system(
         InvocationSource::Cron,
-        ResolvedAppAuthority::System,
+        AuthMode::Sessions,
+        ServerProfile::Test,
+        controller
+            .admit_for_mode(AuthMode::Sessions)
+            .expect("managed sessions admission"),
     )
+    .expect("prepared system authority")
 }
 
 struct FenceRandom(AtomicU8);
@@ -415,7 +396,7 @@ fn ask_spend_fixture() -> (
         .synchronize_auth_mode_admission(&settled)
         .expect("publish ask spend sessions admission");
     let controller = snapback.admission_controller();
-    let authority = session_authority_for_source(&controller, InvocationSource::HttpAsk);
+    let authority = session_authority_for_source(&mut snapback, InvocationSource::HttpAsk);
     let subject = crate::storage::ask_spend::AskSpendSubject {
         principal_key: format!("user:{USER_ID}"),
         integration_key: None,
@@ -496,7 +477,7 @@ fn client_mutation_acknowledgement_fixture() -> (
     );
 
     let controller = synchronize_sessions(&snapback);
-    let authority = session_authority_for_source(&controller, InvocationSource::HttpMutation);
+    let authority = session_authority_for_source(&mut snapback, InvocationSource::HttpMutation);
     let descriptor = snapback
         .descriptor_for_prepared_authority(&authority)
         .expect("prepare client-mutation authority descriptor");
@@ -675,7 +656,7 @@ fn claimed_watch_fixture(
     AdmittedJobClaim,
 ) {
     let (mut snapback, controller) = watch_creation_fixture();
-    let authority = session_authority_for_source(&controller, InvocationSource::WatchManagement);
+    let authority = session_authority_for_source(&mut snapback, InvocationSource::WatchManagement);
     let created = snapback
         .create_watch(&authority, request, NOW_MS)
         .expect("create watch job fence fixture");
@@ -1146,7 +1127,7 @@ fn ask_spend_reservation_refuses_retired_epoch_and_holds_the_guard_through_commi
         "refused ask reservation must not consume durable budget"
     );
 
-    let authority = session_authority_for_source(&controller, InvocationSource::HttpAsk);
+    let authority = session_authority_for_source(&mut snapback, InvocationSource::HttpAsk);
     let commit_observed =
         observe_guard_through_next_commit(AdmissionEffectSite::AskSpendReservation, controller);
     let (_, facts) = snapback
@@ -1180,7 +1161,7 @@ fn ask_spend_settlement_refuses_retired_epoch_and_holds_the_guard_through_commit
         "refused ask settlement must retain the outstanding reservation"
     );
 
-    let authority = session_authority_for_source(&controller, InvocationSource::HttpAsk);
+    let authority = session_authority_for_source(&mut snapback, InvocationSource::HttpAsk);
     let (reservation, _) = snapback
         .reserve_ask_spend(&authority, NOW_MS + 1, subject, &budgets)
         .expect("reserve ask spend under the fresh admission epoch");
@@ -1229,7 +1210,7 @@ fn client_mutation_acknowledgement_refuses_retired_epoch_and_holds_the_guard_thr
         "refused acknowledgement must retain the durable settlement"
     );
 
-    let authority = session_authority_for_source(&controller, InvocationSource::HttpMutation);
+    let authority = session_authority_for_source(&mut snapback, InvocationSource::HttpMutation);
     let commit_observed = observe_guard_through_next_commit(
         AdmissionEffectSite::ClientMutationAcknowledgement,
         controller,
@@ -1276,7 +1257,7 @@ fn partial_multi_commit_failure_drops_its_commit_observer_before_later_work() {
     // must remove the still-pending observer before this worker thread reuses
     // the same commit sites for another operation.
     drop(partial_observation);
-    let authority = session_authority_for_source(&controller, InvocationSource::HttpMutation);
+    let authority = session_authority_for_source(&mut snapback, InvocationSource::HttpMutation);
     let later_observation = observe_guard_through_next_commit(
         AdmissionEffectSite::ClientMutationAcknowledgement,
         controller,
@@ -1304,7 +1285,7 @@ fn watch_creation_refuses_retired_mode_epoch_and_holds_mode_guard_through_commit
     // deliberately remains mode-only for the reasons recorded in
     // issues/20260822-watch-creation-fence-design-decision.md.
     let (mut snapback, controller) = watch_creation_fixture();
-    let authority = session_authority_for_source(&controller, InvocationSource::WatchManagement);
+    let authority = session_authority_for_source(&mut snapback, InvocationSource::WatchManagement);
     let before = durable_database_image(&snapback);
     let fired = retire_at_next_effect(AdmissionEffectSite::WatchCreation, controller.clone());
 
@@ -1319,7 +1300,7 @@ fn watch_creation_refuses_retired_mode_epoch_and_holds_mode_guard_through_commit
         "refused watch creation must not add a durable watch"
     );
 
-    let authority = session_authority_for_source(&controller, InvocationSource::WatchManagement);
+    let authority = session_authority_for_source(&mut snapback, InvocationSource::WatchManagement);
     let commit_observed =
         observe_guard_through_next_commit(AdmissionEffectSite::WatchCreation, controller);
     let created = snapback
@@ -1341,7 +1322,7 @@ fn watch_creation_refuses_retired_mode_epoch_and_holds_mode_guard_through_commit
 #[test]
 fn capability_link_mint_refuses_retired_epoch_without_a_durable_row() {
     let (mut snapback, controller) = capability_link_fixture();
-    let authority = session_management_authority(&controller);
+    let authority = session_management_authority(&mut snapback);
     let before = durable_database_image(&snapback);
     let fired = retire_at_next_effect(AdmissionEffectSite::CapabilityLinkMint, controller.clone());
 
@@ -1356,7 +1337,7 @@ fn capability_link_mint_refuses_retired_epoch_without_a_durable_row() {
         "refused mint must not add a durable capability-link row"
     );
 
-    let authority = session_management_authority(&controller);
+    let authority = session_management_authority(&mut snapback);
     let before_commit = durable_database_image(&snapback);
     let commit_observed =
         observe_guard_through_next_commit(AdmissionEffectSite::CapabilityLinkMint, controller);
@@ -1377,7 +1358,7 @@ fn capability_link_mint_refuses_retired_epoch_without_a_durable_row() {
 #[test]
 fn capability_link_mint_observes_the_guard_when_an_error_follows_commit() {
     let (mut snapback, controller) = capability_link_fixture();
-    let authority = session_management_authority(&controller);
+    let authority = session_management_authority(&mut snapback);
     assert_eq!(
         snapback
             .auth_database_mut()
@@ -1449,7 +1430,7 @@ fn durable_commit_observer_rejects_a_foreign_guard_when_the_target_guard_is_abse
 fn capability_link_revoke_refuses_retired_epoch_without_changing_the_row() {
     let (mut snapback, controller) = capability_link_fixture();
     let minted = seed_link(&mut snapback, 1);
-    let authority = session_management_authority(&controller);
+    let authority = session_management_authority(&mut snapback);
     let before = durable_database_image(&snapback);
     let fired = retire_at_next_effect(
         AdmissionEffectSite::CapabilityLinkRevoke,
@@ -1470,7 +1451,7 @@ fn capability_link_revoke_refuses_retired_epoch_without_changing_the_row() {
         .resolve_capability_link(&minted.token, NOW_MS + 2)
         .expect("refused revoke leaves the link active");
 
-    let authority = session_management_authority(&controller);
+    let authority = session_management_authority(&mut snapback);
     let before_commit = durable_database_image(&snapback);
     let commit_observed =
         observe_guard_through_next_commit(AdmissionEffectSite::CapabilityLinkRevoke, controller);

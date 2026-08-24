@@ -79,7 +79,7 @@
           "eventIndex": 1,
           "eventKind": "join-alice",
           "queryIndex": 0,
-          "principalId": "alice",
+          "principalId": "018f0d90-7b41-7a22-8c33-445566778899",
           "clientStoreId": "store_alice",
           "queryInstanceId": 10,
           "revision": 4,
@@ -96,7 +96,7 @@
           "eventIndex": 1,
           "eventKind": "join-alice",
           "queryIndex": 1,
-          "principalId": "bob",
+          "principalId": "018f0d90-7b42-7a22-8c33-445566778899",
           "clientStoreId": "store_bob",
           "queryInstanceId": 11,
           "revision": 4,
@@ -113,7 +113,7 @@
           "eventIndex": 1,
           "eventKind": "join-alice",
           "queryIndex": 2,
-          "principalId": "carol",
+          "principalId": "018f0d90-7b43-7a22-8c33-445566778899",
           "clientStoreId": "store_carol",
           "queryInstanceId": 12,
           "revision": 4,
@@ -130,7 +130,7 @@
           "eventIndex": 2,
           "eventKind": "join-bob",
           "queryIndex": 0,
-          "principalId": "alice",
+          "principalId": "018f0d90-7b41-7a22-8c33-445566778899",
           "clientStoreId": "store_alice",
           "queryInstanceId": 10,
           "revision": 5,
@@ -147,7 +147,7 @@
           "eventIndex": 2,
           "eventKind": "join-bob",
           "queryIndex": 1,
-          "principalId": "bob",
+          "principalId": "018f0d90-7b42-7a22-8c33-445566778899",
           "clientStoreId": "store_bob",
           "queryInstanceId": 11,
           "revision": 5,
@@ -164,7 +164,7 @@
           "eventIndex": 2,
           "eventKind": "join-bob",
           "queryIndex": 2,
-          "principalId": "carol",
+          "principalId": "018f0d90-7b43-7a22-8c33-445566778899",
           "clientStoreId": "store_carol",
           "queryInstanceId": 12,
           "revision": 5,
@@ -181,7 +181,7 @@
           "eventIndex": 3,
           "eventKind": "kick-bob",
           "queryIndex": 0,
-          "principalId": "alice",
+          "principalId": "018f0d90-7b41-7a22-8c33-445566778899",
           "clientStoreId": "store_alice",
           "queryInstanceId": 10,
           "revision": 6,
@@ -198,7 +198,7 @@
           "eventIndex": 3,
           "eventKind": "kick-bob",
           "queryIndex": 1,
-          "principalId": "bob",
+          "principalId": "018f0d90-7b42-7a22-8c33-445566778899",
           "clientStoreId": "store_bob",
           "queryInstanceId": 11,
           "revision": 6,
@@ -215,7 +215,7 @@
           "eventIndex": 3,
           "eventKind": "kick-bob",
           "queryIndex": 2,
-          "principalId": "carol",
+          "principalId": "018f0d90-7b43-7a22-8c33-445566778899",
           "clientStoreId": "store_carol",
           "queryInstanceId": 12,
           "revision": 6,
@@ -235,7 +235,7 @@
           "eventKind": "join-alice",
           "queryIndex": 0,
           "productionQuery": {
-            "user": "alice",
+            "user": "018f0d90-7b41-7a22-8c33-445566778899",
             "function": "mineOrPublic"
           },
           "productionScope": {
@@ -305,7 +305,7 @@
           "eventKind": "join-alice",
           "queryIndex": 1,
           "productionQuery": {
-            "user": "bob",
+            "user": "018f0d90-7b42-7a22-8c33-445566778899",
             "function": "mineOrPublic"
           },
           "productionScope": {
@@ -375,7 +375,7 @@
           "eventKind": "join-alice",
           "queryIndex": 2,
           "productionQuery": {
-            "user": "carol",
+            "user": "018f0d90-7b43-7a22-8c33-445566778899",
             "function": "allNotes"
           },
           "productionScope": {
@@ -445,7 +445,7 @@
           "eventKind": "join-bob",
           "queryIndex": 0,
           "productionQuery": {
-            "user": "alice",
+            "user": "018f0d90-7b41-7a22-8c33-445566778899",
             "function": "mineOrPublic"
           },
           "productionScope": {
@@ -515,7 +515,7 @@
           "eventKind": "join-bob",
           "queryIndex": 1,
           "productionQuery": {
-            "user": "bob",
+            "user": "018f0d90-7b42-7a22-8c33-445566778899",
             "function": "mineOrPublic"
           },
           "productionScope": {
@@ -585,7 +585,7 @@
           "eventKind": "join-bob",
           "queryIndex": 2,
           "productionQuery": {
-            "user": "carol",
+            "user": "018f0d90-7b43-7a22-8c33-445566778899",
             "function": "allNotes"
           },
           "productionScope": {
@@ -655,7 +655,7 @@
           "eventKind": "kick-bob",
           "queryIndex": 0,
           "productionQuery": {
-            "user": "alice",
+            "user": "018f0d90-7b41-7a22-8c33-445566778899",
             "function": "mineOrPublic"
           },
           "productionScope": {
@@ -725,7 +725,7 @@
           "eventKind": "kick-bob",
           "queryIndex": 1,
           "productionQuery": {
-            "user": "bob",
+            "user": "018f0d90-7b42-7a22-8c33-445566778899",
             "function": "mineOrPublic"
           },
           "productionScope": {
@@ -795,7 +795,7 @@
           "eventKind": "kick-bob",
           "queryIndex": 2,
           "productionQuery": {
-            "user": "carol",
+            "user": "018f0d90-7b43-7a22-8c33-445566778899",
             "function": "allNotes"
           },
           "productionScope": {
@@ -3387,7 +3387,7 @@
           "eventKind": "join-alice",
           "queryIndex": 0,
           "query": {
-            "user": "alice",
+            "user": "018f0d90-7b41-7a22-8c33-445566778899",
             "function": "mineOrPublic"
           },
           "scope": {
@@ -3431,7 +3431,7 @@
           "eventKind": "join-alice",
           "queryIndex": 1,
           "query": {
-            "user": "bob",
+            "user": "018f0d90-7b42-7a22-8c33-445566778899",
             "function": "mineOrPublic"
           },
           "scope": {
@@ -3475,7 +3475,7 @@
           "eventKind": "join-alice",
           "queryIndex": 2,
           "query": {
-            "user": "carol",
+            "user": "018f0d90-7b43-7a22-8c33-445566778899",
             "function": "allNotes"
           },
           "scope": {
@@ -3519,7 +3519,7 @@
           "eventKind": "join-bob",
           "queryIndex": 0,
           "query": {
-            "user": "alice",
+            "user": "018f0d90-7b41-7a22-8c33-445566778899",
             "function": "mineOrPublic"
           },
           "scope": {
@@ -3563,7 +3563,7 @@
           "eventKind": "join-bob",
           "queryIndex": 1,
           "query": {
-            "user": "bob",
+            "user": "018f0d90-7b42-7a22-8c33-445566778899",
             "function": "mineOrPublic"
           },
           "scope": {
@@ -3607,7 +3607,7 @@
           "eventKind": "join-bob",
           "queryIndex": 2,
           "query": {
-            "user": "carol",
+            "user": "018f0d90-7b43-7a22-8c33-445566778899",
             "function": "allNotes"
           },
           "scope": {
@@ -3651,7 +3651,7 @@
           "eventKind": "kick-bob",
           "queryIndex": 0,
           "query": {
-            "user": "alice",
+            "user": "018f0d90-7b41-7a22-8c33-445566778899",
             "function": "mineOrPublic"
           },
           "scope": {
@@ -3695,7 +3695,7 @@
           "eventKind": "kick-bob",
           "queryIndex": 1,
           "query": {
-            "user": "bob",
+            "user": "018f0d90-7b42-7a22-8c33-445566778899",
             "function": "mineOrPublic"
           },
           "scope": {
@@ -3739,7 +3739,7 @@
           "eventKind": "kick-bob",
           "queryIndex": 2,
           "query": {
-            "user": "carol",
+            "user": "018f0d90-7b43-7a22-8c33-445566778899",
             "function": "allNotes"
           },
           "scope": {

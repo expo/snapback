@@ -6,7 +6,7 @@
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-24
-**Revised:** 2026-08-24 (a — initial ruling)
+**Revised:** 2026-08-24 (b — authority-provenance prerequisite first stage)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
 `issues/20260824-liveness-row-bucket-assignment.md`,
 `issues/20260824-entitlement-predicates-for-the-live-sites.md`
@@ -86,3 +86,56 @@ comparison-operator mutations and subjects on both sides of the caller's lexical
 Every defect behind these questions is reachable only from in-crate code, not remotely. These are
 structural guarantees against future incorrect code, not open doors. That is why the strict answers
 are affordable and why the program was not run as an incident.
+
+## Authority-provenance implementation
+
+### Q08 answer
+
+The service-principal arm is no longer authorable from copied token, grant, credential, effective
+user, and scope fields. `ResolvedScopedToken` keeps every resolved fact private and carries a
+private resolution marker that only the exact token-secret plus durable-grant resolver can mint;
+downstream code gets read-only accessors, so it cannot edit a genuine resolution into a different
+subject. The resolver output then enters a private
+`ResolvedServiceAuthority` carrier together with its service-publication reservation and the
+resolution coordinator's process-local admission origin. Final preparation consumes that carrier
+and rejects a lease from any other admission graph. The session/service provenance also seals an
+exact private copy of every resolved authority fact, so editing the public enum projection after a
+genuine resolution cannot produce a preparable different authority.
+
+This closes downstream struct/enum-literal construction and the old independently supplied
+`ResolvedAppAuthority` plus `AdmissionLease` join for the service arm. It does not yet bind an
+already prepared authority to every later `LocalSnapback` consumer; that engine-graph closure is a
+separate remaining step and no global closure claim follows from this stage.
+
+### Q09 answer
+
+The session arm carries a private resolution marker. Only the coordinator path that consumes a
+kernel-minted opaque durable projection snapshot can attach that marker. Its
+`PreparedBearerAuthority` retains the resolved subject and final-publication fence privately
+through invocation preparation, and the marker records the coordinator's process-local admission
+origin. A mode-valid lease from a separately manufactured controller therefore cannot prepare the
+resolved session.
+
+Rehearsal sessions use this same path: protected rehearsal lineage is projected as part of the
+resolved session and there is no separate rehearsal session constructor. Asset-callback service
+principals, durable-watch service anchors, and revalidated human watch principals now likewise
+require opaque kernel carriers produced by their exact protected-catalog reads.
+
+This stage does not seal the public non-resolution `System`, `AdminBypass`, or
+`DevImpersonation` arms. Operator authority remains separately closed by the existing private
+`Arc<()>` engine identity and `Arc::ptr_eq` check. Closing the remaining non-resolution arms is
+required before describing `ResolvedAppAuthority` as globally unconstructible.
+
+### Q11 answer
+
+`InvocationGate::prepare_admitted_authority` is crate-private, and public bearer/service entry
+points consume resolution-owned carriers instead of accepting a freely supplied resolved subject.
+Session and service provenance is also compared to the lease's private controller origin at the
+inner gate. Thus a public `AuthModeStateRecord` plus `AdmissionController::from_mode_state` can
+still create a mode-valid lease, but that lease cannot mint either subject-bearing arm and cannot be
+joined to an arm resolved under another controller.
+
+The first stage deliberately makes no claim about every consumer of an already prepared authority.
+Some engine APIs still accept `PreparedAuthority` produced by another engine graph, and the public
+non-resolution arms named above remain reachable. Those are residual construction/correlation
+work, not exceptions to the ruling.

@@ -26,7 +26,11 @@ pub struct AssetCallbacksServicePrincipal {
     pub actor_user_id: String,
     pub grant_id: String,
     pub scope: ExactGrantScope,
+    _resolution: AssetCallbacksResolution,
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct AssetCallbacksResolution;
 
 impl LocalDatabase {
     /// Resolve or mint the one per-app principal and an immutable grant for
@@ -150,6 +154,7 @@ impl LocalDatabase {
                 actor_user_id,
                 grant_id,
                 scope: scope.clone(),
+                _resolution: AssetCallbacksResolution,
             })
         })
     }

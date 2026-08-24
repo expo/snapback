@@ -64,7 +64,7 @@
       "eventKind": "join-alice",
       "queryIndex": 0,
       "query": {
-        "user": "alice",
+        "user": "018f0d90-7b41-7a22-8c33-445566778899",
         "function": "mineOrPublic"
       },
       "scope": {
@@ -108,7 +108,7 @@
       "eventKind": "join-alice",
       "queryIndex": 1,
       "query": {
-        "user": "bob",
+        "user": "018f0d90-7b42-7a22-8c33-445566778899",
         "function": "mineOrPublic"
       },
       "scope": {
@@ -152,7 +152,7 @@
       "eventKind": "join-alice",
       "queryIndex": 2,
       "query": {
-        "user": "carol",
+        "user": "018f0d90-7b43-7a22-8c33-445566778899",
         "function": "allNotes"
       },
       "scope": {
@@ -196,7 +196,7 @@
       "eventKind": "join-bob",
       "queryIndex": 0,
       "query": {
-        "user": "alice",
+        "user": "018f0d90-7b41-7a22-8c33-445566778899",
         "function": "mineOrPublic"
       },
       "scope": {
@@ -240,7 +240,7 @@
       "eventKind": "join-bob",
       "queryIndex": 1,
       "query": {
-        "user": "bob",
+        "user": "018f0d90-7b42-7a22-8c33-445566778899",
         "function": "mineOrPublic"
       },
       "scope": {
@@ -284,7 +284,7 @@
       "eventKind": "join-bob",
       "queryIndex": 2,
       "query": {
-        "user": "carol",
+        "user": "018f0d90-7b43-7a22-8c33-445566778899",
         "function": "allNotes"
       },
       "scope": {
@@ -328,7 +328,7 @@
       "eventKind": "kick-bob",
       "queryIndex": 0,
       "query": {
-        "user": "alice",
+        "user": "018f0d90-7b41-7a22-8c33-445566778899",
         "function": "mineOrPublic"
       },
       "scope": {
@@ -372,7 +372,7 @@
       "eventKind": "kick-bob",
       "queryIndex": 1,
       "query": {
-        "user": "bob",
+        "user": "018f0d90-7b42-7a22-8c33-445566778899",
         "function": "mineOrPublic"
       },
       "scope": {
@@ -416,7 +416,7 @@
       "eventKind": "kick-bob",
       "queryIndex": 2,
       "query": {
-        "user": "carol",
+        "user": "018f0d90-7b43-7a22-8c33-445566778899",
         "function": "allNotes"
       },
       "scope": {

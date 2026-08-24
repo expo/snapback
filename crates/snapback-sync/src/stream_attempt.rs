@@ -1685,6 +1685,7 @@ mod tests {
             session_not_after_ms: 10_000,
             provider_not_after_ms: None,
             rehearsal_provenance: None,
+            _resolution: crate::auth::invocation::test_resolution(),
         }
     }
 
@@ -1717,6 +1718,7 @@ mod tests {
                 scopes: Vec::new(),
                 token_expires_at_ms: 10_000,
                 integration_status: None,
+                _resolution: crate::auth::invocation::test_resolution(),
             })
             .provenance_for_test(),
             "CallerAuthorized"
@@ -1735,10 +1737,7 @@ mod tests {
             prepared_origin(
                 crate::auth::invocation::InvocationSource::WatchEvaluation,
                 AuthMode::Sessions,
-                ResolvedAppAuthority::RevalidatedPrincipal {
-                    user_id: "user-a".to_owned(),
-                    authority_instance_id: "authority-a".to_owned(),
-                },
+                crate::auth::invocation::test_revalidated_authority("user-a", "authority-a"),
             ),
             prepared_origin(
                 crate::auth::invocation::InvocationSource::Cron,

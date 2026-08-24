@@ -150,7 +150,24 @@ pub struct WatchAnchorAuthority {
     pub scopes: Vec<crate::storage::auth_grants::ExactGrantScope>,
     pub expires_at_ms: u64,
     pub integration_status: crate::storage::auth_integrations::IntegrationStatus,
+    _resolution: WatchAnchorResolution,
 }
+
+#[derive(Clone, Debug)]
+struct WatchAnchorResolution;
+
+/// Protected-catalog proof that the durable watch still names an active
+/// human owner. Its private marker prevents copied watch fields from becoming
+/// revalidated invocation authority.
+#[derive(Clone, Debug)]
+pub struct RevalidatedWatchPrincipal {
+    pub user_id: String,
+    pub authority_instance_id: String,
+    _resolution: RevalidatedWatchPrincipalResolution,
+}
+
+#[derive(Clone, Debug)]
+struct RevalidatedWatchPrincipalResolution;
 
 /// Caller-constructed operation identifier for one watch-management attempt.
 /// The newtype prevents accidental comparison with another intent type, but
@@ -541,6 +558,22 @@ impl LocalDatabase {
             params![owner],
             |row| row.get::<_, i64>(0),
         )? != 0)
+    }
+
+    pub fn revalidate_watch_principal(
+        &self,
+        record: &WatchRecord,
+    ) -> SnapbackResult<Option<RevalidatedWatchPrincipal>> {
+        if record.owner_kind != WatchOwnerKind::User
+            || !self.watch_owner_is_active(&record.owner_principal_id)?
+        {
+            return Ok(None);
+        }
+        Ok(Some(RevalidatedWatchPrincipal {
+            user_id: record.owner_principal_id.clone(),
+            authority_instance_id: record.owner_authority_instance_id.clone(),
+            _resolution: RevalidatedWatchPrincipalResolution,
+        }))
     }
 
     /// Reload the watchAnchor, its parent installation consent, integration
@@ -1683,6 +1716,7 @@ fn revalidate_watch_anchor_on(
         scopes,
         expires_at_ms,
         integration_status: integration.status,
+        _resolution: WatchAnchorResolution,
     }))
 }
 

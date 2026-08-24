@@ -12,17 +12,13 @@ use crate::auth::admission::AdmissionLease;
 use crate::auth::invalidation::{
     AuthorizationInvalidationConnection, LiveInvalidationIssuer, QueryNamespace,
 };
-use crate::auth::invocation::{
-    InvocationGate, InvocationSource, PreparedAuthority, ResolvedAppAuthority, WireAuthorityFields,
-};
-use crate::contract_types::ServerProfile;
+use crate::auth::invocation::{InvocationSource, PreparedAuthority};
 use crate::diagnostic::SnapbackError;
 use crate::manifest::{
-    AuthMode, ElevatedReadCapabilityV1, ElevatedReadFormV1, ElevatedReadTableCeilingV1,
-    FieldManifest, FieldType, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
-    HandlerInput, HandlerPlan, IbexModule, MutationPlan, MutationStep,
-    OwnerWriteAbsentDispositionV1, OwnerWriteCheckV1, ReturnValue, SchemaManifest, TableManifest,
-    TableVisibilityV1, ValueExpr,
+    ElevatedReadCapabilityV1, ElevatedReadFormV1, ElevatedReadTableCeilingV1, FieldManifest,
+    FieldType, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput,
+    HandlerPlan, IbexModule, MutationPlan, MutationStep, OwnerWriteAbsentDispositionV1,
+    OwnerWriteCheckV1, ReturnValue, SchemaManifest, TableManifest, TableVisibilityV1, ValueExpr,
 };
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
@@ -437,14 +433,22 @@ fn configure(mut snapback: LocalSnapback) -> LocalSnapback {
         .auth_database_mut()
         .activate_current_auth_catalog()
         .expect("install acceptance auth catalog");
-    for (index, user) in ["alice", "bob", "carol"].into_iter().enumerate() {
+    for (index, user) in [
+        "018f0d90-7b41-7a22-8c33-445566778899",
+        "018f0d90-7b42-7a22-8c33-445566778899",
+        "018f0d90-7b43-7a22-8c33-445566778899",
+    ]
+    .into_iter()
+    .enumerate()
+    {
         let (session_id, authority_instance_id) = session_ids(user);
+        let identity_id = crate::ids::mint_time_ordered(crate::ids::Kind::Identity);
         snapback
             .auth_database_mut()
             .auth_catalog()
             .insert_email_session_for_test(
                 user,
-                &format!("acceptance-identity-{user}"),
+                &identity_id,
                 session_id,
                 authority_instance_id,
                 &format!("{user}@acceptance.test"),
@@ -524,15 +528,15 @@ fn install_invalidation(snapback: &mut LocalSnapback) -> AuthorizationInvalidati
 
 fn session_ids(user: &str) -> (&'static str, &'static str) {
     match user {
-        "alice" => (
+        "018f0d90-7b41-7a22-8c33-445566778899" => (
             "018f0d90-7b31-7a22-8c33-445566778899",
             "018f0d90-7b32-7a22-8c33-445566778899",
         ),
-        "bob" => (
+        "018f0d90-7b42-7a22-8c33-445566778899" => (
             "018f0d90-7b33-7a22-8c33-445566778899",
             "018f0d90-7b34-7a22-8c33-445566778899",
         ),
-        "carol" => (
+        "018f0d90-7b43-7a22-8c33-445566778899" => (
             "018f0d90-7b35-7a22-8c33-445566778899",
             "018f0d90-7b36-7a22-8c33-445566778899",
         ),
@@ -543,27 +547,20 @@ fn session_ids(user: &str) -> (&'static str, &'static str) {
     }
 }
 
-fn session_authority(user: &str, source: InvocationSource) -> PreparedAuthority {
+fn session_authority(
+    snapback: &mut LocalSnapback,
+    user: &str,
+    source: InvocationSource,
+) -> PreparedAuthority {
     let (session_id, authority_instance_id) = session_ids(user);
-    InvocationGate::prepare_authority(
+    snapback.prepare_resolved_session_for_test(
         source,
-        AuthMode::Sessions,
-        ServerProfile::Test,
+        user,
+        session_id,
+        authority_instance_id,
         1,
-        1,
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::Session {
-            user_id: user.to_owned(),
-            session_id: session_id.to_owned(),
-            provider: "email-code".to_owned(),
-            generation: 1,
-            authority_instance_id: authority_instance_id.to_owned(),
-            session_not_after_ms: 4_000_000_000_000,
-            provider_not_after_ms: None,
-            rehearsal_provenance: None,
-        },
+        4_000_000_000_000,
     )
-    .expect("prepare acceptance session authority")
 }
 
 fn input(args: Value) -> HandlerInput {
@@ -574,12 +571,9 @@ fn input(args: Value) -> HandlerInput {
 }
 
 fn mutate(snapback: &mut LocalSnapback, user: &str, name: &str, args: Value) -> Value {
+    let authority = session_authority(snapback, user, InvocationSource::HttpMutation);
     snapback
-        .invoke_mutation_with_authority(
-            name,
-            input(args),
-            session_authority(user, InvocationSource::HttpMutation),
-        )
+        .invoke_mutation_with_authority(name, input(args), authority)
         .unwrap_or_else(|error| panic!("{name} failed: {error:?}"))
         .result
 }
@@ -593,6 +587,7 @@ fn subscribe(
     instance: u64,
 ) -> TrackedQuery {
     let connection_id = format!("acceptance-{user}-{function}-{instance}");
+    let authority = session_authority(snapback, user, InvocationSource::LiveInitialQuery);
     let output = snapback
         .subscribe_live_prepared_with_invalidation(
             function,
@@ -610,7 +605,7 @@ fn subscribe(
                 supersedes: None,
                 resume_from_token: None,
             },
-            session_authority(user, InvocationSource::LiveInitialQuery),
+            authority,
             LiveInvalidationAdmission {
                 connection: Some(connection.clone()),
                 effect_fence: None,
@@ -641,12 +636,13 @@ fn canonical_rows(rows: &[Value]) -> Vec<Value> {
     rows
 }
 
-fn converges_with_fresh_query(snapback: &LocalSnapback, query: &TrackedQuery) -> bool {
+fn converges_with_fresh_query(snapback: &mut LocalSnapback, query: &TrackedQuery) -> bool {
+    let authority = session_authority(snapback, &query.user, InvocationSource::HttpQuery);
     let fresh = snapback
         .invoke_query_with_dependencies_prepared(
             &query.function,
             input(query.args.clone()),
-            session_authority(&query.user, InvocationSource::HttpQuery),
+            authority,
         )
         .unwrap_or_else(|error| {
             panic!(
@@ -657,7 +653,7 @@ fn converges_with_fresh_query(snapback: &LocalSnapback, query: &TrackedQuery) ->
     canonical_rows(&query.rows) == canonical_rows(&fresh.output.rows)
 }
 
-fn assert_converges(snapback: &LocalSnapback, query: &TrackedQuery) {
+fn assert_converges(snapback: &mut LocalSnapback, query: &TrackedQuery) {
     assert!(
         converges_with_fresh_query(snapback, query),
         "matcher delivery for {} / {} diverged from a full re-query",
@@ -984,9 +980,13 @@ fn settle_all(
     queries: &mut [TrackedQuery],
     lose_connections: &BTreeSet<String>,
 ) -> DeliveryObservation {
-    let admission = session_authority("alice", InvocationSource::HttpQuery)
-        .admission_lease()
-        .clone();
+    let admission = session_authority(
+        snapback,
+        "018f0d90-7b41-7a22-8c33-445566778899",
+        InvocationSource::HttpQuery,
+    )
+    .admission_lease()
+    .clone();
     let mut observation = DeliveryObservation::default();
     for query in queries {
         observation.merge(settle_query(
@@ -1050,61 +1050,61 @@ fn named_shapes_and_matcher_deliveries_converge_with_full_requery() {
 
     let folder_a = id(mutate(
         &mut snapback,
-        "alice",
+        "018f0d90-7b41-7a22-8c33-445566778899",
         "createFolder",
         json!({ "orgId": "org-a" }),
     ));
     let folder_b = id(mutate(
         &mut snapback,
-        "bob",
+        "018f0d90-7b42-7a22-8c33-445566778899",
         "createFolder",
         json!({ "orgId": "org-b" }),
     ));
     mutate(
         &mut snapback,
-        "alice",
+        "018f0d90-7b41-7a22-8c33-445566778899",
         "createOrgMember",
-        json!({ "orgId": "org-a", "userId": "alice", "role": "member" }),
+        json!({ "orgId": "org-a", "userId": "018f0d90-7b41-7a22-8c33-445566778899", "role": "member" }),
     );
     mutate(
         &mut snapback,
-        "bob",
+        "018f0d90-7b42-7a22-8c33-445566778899",
         "createOrgMember",
-        json!({ "orgId": "org-b", "userId": "bob", "role": "member" }),
+        json!({ "orgId": "org-b", "userId": "018f0d90-7b42-7a22-8c33-445566778899", "role": "member" }),
     );
     let public_doc = id(mutate(
         &mut snapback,
-        "alice",
+        "018f0d90-7b41-7a22-8c33-445566778899",
         "createDoc",
         json!({
             "title": "public-to-private",
-            "ownerId": "alice",
+            "ownerId": "018f0d90-7b41-7a22-8c33-445566778899",
             "isPublic": true,
             "folderId": folder_a,
         }),
     ));
     let hierarchy_doc = id(mutate(
         &mut snapback,
-        "carol",
+        "018f0d90-7b43-7a22-8c33-445566778899",
         "createDoc",
         json!({
             "title": "hierarchy-reparent",
-            "ownerId": "carol",
+            "ownerId": "018f0d90-7b43-7a22-8c33-445566778899",
             "isPublic": false,
             "folderId": folder_a,
         }),
     ));
     let alice_game = id(mutate(
         &mut snapback,
-        "alice",
+        "018f0d90-7b41-7a22-8c33-445566778899",
         "createGameMember",
-        json!({ "gameId": "game-1", "userId": "alice", "role": "player" }),
+        json!({ "gameId": "game-1", "userId": "018f0d90-7b41-7a22-8c33-445566778899", "role": "player" }),
     ));
     let bob_game = id(mutate(
         &mut snapback,
-        "bob",
+        "018f0d90-7b42-7a22-8c33-445566778899",
         "createGameMember",
-        json!({ "gameId": "game-1", "userId": "bob", "role": "player" }),
+        json!({ "gameId": "game-1", "userId": "018f0d90-7b42-7a22-8c33-445566778899", "role": "player" }),
     ));
     assert_ne!(alice_game, bob_game);
 
@@ -1113,7 +1113,7 @@ fn named_shapes_and_matcher_deliveries_converge_with_full_requery() {
         subscribe(
             &mut snapback,
             &connection,
-            "bob",
+            "018f0d90-7b42-7a22-8c33-445566778899",
             "mineOrPublic",
             json!({}),
             1,
@@ -1121,7 +1121,7 @@ fn named_shapes_and_matcher_deliveries_converge_with_full_requery() {
         subscribe(
             &mut snapback,
             &connection,
-            "alice",
+            "018f0d90-7b41-7a22-8c33-445566778899",
             "orgDocuments",
             json!({}),
             2,
@@ -1129,7 +1129,7 @@ fn named_shapes_and_matcher_deliveries_converge_with_full_requery() {
         subscribe(
             &mut snapback,
             &connection,
-            "bob",
+            "018f0d90-7b42-7a22-8c33-445566778899",
             "orgDocuments",
             json!({}),
             3,
@@ -1137,7 +1137,7 @@ fn named_shapes_and_matcher_deliveries_converge_with_full_requery() {
         subscribe(
             &mut snapback,
             &connection,
-            "alice",
+            "018f0d90-7b41-7a22-8c33-445566778899",
             "gameRoster",
             json!({ "gameId": "game-1" }),
             4,
@@ -1145,14 +1145,14 @@ fn named_shapes_and_matcher_deliveries_converge_with_full_requery() {
         subscribe(
             &mut snapback,
             &connection,
-            "bob",
+            "018f0d90-7b42-7a22-8c33-445566778899",
             "gameRoster",
             json!({ "gameId": "game-1" }),
             5,
         ),
     ];
     for query in &queries {
-        assert_converges(&snapback, query);
+        assert_converges(&mut snapback, query);
     }
 
     // Row-authorized sharing: this ordinary docs write advances no auth epoch,
@@ -1163,7 +1163,7 @@ fn named_shapes_and_matcher_deliveries_converge_with_full_requery() {
         .expect("installed expectation");
     mutate(
         &mut snapback,
-        "alice",
+        "018f0d90-7b41-7a22-8c33-445566778899",
         "setDocPublic",
         json!({ "id": public_doc, "isPublic": false }),
     );
@@ -1181,14 +1181,14 @@ fn named_shapes_and_matcher_deliveries_converge_with_full_requery() {
     );
     assert!(!ids(&queries[0].rows).contains(&public_doc));
     for query in &queries {
-        assert_converges(&snapback, query);
+        assert_converges(&mut snapback, query);
     }
 
     // Hierarchical authority: the same ordinary row write makes one org lose
     // and the other gain visibility; both directions are proved.
     mutate(
         &mut snapback,
-        "carol",
+        "018f0d90-7b43-7a22-8c33-445566778899",
         "setDocFolder",
         json!({ "id": hierarchy_doc, "folderId": folder_b }),
     );
@@ -1196,11 +1196,11 @@ fn named_shapes_and_matcher_deliveries_converge_with_full_requery() {
     assert!(!ids(&queries[1].rows).contains(&hierarchy_doc));
     assert!(ids(&queries[2].rows).contains(&hierarchy_doc));
     for query in &queries {
-        assert_converges(&snapback, query);
+        assert_converges(&mut snapback, query);
     }
     mutate(
         &mut snapback,
-        "carol",
+        "018f0d90-7b43-7a22-8c33-445566778899",
         "setDocFolder",
         json!({ "id": hierarchy_doc, "folderId": folder_a }),
     );
@@ -1208,7 +1208,7 @@ fn named_shapes_and_matcher_deliveries_converge_with_full_requery() {
     assert!(ids(&queries[1].rows).contains(&hierarchy_doc));
     assert!(!ids(&queries[2].rows).contains(&hierarchy_doc));
     for query in &queries {
-        assert_converges(&snapback, query);
+        assert_converges(&mut snapback, query);
     }
 
     // One table is simultaneously the roster result and its ACL. The delete
@@ -1219,7 +1219,7 @@ fn named_shapes_and_matcher_deliveries_converge_with_full_requery() {
         .expect("expectation before kick");
     mutate(
         &mut snapback,
-        "alice",
+        "018f0d90-7b41-7a22-8c33-445566778899",
         "deleteGameMember",
         json!({ "id": bob_game }),
     );
@@ -1231,17 +1231,14 @@ fn named_shapes_and_matcher_deliveries_converge_with_full_requery() {
     assert_eq!(ids(&queries[3].rows), BTreeSet::from([alice_game]));
     assert!(queries[4].rows.is_empty());
     for query in &queries {
-        assert_converges(&snapback, query);
+        assert_converges(&mut snapback, query);
     }
 }
 
-fn property_query_ids(snapback: &LocalSnapback) -> Vec<String> {
+fn property_query_ids(snapback: &mut LocalSnapback) -> Vec<String> {
+    let authority = session_authority(snapback, PROPERTY_PRINCIPAL, InvocationSource::HttpQuery);
     let output = snapback
-        .invoke_query_with_dependencies_prepared(
-            "mineOrPublic",
-            input(json!({})),
-            session_authority(PROPERTY_PRINCIPAL, InvocationSource::HttpQuery),
-        )
+        .invoke_query_with_dependencies_prepared("mineOrPublic", input(json!({})), authority)
         .expect("production property query");
     let mut ids = output
         .output
@@ -1335,7 +1332,7 @@ fn shared_property_corpus_emits_production_fresh_query_receipt() {
             ));
             database_ids.insert(logical_id.to_owned(), database_id);
         }
-        let production_initial_authorized_row_ids = property_query_ids(&snapback);
+        let production_initial_authorized_row_ids = property_query_ids(&mut snapback);
         production_fresh_query_comparisons += 1;
 
         if let Some(write_kind) = write_kind {
@@ -1377,7 +1374,7 @@ fn shared_property_corpus_emits_production_fresh_query_receipt() {
         }
         let production_relevant_authorized_row_ids = if write_kind.is_some() {
             production_fresh_query_comparisons += 1;
-            property_query_ids(&snapback)
+            property_query_ids(&mut snapback)
         } else {
             production_initial_authorized_row_ids.clone()
         };
@@ -1422,19 +1419,19 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
     let mut snapback = configured_file(&database_path);
     let user = id(mutate(
         &mut snapback,
-        "alice",
+        "018f0d90-7b41-7a22-8c33-445566778899",
         "createUser",
         json!({ "name": "Alice", "role": "member", "avatar": "a.png" }),
     ));
     mutate(
         &mut snapback,
-        "alice",
+        "018f0d90-7b41-7a22-8c33-445566778899",
         "createNote",
         json!({ "body": "unrelated retained-shaped payload" }),
     );
     let folder = id(mutate(
         &mut snapback,
-        "alice",
+        "018f0d90-7b41-7a22-8c33-445566778899",
         "createFolder",
         json!({ "orgId": "org-random" }),
     ));
@@ -1443,7 +1440,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         subscribe(
             &mut snapback,
             &connection,
-            "alice",
+            "018f0d90-7b41-7a22-8c33-445566778899",
             "mineOrPublic",
             json!({}),
             10,
@@ -1451,7 +1448,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         subscribe(
             &mut snapback,
             &connection,
-            "bob",
+            "018f0d90-7b42-7a22-8c33-445566778899",
             "mineOrPublic",
             json!({}),
             11,
@@ -1459,7 +1456,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         subscribe(
             &mut snapback,
             &connection,
-            "carol",
+            "018f0d90-7b43-7a22-8c33-445566778899",
             "allNotes",
             json!({}),
             12,
@@ -1474,7 +1471,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         .expect("baseline authorization version");
     mutate(
         &mut snapback,
-        "alice",
+        "018f0d90-7b41-7a22-8c33-445566778899",
         "setUserAvatar",
         json!({ "id": user, "avatar": "b.png" }),
     );
@@ -1491,7 +1488,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
 
     mutate(
         &mut snapback,
-        "alice",
+        "018f0d90-7b41-7a22-8c33-445566778899",
         "setUserRole",
         json!({ "id": user, "role": "admin" }),
     );
@@ -1502,14 +1499,14 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
     );
     let inserted = id(mutate(
         &mut snapback,
-        "bob",
+        "018f0d90-7b42-7a22-8c33-445566778899",
         "createUser",
         json!({ "name": "Bob", "role": "member", "avatar": "bob.png" }),
     ));
     settle_all(&mut snapback, &connection, &mut queries, &BTreeSet::new());
     mutate(
         &mut snapback,
-        "bob",
+        "018f0d90-7b42-7a22-8c33-445566778899",
         "deleteUser",
         json!({ "id": inserted }),
     );
@@ -1533,14 +1530,14 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         .expect("authorization version before membership churn");
     let alice_member = id(mutate(
         &mut snapback,
-        "alice",
+        "018f0d90-7b41-7a22-8c33-445566778899",
         "createGameMember",
-        json!({ "gameId": "churn-game", "userId": "alice", "role": "player" }),
+        json!({ "gameId": "churn-game", "userId": "018f0d90-7b41-7a22-8c33-445566778899", "role": "player" }),
     ));
     let first_membership_observation =
         settle_all(&mut snapback, &connection, &mut queries, &BTreeSet::new());
     for query in &queries {
-        assert_converges(&snapback, query);
+        assert_converges(&mut snapback, query);
     }
     let mut membership_raw_replay =
         raw_membership_replay(&first_membership_observation, 1, "join-alice");
@@ -1549,14 +1546,14 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
     let mut membership_observation = first_membership_observation;
     let bob_member = id(mutate(
         &mut snapback,
-        "bob",
+        "018f0d90-7b42-7a22-8c33-445566778899",
         "createGameMember",
-        json!({ "gameId": "churn-game", "userId": "bob", "role": "player" }),
+        json!({ "gameId": "churn-game", "userId": "018f0d90-7b42-7a22-8c33-445566778899", "role": "player" }),
     ));
     let second_membership_observation =
         settle_all(&mut snapback, &connection, &mut queries, &BTreeSet::new());
     for query in &queries {
-        assert_converges(&snapback, query);
+        assert_converges(&mut snapback, query);
     }
     membership_raw_replay.extend(raw_membership_replay(
         &second_membership_observation,
@@ -1571,7 +1568,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
     membership_observation.merge(second_membership_observation);
     mutate(
         &mut snapback,
-        "alice",
+        "018f0d90-7b41-7a22-8c33-445566778899",
         "deleteGameMember",
         json!({ "id": bob_member }),
     );
@@ -1582,7 +1579,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
     let third_membership_observation =
         settle_all(&mut snapback, &connection, &mut queries, &all_connections);
     for query in &queries {
-        assert_converges(&snapback, query);
+        assert_converges(&mut snapback, query);
     }
     membership_raw_replay.extend(raw_membership_replay(
         &third_membership_observation,
@@ -1648,14 +1645,18 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
             .wrapping_add(1_442_695_040_888_963_407);
         let choice = (random >> 32) % 10;
         if docs.is_empty() || choice < 4 {
-            let writer = if operation % 2 == 0 { "alice" } else { "bob" };
+            let writer = if operation % 2 == 0 {
+                "018f0d90-7b41-7a22-8c33-445566778899"
+            } else {
+                "018f0d90-7b42-7a22-8c33-445566778899"
+            };
             let created = id(mutate(
                 &mut snapback,
                 writer,
                 "createDoc",
                 json!({
                     "title": format!("random-{operation}"),
-                    "ownerId": if random & 1 == 0 { "alice" } else { "bob" },
+                    "ownerId": if random & 1 == 0 { "018f0d90-7b41-7a22-8c33-445566778899" } else { "018f0d90-7b42-7a22-8c33-445566778899" },
                     "isPublic": random & 2 != 0,
                     "folderId": folder,
                 }),
@@ -1678,7 +1679,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
                         &mut snapback,
                         &writer,
                         "setDocOwner",
-                        json!({ "id": doc, "ownerId": if random & 8 == 0 { "alice" } else { "bob" } }),
+                        json!({ "id": doc, "ownerId": if random & 8 == 0 { "018f0d90-7b41-7a22-8c33-445566778899" } else { "018f0d90-7b42-7a22-8c33-445566778899" } }),
                     );
                 }
                 _ => {
@@ -1701,7 +1702,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         };
         random_observation.merge(settle_all(&mut snapback, &connection, &mut queries, &lost));
         for query in &queries {
-            assert_converges(&snapback, query);
+            assert_converges(&mut snapback, query);
             randomized_fresh_query_comparisons += 1;
         }
         randomized_all_query_convergence_rounds += 1;
@@ -1747,13 +1748,17 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
     // delete, and the current projection (not the lost weaker ticket) wins.
     mutate(
         &mut snapback,
-        "alice",
+        "018f0d90-7b41-7a22-8c33-445566778899",
         "setUserRole",
         json!({ "id": user, "role": "suspended" }),
     );
-    let admission = session_authority("alice", InvocationSource::HttpQuery)
-        .admission_lease()
-        .clone();
+    let admission = session_authority(
+        &mut snapback,
+        "018f0d90-7b41-7a22-8c33-445566778899",
+        InvocationSource::HttpQuery,
+    )
+    .admission_lease()
+    .clone();
     for query in &queries {
         let lost = parse_direct_invalidation_frames(
             snapback
@@ -1802,7 +1807,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         DeliveryMode::ReprojectAfterPriorDrop,
     );
     assert_eq!(quarantine.delivered_snapshot_frames, 1);
-    assert_converges(&snapback, &queries[1]);
+    assert_converges(&mut snapback, &queries[1]);
     let notes = settle_query(
         &mut snapback,
         &connection,
@@ -1811,7 +1816,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         DeliveryMode::ReprojectAfterPriorDrop,
     );
     assert_eq!(notes.delivered_snapshot_frames, 1);
-    assert_converges(&snapback, &queries[2]);
+    assert_converges(&mut snapback, &queries[2]);
 
     // An ordinary process restart destroys process-local scopes. The durable
     // authorization incarnation survives. The harness then supplies a query
@@ -1846,7 +1851,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
     let restarted_query = subscribe(
         &mut restarted,
         &restarted_connection,
-        "bob",
+        "018f0d90-7b42-7a22-8c33-445566778899",
         "mineOrPublic",
         json!({}),
         100,
@@ -1857,7 +1862,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         !pre_restart_query_instances.contains(&restarted_query.query_instance_id);
     assert!(restart_accepted_distinct_caller_supplied_query_instance);
     let restart_initial_snapshot_converged =
-        converges_with_fresh_query(&restarted, &restarted_query);
+        converges_with_fresh_query(&mut restarted, &restarted_query);
     assert!(restart_initial_snapshot_converged);
 
     let membership_disposition =

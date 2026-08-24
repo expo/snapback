@@ -1,8 +1,6 @@
 use super::fake_expo::{FakeExpo, FakeExpoStep};
 use super::*;
-use crate::auth::invocation::{
-    InvocationGate, InvocationSource, PreparedAuthority, ResolvedAppAuthority, WireAuthorityFields,
-};
+use crate::auth::invocation::{InvocationGate, InvocationSource, PreparedAuthority};
 use crate::contract_types::ServerProfile;
 use crate::ids::{self, Kind};
 use crate::manifest::{AuthMode, MembershipManifest, MembershipScope, TableManifest};
@@ -219,37 +217,23 @@ fn acceptance_request(audience: &str, event_id: &str, dedupe_key: &str) -> PushS
 }
 
 fn session_authority(user_id: &str) -> crate::auth::invocation::PreparedAuthority {
-    InvocationGate::prepare_authority(
+    let mut snapback = crate::local::LocalSnapback::memory().expect("push authority fixture");
+    snapback.prepare_resolved_session_for_test(
         InvocationSource::HttpAction,
-        AuthMode::Sessions,
-        ServerProfile::Test,
+        user_id,
+        &ids::mint(Kind::Session).expect("session id"),
+        &ids::mint(Kind::AuthorityInstance).expect("authority instance id"),
         1,
-        1,
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::Session {
-            user_id: user_id.into(),
-            session_id: ids::mint(Kind::Session).expect("session id"),
-            provider: "email-code".into(),
-            generation: 1,
-            authority_instance_id: ids::mint(Kind::AuthorityInstance)
-                .expect("authority instance id"),
-            session_not_after_ms: 4_000_000_000_000,
-            provider_not_after_ms: None,
-            rehearsal_provenance: None,
-        },
+        4_000_000_000_000,
     )
-    .expect("prepared session authority")
 }
 
 fn system_authority() -> crate::auth::invocation::PreparedAuthority {
-    InvocationGate::prepare_authority(
+    InvocationGate::prepare_admitted_system(
         InvocationSource::Cron,
         AuthMode::Sessions,
         ServerProfile::Test,
-        1,
-        1,
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::System,
+        crate::auth::admission::AdmissionLease::unmanaged(1, 1),
     )
     .expect("prepared system authority")
 }

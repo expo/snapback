@@ -6169,6 +6169,50 @@ impl PreparedConnectionOpenAuthority {
 }
 
 impl PreparedConnectionAct {
+    fn prepare_route_authority(
+        &self,
+        source: InvocationSource,
+        profile: ServerProfile,
+        admission: AdmissionLease,
+        wire: &WireAuthorityFields,
+        session_claims: Option<crate::auth::identity_core::AuthClaimsProjection>,
+    ) -> SnapbackResult<PreparedAuthority> {
+        if let Some(session) = self.session_route_authority.clone() {
+            return session.prepare_with_claims(
+                source,
+                AuthMode::Sessions,
+                profile,
+                admission,
+                wire,
+                session_claims.ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                        "auth",
+                        "session route claims are unavailable",
+                    )
+                })?,
+            );
+        }
+        if let Some(service) = self.service_route_authority.clone() {
+            return service.prepare(
+                source,
+                AuthMode::Sessions,
+                profile,
+                admission,
+                wire,
+                Some(self.bound.publication().clone()),
+            );
+        }
+        InvocationGate::prepare_admitted_anonymous(
+            source,
+            AuthMode::Sessions,
+            profile,
+            admission,
+            wire,
+        )
+        .map(|authority| authority.with_fenced_publication(self.bound.publication().clone()))
+    }
+
     fn session_principal_id(&self) -> Option<&str> {
         match &self.bound {
             BoundGrantAuthority::Session { user_id, .. } => Some(user_id.as_str()),

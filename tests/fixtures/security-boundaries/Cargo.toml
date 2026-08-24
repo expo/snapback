@@ -188,6 +188,42 @@ path = "src/bin/shared_serving_database_unmediated_insert.rs"
 name = "shared-serving-database-deref-unmediated-insert"
 path = "src/bin/shared_serving_database_deref_unmediated_insert.rs"
 
+[[bin]]
+name = "construct-resolved-session-authority"
+path = "src/bin/construct_resolved_session_authority.rs"
+
+[[bin]]
+name = "construct-resolved-service-authority"
+path = "src/bin/construct_resolved_service_authority.rs"
+
+[[bin]]
+name = "construct-resolved-scoped-token"
+path = "src/bin/construct_resolved_scoped_token.rs"
+
+[[bin]]
+name = "mutate-resolved-scoped-token"
+path = "src/bin/mutate_resolved_scoped_token.rs"
+
+[[bin]]
+name = "join-admission-lease-and-resolved-authority"
+path = "src/bin/join_admission_lease_and_resolved_authority.rs"
+
+[[bin]]
+name = "construct-auth-coordinator-from-session-projection"
+path = "src/bin/construct_auth_coordinator_from_session_projection.rs"
+
+[[bin]]
+name = "construct-asset-callbacks-service-principal"
+path = "src/bin/construct_asset_callbacks_service_principal.rs"
+
+[[bin]]
+name = "construct-watch-anchor-authority"
+path = "src/bin/construct_watch_anchor_authority.rs"
+
+[[bin]]
+name = "construct-resolved-revalidated-principal-authority"
+path = "src/bin/construct_resolved_revalidated_principal_authority.rs"
+
 # Harness-only counterexample: never part of attacks.v1.json.
 [[bin]]
 name = "unrelated-error-satisfies-regex"

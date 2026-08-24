@@ -62,6 +62,7 @@ struct KickFixture {
     unrelated_room_auth_b: AuthContext,
     unrelated_room_observed: AuthorizationVersion,
     opponent_presence_entry_version: u64,
+    mutation_authority_b: PreparedAuthority,
 }
 
 #[derive(Debug)]
@@ -116,11 +117,11 @@ fn assert_no_physical_authorization_snapshot(envelope: &RealtimeEnvelope) {
 fn project_authorization_envelopes(
     snapback: &mut LocalSnapback,
     connection_id: &str,
-    user_id: &str,
 ) -> Vec<RealtimeEnvelope> {
-    let admission = session_authority(InvocationSource::LiveInitialQuery, user_id)
-        .admission_lease()
-        .clone();
+    let admission = snapback
+        .admission
+        .admit_for_mode(AuthMode::Sessions)
+        .expect("project authorization frames under the target engine admission");
     snapback
         .authorization_invalidation_frames(connection_id, &admission)
         .expect("project pending authorization frames")
@@ -147,30 +148,17 @@ impl KickFixture {
             .synchronize_auth_mode_admission(&settled)
             .expect("bind local admission to settled sessions mode");
         let session_created_at_ms = now_millis();
-        for (user_id, identity_id, session_id, authority_instance_id, address, token_byte) in [
-            (
-                USER_A,
-                "identity-a",
-                SESSION_A,
-                AUTHORITY_A,
-                "a@example.test",
-                0xa1,
-            ),
-            (
-                USER_B,
-                "identity-b",
-                SESSION_B,
-                AUTHORITY_B,
-                "b@example.test",
-                0xb2,
-            ),
+        for (user_id, session_id, authority_instance_id, address, token_byte) in [
+            (USER_A, SESSION_A, AUTHORITY_A, "a@example.test", 0xa1),
+            (USER_B, SESSION_B, AUTHORITY_B, "b@example.test", 0xb2),
         ] {
+            let identity_id = crate::ids::mint_time_ordered(crate::ids::Kind::Identity);
             snapback
                 .auth_database_mut()
                 .auth_catalog()
                 .insert_email_session_for_test(
                     user_id,
-                    identity_id,
+                    &identity_id,
                     session_id,
                     authority_instance_id,
                     address,
@@ -194,12 +182,36 @@ impl KickFixture {
             "game functions load without error diagnostics: {diagnostics:?}"
         );
         let [connection_a, connection_b] = install_invalidation(&mut snapback);
+        let durable_a_authority = snapback.prepare_resolved_session_for_test(
+            InvocationSource::LiveInitialQuery,
+            USER_A,
+            SESSION_A,
+            AUTHORITY_A,
+            1,
+            9_007_199_254_740_991,
+        );
+        let durable_b_authority = snapback.prepare_resolved_session_for_test(
+            InvocationSource::LiveInitialQuery,
+            USER_B,
+            SESSION_B,
+            AUTHORITY_B,
+            1,
+            9_007_199_254_740_991,
+        );
+        let mutation_authority_b = snapback.prepare_resolved_session_for_test(
+            InvocationSource::HttpMutation,
+            USER_B,
+            SESSION_B,
+            AUTHORITY_B,
+            1,
+            9_007_199_254_740_991,
+        );
 
         let durable_a = snapback
             .subscribe_live_prepared_with_invalidation(
                 "currentMembership",
                 durable_subscribe(CONNECTION_A, "store-a", 1),
-                session_authority(InvocationSource::LiveInitialQuery, USER_A),
+                durable_a_authority.clone(),
                 LiveInvalidationAdmission {
                     connection: Some(connection_a.clone()),
                     effect_fence: None,
@@ -211,7 +223,7 @@ impl KickFixture {
             .subscribe_live_prepared_with_invalidation(
                 "currentMembership",
                 durable_subscribe(CONNECTION_B, "store-b", 1),
-                session_authority(InvocationSource::LiveInitialQuery, USER_B),
+                durable_b_authority.clone(),
                 LiveInvalidationAdmission {
                     connection: Some(connection_b.clone()),
                     effect_fence: None,
@@ -233,7 +245,7 @@ impl KickFixture {
             .subscribe_live_prepared_with_invalidation(
                 "board",
                 board_subscribe(CONNECTION_A, "store-a", 2),
-                session_authority(InvocationSource::LiveInitialQuery, USER_A),
+                durable_a_authority,
                 LiveInvalidationAdmission {
                     connection: Some(connection_a),
                     effect_fence: None,
@@ -245,7 +257,7 @@ impl KickFixture {
             .subscribe_live_prepared_with_invalidation(
                 "board",
                 board_subscribe(CONNECTION_B, "store-b", 2),
-                session_authority(InvocationSource::LiveInitialQuery, USER_B),
+                durable_b_authority,
                 LiveInvalidationAdmission {
                     connection: Some(connection_b),
                     effect_fence: None,
@@ -295,6 +307,7 @@ impl KickFixture {
             unrelated_room_auth_b,
             unrelated_room_observed,
             opponent_presence_entry_version: opponent_presence.entry_version,
+            mutation_authority_b,
         }
     }
 
@@ -308,7 +321,7 @@ impl KickFixture {
     ) {
         let old_board_envelope = {
             let mut snapback = self.snapback.lock().unwrap_or_else(PoisonError::into_inner);
-            project_authorization_envelopes(&mut snapback, CONNECTION_A, USER_A)
+            project_authorization_envelopes(&mut snapback, CONNECTION_A)
                 .into_iter()
                 .find(|envelope| is_authorization_snapshot_for(envelope, "board"))
                 .expect("A's private board snapshot reached direct projection")
@@ -342,6 +355,7 @@ impl KickFixture {
             old_room.expect("A's pre-kick opponent-presence frame reached destructive drain");
 
         let snapback = self.snapback.clone();
+        let mutation_authority_b = self.mutation_authority_b.clone();
         let (started_tx, started_rx) = mpsc::channel();
         let (done_tx, done_rx) = mpsc::channel();
         let kick = std::thread::spawn(move || {
@@ -355,7 +369,7 @@ impl KickFixture {
                         args: json!({ "id": MEMBER_A }),
                         ..HandlerInput::default()
                     },
-                    session_authority(InvocationSource::HttpMutation, USER_B),
+                    mutation_authority_b,
                 );
             done_tx.send(result).expect("return kick result");
         });
@@ -516,10 +530,14 @@ impl KickFixture {
         )
     }
 
-    fn drain_composed_delivery(&self, connection_id: &str, user_id: &str) -> Vec<RealtimeEnvelope> {
+    fn drain_composed_delivery(
+        &self,
+        connection_id: &str,
+        _user_id: &str,
+    ) -> Vec<RealtimeEnvelope> {
         let projections = {
             let mut snapback = self.snapback.lock().unwrap_or_else(PoisonError::into_inner);
-            project_authorization_envelopes(&mut snapback, connection_id, user_id)
+            project_authorization_envelopes(&mut snapback, connection_id)
         };
         let admitted = self
             .ephemeral
@@ -1079,6 +1097,7 @@ fn frame_construction_before_first_enqueue_is_commit_ordered() {
     assert!(hook_observed_constructed_predecessor);
 
     let snapback = fixture.snapback.clone();
+    let mutation_authority_b = fixture.mutation_authority_b.clone();
     let (kick_started_tx, kick_started_rx) = mpsc::channel();
     let (kick_done_tx, kick_done_rx) = mpsc::channel();
     let kick = std::thread::spawn(move || {
@@ -1092,7 +1111,7 @@ fn frame_construction_before_first_enqueue_is_commit_ordered() {
                     args: json!({ "id": MEMBER_A }),
                     ..HandlerInput::default()
                 },
-                session_authority(InvocationSource::HttpMutation, USER_B),
+                mutation_authority_b,
             );
         kick_done_tx.send(result).expect("report kick result");
     });
@@ -1389,6 +1408,7 @@ fn lost_commit_ack_proves_successor_and_finalizes_the_exact_room_ticket() {
     let fixture = KickFixture::new();
     inject_authorization_commit_fault_for_test(AuthorizationCommitFaultForTest::AfterCommit);
 
+    let mutation_authority_b = fixture.mutation_authority_b.clone();
     let kick = fixture
         .snapback
         .lock()
@@ -1399,7 +1419,7 @@ fn lost_commit_ack_proves_successor_and_finalizes_the_exact_room_ticket() {
                 args: json!({ "id": MEMBER_A }),
                 ..HandlerInput::default()
             },
-            session_authority(InvocationSource::HttpMutation, USER_B),
+            mutation_authority_b,
         )
         .expect("durable successor proves the lost COMMIT acknowledgement succeeded");
     assert_eq!(kick.changed_count, 1);
@@ -1427,6 +1447,7 @@ fn commit_error_with_durable_rollback_removes_only_its_exact_room_ticket() {
     let fixture = KickFixture::new();
     inject_authorization_commit_fault_for_test(AuthorizationCommitFaultForTest::AfterRollback);
 
+    let mutation_authority_b = fixture.mutation_authority_b.clone();
     let error = fixture
         .snapback
         .lock()
@@ -1437,7 +1458,7 @@ fn commit_error_with_durable_rollback_removes_only_its_exact_room_ticket() {
                 args: json!({ "id": MEMBER_A }),
                 ..HandlerInput::default()
             },
-            session_authority(InvocationSource::HttpMutation, USER_B),
+            mutation_authority_b,
         )
         .expect_err("the injected COMMIT error has durably rolled back");
     assert_eq!(error.diagnostic.code, "TEST_AUTHORIZATION_COMMIT_FAILURE");
@@ -1745,6 +1766,7 @@ fn initiating_mutation_refuses_finalization_without_relabeling_the_durable_commi
         .ephemeral
         .inject_authorization_issuer_projection_failure();
 
+    let mutation_authority_b = fixture.mutation_authority_b.clone();
     let (result, receipt) = fixture
         .snapback
         .lock()
@@ -1758,7 +1780,7 @@ fn initiating_mutation_refuses_finalization_without_relabeling_the_durable_commi
             None,
             None,
             "test",
-            session_authority(InvocationSource::HttpMutation, USER_B),
+            mutation_authority_b,
         );
     let error = result.expect_err("the initiating mutation must not report finalized success");
     assert_eq!(
@@ -2194,33 +2216,6 @@ fn install_invalidation_with_binding(
         .install_auth_invalidation(issuer, authorization, version_stream)
         .expect("install acceptance invalidation");
     ([connection_a, connection_b], binding)
-}
-
-fn session_authority(source: InvocationSource, user_id: &str) -> PreparedAuthority {
-    let (session_id, authority_instance_id) = if user_id == USER_A {
-        (SESSION_A, AUTHORITY_A)
-    } else {
-        (SESSION_B, AUTHORITY_B)
-    };
-    InvocationGate::prepare_authority(
-        source,
-        AuthMode::Sessions,
-        ServerProfile::Test,
-        1,
-        1,
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::Session {
-            user_id: user_id.to_owned(),
-            session_id: session_id.to_owned(),
-            provider: "email-code".to_owned(),
-            generation: 1,
-            authority_instance_id: authority_instance_id.to_owned(),
-            session_not_after_ms: 9_007_199_254_740_991,
-            provider_not_after_ms: None,
-            rehearsal_provenance: None,
-        },
-    )
-    .expect("prepare acceptance session authority")
 }
 
 fn durable_subscribe(

@@ -297,7 +297,9 @@ impl LocalDatabase {
         discriminator: u8,
     ) -> SnapbackResult<()> {
         self.with_auth_transaction(|tx| {
-            let identity_id = format!("identity-{discriminator}");
+            let identity_id = crate::ids::mint_time_ordered(crate::ids::Kind::Identity);
+            let authority_instance_id =
+                crate::ids::mint_time_ordered(crate::ids::Kind::AuthorityInstance);
             tx.execute(
                 "INSERT OR IGNORE INTO _auth_users(id, created_at_ms) VALUES(?1, 0)",
                 params![principal_id],
@@ -315,7 +317,7 @@ impl LocalDatabase {
                 session_id,
                 principal_id,
                 &identity_id,
-                &format!("authority-{discriminator}"),
+                &authority_instance_id,
                 &[discriminator; 32],
                 0,
                 0,

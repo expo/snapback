@@ -21,11 +21,13 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth::admission::AdmissionController;
     use crate::auth::coordinator::{
         AuthCoordinator, CommittedRevocationTarget, IssuanceFinish, PasswordChangeFinish,
         RotationFinish,
     };
     use crate::auth::identity_core::{AssuranceKind, PasswordSecret};
+    use crate::auth::mode::AuthModeStateRecord;
     use crate::auth::sender_proof::{SenderIssuanceCommitment, VerifiedSenderIssuance};
     use crate::auth::session_projection::{
         ProjectedTokenResolution, SessionProjection, TerminalAuthorityDisposition,
@@ -34,6 +36,11 @@ mod tests {
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
     use serde_json::Value;
     use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+
+    fn coordinator_admission() -> AdmissionController {
+        AdmissionController::from_mode_state(&AuthModeStateRecord::initial_dev(None))
+            .expect("test coordinator admission")
+    }
 
     struct CountingConstantRandom {
         fills: AtomicUsize,
@@ -475,15 +482,18 @@ mod tests {
             )
             .expect("auth provider"),
         );
-        let projection = SessionProjection::rebuild_with_fresh_startup_id(
-            database
-                .session_projection_source()
-                .expect("projection source"),
-            now_ms,
-            provider.monotonic_now(),
-        )
-        .expect("session projection");
-        let coordinator = Arc::new(AuthCoordinator::new(projection).expect("coordinator"));
+        let snapshot = database
+            .admitted_session_projection_snapshot()
+            .expect("admitted projection snapshot");
+        let coordinator = Arc::new(
+            AuthCoordinator::from_admitted_snapshot(
+                snapshot,
+                coordinator_admission(),
+                now_ms,
+                provider.monotonic_now(),
+            )
+            .expect("coordinator"),
+        );
         (provider, database, coordinator)
     }
 
@@ -3470,15 +3480,18 @@ mod tests {
 
         // Pull the test-only fixture session into the same memory-only
         // projection before exercising exact displacement finalization.
-        let projection = SessionProjection::rebuild_with_fresh_startup_id(
-            database
-                .session_projection_source()
-                .expect("projection source"),
-            now_ms + 2,
-            provider.monotonic_now(),
-        )
-        .expect("rebuilt projection");
-        let coordinator = Arc::new(AuthCoordinator::new(projection).expect("coordinator"));
+        let snapshot = database
+            .admitted_session_projection_snapshot()
+            .expect("admitted projection snapshot");
+        let coordinator = Arc::new(
+            AuthCoordinator::from_admitted_snapshot(
+                snapshot,
+                coordinator_admission(),
+                now_ms + 2,
+                provider.monotonic_now(),
+            )
+            .expect("coordinator"),
+        );
         let preparation = provider
             .prepare_password_set(
                 &database,
@@ -3608,15 +3621,18 @@ mod tests {
         let guest = database
             .insert_typed_guest_session_for_test(now_ms + 60_000, now_ms, provider.random.as_ref())
             .expect("guest fixture");
-        let projection = SessionProjection::rebuild_with_fresh_startup_id(
-            database
-                .session_projection_source()
-                .expect("guest projection source"),
-            now_ms,
-            provider.monotonic_now(),
-        )
-        .expect("guest projection");
-        let coordinator = Arc::new(AuthCoordinator::new(projection).expect("coordinator"));
+        let snapshot = database
+            .admitted_session_projection_snapshot()
+            .expect("admitted guest projection snapshot");
+        let coordinator = Arc::new(
+            AuthCoordinator::from_admitted_snapshot(
+                snapshot,
+                coordinator_admission(),
+                now_ms,
+                provider.monotonic_now(),
+            )
+            .expect("coordinator"),
+        );
         let claim = provider
             .plan_guest_claim_password(
                 &database,
