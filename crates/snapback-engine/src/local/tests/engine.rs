@@ -28879,6 +28879,685 @@ fn test_dev_authority(source: InvocationSource) -> PreparedAuthority {
     .expect("prepare exact test dev authority")
 }
 
+type DurableInvitationRow = (
+    String,
+    Vec<u8>,
+    String,
+    String,
+    String,
+    Option<String>,
+    i64,
+    i64,
+    Option<i64>,
+    Option<i64>,
+    Option<String>,
+);
+type DurablePairingRow = (
+    String,
+    Vec<u8>,
+    String,
+    Option<String>,
+    Option<String>,
+    String,
+    i64,
+    i64,
+    i64,
+    Option<i64>,
+    Option<String>,
+);
+
+const AUTHORITY_FACTORY_SENTINELS_PER_SIDE: u8 = 10;
+
+fn read_authority_factory_rows(
+    path: &std::path::Path,
+) -> (BTreeSet<DurableInvitationRow>, BTreeSet<DurablePairingRow>) {
+    let connection =
+        rusqlite::Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .expect("open independent durable auth reader");
+    let invitations = {
+        let mut statement = connection
+            .prepare(
+                "SELECT id, token_hash, class, created_by, minted_profile,
+                        agent_user_id, created_at_ms, expires_at_ms,
+                        revoked_at_ms, consumed_at_ms, consumed_by
+                 FROM _auth_agent_invitations",
+            )
+            .expect("prepare durable invitation readback");
+        statement
+            .query_map([], |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                    row.get(6)?,
+                    row.get(7)?,
+                    row.get(8)?,
+                    row.get(9)?,
+                    row.get(10)?,
+                ))
+            })
+            .expect("read durable invitation rows")
+            .collect::<Result<BTreeSet<_>, _>>()
+            .expect("collect durable invitation rows")
+    };
+    let pairings = {
+        let mut statement = connection
+            .prepare(
+                "SELECT id, code_hash, minted_by_user_id, agent_user_id,
+                        requested_scopes, state, attempts, created_at_ms,
+                        expires_at_ms, consumed_at_ms, grant_id
+                 FROM _auth_pairing_requests",
+            )
+            .expect("prepare durable pairing readback");
+        statement
+            .query_map([], |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                    row.get(6)?,
+                    row.get(7)?,
+                    row.get(8)?,
+                    row.get(9)?,
+                    row.get(10)?,
+                ))
+            })
+            .expect("read durable pairing rows")
+            .collect::<Result<BTreeSet<_>, _>>()
+            .expect("collect durable pairing rows")
+    };
+    (invitations, pairings)
+}
+
+fn seed_authority_factory_fixture(path: &std::path::Path, now_ms: u64) {
+    let connection = rusqlite::Connection::open(path).expect("open durable auth fixture writer");
+    for (side, hash_base, user_id) in [("lower", 0x10_u8, "user-a"), ("upper", 0x30_u8, "user-z")] {
+        for offset in 0..AUTHORITY_FACTORY_SENTINELS_PER_SIDE {
+            connection
+                .execute(
+                    "INSERT INTO _auth_agent_invitations(
+                    id, token_hash, class, created_by, minted_profile,
+                    agent_user_id, created_at_ms, expires_at_ms,
+                    revoked_at_ms, consumed_at_ms, consumed_by
+                 ) VALUES(?1, ?2, 'creation', ?3, 'test', NULL, ?4, ?5, NULL, NULL, NULL)",
+                    rusqlite::params![
+                        format!("fixture-invitation-{side}-{offset}"),
+                        vec![hash_base + offset; 32],
+                        user_id,
+                        now_ms as i64,
+                        now_ms as i64 + 50_000,
+                    ],
+                )
+                .expect("seed durable invitation sentinel");
+        }
+    }
+    for (side, hash_base, user_id) in [("lower", 0x50_u8, "user-a"), ("upper", 0x70_u8, "user-z")] {
+        for offset in 0..AUTHORITY_FACTORY_SENTINELS_PER_SIDE {
+            connection
+                .execute(
+                    "INSERT INTO _auth_pairing_requests(
+                    id, code_hash, minted_by_user_id, agent_user_id,
+                    requested_scopes, state, attempts, created_at_ms,
+                    expires_at_ms, consumed_at_ms, grant_id
+                 ) VALUES(?1, ?2, ?3, NULL, NULL, 'pending', 0, ?4, ?5, NULL, NULL)",
+                    rusqlite::params![
+                        format!("fixture-pairing-{side}-{offset}"),
+                        vec![hash_base + offset; 32],
+                        user_id,
+                        now_ms as i64,
+                        now_ms as i64 + 50_000,
+                    ],
+                )
+                .expect("seed durable pairing sentinel");
+        }
+    }
+}
+
+fn authority_factory_management_session(user_id: &str, now_ms: u64) -> PreparedAuthority {
+    InvocationGate::prepare_authority(
+        InvocationSource::AgentGrantManagement,
+        AuthMode::Sessions,
+        ServerProfile::Test,
+        0,
+        0,
+        &WireAuthorityFields::default(),
+        ResolvedAppAuthority::Session {
+            user_id: user_id.to_owned(),
+            session_id: "session-m".to_owned(),
+            provider: "email-code".to_owned(),
+            generation: 1,
+            authority_instance_id: "authority-m".to_owned(),
+            session_not_after_ms: now_ms + 60_000,
+            provider_not_after_ms: None,
+            rehearsal_provenance: None,
+        },
+    )
+    .expect("prepare caller-constructible management session authority")
+}
+
+fn authority_factory_fixture(
+    path: &std::path::Path,
+    now_ms: u64,
+) -> (LocalSnapback, PreparedAuthority) {
+    let mut snapback = LocalSnapback::open(path).expect("open authority-factory fixture");
+    snapback
+        .auth_database_mut()
+        .activate_current_auth_catalog()
+        .expect("activate authority-factory auth catalog");
+    {
+        let mut catalog = snapback.auth_database_mut().auth_catalog();
+        catalog
+            .insert_email_session_for_test(
+                "user-m",
+                "identity-m",
+                "session-m",
+                "authority-m",
+                "user-m@example.test",
+                &[0x31; 32],
+                now_ms - 100,
+                now_ms - 100,
+                now_ms + 60_000,
+                now_ms + 120_000,
+            )
+            .expect("insert caller session");
+        catalog
+            .insert_human_user_for_test("user-a", now_ms - 100)
+            .expect("insert lexically lower user");
+        catalog
+            .insert_human_user_for_test("user-z", now_ms - 100)
+            .expect("insert lexically upper user");
+    }
+    seed_authority_factory_fixture(path, now_ms);
+    let authority = authority_factory_management_session("user-m", now_ms);
+    (snapback, authority)
+}
+
+fn expected_authority_factory_sentinels(
+    now_ms: u64,
+) -> (BTreeSet<DurableInvitationRow>, BTreeSet<DurablePairingRow>) {
+    let invitations = [("lower", 0x10_u8, "user-a"), ("upper", 0x30_u8, "user-z")]
+        .into_iter()
+        .flat_map(|(side, hash_base, user_id)| {
+            (0..AUTHORITY_FACTORY_SENTINELS_PER_SIDE).map(move |offset| {
+                (
+                    format!("fixture-invitation-{side}-{offset}"),
+                    vec![hash_base + offset; 32],
+                    "creation".to_owned(),
+                    user_id.to_owned(),
+                    "test".to_owned(),
+                    None,
+                    now_ms as i64,
+                    now_ms as i64 + 50_000,
+                    None,
+                    None,
+                    None,
+                )
+            })
+        })
+        .collect();
+    let pairings = [("lower", 0x50_u8, "user-a"), ("upper", 0x70_u8, "user-z")]
+        .into_iter()
+        .flat_map(|(side, hash_base, user_id)| {
+            (0..AUTHORITY_FACTORY_SENTINELS_PER_SIDE).map(move |offset| {
+                (
+                    format!("fixture-pairing-{side}-{offset}"),
+                    vec![hash_base + offset; 32],
+                    user_id.to_owned(),
+                    None,
+                    None,
+                    "pending".to_owned(),
+                    0,
+                    now_ms as i64,
+                    now_ms as i64 + 50_000,
+                    None,
+                    None,
+                )
+            })
+        })
+        .collect();
+    (invitations, pairings)
+}
+
+fn invitation_step_up_proofs(
+    snapback: &mut LocalSnapback,
+    now_ms: u64,
+) -> (
+    crate::auth::crypto::StepUpProof,
+    crate::auth::crypto::StepUpProof,
+) {
+    let random = CounterRandom::new();
+    let challenge_id = crate::auth::crypto::ChallengeId::generate(&random)
+        .expect("generate invitation step-up challenge id");
+    let key_id = crate::auth::crypto::AuthKeyId::generate(&random)
+        .expect("generate invitation step-up key id");
+    let address = crate::auth::crypto::CanonicalAddress::parse("user-m@example.test")
+        .expect("parse invitation step-up address");
+    let code = crate::auth::crypto::VerificationCode::parse("123456")
+        .expect("parse invitation step-up code");
+    let key = crate::auth::crypto::AuthKeyMaterial::from_bytes([0x41; 32]);
+    let exact_digest = crate::auth::crypto::StepUpDigest::compute(
+        &key,
+        &challenge_id,
+        &address,
+        "user-m",
+        "session-m",
+        1,
+        "authority-m",
+        "agentInvitation",
+        "creation",
+        &code,
+    );
+    let wrong_session_digest = crate::auth::crypto::StepUpDigest::compute(
+        &key,
+        &challenge_id,
+        &address,
+        "user-m",
+        "session-a",
+        1,
+        "authority-a",
+        "agentInvitation",
+        "creation",
+        &code,
+    );
+    let budget = crate::auth::throttle::ResolvedCompatibilityAuthBudgetPolicy::resolve(
+        crate::auth::throttle::AuthBudgetDeploymentProfile::Test,
+        crate::auth::throttle::derive_auth_trust_tier(
+            crate::auth::throttle::ServerVerifiedAuthTrustEvidence::EstablishedSession,
+        ),
+    );
+    let inserted = snapback
+        .auth_database_mut()
+        .auth_catalog()
+        .insert_step_up_challenge(
+            &crate::storage::auth_catalog_ops::CatalogStepUpBinding {
+                user_id: "user-m",
+                session_id: "session-m",
+                session_generation: 1,
+                authority_instance_id: "authority-m",
+            },
+            &address,
+            &challenge_id,
+            &exact_digest,
+            key_id.as_str(),
+            now_ms,
+            now_ms + 30_000,
+            &budget,
+        )
+        .expect("insert exact invitation step-up challenge");
+    assert!(matches!(
+        inserted,
+        crate::contract_types::RequestInsertOutcome::Inserted
+    ));
+    (
+        crate::auth::crypto::StepUpProof {
+            challenge_id: challenge_id.clone(),
+            address: address.clone(),
+            key_id: Some(key_id.clone()),
+            submitted_digest: exact_digest,
+        },
+        crate::auth::crypto::StepUpProof {
+            challenge_id,
+            address,
+            key_id: Some(key_id),
+            submitted_digest: wrong_session_digest,
+        },
+    )
+}
+
+#[test]
+fn agent_invitation_factory_derives_the_inviter_and_requires_exact_management_facts() {
+    let directory = tempfile::tempdir().expect("invitation authority fixture directory");
+    let path = directory.path().join("invitation-authority.sqlite3");
+    let now_ms = 10_000;
+    let (mut snapback, authority) = authority_factory_fixture(&path, now_ms);
+    let (proof, wrong_session_proof) = invitation_step_up_proofs(&mut snapback, now_ms);
+    let (mut expected_invitations, expected_pairings) =
+        expected_authority_factory_sentinels(now_ms);
+    assert_eq!(
+        read_authority_factory_rows(&path),
+        (expected_invitations.clone(), expected_pairings.clone())
+    );
+
+    let mut accepted = BTreeSet::new();
+    let mut refused = BTreeMap::new();
+    let random = CounterRandom::new();
+
+    for (label, expected_user) in [
+        ("lexically-lower-user", "user-a"),
+        ("lexically-upper-user", "user-z"),
+    ] {
+        let error = snapback
+            .mint_agent_invitation(
+                &authority,
+                expected_user,
+                ServerProfile::Test,
+                &proof,
+                now_ms,
+                &random,
+            )
+            .expect_err("a mismatched expected inviter must be refused");
+        refused.insert(label, error.diagnostic.code);
+        assert_eq!(
+            read_authority_factory_rows(&path),
+            (expected_invitations.clone(), expected_pairings.clone()),
+            "{label} refusal must leave every durable row untouched"
+        );
+    }
+
+    for (label, missing_user) in [
+        ("missing-authority-user-below", "user-0"),
+        ("missing-authority-user-above", "user-zz"),
+    ] {
+        let missing_authority = authority_factory_management_session(missing_user, now_ms);
+        let error = snapback
+            .mint_agent_invitation(
+                &missing_authority,
+                missing_user,
+                ServerProfile::Test,
+                &proof,
+                now_ms,
+                &random,
+            )
+            .expect_err("an authority-derived nonexistent user must be refused");
+        refused.insert(label, error.diagnostic.code);
+        assert_eq!(
+            read_authority_factory_rows(&path),
+            (expected_invitations.clone(), expected_pairings.clone()),
+            "{label} refusal must leave every durable row untouched"
+        );
+    }
+
+    let wrong_source = InvocationGate::prepare_authority(
+        InvocationSource::HttpMutation,
+        AuthMode::Sessions,
+        ServerProfile::Test,
+        0,
+        0,
+        &WireAuthorityFields::default(),
+        authority.resolved().clone(),
+    )
+    .expect("prepare wrong-source session authority");
+    let error = snapback
+        .mint_agent_invitation(
+            &wrong_source,
+            "user-m",
+            ServerProfile::Test,
+            &proof,
+            now_ms,
+            &random,
+        )
+        .expect_err("wrong-source inviter must be refused");
+    refused.insert("wrong-source", error.diagnostic.code);
+    assert_eq!(
+        read_authority_factory_rows(&path),
+        (expected_invitations.clone(), expected_pairings.clone())
+    );
+
+    let admission = AdmissionController::from_mode_state(&settled_sessions_state())
+        .expect("managed Sessions admission controller");
+    let retired = InvocationGate::prepare_admitted_authority(
+        InvocationSource::AgentGrantManagement,
+        AuthMode::Sessions,
+        ServerProfile::Test,
+        admission
+            .admit_for_mode(AuthMode::Sessions)
+            .expect("admit invitation authority before retirement"),
+        &WireAuthorityFields::default(),
+        authority.resolved().clone(),
+        Some(
+            crate::auth::identity_core::AuthClaimsProjection::server_derived(
+                Vec::new(),
+                Vec::new(),
+            ),
+        ),
+    )
+    .expect("prepare invitation authority before retirement");
+    assert_eq!(
+        admission
+            .retire_current_epoch_for_test()
+            .expect_err("outstanding invitation authority makes retirement time out")
+            .diagnostic
+            .code,
+        "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
+    );
+    let error = snapback
+        .mint_agent_invitation(
+            &retired,
+            "user-m",
+            ServerProfile::Test,
+            &proof,
+            now_ms,
+            &random,
+        )
+        .expect_err("retired inviter must be refused");
+    refused.insert("retired", error.diagnostic.code);
+    assert_eq!(
+        read_authority_factory_rows(&path),
+        (expected_invitations.clone(), expected_pairings.clone())
+    );
+
+    let error = snapback
+        .mint_agent_invitation(
+            &authority,
+            "user-m",
+            ServerProfile::Test,
+            &wrong_session_proof,
+            now_ms,
+            &random,
+        )
+        .expect_err("a proof digest for another session must be refused");
+    refused.insert("wrong-step-up-session", error.diagnostic.code);
+    assert_eq!(
+        read_authority_factory_rows(&path),
+        (expected_invitations.clone(), expected_pairings.clone())
+    );
+
+    let minted = snapback
+        .mint_agent_invitation(
+            &authority,
+            "user-m",
+            ServerProfile::Test,
+            &proof,
+            now_ms,
+            &random,
+        )
+        .expect("exact inviter authority and step-up proof mint an invitation");
+    accepted.insert("exact-management-session-and-step-up");
+    expected_invitations.insert((
+        minted.invitation_id.clone(),
+        minted.secret.token_hash().as_bytes().to_vec(),
+        "creation".to_owned(),
+        "user-m".to_owned(),
+        "test".to_owned(),
+        None,
+        now_ms as i64,
+        minted.expires_at_ms as i64,
+        None,
+        None,
+        None,
+    ));
+    assert_eq!(
+        read_authority_factory_rows(&path),
+        (expected_invitations, expected_pairings),
+        "accepted invitation must add exactly its returned row for the derived inviter"
+    );
+
+    assert_eq!(
+        accepted,
+        BTreeSet::from(["exact-management-session-and-step-up"])
+    );
+    assert_eq!(
+        refused,
+        BTreeMap::from([
+            ("lexically-lower-user", "SNAPBACK_AUTH_REQUIRED".to_owned()),
+            ("lexically-upper-user", "SNAPBACK_AUTH_REQUIRED".to_owned()),
+            (
+                "missing-authority-user-above",
+                "SNAPBACK_AUTH_AGENT_INVITATION_USER_INVALID".to_owned(),
+            ),
+            (
+                "missing-authority-user-below",
+                "SNAPBACK_AUTH_AGENT_INVITATION_USER_INVALID".to_owned(),
+            ),
+            ("retired", "SNAPBACK_AUTH_MODE_PENDING".to_owned()),
+            ("wrong-source", "SNAPBACK_AUTH_REQUIRED".to_owned()),
+            (
+                "wrong-step-up-session",
+                "SNAPBACK_AUTH_STEP_UP_REQUIRED".to_owned(),
+            ),
+        ])
+    );
+}
+
+#[test]
+fn pairing_code_factory_derives_the_durable_user_from_exact_management_authority() {
+    let directory = tempfile::tempdir().expect("pairing authority fixture directory");
+    let path = directory.path().join("pairing-authority.sqlite3");
+    let now_ms = 10_000;
+    let (mut snapback, authority) = authority_factory_fixture(&path, now_ms);
+    let (expected_invitations, mut expected_pairings) =
+        expected_authority_factory_sentinels(now_ms);
+    assert_eq!(
+        read_authority_factory_rows(&path),
+        (expected_invitations.clone(), expected_pairings.clone())
+    );
+
+    let mut accepted = BTreeSet::new();
+    let mut refused = BTreeMap::new();
+    let random = CounterRandom::new();
+
+    for (label, expected_user) in [
+        ("lexically-lower-user", "user-a"),
+        ("lexically-upper-user", "user-z"),
+    ] {
+        let error = snapback
+            .mint_pairing_code(&authority, expected_user, now_ms, &random)
+            .expect_err("a mismatched expected user must be refused");
+        refused.insert(label, error.diagnostic.code);
+        assert_eq!(
+            read_authority_factory_rows(&path),
+            (expected_invitations.clone(), expected_pairings.clone()),
+            "{label} refusal must leave every durable row untouched"
+        );
+    }
+
+    for (label, missing_user) in [
+        ("missing-authority-user-below", "user-0"),
+        ("missing-authority-user-above", "user-zz"),
+    ] {
+        let missing_authority = authority_factory_management_session(missing_user, now_ms);
+        let error = snapback
+            .mint_pairing_code(&missing_authority, missing_user, now_ms, &random)
+            .expect_err("an authority-derived nonexistent user must be refused");
+        refused.insert(label, error.diagnostic.code);
+        assert_eq!(
+            read_authority_factory_rows(&path),
+            (expected_invitations.clone(), expected_pairings.clone()),
+            "{label} refusal must leave every durable row untouched"
+        );
+    }
+
+    let wrong_source = test_live_session_authority(
+        InvocationSource::HttpMutation,
+        "user-m",
+        1,
+        now_ms + 60_000,
+        None,
+    );
+    let error = snapback
+        .mint_pairing_code(&wrong_source, "user-m", now_ms, &random)
+        .expect_err("wrong-source session must be refused");
+    refused.insert("wrong-source", error.diagnostic.code);
+    assert_eq!(
+        read_authority_factory_rows(&path),
+        (expected_invitations.clone(), expected_pairings.clone())
+    );
+
+    let admission = AdmissionController::from_mode_state(&settled_sessions_state())
+        .expect("managed Sessions admission controller");
+    let retired = InvocationGate::prepare_admitted_authority(
+        InvocationSource::AgentGrantManagement,
+        AuthMode::Sessions,
+        ServerProfile::Test,
+        admission
+            .admit_for_mode(AuthMode::Sessions)
+            .expect("admit authority before retirement"),
+        &WireAuthorityFields::default(),
+        authority.resolved().clone(),
+        Some(
+            crate::auth::identity_core::AuthClaimsProjection::server_derived(
+                Vec::new(),
+                Vec::new(),
+            ),
+        ),
+    )
+    .expect("prepare managed authority before retirement");
+    assert_eq!(
+        admission
+            .retire_current_epoch_for_test()
+            .expect_err("outstanding authority makes retirement time out")
+            .diagnostic
+            .code,
+        "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
+    );
+    let error = snapback
+        .mint_pairing_code(&retired, "user-m", now_ms, &random)
+        .expect_err("retired authority must be refused");
+    refused.insert("retired", error.diagnostic.code);
+    assert_eq!(
+        read_authority_factory_rows(&path),
+        (expected_invitations.clone(), expected_pairings.clone())
+    );
+
+    let minted = snapback
+        .mint_pairing_code(&authority, "user-m", now_ms, &random)
+        .expect("exact management session mints for its derived user");
+    accepted.insert("exact-management-session");
+    expected_pairings.insert((
+        minted.request_id.clone(),
+        minted.secret.token_hash().as_bytes().to_vec(),
+        "user-m".to_owned(),
+        None,
+        None,
+        "pending".to_owned(),
+        0,
+        now_ms as i64,
+        minted.expires_at_ms as i64,
+        None,
+        None,
+    ));
+    assert_eq!(
+        read_authority_factory_rows(&path),
+        (expected_invitations, expected_pairings),
+        "accepted mint must add exactly its returned row for the derived user"
+    );
+
+    assert_eq!(accepted, BTreeSet::from(["exact-management-session"]));
+    assert_eq!(
+        refused,
+        BTreeMap::from([
+            ("lexically-lower-user", "SNAPBACK_AUTH_REQUIRED".to_owned()),
+            ("lexically-upper-user", "SNAPBACK_AUTH_REQUIRED".to_owned()),
+            (
+                "missing-authority-user-above",
+                "SNAPBACK_AUTH_GRANT_INVALID".to_owned(),
+            ),
+            (
+                "missing-authority-user-below",
+                "SNAPBACK_AUTH_GRANT_INVALID".to_owned(),
+            ),
+            ("retired", "SNAPBACK_AUTH_MODE_PENDING".to_owned()),
+            ("wrong-source", "SNAPBACK_AUTH_REQUIRED".to_owned()),
+        ])
+    );
+}
+
 #[test]
 fn grant_revocation_planners_select_only_the_session_users_exact_token_set() {
     let (schema, functions) = sessions_activation_pair('b', false);

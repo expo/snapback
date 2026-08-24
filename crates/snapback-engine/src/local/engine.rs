@@ -5759,16 +5759,17 @@ impl LocalSnapback {
 
     pub fn mint_agent_invitation(
         &mut self,
-        effect: &AdmissionEffectGuard<'_>,
+        authority: &PreparedAuthority,
         user_id: &str,
         profile: ServerProfile,
         proof: &crate::auth::crypto::StepUpProof,
         now_ms: u64,
         random: &dyn crate::auth::crypto::RandomSource,
     ) -> SnapbackResult<crate::storage::auth_agents::IssuedAgentInvitation> {
-        let _ = effect;
+        let authority_user_id = Self::require_agent_invitation_mint_authority(authority, user_id)?;
+        let _effect = authority.effect_guard("agent invitation mint transaction")?;
         self.db
-            .mint_agent_invitation(user_id, profile, proof, now_ms, random)
+            .mint_agent_invitation(authority_user_id, profile, proof, now_ms, random)
     }
 
     pub fn mint_agent_invitation_with_authorized_effect(
@@ -5781,41 +5782,51 @@ impl LocalSnapback {
         random: &dyn crate::auth::crypto::RandomSource,
         authorized_effect: AuthorizedEffectReservation,
     ) -> SnapbackResult<crate::storage::auth_agents::IssuedAgentInvitation> {
-        let ResolvedAppAuthority::Session {
-            user_id: authority_user_id,
-            ..
-        } = authority.resolved()
-        else {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_REQUIRED",
-                "auth",
-                "agent-invitation minting requires exact session authority",
-            ));
-        };
-        if authority.source() != InvocationSource::AgentGrantManagement
-            || authority_user_id != user_id
-        {
+        let authority_user_id = Self::require_agent_invitation_mint_authority(authority, user_id)?;
+        self.db.mint_agent_invitation_guarded(
+            authority_user_id,
+            profile,
+            proof,
+            now_ms,
+            random,
+            || authorized_effect.commit_guard("agent invitation mint transaction"),
+        )
+    }
+
+    /// The durable invitation owner comes from the admitted management
+    /// session. `user_id` is retained only as an exact caller expectation for
+    /// the existing route contract and is never forwarded to storage.
+    ///
+    /// @ref LLP 0303#the-governing-principle — durable subjects come from the
+    /// prepared authority even when a compatibility expectation is compared.
+    fn require_agent_invitation_mint_authority<'a>(
+        authority: &'a PreparedAuthority,
+        user_id: &str,
+    ) -> SnapbackResult<&'a str> {
+        let authority_user_id = Self::require_agent_grant_management_session(
+            authority,
+            "agent-invitation minting authorization",
+        )?;
+        if authority_user_id != user_id {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_REQUIRED",
                 "auth",
                 "agent-invitation minting facts do not match exact inviter authority",
             ));
         }
-        self.db
-            .mint_agent_invitation_guarded(user_id, profile, proof, now_ms, random, || {
-                authorized_effect.commit_guard("agent invitation mint transaction")
-            })
+        Ok(authority_user_id)
     }
 
     pub fn mint_pairing_code(
         &mut self,
-        effect: &AdmissionEffectGuard<'_>,
+        authority: &PreparedAuthority,
         user_id: &str,
         now_ms: u64,
         random: &dyn crate::auth::crypto::RandomSource,
     ) -> SnapbackResult<crate::storage::auth_grants::MintedPairingCode> {
-        let _ = effect;
-        self.db.mint_pairing_code(user_id, now_ms, random)
+        let authority_user_id = Self::require_pairing_code_mint_authority(authority, user_id)?;
+        let _effect = authority.effect_guard("pairing-code mint transaction")?;
+        self.db.mint_pairing_code(authority_user_id, now_ms, random)
     }
 
     pub fn mint_pairing_code_with_authorized_effect(
@@ -5826,19 +5837,19 @@ impl LocalSnapback {
         random: &dyn crate::auth::crypto::RandomSource,
         authorized_effect: AuthorizedEffectReservation,
     ) -> SnapbackResult<crate::storage::auth_grants::MintedPairingCode> {
-        Self::require_pairing_code_mint_authority(authority, user_id)?;
+        let authority_user_id = Self::require_pairing_code_mint_authority(authority, user_id)?;
         #[cfg(feature = "test-support")]
         let _probe_scope =
             crate::storage::auth_grants::install_registered_pairing_code_mint_commit_probe_for_test(
                 authorized_effect.identity_for_test(),
             );
-        let committed = self
-            .db
-            .mint_pairing_code_guarded_commit(user_id, now_ms, random, || {
-                authorized_effect
-                    .commit_guard_classified("pairing-code mint transaction")
-                    .map_err(AuthorizedEffectReservationError::into_error)
-            });
+        let committed =
+            self.db
+                .mint_pairing_code_guarded_commit(authority_user_id, now_ms, random, || {
+                    authorized_effect
+                        .commit_guard_classified("pairing-code mint transaction")
+                        .map_err(AuthorizedEffectReservationError::into_error)
+                });
         // The reservation protects only this durable decision. Release it as
         // soon as the guarded COMMIT returns, before capacity/error mapping or
         // response work can extend logout's unbounded drain.
@@ -5846,10 +5857,12 @@ impl LocalSnapback {
         committed?.into_result()
     }
 
-    fn require_pairing_code_mint_authority(
-        authority: &PreparedAuthority,
+    /// @ref LLP 0303#the-governing-principle — the expected user is checked,
+    /// but only the admitted session's derived user reaches the durable sink.
+    fn require_pairing_code_mint_authority<'a>(
+        authority: &'a PreparedAuthority,
         user_id: &str,
-    ) -> SnapbackResult<()> {
+    ) -> SnapbackResult<&'a str> {
         let authority_user_id = Self::require_agent_grant_management_session(
             authority,
             "pairing-code minting authorization",
@@ -5861,7 +5874,7 @@ impl LocalSnapback {
                 "pairing-code minting facts do not match exact caller authority",
             ));
         }
-        Ok(())
+        Ok(authority_user_id)
     }
 
     /// Require a currently admitted `PreparedAuthority` resolving to a session

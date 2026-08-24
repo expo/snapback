@@ -4161,6 +4161,7 @@ dependencies = [
  "hmac 0.12.1",
  "jsonschema",
  "libc",
+ "rusqlite",
  "schemars",
  "serde",
  "serde_json",
