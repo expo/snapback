@@ -4,6 +4,31 @@
   "mode": "deterministic-retained-evidence-rejoin",
   "rerun": false,
   "sourceFailureReport": "../../BLOCKED-charlies-mac-mini--durand-driver-finalization.md",
+  "meteringDisposition": {
+    "result": "unavailable-fail-closed",
+    "parserRevision": "bb3f742bddf055a236e4d841a37eda5787f3c7ca",
+    "unavailableReason": "retained-session-token-event-corrupt",
+    "sourceSession": {
+      "nativeSessionId": "01a03304-e4e2-71d0-892e-bf0440eac5b2",
+      "path": "events/codex-rollout.jsonl",
+      "sha256": "sha256:f9838d32f9f1357eb40ed7661d350cc9e341431ab0fcc3df0dc6e280e2035c0d"
+    },
+    "corruptEvent": {
+      "ordinal": 710,
+      "record": 711,
+      "precedingCumulativeOrdinal": 706,
+      "rawCumulativeDeltaTotal": 0,
+      "lastTokenUsageAggregateTotal": 15283,
+      "error": "Codex token_count record 711 cumulative delta does not equal last_token_usage.total_tokens; received 0 and 15283"
+    },
+    "priorRecord": {
+      "commit": "560fbf5cef8739c6d0d6240631b8316902f3c276",
+      "inputTokens": 656467,
+      "outputTokens": 124603,
+      "totalTokens": 781070
+    },
+    "rule": "A corrupt native aggregate cannot be silently accepted or estimated; retained product evidence remains valid while usage and scorecard eligibility become unavailable."
+  },
   "normalization": {
     "reason": "The original driver used each choreography summary time as the terminal boundary even though the retained controller phase transition and final flush occurred later.",
     "clockCorrelation": "All retained sources use the same host clock; the rejoin partitions at exact retained controller transition/final stamps with zero cross-host skew.",

@@ -29,14 +29,14 @@
     }
   },
   "tokens": {
-    "input": 656467,
-    "output": 124603,
-    "source": "codex-rollout-token-count",
+    "input": null,
+    "output": null,
+    "source": null,
     "phases": {
       "orientation": null,
       "authoring": null,
-      "verification": 0,
-      "diagnosis": 0
+      "verification": null,
+      "diagnosis": null
     }
   },
   "toolUses": null,
@@ -179,11 +179,11 @@
         "status": "green",
         "authoring": {
           "tokens": {
-            "input": 542284,
-            "output": 103182,
-            "cacheRead": 23932416,
-            "cacheWrite": 0,
-            "reasoning": 29081
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
           },
           "firstGreenAt": "2026-08-24T09:54:53.931Z",
           "suitePassAt": "2026-08-24T09:54:53.931Z",
@@ -492,7 +492,7 @@
         },
         "charging": {
           "chargedWallSeconds": 2940.104,
-          "chargedTokens": 645466,
+          "chargedTokens": null,
           "flags": []
         }
       },
@@ -504,11 +504,11 @@
         "status": "green",
         "authoring": {
           "tokens": {
-            "input": 50745,
-            "output": 7834,
-            "cacheRead": 5303552,
-            "cacheWrite": 0,
-            "reasoning": 2366
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
           },
           "firstGreenAt": "2026-08-24T10:02:30.777Z",
           "suitePassAt": "2026-08-24T10:02:30.777Z",
@@ -817,7 +817,7 @@
         },
         "charging": {
           "chargedWallSeconds": 456.846,
-          "chargedTokens": 58579,
+          "chargedTokens": null,
           "flags": []
         }
       },
@@ -829,11 +829,11 @@
         "status": "green",
         "authoring": {
           "tokens": {
-            "input": 63438,
-            "output": 13587,
-            "cacheRead": 5172992,
-            "cacheWrite": 0,
-            "reasoning": 4677
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
           },
           "firstGreenAt": "2026-08-24T10:10:23.198Z",
           "suitePassAt": "2026-08-24T10:10:23.198Z",
@@ -1142,7 +1142,7 @@
         },
         "charging": {
           "chargedWallSeconds": 472.421,
-          "chargedTokens": 77025,
+          "chargedTokens": null,
           "flags": []
         }
       }
@@ -1176,24 +1176,14 @@
         "stampedAt": "2026-08-24T10:10:23.198Z",
         "startedAt": "2026-08-24T09:05:53.827Z"
       },
-      "manifestSha256": "sha256:6c8b5cdc4d21999d3989b9ba2c285ae78db1721980a7ee97952f9acb8c154abe",
-      "unavailableReason": null,
+      "manifestSha256": "sha256:0475614ac8db156cc8a90288094d77a4badc52f7aa1a313617830abaa2ad7b73",
+      "unavailableReason": "retained-session-token-event-corrupt",
       "clockCorrelation": {
         "method": "rfc3339-with-bounded-skew",
         "maxSkewMillis": 0,
         "evidence": "deterministic retained-evidence rejoin uses the shared host clock and controller phase-transition/final stamps"
       },
-      "sessions": [
-        {
-          "sourceId": "builder",
-          "parentSourceId": null,
-          "role": "builder",
-          "nativeSessionId": "01a03304-e4e2-71d0-892e-bf0440eac5b2",
-          "nativeAgentId": null,
-          "path": "events/codex-rollout.jsonl",
-          "sha256": "sha256:f9838d32f9f1357eb40ed7661d350cc9e341431ab0fcc3df0dc6e280e2035c0d"
-        }
-      ],
+      "sessions": [],
       "receipts": [
         {
           "sourceId": "m1-choreography",
@@ -1294,9 +1284,11 @@
     },
     "observabilityProtocol": "social-messenger-observation.v1",
     "efficiencyScorecardEligibility": {
-      "eligible": true,
-      "correctionActionTargetEligible": true,
-      "ineligibilityReasons": []
+      "eligible": false,
+      "correctionActionTargetEligible": false,
+      "ineligibilityReasons": [
+        "phase-usage-unavailable"
+      ]
     },
     "suiteStatusLinkage": {
       "input": {
