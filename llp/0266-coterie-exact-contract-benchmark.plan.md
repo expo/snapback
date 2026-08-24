@@ -5,6 +5,10 @@
 **Systems:** Benchmarks, Demos, Exact, Contract, Native clients, Provider adapters, Social messenger
 **Author:** Codex / Charlie Cheever
 **Date:** 2026-08-15
+**Revised:** 2026-08-24 (design re-review closes the receipt-envelope,
+storage-overfetch, result-byte, and live-fan-out activation holes in the scoped
+profile requirements; the author-ruling exactness, 1,024 default, 10,001
+stored admission bound, v8 bytes, and design-only scope are unchanged)
 **Revised:** 2026-08-24 (author ruling for M6 message-envelope growth: use an
 explicit scoped 10,000-row result profile, preserve one-version atomic
 single-window live replacement, qualify its measurable cost, and refuse the
@@ -313,7 +317,19 @@ Admission is deliberately redundant:
    collection/default limit but permits an explicit `.take(n)` only up to that
    trusted per-invocation cap. The engine revalidates every resulting plan, so
    editing harness JavaScript or passing call arguments cannot widen it.
-5. Result-contract validation, the app-result carrier, live publication, and
+5. The storage executor must consume that same trusted profile. Today
+   `crates/snapback-kernel/src/storage.rs::query_on_with_storage_limit_visibility_keyset`
+   refuses any `storage_limit > QUERY_INTERNAL_OVERFETCH_MAX` (2,048), so an
+   otherwise admitted `.take(10_000)` still fails with
+   `SNAPBACK_QUERY_LIMIT_INVALID`. The focused Spec must give this exact check,
+   and the Durable Object clone at
+   `targets/cloudflare/src/host-ops.js::storageQuery`, a profile-aware
+   per-invocation storage ceiling. The absent-profile ceiling remains 2,048.
+   Read-your-writes may add only the actual bounded buffered-write count to the
+   trusted profile cap; the implementation must not globally redefine
+   `QUERY_INTERNAL_OVERFETCH_MAX` as 11,024 or turn that maximum into ordinary
+   overfetch authority.
+6. Result-contract validation, the app-result carrier, live publication, and
    client decoding all enforce the profile's 32 MiB/524,288-node complete
    result ceiling before publication. Carrier framing may reserve at most
    64 KiB beyond the declared payload limit; it may not become an unrelated
@@ -327,13 +343,27 @@ mutation result does not evade the internal query bound. `sendMessage` does
 not need the larger query window because D4 replaces the capped query-as-count
 with stored admission state.
 
+Independently of whether `markReceiptsThrough` materializes rows, its current
+stored-admission helper `receiptEnvelopeMessageLimit()` is also 1,024. The v9
+route must move that explicit receipt-envelope bound, its stored
+`membership.receiptCount` admission check, and the declared
+`RECEIPT_ENVELOPE_EXCEEDED` error contract in lockstep with the qualified
+message cap. V8 keeps the 1,024 helper/error behavior. The `markReceipt` token
+bump alone does not change this bound and cannot make the 9,880-to-10,000 M6
+receipt phase executable.
+
 This mechanism is a real platform capability, not merely a Coterie plan
 detail. Its implementation lane must first create and accept a focused
 platform Spec for profile semantics, target admission, and the closed limits,
 then amend LLP 0004, LLP 0007, LLP 0108, and LLP 0267 where their current
 1,024/4 MiB and pagination rules are governed. In particular, LLP 0267 needs a
-narrow, evidence-backed `atomic-single-window` exception to its ordinary
-pagination posture; it does not receive a general “large query” exemption.
+narrow, evidence-backed `atomic-single-window` exception covering all three
+conflicting guards: its ordinary `maxUnpagedRows`/`maxUnpagedResultBytes`
+pagination posture, its tighten-only 4 MiB `maxResultBytes` ceiling versus this
+profile's fixed 32 MiB ceiling, and its 1,000 ms
+`maxEstimatedLiveFanoutMs` refusal versus this opaque per-viewer live query's
+qualified distinct-group estimate. The exception is closed to this versioned
+profile and does not become a general “large query” exemption.
 
 ### D2 — Exact one-version live semantics
 
@@ -386,6 +416,10 @@ The measurement artifact records, per commit/version and per subscription:
   messages, quotes, profiles, reactions, receipts, and memberships;
 - validated result rows, nodes, and bytes, plus encoded `live_replace` frame
   bytes and total replacement bytes on each socket;
+- the LLP 0267 `LiveFanoutBasisV1` inputs—`realEvaluationBasisMs`,
+  `memoDeliveryBasisMs`, `maxObservers`, and
+  `maxDistinctEvaluationGroups`—and the derived `estimatedLiveFanoutMs` for
+  each live re-evaluation qualification cell;
 - logical subscriptions, socket managers, physical sockets, reconnects, and
   budget warnings;
 - server RSS, handler-runtime RSS, client heap/local-result-store bytes, and
@@ -431,6 +465,15 @@ Ten thousand is qualified only if all of these predeclared thresholds pass:
    applies at p95 at most 500 ms and cutoff/restoration completes at p95 at
    most 10 seconds. No visible stall, timeout, lost receipt aggregate, or
    post-cutoff row is allowed.
+7. **Live fan-out admission:** treat the opaque, per-viewer `listMessages`
+   query as 50 distinct evaluation groups unless a future G0 proof establishes
+   a smaller complete G1 memo-key population. Compute
+   `estimatedLiveFanoutMs` exactly as LLP 0267 does from the measured/scaled
+   real and memo bases and the declared observer/group counts. It must stay
+   below the profile-specific refuse-at admitted by the focused Spec and LLP
+   0267 amendment. Passing per-subscription in-flight, live-turn, settlement,
+   or convergence gates does not substitute for this check; absent evidence or
+   a fan-out miss fails the profile closed.
 
 A pass records raw samples, environment, fixture/digest identities, cap values,
 and derived verdicts. If 10,000 misses **any** threshold, v9 does not activate
@@ -480,6 +523,16 @@ membership, notification/event counts, and commit version before and after.
 `.take(limit).length >= limit` is forbidden as admission state: a 10,000-row
 window cannot establish that a hidden 10,001st row does not already exist.
 
+The v9 receipt route is the same stored-admission class. Its immutable cap
+parameter changes `receiptEnvelopeMessageLimit()` from 1,024 to the qualified
+message cap for v9 only, and `markReceiptsThrough@2` checks the stored
+`membership.receiptCount` against that cap before its membership projection
+write. The versioned provider declaration carries the corresponding structured
+`RECEIPT_ENVELOPE_EXCEEDED` error. If qualification selects 8,192, 4,096, or
+2,048, the result-profile maximum, `messageEnvelopeCount` write bound, and
+receipt-envelope bound all move together. V8 retains its current 1,024 receipt
+helper, declared error, and checked behavior.
+
 ### D5 — V8/v9 compatibility is a cap parameter, not two page runtimes
 
 The existing v8 provider declaration remains byte-frozen at source SHA-256
@@ -503,7 +556,10 @@ Compatibility tokens move wherever the observable cap/error behavior moves:
 - `sendMessage` core token `4 → 5` for stored-count admission and the
   10,001 structured boundary;
 - the namespaced `markReceipt` extension token `1 → 2` because v9 receipts
-  must advance coherently across the larger message envelope; and
+  must advance coherently across the larger message envelope, including the
+  explicit v9-only `receiptEnvelopeMessageLimit()` and declared
+  `RECEIPT_ENVELOPE_EXCEEDED` bound change; a token bump without that bound
+  change is non-conforming; and
 - every other v9 surface token is audited against its implementation route.
   A token remains unchanged only when its arguments, result/error contract,
   authorization, cap, and mutation effects are unchanged. Edit, tombstone,
@@ -541,9 +597,11 @@ implementation:
    revocation, and rejoin/incarnation behavior remain fail-closed and exact.
 5. **Cost and 50-member settlement:** the D3 isolated and sustained
    measurements run at 10,000/50. They verify evaluation/hydration bounds,
-   bytes, sockets, memory, send and receipt settlement, live convergence,
-   cutoff behavior, and every numeric threshold. A test that only replays a
-   snapshot cannot satisfy this item.
+   result bytes, LLP 0267 `estimatedLiveFanoutMs`, sockets, memory, send and
+   receipt settlement, live convergence, cutoff behavior, and every numeric
+   threshold. A test that only replays a snapshot cannot satisfy this item;
+   neither can one that passes settlement while the profile remains
+   unlistable under the fan-out admission gate.
 6. **Admission boundary:** sequential and barrier-synchronized concurrent
    tests admit exactly message 10,000, then make message 10,001 return the
    structured envelope code before every write. They corrupt/backfill the
@@ -632,3 +690,8 @@ grader must exercise the same public exact single-window API described here.
   single-window replacement, makes the 10,000-row cost a measured claim gate,
   adds stored-count pre-write refusal at 10,001, and keeps v8's 1,024/1,025
   behavior as a checked fixture. Implementation remains the next lane.
+- 2026-08-24 (design re-review): made activation depend on the v9 receipt
+  envelope moving with the qualified cap, profile-aware storage ceilings in
+  both the kernel and Durable Object executor, and a closed LLP 0267 amendment
+  for pagination, 32 MiB result bytes, and measured live fan-out. M6 now fails
+  closed on `estimatedLiveFanoutMs`; design-only scope remains unchanged.
