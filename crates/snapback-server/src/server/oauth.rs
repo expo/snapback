@@ -374,10 +374,9 @@ pub(super) async fn oauth_authorize_get(
             StatusCode::BAD_REQUEST,
         );
     }
-    let (user_id, _) = match require_grant_session(&authority) {
-        Ok(session) => session,
-        Err(error) => return error.into_response(),
-    };
+    if let Err(error) = require_grant_session(&authority) {
+        return error.into_response();
+    }
     let provider = match require_agent_routes_available(&runtime) {
         Ok(provider) => provider,
         Err(error) => return error.into_response(),
@@ -387,7 +386,6 @@ pub(super) async fn oauth_authorize_get(
     let begun = with_snapback(&runtime.snapback, move |snapback| {
         snapback.begin_oauth_authorization(
             &effect_authority,
-            &user_id,
             &request.client_id,
             &request.redirect_uri,
             &scopes,

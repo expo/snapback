@@ -5099,7 +5099,6 @@ impl LocalSnapback {
     pub fn begin_oauth_authorization(
         &mut self,
         authority: &PreparedAuthority,
-        consenting_user_id: &str,
         client_id: &str,
         redirect_uri: &str,
         bundle_names: &[String],
@@ -5112,16 +5111,9 @@ impl LocalSnapback {
             authority,
             "OAuth consent request authorization",
         )?;
-        if authority_user_id != consenting_user_id {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_REQUIRED",
-                "auth",
-                "OAuth consent request facts do not match exact caller authority",
-            ));
-        }
         let _effect = authority.effect_guard("OAuth consent request transaction")?;
         self.db.begin_oauth_authorization(
-            consenting_user_id,
+            authority_user_id,
             client_id,
             redirect_uri,
             bundle_names,

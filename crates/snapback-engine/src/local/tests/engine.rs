@@ -28879,7 +28879,7 @@ fn test_dev_authority(source: InvocationSource) -> PreparedAuthority {
     .expect("prepare exact test dev authority")
 }
 
-fn oauth_consent_ownership_fixture() -> (LocalSnapback, String) {
+fn oauth_consent_ownership_fixture() -> (LocalSnapback, String, String) {
     let (mut schema, mut functions) = sessions_activation_pair('c', false);
     schema.auth.as_mut().expect("sessions auth manifest").agents =
         Some(crate::manifest::AgentsManifest::explicit(
@@ -28954,12 +28954,13 @@ fn oauth_consent_ownership_fixture() -> (LocalSnapback, String) {
             &random,
         )
         .expect("register OAuth integration");
+    let principal_user_id = integration.user_id.clone();
     let client_id = database
         .integration_record_if_present(&integration.user_id)
         .expect("read integration record")
         .expect("integration record exists")
         .integration_id;
-    (snapback, client_id)
+    (snapback, client_id, principal_user_id)
 }
 
 fn seed_oauth_consent_users(snapback: &mut LocalSnapback, now_ms: u64) {
@@ -28994,41 +28995,21 @@ fn begin_oauth_request_for_test(
         .request_id
 }
 
+fn oauth_consent_rows_for_test(
+    snapback: &mut LocalSnapback,
+) -> crate::storage::auth_integrations::OAuthConsentRowsForTest {
+    snapback
+        .auth_database_mut()
+        .oauth_consent_rows_for_test()
+        .expect("read durable OAuth consent rows")
+}
+
 #[test]
-fn oauth_consent_request_refuses_users_outside_the_authority_user() {
-    let (mut snapback, client_id) = oauth_consent_ownership_fixture();
+fn oauth_consent_request_derives_the_durable_user_from_authority() {
+    let (mut snapback, client_id, principal_user_id) = oauth_consent_ownership_fixture();
     let now_ms = 1_000;
     seed_oauth_consent_users(&mut snapback, now_ms);
     let random = CounterRandom::new();
-    let authority = test_live_session_authority(
-        InvocationSource::AgentGrantManagement,
-        "user-m",
-        1,
-        now_ms + 60_000,
-        None,
-    );
-    let mut accepted = BTreeSet::new();
-    let mut refused = BTreeMap::new();
-    for user_id in ["user-a", "user-m", "user-z"] {
-        match snapback.begin_oauth_authorization(
-            &authority,
-            user_id,
-            &client_id,
-            "https://example.test/callback",
-            &["read".to_owned()],
-            "abcdefghijklmnopqrstuvwxyzABCDEFGH012345678",
-            None,
-            now_ms,
-            &random,
-        ) {
-            Ok(_) => {
-                accepted.insert(user_id.to_owned());
-            }
-            Err(error) => {
-                refused.insert(user_id.to_owned(), error.diagnostic.code);
-            }
-        }
-    }
     let absent_authority = test_live_session_authority(
         InvocationSource::AgentGrantManagement,
         "user-n",
@@ -29036,9 +29017,8 @@ fn oauth_consent_request_refuses_users_outside_the_authority_user() {
         now_ms + 60_000,
         None,
     );
-    match snapback.begin_oauth_authorization(
+    let absent = snapback.begin_oauth_authorization(
         &absent_authority,
-        "user-n",
         &client_id,
         "https://example.test/callback",
         &["read".to_owned()],
@@ -29046,32 +29026,97 @@ fn oauth_consent_request_refuses_users_outside_the_authority_user() {
         None,
         now_ms,
         &random,
-    ) {
-        Ok(_) => {
-            accepted.insert("user-n".to_owned());
-        }
-        Err(error) => {
-            refused.insert("user-n".to_owned(), error.diagnostic.code);
-        }
-    }
-
-    assert_eq!(accepted, BTreeSet::from(["user-m".to_owned()]));
-    assert_eq!(
-        refused,
-        BTreeMap::from([
-            ("user-a".to_owned(), "SNAPBACK_AUTH_REQUIRED".to_owned()),
-            (
-                "user-n".to_owned(),
-                "SNAPBACK_AUTH_OAUTH_ACCESS_DENIED".to_owned(),
-            ),
-            ("user-z".to_owned(), "SNAPBACK_AUTH_REQUIRED".to_owned()),
-        ])
     );
+    assert_eq!(
+        absent
+            .expect_err("an authority for an absent user must be refused")
+            .diagnostic
+            .code,
+        "SNAPBACK_AUTH_OAUTH_ACCESS_DENIED"
+    );
+    let after_absent_refusal = oauth_consent_rows_for_test(&mut snapback);
+    assert!(after_absent_refusal.grants.is_empty());
+    assert!(after_absent_refusal.pairing_requests.is_empty());
+    assert!(after_absent_refusal.authorizations.is_empty());
+
+    let authority = test_live_session_authority(
+        InvocationSource::AgentGrantManagement,
+        "user-m",
+        1,
+        now_ms + 60_000,
+        None,
+    );
+    let begun = snapback
+        .begin_oauth_authorization(
+            &authority,
+            &client_id,
+            "https://example.test/callback",
+            &["read".to_owned()],
+            "abcdefghijklmnopqrstuvwxyzABCDEFGH012345678",
+            None,
+            now_ms,
+            &random,
+        )
+        .expect("authority user can create their OAuth consent request");
+    let after_acceptance = oauth_consent_rows_for_test(&mut snapback);
+    assert!(after_acceptance.grants.is_empty());
+    assert_eq!(
+        after_acceptance.pairing_requests,
+        vec![
+            crate::storage::auth_integrations::OAuthPairingRequestRowForTest {
+                request_id: begun.request_id.clone(),
+                minted_by_user_id: "user-m".to_owned(),
+                state: "pending".to_owned(),
+                grant_id: None,
+            }
+        ]
+    );
+    assert_eq!(
+        after_acceptance.authorizations,
+        vec![
+            crate::storage::auth_integrations::OAuthAuthorizationRowForTest {
+                request_id: begun.request_id,
+                principal_user_id,
+                consenting_user_id: "user-m".to_owned(),
+                status: "pending".to_owned(),
+                code_hash: None,
+                grant_id: None,
+                code_expires_at_ms: None,
+                consumed_at_ms: None,
+            }
+        ]
+    );
+
+    let wrong_source = test_live_session_authority(
+        InvocationSource::HttpMutation,
+        "user-m",
+        1,
+        now_ms + 60_000,
+        None,
+    );
+    let refused = snapback.begin_oauth_authorization(
+        &wrong_source,
+        &client_id,
+        "https://example.test/callback",
+        &["read".to_owned()],
+        "abcdefghijklmnopqrstuvwxyzABCDEFGH012345678",
+        None,
+        now_ms,
+        &random,
+    );
+    assert_eq!(
+        refused
+            .expect_err("wrong invocation source must be refused")
+            .diagnostic
+            .code,
+        "SNAPBACK_AUTH_REQUIRED"
+    );
+    assert_eq!(oauth_consent_rows_for_test(&mut snapback), after_acceptance);
 }
 
 #[test]
 fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
-    let (mut snapback, client_id) = oauth_consent_ownership_fixture();
+    let (mut snapback, client_id, principal_user_id) = oauth_consent_ownership_fixture();
     let now_ms = 1_000;
     seed_oauth_consent_users(&mut snapback, now_ms);
     let random = CounterRandom::new();
@@ -29080,7 +29125,7 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
         .enumerate()
         .map(|(offset, user_id)| {
             (
-                user_id,
+                user_id.to_owned(),
                 begin_oauth_request_for_test(
                     &mut snapback,
                     user_id,
@@ -29098,38 +29143,100 @@ fn oauth_consent_approval_refuses_requests_outside_the_authority_user() {
         now_ms + 60_000,
         None,
     );
-    let mut accepted = BTreeSet::new();
-    let mut refused = BTreeMap::new();
-    for (user_id, request_id) in requests {
-        match snapback.approve_oauth_grant_request(&authority, &request_id, None, now_ms + 10) {
-            Ok(_) => {
-                accepted.insert(user_id.to_owned());
+
+    let initial_rows = oauth_consent_rows_for_test(&mut snapback);
+    let mut expected_pairing_requests = requests
+        .iter()
+        .map(|(user_id, request_id)| {
+            crate::storage::auth_integrations::OAuthPairingRequestRowForTest {
+                request_id: request_id.clone(),
+                minted_by_user_id: user_id.clone(),
+                state: "pending".to_owned(),
+                grant_id: None,
             }
-            Err(error) => {
-                refused.insert(user_id.to_owned(), error.diagnostic.code);
+        })
+        .collect::<Vec<_>>();
+    expected_pairing_requests.sort_by(|left, right| left.request_id.cmp(&right.request_id));
+    let mut expected_authorizations = requests
+        .iter()
+        .map(|(user_id, request_id)| {
+            crate::storage::auth_integrations::OAuthAuthorizationRowForTest {
+                request_id: request_id.clone(),
+                principal_user_id: principal_user_id.clone(),
+                consenting_user_id: user_id.clone(),
+                status: "pending".to_owned(),
+                code_hash: None,
+                grant_id: None,
+                code_expires_at_ms: None,
+                consumed_at_ms: None,
             }
+        })
+        .collect::<Vec<_>>();
+    expected_authorizations.sort_by(|left, right| left.request_id.cmp(&right.request_id));
+    assert!(initial_rows.grants.is_empty());
+    assert_eq!(initial_rows.pairing_requests, expected_pairing_requests);
+    assert_eq!(initial_rows.authorizations, expected_authorizations);
+
+    for (user_id, request_id) in &requests {
+        let before = oauth_consent_rows_for_test(&mut snapback);
+        let result =
+            snapback.approve_oauth_grant_request(&authority, request_id, None, now_ms + 10);
+        let after = oauth_consent_rows_for_test(&mut snapback);
+        if user_id == "user-m" {
+            let approval = match result.expect("authority user can approve their OAuth request") {
+                crate::storage::auth_grants::GrantApproval::Created(approval) => approval,
+                crate::storage::auth_grants::GrantApproval::Existing(_) => {
+                    panic!("first OAuth approval must create a grant")
+                }
+            };
+            assert_eq!(approval.actor_user_id, principal_user_id);
+            assert_eq!(approval.effective_user_id, "user-m");
+            let durable_grant = after
+                .grants
+                .iter()
+                .find(|row| row.request_id == *request_id)
+                .expect("authority user's durable OAuth grant exists");
+            assert_eq!(
+                durable_grant.effective_user_id, "user-m",
+                "durable OAuth grant must be bound to the authority user"
+            );
+
+            let mut expected = before;
+            expected
+                .grants
+                .push(crate::storage::auth_integrations::OAuthGrantRowForTest {
+                    grant_id: approval.grant_id.clone(),
+                    request_id: request_id.clone(),
+                    actor_user_id: principal_user_id.clone(),
+                    effective_user_id: "user-m".to_owned(),
+                });
+            expected
+                .grants
+                .sort_by(|left, right| left.request_id.cmp(&right.request_id));
+            let pairing = expected
+                .pairing_requests
+                .iter_mut()
+                .find(|row| row.request_id == *request_id)
+                .expect("authority user's pairing row exists");
+            pairing.state = "approved".to_owned();
+            pairing.grant_id = Some(approval.grant_id);
+            assert_eq!(after, expected);
+        } else {
+            assert_eq!(
+                result
+                    .expect_err("foreign OAuth approval must be refused")
+                    .diagnostic
+                    .code,
+                "SNAPBACK_AUTH_GRANT_INVALID"
+            );
+            assert_eq!(after, before);
         }
     }
-
-    assert_eq!(accepted, BTreeSet::from(["user-m".to_owned()]));
-    assert_eq!(
-        refused,
-        BTreeMap::from([
-            (
-                "user-a".to_owned(),
-                "SNAPBACK_AUTH_GRANT_INVALID".to_owned(),
-            ),
-            (
-                "user-z".to_owned(),
-                "SNAPBACK_AUTH_GRANT_INVALID".to_owned(),
-            ),
-        ])
-    );
 }
 
 #[test]
 fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
-    let (mut snapback, client_id) = oauth_consent_ownership_fixture();
+    let (mut snapback, client_id, principal_user_id) = oauth_consent_ownership_fixture();
     let now_ms = 1_000;
     seed_oauth_consent_users(&mut snapback, now_ms);
     let random = CounterRandom::new();
@@ -29144,7 +29251,7 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
                 now_ms + (offset as u64 * 10),
                 &random,
             );
-            snapback
+            let approval = snapback
                 .auth_database_mut()
                 .approve_grant_request(
                     user_id,
@@ -29155,7 +29262,13 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
                     now_ms + (offset as u64 * 10) + 1,
                 )
                 .unwrap_or_else(|error| panic!("approve OAuth request for {user_id}: {error:?}"));
-            (user_id, request_id)
+            let approval = match approval {
+                crate::storage::auth_grants::GrantApproval::Created(approval) => approval,
+                crate::storage::auth_grants::GrantApproval::Existing(_) => {
+                    panic!("first OAuth setup approval must create a grant")
+                }
+            };
+            (user_id.to_owned(), request_id, approval.grant_id)
         })
         .collect::<Vec<_>>();
     let authority = test_live_session_authority(
@@ -29165,38 +29278,94 @@ fn oauth_code_issuance_refuses_requests_outside_the_authority_user() {
         now_ms + 60_000,
         None,
     );
-    let mut accepted = BTreeSet::new();
-    let mut refused = BTreeMap::new();
-    for (user_id, request_id) in requests {
-        match snapback.issue_oauth_authorization_code(
-            &authority,
-            &request_id,
-            now_ms + 100,
-            &random,
-        ) {
-            Ok(_) => {
-                accepted.insert(user_id.to_owned());
+
+    let initial_rows = oauth_consent_rows_for_test(&mut snapback);
+    let mut expected_grants = requests
+        .iter()
+        .map(|(user_id, request_id, grant_id)| {
+            crate::storage::auth_integrations::OAuthGrantRowForTest {
+                grant_id: grant_id.clone(),
+                request_id: request_id.clone(),
+                actor_user_id: principal_user_id.clone(),
+                effective_user_id: user_id.clone(),
             }
-            Err(error) => {
-                refused.insert(user_id.to_owned(), error.diagnostic.code);
+        })
+        .collect::<Vec<_>>();
+    expected_grants.sort_by(|left, right| left.request_id.cmp(&right.request_id));
+    let mut expected_pairing_requests = requests
+        .iter()
+        .map(|(user_id, request_id, grant_id)| {
+            crate::storage::auth_integrations::OAuthPairingRequestRowForTest {
+                request_id: request_id.clone(),
+                minted_by_user_id: user_id.clone(),
+                state: "approved".to_owned(),
+                grant_id: Some(grant_id.clone()),
             }
+        })
+        .collect::<Vec<_>>();
+    expected_pairing_requests.sort_by(|left, right| left.request_id.cmp(&right.request_id));
+    let mut expected_authorizations = requests
+        .iter()
+        .map(|(user_id, request_id, _)| {
+            crate::storage::auth_integrations::OAuthAuthorizationRowForTest {
+                request_id: request_id.clone(),
+                principal_user_id: principal_user_id.clone(),
+                consenting_user_id: user_id.clone(),
+                status: "pending".to_owned(),
+                code_hash: None,
+                grant_id: None,
+                code_expires_at_ms: None,
+                consumed_at_ms: None,
+            }
+        })
+        .collect::<Vec<_>>();
+    expected_authorizations.sort_by(|left, right| left.request_id.cmp(&right.request_id));
+    assert_eq!(initial_rows.grants, expected_grants);
+    assert_eq!(initial_rows.pairing_requests, expected_pairing_requests);
+    assert_eq!(initial_rows.authorizations, expected_authorizations);
+
+    for (user_id, request_id, grant_id) in &requests {
+        let before = oauth_consent_rows_for_test(&mut snapback);
+        let result =
+            snapback.issue_oauth_authorization_code(&authority, request_id, now_ms + 100, &random);
+        let after = oauth_consent_rows_for_test(&mut snapback);
+        if user_id == "user-m" {
+            result.expect("authority user can issue their OAuth code");
+            let updated = after
+                .authorizations
+                .iter()
+                .find(|row| row.request_id == *request_id)
+                .expect("authority user's durable OAuth row exists");
+            assert_eq!(
+                updated.status, "approved",
+                "authority user's durable OAuth row must be the row updated"
+            );
+            assert_eq!(updated.grant_id.as_deref(), Some(grant_id.as_str()));
+            assert_eq!(updated.code_expires_at_ms, Some(61_100));
+            assert_eq!(updated.code_hash.as_deref().map(<[_]>::len), Some(32));
+
+            let mut expected = before;
+            let expected_updated = expected
+                .authorizations
+                .iter_mut()
+                .find(|row| row.request_id == *request_id)
+                .expect("authority user's expected OAuth row exists");
+            expected_updated.status = "approved".to_owned();
+            expected_updated.code_hash = updated.code_hash.clone();
+            expected_updated.grant_id = Some(grant_id.clone());
+            expected_updated.code_expires_at_ms = Some(61_100);
+            assert_eq!(after, expected);
+        } else {
+            assert_eq!(
+                result
+                    .expect_err("foreign OAuth code issuance must be refused")
+                    .diagnostic
+                    .code,
+                "SNAPBACK_AUTH_OAUTH_GRANT_INVALID"
+            );
+            assert_eq!(after, before);
         }
     }
-
-    assert_eq!(accepted, BTreeSet::from(["user-m".to_owned()]));
-    assert_eq!(
-        refused,
-        BTreeMap::from([
-            (
-                "user-a".to_owned(),
-                "SNAPBACK_AUTH_OAUTH_GRANT_INVALID".to_owned(),
-            ),
-            (
-                "user-z".to_owned(),
-                "SNAPBACK_AUTH_OAUTH_GRANT_INVALID".to_owned(),
-            ),
-        ])
-    );
 }
 
 #[test]
