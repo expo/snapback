@@ -16,20 +16,24 @@ reload frequently keeps serving the old descriptor and the app fails with
 The published-0.1.25 Clique pair (LLP 0306) restarted Metro about twelve
 times in Familiar M3 alone; both lanes learned "kill Metro" as a ritual.
 
-Verified still true on main at `9a782983d` (2026-08-24):
+Verified on main at `9a782983d` (2026-08-24) — with one correction from the
+LLP 0307 review round:
 
 - The only regeneration reaction in the supervisor is a binding remint
   published to the bootstrap exchange
   (`packages/snapback-cli/expo-dev.mjs:2798-2822`); nothing touches Metro.
 - The Metro spawn (`packages/snapback-cli/expo-dev.mjs:1743-1771`) passes no
   cache flags and is never re-invoked after codegen.
-- The codegen artifact inventory (`packages/snapback-codegen/index.mjs:8512`)
-  emits no stamp/invalidation-shaped artifact; the stable alias
-  `app.binding.mjs` re-exports the digest-named module, so the alias's
-  *import target* changes while its own path stays cached.
+- **Correction (2026-08-24 review):** the stable alias `app.binding.mjs`
+  *does* change bytes on rotation — `renderAppBindingAlias`
+  (`packages/snapback-codegen/index.mjs:16625-16632`) embeds the
+  digest-named specifier in its re-export line and the alias is rewritten
+  on every generation (`:21866`). So "make the alias bytes change" is
+  already implemented and is NOT the missing mechanism. The root cause of
+  the observed staleness is undiagnosed.
 - The Vite arm got a hot-load binding refresh (`e98961ad3`) and
   `packages/snapback-client/react-binding-hmr.mjs` re-admits after the bundler
-  replaces a module — but nothing makes Metro replace it in the first place.
+  replaces a module — but nothing verifies Metro replaces it.
 - LLP 0299 is silent on bundler caching; this is explicitly outside its
   scope ("0299 does not make Metro drop `app.descriptor.*`", LLP 0306 §B9).
 
@@ -43,22 +47,27 @@ next full published pin.
 
 ## Direction
 
-Treat generated identity like CSS: invalidate, don't restart. Candidate
-mechanisms (owner to choose):
+**Diagnose first, then invalidate — do not implement around an unconfirmed
+mechanism.** The alias bytes already rotate, so the staleness lives
+somewhere else. Reproduce under supervised Metro (`snapback dev --expo`,
+shipped `expo-chat` template), regenerate, and compare the alias file's
+bytes/mtime against what the served bundle actually contains. Candidate
+mechanisms to distinguish:
 
-- a stamp file in `snapback/generated/` that the shipped template's Metro
-  config watches, so rotation triggers a rebuild of the alias graph;
-- supervisor-driven Metro cache invalidation (Metro exposes
-  `--reset-cache` only at spawn, so this likely means template
-  `metro.config.js` wiring plus a file-watch nudge rather than a supervisor
-  RPC);
-- making the stable alias the only imported module and having codegen rewrite
-  its bytes on rotation (bytes change → Metro's ordinary file watch picks it
-  up), instead of an alias whose bytes are stable while its target rotates.
+- Metro's watcher does not cover `snapback/generated/` in the template's
+  configuration (projectRoot/watchFolders), so no rewrite is ever seen;
+- new-file detection: the digest-named module is a *created* file each
+  rotation; Metro's haste map/watcher may treat creations differently from
+  modifications of already-resolved modules;
+- the rewrite is seen but hot reload does not re-run the import chain
+  (no HMR boundary accepts the change → a full refresh is required but
+  never triggered), leaving the old hydrated descriptor live in the app;
+- `app.descriptor.json` (a JSON asset) caching independently of the module
+  graph.
 
-The third option looks smallest: Metro already watches project files; the
-problem is precisely that the alias file's bytes do not change when the
-digest-named target rotates.
+Whatever the repair, it must preserve the atomic generated-graph
+publication boundary (the digest-named module remains the sole hydrated
+binding; no partially-written graph may become importable).
 
 ## Acceptance
 

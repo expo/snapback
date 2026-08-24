@@ -66,11 +66,25 @@ The split is visible inside one file, ~50 lines apart:
   `TargetCapabilityId::ALL` or any target's `supportedCapabilities`; that is
   the structural hole that let the vocabularies drift.
 
-Minimal repair shape: add the id to the authorable set plus a parity test
-binding the authorable set to the Rust registry (or an explicit,
-tested allowlist of intentionally non-authorable ids), so the next
-capability cannot drift the same way. The settlement-ledger admission and
-queue-aware client acceptance below remain the larger half.
+Repair shape (revised 2026-08-24 per the LLP 0307 review round — a bare
+vocabulary add is explicitly ruled out): adding the id to the authorable
+set alone would convert today's generate-time fail-closed refusal into
+later runtime traps (the binding still omits the settlement ledger, so
+queue dispatch refuses at M7 time). Two-part repair instead:
+
+1. **Drift gate now, without changing authorability:** a parity test
+   binding `TARGET_CAPABILITY_IDS` to the Rust registry *through an
+   explicit, tested allowlist of intentionally non-authorable ids* (with
+   `offline_mutation_replay` on that allowlist today, each entry carrying
+   a reason). The gate stops future silent drift; the generate-time
+   refusal for allowlisted ids should name the full vocabulary table
+   (target facts ∩ authorable set ∩ binding offers ∩ client admission —
+   LLP 0306 idea 5) so the refusal teaches instead of mystifying.
+2. **Authorability lands only as one owned unit** (LLP 0253/0058 dated
+   amendment, LLP 0307 Track S3): schema acceptance + generated facts +
+   settlement-ledger binding admission + queue-aware client acceptance +
+   refuse-before-output for targets lacking the ledger — the acceptance
+   list below, together, never the id alone.
 
 ## Acceptance
 

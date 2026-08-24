@@ -40,14 +40,14 @@ Verified on main at `9a782983d` (2026-08-24):
    rules it to be) on the Familiar profile page, with retrieval-eval cases
    using the plausible wrong vocabulary ("familiar defineAuth", "auth in
    generated server").
-2. **LLP 0253 ruling:** either add `defineAuth` to the Familiar
-   entrypoint/export authority (updating the vertical-fixtures ticket's
-   list), or affirm the cross-package import as the paved path — in which
-   case the generated server module's `.d.ts` or a codegen advisory should
-   point at it when an agent tries the missing import.
-
-Either resolution closes the "worked around by source inspection" failure;
-leaving it undocumented guarantees the next lane repeats it.
+2. **LLP 0253 dated amendment (ruled by LLP 0307 question 4, r2):**
+   `defineAuth` is added to the Familiar entrypoint/export authority
+   (updating the vertical-fixtures ticket's list), with a vertical
+   fixture covering the exported spelling. The export ships from that
+   amendment, not from this ticket — this ticket owns only the guide
+   documentation half. (The `v.json<T>()` question was split off and
+   deferred to the canonical validator owners; it is not part of this
+   ticket.)
 
 ## Acceptance
 
